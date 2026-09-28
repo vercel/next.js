@@ -30,6 +30,7 @@
             ),
         ],
         span: 1..4,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "A",

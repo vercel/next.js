@@ -17,7 +17,13 @@ The HTML [`<video>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/v
 ```jsx filename="app/ui/video.jsx"
 export function Video() {
   return (
-    <video width="320" height="240" controls preload="none">
+    <video
+      width="320"
+      height="240"
+      poster="/path/to/poster.jpg"
+      controls
+      preload="none"
+    >
       <source src="/path/to/video.mp4" type="video/mp4" />
       <track
         src="/path/to/captions.vtt"
@@ -42,6 +48,7 @@ export function Video() {
 | `autoPlay`    | Automatically starts playing the video when the page loads. Note: Autoplay policies vary across browsers. | `<video autoPlay />`                 |
 | `loop`        | Loops the video playback.                                                                                 | `<video loop />`                     |
 | `muted`       | Mutes the audio by default. Often used with `autoPlay`.                                                   | `<video muted />`                    |
+| `poster`      | An image shown in the video's box until the first frame is available.                                     | `<video poster="/poster.jpg" />`     |
 | `preload`     | Specifies how the video is preloaded. Values: `none`, `metadata`, `auto`.                                 | `<video preload="none" />`           |
 | `playsInline` | Enables inline playback on iOS devices, often necessary for autoplay to work on iOS Safari.               | `<video playsInline />`              |
 
@@ -51,6 +58,8 @@ For a comprehensive list of video attributes, refer to the [MDN documentation](h
 
 ### Video best practices
 
+- **Dimensions:** Set `width` and `height`, or a CSS `aspect-ratio`, so the browser reserves the box before the file loads. A video without dimensions collapses and then pushes the rest of the page down, which counts against [Cumulative Layout Shift](https://web.dev/articles/cls).
+- **Poster Image:** Use `poster` to fill that reserved box while the video loads, especially with `preload="none"`, where no frame is fetched until playback starts.
 - **Fallback Content:** When using the `<video>` tag, include fallback content inside the tag for browsers that do not support video playback.
 - **Subtitles or Captions:** Include subtitles or captions for users who are deaf or hard of hearing. Utilize the [`<track>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/track) tag with your `<video>` elements to specify caption file sources.
 - **Accessible Controls:** Standard HTML5 video controls are recommended for keyboard navigation and screen reader compatibility. For advanced needs, consider third-party players like [react-player](https://github.com/cookpete/react-player) or [video.js](https://videojs.com/), which offer accessible controls and consistent browser experience.
@@ -77,7 +86,10 @@ export default function Page() {
 | `allowFullScreen` | Allows the iframe content to be displayed in full-screen mode.         | `<iframe allowFullScreen />`           |
 | `sandbox`         | Enables an extra set of restrictions on the content within the iframe. | `<iframe sandbox />`                   |
 | `loading`         | Optimize loading behavior (e.g., lazy loading).                        | `<iframe loading="lazy" />`            |
+| `style`           | Apply CSS, such as an `aspect-ratio` to keep the box a fixed shape.    | `<iframe style={{ border: 0 }} />`     |
 | `title`           | Provides a title for the iframe to support accessibility.              | `<iframe title="Description" />`       |
+
+An iframe without dimensions collapses until its content loads, the same as a video. Give it `width` and `height` or an `aspect-ratio`, particularly with `loading="lazy"`, where the embed can resolve long after the surrounding page has painted.
 
 For a comprehensive list of iframe attributes, refer to the [MDN documentation](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/iframe#attributes).
 
@@ -163,13 +175,13 @@ Self-hosting videos may be preferable for several reasons:
 
 ### Using Vercel Blob for video hosting
 
-[Vercel Blob](https://vercel.com/docs/storage/vercel-blob?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) offers an efficient way to host videos, providing a scalable cloud storage solution that works well with Next.js. Here's how you can host a video using Vercel Blob:
+[Vercel Blob](https://vercel.com/docs/vercel-blob?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) offers an efficient way to host videos, providing a scalable cloud storage solution that works well with Next.js. Here's how you can host a video using Vercel Blob:
 
 **1. Uploading a video to Vercel Blob**
 
-In your Vercel dashboard, navigate to the "Storage" tab and select your [Vercel Blob](https://vercel.com/docs/storage/vercel-blob?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) store. In the Blob table's upper-right corner, find and click the "Upload" button. Then, choose the video file you wish to upload. After the upload completes, the video file will appear in the Blob table.
+In your Vercel dashboard, navigate to the "Storage" tab and select your [Vercel Blob](https://vercel.com/docs/vercel-blob?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) store. In the Blob table's upper-right corner, find and click the "Upload" button. Then, choose the video file you wish to upload. After the upload completes, the video file will appear in the Blob table.
 
-Alternatively, you can upload your video using a server action. For detailed instructions, refer to the Vercel documentation on [server-side uploads](https://vercel.com/docs/storage/vercel-blob/server-upload). Vercel also supports [client-side uploads](https://vercel.com/docs/storage/vercel-blob/client-upload). This method may be preferable for certain use cases.
+Alternatively, you can upload your video using a server action. For detailed instructions, refer to the Vercel documentation on [server-side uploads](https://vercel.com/docs/vercel-blob/server-upload). Vercel also supports [client-side uploads](https://vercel.com/docs/vercel-blob/client-upload). This method may be preferable for certain use cases.
 
 **2. Displaying the video in Next.js**
 
@@ -207,7 +219,7 @@ In this approach, the page uses the video's `@vercel/blob` URL to display the vi
 
 ### Adding subtitles to your video
 
-If you have subtitles for your video, you can easily add them using the `<track>` element inside your `<video>` tag. You can fetch the subtitle file from [Vercel Blob](https://vercel.com/docs/storage/vercel-blob?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) in a similar way as the video file. Here's how you can update the `<VideoComponent>` to include subtitles.
+If you have subtitles for your video, you can easily add them using the `<track>` element inside your `<video>` tag. You can fetch the subtitle file from [Vercel Blob](https://vercel.com/docs/vercel-blob?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) in a similar way as the video file. Here's how you can update the `<VideoComponent>` to include subtitles.
 
 ```jsx filename="app/page.jsx"
 async function VideoComponent({ fileName }) {
@@ -237,13 +249,13 @@ To continue learning more about video optimization and best practices, please re
 - **Understanding video formats and codecs**: Choose the right format and codec, like MP4 for compatibility or WebM for web optimization, for your video needs. For more details, see [Mozilla's guide on video codecs](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Video_codecs).
 - **Video compression**: Use tools like FFmpeg to effectively compress videos, balancing quality with file size. Learn about compression techniques at [FFmpeg's official website](https://www.ffmpeg.org/).
 - **Resolution and bitrate adjustment**: Adjust [resolution and bitrate](https://www.dacast.com/blog/bitrate-vs-resolution/#:~:text=The%20two%20measure%20different%20aspects,yield%20different%20qualities%20of%20video) based on the viewing platform, with lower settings for mobile devices.
-- **Content Delivery Networks (CDNs)**: Utilize a CDN to enhance video delivery speed and manage high traffic. When using some storage solutions, such as Vercel Blob, CDN functionality is automatically handled for you. [Learn more](https://vercel.com/docs/edge-network/overview?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) about CDNs and their benefits.
+- **Content Delivery Networks (CDNs)**: Utilize a CDN to enhance video delivery speed and manage high traffic. When using some storage solutions, such as Vercel Blob, CDN functionality is automatically handled for you. [Learn more](https://vercel.com/docs/cdn?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) about CDNs and their benefits.
 
 Explore these video streaming platforms for integrating video into your Next.js projects:
 
 ### Open source `next-video` component
 
-- Provides a `<Video>` component for Next.js, compatible with various hosting services including [Vercel Blob](https://vercel.com/docs/storage/vercel-blob?utm_source=next-site&utm_medium=docs&utm_campaign=next-website), S3, Backblaze, and Mux.
+- Provides a `<Video>` component for Next.js, compatible with various hosting services including [Vercel Blob](https://vercel.com/docs/vercel-blob?utm_source=next-site&utm_medium=docs&utm_campaign=next-website), S3, Backblaze, and Mux.
 - [Detailed documentation](https://next-video.dev/docs) for using `next-video.dev` with different hosting services.
 
 ### Cloudinary Integration

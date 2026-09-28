@@ -19,6 +19,7 @@ import {
   registerUnhandledRejectionListener,
 } from '../node-environment-extensions/process-error-handlers'
 import { DecodeError } from '../../shared/lib/utils'
+import { deobfuscateText } from '../../shared/lib/magic-identifier'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import { setupFsCheck } from './router-utils/filesystem'
 import { proxyRequest } from './router-utils/proxy-request'
@@ -30,7 +31,6 @@ import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-pref
 import setupCompression from 'next/dist/compiled/compression'
 import { releaseCompressionStream } from './release-compression-stream'
 import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
-import { isPostpone } from './router-utils/is-postpone'
 import { isNonHtmlSecFetchDest } from './is-non-html-sec-fetch-dest'
 import { parseUrl as parseUrlUtil } from '../../shared/lib/router/utils/parse-url'
 
@@ -68,6 +68,7 @@ import {
   isChromeDevtoolsWorkspaceUrl,
 } from './chrome-devtools-workspace'
 import { getNextConfigRuntime, type NextConfigComplete } from '../config-shared'
+import { isCI } from '../ci-info'
 import {
   getRequestInsightsSnapshot,
   isRequestInsightsEnabled,
@@ -76,6 +77,42 @@ import {
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
   pathname && /\/media\/[^/]+\.(woff|woff2|eot|ttf|otf)$/.test(pathname)
+
+// ModuleBuildError can cross compiled module boundaries, so constructor
+// identity is not reliable. Check its stable fields and string prefix instead.
+function isModuleBuildError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') {
+    return false
+  }
+
+  const maybeError = error as {
+    code?: unknown
+    constructor?: { name?: unknown }
+    name?: unknown
+  }
+  const errorString = String(error)
+
+  return (
+    maybeError.name === 'ModuleBuildError' ||
+    maybeError.code === 'ModuleBuildError' ||
+    maybeError.constructor?.name === 'ModuleBuildError' ||
+    errorString.startsWith('ModuleBuildError:') ||
+    errorString.startsWith('Error [ModuleBuildError]:')
+  )
+}
+
+function getErrorMessage(error: unknown): string {
+  if (
+    error &&
+    typeof error === 'object' &&
+    'message' in error &&
+    typeof error.message === 'string'
+  ) {
+    return deobfuscateText(error.message)
+  }
+
+  return deobfuscateText(String(error))
+}
 
 export type RenderServer = Pick<
   typeof import('./render-server'),
@@ -155,6 +192,7 @@ export async function initialize(opts: {
     | undefined = undefined
 
   let originalFetch = globalThis.fetch
+  let hasVulnerabilityInsight: Promise<boolean> = Promise.resolve(false)
 
   if (opts.dev) {
     const { Telemetry } =
@@ -181,6 +219,73 @@ export async function initialize(opts: {
 
     // In development, it's always the complete config.
     let developmentConfig = config as NextConfigComplete
+
+    // Check only development; production startup does not query advisories.
+    if (
+      developmentConfig.experimental.agenticAutoUpgrade === 'security' ||
+      developmentConfig.experimental.agenticAutoUpgrade === 'latest' ||
+      developmentConfig.experimental.agenticAutoUpgrade === 'future' ||
+      process.env.__NEXT_AGENTIC_AUTO_UPGRADE ||
+      process.env.__NEXT_AGENT_UPGRADE_FORCE_DEVTOOLS_FOR_TESTING === '1'
+    ) {
+      const { nudgeUpgrade, getUpgradeContext, assessUpgrade } =
+        require('../../lib/upgrade/nudge') as typeof import('../../lib/upgrade/nudge')
+      const upgradeContext = getUpgradeContext(developmentConfig)
+      const installedVersion = process.env.__NEXT_VERSION || 'unknown'
+      const policy = upgradeContext.experimental.agenticAutoUpgrade
+      const forced = process.env.__NEXT_AGENTIC_AUTO_UPGRADE === policy
+      const forceDevToolsForTesting =
+        process.env.__NEXT_AGENT_UPGRADE_FORCE_DEVTOOLS_FOR_TESTING === '1'
+      const assessment: ReturnType<typeof assessUpgrade> =
+        isCI || forceDevToolsForTesting
+          ? Promise.resolve(null)
+          : assessUpgrade(
+              opts.dir,
+              upgradeContext,
+              installedVersion,
+              null,
+              forced
+            )
+      hasVulnerabilityInsight = assessment.then(
+        (result) => result?.kind === 'security' || forceDevToolsForTesting,
+        (error) => {
+          Log.warn(`Could not check the DevTools security insight: ${error}`)
+          return false
+        }
+      )
+      if (process.env.NEXT_PRIVATE_UPGRADE_PROMPT === '1' && process.send) {
+        // TODO: Do not block dev startup while prompting for an upgrade.
+        // Preserve all logs for display after the prompt and stop dev before Update.
+        // The existing dev worker pauses here while its parent owns the menu.
+        await new Promise<void>((resolve) => {
+          const resume = (message: {
+            nextUpgradeContinue: boolean | undefined
+          }) => {
+            if (message.nextUpgradeContinue) {
+              process.off('message', resume)
+              resolve()
+            }
+          }
+          process.on('message', resume)
+          process.send!({
+            nextUpgradeContext: upgradeContext,
+          })
+        })
+      } else {
+        void nudgeUpgrade(opts.dir, developmentConfig, 'dev').catch((error) => {
+          const { printAndExit } =
+            require('./utils') as typeof import('./utils')
+          const exitCode =
+            error && typeof error === 'object'
+              ? Reflect.get(error, 'exitCode')
+              : undefined
+          printAndExit(
+            error instanceof Error ? error.message : String(error),
+            typeof exitCode === 'number' ? exitCode : 1
+          )
+        })
+      }
+    }
 
     // Resolve the effective serverFastRefresh value.
     // Both default to enabled (true). CLI takes precedence over config.
@@ -219,6 +324,7 @@ export async function initialize(opts: {
         onDevServerCleanup: opts.onDevServerCleanup,
         resetFetch,
         serverFastRefresh: effectiveServerFastRefresh,
+        hasVulnerabilityInsight,
       })
     )
 
@@ -602,6 +708,10 @@ export async function initialize(opts: {
             res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate')
             res.setHeader('Service-Worker-Allowed', config.basePath || '/')
           } else if (opts.dev && !isNextFont(parsedUrl.pathname)) {
+            // Development assets stay revalidatable. `serveStatic` adds an
+            // `ETag`, so the browser sends a conditional request and reuses the
+            // stored body when the server answers `304`. This keeps the browser
+            // from downloading every chunk again on each page load.
             res.setHeader('Cache-Control', 'no-cache, must-revalidate')
           } else {
             res.setHeader(
@@ -689,12 +799,38 @@ export async function initialize(opts: {
       if (matchedOutput) {
         invokedOutputs.add(matchedOutput.itemPath)
 
+        // fsChecker preserves compilation errors from its dev ensure step so
+        // the route remains matched. Log the compiler diagnostic, then render
+        // the matched route as a 500 instead of falling through to a 404.
+        if (matchedOutput.error && development) {
+          development.bundler.logErrorWithOriginalStack(
+            matchedOutput.error,
+            matchedOutput.type === 'appFile' ? 'app-dir' : undefined
+          )
+        }
+
         return await invokeRender(
           parsedUrl,
           parsedUrl.pathname || '/',
           handleIndex,
           {
             invokeOutput: matchedOutput.itemPath,
+            ...(matchedOutput.error
+              ? {
+                  invokeStatus: 500,
+                  invokeError: matchedOutput.error,
+                }
+              : undefined),
+            // fsChecker owns the route match for filesystem requests. Forward
+            // it so BaseServer does not need the removed matcher manager.
+            ...(matchedOutput.route
+              ? {
+                  match: {
+                    definition: matchedOutput.route,
+                    params: matchedOutput.params,
+                  },
+                }
+              : undefined),
           }
         )
       }
@@ -792,6 +928,10 @@ export async function initialize(opts: {
         if (err instanceof DecodeError) {
           invokePath = '/400'
           invokeStatus = '400'
+        } else if (isModuleBuildError(err)) {
+          // Webpack compilation failures may bubble out of invokeRender. Log
+          // the readable diagnostic without printing the wrapper stack again.
+          Log.error(getErrorMessage(err))
         } else {
           console.error(err)
         }
@@ -879,11 +1019,6 @@ export async function initialize(opts: {
   }
 
   const logError = async (err: Error | undefined) => {
-    if (isPostpone(err)) {
-      // React postpones that are unhandled might end up logged here but they're
-      // not really errors. They're just part of rendering.
-      return
-    }
     Log.error('uncaughtException: ', err)
   }
 
@@ -1024,6 +1159,7 @@ export async function initialize(opts: {
     cacheComponents: config.cacheComponents,
     partialPrefetching: config.partialPrefetching,
     agentRules: config.agentRules,
+    agentFeedback: config.experimental.agentFeedback,
     devMemoryThresholdRestart,
   }
 }

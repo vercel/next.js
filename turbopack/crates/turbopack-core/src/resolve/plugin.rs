@@ -38,7 +38,11 @@ impl AfterResolvePluginCondition {
     pub fn matches(&self, fs_path: &FileSystemPath) -> bool {
         match self {
             AfterResolvePluginCondition::Glob { root, glob } => {
-                root.get_path_to(fs_path).is_some_and(|p| glob.matches(p))
+                if root.fs == fs_path.fs {
+                    root.get_path_to(fs_path).is_some_and(|p| glob.matches(p))
+                } else {
+                    glob.matches(&fs_path.path)
+                }
             }
             AfterResolvePluginCondition::Always => true,
             AfterResolvePluginCondition::Never => false,

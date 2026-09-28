@@ -1,7 +1,12 @@
+import { InvariantError } from '../shared/lib/invariant-error'
+import { createPromiseWithResolvers } from '../shared/lib/promise-with-resolvers'
+import { EnsureStaticLevel } from './app-render/segment-config/ensure-static'
 import {
   RenderStage,
+  type StagedRenderingController,
   type AdvanceableRenderStage,
 } from './app-render/staged-rendering'
+import { workAsyncStorage } from './app-render/work-async-storage.external'
 import type {
   RequestStore,
   WorkUnitStore,
@@ -77,8 +82,6 @@ const abortListenersBySignal = new WeakMap<AbortSignal, AbortListeners>()
  * filled by a real dynamic request, so a runtime prefetch response would have
  * the same holes as the static one. If the data source would resolve during a
  * runtime prerender, use `makeRuntimeHangingPromise` instead.
- *
- * @internal
  */
 export function makeDynamicHangingPromise<T>(
   signal: AbortSignal,
@@ -103,68 +106,124 @@ export function makeUntrackedHangingPromise<T>(
 }
 
 /**
- * Constructs a promise that never resolves, standing in for *runtime* data:
- * data that hangs during a static prerender but is available during a runtime
- * prerender (the kind that backs a runtime prefetch request: request data
- * like cookies and headers is available, but the render is still not a real
- * dynamic request). Examples: cookies, headers, fallback params,
- * searchParams, and cache entries that are excluded only from static
- * prerenders.
+ * Constructs a promise that never resolves, standing in for session data
+ * (which a runtime shell can access).
+ * Examples: cookies, headers
  *
- * Creating one of these during a static prerender records on the prerender
+ * Awaiting one of these during a static prerender records on the prerender
+ * store that a runtime shell would produce more content than the static
+ * static shell, which the segment prefetch encoding uses
+ * to tell the client whether a runtime request could be skipped.
+ *
+ * When unsure whether data is dynamic or runtime, prefer this method — the
+ * cost of over-recording is a redundant runtime prefetch request; the cost of
+ * under-recording is a permanently missing one.
+ *
+ * For fallback-param data — data a concrete (ISR-upgraded) prerender would
+ * resolve — use `makeFallbackParamsHangingPromise` instead, so the access
+ * is recorded with the right effect on the static-prefetch hint.
+ */
+export function makeSessionDataHangingPromise<T>(
+  signal: AbortSignal,
+  route: string,
+  expression: string,
+  workUnitStore: WorkUnitStore
+): Promise<T> {
+  const promise = makeHangingPromiseWithError<T>(
+    signal,
+    new HangingPromiseRejectionError(route, expression)
+  )
+  return trackPromiseUsed(
+    promise,
+    trackSessionDataAccessed.bind(null, workUnitStore, expression)
+  )
+}
+
+/**
+ * Constructs a promise that never resolves, standing in for URL data,
+ * which can be accessed in a runtime prefetch (but not a runtime shell).
+ * Examples: fallback params, searchParams
+ *
+ * Awaiting one of these during a static prerender records on the prerender
  * store that a runtime prefetch would produce more content than the static
- * response (`runtimeDataAccessed`), which the segment prefetch encoding uses
+ * response, which the segment prefetch encoding uses
  * to tell the client whether a runtime prefetch request could be skipped.
  *
  * When unsure whether data is dynamic or runtime, prefer this method — the
  * cost of over-recording is a redundant runtime prefetch request; the cost of
  * under-recording is a permanently missing one.
  *
- * `workUnitStore` may be null ONLY when the caller tracks the access itself
- * at observation time instead of creation time. This is for promises the
- * framework creates eagerly whether or not anything reads them (e.g. the
- * `searchParams` prop constructed for every page): recording at creation
- * would mark every render. Such a caller MUST call `trackRuntimeDataAccessed`
- * from every path that observes the promise (e.g. the proxy traps for
- * `then`/`status`), against the work unit store active at access time.
+ * `workUnitStore` may be null ONLY when the caller tracks the access itself.
+ * Such a caller MUST call `trackURLDataAccessed` from every path that
+ * observes the promise (e.g. the proxy traps for `then`/`status`),
+ * against the work unit store active at access time.
  *
  * For fallback-param data — data a concrete (ISR-upgraded) prerender would
  * resolve — use `makeFallbackParamsHangingPromise` instead, so the access
  * is recorded with the right effect on the static-prefetch hint.
- *
- * @internal
  */
-export function makeRuntimeHangingPromise<T>(
+export function makeURLDataHangingPromise<T>(
   signal: AbortSignal,
   route: string,
   expression: string,
   workUnitStore: WorkUnitStore | null
 ): Promise<T> {
-  if (workUnitStore !== null) {
-    trackRuntimeDataAccessed(workUnitStore)
-  }
-  return makeHangingPromiseWithError(
+  const promise = makeHangingPromiseWithError<T>(
     signal,
     new HangingPromiseRejectionError(route, expression)
   )
+  if (workUnitStore === null) {
+    return promise
+  }
+  return trackPromiseUsed(
+    promise,
+    trackURLDataAccessed.bind(null, workUnitStore, expression)
+  )
+}
+
+/**
+ * Creates a promise that stands in for a result that will either be session data
+ * or URL data, but we don't know which.
+ */
+export function makeUnknownRuntimeDataHangingPromise<T>(
+  signal: AbortSignal,
+  route: string,
+  expression: string,
+  workUnitStore: WorkUnitStore
+): Promise<T> {
+  // We don't know if this is session or URL data, i.e. if it should affect the shell
+  // or only the prefetch. Track it conservatively as affecting both.
+  return makeSessionDataHangingPromise(signal, route, expression, workUnitStore)
+}
+
+/**
+ * Constructs a promise that never resolves, standing in for data that is only
+ * accessible in the prefetch, but not in the shell, e.g. `unstable_prefetch()`.
+ * This usage does *not* indicate that a runtime request is needed,
+ * only that the data is not available in a shell.
+ *
+ * @internal
+ */
+export function makePrefetchHangingPromise<T>(
+  signal: AbortSignal,
+  route: string,
+  expression: string
+): Promise<T> {
+  return makeUntrackedHangingPromise(signal, route, expression)
 }
 
 /**
  * Variant of `makeRuntimeHangingPromise` for *fallback-param* data: fallback
  * route params and values derived solely from them (`params`, `rootParams`,
- * `pathname` during a fallback prerender). Like every runtime data access it
- * records the access on the prerender store's response-level flag, but its
- * effect on the build-time static-prefetch hint differs — on a
+ * `pathname` during a fallback prerender). Like every runtime data access,
+ * awaiting it records the access on the prerender store's response-level flag,
+ * but its effect on the build-time static-prefetch hint differs — on a
  * fallback-upgradeable route the access is transient (a concrete prerender
- * resolves it), so it leaves the hint intact. See
- * `trackFallbackParamsAccessed`.
+ * resolves it), so it leaves the hint intact. See `trackFallbackParamsAccessed`.
  *
  * As with `makeRuntimeHangingPromise`, `workUnitStore` may be null ONLY when
- * the caller tracks the access itself at observation time instead of creation
- * time, by calling `trackFallbackParamsAccessed` from every path that
- * observes the promise.
- *
- * @internal
+ * the caller tracks the access itself by calling `trackFallbackParamsAccessed`
+ * from every path that observes the promise.
  */
 export function makeFallbackParamsHangingPromise<T>(
   signal: AbortSignal,
@@ -172,59 +231,104 @@ export function makeFallbackParamsHangingPromise<T>(
   expression: string,
   workUnitStore: WorkUnitStore | null
 ): Promise<T> {
-  if (workUnitStore !== null) {
-    trackFallbackParamsAccessed(workUnitStore)
-  }
-  return makeHangingPromiseWithError(
+  const promise = makeHangingPromiseWithError<T>(
     signal,
     new HangingPromiseRejectionError(route, expression)
   )
+  if (workUnitStore === null) {
+    return promise
+  }
+  return trackPromiseUsed(
+    promise,
+    trackFallbackParamsAccessed.bind(null, workUnitStore, expression)
+  )
+}
+
+export type PrerenderDataTracking = {
+  /**
+   * Records when the render has accessed a request data source
+   * that hangs during a static prerender but would resolve during a runtime
+   * prerender — cookies, headers, fallback params, searchParams, and cache
+   * entries excluded only from static prerenders.
+   *
+   * The client uses this promise as the actual source of truth for whether a segment
+   * needs a runtime request. Prefetch hints can become stale after a revalidation,
+   * so if a hint says a static request should be enough but `runtimeDataAccessed`
+   * resolves to `true`, a follow-up runtime request will be issued.
+   * This applies to both shells and prefetches.
+   *
+   * The promise is embedded in the RSC payload (`InitialRSCPayload['u']`),
+   * and is meant to be rewindable. This means that the shell might not have
+   * any runtime data accesses, even when the prefetch does.
+   * (this has some subtleties; see `markRuntimeDataAccessWhenStageReached`
+   * for more)
+   *
+   * After the prerender, the promise is consumed by `collectSegmentData` and each
+   * static prefetch will contain it (`PrefetchFlightResponse['u']`).
+   * However, all the segments for a route will use the same promise (because we're
+   * only tracking this on the page level) so if one segment needs runtime data, then
+   * all segments will be marked as such.
+   * However, on the client `isPartial` takes precedence over `runtimeDataAccessed`,
+   * so complete segments will not end up being deopted.
+   */
+  readonly runtimeDataAccessed: PromiseWithResolvers<boolean>
+
+  /** Corresponds to `PrefetchHint.ShouldAttemptStaticShell`. */
+  shouldAttemptStaticShell: boolean
+  /** Corresponds to `PrefetchHint.ShouldAttemptStaticPrefetch`. */
+  shouldAttemptStaticPrefetch: boolean
+}
+
+export function createPrerenderDataTracking(): PrerenderDataTracking {
+  return {
+    runtimeDataAccessed: createPromiseWithResolvers(),
+    shouldAttemptStaticShell: true,
+    shouldAttemptStaticPrefetch: true,
+  }
+}
+
+export function finishPrerenderDataTracking(
+  prerenderDataTracking: PrerenderDataTracking
+) {
+  // If a runtime data access already resolved this promise, this is a no-op.
+  prerenderDataTracking.runtimeDataAccessed.resolve(false)
 }
 
 /**
- * Constructs a promise that never resolves, standing in for data that is only
- * accessible in a later *stage* of rendering than this render reaches — e.g.
- * a prefetchable short-stale cache entry that's excluded from shells when the
- * render ends at the shell stage, or params during a runtime-prefetch render
- * that stops before the stage where params resolve.
+ * Records on a static prerender store that the render accessed a data source
+ * which would have resolved in a runtime shell (or runtime prefetch).
+ * No-op for all other store types.
  *
- * A render that runs through the later stage would include the data; in
- * particular a runtime prefetch renders through its later stages, so on a
- * static prerender store this records `runtimeDataAccessed`, same as
- * `makeRuntimeHangingPromise`.
- *
- * @internal
+ * Prefer `makeRuntimeHangingPromise`. Use this function only when implementing
+ * similar tracking and that one is not enough.
  */
-export function makeStageHangingPromise<T>(
-  signal: AbortSignal,
-  route: string,
-  expression: string,
-  workUnitStore: WorkUnitStore
-): Promise<T> {
-  trackRuntimeDataAccessed(workUnitStore)
-  return makeHangingPromiseWithError(
-    signal,
-    new HangingPromiseRejectionError(route, expression)
+function trackSessionDataAccessed(
+  workUnitStore: WorkUnitStore,
+  expression: string
+): void {
+  trackRuntimeDataAccessed(
+    workUnitStore,
+    PrerenderDataKind.SessionData,
+    expression
   )
 }
 
 /**
  * Records on a static prerender store that the render accessed a data source
- * which would have resolved during a runtime prerender. No-op for all other
- * store types.
+ * which would have resolved in a runtime prefetch (but NOT in a runtime shell)
+ *  No-op for all other store types.
  *
- * `makeRuntimeHangingPromise` and `makeStageHangingPromise` call this
- * automatically; call it directly only where the access is observed
- * separately from the promise's creation (see the null `workUnitStore` case
- * of `makeRuntimeHangingPromise`), or where the prerender is aborted
- * synchronously instead of hanging.
+ * Prefer `makeRuntimeHangingPromise`. Use this function only when implementing
+ * similar tracking and that one is not enough.
  *
  * For fallback-param data, use `trackFallbackParamsAccessed` instead. When
- * unsure, this is the conservative choice: it unconditionally clears the
- * static-prefetch hint.
+ * unsure, this is the conservative choice.
  */
-export function trackRuntimeDataAccessed(workUnitStore: WorkUnitStore): void {
-  trackRuntimeDataAccessedImpl(workUnitStore, false)
+export function trackURLDataAccessed(
+  workUnitStore: WorkUnitStore,
+  expression: string
+): void {
+  trackRuntimeDataAccessed(workUnitStore, PrerenderDataKind.UrlData, expression)
 }
 
 /**
@@ -236,45 +340,154 @@ export function trackRuntimeDataAccessed(workUnitStore: WorkUnitStore): void {
  * concrete prerender that resolves it.
  */
 export function trackFallbackParamsAccessed(
-  workUnitStore: WorkUnitStore
+  workUnitStore: WorkUnitStore,
+  expression: string
 ): void {
-  trackRuntimeDataAccessedImpl(workUnitStore, true)
+  trackRuntimeDataAccessed(
+    workUnitStore,
+    PrerenderDataKind.FallbackParams,
+    expression
+  )
 }
 
-function trackRuntimeDataAccessedImpl(
+const enum PrerenderDataKind {
+  SessionData = 1,
+  UrlData = 2,
+  FallbackParams = 3,
+}
+
+function trackRuntimeDataAccessed(
   workUnitStore: WorkUnitStore,
-  isFallbackParamAccess: boolean
+  dataKind: PrerenderDataKind,
+  expression: string
 ): void {
   switch (workUnitStore.type) {
     case 'prerender': {
-      // Response-level flag (the payload's `u`, forwarded to segment
-      // responses as `needsRuntimeRequest`): resolved for every kind of
-      // access — a pre-upgrade fallback response must keep reporting that
-      // a runtime request would return more. The fulfillment row lands at
-      // the current position in the Flight stream, which is what makes the
-      // value rewindable per stage. Promise resolution is idempotent, so
-      // repeated accesses are free.
-      workUnitStore.runtimeDataAccessed?.resolve(true)
-
-      // Hint cell (holds the build-constant
-      // PrefetchHint.ShouldAttemptStaticPrefetch value directly): a
-      // fallback-param access is transient when the route is
-      // fallback-upgradeable — ISR later produces the concrete prerender a
-      // static prefetch attempt would hit — so it leaves the hint intact.
-      // (Until that upgrade, the response-level flag above keeps directing
-      // the client to a runtime fallback; the hint only costs a wasted
-      // static attempt in the interim.) Every other access clears it.
-      const hintCell = workUnitStore.shouldAttemptStaticPrefetch
-      if (
-        hintCell !== null &&
-        (!isFallbackParamAccess || !workUnitStore.isFallbackUpgradeable)
-      ) {
-        hintCell.current = false
+      const { prerenderDataTracking, stagedRendering } = workUnitStore
+      if (!prerenderDataTracking || !stagedRendering) {
+        return
       }
+      const { currentStage } = stagedRendering
+      if (currentStage === RenderStage.Before) {
+        console.error(
+          new InvariantError(
+            'Unexpected trackRuntimeDataAccessed in the Before stage.'
+          )
+        )
+        return
+      }
+      if (currentStage >= RenderStage.NavigationStatic) {
+        // Ignore any accesses that happen after `navigation()` resolves.
+        // The purpose of this tracking is to judge whether a runtime prefetch
+        // would give us a more complete result than a static one.
+        // But `navigation()` wouldn't have resolved in a runtime prefetch,
+        // so e.g. `await navigation(); await cookies()` wouldn't have more content
+        // in those, and we shouldn't count it.
+        return
+      }
+
+      const ensureStaticLevel =
+        workUnitStore.ensureStaticLevel ?? EnsureStaticLevel.None
+
+      // NOTE: In general, we keep hints in sync with `needsRuntimeRequest`, but they
+      // don't have to always match. The client re-uses hints for the entire route,
+      // while `needsRuntimeRequest` can vary across individual prerendered param values
+      // (e.g. if cookies are accessed depending on a param value).
+      // Hints can also become outdated if a route only starts using runtime data
+      // after a revalidation, so we have to expect this and be resilient to it.
+      // Also see the upgradeable fallback params case below, which deliberately
+      // puts them out of sync.
+
+      switch (dataKind) {
+        case PrerenderDataKind.SessionData: {
+          // Potentially deopt both the shell and the prefetch,
+          // because if the shell accessed runtime data, so does the prefetch.
+          // However, if we're already past the shell stage, the shell is not affected.
+          // (which makes e.g. `await prefetch(); await cookies()` only affect the prefetch)
+          let firstAffectedStage:
+            | RenderStage.ShellStatic
+            | RenderStage.PrefetchStatic
+            | null = null
+
+          if (
+            currentStage <= RenderStage.ShellStatic &&
+            // Only track if we're not forcing the shell to be static.
+            ensureStaticLevel < EnsureStaticLevel.Shell
+          ) {
+            prerenderDataTracking.shouldAttemptStaticShell = false
+            firstAffectedStage ??= RenderStage.ShellStatic
+            logRuntimeDeopt?.(expression, 'shell')
+          }
+
+          if (
+            currentStage <= RenderStage.PrefetchStatic &&
+            // Only track if we're not forcing the prefetch to be static.
+            ensureStaticLevel < EnsureStaticLevel.Prefetch
+          ) {
+            prerenderDataTracking.shouldAttemptStaticPrefetch = false
+            // NOTE: if the shell is affected, don't override it.
+            firstAffectedStage ??= RenderStage.PrefetchStatic
+            logRuntimeDeopt?.(expression, 'prefetch')
+          }
+
+          if (firstAffectedStage !== null) {
+            markRuntimeDataAccessWhenStageReached(
+              prerenderDataTracking,
+              stagedRendering,
+              firstAffectedStage
+            )
+          }
+          break
+        }
+        case PrerenderDataKind.FallbackParams: {
+          if (workUnitStore.isFallbackUpgradeable) {
+            // An fallback-param access is transient when the route is
+            // fallback-upgradeable (i.e. ISR later produces the concrete prerender a
+            // static prefetch would hit) so it does not indicate the need for a runtime
+            // request and thus does not affect the static hints.
+            //
+            // If runtime prefetches are not disallowed by `ensureStatic`, then we still
+            // set `runtimeDataAccessed` (while keeping the hints static). This means that
+            // if the concrete prerender isn't ready yet and we served the fallback, then
+            // the client knows it can use a *runtime* prefetch for speculative links --
+            // a runtime prefetch can provide the same content (or more) as the concrete
+            // prerender would.
+            if (ensureStaticLevel < EnsureStaticLevel.Prefetch) {
+              markRuntimeDataAccessWhenStageReached(
+                prerenderDataTracking,
+                stagedRendering,
+                // `params` are URL data, so they only affect the prefetch
+                RenderStage.PrefetchStatic
+              )
+              logRuntimeUpgradeableFallback?.()
+            }
+            break
+          }
+          // not an upgradeable fallback param access, so we treat it as URL data.
+          // intentional fallthrough
+        }
+        case PrerenderDataKind.UrlData: {
+          // Only deopt the prefetch, not the shell, which cannot access URL data anyway.
+          if (
+            currentStage <= RenderStage.PrefetchStatic &&
+            ensureStaticLevel < EnsureStaticLevel.Prefetch
+          ) {
+            prerenderDataTracking.shouldAttemptStaticPrefetch = false
+            logRuntimeDeopt?.(expression, 'prefetch')
+
+            markRuntimeDataAccessWhenStageReached(
+              prerenderDataTracking,
+              stagedRendering,
+              RenderStage.PrefetchStatic
+            )
+          }
+          break
+        }
+      }
+
       break
     }
     case 'prerender-client':
-    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'prerender-runtime':
     case 'validation-client':
@@ -282,13 +495,104 @@ function trackRuntimeDataAccessedImpl(
     case 'cache':
     case 'private-cache':
     case 'unstable-cache':
-    case 'generate-static-params':
+    case 'build-time-generator':
       // Only the modern server prerender tracks this; see the field docs on
       // PrerenderStoreModernServer.
       break
     default:
       workUnitStore satisfies never
   }
+}
+
+/**
+ * Tracks a runtime data access on the `runtimeDataAccessed` promise,
+ * but with a delay until `targetStage`.
+ *
+ * When we encounter a URL data access like `await params`, we need to mark the
+ * *prefetch* as needing runtime data, but the *shell* should remain unaffected
+ * (because it cannot access params anyway).
+ *
+ * However, the shell and the prefetch share one `runtimeDataAccessed` promise,
+ * and it needs to be accurately rewindable by the client
+ * In other words, we need to make sure that it reads as `false` when rewound
+ * to a shell, but as `true` in the final response (the prefetch).
+ *
+ * This means that if the `await params` is encountered during the shell stage, we
+ * cannot resolve `runtimeDataAccessed` immediately.
+ * Instead, we delay the resolution until the PrefetchStatic stage, so the promise
+ * will remain unresolved when rewound to the shell stage (which reads as `false`).
+ */
+function markRuntimeDataAccessWhenStageReached(
+  prerenderDataTracking: PrerenderDataTracking,
+  stageController: StagedRenderingController,
+  targetStage: AdvanceableRenderStage
+) {
+  const { runtimeDataAccessed } = prerenderDataTracking
+  // NOTE: If we're already in or past the target stage, we can avoid allocating a closure,
+  // because `onStage` would've executed the callback immediately anyway.
+  if (stageController.currentStage >= targetStage) {
+    runtimeDataAccessed.resolve(true)
+  } else {
+    stageController.onStage(
+      targetStage,
+      runtimeDataAccessed.resolve.bind(null, true)
+    )
+  }
+}
+
+const logRuntimeDeopt = process.env.NEXT_PRIVATE_DEBUG_RUNTIME_DATA
+  ? (expression: string, kind: 'shell' | 'prefetch') => {
+      const { route } = workAsyncStorage.getStore()!
+      console.log(
+        `Route '${route}': deopting to a runtime ${kind} because it used ${expression}`
+      )
+    }
+  : undefined
+
+const logRuntimeUpgradeableFallback = process.env
+  .NEXT_PRIVATE_DEBUG_RUNTIME_DATA
+  ? () => {
+      const { route } = workAsyncStorage.getStore()!
+      console.log(
+        `Route '${route}': marking upgradeable fallback as runtime prefetchable`
+      )
+    }
+  : undefined
+
+/**
+ * Signals that we cannot recover both a runtime shell and a static (PPR) shell
+ * from the same render. Use this whenever the stage of a promise varies on
+ * `RequestStore.needsRuntimeShell`.
+ * */
+export function trackIncompatibleShellContent(
+  workUnitStore: RequestStore,
+  reason: string
+) {
+  const { stagedRendering } = workUnitStore
+  if (!stagedRendering) {
+    return
+  }
+
+  // TODO(app-shells): optimize this to only consider stages that are relevant for validation.
+  // We should only track incompatible content when it can affect them.
+  // For now, we simply exclude everything that happens in the dynamic stage.
+  // (Note that we also need to account for cache misses that move things to a
+  // different stage -- those should also preemptively set `hasIncompatibleShellContent`
+  // because there's a chance that a render with warm caches would set it)
+  const { currentStage } = stagedRendering
+  if (
+    currentStage === RenderStage.Dynamic ||
+    currentStage === RenderStage.Abandoned
+  ) {
+    return
+  }
+  if (process.env.NEXT_PRIVATE_DEBUG_VALIDATION) {
+    const workStore = workAsyncStorage.getStore()!
+    console.log(
+      `Route ${workStore.route}: Incompatible shell content: ${reason}`
+    )
+  }
+  workUnitStore.hasIncompatibleShellContent = true
 }
 
 export function makeClientHookHangingPromise<T>(
@@ -372,9 +676,77 @@ export function makeDevtoolsIOAwarePromise<T>(
   })
 }
 
+/**
+ * Invokes `onUse` whenever `then()/catch()/finally()` are called on the promise
+ * or when the promise is awaited. */
+export function trackPromiseUsed<T>(
+  promise: Promise<T>,
+  onUse: () => void
+): Promise<T> {
+  // We can instrument `.then()/.catch()/.finally()` in one go by using a Promise subclass
+  // that implements a custom `.then()`, because `catch` and `finally` delegate to it.
+  //
+  // Alternative implementation ideas that were tried and rejected:
+  //
+  // 1. Patching the methods directly via `promise.then = (..args) => { ... }`:
+  //   doesn't work, because Node does not call the monkeypatched methods for native `await`:
+  //   > Native Promise [...]: The promise is directly used and awaited natively, without calling `then()`.
+  //   > https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/await#description
+  //
+  // 2. Wrapping in a proxy that returns a custom `then/catch/finally`:
+  //   breaks async stacks in React's IO tracking (stack becomes `Promise.then`)
+  return TrackedPromise.from<T>(promise, onUse)
+}
+
+class TrackedPromise<T> extends Promise<T> {
+  #onUse: (() => void) | null = null
+
+  // We don't need derived promises to also be a TrackedPromise.
+  // We only care about the first level of `.then()`.
+  static get [Symbol.species]() {
+    return Promise
+  }
+
+  static from<T>(promise: Promise<T>, onUse: () => void): TrackedPromise<T> {
+    // Whenever the promise we're tracking resolves/rejects, we should follow.
+    const tracked = new TrackedPromise<T>(promise.then.bind(promise))
+
+    tracked.#onUse = onUse
+
+    // Hanging promises catch rejections when created. Tracked promises are generally derived
+    // from promises that may hang & reject, so we need to do the same.
+    // However, we have to bypass the tracking we do in `TrackedPromise.then`.
+    // (we're using `then` directly, because `catch` ends up delegating `TrackedPromise.then`)
+    Promise.prototype.then.call(tracked, undefined, ignoreReject)
+
+    return tracked
+  }
+
+  then<TResult1, TResult2>(
+    onFulfilled?: (value: T) => TResult1 | PromiseLike<TResult1>,
+    onRejected?: (reason: unknown) => TResult2 | PromiseLike<TResult2>
+  ): Promise<TResult1 | TResult2> {
+    const onUse = this.#onUse
+    if (onUse) {
+      try {
+        onUse()
+      } catch (err) {
+        // We don't want to break the method even if our tracking errored.
+        console.error(err)
+      }
+    }
+
+    return Promise.prototype.then.call(
+      this,
+      onFulfilled,
+      onRejected
+    ) as Promise<TResult1 | TResult2>
+  }
+}
+
 export const RENDER_STAGES_BY_DATA_KIND = {
   sessionData: RenderStage.ShellRuntime as const,
-  staticLinkData: RenderStage.Static as const,
+  staticLinkData: RenderStage.PrefetchStatic as const,
   runtimeLinkData: RenderStage.Runtime as const,
 }
 
@@ -402,12 +774,11 @@ export function applyOwnerStack(error: Error): Error {
       case 'unstable-cache':
       case 'request':
       case 'prerender':
-      case 'prerender-ppr':
       case 'prerender-legacy':
       case 'prerender-runtime':
       case 'prerender-client':
       case 'validation-client':
-      case 'generate-static-params':
+      case 'build-time-generator':
       case undefined:
         ownerStack = innerOwnerStack
         break

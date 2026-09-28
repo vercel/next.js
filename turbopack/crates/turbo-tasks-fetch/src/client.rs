@@ -14,6 +14,9 @@ use turbo_tasks::{
     ResolvedVc, Vc, duration_span, util::StaticOrArc,
 };
 
+// Route every `reqwest::…` path in this module to the local stand-in on wasm.
+#[cfg(target_family = "wasm")]
+use crate::wasm_reqwest as reqwest;
 use crate::{FetchError, FetchResult, HttpResponse, HttpResponseBody};
 
 const MAX_CLIENTS: usize = 16;

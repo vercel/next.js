@@ -1,7 +1,7 @@
 use std::{env, fmt::Debug, future::Future, sync::Arc};
 
 use anyhow::Result;
-use turbo_tasks::{TurboTasks, TurboTasksApi, trace::TraceRawVcs};
+use turbo_tasks::{TurboTasks, TurboTasksApi};
 use turbo_tasks_backend::TurboTasksBackend;
 
 /// A freshly created test instance: the `TurboTasks` handle (type-erased to
@@ -70,7 +70,7 @@ pub async fn run_once_without_cache_check<T>(
     fut: impl Future<Output = T> + Send + 'static,
 ) -> T
 where
-    T: TraceRawVcs + Send + 'static,
+    T: Send + 'static,
 {
     let name = closure_to_name(&fut);
     let instance = registration.create_turbo_tasks(&name, true);
@@ -84,7 +84,7 @@ pub async fn run_without_cache_check<T>(
     fut: impl Future<Output = T> + Send + 'static,
 ) -> T
 where
-    T: TraceRawVcs + Send + 'static,
+    T: Send + 'static,
 {
     let name = closure_to_name(&fut);
     let instance = registration.create_turbo_tasks(&name, true);
@@ -104,7 +104,7 @@ pub async fn run_once<T, F>(
 ) -> Result<()>
 where
     F: Future<Output = Result<T>> + Send + 'static,
-    T: Debug + PartialEq + Eq + TraceRawVcs + Send + 'static,
+    T: Debug + PartialEq + Eq + Send + 'static,
 {
     run_with_tt(registration, move |tt| turbo_tasks::run_once(tt, fut())).await
 }
@@ -115,7 +115,7 @@ pub async fn run<T, F>(
 ) -> Result<()>
 where
     F: Future<Output = Result<T>> + Send + 'static,
-    T: Debug + PartialEq + Eq + TraceRawVcs + Send + 'static,
+    T: Debug + PartialEq + Eq + Send + 'static,
 {
     run_with_tt(registration, move |tt| turbo_tasks::run(tt, fut())).await
 }
@@ -126,7 +126,7 @@ pub async fn run_with_tt<T, F>(
 ) -> Result<()>
 where
     F: Future<Output = Result<T>> + Send + 'static,
-    T: Debug + PartialEq + Eq + TraceRawVcs + Send + 'static,
+    T: Debug + PartialEq + Eq + Send + 'static,
 {
     let infinite_initial_runs = env::var("INFINITE_INITIAL_RUNS").is_ok();
     let infinite_memory_runs = !infinite_initial_runs && env::var("INFINITE_MEMORY_RUNS").is_ok();

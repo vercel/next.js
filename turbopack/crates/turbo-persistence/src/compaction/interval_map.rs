@@ -380,6 +380,7 @@ mod tests {
         }
     }
 
+    #[cfg(not(miri))]
     #[test]
     fn test_exhaustive_replace_versus_naive() {
         for_all_tiny_int_ranges([0, 1], |a| {
@@ -400,6 +401,7 @@ mod tests {
         });
     }
 
+    #[cfg(not(miri))]
     #[test]
     fn test_exhaustive_update_versus_naive() {
         for_all_tiny_int_ranges([1, 2], |a| {

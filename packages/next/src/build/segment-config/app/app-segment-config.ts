@@ -36,16 +36,18 @@ const InstantConfigSchema = z.union([
   z.literal(false),
 ])
 
-const PrefetchSchema = z.enum([
-  'auto',
-  'partial',
-  'unstable_eager',
-  'force-disabled',
+const PrefetchSchema = z.enum(['auto', 'partial', 'force-disabled'])
+
+const EnsureStaticSchema = z.union([
+  z.enum(['auto', 'shell', 'prefetch', 'navigation']),
+  z.literal(false),
 ])
 
 export type Instant = InstantConfig | true | false
 
-export type Prefetch = 'auto' | 'partial' | 'unstable_eager' | 'force-disabled'
+export type Prefetch = 'auto' | 'partial' | 'force-disabled'
+
+export type EnsureStatic = 'auto' | 'shell' | 'prefetch' | 'navigation' | false
 
 export type InstantConfigForTypeCheckInternal = __GenericInstantConfig | Instant
 // the __GenericInstantConfig type is used to avoid type widening issues with
@@ -138,12 +140,14 @@ const AppSegmentConfigSchema = z.object({
    * - 'partial' enables Partial Prefetching. Only Cache Components are
    *   prefetched, not dynamic ones. When a static prefetch is insufficient,
    *   the segment may be prefetched with a runtime request instead.
-   * - 'unstable_eager' behaves like 'partial' but, when App Shells are enabled,
-   *   keeps eagerly prefetching the route's segments instead of relying on the
-   *   shared app shell. Internal migration aid; not part of the public API.
    * - 'force-disabled' disables prefetching for the segment.
    */
   prefetch: PrefetchSchema.optional(),
+
+  /**
+   * Controls which rendering phases require static output for this segment.
+   */
+  unstable_ensureStatic: EnsureStaticSchema.optional(),
 
   /**
    * The stale time for dynamic responses in seconds.
@@ -197,7 +201,12 @@ export function parseAppSegmentConfig(
           }
           case 'prefetch': {
             return {
-              message: `Invalid prefetch value ${JSON.stringify(ctx.data)} on "${route}", must be "auto", "partial", "unstable_eager", or "force-disabled".`,
+              message: `Invalid prefetch value ${JSON.stringify(ctx.data)} on "${route}", must be "auto", "partial", or "force-disabled".`,
+            }
+          }
+          case 'unstable_ensureStatic': {
+            return {
+              message: `Invalid unstable_ensureStatic value ${JSON.stringify(ctx.data)} on "${route}", must be "auto", "shell", "prefetch", "navigation", or false.`,
             }
           }
           case 'unstable_dynamicStaleTime': {
@@ -265,12 +274,14 @@ export type AppSegmentConfig = {
    * - 'partial' enables Partial Prefetching. Only Cache Components are
    *   prefetched, not dynamic ones. When a static prefetch is insufficient,
    *   the segment may be prefetched with a runtime request instead.
-   * - 'unstable_eager' behaves like 'partial' but, when App Shells are enabled,
-   *   keeps eagerly prefetching the route's segments instead of relying on the
-   *   shared app shell. Internal migration aid; not part of the public API.
    * - 'force-disabled' disables prefetching for the segment.
    */
   prefetch?: Prefetch
+
+  /**
+   * Controls which rendering phases require static output for this segment.
+   */
+  unstable_ensureStatic?: EnsureStatic
 
   /**
    * The stale time for dynamic responses in seconds.

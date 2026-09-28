@@ -6,6 +6,19 @@ function countSubstring(str: string, substr: string): number {
   return str.split(substr).length - 1
 }
 
+function expectOptionalCatchallParams(html: string) {
+  expect(html).not.toContain('%%drp:')
+
+  const $ = cheerio.load(html)
+  expect($('#params').text()).toBe(
+    JSON.stringify({
+      locale: 'en',
+      filterSlugs: null,
+      mappedSlugs: [],
+    })
+  )
+}
+
 ;(isNextDev ? describe.skip : describe)(
   'metadata streaming with Cache Components and the default bot list',
   () => {
@@ -33,11 +46,26 @@ function countSubstring(str: string, substr: string): number {
       expect($('#dynamic-content').text()).toBe('dynamic content')
     })
 
+    it('should block metadata for googleweblight within a full user agent', async () => {
+      const res = await next.fetch('/partial', {
+        headers: {
+          'user-agent':
+            'Mozilla/5.0 (Linux; Android 4.2.1; en-us; Nexus 5 Build/JOP40D) AppleWebKit/535.19 (KHTML, like Gecko; googleweblight) Chrome/38.0.1025.166 Mobile Safari/535.19',
+        },
+      })
+
+      expect(res.status).toBe(200)
+
+      const $ = cheerio.load(await res.text())
+      expect($('head title').text()).toBe('dynamic title')
+      expect($('body title').length).toBe(0)
+    })
+
     it('should block metadata while continuing to stream the body for a default HTML-limited bot', async () => {
       const abortController = new AbortController()
       let body:
         | (AsyncIterable<Uint8Array> & {
-            destroy: () => void
+            cancel: () => void
           })
         | undefined
 
@@ -56,7 +84,7 @@ function countSubstring(str: string, substr: string): number {
         expect(res.body).not.toBeNull()
 
         body = res.body! as unknown as AsyncIterable<Uint8Array> & {
-          destroy: () => void
+          cancel: () => void
         }
         let initialHtml = ''
 
@@ -72,7 +100,7 @@ function countSubstring(str: string, substr: string): number {
         expect(initialHtml).not.toContain('dynamic-content')
       } finally {
         abortController.abort()
-        body?.destroy()
+        body?.cancel()
       }
     })
 
@@ -92,6 +120,55 @@ function countSubstring(str: string, substr: string): number {
       expect($('head title').length).toBe(0)
       expect($('body title').text()).toBe('dynamic title')
       expect($('#dynamic-content').text()).toBe('dynamic content')
+    })
+
+    it('should not expose fallback placeholders for an omitted optional catch-all during a bot bypass', async () => {
+      const response = await next.fetch('/en', {
+        headers: {
+          'user-agent': 'Twitterbot',
+        },
+      })
+
+      expect(response.status).toBe(200)
+      expectOptionalCatchallParams(await response.text())
+    })
+
+    it('should not expose fallback placeholders during a draft mode bypass', async () => {
+      const draftResponse = await next.fetch('/api/draft/enable')
+      const cookie = draftResponse.headers.get('set-cookie')?.split(';', 1)[0]
+      expect(cookie).toBeTruthy()
+
+      const response = await next.fetch('/en', {
+        headers: {
+          cookie: cookie!,
+        },
+      })
+
+      expect(response.status).toBe(200)
+      expectOptionalCatchallParams(await response.text())
+    })
+
+    it('should not expose fallback placeholders during a Next-Action request bypass', async () => {
+      const browser = await next.browser('/en', {
+        pushErrorAsConsoleLog: true,
+      })
+
+      await browser.elementById('submit-action').click()
+
+      await retry(async () => {
+        expect(await browser.elementById('action-result').text()).toBe(
+          'submitted'
+        )
+        expect(await browser.elementById('params').text()).toBe(
+          JSON.stringify({
+            locale: 'en',
+            filterSlugs: null,
+            mappedSlugs: [],
+          })
+        )
+      })
+
+      await assertNoConsoleErrors(browser)
     })
 
     describe('Cache Components metadata streaming', () => {

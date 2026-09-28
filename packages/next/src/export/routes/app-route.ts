@@ -46,7 +46,10 @@ export async function exportAppRoute(
   cacheComponents: boolean,
   staticPageGenerationTimeout: number,
   experimental: Required<
-    Pick<ExperimentalConfig, 'authInterrupts' | 'useCacheTimeout'>
+    Pick<
+      ExperimentalConfig,
+      'authInterrupts' | 'useCacheTimeout' | 'durableUseCacheEntries'
+    >
   >,
   buildId: string,
   deploymentId: string
@@ -79,7 +82,6 @@ export async function exportAppRoute(
       validationLevel: 'warning',
       experimental,
       isBuildTimePrerendering: true,
-      supportsDynamicResponse: false,
       incrementalCache,
       waitUntil: afterRunner.context.waitUntil,
       onClose: afterRunner.context.onClose,
@@ -115,7 +117,7 @@ export async function exportAppRoute(
       return { cacheControl: { revalidate: 0, expire: undefined } }
     }
 
-    const response = await module.handle(request, context)
+    const response = await module.prerender(request, context)
 
     const isValidStatus = response.status < 400 || response.status === 404
     if (!isValidStatus) {

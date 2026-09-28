@@ -3,7 +3,7 @@ import type { FetchMetrics } from './index'
 
 import { toNodeOutgoingHttpHeaders } from '../web/utils'
 import { BaseNextRequest, BaseNextResponse } from './index'
-import { DetachedPromise } from '../../lib/detached-promise'
+import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
 import type { NextRequestHint } from '../web/adapter'
 import { CloseController, trackBodyConsumed } from '../web/web-on-close'
 import { InvariantError } from '../../shared/lib/invariant-error'
@@ -90,7 +90,7 @@ export class WebNextResponse extends BaseNextResponse<WritableStream> {
     return this
   }
 
-  private readonly sendPromise = new DetachedPromise<void>()
+  private readonly sendPromise = createPromiseWithResolvers<void>()
 
   private _sent = false
   public send() {

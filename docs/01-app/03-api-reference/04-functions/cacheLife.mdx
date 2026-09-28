@@ -34,7 +34,7 @@ const nextConfig = {
   cacheComponents: true,
 }
 
-export default nextConfig
+module.exports = nextConfig
 ```
 
 `cacheLife` can only be used within a cache directive scope.
@@ -265,7 +265,7 @@ A short cache lifetime changes where the cached content can be delivered from:
 
 - **`revalidate` of `0`, or `expire` under 5 minutes**: excluded from prerenders, becoming a "dynamic hole" resolved at request time.
 - **`stale` under 30 seconds**: excluded from prerenders, because a prefetch would expire before the user could click.
-- **`stale` from 30 seconds up to 5 minutes**: included in prerenders, but excluded from the route's [App Shell](/docs/app/glossary#app-shell).
+- **`stale` of at least 30 seconds but under 5 minutes**: included in prerenders, but excluded from the route's [App Shell](/docs/app/glossary#app-shell).
 
 Of the presets, only `seconds` falls under any of these thresholds: its `expire` of 1 minute excludes it from prerenders.
 

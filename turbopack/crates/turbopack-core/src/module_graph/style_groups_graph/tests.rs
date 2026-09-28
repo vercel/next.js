@@ -8,9 +8,8 @@ use rustc_hash::FxHashSet;
 
 use super::{
     algorithm::{
-        ChunkGroupIndex, ModuleChunkGroups, compute_chunked_chunk_groups, create_graph,
-        find_short_cycle, linearize, make_acyclic, split_into_chunks,
-        strongly_connected_components,
+        ChunkGroupIndex, ModuleChunkGroups, compute_chunked_chunk_groups, create_graph, linearize,
+        make_acyclic, refine_feedback_arc_order, split_into_chunks, strongly_connected_components,
     },
     subgraph_view::{ReadonlyGraph, SubgraphView},
 };
@@ -72,10 +71,6 @@ fn incoming_with_weight<'a, G: ReadonlyGraph<'a>>(g: G, node: NodeIndex) -> Vec<
         .collect();
     v.sort_unstable_by_key(|(t, _)| *t);
     v
-}
-
-fn to_set(v: &[NodeIndex]) -> FxHashSet<NodeIndex> {
-    v.iter().copied().collect()
 }
 
 fn ids(v: &[NodeIndex]) -> Vec<usize> {
@@ -418,92 +413,6 @@ fn to_sorted_ids(s: &FxHashSet<NodeIndex>) -> Vec<usize> {
 }
 
 // ---------------------------------------------------------------------------
-// find_short_cycle
-// ---------------------------------------------------------------------------
-
-fn is_valid_cycle<'a, G: ReadonlyGraph<'a>>(graph: G, cycle: &[NodeIndex]) -> bool {
-    if cycle.len() < 2 {
-        return false;
-    }
-    let unique: FxHashSet<_> = cycle.iter().copied().collect();
-    if unique.len() != cycle.len() {
-        return false;
-    }
-    for i in 0..cycle.len() {
-        let from = cycle[i];
-        let to = cycle[(i + 1) % cycle.len()];
-        if !graph.outgoing_edges(from).any(|t| t == to) {
-            return false;
-        }
-    }
-    true
-}
-
-#[test]
-fn find_short_cycle_two_node_scc() {
-    let g = build_graph(2, |g| {
-        g.add_edge(n(0), n(1), 1);
-        g.add_edge(n(1), n(0), 1);
-    });
-    let cycle = find_short_cycle(&g, None).expect("test graph has a cycle");
-    assert!(is_valid_cycle(&g, &cycle));
-    assert_eq!(
-        to_set(&cycle),
-        [n(0), n(1)].into_iter().collect::<FxHashSet<_>>()
-    );
-}
-
-#[test]
-fn find_short_cycle_three_cycle() {
-    let g = build_graph(3, |g| {
-        g.add_edge(n(0), n(1), 1);
-        g.add_edge(n(1), n(2), 1);
-        g.add_edge(n(2), n(0), 1);
-    });
-    let cycle = find_short_cycle(&g, None).expect("test graph has a cycle");
-    assert!(is_valid_cycle(&g, &cycle));
-    assert_eq!(cycle.len(), 3);
-}
-
-#[test]
-fn find_short_cycle_prefers_two_cycle_when_longer_exists() {
-    // 2-cycle b ↔ c plus longer arm a → b → c → d → a. The 2-cycle should win.
-    let g = build_graph(4, |g| {
-        g.add_edge(n(0), n(1), 1);
-        g.add_edge(n(1), n(2), 1);
-        g.add_edge(n(2), n(3), 1);
-        g.add_edge(n(3), n(0), 1);
-        g.add_edge(n(2), n(1), 1);
-    });
-    let cycle = find_short_cycle(&g, None).expect("test graph has a cycle");
-    assert!(is_valid_cycle(&g, &cycle));
-    assert_eq!(cycle.len(), 2);
-    assert_eq!(
-        to_set(&cycle),
-        [n(1), n(2)].into_iter().collect::<FxHashSet<_>>()
-    );
-}
-
-#[test]
-fn find_short_cycle_uses_edge_weights_to_pick_lowest_total_weight() {
-    let g = build_graph(3, |g| {
-        g.add_edge(n(0), n(1), 10);
-        g.add_edge(n(1), n(0), 10);
-        g.add_edge(n(0), n(2), 1);
-        g.add_edge(n(2), n(0), 1);
-        g.add_edge(n(1), n(2), 100);
-        g.add_edge(n(2), n(1), 100);
-    });
-    let cycle = find_short_cycle(&g, None).expect("test graph has a cycle");
-    assert!(is_valid_cycle(&g, &cycle));
-    assert_eq!(cycle.len(), 2);
-    assert_eq!(
-        to_set(&cycle),
-        [n(0), n(2)].into_iter().collect::<FxHashSet<_>>()
-    );
-}
-
-// ---------------------------------------------------------------------------
 // make_acyclic
 // ---------------------------------------------------------------------------
 
@@ -581,6 +490,98 @@ fn make_acyclic_preserves_non_cycle_edges() {
     let edges = edge_set(&g);
     assert!(edges.contains(&(1, 2)));
     assert!(edges.contains(&(2, 3)));
+}
+
+#[test]
+fn make_acyclic_equal_weight_tie_prefers_lower_node_index() {
+    let mut g = build_graph(2, |g| {
+        g.add_edge(n(0), n(1), 1);
+        g.add_edge(n(1), n(0), 1);
+    });
+    make_acyclic(&mut g);
+    assert_eq!(edge_set(&g), [(0, 1)].into_iter().collect::<FxHashSet<_>>());
+}
+
+#[test]
+fn make_acyclic_refines_non_adjacent_counterexample_move() {
+    let groups = [vec![0, 1], vec![2, 0], vec![0, 1, 2]];
+    let (graph, _) = create_graph(&groups, 3);
+    let scc = strongly_connected_components(&graph)
+        .into_iter()
+        .find(|component| component.len() > 1)
+        .unwrap();
+    // This is the seed heuristic's order. Neither adjacent swap improves it, but moving node 2
+    // from the end to the front increases satisfied edge weight from 3 to 4.
+    let mut order = vec![n(1), n(0), n(2)];
+    refine_feedback_arc_order(&mut order, &graph, &scc);
+    assert_eq!(ids(&order), vec![2, 1, 0]);
+}
+
+#[test]
+fn make_acyclic_refines_node_toward_end() {
+    let groups = [vec![1, 0], vec![0, 2], vec![2, 1, 0]];
+    let (graph, _) = create_graph(&groups, 3);
+    let scc = strongly_connected_components(&graph)
+        .into_iter()
+        .find(|component| component.len() > 1)
+        .unwrap();
+    // Reverse of the preceding fixture: moving node 2 from the front to the end increases the
+    // satisfied edge weight from 3 to 4.
+    let mut order = vec![n(2), n(0), n(1)];
+    refine_feedback_arc_order(&mut order, &graph, &scc);
+    assert_eq!(ids(&order), vec![0, 1, 2]);
+}
+
+#[test]
+fn make_acyclic_refinement_keeps_equal_score_order() {
+    let mut graph = build_graph(3, |g| {
+        for from in 0..3 {
+            for to in 0..3 {
+                if from != to {
+                    g.add_edge(n(from), n(to), 1);
+                }
+            }
+        }
+    });
+    let scc: FxHashSet<_> = [n(0), n(1), n(2)].into_iter().collect();
+    let mut order = vec![n(2), n(0), n(1)];
+    refine_feedback_arc_order(&mut order, &graph, &scc);
+    assert_eq!(ids(&order), vec![2, 0, 1]);
+
+    make_acyclic(&mut graph);
+    assert_acyclic(&graph);
+}
+
+#[test]
+fn make_acyclic_counterexample_reaches_optimal_final_order() {
+    let groups = [vec![0, 1], vec![2, 0], vec![0, 1, 2]];
+    let (mut graph, module_to_groups) = create_graph(&groups, 3);
+    make_acyclic(&mut graph);
+    let order = linearize(&graph, &module_to_groups);
+    assert_eq!(ids(&order), vec![0, 1, 2]);
+}
+
+#[test]
+fn make_acyclic_dense_equal_weight_graph_is_deterministic() {
+    fn run() -> FxHashSet<(usize, usize)> {
+        let mut g = build_graph(64, |g| {
+            for from in 0..64 {
+                for to in 0..64 {
+                    if from != to {
+                        g.add_edge(n(from), n(to), 1);
+                    }
+                }
+            }
+        });
+        make_acyclic(&mut g);
+        assert_acyclic(&g);
+        edge_set(&g)
+    }
+
+    let edges = run();
+    assert_eq!(edges, run());
+    assert_eq!(edges.len(), 64 * 63 / 2);
+    assert!(edges.iter().all(|&(from, to)| from < to));
 }
 
 // ---------------------------------------------------------------------------
@@ -810,6 +811,79 @@ fn split_weight_distribution_protects_small_groups_from_overshipping() {
     // A high weight_distribution gives the small group A a much larger weight, making the overship
     // of module 1 to A cost more than the request it would save, so module 1 stays isolated.
     assert_eq!(split(3.0), vec![vec![0], vec![1]]);
+}
+
+// ---------------------------------------------------------------------------
+// Performance benchmark
+// ---------------------------------------------------------------------------
+
+fn dense_scc_fixture() -> Vec<Vec<usize>> {
+    let mut groups = vec![(0..454).collect::<Vec<_>>()];
+    for group_idx in 0..14 {
+        let mut group = Vec::with_capacity(24);
+        // Reverse ten well-spaced nodes from the giant group. Across fourteen groups this creates
+        // roughly the supplied number of reciprocal pairs while connecting most giant-group nodes.
+        for offset in (0..10).rev() {
+            group.push((group_idx * 31 + offset * 47) % 454);
+        }
+        // Reuse the 45 outside nodes cyclically so they participate in overlapping constraints.
+        for offset in 0..14 {
+            group.push(454 + (group_idx * 7 + offset) % 45);
+        }
+        groups.push(group);
+    }
+    groups
+}
+
+#[test]
+#[ignore]
+fn bench_make_acyclic_dense_scc() {
+    use std::time::Instant;
+
+    let groups = dense_scc_fixture();
+    let (mut graph, _) = create_graph(&groups, 499);
+    let cyclic_sccs: Vec<_> = strongly_connected_components(&graph)
+        .into_iter()
+        .filter(|scc| scc.len() > 1)
+        .collect();
+    eprintln!(
+        "BENCH input groups={} nodes={} edges={} cyclic_sccs={} largest_scc={}",
+        groups.len(),
+        graph.node_count(),
+        graph.edge_count(),
+        cyclic_sccs.len(),
+        cyclic_sccs.iter().map(FxHashSet::len).max().unwrap_or(0)
+    );
+    let start = Instant::now();
+    make_acyclic(&mut graph);
+    let elapsed = start.elapsed();
+    eprintln!(
+        "BENCH elapsed={elapsed:?} remaining_edges={}",
+        graph.edge_count()
+    );
+    assert_acyclic(&graph);
+}
+
+#[test]
+#[ignore]
+fn bench_make_acyclic_many_small_sccs() {
+    use std::time::Instant;
+
+    for &size in &[1600, 3200, 6400, 12800, 25600] {
+        let mut g = build_graph(size, |g| {
+            for i in (0..size).step_by(2) {
+                g.add_edge(n(i), n(i + 1), 1);
+                g.add_edge(n(i + 1), n(i), 2);
+            }
+        });
+        let start = Instant::now();
+        make_acyclic(&mut g);
+        eprintln!(
+            "BENCH many_small_sccs size={size} elapsed={:?}",
+            start.elapsed()
+        );
+        assert_acyclic(&g);
+    }
 }
 
 // ---------------------------------------------------------------------------

@@ -3,6 +3,7 @@ import type { AppPageModule } from '../../server/route-modules/app-page/module'
 import type { AppSegment } from '../segment-config/app/app-segments'
 import type {
   FallbackRouteParam,
+  PrerenderRouteMatcher,
   PrerenderedRoute,
   StaticPathsResult,
 } from './types'
@@ -33,11 +34,15 @@ import type { NormalizedAppRoute } from '../../shared/lib/router/routes/app'
 import { interceptionPrefixFromParamType } from '../../shared/lib/router/utils/interception-prefix-from-param-type'
 import { isPlainObject } from '../../shared/lib/is-plain-object'
 import {
-  type GenerateStaticParamsStore,
+  type BuildTimeGeneratorStore,
   workUnitAsyncStorage,
 } from '../../server/app-render/work-unit-async-storage.external'
 import type { ImplicitTags } from '../../server/lib/implicit-tags'
 import { getImplicitTags } from '../../server/lib/implicit-tags'
+import {
+  throwIncompleteStaticParamsErrorInStaticRoute,
+  throwMissingGspErrorInStaticRoute,
+} from '../../shared/lib/errors/ensure-static-gsp-errors'
 
 /**
  * Filters out duplicate parameters from a list of parameters.
@@ -624,8 +629,9 @@ async function callGenerateStaticParams(
     }
   }
 
-  const workUnitStore: GenerateStaticParamsStore = {
-    type: 'generate-static-params',
+  const workUnitStore: BuildTimeGeneratorStore = {
+    type: 'build-time-generator',
+    functionName: 'generateStaticParams',
     phase: 'render',
     implicitTags,
     rootParams,
@@ -822,6 +828,7 @@ export async function buildAppStaticPaths({
   cacheComponents,
   authInterrupts,
   useCacheTimeout,
+  durableUseCacheEntries,
   staticPageGenerationTimeout,
   segments,
   isrFlushToDisk,
@@ -834,6 +841,7 @@ export async function buildAppStaticPaths({
   nextConfigOutput,
   ComponentMod,
   isRoutePPREnabled = false,
+  isEnsureStaticPage,
   buildId,
   deploymentId,
   rootParamKeys,
@@ -844,6 +852,7 @@ export async function buildAppStaticPaths({
   cacheComponents: boolean
   authInterrupts: boolean
   useCacheTimeout: number
+  durableUseCacheEntries: boolean
   staticPageGenerationTimeout: number
   segments: readonly Readonly<AppSegment>[]
   distDir: string
@@ -857,6 +866,7 @@ export async function buildAppStaticPaths({
   nextConfigOutput: 'standalone' | 'export' | undefined
   ComponentMod: AppPageModule | AppRouteModule
   isRoutePPREnabled: boolean
+  isEnsureStaticPage: boolean
   buildId: string
   deploymentId: string
   rootParamKeys: readonly string[]
@@ -901,7 +911,6 @@ export async function buildAppStaticPaths({
       incrementalCache,
       cacheLifeProfiles,
       staticPageGenerationTimeout,
-      supportsDynamicResponse: true,
       cacheComponents,
       // generateStaticParams evaluation doesn't render pages, so instant
       // validation never runs here. The level value is irrelevant.
@@ -910,6 +919,7 @@ export async function buildAppStaticPaths({
       experimental: {
         authInterrupts,
         useCacheTimeout,
+        durableUseCacheEntries,
       },
       waitUntil: afterRunner.context.waitUntil,
       onClose: afterRunner.context.onClose,
@@ -978,18 +988,18 @@ export async function buildAppStaticPaths({
   }
 
   const missingParamNames: string[] = []
-  if (routeParams.length > 0) {
-    for (const { paramName } of pathnameRouteParamSegments) {
-      if (routeParams.some((params) => !(paramName in params))) {
-        missingParamNames.push(paramName)
-      }
+  for (const { paramName } of pathnameRouteParamSegments) {
+    if (
+      routeParams.length === 0 ||
+      routeParams.some((params) => !(paramName in params))
+    ) {
+      missingParamNames.push(paramName)
     }
   }
 
   // Determine if all the segments have had their parameters provided.
   const hadAllParamsGenerated =
-    pathnameRouteParamSegments.length === 0 ||
-    (routeParams.length > 0 && missingParamNames.length === 0)
+    pathnameRouteParamSegments.length === 0 || missingParamNames.length === 0
 
   if (
     nextConfigOutput === 'export' &&
@@ -999,6 +1009,18 @@ export async function buildAppStaticPaths({
     throw new Error(
       `Page "${page}" returned incomplete params from "generateStaticParams()". With "output: export", every params object must include all dynamic route parameters. Missing: ${missingParamNames.map((name) => `"${name}"`).join(', ')}. See more info here: https://nextjs.org/docs/messages/generate-static-params`
     )
+  }
+
+  // `ensureStatic = "navigation"` currently requires all params to
+  // be prerendered via gSP.
+  if (isEnsureStaticPage && pathnameRouteParamSegments.length > 0) {
+    if (routeParams.length === 0) {
+      // In Cache Components we throw in `generateRouteStaticParams` for empty arrays,
+      // so empty `routeParams` implies that no `generateStaticParams` is present at all
+      throwMissingGspErrorInStaticRoute(page)
+    } else if (!hadAllParamsGenerated) {
+      throwIncompleteStaticParamsErrorInStaticRoute(page, missingParamNames)
+    }
   }
 
   // TODO: dynamic params should be allowed to be granular per segment but
@@ -1014,7 +1036,10 @@ export async function buildAppStaticPaths({
   const fallbackMode = dynamicParams
     ? supportsRoutePreGeneration
       ? isRoutePPREnabled
-        ? FallbackMode.PRERENDER
+        ? isEnsureStaticPage
+          ? // In `ensureStatic = "navigation"` all prerenders have to be blocking.
+            FallbackMode.BLOCKING_STATIC_RENDER
+          : FallbackMode.PRERENDER
         : FallbackMode.BLOCKING_STATIC_RENDER
       : undefined
     : FallbackMode.NOT_FOUND
@@ -1028,6 +1053,9 @@ export async function buildAppStaticPaths({
     let paramsToProcess = routeParams
 
     if (isRoutePPREnabled) {
+      // NOTE: we do this even if `ensureStatic = "navigation"` is set because
+      // most of the build plumbing assumes that we'll have done fallback prerenders.
+
       // Discover all unique combinations of the routeParams so we can generate
       // routes that won't throw on empty static shell for each of them if
       // they're available.
@@ -1083,7 +1111,13 @@ export async function buildAppStaticPaths({
         const paramValue = params[paramName]
 
         if (!paramValue) {
-          if (isRoutePPREnabled) {
+          if (
+            isRoutePPREnabled &&
+            // `ensureStatic = "navigation"` does not currently use fallbacks
+            // with some of the params filled in. We only use create route with all
+            // the params set to fallback so that ISR is set up correctly.
+            !isEnsureStaticPage
+          ) {
             // Mark remaining params as fallback params.
             fallbackRouteParams.push({ paramName, paramType })
             for (
@@ -1176,5 +1210,28 @@ export async function buildAppStaticPaths({
     assignStaticShellMetadata(prerenderedRoutes, prerenderablePathSegments)
   }
 
-  return { fallbackMode, prerenderedRoutes }
+  const prerenderRouteMatchersByPathname = new Map<
+    string,
+    PrerenderRouteMatcher
+  >()
+  if (prerenderedRoutes && isRoutePPREnabled) {
+    for (const prerenderCandidate of prerenderedRoutes) {
+      if (!prerenderCandidate.fallbackRouteParams?.length) continue
+      prerenderRouteMatchersByPathname.set(prerenderCandidate.pathname, {
+        pathname: prerenderCandidate.pathname,
+        fallbackRouteParams: prerenderCandidate.fallbackRouteParams,
+        fallbackMode: prerenderCandidate.fallbackMode,
+        fallbackRootParams: prerenderCandidate.fallbackRootParams,
+        remainingPrerenderableParams:
+          prerenderCandidate.remainingPrerenderableParams,
+      })
+    }
+  }
+
+  const prerenderRouteMatchers =
+    prerenderRouteMatchersByPathname.size > 0
+      ? [...prerenderRouteMatchersByPathname.values()]
+      : undefined
+
+  return { fallbackMode, prerenderedRoutes, prerenderRouteMatchers }
 }

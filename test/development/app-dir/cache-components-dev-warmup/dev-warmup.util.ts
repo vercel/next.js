@@ -25,7 +25,7 @@ export function runDevWarmupTests({
     : 'fixtures/without-prefetch-config'
 
   describe(`cache-components-dev-warmup - ${description}`, () => {
-    const { next, isTurbopack } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: nodePath.join(__dirname, fixturePath),
     })
 
@@ -102,19 +102,6 @@ export function runDevWarmupTests({
         'AbortError: This operation was aborted'
       )
 
-      if (isTurbopack) {
-        // FIXME:
-        // In Turbopack, requests to the /revalidate route seem to occasionally crash
-        // due to some HMR or compilation issue. `revalidatePath` throws this error:
-        //
-        //   Invariant: static generation store missing in revalidatePath <path>
-        //
-        // This is unrelated to the logic being tested here, so for now, we skip the assertions
-        // that require us to revalidate.
-        console.log('WARNING: skipping revalidation assertions in turbopack')
-        return
-      }
-
       // After a revalidation the subsequent render must discard the stale cache
       // entries. This should not affect the environment labels once the caches
       // are warm again.
@@ -170,19 +157,6 @@ export function runDevWarmupTests({
       expect(next.cliOutput).not.toContain(
         'AbortError: This operation was aborted'
       )
-
-      if (isTurbopack) {
-        // FIXME:
-        // In Turbopack, requests to the /revalidate route seem to occasionally crash
-        // due to some HMR or compilation issue. `revalidatePath` throws this error:
-        //
-        //   Invariant: static generation store missing in revalidatePath <path>
-        //
-        // This is unrelated to the logic being tested here, so for now, we skip the assertions
-        // that require us to revalidate.
-        console.log('WARNING: skipping revalidation assertions in turbopack')
-        return
-      }
 
       // After a revalidation the subsequent render must discard the stale cache
       // entries. This should not affect the environment labels once the caches
@@ -364,8 +338,36 @@ export function runDevWarmupTests({
           // TODO: we should only label this as "Prefetch" if there's a prefetch config.
           assertLog(logs, `after cookies`, 'Prefetch')
           assertLog(logs, `after headers`, 'Prefetch')
+          // This route has no `generateStaticParams`, so its param stays
+          // runtime-only.
           assertLog(logs, `after params`, 'Prefetch')
           assertLog(logs, `after searchParams`, 'Prefetch')
+
+          assertLog(
+            logs,
+            `after prefetch`,
+            // Same as navigation() below: static prerender timing on initial
+            // load, app-shell timing for a client nav when there's a runtime
+            // prefetch.
+            isInitialLoad
+              ? 'Prerender'
+              : partialPrefetching || hasRuntimePrefetch
+                ? 'Prefetch'
+                : 'Prerender'
+          )
+
+          assertLog(
+            logs,
+            `after navigation`,
+            // For initial load, navigation() follows static prerender timing.
+            // For client nav, it follows app-shell timing if `partialPrefetching` is on,
+            // and static timing otherwise.
+            isInitialLoad
+              ? 'Prerender'
+              : partialPrefetching || hasRuntimePrefetch
+                ? 'Prefetch'
+                : 'Prerender'
+          )
 
           assertLog(logs, 'after connection', 'Server')
         }
@@ -378,59 +380,14 @@ export function runDevWarmupTests({
       })
 
       describe('mixed static and fallback params resolve in the correct phase', () => {
-        it('covered leading param', async () => {
+        it('generated lang and novel id', async () => {
           const path = '/mixed/en/123'
 
           const assertLogs = async (browser: Playwright) => {
             const logs = await browser.log()
-            // `en` is covered by `generateStaticParams`, so `lang` resolves in
-            // the static shell, unless we're rendering an App Shell, in which
-            // case they're deferred to the runtiem stage.
-            assertLog(logs, 'after params - lang', STATIC_LINK_DATA)
-            // `id` is never covered, so it's deferred to the runtime stage.
-            assertLog(logs, 'after params - id', RUNTIME_LINK_DATA)
-          }
-
-          if (isInitialLoad) {
-            await testInitialLoad(path, assertLogs)
-          } else {
-            await testNavigation(path, assertLogs)
-          }
-        })
-
-        it('uncovered leading param', async () => {
-          const path = '/mixed/fr/123'
-
-          const assertLogs = async (browser: Playwright) => {
-            const logs = await browser.log()
-            // `fr` is not covered by `generateStaticParams`, so the most-specific
-            // prerendered route matching this URL is the base route and its
-            // fallback set is both params. `lang` must therefore defer to the
-            // runtime stage too, not resolve in the static shell. (Picking the
-            // fewest-param route without matching the URL would resolve `lang`
-            // in `Prerender` here.)
-            assertLog(logs, 'after params - lang', RUNTIME_LINK_DATA)
-            assertLog(logs, 'after params - id', RUNTIME_LINK_DATA)
-          }
-
-          if (isInitialLoad) {
-            await testInitialLoad(path, assertLogs)
-          } else {
-            await testNavigation(path, assertLogs)
-          }
-        })
-
-        it('fully covered params', async () => {
-          const path = '/mixed/en/x'
-
-          const assertLogs = async (browser: Playwright) => {
-            const logs = await browser.log()
-            // Both `en` and `x` are covered by `generateStaticParams`, so this
-            // is a fully prerendered concrete route and both params resolve in
-            // the static shell unless we're rendering an App Shell, in which
-            // case they're deferred to the runtime stage.
-            // (Skipping the concrete route before matching the URL would let
-            // the base route win and defer the statically-known `id`.)
+            // The generators produce { lang: 'en', id: 'x' }. The optional
+            // /mixed/en/[id] shell can complete the novel id statically.
+            // `STATIC_LINK_DATA` accounts for App Shell deferral on navigation.
             assertLog(logs, 'after params - lang', STATIC_LINK_DATA)
             assertLog(logs, 'after params - id', STATIC_LINK_DATA)
           }
@@ -441,24 +398,16 @@ export function runDevWarmupTests({
             await testNavigation(path, assertLogs)
           }
         })
-      })
 
-      // FIXME: it seems like in Turbopack we sometimes get two instances of `workUnitAsyncStorage` --
-      // `app-render` gets a second, newer instance, different from `io()`.
-      // Thus, `io()` gets an undefined `workUnitStore` and does nothing, so sync IO does not get tracked at all.
-      // This is likely caused by the same bug that breaks `/revalidate` (see other FIXME above),
-      // where a route crashes due to a missing `workStore`.
-      if (!isTurbopack) {
-        it('sync IO in the static phase', async () => {
-          const path = '/sync-io/static'
+        it('novel lang and id', async () => {
+          const path = '/mixed/fr/123'
 
           const assertLogs = async (browser: Playwright) => {
             const logs = await browser.log()
-
-            assertLog(logs, 'after first cache', 'Prerender')
-            // sync IO in the static stage errors and advances to Server.
-            assertLog(logs, 'after sync io', 'Server')
-            assertLog(logs, 'after cache read - page', 'Server')
+            // Both params have generators. The optional /mixed/[lang]/[id]
+            // shell can complete both novel values statically.
+            assertLog(logs, 'after params - lang', STATIC_LINK_DATA)
+            assertLog(logs, 'after params - id', STATIC_LINK_DATA)
           }
 
           if (isInitialLoad) {
@@ -468,33 +417,95 @@ export function runDevWarmupTests({
           }
         })
 
-        it('sync IO in the runtime phase', async () => {
-          const path = '/sync-io/runtime'
+        it('fully generated params', async () => {
+          const path = '/mixed/en/x'
 
           const assertLogs = async (browser: Playwright) => {
             const logs = await browser.log()
+            // This URL matches the concrete generated route. Neither param
+            // needs completion or fallback staging.
+            assertLog(logs, 'after params - lang', STATIC_LINK_DATA)
+            assertLog(logs, 'after params - id', STATIC_LINK_DATA)
+          }
 
-            assertLog(logs, 'after first cache', 'Prerender')
-            assertLog(logs, 'after cookies', 'Prefetch')
-            if (hasRuntimePrefetch || partialPrefetching) {
-              // in partialPrefetching (via per-segment config or global flag),
-              // sync IO in the runtime stage errors and advances to Server.
-              assertLog(logs, 'after sync io', 'Server')
-              assertLog(logs, 'after cache read - page', 'Server')
+          if (isInitialLoad) {
+            await testInitialLoad(path, assertLogs)
+          } else {
+            await testNavigation(path, assertLogs)
+          }
+        })
+
+        // Only lang has a generator, so id stays runtime-only.
+        // - en selects the required /partial/en/[id] shell.
+        // - fr completes lang from the optional /partial/[lang]/[id] shell.
+        it.each(['en', 'fr'])(
+          'partial generation with lang %s',
+          async (lang) => {
+            const path = `/partial/${lang}/123`
+
+            const assertLogs = async (browser: Playwright) => {
+              const logs = await browser.log()
+              assertLog(logs, 'after params - lang', STATIC_LINK_DATA)
+              assertLog(logs, 'after cache read - layout', STATIC_LINK_DATA)
+              assertLog(logs, 'after params - id', RUNTIME_LINK_DATA)
+              assertLog(logs, 'after cache read - page', RUNTIME_LINK_DATA)
+            }
+
+            if (isInitialLoad) {
+              await testInitialLoad(path, assertLogs)
             } else {
-              // if runtime prefetching is not on, sync IO in the runtime stage does nothing.
-              assertLog(logs, 'after sync io', 'Prefetch')
-              assertLog(logs, 'after cache read - page', 'Prefetch')
+              await testNavigation(path, assertLogs)
             }
           }
+        )
+      })
 
-          if (isInitialLoad) {
-            await testInitialLoad(path, assertLogs)
+      it('sync IO in the static phase', async () => {
+        const path = '/sync-io/static'
+
+        const assertLogs = async (browser: Playwright) => {
+          const logs = await browser.log()
+
+          assertLog(logs, 'after first cache', 'Prerender')
+          // sync IO in the static stage errors and advances to Server.
+          assertLog(logs, 'after sync io', 'Server')
+          assertLog(logs, 'after cache read - page', 'Server')
+        }
+
+        if (isInitialLoad) {
+          await testInitialLoad(path, assertLogs)
+        } else {
+          await testNavigation(path, assertLogs)
+        }
+      })
+
+      it('sync IO in the runtime phase', async () => {
+        const path = '/sync-io/runtime'
+
+        const assertLogs = async (browser: Playwright) => {
+          const logs = await browser.log()
+
+          assertLog(logs, 'after first cache', 'Prerender')
+          assertLog(logs, 'after cookies', 'Prefetch')
+          if (hasRuntimePrefetch || partialPrefetching) {
+            // in partialPrefetching (via per-segment config or global flag),
+            // sync IO in the runtime stage errors and advances to Server.
+            assertLog(logs, 'after sync io', 'Server')
+            assertLog(logs, 'after cache read - page', 'Server')
           } else {
-            await testNavigation(path, assertLogs)
+            // if runtime prefetching is not on, sync IO in the runtime stage
+            // does nothing.
+            assertLog(logs, 'after sync io', 'Prefetch')
+            assertLog(logs, 'after cache read - page', 'Prefetch')
           }
-        })
-      }
+        }
+
+        if (isInitialLoad) {
+          await testInitialLoad(path, assertLogs)
+        } else {
+          await testNavigation(path, assertLogs)
+        }
+      })
     })
   })
 }

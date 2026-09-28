@@ -16,6 +16,7 @@ if (!(globalThis as any).isNextStart) {
     const { next, skipped } = nextTestSetup({
       files: {
         app: new FileRef(path.join(__dirname, 'app')),
+        lib: new FileRef(path.join(__dirname, 'lib')),
         pages: new FileRef(path.join(__dirname, 'pages')),
         public: new FileRef(path.join(__dirname, 'public')),
         'next.config.js': 'export default {"output": "standalone"}',

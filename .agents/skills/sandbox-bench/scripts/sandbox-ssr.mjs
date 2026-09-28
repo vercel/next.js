@@ -46,13 +46,16 @@ import {
 const FIXTURE_DIR = 'fixtures/flight-ssr-bench'
 // Provenance: the Flight server/client files the fixture actually
 // executes — Node and Edge entry points, so changes touching only one
-// stream flavor still move the fingerprint.
+// stream flavor still move the fingerprint — plus the shared
+// react-server runtime (hooks/cache), which none of the layer files
+// reflect.
 const FP_FILES = [
   'react-server-dom-webpack/cjs/react-server-dom-webpack-server.node.production.js',
   'react-server-dom-webpack/cjs/react-server-dom-webpack-server.edge.production.js',
   'react-server-dom-webpack/cjs/react-server-dom-webpack-client.edge.production.js',
   'react-dom/cjs/react-dom-server.node.production.js',
   'react-dom/cjs/react-dom-server.edge.production.js',
+  'react/cjs/react.react-server.production.js',
 ]
 
 function parseArgs() {
@@ -349,6 +352,11 @@ for arm in ${base} ${cand}; do
   echo "arm $arm ver=$V fp=$F"
   eval "VER_$arm=$V; FP_$arm=$F"
 done
+# Identical fingerprints can be legitimate (arms differing only in
+# files outside FP_FILES), so warn, not fail.
+if [ "$FP_${base}" = "$FP_${cand}" ]; then
+  echo "WARNING: arms fingerprint identically ($FP_${base}) — the hashed React builds are byte-identical; verify the arms differ where intended"
+fi
 for run in $(seq 1 ${cfg.runs}); do
   # Alternate within the boot AND stagger by VM index so no arm owns
   # the cold first slot across the fleet.
@@ -415,15 +423,20 @@ wc -l /vercel/sandbox/results.jsonl`
       })
       // Strictly AFTER the timed runs — profiling never touches the
       // numbers. Best-effort: a failed pass must not kill collection.
+      // Second-arm-runs-warmer drift cancels across VMs (see
+      // sandbox-e2e.mjs).
+      const profOrder = index % 2 === 1 ? `${cand} ${base}` : `${base} ${cand}`
       const prof = `set -e
 cd /vercel/sandbox/fixture
-for arm in ${base} ${cand}; do
+for arm in ${profOrder}; do
   for p in /vercel/sandbox/arm-$arm/build/oss-experimental/*; do rm -rf node_modules/$(basename $p); done
   cp -r /vercel/sandbox/arm-$arm/build/oss-experimental/* node_modules/
   NODE_ENV=production node --expose-gc bench.js --profile >/tmp/prof.log 2>&1 || (tail -10 /tmp/prof.log; exit 1)
   mkdir -p /vercel/sandbox/prof-$arm && mv build/profiles/* /vercel/sandbox/prof-$arm/
   echo "profiled $arm"
 done
+# Lets profile analysis split by capture order (see sandbox-e2e.mjs).
+echo "${profOrder}" > /vercel/sandbox/prof-order.txt
 cd /vercel/sandbox && tar -czf profiles.tgz prof-*`
       try {
         await sbExec(vm, '40m', prof, `${tag}:prof`)

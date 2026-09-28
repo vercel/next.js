@@ -29,3 +29,10 @@ export const ReactUnifiedMismatch: Story = {
       '<Page>\n  <Layout>\n    <div>asd\n-     <p>Server content</p>\n+     <p>Client content</p>',
   },
 }
+
+export const InvalidHtmlNesting: Story = {
+  args: {
+    reactOutputComponentDiff:
+      '...\n  <ClientPageRoot Component={function Page} serverProvidedParams={{...}}>\n    <Page params={Promise} searchParams={Promise}>\n>     <p>\n>       <p>\n  ...',
+  },
+}

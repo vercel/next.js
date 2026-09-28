@@ -2,7 +2,7 @@
 import fs from 'fs-extra'
 import { join } from 'path'
 import { nextTestSetup } from 'e2e-utils'
-import { fetchViaHTTP } from 'next-test-utils'
+import { fetchViaRawHttp } from 'next-test-utils'
 
 describe('file-serving', () => {
   const { next, isNextDeploy, skipped } = nextTestSetup({
@@ -41,9 +41,10 @@ describe('file-serving', () => {
   // Helper to fetch using appropriate method based on URL validity
   const safeFetch = async (path, opts) => {
     if (isMalformedUrl(path)) {
-      // Use fetchViaHTTP with numeric port to bypass strict URL validation
-      // (passing a number avoids getFullUrl's string-branch URL parsing)
-      return await fetchViaHTTP(Number(next.appPort), path, undefined, opts)
+      // Global fetch cannot send these paths: its WHATWG URL parser
+      // normalizes backslashes, dot-segments, and repeated slashes before
+      // the request reaches the server. Use a raw HTTP request instead.
+      return await fetchViaRawHttp(Number(next.appPort), path, opts)
     } else {
       // Use normal next.fetch for valid URLs
       return await next.fetch(path, opts)
@@ -57,7 +58,8 @@ describe('file-serving', () => {
     const checkRes = async (res) => {
       if (res.status === 308) {
         const redirectDest = res.headers.get('location')
-        const parsedUrl = new URL(redirectDest)
+        // Raw requests return the Location header verbatim (relative).
+        const parsedUrl = new URL(redirectDest, next.url)
         expect(parsedUrl.hostname).toBeOneOf(['localhost', '127.0.0.1'])
       } else {
         try {

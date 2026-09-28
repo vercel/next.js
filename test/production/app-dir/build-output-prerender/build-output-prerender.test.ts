@@ -52,7 +52,6 @@ describe('build-output-prerender', () => {
              ✓ Running next.config.js took N
              - Cache Components enabled
              - Experiments (use with caution):
-               ⨯ appNewScrollHandler (disabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
                · staticGenerationMaxConcurrency: 1
                ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
             `)
@@ -62,7 +61,6 @@ describe('build-output-prerender', () => {
              ✓ Running next.config.js took N
              - Cache Components enabled
              - Experiments (use with caution):
-               ⨯ appNewScrollHandler (disabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
                · staticGenerationMaxConcurrency: 1"
             `)
           } else {
@@ -71,7 +69,6 @@ describe('build-output-prerender', () => {
              ✓ Running next.config.js took N
              - Cache Components enabled
              - Experiments (use with caution):
-               ⨯ appNewScrollHandler (disabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
                · staticGenerationMaxConcurrency: 1
                ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
             `)
@@ -193,7 +190,6 @@ describe('build-output-prerender', () => {
              - Cache Components enabled
              - Experiments (use with caution):
                ✓ allowDevelopmentBuild (enabled by \`--debug-prerender\`)
-               ⨯ appNewScrollHandler (disabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
                · staticGenerationMaxConcurrency: 1
@@ -208,7 +204,6 @@ describe('build-output-prerender', () => {
              - Cache Components enabled
              - Experiments (use with caution):
                ✓ allowDevelopmentBuild (enabled by \`--debug-prerender\`)
-               ⨯ appNewScrollHandler (disabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ⨯ serverMinification (disabled by \`--debug-prerender\`)
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
@@ -222,7 +217,6 @@ describe('build-output-prerender', () => {
              - Cache Components enabled
              - Experiments (use with caution):
                ✓ allowDevelopmentBuild (enabled by \`--debug-prerender\`)
-               ⨯ appNewScrollHandler (disabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ⨯ serverMinification (disabled by \`--debug-prerender\`)
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
@@ -376,22 +370,19 @@ describe('build-output-prerender', () => {
              "▲ Next.js x.y.z (Turbopack)
              ✓ Running next.config took N
              - Experiments (use with caution):
-               ⨯ appNewScrollHandler (disabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
                ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
             `)
           } else if (isRspack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (Rspack)
              ✓ Running next.config took N
-             - Experiments (use with caution):
-               ⨯ appNewScrollHandler (disabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)"
+             - Experiments (use with caution):"
             `)
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (webpack)
              ✓ Running next.config took N
              - Experiments (use with caution):
-               ⨯ appNewScrollHandler (disabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
                ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
             `)
           }
@@ -459,7 +450,6 @@ describe('build-output-prerender', () => {
              ✓ Running next.config took N
              - Experiments (use with caution):
                ✓ allowDevelopmentBuild (enabled by \`--debug-prerender\`)
-               ⨯ appNewScrollHandler (disabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
                ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)
@@ -472,7 +462,6 @@ describe('build-output-prerender', () => {
              ✓ Running next.config took N
              - Experiments (use with caution):
                ✓ allowDevelopmentBuild (enabled by \`--debug-prerender\`)
-               ⨯ appNewScrollHandler (disabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ⨯ serverMinification (disabled by \`--debug-prerender\`)
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)"
@@ -484,7 +473,6 @@ describe('build-output-prerender', () => {
              ✓ Running next.config took N
              - Experiments (use with caution):
                ✓ allowDevelopmentBuild (enabled by \`--debug-prerender\`)
-               ⨯ appNewScrollHandler (disabled by \`__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER\`)
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ⨯ serverMinification (disabled by \`--debug-prerender\`)
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
@@ -501,6 +489,11 @@ function getPreambleOutput(cliOutput: string): string {
   const lines: string[] = []
 
   for (const line of cliOutput.split('\n')) {
+    // React version warnings are covered by the dedicated React version test.
+    if (line.includes('React 18 support is deprecated')) {
+      continue
+    }
+
     if (line.includes('Creating an optimized production build')) {
       break
     }

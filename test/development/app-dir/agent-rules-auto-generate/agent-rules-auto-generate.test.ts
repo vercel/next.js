@@ -5,6 +5,38 @@ import path from 'path'
 import { writeAgentFiles } from 'next/dist/server/lib/generate-agent-files'
 
 const AGENT_RULES_MARKER = '<!-- BEGIN:nextjs-agent-rules -->'
+const AGENT_FEEDBACK_MARKER = '<!-- BEGIN:nextjs-agent-feedback -->'
+
+/** Clears every variable `@vercel/detect-agent` inspects so no agent is detected. */
+const NO_AGENT_ENV = {
+  AI_AGENT: '',
+  CURSOR_TRACE_ID: '',
+  CURSOR_AGENT: '',
+  GEMINI_CLI: '',
+  CODEX_SANDBOX: '',
+  CODEX_CI: '',
+  CODEX_THREAD_ID: '',
+  ANTIGRAVITY_AGENT: '',
+  AUGMENT_AGENT: '',
+  OPENCODE_CLIENT: '',
+  CLAUDECODE: '',
+  CLAUDE_CODE: '',
+  REPL_ID: '',
+  COPILOT_MODEL: '',
+  COPILOT_ALLOW_ALL: '',
+  COPILOT_GITHUB_TOKEN: '',
+}
+
+const NON_CI_ENV = {
+  CI: '',
+  CONTINUOUS_INTEGRATION: '',
+  BUILD_NUMBER: '',
+  RUN_ID: '',
+  GITHUB_ACTIONS: '',
+  NOW_BUILDER: '',
+  STACK: '',
+  NEXT_TELEMETRY_DISABLED: '',
+}
 
 /**
  * The canonical block as the version under test generates it,
@@ -17,13 +49,20 @@ function currentAgentRulesBlock(): string {
   return fs.readFileSync(path.join(dir, 'AGENTS.md'), 'utf-8').trimEnd()
 }
 
+/** A feedback block from an older version, used to check refresh and removal. */
+function staleAgentFeedbackBlock(): string {
+  return `${AGENT_FEEDBACK_MARKER}
+stale feedback instructions
+<!-- END:nextjs-agent-feedback -->`
+}
+
 describe('agent-rules auto-generate on next dev (agent detected)', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     env: { CLAUDECODE: '1' },
   })
 
-  it('creates AGENTS.md and CLAUDE.md at the project root when neither exists', async () => {
+  it('creates only AGENTS.md at the project root when neither exists', async () => {
     // A request is required to synchronize the test with the auto-gen
     // hook — `✓ Ready in X` is logged before the config load that runs
     // the hook, so `next.start()` resolves too early. `next.fetch` blocks
@@ -35,13 +74,8 @@ describe('agent-rules auto-generate on next dev (agent detected)', () => {
       'utf-8'
     )
     expect(agentsContent).toContain(AGENT_RULES_MARKER)
+    expect(agentsContent).toContain('\n## This is NOT the Next.js you know\n')
     expect(agentsContent).toContain('node_modules/next/dist/docs/')
-
-    const claudeContent = fs.readFileSync(
-      path.join(next.testDir, 'CLAUDE.md'),
-      'utf-8'
-    )
-    expect(claudeContent).toBe('@AGENTS.md\n')
   })
 })
 
@@ -51,30 +85,12 @@ describe('agent-rules auto-generate on next dev (no agent)', () => {
     // Explicitly clear every env var the agent detector inspects so the
     // test doesn't inherit one from the host shell (e.g. running it
     // inside Claude Code would otherwise trigger generation).
-    env: {
-      AI_AGENT: '',
-      CURSOR_TRACE_ID: '',
-      CURSOR_AGENT: '',
-      GEMINI_CLI: '',
-      CODEX_SANDBOX: '',
-      CODEX_CI: '',
-      CODEX_THREAD_ID: '',
-      ANTIGRAVITY_AGENT: '',
-      AUGMENT_AGENT: '',
-      OPENCODE_CLIENT: '',
-      CLAUDECODE: '',
-      CLAUDE_CODE: '',
-      REPL_ID: '',
-      COPILOT_MODEL: '',
-      COPILOT_ALLOW_ALL: '',
-      COPILOT_GITHUB_TOKEN: '',
-    },
+    env: NO_AGENT_ENV,
   })
 
-  it('does not create AGENTS.md or CLAUDE.md when no agent is detected', async () => {
+  it('does not create AGENTS.md when no agent is detected', async () => {
     await next.fetch('/')
     expect(fs.existsSync(path.join(next.testDir, 'AGENTS.md'))).toBe(false)
-    expect(fs.existsSync(path.join(next.testDir, 'CLAUDE.md'))).toBe(false)
   })
 })
 
@@ -90,7 +106,6 @@ describe('agent-rules auto-generate on next dev (agentRules: false)', () => {
   it('does not generate files when agentRules is disabled in next.config', async () => {
     await next.fetch('/')
     expect(fs.existsSync(path.join(next.testDir, 'AGENTS.md'))).toBe(false)
-    expect(fs.existsSync(path.join(next.testDir, 'CLAUDE.md'))).toBe(false)
   })
 })
 
@@ -130,7 +145,6 @@ Stale body from an older Next.js.
     expect(content).toContain(currentAgentRulesBlock())
     // Exactly one managed block — upgraded, not duplicated.
     expect(content.split(AGENT_RULES_MARKER).length - 1).toBe(1)
-    expect(fs.existsSync(path.join(next.testDir, 'CLAUDE.md'))).toBe(false)
   })
 
   it('is idempotent across dev server restarts', async () => {
@@ -169,31 +183,208 @@ describe('agent-rules auto-generate on next dev (AGENTS.md exists without marker
     )
     expect(content).toContain('Use tabs, not spaces.')
     expect(content).toContain(AGENT_RULES_MARKER)
-    // CLAUDE.md must stay alone when AGENTS.md already exists.
-    expect(fs.existsSync(path.join(next.testDir, 'CLAUDE.md'))).toBe(false)
   })
 })
 
-describe('agent-rules auto-generate on next dev (CLAUDE.md exists, no AGENTS.md)', () => {
+describe('agent-feedback auto-generate on next dev (enabled)', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    env: { CLAUDECODE: '1' },
+    env: { ...NON_CI_ENV, CLAUDECODE: '1' },
+    nextConfig: {
+      experimental: {
+        agentFeedback: true,
+      },
+    },
+  })
+
+  it('creates a separate managed feedback block', async () => {
+    await next.fetch('/')
+    const content = fs.readFileSync(
+      path.join(next.testDir, 'AGENTS.md'),
+      'utf-8'
+    )
+    expect(content).toContain(AGENT_RULES_MARKER)
+    expect(content).toContain(AGENT_FEEDBACK_MARKER)
+    expect(content).toContain('\n## Report Next.js feedback\n')
+    expect(content).toContain(
+      'The project owner enabled `experimental.agentFeedback`, authorizing this feedback pass.'
+    )
+    expect(content).toContain(
+      'When enabled, `next dev` writes this block and restores it if removed. Commit `AGENTS.md` with your work to keep the tree clean.'
+    )
+    expect(content).toContain('meaningful or recurring Next.js issues')
+    expect(content).toContain('- Crashes, hangs, OOMs')
+    expect(content).toContain('- Incorrect behavior, output, errors')
+    expect(content).toContain(
+      '- Missing, unclear, or conflicting documentation'
+    )
+    expect(content).toContain('- Unexpected CLI, codemod, Skill')
+    expect(content).toContain(
+      'node node_modules/next/dist/bin/next internal agent-feedback-instructions'
+    )
+    expect(content).toContain('without piping or truncating its output')
+    expect(content).toContain(
+      'Before the final response, run one reporting pass'
+    )
+    expect(content).toContain('If a network sandbox blocks it')
+    expect(content).toContain(
+      'if it still returns no output, continue normally'
+    )
+    expect(content).not.toContain('"schemaVersion":3')
+  })
+
+  it('is idempotent across dev server restarts', async () => {
+    await next.fetch('/')
+    const before = fs.readFileSync(
+      path.join(next.testDir, 'AGENTS.md'),
+      'utf-8'
+    )
+    await next.stop()
+    await next.start()
+    await next.fetch('/')
+    expect(fs.readFileSync(path.join(next.testDir, 'AGENTS.md'), 'utf-8')).toBe(
+      before
+    )
+  })
+})
+
+describe('agent-feedback auto-generate on next dev (agentRules: false)', () => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    env: { ...NON_CI_ENV, CLAUDECODE: '1' },
+    nextConfig: {
+      agentRules: false,
+      experimental: {
+        agentFeedback: true,
+      },
+    },
+  })
+
+  it('creates feedback instructions independently from agent rules', async () => {
+    await next.fetch('/')
+    const content = fs.readFileSync(
+      path.join(next.testDir, 'AGENTS.md'),
+      'utf-8'
+    )
+    expect(content).toContain(AGENT_FEEDBACK_MARKER)
+    expect(content).not.toContain(AGENT_RULES_MARKER)
+  })
+})
+
+describe('agent-feedback auto-generate on next dev (no agent)', () => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    env: { ...NO_AGENT_ENV, ...NON_CI_ENV },
+    nextConfig: {
+      agentRules: false,
+      experimental: {
+        agentFeedback: true,
+      },
+    },
+  })
+
+  it('does not create feedback instructions without a detected agent', async () => {
+    await next.fetch('/')
+    expect(fs.existsSync(path.join(next.testDir, 'AGENTS.md'))).toBe(false)
+  })
+})
+
+describe('agent-feedback auto-generate on next dev (disabled)', () => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    env: { ...NON_CI_ENV, CLAUDECODE: '1' },
     skipStart: true,
   })
 
   beforeAll(async () => {
-    await next.patchFile('CLAUDE.md', '# My rules\n\nBe concise.\n')
+    await next.patchFile(
+      'AGENTS.md',
+      `# Team rules\n${staleAgentFeedbackBlock()}\n# More rules\n\n${currentAgentRulesBlock()}\n`
+    )
     await next.start()
   })
 
-  it('upserts into CLAUDE.md and does not create AGENTS.md', async () => {
+  it('removes only the managed feedback block', async () => {
     await next.fetch('/')
-    const claudeContent = fs.readFileSync(
-      path.join(next.testDir, 'CLAUDE.md'),
+    const content = fs.readFileSync(
+      path.join(next.testDir, 'AGENTS.md'),
       'utf-8'
     )
-    expect(claudeContent).toContain('Be concise.')
-    expect(claudeContent).toContain(AGENT_RULES_MARKER)
+    expect(content).toContain('# Team rules\n# More rules')
+    expect(content).toContain(AGENT_RULES_MARKER)
+    expect(content).not.toContain(AGENT_FEEDBACK_MARKER)
+  })
+})
+
+describe('agent-rules auto-generate on next dev (disabled with existing blocks)', () => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    env: { ...NO_AGENT_ENV, ...NON_CI_ENV },
+    nextConfig: {
+      agentRules: false,
+      experimental: {
+        agentFeedback: true,
+      },
+    },
+    skipStart: true,
+  })
+
+  beforeAll(async () => {
+    await next.patchFile(
+      'AGENTS.md',
+      `# Team rules\n\nKeep this content.\n\n${currentAgentRulesBlock()}\n\n${staleAgentFeedbackBlock()}\n`
+    )
+    await next.start()
+  })
+
+  it('removes the managed rules block without a detected agent', async () => {
+    await next.fetch('/')
+    const content = fs.readFileSync(
+      path.join(next.testDir, 'AGENTS.md'),
+      'utf-8'
+    )
+    expect(content).toContain('Keep this content.')
+    expect(content).not.toContain(AGENT_RULES_MARKER)
+    expect(content).toContain(AGENT_FEEDBACK_MARKER)
+  })
+})
+
+describe('agent-feedback auto-generate on next dev (telemetry disabled)', () => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    env: {
+      ...NON_CI_ENV,
+      CLAUDECODE: '1',
+      NEXT_TELEMETRY_DISABLED: '1',
+    },
+    nextConfig: {
+      agentRules: false,
+      experimental: {
+        agentFeedback: true,
+      },
+    },
+  })
+
+  it('does not create feedback instructions', async () => {
+    await next.fetch('/')
+    expect(fs.existsSync(path.join(next.testDir, 'AGENTS.md'))).toBe(false)
+  })
+})
+
+describe('agent-feedback auto-generate on next dev (CI)', () => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    env: { CLAUDECODE: '1', CI: '1' },
+    nextConfig: {
+      agentRules: false,
+      experimental: {
+        agentFeedback: true,
+      },
+    },
+  })
+
+  it('does not create feedback instructions', async () => {
+    await next.fetch('/')
     expect(fs.existsSync(path.join(next.testDir, 'AGENTS.md'))).toBe(false)
   })
 })

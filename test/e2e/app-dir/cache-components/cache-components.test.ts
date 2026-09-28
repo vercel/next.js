@@ -6,14 +6,9 @@ import cheerio from 'cheerio'
 import { fetchViaHTTP, findPort } from 'next-test-utils'
 
 describe('cache-components', () => {
-  const { next, isNextDev, isNextStart, skipped } = nextTestSetup({
+  const { next, isNextDev, isNextStart } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should not have route specific errors', async () => {
     expect(next.cliOutput).not.toMatch('Error: Route "/')

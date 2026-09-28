@@ -322,7 +322,8 @@ export function getResolveRoutes(
 
         if (params) {
           const pageOutput = await fsChecker.getItem(
-            addPathPrefix(route.page, config.basePath || '')
+            addPathPrefix(route.page, config.basePath || ''),
+            curPathname || undefined
           )
 
           // i18n locales aren't matched for app dir
@@ -339,6 +340,13 @@ export function getResolveRoutes(
 
           if (config.useFileSystemPublicRoutes || didRewrite) {
             return pageOutput
+              ? {
+                  ...pageOutput,
+                  // The dynamic-route scan matched the concrete request path;
+                  // keep those params with the fsChecker route definition.
+                  params,
+                }
+              : null
           }
         }
       }
@@ -880,12 +888,17 @@ export function getResolveRoutes(
             (!parsedDestination.origin || isAllowedOrigin)
           ) {
             // We set the rewritten path and query headers on the response now
-            // that we know that the it's not an external rewrite.
+            // that we know that the it's not an external rewrite. Mirror the
+            // path in resHeaders because those are applied after route
+            // resolution; otherwise, an earlier Proxy rewrite would overwrite
+            // the final route destination.
             if (parsedUrl.pathname !== parsedDestination.pathname) {
               res.setHeader(
                 NEXT_REWRITTEN_PATH_HEADER,
                 parsedDestination.pathname
               )
+              resHeaders[NEXT_REWRITTEN_PATH_HEADER] =
+                parsedDestination.pathname
             }
             if (parsedUrl.search !== parsedDestination.search) {
               res.setHeader(

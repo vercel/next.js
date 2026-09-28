@@ -15,6 +15,7 @@ import {
 } from './middleware-webpack'
 import { WebpackHotMiddleware } from './hot-middleware'
 import * as inspector from 'inspector'
+import { randomUUID } from 'crypto'
 import { join, relative, isAbsolute, posix, dirname } from 'path'
 import {
   createEntrypoints,
@@ -83,7 +84,6 @@ import type { HmrMessageSentToBrowser } from './hot-reloader-types'
 import type { WebpackError } from 'webpack'
 import { PAGE_TYPES } from '../../lib/page-types'
 import { FAST_REFRESH_RUNTIME_RELOAD } from './messages'
-import { getNextErrorFeedbackMiddleware } from '../../next-devtools/server/get-next-error-feedback-middleware'
 import { getDevOverlayFontMiddleware } from '../../next-devtools/server/font/get-dev-overlay-font-middleware'
 import { getDisableDevIndicatorMiddleware } from '../../next-devtools/server/dev-indicator-middleware'
 import getWebpackBundler from '../../shared/lib/get-webpack-bundler'
@@ -126,6 +126,9 @@ function diff(a: Set<any>, b: Set<any>) {
 }
 
 const wsServer = new ws.Server({ noServer: true })
+
+// Folded into the HMR refresh hash to make it differ between dev server runs.
+const devServerSessionId = randomUUID()
 
 export async function renderScriptError(
   res: ServerResponse,
@@ -263,6 +266,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   private reloadAfterInvalidation: boolean = false
   private isSrcDir: boolean
   private cacheStatusesByRequestId = new Map<string, ServerCacheStatus>()
+  private hasVulnerabilityInsight: Promise<boolean>
 
   public serverStats: webpack.Stats | null
   public edgeServerStats: webpack.Stats | null
@@ -287,6 +291,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       resetFetch,
       lockfile,
       onDevServerCleanup,
+      hasVulnerabilityInsight,
     }: {
       config: NextConfigComplete
       isSrcDir: boolean
@@ -301,6 +306,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       resetFetch: () => void
       lockfile: Lockfile | undefined
       onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
+      hasVulnerabilityInsight: Promise<boolean>
     }
   ) {
     this.hasAppRouterEntrypoints = false
@@ -320,6 +326,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     this.telemetry = telemetry
     this.resetFetch = resetFetch
     this.lockfile = lockfile
+    this.hasVulnerabilityInsight = hasVulnerabilityInsight
 
     this.config = config
     this.previewProps = previewProps
@@ -440,8 +447,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     })
   }
 
-  public getServerComponentsHmrRefreshHash(): string | undefined {
-    return this.serverComponentsHmrRefreshHash
+  public getServerComponentsHmrRefreshHash(): string {
+    return `${devServerSessionId}-${this.serverComponentsHmrRefreshHash ?? '0'}`
   }
 
   public onHMR(
@@ -463,7 +470,11 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       }
 
       this.webpackHotMiddleware.onHMR(client, htmlRequestId)
-      this.onDemandEntries?.onHMR(client, () => this.hmrServerError)
+      this.onDemandEntries?.onHMR(
+        client,
+        () => this.hmrServerError,
+        htmlRequestId
+      )
 
       const enableCacheComponents = this.config.cacheComponents
       // Clients with a request ID are inferred App Router clients. If Cache
@@ -684,7 +695,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       .traceAsyncFn(() =>
         recursiveDeleteSyncWithAsyncRetries(
           join(this.dir, this.config.distDir),
-          /^(cache|lock)/
+          new Set(['cache', 'lock'])
         )
       )
   }
@@ -995,6 +1006,13 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
             const isInstrumentation =
               isInstrumentationHookFile(page) && pageType === PAGE_TYPES.ROOT
 
+            const entryAppPaths =
+              'appPaths' in entryData ? entryData.appPaths : null
+            const isFinalRouteMatcher =
+              pageType === PAGE_TYPES.APP &&
+              this.config.experimental.strictRouteMatching &&
+              !!entryAppPaths?.length
+
             let pageRuntime = staticInfo?.runtime
 
             runDependingOnPageType({
@@ -1048,6 +1066,17 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                       ).toString('base64'),
                       isGlobalNotFoundEnabled: this.config.experimental
                         .globalNotFound
+                        ? true
+                        : undefined,
+                      explicitParallelRouteChildren: this.config.experimental
+                        .explicitParallelRouteChildren
+                        ? true
+                        : undefined,
+                      strictRouteMatching: this.config.experimental
+                        .strictRouteMatching
+                        ? true
+                        : undefined,
+                      isFinalRouteMatcher: isFinalRouteMatcher
                         ? true
                         : undefined,
                     }).import
@@ -1174,6 +1203,15 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                       .globalNotFound
                       ? true
                       : undefined,
+                    explicitParallelRouteChildren: this.config.experimental
+                      .explicitParallelRouteChildren
+                      ? true
+                      : undefined,
+                    strictRouteMatching: this.config.experimental
+                      .strictRouteMatching
+                      ? true
+                      : undefined,
+                    isFinalRouteMatcher: isFinalRouteMatcher ? true : undefined,
                   })
                 } else if (isAPIRoute(page)) {
                   value = getRouteLoaderEntry({
@@ -1614,7 +1652,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       this.versionInfo,
       this.devtoolsFrontendUrl,
       this.config,
-      initialDevToolsConfig
+      initialDevToolsConfig,
+      this.hasVulnerabilityInsight
     )
 
     let booted = false
@@ -1659,7 +1698,6 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
         serverStats: () => this.serverStats,
         edgeServerStats: () => this.edgeServerStats,
       }),
-      getNextErrorFeedbackMiddleware(this.telemetry),
       getDevOverlayFontMiddleware(),
       getDisableDevIndicatorMiddleware(),
       getRestartDevServerMiddleware({

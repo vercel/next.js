@@ -26,11 +26,13 @@ import {
   PHASE_DEVELOPMENT_SERVER,
 } from '../../shared/lib/constants'
 import {
-  ensureAgentRulesForDev,
   getEnvInfo,
   logExperimentalInfo,
   logStartInfo,
+  syncAgentFeedbackForDev,
+  syncAgentRulesForDev,
 } from './app-info-log'
+import type { AgentFilesResult } from './generate-agent-files'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import {
   type Span,
@@ -43,6 +45,7 @@ import { isIPv6 } from './is-ipv6'
 import { AsyncCallbackSet } from './async-callback-set'
 import type { NextServer } from '../next'
 import { durationToString } from '../../build/duration-to-string'
+import { isCI } from '../ci-info'
 
 const debug = setupDebug('next:start-server')
 let startServerSpan: Span | undefined
@@ -264,7 +267,7 @@ export async function startServer(
           'memory.heapSizeLimit': String(memoryRestartStats.heap_size_limit),
           'memory.heapUsed': String(memoryRestartStats.used_heap_size),
         }).stop()
-        await flushAllTraces()
+        flushAllTraces()
         process.exit(RESTART_EXIT_CODE)
       }
     }
@@ -428,7 +431,7 @@ export async function startServer(
             ])
 
             // Flush any remaining traces to the trace file on shutdown
-            await flushAllTraces()
+            flushAllTraces()
 
             // Flush telemetry if this is a dev server
             if (isDev) {
@@ -508,29 +511,35 @@ export async function startServer(
             partialPrefetching: initResult.partialPrefetching,
           })
 
-          // Auto-generate AGENTS.md / CLAUDE.md when an AI coding agent
-          // is detected but the managed agent-rules block is missing.
-          // Gated on `agentRules` in next.config (default true).
-          if (initResult.agentRules !== false) {
-            const result = await ensureAgentRulesForDev(dir)
-            if (result) {
-              const generated: string[] = []
-              if (
-                result.agentsMd === 'created' ||
-                result.agentsMd === 'updated'
-              )
-                generated.push('AGENTS.md')
-              if (
-                result.claudeMd === 'created' ||
-                result.claudeMd === 'updated'
-              )
-                generated.push('CLAUDE.md')
-              if (generated.length > 0) {
-                Log.event(
-                  `Generated ${generated.join(' and ')} for AI agents. Set \`agentRules: false\` in next.config to disable.`
-                )
-              }
-            }
+          logAgentFileSync(
+            await syncAgentRulesForDev(dir, initResult.agentRules !== false),
+            (files) =>
+              `Generated ${files} for AI agents. Set \`agentRules: false\` in next.config to disable.`,
+            (files) =>
+              `Removed agent rules from ${files} because \`agentRules\` is disabled.`
+          )
+
+          if (!isCI) {
+            const { traceGlobals } =
+              require('../../trace/shared') as typeof import('../../trace/shared')
+            const telemetry = traceGlobals.get('telemetry') as
+              | InstanceType<typeof import('../../telemetry/storage').Telemetry>
+              | undefined
+            const agentFeedbackConfigured = initResult.agentFeedback === true
+            const telemetryEnabled = telemetry?.isEnabled === true
+
+            logAgentFileSync(
+              await syncAgentFeedbackForDev(
+                dir,
+                agentFeedbackConfigured && telemetryEnabled
+              ),
+              (files) =>
+                `Generated agent feedback instructions in ${files}. Set \`experimental.agentFeedback: false\` in next.config to disable.`,
+              (files) =>
+                agentFeedbackConfigured
+                  ? `Removed agent feedback instructions from ${files} because Next.js Telemetry is disabled.`
+                  : `Removed agent feedback instructions from ${files} because \`experimental.agentFeedback\` is disabled.`
+            )
           }
         }
 
@@ -600,6 +609,8 @@ export async function startServer(
       if (dirWatchPaths.includes(removedPath)) {
         Log.error(
           `The directory at "${removedPath}" was deleted.\n\n` +
+            'Deleting this directory removes caches and will cause slower ' +
+            'performance.\n\n' +
             'Deleting this directory while Next.js is running can lead to ' +
             'undefined behavior. Restarting the server to recover...'
         )
@@ -673,4 +684,28 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
     }
   })
   process.send({ nextWorkerReady: true })
+}
+
+/**
+ * Report which agent files a managed-block sync touched. Silent when the sync
+ * was a no-op so every `next dev` start doesn't mention the files.
+ */
+function logAgentFileSync(
+  result: AgentFilesResult | null,
+  generatedMessage: (files: string) => string,
+  removedMessage: (files: string) => string
+): void {
+  if (!result) return
+
+  const generated: string[] = []
+  const removed: string[] = []
+  for (const [file, action] of [['AGENTS.md', result.agentsMd]] as const) {
+    if (action === 'created' || action === 'updated') {
+      generated.push(file)
+    } else if (action === 'removed') {
+      removed.push(file)
+    }
+  }
+  if (generated.length > 0) Log.event(generatedMessage(generated.join(' and ')))
+  if (removed.length > 0) Log.event(removedMessage(removed.join(' and ')))
 }

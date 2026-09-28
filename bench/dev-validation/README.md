@@ -28,6 +28,17 @@ prints the speedup. Options:
 - `--port=<n>`, `--headless=false`, `--settle-ms=<n>`.
 - `--json-out=<path>` — write the raw stats as JSON.
 
+Set `BENCH_DEV_VALIDATION_INSIGHTS=1` to give every family's leaf page an
+uncached data access, so validation reports one insight per navigation. Without
+it the run only covers the validation renders; with it, it also covers what
+follows an insight — encoding the errors and printing them with a source-mapped
+stack and code frame — which is the part that moves when that printing changes
+threads. The access sits below the family's heavy subtree, so validation still
+does that work before it reaches it: a page that suspends before it returns
+leaves the subtree unrendered in the validation pass. The routes become
+dynamic, so the absolute numbers are not comparable with a run without the
+flag; the worker-versus-in-process comparison within a run is.
+
 This depends on `experimental.devValidationWorker` existing, so it stacks on the
 PR that adds the flag. Until the worker implementation lands, both
 configurations run in-process and the A/B shows no delta; once it lands, the

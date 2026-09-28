@@ -2,11 +2,12 @@ use std::fmt::Display;
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
+use itertools::Itertools;
 use next_core::app_structure::FileSystemPathVec;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    Completion, FxIndexMap, FxIndexSet, NonLocalValue, OperationVc, ResolvedVc, TryFlatJoinIterExt,
-    TryJoinIterExt, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
+    Completion, FxIndexMap, FxIndexSet, JoinIterExt, NonLocalValue, OperationVc, ResolvedVc,
+    TryJoinIterExt, Vc, debug::ValueDebugFormat,
 };
 use turbopack_core::{
     module_graph::{GraphEntries, ModuleGraph},
@@ -15,9 +16,7 @@ use turbopack_core::{
 
 use crate::{operation::OptionEndpoint, paths::AssetPath, project::Project};
 
-#[derive(
-    TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode)]
 pub struct AppPageRoute {
     pub original_name: RcStr,
     pub html_endpoint: ResolvedVc<Box<dyn Endpoint>>,
@@ -38,6 +37,7 @@ pub enum Route {
     AppRoute {
         original_name: RcStr,
         endpoint: ResolvedVc<Box<dyn Endpoint>>,
+        has_action_manifest: bool,
     },
     Conflict,
 }
@@ -76,9 +76,7 @@ pub trait Endpoint {
     fn traced_files(self: Vc<Self>) -> Vc<FileSystemPathVec>;
 }
 
-#[derive(
-    TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode)]
 pub enum EndpointGroupKey {
     Instrumentation,
     InstrumentationEdge,
@@ -117,17 +115,13 @@ impl Display for EndpointGroupKey {
     }
 }
 
-#[derive(
-    TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode)]
 pub struct EndpointGroupEntry {
     pub endpoint: ResolvedVc<Box<dyn Endpoint>>,
     pub sub_name: Option<RcStr>,
 }
 
-#[derive(
-    TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode)]
 pub struct EndpointGroup {
     pub primary: Vec<EndpointGroupEntry>,
     pub additional: Vec<EndpointGroupEntry>,
@@ -186,13 +180,15 @@ async fn output_of_endpoints(endpoints: Vec<Vc<Box<dyn Endpoint>>>) -> Result<Vc
 async fn module_graphs_of_endpoints(
     endpoints: Vec<Vc<Box<dyn Endpoint>>>,
 ) -> Result<Vc<ModuleGraphs>> {
+    // Deduplicate while preserving first-seen order, then hand back a `Vec`.
     let module_graphs = endpoints
         .iter()
-        .map(async |endpoint| Ok(endpoint.module_graphs().await?.into_iter()))
-        .try_flat_join()
-        .await?
+        .map(async |endpoint| anyhow::Ok(endpoint.module_graphs().await?.into_iter()))
+        .join()
+        .await
         .into_iter()
-        .collect::<FxIndexSet<_>>()
+        .flatten_ok()
+        .collect::<Result<FxIndexSet<_>>>()?
         .into_iter()
         .collect::<Vec<_>>();
     Ok(Vc::cell(module_graphs))
@@ -293,6 +289,7 @@ pub enum EndpointOutputPaths {
     NodeJs {
         /// Relative to the root_path
         server_entry_path: RcStr,
+        server_hmr_entry_paths: Vec<RcStr>,
         server_paths: Vec<AssetPath>,
         client_paths: Vec<RcStr>,
     },

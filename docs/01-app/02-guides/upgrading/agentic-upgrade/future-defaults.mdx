@@ -1,0 +1,25 @@
+---
+title: Adopt Next.js Future Defaults with an agent
+description: Agent workflow for adopting Future Defaults after an optional Next.js version update.
+# Experimental agent workflow. Not ready for indexing; keep this document marked as draft.
+version: draft
+---
+
+Follow the Future Default adoption documents listed in the prompt. If the
+installed and target Next.js versions differ, complete the version guide first.
+
+## Adopt and verify
+
+- [ ] Set `experimental.agenticAutoUpgrade` to the policy specified in the
+      prompt, preserving unrelated configuration. If the installed Next.js
+      version does not support this option, skip the setting and report why.
+- [ ] Read and follow each adoption document in the prompt, in order. If none
+      are listed, continue to delivery. Complete each adoption; remove temporary
+      opt-outs and TODO markers after repair.
+- [ ] Run the repository's checks, build when supported, and test affected
+      runtime behavior. Verify each adoption before moving to the next.
+
+## Deliver
+
+- [ ] After verifying the adoption, return to `shared.md` and complete its
+      delivery checklist.

@@ -50,10 +50,14 @@ import {
 
 // Runtime provenance: the compiled server files prod app-page runtimes
 // are bundled from — BOTH bundlers, so changes touching only one still
-// move the fingerprint.
+// move the fingerprint. One file per server-side React layer (Flight,
+// Fizz, shared react-server runtime): a change confined to one layer
+// leaves the other layers' files byte-identical.
 const FP_FILES = [
   'packages/next/dist/compiled/react-server-dom-turbopack-experimental/cjs/react-server-dom-turbopack-server.node.production.js',
   'packages/next/dist/compiled/react-server-dom-webpack-experimental/cjs/react-server-dom-webpack-server.node.production.js',
+  'packages/next/dist/compiled/react-dom-experimental/cjs/react-dom-server.node.production.js',
+  'packages/next/dist/compiled/react-experimental/cjs/react.react-server.production.js',
 ]
 
 function parseArgs() {
@@ -578,6 +582,11 @@ for arm in ${base} ${cand}; do
   echo "tree $arm ver=$V fp=$F"; [ "$V" != MISSING ]
   eval "VER_$arm=$V; FP_$arm=$F"
 done
+# Identical fingerprints can be legitimate (arms differing only in
+# files outside FP_FILES, e.g. client-only changes), so warn, not fail.
+if [ "$FP_${base}" = "$FP_${cand}" ]; then
+  echo "WARNING: arms fingerprint identically ($FP_${base}) — the hashed server bundles are byte-identical; verify the arms differ where intended"
+fi
 for run in $(seq 1 ${total}); do
   # Alternate within the boot AND stagger by VM index: with an odd run
   # count, otherwise every boot gives the same arm the cold first slot
@@ -673,8 +682,13 @@ wc -l /vercel/sandbox/results.jsonl`
       })
       // Profiled passes run strictly AFTER the timed runs — profiling
       // overhead must never touch the numbers.
+      // Within one VM the second arm runs warmer (page cache, CPU
+      // governor) — a uniform few-percent deflation of every function
+      // in its profile. Alternating order across VMs cancels the drift
+      // in cross-VM aggregates.
+      const profOrder = index % 2 === 1 ? `${cand} ${base}` : `${base} ${cand}`
       const prof = `set -e
-for arm in ${base} ${cand}; do
+for arm in ${profOrder}; do
   if [ "$arm" = "${base}" ]; then PORT=3720; else PORT=3721; fi
   cd /vercel/sandbox/next-$arm
   pnpm bench:render-pipeline ${benchArgs('--capture-cpu')} \
@@ -682,6 +696,9 @@ for arm in ${base} ${cand}; do
     || (tail -10 /tmp/prof.log; exit 1)
   echo "profiled $arm"
 done
+# Lets profile analysis split by capture order without re-deriving it
+# from VM index parity.
+echo "${profOrder}" > /vercel/sandbox/prof-order.txt
 cd /vercel/sandbox && tar -czf profiles.tgz prof-*`
       // Profile capture is best-effort: a failed pass or transfer on one VM
       // must not kill collection for the whole run (the timed results are
@@ -955,18 +972,22 @@ try {
     arms: cfg.arms.map((a) => `${a.name}=${armId(a)}`),
   })
   const expSnap = await ensureExperimentSnapshot(cfg)
+  if (cfg.prepare) {
+    // A prepare run launches no measurement VMs; anything but a
+    // terminal phase here makes bench-status prescribe collecting
+    // data that never existed.
+    writeStatus({ phase: 'prepared (caches only, no measurement)', expSnap })
+    console.error(
+      `prepared: arms + experiment snapshot ${expSnap}; exiting (--prepare)`
+    )
+    process.exit(0)
+  }
   writeStatus({
     phase: 'measuring',
     expSnap,
     rowsExpected:
       cfg.vms * cfg.blocks * cfg.runs * 2 * cfg.routes.split(',').length * 2,
   })
-  if (cfg.prepare) {
-    console.error(
-      `prepared: arms + experiment snapshot ${expSnap}; exiting (--prepare)`
-    )
-    process.exit(0)
-  }
   await Promise.all(
     Array.from({ length: cfg.vms }, (_, i) => runVm(i, cfg, expSnap, outDir))
   )

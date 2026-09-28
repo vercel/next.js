@@ -19,7 +19,7 @@ pub async fn directory_from_relative_path(
     // development and the root directory is unlikely to move.
     let root = canonicalize_to_rcstr(Path::new(&*path))?;
     let disk_fs = DiskFileSystem::new(name, Vc::cell(root));
-    disk_fs.await?.start_watching(None).await?;
+    disk_fs.await?.start_watching().await?;
 
     Ok(Vc::upcast(disk_fs))
 }

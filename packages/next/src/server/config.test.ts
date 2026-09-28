@@ -1,4 +1,9 @@
 import { PHASE_INFO, PHASE_PRODUCTION_BUILD } from '../api/constants'
+import {
+  getStrictRouteMatchingDefaultWarning,
+  STRICT_ROUTE_MATCHING_DEFAULT_WARNING,
+} from './lib/router-utils/strict-route-matching-config'
+import { configSchema } from './config-schema'
 
 describe('loadConfig', () => {
   let loadConfig: typeof import('./config').default
@@ -193,6 +198,59 @@ describe('loadConfig', () => {
     })
   })
 
+  describe('parallel route matching flags', () => {
+    it('enables strict route matching by default and exposes the opt-out warning', async () => {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {},
+      })
+
+      expect(result.experimental.strictRouteMatching).toBe(true)
+      expect(getStrictRouteMatchingDefaultWarning(result)).toBe(
+        STRICT_ROUTE_MATCHING_DEFAULT_WARNING
+      )
+    })
+
+    it('allows loose route matching through the deprecated opt-out', async () => {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {
+          deprecated: {
+            looseRouteMatching: true,
+          },
+        },
+      })
+
+      expect(result.experimental.strictRouteMatching).toBe(false)
+      expect(getStrictRouteMatchingDefaultWarning(result)).toBeUndefined()
+    })
+
+    it('only accepts true for the deprecated opt-out', () => {
+      expect(
+        configSchema.safeParse({
+          deprecated: { looseRouteMatching: true },
+        }).success
+      ).toBe(true)
+      expect(
+        configSchema.safeParse({
+          deprecated: { looseRouteMatching: false },
+        }).success
+      ).toBe(false)
+    })
+
+    it('disables strict route matching when explicit children detection is disabled', async () => {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {
+          experimental: {
+            explicitParallelRouteChildren: false,
+          },
+        },
+      })
+
+      expect(result.experimental.explicitParallelRouteChildren).toBe(false)
+      expect(result.experimental.strictRouteMatching).toBe(false)
+      expect(getStrictRouteMatchingDefaultWarning(result)).toBeUndefined()
+    })
+  })
+
   describe('cacheHandlers validation', () => {
     it('should reject invalid keys', async () => {
       const invalidKeys = [
@@ -240,6 +298,42 @@ describe('loadConfig', () => {
         customConfig: { experimental: { cssChunking: 'graph' } },
       })
       expect(result.experimental.cssChunking).toBe('graph')
+    })
+  })
+
+  describe('experimental.durableUseCacheEntries', () => {
+    const originalTurbopack = process.env.TURBOPACK
+
+    afterEach(() => {
+      if (originalTurbopack === undefined) {
+        delete process.env.TURBOPACK
+      } else {
+        process.env.TURBOPACK = originalTurbopack
+      }
+    })
+
+    it('throws when using webpack', async () => {
+      delete process.env.TURBOPACK
+
+      await expect(
+        loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+          customConfig: {
+            experimental: { durableUseCacheEntries: true },
+          },
+        })
+      ).rejects.toThrow(/only supported with Turbopack/)
+    })
+
+    it('is preserved when using Turbopack', async () => {
+      process.env.TURBOPACK = '1'
+
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {
+          experimental: { durableUseCacheEntries: true },
+        },
+      })
+
+      expect(result.experimental.durableUseCacheEntries).toBe(true)
     })
   })
 })
