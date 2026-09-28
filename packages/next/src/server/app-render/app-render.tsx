@@ -8942,40 +8942,44 @@ async function prerenderToStream(
 
   let prerenderStore: PrerenderStore | null = null
 
-  // Set the status and any redirect headers, returning the recognized error
-  // type or undefined for errors that are neither HTTP access fallbacks nor redirects.
+  let capturedHTTPErrorType: 'access-fallback' | 'redirect' | undefined
+
+  // Redirects take precedence over access fallbacks. Within each category, the
+  // first error wins. Always return the current error's type, even if it does
+  // not change the response, so the recovery catch can recognize HTTP errors.
   function setHTTPAccessFallbackOrRedirectStatus(
     err: unknown
   ): MetadataErrorType | 'redirect' | undefined {
     if (isHTTPAccessFallbackError(err)) {
-      res.statusCode = getAccessFallbackHTTPStatus(err)
-      metadata.statusCode = res.statusCode
-      return getAccessFallbackErrorTypeByStatus(res.statusCode)
+      const statusCode = getAccessFallbackHTTPStatus(err)
+      if (capturedHTTPErrorType === undefined) {
+        capturedHTTPErrorType = 'access-fallback'
+        res.statusCode = statusCode
+        metadata.statusCode = statusCode
+      }
+      return getAccessFallbackErrorTypeByStatus(statusCode)
     } else if (isRedirectError(err)) {
-      res.statusCode = getRedirectStatusCodeFromError(err)
-      metadata.statusCode = res.statusCode
-      setHeader(
-        'location',
-        addPathPrefix(getURLFromRedirectError(err), basePath)
-      )
+      if (capturedHTTPErrorType !== 'redirect') {
+        capturedHTTPErrorType = 'redirect'
+        res.statusCode = getRedirectStatusCodeFromError(err)
+        metadata.statusCode = res.statusCode
+        setHeader(
+          'location',
+          addPathPrefix(getURLFromRedirectError(err), basePath)
+        )
+      }
       return 'redirect'
     }
   }
 
   // React can complete a prerender after an HTTP access fallback or redirect
-  // error is thrown inside a Suspense boundary. Set the response status and
-  // headers from the first captured error of either kind while preserving
-  // the prerendered content outside the boundary.
-  let hasCapturedHTTPError = false
+  // error is thrown inside a Suspense boundary. Update the response while
+  // preserving the prerendered content outside the boundary.
   const htmlRendererErrorHandler: typeof captureHTMLError = (
     err,
     errorInfo
   ) => {
-    if (!hasCapturedHTTPError) {
-      hasCapturedHTTPError =
-        setHTTPAccessFallbackOrRedirectStatus(err) !== undefined
-    }
-
+    setHTTPAccessFallbackOrRedirectStatus(err)
     return captureHTMLError(err, errorInfo)
   }
 

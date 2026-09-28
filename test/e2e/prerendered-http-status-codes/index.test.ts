@@ -9,7 +9,7 @@ describe('prerendered-http-status-codes', () => {
     files: __dirname,
   })
 
-  it('returns 200 and shows the dynamic not-found UI', async () => {
+  it('returns 200 when notFound() runs after connection() inside Suspense, then shows the not-found UI', async () => {
     const { browser, response } = await next.browserWithResponse(
       '/with-suspense/dynamic-not-found'
     )
@@ -22,6 +22,71 @@ describe('prerendered-http-status-codes', () => {
       await browser.close()
     }
   })
+
+  describe.each(['suspense', 'root'])(
+    'HTTP error precedence with the second error caught at %s',
+    (boundary) => {
+      async function expectResponse(
+        first: string,
+        second: string,
+        status: number,
+        location: string | null = null
+      ) {
+        const response = await next.fetch(
+          `/precedence/${first}/${second}/${boundary}`,
+          {
+            headers: { Accept: 'text/html' },
+            redirect: 'manual',
+          }
+        )
+
+        expect(response.status).toBe(status)
+        expect(response.headers.get('location')).toBe(location)
+        expect(response.headers.get('content-type')).toContain('text/html')
+        if (boundary === 'suspense') {
+          const $ = load(await response.text())
+          expect($('#precedence-layout').text()).toBe('HTTP error precedence')
+          expect($('#first-fallback').text()).toBe('First fallback')
+          expect($('#second-fallback').text()).toBe('Second fallback')
+        }
+      }
+
+      it.each([
+        ['not-found', 'unauthorized', 404],
+        ['not-found', 'forbidden', 404],
+        ['unauthorized', 'not-found', 401],
+        ['unauthorized', 'forbidden', 401],
+        ['forbidden', 'not-found', 403],
+        ['forbidden', 'unauthorized', 403],
+      ])('keeps the first access fallback: %s before %s', expectResponse)
+
+      describe.each([
+        { redirect: 'redirect', status: 307 },
+        { redirect: 'permanent-redirect', status: 308 },
+      ])('$redirect', ({ redirect, status }) => {
+        it.each(['not-found', 'unauthorized', 'forbidden'])(
+          'overrides an earlier %s',
+          async (fallback) => {
+            await expectResponse(fallback, redirect, status, '/second')
+          }
+        )
+
+        it.each(['not-found', 'unauthorized', 'forbidden'])(
+          'takes precedence over a later %s',
+          async (fallback) => {
+            await expectResponse(redirect, fallback, status, '/first')
+          }
+        )
+
+        it.each(['redirect', 'permanent-redirect'])(
+          'keeps its status and location when followed by %s',
+          async (second) => {
+            await expectResponse(redirect, second, status, '/first')
+          }
+        )
+      })
+    }
+  )
 
   describe.each(['with-suspense', 'without-suspense'])('%s', (variant) => {
     it.each([
