@@ -643,14 +643,15 @@ impl Storage {
             // was contended. We defer them until after the map shard lock is released to
             // avoid a lock cycle with get_or_create_persistent_task, which takes task_cache
             // before map. Allocated lazily on first conflict.
-            let mut deferred_task_cache_removals: Vec<CachedTaskTypeArc> = Vec::new();
+            let mut deferred_task_cache_removals: Vec<(CachedTaskTypeArc, TaskId)> = Vec::new();
             // Remove a task type from `task_cache`, deferring on contention. Shared by the
             // GC-deleted path below and the ordinary key eviction.
             let remove_from_task_cache =
                 |evicted: &mut EvictionCounts,
-                 deferred: &mut Vec<CachedTaskTypeArc>,
-                 task_type: &CachedTaskTypeArc| {
-                    match try_lock_and_remove(&self.task_cache, task_type.as_ref()) {
+                 deferred: &mut Vec<(CachedTaskTypeArc, TaskId)>,
+                 task_type: &CachedTaskTypeArc,
+                 task_id: TaskId| {
+                    match try_lock_and_remove(&self.task_cache, task_type.as_ref(), task_id) {
                         TryLockAndRemove::Removed => {
                             evicted.key_evictions += 1;
                         }
@@ -660,7 +661,7 @@ impl Storage {
                         }
                         TryLockAndRemove::WouldBlock => {
                             // Contention, to avoid a deadlock just defer
-                            deferred.push(task_type.clone());
+                            deferred.push((task_type.clone(), task_id));
                         }
                     }
                 };
@@ -679,6 +680,7 @@ impl Storage {
                             &mut evicted,
                             &mut deferred_task_cache_removals,
                             task_type,
+                            *task_id,
                         );
                     }
                     evicted.full += 1;
@@ -699,6 +701,7 @@ impl Storage {
                             &mut evicted,
                             &mut deferred_task_cache_removals,
                             task_type,
+                            *task_id,
                         );
                     }
                     KeyEvictability::AlreadyEvicted | KeyEvictability::Unevictable => {}
@@ -738,8 +741,12 @@ impl Storage {
             // Release the map shard lock before draining deferred removals so that a thread
             // holding a task_cache shard lock and waiting on this map shard can make progress.
             drop(shard);
-            for task_type in deferred_task_cache_removals {
-                if self.task_cache.remove(task_type.as_ref()).is_some() {
+            for (task_type, task_id) in deferred_task_cache_removals {
+                if self
+                    .task_cache
+                    .remove_if(task_type.as_ref(), |_, id| *id == task_id)
+                    .is_some()
+                {
                     evicted.key_evictions += 1;
                 }
             }

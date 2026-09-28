@@ -6,6 +6,8 @@ use turbo_tasks::{
 };
 use turbo_tasks_hash::Xxh3Hash64Hasher;
 
+// The TaskCache key is a stable hash, so different task types may share one encoded
+// list-valued disk entry. Snapshot reconciliation merges their IDs by hash.
 pub type TaskTypeHash = [u8; 8];
 
 /// A single item yielded by the snapshot iterator during persistence: either a put (persist a
