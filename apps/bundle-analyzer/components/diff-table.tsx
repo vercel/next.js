@@ -455,10 +455,8 @@ function sortRenderItems<Row extends DiffRow>(
   return items.toSorted((left, right) => {
     const a = values(left)
     const b = values(right)
-    if (column !== 'delta') {
-      if (a.identical && !b.identical) return 1
-      if (b.identical && !a.identical) return -1
-    }
+    if (a.identical && !b.identical) return 1
+    if (b.identical && !a.identical) return -1
 
     if (column === 'name') {
       const comparison = a.name.localeCompare(b.name)
@@ -644,9 +642,9 @@ function PackageCountBreakdown({
 /**
  * Sorts rows by the chosen column and direction. The `name` column compares
  * using a locale-aware lexicographic ordering; numeric columns compare by
- * value. For non-delta columns, `identical` rows are pinned to the bottom —
- * they aren't part of the "what changed" story and would otherwise dominate
- * the top of an ascending sort. For delta, zero belongs between gains and losses.
+ * value. `identical` rows are pinned to the bottom for every column — they
+ * aren't part of the "what changed" story and would otherwise dominate the
+ * top of an ascending sort.
  */
 function sortRows<Row extends DiffRow>(
   rows: Row[],
@@ -662,10 +660,8 @@ function sortRows<Row extends DiffRow>(
     return delta(row, useCompressed)
   }
   return rows.toSorted((a, b) => {
-    if (column !== 'delta') {
-      if (a.status === 'identical' && b.status !== 'identical') return 1
-      if (b.status === 'identical' && a.status !== 'identical') return -1
-    }
+    if (a.status === 'identical' && b.status !== 'identical') return 1
+    if (b.status === 'identical' && a.status !== 'identical') return -1
     const av = compareKey(a)
     const bv = compareKey(b)
     if (typeof av === 'string' && typeof bv === 'string') {
