@@ -1,5 +1,5 @@
 import { FileRef, isNextDev, isNextStart, nextTestSetup } from 'e2e-utils'
-import { waitFor, retry } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import { NEXT_RSC_UNION_QUERY } from 'next/dist/client/components/app-router-headers'
 import path from 'path'
 
