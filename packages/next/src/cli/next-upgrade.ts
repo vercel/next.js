@@ -139,9 +139,14 @@ async function resolveAIUpgradeType(
   )
   const policy = config.experimental?.agentUpgrade
 
-  return policy === 'security' || policy === 'latest' || policy === 'future'
-    ? policy
-    : 'security'
+  if (
+    policy === 'security' ||
+    policy === 'latest' ||
+    policy === 'experimental-future'
+  ) {
+    return policy
+  }
+  return 'security'
 }
 
 async function resolveCanaryVersion(): Promise<string> {
@@ -234,10 +239,10 @@ export async function spawnNextUpgrade(
       if (
         upgradeType !== 'security' &&
         upgradeType !== 'latest' &&
-        upgradeType !== 'future'
+        upgradeType !== 'experimental-future'
       ) {
         throw new Error(
-          `Unsupported AI upgrade type ${JSON.stringify(upgradeType)}. Expected "security", "latest", or "future".`
+          `Unsupported AI upgrade type ${JSON.stringify(upgradeType)}. Expected "security", "latest", or "experimental-future".`
         )
       }
 
@@ -346,7 +351,7 @@ export async function spawnNextUpgrade(
           }
         }
 
-        if (upgradeType === 'future' && needsVersionUpdate) {
+        if (upgradeType === 'experimental-future' && needsVersionUpdate) {
           await cp(
             join(
               bundledDocs,
@@ -440,7 +445,7 @@ export async function spawnNextUpgrade(
         )
         .join('\n')
       const futureDefaultsPrompt =
-        upgradeType === 'future'
+        upgradeType === 'experimental-future'
           ? `${needsVersionUpdate ? `After completing and verifying the version update, read and follow ${JSON.stringify(futureGuidePath)}.\n` : ''}${futureDefaultsList ? `Adopt these Future Defaults in order:\n${futureDefaultsList}\nComplete each adoption. Temporary opt-outs and TODO markers are intermediate work only; do not stop until they are removed and the adoption is fully verified.` : 'No Future Defaults are pending adoption.'}`
           : ''
 

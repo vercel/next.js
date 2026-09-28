@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
-    agentUpgrade: 'future',
+    agentUpgrade: 'experimental-future',
   },
 }
 

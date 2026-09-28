@@ -94,7 +94,7 @@ const initialNextVersion = process.env.__NEXT_VERSION
 const initialRequestedUpgrade = process.env.__NEXT_AGENTIC_AUTO_UPGRADE
 
 const config = (
-  policy: 'security' | 'latest' | 'future' | boolean,
+  policy: 'security' | 'latest' | 'experimental-future' | boolean,
   values: Record<string, unknown> = {}
 ) =>
   ({
@@ -167,7 +167,7 @@ describe('security upgrade nudge', () => {
       name: 'SecurityFatalError',
       exitCode: 1,
       message: expect.stringMatching(
-        /affected by a known security vulnerability[\s\S]*\*\*We strongly recommend you upgrade Next\.js\.\*\*[\s\S]*reminder you configured is not missed\. Retry the same command to continue the original task\.[\s\S]*include this upgrade recommendation even if the retry succeeds\.[\s\S]*ask the user once:[\s\S]*in a separate Git worktree\?[\s\S]*Use their worktree choice and continue in this agent session[\s\S]*Run this command from this app's directory:[\s\S]*```\nnext upgrade --ai=(?:security|latest|future)\n```/
+        /affected by a known security vulnerability[\s\S]*\*\*We strongly recommend you upgrade Next\.js\.\*\*[\s\S]*reminder you configured is not missed\. Retry the same command to continue the original task\.[\s\S]*include this upgrade recommendation even if the retry succeeds\.[\s\S]*ask the user once:[\s\S]*in a separate Git worktree\?[\s\S]*Use their worktree choice and continue in this agent session[\s\S]*Run this command from this app's directory:[\s\S]*```\nnext upgrade --ai=(?:security|latest|experimental-future)\n```/
       ),
     })
     expect(warn).not.toHaveBeenCalled()
@@ -364,7 +364,7 @@ describe('latest upgrade nudge', () => {
     mockUpgrade()
   })
 
-  it.each(['latest', 'future'] as const)(
+  it.each(['latest', 'experimental-future'] as const)(
     'links a canary %s reminder to the selected channel',
     async (policy) => {
       process.env.__NEXT_VERSION = '17.2.0-canary.4'
@@ -418,7 +418,7 @@ describe('latest upgrade nudge', () => {
       name: 'UpgradeNudgeError',
       exitCode: 1,
       message: expect.stringMatching(
-        /Next\.js 17\.0\.0 is available\.[\s\S]*\*\*We recommend you upgrade Next\.js\.\*\*[\s\S]*reminder you configured is not missed\. Retry the same command to continue the original task\.[\s\S]*include this upgrade recommendation even if the retry succeeds\.[\s\S]*ask the user once:[\s\S]*in a separate Git worktree\?[\s\S]*Use their worktree choice and continue in this agent session[\s\S]*Run this command from this app's directory:[\s\S]*```\nnext upgrade --ai=(?:security|latest|future)\n```[\s\S]*registry\.npmjs\.org[\s\S]*agentUpgrade: 'latest'/
+        /Next\.js 17\.0\.0 is available\.[\s\S]*\*\*We recommend you upgrade Next\.js\.\*\*[\s\S]*reminder you configured is not missed\. Retry the same command to continue the original task\.[\s\S]*include this upgrade recommendation even if the retry succeeds\.[\s\S]*ask the user once:[\s\S]*in a separate Git worktree\?[\s\S]*Use their worktree choice and continue in this agent session[\s\S]*Run this command from this app's directory:[\s\S]*```\nnext upgrade --ai=(?:security|latest|experimental-future)\n```[\s\S]*registry\.npmjs\.org[\s\S]*agentUpgrade: 'latest'/
       ),
     })
     await expect(
@@ -433,7 +433,7 @@ describe('latest upgrade nudge', () => {
     )
   })
 
-  it.each(['latest', 'future'] as const)(
+  it.each(['latest', 'experimental-future'] as const)(
     'does not offer an unsafe %s target or fall through to Future adoption',
     async (policy) => {
       jest.mocked(getUpgradeAssessment).mockResolvedValue({
@@ -491,7 +491,7 @@ describe('composed latest nudge', () => {
     mockUpgrade('17.0.0')
   })
 
-  it.each(['latest', 'future'] as const)(
+  it.each(['latest', 'experimental-future'] as const)(
     'preserves the %s policy when security takes priority',
     async (policy) => {
       jest.mocked(getUpgradeAssessment).mockResolvedValue({
@@ -543,7 +543,7 @@ describe('composed future nudge', () => {
     await expect(
       assessUpgrade(
         directory,
-        config('future', { cacheComponents: false }),
+        config('experimental-future', { cacheComponents: false }),
         version
       )
     ).resolves.toBeNull()
@@ -553,12 +553,12 @@ describe('composed future nudge', () => {
     await expect(
       assessUpgrade(
         directory,
-        config('future', { cacheComponents: false }),
+        config('experimental-future', { cacheComponents: false }),
         '16.4.0-canary.1'
       )
     ).resolves.toEqual({
-      kind: 'future',
-      policy: 'future',
+      kind: 'experimental-future',
+      policy: 'experimental-future',
       installedVersion: '16.4.0-canary.1',
       targetVersion: '16.4.0',
       names: ['Cache Components'],
@@ -569,7 +569,7 @@ describe('composed future nudge', () => {
     await expect(
       assessUpgrade(
         directory,
-        config('future', { cacheComponents: true }),
+        config('experimental-future', { cacheComponents: true }),
         '16.4.0-canary.1'
       )
     ).resolves.toBeNull()
@@ -581,7 +581,7 @@ describe('composed future nudge', () => {
     await expect(
       nudgeUpgrade(
         directory,
-        config('future', { cacheComponents: false }),
+        config('experimental-future', { cacheComponents: false }),
         'build'
       )
     ).rejects.toMatchObject({
@@ -597,12 +597,12 @@ describe('composed future nudge', () => {
     await expect(
       assessUpgrade(
         directory,
-        config('future', { cacheComponents: false }),
+        config('experimental-future', { cacheComponents: false }),
         '16.4.0'
       )
     ).resolves.toEqual({
-      kind: 'future',
-      policy: 'future',
+      kind: 'experimental-future',
+      policy: 'experimental-future',
       installedVersion: '16.4.0',
       targetVersion: '16.4.0',
       names: ['Cache Components'],
@@ -615,7 +615,7 @@ describe('composed future nudge', () => {
     await expect(
       assessUpgrade(
         directory,
-        config('future', { cacheComponents: false }),
+        config('experimental-future', { cacheComponents: false }),
         '16.4.0'
       )
     ).resolves.toBeNull()
@@ -625,7 +625,7 @@ describe('composed future nudge', () => {
     await expect(
       assessUpgrade(
         directory,
-        config('future', { cacheComponents: true }),
+        config('experimental-future', { cacheComponents: true }),
         '16.4.0'
       )
     ).resolves.toBeNull()
@@ -637,13 +637,13 @@ describe('composed future nudge', () => {
     await expect(
       nudgeUpgrade(
         directory,
-        config('future', { cacheComponents: false }),
+        config('experimental-future', { cacheComponents: false }),
         'build'
       )
     ).rejects.toMatchObject({
       name: 'UpgradeNudgeError',
       message: expect.stringMatching(
-        /Next\.js 17\.0\.0 is available[\s\S]*include this upgrade recommendation even if the retry succeeds\.[\s\S]*next upgrade --ai=(?:security|latest|future)\n```[\s\S]*agentUpgrade: 'future'/
+        /Next\.js 17\.0\.0 is available[\s\S]*include this upgrade recommendation even if the retry succeeds\.[\s\S]*next upgrade --ai=(?:security|latest|experimental-future)\n```[\s\S]*agentUpgrade: 'experimental-future'/
       ),
     })
   })
@@ -665,7 +665,10 @@ describe('human upgrade nudge', () => {
     },
   }
   const run = (
-    policy: 'security' | 'latest' | 'future' = 'future',
+    policy:
+      | 'security'
+      | 'latest'
+      | 'experimental-future' = 'experimental-future',
     signal = new AbortController().signal
   ) => nudgeUpgrade(directory, config(policy), 'build', signal)
 
@@ -716,17 +719,17 @@ describe('human upgrade nudge', () => {
       'Next.js latest version upgrade available: 16.4.0 -> 17.0.0',
     ],
     [
-      'future',
+      'experimental-future',
       '17.0.0',
       'Next.js Future Default upgrade available: 16.4.0 -> 17.0.0\n\n- Cache Components',
     ],
     [
-      'future',
+      'experimental-future',
       '16.4.1',
       'Next.js Future Default upgrade available: 16.4.0 -> 16.4.1\n\n- Cache Components',
     ],
     [
-      'future',
+      'experimental-future',
       '16.4.0',
       'Next.js Future Default upgrade available:\n\n- Cache Components',
     ],
@@ -753,7 +756,7 @@ describe('human upgrade nudge', () => {
     mockUpgrade('17.0.0')
     await nudgeUpgrade(
       directory,
-      config('future', { cacheComponents: true }),
+      config('experimental-future', { cacheComponents: true }),
       'build',
       new AbortController().signal
     )
@@ -779,14 +782,14 @@ describe('human upgrade nudge', () => {
     }
   )
 
-  it.each(['security', 'latest', 'future'] as const)(
+  it.each(['security', 'latest', 'experimental-future'] as const)(
     'does not force a %s nudge without a valid installed version',
     async (policy) => {
       process.env.__NEXT_AGENTIC_AUTO_UPGRADE = policy
       process.env.__NEXT_VERSION = 'not-a-version'
       processEnv([], directory)
       updateInitialEnv({ __NEXT_AGENTIC_AUTO_UPGRADE: policy })
-      for (const configured of [false, 'future'] as const) {
+      for (const configured of [false, 'experimental-future'] as const) {
         const original = config(configured)
         const context = getUpgradeContext(original)
         expect(context.experimental.agentUpgrade).toBe(policy)
@@ -801,7 +804,7 @@ describe('human upgrade nudge', () => {
     }
   )
 
-  it.each(['security', 'latest', 'future'] as const)(
+  it.each(['security', 'latest', 'experimental-future'] as const)(
     'runs an explicitly requested %s upgrade',
     async (policy) => {
       process.env.__NEXT_AGENTIC_AUTO_UPGRADE = policy
@@ -895,7 +898,11 @@ describe('human upgrade nudge', () => {
     )
     expect(promptUpgrade).not.toHaveBeenCalled()
     await expect(run()).resolves.toBe('skip')
-    expect(getUpgradeAssessment).toHaveBeenCalledWith('16.4.0', 'future', false)
+    expect(getUpgradeAssessment).toHaveBeenCalledWith(
+      '16.4.0',
+      'experimental-future',
+      false
+    )
   })
 
   it('does not open an explicitly requested prompt after cancellation', async () => {
@@ -922,7 +929,7 @@ describe('human upgrade nudge', () => {
     await expect(
       nudgeUpgrade(
         join(directory, 'app'),
-        config('future'),
+        config('experimental-future'),
         'build',
         new AbortController().signal
       )
@@ -966,7 +973,7 @@ describe('human upgrade nudge', () => {
       const offer = (path: string) =>
         nudgeUpgrade(
           path,
-          config('future'),
+          config('experimental-future'),
           'build',
           new AbortController().signal
         )
@@ -985,7 +992,9 @@ describe('human upgrade nudge', () => {
       >
       expect(Object.keys(saved)).toHaveLength(1)
       expect(Object.keys(saved)[0]).toMatch(/^[a-f0-9]{64}$/)
-      expect(Object.values(saved)).toEqual([{ security: '16.4.0:future' }])
+      expect(Object.values(saved)).toEqual([
+        { security: '16.4.0:experimental-future' },
+      ])
 
       const otherApp = join(worktree, 'other/web')
       await mkdir(otherApp, { recursive: true })
@@ -1014,7 +1023,7 @@ describe('human upgrade nudge', () => {
       await run()
       expect(getUpgradeAssessment).toHaveBeenCalledWith(
         '16.4.0',
-        'future',
+        'experimental-future',
         true
       )
       expect(promptUpgrade).toHaveBeenCalledTimes(affected ? 1 : 0)
@@ -1108,7 +1117,7 @@ describe('human upgrade nudge', () => {
       controller.abort()
       return securityAssessment
     })
-    await run('future', controller.signal)
+    await run('experimental-future', controller.signal)
     expect(promptUpgrade).toHaveBeenCalledTimes(0)
   })
 })

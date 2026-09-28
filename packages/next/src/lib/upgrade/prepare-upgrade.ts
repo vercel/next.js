@@ -27,10 +27,10 @@ export async function prepareUpgrade(
   if (
     targetRequest !== 'security' &&
     targetRequest !== 'latest' &&
-    targetRequest !== 'future'
+    targetRequest !== 'experimental-future'
   ) {
     throw new Error(
-      `Unsupported AI upgrade type ${JSON.stringify(targetRequest)}. Expected "security", "latest", or "future".`
+      `Unsupported AI upgrade type ${JSON.stringify(targetRequest)}. Expected "security", "latest", or "experimental-future".`
     )
   }
 
@@ -54,7 +54,7 @@ export async function prepareUpgrade(
   if (upgrade.status === 'blocked' || upgrade.status === 'unknown') {
     throw new Error(upgrade.reason)
   }
-  if (upgrade.status !== 'ready' || targetRequest !== 'future') {
+  if (upgrade.status !== 'ready' || targetRequest !== 'experimental-future') {
     return upgrade
   }
 
@@ -95,7 +95,7 @@ export type UpgradeAssessment = {
 // target, so expire cached results and refresh metadata before execution.
 export async function getUpgradeAssessment(
   installedVersion: string,
-  policy: 'security' | 'latest' | 'future',
+  policy: 'security' | 'latest' | 'experimental-future',
   onlyIfAffected: boolean = false
 ): Promise<UpgradeAssessment> {
   if (!semver.valid(installedVersion)) {
@@ -117,7 +117,7 @@ export async function getUpgradeAssessment(
       },
     }
   }
-  if (channel && channel !== 'canary' && policy === 'future') {
+  if (channel && channel !== 'canary' && policy === 'experimental-future') {
     return {
       affected: null,
       reference: null,
@@ -205,7 +205,8 @@ export async function getUpgradeAssessment(
         )
       }
       targetVersion =
-        policy === 'future' && semver.gt(installedVersion, release.version)
+        policy === 'experimental-future' &&
+        semver.gt(installedVersion, release.version)
           ? installedVersion
           : release.version
       references = [release.reference]

@@ -19,11 +19,11 @@ type NudgeOptions = {
   command: 'dev' | 'build'
 }
 
-export type NudgeKind = 'security' | 'latest' | 'future'
+export type NudgeKind = 'security' | 'latest' | 'experimental-future'
 
 function getRequestedUpgrade() {
   const policy = process.env.__NEXT_AGENTIC_AUTO_UPGRADE
-  return policy === 'security' || policy === 'latest' || policy === 'future'
+  return policy === 'security' || policy === 'latest' || policy === 'experimental-future'
     ? policy
     : null
 }
@@ -128,7 +128,7 @@ type UpgradeReminder = {
       targetVersion: string
     }
   | { kind: 'latest'; latestVersion: string | null; names: string[] }
-  | { kind: 'future'; targetVersion: string; names: string[] }
+  | { kind: 'experimental-future'; targetVersion: string; names: string[] }
 )
 
 export function getUpgradeContext(config: NextConfigComplete): UpgradeContext {
@@ -153,7 +153,7 @@ export async function assessUpgrade(
   forceVersionReminder: boolean = false
 ): Promise<UpgradeReminder | null> {
   const policy = config.experimental.agentUpgrade
-  if (policy !== 'security' && policy !== 'latest' && policy !== 'future') {
+  if (policy !== 'security' && policy !== 'latest' && policy !== 'experimental-future') {
     return null
   }
   if (stopBefore === 'security') {
@@ -219,7 +219,7 @@ export async function assessUpgrade(
       installedVersion,
       latestVersion: upgrade.targetVersion,
       names:
-        policy === 'future'
+        policy === 'experimental-future'
           ? getPendingFutureDefaults(
               directory,
               config,
@@ -229,7 +229,7 @@ export async function assessUpgrade(
     }
   }
 
-  if (policy !== 'future' || stopBefore === 'future') {
+  if (policy !== 'experimental-future' || stopBefore === 'experimental-future') {
     return null
   }
   const pending = getPendingFutureDefaults(directory, config, installedVersion)
@@ -237,7 +237,7 @@ export async function assessUpgrade(
     return null
   }
   return {
-    kind: 'future',
+    kind: 'experimental-future',
     policy,
     installedVersion,
     targetVersion: upgrade.targetVersion,
@@ -264,7 +264,7 @@ async function nudgeUpgradeForAgent(
       recommendation = 'We recommend you upgrade Next.js.'
       reference = `https://registry.npmjs.org/next/${semver.prerelease(reminder.installedVersion)?.[0] === 'canary' ? 'canary' : 'latest'}`
       break
-    case 'future':
+    case 'experimental-future':
       summary = `Installed Next.js ${reminder.installedVersion} includes Future Defaults available for this app:\n\n${reminder.names.map((name) => `- ${name}`).join('\n')}`
       recommendation = 'We recommend you adopt these Future Defaults.'
       break
@@ -362,7 +362,7 @@ async function getUpgradeDismissal(
 ): Promise<NudgeKind | null> {
   try {
     const { key, preferences } = await getUpgradePreferences(directory)
-    for (const kind of ['security', 'latest', 'future'] as const) {
+    for (const kind of ['security', 'latest', 'experimental-future'] as const) {
       if (preferences.get(`${key}.${kind}`) === `${version}:${policy}`) {
         return kind
       }
@@ -385,7 +385,7 @@ async function nudgeUpgradeForHuman(
   if (reminder.kind === 'security') {
     message = `⚠ Installed Next.js version ${reminder.installedVersion} is affected by a known security vulnerability.`
     message += `\n\nNext.js security version upgrade available: ${reminder.installedVersion} -> ${reminder.targetVersion}`
-  } else if (reminder.policy === 'future') {
+  } else if (reminder.policy === 'experimental-future') {
     const targetVersion =
       reminder.kind === 'latest'
         ? reminder.latestVersion
@@ -449,7 +449,7 @@ export async function nudgeUpgrade(
 ): Promise<UpgradeAction | void> {
   const requested = getRequestedUpgrade()
   const policy = requested ?? config.experimental.agentUpgrade
-  if (policy !== 'security' && policy !== 'latest' && policy !== 'future') {
+  if (policy !== 'security' && policy !== 'latest' && policy !== 'experimental-future') {
     return
   }
   if (requested && isCI) {

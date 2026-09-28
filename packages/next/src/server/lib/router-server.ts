@@ -225,7 +225,7 @@ export async function initialize(opts: {
       developmentConfig.experimental.agentUpgrade === true ||
       developmentConfig.experimental.agentUpgrade === 'security' ||
       developmentConfig.experimental.agentUpgrade === 'latest' ||
-      developmentConfig.experimental.agentUpgrade === 'future' ||
+      developmentConfig.experimental.agentUpgrade === 'experimental-future' ||
       process.env.__NEXT_AGENTIC_AUTO_UPGRADE ||
       process.env.__NEXT_AGENT_UPGRADE_FORCE_DEVTOOLS_FOR_TESTING === '1'
     ) {

@@ -1168,7 +1168,7 @@ export default async function build(
         config.experimental.agentUpgrade === true ||
         config.experimental.agentUpgrade === 'security' ||
         config.experimental.agentUpgrade === 'latest' ||
-        config.experimental.agentUpgrade === 'future' ||
+        config.experimental.agentUpgrade === 'experimental-future' ||
         process.env.__NEXT_AGENTIC_AUTO_UPGRADE
       ) {
         const { nudgeUpgrade, getUpgradeContext } =
