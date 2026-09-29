@@ -36,10 +36,7 @@ import type { NormalizedSearch } from '../segment-cache/cache-key'
 import { getDeploymentId } from '../../../shared/lib/deployment-id'
 import { getNavigationBuildId } from '../../navigation-build-id'
 import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../lib/constants'
-import {
-  stripIsPartialByte,
-  bufferPrefetchResponseBody,
-} from '../segment-cache/cache'
+import { stripIsPartialByte } from '../segment-cache/cache'
 import { UnknownDynamicStaleTime } from '../segment-cache/bfcache'
 
 const createFromReadableStream =
@@ -354,19 +351,14 @@ export type RSCResponse = {
 
 type FetchResponseCacheData = {
   isResponsePartial: boolean
-  // A clone of the response body for shell extraction, derived from a `tee()`
-  // in `processFetch`.
-  shellBodyClone?: ReadableStream<Uint8Array>
 }
 
 /**
- * Strips the leading isPartial byte from an RSC navigation response and
- * clones the body for segment cache extraction.
+ * Strips the leading isPartial byte from an RSC navigation response.
  *
  * When cache components is enabled, the server prepends a single byte:
  * '~' (0x7e) for partial, '#' (0x23) for complete. This must be stripped
- * before Flight decoding because it's not valid RSC data. The body is
- * cloned before Flight can consume it so the clone is available for later use.
+ * before Flight decoding because it's not valid RSC data.
  *
  * When cache components is disabled, returns the original response with
  * cacheData: null.
@@ -384,26 +376,7 @@ export async function processFetch(response: Response): Promise<{
 
     const { stream, isPartial } = await stripIsPartialByte(response.body)
 
-    let responseStream: ReadableStream<Uint8Array>
-    let cacheData: FetchResponseCacheData
-
-    if (process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS) {
-      // Two readers needed: the main Flight decoder and the shell-stage
-      // extractor.
-      // TODO: Tee only in the callers that read the clone. Navigations only
-      // need it for a complete prerender.
-      const [stream1, shellBodyClone] = stream.tee()
-      responseStream = stream1
-      cacheData = {
-        isResponsePartial: isPartial,
-        shellBodyClone,
-      }
-    } else {
-      responseStream = stream
-      cacheData = { isResponsePartial: isPartial }
-    }
-
-    const strippedResponse = new Response(responseStream, {
+    const strippedResponse = new Response(stream, {
       headers: response.headers,
       status: response.status,
       statusText: response.statusText,
@@ -417,7 +390,10 @@ export async function processFetch(response: Response): Promise<{
       value: response.redirected,
     })
 
-    return { response: strippedResponse, cacheData }
+    return {
+      response: strippedResponse,
+      cacheData: { isResponsePartial: isPartial },
+    }
   }
 
   return { response, cacheData: null }
@@ -426,35 +402,28 @@ export async function processFetch(response: Response): Promise<{
 /**
  * Resolves the shell stage of a prerender response:
  *
- * - `a === undefined` (server didn't emit shell stage info) or no shell body
- *   clone: no shell exists — returns null.
+ * - `a === undefined` (server didn't emit shell stage info): no shell exists —
+ *   returns null.
  * - `a` resolves to `null`: the shell IS the main response — returns
  *   `flightResponse` itself (callers compare by reference).
  * - `a` resolves to a number: the shell is a strict prefix of the response —
- *   returns a separate Flight decode of the byte prefix.
+ *   returns a separate Flight decode of that many bytes from `chunks`, the
+ *   response's bytes (see `decodeResponsePrefix`).
  */
 export async function resolveShellStageResponse<
   T extends NavigationFlightResponse | InitialRSCPayload,
 >(
-  cacheData: FetchResponseCacheData,
+  chunks: Array<Uint8Array>,
   flightResponse: T,
   headers: RequestHeaders | undefined
 ): Promise<T | null> {
-  const { shellBodyClone } = cacheData
-
-  if (!shellBodyClone) {
-    return null
-  }
-
   if (flightResponse.a === undefined) {
     // The render wasn't staged — no shell exists.
-    shellBodyClone.cancel()
     return null
   }
 
   const shellByteLength = await flightResponse.a
   if (shellByteLength === 0) {
-    shellBodyClone.cancel()
     return null
   }
   if (shellByteLength === null) {
@@ -463,30 +432,37 @@ export async function resolveShellStageResponse<
     // rather than collapsing it into null, which would lose the distinction
     // from "no shell exists". This mirrors the convention of the per-segment
     // prefetch fetch (see fetchAndWritePerSegmentPrefetchResponse in cache.ts).
-    shellBodyClone.cancel()
     return flightResponse
   }
 
-  return decodeStageUntilBoundary<T>(shellBodyClone, shellByteLength, headers)
+  return decodeResponsePrefix<T>(chunks, shellByteLength, headers)
 }
 
 /**
- * Truncates and buffers a Flight stream clone at the given byte boundary and
- * decodes the prefix as an optional Flight payload. Returns null if extraction
- * fails or the root does not resolve before the next task. The caller can still
- * use the full response.
+ * Decodes the first `byteLength` bytes of a response, given the response's
+ * bytes as `chunks`. Returns null if the decode fails or its root doesn't
+ * resolve before the next task. The caller can still use the full response.
  */
-async function decodeStageUntilBoundary<T>(
-  responseBodyClone: ReadableStream<Uint8Array>,
+export async function decodeResponsePrefix<T>(
+  chunks: Array<Uint8Array>,
   byteLength: number,
   headers: RequestHeaders | undefined
 ): Promise<T | null> {
   try {
-    const buffer = await bufferPrefetchResponseBody(
-      responseBodyClone,
-      byteLength
+    const buffer = new Uint8Array(byteLength)
+    let size = 0
+    for (const chunk of chunks) {
+      if (size >= byteLength) {
+        break
+      }
+      const part = chunk.subarray(0, byteLength - size)
+      buffer.set(part, size)
+      size += part.byteLength
+    }
+    const response = decodeBufferedResponse<T>(
+      buffer.subarray(0, size),
+      headers
     )
-    const response = decodeBufferedStage<T>(buffer, headers)
 
     // The caller already has the full response root, but this prefix may omit
     // rows that the root needs. Bound this optional extraction so it cannot
@@ -511,15 +487,13 @@ async function decodeStageUntilBoundary<T>(
 }
 
 /**
- * Decodes already-buffered Flight response bytes as a stage payload. A
- * "stage" is a prefix of the staged server render — see `RenderStage` in
- * packages/next/src/server/app-render/staged-rendering.ts. The
- * bytes are delivered to Flight as a single chunk so all rows are processed
- * synchronously in one call — required for the thenable-status reads that
- * scope a response's late-resolving metadata (vary params, isPartial, ...)
- * to this decode.
+ * Decodes Flight bytes that are already buffered, either a whole response or
+ * a prefix of one. We pass all the bytes to Flight as a single chunk so every
+ * row is processed synchronously. That way, a value that resolves late in the
+ * response (like vary params) can be read without awaiting, and a prefix
+ * reads it as still pending.
  */
-export function decodeBufferedStage<T>(
+export function decodeBufferedResponse<T>(
   buffer: Uint8Array,
   headers: RequestHeaders | undefined
 ): Promise<T> {
