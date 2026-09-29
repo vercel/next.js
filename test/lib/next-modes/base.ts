@@ -71,7 +71,8 @@ export interface NextInstanceOpts {
    * Messages append in arrival order, not guaranteed execution order. String
    * offsets do not isolate requests, and remote severity only approximates the
    * original stdout/stderr stream. Setup waits up to 15 seconds for the first
-   * runtime message; quiet deployments can time out before tests send requests.
+   * runtime message, then proceeds if the deployment is quiet. This head start
+   * does not guarantee that the stream is ready before tests send requests.
    * The CLI currently limits a live stream to five minutes; expiry fails the
    * test rather than silently leaving cliOutput stale. Unsupported for custom
    * deployment/log scripts. Has no effect in dev or start mode.

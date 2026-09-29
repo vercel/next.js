@@ -181,6 +181,30 @@ describe('deploy runtime logs', () => {
     }
   )
 
+  it('reports a throwing consumer separately from an invalid record', async () => {
+    append.mockImplementationOnce(() => {
+      throw new Error('private consumer details')
+    })
+    const waiting = collector.waitForStreamReady()
+
+    stdout.write(JSON.stringify({ message: 'hello', level: 'info' }) + '\n')
+
+    expect(() => collector.assertHealthy()).toThrow(
+      new Error('Failed to deliver Vercel runtime logs')
+    )
+    await expect(waiting).rejects.toThrow(
+      'Failed to deliver Vercel runtime logs'
+    )
+    await expect(collector.stop()).rejects.toThrow(
+      'Failed to deliver Vercel runtime logs'
+    )
+    expect(kill).toHaveBeenCalled()
+    expect(output).toBe('build output\n')
+
+    stdout.write(JSON.stringify({ message: 'late message' }) + '\n')
+    expect(append).toHaveBeenCalledTimes(1)
+  })
+
   it('preserves multiline stack traces, whitespace and ANSI without CLI decorations', () => {
     const message =
       '\u001b[31mError: example\u001b[0m\n    at action (app/page.tsx:2:3)\n'
