@@ -71,8 +71,9 @@ export interface NextInstanceOpts {
    * Messages append in arrival order, not guaranteed execution order. String
    * offsets do not isolate requests, and remote severity only approximates the
    * original stdout/stderr stream. Setup verifies access, then polls complete
-   * request logs. Query failures, truncation, and reaching the 1,000-request
-   * limit fail the test instead of silently leaving cliOutput incomplete.
+   * request logs. Queries make up to three attempts with backoff. Persistent
+   * failures, truncation, and reaching the 1,000-request limit fail the test
+   * instead of silently leaving cliOutput incomplete.
    * Unsupported for custom deployment/log scripts. Has no effect in dev or
    * start mode.
    */
