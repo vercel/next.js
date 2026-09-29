@@ -1,6 +1,6 @@
 ---
 title: unstable_ensureStatic
-description: API reference for the unstable_ensureStatic route segment config, which requires static output for an App Shell, per-link prefetches, or an entire server-rendered route.
+description: API reference for the unstable_ensureStatic route segment config, which controls whether the App Shell, per-link prefetches, and server-rendered navigation output must be static.
 related:
   title: Next Steps
   description: Learn how prefetching and prerendering stages work.
@@ -12,7 +12,7 @@ related:
     - app/api-reference/config/next-config-js/partialPrefetching
 ---
 
-The `unstable_ensureStatic` route segment config requires specific [navigation stages](/docs/app/glossary#navigation-stages) to use static output. Export it from a [page](/docs/app/api-reference/file-conventions/page) or [layout](/docs/app/api-reference/file-conventions/layout) to require static rendering for the [App Shell](/docs/app/glossary#app-shell), per-link prefetches, or the entire server-rendered route.
+The `unstable_ensureStatic` route segment config controls whether the router can render prefetch output per request or must use reusable static output. Export it from a [page](/docs/app/api-reference/file-conventions/page) or [layout](/docs/app/api-reference/file-conventions/layout) to require static rendering for the [App Shell](/docs/app/glossary#app-shell), per-link prefetches, or the entire server-rendered route.
 
 ```tsx filename="app/blog/layout.tsx" highlight={1} switcher
 export const unstable_ensureStatic = 'navigation'
@@ -34,19 +34,23 @@ export default function Layout({ children }) {
 
 The export accepts `'auto'`, `'shell'`, `'prefetch'`, `'navigation'`, or `false`. The default is `'auto'`, which is equivalent to omitting the export.
 
-| Value              | Stages required to use static output    | Effect                                                         |
-| ------------------ | --------------------------------------- | -------------------------------------------------------------- |
-| `'auto'` (default) | None beyond the route's normal behavior | Allows another segment on the route to set a stricter level    |
-| `false`            | None                                    | Fails if another segment on the route sets a stricter level    |
-| `'shell'`          | App Shell                               | Non-static content waits for a per-link prefetch or navigation |
-| `'prefetch'`       | App Shell and per-link prefetches       | Non-static content waits for navigation                        |
-| `'navigation'`     | Entire server-rendered route            | Non-static server content produces an error                    |
+| Value              | Default `<Link>` prefetch                  | `<Link prefetch={true}>`                           | Navigation                        |
+| ------------------ | ------------------------------------------ | -------------------------------------------------- | --------------------------------- |
+| `'auto'` (default) | Uses the route's normal App Shell behavior | Uses the route's normal per-link prefetch behavior | Allows request-specific rendering |
+| `false`            | Uses the route's normal App Shell behavior | Uses the route's normal per-link prefetch behavior | Allows request-specific rendering |
+| `'shell'`          | Uses a reusable static App Shell           | Can render a request-specific prefetch             | Allows request-specific rendering |
+| `'prefetch'`       | Uses a reusable static App Shell           | Uses a reusable static prefetch                    | Allows request-specific rendering |
+| `'navigation'`     | Uses a reusable static App Shell           | Uses a reusable static prefetch                    | Requires static server output     |
 
-"Static output" means prerendered output that can be reused across requests. It can contain Suspense fallbacks for content that renders at a later stage. A [per-link prefetch](/docs/app/guides/optimizing-prefetching#resolve-url-data-at-prefetch-time) is requested with [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch).
+With [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), the router performs up to two requests before navigation. A default `<Link>` prefetches the App Shell. Setting [`prefetch={true}`](/docs/app/api-reference/components/link#prefetch) can request a [per-link prefetch](/docs/app/guides/optimizing-prefetching#resolve-url-data-at-prefetch-time) containing more of that destination.
+
+By default, either prefetch can be rendered per request when it needs session or URL data. `unstable_ensureStatic` can require one or both prefetches to use static output that is shared across requests. Static output can contain Suspense fallbacks for content that renders during a later stage.
+
+The selected level determines which requests must use static output. Instant Navigation validation only reports code that prevents Next.js from meeting that requirement.
 
 The App Shell and per-link prefetch stages apply to routes using [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching). Without Partial Prefetching, `'shell'` has no effect and `'prefetch'` matches the Cache Components default. The `'navigation'` value works with Cache Components alone.
 
-The static levels become progressively stricter: `'prefetch'` includes `'shell'`, and `'navigation'` includes both. Unlike `'auto'`, `false` rejects a static level set elsewhere on the route. See [Combining levels across layouts and pages](#combining-levels-across-layouts-and-pages).
+The static levels become progressively stricter: `'prefetch'` includes `'shell'`, and `'navigation'` includes both. Unlike `'auto'`, `false` causes the build to fail if another segment sets a static level. See [Combining levels across layouts and pages](#combining-levels-across-layouts-and-pages).
 
 > **Good to know**:
 >
@@ -55,19 +59,21 @@ The static levels become progressively stricter: `'prefetch'` includes `'shell'`
 
 ### `'shell'`
 
-Requires the route's App Shell to use static output. A default `<Link>` prefetch receives that reusable shell instead of rendering a shell for each visitor.
+Prevents the router from rendering the App Shell per request. A default `<Link>` receives the reusable static shell produced during prerendering.
 
-Content that cannot be included in static output remains behind the nearest `<Suspense>` fallback. A `<Link prefetch={true}>` can still make a request-time prefetch to render more of the route before navigation. Without `prefetch={true}`, that content renders when the user navigates.
+Content that cannot be included in static output remains behind the nearest `<Suspense>` fallback. A `<Link prefetch={true}>` can still make a runtime prefetch to render request-specific content before navigation. Without `prefetch={true}`, that content renders after the user navigates.
 
-For example, if a component reads [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers), the shell contains its Suspense fallback. The component can render during a per-link prefetch or navigation.
+For example, if a component reads [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers), the static shell contains its Suspense fallback. A per-link runtime prefetch can replace that fallback with session-specific content before the click. Otherwise, the component renders during navigation.
+
+If request-specific content is outside `<Suspense>`, Next.js cannot finish the required static shell. Development shows an Instant Navigation insight, and `next build` fails.
 
 Requires [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching). Without it, a route has no App Shell, so the value has no effect and Next.js logs a warning.
 
 ### `'prefetch'`
 
-With Partial Prefetching, requires both the App Shell and per-link prefetches to use static output. A default `<Link>` receives the reusable App Shell. `<Link prefetch={true}>` can include URL-specific static or cached content, but it cannot render a prefetch per request.
+Prevents the router from rendering either the App Shell or a per-link prefetch per request. A default `<Link>` receives the reusable static App Shell. `<Link prefetch={true}>` can include URL-specific static or cached content, but it cannot make a runtime prefetch for request-specific content.
 
-Content that cannot be included in static output remains behind the nearest `<Suspense>` fallback until navigation. For example, a component that reads `cookies()` or `headers()` renders when the user navigates, not when the link is prefetched.
+Content that cannot be included in static output remains behind the nearest `<Suspense>` fallback until navigation. For example, a component that reads `cookies()` or `headers()` renders after the user clicks the link, not while the link is prefetched.
 
 Without Partial Prefetching, default prefetches already use static output, so this value has no additional effect. `<Link prefetch={true}>` can still prefetch request-time content, the same as a navigation.
 
