@@ -159,7 +159,6 @@ export default class DevServer extends Server {
   } {
     const worker = new Worker(require.resolve('./static-paths-worker'), {
       maxRetries: 1,
-      setupArgs: [getRuntimeImageConfig(this.nextConfig)],
       // For dev server, it's not necessary to spin up too many workers as long as you are not doing a load test.
       // This helps reusing the memory a lot.
       numWorkers: 1,
@@ -753,6 +752,7 @@ export default class DevServer extends Server {
           dir: this.dir,
           distDir: this.distDir,
           pathname,
+          imageConfig: getRuntimeImageConfig(this.nextConfig),
           config: {
             configFileName,
             cacheComponents: Boolean(this.nextConfig.cacheComponents),

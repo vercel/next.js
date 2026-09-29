@@ -26,11 +26,6 @@ import { parseNormalizedAppRoute } from '../../shared/lib/router/routes/app'
 import type { ImageConfigRuntime } from '../../shared/lib/image-config'
 import { registerImageConfig } from '../../shared/lib/image-config-runtime.external'
 
-// Static paths collection may load raw _app and _document before a route entry.
-export function setup(imageConfig: ImageConfigRuntime): void {
-  registerImageConfig(imageConfig)
-}
-
 type RuntimeConfig = {
   configFileName: string
   cacheComponents: boolean
@@ -44,6 +39,7 @@ export async function loadStaticPaths({
   dir,
   distDir,
   pathname,
+  imageConfig,
   config,
   httpAgentOptions,
   locales,
@@ -69,6 +65,7 @@ export async function loadStaticPaths({
   dir: string
   distDir: string
   pathname: string
+  imageConfig: ImageConfigRuntime
   config: RuntimeConfig
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
   locales?: readonly string[]
@@ -91,6 +88,9 @@ export async function loadStaticPaths({
   staticPageGenerationTimeout: number
   sriEnabled: boolean
 }): Promise<StaticPathsResult> {
+  // Static paths collection may load raw _app and _document before a route entry.
+  registerImageConfig(imageConfig)
+
   // this needs to be initialized before loadComponents otherwise
   // "use cache" could be missing it's cache handlers
   await createIncrementalCache({
