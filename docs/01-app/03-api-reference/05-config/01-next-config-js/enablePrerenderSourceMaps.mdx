@@ -1,0 +1,45 @@
+---
+title: enablePrerenderSourceMaps
+description: Enable source maps for errors during prerendering in next build.
+related:
+  links:
+    - app/guides/memory-usage
+    - app/api-reference/config/next-config-js/productionBrowserSourceMaps
+---
+
+The `enablePrerenderSourceMaps` option enables source maps during the prerender phase of `next build`, so error stack traces point to the original source code. It defaults to `true`.
+
+To disable it, set `enablePrerenderSourceMaps` to `false`:
+
+```ts filename="next.config.ts" switcher highlight={4}
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  enablePrerenderSourceMaps: false,
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher highlight={3}
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  enablePrerenderSourceMaps: false,
+}
+
+module.exports = nextConfig
+```
+
+## Reference
+
+| Option                      | Type      | Default |
+| --------------------------- | --------- | ------- |
+| `enablePrerenderSourceMaps` | `boolean` | `true`  |
+
+Disabling source maps during prerendering can reduce [build memory usage](/docs/app/guides/memory-usage#disable-source-maps), but makes prerendering errors harder to debug.
+
+## Version History
+
+| Version   | Changes                                                                                                                              |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `v16.0.0` | `enablePrerenderSourceMaps` moved from `experimental.enablePrerenderSourceMaps` to the top-level `enablePrerenderSourceMaps` option. |
