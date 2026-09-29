@@ -147,6 +147,10 @@ export const conditions: Record<string, Condition> = {
   ci: staticCondition('running in CI (`NEXT_TEST_CI`)', () =>
     Boolean(process.env.NEXT_TEST_CI)
   ),
+  imageSandbox: staticCondition(
+    'running image sandbox integration tests (`NEXT_TEST_IMAGE_SANDBOX`)',
+    () => process.env.NEXT_TEST_IMAGE_SANDBOX === '1'
+  ),
   adapter: staticCondition('running the adapter test variant', () =>
     Boolean(process.env.NEXT_ENABLE_ADAPTER === '1')
   ),
