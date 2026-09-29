@@ -58,6 +58,7 @@ function setup({ useDirectEntrypointHandler, useNodeMiddleware }) {
           env: {
             TEST_OTEL_COLLECTOR_PORT: String(COLLECTOR_PORT),
             TEST_CLIENT_COMPONENT_GATE_PORT: String(CLIENT_COMPONENT_GATE_PORT),
+            NEXT_OTEL_PERFORMANCE_PREFIX: 'client-component-loading-test',
             NEXT_TELEMETRY_DISABLED: '1',
           },
         }
@@ -470,6 +471,26 @@ describe.each(
         expect(earlySpan).toBeDefined()
         await flush()
         expect(loadingSpans(traceId)).toEqual([earlySpan])
+      })
+
+      it('includes async client module evaluation in HTML loading duration', async () => {
+        const measurePath = '/api/app/test/client-component-measure'
+        const reset = await next.fetch(measurePath, { method: 'DELETE' })
+        expect(reset.status).toBe(204)
+
+        const response = await next.fetch('/app/test/slow-async-client', {
+          headers: { traceparent: traceparent(newTraceId()) },
+        })
+        expect(response.status).toBe(200)
+        expect(await response.text()).toContain(
+          '<span id="slow-async-client">async client component</span>'
+        )
+
+        const measurements = await next.fetch(measurePath)
+        expect(measurements.status).toBe(200)
+        const durations = (await measurements.json()) as number[]
+        expect(durations).toHaveLength(1)
+        expect(durations[0]).toBeGreaterThan(1_000)
       })
     })
   }
