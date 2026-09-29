@@ -1,4 +1,4 @@
-import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import fs from 'fs-extra'
 import { join } from 'path'
 
@@ -6,16 +6,13 @@ import { join } from 'path'
 // It likely expects a local build failure instead of a successful deployment.
 // @force-gate !deploy
 describe('TypeScript Image Component', () => {
-  const { next, isNextDeploy } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
   })
 
-  if (isNextDeploy) {
-    it('is excluded from deploy testing by @force-gate', () => {})
-  }
-
-  if (isNextStart) {
+  // @force-gate start
+  describe('production', () => {
     it('should fail to build invalid usage of the Image component', async () => {
       const { cliOutput, exitCode } = await next.build()
       expect(cliOutput).toMatch(/Failed to type check/)
@@ -46,9 +43,10 @@ describe('TypeScript Image Component', () => {
       )
       expect(envTypes).not.toContain('image-types/global')
     })
-  }
+  })
 
-  if (isNextDev) {
+  // @force-gate dev
+  describe('development', () => {
     let output = ''
 
     beforeAll(async () => {
@@ -100,5 +98,5 @@ describe('TypeScript Image Component', () => {
       )
       expect(envTypes).not.toContain('image-types/global')
     })
-  }
+  })
 })
