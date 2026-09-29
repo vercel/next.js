@@ -15,7 +15,6 @@ describe('agent upgrade terminal', () => {
   }
 
   describe('dev', () => {
-    // TODO: Remove this dev-only skip when build terminal coverage is added.
     if (!isNextDev) {
       return it.skip('only runs with Next.js dev', () => {})
     }
@@ -145,4 +144,92 @@ describe('agent upgrade terminal', () => {
       await expect(fetch(`http://127.0.0.1:${port}/`)).rejects.toThrow()
     })
   })
+
+  if (!isNextDev) {
+    describe('build', () => {
+      let terminal: IPty
+      let output: string
+      let exit: Promise<{ exitCode: number; signal?: number }>
+      let exited: boolean
+
+      async function startBuild(mode: 'default' | 'generate-env' = 'default') {
+        output = ''
+        exited = false
+        const env = { ...process.env }
+        env.TERM = 'xterm-256color'
+        env.__NEXT_AGENT_UPGRADE_FORCE_TERMINAL_FOR_TESTING = '1'
+        env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION =
+          require('next/package.json').version
+
+        terminal = spawn(
+          process.execPath,
+          [
+            // Build with the fixture's installed Next so app and framework
+            // resolve the same React instance during prerendering.
+            require.resolve('next/dist/bin/next', { paths: [next.testDir] }),
+            'build',
+            next.testDir,
+            ...(mode === 'generate-env'
+              ? ['--experimental-build-mode', 'generate-env']
+              : []),
+            ...(process.env.IS_WEBPACK_TEST ? ['--webpack'] : []),
+          ],
+          {
+            cwd: next.testDir,
+            env,
+            name: 'xterm-256color',
+            cols: 80,
+            rows: 24,
+          }
+        )
+        terminal.onData((data) => {
+          output += data
+        })
+        exit = new Promise((resolve) => {
+          terminal.onExit((event) => {
+            exited = true
+            resolve(event)
+          })
+        })
+        await retry(() => {
+          expect(output).toContain('Upgrade now')
+        }, 30_000)
+      }
+
+      afterEach(async () => {
+        if (!exited) {
+          terminal.kill('SIGTERM')
+        }
+        await exit
+      })
+
+      it('finishes the build after Skip', async () => {
+        await startBuild()
+        terminal.write('\x1b[B\r')
+        expect((await exit).exitCode).toBe(0)
+        expect(output).toContain('UPGRADE_TERMINAL_CONFIG_LOADED')
+        expect(output).toContain('Compiled successfully')
+      })
+
+      it('stops the build before starting the upgrade', async () => {
+        await startBuild()
+        terminal.write('\r')
+        expect((await exit).exitCode).toBe(1)
+        expect(output).toContain('Security advisories target stable versions')
+      })
+
+      it('reports Ctrl+C as an interrupt', async () => {
+        await startBuild()
+        terminal.write('\x03')
+        expect((await exit).exitCode).toBe(130)
+      })
+
+      it('waits for Skip before completing generate-env', async () => {
+        await startBuild('generate-env')
+        expect(exited).toBe(false)
+        terminal.write('\x1b[B\r')
+        expect((await exit).exitCode).toBe(0)
+      })
+    })
+  }
 })
