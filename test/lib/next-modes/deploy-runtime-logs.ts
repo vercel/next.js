@@ -35,6 +35,8 @@ export class DeployRuntimeLogs {
     const lines = createInterface({ input: this.process.stdout! })
     lines.on('line', (line) => {
       if (this.stopping || this.error || !line.trim()) return
+      let message: string
+      let stream: 'stdout' | 'stderr'
       try {
         const event = JSON.parse(line)
         if (typeof event.message !== 'string') {
@@ -55,7 +57,7 @@ export class DeployRuntimeLogs {
           if (this.seenRows.has(key)) return
           this.seenRows.add(key)
         }
-        const message = event.message.endsWith('\n')
+        message = event.message.endsWith('\n')
           ? event.message
           : `${event.message}\n`
         // Severity is the available approximation of stdout/stderr; the remote
@@ -63,11 +65,21 @@ export class DeployRuntimeLogs {
         const isErrorStream = ['warning', 'warn', 'error', 'fatal'].includes(
           event.level
         )
-        append(message, isErrorStream ? 'stderr' : 'stdout')
-        this.markFirstMessage()
+        stream = isErrorStream ? 'stderr' : 'stdout'
       } catch {
         // Do not include raw records: they may contain application secrets.
         this.error = new Error('Failed to read complete Vercel runtime logs')
+        this.process.kill()
+        return
+      }
+
+      try {
+        append(message, stream)
+        this.markFirstMessage()
+      } catch {
+        // Consumer failures are distinct from invalid records. Keep their
+        // details private too, since listeners may include application data.
+        this.error = new Error('Failed to deliver Vercel runtime logs')
         this.process.kill()
       }
     })
