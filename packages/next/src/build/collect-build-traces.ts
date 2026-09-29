@@ -200,16 +200,20 @@ export async function collectBuildTraces({
               require.resolve('next/dist/server/lib/start-server'),
               require.resolve('next/dist/server/next'),
               require.resolve('next/dist/server/require-hook'),
-              require.resolve(
-                'next/dist/server/image-optimizer/sandbox-worker'
-              ),
-              require.resolve(
-                'next/dist/server/image-optimizer/sandbox-worker-child'
-              ),
             ]
           : []),
         require.resolve('next/dist/server/next-server'),
       ].filter(Boolean) as string[]
+
+      const standaloneImageOptimizerEntries = isStandalone
+        ? [
+            require.resolve('next/dist/server/image-optimizer/sandbox-worker'),
+            require.resolve(
+              'next/dist/server/image-optimizer/sandbox-worker-child'
+            ),
+            require.resolve('@anthropic-ai/sandbox-runtime'),
+          ]
+        : []
 
       const minimalServerEntries = [
         ...sharedEntriesSet,
@@ -309,6 +313,32 @@ export async function collectBuildTraces({
           require.resolve('next/dist/compiled/jest-worker/threadChild'),
           serverTracedFiles
         )
+
+        if (standaloneImageOptimizerEntries.length > 0) {
+          // Trace the image optimizer subprocess separately. Adding these as
+          // shared entries makes their dependency graph reachable from the
+          // minimal server and can cause NFT to include most of the Next.js
+          // package in both traces.
+          const imageOptimizerTrace = await nodeFileTrace(
+            standaloneImageOptimizerEntries,
+            {
+              base: outputFileTracingRoot,
+              processCwd: dir,
+              mixedModules: true,
+              moduleSyncCatchall: false,
+            }
+          )
+          for (const entry of standaloneImageOptimizerEntries) {
+            addToTracedFiles('', entry, serverTracedFiles)
+          }
+          const imageOptimizerFiles = imageOptimizerTrace.fileList
+          for (const file of imageOptimizerTrace.esmFileList) {
+            imageOptimizerFiles.add(file)
+          }
+          for (const file of imageOptimizerFiles) {
+            addToTracedFiles(outputFileTracingRoot, file, serverTracedFiles)
+          }
+        }
       }
 
       {
