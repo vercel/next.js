@@ -795,8 +795,8 @@ export default class NextNodeServer extends BaseServer<
             href,
             req.originalRequest,
             res.originalResponse,
-            this.nextConfig.images.maximumResponseBody,
-            handleInternalReq
+            handleInternalReq,
+            this.nextConfig.images
           )
 
       return imageOptimizer(imageUpstream, paramsResult, this.nextConfig, {
