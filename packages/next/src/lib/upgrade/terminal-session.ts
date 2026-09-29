@@ -196,9 +196,16 @@ export async function runUpgradeTerminal(
     }
 
     if (overflow) {
-      Log.warn('Upgrade menu closed because buffered dev output reached 1 MiB.')
+      Log.warn(
+        'Upgrade menu closed because buffered command output reached 1 MiB.'
+      )
     }
     if (exited || controller.signal.aborted) {
+      // A finished build may still be waiting for the menu's choice. Overflow
+      // closes the menu, so release that wait before returning.
+      if (overflow && command === 'build' && !exited) {
+        await control.send({ type: 'continue' })
+      }
       return
     }
     await recordUpgradeNudgeChoice(message.directory, nudge, action)

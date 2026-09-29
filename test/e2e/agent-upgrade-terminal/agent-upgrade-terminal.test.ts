@@ -152,12 +152,18 @@ describe('agent upgrade terminal', () => {
       let exit: Promise<{ exitCode: number; signal?: number }>
       let exited: boolean
 
-      async function startBuild(mode: 'default' | 'generate-env' = 'default') {
+      async function startBuild(
+        mode: 'default' | 'generate-env' = 'default',
+        overflowMenu = false
+      ) {
         output = ''
         exited = false
         const env = { ...process.env }
         env.TERM = 'xterm-256color'
         env.__NEXT_AGENT_UPGRADE_FORCE_TERMINAL_FOR_TESTING = '1'
+        if (overflowMenu) {
+          env.UPGRADE_TERMINAL_TEST_OVERFLOW = '1'
+        }
         env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION =
           require('next/package.json').version
 
@@ -229,6 +235,17 @@ describe('agent upgrade terminal', () => {
         expect(exited).toBe(false)
         terminal.write('\x1b[B\r')
         expect((await exit).exitCode).toBe(0)
+      })
+
+      it('finishes the build when output closes the menu', async () => {
+        await startBuild('default', true)
+        await retry(() => {
+          expect(exited).toBe(true)
+        }, 30_000)
+        expect((await exit).exitCode).toBe(0)
+        expect(output).toContain(
+          'Upgrade menu closed because buffered command output reached 1 MiB.'
+        )
       })
     })
   }
