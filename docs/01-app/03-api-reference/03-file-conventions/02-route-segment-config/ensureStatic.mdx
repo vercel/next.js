@@ -12,7 +12,12 @@ related:
     - app/api-reference/config/next-config-js/partialPrefetching
 ---
 
-The `unstable_ensureStatic` route segment config controls whether the router can render prefetch output per request or must use reusable static output. Export it from a [page](/docs/app/api-reference/file-conventions/page) or [layout](/docs/app/api-reference/file-conventions/layout) to require static rendering for the [App Shell](/docs/app/glossary#app-shell), per-link prefetches, or the entire server-rendered route.
+The `unstable_ensureStatic` route segment config controls which rendering stages must use reusable static output. Export it from a [page](/docs/app/api-reference/file-conventions/page) or [layout](/docs/app/api-reference/file-conventions/layout) to configure the [App Shell](/docs/app/glossary#app-shell), per-link prefetches, or the complete server-rendered route.
+
+> **Good to know**:
+>
+> - The `unstable_ensureStatic` export only works when [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled. The build fails otherwise.
+> - Exporting `unstable_ensureStatic` from a Client Component throws an error.
 
 ```tsx filename="app/blog/layout.tsx" highlight={1} switcher
 export const unstable_ensureStatic = 'navigation'
@@ -44,44 +49,23 @@ The export accepts `'auto'`, `'shell'`, `'prefetch'`, `'navigation'`, or `false`
 
 With [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), the router performs up to two requests before navigation. A default `<Link>` prefetches the App Shell. Setting [`prefetch={true}`](/docs/app/api-reference/components/link#prefetch) can request a [per-link prefetch](/docs/app/guides/optimizing-prefetching#resolve-url-data-at-prefetch-time) containing more of that destination.
 
-By default, either prefetch can be rendered per request when it needs session or URL data. `unstable_ensureStatic` can require one or both prefetches to use static output that is shared across requests. Static output can contain Suspense fallbacks for content that renders during a later stage.
+`'shell'` and `'prefetch'` use static output for the selected prefetch stages. That output can contain `<Suspense>` fallbacks for content that renders during a later request. `'navigation'` requires the complete server-rendered route to use static output.
 
-The selected level determines which requests must use static output. Instant Navigation validation only reports code that prevents Next.js from meeting that requirement.
-
-The App Shell and per-link prefetch stages apply to routes using [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching). Without Partial Prefetching, `'shell'` has no effect and `'prefetch'` matches the Cache Components default. The `'navigation'` value works with Cache Components alone.
-
-The static levels become progressively stricter: `'prefetch'` includes `'shell'`, and `'navigation'` includes both. Unlike `'auto'`, `false` causes the build to fail if another segment sets a static level. See [Combining levels across layouts and pages](#combining-levels-across-layouts-and-pages).
-
-> **Good to know**:
->
-> - The `unstable_ensureStatic` export only works when [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled. The build fails otherwise.
-> - Exporting `unstable_ensureStatic` from a Client Component throws an error.
+Use `'shell'` and `'prefetch'` with [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching). The `'navigation'` value works with Cache Components alone. Each static level includes the previous one: `'prefetch'` includes `'shell'`, and `'navigation'` includes both.
 
 ### `'shell'`
 
-Prevents the router from rendering the App Shell per request. A default `<Link>` receives the reusable static shell produced during prerendering.
-
-Content that cannot be included in static output remains behind the nearest `<Suspense>` fallback. A `<Link prefetch={true}>` can still make a runtime prefetch to render request-specific content before navigation. Without `prefetch={true}`, that content renders after the user navigates.
-
-For example, if a component reads [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers), the static shell contains its Suspense fallback. A per-link runtime prefetch can replace that fallback with session-specific content before the click. Otherwise, the component renders during navigation.
-
-If request-specific content is outside `<Suspense>`, Next.js cannot finish the required static shell. Development shows an Instant Navigation insight, and `next build` fails.
-
-Requires [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching). Without it, a route has no App Shell, so the value has no effect and Next.js logs a warning.
+Uses reusable static output for the App Shell requested by a default `<Link>`. Request-specific content behind `<Suspense>` can render during a later per-link prefetch with `<Link prefetch={true}>`, or during navigation.
 
 ### `'prefetch'`
 
-Prevents the router from rendering either the App Shell or a per-link prefetch per request. A default `<Link>` receives the reusable static App Shell. `<Link prefetch={true}>` can include URL-specific static or cached content, but it cannot make a runtime prefetch for request-specific content.
-
-Content that cannot be included in static output remains behind the nearest `<Suspense>` fallback until navigation. For example, a component that reads `cookies()` or `headers()` renders after the user clicks the link, not while the link is prefetched.
-
-Without Partial Prefetching, default prefetches already use static output, so this value has no additional effect. `<Link prefetch={true}>` can still prefetch request-time content, the same as a navigation.
+Uses reusable static output for both the App Shell and per-link prefetches. A `<Link prefetch={true}>` can include URL-specific static or cached content. Request-specific content behind `<Suspense>` renders during navigation.
 
 ### `'navigation'`
 
-Requires every segment of the route to prerender completely, so initial loads and client navigations use static output. This level also works with Cache Components alone, without enabling Partial Prefetching.
+Requires every server-rendered segment of the route to complete during prerendering, so initial loads and client navigations use static output. This value works with Cache Components alone.
 
-Unlike `'shell'` and `'prefetch'`, this level does not allow server content to wait for a later rendering stage.
+#### Validation
 
 Server content that requires per-request work fails `next build` and shows an error in the development overlay, even when it is wrapped in `<Suspense>` or the segment sets [`instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant#disabling-instant):
 
@@ -92,7 +76,7 @@ Server content that requires per-request work fails `next build` and shows an er
 
 These constraints also apply to [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata) and [`generateViewport`](/docs/app/api-reference/functions/generate-viewport).
 
-Data cached with `use cache` can be prerendered. Calling [`prefetch()`](/docs/app/api-reference/functions/prefetch) or [`navigation()`](/docs/app/api-reference/functions/navigation) also remains allowed, because these functions do not defer work during a static prerender.
+Data cached with `use cache` can be prerendered. [`prefetch()`](/docs/app/api-reference/functions/prefetch) and [`navigation()`](/docs/app/api-reference/functions/navigation) are also allowed because their work completes during the static prerender.
 
 #### Dynamic route parameters
 
@@ -106,7 +90,7 @@ If `generateStaticParams()` is missing or a result omits a dynamic parameter, Ne
 
 Client Components can load request-specific content in the browser. Inside `<Suspense>`, `use(browser())` and [`use(io())`](/docs/app/api-reference/functions/io) are allowed. The prerender includes the fallback for the deferred content. See [Rendering components only in the browser](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser).
 
-Client hooks such as [`useParams()`](/docs/app/api-reference/functions/use-params) and [`useSearchParams()`](/docs/app/api-reference/functions/use-search-params) are also allowed. They do not remove the `generateStaticParams()` requirement for dynamic routes. Passing a request-dependent promise from a Server Component still requires server work and produces an error.
+Client hooks such as [`useParams()`](/docs/app/api-reference/functions/use-params) and [`useSearchParams()`](/docs/app/api-reference/functions/use-search-params) are also allowed. Dynamic routes still require `generateStaticParams()`. Passing a request-dependent promise from a Server Component still requires server work and produces an error.
 
 #### How errors are reported
 
@@ -114,15 +98,13 @@ The `'navigation'` level is checked during development and `next build`. Start w
 
 ### `false`
 
-Behaves like `'auto'`, but fails the build if another segment on the route sets `'shell'`, `'prefetch'`, or `'navigation'`. It is compatible with `'auto'`, `false`, and segments without the export. Use it on a route that should not be made static, so that a level added later to a shared layout is caught instead of applied.
-
-Like `'shell'`, it requires Partial Prefetching and logs a warning without it.
+With Partial Prefetching, `false` keeps the route's normal rendering behavior and fails the build if another segment sets `'shell'`, `'prefetch'`, or `'navigation'`. Use it to catch a static level inherited from another segment.
 
 ## Combining levels across layouts and pages
 
 A level set on a layout applies to every route that renders the layout, including its nested layouts, pages, and [parallel routes](/docs/app/api-reference/file-conventions/parallel-routes). Within a route, the level covers every segment, including the layouts above the one that sets it.
 
-Leaving the export unset or setting it to `'auto'` is compatible with any level and does not override another segment's setting. A descendant can set a stricter static level, but not a weaker one:
+Leaving the export unset or setting it to `'auto'` is compatible with any level and preserves another segment's setting. A descendant can set a stricter static level, but not a weaker one:
 
 ```tsx filename="app/blog/layout.tsx"
 export const unstable_ensureStatic = 'prefetch'
