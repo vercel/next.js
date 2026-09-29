@@ -7,9 +7,6 @@ import {
 } from 'next-test-utils'
 import * as path from 'path'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely controls the local Next.js build or server lifecycle.
-// @force-gate !deploy
 describe('non-root-project-monorepo', () => {
   const { next, isTurbopack, isNextDev, isRspack } = nextTestSetup({
     files: {
@@ -18,6 +15,7 @@ describe('non-root-project-monorepo', () => {
       // Deliberately shadows apps/web/content, to pin down which one a
       // `/`-rooted import resolves from.
       content: new FileRef(path.resolve(__dirname, 'content')),
+      'vercel.json': new FileRef(path.resolve(__dirname, 'vercel.json')),
       'pnpm-workspace.yaml': `packages:
       - 'apps/*'
       - 'packages/*'
@@ -27,6 +25,7 @@ describe('non-root-project-monorepo', () => {
     buildCommand: 'pnpm build',
     startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
     installCommand: 'pnpm i',
+    env: { ENABLE_EXPERIMENTAL_COREPACK: '1' },
   })
 
   describe('server relative import', () => {

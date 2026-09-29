@@ -12,12 +12,13 @@ const testFn =
     : describe
 
 testFn('import-meta-glob-monorepo', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: {
       apps: new FileRef(path.resolve(__dirname, 'apps')),
       // Deliberately shadows apps/web/content, to pin down which one a
       // `/`-rooted pattern resolves from.
       content: new FileRef(path.resolve(__dirname, 'content')),
+      'vercel.json': new FileRef(path.resolve(__dirname, 'vercel.json')),
       'pnpm-workspace.yaml': `packages:
       - 'apps/*'
       `,
@@ -26,12 +27,8 @@ testFn('import-meta-glob-monorepo', () => {
     buildCommand: 'pnpm build',
     startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
     installCommand: 'pnpm i',
-    skipDeployment: true,
+    env: { ENABLE_EXPERIMENTAL_COREPACK: '1' },
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should resolve a `/`-rooted pattern from the project directory, like a plain import', async () => {
     const $ = await next.render$('/glob')
