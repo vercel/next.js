@@ -20,6 +20,11 @@
 //! budget spreads their bottom merges over multiple compactions. Fresh files that are not compacted
 //! keep counting, so an interrupted or skipped compaction only increases the next budget.
 //!
+//! A shard that is far behind, over twice the space amplification trigger or with over twice
+//! `max_files_above_bottom` files above its bottom run, is bottom merged even when the budget is
+//! spent. That bounds how far a shard can fall behind, e.g. after a GC purge: its tombstones count
+//! as the entries they delete, but they are small and give little budget.
+//!
 //! When the shard count of a family grows, files written before cover multiple of the new shards.
 //! A merge job then covers all shards that such a file overlaps (a "component"), and its output is
 //! split at the new shard boundaries.
@@ -67,8 +72,12 @@ pub struct CompactConfig {
     pub max_files_above_bottom: usize,
 
     /// Bottom merges of a family stop once they rewrote this factor times the size of the fresh
-    /// files of the family. The first bottom merge of a family always runs. E.g. with `2.0`, after
-    /// commits wrote 10MB to a family, its bottom merges stop once they rewrote 20MB.
+    /// files of the family. The first bottom merge of a family always runs. E.g. with `3.0`, after
+    /// commits wrote 10MB to a family, its bottom merges stop once they rewrote 30MB.
+    ///
+    /// A bottom merge at a space amplification of `a` rewrites `1 + a` times the bytes above the
+    /// bottom run for every `a` of them, i.e. `(1 + a) / a` rewritten bytes per fresh byte: 3 at
+    /// the default 50% trigger. So `3.0` is how often a written byte is copied in steady state.
     pub max_rewrite_factor: f32,
 
     /// The maximum number of merge jobs in a compaction, across all families. Merge jobs run in
@@ -83,7 +92,7 @@ impl Default for CompactConfig {
             max_space_amplification_percent: 50,
             min_bottom_merge_bytes: 1024 * 1024,
             max_files_above_bottom: 4,
-            max_rewrite_factor: 2.0,
+            max_rewrite_factor: 3.0,
             max_merge_jobs: 8,
         }
     }
@@ -243,7 +252,11 @@ fn plan_family<T: Compactable>(
                     f32::INFINITY
                 },
             };
-            bottom_candidates.push((candidate, bottom_bytes + above_bytes, above));
+            // Far behind: bottom merged even when the budget is spent. A trigger of 0 merges every
+            // shard anyway, and then only the budget limits the rewrites.
+            let overdue = limit > 0.0
+                && (amplification > 2.0 * limit || above.len() > 2 * config.max_files_above_bottom);
+            bottom_candidates.push((candidate, bottom_bytes + above_bytes, above, overdue));
         } else if above.len() > config.max_files_above_bottom {
             intermediate_candidates.push(intermediate_candidate(above, config));
         }
@@ -261,9 +274,9 @@ fn plan_family<T: Compactable>(
     };
     let mut spent = 0u64;
     let mut result = Vec::new();
-    for (candidate, cost, above) in bottom_candidates {
+    for (candidate, cost, above, overdue) in bottom_candidates {
         // The first job always runs, even when the budget is 0.
-        if result.is_empty() || spent < budget {
+        if result.is_empty() || spent < budget || overdue {
             spent = spent.saturating_add(cost);
             result.push(candidate);
         } else if above.len() > config.max_files_above_bottom {
@@ -447,9 +460,10 @@ mod tests {
             .collect::<Vec<_>>();
         files.extend((0..4).map(|shard| file(shard, 2, 10, false, false)));
         assert_eq!(plan(&files, 2, &CompactConfig::full()).len(), 4);
-        // With a finite factor, only the first job runs.
+        // With a finite factor, only the first job runs (the full config's trigger is 0, so no
+        // shard counts as far behind).
         let config = CompactConfig {
-            max_rewrite_factor: 2.0,
+            max_rewrite_factor: 3.0,
             ..CompactConfig::full()
         };
         assert_eq!(plan(&files, 2, &config).len(), 1);
@@ -457,14 +471,41 @@ mod tests {
 
     #[test]
     fn test_budget_stops_when_exactly_spent() {
-        // Five shards, each a 100 byte bottom file and 200 bytes above it, three of those fresh:
-        // the budget is 2 * 600 = 1200, which four jobs of 300 bytes spend exactly.
-        let mut files = (0..8)
-            .map(|shard| file(shard, 3, 100, true, false))
-            .take(5)
+        // Four shards, each a 360 byte bottom file with 140 compacted and 100 fresh bytes above it
+        // (67%, over the trigger but under twice it), so each job rewrites 600 bytes. The budget is
+        // 3 * 400 fresh bytes = 1200, which two jobs spend exactly: a third one doesn't run.
+        let mut files = (0..4)
+            .map(|shard| file(shard, 2, 360, true, false))
             .collect::<Vec<_>>();
-        files.extend((0..5).map(|shard| file(shard, 3, 200, false, shard < 3)));
-        assert_eq!(plan(&files, 3, &test_config()).len(), 4);
+        files.extend((0..4).map(|shard| file(shard, 2, 140, false, false)));
+        files.extend((0..4).map(|shard| file(shard, 2, 100, false, true)));
+        assert_eq!(plan(&files, 2, &test_config()).len(), 2);
+    }
+
+    #[test]
+    fn test_shards_far_behind_are_merged_over_the_budget() {
+        // Four shards over the trigger with nothing fresh, so the budget pays for only the first
+        // bottom merge: at 60% and 70% (under twice the trigger), 110% (over twice the trigger),
+        // and 60% with 9 files above the bottom run (over twice `max_files_above_bottom`).
+        let mut files = (0..4)
+            .map(|shard| file(shard, 2, 1000, true, false))
+            .collect::<Vec<_>>();
+        files.extend(
+            [(0, 600), (1, 700), (2, 1100)].map(|(shard, size)| file(shard, 2, size, false, false)),
+        );
+        files.extend((0..9).map(|_| file(3, 2, 600 / 9 + 1, false, false)));
+        let config = CompactConfig {
+            max_rewrite_factor: 0.0,
+            ..test_config()
+        };
+        let bottom_merged = plan(&files, 2, &config)
+            .into_iter()
+            .filter(|(_, bottom)| *bottom)
+            .map(|(members, _)| members[0])
+            .collect::<Vec<_>>();
+        // Shard 2 (most amplified, and over twice the trigger) runs first and shard 3 is over twice
+        // the file count; shards 0 and 1 wait for budget.
+        assert_eq!(bottom_merged, vec![2, 3]);
     }
 
     #[test]
