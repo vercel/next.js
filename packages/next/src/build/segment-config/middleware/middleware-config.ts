@@ -1,5 +1,6 @@
 import picomatch from 'next/dist/compiled/picomatch'
 import { z } from 'next/dist/compiled/zod'
+import type zod from 'next/dist/compiled/zod'
 import { tryToParsePath } from '../../../lib/try-to-parse-path'
 import type { RouteHas } from '../../../lib/load-custom-routes'
 
@@ -108,7 +109,9 @@ export const MiddlewareConfigInputSchema = z.object({
    * files. The globs are relative to your application root folder.
    */
   unstable_allowDynamic: z.union([GlobSchema, z.array(GlobSchema)]).optional(),
-})
+
+  runtime: z.union([z.literal('nodejs'), z.literal('edge')]).optional(),
+}) satisfies zod.ZodType<MiddlewareConfigInput>
 
 export type MiddlewareConfigInput = {
   /**
@@ -136,6 +139,8 @@ export type MiddlewareConfigInput = {
    * files. The globs are relative to your application root folder.
    */
   unstable_allowDynamic?: string | string[]
+
+  runtime?: 'nodejs' | 'edge'
 }
 
 /**
