@@ -5,13 +5,9 @@ import http from 'http'
 import assert from 'assert'
 import { check, renderViaHTTP, waitFor } from 'next-test-utils'
 
+// Deploy mode exclusion: This suite runs an in-test HTTP proxy in front of the local Next.js server.
+// @force-gate !deploy
 describe('manual-client-base-path', () => {
-  // Deploy mode exclusion: This suite runs an in-test HTTP proxy in front of the local Next.js server.
-  if ((global as any).isNextDeploy) {
-    it('should skip deploy', () => {})
-    return
-  }
-
   let server: http.Server
   let appPort: string
   const basePath = '/docs-proxy'

@@ -28,16 +28,11 @@ async function testRoute(appPort, url, { isStatic, isEdge }) {
   }
 }
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// Prerenders used by this suite are not currently handled by deploy mode.
+// @force-gate !deploy
 describe('Switchable runtime', () => {
   let context
-
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // Prerenders used by this suite are not currently handled by deploy mode.
-  if ((global as any).isNextDeploy) {
-    // TODO-APP: re-enable after Prerenders are handled on deploy
-    it('should skip for deploy temporarily', () => {})
-    return
-  }
 
   const { next } = nextTestSetup({
     files: new FileRef(__dirname),
