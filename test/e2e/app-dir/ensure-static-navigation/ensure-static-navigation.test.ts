@@ -567,14 +567,14 @@ describe('ensureStatic = "navigation"', () => {
         const error = await getRedboxErrors(browser, 'open')
         expectErrorSnapshotToMatchPattern(error, errorPattern.dev)
         expect(error).toMatchInlineSnapshot(`
-         {
-           "description": "Page "/default/fallback-params/[slug]": \`unstable_ensureStatic = "navigation"\` requires an exported \`generateStaticParams()\` function.\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-unstable_ensurestatic",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": null,
-           "stack": [],
-         }
-        `)
+{
+  "description": "Page "/default/fallback-params/[slug]": \`unstable_ensureStatic = "navigation"\` requires an exported \`generateStaticParams()\` function.\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-unstable_ensurestatic",
+  "environmentLabel": null,
+  "label": "Runtime Error",
+  "source": null,
+  "stack": [],
+}
+`)
       } else {
         const result = await prerenderPage(routeInBuild)
         const error = getPrerenderOutput(result.cliOutput, {
@@ -608,14 +608,14 @@ describe('ensureStatic = "navigation"', () => {
         const error = await getRedboxErrors(browser, 'open')
         expectErrorSnapshotToMatchPattern(error, errorPattern.dev)
         expect(error).toMatchInlineSnapshot(`
-         {
-           "description": "Page "/default/fallback-params-passed-to-client/[slug]": \`unstable_ensureStatic = "navigation"\` requires an exported \`generateStaticParams()\` function.\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-unstable_ensurestatic",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": null,
-           "stack": [],
-         }
-        `)
+{
+  "description": "Page "/default/fallback-params-passed-to-client/[slug]": \`unstable_ensureStatic = "navigation"\` requires an exported \`generateStaticParams()\` function.\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-unstable_ensurestatic",
+  "environmentLabel": null,
+  "label": "Runtime Error",
+  "source": null,
+  "stack": [],
+}
+`)
       } else {
         const result = await prerenderPage(routeInBuild)
         const error = getPrerenderOutput(result.cliOutput, {
@@ -646,14 +646,14 @@ describe('ensureStatic = "navigation"', () => {
         const error = await getRedboxErrors(browser, 'open')
         expectErrorSnapshotToMatchPattern(error, errorPattern.dev)
         expect(error).toMatchInlineSnapshot(`
-         {
-           "description": "Page "/default/fallback-params-client-segment/[slug]": \`unstable_ensureStatic = "navigation"\` requires an exported \`generateStaticParams()\` function.\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-unstable_ensurestatic",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": null,
-           "stack": [],
-         }
-        `)
+{
+  "description": "Page "/default/fallback-params-client-segment/[slug]": \`unstable_ensureStatic = "navigation"\` requires an exported \`generateStaticParams()\` function.\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-unstable_ensurestatic",
+  "environmentLabel": null,
+  "label": "Runtime Error",
+  "source": null,
+  "stack": [],
+}
+`)
       } else {
         const result = await prerenderPage(routeInBuild)
         const error = getPrerenderOutput(result.cliOutput, {
@@ -881,14 +881,14 @@ describe('ensureStatic = "navigation"', () => {
         const error = await getRedboxErrors(browser, 'open')
         expectErrorSnapshotToMatchPattern(error, errorPattern.dev)
         expect(error).toMatchInlineSnapshot(`
-         {
-           "description": "Page "/default/static-params-incomplete/[slug]/[snail]": \`generateStaticParams()\` returned incomplete params. Routes using \`unstable_ensureStatic = "navigation"\` must return every dynamic route parameter. Missing: "snail".\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-unstable_ensurestatic",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": null,
-           "stack": [],
-         }
-        `)
+{
+  "description": "Page "/default/static-params-incomplete/[slug]/[snail]": \`generateStaticParams()\` returned incomplete params. Routes using \`unstable_ensureStatic = "navigation"\` must return every dynamic route parameter. Missing: "snail".\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-unstable_ensurestatic",
+  "environmentLabel": null,
+  "label": "Runtime Error",
+  "source": null,
+  "stack": [],
+}
+`)
       } else {
         const result = await prerenderPage(routeInBuild)
         const error = getPrerenderOutput(result.cliOutput, { isMinified: true })
@@ -918,14 +918,14 @@ describe('ensureStatic = "navigation"', () => {
         const error = await getRedboxErrors(browser, 'open')
         expectErrorSnapshotToMatchPattern(error, errorPattern.dev)
         expect(error).toMatchInlineSnapshot(`
-         {
-           "description": "Page "/default/static-params-incomplete-unused/[slug]/[snail]": \`generateStaticParams()\` returned incomplete params. Routes using \`unstable_ensureStatic = "navigation"\` must return every dynamic route parameter. Missing: "snail".\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-unstable_ensurestatic",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": null,
-           "stack": [],
-         }
-        `)
+{
+  "description": "Page "/default/static-params-incomplete-unused/[slug]/[snail]": \`generateStaticParams()\` returned incomplete params. Routes using \`unstable_ensureStatic = "navigation"\` must return every dynamic route parameter. Missing: "snail".\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-unstable_ensurestatic",
+  "environmentLabel": null,
+  "label": "Runtime Error",
+  "source": null,
+  "stack": [],
+}
+`)
       } else {
         const result = await prerenderPage(routeInBuild)
         const error = getPrerenderOutput(result.cliOutput, { isMinified: true })
