@@ -35,6 +35,41 @@ export type NextBuildOptions = {
 }
 
 const nextBuild = async (options: NextBuildOptions, directory?: string) => {
+  // A PTY child reports its loaded config to the menu supervisor and waits
+  // for the user's choice, while its build keeps running.
+  let continueBuild: () => void
+  const buildChoice = new Promise<void>((resolve) => {
+    continueBuild = resolve
+  })
+  const terminalClient = process.env.NEXT_PRIVATE_UPGRADE_TERMINAL_PORT
+    ? await import('../lib/upgrade/terminal-channel.js').then(
+        ({ connectUpgradeTerminalClient }) =>
+          connectUpgradeTerminalClient(
+            async (message) => {
+              if (message.type === 'continue') {
+                continueBuild()
+                return
+              }
+              try {
+                await saveCpuProfile()
+                await terminalClient!.send({
+                  type: 'stopped',
+                  success: true,
+                  error: null,
+                })
+                process.exit(0)
+              } catch (error) {
+                console.error(error)
+                process.exit(1)
+              }
+            },
+            (error) => {
+              console.error(error)
+              process.exit(1)
+            }
+          )
+      )
+    : null
   process.title = `next-build (v${process.env.__NEXT_VERSION})`
   const onTerminate = () => {
     saveCpuProfile()
@@ -147,7 +182,8 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
     traceUploadUrl,
     debugBuildPathsPatterns,
     enabledFeatures,
-    humanUpgrade
+    humanUpgrade,
+    terminalClient ? { send: terminalClient.send, choice: buildChoice } : null
   )
     .then(async (action) => {
       if (action === 'interrupt') {

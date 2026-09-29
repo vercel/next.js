@@ -21,7 +21,9 @@ export type UpgradeTerminalChildMessage =
       error: string | null
     }
 
-export type UpgradeTerminalParentMessage = { type: 'stop' }
+export type UpgradeTerminalParentMessage =
+  | { type: 'stop' }
+  | { type: 'continue' }
 
 function receiveLines(
   socket: Socket,
@@ -158,7 +160,7 @@ export async function createUpgradeTerminalServer(
 
 /**
  * Connect the PTY child to its supervisor so it can report a nudge and
- * acknowledge shutdown without pausing dev startup. Remove the connection
+ * acknowledge shutdown without pausing dev startup or build. Remove the connection
  * details from both environment snapshots before app workers are spawned.
  */
 export async function connectUpgradeTerminalClient(
@@ -181,14 +183,20 @@ export async function connectUpgradeTerminalClient(
   const socket = createConnection({ host: '127.0.0.1', port: Number(port) })
   await once(socket, 'connect')
   socket.on('error', onError)
+  let closing = false
+  socket.on('close', () => {
+    if (!closing) {
+      onError(new Error('Upgrade terminal supervisor disconnected.'))
+    }
+  })
   receiveLines(socket, (message) => {
     if (
       message &&
       typeof message === 'object' &&
       'type' in message &&
-      message.type === 'stop'
+      (message.type === 'stop' || message.type === 'continue')
     ) {
-      onMessage({ type: 'stop' })
+      onMessage({ type: message.type })
     } else {
       socket.destroy(new Error('Invalid upgrade terminal control message.'))
     }
@@ -196,6 +204,9 @@ export async function connectUpgradeTerminalClient(
   await send(socket, { type: 'hello', token })
   return {
     send: (message) => send(socket, message),
-    close: () => socket.destroy(),
+    close: () => {
+      closing = true
+      socket.destroy()
+    },
   }
 }

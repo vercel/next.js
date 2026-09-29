@@ -1,0 +1,6 @@
+{
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "exclude": ["agent-upgrade-terminal.test.ts", "node_modules"]
+}

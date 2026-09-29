@@ -265,14 +265,29 @@ program
 
     // ensure process exits after build completes so open handles/connections
     // don't cause process to hang
-    return import('../cli/next-build.js').then((mod) =>
-      mod.nextBuild(options, directory).then(async () => {
+    return import('../lib/upgrade/nudge.js').then(
+      async ({ shouldPromptForUpgrade }) => {
+        if (
+          !process.env.NEXT_PRIVATE_UPGRADE_TERMINAL_PORT &&
+          process.stderr.isTTY &&
+          (await shouldPromptForUpgrade())
+        ) {
+          const { runUpgradeTerminal } = await import(
+            '../lib/upgrade/terminal-session.js'
+          )
+          const exitCode = await runUpgradeTerminal('build')
+          if (exitCode !== null) {
+            process.exit(exitCode)
+          }
+        }
+        const mod = await import('../cli/next-build.js')
+        await mod.nextBuild(options, directory)
         // Save CPU profile before exiting if enabled
         if (options.experimentalCpuProf) {
           await mod.saveCpuProfile()
         }
         process.exit(0)
-      })
+      }
     )
   })
   .usage('[directory] [options]')
