@@ -5,6 +5,7 @@ import Image from 'next/image'
 import LegacyImage from 'next/legacy/image'
 import {
   imageConfigDefault,
+  prepareImageConfig,
   type ImageConfigComplete,
 } from 'next/dist/shared/lib/image-config'
 import { ImageConfigContext } from 'next/dist/shared/lib/image-config-context.shared-runtime'
@@ -42,6 +43,30 @@ it.each(['mutable', 'frozen'] as const)(
     expect(JSON.stringify(config)).toBe(before)
   }
 )
+
+it('isolates localPatterns from different SSR contexts sharing one source', () => {
+  const source = {
+    ...createConfig(),
+    localPatterns: [{ pathname: '**', search: '' }],
+  }
+  deepFreeze(source)
+  const before = JSON.stringify(source)
+  const permissiveContext = { localPatterns: undefined }
+  const getSrcSet = (context?: Pick<ImageConfigComplete, 'localPatterns'>) =>
+    getImgProps(
+      { src: '/test.png?v=1', alt: 'test', fill: true },
+      { defaultLoader, imgConf: prepareImageConfig(source, context) }
+    ).props.srcSet
+
+  expect(() => getSrcSet()).toThrow(
+    'using a query string which is not configured'
+  )
+  expect(getSrcSet(permissiveContext)).toContain('w=640&q=60 640w')
+  expect(() => getSrcSet()).toThrow(
+    'using a query string which is not configured'
+  )
+  expect(JSON.stringify(source)).toBe(before)
+})
 
 function renderCandidates(
   config: ImageConfigComplete,

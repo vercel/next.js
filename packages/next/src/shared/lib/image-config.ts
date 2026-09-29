@@ -158,32 +158,49 @@ export type PreparedImageConfig<T extends ImageConfigSizes> = T & {
 
 const preparedImageConfigs = new WeakMap<
   ImageConfigSizes,
-  PreparedImageConfig<ImageConfigSizes>
+  WeakMap<object, PreparedImageConfig<ImageConfigSizes>>
 >()
 
 /**
  * Prepare owned, sorted image options once for each source config object.
- * Changed options require a new source object because results are cached by identity.
+ * Changed source or context options require new objects because results are cached by identity.
  */
 export function prepareImageConfig<T extends ImageConfigSizes>(
-  config: T
+  config: T,
+  context?: Pick<ImageConfigComplete, 'localPatterns'>
 ): PreparedImageConfig<T> {
-  const cached = preparedImageConfigs.get(config)
+  let preparedByContext = preparedImageConfigs.get(config)
+  if (!preparedByContext) {
+    const deviceSizes = [...config.deviceSizes].sort((a, b) => a - b)
+    const imageSizes = [...config.imageSizes]
+    const base = {
+      ...config,
+      deviceSizes,
+      imageSizes,
+      allSizes: [...deviceSizes, ...imageSizes].sort((a, b) => a - b),
+      ...(config.qualities !== undefined && {
+        qualities: [...config.qualities].sort((a, b) => a - b),
+      }),
+    } as PreparedImageConfig<T>
+
+    preparedByContext = new WeakMap()
+    preparedByContext.set(config, base)
+    preparedImageConfigs.set(config, preparedByContext)
+  }
+
+  // The inlined browser options supply their own patterns. During SSR the
+  // context supplies security-sensitive patterns omitted from the inline data.
+  const effectiveContext =
+    typeof window === 'undefined' ? (context ?? config) : config
+  const cached = preparedByContext.get(effectiveContext)
   if (cached) return cached as PreparedImageConfig<T>
 
-  const deviceSizes = [...config.deviceSizes].sort((a, b) => a - b)
-  const imageSizes = [...config.imageSizes]
+  const base = preparedByContext.get(config)! as PreparedImageConfig<T>
   const prepared = {
-    ...config,
-    deviceSizes,
-    imageSizes,
-    allSizes: [...deviceSizes, ...imageSizes].sort((a, b) => a - b),
-    ...(config.qualities !== undefined && {
-      qualities: [...config.qualities].sort((a, b) => a - b),
-    }),
-  } as PreparedImageConfig<T>
-
-  preparedImageConfigs.set(config, prepared)
+    ...base,
+    localPatterns: context!.localPatterns,
+  }
+  preparedByContext.set(effectiveContext, prepared)
   return prepared
 }
 

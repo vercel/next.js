@@ -383,18 +383,10 @@ export const Image = forwardRef<HTMLImageElement | null, ImageProps>(
     const isAppRouter = !pagesRouter
 
     const configContext = useContext(ImageConfigContext)
-    const c = configEnv || configContext || imageConfigDefault
-    const config = {
-      ...prepareImageConfig(c),
-      // During the SSR, configEnv (__NEXT_IMAGE_OPTS) does not include
-      // security sensitive configs like `localPatterns`, which is needed
-      // during the server render to ensure it's validated. Therefore use
-      // configContext, which holds the config from the server for validation.
-      localPatterns:
-        typeof window === 'undefined'
-          ? configContext?.localPatterns
-          : c.localPatterns,
-    }
+    const config = prepareImageConfig(
+      configEnv || configContext || imageConfigDefault,
+      configContext
+    )
 
     const { onLoad, onLoadingComplete } = props
     const onLoadRef = useRef(onLoad)

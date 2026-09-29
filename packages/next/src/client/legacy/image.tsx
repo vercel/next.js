@@ -702,18 +702,10 @@ export default function Image({
   ...all
 }: ImageProps) {
   const configContext = useContext(ImageConfigContext)
-  const c = configEnv || configContext || imageConfigDefault
-  const config: ImageConfig = {
-    ...prepareImageConfig(c),
-    // During the SSR, configEnv (__NEXT_IMAGE_OPTS) does not include
-    // security sensitive configs like `localPatterns`, which is needed
-    // during the server render to ensure it's validated. Therefore use
-    // configContext, which holds the config from the server for validation.
-    localPatterns:
-      typeof window === 'undefined'
-        ? configContext?.localPatterns
-        : c.localPatterns,
-  }
+  const config: ImageConfig = prepareImageConfig(
+    configEnv || configContext || imageConfigDefault,
+    configContext
+  )
 
   let rest: Partial<ImageProps> = all
   let layout: NonNullable<LayoutValue> = sizes ? 'responsive' : 'intrinsic'
