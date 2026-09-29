@@ -214,6 +214,7 @@ export interface PageInfo {
    * If true, it means that the route has partial prerendering enabled.
    */
   isRoutePPREnabled: boolean
+  isEnsureStaticPage: boolean
   ssgPageRoutes: string[] | null
   initialCacheControl: CacheControl | undefined
   pageDuration: number | undefined
@@ -698,6 +699,7 @@ export async function isPageStatic({
   edgeInfo,
   pageType,
   cacheComponents,
+  partialPrefetching,
   authInterrupts,
   useCacheTimeout,
   durableUseCacheEntries,
@@ -718,6 +720,7 @@ export async function isPageStatic({
   page: string
   distDir: string
   cacheComponents: boolean
+  partialPrefetching: boolean
   authInterrupts: boolean
   useCacheTimeout: number
   durableUseCacheEntries: boolean
@@ -845,7 +848,8 @@ export async function isPageStatic({
           segments = await collectSegments(
             // We know this is an app page or app route module because we
             // checked above that the page type is 'app'.
-            routeModule as AppPageRouteModule | AppRouteRouteModule
+            routeModule as AppPageRouteModule | AppRouteRouteModule,
+            { cacheComponents, partialPrefetching }
           )
         } catch (err) {
           throw new Error(`Failed to collect configuration for ${page}`, {
@@ -870,6 +874,11 @@ export async function isPageStatic({
         // Cache Components is enabled.
         isRoutePPREnabled =
           routeModule.definition.kind === RouteKind.APP_PAGE && cacheComponents
+
+        const isEnsureStaticPage =
+          cacheComponents &&
+          isRoutePPREnabled &&
+          appConfig.unstable_ensureStatic === 'navigation'
 
         // If force dynamic was set and we don't have PPR enabled, then set the
         // revalidate to 0.
@@ -919,6 +928,7 @@ export async function isPageStatic({
               ComponentMod,
               nextConfigOutput,
               isRoutePPREnabled,
+              isEnsureStaticPage,
               buildId,
               deploymentId,
               rootParamKeys,
@@ -1020,6 +1030,8 @@ type ReducedAppConfig = Pick<
   | 'preferredRegion'
   | 'runtime'
   | 'maxDuration'
+  | 'prefetch'
+  | 'unstable_ensureStatic'
 >
 
 /**
@@ -1042,6 +1054,8 @@ export function reduceAppConfig(
       revalidate,
       runtime,
       maxDuration,
+      prefetch,
+      unstable_ensureStatic,
     } = segment.config || {}
 
     // TODO: should conflicting configs here throw an error
@@ -1078,6 +1092,15 @@ export function reduceAppConfig(
 
     if (typeof maxDuration !== 'undefined') {
       config.maxDuration = maxDuration
+    }
+
+    // These two should be set uniformly across all segments
+    // in `collectAppPageSegments`, but we need to forward them here.
+    if (typeof prefetch !== 'undefined') {
+      config.prefetch = prefetch
+    }
+    if (typeof unstable_ensureStatic !== 'undefined') {
+      config.unstable_ensureStatic = unstable_ensureStatic
     }
   }
 
