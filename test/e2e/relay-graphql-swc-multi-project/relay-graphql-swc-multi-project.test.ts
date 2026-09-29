@@ -50,8 +50,6 @@ describe('Relay Compiler Transform - Multi Project Config', () => {
       startCommand: isNextDev
         ? 'pnpm run dev-project-a'
         : 'pnpm run start-project-a',
-      // Keep deployment disabled until skipDeployment is migrated to force-gate.
-      skipDeployment: true,
     })
 
     relayCompilerValidate(next)
@@ -88,8 +86,6 @@ describe('Relay Compiler Transform - Multi Project Config', () => {
       startCommand: isNextDev
         ? 'pnpm run dev-project-b'
         : 'pnpm run start-project-b',
-      // Keep deployment disabled until skipDeployment is migrated to force-gate.
-      skipDeployment: true,
     })
 
     relayCompilerValidate(next)
