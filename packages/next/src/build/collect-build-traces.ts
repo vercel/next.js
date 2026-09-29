@@ -200,6 +200,12 @@ export async function collectBuildTraces({
               require.resolve('next/dist/server/lib/start-server'),
               require.resolve('next/dist/server/next'),
               require.resolve('next/dist/server/require-hook'),
+              require.resolve(
+                'next/dist/server/image-optimizer/sandbox-worker'
+              ),
+              require.resolve(
+                'next/dist/server/image-optimizer/sandbox-worker-child'
+              ),
             ]
           : []),
         require.resolve('next/dist/server/next-server'),
