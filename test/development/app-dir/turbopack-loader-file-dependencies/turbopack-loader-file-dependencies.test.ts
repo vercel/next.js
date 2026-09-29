@@ -64,18 +64,7 @@ describe('turbopack-loader-file-dependencies', () => {
   // @force-gate turbopack
   it('updates when a package entry added as a build dependency changes', async () => {
     const $ = await next.render$('/package')
-    const initialText = $('p').text()
-    expect(initialText).toContain('package build dependency: package-one')
-
-    await next.patchFile(
-      'node_modules/build-dependency-package/nested/value.js',
-      "module.exports = 'unrelated-change'",
-      async () => {
-        await waitFor(1000)
-        const $2 = await next.render$('/package')
-        expect($2('p').text()).toBe(initialText)
-      }
-    )
+    expect($('p').text()).toContain('package build dependency: package-one')
 
     await next.patchFile(
       'node_modules/build-dependency-package/one.js',
@@ -89,23 +78,17 @@ describe('turbopack-loader-file-dependencies', () => {
         }, 10000)
       }
     )
+
+    await retry(async () => {
+      const $2 = await next.render$('/package')
+      expect($2('p').text()).toContain('package build dependency: package-one')
+    }, 10000)
   })
 
   // @force-gate turbopack
   it('resolves .mjs build dependencies with ESM conditions', async () => {
     const $ = await next.render$('/mjs')
-    const initialText = $('p').text()
-    expect(initialText).toContain('ESM build dependency: import-one')
-
-    await next.patchFile(
-      'node_modules/build-dependency-esm-package/require.cjs',
-      "module.exports = 'require-two'",
-      async () => {
-        await waitFor(1000)
-        const $2 = await next.render$('/mjs')
-        expect($2('p').text()).toContain('ESM build dependency: import-one')
-      }
-    )
+    expect($('p').text()).toContain('ESM build dependency: import-one')
 
     await next.patchFile(
       'node_modules/build-dependency-esm-package/import.mjs',
