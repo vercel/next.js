@@ -4,6 +4,10 @@ import { retry } from 'next-test-utils'
 describe('turbopack-loader-file-dependencies', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    dependencies: {
+      'build-dependency-esm-package': 'file:./build-dependency-esm-package',
+      'build-dependency-package': 'file:./build-dependency-package',
+    },
   })
 
   it('should update when the dependency file changes', async () => {
@@ -55,6 +59,52 @@ describe('turbopack-loader-file-dependencies', () => {
         }, 10000)
       }
     )
+  })
+
+  // @force-gate turbopack
+  it('updates when a package entry added as a build dependency changes', async () => {
+    const $ = await next.render$('/package')
+    expect($('p').text()).toContain('package build dependency: package-one')
+
+    await next.patchFile(
+      'node_modules/build-dependency-package/one.js',
+      "module.exports = 'package-two'",
+      async () => {
+        await retry(async () => {
+          const $2 = await next.render$('/package')
+          expect($2('p').text()).toContain(
+            'package build dependency: package-two'
+          )
+        }, 10000)
+      }
+    )
+
+    await retry(async () => {
+      const $2 = await next.render$('/package')
+      expect($2('p').text()).toContain('package build dependency: package-one')
+    }, 10000)
+  })
+
+  // @force-gate turbopack
+  it('resolves .mjs build dependencies with ESM conditions', async () => {
+    const $ = await next.render$('/mjs')
+    expect($('p').text()).toContain('ESM build dependency: import-one')
+
+    await next.patchFile(
+      'node_modules/build-dependency-esm-package/import.mjs',
+      "export default 'import-two'",
+      async () => {
+        await retry(async () => {
+          const $2 = await next.render$('/mjs')
+          expect($2('p').text()).toContain('ESM build dependency: import-two')
+        }, 10000)
+      }
+    )
+
+    await retry(async () => {
+      const $2 = await next.render$('/mjs')
+      expect($2('p').text()).toContain('ESM build dependency: import-one')
+    }, 10000)
   })
 
   // @force-gate turbopack
