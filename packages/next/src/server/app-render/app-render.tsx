@@ -590,7 +590,6 @@ async function generateDynamicRSCPayload(
     actionResult?: ActionResult
     skipPageRendering?: boolean
     staleTimeIterable?: AsyncIterable<number>
-    staticStageByteLengthPromise?: Promise<number>
     shellByteLengthPromise?: Promise<number | null>
     shellUsedSessionDataPromise?: Promise<boolean>
     runtimePrefetchStream?: ReadableStream<Uint8Array>
@@ -745,9 +744,6 @@ async function generateDynamicRSCPayload(
     baseResponse.s = options.staleTimeIterable
   }
 
-  if (options?.staticStageByteLengthPromise !== undefined) {
-    baseResponse.l = options.staticStageByteLengthPromise
-  }
   if (options?.shellByteLengthPromise !== undefined) {
     baseResponse.a = options.shellByteLengthPromise
   }
@@ -978,8 +974,8 @@ async function generateStagedDynamicFlightRenderResultNode(
   const stageController = new StagedRenderingController({
     abortSignal: null,
     abandonController: null,
-    // Synchronous request-time data ends the static stage before its result can
-    // enter the Cached Navigation.
+    // The prefetch mode controls which stages are allowed to read
+    // request-time data synchronously.
     syncIO: getSyncIOMode(prefetchMode),
     finalStage: null,
   })
@@ -1002,7 +998,6 @@ async function generateStagedDynamicFlightRenderResultNode(
   )
 
   const shellByteLengthDeferred = createPromiseWithResolvers<number | null>()
-  const staticStageByteLengthDeferred = createPromiseWithResolvers<number>()
 
   let runtimePrefetchStream: ReadableStream<Uint8Array> | undefined
   let startRuntimePrefetchRender: (() => Promise<void>) | undefined
@@ -1063,7 +1058,6 @@ async function generateStagedDynamicFlightRenderResultNode(
     ctx,
     {
       staleTimeIterable,
-      staticStageByteLengthPromise: staticStageByteLengthDeferred.promise,
       shellByteLengthPromise: shellByteLengthDeferred.promise,
       runtimePrefetchStream,
     }
@@ -1094,13 +1088,10 @@ async function generateStagedDynamicFlightRenderResultNode(
 
       const replayable = new ReplayableNodeStream(sourceStream)
       const dynamicStream = replayable.createReplayStream()
-      const staticStream = replayable.createReplayStream()
+      const shellStream = replayable.createReplayStream()
 
-      void countShellAndStaticStageBytes(staticStream, stageController).then(
-        (byteLengths) => {
-          staticStageByteLengthDeferred.resolve(byteLengths[RenderStage.Static])
-          shellByteLengthDeferred.resolve(byteLengths[RenderStage.ShellStatic])
-        }
+      void countShellBytes(shellStream, stageController).then(
+        shellByteLengthDeferred.resolve
       )
 
       return dynamicStream
@@ -2070,7 +2061,6 @@ async function getRSCPayload(
     is404: boolean
     isPrerendering: boolean
     staleTimeIterable?: AsyncIterable<number>
-    staticStageByteLengthPromise?: Promise<number>
     shellByteLengthPromise?: Promise<number | null>
     runtimePrefetchStream?: ReadableStream<Uint8Array>
   }
@@ -2079,7 +2069,6 @@ async function getRSCPayload(
     is404,
     isPrerendering,
     staleTimeIterable,
-    staticStageByteLengthPromise,
     shellByteLengthPromise,
     runtimePrefetchStream,
   } = options
@@ -2210,7 +2199,6 @@ async function getRSCPayload(
     r: getRootParamsVaryParamsAccumulator() ?? undefined,
     s: staleTimeIterable,
     a: shellByteLengthPromise,
-    l: staticStageByteLengthPromise,
     p: runtimePrefetchStream,
     // Include the per-page dynamic stale time from unstable_dynamicStaleTime, but
     // only for dynamic renders. The client treats its presence as
@@ -3883,9 +3871,9 @@ async function renderToStream(
         }
       } else if (cacheComponents && cachedNavigations) {
         // Production Cache Components + Cached Navigations: use staged
-        // rendering so the RSC payload includes the static stage byte length
-        // (`l` field), enabling the client to cache the static subset during
-        // hydration.
+        // rendering so the RSC payload includes the shell byte length (`a`)
+        // and, with Partial Prefetching, an embedded runtime prefetch that the
+        // client caches during hydration.
 
         const selectStaleTime = createSelectStaleTime(experimental)
         const staleTimeIterable = new StaleTimeIterable()
@@ -3894,8 +3882,8 @@ async function renderToStream(
         const stageController = new StagedRenderingController({
           abortSignal: null,
           abandonController: null,
-          // Synchronous request-time data ends the static stage before its
-          // result can enter the Cached Navigation.
+          // The prefetch mode controls which stages are allowed to read
+          // request-time data synchronously.
           syncIO: getSyncIOMode(prefetchMode),
           finalStage: null,
         })
@@ -3920,8 +3908,6 @@ async function renderToStream(
         const shellByteLengthDeferred = createPromiseWithResolvers<
           number | null
         >()
-        const staticStageByteLengthDeferred =
-          createPromiseWithResolvers<number>()
 
         let runtimePrefetchStream: ReadableStream<Uint8Array> | undefined
         let startRuntimePrefetchRender: (() => Promise<void>) | undefined
@@ -3982,7 +3968,6 @@ async function renderToStream(
             isPrerendering: false,
             staleTimeIterable,
             shellByteLengthPromise: shellByteLengthDeferred.promise,
-            staticStageByteLengthPromise: staticStageByteLengthDeferred.promise,
             runtimePrefetchStream,
           }
         )
@@ -4013,19 +3998,11 @@ async function renderToStream(
 
             const replayable = new ReplayableNodeStream(stream)
             const dynamicStream = replayable.createReplayStream()
-            const staticStream = replayable.createReplayStream()
+            const shellStream = replayable.createReplayStream()
 
-            void countShellAndStaticStageBytes(
-              staticStream,
-              stageController
-            ).then((byteLengths) => {
-              staticStageByteLengthDeferred.resolve(
-                byteLengths[RenderStage.Static]
-              )
-              shellByteLengthDeferred.resolve(
-                byteLengths[RenderStage.ShellStatic]
-              )
-            })
+            void countShellBytes(shellStream, stageController).then(
+              shellByteLengthDeferred.resolve
+            )
 
             return dynamicStream
           },
@@ -6382,17 +6359,15 @@ function collectStageChunk(
   }
 }
 
-async function countShellAndStaticStageBytes(
+async function countShellBytes(
   stream: Readable,
   stageController: StagedRenderingController
-): Promise<
-  Pick<StageByteLengths, RenderStage.ShellStatic | RenderStage.Static>
-> {
+): Promise<number> {
   const byteLengths = createStageByteLengths()
 
-  // Abort the signal whenever we advance to the stage after static.
+  // Abort the signal whenever we advance to the stage after the shell.
   const abortController = new AbortController()
-  const endStage = getNextStage(RenderStage.Static)
+  const endStage = getNextStage(RenderStage.ShellStatic)
   stageController.onStage(endStage, abortController.abort.bind(abortController))
 
   await countStageBytesUntilAbortNode(
@@ -6401,7 +6376,7 @@ async function countShellAndStaticStageBytes(
     stageController,
     abortController.signal
   )
-  return byteLengths
+  return byteLengths[RenderStage.ShellStatic]
 }
 
 type StageByteLengths = Record<AdvanceableRenderStage, number>

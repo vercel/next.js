@@ -560,7 +560,6 @@ async function navigateToUnknownRoute(
     spawnStaticStageCacheWrite(
       now,
       staticStageResponse,
-      isResponsePartial,
       responseHeaders,
       currentFlightRouterState,
       renderedSearch,

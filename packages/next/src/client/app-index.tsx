@@ -183,7 +183,7 @@ nextServerDataLoadingGlobal.length = 0
 // Patch its push method so subsequent chunks are handled (but not actually pushed to the array).
 nextServerDataLoadingGlobal.push = nextServerDataCallback
 
-let readable: ReadableStream<Uint8Array> = new ReadableStream({
+const readable: ReadableStream<Uint8Array> = new ReadableStream({
   start(controller) {
     nextServerDataRegisterWriter(controller)
   },
@@ -191,20 +191,6 @@ let readable: ReadableStream<Uint8Array> = new ReadableStream({
 if (process.env.NODE_ENV !== 'production') {
   // @ts-expect-error
   readable.name = 'hydration'
-}
-
-// When Cache Components is enabled, tee the inlined Flight stream so we can
-// truncate a clone at the static stage byte boundary and cache it. We don't
-// know if `l` is present until React decodes the payload, so always tee and
-// cancel the clone if not needed.
-let initialFlightStreamForCache: ReadableStream<Uint8Array> | null = null
-if (
-  process.env.__NEXT_CACHE_COMPONENTS &&
-  process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS
-) {
-  const [forReact, forCache] = readable.tee()
-  readable = forReact
-  initialFlightStreamForCache = forCache
 }
 
 let debugChannel:
@@ -380,7 +366,6 @@ export async function hydrate(
     createInitialRouterState({
       navigatedAt: initialTimestamp,
       initialRSCPayload,
-      initialFlightStreamForCache,
       location: window.location,
     })
   )

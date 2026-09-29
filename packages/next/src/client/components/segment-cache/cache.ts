@@ -3131,8 +3131,8 @@ function writeServerResponseIntoCache(
   // before side effects this layer can't undo — starting the fallback-retry
   // loop, writing the second (shell) payload — and then pass no buildId
   // here. This check owns it for the flows that don't: live-render prefetch
-  // responses and navigation static-stage writes, which pass their
-  // buildId through.
+  // responses and complete prerenders written from navigations, which pass
+  // their buildId through.
   if (buildId && buildId !== getNavigationBuildId()) {
     // The server build does not match the client. Treat as a 404. During
     // an actual navigation, the router will trigger an MPA navigation.
@@ -3938,14 +3938,13 @@ export async function resolveStaleAt(
  * write can happen, and failures are swallowed — a failed cache write is not
  * fatal to the render that produced the response.
  *
- * Writes the static stage of a navigation response — or of the initial RSC
- * payload — into the segment cache, so subsequent navigations can serve
- * cached static segments instantly.
+ * Writes a complete navigation response — or the initial RSC payload of a
+ * complete prerender — into the segment cache, so subsequent navigations can
+ * serve cached segments instantly.
  */
 export function spawnStaticStageCacheWrite(
   now: number,
   response: NavigationFlightResponse,
-  isResponsePartial: boolean,
   // The navigation response's headers, used to derive the buildId for the
   // write-layer build check (the deployment header, falling back to the
   // response's `b` field). Null for the initial payload, which arrived in
@@ -3963,12 +3962,6 @@ export function spawnStaticStageCacheWrite(
       : undefined
   resolveStaleAt(now, response.s)
     .then((staleAt) => {
-      // TODO: This entire write is legacy and will be deleted in a future
-      // PR: caching is organized around the conceptual shell vs not-shell
-      // distinction, not around the static vs runtime render stages, so a
-      // static-stage write has no place in the model. It's kept only until
-      // its removal PR lands — do not extend it (e.g. with shell
-      // extraction).
       writeServerResponseIntoCache(
         now,
         FetchStrategy.PPR,
@@ -3983,7 +3976,7 @@ export function spawnStaticStageCacheWrite(
         renderedSearch,
         buildId,
         staleAt,
-        isResponsePartial,
+        false, // isResponsePartial
         null,
         // No owned entries; every write is a detached upsert.
         null,
@@ -3992,8 +3985,8 @@ export function spawnStaticStageCacheWrite(
       )
     })
     .catch(() => {
-      // The static stage processing failed. Not fatal — the render
-      // completed normally, we just won't write into the cache.
+      // The cache write failed. Not fatal — the render completed normally,
+      // we just won't write into the cache.
     })
 }
 
