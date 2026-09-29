@@ -216,7 +216,6 @@ import {
   ClientComponentLoadTracker,
   wrapClientComponentLoader,
 } from '../client-component-renderer-logger'
-import { trackStreamCompletion } from '../stream-utils/track-stream-completion'
 import { isNodeNextRequest, isNodeNextResponse } from '../base-http/helpers'
 import { waitForResponseToFinish } from './wait-for-response'
 import {
@@ -950,8 +949,7 @@ async function generateDynamicFlightRenderResult(
     preloadCallbacks?: PreloadCallbacks
     temporaryReferences?: WeakMap<any, string>
     waitUntil?: Promise<unknown>
-  },
-  onRenderComplete?: (completed: boolean) => void
+  }
 ): Promise<RenderResult> {
   const { htmlRequestId, renderOpts, requestId, workStore } = ctx
 
@@ -1021,11 +1019,8 @@ async function generateDynamicFlightRenderResult(
       }
     )
 
-    const outputStream = onRenderComplete
-      ? trackStreamCompletion(flightStream, onRenderComplete)
-      : flightStream
     return new FlightRenderResult(
-      outputStream,
+      flightStream,
       { fetchMetrics: workStore.fetchMetrics },
       options?.waitUntil
     )
@@ -1060,11 +1055,8 @@ async function generateDynamicFlightRenderResult(
       }
     )
 
-    const outputStream = onRenderComplete
-      ? trackStreamCompletion(flightStream, onRenderComplete)
-      : flightStream
     return new FlightRenderResult(
-      outputStream,
+      flightStream,
       { fetchMetrics: workStore.fetchMetrics },
       options?.waitUntil
     )
@@ -3121,44 +3113,24 @@ async function renderAppPage(
     !isPossibleActionRequest &&
     !isPrefetchRequest &&
     !isRuntimePrefetchRequest &&
+    !isAppShellPrefetchRequest &&
     !isRouteTreePrefetchRequest
       ? setIsrStatus
       : undefined
 
   if (setDevIsrStatus) {
-    // Edge routes cannot use ISR. Node routes remain pending until rendering
-    // completes; request body consumption does not determine render status.
-    setDevIsrStatus(
-      url.pathname,
-      process.env.NEXT_RUNTIME === 'edge' ? false : undefined
-    )
-  }
-
-  let hadSSRRenderError = false
-  const onSSRRenderError = setDevIsrStatus
-    ? () => {
-        hadSSRRenderError = true
+    if (process.env.NEXT_RUNTIME === 'edge') {
+      // Edge routes cannot use ISR, so there is no dynamic transition to watch.
+      setDevIsrStatus(url.pathname, false)
+    } else {
+      // Start with no dynamic usage observed. A request-time API or
+      // force-dynamic segment reports the transition as soon as it runs.
+      setDevIsrStatus(url.pathname, true)
+      requestStore.onDevDynamicUsage = () => {
+        setDevIsrStatus(url.pathname, false)
       }
-    : undefined
-
-  const onDevRenderComplete =
-    process.env.__NEXT_DEV_SERVER &&
-    process.env.NEXT_RUNTIME !== 'edge' &&
-    setDevIsrStatus
-      ? (completed: boolean) => {
-          if (
-            completed &&
-            !hadSSRRenderError &&
-            workStore.reactServerErrorsByDigest.size === 0 &&
-            (metadata.statusCode ?? 200) < 500
-          ) {
-            setDevIsrStatus(
-              url.pathname,
-              !requestStore.usedDynamic && !workStore.forceDynamic
-            )
-          }
-        }
-      : undefined
+    }
+  }
 
   // MARK: RSC request
   if (isRSCRequest) {
@@ -3193,13 +3165,7 @@ async function renderAppPage(
         )
       } else {
         // MARK: RSC dynamic
-        return generateDynamicFlightRenderResult(
-          req,
-          ctx,
-          requestStore,
-          undefined,
-          onDevRenderComplete
-        )
+        return generateDynamicFlightRenderResult(req, ctx, requestStore)
       }
     }
   }
@@ -3293,8 +3259,7 @@ async function renderAppPage(
       // so the restarted render wouldn't be correct.
       didExecuteServerAction ? undefined : createRequestStore,
       stagedFallbackParams,
-      tracker,
-      onSSRRenderError
+      tracker
     )
 
     // Forward an invalid-dynamic-usage error recorded by `'use cache'` only
@@ -3336,10 +3301,7 @@ async function renderAppPage(
     }
 
     // Create the new render result for the response.
-    const outputStream = onDevRenderComplete
-      ? trackStreamCompletion(stream, onDevRenderComplete)
-      : stream
-    return new RenderResult(outputStream, options)
+    return new RenderResult(stream, options)
   } catch (renderError) {
     // Returning a stream may precede SSR readiness, which finishes success.
     // Only failures finish here; a finally would seal successful renders early.
@@ -3704,8 +3666,7 @@ async function renderToStream(
   metadata: AppPageRenderResultMetadata,
   createRequestStore: (() => RequestStore) | undefined,
   stagedFallbackParams: OpaqueFallbackRouteParams | null,
-  tracker: ClientComponentLoadTracker | undefined,
-  onRenderError?: () => void
+  tracker: ClientComponentLoadTracker | undefined
 ): Promise<AnyStream> {
   /* eslint-disable @next/internal/no-ambiguous-jsx -- React Client */
   // MARK: renderToStream setup
@@ -3861,7 +3822,6 @@ async function renderToStream(
     )
 
     function onHTMLRenderSSRError(err: DigestedError) {
-      onRenderError?.()
       // We don't need to silence logs here. onHTMLRenderSSRError won't be called
       // at all if the error was logged before in the RSC error handler.
       const silenceLog = false

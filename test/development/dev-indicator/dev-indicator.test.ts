@@ -237,7 +237,46 @@ describe('dev indicator after a custom server consumes the request', () => {
 
   if (skipped) return
 
-  it('classifies App Router document loads and navigation after rendering', async () => {
+  it('marks request-time API usage Dynamic before the render finishes', async () => {
+    let browser: Awaited<ReturnType<typeof next.browser>> | undefined
+    try {
+      browser = await next.browser('/app/static-indicator/gated', {
+        waitUntil: 'commit',
+        waitHydration: false,
+      })
+      const hasCacheComponents = await gate(
+        (conditions) => conditions.cacheComponents
+      )
+
+      await retry(async () => {
+        expect((await next.fetch('/__gate-arrived')).status).toBe(200)
+        expect(await browser.locator('main > p').textContent()).toBe(
+          'Loading...'
+        )
+      })
+      await browser.locateDevToolsIndicator().click()
+      await retry(async () => {
+        const routeType = browser.locator(
+          'nextjs-portal [data-nextjs-route-type]'
+        )
+        if (hasCacheComponents) {
+          expect(await routeType.count()).toBe(0)
+        } else {
+          expect(await routeType.innerText()).toContain('Dynamic')
+        }
+      })
+    } finally {
+      expect((await next.fetch('/__release-gate')).status).toBe(200)
+    }
+
+    await retry(async () => {
+      expect(await browser!.elementByCss('#gate-released').text()).toBe(
+        'The gate was released.'
+      )
+    })
+  })
+
+  it('classifies App Router document loads and navigation after request-body consumption', async () => {
     const browser = await next.browser('/app/static-indicator/dynamic')
     const hasCacheComponents = await gate(
       (conditions) => conditions.cacheComponents
@@ -254,7 +293,7 @@ describe('dev indicator after a custom server consumes the request', () => {
     )
   })
 
-  it('reclassifies an App Router page after HMR', async () => {
+  it('reclassifies an App Router page after HMR and restores Static', async () => {
     const browser = await next.browser('/app/static-indicator/static')
     const hasCacheComponents = await gate(
       (conditions) => conditions.cacheComponents
@@ -269,16 +308,56 @@ describe('dev indicator after a custom server consumes the request', () => {
     )
     await next.patchFile(
       'app/app/static-indicator/static/page.tsx',
-      original.replace('// await connection()', 'await connection()')
+      original
+        .replace('// await connection()', 'await connection()')
+        .replace(
+          'This is a static app router page.',
+          'This page used connection().'
+        )
     )
 
     try {
+      await retry(async () => {
+        expect(await browser.elementByCss('main > p').text()).toBe(
+          'This page used connection().'
+        )
+      })
       await waitForStaticIndicator(
         browser,
         hasCacheComponents ? undefined : 'Dynamic'
       )
     } finally {
       await next.patchFile('app/app/static-indicator/static/page.tsx', original)
+    }
+
+    await retry(async () => {
+      expect(await browser.elementByCss('main > p').text()).toBe(
+        'This is a static app router page.'
+      )
+    })
+    await waitForStaticIndicator(
+      browser,
+      hasCacheComponents ? undefined : 'Static'
+    )
+
+    if (!hasCacheComponents) {
+      await next.patchFile(
+        'app/app/static-indicator/static/page.tsx',
+        `export const dynamic = 'force-dynamic'\n${original.replace('This is a static app router page.', 'This page is forced dynamic.')}`
+      )
+      try {
+        await retry(async () => {
+          expect(await browser.elementByCss('main > p').text()).toBe(
+            'This page is forced dynamic.'
+          )
+        })
+        await waitForStaticIndicator(browser, 'Dynamic')
+      } finally {
+        await next.patchFile(
+          'app/app/static-indicator/static/page.tsx',
+          original
+        )
+      }
     }
   })
 })

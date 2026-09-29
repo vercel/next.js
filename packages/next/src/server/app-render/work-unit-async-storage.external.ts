@@ -118,7 +118,7 @@ export interface RequestStore extends CommonWorkUnitStore {
   validationSampleTracking?: InstantValidationSampleTracking | null
 
   // DEV-only
-  usedDynamic?: boolean
+  onDevDynamicUsage?: () => void
 }
 
 export type InstantValidationSamples = {
