@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { getTitle, retry, waitFor } from 'next-test-utils'
+import { gate, getTitle, retry, waitFor } from 'next-test-utils'
 
 // bump this every time you want to validate flakiness: 1
 
@@ -208,11 +208,17 @@ describe('app dir - navigation', () => {
       await checkLink('query-param', 2284)
       await browser.waitForIdleNetwork()
 
-      // There should be an RSC request if the query param is changed
       const hasQueryParamRscRequest = Array.from(navigationRscRequestUrls).some(
         (url) => url.includes('with-query-param')
       )
-      expect(hasQueryParamRscRequest).toBe(true)
+      if (await gate('cachedNavigations && prefetching')) {
+        // The page doesn't read search params, and the layout's params didn't
+        // change, so the navigation is served from the client cache.
+        expect(hasQueryParamRscRequest).toBe(false)
+      } else {
+        // There should be an RSC request if the query param is changed
+        expect(hasQueryParamRscRequest).toBe(true)
+      }
     })
 
     it('should not scroll to hash when scroll={false} is set', async () => {

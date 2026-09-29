@@ -15,141 +15,6 @@ describe('cached navigations', () => {
     return
   }
 
-  it('serves cached static segments instantly on the second navigation', async () => {
-    let page: Playwright.Page
-    const browser = await next.browser('/', {
-      async beforePageLoad(p: Playwright.Page) {
-        page = p
-        await page.clock.install()
-      },
-    })
-    const act = createRouterAct(page)
-
-    // First navigation — full dynamic request, no prefetch
-    await act(
-      async () => {
-        await browser.elementByCss('a[href="/partially-static"]').click()
-      },
-      { includes: 'Dynamic content' }
-    )
-
-    // Verify all content is visible
-    expect(await browser.elementById('cached-content').text()).toContain(
-      'Cached content'
-    )
-    expect(
-      await browser.elementById('search-params-boundary').text()
-    ).toContain('Search params:')
-    expect(await browser.elementById('cookies-boundary').text()).toContain(
-      'Cookie:'
-    )
-    expect(await browser.elementById('headers-boundary').text()).toContain(
-      'Header:'
-    )
-    expect(await browser.elementById('connection-boundary').text()).toContain(
-      'Dynamic content'
-    )
-
-    // Navigate back to home
-    await browser.back()
-    expect(await browser.elementByCss('h1').text()).toBe('Home')
-
-    // Fast-forward time past the short-lived runtime cache's stale time (30s)
-    // but under the static cache's stale time (120s). If the stale time sent to
-    // the client incorrectly used the runtime cache's value, the cached
-    // segments would have expired and the second navigation wouldn't be
-    // instant.
-    await page.clock.fastForward(60_000)
-
-    // Second navigation — cached static data should show immediately
-    await act(async () => {
-      await act(
-        async () => {
-          await browser.elementByCss('a[href="/partially-static"]').click()
-        },
-        {
-          // Block the dynamic request. The cached/prefetchable content
-          // should still be visible even though the dynamic data hasn't
-          // arrived yet.
-          includes: 'Dynamic content',
-          block: true,
-        }
-      )
-
-      // The static/cached part should be visible while the dynamic
-      // request is still blocked
-      expect(await browser.elementById('cached-content').text()).toContain(
-        'Cached content'
-      )
-
-      // Runtime and dynamic content should show Suspense fallbacks
-      expect(await browser.elementById('search-params-boundary').text()).toBe(
-        'Loading search params...'
-      )
-      expect(await browser.elementById('cookies-boundary').text()).toBe(
-        'Loading cookies...'
-      )
-      expect(await browser.elementById('headers-boundary').text()).toBe(
-        'Loading headers...'
-      )
-      expect(await browser.elementById('connection-boundary').text()).toBe(
-        'Loading connection...'
-      )
-    })
-
-    // After unblocking, all content should be visible
-    expect(await browser.elementById('cached-content').text()).toContain(
-      'Cached content'
-    )
-    expect(
-      await browser.elementById('search-params-boundary').text()
-    ).toContain('Search params:')
-    expect(await browser.elementById('cookies-boundary').text()).toContain(
-      'Cookie:'
-    )
-    expect(await browser.elementById('headers-boundary').text()).toContain(
-      'Header:'
-    )
-    expect(await browser.elementById('connection-boundary').text()).toContain(
-      'Dynamic content'
-    )
-
-    // Navigate back to home again
-    await browser.back()
-    expect(await browser.elementByCss('h1').text()).toBe('Home')
-
-    // Fast-forward past the static cache's stale time (120s). The cached
-    // segments should now be expired, so the third navigation should NOT
-    // show cached content instantly — it should block on the full response.
-    await page.clock.fastForward(120_000)
-
-    // Third navigation — cache is stale, no cached content should be shown
-    await act(async () => {
-      await act(
-        async () => {
-          await browser.elementByCss('a[href="/partially-static"]').click()
-        },
-        {
-          includes: 'Dynamic content',
-          block: true,
-        }
-      )
-
-      // With stale cache, nothing from the target page should be visible
-      // while the request is blocked — not even the cached content.
-      const mainText = await (await browser.elementByCss('main')).innerText()
-      expect(mainText).not.toContain('Cached content')
-    })
-
-    // After unblocking, all content should be visible
-    expect(await browser.elementById('cached-content').text()).toContain(
-      'Cached content'
-    )
-    expect(await browser.elementById('connection-boundary').text()).toContain(
-      'Dynamic content'
-    )
-  })
-
   it('serves a fully static page without any requests on the second navigation', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
@@ -183,7 +48,7 @@ describe('cached navigations', () => {
     )
   })
 
-  it('caches static segments when navigating to a known route without a prefetch', async () => {
+  it('caches segments when navigating to a known route without a prefetch', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
       async beforePageLoad(p: Playwright.Page) {
@@ -194,7 +59,7 @@ describe('cached navigations', () => {
     const act = createRouterAct(page)
 
     // First navigation — seeds the route cache (stale after 5 min) and
-    // segment cache (stale after 120s, from cacheLife({ stale: 120 })).
+    // segment cache from the embedded runtime prefetch.
     await act(
       async () => {
         await browser.elementByCss('a[href="/partially-static"]').click()
@@ -212,15 +77,14 @@ describe('cached navigations', () => {
     await browser.back()
     expect(await browser.elementByCss('h1').text()).toBe('Home')
 
-    // Fast-forward past the segment cache stale time (120s) but under the
-    // route cache stale time (5 min). Segment entries are now expired, but
-    // the route is still known.
+    // Fast-forward past the segment cache stale time but under the route
+    // cache stale time (5 min). Segment entries are now expired, but the
+    // route is still known.
     await page.clock.fastForward(130_000)
 
     // Second navigation — the route is known but all segment entries have
-    // expired, so nothing is served from the cache. The server responds
-    // with fresh data including a static stage, which is written into the
-    // segment cache for future navigations.
+    // expired, so nothing is served from the cache. The response embeds a
+    // fresh runtime prefetch, which is written into the segment cache.
     await act(
       async () => {
         await browser.elementByCss('a[href="/partially-static"]').click()
@@ -238,12 +102,8 @@ describe('cached navigations', () => {
     await browser.back()
     expect(await browser.elementByCss('h1').text()).toBe('Home')
 
-    // Fast-forward 60s — well under the 120s stale time that the segment
-    // entries would have if the second navigation had cached them.
-    await page.clock.fastForward(60_000)
-
     // Third navigation — block the dynamic request to test whether cached
-    // static segments are available.
+    // segments are available.
     await act(async () => {
       await act(
         async () => {
@@ -255,8 +115,7 @@ describe('cached navigations', () => {
         }
       )
 
-      // The second navigation wrote the static stage into the segment
-      // cache. These entries are still fresh (60s < 120s) so the cached
+      // The second navigation wrote into the segment cache, so the cached
       // content is visible while the dynamic request is pending.
       expect(await browser.elementById('cached-content').text()).toContain(
         'Cached content'
@@ -276,7 +135,7 @@ describe('cached navigations', () => {
     )
   })
 
-  it('includes static params in the cached static stage', async () => {
+  it('includes static params in the embedded runtime prefetch', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
       async beforePageLoad(p: Playwright.Page) {
@@ -304,8 +163,8 @@ describe('cached navigations', () => {
 
     await page.clock.fastForward(60_000)
 
-    // Second navigation — params are static, so they should be included in
-    // the cached static stage and visible while the dynamic request is blocked
+    // Second navigation — the params are visible while the dynamic request
+    // is blocked
     await act(async () => {
       await act(
         async () => {
@@ -322,7 +181,6 @@ describe('cached navigations', () => {
       expect(await browser.elementById('cached-content').text()).toContain(
         'Cached content'
       )
-      // Static params should be visible — they resolve during the static stage
       expect(await browser.elementById('params').text()).toContain('Param: foo')
       // Dynamic content should show Suspense fallback
       expect(await browser.elementById('connection-boundary').text()).toBe(
@@ -336,7 +194,7 @@ describe('cached navigations', () => {
     )
   })
 
-  it('defers fallback params to the runtime stage', async () => {
+  it('includes fallback params in the embedded runtime prefetch', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
       async beforePageLoad(p: Playwright.Page) {
@@ -351,7 +209,7 @@ describe('cached navigations', () => {
     await act(
       async () => {
         await browser
-          .elementByCss('a[href="/with-fallback-params/foo"]')
+          .elementByCss('a[href="/partial-fallback-params/foo"]')
           .click()
       },
       { includes: 'Dynamic content' }
@@ -369,13 +227,13 @@ describe('cached navigations', () => {
 
     await page.clock.fastForward(60_000)
 
-    // Second navigation — fallback params are deferred to the PrefetchRuntime stage,
-    // so they should NOT be visible while the dynamic request is blocked
+    // Second navigation — the runtime prefetch rendered the param's value, so
+    // it's visible while the dynamic request is blocked
     await act(async () => {
       await act(
         async () => {
           await browser
-            .elementByCss('a[href="/with-fallback-params/foo"]')
+            .elementByCss('a[href="/partial-fallback-params/foo"]')
             .click()
         },
         {
@@ -387,9 +245,8 @@ describe('cached navigations', () => {
       expect(await browser.elementById('cached-content').text()).toContain(
         'Cached content'
       )
-      // Fallback params should show Suspense fallback — deferred to runtime
-      expect(await browser.elementById('params-boundary').text()).toBe(
-        'Loading params...'
+      expect(await browser.elementById('params-boundary').text()).toContain(
+        'Param: foo'
       )
       expect(await browser.elementById('connection-boundary').text()).toBe(
         'Loading connection...'
@@ -397,9 +254,6 @@ describe('cached navigations', () => {
     })
 
     // After unblocking, all content should be visible
-    expect(await browser.elementById('params-boundary').text()).toContain(
-      'Param: foo'
-    )
     expect(await browser.elementById('connection-boundary').text()).toContain(
       'Dynamic content'
     )
@@ -408,7 +262,7 @@ describe('cached navigations', () => {
   // The legacy Vercel builder incorrectly prerenders params omitted from
   // generateStaticParams.
   // @gate !deploy || adapter
-  it('caches only eligible params from a cold RSC navigation for repeated navigations', async () => {
+  it('caches params from a cold RSC navigation for repeated navigations', async () => {
     const top = 't2'
     const route = `/required-fallback-params/${top}/b1`
     const startDate = Date.now()
@@ -466,9 +320,7 @@ describe('cached navigations', () => {
         )
 
         expect(await browser.elementById('top').text()).toBe(`Top: ${top}`)
-        expect(await browser.elementById('bottom-boundary').text()).toBe(
-          'Loading bottom...'
-        )
+        expect(await browser.elementById('bottom').text()).toBe('Bottom: b1')
         expect(await browser.elementById('connection-boundary').text()).toBe(
           'Loading connection...'
         )
@@ -480,12 +332,39 @@ describe('cached navigations', () => {
         'Dynamic content'
       )
     }
+
+    // Another bottom value must not show b1's cached bottom.
+    const hub = `/fallback-params-hub/${top}/a`
+    const otherRoute = `/required-fallback-params/${top}/b2`
+    // The layout's hub link was already revealed in the loop.
+    await act(
+      async () => {
+        await browser.elementByCss(`a[href="${hub}"]`).click()
+      },
+      { includes: 'Fallback params hub a' }
+    )
+    await act(async () => {
+      await act(
+        async () => {
+          await browser
+            .elementByCss(`input[data-link-accordion="${otherRoute}"]`)
+            .click()
+          await browser.elementByCss(`a[href="${otherRoute}"]`).click()
+        },
+        { includes: 'Dynamic content', block: true }
+      )
+
+      expect(await browser.elementById('top').text()).toBe(`Top: ${top}`)
+      expect(await browser.elementById('bottom-boundary').text()).toBe(
+        'Loading bottom...'
+      )
+    })
   })
 
   // The legacy Vercel builder incorrectly prerenders params omitted from
   // generateStaticParams.
   // @gate !deploy || adapter
-  it('caches only eligible params from an initial HTML on-demand prerender for repeated navigations', async () => {
+  it('caches params from an initial HTML on-demand prerender for repeated navigations', async () => {
     const top = 't3'
     const route = `/required-fallback-params/${top}/b1`
     const startDate = Date.now()
@@ -553,9 +432,7 @@ describe('cached navigations', () => {
         )
 
         expect(await browser.elementById('top').text()).toBe(`Top: ${top}`)
-        expect(await browser.elementById('bottom-boundary').text()).toBe(
-          'Loading bottom...'
-        )
+        expect(await browser.elementById('bottom').text()).toBe('Bottom: b1')
         expect(await browser.elementById('connection-boundary').text()).toBe(
           'Loading connection...'
         )
@@ -626,16 +503,18 @@ describe('cached navigations', () => {
       await act(async () => {
         await act(navigate, { includes: 'Top:', block: true })
 
-        // Live navigation prefixes remain marked partial even for a static
-        // page.
-        expect(await browser.elementByCss('main').text()).toContain('Top: t4')
+        // A live navigation response is marked partial even for a static
+        // page, so nothing from it was written into the cache.
+        expect(await browser.elementByCss('main').text()).not.toContain(
+          'Top: t4'
+        )
       })
       expect(await browser.elementById('top').text()).toBe('Top: t4')
     }
   })
 
   it('does not cache synchronous IO after a novel param resolves', async () => {
-    const route = '/fully-static-params/time'
+    const route = '/partial-fully-static-params/time'
     if (isNextDeploy) {
       // The platform must prerender this cold route before it can resume it.
       // The prerender rejects the uncached timestamp instead of serving a
@@ -1138,9 +1017,9 @@ describe('cached navigations', () => {
     )
     expect(await browser.elementByCss('h1').text()).toBe('Home')
 
-    // Navigate back to /partially-static. The static stage was cached during
-    // the initial HTML load, so cached content should be available instantly
-    // while the dynamic content streams in.
+    // Navigate back to /partially-static. The embedded runtime prefetch was
+    // cached during the initial HTML load, so cached content should be
+    // available instantly while the dynamic content streams in.
     await act(async () => {
       await act(
         async () => {
@@ -1181,14 +1060,13 @@ describe('cached navigations', () => {
     })
     const act = createRouterAct(page)
 
-    // First navigation to /with-fallback-params/foo — seeds the segment cache.
-    // Since slug is a fallback param, the page segment's varyParams is empty,
-    // meaning the cached segment contains only the Suspense fallback and no
-    // param-specific data.
+    // First navigation to /partial-fallback-params/foo — seeds the segment
+    // cache. The shell of the embedded runtime prefetch doesn't depend on the
+    // slug, so another slug can reuse it.
     await act(
       async () => {
         await browser
-          .elementByCss('a[href="/with-fallback-params/foo"]')
+          .elementByCss('a[href="/partial-fallback-params/foo"]')
           .click()
       },
       { includes: 'Dynamic content' }
@@ -1197,13 +1075,13 @@ describe('cached navigations', () => {
       'Param: foo'
     )
 
-    // Click the bar link. The page segment should be reused from cache (empty
-    // varyParams), so the Suspense fallback for params should appear instantly.
+    // Click the bar link. The page segment's shell should be reused from
+    // cache, so the Suspense fallback for params should appear instantly.
     await act(async () => {
       await act(
         async () => {
           await browser
-            .elementByCss('a[href="/with-fallback-params/bar"]')
+            .elementByCss('a[href="/partial-fallback-params/bar"]')
             .click()
         },
         {
@@ -1235,10 +1113,10 @@ describe('cached navigations', () => {
 
   it('reuses cached page segment across different fallback params after initial HTML load', async () => {
     let page: Playwright.Page
-    // Start directly at /with-fallback-params/foo — full HTML load. The RSC
-    // payload inlined in the HTML seeds the segment cache with the page
-    // segment, which has empty varyParams because slug is a fallback param.
-    const browser = await next.browser('/with-fallback-params/foo', {
+    // Start directly at /partial-fallback-params/foo — full HTML load. The
+    // runtime prefetch embedded in the initial RSC payload seeds the segment
+    // cache with the page segment, whose shell doesn't depend on the slug.
+    const browser = await next.browser('/partial-fallback-params/foo', {
       async beforePageLoad(p: Playwright.Page) {
         page = p
       },
@@ -1255,13 +1133,21 @@ describe('cached navigations', () => {
       'Param: foo'
     )
 
+    // Wait for a real request first, so the hydration-time write has finished.
+    await act(
+      async () => {
+        await browser.elementByCss('a[href="/partial-fallback-params"]').click()
+      },
+      { includes: 'Partial fallback params hub' }
+    )
+
     // Click the bar link. The page segment should be reused from the cache
     // seeded by the initial HTML load.
     await act(async () => {
       await act(
         async () => {
           await browser
-            .elementByCss('a[href="/with-fallback-params/bar"]')
+            .elementByCss('a[href="/partial-fallback-params/bar"]')
             .click()
         },
         {
@@ -1291,10 +1177,10 @@ describe('cached navigations', () => {
     )
   })
 
-  it('reuses cached page segment across fallback params after a draft mode HTML load', async () => {
+  it('does not reuse anything from a draft mode HTML load', async () => {
     let page: Playwright.Page
     const browser = await next.browser(
-      '/api/draft/enable?to=/with-fallback-params/foo',
+      '/api/draft/enable?to=/partial-fallback-params/foo',
       {
         async beforePageLoad(p: Playwright.Page) {
           page = p
@@ -1313,11 +1199,22 @@ describe('cached navigations', () => {
         'Param: foo'
       )
 
+      // Wait for a real request first, so the hydration-time write has
+      // finished.
+      await act(
+        async () => {
+          await browser
+            .elementByCss('a[href="/partial-fallback-params"]')
+            .click()
+        },
+        { includes: 'Partial fallback params hub' }
+      )
+
       await act(async () => {
         await act(
           async () => {
             await browser
-              .elementByCss('a[href="/with-fallback-params/bar"]')
+              .elementByCss('a[href="/partial-fallback-params/bar"]')
               .click()
           },
           {
@@ -1326,14 +1223,13 @@ describe('cached navigations', () => {
           }
         )
 
-        expect(await browser.elementById('cached-content').text()).toContain(
+        // Draft mode doesn't keep 'use cache' results for the embedded
+        // prefetch, so nothing is reusable.
+        expect(await browser.elementByCss('h1').text()).toBe(
+          'Partial fallback params hub'
+        )
+        expect(await browser.elementByCss('main').text()).not.toContain(
           'Cached content'
-        )
-        expect(await browser.elementById('params-boundary').text()).toBe(
-          'Loading params...'
-        )
-        expect(await browser.elementById('connection-boundary').text()).toBe(
-          'Loading connection...'
         )
       })
 
@@ -1404,9 +1300,7 @@ describe('cached navigations', () => {
 
   // A `prefetch` config that enables Partial Prefetching ('partial') also opts
   // the route into runtime Cached Navigations, even though this fixture does
-  // not set the global `partialPrefetching` flag. Contrast with
-  // `partially-static`, which has no `prefetch` config and only gets static
-  // caching.
+  // not set the global `partialPrefetching` flag.
   async function expectRuntimeCachedOnSecondNavigation(route: string) {
     let page: Playwright.Page
     const browser = await next.browser('/', {
@@ -1467,154 +1361,5 @@ describe('cached navigations', () => {
 
   it('runtime-caches a route with prefetch = "partial"', async () => {
     await expectRuntimeCachedOnSecondNavigation('/prefetch-partial')
-  })
-
-  it('cache values are consistent across the HTML shell, static prefetches, and cached navigations', async () => {
-    const href = '/cache-from-rdc'
-    const htmlId = 'cached-data'
-
-    let page: Playwright.Page
-    const browser = await next.browser('/', {
-      beforePageLoad(p: Playwright.Page) {
-        page = p
-      },
-    })
-    const act = createRouterAct(page, { includeAppShellRequests: true })
-
-    const getRenderId = async (): Promise<string> => {
-      return await browser.elementById('render-id').text()
-    }
-
-    // Reveal a link to the page. This should result in a static prefetch.
-    await act(async () => {
-      const linkToggle = await browser.elementByCss(
-        `[data-prefetch="auto"] input[data-link-accordion="${href}"]`
-      )
-      await linkToggle.click()
-    }, [
-      {
-        includes: 'cache-timestamp:',
-        kind: 'static',
-      },
-    ])
-
-    //===========================
-    // Test client navigation
-    //===========================
-
-    // Navigate to the page.
-    const { cachedValueFromPrefetch, prefetchRenderId } = await act(
-      async () => {
-        await browser
-          .elementByCss(`[data-prefetch="auto"] a[href="${href}"]`)
-          .click()
-
-        const cachedValueFromPrefetch = await browser.elementById(htmlId).text()
-        const prefetchRenderId = await getRenderId()
-        return { cachedValueFromPrefetch, prefetchRenderId }
-      },
-      { includes: 'Dynamic data' }
-    )
-    {
-      expect(await browser.elementById('dynamic-data').text()).toBe(
-        'Dynamic data'
-      )
-
-      // The navigation response should also contain the same cache value.
-      expect(await browser.elementById(htmlId).text()).toBe(
-        cachedValueFromPrefetch
-      )
-      const clientNavRenderId = await getRenderId()
-
-      // Navigate back to the index page.
-      await act(
-        () => browser.elementByCss('a[href="/"]').click(),
-        'no-requests'
-      )
-      // Then, navigate to the page again (without a prefetch).
-      // We should re-use the cacheable part of the UI from the navigation.
-      await act(
-        async () => {
-          await browser
-            .elementByCss(`[data-prefetch="false"] a[href="${href}"]`)
-            .click()
-
-          // Make sure we're showing the content from the cached navigation,
-          // not the static prefetch -- otherwise, the cache consistency check
-          // would be meaningless.
-          const visibleRenderId = await getRenderId()
-          expect(visibleRenderId).not.toBe(prefetchRenderId)
-          expect(visibleRenderId).toBe(clientNavRenderId)
-
-          // The cacheable UI extracted from the navigation (shown while navigating)
-          // should have the same cache value.
-          expect(await browser.elementById(htmlId).text()).toBe(
-            cachedValueFromPrefetch
-          )
-        },
-        { includes: 'Dynamic data' }
-      )
-
-      expect(await browser.elementById('dynamic-data').text()).toBe(
-        'Dynamic data'
-      )
-
-      // The second navigation result should have the same cache value.
-      expect(await browser.elementById(htmlId).text()).toBe(
-        cachedValueFromPrefetch
-      )
-      // We have uncached data, so this was a fresh render.
-      expect(await getRenderId()).not.toBe(clientNavRenderId)
-    }
-
-    //===========================
-    // Test initial load
-    //===========================
-    {
-      await browser.refresh()
-
-      expect(await browser.elementById('dynamic-data').text()).toBe(
-        'Dynamic data'
-      )
-      // The initial load should have the same cache value.
-      expect(await browser.elementById(htmlId).text()).toBe(
-        cachedValueFromPrefetch
-      )
-      const initialLoadRenderId = await getRenderId()
-
-      // Navigate to the index page.
-      await act(() => browser.elementByCss('a[href="/"]').click())
-      // Then, navigate back to the page without a prefetch.
-      // We should re-use the cacheable part of the UI from the navigation.
-      await act(
-        async () => {
-          await browser
-            .elementByCss(`[data-prefetch="false"] a[href="${href}"]`)
-            .click()
-
-          // Make sure we're showing the content from the cached navigation.
-          const visibleRenderId = await getRenderId()
-          expect(visibleRenderId).toBe(initialLoadRenderId)
-
-          // The cacheable UI extracted from the navigation (shown while navigating)
-          // should have the same cache value.
-          expect(await browser.elementById(htmlId).text()).toBe(
-            cachedValueFromPrefetch
-          )
-        },
-        { includes: 'Dynamic data' }
-      )
-
-      expect(await browser.elementById('dynamic-data').text()).toBe(
-        'Dynamic data'
-      )
-
-      // The second navigation result should have the same cache value.
-      expect(await browser.elementById(htmlId).text()).toBe(
-        cachedValueFromPrefetch
-      )
-      // We have uncached data, so this was a fresh render.
-      expect(await getRenderId()).not.toBe(initialLoadRenderId)
-    }
   })
 })

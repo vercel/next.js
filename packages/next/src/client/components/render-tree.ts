@@ -1787,7 +1787,6 @@ async function fetchMissingDynamicData(
       spawnStaticStageCacheWrite(
         now,
         result.staticStageResponse,
-        result.isResponsePartial,
         result.responseHeaders,
         dynamicRequestTree,
         result.renderedSearch,
