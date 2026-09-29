@@ -34,6 +34,11 @@ export default function Home() {
           </Link>
         </li>
         <li>
+          <Link href="/complete-prerender-shell/foo" prefetch={false}>
+            Go to complete prerender with a shell
+          </Link>
+        </li>
+        <li>
           <Link href="/runtime-prefetchable" prefetch={false}>
             Go to runtime-prefetchable page
           </Link>
