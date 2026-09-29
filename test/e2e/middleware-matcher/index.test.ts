@@ -1,6 +1,34 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
-import { check, fetchViaHTTP } from 'next-test-utils'
+import { fetchViaHTTP, retry } from 'next-test-utils'
 import { join } from 'path'
+
+// Redact volatile fields so the snapshot is stable across builds:
+// - `env` values are randomly generated per build (encryption keys,
+//   preview mode ids, build id).
+// - `files` and `entrypoint` paths contain content hashes and may
+//   differ between webpack and Turbopack.
+function normalizeMiddlewareManifest(value: unknown, key?: string): unknown {
+  if (key === 'env' && value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.keys(value)
+        .sort()
+        .map((k) => [k, '<redacted>'])
+    )
+  }
+  if (key === 'files') return '<files>'
+  if (key === 'entrypoint') return '<entrypoint>'
+  if (Array.isArray(value))
+    return value.map((v) => normalizeMiddlewareManifest(v))
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([k, v]) => [
+        k,
+        normalizeMiddlewareManifest(v, k),
+      ])
+    )
+  }
+  return value
+}
 
 describe('Middleware can set the matcher in its config', () => {
   const { next } = nextTestSetup({
@@ -89,19 +117,18 @@ describe('Middleware can set the matcher in its config', () => {
   it('should load matches in client matchers correctly', async () => {
     const browser = await next.browser('/')
 
-    await check(async () => {
+    await retry(async () => {
       const matchers = await browser.eval(
         (global as any).isNextDev
           ? 'window.__DEV_MIDDLEWARE_MATCHERS'
           : 'window.__MIDDLEWARE_MATCHERS'
       )
 
-      return matchers &&
-        matchers.some((m) => m.regexp.includes('with-middleware')) &&
-        matchers.some((m) => m.regexp.includes('another-middleware'))
-        ? 'success'
-        : 'failed'
-    }, 'success')
+      expect(matchers).toSatisfyAny((m) => m.regexp.includes('with-middleware'))
+      expect(matchers).toSatisfyAny((m) =>
+        m.regexp.includes('another-middleware')
+      )
+    })
   })
 
   if ((global as any).isNextStart) {
@@ -110,31 +137,7 @@ describe('Middleware can set the matcher in its config', () => {
         await next.readFile('.next/server/middleware-manifest.json')
       )
 
-      // Redact volatile fields so the snapshot is stable across builds:
-      // - `env` values are randomly generated per build (encryption keys,
-      //   preview mode ids, build id).
-      // - `files` and `entrypoint` paths contain content hashes and may
-      //   differ between webpack and Turbopack.
-      const normalize = (value: unknown, key?: string): unknown => {
-        if (key === 'env' && value && typeof value === 'object') {
-          return Object.fromEntries(
-            Object.keys(value)
-              .sort()
-              .map((k) => [k, '<redacted>'])
-          )
-        }
-        if (key === 'files') return '<files>'
-        if (key === 'entrypoint') return '<entrypoint>'
-        if (Array.isArray(value)) return value.map((v) => normalize(v))
-        if (value && typeof value === 'object') {
-          return Object.fromEntries(
-            Object.entries(value).map(([k, v]) => [k, normalize(v, k)])
-          )
-        }
-        return value
-      }
-
-      expect(normalize(manifest)).toMatchInlineSnapshot(`
+      expect(normalizeMiddlewareManifest(manifest)).toMatchInlineSnapshot(`
        {
          "functions": {},
          "middleware": {
@@ -205,9 +208,10 @@ describe('Middleware can set the matcher in its config', () => {
     })
 
     await browser.elementByCss('#to-blog-slug-2').click()
-    await check(
-      () => browser.eval('document.documentElement.innerHTML'),
-      /"slug":"slug-2"/
+    await retry(async () =>
+      expect(await browser.eval('document.documentElement.innerHTML')).toMatch(
+        /"slug":"slug-2"/
+      )
     )
     expect(JSON.parse(await browser.elementByCss('#props').text())).toEqual({
       message: 'Hello, magnificent world.',
@@ -309,11 +313,13 @@ describe('using a single matcher', () => {
 })
 
 describe.each([
-  { title: '' },
-  { title: ' and trailingSlash', trailingSlash: true },
+  { title: '', includeES: true },
+  { title: ' and trailingSlash', trailingSlash: true, includeES: true },
+  { title: ' and a single locale', includeES: false },
+  { title: ' and a single locale', trailingSlash: true, includeES: false },
 ])(
   'using a single matcher with i18n for a non-root route$title',
-  ({ trailingSlash }) => {
+  ({ trailingSlash, includeES }) => {
     const { next } = nextTestSetup({
       files: {
         'pages/[...route].js': `
@@ -346,7 +352,7 @@ describe.each([
             ${trailingSlash ? 'trailingSlash: true,' : ''}
             i18n: {
               localeDetection: false,
-              locales: ['es', 'en'],
+              locales: ${includeES ? '["es", "en"]' : '["en"]'},
               defaultLocale: 'en',
             }
           }
@@ -355,14 +361,66 @@ describe.each([
       dependencies: {},
     })
 
+    if ((global as any).isNextStart) {
+      it('produces the expected middleware manifest', async () => {
+        const manifest = JSON.parse(
+          await next.readFile('.next/server/middleware-manifest.json')
+        )
+
+        if (!includeES && !trailingSlash) {
+          expect(normalizeMiddlewareManifest(manifest.middleware['/'].matchers))
+            .toMatchInlineSnapshot(`
+           [
+             {
+               "originalSource": "/middleware/works",
+               "regexp": "^(?:\\/(_next\\/data\\/[^/]{1,}))?(?:\\/((?!_next\\/)[^/.]{1,}))\\/middleware\\/works(\\.json|\\.rsc|\\.segments\\/.+\\.segment\\.rsc)?[\\/#\\?]?$",
+             },
+           ]
+          `)
+        } else if (!includeES && trailingSlash) {
+          expect(normalizeMiddlewareManifest(manifest.middleware['/'].matchers))
+            .toMatchInlineSnapshot(`
+           [
+             {
+               "originalSource": "/middleware/works",
+               "regexp": "^(?:\\/(_next\\/data\\/[^/]{1,}))?(?:\\/((?!_next\\/)[^/.]{1,}))\\/middleware\\/works(\\.json|\\.rsc|\\.segments\\/.+\\.segment\\.rsc)?[\\/#\\?]?$",
+             },
+           ]
+          `)
+        } else if (includeES && !trailingSlash) {
+          expect(normalizeMiddlewareManifest(manifest.middleware['/'].matchers))
+            .toMatchInlineSnapshot(`
+           [
+             {
+               "originalSource": "/middleware/works",
+               "regexp": "^(?:\\/(_next\\/data\\/[^/]{1,}))?(?:\\/((?!_next\\/)[^/.]{1,}))\\/middleware\\/works(\\.json|\\.rsc|\\.segments\\/.+\\.segment\\.rsc)?[\\/#\\?]?$",
+             },
+           ]
+          `)
+        } else if (includeES && trailingSlash) {
+          expect(normalizeMiddlewareManifest(manifest.middleware['/'].matchers))
+            .toMatchInlineSnapshot(`
+           [
+             {
+               "originalSource": "/middleware/works",
+               "regexp": "^(?:\\/(_next\\/data\\/[^/]{1,}))?(?:\\/((?!_next\\/)[^/.]{1,}))\\/middleware\\/works(\\.json|\\.rsc|\\.segments\\/.+\\.segment\\.rsc)?[\\/#\\?]?$",
+             },
+           ]
+          `)
+        }
+      })
+    }
+
     it('adds the header for matched paths', async () => {
       const res1 = await fetchViaHTTP(next.url, '/middleware/works')
       expect(await res1.text()).toContain(`(en) Hello from /middleware/works`)
       expect(res1.headers.get('X-From-Middleware')).toBe('true')
 
-      const res2 = await fetchViaHTTP(next.url, '/es/middleware/works')
-      expect(await res2.text()).toContain(`(es) Hello from /middleware/works`)
-      expect(res2.headers.get('X-From-Middleware')).toBe('true')
+      if (includeES) {
+        const res2 = await fetchViaHTTP(next.url, '/es/middleware/works')
+        expect(await res2.text()).toContain(`(es) Hello from /middleware/works`)
+        expect(res2.headers.get('X-From-Middleware')).toBe('true')
+      }
     })
 
     it('adds the header for matched data paths, including the default locale without a prefix', async () => {
@@ -379,16 +437,18 @@ describe.each([
       })
       expect(res1.headers.get('X-From-Middleware')).toBe('true')
 
-      const res2 = await fetchViaHTTP(
-        next.url,
-        `/_next/data/${next.buildId}/es/middleware/works.json`
-      )
-      expect(await res2.json()).toMatchObject({
-        pageProps: {
-          message: '(es) Hello from /middleware/works',
-        },
-      })
-      expect(res2.headers.get('X-From-Middleware')).toBe('true')
+      if (includeES) {
+        const res2 = await fetchViaHTTP(
+          next.url,
+          `/_next/data/${next.buildId}/es/middleware/works.json`
+        )
+        expect(await res2.json()).toMatchObject({
+          pageProps: {
+            message: '(es) Hello from /middleware/works',
+          },
+        })
+        expect(res2.headers.get('X-From-Middleware')).toBe('true')
+      }
 
       const res3 = await fetchViaHTTP(
         next.url,

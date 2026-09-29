@@ -1,6 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 import { getTitle, retry, waitFor } from 'next-test-utils'
 
+// bump this every time you want to validate flakiness: 1
+
 describe('app dir - navigation', () => {
   const { next, isNextDev, isNextStart, isNextDeploy } = nextTestSetup({
     files: __dirname,
@@ -148,13 +150,20 @@ describe('app dir - navigation', () => {
 
   describe('hash', () => {
     it('should scroll to the specified hash', async () => {
-      const rscRequestUrls = new Set<string>()
+      // Requests made to navigate, excluding prefetches: a hash-only
+      // navigation is same-document and must not fetch data, while
+      // prefetch heuristics are free to fire at any time.
+      const navigationRscRequestUrls = new Set<string>()
       const browser = await next.browser('/hash', {
         beforePageLoad(page) {
           page.on('request', (req) => {
             const headers = req.headers()
-            if (headers['rsc']) {
-              rscRequestUrls.add(req.url())
+            if (
+              headers['rsc'] &&
+              !headers['next-router-prefetch'] &&
+              !headers['next-router-segment-prefetch']
+            ) {
+              navigationRscRequestUrls.add(req.url())
             }
           })
         },
@@ -166,10 +175,12 @@ describe('app dir - navigation', () => {
       ) => {
         await browser.elementByCss(`#link-to-${val.toString()}`).click()
 
-        await retry(() =>
-          expect(browser.eval('window.pageYOffset')).resolves.toEqual(
-            expectedScroll
-          )
+        await retry(
+          () =>
+            expect(browser.eval('window.pageYOffset')).resolves.toEqual(
+              expectedScroll
+            ),
+          10_000
         )
       }
 
@@ -178,8 +189,8 @@ describe('app dir - navigation', () => {
       }
 
       // Wait for all network requests to finish, and then initialize the flag
-      // used to determine if any query-param RSC requests are made.
-      rscRequestUrls.clear()
+      // used to determine if any navigation RSC requests are made.
+      navigationRscRequestUrls.clear()
 
       await checkLink(6, 128)
       await checkLink(50, 744)
@@ -190,21 +201,16 @@ describe('app dir - navigation', () => {
       await checkLink('non-existent', 0)
 
       if (!isNextDev) {
-        // Hash-only navigations should not request the query-param payload.
-        // In some runtimes, hash-only transitions can still trigger RSC
-        // requests for /hash itself, so we assert on query-param payloads.
-        const hasQueryParamRscRequest = Array.from(rscRequestUrls).some((url) =>
-          url.includes('with-query-param')
-        )
-        expect(hasQueryParamRscRequest).toBe(false)
+        // Hash-only navigations must not fetch any data.
+        expect(Array.from(navigationRscRequestUrls)).toEqual([])
       }
 
       await checkLink('query-param', 2284)
       await browser.waitForIdleNetwork()
 
       // There should be an RSC request if the query param is changed
-      const hasQueryParamRscRequest = Array.from(rscRequestUrls).some((url) =>
-        url.includes('with-query-param')
+      const hasQueryParamRscRequest = Array.from(navigationRscRequestUrls).some(
+        (url) => url.includes('with-query-param')
       )
       expect(hasQueryParamRscRequest).toBe(true)
     })
@@ -228,10 +234,12 @@ describe('app dir - navigation', () => {
         expectedScroll: number
       ) => {
         await browser.elementByCss(`#link-to-${val.toString()}`).click()
-        await retry(() =>
-          expect(browser.eval('window.pageYOffset')).resolves.toEqual(
-            expectedScroll
-          )
+        await retry(
+          () =>
+            expect(browser.eval('window.pageYOffset')).resolves.toEqual(
+              expectedScroll
+            ),
+          10_000
         )
       }
 
@@ -254,10 +262,12 @@ describe('app dir - navigation', () => {
         expectedScroll: number
       ) => {
         await browser.elementByCss(`#link-to-${val.toString()}`).click()
-        await retry(() =>
-          expect(browser.eval('window.pageYOffset')).resolves.toEqual(
-            expectedScroll
-          )
+        await retry(
+          () =>
+            expect(browser.eval('window.pageYOffset')).resolves.toEqual(
+              expectedScroll
+            ),
+          10_000
         )
       }
 
@@ -353,6 +363,29 @@ describe('app dir - navigation', () => {
       await retry(() =>
         expect(browser.url()).resolves.toEqual(
           next.url + pathname + '?foo=1&bar=2#h3'
+        )
+      )
+    })
+  })
+
+  describe('cross-pathname Link then same-pathname hash change', () => {
+    const startPath = '/hash-cross-path-push'
+    const destinationPath = '/hash-cross-path-push/destination'
+
+    it('should replace (not concatenate) the hash when <Link> triggers the same-pathname hash change', async () => {
+      const browser = await next.browser(startPath)
+
+      await browser.elementByCss('#link-to-target-foo').click()
+      await retry(() =>
+        expect(browser.url()).resolves.toEqual(
+          next.url + destinationPath + '#foo'
+        )
+      )
+
+      await browser.elementByCss('#link-to-target-baz').click()
+      await retry(() =>
+        expect(browser.url()).resolves.toEqual(
+          next.url + destinationPath + '#baz'
         )
       )
     })
@@ -998,6 +1031,17 @@ describe('app dir - navigation', () => {
 
   describe('middleware redirect', () => {
     it('should change browser location when router.refresh() gets a redirect response', async () => {
+      if (isNextDev) {
+        // The browser location only changes at the end of a chain of requests:
+        // the page posts to `/api/set-token`, calls `router.refresh()`, and the
+        // refresh gets a middleware redirect to the dashboard. In dev the first
+        // request to each of those routes compiles it on demand, which costs
+        // seconds on a CI runner. Hit them here so the chain below does not pay
+        // for it.
+        await next.fetch('/api/set-token', { method: 'POST' })
+        await next.fetch('/redirect-on-refresh/dashboard')
+      }
+
       const browser = await next.browser('/redirect-on-refresh/auth')
       await retry(async () =>
         expect(await browser.url()).toBe(

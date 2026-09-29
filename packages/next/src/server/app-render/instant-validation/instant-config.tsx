@@ -27,11 +27,7 @@ import { InvariantError } from '../../../shared/lib/invariant-error'
  */
 export function isImplicitValidationSegment(segment: Segment): boolean {
   const key = typeof segment === 'string' ? segment : segment[0]
-  return (
-    key === PAGE_SEGMENT_KEY ||
-    key.startsWith(PAGE_SEGMENT_KEY) ||
-    key === DEFAULT_SEGMENT_KEY
-  )
+  return key === PAGE_SEGMENT_KEY || key === DEFAULT_SEGMENT_KEY
 }
 
 /**
@@ -50,7 +46,12 @@ export function isFrameworkErrorRoute(route: string | undefined): boolean {
   )
 }
 
-export async function anySegmentHasRuntimePrefetchEnabled(
+/**
+ * Matches the `prefetch` config that enables Partial Prefetching for the
+ * segment: 'partial'. A route with Partial Prefetching enabled also
+ * runtime-caches its navigations, so this gates the runtime prefetch spawn.
+ */
+export async function anySegmentHasPartialPrefetchingEnabled(
   tree: LoaderTree
 ): Promise<boolean> {
   const { mod: layoutOrPageMod } = await getLayoutOrPageModule(tree)
@@ -59,43 +60,7 @@ export async function anySegmentHasRuntimePrefetchEnabled(
   const prefetchConfig = layoutOrPageMod
     ? (layoutOrPageMod as AppSegmentConfig).prefetch
     : undefined
-  if (prefetchConfig === 'allow-runtime') {
-    return true
-  }
-
-  const { parallelRoutes } = parseLoaderTree(tree)
-  for (const parallelRouteKey in parallelRoutes) {
-    const parallelRoute = parallelRoutes[parallelRouteKey]
-    const hasChildRuntimePrefetch =
-      await anySegmentHasRuntimePrefetchEnabled(parallelRoute)
-    if (hasChildRuntimePrefetch) {
-      return true
-    }
-  }
-
-  return false
-}
-
-/**
- * Like `anySegmentHasRuntimePrefetchEnabled`, but matches any `prefetch` config
- * that enables Partial Prefetching for the segment: 'partial',
- * 'unstable_eager', or 'allow-runtime'. A route with Partial Prefetching
- * enabled also runtime-caches its navigations, so this gates the runtime
- * prefetch spawn.
- */
-export async function anySegmentHasPartialPrefetchingEnabled(
-  tree: LoaderTree
-): Promise<boolean> {
-  const { mod: layoutOrPageMod } = await getLayoutOrPageModule(tree)
-
-  const prefetchConfig = layoutOrPageMod
-    ? (layoutOrPageMod as AppSegmentConfig).prefetch
-    : undefined
-  if (
-    prefetchConfig === 'partial' ||
-    prefetchConfig === 'unstable_eager' ||
-    prefetchConfig === 'allow-runtime'
-  ) {
+  if (prefetchConfig === 'partial') {
     return true
   }
 

@@ -11,7 +11,10 @@
 #[rustfmt::skip]
 pub static BROWSER_VARIANT_MODULES: &[&str] = &[
     "client/components/client-boundary-params",
+    "client/components/instant-samples",
+    "client/components/instant-validation/impl",
     "client/components/navigation-dynamic-rendering",
+    "client/components/router-reducer/create-segment-key",
     "client/components/server-async-storage",
     "client/components/unstable-rethrow",
 ];

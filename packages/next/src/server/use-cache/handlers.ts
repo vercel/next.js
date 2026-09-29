@@ -14,7 +14,11 @@ const debug = process.env.NEXT_PRIVATE_DEBUG_CACHE
 const handlersSymbol = Symbol.for('@next/cache-handlers')
 const handlersMapSymbol = Symbol.for('@next/cache-handlers-map')
 const handlersSetSymbol = Symbol.for('@next/cache-handlers-set')
+const customCacheHandlersRegistrationSymbol = Symbol.for(
+  '@next/custom-cache-handlers-registration'
+)
 const privateHandlerSymbol = Symbol.for('@next/cache-handlers-private')
+const builtInHandlersSymbol = Symbol.for('@next/cache-handlers-built-in')
 const devFrontHandlersSymbol = Symbol.for('@next/cache-handlers-dev-fronts')
 const devTieredHandlersSymbol = Symbol.for('@next/cache-handlers-dev-tiered')
 const memoryCacheDisabledSymbol = Symbol.for(
@@ -41,6 +45,8 @@ const reference: typeof globalThis & {
   }
   [handlersMapSymbol]?: Map<string, CacheHandler>
   [handlersSetSymbol]?: Set<CacheHandler>
+  [customCacheHandlersRegistrationSymbol]?: Promise<void>
+  [builtInHandlersSymbol]?: Set<CacheHandler>
   // DEV-only
   [privateHandlerSymbol]?: CacheHandler
   [devFrontHandlersSymbol]?: Map<string, CacheHandler>
@@ -52,18 +58,19 @@ const reference: typeof globalThis & {
  * Initialize the cache handlers.
  * @param cacheMaxMemorySize - The maximum memory size of the cache in bytes, if
  *  not provided, the default memory size will be used.
- * @returns `true` if the cache handlers were initialized, `false` if they were already initialized.
  */
-export function initializeCacheHandlers(cacheMaxMemorySize: number): boolean {
+export function initializeCacheHandlers(cacheMaxMemorySize: number): void {
   // If the cache handlers have already been initialized, don't do it again.
   if (reference[handlersMapSymbol]) {
     debug?.('cache handlers already initialized')
-    return false
+    return
   }
 
   debug?.('initializing cache handlers')
   const handlersMap = new Map<string, CacheHandler>()
   reference[handlersMapSymbol] = handlersMap
+  const builtInHandlers = new Set<CacheHandler>()
+  reference[builtInHandlersSymbol] = builtInHandlers
 
   // In development, `cacheMaxMemorySize: 0` would make the built-in default
   // handler a no-op, so every reload would miss. Use a real in-memory size
@@ -84,6 +91,7 @@ export function initializeCacheHandlers(cacheMaxMemorySize: number): boolean {
     } else {
       debug?.('setting "default" cache handler from default')
       fallback = createDefaultCacheHandler(builtInSize)
+      builtInHandlers.add(fallback)
     }
 
     handlersMap.set('default', fallback)
@@ -97,6 +105,7 @@ export function initializeCacheHandlers(cacheMaxMemorySize: number): boolean {
     }
   } else {
     const handler = createDefaultCacheHandler(builtInSize)
+    builtInHandlers.add(handler)
 
     debug?.('setting "default" cache handler from default')
     handlersMap.set('default', handler)
@@ -130,8 +139,18 @@ export function initializeCacheHandlers(cacheMaxMemorySize: number): boolean {
     reference[devFrontHandlersSymbol] = new Map()
     reference[devTieredHandlersSymbol] = new Map()
   }
+}
 
-  return true
+export function registerCustomCacheHandlers(
+  register: () => Promise<void>
+): Promise<void> {
+  let pendingPromise = reference[customCacheHandlersRegistrationSymbol]
+  if (!pendingPromise) {
+    pendingPromise = register()
+    reference[customCacheHandlersRegistrationSymbol] = pendingPromise
+  }
+
+  return pendingPromise
 }
 
 /**
@@ -187,6 +206,27 @@ export function isCustomCacheHandler(kind: string): boolean {
   }
 
   return reference[devFrontHandlersSymbol]?.has(kind) ?? false
+}
+
+/**
+ * Whether `kind` resolves to one of the in-memory handlers that
+ * `initializeCacheHandlers` constructs itself, rather than one supplied by the
+ * platform through the `@next/cache-handlers` global or by `cacheHandlers`
+ * config. Reads from a built-in handler are map lookups, so repeating one
+ * within a request costs nothing; reads from a supplied handler may be a
+ * network round trip. Unlike `isCustomCacheHandler`, this holds in production.
+ *
+ * Tracking the instances rather than the kinds is what keeps aliasing correct:
+ * self-hosted, `remote` resolves to the same handler as `default` and so
+ * reports as built-in, while a platform-supplied `remote` does not.
+ */
+export function isBuiltInCacheHandler(kind: string): boolean {
+  const handler = reference[handlersMapSymbol]?.get(kind)
+
+  return (
+    handler !== undefined &&
+    Boolean(reference[builtInHandlersSymbol]?.has(handler))
+  )
 }
 
 /**

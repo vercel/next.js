@@ -76,8 +76,7 @@ export async function handler(
     return
   }
 
-  const { query, params, prerenderManifest, routerServerContext } =
-    prepareResult
+  const { query, params, previewProps, routerServerContext } = prepareResult
 
   try {
     const method = req.method || 'GET'
@@ -106,7 +105,7 @@ export async function handler(
             .__NEXT_TRUST_HOST_HEADER as any as boolean,
           // TODO: get this from from runtime env so manifest
           // doesn't need to load
-          previewProps: prerenderManifest.preview,
+          previewProps,
           propagateError: false,
           dev: routeModule.isDev,
           page: 'VAR_DEFINITION_PAGE',

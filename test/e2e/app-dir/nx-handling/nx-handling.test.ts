@@ -1,17 +1,17 @@
 import { nextTestSetup, isNextDev } from 'e2e-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely controls the local Next.js build or server lifecycle.
+// @force-gate !deploy
 describe('nx-handling', () => {
   const { next } = nextTestSetup({
-    skipDeployment: true,
     files: __dirname,
-    installCommand: 'npm i',
-    buildCommand: 'npm run build',
-    startCommand: isNextDev ? 'npm run dev' : 'npm run start',
+    buildCommand: 'pnpm run build',
+    startCommand: isNextDev ? 'pnpm run dev' : 'pnpm run start',
     packageJson: {
       name: '@nx-next/source',
       version: '0.0.0',
       private: true,
-      packageManager: 'npm@10.9.2',
       scripts: {
         build: 'rm -rf dist; nx run next-nx-test:build',
         dev: 'nx run next-nx-test:dev',

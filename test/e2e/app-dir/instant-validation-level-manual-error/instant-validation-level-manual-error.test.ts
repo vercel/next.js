@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import {
+  createGetInstantInsight,
   expectBuildValidationSkipped,
   extractBuildValidationError,
 } from 'e2e-utils/instant-validation'
@@ -21,9 +22,30 @@ describe('instant validation - level manual-error', () => {
     return
   }
 
+  let currentCliOutputIndex = 0
+  beforeEach(() => {
+    currentCliOutputIndex = next.cliOutput.length
+  })
+
+  function getCliOutputSinceMark(): string {
+    if (next.cliOutput.length < currentCliOutputIndex) {
+      currentCliOutputIndex = 0
+    }
+    return next.cliOutput.slice(currentCliOutputIndex)
+  }
+
+  const getInstantInsight = createGetInstantInsight(getCliOutputSinceMark, next)
+
   if (isNextStart) {
     beforeAll(async () => {
-      await next.build({ args: ['--experimental-build-mode', 'compile'] })
+      const result = await next.build({
+        args: ['--experimental-build-mode', 'compile'],
+      })
+      if (result.exitCode !== 0) {
+        throw new Error(
+          `Build exited with exit code ${result.exitCode}. CLI Output:\n\n${result.cliOutput}`
+        )
+      }
     })
     afterEach(async () => {
       await next.stop()
@@ -65,7 +87,7 @@ describe('instant validation - level manual-error', () => {
 
       it('explicit-error page: explicit override at the configured level, instant redbox in dev', async () => {
         const browser = await next.browser('/explicit-error')
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
          {
            "cause": [
              {
@@ -79,7 +101,6 @@ describe('instant validation - level manual-error', () => {
                ],
              },
            ],
-           "code": "E1398",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -95,7 +116,7 @@ describe('instant validation - level manual-error', () => {
 
       it('explicit-true page: aliases to error level, instant redbox in dev', async () => {
         const browser = await next.browser('/explicit-true')
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
          {
            "cause": [
              {
@@ -109,7 +130,6 @@ describe('instant validation - level manual-error', () => {
                ],
              },
            ],
-           "code": "E1398",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -125,7 +145,7 @@ describe('instant validation - level manual-error', () => {
 
       it('explicit-warning page: per-segment de-escalation still validates in dev', async () => {
         const browser = await next.browser('/explicit-warning')
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
          {
            "cause": [
              {
@@ -139,7 +159,6 @@ describe('instant validation - level manual-error', () => {
                ],
              },
            ],
-           "code": "E1398",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -186,11 +205,10 @@ describe('instant validation - level manual-error', () => {
 
          Ways to fix this:
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-             https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
            - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
-             https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
            - [block] Set \`export const instant = false\` to allow a blocking route
-             https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
+
+         Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
              at a (<anonymous>)
              at body (<anonymous>)
              at html (<anonymous>)
@@ -213,11 +231,10 @@ describe('instant validation - level manual-error', () => {
 
          Ways to fix this:
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-             https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
            - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
-             https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
            - [block] Set \`export const instant = false\` to allow a blocking route
-             https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
+
+         Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
              at a (<anonymous>)
              at body (<anonymous>)
              at html (<anonymous>)

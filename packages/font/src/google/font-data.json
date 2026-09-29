@@ -5976,6 +5976,19 @@
     ],
     "subsets": ["greek", "latin", "latin-ext"]
   },
+  "Geomini": {
+    "weights": ["200", "300", "400", "500", "600", "700", "800", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 200,
+        "max": 800,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext"]
+  },
   "Georama": {
     "weights": [
       "100",
@@ -6752,6 +6765,11 @@
     "weights": ["400"],
     "styles": ["normal"],
     "subsets": ["latin"]
+  },
+  "Hibur Mono": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["ethiopic", "latin", "latin-ext"]
   },
   "Hina Mincho": {
     "weights": ["400"],

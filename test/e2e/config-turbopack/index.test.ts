@@ -6,6 +6,11 @@ const WARNING_MESSAGE = `ERROR: This build is using Turbopack, with a \`webpack\
 const itif = (condition: boolean) => (condition ? it : it.skip)
 
 const page = {
+  'app/layout.js': `
+export default function RootLayout({ children }) {
+  return <html><body>{children}</body></html>
+}
+`,
   'app/page.js': `
 export default function Page() {
   return <p>hello world</p>

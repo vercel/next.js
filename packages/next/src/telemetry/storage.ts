@@ -59,7 +59,13 @@ export class Telemetry {
 
   private queue: Set<Promise<RecordObject>>
 
-  constructor({ distDir }: { distDir: string }) {
+  constructor({
+    distDir,
+    skipNotify = false,
+  }: {
+    distDir: string
+    skipNotify?: boolean
+  }) {
     // Read in the constructor so that .env can be loaded before reading
     const { NEXT_TELEMETRY_DISABLED, NEXT_TELEMETRY_DEBUG } = process.env
     this.NEXT_TELEMETRY_DISABLED = NEXT_TELEMETRY_DISABLED
@@ -78,7 +84,9 @@ export class Telemetry {
     this.sessionId = randomBytes(32).toString('hex')
     this.queue = new Set()
 
-    this.notify()
+    if (!skipNotify) {
+      this.notify()
+    }
   }
 
   private notify = () => {
@@ -290,6 +298,9 @@ export class Telemetry {
     }
 
     if (this.NEXT_TELEMETRY_DEBUG) {
+      // Resolve the anonymous meta so the debug output mirrors the payload that
+      // would be sent (including `agentName`, `ciName`, etc.).
+      const meta = await getAnonymousMeta()
       // Return a promise that resolves after logging to ensure the output
       // is captured before the process exits (e.g., during flushDetached)
       return new Promise((resolve) => {
@@ -297,7 +308,8 @@ export class Telemetry {
           // Print to standard error to simplify selecting the output
           events.forEach(({ eventName, payload }) =>
             console.error(
-              `[telemetry] ` + JSON.stringify({ eventName, payload }, null, 2)
+              `[telemetry] ` +
+                JSON.stringify({ eventName, payload, meta }, null, 2)
             )
           )
           resolve(undefined)
@@ -318,7 +330,7 @@ export class Telemetry {
           projectId: await this.getProjectId(),
           sessionId: this.sessionId,
         },
-        meta: getAnonymousMeta(),
+        meta: await getAnonymousMeta(),
         events: events.map(({ eventName, payload }) => ({
           eventName,
           fields: payload,

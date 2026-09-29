@@ -1,14 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('app dir - metadata dynamic routes suspense', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should render metadata in head when root layout is wrapped with Suspense for bot requests', async () => {
     const $ = await next.render$('/', undefined, {

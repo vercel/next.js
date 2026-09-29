@@ -40,6 +40,8 @@ rustflags = [
   "-Zthreads=8",
   # Unlock nightly-only options
   "-Zunstable-options",
+  # Keep warnings fatal for every target instead of relying on per-job CI overrides.
+  "-Dwarnings",
 ]
 
 # macOS: use rust-lld (ld64.lld) for faster linking and enable ICF.
@@ -82,6 +84,17 @@ rustflags = [
 # libraries (N-API addons), not static binaries.
 [target.'cfg(all(target_os = "linux", target_env = "musl"))']
 rustflags = ["-Ctarget-feature=-crt-static"]
+
+# WASI threads: make the imported shared-memory contract explicit. Keep these byte values in sync
+# with the page counts in scripts/wasi-test-host and packages/next/src/build/swc/wasi-runtime.ts.
+[target.wasm32-wasip1-threads]
+rustflags = [
+  "-Dlinker-messages",
+  # 512 MiB
+  "-Clink-arg=--initial-memory=536870912",
+  # 4 GiB
+  "-Clink-arg=--max-memory=4294967296",
+]
 
 # WASM: configure getrandom to use the wasm_js backend (Math.random / crypto).
 [target.wasm32-unknown-unknown]

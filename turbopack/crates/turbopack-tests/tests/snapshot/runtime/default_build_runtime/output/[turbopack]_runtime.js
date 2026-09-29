@@ -89,8 +89,11 @@ function createModuleWithDirection(id) {
 }
 const BindingTag_Value = 0;
 /**
+ * Terminates a module's group of entries in an {@link EsmReexports} list.
+ */ const REEXPORT_GROUP_END = 0;
+/**
  * Adds the getters to the exports object.
- */ function esm(exports, bindings) {
+ */ function esm(exports, bindings, dynamic) {
     defineProp(exports, '__esModule', {
         value: true
     });
@@ -128,11 +131,18 @@ const BindingTag_Value = 0;
             }
         }
     }
-    Object.seal(exports);
+    // The properties defined above are already non-configurable and
+    // non-writable, so the namespace's existing exports are effectively
+    // immutable. Sealing additionally makes the object non-extensible, matching
+    // real ESM-namespace semantics. Modules with dynamic re-exports
+    // (`export *` from a CommonJS module) must stay extensible so the dynamic
+    // export proxy can surface keys discovered at runtime, so skip the seal for
+    // them.
+    if (!dynamic) Object.seal(exports);
 }
 /**
  * Makes the module an ESM with exports
- */ function esmExport(bindings, id) {
+ */ function esmExport(bindings, id, dynamic) {
     let module;
     let exports;
     if (id != null) {
@@ -143,24 +153,182 @@ const BindingTag_Value = 0;
         exports = this.e;
     }
     module.namespaceObject = exports;
-    esm(exports, bindings);
+    esm(exports, bindings, dynamic);
 }
 contextPrototype.s = esmExport;
+/**
+ * Registers re-exports that all forward to properties of other modules.
+ *
+ * This is a compact spelling of the pattern
+ *
+ * ```js
+ * var ns = context.i(moduleId)
+ * context.s([exportName, () => ns[importedName], ...])
+ * ```
+ *
+ * The list is a flat sequence of groups. Each group starts with the source the exports come from,
+ * followed by that group's entries, and is terminated by the `0` sentinel (or the end of the list).
+ *
+ * The group head is either a **module id**, which is instantiated here:
+ *
+ * ```js
+ * context.S([
+ *   76061, 'default', 'f', 'named', 'A', 0,
+ *   29842, 'otherModule', 'f',
+ * ])
+ * ```
+ *
+ * or the **namespace value** of a module that has already been imported, which is used directly:
+ *
+ * ```js
+ * var ns1 = context.i(76061)
+ * context.S([ns1, 'default', 'f', 'named', 'A'])
+ * ```
+ *
+ * The producer picks the namespace form when it has generated the import anyway -- because some
+ * later import must not be reordered past it -- so nothing is instantiated twice. The two are told
+ * apart by type: a module id is always a string or number. A CommonJS function export produces a
+ * callable namespace value, so namespace heads can be functions as well as objects.
+ *
+ * Entries are `exportName, importedName` pairs, except when a group holds exactly one string. That
+ * string is then a comma-joined list of the same pairs, which saves the repeated quoting:
+ *
+ * ```js
+ * context.S([
+ *   76061, 'default,f,named,A', 0,
+ *   29842, 'otherModule,f',
+ * ])
+ * ```
+ *
+ * The producer picks that spelling independently for each group whose names contain no commas,
+ * since that group's names are recovered by splitting on them.
+ *
+ * Groups whose head is a module id are instantiated in list order, at the point where the call
+ * appears, so the producer must not merge such a group across an import of another module. The
+ * destination reuses a source data value or getter descriptor when one exists, falling back to a
+ * wrapper getter for dynamic/proxy/inherited properties.
+ *
+ * `id` names the module the exports belong to when this module was merged into a scope-hoisting
+ * group, exactly as it does for {@link EsmExport}.
+ *
+ * Only the source descriptor's payload (value or getter) is reused. {@link esm} still defines a
+ * fresh enumerable, non-configurable destination property, and no source setter is ever forwarded.
+ */ function esmReexport(list, id) {
+    const bindings = [];
+    let i = 0;
+    while(i < list.length){
+        const head = list[i++];
+        const start = i;
+        while(i < list.length && list[i] !== REEXPORT_GROUP_END)i++;
+        const end = i;
+        // Skip the sentinel, if this group was terminated by one rather than by the end of the list.
+        i++;
+        // Module ids are always strings or numbers. Other values are already-imported namespaces;
+        // notably, interop with a CommonJS function export produces a callable namespace function.
+        // `esmImport` may return a promise for an async module, but re-exports of async modules keep
+        // going through `context.s`, so the producer never routes them here and this stays synchronous.
+        const namespace = typeof head === 'string' || typeof head === 'number' ? esmImport.call(this, head) : head;
+        if (end - start === 1) {
+            const pairs = list[start].split(',');
+            for(let j = 0; j < pairs.length; j += 2){
+                appendReexportBinding(bindings, pairs[j], namespace, pairs[j + 1]);
+            }
+        } else {
+            for(let j = start; j < end; j += 2){
+                appendReexportBinding(bindings, list[j], namespace, list[j + 1]);
+            }
+        }
+    }
+    esmExport.call(this, bindings, id);
+}
+contextPrototype.S = esmReexport;
+function appendReexportBinding(bindings, exportedName, namespace, importedName) {
+    const descriptor = Reflect.getOwnPropertyDescriptor(namespace, importedName);
+    if (descriptor) {
+        if ('value' in descriptor) {
+            // Code generation only routes immutable imported bindings through this helper, so a data
+            // descriptor is a constant export and can be captured once.
+            bindings.push(exportedName, BindingTag_Value, descriptor.value);
+            return;
+        }
+        if (descriptor.get) {
+            // Accessors remain live by reusing the source getter. `esmReexport` is only called by
+            // generated code: every group head is either produced by
+            // `this.i` or is the namespace variable from a generated `this.i` call. Every getter on such
+            // a namespace is receiver-independent: ESM bindings are compiler-generated arrow functions,
+            // and the CommonJS/dynamic-namespace paths create arrows in `createGetter` and
+            // `getOwnPropertyDescriptor`. The destination can therefore reuse the exact function instead
+            // of allocating another wrapper getter.
+            bindings.push(exportedName, descriptor.get);
+            return;
+        }
+    }
+    // Dynamic/proxy/inherited CommonJS edge cases may not expose a usable own descriptor.
+    bindings.push(exportedName, ()=>namespace[importedName]);
+}
 function ensureDynamicExports(module, exports) {
     let reexportedObjects = REEXPORTED_OBJECTS.get(module);
     if (!reexportedObjects) {
         REEXPORTED_OBJECTS.set(module, reexportedObjects = []);
+        // Returns the re-exported object that provides `prop` as an own property,
+        // or `undefined` if none does. The traps share this logic so they always
+        // agree on which keys are synthesized from `reexportedObjects`. `default`
+        // is never re-exported by `export *`, so it is never synthesized.
+        const reexportOwning = (prop)=>{
+            if (prop !== 'default') {
+                for (const obj of reexportedObjects){
+                    if (hasOwnProperty.call(obj, prop)) return obj;
+                }
+            }
+            return undefined;
+        };
+        // Modules with dynamic re-exports are not sealed by `esm()`, so the
+        // target beneath the namespace stays extensible. That is what lets the
+        // `ownKeys` and `getOwnPropertyDescriptor` traps legally report keys that
+        // exist on `reexportedObjects` but not on the target itself.
         module.exports = module.namespaceObject = new Proxy(exports, {
             get (target, prop) {
                 if (hasOwnProperty.call(target, prop) || prop === 'default' || prop === '__esModule') {
                     return Reflect.get(target, prop);
                 }
-                for (const obj of reexportedObjects){
-                    const value = Reflect.get(obj, prop);
-                    if (value !== undefined) return value;
-                }
-                return undefined;
+                const obj = reexportOwning(prop);
+                return obj && Reflect.get(obj, prop);
             },
+            // The namespace is read-only, like a real esm namespace object. The
+            // re-exported modules can still mutate their own exports (exposed live
+            // via `get`), but mutating the namespace itself is rejected. Refusing
+            // here, rather than forwarding to the extensible target, also prevents an
+            // assignment/definition from shadowing a dynamic re-export. It also
+            // prevents delete from removing a static export.
+            set () {
+                return false;
+            },
+            defineProperty () {
+                return false;
+            },
+            deleteProperty () {
+                return false;
+            },
+            // The `has` trap ensures that `'exportName' in starImports` will reflect
+            // the truth of whether a key is exported.
+            has (target, prop) {
+                if (Reflect.has(target, prop)) return true;
+                if (prop === 'default' || prop === '__esModule') return false;
+                return reexportOwning(prop) !== undefined;
+            },
+            // ownKeys and getOwnPropertyDescriptor together make the keys enumerable.
+            // If a value is returned from `ownKeys` but its property descriptor is
+            // not enumerable, it will not be visible to iterator methods.
+            // Collectively, they allow code like the following:
+            //
+            // ```
+            // // module.js re-exports dynamic CJS exports
+            // export * from './legacyModule.cjs'
+            //
+            // // from another JS file, reference the re-exported dynamic values
+            // import * as Namespace from './module.js'
+            // Object.keys(Namespace)
+            // ```
             ownKeys (target) {
                 const keys = Reflect.ownKeys(target);
                 for (const obj of reexportedObjects){
@@ -169,6 +337,22 @@ function ensureDynamicExports(module, exports) {
                     }
                 }
                 return keys;
+            },
+            getOwnPropertyDescriptor (target, prop) {
+                const own = Reflect.getOwnPropertyDescriptor(target, prop);
+                if (own || prop === 'default' || prop === '__esModule') return own;
+                const obj = reexportOwning(prop);
+                if (obj) {
+                    // Synthetic keys don't exist on the target, so they MUST be
+                    // reported as configurable. However the set/delete traps above will
+                    // prevent them from actually being changed
+                    return {
+                        enumerable: true,
+                        configurable: true,
+                        get: ()=>Reflect.get(obj, prop)
+                    };
+                }
+                return undefined;
             }
         });
     }
@@ -343,14 +527,16 @@ contextPrototype.f = moduleContext;
  */ function getChunkPath(chunkData) {
     return typeof chunkData === 'string' ? chunkData : chunkData.path;
 }
-// Load the CompressedmoduleFactories of a chunk into the `moduleFactories` Map.
-// The CompressedModuleFactories format is
-// - 1 or more module ids
-// - a module factory function
-// So walking this is a little complex but the flat structure is also fast to
-// traverse, we can use `typeof` operators to distinguish the two cases.
+// Load the CompressedModuleFactories of a chunk into the `moduleFactories` Map.
+// The flat format alternates one or more module IDs with their factory function.
+// Strict factories can be prepended as a nested array.
 function installCompressedModuleFactories(chunkModules, offset, moduleFactories, newModuleId) {
     let i = offset;
+    const strictFactories = chunkModules[i];
+    if (Array.isArray(strictFactories)) {
+        installCompressedModuleFactories(strictFactories, 0, moduleFactories, newModuleId);
+        i++;
+    }
     while(i < chunkModules.length){
         let end = i + 1;
         // Find our factory function
@@ -389,7 +575,7 @@ function installCompressedModuleFactories(chunkModules, offset, moduleFactories,
                 newModuleId?.(id);
             }
         }
-        i = end + 1; // end is pointing at the last factory advance to the next id or the end of the array.
+        i = end + 1;
     }
 }
 /**

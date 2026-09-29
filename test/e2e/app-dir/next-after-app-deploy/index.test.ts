@@ -5,6 +5,10 @@ import { retry } from 'next-test-utils'
 const runtimes = ['nodejs', 'edge']
 
 const WAIT_BEFORE_REVALIDATING = 1000
+const REVALIDATION_SETTLE_TIMEOUT = 15_000
+const REVALIDATION_POLL_INTERVAL = 1000
+const REVALIDATION_RETRY_DURATION =
+  WAIT_BEFORE_REVALIDATING + REVALIDATION_SETTLE_TIMEOUT
 
 // If we want to verify that `after()` ran its callback,
 // we need it to perform some kind of side effect (because it can't affect the response).
@@ -21,7 +25,6 @@ _describe.each(runtimes)('after() in %s runtime', (runtimeValue) => {
     files: __dirname,
     env: { WAIT_BEFORE_REVALIDATING: WAIT_BEFORE_REVALIDATING + '' },
   })
-  const retryDuration = WAIT_BEFORE_REVALIDATING * 2
 
   if (skipped) return
   const pathPrefix = '/' + runtimeValue
@@ -50,9 +53,19 @@ _describe.each(runtimes)('after() in %s runtime', (runtimeValue) => {
       await getTimestampPageData(path)
     }
 
-    const data = await getTimestampPageData(path)
-    expect(data).toEqual(await getTimestampPageData(path)) // sanity check that it's static
-    return data
+    // A previous test attempt may leave an ISR revalidation in progress. Wait
+    // for two consecutive reads to agree before using the timestamp as the
+    // baseline for this attempt.
+    return retry(
+      async () => {
+        const data = await getTimestampPageData(path)
+        expect(data).toEqual(await getTimestampPageData(path))
+        return data
+      },
+      REVALIDATION_SETTLE_TIMEOUT,
+      REVALIDATION_POLL_INTERVAL,
+      'wait for timestamp page cache to settle'
+    )
   }
 
   it('triggers revalidate from a page', async () => {
@@ -66,8 +79,8 @@ _describe.each(runtimes)('after() in %s runtime', (runtimeValue) => {
         const dataAfter = await getTimestampPageData(path)
         expect(dataAfter.timestamp).toBeGreaterThan(dataBefore.timestamp)
       },
-      retryDuration,
-      1000,
+      REVALIDATION_RETRY_DURATION,
+      REVALIDATION_POLL_INTERVAL,
       'check if timestamp page updated'
     )
   })
@@ -84,8 +97,8 @@ _describe.each(runtimes)('after() in %s runtime', (runtimeValue) => {
         const dataAfter = await getTimestampPageData(path)
         expect(dataAfter.timestamp).toBeGreaterThan(dataBefore.timestamp)
       },
-      retryDuration,
-      1000,
+      REVALIDATION_RETRY_DURATION,
+      REVALIDATION_POLL_INTERVAL,
       'check if timestamp page updated'
     )
   })
@@ -101,8 +114,8 @@ _describe.each(runtimes)('after() in %s runtime', (runtimeValue) => {
         const dataAfter = await getTimestampPageData(path)
         expect(dataAfter.timestamp).toBeGreaterThan(dataBefore.timestamp)
       },
-      retryDuration,
-      1000,
+      REVALIDATION_RETRY_DURATION,
+      REVALIDATION_POLL_INTERVAL,
       'check if timestamp page updated'
     )
   })
@@ -118,8 +131,8 @@ _describe.each(runtimes)('after() in %s runtime', (runtimeValue) => {
         const dataAfter = await getTimestampPageData(path)
         expect(dataAfter.timestamp).toBeGreaterThan(dataBefore.timestamp)
       },
-      retryDuration,
-      1000,
+      REVALIDATION_RETRY_DURATION,
+      REVALIDATION_POLL_INTERVAL,
       'check if timestamp page updated'
     )
   })

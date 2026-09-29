@@ -43,10 +43,14 @@ export class Span {
     parentId,
     attrs,
     startTime,
+    wallStartTimeMs,
   }: {
     name: string
     parentId?: SpanId
     startTime?: bigint
+    // Wall-clock start time in milliseconds since epoch, matching `startTime`.
+    // Defaults to the construction time.
+    wallStartTimeMs?: number
     attrs?: Attributes
   }) {
     this.name = name
@@ -61,7 +65,7 @@ export class Span {
     // `These times are relative to an arbitrary time in the past, and not related to the time of day and therefore not subject to clock drift`
     // https://nodejs.org/api/process.html#processhrtimetime
     // Capturing current datetime as additional metadata for external reconstruction.
-    this.now = Date.now()
+    this.now = wallStartTimeMs ?? Date.now()
   }
 
   // Durations are reported as microseconds. This gives 1000x the precision
@@ -118,6 +122,12 @@ export class Span {
       parentId: this.id,
       attrs,
       startTime: startTime ? startTime + correction : process.hrtime.bigint(),
+      // The span is constructed when the event is recorded, which may be long
+      // after the work started (e.g. compilation events forwarded from
+      // Turbopack), so derive the wall-clock start from the given epoch time.
+      wallStartTimeMs: startTime
+        ? Number(startTime / NUM_OF_MILLISEC_IN_NANOSEC)
+        : undefined,
     })
     span.stop(stopTime ? stopTime + correction : process.hrtime.bigint())
   }
@@ -161,8 +171,13 @@ export const trace = (
   return new Span({ name, parentId, attrs })
 }
 
-export const flushAllTraces = (opts?: { end: boolean }) =>
-  reporter.flushAll(opts)
+export const flushAllTraces = () => reporter.flushAll()
+
+/**
+ * Flush and release the trace file handle. Intended for tests that need to
+ * delete the directory holding the trace afterwards.
+ */
+export const closeAllTraces = () => reporter.close()
 
 // This code supports workers by serializing the state of tracers when the
 // worker is initialized, and serializing the trace events from the worker back

@@ -1,8 +1,10 @@
 use rustc_hash::FxHashMap;
 use swc_core::{
     atoms::Atom,
+    common::BytePos,
     ecma::{ast::*, visit::VisitWithAstPath},
 };
+use turbopack_core::resolve::ExportUsage;
 
 pub use crate::analyzer::graph::{
     effects::{
@@ -11,14 +13,16 @@ pub use crate::analyzer::graph::{
     eval_context::EvalContext,
 };
 use crate::{
-    AnalyzeMode,
+    AnalyzeMode, SpecifiedModuleType,
     analyzer::{Bump, JsValue, graph::visitor::Analyzer},
+    ast_path_trie::AstPathTrieBuilder,
+    chunk::CjsStaticExports,
     code_gen::CodeGen,
 };
 
 mod effects;
 mod eval_context;
-mod visitor;
+pub(crate) mod visitor;
 
 #[derive(Debug)]
 pub struct VarGraph<'a> {
@@ -33,6 +37,17 @@ pub struct VarGraph<'a> {
     pub effects: Vec<Effect<'a>>,
     // Some unconditional codegens, usually for ESM items.
     pub code_gens: Vec<CodeGen>,
+    /// Interns the AST paths used by `code_gens`. Effect processing keeps interning into
+    /// this same trie, so every path for the module ends up sharing one arena.
+    pub ast_paths: AstPathTrieBuilder,
+
+    /// [`ExportUsage`] per `require("…")` call, keyed by call position; absent
+    /// calls fall back to `ExportUsage::All`.
+    pub require_usage: FxHashMap<BytePos, ExportUsage>,
+
+    /// Present when the module is a statically-analyzable CommonJS module (no
+    /// dynamic exports); carries its named exports for scope hoisting.
+    pub cjs_static_exports: Option<CjsStaticExports>,
 }
 
 impl<'a> VarGraph<'a> {
@@ -52,6 +67,9 @@ pub fn create_graph<'a>(
     eval_context: &EvalContext,
     analyze_mode: AnalyzeMode,
     supports_block_scoping: bool,
+    specified_module_type: SpecifiedModuleType,
+    cjs_tree_shaking: bool,
+    cjs_scope_hoisting: bool,
 ) -> VarGraph<'a> {
     let mut analyzer = Analyzer {
         arena,
@@ -61,14 +79,31 @@ pub fn create_graph<'a>(
             free_var_ids: Default::default(),
             effects: Default::default(),
             code_gens: Default::default(),
+            ast_paths: Default::default(),
+            require_usage: Default::default(),
+            cjs_static_exports: Default::default(),
         },
         eval_context,
         state: Default::default(),
         effects: Default::default(),
         hoisted_effects: Default::default(),
         code_gens: Default::default(),
+        ast_paths: Default::default(),
         supports_block_scoping,
     };
+
+    // CommonJS export recognition runs for a CommonJS module that emits code when either CJS
+    // tree-shaking or CJS scope hoisting is enabled (both consume the static export analysis).
+    if (cjs_tree_shaking || cjs_scope_hoisting)
+        && analyze_mode.is_codegen
+        && eval_context.is_cjs(specified_module_type)
+    {
+        analyzer.enable_cjs_exports();
+    }
+
+    if cjs_tree_shaking && analyze_mode.is_codegen {
+        analyzer.enable_require_usage(&eval_context.imports);
+    }
 
     m.visit_with_ast_path(&mut analyzer, &mut Default::default());
 

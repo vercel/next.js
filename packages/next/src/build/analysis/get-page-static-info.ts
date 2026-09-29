@@ -77,31 +77,26 @@ export type ProxyConfig = {
   unstable_allowDynamic?: string[]
 }
 
-export interface AppPageStaticInfo {
-  type: PAGE_TYPES.APP
-  ssg?: boolean
-  ssr?: boolean
+export interface SharedPageStaticInfo {
   rsc?: RSCModuleType
-  generateStaticParams?: boolean
   generateSitemaps?: boolean
   generateImageMetadata?: boolean
   middleware?: ProxyConfig
-  config: Omit<AppSegmentConfig, 'runtime' | 'maxDuration'> | undefined
-  runtime: AppSegmentConfig['runtime'] | undefined
-  preferredRegion: AppSegmentConfig['preferredRegion'] | undefined
   maxDuration: number | undefined
   hadUnsupportedValue: boolean
 }
 
-export interface PagesPageStaticInfo {
+export interface AppPageStaticInfo extends SharedPageStaticInfo {
+  type: PAGE_TYPES.APP
+  ssg?: boolean
+  ssr?: boolean
+  config: Omit<AppSegmentConfig, 'runtime' | 'maxDuration'> | undefined
+  runtime: AppSegmentConfig['runtime'] | undefined
+  preferredRegion: AppSegmentConfig['preferredRegion'] | undefined
+}
+
+export interface PagesPageStaticInfo extends SharedPageStaticInfo {
   type: PAGE_TYPES.PAGES
-  getStaticProps?: boolean
-  getServerSideProps?: boolean
-  rsc?: RSCModuleType
-  generateStaticParams?: boolean
-  generateSitemaps?: boolean
-  generateImageMetadata?: boolean
-  middleware?: ProxyConfig
   config:
     | (Omit<PagesSegmentConfig, 'runtime' | 'config' | 'maxDuration'> & {
         config?: Omit<PagesSegmentConfigConfig, 'runtime' | 'maxDuration'>
@@ -109,8 +104,6 @@ export interface PagesPageStaticInfo {
     | undefined
   runtime: PagesSegmentConfig['runtime'] | undefined
   preferredRegion: PagesSegmentConfigConfig['regions'] | undefined
-  maxDuration: number | undefined
-  hadUnsupportedValue: boolean
 }
 
 export type PageStaticInfo = AppPageStaticInfo | PagesPageStaticInfo
@@ -699,30 +692,24 @@ export async function getAppPageStaticInfo({
     )
   }
 
-  // Prevent use client and instant in the same file.
-  if (directives?.has('client') && 'instant' in config) {
-    throw new Error(
-      `"instant" is a route segment config and can only be used when the segment is a Server Component module. Remove the "use client" directive from "${pageFilePath}" to use this API.`
-    )
-  }
+  for (const exportName of [
+    'instant',
+    'prefetch',
+    'unstable_ensureStatic',
+  ] as const) {
+    if (exportName in config) {
+      if (directives?.has('client')) {
+        throw new Error(
+          `"${exportName}" is a route segment config and can only be used when the segment is a Server Component module. Remove the "use client" directive from "${pageFilePath}" to use this API.`
+        )
+      }
 
-  if ('instant' in config && !nextConfig.cacheComponents) {
-    throw new Error(
-      `Route "${page}" cannot use \`export const instant = ...\` without enabling \`cacheComponents\`.`
-    )
-  }
-
-  // Prevent use client and prefetch in the same file.
-  if (directives?.has('client') && 'prefetch' in config) {
-    throw new Error(
-      `"prefetch" is a route segment config and can only be used when the segment is a Server Component module. Remove the "use client" directive from "${pageFilePath}" to use this API.`
-    )
-  }
-
-  if ('prefetch' in config && !nextConfig.cacheComponents) {
-    throw new Error(
-      `Route "${page}" cannot use \`export const prefetch = ...\` without enabling \`cacheComponents\`.`
-    )
+      if (!nextConfig.cacheComponents) {
+        throw new Error(
+          `Route "${page}" cannot use \`export const ${exportName} = ...\` without enabling \`cacheComponents\`.`
+        )
+      }
+    }
   }
 
   // Prevent unstable_dynamicStaleTime in layouts.
@@ -755,7 +742,6 @@ export async function getAppPageStaticInfo({
     rsc,
     generateImageMetadata,
     generateSitemaps,
-    generateStaticParams,
     config,
     middleware: parseMiddlewareConfig(page, exportedConfig.config, nextConfig),
     runtime: config.runtime,
@@ -791,11 +777,7 @@ export async function getPagesPageStaticInfo({
     isDev,
   })
 
-  const { getServerSideProps, getStaticProps, exports } = checkExports(
-    ast,
-    PagesSegmentConfigSchemaKeys,
-    page
-  )
+  const { exports } = checkExports(ast, PagesSegmentConfigSchemaKeys, page)
 
   const { type: rsc } = getRSCModuleInformation(content, true)
 
@@ -870,8 +852,6 @@ export async function getPagesPageStaticInfo({
 
   return {
     type: PAGE_TYPES.PAGES,
-    getStaticProps,
-    getServerSideProps,
     rsc,
     config,
     middleware: parseMiddlewareConfig(page, exportedConfig.config, nextConfig),

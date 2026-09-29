@@ -22,7 +22,7 @@ static REGISTRATION: Registration = register!();
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn split_chunk() {
-    run_once(&REGISTRATION, || async {
+    run_once(&REGISTRATION, async || {
         let mut code = CodeBuilder::new(true, false);
         code += "Hello world!\n";
         code += "This is a test file.\n";

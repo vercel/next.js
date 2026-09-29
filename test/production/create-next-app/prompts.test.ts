@@ -1,4 +1,5 @@
 import { retry } from 'next-test-utils'
+import { readFileSync } from 'fs'
 import { join } from 'path'
 import {
   createNextApp,
@@ -6,6 +7,19 @@ import {
   resolveNextTgzFilename,
   useTempDir,
 } from './utils'
+
+function expectTurbopackTailwindSetup(cwd: string, projectName: string) {
+  const projectRoot = join(cwd, projectName)
+  const pkg = require(join(projectRoot, 'package.json'))
+  expect(pkg.devDependencies).toMatchObject({
+    '@tailwindcss/turbopack': '^4',
+    tailwindcss: '^4',
+  })
+  expect(pkg.devDependencies).not.toHaveProperty('@tailwindcss/postcss')
+  expect(readFileSync(join(projectRoot, 'next.config.ts'), 'utf8')).toContain(
+    'loaders: ["@tailwindcss/turbopack"]'
+  )
+}
 
 describe('create-next-app prompts', () => {
   let nextTgzFilename: string
@@ -118,11 +132,13 @@ describe('create-next-app prompts', () => {
           projectFilesShouldExist({
             cwd,
             projectName,
-            files: ['postcss.config.mjs'],
+            files: ['next.config.ts'],
           })
           resolve()
         })
       })
+
+      expectTurbopackTailwindSetup(cwd, projectName)
     })
   })
 
@@ -185,10 +201,9 @@ describe('create-next-app prompts', () => {
             files: [
               'app',
               'package.json',
-              'postcss.config.mjs',
+              'next.config.ts',
               'tsconfig.json',
               'AGENTS.md',
-              'CLAUDE.md',
             ],
           })
           resolve()
@@ -197,6 +212,7 @@ describe('create-next-app prompts', () => {
 
       const pkg = require(join(cwd, projectName, 'package.json'))
       expect(pkg.name).toBe(projectName)
+      expectTurbopackTailwindSetup(cwd, projectName)
       const tsConfig = require(join(cwd, projectName, 'tsconfig.json'))
       expect(tsConfig.compilerOptions.paths).toMatchInlineSnapshot(`
         {
@@ -205,6 +221,9 @@ describe('create-next-app prompts', () => {
           ],
         }
       `)
+      expect(
+        readFileSync(join(cwd, projectName, 'next.config.ts'), 'utf8')
+      ).not.toContain('agentFeedback')
     })
   })
 
@@ -220,18 +239,25 @@ describe('create-next-app prompts', () => {
       )
 
       await new Promise<void>((resolve) => {
+        let output = ''
+        childProcess.stdout.on('data', (data) => {
+          output += data
+          process.stdout.write(data)
+        })
+
         childProcess.on('exit', async (exitCode) => {
           expect(exitCode).toBe(0)
+          expect(output).toContain('Agent feedback')
+          expect(output).not.toMatch(/agents prepare anonymized feedback/)
           projectFilesShouldExist({
             cwd,
             projectName,
             files: [
               'app',
               'package.json',
-              'postcss.config.mjs', // tailwind
+              'next.config.ts', // tailwind
               'tsconfig.json', // typescript
-              'AGENTS.md', // agent files
-              'CLAUDE.md',
+              'AGENTS.md', // agent instructions
             ],
           })
           resolve()
@@ -243,6 +269,10 @@ describe('create-next-app prompts', () => {
 
       const pkg = require(join(cwd, projectName, 'package.json'))
       expect(pkg.name).toBe(projectName)
+      expectTurbopackTailwindSetup(cwd, projectName)
+      expect(
+        readFileSync(join(cwd, projectName, 'next.config.ts'), 'utf8')
+      ).toContain('\n  experimental: {\n    agentFeedback: true,\n  },\n')
     })
   })
 
@@ -287,6 +317,12 @@ describe('create-next-app prompts', () => {
         await retry(async () => {
           expect(output).toMatch(/No, reuse previous settings/)
         })
+
+        await retry(async () => {
+          expect(output).toMatch(/agents prepare anonymized feedback/)
+        })
+        // Accept the default "Yes" for agent feedback.
+        childProcess.stdin.write('\n')
 
         childProcess.on('exit', async (exitCode) => {
           expect(exitCode).toBe(0)

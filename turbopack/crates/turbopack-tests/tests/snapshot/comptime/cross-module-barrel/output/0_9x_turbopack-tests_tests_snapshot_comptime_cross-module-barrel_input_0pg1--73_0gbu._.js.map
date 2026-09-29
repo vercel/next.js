@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-barrel/input/index.js"],"sourcesContent":["import { SOME_VALUE, BARREL_VALUE, foo } from './library'\n\nif (SOME_VALUE === 'x') {\n  console.log('x')\n} else {\n  require('./dead-code')\n}\nconsole.log(SOME_VALUE)\n\nconsole.log(foo())\n\nif (BARREL_VALUE === 'barrel') {\n  console.log('x')\n} else {\n  require('./dead-code')\n}\nconsole.log(BARREL_VALUE)\n"],"names":["console","log"],"mappings":";AAAA;;AAEA,wCAAwB;IACtBA,QAAQC,GAAG,CAAC;AACd;;AAGAD,QAAQC,GAAG;AAEXD,QAAQC,GAAG,CAAC,IAAA,uOAAG;AAEf,wCAA+B;IAC7BD,QAAQC,GAAG,CAAC;AACd;;AAGAD,QAAQC,GAAG"}},
+    {"offset": {"line": 22, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-barrel/input/library/runtime.js"],"sourcesContent":["export function foo() {\n  return 123\n}\n"],"names":["foo"],"mappings":";;;;AAAO,SAASA;IACd,OAAO;AACT"}}]
+}

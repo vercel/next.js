@@ -1,81 +1,67 @@
 /**
  * Proxy (formerly Middleware)
  *
- * Tests whether the agent creates proxy.ts with a proxy() function (Next.js
- * 16+ convention) instead of the deprecated middleware.ts/middleware().
+ * Tests one thing: that the agent creates proxy.ts with a proxy() handler, the
+ * Next.js 16+ convention, rather than the deprecated middleware.ts/middleware().
  *
- * Tricky because agents trained on pre-16 data create middleware.ts with a
- * middleware() function — the file and function were both renamed in Next.js 16.
+ * Tricky because agents trained on pre-16 data reach for middleware.ts with a
+ * middleware() function. The file and the function were both renamed.
+ *
+ * Deliberately scoped to the rename. What the handler does with the request is
+ * not what this eval is measuring, so it is not asserted; adding checks for
+ * that only creates ways for a correct solution to fail on style.
  */
 
 import { expect, test } from 'vitest'
 import { readFileSync, existsSync } from 'fs'
 import { join } from 'path'
 
-test('proxy.ts file exists in root (Next.js 16+ convention)', () => {
-  const proxyPath = join(process.cwd(), 'proxy.ts')
-  const middlewarePath = join(process.cwd(), 'middleware.ts')
+// The docs place the file at the project root or in src/, in .ts or .js.
+const ROOTS = [process.cwd(), join(process.cwd(), 'src')]
+const EXTS = ['ts', 'js']
 
-  // In Next.js 16+, the file should be named proxy.ts, not middleware.ts
-  // middleware.ts is deprecated
-  const hasProxy = existsSync(proxyPath)
-  const hasMiddleware = existsSync(middlewarePath)
+function locate(base: string): string | undefined {
+  for (const dir of ROOTS) {
+    for (const ext of EXTS) {
+      const candidate = join(dir, `${base}.${ext}`)
+      if (existsSync(candidate)) return candidate
+    }
+  }
+}
 
-  // Must have proxy.ts
-  expect(hasProxy).toBe(true)
+/** Any export form binding `name`: declaration, const/let/var, default, or list. */
+function exportsBinding(source: string, name: string): boolean {
+  return (
+    new RegExp(
+      `export\\s+(default\\s+)?(async\\s+)?function\\s+${name}\\b`
+    ).test(source) ||
+    new RegExp(`export\\s+(const|let|var)\\s+${name}\\b`).test(source) ||
+    new RegExp(`export\\s+default\\s+${name}\\b`).test(source) ||
+    new RegExp(`export\\s*\\{[^}]*\\b${name}\\b[^}]*\\}`).test(source)
+  )
+}
 
-  // Should NOT have middleware.ts (deprecated)
-  expect(hasMiddleware).toBe(false)
+test('creates proxy, not the deprecated middleware', () => {
+  expect(locate('proxy'), 'expected a proxy file (Next.js 16+)').toBeDefined()
+  expect(
+    locate('middleware'),
+    'middleware is deprecated in Next.js 16+; expected proxy instead'
+  ).toBeUndefined()
 })
 
-test('Proxy function uses correct name (not middleware)', () => {
-  const proxyPath = join(process.cwd(), 'proxy.ts')
-  if (existsSync(proxyPath)) {
-    const content = readFileSync(proxyPath, 'utf-8')
+test('the handler is named proxy, not middleware', () => {
+  const path = locate('proxy')
+  expect(path, 'no proxy file to inspect').toBeDefined()
+  const source = readFileSync(path!, 'utf-8')
 
-    // In Next.js 16+, the function should be named 'proxy', not 'middleware'
-    // Should export proxy function
-    expect(content).toMatch(
-      /export\s+(async\s+)?(default\s+)?function\s+proxy|export\s+default\s+async\s+function\s+proxy/
-    )
-
-    // Should NOT have a function named 'middleware'
-    expect(content).not.toMatch(/export\s+(default\s+)?function\s+middleware/)
-  }
-})
-
-test('Proxy imports NextResponse from next/server', () => {
-  const proxyPath = join(process.cwd(), 'proxy.ts')
-  if (existsSync(proxyPath)) {
-    const content = readFileSync(proxyPath, 'utf-8')
-
-    // Should import NextResponse from next/server
-    expect(content).toMatch(/import.*NextResponse.*from\s+['"]next\/server['"]/)
-  }
-})
-
-test('Proxy adds custom header X-Request-Id', () => {
-  const proxyPath = join(process.cwd(), 'proxy.ts')
-  if (existsSync(proxyPath)) {
-    const content = readFileSync(proxyPath, 'utf-8')
-
-    // Should use NextResponse.next()
-    expect(content).toMatch(/NextResponse\.next\(\)/)
-
-    // Should set X-Request-Id header
-    expect(content).toMatch(/['"]X-Request-Id['"]/i)
-
-    // Should return response
-    expect(content).toMatch(/return\s+/)
-  }
-})
-
-test('Proxy logs request pathname', () => {
-  const proxyPath = join(process.cwd(), 'proxy.ts')
-  if (existsSync(proxyPath)) {
-    const content = readFileSync(proxyPath, 'utf-8')
-
-    // Should log pathname
-    expect(content).toMatch(/console\.log.*pathname|pathname.*console\.log/)
-  }
+  // Any export form is fine — a typed arrow const is as valid as a declaration.
+  // This is what stops an empty proxy file from satisfying the eval.
+  expect(
+    exportsBinding(source, 'proxy'),
+    'expected the proxy file to export a handler named `proxy`'
+  ).toBe(true)
+  expect(
+    exportsBinding(source, 'middleware'),
+    'the Next.js 16+ handler is named `proxy`, not `middleware`'
+  ).toBe(false)
 })

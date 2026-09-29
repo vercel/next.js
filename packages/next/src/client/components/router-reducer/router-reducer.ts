@@ -41,7 +41,7 @@ function clientReducer(
       if (process.env.NODE_ENV === 'development') {
         const { hmrRefreshReducer } =
           require('./reducers/hmr-refresh-reducer') as typeof import('./reducers/hmr-refresh-reducer')
-        return hmrRefreshReducer(state)
+        return hmrRefreshReducer(state, action)
       } else {
         throw new Error(
           'hmrRefresh can only be used in development mode. Please use refresh instead.'

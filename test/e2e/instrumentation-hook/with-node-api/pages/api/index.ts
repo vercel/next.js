@@ -1,3 +1,6 @@
 export default function handler(req, res) {
-  res.send('Hello from node!')
+  res.send(
+    'API Node instrumentationFinished=' +
+      (globalThis as any).instrumentationFinished
+  )
 }

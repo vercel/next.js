@@ -44,6 +44,13 @@ export type AppPageRenderResultMetadata = {
   postponed?: string
 
   /**
+   * Whether the prerender left any UI pending in a Suspense boundary. This is
+   * reported directly by React's prerender result before Next.js resumes
+   * client-only boundaries.
+   */
+  hasPendingUi?: boolean
+
+  /**
    * The headers to set on the response that were added by the render.
    */
   headers?: OutgoingHttpHeaders
@@ -68,6 +75,20 @@ export type AppPageRenderResultMetadata = {
    */
   renderResumeDataCache?: RenderResumeDataCache
 }
+
+export type PrerenderFailure = {
+  readonly error: Error
+  readonly result: RenderResult<
+    Pick<
+      AppPageRenderResultMetadata,
+      'headers' | 'flightData' | 'fetchMetrics' | 'postponed'
+    >
+  >
+}
+
+export type PrerenderResult =
+  | RenderResult<AppPageRenderResultMetadata>
+  | PrerenderFailure
 
 export type PagesRenderResultMetadata = {
   pageData?: any

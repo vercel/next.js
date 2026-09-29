@@ -7,7 +7,10 @@ import type {
   ExportPagesResult,
   ExportPathEntry,
 } from './types'
-import type { AppPageModule } from '../server/route-modules/app-page/module'
+import type {
+  AppPageModule,
+  RouteMatch,
+} from '../server/route-modules/app-page/module'
 import type { PagesModule } from '../server/route-modules/pages/module.compiled'
 
 import '../server/node-environment'
@@ -36,7 +39,6 @@ import { exportAppPage } from './routes/app-page'
 import { exportPagesPage } from './routes/pages'
 import { getParams } from './helpers/get-params'
 import { createIncrementalCache } from './helpers/create-incremental-cache'
-import { isPostpone } from '../server/lib/router-utils/is-postpone'
 import { isDynamicUsageError } from './helpers/is-dynamic-usage-error'
 import { isBailoutToCSRError } from '../shared/lib/lazy-dynamic/bailout-to-csr'
 import {
@@ -102,6 +104,8 @@ async function exportPageImpl(
 
     // The parameters that are currently unknown.
     _fallbackRouteParams = [],
+
+    _notFoundParams: notFoundParams,
 
     // Check if this is an `app/` page.
     _isAppDir: isAppDir = false,
@@ -188,8 +192,8 @@ async function exportPageImpl(
     req.url += '/'
   }
 
-  // Set the resolved pathname without trailing slash as request metadata.
-  addRequestMeta(req, 'resolvedPathname', removeTrailingSlash(updatedPath))
+  // Resolve the pathname without a trailing slash for app page rendering.
+  const resolvedPathname = removeTrailingSlash(updatedPath)
 
   if (
     locale &&
@@ -280,6 +284,7 @@ async function exportPageImpl(
     allowEmptyStaticShell,
     runInstantValidation,
     isFallbackUpgradeable,
+    notFoundParams,
     experimental: {
       ...commonRenderOpts.experimental,
       isRoutePPREnabled,
@@ -289,6 +294,7 @@ async function exportPageImpl(
 
   // Handle App Pages
   if (isAppDir) {
+    const routeMatch: RouteMatch = { resolvedPathname }
     const sharedContext: AppSharedContext = {
       buildId,
       deploymentId,
@@ -308,7 +314,8 @@ async function exportPageImpl(
       debugOutput,
       isDynamicError,
       fileWriter,
-      sharedContext
+      sharedContext,
+      routeMatch
     )
   } else {
     const sharedContext: PagesSharedContext = {
@@ -416,7 +423,8 @@ export async function exportPages(
     const renderResumeDataCache = renderResumeDataCachesByPage[pageKey]
       ? createRenderResumeDataCache(
           renderResumeDataCachesByPage[pageKey],
-          renderOpts.experimental.maxPostponedStateSizeBytes
+          renderOpts.experimental.maxPostponedStateSizeBytes,
+          renderOpts.experimental.disableResumeDataCacheCompression
         )
       : undefined
 
@@ -619,12 +627,6 @@ async function exportPage(
 }
 
 process.on('unhandledRejection', (err: unknown) => {
-  // if it's a postpone error, it'll be handled later
-  // when the postponed promise is actually awaited.
-  if (isPostpone(err)) {
-    return
-  }
-
   // we don't want to log these errors
   if (isDynamicUsageError(err)) {
     return

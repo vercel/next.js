@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import * as cheerio from 'cheerio'
 
-const isAdapterTest = Boolean(process.env.NEXT_ENABLE_ADAPTER)
+const isAdapterTest = process.env.NEXT_ENABLE_ADAPTER === '1'
 
 describe('sub-shell-generation', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({

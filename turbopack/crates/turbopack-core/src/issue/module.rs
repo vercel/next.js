@@ -58,6 +58,13 @@ impl Issue for ModuleIssue {
     }
 }
 
+/// Report a file that could not be turned into a module because no module type
+/// applies to it.
+///
+/// The file has no module in the module graph, so no import trace can be
+/// computed for this issue. Whoever creates the reference should report the
+/// importing location separately when the request isn't written by hand (a glob
+/// or a dynamic request, for example).
 #[turbo_tasks::function]
 pub async fn emit_unknown_module_type_error(source: Vc<Box<dyn Source>>) -> Result<()> {
     ModuleIssue {ident: source.ident().to_resolved().await?,
@@ -65,7 +72,7 @@ pub async fn emit_unknown_module_type_error(source: Vc<Box<dyn Source>>) -> Resu
         description: StyledString::Text(
             r"This module doesn't have an associated type. Use a known file extension, or register a loader for it.
 
-Read more: https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders".into(),
+Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders".into(),
         )
         .resolved_cell(),
         source: Some(IssueSource::from_source_only(source.to_resolved().await?)),}

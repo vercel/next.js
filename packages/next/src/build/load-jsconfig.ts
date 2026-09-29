@@ -5,8 +5,14 @@ import * as Log from './output/log'
 import { getTypeScriptConfiguration } from '../lib/typescript/getTypeScriptConfiguration'
 import { readFileSync } from 'fs'
 import isError from '../lib/is-error'
-import { hasNecessaryDependencies } from '../lib/has-necessary-dependencies'
 import { codeFrameColumns } from '../shared/lib/errors/code-frame'
+import {
+  getTypeScriptApiMissingError,
+  getTypeScriptConfigurationCli,
+  getTypeScriptPackageInfo,
+  hasNativeTypeScriptPreview,
+} from '../lib/typescript/runTypeScriptCli'
+import { loadTsConfigOptions } from '../lib/typescript/loadTsConfig'
 
 let TSCONFIG_WARNED = false
 
@@ -57,19 +63,24 @@ export default async function loadJsConfig(
   jsConfigPath?: string
   resolvedBaseUrl: ResolvedBaseUrl
 }> {
-  let typeScriptPath: string | undefined
-  try {
-    const deps = hasNecessaryDependencies(dir, [
-      {
-        pkg: 'typescript',
-        file: 'typescript/lib/typescript.js',
-        exportsRestrict: true,
-      },
-    ])
-    typeScriptPath = deps.resolved.get('typescript')
-  } catch {}
+  const useTypeScriptCli = Boolean(config.experimental.useTypeScriptCli)
+  const typeScriptPackage = getTypeScriptPackageInfo(dir)
+  const typeScriptPath = useTypeScriptCli
+    ? typeScriptPackage?.tscPath
+    : typeScriptPackage?.apiPath
   const tsConfigFileName = config.typescript.tsconfigPath || 'tsconfig.json'
   const tsConfigPath = path.join(dir, tsConfigFileName)
+
+  if (
+    !useTypeScriptCli &&
+    typeScriptPackage &&
+    !typeScriptPackage.apiPath &&
+    !hasNativeTypeScriptPreview(dir) &&
+    fs.existsSync(tsConfigPath)
+  ) {
+    throw getTypeScriptApiMissingError(typeScriptPackage.version)
+  }
+
   const useTypeScript = Boolean(typeScriptPath && fs.existsSync(tsConfigPath))
 
   let implicitBaseurl
@@ -81,11 +92,26 @@ export default async function loadJsConfig(
       Log.info(`Using tsconfig file: ${tsConfigFileName}`)
     }
 
-    const ts = (await Promise.resolve(
-      require(typeScriptPath!)
-    )) as typeof import('typescript')
-    const tsConfig = await getTypeScriptConfiguration(ts, tsConfigPath, true)
-    jsConfig = { compilerOptions: tsConfig.options }
+    if (useTypeScriptCli) {
+      const tsConfig = await getTypeScriptConfigurationCli({
+        baseDir: dir,
+        tsConfigPath,
+        tscPath: typeScriptPath!,
+      })
+      const configOrigins = loadTsConfigOptions(tsConfigPath)
+      jsConfig = {
+        compilerOptions: {
+          ...tsConfig.compilerOptions,
+          pathsBasePath: configOrigins.pathsBasePath,
+        },
+      }
+    } else {
+      const ts = (await Promise.resolve(
+        require(typeScriptPath!)
+      )) as typeof import('typescript')
+      const tsConfig = await getTypeScriptConfiguration(ts, tsConfigPath, true)
+      jsConfig = { compilerOptions: tsConfig.options }
+    }
     implicitBaseurl = path.dirname(tsConfigPath)
   }
 
@@ -98,7 +124,10 @@ export default async function loadJsConfig(
   let resolvedBaseUrl: ResolvedBaseUrl
   if (jsConfig?.compilerOptions?.baseUrl) {
     resolvedBaseUrl = {
-      baseUrl: path.resolve(dir, jsConfig.compilerOptions.baseUrl),
+      baseUrl: path.resolve(
+        implicitBaseurl ?? dir,
+        jsConfig.compilerOptions.baseUrl
+      ),
       isImplicit: false,
     }
   } else {

@@ -1,7 +1,6 @@
 ---
 title: instant
 description: API reference for the instant route segment config.
-version: draft
 related:
   title: Next Steps
   description: Learn how to use instant navigations in practice.
@@ -130,12 +129,12 @@ module.exports = {
 }
 ```
 
-Open the Next.js DevTools and select **Navigation Inspector**, then click **Start Capturing**. While capturing is active:
+Open the Next.js DevTools and select **Navigation Inspector**, then turn on **Pause on navigations**. While the toggle is on:
 
 - Refresh the page to freeze the initial static UI generated for the route, before any dynamic data streams in.
 - Click a link to freeze the prefetched UI for the destination route.
 
-When the UI is frozen, click **Continue Rendering** to let the current navigation finish while keeping the Navigation Inspector in capturing mode. Click **Stop Capturing** when you are done. Use both page refreshes and link clicks to check that your loading states look right on first visit and on navigation.
+When the UI is frozen, click **Resume** to let the current navigation finish. The toggle stays on, so the next refresh or link click pauses too. Turn it off when you are done. Use both page refreshes and link clicks to check that your loading states look right on first visit and on navigation.
 
 ## Testing instant navigation
 

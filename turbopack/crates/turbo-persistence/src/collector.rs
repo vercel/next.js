@@ -4,7 +4,8 @@ use crate::{
     FamilyKind, ValueBuffer,
     collector_entry::{CollectorEntry, CollectorEntryValue, EntryKey, TINY_VALUE_THRESHOLD},
     constants::{
-        DATA_THRESHOLD_PER_INITIAL_FILE, MAX_ENTRIES_PER_INITIAL_FILE, MAX_SMALL_VALUE_SIZE,
+        DATA_THRESHOLD_PER_INITIAL_FILE, MAX_ENTRIES_PER_INITIAL_FILE, MAX_INLINE_VALUE_SIZE,
+        MAX_SMALL_VALUE_SIZE,
     },
     key::{StoreKey, hash_key},
     value_block_count_tracker::ValueBlockCountTracker,
@@ -86,7 +87,7 @@ impl<K: StoreKey, const SIZE_SHIFT: usize> Collector<K, SIZE_SHIFT> {
         });
     }
 
-    /// Adds a tombstone pair to the collector.
+    /// Adds a tombstone pair to the collector. This deletes *all* values for `key`.
     pub fn delete(&mut self, key: K) {
         let key = EntryKey {
             hash: hash_key(&key),
@@ -95,7 +96,39 @@ impl<K: StoreKey, const SIZE_SHIFT: usize> Collector<K, SIZE_SHIFT> {
         self.total_key_size += key.len();
         self.entries.push(CollectorEntry {
             key,
-            value: CollectorEntryValue::Deleted,
+            value: CollectorEntryValue::KeyDeleted,
+        });
+    }
+
+    /// Adds a key-value tombstone to the collector: deletes only the single `key` -> `value` pair,
+    /// leaving any other values for `key` intact.
+    ///
+    /// Only meaningful for [`FamilyKind::MultiValue`] families, where a key can map to several
+    /// values and [`Collector::delete`] is too coarse: it would drop the unrelated values too.
+    /// The motivating case is the task cache, which is keyed by a hash and so holds more than one
+    /// value whenever two tasks collide. Removing one task must leave the colliding task's entry
+    /// readable, which requires naming the exact pair to delete.
+    ///
+    /// Deleting a pair written in the same batch is not supported; see
+    /// [`WriteBatch::delete_value`][crate::WriteBatch].
+    ///
+    /// `value` must be at most [`MAX_INLINE_VALUE_SIZE`] bytes; callers must validate this.  Larger
+    /// values could be supported in the future but there is currently no usecase.
+    pub fn delete_value(&mut self, key: K, value: &[u8]) {
+        debug_assert!(value.len() <= MAX_INLINE_VALUE_SIZE);
+        let key = EntryKey {
+            hash: hash_key(&key),
+            data: key,
+        };
+        self.total_key_size += key.len();
+        let mut data = [0u8; MAX_INLINE_VALUE_SIZE];
+        data[..value.len()].copy_from_slice(value);
+        self.entries.push(CollectorEntry {
+            key,
+            value: CollectorEntryValue::KeyValueDeleted {
+                value: data,
+                len: value.len() as u8,
+            },
         });
     }
 
@@ -110,19 +143,19 @@ impl<K: StoreKey, const SIZE_SHIFT: usize> Collector<K, SIZE_SHIFT> {
         self.entries.push(entry);
     }
 
-    /// Sorts entries by key. Tombstones are placed last within each key group.
+    /// Sorts entries by key. Within a key group, key-value tombstones are placed first and key
+    /// tombstones last (see [`CollectorEntryValue::sort_rank`]).
     /// This method does not deduplicate entries.
     ///
     /// In debug builds, asserts that SingleValue families have no duplicate keys.
     pub fn sorted(&mut self, family_kind: FamilyKind) -> (&[CollectorEntry<K>], usize) {
-        // Sort by (hash, key) with tombstones placed last within each key group.
         // We can use unstable sort because the relative order of equal elements
         // doesn't matter — duplicates are either disallowed (SingleValue) or
         // allowed without deduplication (MultiValue).
         self.entries.sort_unstable_by(|a, b| {
             a.key
                 .cmp(&b.key)
-                .then_with(|| a.value.is_deleted().cmp(&b.value.is_deleted()))
+                .then_with(|| a.value.sort_rank().cmp(&b.value.sort_rank()))
         });
 
         #[cfg(debug_assertions)]

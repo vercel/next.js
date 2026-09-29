@@ -28,7 +28,7 @@ d (const after eval) = *arrow function 83*
 
 e#2 (const after eval) = *anonymous function 116*
 
-e#6 (const after eval) = (...) => 4
+e#8 (const after eval) = (...) => 4
 
 f (const after eval) = e
 
@@ -42,8 +42,8 @@ xc = *arrow function 259*
 
 xd = *arrow function 299*
 
-xe#12 = (...) => 4
+xe#10 = *anonymous function 339*
 
-xe#8 = *anonymous function 339*
+xe#16 = (...) => 4
 
 xf = xe

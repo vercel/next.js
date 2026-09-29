@@ -17,7 +17,7 @@ import {
   RSC_SEGMENT_SUFFIX,
 } from '../../lib/constants'
 import { hasNextSupport } from '../../server/ci-info'
-import { lazyRenderAppPage } from '../../server/route-modules/app-page/module.render'
+import { lazyPrerenderAppPage } from '../../server/route-modules/app-page/module.render'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { NodeNextRequest, NodeNextResponse } from '../../server/base-http/node'
 import { NEXT_IS_PRERENDER_HEADER } from '../../client/components/app-router-headers'
@@ -27,8 +27,12 @@ import type { OpaqueFallbackRouteParams } from '../../server/request/fallback-pa
 import { AfterRunner } from '../../server/after/run-with-after'
 import type { RequestLifecycleOpts } from '../../server/base-server'
 import type { AppSharedContext } from '../../server/app-render/app-render'
+import type { RouteMatch } from '../../server/route-modules/app-page/module'
 import type { MultiFileWriter } from '../../lib/multi-file-writer'
-import { stringifyResumeDataCache } from '../../server/resume-data-cache/resume-data-cache'
+import {
+  deflateResumeDataCache,
+  stringifyResumeDataCache,
+} from '../../server/resume-data-cache/resume-data-cache'
 import {
   UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
@@ -50,7 +54,8 @@ export async function exportAppPage(
   debugOutput: boolean,
   isDynamicError: boolean,
   fileWriter: MultiFileWriter,
-  sharedContext: AppSharedContext
+  sharedContext: AppSharedContext,
+  routeMatch: RouteMatch
 ): Promise<ExportRouteResult> {
   const afterRunner = new AfterRunner()
 
@@ -75,7 +80,7 @@ export async function exportAppPage(
   }
 
   try {
-    const result = await lazyRenderAppPage(
+    const result = await lazyPrerenderAppPage(
       new NodeNextRequest(req),
       new NodeNextResponse(res),
       pathname,
@@ -83,8 +88,13 @@ export async function exportAppPage(
       fallbackRouteParams,
       renderOpts,
       undefined,
-      sharedContext
+      sharedContext,
+      routeMatch
     )
+
+    if ('error' in result) {
+      throw result.error
+    }
 
     const html = result.toUnchunkedString()
 
@@ -102,6 +112,7 @@ export async function exportAppPage(
       segmentData,
       prefetchHints,
       renderResumeDataCache,
+      hasPendingUi,
     } = metadata
 
     // Ensure we don't postpone without having PPR enabled.
@@ -227,6 +238,19 @@ export async function exportAppPage(
       JSON.stringify(meta, null, 2)
     )
 
+    let serializedRenderResumeDataCache: string | undefined
+    if (renderResumeDataCache) {
+      serializedRenderResumeDataCache = await stringifyResumeDataCache(
+        renderResumeDataCache,
+        renderOpts.cacheComponents
+      )
+      if (!renderOpts.experimental.disableResumeDataCacheCompression) {
+        serializedRenderResumeDataCache = deflateResumeDataCache(
+          serializedRenderResumeDataCache
+        )
+      }
+    }
+
     return {
       // Filter the metadata if the environment does not have next support.
       metadata: hasNextSupport
@@ -237,15 +261,12 @@ export async function exportAppPage(
           },
       hasEmptyStaticShell: Boolean(postponed) && html === '',
       hasPostponed: Boolean(postponed),
+      hasPendingUi: hasPendingUi ?? false,
+      htmlSize: Buffer.byteLength(html),
       hasStaticRsc,
       cacheControl,
       fetchMetrics,
-      renderResumeDataCache: renderResumeDataCache
-        ? await stringifyResumeDataCache(
-            renderResumeDataCache,
-            renderOpts.cacheComponents
-          )
-        : undefined,
+      renderResumeDataCache: serializedRenderResumeDataCache,
     }
   } catch (err) {
     if (!isDynamicUsageError(err)) {
