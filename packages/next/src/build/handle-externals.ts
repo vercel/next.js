@@ -232,7 +232,12 @@ export function makeExternalHandler({
     if (request.startsWith('next/dist/')) {
       // Non external that needs to be transpiled
       // Image loader needs to be transpiled
-      if (/^next[\\/]dist[\\/]shared[\\/]lib[\\/]image-loader/.test(request)) {
+      if (
+        /^next[\\/]dist[\\/]shared[\\/]lib[\\/]image-loader/.test(request) ||
+        /^next[\\/]dist[\\/](?:esm[\\/])?shared[\\/]lib[\\/]image-config-runtime(?:-register)?(?:\.js)?$/.test(
+          request
+        )
+      ) {
         return
       }
 

@@ -1,5 +1,6 @@
 import type { NextApiResponse } from '../../types'
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import '../../shared/lib/image-config-runtime-register'
 
 import { sendError } from '../../server/api-utils'
 import { RouteKind } from '../../server/route-kind'

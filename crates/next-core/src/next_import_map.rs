@@ -70,6 +70,23 @@ pub async fn get_next_client_import_map(
         request_to_import_mapping(project_path.clone(), rcstr!("next/dist/api/image")),
     );
 
+    insert_exact_alias_or_js(
+        &mut import_map,
+        rcstr!("next/dist/shared/lib/image-config-runtime"),
+        request_to_import_mapping(
+            project_path.clone(),
+            rcstr!("next/dist/shared/lib/image-config-browser"),
+        ),
+    );
+    insert_exact_alias_or_js(
+        &mut import_map,
+        rcstr!("next/dist/esm/shared/lib/image-config-runtime"),
+        request_to_import_mapping(
+            project_path.clone(),
+            rcstr!("next/dist/esm/shared/lib/image-config-browser"),
+        ),
+    );
+
     insert_next_shared_aliases(
         &mut import_map,
         project_path.clone(),
@@ -292,6 +309,22 @@ pub async fn get_next_server_import_map(
         request_to_import_mapping(project_path.clone(), rcstr!("next/dist/api/image")),
     );
 
+    let image_config_module = if ty.should_use_react_server_condition() {
+        rcstr!("next/dist/shared/lib/image-config-rsc")
+    } else {
+        rcstr!("next/dist/shared/lib/image-config-ssr")
+    };
+    insert_exact_alias_or_js(
+        &mut import_map,
+        rcstr!("next/dist/shared/lib/image-config-runtime"),
+        request_to_import_mapping(project_path.clone(), image_config_module.clone()),
+    );
+    insert_exact_alias_or_js(
+        &mut import_map,
+        rcstr!("next/dist/esm/shared/lib/image-config-runtime"),
+        request_to_import_mapping(project_path.clone(), image_config_module),
+    );
+
     insert_next_shared_aliases(
         &mut import_map,
         project_path.clone(),
@@ -399,6 +432,22 @@ pub async fn get_next_edge_import_map(
     collected_root_params: Option<Vc<CollectedRootParams>>,
 ) -> Result<Vc<ImportMap>> {
     let mut import_map = ImportMap::empty();
+
+    let image_config_module = if ty.should_use_react_server_condition() {
+        rcstr!("next/dist/esm/shared/lib/image-config-rsc")
+    } else {
+        rcstr!("next/dist/esm/shared/lib/image-config-ssr")
+    };
+    insert_exact_alias_or_js(
+        &mut import_map,
+        rcstr!("next/dist/shared/lib/image-config-runtime"),
+        request_to_import_mapping(project_path.clone(), image_config_module.clone()),
+    );
+    insert_exact_alias_or_js(
+        &mut import_map,
+        rcstr!("next/dist/esm/shared/lib/image-config-runtime"),
+        request_to_import_mapping(project_path.clone(), image_config_module),
+    );
 
     // https://github.com/vercel/next.js/blob/786ef25e529e1fb2dda398aebd02ccbc8d0fb673/packages/next/src/build/webpack-config.ts#L815-L861
 

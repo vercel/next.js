@@ -1,3 +1,4 @@
+import '../../shared/lib/image-config-runtime-register'
 import { PagesRouteModule } from '../../server/route-modules/pages/module.compiled'
 import { RouteKind } from '../../server/route-kind'
 

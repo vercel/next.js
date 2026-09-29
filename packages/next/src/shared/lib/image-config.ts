@@ -146,6 +146,17 @@ export type ImageConfigComplete = {
 
 export type ImageConfig = Partial<ImageConfigComplete>
 
+export type ImageConfigRuntime = ImageConfigComplete & {
+  output?: 'standalone' | 'export'
+}
+
+export function getRuntimeImageConfig(config: {
+  images: ImageConfigComplete
+  output?: ImageConfigRuntime['output']
+}): ImageConfigRuntime {
+  return { ...config.images, output: config.output }
+}
+
 export const imageConfigDefault: ImageConfigComplete = {
   deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
   imageSizes: [32, 48, 64, 96, 128, 256, 384],

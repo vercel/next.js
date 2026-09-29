@@ -1436,6 +1436,23 @@ export default async function getBaseWebpackConfig(
             ].filter(Boolean) as string[],
           },
         },
+        {
+          issuerLayer: shouldUseReactServerCondition,
+          resolve: {
+            alias: {
+              'next/dist/shared/lib/image-config-runtime$': `next/dist/${
+                isEdgeServer ? 'esm/' : ''
+              }shared/lib/image-config-rsc`,
+              'next/dist/shared/lib/image-config-runtime.js$': `next/dist/${
+                isEdgeServer ? 'esm/' : ''
+              }shared/lib/image-config-rsc`,
+              'next/dist/esm/shared/lib/image-config-runtime$':
+                'next/dist/esm/shared/lib/image-config-rsc',
+              'next/dist/esm/shared/lib/image-config-runtime.js$':
+                'next/dist/esm/shared/lib/image-config-rsc',
+            },
+          },
+        },
         // Alias server-only and client-only to proper exports based on bundling layers
         {
           issuerLayer: {

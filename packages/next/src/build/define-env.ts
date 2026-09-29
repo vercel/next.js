@@ -7,6 +7,7 @@ import type { ProxyMatcher } from './analysis/get-page-static-info'
 import type { Rewrite } from '../lib/load-custom-routes'
 import path from 'node:path'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
+import { getRuntimeImageConfig } from '../shared/lib/image-config'
 import {
   getNextConfigEnv,
   getNextPublicEnvironmentVariables,
@@ -190,6 +191,12 @@ export function getDefineEnv({
       dev && !!config.experimental.requestInsights,
     'process.env.__NEXT_USE_CACHE': isUseCacheEnabled,
     'process.env.__NEXT_USE_NODE_STREAMS': isEdgeServer ? false : true,
+
+    // Server bundles keep the complete image configuration. Browser bundles
+    // receive only the options already exposed by __NEXT_IMAGE_OPTS.
+    'process.env.__NEXT_IMAGE_CONFIG': isClient
+      ? getImageConfig(config, dev)['process.env.__NEXT_IMAGE_OPTS']
+      : getRuntimeImageConfig(config),
 
     'process.env.NEXT_SUPPORTS_IMMUTABLE_ASSETS':
       config.supportsImmutableAssets || false,

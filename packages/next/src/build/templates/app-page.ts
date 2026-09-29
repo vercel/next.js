@@ -1,4 +1,5 @@
 import type { LoaderTree } from '../../server/lib/app-dir-module'
+import '../../shared/lib/image-config-runtime-register'
 import { createAppPageEntrypoint } from './app-page-runtime'
 import { interopDefault } from '../../server/app-render/interop-default' with { 'turbopack-transition': 'next-server-utility' }
 

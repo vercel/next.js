@@ -1,3 +1,4 @@
+import '../../shared/lib/image-config-runtime-register'
 import {
   AppRouteRouteModule,
   type AppRouteRouteHandlerContext,

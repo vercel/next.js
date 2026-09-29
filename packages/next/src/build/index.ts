@@ -14,6 +14,8 @@ import '../lib/setup-exception-listeners'
 import { resolveBuildPaths } from '../lib/resolve-build-paths'
 
 import { loadEnvConfig, type LoadedEnvFiles } from '@next/env'
+import { registerImageConfig } from '../shared/lib/image-config-runtime.external'
+import { getRuntimeImageConfig } from '../shared/lib/image-config'
 import { bold, yellow } from '../lib/picocolors'
 import { makeRe } from 'next/dist/compiled/picomatch'
 import { existsSync, promises as fs } from 'fs'
@@ -1162,6 +1164,7 @@ export default async function build(
           )
         )
       loadedConfig = config
+      registerImageConfig(getRuntimeImageConfig(config))
 
       // Reuse the loaded config; ordinary builds do not load upgrade tooling.
       if (

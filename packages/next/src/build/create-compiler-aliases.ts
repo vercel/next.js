@@ -140,6 +140,15 @@ export function createWebpackAliases({
         }
       : undefined),
 
+    'next/dist/shared/lib/image-config-runtime$': `next/dist/${
+      isEdgeServer ? 'esm/' : ''
+    }shared/lib/image-config-${isClient ? 'browser' : 'ssr'}`,
+    'next/dist/shared/lib/image-config-runtime.js$': `next/dist/${
+      isEdgeServer ? 'esm/' : ''
+    }shared/lib/image-config-${isClient ? 'browser' : 'ssr'}`,
+    'next/dist/esm/shared/lib/image-config-runtime$': `next/dist/esm/shared/lib/image-config-${isClient ? 'browser' : 'ssr'}`,
+    'next/dist/esm/shared/lib/image-config-runtime.js$': `next/dist/esm/shared/lib/image-config-${isClient ? 'browser' : 'ssr'}`,
+
     'styled-jsx/style$': defaultOverrides['styled-jsx/style'],
     'styled-jsx$': defaultOverrides['styled-jsx'],
 

@@ -75,6 +75,8 @@ import type {
 } from './base-server'
 import BaseServer from './base-server'
 import { getMaybePagePath, getPagePath } from './require'
+import { registerImageConfig } from '../shared/lib/image-config-runtime.external'
+import { getRuntimeImageConfig } from '../shared/lib/image-config'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { selectAppPageEntry } from '../shared/lib/router/utils/app-paths'
@@ -211,6 +213,8 @@ export default class NextNodeServer extends BaseServer<
   constructor(options: Options) {
     // Initialize super class
     super(options)
+
+    registerImageConfig(getRuntimeImageConfig(this.nextConfig))
 
     installGlobalBehaviors(this.nextConfig)
 
