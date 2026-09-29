@@ -1,13 +1,15 @@
 import { nextTestSetup } from 'e2e-utils'
 import { waitForNoRedbox } from 'next-test-utils'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// No deploy-specific incompatibility is documented.
 // @force-gate !deploy
 describe('app dir - not found with default 404 page', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
   })
+
+  if (skipped) {
+    return
+  }
 
   it('should error on client notFound from root layout in browser', async () => {
     const browser = await next.browser('/')

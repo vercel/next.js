@@ -1,7 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import * as cheerio from 'cheerio'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
 // The latest changes to support this behavior on deployed infra are available in the adapter,
 // and are not being backported to the CLI
 // @force-gate !deploy || adapter

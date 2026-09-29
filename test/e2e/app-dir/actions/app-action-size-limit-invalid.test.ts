@@ -9,7 +9,7 @@ const CONFIG_ERROR =
   'Server Actions Size Limit must be a valid number or filesize format larger than 1MB'
 
 describe('app-dir action size limit invalid config', () => {
-  const { next, isNextStart, isNextDeploy } = nextTestSetup({
+  const { next, isNextStart, isNextDeploy, skipped } = nextTestSetup({
     files: __dirname,
     overrideFiles: process.env.TEST_NODE_MIDDLEWARE
       ? {
@@ -22,6 +22,7 @@ describe('app-dir action size limit invalid config', () => {
       'server-only': 'latest',
     },
   })
+  if (skipped) return
 
   const logs: string[] = []
 

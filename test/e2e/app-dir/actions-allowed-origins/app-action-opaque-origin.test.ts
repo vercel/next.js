@@ -23,16 +23,18 @@ describe('app-dir action allowed from opaque origins', () => {
   })
 })
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// No deploy-specific incompatibility is documented.
 // @force-gate !deploy
 describe('app-dir action disallowed from opaque origins', () => {
-  const { isNextDev, next } = nextTestSetup({
+  const { isNextDev, next, skipped } = nextTestSetup({
     files: join(__dirname, 'opaque-origin'),
     env: {
       NEXT_TEST_ALLOW_OPAQUE_ORIGIN: '',
     },
   })
+
+  if (skipped) {
+    return
+  }
 
   it('should fail on submission', async function () {
     const browser = await next.browser('/sandboxed')

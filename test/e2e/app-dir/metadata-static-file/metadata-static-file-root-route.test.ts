@@ -28,9 +28,13 @@ describe('metadata-files-static-output-root-route', () => {
     return
   }
 
-  const { next } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
   })
+
+  if (skipped) {
+    return
+  }
 
   it('should have correct link tags for root page', async () => {
     const browser = await next.browser('/')

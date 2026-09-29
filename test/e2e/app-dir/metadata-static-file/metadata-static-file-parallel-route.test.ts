@@ -28,9 +28,13 @@ describe('metadata-files-static-output-parallel-route', () => {
     return
   }
 
-  const { next } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
   })
+
+  if (skipped) {
+    return
+  }
 
   it('should have correct link tags for parallel slot page', async () => {
     const browser = await next.browser('/parallel')

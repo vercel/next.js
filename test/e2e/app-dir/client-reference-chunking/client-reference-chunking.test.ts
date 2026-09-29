@@ -1,8 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { getClientReferenceManifest } from 'next-test-utils'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// No deploy-specific incompatibility is documented.
 // @force-gate !deploy
 describe('client-reference-chunking', () => {
   const { next } = nextTestSetup({

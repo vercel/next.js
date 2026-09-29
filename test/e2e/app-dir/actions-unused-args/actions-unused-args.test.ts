@@ -1,13 +1,16 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from '../../../lib/next-test-utils'
 
-// Deploy mode exclusion: This suite asserts local CLI or runtime logs that deployments do not expose.
 // No access to runtime logs when deployed.
 // @force-gate !deploy
 describe('actions-unused-args', () => {
-  const { next } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
   })
+
+  if (skipped) {
+    return
+  }
 
   it('should not call server actions with unused arguments', async () => {
     const browser = await next.browser('/')

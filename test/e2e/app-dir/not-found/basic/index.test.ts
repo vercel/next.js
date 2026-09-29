@@ -1,13 +1,15 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
 // @force-gate !deploy
 describe('app dir - not-found - basic', () => {
-  const { next, isNextDev, isNextStart } = nextTestSetup({
+  const { next, isNextDev, isNextStart, skipped } = nextTestSetup({
     files: __dirname,
   })
+
+  if (skipped) {
+    return
+  }
 
   it("should propagate notFound errors past a segment's error boundary", async () => {
     let browser = await next.browser('/error-boundary')

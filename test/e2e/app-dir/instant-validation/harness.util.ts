@@ -38,7 +38,7 @@ export const NO_VALIDATION_ERRORS_WAIT: Parameters<
 
 // This suite is far too slow to run as a single CI test file, so it's split
 // into one `*.test.ts` entry file per group of sections (each with a
-// `.partial-prefetching` variant), all sharing this harness.
+// `.partial-prefetching` variant), all sharing this wrapper.
 // Every entry boots its own server (and, in `next start` mode, runs its own
 // `--experimental-build-mode compile` build plus a `generate` build per
 // test). All entries use the same describe title so test full names stay
@@ -47,13 +47,14 @@ export const NO_VALIDATION_ERRORS_WAIT: Parameters<
 export function runInstantValidationTests(
   registerTests: (ctx: InstantValidationCaseContext) => void
 ) {
-  const { next, isNextDev, isNextStart, isTurbopack } = nextTestSetup({
+  const { next, skipped, isNextDev, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true, // for `prerender`
     env: {
       NEXT_TEST_LOG_VALIDATION: '1',
     },
   })
+  if (skipped) return
 
   if (isNextStart && !isTurbopack) {
     // TODO(instant-validation-build): snapshot tests for webpack

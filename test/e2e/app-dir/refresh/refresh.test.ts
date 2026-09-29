@@ -1,13 +1,14 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry, waitForRedbox, getRedboxDescription } from 'next-test-utils'
 
-// Deploy mode exclusion: This suite asserts local CLI or runtime logs that deployments do not expose.
 // We do not have access to runtime logs when deployed
 // @force-gate !deploy
 describe('app-dir refresh', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next, skipped, isNextDev } = nextTestSetup({
     files: __dirname,
   })
+
+  if (skipped) return
 
   it('should refresh client cache when refresh() is called in a server action', async () => {
     const browser = await next.browser('/refresh')
