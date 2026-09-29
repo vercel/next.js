@@ -207,6 +207,9 @@ export async function collectBuildTraces({
 
       const standaloneImageOptimizerEntries = isStandalone
         ? [
+            require.resolve(
+              'next/dist/server/image-optimizer/sandbox-support'
+            ),
             require.resolve('next/dist/server/image-optimizer/sandbox-worker'),
             require.resolve(
               'next/dist/server/image-optimizer/sandbox-worker-child'
