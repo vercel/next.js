@@ -4,23 +4,18 @@ import React, {
   useRef,
   useEffect,
   useCallback,
-  useContext,
   useState,
   type JSX,
 } from 'react'
 import * as ReactDOM from 'react-dom'
 import Head from '../../shared/lib/head'
-import {
-  imageConfigDefault,
-  prepareImageConfig,
-  VALID_LOADERS,
-} from '../../shared/lib/image-config'
+import { VALID_LOADERS } from '../../shared/lib/image-config'
 import type {
   ImageConfigComplete,
   LoaderValue,
 } from '../../shared/lib/image-config'
 import { useIntersection } from '../use-intersection'
-import { ImageConfigContext } from '../../shared/lib/image-config-context.shared-runtime'
+import { useImageConfig } from '../use-image-config'
 import { warnOnce } from '../../shared/lib/utils/warn-once'
 import { normalizePathTrailingSlash } from '../normalize-trailing-slash'
 import { findClosestQuality } from '../../shared/lib/find-closest-quality'
@@ -31,7 +26,6 @@ function normalizeSrc(src: string): string {
 }
 
 const supportsFloat = typeof ReactDOM.preload === 'function'
-const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
 const loadedImageURLs = new Set<string>()
 const allImgs = new Map<
   string,
@@ -701,11 +695,7 @@ export default function Image({
   blurDataURL,
   ...all
 }: ImageProps) {
-  const configContext = useContext(ImageConfigContext)
-  const config: ImageConfig = prepareImageConfig(
-    configEnv || configContext || imageConfigDefault,
-    configContext
-  )
+  const config: ImageConfig = useImageConfig()
 
   let rest: Partial<ImageProps> = all
   let layout: NonNullable<LayoutValue> = sizes ? 'responsive' : 'intrinsic'

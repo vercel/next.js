@@ -1,6 +1,6 @@
 import { getAssetToken, getDeploymentId } from './deployment-id'
 import { getImageBlurSvg } from './image-blur-svg'
-import { imageConfigDefault, prepareImageConfig } from './image-config'
+import { prepareImageConfig } from './image-config'
 import type {
   ImageConfigComplete,
   ImageLoaderProps,
@@ -313,7 +313,7 @@ export function getImgProps(
   }: ImageProps,
   _state: {
     defaultLoader: ImageLoaderWithConfig
-    imgConf: ImageConfigComplete
+    imgConf?: ImageConfigComplete
     showAltText?: boolean
     blurComplete?: boolean
   }
@@ -328,11 +328,10 @@ export function getImgProps(
 } {
   const { imgConf, showAltText, blurComplete, defaultLoader } = _state
   let config: ImageConfig
-  let c = imgConf || imageConfigDefault
-  if ('allSizes' in c) {
-    config = c as ImageConfig
+  if (imgConf && 'allSizes' in imgConf) {
+    config = imgConf as ImageConfig
   } else {
-    config = prepareImageConfig(c)
+    config = prepareImageConfig(imgConf)
   }
 
   if (typeof defaultLoader === 'undefined') {

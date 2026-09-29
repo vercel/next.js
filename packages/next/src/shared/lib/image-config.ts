@@ -146,61 +146,54 @@ export type ImageConfigComplete = {
 
 export type ImageConfig = Partial<ImageConfigComplete>
 
-type ImageConfigSizes = {
-  deviceSizes: number[]
-  imageSizes: number[]
-  qualities?: number[] | undefined
-}
-
-export type PreparedImageConfig<T extends ImageConfigSizes> = T & {
+export type PreparedImageConfig = ImageConfigComplete & {
   allSizes: number[]
 }
 
+const missingImageConfig = {}
 const preparedImageConfigs = new WeakMap<
-  ImageConfigSizes,
-  WeakMap<object, PreparedImageConfig<ImageConfigSizes>>
+  object,
+  WeakMap<object, PreparedImageConfig>
 >()
 
 /**
- * Prepare owned, sorted image options once for each source config object.
- * Changed source or context options require new objects because results are cached by identity.
+ * Prepare owned, sorted image options once for each env/context pair.
+ * Changed options require new objects because results are cached by identity.
  */
-export function prepareImageConfig<T extends ImageConfigSizes>(
-  config: T,
-  context?: Pick<ImageConfigComplete, 'localPatterns'>
-): PreparedImageConfig<T> {
-  let preparedByContext = preparedImageConfigs.get(config)
-  if (!preparedByContext) {
-    const deviceSizes = [...config.deviceSizes].sort((a, b) => a - b)
-    const imageSizes = [...config.imageSizes]
-    const base = {
-      ...config,
-      deviceSizes,
-      imageSizes,
-      allSizes: [...deviceSizes, ...imageSizes].sort((a, b) => a - b),
-      ...(config.qualities !== undefined && {
-        qualities: [...config.qualities].sort((a, b) => a - b),
-      }),
-    } as PreparedImageConfig<T>
+export function prepareImageConfig(
+  envConfig?: ImageConfigComplete,
+  contextConfig?: ImageConfigComplete
+): PreparedImageConfig {
+  const envKey = envConfig ?? missingImageConfig
+  const contextKey = contextConfig ?? missingImageConfig
+  let preparedByContext = preparedImageConfigs.get(envKey)
+  const cached = preparedByContext?.get(contextKey)
+  if (cached) return cached
 
-    preparedByContext = new WeakMap()
-    preparedByContext.set(config, base)
-    preparedImageConfigs.set(config, preparedByContext)
-  }
-
-  // The inlined browser options supply their own patterns. During SSR the
-  // context supplies security-sensitive patterns omitted from the inline data.
-  const effectiveContext =
-    typeof window === 'undefined' ? (context ?? config) : config
-  const cached = preparedByContext.get(effectiveContext)
-  if (cached) return cached as PreparedImageConfig<T>
-
-  const base = preparedByContext.get(config)! as PreparedImageConfig<T>
+  const source = envConfig || contextConfig || imageConfigDefault
+  const deviceSizes = [...source.deviceSizes].sort((a, b) => a - b)
+  const imageSizes = [...source.imageSizes]
   const prepared = {
-    ...base,
-    localPatterns: context!.localPatterns,
+    ...source,
+    deviceSizes,
+    imageSizes,
+    allSizes: [...deviceSizes, ...imageSizes].sort((a, b) => a - b),
+    ...(source.qualities !== undefined && {
+      qualities: [...source.qualities].sort((a, b) => a - b),
+    }),
+    // The inlined browser options supply their own patterns. During SSR the
+    // context supplies security-sensitive patterns omitted from the inline data.
+    localPatterns:
+      typeof window === 'undefined' && contextConfig !== undefined
+        ? contextConfig.localPatterns
+        : source.localPatterns,
   }
-  preparedByContext.set(effectiveContext, prepared)
+
+  if (!preparedByContext) {
+    preparedByContext = new WeakMap()
+    preparedImageConfigs.set(envKey, preparedByContext)
+  }
+  preparedByContext.set(contextKey, prepared)
   return prepared
 }
 

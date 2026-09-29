@@ -51,8 +51,8 @@ it('isolates localPatterns from different SSR contexts sharing one source', () =
   }
   deepFreeze(source)
   const before = JSON.stringify(source)
-  const permissiveContext = { localPatterns: undefined }
-  const getSrcSet = (context?: Pick<ImageConfigComplete, 'localPatterns'>) =>
+  const permissiveContext = { ...createConfig(), localPatterns: undefined }
+  const getSrcSet = (context?: ImageConfigComplete) =>
     getImgProps(
       { src: '/test.png?v=1', alt: 'test', fill: true },
       { defaultLoader, imgConf: prepareImageConfig(source, context) }

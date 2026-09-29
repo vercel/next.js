@@ -1,4 +1,4 @@
-import type { ImageConfigComplete } from './image-config'
+import { prepareImageConfig, type ImageConfigComplete } from './image-config'
 import type { ImageProps } from './get-img-props'
 
 import { getImgProps } from './get-img-props'
@@ -23,7 +23,7 @@ const imageConfig = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
 export function getImageProps(imgProps: ImageProps) {
   const { props } = getImgProps(imgProps, {
     defaultLoader,
-    imgConf: imageConfig,
+    imgConf: prepareImageConfig(imageConfig),
   })
   // Normally we don't care about undefined props because we pass to JSX,
   // but this exported function could be used by the end user for anything
