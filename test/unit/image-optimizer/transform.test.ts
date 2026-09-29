@@ -1,6 +1,10 @@
 /* eslint-env jest */
 import { readFile } from 'fs-extra'
 import { join } from 'path'
+import { serialize } from 'v8'
+import { ImageError } from 'next/dist/server/image-optimizer/image-error'
+import { getMaxAge } from 'next/dist/server/image-optimizer/get-max-age'
+import type { imageOptimizerTransform as Transform } from 'next/dist/server/image-optimizer/transform'
 import {
   getSharp,
   imageOptimizerTransform,
@@ -87,6 +91,91 @@ describe('imageOptimizerTransform', () => {
     expect(
       loaded.some((path) => /\/build\/output\/log\.[jt]s$/.test(path))
     ).toBe(false)
+  })
+
+  it('constructs a serializable operation from the full server config', async () => {
+    const { imageOptimizer } =
+      require('next/dist/server/image-optimizer') as typeof import('next/dist/server/image-optimizer')
+    const buffer = await getImage('test.png')
+    let receivedConfig: unknown
+    const fullConfig = {
+      ...config,
+      nonSerializableServerOption: () => null,
+    }
+
+    const result = await imageOptimizer(
+      {
+        buffer,
+        contentType: 'image/png',
+        cacheControl: undefined,
+        etag: 'source-etag',
+      },
+      { href: '/test.png', width: 64, quality: 75, mimeType: 'image/webp' },
+      fullConfig,
+      {
+        silent: true,
+        runOperation: async (operation) => {
+          expect(() => serialize(operation)).not.toThrow()
+          receivedConfig = operation.config
+          return {
+            result: {
+              buffer: Buffer.from('optimized'),
+              contentType: 'image/webp',
+              maxAge: 60,
+              etag: 'optimized-etag',
+              upstreamEtag: 'source-etag',
+            },
+            diagnostics: [],
+          }
+        },
+      }
+    )
+
+    expect(receivedConfig).toEqual(config)
+    expect(result.buffer).toEqual(Buffer.from('optimized'))
+  })
+
+  it('preserves the direct Vercel transform imports and inferred worker-pool types', async () => {
+    const input: Parameters<typeof Transform>[0] = {
+      buffer: await getImage('test.png'),
+      contentType: 'image/png',
+      cacheControl: 'public, max-age=120',
+      etag: 'source-etag',
+    }
+    const params: Parameters<typeof Transform>[1] = {
+      href: '/test.png',
+      width: 64,
+      quality: 75,
+      mimeType: 'image/webp',
+    }
+    const transformConfig: Parameters<typeof Transform>[2] = config
+    const sharp = getSharp(1, false)
+    expect(getSharp(1, false)).toBe(sharp)
+    expect(sharp.concurrency()).toBe(1)
+    expect(sharp.cache().memory.max).toBe(0)
+    sharp.block({ operation: ['VipsForeignLoadHeif'] })
+    try {
+      const result: Awaited<ReturnType<typeof Transform>> =
+        await imageOptimizerTransform(input, params, transformConfig)
+      expect(result.error).toBeUndefined()
+      expect(await sharp(result.buffer).metadata()).toMatchObject({
+        format: 'webp',
+        width: 64,
+      })
+      // Transforming must not reinitialize Sharp and undo the service's block.
+      await expect(
+        sharp(await getImage('test.avif')).metadata()
+      ).rejects.toThrow()
+      expect(Math.max(60, getMaxAge('public, max-age=5'))).toBe(60)
+      expect(getMaxAge('max-age=60, s-maxage=120')).toBe(120)
+      expect(new ImageError(422, 'invalid input')).toMatchObject({
+        statusCode: 422,
+        message: 'invalid input',
+      })
+      expect(new ImageError(200, 'invalid status').statusCode).toBe(500)
+    } finally {
+      sharp.unblock({ operation: ['VipsForeignLoadHeif'] })
+    }
   })
 
   it('transforms a png buffer', async () => {
