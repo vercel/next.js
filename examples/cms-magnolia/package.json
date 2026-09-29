@@ -1,0 +1,18 @@
+{
+	"scripts": {
+		"dev": "next dev",
+		"build": "next build",
+		"start": "next start",
+		"lint": "next lint"
+	},
+	"dependencies": {
+		"@magnolia/react-editor": "1.4.1",
+		"next": "^14.0.3",
+		"react": "^18.2.0",
+		"react-dom": "^18.2.0"
+	},
+	"devDependencies": {
+		"eslint": "^8.54.0",
+		"eslint-config-next": "^14.0.3"
+	}
+}
