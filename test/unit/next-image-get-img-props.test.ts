@@ -1,5 +1,9 @@
 /* eslint-env jest */
 import { getImageProps } from 'next/image'
+import { getImgProps } from 'next/dist/shared/lib/get-img-props'
+import { imageConfigDefault } from 'next/dist/shared/lib/image-config'
+import defaultLoader from 'next/dist/shared/lib/image-loader'
+import { deepFreeze } from 'next/dist/shared/lib/deep-freeze'
 
 let deploymentId: string | undefined
 let assetToken: string | undefined
@@ -43,6 +47,22 @@ describe('getImageProps()', () => {
   afterEach(() => {
     console.warn = originalConsoleWarn
   })
+  it('should not mutate a frozen config', async () => {
+    const imgConf = {
+      ...imageConfigDefault,
+      deviceSizes: [1080, 640, 828, 750],
+      qualities: [75, 50],
+    }
+    deepFreeze(imgConf)
+    const { props } = getImgProps(
+      { alt: 'a nice desc', src: '/test.png', width: 100, height: 200 },
+      { defaultLoader, imgConf }
+    )
+    expect(props.src).toBe('/_next/image?url=%2Ftest.png&w=256&q=75')
+    expect(imgConf.deviceSizes).toStrictEqual([1080, 640, 828, 750])
+    expect(imgConf.qualities).toStrictEqual([75, 50])
+  })
+
   it('should return props in correct order', async () => {
     const { props } = getImageProps({
       alt: 'a nice desc',
