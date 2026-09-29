@@ -89,9 +89,7 @@ async function revalidateTags(
     return
   }
 
-  // Materialize the handlers, since `getCacheHandlers()` returns a one-shot
-  // iterator and we iterate over it once per profile group below.
-  const handlers = Array.from(getCacheHandlers() ?? [])
+  const handlers = getCacheHandlers() ?? []
   const promises: Promise<void>[] = []
 
   // Group tags by profile for batch processing
