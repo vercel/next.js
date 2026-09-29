@@ -30,11 +30,6 @@ export default function Layout({ children }) {
 }
 ```
 
-> **Good to know**:
->
-> - The `unstable_ensureStatic` export only works when [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled. The build fails otherwise.
-> - Exporting `unstable_ensureStatic` from a Client Component throws an error.
-
 ## Reference
 
 The export accepts `'auto'`, `'shell'`, `'prefetch'`, `'navigation'`, or `false`. The default is `'auto'`, which is equivalent to omitting the export.
@@ -51,13 +46,17 @@ The export accepts `'auto'`, `'shell'`, `'prefetch'`, `'navigation'`, or `false`
 
 The static levels become progressively stricter: `'prefetch'` includes `'shell'`, and `'navigation'` includes both. Unlike `'auto'`, `false` rejects a static level set elsewhere on the route. See [Combining levels across layouts and pages](#combining-levels-across-layouts-and-pages).
 
+> **Good to know**:
+>
+> - The `unstable_ensureStatic` export only works when [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled. The build fails otherwise.
+> - The `'shell'` and per-link prefetch stages are part of [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching). Without it, `'shell'` has no effect and `'prefetch'` matches the Cache Components default. `'navigation'` still enforces a fully static route with Cache Components alone.
+> - Exporting `unstable_ensureStatic` from a Client Component throws an error.
+
 ### `'shell'`
 
 Serves the route's [App Shell](/docs/app/glossary#app-shell) from static output. Reads of [`cookies()`](/docs/app/api-reference/functions/cookies) and [`headers()`](/docs/app/api-reference/functions/headers) anywhere in the route behave as if they were below [`prefetch()`](/docs/app/api-reference/functions/prefetch): the content that reads them renders on a per-link prefetch or on the navigation, and the shell shows the fallback of the nearest `<Suspense>` boundary.
 
 Requires [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching). Without it, a route has no App Shell, so the value has no effect and Next.js logs a warning.
-
-Because the shell cannot include session data, [instant validation](/docs/app/api-reference/file-conventions/route-segment-config/instant) reports a `cookies()` or `headers()` read outside `<Suspense>` as an insight in development.
 
 ### `'prefetch'`
 
@@ -94,9 +93,9 @@ Client Components can load request-specific content in the browser. Inside `<Sus
 
 Client hooks such as [`useParams()`](/docs/app/api-reference/functions/use-params) and [`useSearchParams()`](/docs/app/api-reference/functions/use-search-params) are also allowed. They do not remove the `generateStaticParams()` requirement for dynamic routes. Passing a request-dependent promise from a Server Component still requires server work and fails validation.
 
-#### How validation works
+#### How errors are reported
 
-The `'navigation'` level validates the fully rendered route during development and `next build`. In development, errors appear in the dev overlay with the source location and suggested fixes. During `next build`, the error includes the APIs that can prevent the route from being prerendered.
+The `'navigation'` level enforces the fully static requirement during development and `next build`. In development, errors appear in the dev overlay with the source location and suggested fixes. For more detailed build stack traces and code frames, rerun [`next build --debug-prerender`](/docs/app/guides/building#debug-prerender-errors).
 
 The error guidance depends on where the data is accessed:
 
