@@ -20,7 +20,7 @@ kind: insight
   instant navigations](/docs/app/guides/instant-navigation) guide.
 </div>
 
-A page or layout on this route exports [`unstable_ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic) with the `'navigation'` value, requiring fully static server output.
+A page or layout on this route exports [`unstable_ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic) with the `'navigation'` value, requiring all server-rendered work for the route to complete during prerendering.
 
 During [prerendering](/docs/app/glossary#prerendering), `generateMetadata()` read request-specific data from `cookies()`, `headers()`, `params`, `searchParams`, or a short-lived cache. This data is not available in fully static output.
 
@@ -114,13 +114,15 @@ A cache with a short lifetime can also count as runtime data. For fully static n
 
 ## Verifying the fix
 
-After applying a fix, reload the route and confirm that this error no longer appears. Wrapping the access in Suspense or setting `instant = false` does not relax the fully static requirement.
+After applying a fix, rerun [`next build`](/docs/app/api-reference/cli/next#next-build-options) and confirm that the route completes prerendering. If the error also appeared in [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), reload the route and confirm that the overlay clears. Wrapping the access in Suspense or setting `instant = false` does not relax the fully static requirement.
 
-In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing function with file paths and line numbers. When working from a build instead, the default [`next build`](/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated. Run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
+In `next dev`, the error overlay points at the failing function with file paths and line numbers. Run [`next build --debug-prerender`](/docs/app/guides/building#debug-prerender-errors) for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
 
-## Don't want this validation?
+## Remove the static requirement
 
-If the route requires request-time metadata, remove `unstable_ensureStatic = 'navigation'` from the pages or layouts that set it.
+The `'navigation'` value is usually set deliberately to guarantee static output for the entire server-rendered route. Removing it relaxes that requirement for every segment, not only metadata.
+
+If request-time rendering is intentional for this route, remove `unstable_ensureStatic = 'navigation'` from every page or layout that sets it. The route then follows the ordinary [Cache Components](/docs/app/getting-started/caching) rendering rules.
 
 ## Related Insights
 

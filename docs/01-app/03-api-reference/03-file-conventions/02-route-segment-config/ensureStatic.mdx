@@ -1,6 +1,6 @@
 ---
 title: unstable_ensureStatic
-description: API reference for the unstable_ensureStatic route segment config, which controls static rendering for a route's App Shell, prefetches, or whole page.
+description: API reference for the unstable_ensureStatic route segment config, which requires static output for an App Shell, per-link prefetches, or an entire server-rendered route.
 related:
   title: Next Steps
   description: Learn how prefetching and prerendering stages work.
@@ -12,7 +12,7 @@ related:
     - app/api-reference/config/next-config-js/partialPrefetching
 ---
 
-The `unstable_ensureStatic` route segment config controls how much of a route Next.js serves from a static prerender. Export it from a [page](/docs/app/api-reference/file-conventions/page) or [layout](/docs/app/api-reference/file-conventions/layout) to require static rendering for the [App Shell](/docs/app/glossary#app-shell), [prefetches](/docs/app/guides/prefetching), or the whole page.
+The `unstable_ensureStatic` route segment config requires specific [navigation stages](/docs/app/glossary#navigation-stages) to use static output. Export it from a [page](/docs/app/api-reference/file-conventions/page) or [layout](/docs/app/api-reference/file-conventions/layout) to require static rendering for the [App Shell](/docs/app/glossary#app-shell), per-link prefetches, or the entire server-rendered route.
 
 ```tsx filename="app/blog/layout.tsx" highlight={1} switcher
 export const unstable_ensureStatic = 'navigation'
@@ -34,33 +34,40 @@ export default function Layout({ children }) {
 
 The export accepts `'auto'`, `'shell'`, `'prefetch'`, `'navigation'`, or `false`. The default is `'auto'`, which is equivalent to omitting the export.
 
-| Value              | App Shell     | Per-link prefetch | Navigation and initial load |
-| ------------------ | ------------- | ----------------- | --------------------------- |
-| `'auto'` (default) | Default       | Default           | Default                     |
-| `false`            | Default       | Default           | Default                     |
-| `'shell'`          | Static output | Default           | Default                     |
-| `'prefetch'`       | Static output | Static output     | Default                     |
-| `'navigation'`     | Static output | Static output     | Static output               |
+| Value              | Stages required to use static output    | Effect                                                         |
+| ------------------ | --------------------------------------- | -------------------------------------------------------------- |
+| `'auto'` (default) | None beyond the route's normal behavior | Allows another segment on the route to set a stricter level    |
+| `false`            | None                                    | Fails if another segment on the route sets a stricter level    |
+| `'shell'`          | App Shell                               | Non-static content waits for a per-link prefetch or navigation |
+| `'prefetch'`       | App Shell and per-link prefetches       | Non-static content waits for navigation                        |
+| `'navigation'`     | Entire server-rendered route            | Non-static server content produces an error                    |
 
-"Default" means Next.js serves the response from static output when the route allows it and renders it per request otherwise, the same as without the export. "Static output" means Next.js serves prerendered output for that stage. The output can include Suspense fallbacks for content that renders at a later stage.
+"Static output" means prerendered output that can be reused across requests. It can contain Suspense fallbacks for content that renders at a later stage. A [per-link prefetch](/docs/app/guides/optimizing-prefetching#resolve-url-data-at-prefetch-time) is requested with [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch).
+
+The App Shell and per-link prefetch stages apply to routes using [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching). Without Partial Prefetching, `'shell'` has no effect and `'prefetch'` matches the Cache Components default. The `'navigation'` value works with Cache Components alone.
 
 The static levels become progressively stricter: `'prefetch'` includes `'shell'`, and `'navigation'` includes both. Unlike `'auto'`, `false` rejects a static level set elsewhere on the route. See [Combining levels across layouts and pages](#combining-levels-across-layouts-and-pages).
 
 > **Good to know**:
 >
 > - The `unstable_ensureStatic` export only works when [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled. The build fails otherwise.
-> - The `'shell'` and per-link prefetch stages are part of [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching). Without it, `'shell'` has no effect and `'prefetch'` matches the Cache Components default. `'navigation'` still enforces a fully static route with Cache Components alone.
 > - Exporting `unstable_ensureStatic` from a Client Component throws an error.
 
 ### `'shell'`
 
-Serves the route's [App Shell](/docs/app/glossary#app-shell) from static output. Reads of [`cookies()`](/docs/app/api-reference/functions/cookies) and [`headers()`](/docs/app/api-reference/functions/headers) anywhere in the route behave as if they were below [`prefetch()`](/docs/app/api-reference/functions/prefetch): the content that reads them renders on a per-link prefetch or on the navigation, and the shell shows the fallback of the nearest `<Suspense>` boundary.
+Requires the route's App Shell to use static output. A default `<Link>` prefetch receives that reusable shell instead of rendering a shell for each visitor.
+
+Content that cannot be included in static output remains behind the nearest `<Suspense>` fallback. A `<Link prefetch={true}>` can still make a request-time prefetch to render more of the route before navigation. Without `prefetch={true}`, that content renders when the user navigates.
+
+For example, if a component reads [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers), the shell contains its Suspense fallback. The component can render during a per-link prefetch or navigation.
 
 Requires [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching). Without it, a route has no App Shell, so the value has no effect and Next.js logs a warning.
 
 ### `'prefetch'`
 
-Serves the App Shell and per-link prefetches, requested with [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch), from static output. Reads of `cookies()` and `headers()` behave as if they were below [`navigation()`](/docs/app/api-reference/functions/navigation): the content that reads them renders on the navigation.
+With Partial Prefetching, requires both the App Shell and per-link prefetches to use static output. A default `<Link>` receives the reusable App Shell. `<Link prefetch={true}>` can include URL-specific static or cached content, but it cannot render a prefetch per request.
+
+Content that cannot be included in static output remains behind the nearest `<Suspense>` fallback until navigation. For example, a component that reads `cookies()` or `headers()` renders when the user navigates, not when the link is prefetched.
 
 Without Partial Prefetching, default prefetches already use static output, so this value has no additional effect. `<Link prefetch={true}>` can still prefetch request-time content, the same as a navigation.
 
@@ -87,21 +94,17 @@ Dynamic routes must provide [`generateStaticParams()`](/docs/app/api-reference/f
 
 Parameters returned by `generateStaticParams()` can be read during prerendering. For parameter values that were not prerendered at build time, Next.js waits for the static result to be generated before serving the response.
 
+If `generateStaticParams()` is missing or a result omits a dynamic parameter, Next.js links to the [`generateStaticParams` error guide](/docs/messages/generate-static-params).
+
 #### Client Components
 
 Client Components can load request-specific content in the browser. Inside `<Suspense>`, `use(browser())` and [`use(io())`](/docs/app/api-reference/functions/io) are allowed. The prerender includes the fallback for the deferred content. See [Rendering components only in the browser](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser).
 
-Client hooks such as [`useParams()`](/docs/app/api-reference/functions/use-params) and [`useSearchParams()`](/docs/app/api-reference/functions/use-search-params) are also allowed. They do not remove the `generateStaticParams()` requirement for dynamic routes. Passing a request-dependent promise from a Server Component still requires server work and fails validation.
+Client hooks such as [`useParams()`](/docs/app/api-reference/functions/use-params) and [`useSearchParams()`](/docs/app/api-reference/functions/use-search-params) are also allowed. They do not remove the `generateStaticParams()` requirement for dynamic routes. Passing a request-dependent promise from a Server Component still requires server work and produces an error.
 
 #### How errors are reported
 
-The `'navigation'` level enforces the fully static requirement during development and `next build`. In development, errors appear in the dev overlay with the source location and suggested fixes. For more detailed build stack traces and code frames, rerun [`next build --debug-prerender`](/docs/app/guides/building#debug-prerender-errors).
-
-The error guidance depends on where the data is accessed:
-
-- Page or layout content: [runtime data](/docs/messages/ensure-static-route-runtime) or [uncached data](/docs/messages/ensure-static-route-dynamic)
-- `generateMetadata()`: [runtime data](/docs/messages/ensure-static-metadata-runtime) or [uncached data](/docs/messages/ensure-static-metadata-dynamic)
-- `generateViewport()`: [runtime data](/docs/messages/ensure-static-viewport-runtime) or [uncached data](/docs/messages/ensure-static-viewport-dynamic)
+The `'navigation'` level is checked during development and `next build`. The development overlay can distinguish runtime data from uncached data, while build output may use a generic error. For detailed build stack traces and code frames, rerun [`next build --debug-prerender`](/docs/app/guides/building#debug-prerender-errors).
 
 ### `false`
 

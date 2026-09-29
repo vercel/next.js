@@ -23,6 +23,20 @@ export function generateStaticParams() {
 
 See the [`generateStaticParams` return value documentation](/docs/app/api-reference/functions/generate-static-params#returns) for the expected shape.
 
+## Using `unstable_ensureStatic = 'navigation'`
+
+A dynamic route that sets or inherits [`unstable_ensureStatic = 'navigation'`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#navigation) must export `generateStaticParams` and return at least one params object. Every object must include a value for each dynamic segment in the route.
+
+```tsx filename="app/blog/[slug]/page.tsx"
+export const unstable_ensureStatic = 'navigation'
+
+export function generateStaticParams() {
+  return [{ slug: 'first-post' }, { slug: 'second-post' }]
+}
+```
+
+If the route must accept values that cannot be listed at build time, first confirm that request-time rendering is intended for the entire route. Then remove `unstable_ensureStatic = 'navigation'` from every page or layout that sets it. Removing the export relaxes the static-output requirement for every segment in the route.
+
 ## Using `output: 'export'`
 
 When your application uses `output: 'export'`, every [Dynamic Route](/docs/app/api-reference/file-conventions/dynamic-routes), such as `app/blog/[slug]/page.tsx`, must be rendered at build time.
