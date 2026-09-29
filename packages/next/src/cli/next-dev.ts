@@ -107,6 +107,8 @@ const CHILD_EXIT_TIMEOUT_MS = parseInt(
   process.env.NEXT_EXIT_TIMEOUT_MS ?? '100',
   10
 )
+// Allow asynchronous dev cleanup, but do not wait forever after Upgrade now.
+const UPGRADE_STOP_TIMEOUT_MS = 5_000
 const shouldWaitForChildExit =
   process.env.__NEXT_DEV_WAIT_FOR_TURBOPACK_SHUTDOWN === '1'
 
@@ -279,8 +281,9 @@ const nextDev = async (
                 // Subscribe before requesting shutdown so a fast worker exit
                 // cannot happen between the request and the exit listener.
                 const workerExited = once(worker, 'exit')
+                let stopTimeout: NodeJS.Timeout | null = null
                 try {
-                  await new Promise<void>((resolve, reject) => {
+                  const stopRequested = new Promise<void>((resolve, reject) => {
                     worker.send({ nextWorkerShutdown: true }, (sendError) => {
                       if (sendError) {
                         reject(sendError)
@@ -289,7 +292,21 @@ const nextDev = async (
                       }
                     })
                   })
-                  const [code, signal] = await workerExited
+                  // Bound both IPC delivery and worker cleanup. The handoff
+                  // starts independently, so a stuck worker must not keep the
+                  // CLI waiting forever after Upgrade now.
+                  const [, [code, signal]] = await Promise.race([
+                    Promise.all([stopRequested, workerExited]),
+                    new Promise<never>((_, reject) => {
+                      stopTimeout = setTimeout(
+                        () =>
+                          reject(
+                            new Error('Timed out stopping dev for the upgrade.')
+                          ),
+                        UPGRADE_STOP_TIMEOUT_MS
+                      )
+                    }),
+                  ])
                   // Exit code 143 is expected for SIGTERM; the IPC result also
                   // confirms the worker did not merely log a cleanup error.
                   if (
@@ -302,10 +319,25 @@ const nextDev = async (
                   }
                 } catch (cause) {
                   error = String(cause)
-                  worker.kill('SIGTERM')
-                  await workerExited.catch((exitError) =>
-                    console.error(exitError)
-                  )
+                  if (worker.exitCode === null && worker.signalCode === null) {
+                    // A blocked worker cannot service the stop message or a
+                    // graceful signal. Force it down after the normal grace.
+                    worker.kill('SIGTERM')
+                    const forceKillTimeout = setTimeout(() => {
+                      worker.kill('SIGKILL')
+                    }, CHILD_EXIT_TIMEOUT_MS)
+                    try {
+                      await workerExited
+                    } catch (exitError) {
+                      console.error(exitError)
+                    } finally {
+                      clearTimeout(forceKillTimeout)
+                    }
+                  }
+                } finally {
+                  if (stopTimeout) {
+                    clearTimeout(stopTimeout)
+                  }
                 }
               }
 
@@ -652,6 +684,12 @@ const nextDev = async (
           return
         }
         if (signal) {
+          if (terminalClient) {
+            // A signal-killed worker cannot restart or serve requests. Exiting
+            // closes the control socket so the supervisor cancels a stale menu.
+            await handleSessionStop(null, false)
+            process.exit(128 + os.constants.signals[signal])
+          }
           if (upgradeInProgress) {
             interruption ??= signal
             await handleSessionStop(null)

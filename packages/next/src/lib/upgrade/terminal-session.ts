@@ -269,7 +269,9 @@ export async function runUpgradeTerminal(): Promise<number | string | null> {
     const onSignal = (signal: NodeJS.Signals) => {
       interruption ??= signal
       nudgeController?.abort()
-      child?.kill(signal)
+      // The nested dev CLI handles SIGTERM, but only handles SIGHUP while its
+      // direct prompt is open. Let it clean up and retain SIGHUP as our status.
+      child?.kill(signal === 'SIGHUP' ? 'SIGTERM' : signal)
     }
     const onInterrupt = () => onSignal('SIGINT')
     const onTerminate = () => onSignal('SIGTERM')
@@ -291,6 +293,9 @@ export async function runUpgradeTerminal(): Promise<number | string | null> {
 
       if (upgradeTask) {
         const upgradeResult = await upgradeTask
+        if (interruption) {
+          return 128 + constants.signals[interruption]
+        }
         // The handoff starts before dev finishes stopping, but a failed stop
         // must still make the overall command fail even if the handoff succeeds.
         return failed || result.exitCode !== 0 || result.signal

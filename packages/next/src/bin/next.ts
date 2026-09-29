@@ -413,7 +413,9 @@ program
         const { shouldPromptForUpgrade } = await import(
           '../lib/upgrade/nudge.js'
         )
-        if (await shouldPromptForUpgrade()) {
+        // A PTY merges child stdout and stderr. Keep the direct dev path when
+        // stderr is redirected so errors still reach that destination.
+        if (process.stderr.isTTY && (await shouldPromptForUpgrade())) {
           const { runUpgradeTerminal } = await import(
             '../lib/upgrade/terminal-session.js'
           )
