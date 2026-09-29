@@ -254,7 +254,11 @@ const nextDev = async (
     '../lib/upgrade/nudge.js'
   )
   const humanUpgrade = await shouldPromptForUpgrade()
-  async function offerUpgrade(worker: ChildProcess, context: UpgradeContext) {
+  async function offerUpgrade(
+    worker: ChildProcess,
+    context: UpgradeContext,
+    initialAssessment: Parameters<typeof nudgeUpgrade>[4]
+  ) {
     process.on('SIGHUP', onHangup)
     upgradeOffered = true
     upgradeInProgress = true
@@ -262,7 +266,13 @@ const nextDev = async (
     upgradeController = controller
     let action
     try {
-      action = await nudgeUpgrade(dir, context, 'dev', controller.signal)
+      action = await nudgeUpgrade(
+        dir,
+        context,
+        'dev',
+        controller.signal,
+        initialAssessment
+      )
     } catch (error) {
       Log.warn(`Could not offer the upgrade: ${String(error)}`)
     } finally {
@@ -513,8 +523,13 @@ const nextDev = async (
       child.on('message', (msg: any) => {
         if (msg && typeof msg === 'object') {
           if (msg.nextUpgradeContext) {
-            distDir = msg.nextUpgradeContext.distDir
-            void offerUpgrade(child!, msg.nextUpgradeContext).catch(
+            const context = msg.nextUpgradeContext as UpgradeContext
+            distDir = context.distDir
+            const initialAssessment =
+              msg.nextUpgradeAssessment !== undefined
+                ? Promise.resolve(msg.nextUpgradeAssessment)
+                : null
+            void offerUpgrade(child!, context, initialAssessment).catch(
               async (error) => {
                 console.error(error)
                 await handleSessionStop('SIGTERM', false)

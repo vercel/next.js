@@ -255,6 +255,8 @@ export async function initialize(opts: {
         }
       )
       if (process.env.NEXT_PRIVATE_UPGRADE_PROMPT === '1' && process.send) {
+        // The parent retries if the worker assessment rejects.
+        const [promptAssessment] = await Promise.allSettled([assessment])
         // TODO: Do not block dev startup while prompting for an upgrade.
         // Preserve all logs for display after the prompt and stop dev before Update.
         // The existing dev worker pauses here while its parent owns the menu.
@@ -270,6 +272,9 @@ export async function initialize(opts: {
           process.on('message', resume)
           process.send!({
             nextUpgradeContext: upgradeContext,
+            ...(promptAssessment.status === 'fulfilled'
+              ? { nextUpgradeAssessment: promptAssessment.value }
+              : {}),
           })
         })
       } else {

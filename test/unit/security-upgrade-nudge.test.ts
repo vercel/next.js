@@ -717,6 +717,23 @@ describe('human upgrade nudge', () => {
     }
   })
 
+  it('reuses the startup assessment for the human prompt', async () => {
+    const assessment = assessUpgrade(directory, config('security'), '16.4.0')
+
+    await expect(
+      nudgeUpgrade(
+        directory,
+        config('security'),
+        'dev',
+        new AbortController().signal,
+        assessment
+      )
+    ).resolves.toBe('skip')
+
+    expect(getUpgradeAssessment).toHaveBeenCalledTimes(1)
+    expect(promptUpgrade).toHaveBeenCalledTimes(1)
+  })
+
   it.each([
     [
       'security',
