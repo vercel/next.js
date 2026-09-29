@@ -1,6 +1,6 @@
 export function throwMissingGspErrorInStaticRoute(page: string) {
   throw new Error(
-    `Page "${page}" is missing \`generateStaticParams()\` which is currently not supported with \`ensureStatic = "navigation"\`. See more info here: https://nextjs.org/docs/messages/generate-static-params`
+    `Page "${page}": \`unstable_ensureStatic = "navigation"\` requires an exported \`generateStaticParams()\` function.\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-unstable_ensurestatic`
   )
 }
 
@@ -9,6 +9,6 @@ export function throwIncompleteStaticParamsErrorInStaticRoute(
   missingParamNames: string[]
 ) {
   throw new Error(
-    `Page "${page}" returned incomplete params from \`generateStaticParams()\`. This is currently unsupported with \`ensureStatic = "navigation"\`. Every params object must include all dynamic route parameters. Missing: ${missingParamNames.map((name) => `"${name}"`).join(', ')}. See more info here: https://nextjs.org/docs/messages/generate-static-params`
+    `Page "${page}": \`generateStaticParams()\` returned incomplete params. Routes using \`unstable_ensureStatic = "navigation"\` must return every dynamic route parameter. Missing: ${missingParamNames.map((name) => `"${name}"`).join(', ')}.\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-unstable_ensurestatic`
   )
 }

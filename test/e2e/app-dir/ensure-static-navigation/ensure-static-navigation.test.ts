@@ -75,7 +75,7 @@ const ERROR_PATTERNS = {
     )
   ),
   missingGSP: samePatternInDevAndBuild(
-    /Page ".*?" is missing `generateStaticParams\(\)`/
+    /Page ".*?": `unstable_ensureStatic = "navigation"` requires an exported `generateStaticParams\(\)` function/
   ),
   emptyGSP: samePatternInDevAndBuild(
     literalError(
@@ -83,7 +83,7 @@ const ERROR_PATTERNS = {
     )
   ),
   incompleteGSP: samePatternInDevAndBuild(
-    /Page ".*?" returned incomplete params from `generateStaticParams\(\)`/
+    /Page ".*?": `generateStaticParams\(\)` returned incomplete params/
   ),
 } satisfies ErrorPatternObject
 
@@ -277,8 +277,7 @@ describe('ensureStatic = "navigation"', () => {
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
            - [remove] Remove the data access
-           - Specify static route params to prerender with \`generateStaticParams()\` (does not apply to \`cookies()\`, \`headers()\`, \`searchParams\`, \`connection()\`, or uncached data)
-           - For \`searchParams\` only: read them on the client with \`useSearchParams()\`
+           - Only applies to \`searchParams\`: read them on the client with \`useSearchParams()\`
 
          Learn more: https://nextjs.org/docs/messages/ensure-static-route
              at Inner (app/default/uncached-data/page.tsx:15:16)
@@ -333,8 +332,7 @@ describe('ensureStatic = "navigation"', () => {
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
            - [remove] Remove the data access
-           - Specify static route params to prerender with \`generateStaticParams()\` (does not apply to \`cookies()\`, \`headers()\`, \`searchParams\`, \`connection()\`, or uncached data)
-           - For \`searchParams\` only: read them on the client with \`useSearchParams()\`
+           - Only applies to \`searchParams\`: read them on the client with \`useSearchParams()\`
 
          Learn more: https://nextjs.org/docs/messages/ensure-static-route
              at Inner (app/default/connection/page.tsx:17:19)
@@ -389,8 +387,7 @@ describe('ensureStatic = "navigation"', () => {
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
            - [remove] Remove the data access
-           - Specify static route params to prerender with \`generateStaticParams()\` (does not apply to \`cookies()\`, \`headers()\`, \`searchParams\`, \`connection()\`, or uncached data)
-           - For \`searchParams\` only: read them on the client with \`useSearchParams()\`
+           - Only applies to \`searchParams\`: read them on the client with \`useSearchParams()\`
 
          Learn more: https://nextjs.org/docs/messages/ensure-static-route
              at Inner (app/default/instant-false/connection-blocking/page.tsx:20:19)
@@ -445,8 +442,7 @@ describe('ensureStatic = "navigation"', () => {
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
            - [remove] Remove the data access
-           - Specify static route params to prerender with \`generateStaticParams()\` (does not apply to \`cookies()\`, \`headers()\`, \`searchParams\`, \`connection()\`, or uncached data)
-           - For \`searchParams\` only: read them on the client with \`useSearchParams()\`
+           - Only applies to \`searchParams\`: read them on the client with \`useSearchParams()\`
 
          Learn more: https://nextjs.org/docs/messages/ensure-static-route
              at Inner (app/suspense-above-body/connection-blocking/page.tsx:20:19)
@@ -501,8 +497,7 @@ describe('ensureStatic = "navigation"', () => {
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
            - [remove] Remove the data access
-           - Specify static route params to prerender with \`generateStaticParams()\` (does not apply to \`cookies()\`, \`headers()\`, \`searchParams\`, \`connection()\`, or uncached data)
-           - For \`searchParams\` only: read them on the client with \`useSearchParams()\`
+           - Only applies to \`searchParams\`: read them on the client with \`useSearchParams()\`
 
          Learn more: https://nextjs.org/docs/messages/ensure-static-route
              at UseServerData (app/default/dynamic-data-passed-to-client/client.tsx:6:19)
@@ -573,7 +568,7 @@ describe('ensureStatic = "navigation"', () => {
         expectErrorSnapshotToMatchPattern(error, errorPattern.dev)
         expect(error).toMatchInlineSnapshot(`
          {
-           "description": "Page "/default/fallback-params/[slug]" is missing \`generateStaticParams()\` which is currently not supported with \`ensureStatic = "navigation"\`. See more info here: https://nextjs.org/docs/messages/generate-static-params",
+           "description": "Page "/default/fallback-params/[slug]": \`unstable_ensureStatic = "navigation"\` requires an exported \`generateStaticParams()\` function.\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-unstable_ensurestatic",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": null,
@@ -587,7 +582,8 @@ describe('ensureStatic = "navigation"', () => {
         })
         expect(error).toMatch(errorPattern.build)
         expect(error).toMatchInlineSnapshot(`
-         "Error: Page "/default/fallback-params/[slug]" is missing \`generateStaticParams()\` which is currently not supported with \`ensureStatic = "navigation"\`. See more info here: https://nextjs.org/docs/messages/generate-static-params
+         "Error: Page "/default/fallback-params/[slug]": \`unstable_ensureStatic = "navigation"\` requires an exported \`generateStaticParams()\` function.
+         Learn more: https://nextjs.org/docs/messages/generate-static-params#with-unstable_ensurestatic
              at ignore-listed frames
 
          > Build error occurred
@@ -613,7 +609,7 @@ describe('ensureStatic = "navigation"', () => {
         expectErrorSnapshotToMatchPattern(error, errorPattern.dev)
         expect(error).toMatchInlineSnapshot(`
          {
-           "description": "Page "/default/fallback-params-passed-to-client/[slug]" is missing \`generateStaticParams()\` which is currently not supported with \`ensureStatic = "navigation"\`. See more info here: https://nextjs.org/docs/messages/generate-static-params",
+           "description": "Page "/default/fallback-params-passed-to-client/[slug]": \`unstable_ensureStatic = "navigation"\` requires an exported \`generateStaticParams()\` function.\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-unstable_ensurestatic",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": null,
@@ -627,7 +623,8 @@ describe('ensureStatic = "navigation"', () => {
         })
         expect(error).toMatch(errorPattern.build)
         expect(error).toMatchInlineSnapshot(`
-         "Error: Page "/default/fallback-params-passed-to-client/[slug]" is missing \`generateStaticParams()\` which is currently not supported with \`ensureStatic = "navigation"\`. See more info here: https://nextjs.org/docs/messages/generate-static-params
+         "Error: Page "/default/fallback-params-passed-to-client/[slug]": \`unstable_ensureStatic = "navigation"\` requires an exported \`generateStaticParams()\` function.
+         Learn more: https://nextjs.org/docs/messages/generate-static-params#with-unstable_ensurestatic
              at ignore-listed frames
 
          > Build error occurred
@@ -650,7 +647,7 @@ describe('ensureStatic = "navigation"', () => {
         expectErrorSnapshotToMatchPattern(error, errorPattern.dev)
         expect(error).toMatchInlineSnapshot(`
          {
-           "description": "Page "/default/fallback-params-client-segment/[slug]" is missing \`generateStaticParams()\` which is currently not supported with \`ensureStatic = "navigation"\`. See more info here: https://nextjs.org/docs/messages/generate-static-params",
+           "description": "Page "/default/fallback-params-client-segment/[slug]": \`unstable_ensureStatic = "navigation"\` requires an exported \`generateStaticParams()\` function.\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-unstable_ensurestatic",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": null,
@@ -664,7 +661,8 @@ describe('ensureStatic = "navigation"', () => {
         })
         expect(error).toMatch(errorPattern.build)
         expect(error).toMatchInlineSnapshot(`
-         "Error: Page "/default/fallback-params-client-segment/[slug]" is missing \`generateStaticParams()\` which is currently not supported with \`ensureStatic = "navigation"\`. See more info here: https://nextjs.org/docs/messages/generate-static-params
+         "Error: Page "/default/fallback-params-client-segment/[slug]": \`unstable_ensureStatic = "navigation"\` requires an exported \`generateStaticParams()\` function.
+         Learn more: https://nextjs.org/docs/messages/generate-static-params#with-unstable_ensurestatic
              at ignore-listed frames
 
          > Build error occurred
@@ -711,7 +709,6 @@ describe('ensureStatic = "navigation"', () => {
          Ways to fix this:
            - [cache] For uncached data: cache the data used by \`generateMetadata()\` with \`"use cache"\` (does not apply to \`connection()\`)
            - [static] Replace the dynamic data used by \`generateMetadata()\` with static data
-           - Specify static route params to prerender with \`generateStaticParams()\` (does not apply to \`cookies()\`, \`headers()\`, \`searchParams\`, \`connection()\`, or uncached data)
 
          Learn more: https://nextjs.org/docs/messages/ensure-static-metadata
              at Module.generateMetadata (app/default/dynamic-metadata/page.tsx:7:19)
@@ -764,7 +761,6 @@ describe('ensureStatic = "navigation"', () => {
          Ways to fix this:
            - [cache] For uncached data: cache the data used by \`generateViewport()\` with \`"use cache"\` (does not apply to \`connection()\`)
            - [static] Replace the dynamic data used by \`generateViewport()\` with static data
-           - Specify static route params to prerender with \`generateStaticParams()\` (does not apply to \`cookies()\`, \`headers()\`, \`searchParams\`, \`connection()\`, or uncached data)
 
          Learn more: https://nextjs.org/docs/messages/ensure-static-viewport
              at Module.generateViewport (app/default/dynamic-viewport/page.tsx:7:19)
@@ -886,7 +882,7 @@ describe('ensureStatic = "navigation"', () => {
         expectErrorSnapshotToMatchPattern(error, errorPattern.dev)
         expect(error).toMatchInlineSnapshot(`
          {
-           "description": "Page "/default/static-params-incomplete/[slug]/[snail]" returned incomplete params from \`generateStaticParams()\`. This is currently unsupported with \`ensureStatic = "navigation"\`. Every params object must include all dynamic route parameters. Missing: "snail". See more info here: https://nextjs.org/docs/messages/generate-static-params",
+           "description": "Page "/default/static-params-incomplete/[slug]/[snail]": \`generateStaticParams()\` returned incomplete params. Routes using \`unstable_ensureStatic = "navigation"\` must return every dynamic route parameter. Missing: "snail".\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-unstable_ensurestatic",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": null,
@@ -898,7 +894,8 @@ describe('ensureStatic = "navigation"', () => {
         const error = getPrerenderOutput(result.cliOutput, { isMinified: true })
         expect(error).toMatch(errorPattern.build)
         expect(error).toMatchInlineSnapshot(`
-         "Error: Page "/default/static-params-incomplete/[slug]/[snail]" returned incomplete params from \`generateStaticParams()\`. This is currently unsupported with \`ensureStatic = "navigation"\`. Every params object must include all dynamic route parameters. Missing: "snail". See more info here: https://nextjs.org/docs/messages/generate-static-params
+         "Error: Page "/default/static-params-incomplete/[slug]/[snail]": \`generateStaticParams()\` returned incomplete params. Routes using \`unstable_ensureStatic = "navigation"\` must return every dynamic route parameter. Missing: "snail".
+         Learn more: https://nextjs.org/docs/messages/generate-static-params#with-unstable_ensurestatic
              at ignore-listed frames
 
          > Build error occurred
@@ -922,7 +919,7 @@ describe('ensureStatic = "navigation"', () => {
         expectErrorSnapshotToMatchPattern(error, errorPattern.dev)
         expect(error).toMatchInlineSnapshot(`
          {
-           "description": "Page "/default/static-params-incomplete-unused/[slug]/[snail]" returned incomplete params from \`generateStaticParams()\`. This is currently unsupported with \`ensureStatic = "navigation"\`. Every params object must include all dynamic route parameters. Missing: "snail". See more info here: https://nextjs.org/docs/messages/generate-static-params",
+           "description": "Page "/default/static-params-incomplete-unused/[slug]/[snail]": \`generateStaticParams()\` returned incomplete params. Routes using \`unstable_ensureStatic = "navigation"\` must return every dynamic route parameter. Missing: "snail".\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-unstable_ensurestatic",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": null,
@@ -934,7 +931,8 @@ describe('ensureStatic = "navigation"', () => {
         const error = getPrerenderOutput(result.cliOutput, { isMinified: true })
         expect(error).toMatch(errorPattern.build)
         expect(error).toMatchInlineSnapshot(`
-         "Error: Page "/default/static-params-incomplete-unused/[slug]/[snail]" returned incomplete params from \`generateStaticParams()\`. This is currently unsupported with \`ensureStatic = "navigation"\`. Every params object must include all dynamic route parameters. Missing: "snail". See more info here: https://nextjs.org/docs/messages/generate-static-params
+         "Error: Page "/default/static-params-incomplete-unused/[slug]/[snail]": \`generateStaticParams()\` returned incomplete params. Routes using \`unstable_ensureStatic = "navigation"\` must return every dynamic route parameter. Missing: "snail".
+         Learn more: https://nextjs.org/docs/messages/generate-static-params#with-unstable_ensurestatic
              at ignore-listed frames
 
          > Build error occurred
@@ -982,8 +980,7 @@ describe('ensureStatic = "navigation"', () => {
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
            - [remove] Remove the data access
-           - Specify static route params to prerender with \`generateStaticParams()\` (does not apply to \`cookies()\`, \`headers()\`, \`searchParams\`, \`connection()\`, or uncached data)
-           - For \`searchParams\` only: read them on the client with \`useSearchParams()\`
+           - Only applies to \`searchParams\`: read them on the client with \`useSearchParams()\`
 
          Learn more: https://nextjs.org/docs/messages/ensure-static-route
              at Inner (app/default/excluded-caches/non-prerenderable-cache/page.tsx:17:9)
@@ -1254,8 +1251,7 @@ describe('ensureStatic = "navigation"', () => {
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
            - [remove] Remove the data access
-           - Specify static route params to prerender with \`generateStaticParams()\` (does not apply to \`cookies()\`, \`headers()\`, \`searchParams\`, \`connection()\`, or uncached data)
-           - For \`searchParams\` only: read them on the client with \`useSearchParams()\`
+           - Only applies to \`searchParams\`: read them on the client with \`useSearchParams()\`
 
          Learn more: https://nextjs.org/docs/messages/ensure-static-route
              at Inner (app/default/mixed-server-client/connection-and-browser/page.tsx:21:19)
@@ -1311,8 +1307,7 @@ describe('ensureStatic = "navigation"', () => {
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
            - [remove] Remove the data access
-           - Specify static route params to prerender with \`generateStaticParams()\` (does not apply to \`cookies()\`, \`headers()\`, \`searchParams\`, \`connection()\`, or uncached data)
-           - For \`searchParams\` only: read them on the client with \`useSearchParams()\`
+           - Only applies to \`searchParams\`: read them on the client with \`useSearchParams()\`
 
          Learn more: https://nextjs.org/docs/messages/ensure-static-route
              at Inner (app/default/mixed-server-client/connection-and-use-search-params/page.tsx:21:19)
@@ -1394,8 +1389,7 @@ describe('ensureStatic = "navigation"', () => {
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
            - [remove] Remove the data access
-           - Specify static route params to prerender with \`generateStaticParams()\` (does not apply to \`cookies()\`, \`headers()\`, \`searchParams\`, \`connection()\`, or uncached data)
-           - For \`searchParams\` only: read them on the client with \`useSearchParams()\`
+           - Only applies to \`searchParams\`: read them on the client with \`useSearchParams()\`
 
          Learn more: https://nextjs.org/docs/messages/ensure-static-route
              at Inner (app/default/mixed-server-client/connection-and-use-io/page.tsx:21:19)
@@ -1415,8 +1409,7 @@ describe('ensureStatic = "navigation"', () => {
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
            - [remove] Remove the data access
-           - Specify static route params to prerender with \`generateStaticParams()\` (does not apply to \`cookies()\`, \`headers()\`, \`searchParams\`, \`connection()\`, or uncached data)
-           - For \`searchParams\` only: read them on the client with \`useSearchParams()\`
+           - Only applies to \`searchParams\`: read them on the client with \`useSearchParams()\`
 
          Learn more: https://nextjs.org/docs/messages/ensure-static-route
              at ClientIO (app/default/mixed-server-client/connection-and-use-io/client.tsx:6:6)

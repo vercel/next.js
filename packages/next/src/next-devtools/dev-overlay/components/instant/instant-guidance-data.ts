@@ -685,19 +685,6 @@ const syncClientCryptoCards: FixCard[] = [
   },
 ]
 
-const staticParamsCard: FixCard = {
-  id: 'provide-static-parameters',
-  title: 'Provide static parameters',
-  group: 'static-params',
-  snippets: [
-    { text: 'function generateStaticParams() {' },
-    { text: "  return [{ slug: 'hello' }]", highlight: true },
-    { text: '}' },
-  ],
-  copyable: true,
-  link: 'https://nextjs.org/docs/messages/ensure-static-route-runtime#provide-static-parameters',
-}
-
 const staticRouteRuntimeCards: FixCard[] = [
   {
     id: 'remove-the-data-access',
@@ -711,7 +698,6 @@ const staticRouteRuntimeCards: FixCard[] = [
     copyable: true,
     link: 'https://nextjs.org/docs/messages/ensure-static-route-runtime#remove-the-data-access',
   },
-  staticParamsCard,
   {
     id: 'read-search-parameters-on-the-client',
     title: 'Read search parameters on the client',
@@ -772,10 +758,6 @@ const staticMetadataRuntimeCards: FixCard[] = [
     copyable: true,
     link: 'https://nextjs.org/docs/messages/ensure-static-metadata-runtime#use-static-metadata',
   },
-  {
-    ...staticParamsCard,
-    link: 'https://nextjs.org/docs/messages/ensure-static-metadata-runtime#provide-static-parameters',
-  },
 ]
 
 const staticMetadataDynamicCards: FixCard[] = [
@@ -823,10 +805,6 @@ const staticViewportRuntimeCards: FixCard[] = [
     ],
     copyable: true,
     link: 'https://nextjs.org/docs/messages/ensure-static-viewport-runtime#use-static-viewport',
-  },
-  {
-    ...staticParamsCard,
-    link: 'https://nextjs.org/docs/messages/ensure-static-viewport-runtime#provide-static-parameters',
   },
 ]
 

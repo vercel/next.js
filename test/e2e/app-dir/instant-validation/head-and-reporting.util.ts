@@ -1438,8 +1438,7 @@ export function registerHeadAndReportingTests(
                Ways to fix this:
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
                  - [remove] Remove the data access
-                 - Specify static route params to prerender with \`generateStaticParams()\` (does not apply to \`cookies()\`, \`headers()\`, \`searchParams\`, \`connection()\`, or uncached data)
-                 - For \`searchParams\` only: read them on the client with \`useSearchParams()\`
+                 - Only applies to \`searchParams\`: read them on the client with \`useSearchParams()\`
 
                Learn more: https://nextjs.org/docs/messages/ensure-static-route
                    at main (<anonymous>)

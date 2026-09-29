@@ -39,16 +39,6 @@ Uncached `fetch` requests, database calls, and `connection()` have different fix
       { text: '}' },
     ]}
   />
-  <FixCard
-    group="static-params"
-    title="Provide static parameters"
-    href="#provide-static-parameters"
-    snippets={[
-      { text: 'function generateStaticParams() {' },
-      { text: "  return [{ slug: 'hello' }]", highlight: true },
-      { text: '}' },
-    ]}
-  />
 </FixCardGrid>
 
 ## Use static viewport
@@ -76,36 +66,6 @@ The viewport is determined during prerendering rather than per request.
 - This fixes viewport settings only. Page content, metadata, and other segments must also satisfy the static requirement.
 - A static export cannot read `cookies()`, `headers()`, `params`, or `searchParams`.
 
-## Provide static parameters
-
-Choose this fix when viewport settings depend on dynamic route [`params`](/docs/app/api-reference/file-conventions/page#params-optional).
-
-### Patterns
-
-Return the parameter values to prerender from [`generateStaticParams()`](/docs/app/api-reference/functions/generate-static-params):
-
-```jsx filename="app/blog/[slug]/page.jsx"
-export function generateStaticParams() {
-  return [{ slug: 'hello' }]
-}
-
-export async function generateViewport({ params }) {
-  const { slug } = await params
-  return { themeColor: slug === 'hello' ? 'black' : 'white' }
-}
-```
-
-Include every dynamic parameter. An empty array does not satisfy the fully static requirement.
-
-### Trade-off
-
-The returned paths are generated at build time. Other values wait for a blocking prerender before Next.js serves their static output.
-
-### Gotchas
-
-- Include every dynamic parameter, including parameters used only by the viewport.
-- This fix applies only to route `params`. It does not make cookies, headers, search parameters, or short-lived caches static.
-
 ## Other options
 
 ### Extend the cache lifetime
@@ -126,26 +86,4 @@ If request-time rendering is intentional for this route, remove `unstable_ensure
 
 ## Related Insights
 
-- [Runtime data during prerendering](/docs/messages/blocking-prerender-runtime)
-- [Uncached data during prerendering](/docs/messages/blocking-prerender-dynamic)
-- [URL data in a Client Component outside of Suspense](/docs/messages/blocking-prerender-client-hook)
-- [Runtime data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-runtime)
-- [Uncached data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-dynamic)
-- [Runtime data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-runtime)
-- [Uncached data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-dynamic)
-- [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client)
-- [`Date.now()` while prerendering](/docs/messages/blocking-prerender-current-time)
-- [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client)
-- [Crypto APIs while prerendering](/docs/messages/blocking-prerender-crypto)
-- [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client)
-- [Dynamic data during prefetching](/docs/messages/instant-link-prefetch-partial)
-- [URL data outside of Suspense](/docs/messages/instant-shell-url-data)
-- [Unrendered segment](/docs/messages/instant-unrendered-segment)
-- [Uncached or runtime data on a route that must be fully static](/docs/messages/ensure-static-route)
-- [Runtime data on a route that must be fully static](/docs/messages/ensure-static-route-runtime)
-- [Uncached data on a route that must be fully static](/docs/messages/ensure-static-route-dynamic)
-- [Uncached or runtime data in `generateMetadata()` on a route that must be fully static](/docs/messages/ensure-static-metadata)
-- [Runtime data in `generateMetadata()` on a route that must be fully static](/docs/messages/ensure-static-metadata-runtime)
-- [Uncached data in `generateMetadata()` on a route that must be fully static](/docs/messages/ensure-static-metadata-dynamic)
-- [Uncached or runtime data in `generateViewport()` on a route that must be fully static](/docs/messages/ensure-static-viewport)
-- [Uncached data in `generateViewport()` on a route that must be fully static](/docs/messages/ensure-static-viewport-dynamic)
+See [Instant Navigation validation errors](/docs/messages/instant-navigation-validation) for the complete reference.

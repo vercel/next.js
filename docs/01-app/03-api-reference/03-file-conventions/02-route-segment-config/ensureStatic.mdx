@@ -94,7 +94,7 @@ Dynamic routes must provide [`generateStaticParams()`](/docs/app/api-reference/f
 
 Parameters returned by `generateStaticParams()` can be read during prerendering. For parameter values that were not prerendered at build time, Next.js waits for the static result to be generated before serving the response.
 
-If `generateStaticParams()` is missing or a result omits a dynamic parameter, Next.js links to the [`generateStaticParams` error guide](/docs/messages/generate-static-params).
+If `generateStaticParams()` is missing or a result omits a dynamic parameter, Next.js links to the [`generateStaticParams` error guide](/docs/messages/generate-static-params#with-unstable_ensurestatic).
 
 #### Client Components
 
@@ -104,7 +104,7 @@ Client hooks such as [`useParams()`](/docs/app/api-reference/functions/use-param
 
 #### How errors are reported
 
-The `'navigation'` level is checked during development and `next build`. The development overlay can distinguish runtime data from uncached data, while build output may use a generic error. For detailed build stack traces and code frames, rerun [`next build --debug-prerender`](/docs/app/guides/building#debug-prerender-errors).
+The `'navigation'` level is checked during development and `next build`. Start with [`next dev`](/docs/app/guides/building#find-blocking-work) to get source-mapped errors that rerun as you edit. If the error only appears during a build, use [`next build --debug-prerender`](/docs/app/guides/building#debug-prerender-errors) for detailed stack traces and code frames. See [Instant Navigation validation errors](/docs/messages/instant-navigation-validation) for the complete error reference.
 
 ### `false`
 

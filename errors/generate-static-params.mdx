@@ -23,7 +23,7 @@ export function generateStaticParams() {
 
 See the [`generateStaticParams` return value documentation](/docs/app/api-reference/functions/generate-static-params#returns) for the expected shape.
 
-## Using `unstable_ensureStatic = 'navigation'`
+## With `unstable_ensureStatic`
 
 A dynamic route that sets or inherits [`unstable_ensureStatic = 'navigation'`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#navigation) must export `generateStaticParams` and return at least one params object. Every object must include a value for each dynamic segment in the route.
 

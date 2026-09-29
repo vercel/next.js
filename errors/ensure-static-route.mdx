@@ -55,16 +55,6 @@ Wrapping the work in Suspense or setting `instant = false` does not relax the fu
     ]}
   />
   <FixCard
-    group="static-params"
-    title="Provide static parameters"
-    href="#provide-static-parameters"
-    snippets={[
-      { text: 'function generateStaticParams() {' },
-      { text: "  return [{ slug: 'hello' }]", highlight: true },
-      { text: '}' },
-    ]}
-  />
-  <FixCard
     group="client"
     title="Read search parameters on the client"
     href="#read-search-parameters-on-the-client"
@@ -129,29 +119,6 @@ The route no longer varies based on the removed data source.
 - Remove the access itself, not only the JSX that displays its result.
 - Other data accesses in layouts, metadata, and viewport code must also satisfy the static requirement.
 
-## Provide static parameters
-
-Choose this fix only when the stack trace points to dynamic route `params`.
-
-### Patterns
-
-Return every parameter value that the route should prerender:
-
-```jsx filename="app/blog/[slug]/page.jsx"
-export function generateStaticParams() {
-  return [{ slug: 'hello' }]
-}
-```
-
-### Trade-off
-
-The returned paths are generated at build time. Other values wait for a blocking prerender before Next.js serves their static output.
-
-### Gotchas
-
-- This fix does not apply to `cookies()`, `headers()`, `searchParams`, `connection()`, uncached data, or short-lived caches.
-- Include every dynamic parameter. An empty array does not satisfy the static requirement.
-
 ## Read search parameters on the client
 
 Choose this fix only when browser UI needs the query string.
@@ -193,26 +160,4 @@ If request-time rendering is intentional for this route, remove `unstable_ensure
 
 ## Related Insights
 
-- [Runtime data during prerendering](/docs/messages/blocking-prerender-runtime)
-- [Uncached data during prerendering](/docs/messages/blocking-prerender-dynamic)
-- [URL data in a Client Component outside of Suspense](/docs/messages/blocking-prerender-client-hook)
-- [Runtime data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-runtime)
-- [Uncached data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-dynamic)
-- [Runtime data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-runtime)
-- [Uncached data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-dynamic)
-- [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client)
-- [`Date.now()` while prerendering](/docs/messages/blocking-prerender-current-time)
-- [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client)
-- [Crypto APIs while prerendering](/docs/messages/blocking-prerender-crypto)
-- [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client)
-- [Dynamic data during prefetching](/docs/messages/instant-link-prefetch-partial)
-- [URL data outside of Suspense](/docs/messages/instant-shell-url-data)
-- [Unrendered segment](/docs/messages/instant-unrendered-segment)
-- [Runtime data on a route that must be fully static](/docs/messages/ensure-static-route-runtime)
-- [Uncached data on a route that must be fully static](/docs/messages/ensure-static-route-dynamic)
-- [Uncached or runtime data in `generateMetadata()` on a route that must be fully static](/docs/messages/ensure-static-metadata)
-- [Runtime data in `generateMetadata()` on a route that must be fully static](/docs/messages/ensure-static-metadata-runtime)
-- [Uncached data in `generateMetadata()` on a route that must be fully static](/docs/messages/ensure-static-metadata-dynamic)
-- [Uncached or runtime data in `generateViewport()` on a route that must be fully static](/docs/messages/ensure-static-viewport)
-- [Runtime data in `generateViewport()` on a route that must be fully static](/docs/messages/ensure-static-viewport-runtime)
-- [Uncached data in `generateViewport()` on a route that must be fully static](/docs/messages/ensure-static-viewport-dynamic)
+See [Instant Navigation validation errors](/docs/messages/instant-navigation-validation) for the complete reference.
