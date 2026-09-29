@@ -1371,18 +1371,18 @@ Session and user data often appear in shell UI (header, nav) that repeats across
 
 If only part of the shell needs session data (for example, a user menu), move the `await` into a nested Server Component and wrap it in `<Suspense>` so the rest of the page streams first. See [Push dynamic access down](/docs/app/guides/streaming#push-dynamic-access-down) for the pattern.
 
-If a session check calls [`redirect()`](/docs/app/api-reference/functions/redirect) after streaming begins, the browser may display the static shell or Suspense fallback before it navigates. This is expected because the response headers have already been sent. Next.js sends the redirect instruction in the streamed response instead of returning an HTTP redirect.
+##### Redirects during streaming
 
-To redirect before any route UI renders, perform an optimistic check before rendering:
+If a session check calls [`redirect()`](/docs/app/api-reference/functions/redirect) after streaming begins, Next.js adds a redirect instruction to the streamed response. The static shell or Suspense fallback may stay visible until the browser navigates.
 
-- Use [`redirects` in `next.config.js`](/docs/app/api-reference/config/next-config-js/redirects) when the decision can be made from a pathname, header, query parameter, or cookie value. Config redirects run before Proxy and route rendering.
-- Use [Proxy](/docs/app/api-reference/file-conventions/proxy) when the decision requires application logic, such as decrypting a cookie or constructing a destination from the request URL.
+To redirect before any route UI renders, check the request earlier:
 
-Keep pre-render checks fast. Proxy also runs for matching prefetch requests, so avoid database or API requests when possible. Pre-render checks should not replace secure checks in your [Data Access Layer](#creating-a-data-access-layer-dal), Server Actions, and Route Handlers.
+- Use [`redirects` in `next.config.js`](/docs/app/api-reference/config/next-config-js/redirects) when you can make the decision from the pathname, headers, query parameters, or cookies. These redirects run before Proxy and route rendering.
+- Use [Proxy](/docs/app/api-reference/file-conventions/proxy) when the redirect requires application logic, such as decrypting a cookie or including the request URL in the destination. See [Optimistic checks with Proxy](#optimistic-checks-with-proxy-optional).
+
+These early checks prevent the route from appearing before the redirect. Continue to verify authorization in your [Data Access Layer](#creating-a-data-access-layer-dal), Server Actions, and Route Handlers.
 
 Client Components can't import the DAL. Run `verifySession()`, `getUser()`, or similar in a parent Server Component, then pass data to client children as props or through a context provider. For that pattern, see [Using React's `use` within a Context Provider](/docs/app/guides/single-page-applications#using-reacts-use-within-a-context-provider), and use React's [`taintUniqueValue`](https://react.dev/reference/react/experimental_taintUniqueValue) API to keep sensitive session fields from reaching the client.
-
-Avoid sending an expected `401` or `403` authorization failure through a server promise for a Client Component to classify. In production, errors forwarded from Server Components have their details removed. Handle expected authorization outcomes on the server with `redirect()` or, when the experimental [`authInterrupts`](/docs/app/api-reference/config/next-config-js/authInterrupts) option is enabled, [`unauthorized()`](/docs/app/api-reference/functions/unauthorized) or [`forbidden()`](/docs/app/api-reference/functions/forbidden). You can also return a typed result that contains no sensitive information.
 
 #### Auth checks in page components
 
