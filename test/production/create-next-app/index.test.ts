@@ -28,7 +28,18 @@ describe('create-next-app', () => {
       configFile: 'next.config.ts',
       enabled: false,
     },
-    { flags: ['--ts', '--api'], configFile: 'next.config.ts', enabled: false },
+    { flags: ['--ts', '--api'], configFile: 'next.config.ts', enabled: true },
+    { flags: ['--js', '--api'], configFile: 'next.config.mjs', enabled: true },
+    {
+      flags: ['--ts', '--api', '--no-cache-components'],
+      configFile: 'next.config.ts',
+      enabled: false,
+    },
+    {
+      flags: ['--js', '--api', '--no-cache-components'],
+      configFile: 'next.config.mjs',
+      enabled: false,
+    },
   ])(
     'should set Cache Components to $enabled with $flags',
     async ({ flags, configFile, enabled }) => {
