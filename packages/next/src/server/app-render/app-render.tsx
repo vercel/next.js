@@ -213,7 +213,7 @@ import {
 } from './dynamic-rendering'
 import { logBuildDebugHint } from './blocking-route-messages'
 import {
-  getClientComponentLoaderMetrics,
+  ClientComponentLoadTracker,
   wrapClientComponentLoader,
 } from '../client-component-renderer-logger'
 import { isNodeNextRequest, isNodeNextResponse } from '../base-http/helpers'
@@ -2590,7 +2590,7 @@ export type BinaryStreamOf<T> = AnyStream
 
 /**
  * Extracted to a separate function to prevent V8 from retaining the entire
- * `prepareAppPageRender` closure scope through globalThis.__next_require__.
+ * the render initialization scope through globalThis.__next_require__.
  * V8 shares a single Context object per scope for all closures; by creating
  * these closures in their own function scope, the globalThis references only
  * retain `instrumented` and `cacheComponents`, not request-specific data like
@@ -2598,10 +2598,9 @@ export type BinaryStreamOf<T> = AnyStream
  */
 function installGlobalModuleLoadingHandlers(
   ComponentMod: AppPageModule,
-  cacheComponents: boolean,
-  isTracingEnabled: boolean
+  cacheComponents: boolean
 ) {
-  const instrumented = wrapClientComponentLoader(ComponentMod, isTracingEnabled)
+  const instrumented = wrapClientComponentLoader(ComponentMod)
 
   // When we are prerendering if there is a cacheSignal for tracking
   // cache reads we track calls to `loadChunk` and `require`. This allows us
@@ -2686,6 +2685,55 @@ const generatePrerenderRequestId: GenerateRequestId = async (req) => {
   ).toString('hex')
 }
 
+function initializeClientComponentLoadTracking(
+  renderOpts: RenderOpts,
+  workStore: WorkStore
+): ClientComponentLoadTracker | undefined {
+  if (!renderOpts.ComponentMod.__next_app__) return undefined
+
+  // Capture the request's span before the HTML render creates its own span.
+  const parentSpan = getTracer().getActiveScopeSpan()
+  const isTracingEnabled = parentSpan?.isRecording() ?? false
+
+  let tracker: ClientComponentLoadTracker | undefined
+  if (
+    'performance' in globalThis &&
+    (process.env.NEXT_OTEL_PERFORMANCE_PREFIX || isTracingEnabled)
+  ) {
+    tracker = new ClientComponentLoadTracker((metrics) => {
+      if (
+        process.env.NEXT_RUNTIME !== 'edge' &&
+        isTracingEnabled &&
+        metrics &&
+        metrics.clientComponentLoadEnd >= metrics.clientComponentLoadStart
+      ) {
+        getTracer()
+          .startSpan(NextNodeServerSpan.clientComponentLoading, {
+            parentSpan,
+            startTime: metrics.clientComponentLoadStart,
+            attributes: {
+              'next.clientComponentLoadCount': metrics.clientComponentLoadCount,
+              'next.span_type': NextNodeServerSpan.clientComponentLoading,
+            },
+          })
+          .end(metrics.clientComponentLoadEnd)
+      }
+    })
+    workStore.clientComponentLoadTracker = tracker
+  }
+  return tracker
+}
+
+function finishClientComponentLoadTrackingOnReady(
+  tracker: ClientComponentLoadTracker | undefined,
+  allReady: Promise<unknown>
+) {
+  if (tracker) {
+    const finish = () => tracker.finish()
+    void allReady.then(finish, finish)
+  }
+}
+
 async function prepareAppPageRender(
   req: BaseNextRequest,
   res: BaseNextResponse,
@@ -2723,18 +2771,6 @@ async function prepareAppPageRender(
     setIsrStatus,
   } = renderOpts
 
-  // We need to expose the bundled `require` API globally for
-  // react-server-dom-webpack. This is a hack until we find a better way.
-  if (ComponentMod.__next_app__) {
-    const isTracingEnabled =
-      getTracer().getActiveScopeSpan()?.isRecording() ?? false
-    installGlobalModuleLoadingHandlers(
-      ComponentMod,
-      cacheComponents,
-      isTracingEnabled
-    )
-  }
-
   if (process.env.__NEXT_DEV_SERVER && setIsrStatus && !cacheComponents) {
     // Reset the ISR status at start of request.
     const { pathname } = new URL(req.url || '/', 'http://n')
@@ -2755,27 +2791,6 @@ async function prepareAppPageRender(
       // We stop tracking fetch metrics when the response closes, since we
       // report them at that time.
       workStore.shouldTrackFetchMetrics = false
-    })
-
-    req.originalRequest.on('end', () => {
-      if ('performance' in globalThis) {
-        const metrics = getClientComponentLoaderMetrics({ reset: true })
-        if (
-          metrics &&
-          metrics.clientComponentLoadEnd >= metrics.clientComponentLoadStart
-        ) {
-          getTracer()
-            .startSpan(NextNodeServerSpan.clientComponentLoading, {
-              startTime: metrics.clientComponentLoadStart,
-              attributes: {
-                'next.clientComponentLoadCount':
-                  metrics.clientComponentLoadCount,
-                'next.span_type': NextNodeServerSpan.clientComponentLoading,
-              },
-            })
-            .end(metrics.clientComponentLoadEnd)
-        }
-      }
     })
   }
 
@@ -2914,14 +2929,21 @@ async function prerenderAppPage({
     prerenderToStream
   )
 
-  const response = await prerenderToStreamWithTracing(
-    req,
-    res,
-    ctx,
-    metadata,
-    loaderTree,
-    fallbackRouteParams
-  )
+  const tracker = initializeClientComponentLoadTracking(renderOpts, workStore)
+  metadata.clientComponentLoadTracker = tracker
+  let response: PrerenderToStreamResult
+  try {
+    response = await prerenderToStreamWithTracing(
+      req,
+      res,
+      ctx,
+      metadata,
+      loaderTree,
+      fallbackRouteParams
+    )
+  } finally {
+    tracker?.finish()
+  }
 
   // If we're debugging partial prerendering, print all the dynamic API accesses
   // that occurred during the render.
@@ -3145,7 +3167,12 @@ async function renderAppPage(
         )
       } else {
         // MARK: RSC dynamic
-        return generateDynamicFlightRenderResult(req, ctx, requestStore)
+        return generateDynamicFlightRenderResult(
+          req,
+          ctx,
+          requestStore,
+          undefined
+        )
       }
     }
   }
@@ -3171,23 +3198,35 @@ async function renderAppPage(
         const notFoundLoaderTree = createNotFoundLoaderTree(loaderTree)
         res.statusCode = 404
         metadata.statusCode = 404
-        const stream = await renderToStream(
-          requestStore,
-          req,
-          res,
-          ctx,
-          notFoundLoaderTree,
-          formState,
-          postponedState,
-          metadata,
-          undefined, // Prevent restartable-render behavior in dev + Cache Components mode
-          stagedFallbackParams
+        const tracker = initializeClientComponentLoadTracking(
+          renderOpts,
+          workStore
         )
+        metadata.clientComponentLoadTracker = tracker
+        try {
+          const stream = await renderToStream(
+            requestStore,
+            req,
+            res,
+            ctx,
+            notFoundLoaderTree,
+            formState,
+            postponedState,
+            metadata,
+            undefined, // Prevent restartable-render behavior in dev + Cache Components mode
+            stagedFallbackParams,
+            tracker
+          )
 
-        return new RenderResult(stream, {
-          metadata,
-          contentType: HTML_CONTENT_TYPE_HEADER,
-        })
+          return new RenderResult(stream, {
+            metadata,
+            contentType: HTML_CONTENT_TYPE_HEADER,
+          })
+        } catch (renderError) {
+          // Failed setup may never reach the SSR readiness callback.
+          tracker?.finish()
+          throw renderError
+        }
       } else if (actionRequestResult.type === 'done') {
         if (actionRequestResult.result) {
           actionRequestResult.result.assignMetadata(metadata)
@@ -3206,66 +3245,76 @@ async function renderAppPage(
     contentType: HTML_CONTENT_TYPE_HEADER,
   }
 
-  const stream = await renderToStream(
-    // NOTE: in Cache Components (dev), if the render is restarted, it will use a different requestStore
-    // than the one that we're passing in here.
-    requestStore,
-    req,
-    res,
-    ctx,
-    loaderTree,
-    formState,
-    postponedState,
-    metadata,
-    // If we're rendering HTML after an action, we don't want restartable-render behavior
-    // because the result should be dynamic, like it is in prod.
-    // Also, the request store might have been mutated by the action (e.g. enabling draftMode)
-    // and we currently we don't copy changes over when creating a new store,
-    // so the restarted render wouldn't be correct.
-    didExecuteServerAction ? undefined : createRequestStore,
-    stagedFallbackParams
-  )
-
-  // Forward an invalid-dynamic-usage error recorded by `'use cache'` only
-  // when userland caught it (try/catch around the cache call). If userland
-  // didn't catch, the rejection propagated into the React render, and React's
-  // `serverComponentsErrorHandler` already stamped a digest on the error and
-  // emitted it as a Flight error chunk — surfacing it again here would
-  // duplicate the entry in the dev overlay.
-  //
-  // The cacheComponents paths forward this themselves via
-  // `runValidationInDev` and the validation-skipped fallback in
-  // `generateDynamicFlightRenderResultWithStagesInDev`. Here we cover the
-  // non-cacheComponents dev path where neither runs.
-  if (
-    process.env.__NEXT_DEV_SERVER &&
-    !cacheComponents &&
-    workStore.invalidDynamicUsageError &&
-    !(workStore.invalidDynamicUsageError as { digest?: unknown }).digest
-  ) {
-    void logMessagesAndSendErrorsToBrowser(
-      [workStore.invalidDynamicUsageError],
-      ctx
+  const tracker = initializeClientComponentLoadTracking(renderOpts, workStore)
+  metadata.clientComponentLoadTracker = tracker
+  try {
+    const stream = await renderToStream(
+      // NOTE: in Cache Components (dev), if the render is restarted, it will use a different requestStore
+      // than the one that we're passing in here.
+      requestStore,
+      req,
+      res,
+      ctx,
+      loaderTree,
+      formState,
+      postponedState,
+      metadata,
+      // If we're rendering HTML after an action, we don't want restartable-render behavior
+      // because the result should be dynamic, like it is in prod.
+      // Also, the request store might have been mutated by the action (e.g. enabling draftMode)
+      // and we currently we don't copy changes over when creating a new store,
+      // so the restarted render wouldn't be correct.
+      didExecuteServerAction ? undefined : createRequestStore,
+      stagedFallbackParams,
+      tracker
     )
-  }
 
-  // If we have pending revalidates, wait until they are all resolved.
-  const maybeRevalidatesPromise = executeRevalidates(workStore)
-  if (maybeRevalidatesPromise !== false) {
-    const revalidatesPromise = maybeRevalidatesPromise.finally(() => {
-      if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
-        console.log('pending revalidates promise finished for:', url.href)
-      }
-    })
-    if (renderOpts.waitUntil) {
-      renderOpts.waitUntil(revalidatesPromise)
-    } else {
-      options.waitUntil = revalidatesPromise
+    // Forward an invalid-dynamic-usage error recorded by `'use cache'` only
+    // when userland caught it (try/catch around the cache call). If userland
+    // didn't catch, the rejection propagated into the React render, and React's
+    // `serverComponentsErrorHandler` already stamped a digest on the error and
+    // emitted it as a Flight error chunk — surfacing it again here would
+    // duplicate the entry in the dev overlay.
+    //
+    // The cacheComponents paths forward this themselves via
+    // `runValidationInDev` and the validation-skipped fallback in
+    // `generateDynamicFlightRenderResultWithStagesInDev`. Here we cover the
+    // non-cacheComponents dev path where neither runs.
+    if (
+      process.env.__NEXT_DEV_SERVER &&
+      !cacheComponents &&
+      workStore.invalidDynamicUsageError &&
+      !(workStore.invalidDynamicUsageError as { digest?: unknown }).digest
+    ) {
+      void logMessagesAndSendErrorsToBrowser(
+        [workStore.invalidDynamicUsageError],
+        ctx
+      )
     }
-  }
 
-  // Create the new render result for the response.
-  return new RenderResult(stream, options)
+    // If we have pending revalidates, wait until they are all resolved.
+    const maybeRevalidatesPromise = executeRevalidates(workStore)
+    if (maybeRevalidatesPromise !== false) {
+      const revalidatesPromise = maybeRevalidatesPromise.finally(() => {
+        if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
+          console.log('pending revalidates promise finished for:', url.href)
+        }
+      })
+      if (renderOpts.waitUntil) {
+        renderOpts.waitUntil(revalidatesPromise)
+      } else {
+        options.waitUntil = revalidatesPromise
+      }
+    }
+
+    // Create the new render result for the response.
+    return new RenderResult(stream, options)
+  } catch (renderError) {
+    // Returning a stream may precede SSR readiness, which finishes success.
+    // Only failures finish here; a finally would seal successful renders early.
+    tracker?.finish()
+    throw renderError
+  }
 }
 
 async function renderToHTMLOrFlightImpl(
@@ -3284,6 +3333,12 @@ async function renderToHTMLOrFlightImpl(
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   routeMatch: RouteMatch
 ) {
+  if (renderOpts.ComponentMod.__next_app__) {
+    installGlobalModuleLoadingHandlers(
+      renderOpts.ComponentMod,
+      renderOpts.cacheComponents
+    )
+  }
   const prepared = await prepareAppPageRender(
     req,
     res,
@@ -3325,6 +3380,12 @@ async function prerenderToHTMLOrFlightImpl(
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   routeMatch: RouteMatch
 ) {
+  if (renderOpts.ComponentMod.__next_app__) {
+    installGlobalModuleLoadingHandlers(
+      renderOpts.ComponentMod,
+      renderOpts.cacheComponents
+    )
+  }
   const isRoutePPREnabled = renderOpts.experimental.isRoutePPREnabled === true
   const prepared = await prepareAppPageRender(
     req,
@@ -3611,7 +3672,8 @@ async function renderToStream(
   postponedState: PostponedState | null,
   metadata: AppPageRenderResultMetadata,
   createRequestStore: (() => RequestStore) | undefined,
-  stagedFallbackParams: OpaqueFallbackRouteParams | null
+  stagedFallbackParams: OpaqueFallbackRouteParams | null,
+  tracker: ClientComponentLoadTracker | undefined
 ): Promise<AnyStream> {
   /* eslint-disable @next/internal/no-ambiguous-jsx -- React Client */
   // MARK: renderToStream setup
@@ -4188,6 +4250,7 @@ async function renderToStream(
 
             // End the span since there's no async rendering in this path
             if (renderSpan.isRecording()) renderSpan.end()
+            tracker?.finish()
             return chainStreams(
               inlinedDataStream,
               createDocumentClosingStream()
@@ -4223,7 +4286,11 @@ async function renderToStream(
                 resumeToFizzStream,
                 resumeAppElement,
                 postponed,
-                { onError: htmlRendererErrorHandler, nonce }
+                {
+                  onError: htmlRendererErrorHandler,
+                  onAllReady: tracker ? () => tracker.finish() : undefined,
+                  nonce,
+                }
               )
 
             // End the render span only after React completed rendering (including anything inside Suspense boundaries)
@@ -4270,6 +4337,7 @@ async function renderToStream(
 
         const fizzOptions = {
           onError: htmlRendererErrorHandler,
+          onAllReady: tracker ? () => tracker.finish() : undefined,
           nonce,
           onHeaders: (headers: { [header: string]: string }) => {
             for (const key in headers) {
@@ -4329,6 +4397,7 @@ async function renderToStream(
 
             // End the span since there's no async rendering in this path
             if (renderSpan.isRecording()) renderSpan.end()
+            tracker?.finish()
             return chainStreams(
               inlinedDataStream,
               createDocumentClosingStream()
@@ -4371,6 +4440,7 @@ async function renderToStream(
             allReady.finally(() => {
               if (renderSpan.isRecording()) renderSpan.end()
             })
+            finishClientComponentLoadTrackingOnReady(tracker, allReady)
 
             return await continueDynamicHTMLResumeWeb(htmlStream, {
               delayDataUntilFirstHtmlChunk:
@@ -4433,6 +4503,7 @@ async function renderToStream(
         allReady.finally(() => {
           if (renderSpan.isRecording()) renderSpan.end()
         })
+        finishClientComponentLoadTrackingOnReady(tracker, allReady)
 
         return await continueFizzStream(htmlStream, {
           inlinedDataStream: createWebInlinedDataStream(
@@ -4587,6 +4658,7 @@ async function renderToStream(
                 bootstrapScriptContent: errorBootstrapScriptContent,
                 bootstrapScripts: [errorBootstrapScript],
                 formState,
+                onAllReady: tracker ? () => tracker.finish() : undefined,
               },
               { waitForAllReady }
             )
@@ -4689,6 +4761,7 @@ async function renderToStream(
           errorAllReady.finally(() => {
             if (renderSpan.isRecording()) renderSpan.end()
           })
+          finishClientComponentLoadTrackingOnReady(tracker, errorAllReady)
 
           return await continueFizzStream(errorHtmlStream, {
             inlinedDataStream: createWebInlinedDataStream(
@@ -6814,6 +6887,7 @@ function buildDevValidationWorkStore(
     refreshTagsByCacheKind: new Map(),
     runInCleanSnapshot: createSnapshot(),
     shouldTrackFetchMetrics: false,
+    clientComponentLoadTracker: undefined,
     reactServerErrorsByDigest: new Map(),
     afterContext: noopAfterContext,
     // Dev validation only ever runs under Cache Components.
@@ -6861,7 +6935,7 @@ export async function runValidationInDevFromSnapshot(
   // so `react-server-dom-*` can resolve client references during the validation
   // prerenders, exactly as the main render does after loading its module.
   if (componentMod.__next_app__) {
-    installGlobalModuleLoadingHandlers(componentMod, true, false)
+    installGlobalModuleLoadingHandlers(componentMod, true)
   }
 
   // `requestFallbackRouteParams` reproduces `ctx.getDynamicParamFromSegment`
@@ -8626,6 +8700,7 @@ async function validateInstantConfigInBuildWithSample(
     refreshTagsByCacheKind: new Map(),
     runInCleanSnapshot: outerWorkStore.runInCleanSnapshot,
     shouldTrackFetchMetrics: false,
+    clientComponentLoadTracker: undefined,
     reactServerErrorsByDigest: new Map(),
   }
 
