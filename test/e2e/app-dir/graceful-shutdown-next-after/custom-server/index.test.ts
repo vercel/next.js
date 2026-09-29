@@ -2,21 +2,18 @@ import { isNextDev, nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 describe('after during server shutdown - custom server', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     startCommand: 'node server.mjs',
     serverReadyPattern: /Custom server started/,
     forcedPort: 'random',
     skipStart: true,
-    skipDeployment: true, // the tests use cli logs and a custom server
+    // Was excluded from deploy: the tests use cli logs and a custom server
     env: {
       NODE_ENV: isNextDev ? 'development' : 'production',
       DEBUG: '1',
     },
   })
-  if (skipped) {
-    return
-  }
 
   beforeEach(async () => {
     await next.start()

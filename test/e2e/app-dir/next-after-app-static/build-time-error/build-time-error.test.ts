@@ -5,13 +5,11 @@ import { isNextDev, nextTestSetup } from 'e2e-utils'
 const _describe = isNextDev ? describe.skip : describe
 
 _describe('after() in static pages - thrown errors', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true, // can't access build errors in deploy tests
+    // Was excluded from deploy: can't access build errors in deploy tests
   })
-
-  if (skipped) return
 
   it('fails the build if an error is thrown inside after', async () => {
     const buildResult = await next.build()

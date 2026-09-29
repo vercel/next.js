@@ -13,7 +13,6 @@ describe('dedupe-rsc-error-log', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     // Runtime logs aren't available when deployed
-    skipDeployment: true,
   })
 
   it('should only log RSC error once for nodejs runtime', async () => {

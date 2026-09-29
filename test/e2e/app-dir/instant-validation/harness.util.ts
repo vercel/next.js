@@ -48,16 +48,13 @@ export function runInstantValidationTests(
   registerTests: (ctx: InstantValidationCaseContext) => void
 ) {
   describe('instant validation', () => {
-    const { next, skipped, isNextDev, isNextStart, isTurbopack } =
-      nextTestSetup({
-        files: __dirname,
-        skipStart: true, // for `prerender`
-        skipDeployment: true,
-        env: {
-          NEXT_TEST_LOG_VALIDATION: '1',
-        },
-      })
-    if (skipped) return
+    const { next, isNextDev, isNextStart, isTurbopack } = nextTestSetup({
+      files: __dirname,
+      skipStart: true, // for `prerender`
+      env: {
+        NEXT_TEST_LOG_VALIDATION: '1',
+      },
+    })
 
     if (isNextStart && !isTurbopack) {
       // TODO(instant-validation-build): snapshot tests for webpack

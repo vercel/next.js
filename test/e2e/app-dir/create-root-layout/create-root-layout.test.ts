@@ -227,16 +227,13 @@ import stripAnsi from 'strip-ansi'
 ;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
   'app-dir missing root layout',
   () => {
-    const { next, isNextDev, skipped } = nextTestSetup({
+    const { next, isNextDev } = nextTestSetup({
       files: {
         app: new FileRef(path.join(__dirname, 'app')),
         'next.config.js': new FileRef(path.join(__dirname, 'next.config.js')),
       },
-      skipDeployment: true,
       skipStart: true,
     })
-
-    if (skipped) return
 
     it('reports a compiler error without modifying the app', async () => {
       if (isNextDev) {

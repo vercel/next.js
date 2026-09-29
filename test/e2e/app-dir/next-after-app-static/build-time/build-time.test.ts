@@ -7,13 +7,11 @@ import { setTimeout } from 'timers/promises'
 const _describe = isNextDev ? describe.skip : describe
 
 _describe('after() in static pages', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true, // reading CLI logs to observe after
+    // Was excluded from deploy: reading CLI logs to observe after
     skipStart: true,
   })
-
-  if (skipped) return
 
   let currentCliOutputIndex = 0
   beforeEach(() => {

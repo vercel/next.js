@@ -2,14 +2,9 @@ import { retry } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
 describe('app-dir - fetch warnings', () => {
-  const { next, skipped, isNextDev } = nextTestSetup({
-    skipDeployment: true,
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
   })
-
-  if (skipped) {
-    return
-  }
 
   beforeAll(async () => {
     // we don't need verbose logging (enabled by default in this Next app) for these tests to work

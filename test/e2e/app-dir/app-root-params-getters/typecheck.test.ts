@@ -11,14 +11,9 @@ import { retry } from 'next-test-utils'
 describe.each([{ fixture: 'simple' }, { fixture: 'multiple-roots' }])(
   'app-root-param-getters - typecheck ($fixture)',
   ({ fixture }) => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: join(__dirname, 'fixtures', fixture),
-      skipDeployment: true,
     })
-
-    if (skipped) {
-      return
-    }
 
     it('should pass typecheck with generated root-params types', async () => {
       await retry(async () => {

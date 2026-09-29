@@ -4,7 +4,6 @@ import { getClientReferenceManifest } from 'next-test-utils'
 describe('client-reference-chunking', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   it('should use the same chunks for client references across routes', async () => {

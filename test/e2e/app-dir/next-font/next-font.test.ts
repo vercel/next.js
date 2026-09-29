@@ -19,11 +19,7 @@ const getAttrs = (elems: Cheerio) =>
 
 describe('app dir - next/font', () => {
   describe('app dir - next-font', () => {
-    const {
-      next,
-      isNextDev: isDev,
-      skipped,
-    } = nextTestSetup({
+    const { next, isNextDev: isDev } = nextTestSetup({
       files: {
         app: new FileRef(join(__dirname, 'app')),
         fonts: new FileRef(join(__dirname, 'fonts')),
@@ -33,12 +29,7 @@ describe('app dir - next/font', () => {
       dependencies: {
         '@next/font': 'workspace:*',
       },
-      skipDeployment: true,
     })
-
-    if (skipped) {
-      return
-    }
 
     describe('import values', () => {
       it('should have correct values at /', async () => {

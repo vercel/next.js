@@ -3,7 +3,7 @@ import { FileRef, nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 describe('multiple-lockfiles', () => {
-  const { next, skipped, isTurbopack } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: {
       app: new FileRef(join(__dirname, 'app')),
       // Write a package-lock.json file to the parent directory to simulate
@@ -21,15 +21,10 @@ describe('multiple-lockfiles', () => {
     },
     // So that ../package-lock.json doesn't leave the isolated testDir
     subDir: 'test',
-    skipDeployment: true,
     // The workspace file would be treated as the root and suppress the
     // warning.
     deleteWorkspaceFile: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should have multiple lockfiles warnings', async () => {
     await retry(async () => {

@@ -4,13 +4,11 @@ import { retry } from 'next-test-utils'
 import { REQUEST_API_NAMES } from './app/request-apis-in-promise/common'
 
 describe('nextjs APIs in after()', () => {
-  const { next, skipped, isNextDev } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true, // reading runtime logs is not supported in deploy tests
+    // Was excluded from deploy: reading runtime logs is not supported in deploy tests
   })
-
-  if (skipped) return
 
   let currentCliOutputIndex = 0
 

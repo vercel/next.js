@@ -3,14 +3,9 @@ import { retry } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
 describe('app-dir - errors', () => {
-  const { next, isNextDev, isNextStart, skipped } = nextTestSetup({
+  const { next, isNextDev, isNextStart } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   describe('error component', () => {
     it('should trigger error component when an error happens during rendering', async () => {

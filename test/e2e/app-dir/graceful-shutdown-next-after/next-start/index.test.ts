@@ -2,14 +2,11 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 describe('after during server shutdown - next start', () => {
-  const { next, skipped, isNextDev } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true, // the tests use cli logs
+    // Was excluded from deploy: the tests use cli logs
     skipStart: true,
   })
-  if (skipped) {
-    return
-  }
 
   beforeEach(async () => {
     await next.start()
