@@ -14,6 +14,14 @@ export default function Home() {
           </Link>
         </li>
         <li>
+          <Link
+            href="/partially-static-without-runtime-prefetch"
+            prefetch={false}
+          >
+            Go to partially static page without a runtime prefetch
+          </Link>
+        </li>
+        <li>
           <Link href="/fully-static" prefetch={false}>
             Go to fully static page
           </Link>

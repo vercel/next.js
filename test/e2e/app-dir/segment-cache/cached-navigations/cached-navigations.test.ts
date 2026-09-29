@@ -1051,6 +1051,54 @@ describe('cached navigations', () => {
     )
   })
 
+  it('does not serve a partially static page from the cache after an initial HTML load without a runtime prefetch', async () => {
+    let page: Playwright.Page
+    // Start directly at the page, so it's a full HTML load. The page is a
+    // partial prerender and doesn't use Partial Prefetching, so the initial
+    // payload has dynamic content but no embedded runtime prefetch.
+    const browser = await next.browser(
+      '/partially-static-without-runtime-prefetch',
+      {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      }
+    )
+    const act = createRouterAct(page)
+
+    expect(await browser.elementById('cached-content').text()).toBe(
+      'Cached content'
+    )
+    await retry(async () => {
+      expect(await browser.elementById('connection-boundary').text()).toContain(
+        'Dynamic content'
+      )
+    })
+
+    await act(
+      async () => {
+        await browser.elementByCss('a[href="/"]').click()
+      },
+      { includes: 'Home' }
+    )
+    expect(await browser.elementByCss('h1').text()).toBe('Home')
+
+    // Navigate back. The initial payload isn't a complete prerender, so it
+    // must not be served from the cache as one. The navigation has to fetch
+    // the dynamic content again.
+    await act(
+      async () => {
+        await browser
+          .elementByCss('a[href="/partially-static-without-runtime-prefetch"]')
+          .click()
+      },
+      { includes: 'Dynamic content' }
+    )
+    expect(await browser.elementById('connection-boundary').text()).toContain(
+      'Dynamic content'
+    )
+  })
+
   it('reuses cached page segment across different fallback params after navigation', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
