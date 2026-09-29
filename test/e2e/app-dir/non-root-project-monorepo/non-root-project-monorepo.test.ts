@@ -35,7 +35,12 @@ describe('non-root-project-monorepo', () => {
     if (isNextDeploy) {
       return new URL(file, 'file:///vercel/path0/apps/web/').href
     }
-    const filePath = path.join(realpathSync(next.testDir), 'apps/web', file)
+    // Turbopack expands Windows 8.3 names (e.g. RUNNER~1) in source paths.
+    const testDir =
+      process.platform === 'win32' && isTurbopack
+        ? realpathSync.native(next.testDir)
+        : realpathSync(next.testDir)
+    const filePath = path.join(testDir, 'apps/web', file)
     return pathToFileURL(filePath).href
   }
 
