@@ -1,13 +1,18 @@
+import { createLogger } from '../log'
 import { cookies, headers } from 'next/headers'
 import { after, connection } from 'next/server'
 
-export function testRequestAPIs(/** @type {string} */ route) {
+export function testRequestAPIs(
+  /** @type {string} */ route,
+  /** @type {string | undefined} */ requestId
+) {
+  const log = createLogger(requestId, 6)
   after(async () => {
     try {
       await headers()
-      console.log(`[${route}] headers(): ok`)
+      log(`[${route}] headers(): ok`)
     } catch (err) {
-      console.error(`[${route}] headers(): error:`, err)
+      log(`[${route}] headers(): error:`, err)
     }
   })
 
@@ -15,9 +20,9 @@ export function testRequestAPIs(/** @type {string} */ route) {
     after(async () => {
       try {
         await headers()
-        console.log(`[${route}] nested headers(): ok`)
+        log(`[${route}] nested headers(): ok`)
       } catch (err) {
-        console.error(`[${route}] nested headers(): error:`, err)
+        log(`[${route}] nested headers(): error:`, err)
       }
     })
   )
@@ -25,9 +30,9 @@ export function testRequestAPIs(/** @type {string} */ route) {
   after(async () => {
     try {
       await cookies()
-      console.log(`[${route}] cookies(): ok`)
+      log(`[${route}] cookies(): ok`)
     } catch (err) {
-      console.error(`[${route}] cookies(): error:`, err)
+      log(`[${route}] cookies(): error:`, err)
     }
   })
 
@@ -35,9 +40,9 @@ export function testRequestAPIs(/** @type {string} */ route) {
     after(async () => {
       try {
         await cookies()
-        console.log(`[${route}] nested cookies(): ok`)
+        log(`[${route}] nested cookies(): ok`)
       } catch (err) {
-        console.error(`[${route}] nested cookies(): error:`, err)
+        log(`[${route}] nested cookies(): error:`, err)
       }
     })
   )
@@ -45,9 +50,9 @@ export function testRequestAPIs(/** @type {string} */ route) {
   after(async () => {
     try {
       await connection()
-      console.log(`[${route}] connection(): ok`)
+      log(`[${route}] connection(): ok`)
     } catch (err) {
-      console.error(`[${route}] connection(): error:`, err)
+      log(`[${route}] connection(): error:`, err)
     }
   })
 
@@ -55,9 +60,9 @@ export function testRequestAPIs(/** @type {string} */ route) {
     after(async () => {
       try {
         await connection()
-        console.log(`[${route}] nested connection(): ok`)
+        log(`[${route}] nested connection(): ok`)
       } catch (err) {
-        console.error(`[${route}] nested connection(): error:`, err)
+        log(`[${route}] nested connection(): error:`, err)
       }
     })
   )

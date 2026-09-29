@@ -1,39 +1,48 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
+import { randomUUID } from 'node:crypto'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
-// @force-gate !deploy
 describe('app-dir - draft-mode-middleware', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    captureRuntimeLogs: true,
   })
 
   it('should be able to enable draft mode with middleware present', async () => {
     const browser = await next.browser(
       '/api/draft?secret=secret-token&slug=preview-page'
     )
+    const requestId = randomUUID()
+    await browser.loadPage(
+      new URL(`/preview-page?requestId=${requestId}`, next.url).toString()
+    )
 
     await retry(async () => {
       expect(next.cliOutput).toContain(
-        'draftMode().isEnabled from middleware: true'
+        `[${requestId}] draftMode().isEnabled from middleware: true`
       )
-    })
+    }, 30_000)
 
-    await browser.loadPage(new URL('/preview-page', next.url).toString())
     const draftText = await browser.elementByCss('h1').text()
     expect(draftText).toBe('draft')
   })
 
   it('should be able to disable draft mode with middleware present', async () => {
-    const browser = await next.browser('/api/disable-draft')
+    const browser = await next.browser(
+      '/api/draft?secret=secret-token&slug=preview-page'
+    )
+    expect(await browser.elementByCss('h1').text()).toBe('draft')
+    await browser.loadPage(new URL('/api/disable-draft', next.url).toString())
+    const requestId = randomUUID()
+    await browser.loadPage(
+      new URL(`/preview-page?requestId=${requestId}`, next.url).toString()
+    )
     await retry(async () => {
       expect(next.cliOutput).toContain(
-        'draftMode().isEnabled from middleware: false'
+        `[${requestId}] draftMode().isEnabled from middleware: false`
       )
-    })
+    }, 30_000)
 
-    await browser.loadPage(new URL('/preview-page', next.url).toString())
     const draftText = await browser.elementByCss('h1').text()
     expect(draftText).toBe('none')
   })
