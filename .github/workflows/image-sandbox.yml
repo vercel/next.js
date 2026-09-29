@@ -3,19 +3,40 @@ name: Image sandbox verification
 on:
   push:
     branches: [sandbox-images]
+  pull_request:
+    paths:
+      - '.github/workflows/image-sandbox.yml'
+      - 'packages/next/package.json'
+      - 'packages/next/src/server/config-schema.ts'
+      - 'packages/next/src/server/config-shared.ts'
+      - 'packages/next/src/server/config.ts'
+      - 'packages/next/src/server/image-optimizer.ts'
+      - 'packages/next/src/server/image-optimizer/**'
+      - 'packages/next/src/server/next-server.ts'
+      - 'pnpm-lock.yaml'
+      - 'test/development/image-optimizer-shutdown/**'
+      - 'test/e2e/image-optimizer/**'
+      - 'test/unit/image-optimizer/**'
   workflow_dispatch:
 
 permissions: {}
 
+concurrency:
+  group: image-sandbox-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   linux:
-    if: github.repository == 'petehunt/next.js'
+    if: >-
+      github.repository == 'vercel/next.js' ||
+      github.repository == 'petehunt/next.js'
     runs-on: ubuntu-22.04
     timeout-minutes: 30
     permissions:
       contents: read
     env:
       NEXT_TELEMETRY_DISABLED: '1'
+      NEXT_TEST_IMAGE_SANDBOX: '1'
       # Isolated route tests need the published SWC binary. Most repository CI
       # jobs provide a locally built one, so the postinstall defaults to off.
       NEXT_SKIP_NATIVE_POSTINSTALL: '0'
@@ -37,6 +58,8 @@ jobs:
         run: pnpm exec turbo run build --filter=next...
       - name: Test the shipped sandbox policy and direct transform API
         run: pnpm exec jest --runInBand test/unit/image-optimizer
+      - name: Test dev shutdown with a stuck image worker
+        run: pnpm test-dev-webpack test/development/image-optimizer-shutdown/image-optimizer-shutdown.test.ts
       - name: Test the development image route with and without sandboxing
         run: pnpm test-dev-webpack test/e2e/image-optimizer/sharp.test.ts -t 'should resize relative url and png accept header'
       - name: Test the production image route with and without sandboxing
