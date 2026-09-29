@@ -3,13 +3,9 @@ import { findPort, renderViaHTTP, fetchViaHTTP } from 'next-test-utils'
 import { join } from 'path'
 import spawn from 'cross-spawn'
 
+// Deploy mode exclusion: This suite spawns a local proxy process.
+// @force-gate !deploy
 describe('next/font/google with proxy', () => {
-  // Deploy mode exclusion: This suite spawns a local proxy process.
-  if ((global as any).isNextDeploy) {
-    it('should skip next deploy', () => {})
-    return
-  }
-
   const { next } = nextTestSetup({
     files: new FileRef(join(__dirname, 'with-proxy')),
     skipStart: true,
