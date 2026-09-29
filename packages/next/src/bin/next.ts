@@ -3,6 +3,7 @@
 import '../server/require-hook'
 
 import os from 'os'
+import path from 'path'
 import {
   Argument,
   Command,
@@ -252,8 +253,8 @@ program
     if (options.experimentalNextConfigStripTypes) {
       process.env.__NEXT_NODE_NATIVE_TS_LOADER_ENABLED = 'true'
     }
-    if (options.customWebpack) {
-      process.env.NEXT_PRIVATE_LOCAL_WEBPACK = '1'
+    if (options.customWebpack || process.env.NEXT_PRIVATE_LOCAL_WEBPACK) {
+      process.env.NEXT_PRIVATE_LOCAL_WEBPACK = path.resolve(directory || '.')
     }
     if (options.experimentalCpuProf) {
       process.env.NEXT_CPU_PROF = '1'
@@ -414,8 +415,10 @@ program
       if (options.experimentalNextConfigStripTypes) {
         process.env.__NEXT_NODE_NATIVE_TS_LOADER_ENABLED = 'true'
       }
-      if (options.customWebpack) {
-        process.env.NEXT_PRIVATE_LOCAL_WEBPACK = '1'
+      if (options.customWebpack || process.env.NEXT_PRIVATE_LOCAL_WEBPACK) {
+        process.env.NEXT_PRIVATE_LOCAL_WEBPACK = path.resolve(
+          process.env.NEXT_PRIVATE_DEV_DIR || directory || '.'
+        )
       }
       if (options.experimentalCpuProf) {
         process.env.NEXT_CPU_PROF = '1'
