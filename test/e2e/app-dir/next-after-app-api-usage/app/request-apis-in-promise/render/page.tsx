@@ -4,7 +4,7 @@ import { Suspense } from 'react'
 export default async function Page({
   searchParams,
 }: {
-  searchParams: Promise<{ apiName?: string }>
+  searchParams: Promise<{ apiName?: string; requestId: string }>
 }) {
   return (
     <main>
@@ -18,9 +18,9 @@ export default async function Page({
 async function TestApiInAfter({
   searchParams,
 }: {
-  searchParams: Promise<{ apiName?: string }>
+  searchParams: Promise<{ apiName?: string; requestId: string }>
 }) {
-  const { apiName } = await searchParams
-  testApiInPromisePassedToAfter('render', apiName!)
+  const { apiName, requestId } = await searchParams
+  testApiInPromisePassedToAfter('render', apiName!, requestId)
   return null
 }
