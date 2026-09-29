@@ -3188,3 +3188,52 @@ fn initial_shard_bits_are_a_starting_value(#[case] mmap: bool) -> Result<()> {
     }
     Ok(())
 }
+
+// Writes 2M keys to fill the collectors several times, which is too slow under Miri.
+#[cfg(not(miri))]
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn commits_with_more_shards_than_collectors_split_files_at_shard_boundaries(
+    #[case] mmap: bool,
+) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let mut config = config_with_mmap::<1>(mmap);
+    // 16 shards, but at most 4 collectors in memory.
+    let shard_bits = crate::shard::ShardBits::new(4);
+    config.family_configs[0].initial_shard_bits = shard_bits;
+    let db = open_db_with_config::<1>(tempdir.path(), config)?;
+    // After the first collector fills (256K entries) and splits into 4, each fills again after
+    // another ~200K entries.
+    const KEYS: u32 = 2_000_000;
+    let batch = db.write_batch()?;
+    for key in 0..KEYS {
+        batch.put(
+            0,
+            key.to_be_bytes().to_vec(),
+            key.to_le_bytes().to_vec().into(),
+        )?;
+    }
+    db.commit_write_batch(batch)?;
+    let entries = db
+        .meta_info()?
+        .into_iter()
+        .flat_map(|meta| meta.entries)
+        .collect::<Vec<_>>();
+    for entry in &entries {
+        assert_eq!(
+            shard_bits.shard_of(entry.min_hash),
+            shard_bits.shard_of(entry.max_hash),
+            "an SST file spans a shard boundary"
+        );
+    }
+    // Every shard got files, from multiple collector flushes.
+    assert!(entries.len() > 16, "{} files", entries.len());
+    for key in (0..KEYS).step_by(997) {
+        assert_eq!(
+            &*db.get(0, &key.to_be_bytes())?.unwrap(),
+            &key.to_le_bytes()
+        );
+    }
+    Ok(())
+}

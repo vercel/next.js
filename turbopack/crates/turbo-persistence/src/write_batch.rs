@@ -60,11 +60,18 @@ pub(crate) struct FinishResult {
     pub(crate) keys_written: u64,
 }
 
+/// The most leading key hash bits that split a family's entries into collectors in memory, i.e. at
+/// most 4 collectors per family. A collector buffers up to [`Collector::is_full`] before it's
+/// written, so this bounds the memory of a write batch independently of the shard count of the
+/// family. Collectors split by a prefix of the shard bits, so a collector holds whole shards (or
+/// part of one), and its SST files are split at shard boundaries when it's written.
+const MAX_COLLECTOR_SHARD_BITS: ShardBits = ShardBits::new(2);
+
 enum GlobalCollectorState<K: StoreKey + Send> {
     /// Initial state. Single collector. Once the collector is full, we switch to sharded mode. When
     /// written, its entries are split into one SST file per shard.
     Unsharded(Collector<K>),
-    /// Sharded mode. One collector per shard of the family, see [`crate::shard`].
+    /// Sharded mode. One collector per key hash prefix of [`WriteBatch::collector_bits`] bits.
     Sharded(Box<[Collector<K>]>),
 }
 
@@ -172,16 +179,16 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
                 match &mut *global_collector_state {
                     GlobalCollectorState::Unsharded(collector) => {
                         collector.add_entry(entry);
-                        let shard_bits = self.shard_bits[usize_from_u32(family)];
-                        if collector.is_full() && shard_bits.count() == 1 {
+                        let collector_bits = self.collector_bits(family);
+                        if collector.is_full() && collector_bits.count() == 1 {
                             full_collectors.push(replace(collector, Collector::new()));
                         } else if collector.is_full() {
-                            // When full, split the entries into shards.
-                            let mut shards = (0..shard_bits.count())
+                            // When full, split the entries by key hash prefix.
+                            let mut shards = (0..collector_bits.count())
                                 .map(|_| Collector::new())
                                 .collect::<Box<[_]>>();
                             for entry in collector.drain() {
-                                let shard = shard_bits.shard_of(entry.key.hash) as usize;
+                                let shard = collector_bits.shard_of(entry.key.hash) as usize;
                                 shards[shard].add_entry(entry);
                             }
                             // There is a rare edge case where all entries are in the same shard,
@@ -196,8 +203,7 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
                         }
                     }
                     GlobalCollectorState::Sharded(shards) => {
-                        let shard_bits = self.shard_bits[usize_from_u32(family)];
-                        let shard = shard_bits.shard_of(entry.key.hash) as usize;
+                        let shard = self.collector_bits(family).shard_of(entry.key.hash) as usize;
                         let collector = &mut shards[shard];
                         collector.add_entry(entry);
                         if collector.is_full() {
@@ -226,13 +232,12 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
         // these operations async, or we could integrate with the parallel::map operation that is
         // driving the work to slow down task submission in this case.
         for mut global_collector in full_collectors {
-            // When the global collector is full, we create a new SST file. A full collector holds a
-            // single shard: collectors are split into shards when they fill up.
-            let sst = self.create_single_shard_sst_file(
+            // When the global collector is full, we create new SST files, one per shard.
+            let ssts = self.create_sst_files(
                 family,
                 global_collector.sorted(self.family_configs[usize_from_u32(family)].kind),
             )?;
-            self.new_sst_files.lock().push(sst);
+            self.new_sst_files.lock().extend(ssts);
             drop(global_collector);
         }
         Ok(())
@@ -349,12 +354,10 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
                 self.parallel_scheduler
                     .try_parallel_for_each_mut(&mut shards, |collector| {
                         if !collector.is_empty() {
-                            let sst = self.create_single_shard_sst_file(
-                                family,
-                                collector.sorted(family_config.kind),
-                            )?;
+                            let ssts = self
+                                .create_sst_files(family, collector.sorted(family_config.kind))?;
                             collector.clear_and_drop_capacity();
-                            self.new_sst_files.lock().push(sst);
+                            self.new_sst_files.lock().extend(ssts);
                         }
                         anyhow::Ok(())
                     })?;
@@ -517,6 +520,12 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
         Ok(NewFile { seq, file, size })
     }
 
+    /// The key hash bits that split the entries of `family` into collectors in memory: the shard
+    /// bits of the family, but at most [`MAX_COLLECTOR_SHARD_BITS`].
+    fn collector_bits(&self, family: u32) -> ShardBits {
+        self.shard_bits[usize_from_u32(family)].min(MAX_COLLECTOR_SHARD_BITS)
+    }
+
     #[tracing::instrument(level = "trace", skip(self, collector_data), fields(family_name = self.family_configs[usize_from_u32(family)].name))]
     /// Writes sorted entries that can span multiple shards into one SST file per shard.
     fn create_sst_files(
@@ -537,27 +546,6 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
             rest = remaining;
         }
         Ok(files)
-    }
-
-    /// Creates a new SST file with the given collector data, whose entries all belong to the same
-    /// shard.
-    fn create_single_shard_sst_file(
-        &self,
-        family: u32,
-        collector_data: (&[CollectorEntry<K>], usize),
-    ) -> Result<NewFile> {
-        let shard_bits = self.shard_bits[usize_from_u32(family)];
-        debug_assert!(
-            collector_data.0.first().is_none_or(|first| {
-                let shard = shard_bits.shard_of(first.key.hash);
-                collector_data
-                    .0
-                    .iter()
-                    .all(|e| shard_bits.shard_of(e.key.hash) == shard)
-            }),
-            "the entries of an SST file must belong to the same shard"
-        );
-        self.create_sst_file(family, collector_data)
     }
 
     /// Creates a new SST file with the given collector data.
