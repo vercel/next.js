@@ -8,7 +8,7 @@ const customErrNo404Match =
 // It likely asserts local CLI or runtime output that deploy tests do not expose.
 // @force-gate !deploy
 describe('Custom _error', () => {
-  const { next, isNextDev, isNextStart, isNextDeploy } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     dependencies: {
       react: '19.3.0-canary-fef12a01-20260413',
@@ -16,11 +16,8 @@ describe('Custom _error', () => {
     },
   })
 
-  if (isNextDeploy) {
-    it('is excluded from deploy testing by @force-gate', () => {})
-  }
-
-  if (isNextDev) {
+  // @force-gate dev
+  describe('development', () => {
     it('should not warn with /_error and /404 when rendering error first', async () => {
       const outputIndex = next.cliOutput.length
       await next.patchFile('pages/404.js', 'export default <h1>')
@@ -63,9 +60,10 @@ describe('Custom _error', () => {
         expect(html).toContain('An error 404 occurred on server')
       })
     })
-  }
+  })
 
-  if (isNextStart) {
+  // @force-gate start
+  describe('production', () => {
     it('should not contain /_error in build output', async () => {
       expect(next.cliOutput).toMatch(/ƒ .*?\/404/)
       expect(next.cliOutput).not.toMatch(/ƒ .*?\/_error/)
@@ -75,5 +73,5 @@ describe('Custom _error', () => {
       const html = await next.render('/')
       expect(html).toMatch(/Custom error/)
     })
-  }
+  })
 })

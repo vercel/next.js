@@ -12,16 +12,13 @@ import { nextTestSetup } from 'e2e-utils'
 // It likely asserts local CLI or runtime output that deploy tests do not expose.
 // @force-gate !deploy
 describe('Conflict between app file and pages file', () => {
-  const { next, isNextDev, isNextStart, isNextDeploy } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
   })
 
-  if (isNextDeploy) {
-    it('is excluded from deploy testing by @force-gate', () => {})
-  }
-
-  if (isNextStart) {
+  // @force-gate start
+  describe('production', () => {
     it('should print error for conflicting app/page', async () => {
       const { cliOutput } = await next.build()
       if (process.env.IS_TURBOPACK_TEST) {
@@ -47,7 +44,7 @@ describe('Conflict between app file and pages file', () => {
       expect(cliOutput).not.toContain('/non-conflict-pages')
       expect(cliOutput).not.toContain('/non-conflict')
     })
-  }
+  })
 
   async function containConflictsError(browser, conflicts) {
     await retry(async () => {
@@ -68,7 +65,8 @@ describe('Conflict between app file and pages file', () => {
     })
   }
 
-  if (isNextDev) {
+  // @force-gate dev
+  describe('development', () => {
     it('should show error overlay for /another', async () => {
       await next.start()
       const browser = await next.browser('/another')
@@ -125,5 +123,5 @@ describe('Conflict between app file and pages file', () => {
       await waitForRedbox(browser)
       await containConflictsError(browser, [['pages/index.js', 'app/page.js']])
     })
-  }
+  })
 })
