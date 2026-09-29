@@ -24,7 +24,8 @@ import {
 import {
   createFetch,
   createFromNextReadableStream,
-  decodeBufferedStage,
+  decodeBufferedResponse,
+  decodeResponsePrefix,
   resolveShellStageResponse,
   type RSCResponse,
   type RequestHeaders,
@@ -1967,7 +1968,7 @@ export async function fetchRouteOnCacheMiss(
     const buffer = await bufferPrefetchResponseBody(response.body)
     closed.resolve()
     setSizeInCacheMap(entry, buffer.byteLength)
-    const serverData = await decodeBufferedStage<NavigationFlightResponse>(
+    const serverData = await decodeBufferedResponse<NavigationFlightResponse>(
       buffer,
       headers
     )
@@ -2253,7 +2254,7 @@ async function fetchAndWritePerSegmentPrefetchResponse(
   // Parse the response. Always a PrefetchFlightResponse. A connection drop
   // or malformed stream throws here, which propagates to the caller as a
   // non-retryable failure.
-  const serverResponse = await decodeBufferedStage<PrefetchFlightResponse>(
+  const serverResponse = await decodeBufferedResponse<PrefetchFlightResponse>(
     buffer,
     headers
   )
@@ -2341,7 +2342,7 @@ async function fetchAndWritePerSegmentPrefetchResponse(
     shellResponse = null
   } else {
     try {
-      shellResponse = await decodeBufferedStage<PrefetchFlightResponse>(
+      shellResponse = await decodeBufferedResponse<PrefetchFlightResponse>(
         buffer.subarray(0, shellOffset),
         headers
       )
@@ -2631,6 +2632,14 @@ export async function fetchSegmentPrefetchesUsingRuntimeRequest(
     // paths, this is resolved immediately — see TODO in fetchRouteOnCacheMiss.
     const closed = createPromiseWithResolvers<void>()
 
+    // With Cached Navigations, the response's bytes are kept here as they're
+    // passed to the decoder, so prefixes (like the shell) can be cut from them.
+    let responseChunks: Array<Uint8Array> | null =
+      process.env.__NEXT_CACHE_COMPONENTS &&
+      process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS
+        ? []
+        : null
+
     let fulfilledEntries: Array<FulfilledSegmentCacheEntry> | null = null
     let bufferedResponseSize: number | null = null
     let serverDataPromise: Promise<DynamicNavigationFlightResponse>
@@ -2642,7 +2651,12 @@ export async function fetchSegmentPrefetchesUsingRuntimeRequest(
       const prefetchStream = createIncrementalPrefetchResponseStream(
         response.body,
         closed.resolve,
-        function onResponseSizeUpdate(totalBytesReceivedSoFar) {
+        function onChunk(chunk, totalBytesReceivedSoFar) {
+          if (responseChunks !== null) {
+            responseChunks.push(chunk)
+          }
+
+          // Incrementally update the size of the cache entry in the LRU.
           // When processing a dynamic response, we don't know how large each
           // individual segment is, so approximate by assigning each segment
           // the average of the total response size.
@@ -2667,10 +2681,11 @@ export async function fetchSegmentPrefetchesUsingRuntimeRequest(
       const buffer = await bufferPrefetchResponseBody(response.body)
       closed.resolve()
       bufferedResponseSize = buffer.byteLength
-      serverDataPromise = decodeBufferedStage<DynamicNavigationFlightResponse>(
-        buffer,
-        headers
-      )
+      if (responseChunks !== null) {
+        responseChunks.push(buffer)
+      }
+      serverDataPromise =
+        decodeBufferedResponse<DynamicNavigationFlightResponse>(buffer, headers)
     }
 
     const [serverData, cacheData] = await Promise.all([
@@ -2684,15 +2699,14 @@ export async function fetchSegmentPrefetchesUsingRuntimeRequest(
       response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? serverData.b
 
     // Extract the response's shell-stage payload, when it carries one. No
-    // shell can be extracted without cache metadata (only present when
-    // Cached Navigations is enabled); for responses without a distinct
-    // shell stage the extraction is a no-op anyway
-    // (`resolveShellStageResponse` returns null), so the null check just
-    // short-circuits that case.
+    // shell can be extracted without the response's bytes (only kept when
+    // Cached Navigations is enabled).
     const shellResponse =
-      cacheData !== null
-        ? await resolveShellStageResponse(cacheData, serverData, headers)
+      responseChunks !== null
+        ? await resolveShellStageResponse(responseChunks, serverData, headers)
         : null
+    // Every prefix has been cut, so stop keeping the response's bytes.
+    responseChunks = null
 
     // Runtime prefetch responses (PPRRuntime and RuntimeShell requests) are
     // partial when the server marks the response as '~' (Partial).
@@ -3704,15 +3718,15 @@ function wasServedFromPerSegmentCache(response: RSCResponse): boolean {
 }
 
 /**
- * Reads a prefetch response body to completion — optionally truncating at
- * `byteLimit` — and returns the bytes as a single contiguous buffer.
+ * Reads a prefetch response body to completion and returns the bytes as a
+ * single contiguous buffer.
  *
  * Buffering the entire response before passing it to the Flight client
  * ensures that when Flight processes the stream, all model data is available
  * synchronously. This is what makes the decode boundary's thenable-status
  * reads (vary params, isPartial, staleTime — see decode-server-response)
  * sound: if data arrived in multiple network chunks, the thenables might not
- * yet be fulfilled. (`decodeBufferedStage` performs the matching
+ * yet be fulfilled. (`decodeBufferedResponse` performs the matching
  * single-chunk decode.)
  *
  * TODO: There are too many intermediate stream transformations in the
@@ -3721,27 +3735,15 @@ function wasServedFromPerSegmentCache(response: RSCResponse): boolean {
  * once the cached navigations experiment lands.
  */
 export async function bufferPrefetchResponseBody(
-  body: ReadableStream<Uint8Array>,
-  byteLimit?: number
+  body: ReadableStream<Uint8Array>
 ): Promise<Uint8Array> {
-  // Read the response from the network, optionally truncating at byteLimit.
+  // Read the response from the network.
   const reader = body.getReader()
   const chunks: Uint8Array[] = []
   let size = 0
   while (true) {
     const { done, value } = await reader.read()
     if (done) break
-    if (byteLimit !== undefined && size + value.byteLength >= byteLimit) {
-      const remaining = byteLimit - size
-      if (remaining > 0) {
-        chunks.push(
-          value.byteLength > remaining ? value.subarray(0, remaining) : value
-        )
-        size += remaining
-      }
-      reader.cancel()
-      break
-    }
     chunks.push(value)
     size += value.byteLength
   }
@@ -3779,10 +3781,10 @@ export async function bufferPrefetchResponseBody(
 function createIncrementalPrefetchResponseStream(
   originalFlightStream: ReadableStream<Uint8Array>,
   onStreamClose: () => void,
-  onResponseSizeUpdate: (size: number) => void
+  onChunk: (chunk: Uint8Array, totalByteLength: number) => void
 ): ReadableStream<Uint8Array> {
-  // While processing the original stream, we incrementally update the size
-  // of the cache entry in the LRU.
+  // Each chunk is passed to the caller along with the total byte length so
+  // far, so it can incrementally update the size of the cache entry in the LRU.
   let totalByteLength = 0
   const reader = originalFlightStream.getReader()
   return new ReadableStream({
@@ -3794,9 +3796,8 @@ function createIncrementalPrefetchResponseStream(
           // from the server.
           controller.enqueue(value)
 
-          // Incrementally update the size of the cache entry in the LRU.
           totalByteLength += value.byteLength
-          onResponseSizeUpdate(totalByteLength)
+          onChunk(value, totalByteLength)
           continue
         }
         controller.close()
@@ -3948,7 +3949,7 @@ export async function writeNavigationResponseIntoCache(
   if (response.p != null) {
     const stripped = await stripIsPartialByte(response.p)
     const buffer = await bufferPrefetchResponseBody(stripped.stream)
-    prefetchResponse = await decodeBufferedStage<NavigationFlightResponse>(
+    prefetchResponse = await decodeBufferedResponse<NavigationFlightResponse>(
       buffer,
       undefined
     )
@@ -3965,19 +3966,14 @@ export async function writeNavigationResponseIntoCache(
     if (shellByteLength === null) {
       // The shell is the full response.
       shellResponse = prefetchResponse
-    } else if (shellByteLength === undefined) {
+    } else if (shellByteLength === undefined || shellByteLength === 0) {
       shellResponse = null
     } else {
-      try {
-        shellResponse = await decodeBufferedStage<NavigationFlightResponse>(
-          buffer.subarray(0, shellByteLength),
-          undefined
-        )
-      } catch {
-        // The truncated prefix couldn't be decoded. Treat it as if no shell
-        // exists; the full payload is still usable.
-        shellResponse = null
-      }
+      shellResponse = await decodeResponsePrefix<NavigationFlightResponse>(
+        [buffer],
+        shellByteLength,
+        undefined
+      )
     }
   } else if (
     process.env.__NEXT_CACHE_COMPONENTS &&
