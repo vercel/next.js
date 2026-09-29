@@ -402,7 +402,27 @@ program
       .preset('all')
   )
   .action(
-    (directory: string, options: NextDevOptions, { _optionValueSources }) => {
+    async (
+      directory: string,
+      options: NextDevOptions,
+      { _optionValueSources }
+    ) => {
+      // Start dev inside a PTY so it keeps TTY behavior while the parent owns the menu.
+      // The PTY child re-enters this CLI; don't start another PTY inside it.
+      if (!process.env.NEXT_PRIVATE_UPGRADE_TERMINAL_PORT) {
+        const { shouldPromptForUpgrade } = await import(
+          '../lib/upgrade/nudge.js'
+        )
+        if (await shouldPromptForUpgrade()) {
+          const { runUpgradeTerminal } = await import(
+            '../lib/upgrade/terminal-session.js'
+          )
+          const exitCode = await runUpgradeTerminal()
+          if (exitCode !== null) {
+            process.exit(exitCode)
+          }
+        }
+      }
       if (options.experimentalNextConfigStripTypes) {
         process.env.__NEXT_NODE_NATIVE_TS_LOADER_ENABLED = 'true'
       }

@@ -398,8 +398,12 @@ export async function startServer(
 
       try {
         let cleanupStarted = false
+        // Close errors are logged and shutdown continues, so the exit code alone
+        // cannot tell the upgrade supervisor whether teardown succeeded.
+        let cleanupSuccess = true
         let closeUpgraded: (() => void) | null = null
-        const cleanup = (signal: 'SIGINT' | 'SIGTERM') => {
+        // Signals and upgrade requests share teardown; only upgrades report its result.
+        const cleanup = (signal: 'SIGINT' | 'SIGTERM', forUpgrade: boolean) => {
           if (cleanupStarted) {
             // We can get duplicate signals, e.g. when `ctrl+c` is used in an
             // interactive shell (i.e. bash, zsh), the shell will recursively
@@ -415,7 +419,10 @@ export async function startServer(
             // because they might affect `nextServer.close()` (e.g. by scheduling an `after`)
             await new Promise<void>((res) => {
               server.close((err) => {
-                if (err) console.error(err)
+                if (err) {
+                  cleanupSuccess = false
+                  console.error(err)
+                }
                 res()
               })
               if (isDev) {
@@ -426,8 +433,14 @@ export async function startServer(
 
             // now that no new requests can come in, clean up the rest
             await Promise.all([
-              nextServer?.close().catch(console.error),
-              cleanupListeners?.runAll().catch(console.error),
+              nextServer?.close().catch((error) => {
+                cleanupSuccess = false
+                console.error(error)
+              }),
+              cleanupListeners?.runAll().catch((error) => {
+                cleanupSuccess = false
+                console.error(error)
+              }),
             ])
 
             // Flush any remaining traces to the trace file on shutdown
@@ -456,6 +469,24 @@ export async function startServer(
 
             debug('start-server process cleanup finished')
 
+            // Acknowledge cleanup before exiting so the parent can reject an
+            // upgrade if any close step failed despite the SIGTERM exit code.
+            if (forUpgrade && process.send) {
+              await new Promise<void>((finish, reject) => {
+                // The guard above holds; TS loses narrowing inside this callback.
+                process.send!(
+                  { nextWorkerShutdownResult: cleanupSuccess },
+                  (error: Error | null) => {
+                    if (error) {
+                      reject(error)
+                    } else {
+                      finish()
+                    }
+                  }
+                )
+              })
+            }
+
             // Exit with signal-based exit code (128 + signal number) so that
             // Node.js treats this as a signal termination, not a normal exit.
             // This avoids waiting for the debugger to disconnect.
@@ -478,8 +509,21 @@ export async function startServer(
         // Make sure commands gracefully respect termination signals (e.g. from Docker)
         // Allow the graceful termination to be manually configurable
         if (!process.env.NEXT_MANUAL_SIG_HANDLE) {
-          process.on('SIGINT', cleanup)
-          process.on('SIGTERM', cleanup)
+          // A terminal signal is an ordinary stop, not an upgrade request.
+          process.on('SIGINT', () => cleanup('SIGINT', false))
+          process.on('SIGTERM', () => cleanup('SIGTERM', false))
+        }
+
+        // Only the CLI's dev worker accepts the supervisor's stop request.
+        if (isDev && process.env.NEXT_PRIVATE_WORKER && process.send) {
+          process.on(
+            'message',
+            (message: { nextWorkerShutdown: boolean | undefined }) => {
+              if (message?.nextWorkerShutdown === true) {
+                cleanup('SIGTERM', true)
+              }
+            }
+          )
         }
 
         // Now load config via getRequestHandlers (single loadConfig call)

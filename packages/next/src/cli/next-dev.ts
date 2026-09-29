@@ -250,6 +250,87 @@ const nextDev = async (
 
   dir = getProjectDir(process.env.NEXT_PRIVATE_DEV_DIR || directory)
 
+  // Connect before starting the worker so the supervisor can send stop
+  // requests during startup. Direct dev keeps its existing prompt path.
+  let upgradeStopRequested = false
+  let workerCleanupSucceeded = false
+  const terminalClient = process.env.NEXT_PRIVATE_UPGRADE_TERMINAL_PORT
+    ? await import('../lib/upgrade/terminal-channel.js').then(
+        ({ connectUpgradeTerminalClient }) =>
+          connectUpgradeTerminalClient(
+            async () => {
+              // One request owns shutdown; a duplicate must not send another
+              // worker stop or acknowledge completion a second time.
+              if (upgradeStopRequested) {
+                return
+              }
+              upgradeStopRequested = true
+              workerCleanupSucceeded = false
+              const worker = child
+              let error: string | null = null
+              if (
+                !worker ||
+                !worker.connected ||
+                worker.exitCode !== null ||
+                worker.signalCode !== null
+              ) {
+                error = 'Dev worker is no longer running.'
+              } else {
+                // Subscribe before requesting shutdown so a fast worker exit
+                // cannot happen between the request and the exit listener.
+                const workerExited = once(worker, 'exit')
+                try {
+                  await new Promise<void>((resolve, reject) => {
+                    worker.send({ nextWorkerShutdown: true }, (sendError) => {
+                      if (sendError) {
+                        reject(sendError)
+                      } else {
+                        resolve()
+                      }
+                    })
+                  })
+                  const [code, signal] = await workerExited
+                  // Exit code 143 is expected for SIGTERM; the IPC result also
+                  // confirms the worker did not merely log a cleanup error.
+                  if (
+                    !workerCleanupSucceeded ||
+                    code !== 143 ||
+                    signal !== null
+                  ) {
+                    error =
+                      'Dev worker did not finish cleanup before the upgrade.'
+                  }
+                } catch (cause) {
+                  error = String(cause)
+                  worker.kill('SIGTERM')
+                  await workerExited.catch((exitError) =>
+                    console.error(exitError)
+                  )
+                }
+              }
+
+              // Run parent CLI cleanup before acknowledging the stop.
+              await handleSessionStop(null, false)
+              if (interruption) {
+                error = 'Dev session was interrupted before the upgrade.'
+              }
+              try {
+                await terminalClient!.send({
+                  type: 'stopped',
+                  success: error === null,
+                  error,
+                })
+              } catch (cause) {
+                console.error(cause)
+                error = String(cause)
+              }
+              process.exit(error === null ? 0 : 1)
+            },
+            (error) => console.error(error)
+          )
+      )
+    : null
+
   const { shouldPromptForUpgrade, runUpgrade, nudgeUpgrade } = await import(
     '../lib/upgrade/nudge.js'
   )
@@ -484,8 +565,13 @@ const nextDev = async (
           __NEXT_DEV_SERVER: '1',
           NEXT_PRIVATE_START_TIME: process.env.NEXT_PRIVATE_START_TIME,
           NEXT_PRIVATE_WORKER: '1',
+          // Supervised workers keep starting; direct dev retains its handshake.
           NEXT_PRIVATE_UPGRADE_PROMPT:
-            humanUpgrade && !upgradeOffered ? '1' : undefined,
+            humanUpgrade && !upgradeOffered
+              ? terminalClient
+                ? 'supervised'
+                : '1'
+              : undefined,
           NEXT_PRIVATE_TRACE_ID: traceId,
           NEXT_PRIVATE_ENABLED_FEATURES: JSON.stringify(enabledFeatures),
           NEXT_PRIVATE_DEV_SPAN_ATTRS: JSON.stringify(devSpanAttrs),
@@ -516,13 +602,30 @@ const nextDev = async (
         if (msg && typeof msg === 'object') {
           if (msg.nextUpgradeContext) {
             distDir = msg.nextUpgradeContext.distDir
-            void offerUpgrade(child!, msg.nextUpgradeContext).catch(
-              async (error) => {
-                console.error(error)
-                await handleSessionStop('SIGTERM', false)
-                process.exit(1)
-              }
-            )
+            if (terminalClient) {
+              // Let the supervisor show the menu without pausing this worker.
+              upgradeOffered = true
+              void terminalClient
+                .send({
+                  type: 'nudge',
+                  directory: dir,
+                  context: msg.nextUpgradeContext,
+                })
+                .catch((error) => {
+                  console.error(error)
+                  void handleSessionStop('SIGTERM')
+                })
+            } else {
+              void offerUpgrade(child!, msg.nextUpgradeContext).catch(
+                async (error) => {
+                  console.error(error)
+                  await handleSessionStop('SIGTERM', false)
+                  process.exit(1)
+                }
+              )
+            }
+          } else if (msg.nextWorkerShutdownResult !== undefined) {
+            workerCleanupSucceeded = msg.nextWorkerShutdownResult === true
           } else if (msg.nextWorkerReady) {
             child?.send({ nextWorkerOptions: startServerOptions })
           } else if (msg.nextServerReady && !resolved) {
@@ -544,7 +647,8 @@ const nextDev = async (
 
       child.on('exit', async (code, signal) => {
         upgradeController?.abort()
-        if (sessionStopHandled) {
+        // The upgrade stop callback awaits this exit and performs session cleanup.
+        if (sessionStopHandled || upgradeStopRequested) {
           return
         }
         if (signal) {

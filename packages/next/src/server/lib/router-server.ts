@@ -221,11 +221,13 @@ export async function initialize(opts: {
     let developmentConfig = config as NextConfigComplete
 
     // Check only development; production startup does not query advisories.
+    // The terminal test override reaches this path without changing app config.
     if (
       developmentConfig.experimental.agenticAutoUpgrade === 'security' ||
       developmentConfig.experimental.agenticAutoUpgrade === 'latest' ||
       developmentConfig.experimental.agenticAutoUpgrade === 'future' ||
       process.env.__NEXT_AGENTIC_AUTO_UPGRADE ||
+      process.env.__NEXT_AGENT_UPGRADE_FORCE_TERMINAL_FOR_TESTING === '1' ||
       process.env.__NEXT_AGENT_UPGRADE_FORCE_DEVTOOLS_FOR_TESTING === '1'
     ) {
       const { nudgeUpgrade, getUpgradeContext, assessUpgrade } =
@@ -253,24 +255,26 @@ export async function initialize(opts: {
           return false
         }
       )
-      if (process.env.NEXT_PRIVATE_UPGRADE_PROMPT === '1' && process.send) {
-        // TODO: Do not block dev startup while prompting for an upgrade.
-        // Preserve all logs for display after the prompt and stop dev before Update.
-        // The existing dev worker pauses here while its parent owns the menu.
-        await new Promise<void>((resolve) => {
-          const resume = (message: {
-            nextUpgradeContinue: boolean | undefined
-          }) => {
-            if (message.nextUpgradeContinue) {
-              process.off('message', resume)
-              resolve()
+      if (process.env.NEXT_PRIVATE_UPGRADE_PROMPT && process.send) {
+        if (process.env.NEXT_PRIVATE_UPGRADE_PROMPT === 'supervised') {
+          // The terminal supervisor owns the menu while dev keeps starting.
+          process.send({ nextUpgradeContext: upgradeContext })
+        } else {
+          // Without a supervisor, preserve the existing pause/resume handshake.
+          await new Promise<void>((resolve) => {
+            const resume = (message: {
+              nextUpgradeContinue: boolean | undefined
+            }) => {
+              if (message.nextUpgradeContinue) {
+                process.off('message', resume)
+                resolve()
+              }
             }
-          }
-          process.on('message', resume)
-          process.send!({
-            nextUpgradeContext: upgradeContext,
+            process.on('message', resume)
+            // The guard above holds; TS loses narrowing inside this callback.
+            process.send!({ nextUpgradeContext: upgradeContext })
           })
-        })
+        }
       } else {
         void nudgeUpgrade(opts.dir, developmentConfig, 'dev').catch((error) => {
           const { printAndExit } =
