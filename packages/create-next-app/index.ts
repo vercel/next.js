@@ -255,7 +255,7 @@ async function run(): Promise<void> {
       empty: false,
       disableGit: false,
       reactCompiler: false,
-      cacheComponents: false,
+      cacheComponents: true,
       agentsMd: true,
     }
 
