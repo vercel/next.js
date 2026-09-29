@@ -1,7 +1,7 @@
 'use client'
 
 import { Check, ChevronsUpDown, Route } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { useSuspenseJsonData } from '@/lib/analyzer-data'
 import {
@@ -87,23 +87,19 @@ export function RouteTypeahead({
   // When a route diff is provided, sort routes by largest absolute impact so
   // the most-changed route bubbles to the top — matching the rest of the
   // compare UI. Without a diff, fall back to the natural routes.json order.
-  const orderedItems = useMemo<RouteItem[]>(() => {
-    if (routeDiff) {
-      const sorted = sortByImpact(routeDiff.rows, useCompressed)
-      return sorted.map((row) => ({
+  const orderedItems: RouteItem[] = routeDiff
+    ? sortByImpact(routeDiff.rows, useCompressed).map((row) => ({
         name: row.key,
         row,
       }))
-    }
-    return routes.map((name) => ({ name, row: null }))
-  }, [routes, routeDiff, useCompressed])
+    : routes.map((name) => ({ name, row: null }))
 
   // Find the currently selected route's diff row, used to render a delta
   // badge in the trigger button.
-  const selectedRow = useMemo(() => {
-    if (!routeDiff || !selectedRoute) return null
-    return routeDiff.rows.find((r) => r.key === selectedRoute) ?? null
-  }, [routeDiff, selectedRoute])
+  const selectedRow =
+    routeDiff && selectedRoute
+      ? (routeDiff.rows.find((row) => row.key === selectedRoute) ?? null)
+      : null
 
   const ctaText = selectedRoute ?? 'Select route...'
 
