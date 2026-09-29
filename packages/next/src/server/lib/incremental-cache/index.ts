@@ -641,12 +641,10 @@ export class IncrementalCache implements IncrementalCacheType {
     const { isFallback } = ctx
     let cacheControl = this.cacheControls.get(toRoute(cacheKey))
 
-    // This process only knows the lifetime of routes it rendered or that were
-    // prerendered. For any other entry (e.g. an on-demand page rendered by
-    // another instance, or by this one before a restart), use the lifetime the
-    // cache handler stored with the entry, and remember it for this route so the
-    // revalidation below uses it too.
-    if (!cacheControl && cacheData?.cacheControl) {
+    // The stored lifetime belongs to this entry, which another instance may
+    // have replaced with a different lifetime. Prefer it over this process's
+    // remembered lifetime, and update the route so revalidation uses it too.
+    if (cacheData?.cacheControl) {
       cacheControl = cacheData.cacheControl
       this.cacheControls.set(toRoute(cacheKey), cacheControl)
     }
