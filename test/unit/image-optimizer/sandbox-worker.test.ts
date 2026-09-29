@@ -114,6 +114,7 @@ describe('SandboxedImageOptimizerWorker', () => {
     ])
   })
 
+  // @force-gate imageSandbox
   it('enforces the real sandbox and transforms with sharp', async () => {
     if (!['darwin', 'linux'].includes(process.platform)) {
       return
