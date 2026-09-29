@@ -146,6 +146,47 @@ export type ImageConfigComplete = {
 
 export type ImageConfig = Partial<ImageConfigComplete>
 
+type ImageConfigSizes = {
+  deviceSizes: number[]
+  imageSizes: number[]
+  qualities?: number[] | undefined
+}
+
+export type PreparedImageConfig<T extends ImageConfigSizes> = T & {
+  allSizes: number[]
+}
+
+const preparedImageConfigs = new WeakMap<
+  ImageConfigSizes,
+  PreparedImageConfig<ImageConfigSizes>
+>()
+
+/**
+ * Prepare owned, sorted image options once for each source config object.
+ * Changed options require a new source object because results are cached by identity.
+ */
+export function prepareImageConfig<T extends ImageConfigSizes>(
+  config: T
+): PreparedImageConfig<T> {
+  const cached = preparedImageConfigs.get(config)
+  if (cached) return cached as PreparedImageConfig<T>
+
+  const deviceSizes = [...config.deviceSizes].sort((a, b) => a - b)
+  const imageSizes = [...config.imageSizes]
+  const prepared = {
+    ...config,
+    deviceSizes,
+    imageSizes,
+    allSizes: [...deviceSizes, ...imageSizes].sort((a, b) => a - b),
+    ...(config.qualities !== undefined && {
+      qualities: [...config.qualities].sort((a, b) => a - b),
+    }),
+  } as PreparedImageConfig<T>
+
+  preparedImageConfigs.set(config, prepared)
+  return prepared
+}
+
 export const imageConfigDefault: ImageConfigComplete = {
   deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
   imageSizes: [32, 48, 64, 96, 128, 256, 384],

@@ -1,6 +1,6 @@
 import { getAssetToken, getDeploymentId } from './deployment-id'
 import { getImageBlurSvg } from './image-blur-svg'
-import { imageConfigDefault } from './image-config'
+import { imageConfigDefault, prepareImageConfig } from './image-config'
 import type {
   ImageConfigComplete,
   ImageLoaderProps,
@@ -332,10 +332,7 @@ export function getImgProps(
   if ('allSizes' in c) {
     config = c as ImageConfig
   } else {
-    const allSizes = [...c.deviceSizes, ...c.imageSizes].sort((a, b) => a - b)
-    const deviceSizes = c.deviceSizes.sort((a, b) => a - b)
-    const qualities = c.qualities?.sort((a, b) => a - b)
-    config = { ...c, allSizes, deviceSizes, qualities }
+    config = prepareImageConfig(c)
   }
 
   if (typeof defaultLoader === 'undefined') {
