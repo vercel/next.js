@@ -21,6 +21,7 @@ async function processTree(root: number): Promise<number[]> {
   return [...tree]
 }
 
+// @force-gate imageSandbox
 describe('image optimizer shutdown', () => {
   const { next } = nextTestSetup({ files: __dirname, skipStart: true })
 
