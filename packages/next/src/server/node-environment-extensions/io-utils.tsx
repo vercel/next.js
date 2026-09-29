@@ -68,6 +68,7 @@ export function io(expression: string, type: SyncIOApiType) {
             break
           }
           case RenderStage.ShellRuntime:
+          case RenderStage.PrefetchRuntime:
           case RenderStage.Runtime:
           case RenderStage.NavigationRuntime: {
             // We're in the Runtime stage.
