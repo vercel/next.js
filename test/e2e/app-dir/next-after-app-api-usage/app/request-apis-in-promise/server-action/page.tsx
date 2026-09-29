@@ -1,6 +1,6 @@
 import { testApiInPromisePassedToAfter, REQUEST_API_NAMES } from '../common'
 
-async function action(apiName: string, requestId: string) {
+async function action(apiName: string, requestId: string | undefined) {
   'use server'
   testApiInPromisePassedToAfter('action', apiName, requestId)
 }
@@ -8,7 +8,7 @@ async function action(apiName: string, requestId: string) {
 export default async function Page({
   searchParams,
 }: {
-  searchParams: Promise<{ requestId: string }>
+  searchParams: Promise<{ requestId?: string }>
 }) {
   const { requestId } = await searchParams
   return (

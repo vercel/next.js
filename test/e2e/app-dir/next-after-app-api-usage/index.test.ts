@@ -44,7 +44,10 @@ describe('nextjs APIs in after()', () => {
       return
     }
     if (!isNextDev) {
-      await next.build()
+      const { exitCode } = await next.build()
+      if (exitCode !== 0) {
+        throw new Error(`Fixture build failed with exit code ${exitCode}`)
+      }
       buildLogs = parseLogs(next.cliOutput)
     } else {
       buildLogs = '(no build logs in dev)'

@@ -16,7 +16,7 @@ async function action(apiName: string) {
 export default async function Page({
   searchParams,
 }: {
-  searchParams: Promise<{ requestId: string }>
+  searchParams: Promise<{ requestId?: string }>
 }) {
   return (
     <main>
@@ -35,7 +35,7 @@ export default async function Page({
 async function TestAfterIfCookieSet({
   searchParams,
 }: {
-  searchParams: Promise<{ requestId: string }>
+  searchParams: Promise<{ requestId?: string }>
 }) {
   const { requestId } = await searchParams
   const cookieStore = await cookies()
