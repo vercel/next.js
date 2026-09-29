@@ -217,3 +217,11 @@ export async function updateBookings() {
   revalidateTag('bookings-data', 'max')
 }
 ```
+
+## Version History
+
+| Version   | Changes                                                |
+| --------- | ------------------------------------------------------ |
+| `v16.0.0` | `cacheTag` stabilized. `unstable_cacheTag` deprecated. |
+
+See the [Next.js 16 upgrade guide](/docs/app/guides/upgrading/version-16#cachelife-and-cachetag) to update imports from `unstable_cacheTag` to `cacheTag`.

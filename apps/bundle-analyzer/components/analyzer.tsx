@@ -10,6 +10,8 @@ import {
   type ErrorInfo,
   type ReactNode,
 } from 'react'
+import Link from 'next/link'
+import { usePathname, useSearchParams } from 'next/navigation'
 import useSWR from 'swr'
 import {
   CompareLayout,
@@ -243,7 +245,8 @@ function useAnalyzerModel(compare: boolean) {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [analyzeData])
 
-  // Compute module depth map from active entries
+  // React Compiler currently skips this hook. Keep the graph traversal cached
+  // across selection and filter updates until that bailout is resolved.
   const moduleDepthMap = useMemo(() => {
     if (!analyzeData) return new Map()
 
@@ -251,6 +254,8 @@ function useAnalyzerModel(compare: boolean) {
     return computeModuleDepthMap(modulesData, activeEntries)
   }, [modulesData, analyzeData])
 
+  // This hook isn't compiled; stable predicate identity keeps the source diff
+  // and treemap layout below cached.
   const filterSource = useMemo(() => {
     if (!analyzeData) return () => true
 
@@ -277,7 +282,8 @@ function useAnalyzerModel(compare: boolean) {
   // of every source for the current route. We synthesize this by diffing
   // the build against itself, which produces an all-`identical` summary
   // that we feed into `<DiffTable mode="single">`. This keeps a single
-  // sources-listing implementation regardless of mode.
+  // sources-listing implementation regardless of mode. Diffing walks every
+  // source, so keep this cached while this hook isn't compiled.
   const singleSourceListing = useMemo(() => {
     if (!analyzeData || baselineSnapshot) return null
     return diffSources(analyzeData, analyzeData, {
@@ -442,20 +448,14 @@ function ValidComparisonContent({
     baselineRoutes,
     baselineBaseDir
   )
-  const routeDiff = useMemo(() => {
-    if (!model.currentRouteTotals) return null
-    return diffRoutesWithSizes(
-      baselineRoutes,
-      model.currentRoutes,
-      baselineRouteTotals,
-      model.currentRouteTotals
-    )
-  }, [
-    baselineRoutes,
-    model.currentRoutes,
-    baselineRouteTotals,
-    model.currentRouteTotals,
-  ])
+  const routeDiff = model.currentRouteTotals
+    ? diffRoutesWithSizes(
+        baselineRoutes,
+        model.currentRoutes,
+        baselineRouteTotals,
+        model.currentRouteTotals
+      )
+    : null
   const layoutProps = {
     baselineSnapshot,
     comparisonSnapshot: model.comparisonSnapshot,
@@ -536,41 +536,44 @@ function ComparisonContent({
   baselineAnalyzeData: AnalyzeData | null
   layoutProps: ComparisonLayoutProps
 }) {
-  const baselineModuleDepthMap = useMemo(() => {
-    if (!baselineAnalyzeData) return new Map()
-    const activeEntries = computeActiveEntries(
-      layoutProps.baselineModulesData,
-      baselineAnalyzeData
-    )
-    return computeModuleDepthMap(layoutProps.baselineModulesData, activeEntries)
-  }, [layoutProps.baselineModulesData, baselineAnalyzeData])
-  const compareFilterSource = useMemo(() => {
-    return (side: 'A' | 'B', sourceIndex: number): boolean => {
-      const data = side === 'A' ? baselineAnalyzeData : model.analyzeData
-      if (!data) return false
-      const flags = data.getSourceFlags(sourceIndex)
-      const hasEnvironment =
-        (model.environmentFilter === Environment.Client && flags.client) ||
-        (model.environmentFilter === Environment.Server && flags.server)
-      const hasType =
-        (model.typeFilter.includes('js') && flags.js) ||
-        (model.typeFilter.includes('css') && flags.css) ||
-        (model.typeFilter.includes('json') && flags.json) ||
-        (model.typeFilter.includes('asset') && flags.asset)
-      return hasEnvironment && hasType
-    }
-  }, [
-    baselineAnalyzeData,
+  const baselineModuleDepthMap = baselineAnalyzeData
+    ? computeModuleDepthMap(
+        layoutProps.baselineModulesData,
+        computeActiveEntries(
+          layoutProps.baselineModulesData,
+          baselineAnalyzeData
+        )
+      )
+    : new Map<number, number>()
+  function compareFilterSource(side: 'A' | 'B', sourceIndex: number): boolean {
+    const data = side === 'A' ? baselineAnalyzeData : model.analyzeData
+    if (!data) return false
+    const flags = data.getSourceFlags(sourceIndex)
+    const hasEnvironment =
+      (model.environmentFilter === Environment.Client && flags.client) ||
+      (model.environmentFilter === Environment.Server && flags.server)
+    const hasType =
+      (model.typeFilter.includes('js') && flags.js) ||
+      (model.typeFilter.includes('css') && flags.css) ||
+      (model.typeFilter.includes('json') && flags.json) ||
+      (model.typeFilter.includes('asset') && flags.asset)
+    return hasEnvironment && hasType
+  }
+  const sourceDiff =
+    model.analyzeData || baselineAnalyzeData
+      ? diffSources(baselineAnalyzeData, model.analyzeData ?? null, {
+          filterSource: compareFilterSource,
+        })
+      : null
+  const alternateEnvironment = getAlternateEnvironment(model.environmentFilter)
+  const hasAlternateEnvironmentSources = [
     model.analyzeData,
-    model.environmentFilter,
-    model.typeFilter,
-  ])
-  const sourceDiff = useMemo(() => {
-    if (!model.analyzeData && !baselineAnalyzeData) return null
-    return diffSources(baselineAnalyzeData, model.analyzeData ?? null, {
-      filterSource: compareFilterSource,
-    })
-  }, [model.analyzeData, baselineAnalyzeData, compareFilterSource])
+    baselineAnalyzeData,
+  ].some(
+    (data) =>
+      data &&
+      hasEnvironmentSources(data, alternateEnvironment, model.typeFilter)
+  )
   const compareModel: CompareLayoutModel = {
     ...layoutProps,
     selectedRoute: model.selectedRoute,
@@ -581,6 +584,8 @@ function ComparisonContent({
     moduleDepthMap: model.moduleDepthMap,
     baselineModuleDepthMap,
     environmentFilter: model.environmentFilter,
+    hasAlternateEnvironmentSources,
+    setEnvironmentFilter: model.setEnvironmentFilter,
     sidebarWidth: model.sidebarWidth,
     compareView: model.compareView,
     searchQuery: model.searchQuery,
@@ -620,6 +625,14 @@ function SingleAnalyzerContent({
   analyzeData: AnalyzeData
 }) {
   const rootSourceIndex = getRootSourceIndex(analyzeData)
+  const hasAlternateEnvironmentSources = hasEnvironmentSources(
+    analyzeData,
+    getAlternateEnvironment(model.environmentFilter),
+    model.typeFilter
+  )
+  const alternateEnvironmentEmptyState = hasAlternateEnvironmentSources ? (
+    <AlternateEnvironmentEmptyState environment={model.environmentFilter} />
+  ) : undefined
 
   return (
     <>
@@ -634,6 +647,7 @@ function SingleAnalyzerContent({
             nameHeading="Source"
             mode="single"
             searchQuery={model.searchQuery}
+            emptyState={alternateEnvironmentEmptyState}
             onRowSelect={(row) => {
               if (row.sourceIndexB != null) {
                 model.setSelectedSourceIndex(row.sourceIndexB)
@@ -641,6 +655,11 @@ function SingleAnalyzerContent({
               }
             }}
           />
+        ) : model.singleSourceListing?.rows.length === 0 &&
+          alternateEnvironmentEmptyState ? (
+          <div className="flex h-full items-center justify-center p-4 text-sm text-muted-foreground">
+            {alternateEnvironmentEmptyState}
+          </div>
         ) : (
           <TreemapVisualizer
             analyzeData={analyzeData}
@@ -674,6 +693,62 @@ function SingleAnalyzerContent({
         filterSource={model.filterSource}
       />
     </>
+  )
+}
+
+function hasEnvironmentSources(
+  data: AnalyzeData,
+  environment: Environment,
+  typeFilter: string[]
+): boolean {
+  for (let index = 0; index < data.sourceCount(); index++) {
+    const flags = data.getSourceFlags(index)
+    const hasEnvironment =
+      (environment === Environment.Client && flags.client) ||
+      (environment === Environment.Server && flags.server)
+    const hasType = typeFilter.some(
+      (type) => flags[type as 'js' | 'css' | 'json' | 'asset']
+    )
+    if (hasEnvironment && hasType) {
+      return true
+    }
+  }
+  return false
+}
+
+function getAlternateEnvironment(environment: Environment): Environment {
+  return environment === Environment.Client
+    ? Environment.Server
+    : Environment.Client
+}
+
+export function AlternateEnvironmentEmptyState({
+  environment,
+}: {
+  environment: Environment
+}) {
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const [currentLabel, alternateLabel] =
+    environment === Environment.Client
+      ? ['client', 'server']
+      : ['server', 'client']
+  const nextSearchParams = new URLSearchParams(searchParams.toString())
+  nextSearchParams.set('environment', alternateLabel)
+  const href = `${pathname}?${nextSearchParams.toString()}`
+
+  return (
+    <span>
+      This route has no {currentLabel} sources matching the active file types.{' '}
+      <Link
+        href={href}
+        replace
+        className="font-medium text-foreground underline underline-offset-4 hover:text-primary"
+      >
+        Show {alternateLabel} sources
+      </Link>
+      .
+    </span>
   )
 }
 
