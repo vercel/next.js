@@ -3081,9 +3081,6 @@ async function renderAppPage(
     renderOpts.renderResumeDataCache ??
     postponedState?.renderResumeDataCache ??
     null
-  const isDataOnlyResume =
-    typeof renderOpts.postponed === 'string' &&
-    postponedState?.type === DynamicState.DATA
 
   const rootParams = getRootParams(loaderTree, ctx.getDynamicParamFromSegment)
   // Keep the placeholder map for dev's separate prerender validation. The
@@ -3197,9 +3194,10 @@ async function renderAppPage(
         const notFoundLoaderTree = createNotFoundLoaderTree(loaderTree)
         res.statusCode = 404
         metadata.statusCode = 404
-        const tracker = isDataOnlyResume
-          ? undefined
-          : initializeClientComponentLoadTracking(renderOpts, workStore)
+        const tracker = initializeClientComponentLoadTracking(
+          renderOpts,
+          workStore
+        )
         metadata.clientComponentLoadTracker = tracker
         try {
           const stream = await renderToStream(
@@ -3221,6 +3219,7 @@ async function renderAppPage(
             contentType: HTML_CONTENT_TYPE_HEADER,
           })
         } catch (renderError) {
+          // Failed setup may never reach the SSR readiness callback.
           tracker?.finish()
           throw renderError
         }
@@ -3242,10 +3241,7 @@ async function renderAppPage(
     contentType: HTML_CONTENT_TYPE_HEADER,
   }
 
-  // A DATA-only resume reuses completed HTML and only produces new Flight data.
-  const tracker = isDataOnlyResume
-    ? undefined
-    : initializeClientComponentLoadTracking(renderOpts, workStore)
+  const tracker = initializeClientComponentLoadTracking(renderOpts, workStore)
   metadata.clientComponentLoadTracker = tracker
   try {
     const stream = await renderToStream(
@@ -3310,6 +3306,8 @@ async function renderAppPage(
     // Create the new render result for the response.
     return new RenderResult(stream, options)
   } catch (renderError) {
+    // Returning a stream may precede SSR readiness, which finishes success.
+    // Only failures finish here; a finally would seal successful renders early.
     tracker?.finish()
     throw renderError
   }
@@ -4248,6 +4246,7 @@ async function renderToStream(
 
             // End the span since there's no async rendering in this path
             if (renderSpan.isRecording()) renderSpan.end()
+            tracker?.finish()
             return chainStreams(
               inlinedDataStream,
               createDocumentClosingStream()
@@ -4394,6 +4393,7 @@ async function renderToStream(
 
             // End the span since there's no async rendering in this path
             if (renderSpan.isRecording()) renderSpan.end()
+            tracker?.finish()
             return chainStreams(
               inlinedDataStream,
               createDocumentClosingStream()
