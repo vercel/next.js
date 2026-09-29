@@ -2,27 +2,27 @@ import { retry } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
 describe('Edge runtime response error', () => {
-  const { next } = nextTestSetup({
-    files: __dirname,
-    disableAutoSkewProtection: true,
-    captureRuntimeLogs: true,
-  })
-
   describe.each([
     { title: 'Edge API', url: '/api/route' },
     { title: 'Middleware', url: '/' },
   ])('test error if response is not Response type', ({ title, url }) => {
+    // Each case needs its own deployment: both routes log the same error and
+    // late delivery would let one request satisfy the other case's assertion.
+    const { next } = nextTestSetup({
+      files: __dirname,
+      disableAutoSkewProtection: true,
+      captureRuntimeLogs: true,
+    })
+
     it(`${title} test Response`, async () => {
       const res = await next.fetch(url)
-      // Runtime logs arrive over the network, outside `retry()`'s 3s
-      // default. 30s is what `check()` gives the one deploy suite that
-      // already reads them successfully.
+      expect(res.status).toBe(500)
+      // Runtime log delivery can lag behind the response.
       await retry(() => {
         expect(next.cliOutput).toContain(
           'Expected an instance of Response to be returned'
         )
       }, 30_000)
-      expect(res.status).toBe(500)
     })
   })
 })
