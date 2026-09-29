@@ -684,12 +684,6 @@ const nextDev = async (
           return
         }
         if (signal) {
-          if (terminalClient) {
-            // A signal-killed worker cannot restart or serve requests. Exiting
-            // closes the control socket so the supervisor cancels a stale menu.
-            await handleSessionStop(null, false)
-            process.exit(128 + os.constants.signals[signal])
-          }
           if (upgradeInProgress) {
             interruption ??= signal
             await handleSessionStop(null)

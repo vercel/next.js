@@ -1,5 +1,4 @@
 import { spawn, type IPty } from 'node-pty'
-import { constants } from 'node:os'
 import { nextTestSetup } from 'e2e-utils'
 import { findPort, retry } from 'next-test-utils'
 
@@ -143,23 +142,6 @@ describe('agent upgrade terminal', () => {
     it('stops dev when Ctrl+C is pressed in the menu', async () => {
       terminal.write('\x03')
       expect((await exit).exitCode).toBe(130)
-      await expect(fetch(`http://127.0.0.1:${port}/`)).rejects.toThrow()
-    })
-
-    it('exits when the dev worker dies while the menu is open', async () => {
-      const response = await fetch(`http://127.0.0.1:${port}/`)
-      const workerPid = Number(
-        (await response.text()).match(/data-worker-pid="(\d+)"/)?.[1]
-      )
-      expect(workerPid).toBeGreaterThan(0)
-
-      // Kill the worker directly, leaving the supervised CLI to notice that
-      // no server remains and close its control connection to the menu.
-      process.kill(workerPid, 'SIGKILL')
-      await retry(() => {
-        expect(exited).toBe(true)
-      }, 15_000)
-      expect((await exit).exitCode).toBe(128 + constants.signals.SIGKILL)
       await expect(fetch(`http://127.0.0.1:${port}/`)).rejects.toThrow()
     })
   })
