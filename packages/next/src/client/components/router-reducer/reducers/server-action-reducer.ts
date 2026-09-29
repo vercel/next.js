@@ -48,8 +48,8 @@ import {
 import {
   invalidateEntirePrefetchCache,
   segmentCacheMap,
-  stripIsPartialByte,
 } from '../../segment-cache/cache'
+import { stripIsPartialByte } from '../fetch-server-response'
 import { startRevalidationCooldown } from '../../segment-cache/scheduler'
 import { getDeploymentId } from '../../../../shared/lib/deployment-id'
 import { getNavigationBuildId } from '../../../navigation-build-id'
