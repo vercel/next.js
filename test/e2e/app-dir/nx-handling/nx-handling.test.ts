@@ -6,6 +6,9 @@ import { nextTestSetup, isNextDev } from 'e2e-utils'
 describe('nx-handling', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    env: {
+      ENABLE_EXPERIMENTAL_COREPACK: '1',
+    },
     buildCommand: 'pnpm run build',
     startCommand: isNextDev ? 'pnpm run dev' : 'pnpm run start',
     packageJson: {
