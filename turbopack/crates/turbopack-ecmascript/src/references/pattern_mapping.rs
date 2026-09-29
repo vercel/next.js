@@ -6,8 +6,8 @@ use rustc_hash::FxHashSet;
 use swc_core::{
     common::DUMMY_SP,
     ecma::ast::{
-        CallExpr, Callee, Expr, ExprOrSpread, KeyValueProp, Lit, ObjectLit, Prop, PropName,
-        PropOrSpread,
+        CallExpr, Callee, ComputedPropName, Expr, ExprOrSpread, KeyValueProp, Lit, ObjectLit, Prop,
+        PropName, PropOrSpread,
     },
     quote, quote_expr,
 };
@@ -16,6 +16,7 @@ use turbo_tasks::{
     FxIndexMap, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
     debug::ValueDebugFormat,
 };
+use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{ChunkableModule, ChunkingContext, ModuleChunkItemIdExt, ModuleId},
     issue::{
@@ -38,6 +39,7 @@ use crate::{
     runtime_functions::{
         TURBOPACK_ASYNC_LOADER, TURBOPACK_EXTERNAL_IMPORT, TURBOPACK_EXTERNAL_REQUIRE,
         TURBOPACK_IMPORT, TURBOPACK_MODULE_CONTEXT, TURBOPACK_REQUIRE,
+        TURBOPACK_RESOLVE_ABSOLUTE_PATH,
     },
     utils::module_id_to_lit,
 };
@@ -72,6 +74,23 @@ pub(crate) enum SinglePatternMapping {
     Dropped,
 }
 
+/// An entry of a [`PatternMapping::Map`].
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Encode, Decode)]
+pub(crate) struct PatternMappingEntry {
+    mapping: SinglePatternMapping,
+    /// When the request is an absolute project path (`/ROOT/<path>`, see
+    /// [`as_abs_path`][crate::references::as_abs_path]), the same path relative to the chunking
+    /// root path.
+    ///
+    /// `__dirname` and `__filename` are replaced with their `/ROOT/<path>` value, so a request
+    /// built from them matches the request key at runtime. A request built from `import.meta.url`
+    /// (e.g. `path.join(path.dirname(url.fileURLToPath(import.meta.url)), name)`) is analyzed to
+    /// the same `/ROOT/<path>` value, but at runtime it is the real absolute path. The entry is
+    /// therefore also keyed by the runtime absolute path, which is computed the same way as
+    /// `import.meta.url`.
+    root_relative_path: Option<RcStr>,
+}
+
 /// A mapping from a request pattern (e.g. "./module", `./images/${name}.png`)
 /// to corresponding module ids. The same pattern can map to multiple module ids
 /// at runtime when using variable interpolation.
@@ -90,7 +109,7 @@ pub(crate) enum PatternMapping {
     /// ```js
     /// require(`./images/${name}.png`)
     /// ```
-    Map(#[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, SinglePatternMapping>),
+    Map(#[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, PatternMappingEntry>),
 }
 
 #[turbo_tasks::task_input]
@@ -264,19 +283,44 @@ enum ImportMode {
 }
 
 fn create_context_map(
-    map: &FxIndexMap<RcStr, SinglePatternMapping>,
+    map: &FxIndexMap<RcStr, PatternMappingEntry>,
     key_expr: &Expr,
     import_mode: ImportMode,
 ) -> Expr {
     let props = map
         .iter()
-        .map(|(k, v)| {PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {key: PropName::Str(k.as_str().into()),
-                value: quote_expr!(
-                        "{id: () => $id, module: () => $module}",
-                        id: Expr = v.create_id(Cow::Borrowed(key_expr)),
-                        module: Expr = match import_mode {ImportMode::Require => v.create_require(Cow::Borrowed(key_expr)),
-                            ImportMode::Import {import_externals} => v.create_import(Cow::Borrowed(key_expr), import_externals),},
-                    ),})))})
+        .flat_map(|(k, entry)| {
+            let v = &entry.mapping;
+            let value = quote_expr!(
+                "{id: () => $id, module: () => $module}",
+                id: Expr = v.create_id(Cow::Borrowed(key_expr)),
+                module: Expr = match import_mode {
+                    ImportMode::Require => v.create_require(Cow::Borrowed(key_expr)),
+                    ImportMode::Import { import_externals } => {
+                        v.create_import(Cow::Borrowed(key_expr), import_externals)
+                    }
+                },
+            );
+            let runtime_path_prop = entry.root_relative_path.as_ref().map(|path| {
+                PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+                    key: PropName::Computed(ComputedPropName {
+                        span: DUMMY_SP,
+                        expr: quote_expr!(
+                            "$turbopack_resolve_absolute_path($path)",
+                            turbopack_resolve_absolute_path: Expr =
+                                TURBOPACK_RESOLVE_ABSOLUTE_PATH.into(),
+                            path: Expr = path.as_str().into()
+                        ),
+                    }),
+                    value: value.clone(),
+                })))
+            });
+            std::iter::once(PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+                key: PropName::Str(k.as_str().into()),
+                value,
+            }))))
+            .chain(runtime_path_prop)
+        })
         .collect();
 
     Expr::Object(ObjectLit {
@@ -485,6 +529,8 @@ impl PatternMapping {
             }
             _ => {
                 let primary = &result.primary;
+                let root_path = chunking_context.root_path().owned().await?;
+                let fs_root = root_path.root().owned().await?;
                 let mut set = HashSet::new();
                 let items: Vec<(RcStr, &ModuleResolveResultItem)> = primary
                     .iter()
@@ -505,7 +551,15 @@ impl PatternMapping {
                             dropped_targets,
                         )
                         .await?;
-                        Ok((k, single_pattern_mapping))
+                        let root_relative_path =
+                            project_path_relative_to_root(&fs_root, &root_path, &k);
+                        Ok((
+                            k,
+                            PatternMappingEntry {
+                                mapping: single_pattern_mapping,
+                                root_relative_path,
+                            },
+                        ))
                     })
                     .try_join()
                     .await?
@@ -515,4 +569,15 @@ impl PatternMapping {
             }
         }
     }
+}
+
+/// Returns the path of a `/ROOT/<path>` request relative to `root_path`, or `None` when the
+/// request is not an absolute project path.
+fn project_path_relative_to_root(
+    fs_root: &FileSystemPath,
+    root_path: &FileSystemPath,
+    request: &str,
+) -> Option<RcStr> {
+    let path = fs_root.join(request.strip_prefix("/ROOT/")?).ok()?;
+    root_path.get_relative_path_to(&path)
 }

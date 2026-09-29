@@ -1,0 +1,21 @@
+cjsFilename = "__filename"
+
+cjsWorkerPath = "/worker.cjs"
+
+filename = "__filename"
+
+namespaced = "__filename"
+
+nonConstant = ???*0*
+- *0* url.fileURLToPath*1*(???*2*)
+  ⚠️  fileURLToPath() non constant
+  ⚠️  This value might have side effects
+- *1* url.fileURLToPath: The Node.js url.fileURLToPath method: https://nodejs.org/api/url.html#urlfileurltopathurl-options
+- *2* ???*3*["foo"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *3* FreeVar(globalThis)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+workerPath = "/worker.cjs"
