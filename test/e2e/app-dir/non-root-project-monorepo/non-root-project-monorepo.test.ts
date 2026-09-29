@@ -1,4 +1,4 @@
-import { nextTestSetup, FileRef } from 'e2e-utils'
+import { nextTestSetup, FileRef, isNextDeploy } from 'e2e-utils'
 import {
   waitForRedbox,
   waitForNoRedbox,
@@ -6,6 +6,8 @@ import {
   getRedboxSource,
 } from 'next-test-utils'
 import * as path from 'path'
+import { realpathSync } from 'fs'
+import { pathToFileURL } from 'url'
 
 describe('non-root-project-monorepo', () => {
   const { next, isTurbopack, isNextDev, isRspack } = nextTestSetup({
@@ -27,6 +29,15 @@ describe('non-root-project-monorepo', () => {
     installCommand: 'pnpm i',
     env: { ENABLE_EXPERIMENTAL_COREPACK: '1' },
   })
+
+  function sourceFileUrl(file: string) {
+    // Server bundles preserve the source path from the build environment.
+    if (isNextDeploy) {
+      return new URL(file, 'file:///vercel/path0/apps/web/').href
+    }
+    const filePath = path.join(realpathSync(next.testDir), 'apps/web', file)
+    return pathToFileURL(filePath).href
+  }
 
   describe('server relative import', () => {
     it('should resolve a `/`-rooted import from the project directory, not the workspace root', async () => {
@@ -60,15 +71,15 @@ describe('non-root-project-monorepo', () => {
   describe('import.meta.url', () => {
     it('should work during RSC', async () => {
       const $ = await next.render$('/import-meta-url-rsc')
-      expect($('p').text()).toMatch(
-        /^file:\/\/.*\/next-install-[^/]+\/apps\/web\/app\/import-meta-url-rsc\/page.tsx$/
+      expect($('p').text()).toBe(
+        sourceFileUrl('app/import-meta-url-rsc/page.tsx')
       )
     })
 
     it('should work during SSR', async () => {
       const $ = await next.render$('/import-meta-url-ssr')
-      expect($('p').text()).toMatch(
-        /^file:\/\/.*\/next-install-[^/]+\/apps\/web\/app\/import-meta-url-ssr\/page.tsx$/
+      expect($('p').text()).toBe(
+        sourceFileUrl('app/import-meta-url-ssr/page.tsx')
       )
     })
 
@@ -81,8 +92,8 @@ describe('non-root-project-monorepo', () => {
           'file:///ROOT/apps/web/app/import-meta-url-ssr/page.tsx'
         )
       } else {
-        expect(await browser.elementByCss('p').text()).toMatch(
-          /^file:\/\/.*\/next-install-[^/]+\/apps\/web\/app\/import-meta-url-ssr\/page.tsx$/
+        expect(await browser.elementByCss('p').text()).toBe(
+          sourceFileUrl('app/import-meta-url-ssr/page.tsx')
         )
       }
       await browser.close()
@@ -93,15 +104,15 @@ describe('non-root-project-monorepo', () => {
     describe('non-url-safe characters', () => {
       it('should encode special chars during RSC', async () => {
         const $ = await next.render$('/import-meta-url-encoded-rsc')
-        expect($('p').text()).toMatch(
-          /^file:\/\/.*\/next-install-[^/]+\/apps\/web\/app\/import-meta-url-encoded-rsc\/with%20space.ts$/
+        expect($('p').text()).toBe(
+          sourceFileUrl('app/import-meta-url-encoded-rsc/with space.ts')
         )
       })
 
       it('should encode special chars during SSR', async () => {
         const $ = await next.render$('/import-meta-url-encoded-ssr')
-        expect($('p').text()).toMatch(
-          /^file:\/\/.*\/next-install-[^/]+\/apps\/web\/app\/import-meta-url-encoded-ssr\/with%20space.ts$/
+        expect($('p').text()).toBe(
+          sourceFileUrl('app/import-meta-url-encoded-ssr/with space.ts')
         )
       })
 
@@ -114,8 +125,8 @@ describe('non-root-project-monorepo', () => {
             'file:///ROOT/apps/web/app/import-meta-url-encoded-ssr/with%20space.ts'
           )
         } else {
-          expect(await browser.elementByCss('p').text()).toMatch(
-            /^file:\/\/.*\/next-install-[^/]+\/apps\/web\/app\/import-meta-url-encoded-ssr\/with%20space.ts$/
+          expect(await browser.elementByCss('p').text()).toBe(
+            sourceFileUrl('app/import-meta-url-encoded-ssr/with space.ts')
           )
         }
         await browser.close()
