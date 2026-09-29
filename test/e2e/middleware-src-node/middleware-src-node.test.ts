@@ -71,7 +71,13 @@ describe('middleware-src-node', () => {
             'middleware.ts': new FileRef(join(__dirname, 'root/middleware.ts')),
           }),
         },
-        nextConfig: { output: 'export' },
+        nextConfig: {
+          output: 'export',
+          // Static export does not support Cache Components. Disable the
+          // dependent cached navigations flag too, since CI enables both.
+          cacheComponents: false,
+          experimental: { cachedNavigations: false },
+        },
         skipStart: true,
       })
 
