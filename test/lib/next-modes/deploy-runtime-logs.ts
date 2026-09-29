@@ -1,147 +1,155 @@
 import execa from 'execa'
-import { createInterface } from 'readline'
 
-/**
- * How long to let the log stream settle before the suite starts making
- * requests. Elapsing is normal — see `waitForStreamReady`.
- */
-const QUIET_DEPLOYMENT_HEAD_START_MS = 15_000
+const POLL_INTERVAL_MS = 2_000
+const REQUEST_LIMIT = 1_000
+
+type Log = { message: string; level?: string; messageTruncated?: boolean }
+type RequestLogs = {
+  id: string
+  logs: Log[]
+  messageTruncated?: boolean
+}
 
 /** Collect application messages, never CLI diagnostics, into the test output. */
 export class DeployRuntimeLogs {
-  private process: execa.ExecaChildProcess<string>
-  private completion: Promise<void>
+  private pending: Promise<void>
+  private timer: ReturnType<typeof setTimeout> | undefined
   private stopping = false
   private error: Error | undefined
-  private seenRows = new Set<string>()
-  private markFirstMessage!: () => void
-  private firstMessage = new Promise<void>((resolve) => {
-    this.markFirstMessage = resolve
-  })
+  private readonly since = new Date().toISOString()
+  private readonly seen = new Map<string, Map<string, number>>()
 
   constructor(
-    url: string,
-    options: { cwd: string; env: NodeJS.ProcessEnv; flags: string[] },
-    append: (message: string, stream: 'stdout' | 'stderr') => void
+    private readonly url: string,
+    private readonly options: {
+      cwd: string
+      env: NodeJS.ProcessEnv
+      flags: string[]
+    },
+    private readonly append: (
+      message: string,
+      stream: 'stdout' | 'stderr'
+    ) => void
   ) {
-    this.process = execa(
-      'vercel',
-      ['logs', url, '--follow', '--json', ...options.flags],
-      { cwd: options.cwd, env: options.env, buffer: false }
-    )
-    // Execa 2 also waits for its combined output stream to end. Drain it even
-    // though messages are read from stdout, or shutdown can hang after exit.
-    this.process.all?.resume()
-    const lines = createInterface({ input: this.process.stdout! })
-    lines.on('line', (line) => {
-      if (this.stopping || this.error || !line.trim()) return
-      let message: string
-      let stream: 'stdout' | 'stderr'
-      try {
-        const event = JSON.parse(line)
-        if (typeof event.message !== 'string') {
-          throw new Error('Runtime log record is missing its message')
-        }
-        if (event.source === 'delimiter' || event.messageTruncated) {
-          throw new Error('Vercel runtime logs were limited or truncated')
-        }
-        // The CLI can reconnect its stream. Only discard re-delivery of an
-        // identified record, never repeated text from distinct invocations.
-        if (typeof event.rowId === 'string' && event.rowId) {
-          const key = JSON.stringify([
-            event.rowId,
-            event.source,
-            event.level,
-            event.message,
-          ])
-          if (this.seenRows.has(key)) return
-          this.seenRows.add(key)
-        }
-        message = event.message.endsWith('\n')
-          ? event.message
-          : `${event.message}\n`
-        // Severity is the available approximation of stdout/stderr; the remote
-        // record does not preserve the application's original file descriptor.
-        const isErrorStream = ['warning', 'warn', 'error', 'fatal'].includes(
-          event.level
-        )
-        stream = isErrorStream ? 'stderr' : 'stdout'
-      } catch {
-        // Do not include raw records: they may contain application secrets.
-        this.error = new Error('Failed to read complete Vercel runtime logs')
-        this.process.kill()
-        return
-      }
+    this.pending = this.poll()
+  }
 
-      try {
-        append(message, stream)
-        this.markFirstMessage()
-      } catch {
-        // Consumer failures are distinct from invalid records. Keep their
-        // details private too, since listeners may include application data.
-        this.error = new Error('Failed to deliver Vercel runtime logs')
-        this.process.kill()
-      }
-    })
-    // Keep CLI diagnostics out of cliOutput, where they could satisfy an
-    // assertion intended to match application output.
-    this.process.stderr?.resume()
-    this.completion = this.process
-      .then(
-        () => {
-          if (!this.stopping) {
-            this.error ??= new Error(
-              'Vercel runtime log stream ended unexpectedly'
-            )
-          }
-        },
-        () => {
-          if (!this.stopping) {
-            this.error ??= new Error('Vercel runtime log collection failed')
-          }
+  private async poll() {
+    let output: string
+    try {
+      // Live streams can omit messages present in the stored request logs and
+      // expire after five minutes. Query complete request logs instead. Keep
+      // the original lower bound: records can arrive late or gain more logs.
+      const result = await execa(
+        'vercel',
+        [
+          'logs',
+          this.url,
+          '--json',
+          '--since',
+          this.since,
+          '--limit',
+          String(REQUEST_LIMIT),
+          ...this.options.flags,
+        ],
+        {
+          cwd: this.options.cwd,
+          env: this.options.env,
+          timeout: 30_000,
         }
       )
-      .finally(() => lines.close())
+      output = result.stdout
+    } catch {
+      // CLI errors can include application data or credentials.
+      this.error = new Error('Vercel runtime log collection failed')
+      return
+    }
+    if (this.stopping) return
+
+    let requests: RequestLogs[]
+    try {
+      requests = output
+        .split('\n')
+        .filter((line) => line.trim())
+        .map((line) => JSON.parse(line))
+      // Never silently accept an incomplete query window.
+      if (requests.length >= REQUEST_LIMIT) {
+        throw new Error('Runtime log request limit reached')
+      }
+      for (const request of requests) {
+        if (
+          !request ||
+          typeof request.id !== 'string' ||
+          !request.id ||
+          request.messageTruncated ||
+          !Array.isArray(request.logs) ||
+          request.logs.some(
+            (log) =>
+              !log || typeof log.message !== 'string' || log.messageTruncated
+          )
+        ) {
+          throw new Error('Invalid or truncated runtime log record')
+        }
+      }
+    } catch {
+      this.error = new Error('Failed to read complete Vercel runtime logs')
+      return
+    }
+
+    try {
+      // The top-level message summarizes a request. Only `logs` contains the
+      // individual application messages, including errors and hook output.
+      for (const request of requests.reverse()) {
+        let previous = this.seen.get(request.id)
+        if (!previous) {
+          previous = new Map()
+          this.seen.set(request.id, previous)
+        }
+        const occurrences = new Map<string, number>()
+        for (const log of request.logs) {
+          const key = JSON.stringify([log.level, log.message])
+          const count = (occurrences.get(key) ?? 0) + 1
+          occurrences.set(key, count)
+          if (count <= (previous.get(key) ?? 0)) continue
+          previous.set(key, count)
+
+          // Count occurrences per request: repeated text is legitimate, and
+          // late log entries may be inserted before entries already observed.
+          const message = log.message.endsWith('\n')
+            ? log.message
+            : `${log.message}\n`
+          const isErrorStream = ['warning', 'warn', 'error', 'fatal'].includes(
+            log.level ?? ''
+          )
+          this.append(message, isErrorStream ? 'stderr' : 'stdout')
+        }
+      }
+    } catch {
+      this.error = new Error('Failed to deliver Vercel runtime logs')
+      return
+    }
+
+    this.timer = setTimeout(() => {
+      this.pending = this.poll()
+    }, POLL_INTERVAL_MS)
   }
 
   assertHealthy() {
     if (this.error) throw this.error
   }
 
-  /**
-   * Give the stream a head start before the suite makes its first request, so
-   * an application that logs immediately is not missed.
-   *
-   * A deployment that has just been created is silent: it emits nothing until
-   * a request arrives, and the requests come from the test bodies, which run
-   * after setup. Waiting for a record is therefore best-effort and a quiet
-   * window is the expected outcome, not a failure — tests that assert on logs
-   * poll with `retry()`. Only a collector that has actually broken rejects.
-   */
-  async waitForStreamReady() {
-    let timer: ReturnType<typeof setTimeout> | undefined
-    try {
-      await Promise.race([
-        this.firstMessage,
-        this.completion,
-        new Promise<void>((resolve) => {
-          timer = setTimeout(resolve, QUIET_DEPLOYMENT_HEAD_START_MS)
-        }),
-      ])
-      this.assertHealthy()
-    } finally {
-      clearTimeout(timer)
-    }
+  /** Confirm access to request logs before the suite sends any requests. */
+  async waitForReady() {
+    await this.pending
+    this.assertHealthy()
   }
 
   async stop() {
-    // Observe an already-settled collector failure before marking its shutdown
-    // intentional. Otherwise a failed command followed immediately by teardown
-    // could be mistaken for a successful cancellation.
-    await Promise.resolve()
     this.stopping = true
-    this.process.kill('SIGTERM', { forceKillAfterTimeout: 1000 })
-    await this.completion
+    clearTimeout(this.timer)
+    // Let the bounded query finish rather than killing the CLI wrapper and
+    // leaving its native subprocess holding the output pipes open.
+    await this.pending
     this.assertHealthy()
   }
 }

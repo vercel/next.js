@@ -1,263 +1,246 @@
 import execa from 'execa'
-import { PassThrough } from 'stream'
 import { DeployRuntimeLogs } from '../../lib/next-modes/deploy-runtime-logs'
 
 jest.mock('execa', () => jest.fn())
 
-it('shuts down a real subprocess after collecting output', async () => {
-  const realExeca = jest.requireActual<typeof execa>('execa')
-  let child: execa.ExecaChildProcess<string> | undefined
-  jest.mocked(execa).mockImplementationOnce(() => {
-    child = realExeca(
-      process.execPath,
-      [
-        '-e',
-        `console.log(JSON.stringify({ message: 'ready' }));
-         console.error('CLI diagnostic');
-         setInterval(() => {}, 1000)`,
-      ],
-      { buffer: false }
-    )
-    // Jest models the last execa overload (Buffer output), while this call
-    // uses its default string encoding.
-    return child as unknown as ReturnType<typeof execa>
-  })
-  let onMessage: (message: string) => void
-  const message = new Promise<string>((resolve) => {
-    onMessage = resolve
-  })
-  const collector = new DeployRuntimeLogs(
-    'https://fixture.vercel.app',
-    { cwd: process.cwd(), env: process.env, flags: [] },
-    (value) => onMessage(value)
-  )
-  let timer: ReturnType<typeof setTimeout>
-  const deadline = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error('Collector did not stop')), 3000)
-  })
-  try {
-    await Promise.race([
-      (async () => {
-        expect(await message).toBe('ready\n')
-        await collector.stop()
-      })(),
-      deadline,
-    ])
-  } finally {
-    clearTimeout(timer!)
-    // Release the real process even when the shutdown regression occurs.
-    child?.all?.resume()
-    child?.kill('SIGKILL')
-    await child?.catch(() => {})
-    jest.clearAllMocks()
+function queryResult(stdout = '') {
+  return Promise.resolve({ stdout }) as unknown as ReturnType<typeof execa>
+}
+
+function request(id: string, ...messages: string[]) {
+  return {
+    id,
+    message: 'HTTP request summary',
+    logs: messages.map((message) => ({ message, level: 'info' })),
   }
-})
+}
 
 describe('deploy runtime logs', () => {
-  let stdout: PassThrough
-  let stderr: PassThrough
-  let finish: () => void
-  let fail: () => void
-  let kill: jest.Mock
   let collector: DeployRuntimeLogs
-  let output: string
   let append: jest.Mock
 
-  beforeEach(() => {
-    stdout = new PassThrough()
-    stderr = new PassThrough()
-    const completion = new Promise<void>((resolve, reject) => {
-      finish = resolve
-      fail = () => reject(new Error('CLI failed'))
-    })
-    kill = jest.fn(() => {
-      finish()
-      return true
-    })
-    jest.mocked(execa).mockReturnValue(
-      Object.assign(completion, {
-        stdout,
-        stderr,
-        kill,
-      }) as unknown as ReturnType<typeof execa>
-    )
-    output = 'build output\n'
-    append = jest.fn((message: string) => {
-      output += message
-    })
+  function start() {
     collector = new DeployRuntimeLogs(
       'https://fixture.vercel.app',
       { cwd: '/fixture', env: process.env, flags: ['--scope', 'test-team'] },
       append
     )
+    return collector.waitForReady()
+  }
+
+  async function nextQuery(...records: unknown[]) {
+    jest
+      .mocked(execa)
+      .mockReturnValueOnce(
+        queryResult(records.map((record) => JSON.stringify(record)).join('\n'))
+      )
+    await jest.advanceTimersByTimeAsync(2_000)
+  }
+
+  beforeEach(() => {
+    jest.useFakeTimers()
+    jest.mocked(execa).mockReturnValue(queryResult())
+    append = jest.fn()
   })
 
   afterEach(async () => {
-    // Failure assertions are made by the tests before releasing the streams.
-    await collector.stop().catch(() => {})
-    stdout.destroy()
-    stderr.destroy()
-    jest.clearAllMocks()
+    await collector?.stop().catch(() => {})
+    jest.resetAllMocks()
     jest.useRealTimers()
   })
 
-  it('settles on an application message rather than CLI diagnostics', async () => {
-    const ready = jest.fn()
-    const waiting = collector.waitForStreamReady().then(ready)
-    stderr.write('Connected to logs')
-    await Promise.resolve()
-    expect(ready).not.toHaveBeenCalled()
-    stdout.write(JSON.stringify({ message: 'first runtime message' }) + '\n')
-    await waiting
-    expect(ready).toHaveBeenCalledTimes(1)
-  })
-
-  it('proceeds when a quiet deployment emits nothing', async () => {
-    // A deployment logs only once a request reaches it, and the requests are
-    // made by the test bodies, after setup. Elapsing here must not fail them.
-    jest.useFakeTimers()
-    const waiting = collector.waitForStreamReady().then(
-      () => 'ready',
-      (error) => error
-    )
-    await jest.advanceTimersByTimeAsync(15_000)
-    expect(await waiting).toBe('ready')
-    expect(jest.getTimerCount()).toBe(0)
-  })
-
-  it('fails startup immediately when the collector exits', async () => {
-    const waiting = collector.waitForStreamReady()
-    fail()
-    await expect(waiting).rejects.toThrow('collection failed')
-  })
-
-  it('preserves build output and decodes chunked Unicode JSON records', () => {
-    const record = Buffer.from(
-      JSON.stringify({ message: 'hello 🌍\nsecond line', level: 'info' }) + '\n'
-    )
-    const split = record.indexOf(Buffer.from('🌍')) + 1
-    stdout.write(record.subarray(0, split))
-    expect(output).toBe('build output\n')
-    stdout.write(record.subarray(split))
-    stdout.write(JSON.stringify({ message: 'error\n', level: 'error' }) + '\n')
-    stderr.write('CLI status messages must not enter application output')
-    expect(output).toBe('build output\nhello 🌍\nsecond line\nerror\n')
-    expect(append).toHaveBeenLastCalledWith('error\n', 'stderr')
+  it('confirms access to quiet deployments before making test requests', async () => {
+    await start()
     expect(execa).toHaveBeenCalledWith(
       'vercel',
       [
         'logs',
         'https://fixture.vercel.app',
-        '--follow',
         '--json',
+        '--since',
+        expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
+        '--limit',
+        '1000',
         '--scope',
         'test-team',
       ],
-      expect.objectContaining({ cwd: '/fixture', buffer: false })
-    )
-  })
-
-  it.each([
-    'not json\n',
-    JSON.stringify({ level: 'error' }) + '\n',
-    JSON.stringify({ message: 'partial', messageTruncated: true }) + '\n',
-    JSON.stringify({ message: 'limit', source: 'delimiter' }) + '\n',
-  ])('fails on malformed or incomplete runtime records: %s', (record) => {
-    stdout.write(record)
-    expect(() => collector.assertHealthy()).toThrow(
-      'complete Vercel runtime logs'
+      expect.objectContaining({ cwd: '/fixture', timeout: 30_000 })
     )
     expect(append).not.toHaveBeenCalled()
-    expect(kill).toHaveBeenCalled()
+  })
+
+  it('collects every application log instead of the request summary', async () => {
+    await start()
+    await nextQuery({
+      ...request('request-1'),
+      logs: [
+        { message: 'Error: route failed', level: 'error' },
+        {
+          message: '<request-error>hook output</request-error>',
+          level: 'info',
+        },
+      ],
+    })
+    expect(append.mock.calls).toEqual([
+      ['Error: route failed\n', 'stderr'],
+      ['<request-error>hook output</request-error>\n', 'stdout'],
+    ])
+  })
+
+  it('ignores request summaries with no application messages', async () => {
+    await start()
+    await nextQuery(request('static-asset'))
+    expect(append).not.toHaveBeenCalled()
+  })
+
+  it('collects late messages and preserves repeated text within and across requests', async () => {
+    await start()
+    await nextQuery(request('request-1', 'second'))
+    await nextQuery(request('request-1', 'first', 'second', 'second'))
+    await nextQuery(
+      request('request-2', 'second'),
+      request('request-1', 'first', 'second', 'second')
+    )
+    expect(append.mock.calls.map(([message]) => message)).toEqual([
+      'second\n',
+      'first\n',
+      'second\n',
+      'second\n',
+    ])
+  })
+
+  it('keeps polling beyond the live stream time limit with the same lower bound', async () => {
+    await start()
+    const firstArgs = jest.mocked(execa).mock.calls[0][1]
+    await jest.advanceTimersByTimeAsync(5 * 60_000)
+    await nextQuery(request('late-request', 'after five minutes'))
+    expect(append).toHaveBeenCalledWith('after five minutes\n', 'stdout')
+    expect(jest.mocked(execa).mock.calls.at(-1)![1]).toEqual(firstArgs)
+    expect(() => collector.assertHealthy()).not.toThrow()
+  })
+
+  it('preserves Unicode, multiline stacks, whitespace and ANSI', async () => {
+    const message =
+      '\u001b[31mError: 🌍\u001b[0m\n    at action (page.tsx:2:3)\n'
+    await start()
+    await nextQuery(request('request-1', message))
+    expect(append).toHaveBeenCalledWith(message, 'stdout')
   })
 
   it.each(['warning', 'warn', 'error', 'fatal'])(
-    'includes %s messages in cliOutput and the stderr event',
-    (level) => {
-      const message = 'Request body exceeded 10MB for /api/echo'
-      stdout.write(JSON.stringify({ message, level }) + '\n')
-      expect(output).toContain(message)
-      expect(append).toHaveBeenCalledWith(message + '\n', 'stderr')
+    'maps %s severity to stderr',
+    async (level) => {
+      await start()
+      await nextQuery({
+        id: 'request-1',
+        logs: [{ message: 'warning', level }],
+      })
+      expect(append).toHaveBeenCalledWith('warning\n', 'stderr')
     }
   )
 
-  it('reports a throwing consumer separately from an invalid record', async () => {
+  it.each([
+    'not json',
+    'null',
+    JSON.stringify({ logs: [] }),
+    JSON.stringify({ id: 'request-1', message: 'summary' }),
+    JSON.stringify({ id: 'request-1', logs: [null] }),
+    JSON.stringify({ id: 'request-1', logs: [{ level: 'info' }] }),
+    JSON.stringify({
+      ...request('request-1', 'partial'),
+      messageTruncated: true,
+    }),
+    JSON.stringify({
+      id: 'request-1',
+      logs: [{ message: 'partial', messageTruncated: true }],
+    }),
+  ])('rejects malformed or incomplete query output: %s', async (output) => {
+    jest.mocked(execa).mockReturnValueOnce(queryResult(output))
+    await expect(start()).rejects.toThrow('complete Vercel runtime logs')
+    expect(append).not.toHaveBeenCalled()
+    await expect(collector.stop()).rejects.toThrow(
+      'complete Vercel runtime logs'
+    )
+  })
+
+  it('fails instead of losing requests when the query limit is reached', async () => {
+    jest
+      .mocked(execa)
+      .mockReturnValueOnce(
+        queryResult(
+          Array.from({ length: 1000 }, (_, i) =>
+            JSON.stringify(request(`${i}`))
+          ).join('\n')
+        )
+      )
+    await expect(start()).rejects.toThrow('complete Vercel runtime logs')
+  })
+
+  it('reports a throwing consumer without including its private details', async () => {
+    await start()
     append.mockImplementationOnce(() => {
       throw new Error('private consumer details')
     })
-    const waiting = collector.waitForStreamReady()
-
-    stdout.write(JSON.stringify({ message: 'hello', level: 'info' }) + '\n')
-
+    await nextQuery(request('request-1', 'message'))
     expect(() => collector.assertHealthy()).toThrow(
       new Error('Failed to deliver Vercel runtime logs')
     )
-    await expect(waiting).rejects.toThrow(
-      'Failed to deliver Vercel runtime logs'
+    expect(jest.getTimerCount()).toBe(0)
+  })
+
+  it('surfaces CLI failures during startup, reads, and teardown', async () => {
+    jest.mocked(execa).mockImplementationOnce(() => {
+      return Promise.reject(new Error('private CLI details')) as ReturnType<
+        typeof execa
+      >
+    })
+    await expect(start()).rejects.toThrow(
+      'Vercel runtime log collection failed'
     )
-    await expect(collector.stop()).rejects.toThrow(
-      'Failed to deliver Vercel runtime logs'
-    )
-    expect(kill).toHaveBeenCalled()
-    expect(output).toBe('build output\n')
-
-    stdout.write(JSON.stringify({ message: 'late message' }) + '\n')
-    expect(append).toHaveBeenCalledTimes(1)
-  })
-
-  it('preserves multiline stack traces, whitespace and ANSI without CLI decorations', () => {
-    const message =
-      '\u001b[31mError: example\u001b[0m\n    at action (app/page.tsx:2:3)\n'
-    stdout.write(
-      JSON.stringify({ message, level: 'error', source: 'edge-function' }) +
-        '\n'
-    )
-    expect(output.slice('build output\n'.length)).toBe(message)
-  })
-
-  it('deduplicates replayed rows without hiding repeated application messages', () => {
-    const record = { rowId: 'row-1', message: 'register-log', level: 'info' }
-    stdout.write(JSON.stringify(record) + '\n')
-    stdout.write(JSON.stringify(record) + '\n')
-    stdout.write(JSON.stringify({ ...record, rowId: 'row-2' }) + '\n')
-    stdout.write(JSON.stringify({ message: 'register-log' }) + '\n')
-    stdout.write(JSON.stringify({ message: 'register-log' }) + '\n')
-    expect(append).toHaveBeenCalledTimes(4)
-  })
-
-  it('keeps append-only offsets stable as late logs arrive', () => {
-    const offset = output.length
-    stdout.write(JSON.stringify({ message: 'first' }) + '\n')
-    expect(output.slice(offset)).toBe('first\n')
-    stdout.write(JSON.stringify({ message: 'second' }) + '\n')
-    expect(output.slice(offset)).toBe('first\nsecond\n')
-  })
-
-  it('does not hide an already-rejected collector during immediate cleanup', async () => {
-    fail()
-    await expect(collector.stop()).rejects.toThrow('collection failed')
-  })
-
-  it('surfaces collection failures when reading and during teardown', async () => {
-    fail()
-    await Promise.resolve()
     expect(() => collector.assertHealthy()).toThrow('collection failed')
     await expect(collector.stop()).rejects.toThrow('collection failed')
   })
 
-  it('does not silently accept an expired or disconnected stream', async () => {
-    finish()
+  it('finishes an in-flight query during cleanup without starting another', async () => {
+    await start()
+    let finish!: (value: { stdout: string }) => void
+    jest.mocked(execa).mockReturnValueOnce(
+      new Promise((resolve) => {
+        finish = resolve
+      }) as unknown as ReturnType<typeof execa>
+    )
+    await jest.advanceTimersByTimeAsync(2_000)
+    const stopped = jest.fn()
+    const stopping = collector.stop().then(stopped)
     await Promise.resolve()
-    expect(() => collector.assertHealthy()).toThrow('ended unexpectedly')
-    await expect(collector.stop()).rejects.toThrow('ended unexpectedly')
-  })
-
-  it('terminates collection without reporting deliberate cleanup as failure', async () => {
-    await expect(collector.stop()).resolves.toBeUndefined()
-    expect(kill).toHaveBeenCalledWith('SIGTERM', {
-      forceKillAfterTimeout: 1000,
-    })
-    stdout.write(JSON.stringify({ message: 'late' }) + '\n')
+    expect(stopped).not.toHaveBeenCalled()
+    finish({ stdout: JSON.stringify(request('late', 'must not append')) })
+    await stopping
     expect(append).not.toHaveBeenCalled()
+    expect(jest.getTimerCount()).toBe(0)
   })
+})
+
+it('collects and shuts down a real one-shot subprocess', async () => {
+  const realExeca = jest.requireActual<typeof execa>('execa')
+  jest.mocked(execa).mockImplementationOnce(() => {
+    return realExeca(process.execPath, [
+      '-e',
+      `console.log(${JSON.stringify(JSON.stringify(request('request-1', 'ready')))});
+       console.error('CLI diagnostic');`,
+    ]) as unknown as ReturnType<typeof execa>
+  })
+  const append = jest.fn()
+  const collector = new DeployRuntimeLogs(
+    'https://fixture.vercel.app',
+    { cwd: process.cwd(), env: process.env, flags: [] },
+    append
+  )
+  try {
+    await collector.waitForReady()
+    expect(append).toHaveBeenCalledWith('ready\n', 'stdout')
+  } finally {
+    await collector.stop()
+    jest.resetAllMocks()
+  }
 })

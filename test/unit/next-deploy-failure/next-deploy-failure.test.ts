@@ -1,6 +1,6 @@
 import execa from 'execa'
 import { trace } from 'next/dist/trace'
-import { PassThrough } from 'stream'
+import { DeployRuntimeLogs } from '../../lib/next-modes/deploy-runtime-logs'
 
 jest.mock('execa', () => jest.fn())
 
@@ -56,10 +56,8 @@ describe('deployment lifecycle', () => {
   let deployDurationMs: number
   // Results for successive `vercel deploy` calls; `deployResult` once exhausted.
   let deployResults: Result[]
-  let runtimeStdout: PassThrough
-  let runtimeStderr: PassThrough
-  let runtimeProcess: ReturnType<typeof execa>
-  let stopRuntimeLogs: jest.Mock
+  let runtimeLogs: Result
+  let stopRuntimeLogs: jest.SpyInstance
 
   beforeEach(() => {
     mockClock = null
@@ -104,19 +102,8 @@ describe('deployment lifecycle', () => {
     deployResult = { exitCode: 1, stdout: deploymentUrl, stderr: '' }
     logs = { exitCode: 1, stdout: '', stderr: diagnostic }
     customLogs = { ...logs, exitCode: 0 }
-    runtimeStdout = new PassThrough()
-    runtimeStderr = new PassThrough()
-    const completion = new Promise<void>((resolve) => {
-      stopRuntimeLogs = jest.fn(() => {
-        resolve()
-        return true
-      })
-    })
-    runtimeProcess = Object.assign(completion, {
-      stdout: runtimeStdout,
-      stderr: runtimeStderr,
-      kill: stopRuntimeLogs!,
-    }) as unknown as ReturnType<typeof execa>
+    runtimeLogs = { exitCode: 0, stdout: '', stderr: '' }
+    stopRuntimeLogs = jest.spyOn(DeployRuntimeLogs.prototype, 'stop')
 
     jest
       .mocked(execa)
@@ -132,7 +119,8 @@ describe('deployment lifecycle', () => {
         } else if (command === 'vercel' && Array.isArray(args)) {
           switch (args[0]) {
             case 'logs':
-              return runtimeProcess
+              result = runtimeLogs
+              break
             case '--version':
             case 'link':
               result = { exitCode: 0, stdout: '', stderr: '' }
@@ -174,8 +162,6 @@ describe('deployment lifecycle', () => {
   })
 
   afterEach(() => {
-    runtimeStdout.destroy()
-    runtimeStderr.destroy()
     jest.restoreAllMocks()
     mockClock = null
   })
@@ -231,11 +217,11 @@ describe('deployment lifecycle', () => {
   it('appends runtime messages to build output and stops collection on destroy', async () => {
     successfulDeployment()
     const next = await instance(true)
-    const starting = next.start()
-    runtimeStdout.write(
-      JSON.stringify({ message: 'register-log', level: 'info' }) + '\n'
-    )
-    await starting
+    runtimeLogs.stdout = JSON.stringify({
+      id: 'request-1',
+      logs: [{ message: 'register-log', level: 'info' }],
+    })
+    await next.start()
     expect(next.cliOutput).toBe(ids + '\nregister-log\n')
     await next.destroy()
     expect(stopRuntimeLogs).toHaveBeenCalled()
@@ -245,11 +231,11 @@ describe('deployment lifecycle', () => {
     successfulDeployment()
     process.env.NEXT_TEST_DEPLOY_URL = deploymentUrl
     const next = await instance(true)
-    const starting = next.start()
-    runtimeStdout.write(
-      JSON.stringify({ message: 'existing deployment' }) + '\n'
-    )
-    await starting
+    runtimeLogs.stdout = JSON.stringify({
+      id: 'request-1',
+      logs: [{ message: 'existing deployment' }],
+    })
+    await next.start()
     expect(next.cliOutput).toContain('existing deployment')
     await next.destroy()
   })
@@ -257,7 +243,10 @@ describe('deployment lifecycle', () => {
   it('stops the collector even if deployment cleanup fails', async () => {
     successfulDeployment()
     const next = await instance(true)
-    runtimeStdout.write(JSON.stringify({ message: 'ready' }) + '\n')
+    runtimeLogs.stdout = JSON.stringify({
+      id: 'request-1',
+      logs: [{ message: 'ready' }],
+    })
     await next.start()
     jest
       .spyOn(NextInstance.prototype, 'destroy')
