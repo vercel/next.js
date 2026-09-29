@@ -17,7 +17,9 @@ Caching is a technique for storing the result of data fetching and other computa
 
 ## Enabling Cache Components
 
-You can enable Cache Components by adding the [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) option to your Next config file:
+New App Router apps created with the recommended [`create-next-app`](/docs/app/api-reference/cli/create-next-app) defaults already have Cache Components enabled.
+
+To enable it in an existing or manually created app, add the [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) option to your Next config file:
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'

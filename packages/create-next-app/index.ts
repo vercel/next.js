@@ -255,7 +255,7 @@ async function run(): Promise<void> {
       empty: false,
       disableGit: false,
       reactCompiler: false,
-      cacheComponents: false,
+      cacheComponents: true,
       agentsMd: true,
     }
 
@@ -611,10 +611,9 @@ async function run(): Promise<void> {
     }
 
     // Cache Components is an App Router feature, so only offer it when the App
-    // Router is in use.
+    // Router is in use, including API-only projects.
     if (
-      opts.app &&
-      !opts.api &&
+      (opts.app || opts.api) &&
       !opts.cacheComponents &&
       !args.includes('--no-cache-components')
     ) {
