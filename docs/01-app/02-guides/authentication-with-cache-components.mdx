@@ -155,6 +155,8 @@ async function Dashboard() {
 
 Keep the session read out of a layout's top level, too. A top-level `await` on the session in a layout holds the whole segment, including `{children}`, behind that request, so push it into a component inside a boundary. See [Push dynamic access down](/docs/app/guides/streaming#push-dynamic-access-down).
 
+Because `<Dashboard>` reads the session behind `<Suspense>`, an unauthenticated visitor may see the static shell and fallback before `getCurrentUser()` redirects. Use a fallback that is safe for every visitor. If no route UI should render before the redirect, add an [optimistic check before rendering](/docs/app/guides/authentication#auth-and-streaming) with a `next.config.js` redirect or Proxy, and keep the secure check in `getCurrentUser()`.
+
 > **Good to know:** `getCurrentUser` reads the session, checks it, and returns a narrow user. Centralizing those reads in one function is the [Data Access Layer](/docs/app/guides/authentication#creating-a-data-access-layer-dal) pattern.
 
 ## Step 3: Share the user across components
@@ -219,6 +221,8 @@ export function UserBadge() {
   return <span>Signed in as {user.name}</span>
 }
 ```
+
+Do not send expected authorization failures through a server promise for the Client Component to classify. Next.js removes Server Component error details in production. Handle expected authorization outcomes on the server before passing the promise to the client, or resolve the promise with a typed result that contains no sensitive information.
 
 > **Good to know:** Expose only what the client needs. The `getCurrentUser` helper returns a narrow `{ id, name }` rather than the raw session. To keep sensitive fields from reaching the client, see [`taintUniqueValue`](https://react.dev/reference/react/experimental_taintUniqueValue).
 
