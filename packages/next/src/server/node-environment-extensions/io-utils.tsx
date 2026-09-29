@@ -61,6 +61,7 @@ export function io(expression: string, type: SyncIOApiType) {
         // `shouldTrackSyncInterrupt`/`syncInterruptCurrentStageWithReason`
         switch (stageController.currentStage) {
           case RenderStage.ShellStatic:
+          case RenderStage.PrefetchStatic_prefetchApi:
           case RenderStage.PrefetchStatic:
           case RenderStage.NavigationStatic:
           case RenderStage.Static: {
@@ -68,6 +69,7 @@ export function io(expression: string, type: SyncIOApiType) {
             break
           }
           case RenderStage.ShellRuntime:
+          case RenderStage.PrefetchRuntime_prefetchApi:
           case RenderStage.PrefetchRuntime:
           case RenderStage.NavigationRuntime: {
             // We're in a runtime stage.

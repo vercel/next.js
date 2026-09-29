@@ -358,7 +358,8 @@ function createStaticPrerenderParams(
         if (
           !allParamsAreRootParams(underlyingParams, prerenderStore.rootParams)
         ) {
-          const staticParamsStage = RENDER_STAGES_BY_DATA_KIND.staticLinkData
+          const staticParamsStage =
+            RENDER_STAGES_BY_DATA_KIND.staticUrlData.static
           return stagedRendering.delayUntilStage(
             staticParamsStage,
             'params',
@@ -434,7 +435,7 @@ function createRuntimePrerenderParams(
 
   // Non-root params are URL data, and we need to recover a param-less session shell,
   // so we delay all params until the PrefetchRuntime stage (even if they're static)
-  const paramsStage = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
+  const paramsStage = RENDER_STAGES_BY_DATA_KIND.runtimeUrlData
 
   const { stagedRendering } = workUnitStore
   if (!stagedRendering) {
@@ -575,9 +576,10 @@ function createStagedRenderParamsImpl(
     // shells are handled with a separate render.
     // However, in dev we might need to recover a session shell for instant validation.
     // This is indicated by `needsRuntimeShell`.
-    const staticParamsStage = workUnitStore.needsRuntimeShell
-      ? RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
-      : RENDER_STAGES_BY_DATA_KIND.staticLinkData
+    const staticParamsStage =
+      RENDER_STAGES_BY_DATA_KIND.staticUrlData[
+        workUnitStore.needsRuntimeShell ? 'runtime' : 'static'
+      ]
 
     const promise = stagedRendering.delayUntilStage(
       staticParamsStage,
@@ -771,7 +773,7 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
     ? makeDevtoolsIOAwarePromise(
         userspaceParams,
         requestStore,
-        RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
+        RENDER_STAGES_BY_DATA_KIND.runtimeUrlData
       )
     : // We don't want to force an environment transition when this params is not part of the fallback params set
       Promise.resolve(userspaceParams)
