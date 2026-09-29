@@ -554,10 +554,14 @@ impl SpanEventRef<'_> {
 
 #[cfg(test)]
 mod tests {
-    use rustc_hash::FxHashSet;
     use turbo_rcstr::RcStr;
 
-    use crate::{span::SpanArgs, span_ref::SpanRef, store::Store, timestamp::Timestamp};
+    use crate::{
+        span::SpanArgs,
+        span_ref::SpanRef,
+        store::{OutdatedSpans, Store},
+        timestamp::Timestamp,
+    };
 
     fn span_ref<'a>(store: &'a Store, idx: crate::span::SpanIndex) -> SpanRef<'a> {
         SpanRef {
@@ -570,7 +574,7 @@ mod tests {
     #[test]
     fn totals_aggregate_subtree() {
         let mut store = Store::new();
-        let mut outdated = FxHashSet::default();
+        let mut outdated = OutdatedSpans::default();
 
         // root → a → b
         // root → c
@@ -638,7 +642,7 @@ mod tests {
     #[test]
     fn totals_invalidate_and_recompute() {
         let mut store = Store::new();
-        let mut outdated = FxHashSet::default();
+        let mut outdated = OutdatedSpans::default();
         let s = store.add_span(
             None,
             Timestamp::from_micros(0),
@@ -654,7 +658,7 @@ mod tests {
         assert_eq!(before, 1000 - 32);
 
         // Add more allocations and invalidate.
-        let mut outdated = FxHashSet::default();
+        let mut outdated = OutdatedSpans::default();
         store.add_allocation(s, 200, 2, &mut outdated);
         store.invalidate_outdated_spans(&outdated);
 

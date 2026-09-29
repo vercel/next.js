@@ -95,7 +95,7 @@ next-core = { workspace = true }
 turbopack-core = { workspace = true }
 turbopack-ecmascript-hmr-protocol = { workspace = true }
 turbopack-trace-utils = { workspace = true }
-turbopack-trace-server = { workspace = true }
+turbopack-trace-server = { workspace = true, features = ["trace-server"] }
 turbopack-node = { workspace = true, default-features = false, features = ["worker_pool"] }
 
 mdxjs = { workspace = true, features = ["serializable"] }
