@@ -4,7 +4,6 @@ import React, {
   useRef,
   useEffect,
   useContext,
-  useMemo,
   useState,
   forwardRef,
   use,
@@ -373,20 +372,7 @@ export const Image = forwardRef<HTMLImageElement | null, ImageProps>(
     // We're in the app directory if there is no pages router.
     const isAppRouter = !pagesRouter
 
-    const imageConfig = getImageConfig()
-    const config = useMemo(() => {
-      const c = imageConfig
-
-      const allSizes = [...c.deviceSizes, ...c.imageSizes].sort((a, b) => a - b)
-      const deviceSizes = [...c.deviceSizes].sort((a, b) => a - b)
-      const qualities = c.qualities?.slice().sort((a, b) => a - b)
-      return {
-        ...c,
-        allSizes,
-        deviceSizes,
-        qualities,
-      }
-    }, [imageConfig])
+    const config = getImageConfig()
 
     const { onLoad, onLoadingComplete } = props
     const onLoadRef = useRef(onLoad)

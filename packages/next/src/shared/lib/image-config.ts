@@ -150,6 +150,33 @@ export type ImageConfigRuntime = ImageConfigComplete & {
   output?: 'standalone' | 'export'
 }
 
+type ImageConfigSizes = Pick<
+  ImageConfigComplete,
+  'deviceSizes' | 'imageSizes' | 'qualities'
+>
+
+export type PreparedImageConfig<T extends ImageConfigSizes> = T & {
+  allSizes: number[]
+}
+
+/** Own and sort the arrays consumed by Image without changing the source config. */
+export function prepareImageConfig<T extends ImageConfigSizes>(
+  config: T
+): PreparedImageConfig<T> {
+  const deviceSizes = [...config.deviceSizes].sort((a, b) => a - b)
+  const imageSizes = [...config.imageSizes]
+  const allSizes = [...deviceSizes, ...imageSizes].sort((a, b) => a - b)
+  const qualities = config.qualities?.slice().sort((a, b) => a - b)
+
+  return {
+    ...config,
+    deviceSizes,
+    imageSizes,
+    allSizes,
+    qualities,
+  }
+}
+
 export function getRuntimeImageConfig(config: {
   images: ImageConfigComplete
   output?: ImageConfigRuntime['output']

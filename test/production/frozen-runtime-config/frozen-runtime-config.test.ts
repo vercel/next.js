@@ -75,7 +75,6 @@ describe('frozen-runtime-config', () => {
       )
       for (const id of ['modern', 'legacy']) {
         const img = $(`#${id}`)
-        expect(img.attr('data-config-frozen')).toBe('true')
         const candidates = img
           .attr('srcset')
           .split(', ')

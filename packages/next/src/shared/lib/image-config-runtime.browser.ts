@@ -1,8 +1,19 @@
-import type { ImageConfigRuntime } from './image-config'
+import {
+  prepareImageConfig,
+  type ImageConfigRuntime,
+  type PreparedImageConfig,
+} from './image-config'
 
-const imageConfig = process.env
-  .__NEXT_IMAGE_CONFIG as any as Partial<ImageConfigRuntime>
+type BrowserImageConfig = Pick<
+  ImageConfigRuntime,
+  'deviceSizes' | 'imageSizes' | 'qualities'
+> &
+  Partial<ImageConfigRuntime>
 
-export function getImageConfig(): Partial<ImageConfigRuntime> {
+const imageConfig = prepareImageConfig(
+  process.env.__NEXT_IMAGE_CONFIG as any as BrowserImageConfig
+)
+
+export function getImageConfig(): PreparedImageConfig<BrowserImageConfig> {
   return imageConfig
 }

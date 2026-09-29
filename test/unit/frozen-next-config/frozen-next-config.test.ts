@@ -3,7 +3,10 @@ import { renderToString } from 'react-dom/server'
 import Image, { getImageProps } from 'next/image'
 import LegacyImage from 'next/legacy/image'
 import { getImageConfig } from 'next/dist/shared/lib/image-config-runtime'
-import { imageConfigDefault } from 'next/dist/shared/lib/image-config'
+import {
+  imageConfigDefault,
+  prepareImageConfig,
+} from 'next/dist/shared/lib/image-config'
 import { getImgProps } from 'next/dist/shared/lib/get-img-props'
 import defaultLoader from 'next/dist/shared/lib/image-loader'
 import { deepFreeze } from 'next/dist/shared/lib/deep-freeze'
@@ -42,7 +45,7 @@ describe.each(configStates)('image config sorting (%s)', (state) => {
     'renders %s with sorted widths and closest quality',
     (name) => {
       const config = createConfig()
-      mockedGetImageConfig.mockReturnValue(config)
+      mockedGetImageConfig.mockReturnValue(prepareImageConfig(config))
       const before = JSON.stringify(config)
       const commonProps = {
         src: '/test.png',
@@ -69,7 +72,7 @@ describe.each(configStates)('image config sorting (%s)', (state) => {
     const before = JSON.stringify(config)
     const { props } = getImgProps(
       { src: '/test.png', alt: 'test', fill: true },
-      { defaultLoader, imgConf: config }
+      { defaultLoader, imgConf: prepareImageConfig(config) }
     )
     expect(props.srcSet).toBe(
       '/_next/image?url=%2Ftest.png&w=640&q=60 640w, /_next/image?url=%2Ftest.png&w=1080&q=60 1080w'
@@ -79,7 +82,7 @@ describe.each(configStates)('image config sorting (%s)', (state) => {
 
   it('generates public image props from frozen options without mutation', () => {
     const config = createConfig()
-    mockedGetImageConfig.mockReturnValue(config)
+    mockedGetImageConfig.mockReturnValue(prepareImageConfig(config))
     const before = JSON.stringify(config)
     const { props } = getImageProps({
       src: '/test.png',
@@ -94,10 +97,9 @@ describe.each(configStates)('image config sorting (%s)', (state) => {
 })
 
 it('uses the runtime output mode for public image props validation', () => {
-  mockedGetImageConfig.mockReturnValue({
-    ...imageConfigDefault,
-    output: 'export',
-  })
+  mockedGetImageConfig.mockReturnValue(
+    prepareImageConfig({ ...imageConfigDefault, output: 'export' })
+  )
   expect(() =>
     getImageProps({ src: '/test.png', alt: 'test', width: 100, height: 100 })
   ).toThrow('Image Optimization using the default loader is not compatible')

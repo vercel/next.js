@@ -1,7 +1,8 @@
-import type { ImageConfigRuntime } from './image-config'
-import { imageConfigDefault } from './image-config'
+import type { ImageConfigRuntime, PreparedImageConfig } from './image-config'
+import { imageConfigDefault, prepareImageConfig } from './image-config'
 
-let imageConfig: ImageConfigRuntime = imageConfigDefault
+let imageConfig: PreparedImageConfig<ImageConfigRuntime> =
+  prepareImageConfig(imageConfigDefault)
 let registeredConfig: string | undefined
 let consumed = false
 let conflictingRegistration = false
@@ -20,7 +21,7 @@ function warnIfConflicting() {
 export function registerImageConfig(config: ImageConfigRuntime): void {
   const serializedConfig = JSON.stringify(config)
   if (registeredConfig === undefined) {
-    imageConfig = config
+    imageConfig = prepareImageConfig(config)
     registeredConfig = serializedConfig
   } else if (registeredConfig !== serializedConfig) {
     conflictingRegistration = true
@@ -29,7 +30,7 @@ export function registerImageConfig(config: ImageConfigRuntime): void {
 }
 
 /** Read at use time so imports before registration do not capture defaults. */
-export function getImageConfig(): ImageConfigRuntime {
+export function getImageConfig(): PreparedImageConfig<ImageConfigRuntime> {
   consumed = true
   warnIfConflicting()
   return imageConfig

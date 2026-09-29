@@ -4,7 +4,6 @@ import React, {
   useRef,
   useEffect,
   useCallback,
-  useMemo,
   useState,
   type JSX,
 } from 'react'
@@ -12,7 +11,8 @@ import * as ReactDOM from 'react-dom'
 import Head from '../../shared/lib/head'
 import { VALID_LOADERS } from '../../shared/lib/image-config'
 import type {
-  ImageConfigComplete,
+  ImageConfigRuntime,
+  PreparedImageConfig,
   LoaderValue,
 } from '../../shared/lib/image-config'
 import { useIntersection } from '../use-intersection'
@@ -42,7 +42,7 @@ if (typeof window === 'undefined') {
 
 const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const
 type LoadingValue = (typeof VALID_LOADING_VALUES)[number]
-type ImageConfig = ImageConfigComplete & { allSizes: number[] }
+type ImageConfig = PreparedImageConfig<ImageConfigRuntime>
 export type ImageLoader = (resolverProps: ImageLoaderProps) => string
 
 export type ImageLoaderProps = {
@@ -696,19 +696,7 @@ export default function Image({
   blurDataURL,
   ...all
 }: ImageProps) {
-  const imageConfig = getImageConfig()
-  const config: ImageConfig = useMemo(() => {
-    const c = imageConfig
-    const allSizes = [...c.deviceSizes, ...c.imageSizes].sort((a, b) => a - b)
-    const deviceSizes = [...c.deviceSizes].sort((a, b) => a - b)
-    const qualities = c.qualities?.slice().sort((a, b) => a - b)
-    return {
-      ...c,
-      allSizes,
-      deviceSizes,
-      qualities,
-    }
-  }, [imageConfig])
+  const config: ImageConfig = getImageConfig()
 
   let rest: Partial<ImageProps> = all
   let layout: NonNullable<LayoutValue> = sizes ? 'responsive' : 'intrinsic'
