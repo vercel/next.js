@@ -299,6 +299,91 @@ describe('security upgrade nudge', () => {
     )
   })
 
+  it('keeps an accepted dev retry through a worker restart but not a new session', async () => {
+    const reminder = Promise.resolve({
+      kind: 'security' as const,
+      policy: 'security' as const,
+      installedVersion: '13.0.0',
+      targetVersion: '17.2.1',
+      reference: 'https://api.github.com/advisories?affects=next%4013.0.0',
+    })
+    const originalWorker = process.env.NEXT_PRIVATE_WORKER
+    const originalRetries = process.env.NEXT_PRIVATE_ALLOWED_UPGRADE_RETRIES
+    const originalSend = process.send
+    const send = jest.fn(
+      (_message: unknown, callback: (error: Error | null) => void) => {
+        callback(null)
+      }
+    )
+
+    try {
+      process.env.NEXT_PRIVATE_WORKER = '1'
+      process.send = send as unknown as typeof process.send
+
+      await expect(
+        nudgeUpgrade(directory, config('security'), 'dev', null, reminder)
+      ).rejects.toMatchObject({ name: 'SecurityFatalError' })
+      await expect(
+        nudgeUpgrade(directory, config('security'), 'dev', null, reminder)
+      ).resolves.toBeUndefined()
+
+      const message = send.mock.calls[0]?.[0] as {
+        nextUpgradeRetryAllowed: string
+      }
+      expect(message.nextUpgradeRetryAllowed).toMatch(/^[a-f0-9]{64}$/)
+
+      process.env.NEXT_PRIVATE_ALLOWED_UPGRADE_RETRIES =
+        message.nextUpgradeRetryAllowed
+      let restartedNudge: typeof nudgeUpgrade
+      jest.isolateModules(() => {
+        restartedNudge = jest.requireActual<
+          typeof import('../../packages/next/src/lib/upgrade/nudge')
+        >('../../packages/next/src/lib/upgrade/nudge').nudgeUpgrade
+        jest
+          .mocked(
+            jest.requireMock<typeof import('next/dist/telemetry/agent-name')>(
+              'next/dist/telemetry/agent-name'
+            ).getAgentName
+          )
+          .mockResolvedValue('codex')
+      })
+      await expect(
+        restartedNudge!(directory, config('security'), 'dev', null, reminder)
+      ).resolves.toBeUndefined()
+      expect(send).toHaveBeenCalledTimes(1)
+
+      delete process.env.NEXT_PRIVATE_ALLOWED_UPGRADE_RETRIES
+      let newSessionNudge: typeof nudgeUpgrade
+      jest.isolateModules(() => {
+        newSessionNudge = jest.requireActual<
+          typeof import('../../packages/next/src/lib/upgrade/nudge')
+        >('../../packages/next/src/lib/upgrade/nudge').nudgeUpgrade
+        jest
+          .mocked(
+            jest.requireMock<typeof import('next/dist/telemetry/agent-name')>(
+              'next/dist/telemetry/agent-name'
+            ).getAgentName
+          )
+          .mockResolvedValue('codex')
+      })
+      await expect(
+        newSessionNudge!(directory, config('security'), 'dev', null, reminder)
+      ).rejects.toMatchObject({ name: 'SecurityFatalError' })
+    } finally {
+      process.send = originalSend
+      if (originalWorker === undefined) {
+        delete process.env.NEXT_PRIVATE_WORKER
+      } else {
+        process.env.NEXT_PRIVATE_WORKER = originalWorker
+      }
+      if (originalRetries === undefined) {
+        delete process.env.NEXT_PRIVATE_ALLOWED_UPGRADE_RETRIES
+      } else {
+        process.env.NEXT_PRIVATE_ALLOWED_UPGRADE_RETRIES = originalRetries
+      }
+    }
+  })
+
   it('keeps dev and build retry receipts independent', async () => {
     jest.mocked(getUpgradeAssessment).mockResolvedValue({
       affected: true,

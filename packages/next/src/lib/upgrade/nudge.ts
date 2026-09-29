@@ -31,7 +31,13 @@ function getRequestedUpgrade() {
 }
 
 const RETRY_TTL = 5 * 60 * 1000
-const allowedRetries = new Set<string>()
+const allowedRetries = new Set(
+  process.env.NEXT_PRIVATE_WORKER === '1'
+    ? (process.env.NEXT_PRIVATE_ALLOWED_UPGRADE_RETRIES ?? '')
+        .split(',')
+        .filter((identity) => /^[a-f0-9]{64}$/.test(identity))
+    : []
+)
 
 function hasCode(error: unknown, code: string): boolean {
   return (
@@ -105,6 +111,17 @@ async function allowNudgeRetry(
     issuedAt <= now &&
     now - issuedAt < RETRY_TTL
   ) {
+    if (command === 'dev' && process.env.NEXT_PRIVATE_WORKER === '1') {
+      await new Promise<void>((complete, reject) => {
+        process.send!({ nextUpgradeRetryAllowed: identity }, (error) => {
+          if (error) {
+            reject(error)
+          } else {
+            complete()
+          }
+        })
+      })
+    }
     allowedRetries.add(identity)
     return true
   }
