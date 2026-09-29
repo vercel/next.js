@@ -1,6 +1,6 @@
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
+import { gate, retry } from 'next-test-utils'
 
 describe('edge-runtime-streaming-error', () => {
   const { next } = nextTestSetup({
@@ -14,13 +14,15 @@ describe('edge-runtime-streaming-error', () => {
     expect(await res.text()).toEqual('hello')
     expect(res.status).toBe(200)
 
-    // Runtime logs arrive over the network, outside `retry()`'s 3s
-    // default. 30s is what `check()` gives the one deploy suite that
-    // already reads them successfully.
+    // Vercel consumes the stream in its runtime; locally it is piped to a Node
+    // response, which reports the invalid chunk differently.
+    const expectedError = (await gate((c) => c.deploy))
+      ? /TypeError: This ReadableStream did not return bytes\./
+      : /The "chunk" argument must be of type string or an instance of Buffer or Uint8Array. Received type boolean/
+
+    // Runtime log delivery can lag behind the response.
     await retry(() => {
-      expect(stripAnsi(next.cliOutput)).toMatch(
-        /The "chunk" argument must be of type string or an instance of Buffer or Uint8Array. Received type boolean/
-      )
+      expect(stripAnsi(next.cliOutput)).toMatch(expectedError)
     }, 30_000)
     expect(stripAnsi(next.cliOutput)).not.toContain('webpack-internal:')
   })
