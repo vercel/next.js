@@ -4,7 +4,7 @@
 // Modules with a `.browser` sibling. The default module is aliased to its
 // `.browser` variant for the browser bundle in
 // `packages/next/src/build/create-compiler-aliases.ts`. Paths are relative to
-// `packages/next/dist` (extension omitted).
+// `packages/next/dist` or `packages/next/dist/esm` (extension omitted).
 export const browserVariantModules = [
   'client/components/client-boundary-params',
   'client/components/instant-samples',
@@ -13,4 +13,5 @@ export const browserVariantModules = [
   'client/components/router-reducer/create-segment-key',
   'client/components/server-async-storage',
   'client/components/unstable-rethrow',
+  'shared/lib/image-config-runtime',
 ] as const

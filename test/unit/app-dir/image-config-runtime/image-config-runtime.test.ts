@@ -2,6 +2,7 @@ import { imageConfigDefault } from 'next/dist/shared/lib/image-config'
 
 type Registry =
   typeof import('next/dist/shared/lib/image-config-runtime.external')
+type Facade = typeof import('next/dist/shared/lib/image-config-runtime')
 
 function loadRegistry(): Registry {
   let registry!: Registry
@@ -23,6 +24,22 @@ function createConfig() {
 afterEach(() => jest.restoreAllMocks())
 
 describe('external image config registration', () => {
+  it('reads later registration through an earlier canonical facade import', () => {
+    let facade!: Facade
+    let registry!: Registry
+    jest.isolateModules(() => {
+      facade = require('next/dist/shared/lib/image-config-runtime')
+      registry = require('next/dist/shared/lib/image-config-runtime.external')
+    })
+
+    expect(facade.getImageConfig().deviceSizes).toEqual(
+      imageConfigDefault.deviceSizes
+    )
+    const config = createConfig()
+    registry.registerImageConfig(config)
+    expect(facade.getImageConfig()).toBe(config)
+  })
+
   it('reads the registered options after an earlier default read', () => {
     const registry = loadRegistry()
     expect(registry.getImageConfig().deviceSizes).toEqual(

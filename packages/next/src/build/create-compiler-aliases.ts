@@ -140,15 +140,6 @@ export function createWebpackAliases({
         }
       : undefined),
 
-    'next/dist/shared/lib/image-config-runtime$': `next/dist/${
-      isEdgeServer ? 'esm/' : ''
-    }shared/lib/image-config-${isClient ? 'browser' : 'ssr'}`,
-    'next/dist/shared/lib/image-config-runtime.js$': `next/dist/${
-      isEdgeServer ? 'esm/' : ''
-    }shared/lib/image-config-${isClient ? 'browser' : 'ssr'}`,
-    'next/dist/esm/shared/lib/image-config-runtime$': `next/dist/esm/shared/lib/image-config-${isClient ? 'browser' : 'ssr'}`,
-    'next/dist/esm/shared/lib/image-config-runtime.js$': `next/dist/esm/shared/lib/image-config-${isClient ? 'browser' : 'ssr'}`,
-
     'styled-jsx/style$': defaultOverrides['styled-jsx/style'],
     'styled-jsx$': defaultOverrides['styled-jsx'],
 
@@ -187,12 +178,16 @@ export function createWebpackAliases({
           // sibling. The default module holds the full server logic; bundling it would
           // drag server-only modules into the client bundle. Server/edge compilers are
           // not aliased and keep the default. The trailing `$` is an exact match so it
-          // cannot catch the `.browser.js` file itself.
+          // cannot catch the `.browser.js` file itself. Match both CommonJS
+          // and ESM output so either import path selects the same variant.
           ...Object.fromEntries(
-            browserVariantModules.map((moduleId) => [
-              path.join(NEXT_PROJECT_ROOT_DIST, `${moduleId}.js`) + '$',
-              `next/dist/${moduleId}.browser`,
-            ])
+            browserVariantModules.flatMap((moduleId) =>
+              ['', 'esm/'].map((prefix) => [
+                path.join(NEXT_PROJECT_ROOT_DIST, `${prefix}${moduleId}.js`) +
+                  '$',
+                `next/dist/${prefix}${moduleId}.browser`,
+              ])
+            )
           ),
 
           // When the Instant Navigation Testing API is unavailable (Cache

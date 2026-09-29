@@ -70,23 +70,6 @@ pub async fn get_next_client_import_map(
         request_to_import_mapping(project_path.clone(), rcstr!("next/dist/api/image")),
     );
 
-    insert_exact_alias_or_js(
-        &mut import_map,
-        rcstr!("next/dist/shared/lib/image-config-runtime"),
-        request_to_import_mapping(
-            project_path.clone(),
-            rcstr!("next/dist/shared/lib/image-config-browser"),
-        ),
-    );
-    insert_exact_alias_or_js(
-        &mut import_map,
-        rcstr!("next/dist/esm/shared/lib/image-config-runtime"),
-        request_to_import_mapping(
-            project_path.clone(),
-            rcstr!("next/dist/esm/shared/lib/image-config-browser"),
-        ),
-    );
-
     insert_next_shared_aliases(
         &mut import_map,
         project_path.clone(),
@@ -309,22 +292,6 @@ pub async fn get_next_server_import_map(
         request_to_import_mapping(project_path.clone(), rcstr!("next/dist/api/image")),
     );
 
-    let image_config_module = if ty.should_use_react_server_condition() {
-        rcstr!("next/dist/shared/lib/image-config-rsc")
-    } else {
-        rcstr!("next/dist/shared/lib/image-config-ssr")
-    };
-    insert_exact_alias_or_js(
-        &mut import_map,
-        rcstr!("next/dist/shared/lib/image-config-runtime"),
-        request_to_import_mapping(project_path.clone(), image_config_module.clone()),
-    );
-    insert_exact_alias_or_js(
-        &mut import_map,
-        rcstr!("next/dist/esm/shared/lib/image-config-runtime"),
-        request_to_import_mapping(project_path.clone(), image_config_module),
-    );
-
     insert_next_shared_aliases(
         &mut import_map,
         project_path.clone(),
@@ -432,22 +399,6 @@ pub async fn get_next_edge_import_map(
     collected_root_params: Option<Vc<CollectedRootParams>>,
 ) -> Result<Vc<ImportMap>> {
     let mut import_map = ImportMap::empty();
-
-    let image_config_module = if ty.should_use_react_server_condition() {
-        rcstr!("next/dist/esm/shared/lib/image-config-rsc")
-    } else {
-        rcstr!("next/dist/esm/shared/lib/image-config-ssr")
-    };
-    insert_exact_alias_or_js(
-        &mut import_map,
-        rcstr!("next/dist/shared/lib/image-config-runtime"),
-        request_to_import_mapping(project_path.clone(), image_config_module.clone()),
-    );
-    insert_exact_alias_or_js(
-        &mut import_map,
-        rcstr!("next/dist/esm/shared/lib/image-config-runtime"),
-        request_to_import_mapping(project_path.clone(), image_config_module),
-    );
 
     // https://github.com/vercel/next.js/blob/786ef25e529e1fb2dda398aebd02ccbc8d0fb673/packages/next/src/build/webpack-config.ts#L815-L861
 
@@ -644,21 +595,23 @@ pub async fn get_next_client_resolved_map(
     // filesystem root so it matches wherever `next` resolves from (node_modules, pnpm store,
     // or monorepo `packages/next`).
     let fs_root = root.root().owned().await?;
-    let mut glob_mappings = Vec::with_capacity(BROWSER_VARIANT_MODULES.len() + 1);
+    let mut glob_mappings = Vec::with_capacity(BROWSER_VARIANT_MODULES.len() * 2 + 1);
     for module in BROWSER_VARIANT_MODULES {
-        glob_mappings.push((
-            fs_root.clone(),
-            Glob::new(
-                format!("**/next/dist/{module}.js").into(),
-                GlobOptions::default(),
-            )
-            .to_resolved()
-            .await?,
-            request_to_import_mapping(
-                context_path.clone(),
-                format!("next/dist/{module}.browser").into(),
-            ),
-        ));
+        for prefix in ["", "esm/"] {
+            glob_mappings.push((
+                fs_root.clone(),
+                Glob::new(
+                    format!("**/next/dist/{prefix}{module}.js").into(),
+                    GlobOptions::default(),
+                )
+                .to_resolved()
+                .await?,
+                request_to_import_mapping(
+                    context_path.clone(),
+                    format!("next/dist/{prefix}{module}.browser").into(),
+                ),
+            ));
+        }
     }
 
     // When the Instant Navigation Testing API is disabled (production build

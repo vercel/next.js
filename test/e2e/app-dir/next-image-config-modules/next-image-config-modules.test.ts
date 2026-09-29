@@ -15,6 +15,8 @@ describe('next-image-config-modules', () => {
     expect($('#rsc').attr('data-local-patterns')).toBe('/assets/**')
     expect($('#external-app').attr('data-path')).toBe('/custom-image')
     expect($('#client').attr('data-stage')).toBe('ssr')
+    expect($('#client').attr('data-esm-format')).toBe('image/avif')
+    expect($('#client').attr('data-esm-path')).toBe('/custom-image')
   })
 
   it('provides full image options to dynamic Pages and its external dependency', async () => {
@@ -42,6 +44,8 @@ describe('next-image-config-modules', () => {
         path: client.getAttribute('data-path'),
         ttl: client.getAttribute('data-ttl'),
         localPatterns: client.getAttribute('data-local-patterns'),
+        esmFormat: client.getAttribute('data-esm-format'),
+        esmPath: client.getAttribute('data-esm-path'),
       }
     })
     expect(attributes).toEqual({
@@ -49,6 +53,8 @@ describe('next-image-config-modules', () => {
       path: '/custom-image',
       ttl: 'missing',
       localPatterns: isNextDev ? '/assets/**' : 'missing',
+      esmFormat: 'missing',
+      esmPath: '/custom-image',
     })
   })
 })

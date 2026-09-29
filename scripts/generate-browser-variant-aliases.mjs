@@ -8,8 +8,9 @@
  *   - webpack:   packages/next/src/build/create-compiler-aliases.ts
  *   - Turbopack: crates/next-core/src/next_import_map.rs
  *
- * Both consumers read the generated lists produced here so the set stays in
- * sync with the filesystem. CI runs this script followed by `git diff
+ * Both consumers match CommonJS and ESM dist output and read the generated
+ * lists produced here so the set stays in sync with the filesystem. CI runs
+ * this script followed by `git diff
  * --exit-code` to ensure the committed lists are up to date.
  */
 import { execFileSync } from 'child_process'
@@ -63,7 +64,7 @@ function renderTs(modules) {
 // Modules with a \`.browser\` sibling. The default module is aliased to its
 // \`.browser\` variant for the browser bundle in
 // \`packages/next/src/build/create-compiler-aliases.ts\`. Paths are relative to
-// \`packages/next/dist\` (extension omitted).
+// \`packages/next/dist\` or \`packages/next/dist/esm\` (extension omitted).
 export const browserVariantModules = [
 ${entries}
 ] as const
@@ -78,7 +79,7 @@ function renderRust(modules) {
 //! Modules with a \`.browser\` sibling. The default module is aliased to its
 //! \`.browser\` variant for the browser bundle in
 //! \`get_next_client_resolved_map\` (see \`next_import_map.rs\`). Paths are
-//! relative to \`next/dist\` (extension omitted).
+//! relative to \`next/dist\` or \`next/dist/esm\` (extension omitted).
 
 // rustfmt::skip keeps this list one-per-line (and matching the generator
 // output) instead of collapsing short lists onto a single line.

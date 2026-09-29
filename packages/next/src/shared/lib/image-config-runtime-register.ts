@@ -1,7 +1,8 @@
 import type { ImageConfigRuntime } from './image-config'
 
-// Server entry templates import this before userland. The bundled image
-// options are available before a direct handler can load its manifest.
+// Server entry templates import this before userland. This bundled shim reads
+// the options inlined by defineEnv and registers them with the external store
+// for direct handlers and workers that have not loaded the app config yet.
 if (process.env.NEXT_RUNTIME === 'edge') {
   // Edge bundles use their inlined image configuration directly.
 } else {

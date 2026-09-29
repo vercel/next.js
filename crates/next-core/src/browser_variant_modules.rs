@@ -4,7 +4,7 @@
 //! Modules with a `.browser` sibling. The default module is aliased to its
 //! `.browser` variant for the browser bundle in
 //! `get_next_client_resolved_map` (see `next_import_map.rs`). Paths are
-//! relative to `next/dist` (extension omitted).
+//! relative to `next/dist` or `next/dist/esm` (extension omitted).
 
 // rustfmt::skip keeps this list one-per-line (and matching the generator
 // output) instead of collapsing short lists onto a single line.
@@ -17,4 +17,5 @@ pub static BROWSER_VARIANT_MODULES: &[&str] = &[
     "client/components/router-reducer/create-segment-key",
     "client/components/server-async-storage",
     "client/components/unstable-rethrow",
+    "shared/lib/image-config-runtime",
 ];
