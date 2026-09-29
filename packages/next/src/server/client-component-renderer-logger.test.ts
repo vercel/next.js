@@ -25,12 +25,13 @@ function createComponentModule(
 
 function createTrackedWorkStore(
   page: string = '/test/page',
-  route: string = '/test'
+  route: string = '/test',
+  report?: ConstructorParameters<LoggerMod['ClientComponentLoadTracker']>[0]
 ): WorkStore {
   return {
     page,
     route,
-    clientComponentLoadTracker: new ClientComponentLoadTracker(),
+    clientComponentLoadTracker: new ClientComponentLoadTracker(report),
   } as WorkStore
 }
 
@@ -222,6 +223,199 @@ describe('client component renderer logger', () => {
         clientComponentLoadCount: 0,
       })
     }))
+
+  it('reports an async module require only after it resolves', async () => {
+    let now = 100
+    jest.spyOn(performance, 'now').mockImplementation(() => now)
+
+    let resolveModule!: (value: { default: string }) => void
+    const modulePromise = new Promise<{ default: string }>((resolve) => {
+      resolveModule = resolve
+    })
+    let resolveReport!: () => void
+    const reported = new Promise<void>((resolve) => {
+      resolveReport = resolve
+    })
+    const report = jest.fn(() => resolveReport())
+    const workStore = createTrackedWorkStore('/async/page', '/async', report)
+    const loader = wrapClientComponentLoader(
+      createComponentModule(
+        () => modulePromise,
+        async () => undefined
+      )
+    )
+
+    expect(workAsyncStorage.run(workStore, () => loader.require('async'))).toBe(
+      modulePromise
+    )
+    workStore.clientComponentLoadTracker?.finish()
+    await Promise.resolve()
+    expect(report).not.toHaveBeenCalled()
+    expect(
+      workAsyncStorage.run(workStore, () => getClientComponentLoaderMetrics())
+    ).toEqual({
+      clientComponentLoadStart: 100,
+      clientComponentLoadEnd: 0,
+      clientComponentLoadTimes: 0,
+      clientComponentLoadCount: 1,
+    })
+
+    now = 150
+    resolveModule({ default: 'loaded' })
+    await modulePromise
+    await reported
+    expect(report).toHaveBeenCalledTimes(1)
+    expect(report).toHaveBeenCalledWith({
+      clientComponentLoadStart: 100,
+      clientComponentLoadEnd: 150,
+      clientComponentLoadTimes: 50,
+      clientComponentLoadCount: 1,
+    })
+  })
+
+  it('tracks a rejected async module without changing its promise', async () => {
+    let now = 100
+    jest.spyOn(performance, 'now').mockImplementation(() => now)
+
+    let rejectModule!: (reason: Error) => void
+    const modulePromise = new Promise<never>((_, reject) => {
+      rejectModule = reject
+    })
+    const loader = wrapClientComponentLoader(
+      createComponentModule(
+        () => modulePromise,
+        async () => undefined
+      )
+    )
+    const workStore = createTrackedWorkStore()
+
+    const result = workAsyncStorage.run(workStore, () =>
+      loader.require('async')
+    )
+    expect(result).toBe(modulePromise)
+    const error = new Error('module failed')
+    const rejection = modulePromise.catch((reason) => reason)
+    expect(
+      workAsyncStorage.run(workStore, () => getClientComponentLoaderMetrics())
+    ).toEqual({
+      clientComponentLoadStart: 100,
+      clientComponentLoadEnd: 0,
+      clientComponentLoadTimes: 0,
+      clientComponentLoadCount: 1,
+    })
+
+    now = 150
+    rejectModule(error)
+    expect(await rejection).toBe(error)
+    expect(
+      workAsyncStorage.run(workStore, () => getClientComponentLoaderMetrics())
+    ).toEqual({
+      clientComponentLoadStart: 100,
+      clientComponentLoadEnd: 150,
+      clientComponentLoadTimes: 50,
+      clientComponentLoadCount: 1,
+    })
+  })
+
+  it('does not call a then-named export from a synchronous module', () =>
+    runWithTrackedWorkStore(() => {
+      const then = jest.fn()
+      const exports = { then, value: 'loaded' }
+      const loader = wrapClientComponentLoader(
+        createComponentModule(
+          () => exports,
+          async () => undefined
+        )
+      )
+
+      expect(loader.require('sync')).toBe(exports)
+      expect(then).not.toHaveBeenCalled()
+      expect(getClientComponentLoaderMetrics()?.clientComponentLoadCount).toBe(
+        1
+      )
+    }))
+
+  it('preserves a synchronous require error and records its duration', () =>
+    runWithTrackedWorkStore(() => {
+      let now = 100
+      jest.spyOn(performance, 'now').mockImplementation(() => now)
+
+      const error = new Error('module failed')
+      const loader = wrapClientComponentLoader(
+        createComponentModule(
+          () => {
+            now = 150
+            throw error
+          },
+          async () => undefined
+        )
+      )
+
+      let caught: unknown
+      try {
+        loader.require('failed')
+      } catch (reason) {
+        caught = reason
+      }
+      expect(caught).toBe(error)
+      expect(getClientComponentLoaderMetrics()).toEqual({
+        clientComponentLoadStart: 100,
+        clientComponentLoadEnd: 150,
+        clientComponentLoadTimes: 50,
+        clientComponentLoadCount: 1,
+      })
+    }))
+
+  it('attributes an async module to its starting render after another render runs', async () => {
+    let now = 100
+    jest.spyOn(performance, 'now').mockImplementation(() => now)
+
+    let resolveModule!: () => void
+    const modulePromise = new Promise<void>((resolve) => {
+      resolveModule = resolve
+    })
+    const loader = wrapClientComponentLoader(
+      createComponentModule(
+        (id) => {
+          if (id === 'async') return modulePromise
+          now = 220
+        },
+        async () => undefined
+      )
+    )
+    const firstWorkStore = createTrackedWorkStore('/first/page', '/first')
+    const secondWorkStore = createTrackedWorkStore('/second/page', '/second')
+
+    expect(
+      workAsyncStorage.run(firstWorkStore, () => loader.require('async'))
+    ).toBe(modulePromise)
+    now = 200
+    workAsyncStorage.run(secondWorkStore, () => loader.require('sync'))
+    now = 300
+    workAsyncStorage.run(secondWorkStore, resolveModule)
+    await modulePromise
+
+    expect(
+      workAsyncStorage.run(firstWorkStore, () =>
+        getClientComponentLoaderMetrics()
+      )
+    ).toEqual({
+      clientComponentLoadStart: 100,
+      clientComponentLoadEnd: 300,
+      clientComponentLoadTimes: 200,
+      clientComponentLoadCount: 1,
+    })
+    expect(
+      workAsyncStorage.run(secondWorkStore, () =>
+        getClientComponentLoaderMetrics()
+      )
+    ).toEqual({
+      clientComponentLoadStart: 200,
+      clientComponentLoadEnd: 220,
+      clientComponentLoadTimes: 20,
+      clientComponentLoadCount: 1,
+    })
+  })
 
   it('attributes a pending chunk to its render while another render runs', async () => {
     jest
