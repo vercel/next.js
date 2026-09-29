@@ -344,9 +344,14 @@ async function getUpgradePreferences(directory: string) {
   return { key, preferences: new Conf({ projectName: 'nextjs' }) }
 }
 
+// The terminal test needs a menu in CI without an agent or live advisory.
+function isUpgradeTerminalForcedForTesting(): boolean {
+  return process.env.__NEXT_AGENT_UPGRADE_FORCE_TERMINAL_FOR_TESTING === '1'
+}
+
 function canPromptForUpgrade(): boolean {
   return (
-    !isCI &&
+    (!isCI || isUpgradeTerminalForcedForTesting()) &&
     Boolean(process.stdin.isTTY && process.stdout.isTTY) &&
     process.env.TERM !== 'dumb'
   )
@@ -370,13 +375,54 @@ async function getUpgradeDismissal(
   return null
 }
 
-async function nudgeUpgradeForHuman(
+export type UpgradeNudge = {
+  message: string
+  policy: NudgeKind
+  reminder: UpgradeReminder | null
+}
+
+/**
+ * Let either the direct CLI or terminal supervisor display the same human
+ * nudge. Resolve policy, dismissal, and advisory into a message without
+ * drawing a prompt or stopping dev; return null when there is no nudge.
+ */
+export async function prepareUpgradeNudge(
   directory: string,
-  reminder: UpgradeReminder,
+  config: UpgradeContext,
   signal: AbortSignal
-): Promise<UpgradeAction> {
+): Promise<UpgradeNudge | null> {
+  if (signal.aborted || !(await shouldPromptForUpgrade())) {
+    return null
+  }
+  if (isUpgradeTerminalForcedForTesting()) {
+    // Exercise the terminal menu without querying or inventing an advisory.
+    return {
+      message: 'Next.js upgrade available for terminal testing.',
+      policy: 'security',
+      reminder: null,
+    }
+  }
+  const requested = getRequestedUpgrade()
+  const policy = requested ?? config.experimental.agenticAutoUpgrade
+  if (policy !== 'security' && policy !== 'latest' && policy !== 'future') {
+    return null
+  }
+  const installedVersion = process.env.__NEXT_VERSION || 'unknown'
+  const stopBefore = requested
+    ? null
+    : await getUpgradeDismissal(directory, installedVersion, policy)
   if (signal.aborted) {
-    return 'skip'
+    return null
+  }
+  const reminder = await assessUpgrade(
+    directory,
+    { ...config, experimental: { agenticAutoUpgrade: policy } },
+    installedVersion,
+    stopBefore,
+    requested !== null
+  )
+  if (!reminder || signal.aborted) {
+    return null
   }
   let message: string
   if (reminder.kind === 'security') {
@@ -398,19 +444,26 @@ async function nudgeUpgradeForHuman(
   } else if (reminder.kind === 'latest') {
     message = `Next.js latest version upgrade available: ${reminder.installedVersion} -> ${reminder.latestVersion ?? '[target version]'}`
   } else {
-    return 'skip'
+    throw new Error('Unsupported human upgrade reminder.')
   }
-  const { promptUpgrade } = require('./prompt') as typeof import('./prompt')
-  const action = await promptUpgrade(message, signal, true)
-  if (signal.aborted) {
-    return 'skip'
-  }
-  if (action === 'dismiss') {
+  return { message, policy, reminder }
+}
+
+/**
+ * Persist only Dismiss, so a plain Skip leaves future CLI sessions eligible
+ * for a reminder. The terminal and direct prompts share this choice handling.
+ */
+export async function recordUpgradeNudgeChoice(
+  directory: string,
+  nudge: UpgradeNudge,
+  action: UpgradeAction
+): Promise<void> {
+  if (action === 'dismiss' && nudge.reminder) {
     try {
       const { key, preferences } = await getUpgradePreferences(directory)
       preferences.set(
-        `${key}.${reminder.kind}`,
-        `${reminder.installedVersion}:${reminder.policy}`
+        `${key}.${nudge.reminder.kind}`,
+        `${nudge.reminder.installedVersion}:${nudge.reminder.policy}`
       )
     } catch {
       Log.warn(
@@ -418,7 +471,6 @@ async function nudgeUpgradeForHuman(
       )
     }
   }
-  return action
 }
 
 export async function runUpgrade(directory: string, policy: NudgeKind) {
@@ -434,8 +486,12 @@ export async function runUpgrade(directory: string, policy: NudgeKind) {
   return process.exitCode ?? 0
 }
 
+// This is terminal eligibility; project policy and advisories are checked later.
 export async function shouldPromptForUpgrade(): Promise<boolean> {
-  return canPromptForUpgrade() && !(await getAgentName())
+  return (
+    canPromptForUpgrade() &&
+    (isUpgradeTerminalForcedForTesting() || !(await getAgentName()))
+  )
 }
 
 export async function nudgeUpgrade(
@@ -445,50 +501,45 @@ export async function nudgeUpgrade(
   signal: AbortSignal | null = null
 ): Promise<UpgradeAction | void> {
   const requested = getRequestedUpgrade()
-  const policy = requested ?? config.experimental.agenticAutoUpgrade
+  const policy = isUpgradeTerminalForcedForTesting()
+    ? 'security'
+    : (requested ?? config.experimental.agenticAutoUpgrade)
   if (policy !== 'security' && policy !== 'latest' && policy !== 'future') {
     return
   }
-  if (requested && isCI) {
+  if (requested && isCI && !isUpgradeTerminalForcedForTesting()) {
     return
   }
   const agent = await getAgentName()
-  const installedVersion = process.env.__NEXT_VERSION || 'unknown'
-  let stopBefore: NudgeKind | null = null
-  if (!agent) {
-    if (!signal || signal.aborted) {
+  if (!agent || isUpgradeTerminalForcedForTesting()) {
+    if (!signal) {
       return
     }
-    if (!canPromptForUpgrade()) {
+    const nudge = await prepareUpgradeNudge(directory, config, signal)
+    if (!nudge) {
       return
     }
-    if (!requested) {
-      stopBefore = await getUpgradeDismissal(
-        directory,
-        installedVersion,
-        policy
-      )
-    }
+    const { promptUpgrade } = require('./prompt') as typeof import('./prompt')
+    const action = await promptUpgrade(nudge.message, signal, true)
     if (signal.aborted) {
-      return
+      return 'skip'
     }
+    await recordUpgradeNudgeChoice(directory, nudge, action)
+    return action
   }
+  const installedVersion = process.env.__NEXT_VERSION || 'unknown'
   const reminder = await assessUpgrade(
     directory,
     { ...config, experimental: { agenticAutoUpgrade: policy } },
     installedVersion,
-    stopBefore,
+    null,
     requested !== null
   )
   if (!reminder || signal?.aborted) {
     return
   }
-  if (agent) {
-    await nudgeUpgradeForAgent(
-      { directory, distDir: config.distDir, command },
-      reminder
-    )
-  } else if (signal) {
-    return nudgeUpgradeForHuman(directory, reminder, signal)
-  }
+  await nudgeUpgradeForAgent(
+    { directory, distDir: config.distDir, command },
+    reminder
+  )
 }
