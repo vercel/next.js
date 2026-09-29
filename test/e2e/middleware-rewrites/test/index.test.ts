@@ -8,6 +8,7 @@ import escapeStringRegexp from 'escape-string-regexp'
 
 const isTurbopackTest = Boolean(process.env.IS_TURBOPACK_TEST)
 const isAdapterTest = process.env.NEXT_ENABLE_ADAPTER === '1'
+const isCustomDeploy = Boolean(process.env.NEXT_TEST_DEPLOY_SCRIPT_PATH)
 
 describe('Middleware Rewrite', () => {
   const { next, isNextDeploy } = nextTestSetup({
@@ -106,8 +107,14 @@ describe('Middleware Rewrite', () => {
       expect(await res.json()).toEqual({
         // Deployed proxies include query values added while resolving rewrites
         // in the URL passed to the function. Locally they are only in req.query.
+        // A custom deploy target may serve through Next's own server, which
+        // keeps req.url as the original URL, so accept either form there.
         url: isNextDeploy
-          ? '/foo/bar?key=value&added=1&extra=2'
+          ? isCustomDeploy
+            ? expect.stringMatching(
+                /^\/foo\/bar\?key=value(&added=1&extra=2)?$/
+              )
+            : '/foo/bar?key=value&added=1&extra=2'
           : '/foo/bar?key=value',
         query: {
           key: 'value',
