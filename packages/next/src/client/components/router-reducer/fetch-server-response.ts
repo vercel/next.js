@@ -246,10 +246,7 @@ export async function fetchServerResponse(
       ).waitForWebpackRuntimeHotUpdate()
     }
 
-    const [flightResponse, cacheData] = await Promise.all([
-      flightResponsePromise,
-      res.cacheData,
-    ])
+    const flightResponse = await flightResponsePromise
 
     if (
       (res.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? flightResponse.b) !==
@@ -284,8 +281,7 @@ export async function fetchServerResponse(
       // When absent (UnknownDynamicStaleTime), the client falls back to the
       // global DYNAMIC_STALETIME_MS. The value is in seconds.
       dynamicStaleTime: flightResponse.d ?? UnknownDynamicStaleTime,
-      isResponsePartial:
-        cacheData !== null ? cacheData.isResponsePartial : false,
+      isResponsePartial: res.isPartial,
       flightResponse,
       debugInfo: flightResponsePromise._debugInfo ?? null,
       revealAfter: flightResponse._revealAfter ?? null,
@@ -346,57 +342,9 @@ export type RSCResponse = {
   body: ReadableStream<Uint8Array> | null
   status: number
   url: string
-  cacheData: Promise<FetchResponseCacheData | null>
-}
-
-type FetchResponseCacheData = {
-  isResponsePartial: boolean
-}
-
-/**
- * Strips the leading isPartial byte from an RSC navigation response.
- *
- * When cache components is enabled, the server prepends a single byte:
- * '~' (0x7e) for partial, '#' (0x23) for complete. This must be stripped
- * before Flight decoding because it's not valid RSC data.
- *
- * When cache components is disabled, returns the original response with
- * cacheData: null.
- */
-export async function processFetch(response: Response): Promise<{
-  response: Response
-  cacheData: FetchResponseCacheData | null
-}> {
-  if (process.env.__NEXT_CACHE_COMPONENTS) {
-    if (!response.body) {
-      throw new InvariantError(
-        'Expected RSC navigation response to have a body'
-      )
-    }
-
-    const { stream, isPartial } = await stripIsPartialByte(response.body)
-
-    const strippedResponse = new Response(stream, {
-      headers: response.headers,
-      status: response.status,
-      statusText: response.statusText,
-    })
-
-    // The Response constructor doesn't preserve `url` or `redirected` from
-    // the original. We need both: `url` for React DevTools and `redirected`
-    // for the redirect replay logic below.
-    Object.defineProperty(strippedResponse, 'url', { value: response.url })
-    Object.defineProperty(strippedResponse, 'redirected', {
-      value: response.redirected,
-    })
-
-    return {
-      response: strippedResponse,
-      cacheData: { isResponsePartial: isPartial },
-    }
-  }
-
-  return { response, cacheData: null }
+  // With Cache Components, whether the server marked the response as partial.
+  // Always false without Cache Components.
+  isPartial: boolean
 }
 
 /**
@@ -656,8 +604,7 @@ export async function createFetch(
   // track them separately.
   let fetchUrl = new URL(url)
   await setCacheBustingSearchParam(fetchUrl, headers)
-  let processed = fetch(fetchUrl, fetchOptions).then(processFetch)
-  let browserResponse = (await processed).response
+  let browserResponse = await fetch(fetchUrl, fetchOptions)
 
   // If the server responds with a redirect (e.g. 307), and the redirected
   // location does not contain the cache busting search param set in the
@@ -713,8 +660,7 @@ export async function createFetch(
       // TODO: We should abort the previous request.
       fetchUrl = new URL(responseUrl)
       await setCacheBustingSearchParam(fetchUrl, headers)
-      processed = fetch(fetchUrl, fetchOptions).then(processFetch)
-      browserResponse = (await processed).response
+      browserResponse = await fetch(fetchUrl, fetchOptions)
       // We just performed a manual redirect, so this is now true.
       redirected = true
     }
@@ -724,6 +670,22 @@ export async function createFetch(
   // from leaking outside of this function.
   const responseUrl = new URL(browserResponse.url, fetchUrl)
   responseUrl.searchParams.delete(NEXT_RSC_UNION_QUERY)
+
+  // With Cache Components, the server prepends a byte that says whether the
+  // response is partial: '~' (0x7e) for partial, '#' (0x23) for complete. It
+  // isn't Flight data, so it's stripped before anyone reads the body.
+  let body: ReadableStream<Uint8Array> | null = browserResponse.body
+  let isPartial = false
+  if (process.env.__NEXT_CACHE_COMPONENTS) {
+    if (!body) {
+      throw new InvariantError(
+        'Expected RSC navigation response to have a body'
+      )
+    }
+    const stripped = await stripIsPartialByte(body)
+    body = stripped.stream
+    isPartial = stripped.isPartial
+  }
 
   const rscResponse: RSCResponse = {
     url: responseUrl.href,
@@ -739,10 +701,10 @@ export async function createFetch(
     // elsewhere in the codebase.
     ok: browserResponse.ok,
     headers: browserResponse.headers,
-    body: browserResponse.body,
     status: browserResponse.status,
 
-    cacheData: processed.then(({ cacheData }) => cacheData),
+    body,
+    isPartial,
   }
 
   return rscResponse
