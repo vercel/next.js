@@ -34,6 +34,12 @@ const EXPERIMENTS_DIR = path.join(EVALS_DIR, 'experiments')
 const TARBALL_DIR = path.join(EVALS_DIR, '.tarballs')
 const TARBALL = path.join(TARBALL_DIR, 'next.tgz')
 
+const DEFAULT_AGENT = 'vercel-ai-gateway/claude-code'
+const DEFAULT_MODEL = 'claude-opus-4-8'
+const FX_AGENT = 'vercel-ai-gateway/fx'
+const JUDGE_AGENT = 'vercel-ai-gateway/claude-code'
+const JUDGE_MODEL = 'claude-haiku-4-5'
+
 /** @typedef {{ skills?: string[], timeout?: number, agentFeedback?: boolean }} EvalConfig */
 /** @type {Record<string, EvalConfig>} */
 const EVAL_CONFIG = JSON.parse(fs.readFileSync(EVAL_CONFIG_PATH, 'utf-8'))
@@ -58,27 +64,52 @@ function pack() {
   packPackage(path.join(ROOT, 'packages/next'), TARBALL)
 }
 
-/** @param {string | null} evalName  null means all evals */
-function writeExperiments(evalName, variants, timeout, runs) {
+function modelSlug(model) {
+  return model.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '')
+}
+
+/**
+ * @param {string | null} evalName  null means all evals
+ * @param {typeof BASE_VARIANTS} variants
+ * @param {number} timeout
+ * @param {number} runs
+ * @param {string} agent
+ * @param {string[] | null} models  null lets the agent choose its native default
+ */
+function writeExperiments(evalName, variants, timeout, runs, agent, models) {
   fs.rmSync(EXPERIMENTS_DIR, { recursive: true, force: true })
   fs.mkdirSync(EXPERIMENTS_DIR, { recursive: true })
 
+  const experimentNames = []
+  const selectedModels = models ?? [null]
   for (const v of variants) {
-    const selectedEvals = v.evals ?? (evalName ? [evalName] : null)
-    const evalsField = selectedEvals
-      ? `\n  evals: ${JSON.stringify(selectedEvals.length === 1 ? selectedEvals[0] : selectedEvals)},`
-      : ''
-    const body = `import type { ExperimentConfig } from '@vercel/agent-eval'
+    for (const model of selectedModels) {
+      const experimentName =
+        selectedModels.length === 1
+          ? v.suffix
+          : `${v.suffix}-${modelSlug(/** @type {string} */ (model))}`
+      if (experimentNames.includes(experimentName)) {
+        throw new Error(
+          `Models must produce unique experiment names; duplicate: ${experimentName}`
+        )
+      }
+      const selectedEvals = v.evals ?? (evalName ? [evalName] : null)
+      const evalsField = selectedEvals
+        ? `\n  evals: ${JSON.stringify(selectedEvals.length === 1 ? selectedEvals[0] : selectedEvals)},`
+        : ''
+      const modelField = model ? `\n  model: ${JSON.stringify(model)},` : ''
+      const webResearchField =
+        agent === FX_AGENT ? '\n  webResearch: true,' : ''
+      const body = `import type { ExperimentConfig } from '@vercel/agent-eval'
 ${v.imports}
 
 const config: ExperimentConfig = {
   // Via the Vercel AI Gateway, so the OIDC token from \`vc env pull\` is the only
   // credential needed (it auths the sandbox, the codegen model, and the judge).
-  agent: 'vercel-ai-gateway/claude-code',
-  model: 'claude-opus-4-8',${evalsField}
+  agent: ${JSON.stringify(agent)},${modelField}${evalsField}${webResearchField}
   // Cheap fixed grader for the agentic judge clauses in EVAL.ts files — every
-  // run is graded by the same model regardless of the model under test.
-  judge: { model: 'claude-haiku-4-5' },
+  // run is graded by the same agent and model regardless of the model under test.
+  judge: { agent: ${JSON.stringify(JUDGE_AGENT)}, model: ${JSON.stringify(JUDGE_MODEL)} },
   scripts: ['build'],
   runs: ${runs},
   earlyExit: ${runs === 1},
@@ -92,8 +123,11 @@ const config: ExperimentConfig = {
 
 export default config
 `
-    fs.writeFileSync(path.join(EXPERIMENTS_DIR, `${v.suffix}.ts`), body)
+      fs.writeFileSync(path.join(EXPERIMENTS_DIR, `${experimentName}.ts`), body)
+      experimentNames.push(experimentName)
+    }
   }
+  return experimentNames
 }
 
 function listEvals() {
@@ -217,6 +251,16 @@ function main() {
     .number('runs')
     .default('runs', 1)
     .describe('runs', 'Run each selected eval this many times')
+    .string('agent')
+    .describe('agent', `Coding agent to test (default: ${DEFAULT_AGENT})`)
+    .array('model')
+    .string('model')
+    .describe(
+      'model',
+      'Coding model(s) to test; repeat the flag or pass multiple values'
+    )
+    .boolean('smoke')
+    .describe('smoke', 'Run one eval per generated experiment')
     .array('variant')
     .string('variant')
     .describe('variant', 'Run only the named generated variant (repeatable)')
@@ -247,6 +291,12 @@ function main() {
 
   /** @type {string | null} */
   const evalName = argv.all ? null : /** @type {string} */ (argv.evalName)
+  const agent = argv.agent ?? DEFAULT_AGENT
+  const models = argv.model
+    ? [...new Set(argv.model)]
+    : argv.agent
+      ? null
+      : [DEFAULT_MODEL]
   const { variants: availableVariants, timeout } =
     getExperimentSettings(evalName)
   const requestedVariants = argv.variant ?? []
@@ -266,12 +316,6 @@ function main() {
           requestedVariants.includes(variant.suffix)
         )
       : availableVariants
-  // agent-eval 1.3 dropped run-all/--dry: `run` takes explicit experiment names,
-  // and `status` is the read-only preview.
-  const agentEvalArgs = argv.dry
-    ? ['status']
-    : ['run', ...variants.map((v) => v.suffix), '--force']
-
   if (!fs.existsSync(path.join(ROOT, 'packages/next/dist'))) {
     console.error(
       'packages/next/dist not found. Run `pnpm --filter=next build` first.'
@@ -292,11 +336,26 @@ function main() {
   // writes to the repo root, so symlink them into evals/ for agent-eval to find.
   linkEnvironment(ROOT, EVALS_DIR)
 
-  writeExperiments(evalName, variants, timeout, argv.runs)
+  const experimentNames = writeExperiments(
+    evalName,
+    variants,
+    timeout,
+    argv.runs,
+    agent,
+    models
+  )
+  // agent-eval 1.3 dropped run-all/--dry: `run` takes explicit experiment names,
+  // and `status` is the read-only preview.
+  const agentEvalArgs = argv.dry
+    ? ['status']
+    : ['run', ...experimentNames, '--force', ...(argv.smoke ? ['--smoke'] : [])]
   console.log(
     evalName
       ? `> Running ${evalName} (${variants.map((v) => v.suffix).join(' + ')})`
       : `> Running all evals (${variants.map((v) => v.suffix).join(' + ')})`
+  )
+  console.log(
+    `  Agent: ${agent}; models: ${models?.join(', ') ?? 'native default'}`
   )
 
   // Same handoff pattern as run-tests.js with NEXT_TEST_PKG_PATHS. We invoke

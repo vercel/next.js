@@ -69,6 +69,41 @@ This runs the two default variants in parallel and prints pass/fail for each:
 
 `agents-md` drops an AGENTS.md into the sandbox telling the agent to check `node_modules/next/dist/docs/` first. `baseline` doesn't. That's the whole difference — same prompt, same model, one extra file. If `agents-md` passes and `baseline` doesn't, the bundled docs are doing their job.
 
+### Using a different agent or model
+
+The default remains Claude Code with Claude Opus 4.8. Select another coding
+agent with `--agent`, and pass one or more models with `--model`. The runner
+keeps the judge fixed to Claude Code with Haiku 4.5 so cross-model results use
+the same grader.
+
+To run an eval with fx and its default model (currently GLM 5.2):
+
+```bash
+pnpm eval agent-055-stale-build-error \
+  --agent vercel-ai-gateway/fx
+```
+
+To compare several Gateway models through the fx harness, pass canonical model
+IDs as separate values:
+
+```bash
+pnpm eval agent-055-stale-build-error \
+  --agent vercel-ai-gateway/fx \
+  --variant baseline \
+  --model anthropic/claude-opus-5.5 openai/gpt-6-sol spacexai/grok-4.7 zai/glm-5.2
+```
+
+Run `fx models --json` to list the model IDs available to the current Vercel
+team. fx requires its research tool surface, so the wrapper enables
+`webResearch` automatically for fx experiments. The eval uses the fx version
+pinned by the installed `@vercel/agent-eval`; upgrading a local `fx` binary does
+not change the sandbox version.
+
+Each model multiplies the number of sandboxes by the selected variants and
+`--runs`. Start with one eval and one variant, then expand the matrix. For a
+cheap full-suite setup check, `--all --smoke` runs one eval per generated
+experiment instead of the full suite.
+
 ### Evaluating a local skill
 
 Docs can link to a canonical skill, but an unmerged skill revision isn't part of the `next` package tarball. To compare the current checkout's skill with the baseline and bundled-docs variants, add the fixture to `evals/eval.config.json`:
@@ -109,7 +144,11 @@ kill-switch result deterministic, keeping eval results independent from the
 live rollout. Each run records the number of valid review payloads and their
 trigger reasons in `result.json` under `analysis.agentFeedback`.
 
-Full transcripts land in `evals/results/<variant>/<timestamp>/<eval>/run-1/`. Grep `transcript-raw.jsonl` to see exactly what the agent did.
+Full transcripts land in `evals/results/<experiment>/<timestamp>/<eval>/run-1/`.
+A multi-model run generates one flat experiment per model, for example
+`baseline-openai-gpt-6-sol`, so later housekeeping can retain and reuse each
+model's result independently. Grep `transcript-raw.jsonl` to see exactly what
+the agent did.
 
 ## When to rebuild
 
