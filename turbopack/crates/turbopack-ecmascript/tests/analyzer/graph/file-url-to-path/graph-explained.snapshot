@@ -1,0 +1,22 @@
+cjsFilename (const after eval) = FreeVar(__filename)
+
+cjsWorkerPath (const after eval) = module<node:path, {}>["join"](
+    module<node:path, {}>["dirname"](FreeVar(__filename)),
+    "worker.cjs"
+)
+
+filename (const after eval) = module<node:url, {}>["fileURLToPath"](import.meta*0*["url"])
+- *0* import.meta: The import.meta object
+
+namespaced (const after eval) = module<node:url, {}>["fileURLToPath"](import.meta*0*["url"])
+- *0* import.meta: The import.meta object
+
+nonConstant (const after eval) = module<node:url, {}>["fileURLToPath"](FreeVar(globalThis)["foo"])
+
+workerPath (const after eval) = module<node:path, {}>["join"](
+    module<node:path, {}>["dirname"](
+        module<node:url, {}>["fileURLToPath"](import.meta*0*["url"])
+    ),
+    "worker.cjs"
+)
+- *0* import.meta: The import.meta object

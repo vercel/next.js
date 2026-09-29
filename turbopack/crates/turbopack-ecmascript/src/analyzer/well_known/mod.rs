@@ -987,6 +987,9 @@ fn url_module_member<'a>(
         (.., Some("pathToFileURL")) => {
             JsValue::WellKnownFunction(WellKnownFunctionKind::PathToFileUrl)
         }
+        (.., Some("fileURLToPath")) => {
+            JsValue::WellKnownFunction(WellKnownFunctionKind::FileUrlToPath)
+        }
         (WellKnownObjectKind::UrlModule, Some("default")) => {
             JsValue::WellKnownObject(WellKnownObjectKind::UrlModuleDefault)
         }
