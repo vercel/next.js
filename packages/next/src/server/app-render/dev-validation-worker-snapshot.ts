@@ -91,7 +91,6 @@ export async function buildDevValidationSnapshot(
     reactBrowserBailout: ctx.renderOpts.experimental.reactBrowserBailout,
     isDebugChannelEnabled: !!ctx.renderOpts.setReactDebugChannel,
     renderOpts: {
-      images: ctx.renderOpts.images,
       allowEmptyStaticShell: ctx.renderOpts.allowEmptyStaticShell,
       partialPrefetching: ctx.renderOpts.partialPrefetching,
     },

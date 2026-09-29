@@ -9,6 +9,7 @@ import { lockfilePatchPromise } from '../swc'
 import { installBindings } from '../swc/install-bindings'
 import type { JestTransformerConfig } from '../swc/jest-transformer'
 import type { Config } from '@jest/types'
+import { getRuntimeImageConfig } from '../../shared/lib/image-config'
 
 const DEFAULT_TRANSPILED_PACKAGES: string[] = require('../../lib/default-transpiled-packages.json')
 
@@ -103,17 +104,8 @@ export default function nextJest(options: { dir?: string } = {}) {
         await lockfilePatchPromise.cur
       }
 
-      const imageConfig = nextConfig?.images
-        ? {
-            deviceSizes: nextConfig.images.deviceSizes,
-            imageSizes: nextConfig.images.imageSizes,
-            qualities: nextConfig.images.qualities,
-            path: nextConfig.images.path,
-            loader: nextConfig.images.loader,
-            dangerouslyAllowSVG: nextConfig.images.dangerouslyAllowSVG,
-            unoptimized: nextConfig.images.unoptimized,
-            localPatterns: nextConfig.images.localPatterns,
-          }
+      const imageConfig = nextConfig
+        ? getRuntimeImageConfig(nextConfig)
         : undefined
 
       const transpiled = (nextConfig?.transpilePackages ?? [])

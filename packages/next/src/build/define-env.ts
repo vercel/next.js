@@ -77,29 +77,27 @@ function serializeDefineEnv(defineEnv: DefineEnv): SerializedDefineEnv {
   return defineEnvStringified
 }
 
-function getImageConfig(
+function getBrowserImageConfig(
   config: NextConfigComplete,
   dev: boolean
-): { 'process.env.__NEXT_IMAGE_OPTS': Partial<NextConfigComplete['images']> } {
+): Partial<NextConfigComplete['images']> {
   return {
-    'process.env.__NEXT_IMAGE_OPTS': {
-      deviceSizes: config.images.deviceSizes,
-      imageSizes: config.images.imageSizes,
-      qualities: config.images.qualities,
-      path: config.images.path,
-      loader: config.images.loader,
-      dangerouslyAllowSVG: config.images.dangerouslyAllowSVG,
-      unoptimized: config?.images?.unoptimized,
-      ...(dev
-        ? {
-            // additional config in dev to allow validating on the client
-            domains: config.images.domains,
-            remotePatterns: config.images?.remotePatterns,
-            localPatterns: config.images?.localPatterns,
-            output: config.output,
-          }
-        : {}),
-    },
+    deviceSizes: config.images.deviceSizes,
+    imageSizes: config.images.imageSizes,
+    qualities: config.images.qualities,
+    path: config.images.path,
+    loader: config.images.loader,
+    dangerouslyAllowSVG: config.images.dangerouslyAllowSVG,
+    unoptimized: config?.images?.unoptimized,
+    ...(dev
+      ? {
+          // additional config in dev to allow validating on the client
+          domains: config.images.domains,
+          remotePatterns: config.images?.remotePatterns,
+          localPatterns: config.images?.localPatterns,
+          output: config.output,
+        }
+      : {}),
   }
 }
 
@@ -193,9 +191,9 @@ export function getDefineEnv({
     'process.env.__NEXT_USE_NODE_STREAMS': isEdgeServer ? false : true,
 
     // Server bundles keep the complete image configuration. Browser bundles
-    // receive only the options already exposed by __NEXT_IMAGE_OPTS.
+    // receive only the options needed to render and validate images.
     'process.env.__NEXT_IMAGE_CONFIG': isClient
-      ? getImageConfig(config, dev)['process.env.__NEXT_IMAGE_OPTS']
+      ? getBrowserImageConfig(config, dev)
       : getRuntimeImageConfig(config),
 
     'process.env.NEXT_SUPPORTS_IMMUTABLE_ASSETS':
@@ -314,7 +312,6 @@ export function getDefineEnv({
       (config.experimental.nextScriptWorkers && !dev) ?? false,
     'process.env.__NEXT_SCROLL_RESTORATION':
       config.experimental.scrollRestoration ?? false,
-    ...getImageConfig(config, dev),
     'process.env.__NEXT_ROUTER_BASEPATH': config.basePath,
     'process.env.__NEXT_HAS_REWRITES': hasRewrites,
     'process.env.__NEXT_CONFIG_OUTPUT': config.output || '',

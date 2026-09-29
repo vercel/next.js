@@ -62,4 +62,28 @@ describe('next-image-config-modules', () => {
       esmPath: '/custom-image',
     })
   })
+
+  it('uses the inlined config for Edge image consumers', async () => {
+    const $ = await next.render$('/edge-probe')
+    for (const id of ['edge-public', 'edge-modern', 'edge-legacy']) {
+      const srcSet =
+        $(`#${id}`).attr('data-srcset') ?? $(`#${id}`).attr('srcset')
+      expect(srcSet).toBeDefined()
+      const candidates = srcSet!.split(', ').map((candidate) => {
+        const [src, width] = candidate.split(' ')
+        const url = new URL(src, 'http://localhost')
+        return [
+          url.pathname,
+          url.searchParams.get('url'),
+          url.searchParams.get('w'),
+          url.searchParams.get('q'),
+          width,
+        ]
+      })
+      expect(candidates).toEqual([
+        ['/custom-image', '/assets/test.png', '768', '65', '768w'],
+        ['/custom-image', '/assets/test.png', '1440', '65', '1440w'],
+      ])
+    }
+  })
 })

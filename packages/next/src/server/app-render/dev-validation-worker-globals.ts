@@ -102,7 +102,7 @@ export interface DevValidationSnapshot {
   reactBrowserBailout: boolean
   isDebugChannelEnabled: boolean
   renderOpts: NonPartial<
-    Pick<RenderOpts, 'images' | 'allowEmptyStaticShell' | 'partialPrefetching'>
+    Pick<RenderOpts, 'allowEmptyStaticShell' | 'partialPrefetching'>
   >
   instantInputs: SerializedValidationInputs | null
   staticInputs: SerializedValidationInputs

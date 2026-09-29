@@ -15,7 +15,6 @@ import type {
   RenderPage,
   RenderPageResult,
 } from '../shared/lib/utils'
-import type { ImageConfigComplete } from '../shared/lib/image-config'
 import type { Redirect } from '../lib/load-custom-routes'
 import {
   type NextApiRequestCookies,
@@ -84,7 +83,6 @@ import {
   streamToString,
   renderToInitialFizzStream,
 } from './stream-utils/node-web-streams-helper'
-import { ImageConfigContext } from '../shared/lib/image-config-context.shared-runtime'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { stripInternalQueries } from './internal-utils'
 import {
@@ -275,7 +273,6 @@ export type RenderOptsPartial = {
     allowedOrigins?: string[]
   }
   crossOrigin?: 'anonymous' | 'use-credentials' | '' | undefined
-  images: ImageConfigComplete
   largePageDataBytes?: number
   isOnDemandRevalidate?: boolean
   isPossibleServerAction?: boolean
@@ -508,7 +505,6 @@ export async function renderToHTMLImpl(
     params,
     previewProps,
     basePath,
-    images,
     runtime: globalRuntime,
     isExperimentalCompile,
     expireTime,
@@ -771,9 +767,7 @@ export async function renderToHTMLImpl(
                   value={(moduleName) => reactLoadableModules.push(moduleName)}
                 >
                   <StyleRegistry registry={jsxStyleRegistry}>
-                    <ImageConfigContext.Provider value={images}>
-                      {children}
-                    </ImageConfigContext.Provider>
+                    {children}
                   </StyleRegistry>
                 </LoadableContext.Provider>
               </HeadManagerContext.Provider>

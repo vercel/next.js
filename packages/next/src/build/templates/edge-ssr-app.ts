@@ -157,7 +157,6 @@ async function requestHandler(
       nextConfigOutput: nextConfig.output,
       crossOrigin: nextConfig.crossOrigin,
       trailingSlash: nextConfig.trailingSlash,
-      images: nextConfig.images,
       previewProps: previewProps,
       enableTainting: nextConfig.experimental.taint,
       reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,

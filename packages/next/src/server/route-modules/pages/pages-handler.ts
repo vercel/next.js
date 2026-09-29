@@ -308,7 +308,6 @@ export const getHandler = ({
 
                   assetPrefix: nextConfig.assetPrefix,
                   previewProps,
-                  images: nextConfig.images as any,
                   nextConfigOutput: nextConfig.output,
                   optimizeCss: Boolean(nextConfig.experimental.optimizeCss),
                   nextScriptWorkers: Boolean(

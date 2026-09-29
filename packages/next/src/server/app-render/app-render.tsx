@@ -312,8 +312,6 @@ import {
   interpolateParallelRouteParams,
 } from '../../shared/lib/router/utils/get-dynamic-param'
 import type { Params } from '../request/params'
-import { ImageConfigContext } from '../../shared/lib/image-config-context.shared-runtime'
-import { imageConfigDefault } from '../../shared/lib/image-config'
 import {
   getNextStage,
   isAdvanceableRenderStage,
@@ -2475,7 +2473,6 @@ function App<T>({
   preinitScripts,
   ServerInsertedHTMLProvider,
   nonce,
-  images,
 }: {
   /* eslint-disable @next/internal/no-ambiguous-jsx -- React Client */
   reactServerStream: Readable | BinaryStreamOf<T>
@@ -2485,7 +2482,6 @@ function App<T>({
   ServerInsertedHTMLProvider: ComponentType<{
     children: JSX.Element
   }>
-  images: RenderOpts['images']
   nonce?: string
 }): JSX.Element {
   preinitScripts()
@@ -2520,11 +2516,9 @@ function App<T>({
         nonce,
       }}
     >
-      <ImageConfigContext.Provider value={images ?? imageConfigDefault}>
-        <ServerInsertedHTMLProvider>
-          <AppRouter actionQueue={actionQueue} globalErrorState={response.G} />
-        </ServerInsertedHTMLProvider>
-      </ImageConfigContext.Provider>
+      <ServerInsertedHTMLProvider>
+        <AppRouter actionQueue={actionQueue} globalErrorState={response.G} />
+      </ServerInsertedHTMLProvider>
     </HeadManagerContext.Provider>
   )
   /* eslint-enable @next/internal/no-ambiguous-jsx -- React Client */
@@ -2538,7 +2532,6 @@ function ErrorApp<T>({
   preinitScripts,
   ServerInsertedHTMLProvider,
   nonce,
-  images,
 }: {
   reactServerStream: BinaryStreamOf<T>
   preinitScripts: () => void
@@ -2546,7 +2539,6 @@ function ErrorApp<T>({
     children: JSX.Element
   }>
   nonce?: string
-  images: RenderOpts['images']
 }): JSX.Element {
   /* eslint-disable @next/internal/no-ambiguous-jsx -- React Client */
   preinitScripts()
@@ -2572,11 +2564,9 @@ function ErrorApp<T>({
   const actionQueue = createMutableActionQueue(initialState)
 
   return (
-    <ImageConfigContext.Provider value={images ?? imageConfigDefault}>
-      <ServerInsertedHTMLProvider>
-        <AppRouter actionQueue={actionQueue} globalErrorState={response.G} />
-      </ServerInsertedHTMLProvider>
-    </ImageConfigContext.Provider>
+    <ServerInsertedHTMLProvider>
+      <AppRouter actionQueue={actionQueue} globalErrorState={response.G} />
+    </ServerInsertedHTMLProvider>
   )
   /* eslint-enable @next/internal/no-ambiguous-jsx -- React Client */
 }
@@ -4205,7 +4195,6 @@ async function renderToStream(
                 preinitScripts={preinitScripts}
                 ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
                 nonce={nonce}
-                images={ctx.renderOpts.images}
               />
             )
 
@@ -4264,7 +4253,6 @@ async function renderToStream(
             preinitScripts={preinitScripts}
             ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
             nonce={nonce}
-            images={ctx.renderOpts.images}
           />
         )
 
@@ -4346,7 +4334,6 @@ async function renderToStream(
                 preinitScripts={preinitScripts}
                 ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
                 nonce={nonce}
-                images={ctx.renderOpts.images}
               />
             )
 
@@ -4404,7 +4391,6 @@ async function renderToStream(
             preinitScripts={preinitScripts}
             ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
             nonce={nonce}
-            images={ctx.renderOpts.images}
           />
         )
 
@@ -4580,7 +4566,6 @@ async function renderToStream(
                 ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
                 preinitScripts={errorPreinitScripts}
                 nonce={nonce}
-                images={ctx.renderOpts.images}
               />,
               {
                 nonce,
@@ -4676,7 +4661,6 @@ async function renderToStream(
                 ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
                 preinitScripts={errorPreinitScripts}
                 nonce={nonce}
-                images={ctx.renderOpts.images}
               />,
               {
                 nonce,
@@ -6743,7 +6727,7 @@ export type ValidationRenderContext = Pick<
   | 'workStore'
 > & {
   renderOpts: NonPartial<
-    Pick<RenderOpts, 'images' | 'allowEmptyStaticShell' | 'partialPrefetching'>
+    Pick<RenderOpts, 'allowEmptyStaticShell' | 'partialPrefetching'>
   >
   reactBrowserBailout: boolean
   isDebugChannelEnabled: boolean
@@ -6766,7 +6750,6 @@ export function toValidationRenderContext(
     nonce: ctx.nonce,
     workStore: ctx.workStore,
     renderOpts: {
-      images: ctx.renderOpts.images,
       allowEmptyStaticShell: ctx.renderOpts.allowEmptyStaticShell,
       partialPrefetching: ctx.renderOpts.partialPrefetching,
     },
@@ -6895,7 +6878,6 @@ export async function runValidationInDevFromSnapshot(
     nonce: message.nonce,
     workStore,
     renderOpts: {
-      images: message.renderOpts.images,
       allowEmptyStaticShell: message.renderOpts.allowEmptyStaticShell,
       partialPrefetching: message.renderOpts.partialPrefetching,
     },
@@ -7291,7 +7273,6 @@ async function warmupClientModulesForStagedValidation(
       preinitScripts={preinitScripts}
       ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
       nonce={nonce}
-      images={ctx.renderOpts.images}
     />,
     {
       signal: initialClientReactSignal,
@@ -7464,7 +7445,6 @@ async function validateStaticShellAtStage(
             preinitScripts={preinitScripts}
             ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
             nonce={nonce}
-            images={ctx.renderOpts.images}
           />,
           {
             signal: clientReactSignal,
@@ -7939,7 +7919,6 @@ async function validateInstantConfigs(
               preinitScripts={preinitScripts}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
               nonce={nonce}
-              images={ctx.renderOpts.images}
             />,
             {
               signal: reactSignal,
@@ -9427,7 +9406,6 @@ async function prerenderToStream(
             preinitScripts={preinitScripts}
             ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
             nonce={nonce}
-            images={ctx.renderOpts.images}
           />,
           {
             signal: initialClientReactController.signal,
@@ -9892,7 +9870,6 @@ async function prerenderToStream(
                 preinitScripts={preinitScripts}
                 ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
                 nonce={nonce}
-                images={ctx.renderOpts.images}
               />,
               {
                 signal: finalClientReactController.signal,
@@ -10099,7 +10076,6 @@ async function prerenderToStream(
             preinitScripts={() => {}}
             ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
             nonce={nonce}
-            images={ctx.renderOpts.images}
           />,
           JSON.parse(JSON.stringify(postponed)),
           {
@@ -10200,7 +10176,6 @@ async function prerenderToStream(
           preinitScripts={preinitScripts}
           ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
           nonce={nonce}
-          images={ctx.renderOpts.images}
         />,
         {
           onError: htmlRendererErrorHandler,
@@ -10542,7 +10517,6 @@ async function prerenderToStream(
                 ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
                 preinitScripts={errorPreinitScripts}
                 nonce={nonce}
-                images={ctx.renderOpts.images}
               />,
               {
                 nonce,
@@ -10673,7 +10647,6 @@ async function prerenderToStream(
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
               preinitScripts={() => {}}
               nonce={nonce}
-              images={ctx.renderOpts.images}
             />,
             JSON.parse(JSON.stringify(errorPostponed)),
             {
@@ -10797,7 +10770,6 @@ async function prerenderToStream(
           ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
           preinitScripts={errorPreinitScripts}
           nonce={nonce}
-          images={ctx.renderOpts.images}
         />,
         {
           nonce,

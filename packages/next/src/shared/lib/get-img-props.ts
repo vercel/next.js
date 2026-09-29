@@ -333,8 +333,8 @@ export function getImgProps(
     config = c as ImageConfig
   } else {
     const allSizes = [...c.deviceSizes, ...c.imageSizes].sort((a, b) => a - b)
-    const deviceSizes = c.deviceSizes.sort((a, b) => a - b)
-    const qualities = c.qualities?.sort((a, b) => a - b)
+    const deviceSizes = [...c.deviceSizes].sort((a, b) => a - b)
+    const qualities = c.qualities?.slice().sort((a, b) => a - b)
     config = { ...c, allSizes, deviceSizes, qualities }
   }
 

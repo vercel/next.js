@@ -4,23 +4,18 @@ import React, {
   useRef,
   useEffect,
   useCallback,
-  useContext,
   useMemo,
   useState,
   type JSX,
 } from 'react'
 import * as ReactDOM from 'react-dom'
 import Head from '../../shared/lib/head'
-import {
-  imageConfigDefault,
-  VALID_LOADERS,
-} from '../../shared/lib/image-config'
+import { VALID_LOADERS } from '../../shared/lib/image-config'
 import type {
   ImageConfigComplete,
   LoaderValue,
 } from '../../shared/lib/image-config'
 import { useIntersection } from '../use-intersection'
-import { ImageConfigContext } from '../../shared/lib/image-config-context.shared-runtime'
 import { getImageConfig } from 'next/dist/shared/lib/image-config-runtime'
 import { warnOnce } from '../../shared/lib/utils/warn-once'
 import { normalizePathTrailingSlash } from '../normalize-trailing-slash'
@@ -32,7 +27,6 @@ function normalizeSrc(src: string): string {
 }
 
 const supportsFloat = typeof ReactDOM.preload === 'function'
-const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
 const loadedImageURLs = new Set<string>()
 const allImgs = new Map<
   string,
@@ -702,20 +696,19 @@ export default function Image({
   blurDataURL,
   ...all
 }: ImageProps) {
-  const configContext = useContext(ImageConfigContext)
+  const imageConfig = getImageConfig()
   const config: ImageConfig = useMemo(() => {
-    const c = configEnv || configContext || imageConfigDefault
+    const c = imageConfig
     const allSizes = [...c.deviceSizes, ...c.imageSizes].sort((a, b) => a - b)
-    const deviceSizes = c.deviceSizes.sort((a, b) => a - b)
-    const qualities = c.qualities?.sort((a, b) => a - b)
+    const deviceSizes = [...c.deviceSizes].sort((a, b) => a - b)
+    const qualities = c.qualities?.slice().sort((a, b) => a - b)
     return {
       ...c,
       allSizes,
       deviceSizes,
       qualities,
-      localPatterns: getImageConfig().localPatterns,
     }
-  }, [configContext])
+  }, [imageConfig])
 
   let rest: Partial<ImageProps> = all
   let layout: NonNullable<LayoutValue> = sizes ? 'responsive' : 'intrinsic'

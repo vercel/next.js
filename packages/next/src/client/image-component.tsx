@@ -20,21 +20,13 @@ import type {
   OnLoadingComplete,
   PlaceholderValue,
 } from '../shared/lib/get-img-props'
-import type {
-  ImageConfigComplete,
-  ImageLoaderProps,
-} from '../shared/lib/image-config'
-import { imageConfigDefault } from '../shared/lib/image-config'
-import { ImageConfigContext } from '../shared/lib/image-config-context.shared-runtime'
+import type { ImageLoaderProps } from '../shared/lib/image-config'
 import { RouterContext } from '../shared/lib/router-context.shared-runtime'
 import { getImageConfig } from 'next/dist/shared/lib/image-config-runtime'
 
 // This is replaced by webpack alias
 import defaultLoader from 'next/dist/shared/lib/image-loader'
 import { useMergedRef } from './use-merged-ref'
-
-// This is replaced by webpack define plugin
-const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
 
 if (typeof window === 'undefined') {
   ;(globalThis as any).__NEXT_IMAGE_IMPORTED = true
@@ -381,21 +373,20 @@ export const Image = forwardRef<HTMLImageElement | null, ImageProps>(
     // We're in the app directory if there is no pages router.
     const isAppRouter = !pagesRouter
 
-    const configContext = useContext(ImageConfigContext)
+    const imageConfig = getImageConfig()
     const config = useMemo(() => {
-      const c = configEnv || configContext || imageConfigDefault
+      const c = imageConfig
 
       const allSizes = [...c.deviceSizes, ...c.imageSizes].sort((a, b) => a - b)
-      const deviceSizes = c.deviceSizes.sort((a, b) => a - b)
-      const qualities = c.qualities?.sort((a, b) => a - b)
+      const deviceSizes = [...c.deviceSizes].sort((a, b) => a - b)
+      const qualities = c.qualities?.slice().sort((a, b) => a - b)
       return {
         ...c,
         allSizes,
         deviceSizes,
         qualities,
-        localPatterns: getImageConfig().localPatterns,
       }
-    }, [configContext])
+    }, [imageConfig])
 
     const { onLoad, onLoadingComplete } = props
     const onLoadRef = useRef(onLoad)

@@ -158,7 +158,6 @@ async function requestHandler(
       previewProps,
       basePath: nextConfig.basePath,
       assetPrefix: nextConfig.assetPrefix,
-      images: nextConfig.images,
       optimizeCss: nextConfig.experimental.optimizeCss,
       nextConfigOutput: nextConfig.output,
       nextScriptWorkers: nextConfig.experimental.nextScriptWorkers,

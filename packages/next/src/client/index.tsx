@@ -29,8 +29,6 @@ import type { StyleSheetTuple } from './page-loader'
 import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance } from './router'
 import { getProperError } from '../lib/is-error'
-import { ImageConfigContext } from '../shared/lib/image-config-context.shared-runtime'
-import type { ImageConfigComplete } from '../shared/lib/image-config'
 import { removeBasePath } from './remove-base-path'
 import { hasBasePath } from './has-base-path'
 import { AppRouterContext } from '../shared/lib/app-router-context.shared-runtime'
@@ -317,14 +315,7 @@ function AppContainer({
             <PathParamsContext.Provider value={adaptForPathParams(router)}>
               <RouterContext.Provider value={makePublicRouterInstance(router)}>
                 <HeadManagerContext.Provider value={headManager}>
-                  <ImageConfigContext.Provider
-                    value={
-                      process.env
-                        .__NEXT_IMAGE_OPTS as any as ImageConfigComplete
-                    }
-                  >
-                    {children}
-                  </ImageConfigContext.Provider>
+                  {children}
                 </HeadManagerContext.Provider>
               </RouterContext.Provider>
             </PathParamsContext.Provider>

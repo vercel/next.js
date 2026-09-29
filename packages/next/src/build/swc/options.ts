@@ -360,13 +360,12 @@ export function getJestSWCOptions({
     serverReferenceHashSalt,
   })
 
-  // In production, webpack DefinePlugin replaces both image config values
-  // with object literals at compile time. Emulate that during Jest transforms.
+  // In production, webpack DefinePlugin replaces the image config value with
+  // an object literal at compile time. Emulate that during Jest transforms.
   if (imageConfig) {
     baseOptions.jsc.transform.optimizer.globals = {
       envs: {
         ...baseOptions.jsc.transform.optimizer.globals?.envs,
-        __NEXT_IMAGE_OPTS: JSON.stringify(imageConfig),
         __NEXT_IMAGE_CONFIG: JSON.stringify(imageConfig),
       },
     } as any

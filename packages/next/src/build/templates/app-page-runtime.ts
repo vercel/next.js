@@ -918,7 +918,6 @@ export function createAppPageEntrypoint({
             nextConfigOutput: nextConfig.output,
             crossOrigin: nextConfig.crossOrigin,
             trailingSlash: nextConfig.trailingSlash,
-            images: nextConfig.images,
             previewProps,
             enableTainting: nextConfig.experimental.taint,
             reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,

@@ -579,7 +579,6 @@ export default abstract class Server<
       generateEtags,
       previewProps: this.getPreviewProps(),
       basePath: this.nextConfig.basePath,
-      images: this.nextConfig.images,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
       nextConfigOutput: this.nextConfig.output,
       nextScriptWorkers: this.nextConfig.experimental.nextScriptWorkers,
