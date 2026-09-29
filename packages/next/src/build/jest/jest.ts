@@ -112,6 +112,7 @@ export default function nextJest(options: { dir?: string } = {}) {
             loader: nextConfig.images.loader,
             dangerouslyAllowSVG: nextConfig.images.dangerouslyAllowSVG,
             unoptimized: nextConfig.images.unoptimized,
+            localPatterns: nextConfig.images.localPatterns,
           }
         : undefined
 

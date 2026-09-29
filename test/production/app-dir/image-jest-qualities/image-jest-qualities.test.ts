@@ -12,6 +12,7 @@ describe('next/jest image qualities config', () => {
 module.exports = {
   images: {
     qualities: [90, 100],
+    localPatterns: [{ pathname: '**', search: '?v=1' }],
   },
 }
         `,
@@ -31,6 +32,7 @@ module.exports = createJestConfig(customJestConfig)
         `,
       [`tests/image.test.tsx`]: `
 import Image from 'next/image'
+import { getImageConfig } from 'next/dist/shared/lib/image-config-runtime'
 import { render, screen } from '@testing-library/react'
 
 describe('Image quality config', () => {
@@ -79,6 +81,25 @@ describe('Image quality config', () => {
     expect(hasCustomQualities).toBe(true)
     expect(hasDefaultQuality).toBe(false)
   })
+
+  it('uses configured localPatterns for image query strings', () => {
+    expect(getImageConfig().localPatterns).toContainEqual({
+      pathname: '**',
+      search: '?v=1',
+    })
+
+    render(
+      <Image
+        src="/test.jpg?v=1"
+        alt="query-string image"
+        width={500}
+        height={500}
+      />
+    )
+
+    expect(screen.getByRole('img', { name: 'query-string image' }).getAttribute('src'))
+      .toContain('url=%2Ftest.jpg%3Fv%3D1')
+  })
 })
         `,
     },
@@ -102,6 +123,6 @@ describe('Image quality config', () => {
     const output = result.stdout || result.stderr || ''
     console.log('Jest output:', output)
     expect(output).toContain('PASS')
-    expect(output).toMatch(/2 passed/)
+    expect(output).toMatch(/3 passed/)
   })
 })

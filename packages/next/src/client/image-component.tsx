@@ -27,6 +27,7 @@ import type {
 import { imageConfigDefault } from '../shared/lib/image-config'
 import { ImageConfigContext } from '../shared/lib/image-config-context.shared-runtime'
 import { RouterContext } from '../shared/lib/router-context.shared-runtime'
+import { getImageConfig } from 'next/dist/shared/lib/image-config-runtime'
 
 // This is replaced by webpack alias
 import defaultLoader from 'next/dist/shared/lib/image-loader'
@@ -392,14 +393,7 @@ export const Image = forwardRef<HTMLImageElement | null, ImageProps>(
         allSizes,
         deviceSizes,
         qualities,
-        // During the SSR, configEnv (__NEXT_IMAGE_OPTS) does not include
-        // security sensitive configs like `localPatterns`, which is needed
-        // during the server render to ensure it's validated. Therefore use
-        // configContext, which holds the config from the server for validation.
-        localPatterns:
-          typeof window === 'undefined'
-            ? configContext?.localPatterns
-            : c.localPatterns,
+        localPatterns: getImageConfig().localPatterns,
       }
     }, [configContext])
 

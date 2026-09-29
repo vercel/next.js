@@ -29,7 +29,10 @@
       // "next/dist/compiled/next-devtools": [
       //   "./src/next-devtools/entrypoint.ts"
       // ],
-      "next/dist/shared/lib/image-loader": ["./src/shared/lib/image-loader.ts"]
+      "next/dist/shared/lib/image-loader": ["./src/shared/lib/image-loader.ts"],
+      "next/dist/shared/lib/image-config-runtime": [
+        "./src/shared/lib/image-config-runtime.ts"
+      ]
     }
   },
   // When changing `exclude`, also update

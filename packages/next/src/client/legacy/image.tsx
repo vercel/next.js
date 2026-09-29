@@ -21,6 +21,7 @@ import type {
 } from '../../shared/lib/image-config'
 import { useIntersection } from '../use-intersection'
 import { ImageConfigContext } from '../../shared/lib/image-config-context.shared-runtime'
+import { getImageConfig } from 'next/dist/shared/lib/image-config-runtime'
 import { warnOnce } from '../../shared/lib/utils/warn-once'
 import { normalizePathTrailingSlash } from '../normalize-trailing-slash'
 import { findClosestQuality } from '../../shared/lib/find-closest-quality'
@@ -711,14 +712,8 @@ export default function Image({
       ...c,
       allSizes,
       deviceSizes,
-      qualities, // During the SSR, configEnv (__NEXT_IMAGE_OPTS) does not include
-      // security sensitive configs like `localPatterns`, which is needed
-      // during the server render to ensure it's validated. Therefore use
-      // configContext, which holds the config from the server for validation.
-      localPatterns:
-        typeof window === 'undefined'
-          ? configContext?.localPatterns
-          : c.localPatterns,
+      qualities,
+      localPatterns: getImageConfig().localPatterns,
     }
   }, [configContext])
 
