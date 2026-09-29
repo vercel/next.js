@@ -336,9 +336,9 @@ describe('security upgrade nudge', () => {
         message.nextUpgradeRetryAllowed
       let restartedNudge: typeof nudgeUpgrade
       jest.isolateModules(() => {
-        restartedNudge = jest.requireActual<
-          typeof import('../../packages/next/src/lib/upgrade/nudge')
-        >('../../packages/next/src/lib/upgrade/nudge').nudgeUpgrade
+        restartedNudge = jest.requireActual<{
+          nudgeUpgrade: typeof nudgeUpgrade
+        }>('../../packages/next/src/lib/upgrade/nudge').nudgeUpgrade
         jest
           .mocked(
             jest.requireMock<typeof import('next/dist/telemetry/agent-name')>(
@@ -355,9 +355,9 @@ describe('security upgrade nudge', () => {
       delete process.env.NEXT_PRIVATE_ALLOWED_UPGRADE_RETRIES
       let newSessionNudge: typeof nudgeUpgrade
       jest.isolateModules(() => {
-        newSessionNudge = jest.requireActual<
-          typeof import('../../packages/next/src/lib/upgrade/nudge')
-        >('../../packages/next/src/lib/upgrade/nudge').nudgeUpgrade
+        newSessionNudge = jest.requireActual<{
+          nudgeUpgrade: typeof nudgeUpgrade
+        }>('../../packages/next/src/lib/upgrade/nudge').nudgeUpgrade
         jest
           .mocked(
             jest.requireMock<typeof import('next/dist/telemetry/agent-name')>(
