@@ -2688,10 +2688,7 @@ export async function fetchSegmentPrefetchesUsingRuntimeRequest(
         decodeBufferedResponse<DynamicNavigationFlightResponse>(buffer, headers)
     }
 
-    const [serverData, cacheData] = await Promise.all([
-      serverDataPromise,
-      response.cacheData,
-    ])
+    const serverData = await serverDataPromise
 
     const now = Date.now()
     const staleAt = await resolveStaleAt(now, serverData.s, response)
@@ -2714,7 +2711,7 @@ export async function fetchSegmentPrefetchesUsingRuntimeRequest(
     const isFullResponsePartial =
       (fetchStrategy === FetchStrategy.PPRRuntime ||
         fetchStrategy === FetchStrategy.RuntimeShell) &&
-      (cacheData?.isResponsePartial ?? false)
+      response.isPartial
 
     // Aside from writing the data into the cache, this also returns the
     // entries that were fulfilled, so we can streamingly update their sizes
