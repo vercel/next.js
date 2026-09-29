@@ -81,9 +81,11 @@ type SpaFetchServerResponseResult = {
    * Cache Components is disabled.
    */
   isResponsePartial: boolean
-  staticStageResponse: NavigationFlightResponse | null
-  runtimePrefetchStream: ReadableStream<Uint8Array> | null
-  responseHeaders: Headers
+  /**
+   * The decoded response. It can carry a prefetch response, written into the
+   * segment cache by `writeNavigationResponseIntoCache`.
+   */
+  flightResponse: NavigationFlightResponse
   debugInfo: Array<any> | null
   /**
    * Dev only: resolves once the server has flushed the shell-stage content to
@@ -268,14 +270,6 @@ export async function fetchServerResponse(
       return doMpaNavigation(flightResponse.n)
     }
 
-    // Only a complete response is written into the segment cache.
-    const staticStageResponse =
-      process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS &&
-      cacheData !== null &&
-      !cacheData.isResponsePartial
-        ? flightResponse
-        : null
-
     return {
       transportData: flightResponse.t ?? null,
       canonicalUrl: canonicalUrl,
@@ -297,9 +291,7 @@ export async function fetchServerResponse(
       dynamicStaleTime: flightResponse.d ?? UnknownDynamicStaleTime,
       isResponsePartial:
         cacheData !== null ? cacheData.isResponsePartial : false,
-      staticStageResponse,
-      runtimePrefetchStream: flightResponse.p ?? null,
-      responseHeaders: res.headers,
+      flightResponse,
       debugInfo: flightResponsePromise._debugInfo ?? null,
       revealAfter: flightResponse._revealAfter ?? null,
     }

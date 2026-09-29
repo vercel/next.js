@@ -7,8 +7,7 @@ import type { AppRouterState } from './router-reducer-types'
 import { transportNodeToFlightRouterState } from '../../../shared/lib/rsc-transport'
 import { createInitialRenderTreeForHydration } from '../render-tree'
 import {
-  writeRuntimePrefetchStreamIntoCache,
-  spawnStaticStageCacheWrite,
+  writeNavigationResponseIntoCache,
   segmentCacheMap,
   createRootRouteTree,
 } from '../segment-cache/cache'
@@ -124,53 +123,35 @@ export function createInitialRouterState({
     // Intentionally holding off on doing this until we decide how the Cached
     // Navigations behavior should work in combination with App Shells.
 
-    // Write the initial payload's segment data into the segment cache so
-    // subsequent navigations to the initial page can serve cached
-    // segments instantly. `u` marks a complete prerender.
-    // TODO: Navigations recognize a complete prerender by the marker byte.
-    // Read the same signal here.
-    if (
-      initialStaleTime !== undefined &&
-      initialRuntimeDataAccessed !== undefined
-    ) {
-      // We're not using the initial response here to avoid unnecessary
-      // decoding of the Flight data, since we can just take the segment data
-      // that we already decoded during hydration and write it into the cache
-      // directly.
-      spawnStaticStageCacheWrite(
-        Date.now(),
-        // The transport subset of the initial payload, already decoded during
-        // hydration. `u` (the runtime-data verdict) is deliberately omitted
-        // from this synthesized subset, so its writes record their strategy
-        // unrefined.
-        {
-          t: initialTransportData,
-          r: initialRootVaryParams,
-          s: initialStaleTime,
-        },
-        null, // responseHeaders — no build-id check for initial HTML
-        initialTree,
-        initialRenderedSearch,
-        segmentCacheMap // hydration writes are bound to the shared map
-      )
-    }
-
-    // If the initial RSC payload includes an embedded runtime prefetch stream,
-    // decode it and write the runtime data into the segment cache. This allows
-    // subsequent navigations to serve runtime-prefetchable content from cache
-    // without a separate prefetch request.
-    if (initialRuntimePrefetchStream != null) {
-      writeRuntimePrefetchStreamIntoCache(
-        Date.now(),
-        initialRuntimePrefetchStream,
-        initialTree,
-        initialRenderedSearch,
-        segmentCacheMap // hydration writes are bound to the shared map
-      ).catch(() => {
-        // Runtime prefetch cache write failed. Not fatal — the page rendered
-        // normally, we just won't cache runtime data.
-      })
-    }
+    // Write the prefetch response the initial payload carries into the
+    // segment cache, so later navigations to the initial page can be served
+    // from the cache. It reuses the payload hydration already decoded, rather
+    // than decoding the Flight data again. Only a complete prerender carries
+    // `u`, so a payload without it is passed as partial.
+    // TODO: Temporary. Navigations recognize a complete prerender by the
+    // marker byte, and this reads `u`. Once the response itself says whether
+    // it's a complete prerender, the write reads it from there, and neither
+    // caller passes it.
+    writeNavigationResponseIntoCache(
+      Date.now(),
+      // The subset of the initial payload the write reads. `u` (the
+      // runtime-data verdict) is deliberately omitted, so its writes record
+      // their strategy unrefined.
+      {
+        t: initialTransportData,
+        r: initialRootVaryParams,
+        s: initialStaleTime,
+        p: initialRuntimePrefetchStream,
+      },
+      initialStaleTime === undefined ||
+        initialRuntimeDataAccessed === undefined,
+      initialTree,
+      initialRenderedSearch,
+      segmentCacheMap // hydration writes are bound to the shared map
+    ).catch(() => {
+      // The cache write failed. Not fatal — the page rendered normally, we
+      // just won't write into the cache.
+    })
   }
 
   // NOTE: We intentionally don't check if any data needs to be fetched from the
