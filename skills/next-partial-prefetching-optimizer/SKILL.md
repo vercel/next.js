@@ -4,8 +4,9 @@ description: >
   Optimize what selected Next.js client navigations include before the click
   under Partial Prefetching. Use after Cache Components and Partial Prefetching
   are adopted when the user wants selected URL-specific UI to be instant,
-  wants reusable content to wait for navigation, or needs to choose between
-  default, viewport, and intent prefetching. Requires Next.js 16.3+.
+  wants to place reusable work behind `await prefetch()` or
+  `await navigation()`, or needs to choose between default, viewport, and
+  intent prefetching. Requires Next.js 16.4+.
 ---
 
 # Partial Prefetching optimizer
@@ -16,13 +17,14 @@ the requested prefetched UI, navigation-only UI, and trigger into a production
 test. Record the current behavior, make the smallest optimization, verify the
 differential, and keep the passing test as regression coverage.
 
-Before making framework changes, read the bundled Optimizing prefetching guide
-at
-`node_modules/next/dist/docs/01-app/02-guides/optimizing-prefetching.md`. If the
-bundled guide is unavailable, use the [online
-guide](https://nextjs.org/docs/app/guides/optimizing-prefetching). It is the
-source of truth for prefetch stages, `prefetch={true}`, session-specific UI,
-and cost trade-offs.
+Before making framework changes, read the bundled documentation:
+
+- `node_modules/next/dist/docs/01-app/02-guides/optimizing-prefetching.md`
+- `node_modules/next/dist/docs/01-app/03-api-reference/04-functions/prefetch.md`
+- `node_modules/next/dist/docs/01-app/03-api-reference/04-functions/navigation.md`
+
+They are the source of truth for stage and link policy, placement,
+session-specific UI, and cost trade-offs.
 
 When the work changes what belongs in the App Shell, follow the
 [Instant navigation](https://nextjs.org/docs/app/guides/instant-navigation) and
