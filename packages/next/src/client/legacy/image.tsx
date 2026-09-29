@@ -5,7 +5,6 @@ import React, {
   useEffect,
   useCallback,
   useContext,
-  useMemo,
   useState,
   type JSX,
 } from 'react'
@@ -13,6 +12,7 @@ import * as ReactDOM from 'react-dom'
 import Head from '../../shared/lib/head'
 import {
   imageConfigDefault,
+  prepareImageConfig,
   VALID_LOADERS,
 } from '../../shared/lib/image-config'
 import type {
@@ -702,25 +702,18 @@ export default function Image({
   ...all
 }: ImageProps) {
   const configContext = useContext(ImageConfigContext)
-  const config: ImageConfig = useMemo(() => {
-    const c = configEnv || configContext || imageConfigDefault
-    const allSizes = [...c.deviceSizes, ...c.imageSizes].sort((a, b) => a - b)
-    const deviceSizes = c.deviceSizes.sort((a, b) => a - b)
-    const qualities = c.qualities?.sort((a, b) => a - b)
-    return {
-      ...c,
-      allSizes,
-      deviceSizes,
-      qualities, // During the SSR, configEnv (__NEXT_IMAGE_OPTS) does not include
-      // security sensitive configs like `localPatterns`, which is needed
-      // during the server render to ensure it's validated. Therefore use
-      // configContext, which holds the config from the server for validation.
-      localPatterns:
-        typeof window === 'undefined'
-          ? configContext?.localPatterns
-          : c.localPatterns,
-    }
-  }, [configContext])
+  const c = configEnv || configContext || imageConfigDefault
+  const config: ImageConfig = {
+    ...prepareImageConfig(c),
+    // During the SSR, configEnv (__NEXT_IMAGE_OPTS) does not include
+    // security sensitive configs like `localPatterns`, which is needed
+    // during the server render to ensure it's validated. Therefore use
+    // configContext, which holds the config from the server for validation.
+    localPatterns:
+      typeof window === 'undefined'
+        ? configContext?.localPatterns
+        : c.localPatterns,
+  }
 
   let rest: Partial<ImageProps> = all
   let layout: NonNullable<LayoutValue> = sizes ? 'responsive' : 'intrinsic'

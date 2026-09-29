@@ -4,7 +4,6 @@ import React, {
   useRef,
   useEffect,
   useContext,
-  useMemo,
   useState,
   forwardRef,
   use,
@@ -24,7 +23,10 @@ import type {
   ImageConfigComplete,
   ImageLoaderProps,
 } from '../shared/lib/image-config'
-import { imageConfigDefault } from '../shared/lib/image-config'
+import {
+  imageConfigDefault,
+  prepareImageConfig,
+} from '../shared/lib/image-config'
 import { ImageConfigContext } from '../shared/lib/image-config-context.shared-runtime'
 import { RouterContext } from '../shared/lib/router-context.shared-runtime'
 
@@ -381,27 +383,18 @@ export const Image = forwardRef<HTMLImageElement | null, ImageProps>(
     const isAppRouter = !pagesRouter
 
     const configContext = useContext(ImageConfigContext)
-    const config = useMemo(() => {
-      const c = configEnv || configContext || imageConfigDefault
-
-      const allSizes = [...c.deviceSizes, ...c.imageSizes].sort((a, b) => a - b)
-      const deviceSizes = c.deviceSizes.sort((a, b) => a - b)
-      const qualities = c.qualities?.sort((a, b) => a - b)
-      return {
-        ...c,
-        allSizes,
-        deviceSizes,
-        qualities,
-        // During the SSR, configEnv (__NEXT_IMAGE_OPTS) does not include
-        // security sensitive configs like `localPatterns`, which is needed
-        // during the server render to ensure it's validated. Therefore use
-        // configContext, which holds the config from the server for validation.
-        localPatterns:
-          typeof window === 'undefined'
-            ? configContext?.localPatterns
-            : c.localPatterns,
-      }
-    }, [configContext])
+    const c = configEnv || configContext || imageConfigDefault
+    const config = {
+      ...prepareImageConfig(c),
+      // During the SSR, configEnv (__NEXT_IMAGE_OPTS) does not include
+      // security sensitive configs like `localPatterns`, which is needed
+      // during the server render to ensure it's validated. Therefore use
+      // configContext, which holds the config from the server for validation.
+      localPatterns:
+        typeof window === 'undefined'
+          ? configContext?.localPatterns
+          : c.localPatterns,
+    }
 
     const { onLoad, onLoadingComplete } = props
     const onLoadRef = useRef(onLoad)
