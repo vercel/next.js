@@ -218,7 +218,7 @@ export function createRuntimeBodyErrorInStaticRoute(route: string): Error {
       `This route is configured to be fully static, but runtime data from \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or a short-lived cache prevents it from being prerendered.\n\n` +
       `Ways to fix this:\n` +
       `  - [remove] Remove the data access\n` +
-      `  - [static-params] For route \`params\` only: specify a static set to prerender with \`generateStaticParams()\` (does not apply to \`cookies()\`, \`headers()\`, \`searchParams\`, or short-lived caches)\n` +
+      `  - [static-params] Specify static route params to prerender with \`generateStaticParams()\` (does not apply to \`cookies()\`, \`headers()\`, \`searchParams\`, or short-lived caches)\n` +
       `  - [client] For \`searchParams\` only: read them on the client with \`useSearchParams()\`\n\n` +
       `Learn more: https://nextjs.org/docs/messages/ensure-static-route-runtime`
   )
@@ -244,7 +244,7 @@ export function createNonPrerenderableBodyErrorInStaticRoute(
       `Ways to fix this:\n` +
       `  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)\n` +
       `  - [remove] Remove the data access\n` +
-      `  - For route \`params\` only: specify a static set to prerender with \`generateStaticParams()\` (does not apply to other runtime or uncached data)\n` +
+      `  - Specify static route params to prerender with \`generateStaticParams()\` (does not apply to \`cookies()\`, \`headers()\`, \`searchParams\`, \`connection()\`, or uncached data)\n` +
       `  - For \`searchParams\` only: read them on the client with \`useSearchParams()\`\n\n` +
       `Learn more: https://nextjs.org/docs/messages/ensure-static-route`
   )
@@ -256,7 +256,7 @@ export function createRuntimeMetadataErrorInStaticRoute(route: string): Error {
       `This route is configured to be fully static, but runtime data from \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or a short-lived cache prevents \`generateMetadata()\` from being prerendered.\n\n` +
       `Ways to fix this:\n` +
       `  - [static] Replace the dynamic data used by \`generateMetadata()\` with static data\n` +
-      `  - [static-params] For route \`params\` only: specify a static set to prerender with \`generateStaticParams()\` (does not apply to \`cookies()\`, \`headers()\`, \`searchParams\`, or short-lived caches)\n\n` +
+      `  - [static-params] Specify static route params to prerender with \`generateStaticParams()\` (does not apply to \`cookies()\`, \`headers()\`, \`searchParams\`, or short-lived caches)\n\n` +
       `Learn more: https://nextjs.org/docs/messages/ensure-static-metadata-runtime`
   )
 }
@@ -281,7 +281,7 @@ export function createNonPrerenderableMetadataErrorInStaticRoute(
       `Ways to fix this:\n` +
       `  - [cache] For uncached data: cache the data used by \`generateMetadata()\` with \`"use cache"\` (does not apply to \`connection()\`)\n` +
       `  - [static] Replace the dynamic data used by \`generateMetadata()\` with static data\n` +
-      `  - For route \`params\` only: specify a static set to prerender with \`generateStaticParams()\` (does not apply to other runtime or uncached data)\n\n` +
+      `  - Specify static route params to prerender with \`generateStaticParams()\` (does not apply to \`cookies()\`, \`headers()\`, \`searchParams\`, \`connection()\`, or uncached data)\n\n` +
       `Learn more: https://nextjs.org/docs/messages/ensure-static-metadata`
   )
 }
@@ -292,7 +292,7 @@ export function createRuntimeViewportErrorInStaticRoute(route: string): Error {
       `This route is configured to be fully static, but runtime data from \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or a short-lived cache prevents \`generateViewport()\` from being prerendered.\n\n` +
       `Ways to fix this:\n` +
       `  - [static] Replace the dynamic data used by \`generateViewport()\` with static data\n` +
-      `  - [static-params] For route \`params\` only: specify a static set to prerender with \`generateStaticParams()\` (does not apply to \`cookies()\`, \`headers()\`, \`searchParams\`, or short-lived caches)\n\n` +
+      `  - [static-params] Specify static route params to prerender with \`generateStaticParams()\` (does not apply to \`cookies()\`, \`headers()\`, \`searchParams\`, or short-lived caches)\n\n` +
       `Learn more: https://nextjs.org/docs/messages/ensure-static-viewport-runtime`
   )
 }
@@ -317,7 +317,7 @@ export function createNonPrerenderableViewportErrorInStaticRoute(
       `Ways to fix this:\n` +
       `  - [cache] For uncached data: cache the data used by \`generateViewport()\` with \`"use cache"\` (does not apply to \`connection()\`)\n` +
       `  - [static] Replace the dynamic data used by \`generateViewport()\` with static data\n` +
-      `  - For route \`params\` only: specify a static set to prerender with \`generateStaticParams()\` (does not apply to other runtime or uncached data)\n\n` +
+      `  - Specify static route params to prerender with \`generateStaticParams()\` (does not apply to \`cookies()\`, \`headers()\`, \`searchParams\`, \`connection()\`, or uncached data)\n\n` +
       `Learn more: https://nextjs.org/docs/messages/ensure-static-viewport`
   )
 }
