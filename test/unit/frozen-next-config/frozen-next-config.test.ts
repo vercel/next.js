@@ -34,7 +34,7 @@ it.each(['mutable', 'frozen'] as const)(
 
     const { props } = getImgProps(
       { src: '/test.png', alt: 'test', fill: true },
-      { defaultLoader, imgConf: config }
+      { defaultLoader, imgConf: prepareImageConfig(config) }
     )
 
     expect(props.srcSet).toBe(

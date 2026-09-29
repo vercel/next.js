@@ -1,10 +1,9 @@
 import { getAssetToken, getDeploymentId } from './deployment-id'
 import { getImageBlurSvg } from './image-blur-svg'
-import { prepareImageConfig } from './image-config'
 import type {
-  ImageConfigComplete,
   ImageLoaderProps,
   ImageLoaderPropsWithConfig,
+  PreparedImageConfig,
 } from './image-config'
 
 import type { CSSProperties, JSX } from 'react'
@@ -95,8 +94,7 @@ const INVALID_BACKGROUND_SIZE_VALUES = [
   undefined,
 ]
 type LoadingValue = (typeof VALID_LOADING_VALUES)[number]
-type ImageConfig = ImageConfigComplete & {
-  allSizes: number[]
+type ImageConfig = PreparedImageConfig & {
   output?: 'standalone' | 'export'
 }
 
@@ -313,7 +311,7 @@ export function getImgProps(
   }: ImageProps,
   _state: {
     defaultLoader: ImageLoaderWithConfig
-    imgConf?: ImageConfigComplete
+    imgConf: ImageConfig
     showAltText?: boolean
     blurComplete?: boolean
   }
@@ -326,13 +324,7 @@ export function getImgProps(
     fill: boolean
   }
 } {
-  const { imgConf, showAltText, blurComplete, defaultLoader } = _state
-  let config: ImageConfig
-  if (imgConf && 'allSizes' in imgConf) {
-    config = imgConf as ImageConfig
-  } else {
-    config = prepareImageConfig(imgConf)
-  }
+  const { imgConf: config, showAltText, blurComplete, defaultLoader } = _state
 
   if (typeof defaultLoader === 'undefined') {
     throw new Error(
