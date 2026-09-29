@@ -3661,22 +3661,12 @@ function writeSegmentDataIntoCache(
   return fulfilledEntry
 }
 
-async function fetchPrefetchResponse<T>(
+async function fetchPrefetchResponse(
   url: URL,
   headers: RequestHeaders
-): Promise<RSCResponse<T> | null> {
+): Promise<RSCResponse | null> {
   const fetchPriority = 'low'
-  // When issuing a prefetch request, don't immediately decode the response; we
-  // use the lower level `createFromResponse` API instead because we need to do
-  // some extra processing of the response stream. See
-  // `bufferPrefetchResponseBody` for more details.
-  const shouldImmediatelyDecode = false
-  const response = await createFetch<T>(
-    url,
-    headers,
-    fetchPriority,
-    shouldImmediatelyDecode
-  )
+  const response = await createFetch(url, headers, fetchPriority)
   if (!response.ok) {
     return null
   }
@@ -3703,7 +3693,7 @@ async function fetchPrefetchResponse<T>(
  * prerender, rather than the old prefetching flow. If this fails, it implies
  * that PPR is disabled on the route.
  */
-function wasServedFromPerSegmentCache(response: RSCResponse<unknown>): boolean {
+function wasServedFromPerSegmentCache(response: RSCResponse): boolean {
   return (
     response.headers.get(NEXT_DID_POSTPONE_HEADER) === '2' ||
     // In output: "export" mode, we can't rely on response headers. But if we
@@ -3870,10 +3860,7 @@ export function canNewFetchStrategyProvideMoreContent(
   return currentStrategy < newStrategy
 }
 
-function getStaleAtFromHeader(
-  now: number,
-  response: RSCResponse<unknown>
-): number {
+function getStaleAtFromHeader(now: number, response: RSCResponse): number {
   const staleTimeSeconds = parseInt(
     response.headers.get(NEXT_ROUTER_STALE_TIME_HEADER) ?? '',
     10
@@ -3905,7 +3892,7 @@ function getStaleAtFromHeader(
 export async function resolveStaleAt(
   now: number,
   staleTimeIterable: AsyncIterable<number> | undefined,
-  response?: RSCResponse<unknown>
+  response?: RSCResponse
 ): Promise<number> {
   if (staleTimeIterable !== undefined) {
     // Iterate the async iterable and take the last yielded value. The server
