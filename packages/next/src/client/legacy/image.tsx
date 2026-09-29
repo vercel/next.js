@@ -11,7 +11,7 @@ import * as ReactDOM from 'react-dom'
 import Head from '../../shared/lib/head'
 import { VALID_LOADERS } from '../../shared/lib/image-config'
 import type {
-  ImageConfigComplete,
+  PreparedImageConfig,
   LoaderValue,
 } from '../../shared/lib/image-config'
 import { useIntersection } from '../use-intersection'
@@ -41,7 +41,7 @@ if (typeof window === 'undefined') {
 
 const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const
 type LoadingValue = (typeof VALID_LOADING_VALUES)[number]
-type ImageConfig = ImageConfigComplete & { allSizes: number[] }
+type ImageConfig = PreparedImageConfig
 export type ImageLoader = (resolverProps: ImageLoaderProps) => string
 
 export type ImageLoaderProps = {
@@ -217,7 +217,13 @@ function defaultLoader({
         // We use dynamic require because this should only error in development
         const { hasRemoteMatch } =
           require('../../shared/lib/match-remote-pattern') as typeof import('../../shared/lib/match-remote-pattern')
-        if (!hasRemoteMatch(config.domains, config.remotePatterns, parsedSrc)) {
+        if (
+          !hasRemoteMatch(
+            config.domains ?? [],
+            config.remotePatterns ?? [],
+            parsedSrc
+          )
+        ) {
           throw new Error(
             `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
               `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-host`

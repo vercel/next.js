@@ -94,9 +94,7 @@ const INVALID_BACKGROUND_SIZE_VALUES = [
   undefined,
 ]
 type LoadingValue = (typeof VALID_LOADING_VALUES)[number]
-type ImageConfig = PreparedImageConfig & {
-  output?: 'standalone' | 'export'
-}
+type ImageConfig = PreparedImageConfig
 
 export type ImageLoader = (p: ImageLoaderProps) => string
 

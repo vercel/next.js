@@ -1,4 +1,7 @@
-import { prepareImageConfig, type ImageConfigComplete } from './image-config'
+import {
+  prepareImageConfig,
+  type ImageConfigForRendering,
+} from './image-config'
 import type { ImageProps } from './get-img-props'
 
 import { getImgProps } from './get-img-props'
@@ -11,7 +14,9 @@ import * as defaultLoaderModule from 'next/dist/shared/lib/image-loader'
 const defaultLoader = Reflect.get(defaultLoaderModule, 'default')
 // This is replaced by the bundler define plugin. Keep its object identity
 // stable so getImgProps can reuse the prepared image options.
-const imageConfig = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
+const imageConfig = process.env.__NEXT_IMAGE_OPTS as any as
+  | ImageConfigForRendering
+  | undefined
 
 /**
  * For more advanced use cases, you can call `getImageProps()`

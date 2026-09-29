@@ -3,13 +3,13 @@
 import { useContext } from 'react'
 import {
   prepareImageConfig,
-  type ImageConfigComplete,
+  type ImageConfigForRendering,
 } from '../shared/lib/image-config'
 import { ImageConfigContext } from '../shared/lib/image-config-context.shared-runtime'
 
 // This is replaced by the bundler define plugin.
 const configEnv = process.env.__NEXT_IMAGE_OPTS as any as
-  | ImageConfigComplete
+  | ImageConfigForRendering
   | undefined
 
 export function useImageConfig() {

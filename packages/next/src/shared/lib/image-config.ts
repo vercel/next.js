@@ -146,8 +146,33 @@ export type ImageConfigComplete = {
 
 export type ImageConfig = Partial<ImageConfigComplete>
 
-export type PreparedImageConfig = ImageConfigComplete & {
+type RequiredImageConfigForRendering = Pick<
+  ImageConfigComplete,
+  | 'deviceSizes'
+  | 'imageSizes'
+  | 'loader'
+  | 'path'
+  | 'dangerouslyAllowSVG'
+  | 'unoptimized'
+>
+
+export type ImageConfigForRendering = RequiredImageConfigForRendering &
+  Partial<
+    Pick<
+      ImageConfigComplete,
+      'qualities' | 'domains' | 'remotePatterns' | 'localPatterns'
+    >
+  > & {
+    output?: 'standalone' | 'export'
+  }
+
+export type PreparedImageConfig = RequiredImageConfigForRendering & {
   allSizes: number[]
+  qualities: ImageConfigComplete['qualities']
+  domains: ImageConfigComplete['domains'] | undefined
+  remotePatterns: ImageConfigComplete['remotePatterns'] | undefined
+  localPatterns: ImageConfigComplete['localPatterns']
+  output: 'standalone' | 'export' | undefined
 }
 
 const missingImageConfig = {}
@@ -161,32 +186,44 @@ const preparedImageConfigs = new WeakMap<
  * Changed options require new objects because results are cached by identity.
  */
 export function prepareImageConfig(
-  envConfig?: ImageConfigComplete,
+  envConfig?: ImageConfigForRendering,
   contextConfig?: ImageConfigComplete
 ): PreparedImageConfig {
   const envKey = envConfig ?? missingImageConfig
   const contextKey = contextConfig ?? missingImageConfig
   let preparedByContext = preparedImageConfigs.get(envKey)
-  const cached = preparedByContext?.get(contextKey)
-  if (cached) return cached
+  if (preparedByContext) {
+    const cached = preparedByContext.get(contextKey)
+    if (cached) {
+      return cached
+    }
+  }
 
-  const source = envConfig || contextConfig || imageConfigDefault
+  const source: ImageConfigForRendering =
+    envConfig || contextConfig || imageConfigDefault
   const deviceSizes = [...source.deviceSizes].sort((a, b) => a - b)
   const imageSizes = [...source.imageSizes]
-  const prepared = {
-    ...source,
+  const prepared: PreparedImageConfig = {
     deviceSizes,
     imageSizes,
     allSizes: [...deviceSizes, ...imageSizes].sort((a, b) => a - b),
-    ...(source.qualities !== undefined && {
-      qualities: [...source.qualities].sort((a, b) => a - b),
-    }),
+    qualities:
+      source.qualities === undefined
+        ? undefined
+        : [...source.qualities].sort((a, b) => a - b),
+    path: source.path,
+    loader: source.loader,
+    dangerouslyAllowSVG: source.dangerouslyAllowSVG,
+    unoptimized: source.unoptimized,
+    domains: source.domains,
+    remotePatterns: source.remotePatterns,
     // The inlined browser options supply their own patterns. During SSR the
     // context supplies security-sensitive patterns omitted from the inline data.
     localPatterns:
       typeof window === 'undefined' && contextConfig !== undefined
         ? contextConfig.localPatterns
         : source.localPatterns,
+    output: source.output,
   }
 
   if (!preparedByContext) {
