@@ -66,16 +66,15 @@ export interface NextInstanceOpts {
   startServerTimeout?: number
   /**
    * Append Vercel runtime messages to cliOutput in deploy mode. Delivery is
-   * asynchronous: use retry() for positive assertions. An empty stream alone
+   * asynchronous: use retry() for positive assertions. An empty query alone
    * does not establish that an application message was not logged.
    * Messages append in arrival order, not guaranteed execution order. String
    * offsets do not isolate requests, and remote severity only approximates the
-   * original stdout/stderr stream. Setup waits up to 15 seconds for the first
-   * runtime message, then proceeds if the deployment is quiet. This head start
-   * does not guarantee that the stream is ready before tests send requests.
-   * The CLI currently limits a live stream to five minutes; expiry fails the
-   * test rather than silently leaving cliOutput stale. Unsupported for custom
-   * deployment/log scripts. Has no effect in dev or start mode.
+   * original stdout/stderr stream. Setup verifies access, then polls complete
+   * request logs. Query failures, truncation, and reaching the 1,000-request
+   * limit fail the test instead of silently leaving cliOutput incomplete.
+   * Unsupported for custom deployment/log scripts. Has no effect in dev or
+   * start mode.
    */
   captureRuntimeLogs?: boolean
   disableAutoSkewProtection?: boolean
