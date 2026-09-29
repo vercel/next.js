@@ -508,6 +508,7 @@ async function navigateToUnknownRoute(
     dynamicStaleTime,
     isResponsePartial,
     flightResponse,
+    responseChunks,
     debugInfo,
   } = result
 
@@ -557,6 +558,7 @@ async function navigateToUnknownRoute(
     now,
     flightResponse,
     isResponsePartial,
+    responseChunks,
     currentFlightRouterState,
     renderedSearch,
     map

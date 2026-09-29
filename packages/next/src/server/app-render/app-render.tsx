@@ -2388,6 +2388,8 @@ function App<T>({
     // real timestamp.
     navigatedAt: -1,
     initialRSCPayload: response,
+    // The SSR render doesn't write into the segment cache.
+    initialRSCPayloadChunks: null,
     // location is not initialized in the SSR render
     // it's set to window.location during hydration
     location: null,
@@ -2449,6 +2451,8 @@ function ErrorApp<T>({
     // real timestamp.
     navigatedAt: -1,
     initialRSCPayload: response,
+    // The SSR render doesn't write into the segment cache.
+    initialRSCPayloadChunks: null,
     // location is not initialized in the SSR render
     // it's set to window.location during hydration
     location: null,
