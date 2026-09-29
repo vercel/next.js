@@ -5,7 +5,6 @@ export type FixCardGroup =
   | 'block'
   | 'cache'
   | 'static'
-  | 'static-params'
   | 'dynamic'
   | 'client'
   | 'defer'
@@ -26,7 +25,6 @@ export type FixCardIcon =
   | 'minus'
   | 'minus-circle'
   | 'pointer-click'
-  | 'route'
   | 'server-stack'
   | 'timer'
   | 'zap'
@@ -39,7 +37,6 @@ export const FIX_CARD_GROUPS: Record<
   block: { label: 'Block', color: 'red', icon: 'loading' },
   cache: { label: 'Cache', color: 'purple', icon: 'database' },
   static: { label: 'Static', color: 'gray', icon: 'zap' },
-  'static-params': { label: 'Static params', color: 'gray', icon: 'route' },
   dynamic: { label: 'Dynamic', color: 'blue', icon: 'server-stack' },
   client: { label: 'Client', color: 'amber', icon: 'layout' },
   defer: { label: 'Defer', color: 'amber', icon: 'pointer-click' },
