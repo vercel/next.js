@@ -1440,7 +1440,7 @@ export function registerHeadAndReportingTests(
                  - [remove] Remove the data access
                  - Only applies to \`searchParams\`: read them on the client with \`useSearchParams()\`
 
-               Learn more: https://nextjs.org/docs/messages/ensure-static-route
+               Learn more: https://nextjs.org/docs/messages/ensure-static-route-dynamic
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)

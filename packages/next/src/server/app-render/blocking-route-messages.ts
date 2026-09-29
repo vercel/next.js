@@ -244,7 +244,7 @@ export function createNonPrerenderableBodyErrorInStaticRoute(
       `  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)\n` +
       `  - [remove] Remove the data access\n` +
       `  - Only applies to \`searchParams\`: read them on the client with \`useSearchParams()\`\n\n` +
-      `Learn more: https://nextjs.org/docs/messages/ensure-static-route`
+      `Learn more: https://nextjs.org/docs/messages/ensure-static-route-dynamic`
   )
 }
 
@@ -278,7 +278,7 @@ export function createNonPrerenderableMetadataErrorInStaticRoute(
       `Ways to fix this:\n` +
       `  - [cache] For uncached data: cache the data used by \`generateMetadata()\` with \`"use cache"\` (does not apply to \`connection()\`)\n` +
       `  - [static] Replace the dynamic data used by \`generateMetadata()\` with static data\n` +
-      `Learn more: https://nextjs.org/docs/messages/ensure-static-metadata`
+      `Learn more: https://nextjs.org/docs/messages/ensure-static-metadata-dynamic`
   )
 }
 
@@ -312,7 +312,7 @@ export function createNonPrerenderableViewportErrorInStaticRoute(
       `Ways to fix this:\n` +
       `  - [cache] For uncached data: cache the data used by \`generateViewport()\` with \`"use cache"\` (does not apply to \`connection()\`)\n` +
       `  - [static] Replace the dynamic data used by \`generateViewport()\` with static data\n` +
-      `Learn more: https://nextjs.org/docs/messages/ensure-static-viewport`
+      `Learn more: https://nextjs.org/docs/messages/ensure-static-viewport-dynamic`
   )
 }
 

@@ -279,7 +279,7 @@ describe('ensureStatic = "navigation"', () => {
            - [remove] Remove the data access
            - Only applies to \`searchParams\`: read them on the client with \`useSearchParams()\`
 
-         Learn more: https://nextjs.org/docs/messages/ensure-static-route
+         Learn more: https://nextjs.org/docs/messages/ensure-static-route-dynamic
              at Inner (app/default/uncached-data/page.tsx:15:16)
              at Page (app/default/uncached-data/page.tsx:9:9)
            13 | }
@@ -334,7 +334,7 @@ describe('ensureStatic = "navigation"', () => {
            - [remove] Remove the data access
            - Only applies to \`searchParams\`: read them on the client with \`useSearchParams()\`
 
-         Learn more: https://nextjs.org/docs/messages/ensure-static-route
+         Learn more: https://nextjs.org/docs/messages/ensure-static-route-dynamic
              at Inner (app/default/connection/page.tsx:17:19)
              at Page (app/default/connection/page.tsx:10:9)
            15 |
@@ -389,7 +389,7 @@ describe('ensureStatic = "navigation"', () => {
            - [remove] Remove the data access
            - Only applies to \`searchParams\`: read them on the client with \`useSearchParams()\`
 
-         Learn more: https://nextjs.org/docs/messages/ensure-static-route
+         Learn more: https://nextjs.org/docs/messages/ensure-static-route-dynamic
              at Inner (app/default/instant-false/connection-blocking/page.tsx:20:19)
              at Page (app/default/instant-false/connection-blocking/page.tsx:14:7)
            18 |
@@ -444,7 +444,7 @@ describe('ensureStatic = "navigation"', () => {
            - [remove] Remove the data access
            - Only applies to \`searchParams\`: read them on the client with \`useSearchParams()\`
 
-         Learn more: https://nextjs.org/docs/messages/ensure-static-route
+         Learn more: https://nextjs.org/docs/messages/ensure-static-route-dynamic
              at Inner (app/suspense-above-body/connection-blocking/page.tsx:20:19)
              at Page (app/suspense-above-body/connection-blocking/page.tsx:14:7)
            18 |
@@ -499,7 +499,7 @@ describe('ensureStatic = "navigation"', () => {
            - [remove] Remove the data access
            - Only applies to \`searchParams\`: read them on the client with \`useSearchParams()\`
 
-         Learn more: https://nextjs.org/docs/messages/ensure-static-route
+         Learn more: https://nextjs.org/docs/messages/ensure-static-route-dynamic
              at UseServerData (app/default/dynamic-data-passed-to-client/client.tsx:6:19)
              at Page (app/default/dynamic-data-passed-to-client/page.tsx:11:9)
            4 |
@@ -710,7 +710,7 @@ describe('ensureStatic = "navigation"', () => {
            - [cache] For uncached data: cache the data used by \`generateMetadata()\` with \`"use cache"\` (does not apply to \`connection()\`)
            - [static] Replace the dynamic data used by \`generateMetadata()\` with static data
 
-         Learn more: https://nextjs.org/docs/messages/ensure-static-metadata
+         Learn more: https://nextjs.org/docs/messages/ensure-static-metadata-dynamic
              at Module.generateMetadata (app/default/dynamic-metadata/page.tsx:7:19)
             5 |
             6 | export async function generateMetadata(): Promise<Metadata> {
@@ -762,7 +762,7 @@ describe('ensureStatic = "navigation"', () => {
            - [cache] For uncached data: cache the data used by \`generateViewport()\` with \`"use cache"\` (does not apply to \`connection()\`)
            - [static] Replace the dynamic data used by \`generateViewport()\` with static data
 
-         Learn more: https://nextjs.org/docs/messages/ensure-static-viewport
+         Learn more: https://nextjs.org/docs/messages/ensure-static-viewport-dynamic
              at Module.generateViewport (app/default/dynamic-viewport/page.tsx:7:19)
             5 |
             6 | export async function generateViewport(): Promise<Viewport> {
@@ -982,7 +982,7 @@ describe('ensureStatic = "navigation"', () => {
            - [remove] Remove the data access
            - Only applies to \`searchParams\`: read them on the client with \`useSearchParams()\`
 
-         Learn more: https://nextjs.org/docs/messages/ensure-static-route
+         Learn more: https://nextjs.org/docs/messages/ensure-static-route-dynamic
              at Inner (app/default/excluded-caches/non-prerenderable-cache/page.tsx:17:9)
              at Page (app/default/excluded-caches/non-prerenderable-cache/page.tsx:10:9)
            15 |
@@ -1253,7 +1253,7 @@ describe('ensureStatic = "navigation"', () => {
            - [remove] Remove the data access
            - Only applies to \`searchParams\`: read them on the client with \`useSearchParams()\`
 
-         Learn more: https://nextjs.org/docs/messages/ensure-static-route
+         Learn more: https://nextjs.org/docs/messages/ensure-static-route-dynamic
              at Inner (app/default/mixed-server-client/connection-and-browser/page.tsx:21:19)
              at Page (app/default/mixed-server-client/connection-and-browser/page.tsx:14:9)
            19 |
@@ -1309,7 +1309,7 @@ describe('ensureStatic = "navigation"', () => {
            - [remove] Remove the data access
            - Only applies to \`searchParams\`: read them on the client with \`useSearchParams()\`
 
-         Learn more: https://nextjs.org/docs/messages/ensure-static-route
+         Learn more: https://nextjs.org/docs/messages/ensure-static-route-dynamic
              at Inner (app/default/mixed-server-client/connection-and-use-search-params/page.tsx:21:19)
              at Page (app/default/mixed-server-client/connection-and-use-search-params/page.tsx:14:9)
            19 |
@@ -1391,7 +1391,7 @@ describe('ensureStatic = "navigation"', () => {
            - [remove] Remove the data access
            - Only applies to \`searchParams\`: read them on the client with \`useSearchParams()\`
 
-         Learn more: https://nextjs.org/docs/messages/ensure-static-route
+         Learn more: https://nextjs.org/docs/messages/ensure-static-route-dynamic
              at Inner (app/default/mixed-server-client/connection-and-use-io/page.tsx:21:19)
              at Page (app/default/mixed-server-client/connection-and-use-io/page.tsx:14:9)
            19 |
@@ -1411,7 +1411,7 @@ describe('ensureStatic = "navigation"', () => {
            - [remove] Remove the data access
            - Only applies to \`searchParams\`: read them on the client with \`useSearchParams()\`
 
-         Learn more: https://nextjs.org/docs/messages/ensure-static-route
+         Learn more: https://nextjs.org/docs/messages/ensure-static-route-dynamic
              at ClientIO (app/default/mixed-server-client/connection-and-use-io/client.tsx:6:6)
              at Page (app/default/mixed-server-client/connection-and-use-io/page.tsx:11:9)
            4 |
