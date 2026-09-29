@@ -1,8 +1,9 @@
+import type { ChildProcess } from 'child_process'
 import { promises as fs } from 'fs'
 import { createRequire } from 'module'
 import path from 'path'
 import { isNextDeploy, isNextDev, nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
+import { findPort, killApp, retry } from 'next-test-utils'
 
 const webpackVersions = ['5.98.0', '5.111.0']
 
@@ -137,18 +138,58 @@ describe('--custom-webpack with an explicit application directory', () => {
       return
     }
 
-    const result = await next.runCommand(
-      ['build', next.testDir, '--custom-webpack'],
-      {
-        cwd: path.dirname(next.testDir),
-        env: process.env.NEXT_SKIP_ISOLATE
-          ? { EXPECTED_WEBPACK_VERSION: '5.98.0' }
-          : undefined,
+    const cwd = path.dirname(next.testDir)
+    const expectedVersion = process.env.NEXT_SKIP_ISOLATE
+      ? '5.98.0'
+      : webpackVersion
+    const env = { EXPECTED_WEBPACK_VERSION: expectedVersion }
+
+    if (isNextDev) {
+      const port = await findPort()
+      let child: ChildProcess | undefined
+      const running = next.runCommand(
+        ['dev', next.testDir, '--custom-webpack', '-p', String(port)],
+        {
+          cwd,
+          env,
+          instance(childProcess) {
+            child = childProcess
+          },
+        }
+      )
+
+      try {
+        await Promise.race([
+          retry(async () => {
+            const response = await fetch(`http://localhost:${port}/`)
+            expect(response.status).toBe(200)
+            const html = await response.text()
+            expect(html).toContain(
+              `custom plugin with webpack ${expectedVersion}`
+            )
+            expect(html).toContain('replaced by NormalModuleReplacementPlugin')
+          }, 30_000),
+          running.then((result) => {
+            throw new Error(`next dev exited early:\n${result.cliOutput}`)
+          }),
+        ])
+      } finally {
+        if (child) {
+          await killApp(child).catch(() => {})
+        }
+        await running.catch(() => {})
       }
-    )
-    expect(result.exitCode).toBe(0)
-    expect(result.cliOutput).toContain('Compiled successfully')
-  })
+    } else {
+      const result = await next.runCommand(
+        ['build', next.testDir, '--custom-webpack'],
+        { cwd, env }
+      )
+      if (result.exitCode !== 0) {
+        throw new Error(`next build failed:\n${result.cliOutput}`)
+      }
+      expect(result.cliOutput).toContain('Compiled successfully')
+    }
+  }, 240_000)
 })
 
 // @force-gate webpack
