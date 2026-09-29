@@ -9062,7 +9062,7 @@ async function prerenderToStream(
     }
   }
   const allCapturedErrors: Array<unknown> = []
-  const htmlRendererErrorHandler = createHTMLErrorHandler(
+  const captureHTMLError = createHTMLErrorHandler(
     process.env.NODE_ENV === 'development',
     isBuildTimePrerendering,
     ctx.renderOpts.experimental.reactBrowserBailout,
@@ -9100,6 +9100,47 @@ async function prerenderToStream(
   const { clientModules } = getClientReferenceManifest()
 
   let prerenderStore: PrerenderStore | null = null
+
+  let capturedHTTPErrorType: 'access-fallback' | 'redirect' | undefined
+
+  // Redirects take precedence over access fallbacks. Within each category, the
+  // first error wins. Always return the current error's type, even if it does
+  // not change the response, so the recovery catch can recognize HTTP errors.
+  function setHTTPAccessFallbackOrRedirectStatus(
+    err: unknown
+  ): MetadataErrorType | 'redirect' | undefined {
+    if (isHTTPAccessFallbackError(err)) {
+      const statusCode = getAccessFallbackHTTPStatus(err)
+      if (capturedHTTPErrorType === undefined) {
+        capturedHTTPErrorType = 'access-fallback'
+        res.statusCode = statusCode
+        metadata.statusCode = statusCode
+      }
+      return getAccessFallbackErrorTypeByStatus(statusCode)
+    } else if (isRedirectError(err)) {
+      if (capturedHTTPErrorType !== 'redirect') {
+        capturedHTTPErrorType = 'redirect'
+        res.statusCode = getRedirectStatusCodeFromError(err)
+        metadata.statusCode = res.statusCode
+        setHeader(
+          'location',
+          addPathPrefix(getURLFromRedirectError(err), basePath)
+        )
+      }
+      return 'redirect'
+    }
+  }
+
+  // React can complete a prerender after an HTTP access fallback or redirect
+  // error is thrown inside a Suspense boundary. Update the response while
+  // preserving the prerendered content outside the boundary.
+  const htmlRendererErrorHandler: typeof captureHTMLError = (
+    err,
+    errorInfo
+  ) => {
+    setHTTPAccessFallbackOrRedirectStatus(err)
+    return captureHTMLError(err, errorInfo)
+  }
 
   try {
     if (cacheComponents) {
@@ -10323,34 +10364,19 @@ async function prerenderToStream(
       )
     }
 
-    let errorType: MetadataErrorType | 'redirect' | undefined
-    const isHTTPAccessFallback = isHTTPAccessFallbackError(err)
-    const isRedirect = isRedirectError(err)
+    const errorType = setHTTPAccessFallbackOrRedirectStatus(err)
 
-    if (isHTTPAccessFallback) {
-      res.statusCode = getAccessFallbackHTTPStatus(err)
-      metadata.statusCode = res.statusCode
-      errorType = getAccessFallbackErrorTypeByStatus(res.statusCode)
-    } else if (isRedirect) {
-      errorType = 'redirect'
-      res.statusCode = getRedirectStatusCodeFromError(err)
-      metadata.statusCode = res.statusCode
-
-      const redirectUrl = addPathPrefix(getURLFromRedirectError(err), basePath)
-
-      setHeader('location', redirectUrl)
-    } else {
+    if (errorType === undefined) {
       res.statusCode = 500
       metadata.statusCode = res.statusCode
-    }
 
-    if (
-      cacheComponents &&
-      !isHTTPAccessFallback &&
-      !isRedirect &&
-      (isBuildTimePrerendering || reactServerPrerenderResultIsDynamic === null)
-    ) {
-      throw reactServerErrorsByDigest.get((err as any)?.digest) ?? err
+      if (
+        cacheComponents &&
+        (isBuildTimePrerendering ||
+          reactServerPrerenderResultIsDynamic === null)
+      ) {
+        throw reactServerErrorsByDigest.get((err as any)?.digest) ?? err
+      }
     }
 
     const [errorPreinitScripts, errorBootstrapScript] = getRequiredScripts(
@@ -10636,10 +10662,7 @@ async function prerenderToStream(
           originalFlightPrerenderResult.consume()
           errorServerResult.consume()
           return {
-            error:
-              isHTTPAccessFallback || isRedirect
-                ? undefined
-                : { thrownValue: err },
+            error: errorType !== undefined ? undefined : { thrownValue: err },
             digestErrorsMap: reactServerErrorsByDigest,
             ssrErrors: allCapturedErrors,
             stream: await continueDynamicPrerender(errorHtmlStream, {
@@ -10712,10 +10735,7 @@ async function prerenderToStream(
 
         errorServerResult.consume()
         return {
-          error:
-            isHTTPAccessFallback || isRedirect
-              ? undefined
-              : { thrownValue: err },
+          error: errorType !== undefined ? undefined : { thrownValue: err },
           digestErrorsMap: reactServerErrorsByDigest,
           ssrErrors: allCapturedErrors,
           stream,
