@@ -446,6 +446,7 @@ export const experimentalSchema = {
   turbopackClientSideNestedAsyncChunking: z.boolean().optional(),
   turbopackServerSideNestedAsyncChunking: z.boolean().optional(),
   turbopackLazyDynamicImports: z.boolean().optional(),
+  turbopackLazyDynamicImportsSSR: z.boolean().optional(),
   turbopackImportTypeBytes: z.boolean().optional(),
   turbopackUseBuiltinBabel: z.boolean().optional(),
   turbopackUseBuiltinSass: z.boolean().optional(),
