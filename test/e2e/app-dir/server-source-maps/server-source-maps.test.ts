@@ -23,8 +23,8 @@ describe('app-dir - server source maps', () => {
     files: path.join(__dirname, 'fixtures/default'),
     // Deploy tests don't have access to runtime logs.
     skipDeployment: true,
-    // Use the declared pnpm version on Vercel to install link: dependencies.
-    env: { ENABLE_EXPERIMENTAL_COREPACK: '1' },
+    // Allow the fixture lockfile to update for the Next.js version under test.
+    env: { npm_config_frozen_lockfile: 'false' },
   })
 
   if (skipped) return

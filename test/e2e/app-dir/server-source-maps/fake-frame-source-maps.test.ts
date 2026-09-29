@@ -133,8 +133,8 @@ describe('app-dir - server source maps - fake frame source maps', () => {
     files: path.join(__dirname, 'fixtures/default'),
     // This suite requires runtime logs and a local Node.js inspector.
     skipDeployment: true,
-    // Use the declared pnpm version on Vercel to install link: dependencies.
-    env: { ENABLE_EXPERIMENTAL_COREPACK: '1' },
+    // Allow the fixture lockfile to update for the Next.js version under test.
+    env: { npm_config_frozen_lockfile: 'false' },
     // Expose the inspector on a random port.
     startArgs: ['--inspect=0'],
   })
