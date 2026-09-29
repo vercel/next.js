@@ -23,6 +23,13 @@ import { buildAppStaticPaths } from '../../build/static-paths/app'
 import { buildPagesStaticPaths } from '../../build/static-paths/pages'
 import { createIncrementalCache } from '../../export/helpers/create-incremental-cache'
 import { parseNormalizedAppRoute } from '../../shared/lib/router/routes/app'
+import type { ImageConfigRuntime } from '../../shared/lib/image-config'
+import { registerImageConfig } from '../../shared/lib/image-config-runtime.external'
+
+// Static paths collection may load raw _app and _document before a route entry.
+export function setup(imageConfig: ImageConfigRuntime): void {
+  registerImageConfig(imageConfig)
+}
 
 type RuntimeConfig = {
   configFileName: string

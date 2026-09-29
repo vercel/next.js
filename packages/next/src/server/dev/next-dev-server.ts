@@ -58,6 +58,7 @@ import { DecodeError, MiddlewareNotFoundError } from '../../shared/lib/utils'
 import * as Log from '../../build/output/log'
 import isError, { getProperError } from '../../lib/is-error'
 import { defaultConfig, type NextConfigComplete } from '../config-shared'
+import { getRuntimeImageConfig } from '../../shared/lib/image-config'
 import { isMiddlewareFile } from '../../build/utils'
 import { formatServerError } from '../../lib/format-server-error'
 import { LRUCache } from '../lib/lru-cache'
@@ -158,6 +159,7 @@ export default class DevServer extends Server {
   } {
     const worker = new Worker(require.resolve('./static-paths-worker'), {
       maxRetries: 1,
+      setupArgs: [getRuntimeImageConfig(this.nextConfig)],
       // For dev server, it's not necessary to spin up too many workers as long as you are not doing a load test.
       // This helps reusing the memory a lot.
       numWorkers: 1,

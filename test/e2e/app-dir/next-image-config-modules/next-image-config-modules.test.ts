@@ -28,6 +28,11 @@ describe('next-image-config-modules', () => {
     }
   })
 
+  it('registers external image options before Pages static-paths workers load _app and _document', async () => {
+    const $ = await next.render$('/worker-probe')
+    expect($('#worker-probe').text()).toBe('worker-probe')
+  })
+
   it('provides the reduced image options in the browser', async () => {
     const browser = await next.browser('/')
     await retry(async () => {

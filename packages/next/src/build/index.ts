@@ -988,6 +988,7 @@ export function createStaticWorker(
   return new Worker(staticWorkerPath, {
     logger: Log,
     numWorkers: numberOfWorkers,
+    setupArgs: [getRuntimeImageConfig(config)],
     onActivity: () => {
       progress?.run()
     },
