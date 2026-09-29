@@ -186,12 +186,14 @@ fn intermediate_candidate<T: Compactable>(
     config: &CompactConfig,
 ) -> Candidate {
     let priority = above.len() as f32 / config.max_files_above_bottom.max(1) as f32;
-    let mut taken = 0u128;
+    let mut taken = 0u64;
     let mut first = above.len();
     while first > 0 {
-        let size = u128::from(compactables[above[first - 1]].size());
+        let size = compactables[above[first - 1]].size();
         let taken_files = above.len() - first;
-        if taken_files >= 2 && size * 100 > taken * (100 + u128::from(config.size_ratio_percent)) {
+        // Saturates (and then never stops) for a huge ratio, which then merges all files.
+        let limit = taken.saturating_mul(100 + u64::from(config.size_ratio_percent));
+        if taken_files >= 2 && size.saturating_mul(100) > limit {
             break;
         }
         taken += size;
