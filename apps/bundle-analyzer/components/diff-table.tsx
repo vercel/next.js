@@ -17,7 +17,6 @@ import {
 import {
   delta,
   formatDelta,
-  sortByImpact,
   type DiffRow,
   type DiffSummary,
   type DiffStatus,
@@ -30,6 +29,7 @@ import { Badge } from '@/components/ui/badge'
 type SortColumn = 'name' | 'a' | 'b' | 'delta'
 /** Sort direction. */
 type SortDirection = 'asc' | 'desc'
+type StatusFilter = DiffStatus | 'changes' | 'all'
 
 interface DiffTableProps<Row extends DiffRow> {
   summary: DiffSummary<Row>
@@ -99,7 +99,7 @@ const virtuosoComponents = {
  *
  *   | Name | A (before) | B (after) | Δ |
  *
- * Rows are sorted by absolute delta (largest impact first).
+ * In compare mode, rows are sorted by signed delta (largest increase first).
  */
 export function DiffTable<Row extends DiffRow>({
   summary,
@@ -114,9 +114,11 @@ export function DiffTable<Row extends DiffRow>({
   searchQuery,
 }: DiffTableProps<Row>) {
   const isSingle = mode === 'single'
-  const [statusFilter, setStatusFilter] = useState<DiffStatus | 'all'>('all')
+  // Compare mode shows only changed sources by default. In single mode every
+  // row is `identical` against itself, so the status filter is ignored.
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('changes')
   // Default sort:
-  //   - compare mode: rank by largest absolute delta (most-impactful change first).
+  //   - compare mode: rank by signed delta (largest increase first).
   //   - single mode: rank by size descending (largest contributors first).
   const [sortColumn, setSortColumn] = useState<SortColumn>(
     isSingle ? 'b' : 'delta'
@@ -137,16 +139,10 @@ export function DiffTable<Row extends DiffRow>({
     })
   }
 
-  const sorted = useMemo(() => {
-    // The default `delta`/`desc` mode preserves the existing impact-ranked
-    // sort, which keeps `identical` rows pinned at the bottom regardless of
-    // direction. Other columns sort lexicographically (name) or numerically
-    // (A, B) using the user's chosen direction.
-    if (sortColumn === 'delta' && sortDirection === 'desc') {
-      return sortByImpact(summary.rows, useCompressed)
-    }
-    return sortRows(summary.rows, sortColumn, sortDirection, useCompressed)
-  }, [summary.rows, sortColumn, sortDirection, useCompressed])
+  const sorted = useMemo(
+    () => sortRows(summary.rows, sortColumn, sortDirection, useCompressed),
+    [summary.rows, sortColumn, sortDirection, useCompressed]
+  )
 
   const onHeaderClick = (column: SortColumn) => {
     if (column === sortColumn) {
@@ -162,7 +158,13 @@ export function DiffTable<Row extends DiffRow>({
   const filtered = useMemo(() => {
     const q = searchQuery?.trim().toLowerCase() ?? ''
     return sorted.filter((row) => {
-      if (statusFilter !== 'all' && row.status !== statusFilter) return false
+      if (!isSingle && statusFilter !== 'all') {
+        if (statusFilter === 'changes' && row.status === 'identical')
+          return false
+        if (statusFilter !== 'changes' && row.status !== statusFilter) {
+          return false
+        }
+      }
       if (q !== '') {
         const key = row.key.toLowerCase()
         const name = row.name.toLowerCase()
@@ -170,7 +172,7 @@ export function DiffTable<Row extends DiffRow>({
       }
       return true
     })
-  }, [sorted, statusFilter, searchQuery])
+  }, [sorted, isSingle, statusFilter, searchQuery])
 
   // Group filtered rows by package, preserving the user's chosen sort order.
   // Groups themselves are sorted by their aggregate using the same column +
@@ -309,7 +311,9 @@ export function DiffTable<Row extends DiffRow>({
       />
       {visibleItems.length === 0 ? (
         <div className="absolute inset-x-0 top-20 px-4 py-8 text-center text-sm text-muted-foreground">
-          No matching rows.
+          {!isSingle && statusFilter === 'changes' && !searchQuery?.trim()
+            ? 'No changes to show.'
+            : 'No matching rows.'}
         </div>
       ) : null}
     </div>
@@ -459,7 +463,7 @@ function sortRenderItems<Row extends DiffRow>(
     }
   }
 
-  return [...items].sort((left, right) => {
+  return items.toSorted((left, right) => {
     const a = values(left)
     const b = values(right)
     if (a.identical && !b.identical) return 1
@@ -471,14 +475,12 @@ function sortRenderItems<Row extends DiffRow>(
     } else {
       const aValue = a[column]
       const bValue = b[column]
-      const comparison =
-        column === 'delta' && direction === 'desc'
-          ? Math.abs(bValue) - Math.abs(aValue)
-          : (aValue - bValue) * sign
+      const comparison = (aValue - bValue) * sign
       if (comparison !== 0) return comparison
     }
 
-    return a.name < b.name ? -1 : 1
+    // Break numeric ties using the same locale-aware order as the name column.
+    return a.name.localeCompare(b.name)
   })
 }
 
@@ -652,9 +654,9 @@ function PackageCountBreakdown({
 /**
  * Sorts rows by the chosen column and direction. The `name` column compares
  * using a locale-aware lexicographic ordering; numeric columns compare by
- * value. `identical` rows are always pinned to the bottom — they aren't part
- * of the "what changed" story and would otherwise dominate the top of an
- * ascending sort.
+ * value. `identical` rows are pinned to the bottom for every column when
+ * visible (in the All filter or single mode), since they aren't part of the
+ * "what changed" story.
  */
 function sortRows<Row extends DiffRow>(
   rows: Row[],
@@ -669,7 +671,7 @@ function sortRows<Row extends DiffRow>(
     if (column === 'b') return useCompressed ? row.compressedB : row.sizeB
     return delta(row, useCompressed)
   }
-  return [...rows].sort((a, b) => {
+  return rows.toSorted((a, b) => {
     if (a.status === 'identical' && b.status !== 'identical') return 1
     if (b.status === 'identical' && a.status !== 'identical') return -1
     const av = compareKey(a)
@@ -1010,17 +1012,18 @@ function DiffStatusFilter({
   onChange,
   counts,
 }: {
-  value: DiffStatus | 'all'
-  onChange: (value: DiffStatus | 'all') => void
+  value: StatusFilter
+  onChange: (value: StatusFilter) => void
   counts: Record<DiffStatus, number>
 }) {
   const total =
     counts.added + counts.removed + counts.changed + counts.identical
   const options: Array<{
-    value: DiffStatus | 'all'
+    value: StatusFilter
     label: string
     count: number
   }> = [
+    { value: 'changes', label: 'Changes', count: total - counts.identical },
     { value: 'all', label: 'All', count: total },
     { value: 'added', label: 'Added', count: counts.added },
     { value: 'removed', label: 'Removed', count: counts.removed },

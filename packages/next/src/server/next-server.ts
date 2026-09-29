@@ -127,7 +127,11 @@ import { RouteKind } from './route-kind'
 import { InvariantError } from '../shared/lib/invariant-error'
 import { AwaiterOnce } from './after/awaiter'
 import { AsyncCallbackSet } from './lib/async-callback-set'
-import { initializeCacheHandlers, setCacheHandler } from './use-cache/handlers'
+import {
+  initializeCacheHandlers,
+  registerCustomCacheHandlers,
+  setCacheHandler,
+} from './use-cache/handlers'
 import type { UnwrapPromise } from '../lib/coalesced-function'
 import { populateStaticEnv } from '../lib/static-env'
 import { NodeModuleLoader } from './lib/module-loader/node-module-loader'
@@ -251,7 +255,10 @@ export default class NextNodeServer extends BaseServer<
       !this.minimalMode &&
       this.nextConfig.experimental.preloadEntriesOnStart
     ) {
-      this.unstable_preloadEntries()
+      // Preloading may join a failing registration started by a request.
+      void this.unstable_preloadEntries().catch((err) => {
+        Log.error('Failed to preload entries:', err)
+      })
     }
 
     if (!options.dev) {
@@ -413,22 +420,21 @@ export default class NextNodeServer extends BaseServer<
     const { cacheMaxMemorySize, cacheHandlers } = this.nextConfig
     if (!cacheHandlers) return
 
-    // If we've already initialized the cache handlers interface, don't do it
-    // again.
-    if (!initializeCacheHandlers(cacheMaxMemorySize)) return
+    initializeCacheHandlers(cacheMaxMemorySize)
+    await registerCustomCacheHandlers(async () => {
+      for (const [kind, handler] of Object.entries(cacheHandlers)) {
+        if (!handler) continue
 
-    for (const [kind, handler] of Object.entries(cacheHandlers)) {
-      if (!handler) continue
-
-      setCacheHandler(
-        kind,
-        interopDefault(
-          await dynamicImportEsmDefault(
-            formatDynamicImportPath(this.distDir, handler)
+        setCacheHandler(
+          kind,
+          interopDefault(
+            await dynamicImportEsmDefault(
+              formatDynamicImportPath(this.distDir, handler)
+            )
           )
         )
-      )
-    }
+      }
+    })
   }
 
   protected async getIncrementalCache({
