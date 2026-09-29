@@ -661,7 +661,6 @@ describe('use-cache', () => {
     })
 
     if (withCacheComponents) {
-      // @gate !partialPrefetchingGlobal
       it('should omit non-prerenderable caches from prerendered shells', async () => {
         const cacheValues = {
           prerenderable: /(?<!non-)prerenderable: \d+/,
@@ -694,7 +693,6 @@ describe('use-cache', () => {
         )
       })
 
-      // @gate !partialPrefetchingGlobal
       it('should omit non-prefetchable caches from prerendered shells', async () => {
         const cacheValues = {
           prerenderable: /prerenderable: \d+/,
@@ -752,7 +750,6 @@ describe('use-cache', () => {
       })
     }
 
-    // @gate !partialPrefetchingGlobal
     it('should not have hydration errors when resuming a partial shell with non-prerenderable caches', async () => {
       const cacheValues = {
         prerenderable: /(?<!non-)prerenderable: \d+/,
@@ -1341,7 +1338,6 @@ describe('use-cache', () => {
   })
 
   if (withCacheComponents) {
-    // @gate !partialPrefetchingGlobal || dev
     it('can resume a cached generateMetadata function', async () => {
       // In dev the initial request fills the caches while streaming the
       // response. The second request will have filled caches and serves a
@@ -1513,7 +1509,6 @@ describe('use-cache', () => {
       ).toBe(description)
     })
 
-    // @gate !partialPrefetchingGlobal || dev
     it('can resume a cached generateViewport function', async () => {
       // First load the page with JavaScript disabled, to ensure that the
       // generateViewport result was included in the prerendered shell.
@@ -1655,7 +1650,6 @@ describe('use-cache', () => {
     })
   }
 
-  // @gate !partialPrefetchingGlobal || dev
   it('should allow nested short-lived caches after connection()', async () => {
     const cacheValues = {
       'revalidate-zero': /bare-revalidate-zero: \d+/,
