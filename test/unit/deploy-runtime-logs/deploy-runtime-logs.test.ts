@@ -18,6 +18,7 @@ function request(id: string, ...messages: string[]) {
 describe('deploy runtime logs', () => {
   let collector: DeployRuntimeLogs
   let append: jest.Mock
+  let warn: jest.SpyInstance
 
   function start() {
     collector = new DeployRuntimeLogs(
@@ -41,10 +42,12 @@ describe('deploy runtime logs', () => {
     jest.useFakeTimers()
     jest.mocked(execa).mockReturnValue(queryResult())
     append = jest.fn()
+    warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
   })
 
   afterEach(async () => {
     await collector?.stop().catch(() => {})
+    warn.mockRestore()
     jest.resetAllMocks()
     jest.useRealTimers()
   })
@@ -188,17 +191,119 @@ describe('deploy runtime logs', () => {
     expect(jest.getTimerCount()).toBe(0)
   })
 
-  it('surfaces CLI failures during startup, reads, and teardown', async () => {
-    jest.mocked(execa).mockImplementationOnce(() => {
-      return Promise.reject(new Error('private CLI details')) as ReturnType<
-        typeof execa
-      >
-    })
-    await expect(start()).rejects.toThrow(
-      'Vercel runtime log collection failed'
+  it('waits for a successful startup query after a temporary CLI failure', async () => {
+    jest
+      .mocked(execa)
+      .mockRejectedValueOnce(
+        Object.assign(new Error('private CLI details'), { exitCode: 1 })
+      )
+    const ready = jest.fn()
+    const starting = start().then(ready)
+    await jest.advanceTimersByTimeAsync(1_999)
+    expect(ready).not.toHaveBeenCalled()
+    await jest.advanceTimersByTimeAsync(1)
+    await starting
+    expect(ready).toHaveBeenCalledTimes(1)
+    expect(warn).toHaveBeenCalledWith(
+      'Vercel runtime log collection failed (attempt 1/3: CLI exit code 1); retrying in 2000ms'
     )
-    expect(() => collector.assertHealthy()).toThrow('collection failed')
+    expect(append).not.toHaveBeenCalled()
+  })
+
+  it('retries the same window without consuming partial output or duplicating logs', async () => {
+    await start()
+    await nextQuery(request('request-1', 'first'))
+    jest
+      .mocked(execa)
+      .mockRejectedValueOnce(
+        Object.assign(new Error('private CLI details'), {
+          exitCode: 1,
+          stdout: JSON.stringify(request('partial', 'must not append')),
+        })
+      )
+      .mockReturnValueOnce(
+        queryResult(JSON.stringify(request('request-1', 'first', 'late')))
+      )
+    await jest.advanceTimersByTimeAsync(2_000)
+    expect(() => collector.assertHealthy()).not.toThrow()
+    await jest.advanceTimersByTimeAsync(2_000)
+    expect(append.mock.calls).toEqual([
+      ['first\n', 'stdout'],
+      ['late\n', 'stdout'],
+    ])
+    const queries = jest.mocked(execa).mock.calls
+    expect(queries.at(-1)![1]).toEqual(queries[0][1])
+  })
+
+  it('resets the retry budget after a successful query', async () => {
+    await start()
+    for (let i = 0; i < 4; i++) {
+      jest.mocked(execa).mockRejectedValueOnce(new Error('temporary failure'))
+      await jest.advanceTimersByTimeAsync(4_000)
+    }
+    await nextQuery(request('request-1', 'recovered'))
+    expect(append).toHaveBeenCalledWith('recovered\n', 'stdout')
+    expect(() => collector.assertHealthy()).not.toThrow()
+  })
+
+  it.each([
+    [{ timedOut: true }, 'timed out after 30000ms'],
+    [{ exitCode: 1 }, 'CLI exit code 1'],
+    [{}, 'CLI could not complete the query'],
+  ])(
+    'surfaces persistent CLI failures with safe diagnostics: %j',
+    async (details, reason) => {
+      jest.mocked(execa).mockRejectedValue(
+        Object.assign(new Error('private CLI details'), {
+          ...details,
+          stdout: 'private application output',
+          stderr: 'private diagnostic output',
+          command: 'vercel logs --token private-token',
+        })
+      )
+      const failure = `Vercel runtime log collection failed (attempt 3/3: ${reason})`
+      const starting = start().catch((error) => error)
+      await jest.advanceTimersByTimeAsync(6_000)
+      expect(await starting).toEqual(new Error(failure))
+      expect(execa).toHaveBeenCalledTimes(3)
+      expect(warn.mock.calls).toEqual([
+        [
+          `Vercel runtime log collection failed (attempt 1/3: ${reason}); retrying in 2000ms`,
+        ],
+        [
+          `Vercel runtime log collection failed (attempt 2/3: ${reason}); retrying in 4000ms`,
+        ],
+      ])
+      expect(append).not.toHaveBeenCalled()
+      expect(() => collector.assertHealthy()).toThrow('collection failed')
+      await expect(collector.stop()).rejects.toThrow(failure)
+      expect(jest.getTimerCount()).toBe(0)
+    }
+  )
+
+  it('stops during retry backoff without issuing another query or hiding the failure', async () => {
+    await start()
+    jest.mocked(execa).mockRejectedValueOnce(new Error('temporary failure'))
+    await jest.advanceTimersByTimeAsync(2_000)
     await expect(collector.stop()).rejects.toThrow('collection failed')
+    expect(execa).toHaveBeenCalledTimes(2)
+    expect(jest.getTimerCount()).toBe(0)
+  })
+
+  it('does not retry a query that fails during shutdown', async () => {
+    await start()
+    let fail!: (error: Error) => void
+    jest.mocked(execa).mockReturnValueOnce(
+      new Promise((_, reject) => {
+        fail = reject
+      }) as unknown as ReturnType<typeof execa>
+    )
+    await jest.advanceTimersByTimeAsync(2_000)
+    const stopping = collector.stop()
+    fail(new Error('private CLI details'))
+    await expect(stopping).rejects.toThrow('collection failed')
+    expect(execa).toHaveBeenCalledTimes(2)
+    expect(jest.getTimerCount()).toBe(0)
   })
 
   it('finishes an in-flight query during cleanup without starting another', async () => {
