@@ -113,7 +113,8 @@ async function allowNudgeRetry(
   ) {
     if (command === 'dev' && process.env.NEXT_PRIVATE_WORKER === '1') {
       await new Promise<void>((complete, reject) => {
-        process.send!({ nextUpgradeRetryAllowed: identity }, (error) => {
+        const message = { nextUpgradeRetryAllowed: identity }
+        process.send!(message, (error: Error | null) => {
           if (error) {
             reject(error)
           } else {
