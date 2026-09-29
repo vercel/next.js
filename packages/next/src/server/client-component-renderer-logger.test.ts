@@ -223,7 +223,7 @@ describe('client component renderer logger', () => {
       })
     }))
 
-  it('attributes a pending chunk to its originating tracker after replacement', async () => {
+  it('attributes a pending chunk to its render while another render runs', async () => {
     jest
       .spyOn(performance, 'now')
       .mockReturnValueOnce(100)
@@ -241,25 +241,30 @@ describe('client component renderer logger', () => {
         () => chunk
       )
     )
-    const workStore = createTrackedWorkStore()
-    const original = workStore.clientComponentLoadTracker!
-    expect(workAsyncStorage.run(workStore, () => loader.loadChunk('old'))).toBe(
-      chunk
-    )
+    const firstWorkStore = createTrackedWorkStore('/first/page', '/first')
+    const secondWorkStore = createTrackedWorkStore('/second/page', '/second')
+    expect(
+      workAsyncStorage.run(firstWorkStore, () => loader.loadChunk('first'))
+    ).toBe(chunk)
 
-    workStore.clientComponentLoadTracker = new ClientComponentLoadTracker()
-    workAsyncStorage.run(workStore, () => loader.require('new'))
+    workAsyncStorage.run(secondWorkStore, () => loader.require('second'))
     resolveChunk()
     await chunk
 
-    expect(original.snapshot()).toEqual({
+    expect(
+      workAsyncStorage.run(firstWorkStore, () =>
+        getClientComponentLoaderMetrics()
+      )
+    ).toEqual({
       clientComponentLoadStart: 100,
       clientComponentLoadEnd: 300,
       clientComponentLoadTimes: 200,
       clientComponentLoadCount: 0,
     })
     expect(
-      workAsyncStorage.run(workStore, () => getClientComponentLoaderMetrics())
+      workAsyncStorage.run(secondWorkStore, () =>
+        getClientComponentLoaderMetrics()
+      )
     ).toEqual({
       clientComponentLoadStart: 200,
       clientComponentLoadEnd: 220,

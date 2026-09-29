@@ -1,8 +1,5 @@
 import type { AppPageModule } from './route-modules/app-page/module'
-import type { Readable } from 'node:stream'
-import type { AnyStream } from './app-render/app-render-prerender-utils'
 import { workAsyncStorage } from './app-render/work-async-storage.external'
-import { trackStreamCompletion } from './stream-utils/track-stream-completion'
 
 export type ClientComponentLoaderMetrics = {
   clientComponentLoadStart: number
@@ -20,7 +17,6 @@ export class ClientComponentLoadTracker {
   private hasLoads = false
   private pending = 0
   private sealed = false
-  private streamingBound = false
   private resolveCompletion:
     | ((metrics: ClientComponentLoaderMetrics | undefined) => void)
     | undefined = undefined
@@ -65,28 +61,6 @@ export class ClientComponentLoadTracker {
       clientComponentLoadTimes: this.clientComponentLoadTimes,
       clientComponentLoadCount: this.clientComponentLoadCount,
     }
-  }
-
-  /** Keep this render open through consumption of its final output stream. */
-  bindToStream(stream: ReadableStream<Uint8Array>): ReadableStream<Uint8Array>
-  bindToStream(stream: Readable): Readable
-  bindToStream(stream: AnyStream): AnyStream
-  bindToStream(stream: AnyStream): AnyStream {
-    if (stream instanceof ReadableStream && stream.locked) return stream
-
-    try {
-      const output = trackStreamCompletion(stream, () => this.finish())
-      this.streamingBound = true
-      return output
-    } catch {
-      // A tracking failure must not replace the response or prevent fallback
-      // finalization at the render entrypoint.
-      return stream
-    }
-  }
-
-  finishIfNotStreaming(): void {
-    if (!this.streamingBound) this.finish()
   }
 
   /** Stop accepting new loads and report after any in-flight loads settle. */

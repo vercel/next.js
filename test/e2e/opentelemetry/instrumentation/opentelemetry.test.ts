@@ -328,7 +328,7 @@ describe.each(
         return { $, count: await loadCount(traceId) }
       }
 
-      it('owns a consumed Server Action POST and leaves the next GET unchanged', async () => {
+      it('reports HTML loading after a form POST and leaves the next GET unchanged', async () => {
         await getActionPage(newTraceId())
         const { $, count: baseline } = await getActionPage(newTraceId())
         const form = $('form').first()
@@ -338,9 +338,6 @@ describe.each(
           const name = $(input).attr('name')
           if (name) formData.append(name, $(input).attr('value') ?? '')
         })
-        expect(
-          [...formData.keys()].some((name) => name.startsWith('$ACTION_'))
-        ).toBe(true)
         formData.set('marker', 'action-completed')
 
         const actionTrace = newTraceId()
@@ -371,6 +368,108 @@ describe.each(
 
         const { count: nextGetCount } = await getActionPage(newTraceId())
         expect(nextGetCount).toBe(baseline)
+      })
+
+      it('does not report HTML loading metrics for an enhanced Server Action', async () => {
+        const browser = await next.browser(actionPath)
+        expect(await browser.elementByCss('#action-result').text()).toBe('none')
+
+        // Flush the initial document's metrics before measuring the action.
+        const flush = async () => {
+          const response = await next.fetch(
+            '/api/app/test/client-component-flush',
+            { method: 'POST' }
+          )
+          expect(response.status).toBe(204)
+        }
+        await flush()
+        getCollector().reset()
+
+        await browser.elementByCss('button[type="submit"]').click()
+        await retry(async () => {
+          expect(await browser.elementByCss('#action-result').text()).toBe(
+            'action-completed'
+          )
+        })
+        await flush()
+        const actionRequest = await retry(() => {
+          const requests = getCollector()
+            .getSpans()
+            .filter(
+              (span) =>
+                span.attributes?.['http.method'] === 'POST' &&
+                span.attributes?.['http.target'] === actionPath &&
+                span.attributes?.['next.span_type'] ===
+                  'BaseServer.handleRequest'
+            )
+          expect(requests).toHaveLength(1)
+          return requests[0]
+        })
+        await retry(() => {
+          expect(
+            getCollector()
+              .getSpans()
+              .filter(
+                (span) =>
+                  span.traceId === actionRequest.traceId &&
+                  span.name === 'test.serverActionCompleted'
+              )
+          ).toHaveLength(1)
+        })
+        expect(loadingSpans(actionRequest.traceId)).toEqual([])
+      })
+
+      it('reports HTML loading before unused delayed Flight content finishes', async () => {
+        const traceId = newTraceId()
+        const id = `html-boundary-${traceId}`
+        const responsePromise = next.fetch(
+          `/app/test/client-component-html-boundary?id=${id}`,
+          { headers: { traceparent: traceparent(traceId) } }
+        )
+        await gateArrivals.waitFor([id])
+        const response = await responsePromise
+        expect(response.status).toBe(200)
+
+        const flush = async () => {
+          const result = await next.fetch(
+            '/api/app/test/client-component-flush',
+            { method: 'POST' }
+          )
+          expect(result.status).toBe(204)
+        }
+        await flush()
+
+        let html: string
+        let earlySpan: SavedSpan | undefined
+        try {
+          // The closed panel lets HTML finish even though its unused Flight
+          // child remains behind the gate.
+          await retry(() => {
+            const renderSpans = getCollector()
+              .getSpans()
+              .filter(
+                (span) =>
+                  span.traceId === traceId &&
+                  span.attributes?.['next.span_type'] ===
+                    'AppRender.getBodyResult'
+              )
+            expect(renderSpans).toHaveLength(1)
+            const spans = loadingSpans(traceId)
+            expect(spans).toHaveLength(1)
+            earlySpan = spans[0]
+          })
+          expect(pendingGates.has(id)).toBe(true)
+        } finally {
+          releaseGate(id)
+          html = await response.text()
+        }
+
+        expect(html).toContain('id="closed-panel"')
+        expect(html).toContain('closed')
+        expect(html).not.toContain('id="unused-client"')
+        expect(earlySpan).toBeDefined()
+        await flush()
+        expect(loadingSpans(traceId)).toEqual([earlySpan])
       })
     })
   }
