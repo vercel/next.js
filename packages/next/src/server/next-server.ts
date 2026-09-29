@@ -392,8 +392,10 @@ export default class NextNodeServer extends BaseServer<
   protected async prepareImpl() {
     await super.prepareImpl()
     if (this.nextConfig.experimental.imgOptWorker !== false) {
-      const { resolveImageOptimizerWorker } =
-        require('./image-optimizer/sandbox-support') as typeof import('./image-optimizer/sandbox-support')
+      const { resolveImageOptimizerWorker } = await import(
+        /* webpackIgnore: true */ /* turbopackIgnore: true */
+        './image-optimizer/sandbox-support.js'
+      )
       this.imageOptimizerWorkerEnabled = await resolveImageOptimizerWorker(
         this.nextConfig.experimental.imgOptWorker
       )
@@ -813,8 +815,10 @@ export default class NextNodeServer extends BaseServer<
         | undefined
       if (this.imageOptimizerWorkerEnabled) {
         if (!this.imageOptimizerWorker) {
-          const { SandboxedImageOptimizerWorker } =
-            require('./image-optimizer/sandbox-worker') as typeof import('./image-optimizer/sandbox-worker')
+          const { SandboxedImageOptimizerWorker } = await import(
+            /* webpackIgnore: true */ /* turbopackIgnore: true */
+            './image-optimizer/sandbox-worker.js'
+          )
           this.imageOptimizerWorker = new SandboxedImageOptimizerWorker({
             readAllowlist:
               this.nextConfig.experimental.imgOptWorkerReadAllowlist,
