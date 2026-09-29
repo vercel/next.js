@@ -14,7 +14,7 @@ export const REQUEST_API_NAMES = Object.keys(apis)
 export function testApiInPromisePassedToAfter(
   context: string,
   apiName: keyof typeof apis | (string & {}),
-  requestId: string
+  requestId: string | undefined
 ) {
   if (!(apiName in apis)) {
     throw new Error(`Invalid api: ${apiName}`)
