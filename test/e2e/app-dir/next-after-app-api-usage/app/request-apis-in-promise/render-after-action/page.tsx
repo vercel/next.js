@@ -13,11 +13,15 @@ async function action(apiName: string) {
   cookieStore.set(COOKIE, apiName)
 }
 
-export default async function Page() {
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ requestId: string }>
+}) {
   return (
     <main>
       <Suspense>
-        <TestAfterIfCookieSet />
+        <TestAfterIfCookieSet searchParams={searchParams} />
       </Suspense>
       {REQUEST_API_NAMES.map((apiName) => (
         <form data-api-name={apiName} action={action.bind(null, apiName)}>
@@ -28,11 +32,18 @@ export default async function Page() {
   )
 }
 
-async function TestAfterIfCookieSet() {
+async function TestAfterIfCookieSet({
+  searchParams,
+}: {
+  searchParams: Promise<{ requestId: string }>
+}) {
+  const { requestId } = await searchParams
   const cookieStore = await cookies()
   const apiName = cookieStore.get(COOKIE)?.value
   if (apiName !== undefined) {
-    testApiInPromisePassedToAfter('render after action', apiName)
+    testApiInPromisePassedToAfter('render after action', apiName, requestId)
   }
-  return null
+  return (
+    <div id="after-state">{apiName === undefined ? 'idle' : 'started'}</div>
+  )
 }

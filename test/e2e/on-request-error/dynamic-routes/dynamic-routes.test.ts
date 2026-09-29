@@ -1,52 +1,45 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
-import { getOutputLogJson } from '../_testing/utils'
+import { randomUUID } from 'node:crypto'
 
 describe('on-request-error - dynamic-routes', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
+    captureRuntimeLogs: true,
   })
 
-  if (skipped) {
-    return
-  }
+  async function getErrorRecord(path: string, errorMessage: string) {
+    const url = new URL(path, next.url)
+    url.searchParams.set('requestId', randomUUID())
+    const requestPath = url.pathname + url.search
+    await next.fetch(requestPath)
 
-  const outputLogPath = 'output-log.json'
-
-  async function getErrorRecord({ errorMessage }: { errorMessage: string }) {
-    // Assert the instrumentation is called
-    await retry(async () => {
-      const recordLogLines = next.cliOutput
-        .split('\n')
-        .filter((log) => log.includes('[instrumentation] write-log'))
-      expect(recordLogLines).toEqual(
-        expect.arrayContaining([expect.stringContaining(errorMessage)])
+    const record = await retry(() => {
+      const records = [
+        ...next.cliOutput.matchAll(/<request-error>(.*?)<\/request-error>/g),
+      ].map((match) => JSON.parse(match[1]))
+      const payload = records.find(
+        (entry) =>
+          entry.message === errorMessage && entry.request.path === requestPath
       )
-      // TODO: remove custom duration in case we increase the default.
-    }, 5000)
+      expect(payload).toBeDefined()
+      return { payload }
+    }, 30_000)
 
-    const json = await getOutputLogJson(next, outputLogPath)
-    const record = json[errorMessage]
-
-    return record
+    return { record, requestPath }
   }
-
-  beforeAll(async () => {
-    await next.patchFile(outputLogPath, '{}')
-  })
 
   describe('app router', () => {
     it('should catch app router dynamic page error with search params', async () => {
-      await next.fetch('/app-page/dynamic/123?apple=dope')
-      const record = await getErrorRecord({
-        errorMessage: 'server-dynamic-page-node-error',
-      })
+      const { record, requestPath } = await getErrorRecord(
+        '/app-page/dynamic/123?apple=dope',
+        'server-dynamic-page-node-error'
+      )
       expect(record).toMatchObject({
         payload: {
           message: 'server-dynamic-page-node-error',
           request: {
-            path: '/app-page/dynamic/123?apple=dope',
+            path: requestPath,
           },
           context: {
             routerKind: 'App Router',
@@ -58,15 +51,15 @@ describe('on-request-error - dynamic-routes', () => {
     })
 
     it('should catch app router dynamic routes error with search params', async () => {
-      await next.fetch('/app-route/dynamic/123?apple=dope')
-      const record = await getErrorRecord({
-        errorMessage: 'server-dynamic-route-node-error',
-      })
+      const { record, requestPath } = await getErrorRecord(
+        '/app-route/dynamic/123?apple=dope',
+        'server-dynamic-route-node-error'
+      )
       expect(record).toMatchObject({
         payload: {
           message: 'server-dynamic-route-node-error',
           request: {
-            path: '/app-route/dynamic/123?apple=dope',
+            path: requestPath,
           },
           context: {
             routerKind: 'App Router',
@@ -78,16 +71,16 @@ describe('on-request-error - dynamic-routes', () => {
     })
 
     it('should catch suspense rendering page error in node runtime', async () => {
-      await next.fetch('/app-page/suspense')
-      const record = await getErrorRecord({
-        errorMessage: 'server-suspense-page-node-error',
-      })
+      const { record, requestPath } = await getErrorRecord(
+        '/app-page/suspense',
+        'server-suspense-page-node-error'
+      )
 
       expect(record).toMatchObject({
         payload: {
           message: 'server-suspense-page-node-error',
           request: {
-            path: '/app-page/suspense',
+            path: requestPath,
           },
           context: {
             routerKind: 'App Router',
@@ -101,16 +94,16 @@ describe('on-request-error - dynamic-routes', () => {
 
   describe('pages router', () => {
     it('should catch pages router dynamic page error with search params', async () => {
-      await next.fetch('/pages-page/dynamic/123?apple=dope')
-      const record = await getErrorRecord({
-        errorMessage: 'pages-page-node-error',
-      })
+      const { record, requestPath } = await getErrorRecord(
+        '/pages-page/dynamic/123?apple=dope',
+        'pages-page-node-error'
+      )
 
       expect(record).toMatchObject({
         payload: {
           message: 'pages-page-node-error',
           request: {
-            path: '/pages-page/dynamic/123?apple=dope',
+            path: requestPath,
           },
           context: {
             routerKind: 'Pages Router',
@@ -122,16 +115,16 @@ describe('on-request-error - dynamic-routes', () => {
     })
 
     it('should catch pages router dynamic API route error with search params', async () => {
-      await next.fetch('/api/dynamic/123?apple=dope')
-      const record = await getErrorRecord({
-        errorMessage: 'pages-api-node-error',
-      })
+      const { record, requestPath } = await getErrorRecord(
+        '/api/dynamic/123?apple=dope',
+        'pages-api-node-error'
+      )
 
       expect(record).toMatchObject({
         payload: {
           message: 'pages-api-node-error',
           request: {
-            path: '/api/dynamic/123?apple=dope',
+            path: requestPath,
           },
           context: {
             routerKind: 'Pages Router',

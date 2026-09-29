@@ -1,36 +1,51 @@
 /* eslint-env jest */
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
+import { randomUUID } from 'node:crypto'
 import { REQUEST_API_NAMES } from './app/request-apis-in-promise/common'
 
 describe('nextjs APIs in after()', () => {
-  const { next, skipped, isNextDev } = nextTestSetup({
+  const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true, // reading runtime logs is not supported in deploy tests
+    captureRuntimeLogs: true,
   })
 
-  if (skipped) return
-
+  let requestId: string
   let currentCliOutputIndex = 0
-
-  const ignorePreviousLogs = () => {
-    currentCliOutputIndex = next.cliOutput.length
-  }
-
-  const getLogs = () => {
-    return next.cliOutput.slice(currentCliOutputIndex)
-  }
+  const getLogs = () => parseLogs(next.cliOutput, requestId)
 
   beforeEach(() => {
-    ignorePreviousLogs()
+    requestId = randomUUID()
+    currentCliOutputIndex = next.cliOutput.length
   })
 
+  // Build output has no request ID. Runtime output is matched to the request
+  // that triggered it, rather than to its asynchronous arrival position.
+  function parseLogs(output: string, id?: string) {
+    return [...output.matchAll(/<after-results>(.*?)<\/after-results>/g)]
+      .map((match) => JSON.parse(match[1]))
+      .filter((entry) => entry.requestId === id)
+      .flatMap((entry) => entry.messages)
+      .join('\n')
+  }
+
+  const retryLogs = (callback: () => void | string) => retry(callback, 30_000)
+
   let buildLogs: string
+  const getStaticLogs = () =>
+    isNextDev
+      ? parseLogs(next.cliOutput.slice(currentCliOutputIndex))
+      : buildLogs
   beforeAll(async () => {
+    if (isNextDeploy) {
+      await next.start()
+      buildLogs = parseLogs(next.cliOutput)
+      return
+    }
     if (!isNextDev) {
       await next.build()
-      buildLogs = next.cliOutput
+      buildLogs = parseLogs(next.cliOutput)
     } else {
       buildLogs = '(no build logs in dev)'
     }
@@ -40,8 +55,8 @@ describe('nextjs APIs in after()', () => {
   describe('request APIs inside after()', () => {
     it('cannot be called in a dynamic page', async () => {
       const path = '/request-apis/page-dynamic'
-      await next.render(path)
-      await retry(() => {
+      await next.render(`${path}?requestId=${requestId}`)
+      await retryLogs(() => {
         const logs = getLogs()
 
         expect(logs).not.toContain(`[${path}] headers(): ok`)
@@ -59,7 +74,7 @@ describe('nextjs APIs in after()', () => {
           `[${path}] connection(): error: Error: Route ${path} used \`connection()\` inside \`after()\` while rendering.`
         )
       })
-      await retry(() => {
+      await retryLogs(() => {
         const logs = getLogs()
 
         expect(logs).not.toContain(`[${path}] nested headers(): ok`)
@@ -90,9 +105,9 @@ describe('nextjs APIs in after()', () => {
           path: '/request-apis/page-force-static',
         },
       ])('$title', async ({ path }) => {
-        await next.render(path)
-        await retry(() => {
-          const logs = isNextDev ? getLogs() : buildLogs // in `next start` the error was logged at build time
+        await next.render(`${path}?requestId=${requestId}`)
+        await retryLogs(() => {
+          const logs = getStaticLogs() // in `next start` the error was logged at build time
 
           expect(logs).not.toContain(`[${path}] headers(): ok`)
           expect(logs).toContain(
@@ -109,8 +124,8 @@ describe('nextjs APIs in after()', () => {
             `[${path}] connection(): error: Error: Route ${path} used \`connection()\` inside \`after()\` while rendering.`
           )
         })
-        await retry(() => {
-          const logs = isNextDev ? getLogs() : buildLogs // in `next start` the error was logged at build time
+        await retryLogs(() => {
+          const logs = getStaticLogs() // in `next start` the error was logged at build time
 
           expect(logs).not.toContain(`[${path}] nested headers(): ok`)
           expect(logs).toContain(
@@ -132,9 +147,9 @@ describe('nextjs APIs in after()', () => {
 
     it('can be called in a server action', async () => {
       const path = '/request-apis/server-action'
-      const browser = await next.browser(path)
+      const browser = await next.browser(`${path}?requestId=${requestId}`)
       await browser.elementByCss('button[type="submit"]').click()
-      await retry(() => {
+      await retryLogs(() => {
         const logs = getLogs()
         expect(logs).toContain(`[${path}] headers(): ok`)
         expect(logs).toContain(`[${path}] nested headers(): ok`)
@@ -149,8 +164,8 @@ describe('nextjs APIs in after()', () => {
 
     it('can be called in a dynamic route handler', async () => {
       const path = '/request-apis/route-handler-dynamic'
-      await next.render(path)
-      await retry(() => {
+      await next.render(`${path}?requestId=${requestId}`)
+      await retryLogs(() => {
         const logs = getLogs()
         expect(logs).toContain(`[${path}] headers(): ok`)
         expect(logs).toContain(`[${path}] nested headers(): ok`)
@@ -165,9 +180,9 @@ describe('nextjs APIs in after()', () => {
 
     it('can be called in a prerendered route handler with `dynamic = "force-static"`', async () => {
       const path = '/request-apis/route-handler-force-static'
-      await next.render(path)
-      await retry(() => {
-        const logs = isNextDev ? getLogs() : buildLogs // in `next start` the error was logged at build time
+      await next.render(`${path}?requestId=${requestId}`)
+      await retryLogs(() => {
+        const logs = getStaticLogs() // in `next start` the error was logged at build time
         expect(logs).toContain(`[${path}] headers(): ok`)
         expect(logs).toContain(`[${path}] nested headers(): ok`)
 
@@ -181,9 +196,9 @@ describe('nextjs APIs in after()', () => {
 
     it('can be called in a prerendered route handler with `dynamic = "error" (but throw, because dynamic should error)`', async () => {
       const path = '/request-apis/route-handler-dynamic-error'
-      await next.render(path)
-      await retry(() => {
-        const logs = isNextDev ? getLogs() : buildLogs // in `next start` the error was logged at build time
+      await next.render(`${path}?requestId=${requestId}`)
+      await retryLogs(() => {
+        const logs = getStaticLogs() // in `next start` the error was logged at build time
 
         expect(logs).not.toContain(`[${path}] headers(): ok`)
         expect(logs).toContain(
@@ -241,10 +256,10 @@ describe('nextjs APIs in after()', () => {
         isDynamic: false,
       },
     ])('$title', async ({ path, isDynamic }) => {
-      await next.render(path)
-      await retry(() => {
+      await next.render(`${path}?requestId=${requestId}`)
+      await retryLogs(() => {
         // in `next start`, static routes log the error at build time
-        const logs = isDynamic || isNextDev ? getLogs() : buildLogs
+        const logs = isDynamic ? getLogs() : getStaticLogs()
         expect(logs).toContain(`[${path}] draft.isEnabled: false`)
         expect(logs).toContain(
           `Route ${path} used "draftMode().enable()" inside \`after()\``
@@ -257,9 +272,9 @@ describe('nextjs APIs in after()', () => {
 
     it('server action', async () => {
       const path = '/draft-mode/server-action'
-      const browser = await next.browser(path)
+      const browser = await next.browser(`${path}?requestId=${requestId}`)
       await browser.elementByCss('button[type="submit"]').click()
-      await retry(() => {
+      await retryLogs(() => {
         const logs = getLogs()
         expect(logs).toContain(`[${path}] draft.isEnabled: false`)
         expect(logs).toContain(
@@ -277,15 +292,12 @@ describe('nextjs APIs in after()', () => {
       it.each(REQUEST_API_NAMES)(
         'does not error - %s',
         async (apiName: string) => {
-          const cliOutputIndex = next.cliOutput.length
-          const getCliOutput = () => next.cliOutput.slice(cliOutputIndex)
-
           await next.fetch(
-            `/request-apis-in-promise/route-handler?api=${apiName}`
+            `/request-apis-in-promise/route-handler?api=${apiName}&requestId=${requestId}`
           )
 
-          const cliOutput = await retry(() => {
-            const cliOutput = getCliOutput()
+          const cliOutput = await retryLogs(() => {
+            const cliOutput = getLogs()
             expect(cliOutput).toContain(`route :: ${apiName} :: finished`)
             return cliOutput
           })
@@ -310,19 +322,17 @@ describe('nextjs APIs in after()', () => {
         'does not error - %s',
         async (apiName: string) => {
           const browser = await next.browser(
-            `/request-apis-in-promise/server-action`
+            `/request-apis-in-promise/server-action?requestId=${requestId}`
           )
 
-          const cliOutputIndex = next.cliOutput.length
-          const getCliOutput = () => next.cliOutput.slice(cliOutputIndex)
           await browser
             .elementByCss(
               `form[data-api-name="${apiName}"] button[type="submit"]`
             )
             .click()
 
-          const cliOutput = await retry(() => {
-            const cliOutput = getCliOutput()
+          const cliOutput = await retryLogs(() => {
+            const cliOutput = getLogs()
             expect(cliOutput).toContain(`action :: ${apiName} :: finished`)
             return cliOutput
           })
@@ -347,15 +357,12 @@ describe('nextjs APIs in after()', () => {
         'throws an error - %s',
         async (apiName: string) => {
           const route = `/request-apis-in-promise/render`
-          const path = `${route}?apiName=${apiName}`
-
-          const cliOutputIndex = next.cliOutput.length
-          const getCliOutput = () => next.cliOutput.slice(cliOutputIndex)
+          const path = `${route}?apiName=${apiName}&requestId=${requestId}`
 
           await next.fetch(path)
 
-          const cliOutput = await retry(() => {
-            const cliOutput = getCliOutput()
+          const cliOutput = await retryLogs(() => {
+            const cliOutput = getLogs()
             expect(cliOutput).toContain(`render :: ${apiName} :: finished`)
             return cliOutput
           })
@@ -383,27 +390,22 @@ describe('nextjs APIs in after()', () => {
         'throws an error - %s',
         async (apiName: string) => {
           const route = '/request-apis-in-promise/render-after-action'
-          const initialCliOutputIndex = next.cliOutput.length
-          const browser = await next.browser(route)
+          const browser = await next.browser(`${route}?requestId=${requestId}`)
           // Clear cookies after every run
           await using _ = defer(() => browser.deleteCookies())
 
           // Sanity check: we should not be running any of the APIs now,
           // only when a server action causes a rerender
-          expect(next.cliOutput.slice(initialCliOutputIndex)).not.toContain(
-            `render after action :: ${apiName} :: starting`
-          )
+          expect(await browser.elementById('after-state').text()).toBe('idle')
 
-          const cliOutputIndex = next.cliOutput.length
-          const getCliOutput = () => next.cliOutput.slice(cliOutputIndex)
           await browser
             .elementByCss(
               `form[data-api-name="${apiName}"] button[type="submit"]`
             )
             .click()
 
-          const cliOutput = await retry(() => {
-            const cliOutput = getCliOutput()
+          const cliOutput = await retryLogs(() => {
+            const cliOutput = getLogs()
             expect(cliOutput).toContain(
               `render after action :: ${apiName} :: finished`
             )
