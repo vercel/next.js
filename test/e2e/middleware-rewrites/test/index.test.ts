@@ -194,12 +194,9 @@ describe('Middleware Rewrite', () => {
       expect(await browser.eval('next.router.asPath')).toBe('/param-1')
     })
 
+    // TODO: investigate test failure during client navigation on deployment.
+    // @force-gate !deploy
     it('should have props for afterFiles rewrite to SSG page', async () => {
-      // TODO: investigate test failure during client navigation
-      // on deployment
-      if ((global as any).isNextDeploy) {
-        return
-      }
       let browser = await next.browser('/')
       await browser.eval(`next.router.push("/afterfiles-rewrite-ssg")`)
 
@@ -864,20 +861,20 @@ describe('Middleware Rewrite', () => {
       }
     })
 
-    if (!(global as any).isNextDeploy) {
-      it(`${label}should rewrite when not using localhost`, async () => {
-        const customUrl = new URL(next.url)
-        customUrl.hostname = 'localtest.me'
+    // This assertion uses a local hostname to reach the test server.
+    // @force-gate !deploy
+    it(`${label}should rewrite when not using localhost`, async () => {
+      const customUrl = new URL(next.url)
+      customUrl.hostname = 'localtest.me'
 
-        const res = await fetchViaHTTP(
-          customUrl.toString(),
-          `${locale}/rewrite-me-without-hard-navigation`
-        )
-        const html = await res.text()
-        const $ = cheerio.load(html)
-        expect($('.title').text()).toBe('About Page')
-      })
-    }
+      const res = await fetchViaHTTP(
+        customUrl.toString(),
+        `${locale}/rewrite-me-without-hard-navigation`
+      )
+      const html = await res.text()
+      const $ = cheerio.load(html)
+      expect($('.title').text()).toBe('About Page')
+    })
 
     it(`${label}should rewrite to Vercel`, async () => {
       const res = await fetchViaHTTP(next.url, `${locale}/rewrite-me-to-vercel`)
