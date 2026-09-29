@@ -485,6 +485,19 @@ export function getMiddlewareMatchers(
     }`
     source = `${OPTIONAL_MIDDLEWARE_NEXT_DATA_PREFIX}${source}${sourceSuffix}`
 
+    // Whether this matcher (before prepending `basePath`) matches the site
+    // root `/`. A catch-all like `/((?!api).*)` matches `/` because its single
+    // optional capture group can be empty. We need to know this before adding
+    // `basePath` so we can keep the bare `basePath` root matching too (see
+    // below).
+    const matchesRoot =
+      !!nextConfig.basePath &&
+      !isRoot &&
+      (() => {
+        const { regexStr } = tryToParsePath(source)
+        return regexStr ? new RegExp(regexStr).test('/') : false
+      })()
+
     if (nextConfig.basePath) {
       source = `${nextConfig.basePath}${source}`
     }
@@ -500,11 +513,23 @@ export function getMiddlewareMatchers(
       process.exit(1)
     }
 
+    // We know that parsed.regexStr is not undefined because we already
+    // checked that the source is valid.
+    let regexp = tryToParsePath(result.data).regexStr!
+
+    // When `basePath` is set, prepending it turns a matcher that previously
+    // matched `/` into one anchored at `${basePath}/...`, so the bare
+    // `basePath` root (e.g. `/docs`) no longer matches even though `/` did
+    // without a `basePath`. Restore that by also accepting the bare
+    // `basePath` root. See https://github.com/vercel/next.js/issues/73786.
+    if (matchesRoot) {
+      const basePathRoot = `${escapeStringRegexp(nextConfig.basePath!)}[\\/#\\?]?$`
+      regexp = `^(?:${basePathRoot}|${regexp.replace(/^\^/, '')})`
+    }
+
     return {
       ...rest,
-      // We know that parsed.regexStr is not undefined because we already
-      // checked that the source is valid.
-      regexp: tryToParsePath(result.data).regexStr!,
+      regexp,
       originalSource: originalSource || source,
     }
   })
