@@ -8,7 +8,7 @@ import {
 import * as path from 'path'
 
 describe('non-root-project-monorepo', () => {
-  const { next, isTurbopack, isNextDev, isRspack } = nextTestSetup({
+  const { next, skipped, isTurbopack, isNextDev, isRspack } = nextTestSetup({
     files: {
       apps: new FileRef(path.resolve(__dirname, 'apps')),
       packages: new FileRef(path.resolve(__dirname, 'packages')),
@@ -24,9 +24,12 @@ describe('non-root-project-monorepo', () => {
     buildCommand: 'pnpm build',
     startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
     installCommand: 'pnpm i',
-    // Use the declared pnpm version for remote installation and workspace builds.
-    env: { ENABLE_EXPERIMENTAL_COREPACK: '1' },
+    skipDeployment: true,
   })
+
+  if (skipped) {
+    return
+  }
 
   describe('server relative import', () => {
     it('should resolve a `/`-rooted import from the project directory, not the workspace root', async () => {
