@@ -69,53 +69,54 @@ describe('setting cookies', () => {
 
     // these tests inspect CLI logs to see what happened in after,
     // so they won't work in deploy mode
-    if (!isNextDeploy) {
-      it('from an action to after via closure', async () => {
-        const path = '/cookies/action-to-after/via-closure'
-        const session = await next.browser(path)
+    // @force-gate !deploy
+    it('from an action to after via closure', async () => {
+      const path = '/cookies/action-to-after/via-closure'
+      const session = await next.browser(path)
 
-        // trigger an action
-        await session.elementByCss('[type="submit"]').click()
-        await retry(async () => {
-          // the .set() in after should error
-          expect(getCliOutput()).toMatch(EXPECTED_ERROR_IN_AFTER)
-        })
-
-        // no cookie should be set
-        expect(await session.eval('document.cookie')).not.toInclude(
-          'illegalCookie'
-        )
-      })
-
-      it('from a route handler to after via closure', async () => {
-        const path = '/cookies/route-handler-to-after/via-closure'
-        const response = await next.fetch(path, { method: 'POST' })
-        await response.text()
-        expect(response.status).toBe(200)
-
-        // no cookie should be set
-        expect(response.headers.get('set-cookie')).toBe(null)
-
+      // trigger an action
+      await session.elementByCss('[type="submit"]').click()
+      await retry(async () => {
         // the .set() in after should error
-        await retry(async () => {
-          expect(getCliOutput()).toMatch(EXPECTED_ERROR_IN_AFTER)
-        })
+        expect(getCliOutput()).toMatch(EXPECTED_ERROR_IN_AFTER)
       })
 
-      it('from middleware to after via closure', async () => {
-        const path = '/cookies/middleware-to-after/via-closure'
-        const response = await next.fetch(path)
-        await response.text()
-        expect(response.status).toBe(200)
+      // no cookie should be set
+      expect(await session.eval('document.cookie')).not.toInclude(
+        'illegalCookie'
+      )
+    })
 
-        // no cookie should be set
-        expect(response.headers.get('set-cookie')).toBe(null)
+    // @force-gate !deploy
+    it('from a route handler to after via closure', async () => {
+      const path = '/cookies/route-handler-to-after/via-closure'
+      const response = await next.fetch(path, { method: 'POST' })
+      await response.text()
+      expect(response.status).toBe(200)
 
-        // the .set() in after should error
-        await retry(async () => {
-          expect(getCliOutput()).toMatch(EXPECTED_ERROR_IN_AFTER)
-        })
+      // no cookie should be set
+      expect(response.headers.get('set-cookie')).toBe(null)
+
+      // the .set() in after should error
+      await retry(async () => {
+        expect(getCliOutput()).toMatch(EXPECTED_ERROR_IN_AFTER)
       })
-    }
+    })
+
+    // @force-gate !deploy
+    it('from middleware to after via closure', async () => {
+      const path = '/cookies/middleware-to-after/via-closure'
+      const response = await next.fetch(path)
+      await response.text()
+      expect(response.status).toBe(200)
+
+      // no cookie should be set
+      expect(response.headers.get('set-cookie')).toBe(null)
+
+      // the .set() in after should error
+      await retry(async () => {
+        expect(getCliOutput()).toMatch(EXPECTED_ERROR_IN_AFTER)
+      })
+    })
   })
 })

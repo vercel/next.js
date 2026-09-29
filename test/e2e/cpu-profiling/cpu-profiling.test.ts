@@ -1,22 +1,17 @@
-import { nextTestSetup, isNextDeploy } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import { pathExists, readdir } from 'fs-extra'
 import { join } from 'path'
 import { retry } from 'next-test-utils'
 
+// This suite controls a local `next start` process and inspects generated profile files.
+// @force-gate start
 describe('CPU Profiling - next start', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     startCommand: 'pnpm next start --experimental-cpu-prof',
     dependencies: {},
     skipStart: true, // Skip auto-start to avoid failure in dev/deploy mode
   })
-
-  // CPU profiling only works with local `next start`, not dev or deploy modes
-  // Deploy mode exclusion: This suite controls a local `next start` process and inspects generated profile files.
-  if (isNextDev || isNextDeploy) {
-    it('skip for development/deploy mode', () => {})
-    return
-  }
 
   beforeAll(async () => {
     await next.start()
