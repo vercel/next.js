@@ -26,6 +26,8 @@ During [prerendering](/docs/app/glossary#prerendering), the page or layout read 
 
 Uncached `fetch` requests, database calls, and `connection()` have different fixes. See [Uncached data on a route that must be fully static](/docs/messages/ensure-static-route-dynamic).
 
+## Ways to fix this
+
 <FixCardGrid>
   <FixCard
     group="remove"
@@ -42,9 +44,9 @@ Uncached `fetch` requests, database calls, and `connection()` have different fix
     title="Provide static parameters"
     href="#provide-static-parameters"
     snippets={[
-      { text: '// app/[slug]/page.tsx' },
-      { text: 'export const generateStaticParams =' },
-      { text: "  () => [{ slug: 'hello' }]", highlight: true },
+      { text: 'function generateStaticParams() {' },
+      { text: "  return [{ slug: 'hello' }]", highlight: true },
+      { text: '}' },
     ]}
   />
   <FixCard
@@ -63,6 +65,8 @@ Uncached `fetch` requests, database calls, and `connection()` have different fix
 
 Choose this fix when the content does not need to vary by request. Replace the request-specific value with a value available during prerendering.
 
+### Patterns
+
 ```jsx filename="app/page.jsx"
 export const unstable_ensureStatic = 'navigation'
 
@@ -73,9 +77,22 @@ export default function Page() {
 
 Every visitor receives the same output. Remove the data access itself, not only the JSX that displays its result.
 
+### Trade-off
+
+Every visitor receives the same value because the route no longer reads request-specific data.
+
+### Gotchas
+
+- Remove the access itself, not only the JSX that displays its result.
+- This fix applies to `cookies()`, `headers()`, and other removable reads. It does not provide replacement values when the content must vary by request.
+
 ## Provide static parameters
 
-For a dynamic route, return the parameter values to prerender from [`generateStaticParams()`](/docs/app/api-reference/functions/generate-static-params):
+Choose this fix when a dynamic route reads its [`params`](/docs/app/api-reference/file-conventions/page#params-optional).
+
+### Patterns
+
+Return the parameter values to prerender from [`generateStaticParams()`](/docs/app/api-reference/functions/generate-static-params):
 
 ```jsx filename="app/blog/[slug]/page.jsx"
 export function generateStaticParams() {
@@ -90,9 +107,22 @@ export default async function Page({ params }) {
 
 Include every dynamic parameter. An empty array does not satisfy the fully static requirement.
 
+### Trade-off
+
+The returned paths are generated at build time. Other parameter values wait for a blocking prerender before Next.js serves their static output.
+
+### Gotchas
+
+- Include every dynamic parameter, including parameters that are unused or only read by Client Components.
+- This fix applies only to route `params`. It does not make `cookies()`, `headers()`, `searchParams`, or short-lived caches static.
+
 ## Read search parameters on the client
 
-When only browser UI needs the query string, use [`useSearchParams()`](/docs/app/api-reference/functions/use-search-params) instead of the page's server-side `searchParams` prop:
+Choose this fix when only browser UI needs the query string.
+
+### Patterns
+
+Use [`useSearchParams()`](/docs/app/api-reference/functions/use-search-params) instead of the page's server-side `searchParams` prop:
 
 ```jsx filename="app/search/query.jsx"
 'use client'
@@ -107,15 +137,27 @@ export default function Query() {
 
 Render the Client Component inside [`Suspense`](https://react.dev/reference/react/Suspense). Do not pass the server's `searchParams` promise to it.
 
-## Extend the cache lifetime
+### Trade-off
+
+The prerender includes the fallback, and the query-dependent UI renders in the browser.
+
+### Gotchas
+
+- Adding `'use client'` alone does not fix this error. Remove the server-side read and use the client hook.
+- Do not pass the server's `searchParams` promise to the Client Component.
+- This fix applies only to `searchParams`. It does not replace cookies, headers, or route parameters.
+
+## Other options
+
+### Extend the cache lifetime
 
 A cache with a short lifetime can also count as runtime data. For fully static navigation, `expire` must be at least 300 seconds, `stale` at least 30 seconds, and `revalidate` greater than zero. Increase the lifetime only when serving shared, older content is acceptable.
 
 ## Verifying the fix
 
-Reload the route in [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), then run [`next build`](/docs/app/api-reference/cli/next#next-build-options) and confirm that the route completes prerendering.
+After applying a fix, reload the route and confirm that this error no longer appears and the page immediately paints meaningful UI. Wrapping the access in Suspense or setting `instant = false` does not relax the fully static requirement.
 
-Wrapping the access in Suspense or setting `instant = false` does not relax the fully static requirement.
+In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated. Run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
 
 ## Don't want this validation?
 
@@ -123,6 +165,26 @@ If the route requires request-time server data, remove `unstable_ensureStatic = 
 
 ## Related Insights
 
+- [Runtime data during prerendering](/docs/messages/blocking-prerender-runtime)
+- [Uncached data during prerendering](/docs/messages/blocking-prerender-dynamic)
+- [URL data in a Client Component outside of Suspense](/docs/messages/blocking-prerender-client-hook)
+- [Runtime data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-runtime)
+- [Uncached data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-dynamic)
+- [Runtime data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-runtime)
+- [Uncached data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-dynamic)
+- [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client)
+- [`Date.now()` while prerendering](/docs/messages/blocking-prerender-current-time)
+- [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client)
+- [Crypto APIs while prerendering](/docs/messages/blocking-prerender-crypto)
+- [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client)
+- [Dynamic data during prefetching](/docs/messages/instant-link-prefetch-partial)
+- [URL data outside of Suspense](/docs/messages/instant-shell-url-data)
+- [Unrendered segment](/docs/messages/instant-unrendered-segment)
+- [Uncached or runtime data on a route that must be fully static](/docs/messages/ensure-static-route)
 - [Uncached data on a route that must be fully static](/docs/messages/ensure-static-route-dynamic)
+- [Uncached or runtime data in `generateMetadata()` on a route that must be fully static](/docs/messages/ensure-static-metadata)
 - [Runtime data in `generateMetadata()` on a route that must be fully static](/docs/messages/ensure-static-metadata-runtime)
+- [Uncached data in `generateMetadata()` on a route that must be fully static](/docs/messages/ensure-static-metadata-dynamic)
+- [Uncached or runtime data in `generateViewport()` on a route that must be fully static](/docs/messages/ensure-static-viewport)
 - [Runtime data in `generateViewport()` on a route that must be fully static](/docs/messages/ensure-static-viewport-runtime)
+- [Uncached data in `generateViewport()` on a route that must be fully static](/docs/messages/ensure-static-viewport-dynamic)

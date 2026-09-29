@@ -53,7 +53,7 @@ The static levels become progressively stricter: `'prefetch'` includes `'shell'`
 
 ### `'shell'`
 
-Serves the route's [App Shell](/docs/app/glossary#app-shell) from static output. Reads of [`cookies()`](/docs/app/api-reference/functions/cookies) and [`headers()`](/docs/app/api-reference/functions/headers) anywhere in the route behave as if they were below [`unstable_prefetch()`](/docs/app/api-reference/functions/prefetch): the content that reads them renders on a per-link prefetch or on the navigation, and the shell shows the fallback of the nearest `<Suspense>` boundary.
+Serves the route's [App Shell](/docs/app/glossary#app-shell) from static output. Reads of [`cookies()`](/docs/app/api-reference/functions/cookies) and [`headers()`](/docs/app/api-reference/functions/headers) anywhere in the route behave as if they were below [`prefetch()`](/docs/app/api-reference/functions/prefetch): the content that reads them renders on a per-link prefetch or on the navigation, and the shell shows the fallback of the nearest `<Suspense>` boundary.
 
 Requires [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching). Without it, a route has no App Shell, so the value has no effect and Next.js logs a warning.
 
@@ -61,7 +61,7 @@ Because the shell cannot include session data, [instant validation](/docs/app/ap
 
 ### `'prefetch'`
 
-Serves the App Shell and per-link prefetches, requested with [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch), from static output. Reads of `cookies()` and `headers()` behave as if they were below [`unstable_navigation()`](/docs/app/api-reference/functions/navigation): the content that reads them renders on the navigation.
+Serves the App Shell and per-link prefetches, requested with [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch), from static output. Reads of `cookies()` and `headers()` behave as if they were below [`navigation()`](/docs/app/api-reference/functions/navigation): the content that reads them renders on the navigation.
 
 Without Partial Prefetching, default prefetches already use static output, so this value has no additional effect. `<Link prefetch={true}>` can still prefetch request-time content, the same as a navigation.
 
@@ -80,7 +80,7 @@ Server content that requires per-request work fails `next build` and shows an er
 
 These constraints also apply to [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata) and [`generateViewport`](/docs/app/api-reference/functions/generate-viewport).
 
-Data cached with `use cache` can be prerendered. Calling [`unstable_prefetch()`](/docs/app/api-reference/functions/prefetch) or [`unstable_navigation()`](/docs/app/api-reference/functions/navigation) also remains allowed, because these functions do not defer work during a static prerender.
+Data cached with `use cache` can be prerendered. Calling [`prefetch()`](/docs/app/api-reference/functions/prefetch) or [`navigation()`](/docs/app/api-reference/functions/navigation) also remains allowed, because these functions do not defer work during a static prerender.
 
 #### Dynamic route parameters
 

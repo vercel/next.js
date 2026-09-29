@@ -194,9 +194,11 @@ describe('ensureStatic = "navigation"', () => {
       await waitForRedbox(browser)
     }
     const snapshot = await createRedboxSnapshot(browser, next)
+    const errors = Array.isArray(snapshot) ? snapshot : [snapshot]
     if (
-      !Array.isArray(snapshot) &&
-      snapshot.description?.includes('on a route that must be fully static')
+      errors.some((error) =>
+        error.description?.includes('on a route that must be fully static')
+      )
     ) {
       const guidance = await browser.eval(() => {
         const root = Array.from(document.querySelectorAll('nextjs-portal'))

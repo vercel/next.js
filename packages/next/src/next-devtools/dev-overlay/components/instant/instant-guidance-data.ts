@@ -690,9 +690,9 @@ const staticParamsCard: FixCard = {
   title: 'Provide static parameters',
   group: 'static-params',
   snippets: [
-    { text: '// app/[slug]/page.tsx' },
-    { text: 'export const generateStaticParams =' },
-    { text: "  () => [{ slug: 'hello' }]", highlight: true },
+    { text: 'function generateStaticParams() {' },
+    { text: "  return [{ slug: 'hello' }]", highlight: true },
+    { text: '}' },
   ],
   copyable: true,
   link: 'https://nextjs.org/docs/messages/ensure-static-route-runtime#provide-static-parameters',
@@ -765,16 +765,9 @@ const staticMetadataRuntimeCards: FixCard[] = [
     title: 'Use static metadata',
     group: 'static',
     snippets: [
-      {
-        text: 'export function generateMetadata() {',
-      },
-      {
-        text: "  return { title: 'My page' }",
-        highlight: true,
-      },
-      {
-        text: '}',
-      },
+      { text: 'export const metadata = {', highlight: true },
+      { text: "  title: 'My page'" },
+      { text: '}' },
     ],
     copyable: true,
     link: 'https://nextjs.org/docs/messages/ensure-static-metadata-runtime#use-static-metadata',
@@ -810,16 +803,9 @@ const staticMetadataDynamicCards: FixCard[] = [
     title: 'Use static metadata',
     group: 'static',
     snippets: [
-      {
-        text: 'export function generateMetadata() {',
-      },
-      {
-        text: "  return { title: 'My page' }",
-        highlight: true,
-      },
-      {
-        text: '}',
-      },
+      { text: 'export const metadata = {', highlight: true },
+      { text: "  title: 'My page'" },
+      { text: '}' },
     ],
     copyable: true,
     link: 'https://nextjs.org/docs/messages/ensure-static-metadata-dynamic#use-static-metadata',
@@ -831,16 +817,9 @@ const staticViewportRuntimeCards: FixCard[] = [
     title: 'Use static viewport',
     group: 'static',
     snippets: [
-      {
-        text: 'export function generateViewport() {',
-      },
-      {
-        text: "  return { themeColor: 'black' }",
-        highlight: true,
-      },
-      {
-        text: '}',
-      },
+      { text: 'export const viewport = {', highlight: true },
+      { text: "  themeColor: 'black'" },
+      { text: '}' },
     ],
     copyable: true,
     link: 'https://nextjs.org/docs/messages/ensure-static-viewport-runtime#use-static-viewport',
@@ -876,16 +855,9 @@ const staticViewportDynamicCards: FixCard[] = [
     title: 'Use static viewport',
     group: 'static',
     snippets: [
-      {
-        text: 'export function generateViewport() {',
-      },
-      {
-        text: "  return { themeColor: 'black' }",
-        highlight: true,
-      },
-      {
-        text: '}',
-      },
+      { text: 'export const viewport = {', highlight: true },
+      { text: "  themeColor: 'black'" },
+      { text: '}' },
     ],
     copyable: true,
     link: 'https://nextjs.org/docs/messages/ensure-static-viewport-dynamic#use-static-viewport',
@@ -1016,11 +988,10 @@ export const SYNC_IO_CLIENT_DOCS: Record<string, string> = {
 
 export const EXPLANATIONS: Record<GuidanceKind, string> = {
   'static-viewport':
-    'This route is configured to be fully static, but data prevents it from being prerendered.',
+    "This data prevented Next.js from prerendering the route's viewport.",
   'static-metadata':
-    'This route is configured to be fully static, but data prevents it from being prerendered.',
-  'static-route':
-    'This route is configured to be fully static, but data prevents it from being prerendered.',
+    "This data prevented Next.js from prerendering the route's metadata.",
+  'static-route': 'This data prevented Next.js from prerendering the route.',
   'blocking-route':
     'This prevents the route from being prerendered, blocking navigation and leading to a slower user experience.',
   'client-hook':
