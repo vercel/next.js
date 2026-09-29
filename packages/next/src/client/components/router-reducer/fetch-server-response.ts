@@ -9,7 +9,6 @@ import { fetch } from '../segment-cache/fetch'
 import type {
   DynamicNavigationFlightResponse,
   FlightRouterState,
-  InitialRSCPayload,
   NavigationFlightResponse,
 } from '../../../shared/lib/app-router-types'
 
@@ -36,7 +35,6 @@ import type { NormalizedSearch } from '../segment-cache/cache-key'
 import { getDeploymentId } from '../../../shared/lib/deployment-id'
 import { getNavigationBuildId } from '../../navigation-build-id'
 import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../lib/constants'
-import { stripIsPartialByte } from '../segment-cache/cache'
 import { UnknownDynamicStaleTime } from '../segment-cache/bfcache'
 
 const createFromReadableStream =
@@ -348,45 +346,6 @@ export type RSCResponse = {
 }
 
 /**
- * Resolves the shell stage of a prerender response:
- *
- * - `a === undefined` (server didn't emit shell stage info): no shell exists —
- *   returns null.
- * - `a` resolves to `null`: the shell IS the main response — returns
- *   `flightResponse` itself (callers compare by reference).
- * - `a` resolves to a number: the shell is a strict prefix of the response —
- *   returns a separate Flight decode of that many bytes from `chunks`, the
- *   response's bytes (see `decodeResponsePrefix`).
- */
-export async function resolveShellStageResponse<
-  T extends NavigationFlightResponse | InitialRSCPayload,
->(
-  chunks: Array<Uint8Array>,
-  flightResponse: T,
-  headers: RequestHeaders | undefined
-): Promise<T | null> {
-  if (flightResponse.a === undefined) {
-    // The render wasn't staged — no shell exists.
-    return null
-  }
-
-  const shellByteLength = await flightResponse.a
-  if (shellByteLength === 0) {
-    return null
-  }
-  if (shellByteLength === null) {
-    // The shell IS the full response (no shell/full split). Return the full
-    // response itself — callers detect this case by reference equality —
-    // rather than collapsing it into null, which would lose the distinction
-    // from "no shell exists". This mirrors the convention of the per-segment
-    // prefetch fetch (see fetchAndWritePerSegmentPrefetchResponse in cache.ts).
-    return flightResponse
-  }
-
-  return decodeResponsePrefix<T>(chunks, shellByteLength, headers)
-}
-
-/**
  * Decodes the first `byteLength` bytes of a response, given the response's
  * bytes as `chunks`. Returns null if the decode fails or its root doesn't
  * resolve before the next task. The caller can still use the full response.
@@ -558,6 +517,65 @@ function decodeNavigationResponse<T>(
     // Only a stream that closes on abort may end before the response does.
     allowPartialStream: signal !== undefined,
   }) as Promise<T> & { _debugInfo?: Array<any> }
+}
+
+/**
+ * Strips the leading isPartial byte from an RSC response stream.
+ *
+ * The server prepends a single byte: '~' (0x7e) for partial, '#' (0x23) for
+ * complete. These bytes cannot appear as the first byte of a valid RSC Flight
+ * response (Flight rows start with a hex digit or ':').
+ *
+ * If the first byte is not a recognized marker, the stream is returned intact
+ * and `isPartial` is determined by the cachedNavigations experimental flag.
+ */
+export async function stripIsPartialByte(
+  stream: ReadableStream<Uint8Array>
+): Promise<{ stream: ReadableStream<Uint8Array>; isPartial: boolean }> {
+  // When there is no recognized marker byte, the fallback depends on whether
+  // Cached Navigations is enabled. When enabled, dynamic navigation responses
+  // don't have a marker but may contain dynamic holes, so they are treated as
+  // partial. When disabled, unmarked responses are treated as non-partial.
+  const defaultIsPartial = !!process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS
+
+  const reader = stream.getReader()
+  const { done, value } = await reader.read()
+
+  if (done || !value || value.byteLength === 0) {
+    return {
+      stream: new ReadableStream({ start: (c) => c.close() }),
+      isPartial: defaultIsPartial,
+    }
+  }
+
+  const firstByte = value[0]
+  const hasMarker = firstByte === 0x23 || firstByte === 0x7e
+  const isPartial = hasMarker ? firstByte === 0x7e : defaultIsPartial
+
+  const remainder = hasMarker
+    ? value.byteLength > 1
+      ? value.subarray(1)
+      : null
+    : value
+
+  return {
+    isPartial,
+    stream: new ReadableStream<Uint8Array>({
+      start(controller) {
+        if (remainder) {
+          controller.enqueue(remainder)
+        }
+      },
+      async pull(controller) {
+        const result = await reader.read()
+        if (result.done) {
+          controller.close()
+        } else {
+          controller.enqueue(result.value)
+        }
+      },
+    }),
+  }
 }
 
 export async function createFetch(
