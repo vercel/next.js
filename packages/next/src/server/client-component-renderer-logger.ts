@@ -119,11 +119,25 @@ export function wrapClientComponentLoader(
 
       const startTime = performance.now()
       tracker.beginRequire(startTime)
+      let result: ReturnType<AppPageModule['__next_app__']['require']>
       try {
-        return ComponentMod.__next_app__.require(...args)
-      } finally {
+        result = ComponentMod.__next_app__.require(...args)
+      } catch (error) {
+        tracker.finishRequire(startTime, performance.now())
+        throw error
+      }
+
+      // Webpack and Turbopack return native Promises for async modules. A
+      // synchronous module may export `then`, so do not probe arbitrary exports.
+      if (result instanceof Promise) {
+        const onSettled = () => {
+          tracker.finishRequire(startTime, performance.now())
+        }
+        result.then(onSettled, onSettled)
+      } else {
         tracker.finishRequire(startTime, performance.now())
       }
+      return result
     },
     loadChunk: (...args) => {
       const tracker = workAsyncStorage.getStore()?.clientComponentLoadTracker
