@@ -12,11 +12,11 @@ import { getImgProps } from './get-img-props'
 import * as defaultLoaderModule from 'next/dist/shared/lib/image-loader'
 
 const defaultLoader = Reflect.get(defaultLoaderModule, 'default')
-// This is replaced by the bundler define plugin. Keep its object identity
-// stable so getImgProps can reuse the prepared image options.
-const imageConfig = process.env.__NEXT_IMAGE_OPTS as any as
-  | ImageConfigForRendering
-  | undefined
+// The bundler replaces this with fixed options. Public getImageProps has no
+// context, so prepare those options once when the module is loaded.
+const imageConfig = prepareImageConfig(
+  process.env.__NEXT_IMAGE_OPTS as any as ImageConfigForRendering | undefined
+)
 
 /**
  * For more advanced use cases, you can call `getImageProps()`
@@ -28,7 +28,7 @@ const imageConfig = process.env.__NEXT_IMAGE_OPTS as any as
 export function getImageProps(imgProps: ImageProps) {
   const { props } = getImgProps(imgProps, {
     defaultLoader,
-    imgConf: prepareImageConfig(imageConfig),
+    imgConf: imageConfig,
   })
   // Normally we don't care about undefined props because we pass to JSX,
   // but this exported function could be used by the end user for anything
