@@ -41,8 +41,13 @@ describe('cached-navigations-sync-io', () => {
     return { browser, page, act, startDate, navigate }
   }
 
+  // These routes use Partial Prefetching, so their navigations embed a runtime
+  // prefetch.
   for (const { pathname, description } of [
-    { pathname: '/uncached-time', description: 'does not reuse uncached time' },
+    {
+      pathname: '/partial-uncached-time',
+      description: 'does not reuse uncached time',
+    },
     {
       pathname: '/delayed-sync-io',
       description: 'reuses content before synchronous IO',
