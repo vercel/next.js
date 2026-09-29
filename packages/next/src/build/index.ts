@@ -1,4 +1,5 @@
 import type { NudgeKind } from '../lib/upgrade/nudge'
+import type { UpgradeTerminalChildMessage } from '../lib/upgrade/terminal-channel'
 import type { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import type {
   ExportPathMap,
@@ -1083,7 +1084,11 @@ export default async function build(
   traceUploadUrl: string | undefined,
   debugBuildPathsPatterns: string[] | undefined,
   enabledFeatures: Record<string, unknown> = {},
-  allowHumanUpgrade = false
+  allowHumanUpgrade = false,
+  terminal: {
+    send: (message: UpgradeTerminalChildMessage) => Promise<void>
+    choice: Promise<void>
+  } | null = null
 ): Promise<NudgeKind | 'interrupt' | void> {
   const isCompileMode = experimentalBuildMode === 'compile'
   const isGenerateMode = experimentalBuildMode === 'generate'
@@ -1168,12 +1173,19 @@ export default async function build(
         config.experimental.agenticAutoUpgrade === 'security' ||
         config.experimental.agenticAutoUpgrade === 'latest' ||
         config.experimental.agenticAutoUpgrade === 'future' ||
-        process.env.__NEXT_AGENTIC_AUTO_UPGRADE
+        process.env.__NEXT_AGENTIC_AUTO_UPGRADE ||
+        process.env.__NEXT_AGENT_UPGRADE_FORCE_TERMINAL_FOR_TESTING
       ) {
         const { nudgeUpgrade, getUpgradeContext } =
           require('../lib/upgrade/nudge') as typeof import('../lib/upgrade/nudge')
         const upgradeContext = getUpgradeContext(config)
-        if (allowHumanUpgrade) {
+        if (terminal) {
+          // Send the already loaded config without holding up compilation.
+          // The final build result waits for the menu decision below.
+          pendingUpgradeNudge = terminal
+            .send({ type: 'nudge', directory: dir, context: upgradeContext })
+            .then(() => terminal.choice)
+        } else if (allowHumanUpgrade) {
           // TODO: Do not block the build while prompting for an upgrade.
           // Preserve all logs for display after the prompt and stop the build before Update.
           const action = await nudgeUpgrade(
@@ -1274,6 +1286,7 @@ export default async function build(
       if (experimentalBuildMode === 'generate-env') {
         if (bundler === Bundler.Turbopack) {
           Log.warn('generate-env is not needed with turbopack')
+          await pendingUpgradeNudge
           return
         }
         Log.info('Inlining static env ...')
@@ -1287,6 +1300,7 @@ export default async function build(
           })
 
         Log.info('Complete')
+        await pendingUpgradeNudge
         return
       }
 

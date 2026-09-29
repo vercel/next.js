@@ -14,12 +14,14 @@ import {
 } from './nudge'
 
 /**
- * Keep dev interactive and serving while an upgrade menu owns the visible
+ * Keep dev serving or build compiling while an upgrade menu owns the visible
  * terminal. Run the ordinary CLI in a PTY, buffer its output during the menu,
  * and use a separate control channel for the nudge and shutdown handshake.
  * Return null if supervision cannot start so the caller can run dev normally.
  */
-export async function runUpgradeTerminal(): Promise<number | string | null> {
+export async function runUpgradeTerminal(
+  command: 'dev' | 'build' = 'dev'
+): Promise<number | string | null> {
   let pty: typeof import('node-pty')
   try {
     // node-pty is optional: a failed native load leaves ordinary dev available.
@@ -108,12 +110,15 @@ export async function runUpgradeTerminal(): Promise<number | string | null> {
           // Handle at most one nudge for this terminal session.
           nudgeStarted = true
           // Track the menu task so final exit waits for it to settle.
-          nudgeTask = handleNudge(message).catch((error) => {
+          nudgeTask = handleNudge(message).catch(async (error) => {
             console.error(error)
             if (stopping) {
               // Do not leave dev running after an upgrade stop has begun.
               failed = true
               child?.kill('SIGTERM')
+            } else if (command === 'build' && !exited) {
+              // A failed menu must not strand a completed build waiting for a choice.
+              await control.send({ type: 'continue' })
             }
           })
         }
@@ -139,8 +144,8 @@ export async function runUpgradeTerminal(): Promise<number | string | null> {
     return null
   }
 
-  // Prepare the nudge without pausing dev startup. Only the menu needs
-  // exclusive access to the visible terminal; Skip returns it to dev.
+  // Prepare the nudge without pausing dev startup or the build. Only the menu
+  // needs the visible terminal; Skip returns it to the running command.
   async function handleNudge(
     message: Extract<UpgradeTerminalChildMessage, { type: 'nudge' }>
   ): Promise<void> {
@@ -152,10 +157,13 @@ export async function runUpgradeTerminal(): Promise<number | string | null> {
       controller.signal
     )
     if (!nudge || exited || controller.signal.aborted) {
+      if (command === 'build' && !exited) {
+        await control.send({ type: 'continue' })
+      }
       return
     }
 
-    // Hold dev output only while the menu owns the screen; resume replays it.
+    // Hold child output only while the menu owns the screen; resume replays it.
     let overflow = false
     if (
       !(await output.hold(() => {
@@ -165,19 +173,22 @@ export async function runUpgradeTerminal(): Promise<number | string | null> {
     ) {
       await output.resume()
       Log.warn(
-        'Upgrade menu skipped because dev output ended in an incomplete terminal escape sequence.'
+        'Upgrade menu skipped because command output ended in an incomplete terminal escape sequence.'
       )
+      if (command === 'build') {
+        await control.send({ type: 'continue' })
+      }
       return
     }
 
-    // The menu needs keystrokes itself; forwarding them would also type into dev.
+    // The menu needs keystrokes itself; forwarding them would also type into the child.
     input.off('data', forwardInput)
 
     let action
     try {
       action = await promptUpgrade(nudge.message, controller.signal, true)
     } finally {
-      // Restore dev output and input even if the prompt throws or is aborted.
+      // Restore child output and input even if the prompt throws or is aborted.
       await output.resume()
       if (!inputRestored) {
         input.on('data', forwardInput)
@@ -194,22 +205,30 @@ export async function runUpgradeTerminal(): Promise<number | string | null> {
 
     if (action === 'interrupt') {
       interruption = 'SIGINT'
-      child?.write('\x03')
+      if (command === 'build') {
+        stopping = true
+        await control.send({ type: 'stop' })
+      } else {
+        child?.write('\x03')
+      }
     } else if (action === 'update') {
-      // Give the terminal back to the caller, then ask dev to stop before
+      // Give the terminal back to the caller, then ask the child to stop before
       // starting the handoff; both operations can progress concurrently.
       stopping = true
       restoreInput()
       await control.send({ type: 'stop' })
 
-      // TODO: If overlapping the handoff with dev shutdown causes problems,
-      // consider waiting for dev to exit before starting the handoff.
+      // TODO: If overlapping the handoff with child shutdown causes problems,
+      // consider waiting for the child to exit before starting the handoff.
       upgradeTask = runUpgrade(message.directory, nudge.policy).catch(
         (error) => {
           console.error(error)
           return 1
         }
       )
+    } else if (command === 'build') {
+      // A completed build waits for this choice before its CLI exits.
+      await control.send({ type: 'continue' })
     }
   }
 
