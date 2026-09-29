@@ -7,8 +7,7 @@ import type { AppRouterState } from './router-reducer-types'
 import { transportNodeToFlightRouterState } from '../../../shared/lib/rsc-transport'
 import { createInitialRenderTreeForHydration } from '../render-tree'
 import {
-  writeRuntimePrefetchStreamIntoCache,
-  spawnStaticStageCacheWrite,
+  writeNavigationResponseIntoCache,
   segmentCacheMap,
   createRootRouteTree,
 } from '../segment-cache/cache'
@@ -124,53 +123,32 @@ export function createInitialRouterState({
     // Intentionally holding off on doing this until we decide how the Cached
     // Navigations behavior should work in combination with App Shells.
 
-    // Write the initial payload's segment data into the segment cache so
-    // subsequent navigations to the initial page can serve cached
-    // segments instantly. `u` marks a complete prerender.
-    // TODO: Navigations recognize a complete prerender by the marker byte.
-    // Read the same signal here.
-    if (
-      initialStaleTime !== undefined &&
-      initialRuntimeDataAccessed !== undefined
-    ) {
-      // We're not using the initial response here to avoid unnecessary
-      // decoding of the Flight data, since we can just take the segment data
-      // that we already decoded during hydration and write it into the cache
-      // directly.
-      spawnStaticStageCacheWrite(
-        Date.now(),
-        // The transport subset of the initial payload, already decoded during
-        // hydration. `u` (the runtime-data verdict) is deliberately omitted
-        // from this synthesized subset, so its writes record their strategy
-        // unrefined.
-        {
-          t: initialTransportData,
-          r: initialRootVaryParams,
-          s: initialStaleTime,
-        },
-        null, // responseHeaders — no build-id check for initial HTML
-        initialTree,
-        initialRenderedSearch,
-        segmentCacheMap // hydration writes are bound to the shared map
-      )
-    }
-
-    // If the initial RSC payload includes an embedded runtime prefetch stream,
-    // decode it and write the runtime data into the segment cache. This allows
-    // subsequent navigations to serve runtime-prefetchable content from cache
-    // without a separate prefetch request.
-    if (initialRuntimePrefetchStream != null) {
-      writeRuntimePrefetchStreamIntoCache(
-        Date.now(),
-        initialRuntimePrefetchStream,
-        initialTree,
-        initialRenderedSearch,
-        segmentCacheMap // hydration writes are bound to the shared map
-      ).catch(() => {
-        // Runtime prefetch cache write failed. Not fatal — the page rendered
-        // normally, we just won't cache runtime data.
-      })
-    }
+    // Write the initial page into the segment cache, so navigating back to it
+    // later doesn't need a request. We reuse the payload that hydration
+    // already decoded instead of decoding it again. Only a complete prerender
+    // includes `u`, so if it's missing we treat the payload as partial.
+    // TODO: Temporary. Navigations check the marker byte to tell whether a
+    // response is a complete prerender, and this checks `u`. Once the
+    // response says so directly, neither caller needs to pass it.
+    writeNavigationResponseIntoCache(
+      Date.now(),
+      // Only the fields the write reads. `u` is left out on purpose, so the
+      // write treats the payload like a live render's.
+      {
+        t: initialTransportData,
+        r: initialRootVaryParams,
+        s: initialStaleTime,
+        p: initialRuntimePrefetchStream,
+      },
+      initialStaleTime === undefined ||
+        initialRuntimeDataAccessed === undefined,
+      initialTree,
+      initialRenderedSearch,
+      segmentCacheMap // hydration writes are bound to the shared map
+    ).catch(() => {
+      // The cache write failed. Not fatal — the page rendered normally, we
+      // just won't write into the cache.
+    })
   }
 
   // NOTE: We intentionally don't check if any data needs to be fetched from the

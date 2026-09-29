@@ -2754,7 +2754,8 @@ function rejectSegmentEntriesIfStillPending(
  * orchestration shared by the prefetch response kinds — per-segment
  * static responses (fetchAndWritePerSegmentPrefetchResponse) and
  * live-render responses (fetchSegmentPrefetchesUsingRuntimeRequest, and the
- * embedded runtime prefetch stream via writeRuntimePrefetchStreamIntoCache)
+ * prefetch response a navigation carries, via
+ * writeNavigationResponseIntoCache)
  * — which differ in how they obtain their payloads but not in what must
  * happen to them.
  *
@@ -2978,7 +2979,7 @@ function writeResponsePayloadsIntoCache(
         // Navigation responses can be rewound into a *static* app shell.
         // On PPF routes they also contain a runtime prefetch stream which will give us
         // a runtime shell/prefetch, but that's handled separately from the main response.
-        // (see `writeRuntimePrefetchStreamIntoCache`)
+        // (see `writeNavigationResponseIntoCache`)
         responseFetchStrategy = FetchStrategy.Full
         shellFetchStrategy = FetchStrategy.StaticShell
         break
@@ -3932,111 +3933,54 @@ export async function resolveStaleAt(
 }
 
 /**
- * Fire-and-forget ("spawn"), unlike the synchronous cache-write family it
- * wraps (writeServerResponseIntoCache and below): the stage's staleTime must
- * be resolved asynchronously from the response's own `s` field before the
- * write can happen, and failures are swallowed — a failed cache write is not
- * fatal to the render that produced the response.
- *
- * Writes a complete navigation response — or the initial RSC payload of a
- * complete prerender — into the segment cache, so subsequent navigations can
- * serve cached segments instantly.
+ * Writes the prefetch response that a navigation response, or the initial RSC
+ * payload, carries into the segment cache, so later navigations can be served
+ * from the cache. It carries at most one: an embedded runtime prefetch stream
+ * (`p`), from a live render, or the response itself, when it's a complete
+ * prerender. Either way, it's written like any other prefetch response. This
+ * flow owns no pending entries, so every write is a detached upsert.
  */
-export function spawnStaticStageCacheWrite(
+export async function writeNavigationResponseIntoCache(
   now: number,
   response: NavigationFlightResponse,
-  // The navigation response's headers, used to derive the buildId for the
-  // write-layer build check (the deployment header, falling back to the
-  // response's `b` field). Null for the initial payload, which arrived in
-  // the HTML document and has no build-id check.
-  responseHeaders: Headers | null,
-  baseTree: FlightRouterState,
-  renderedSearch: string,
-  // The map the work that spawned this response's request is bound to. See
-  // writeServerResponseIntoCache.
-  map: CacheMap<SegmentCacheEntry>
-): void {
-  const buildId =
-    responseHeaders !== null
-      ? (responseHeaders.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? response.b)
-      : undefined
-  resolveStaleAt(now, response.s)
-    .then((staleAt) => {
-      writeServerResponseIntoCache(
-        now,
-        FetchStrategy.PPR,
-        response,
-        baseTree,
-        // The base tree is the navigation's current tree, not a prediction;
-        // divergence from it carries no signal.
-        null,
-        // Navigation responses always include the param values in the tree,
-        // so there's no pathname to parse them from (nor a need to).
-        null,
-        renderedSearch,
-        buildId,
-        staleAt,
-        false, // isResponsePartial
-        null,
-        // No owned entries; every write is a detached upsert.
-        null,
-        null,
-        map
-      )
-    })
-    .catch(() => {
-      // The cache write failed. Not fatal — the render completed normally,
-      // we just won't write into the cache.
-    })
-}
-
-/**
- * Decodes an embedded runtime prefetch Flight stream and writes it into the
- * segment cache, so subsequent navigations can serve runtime-prefetchable
- * content from cache without a separate prefetch request.
- *
- * The stream is buffered before it's decoded, like every prefetch response
- * that carries cache metadata: the shell byte offset (`a`) and staleTime are
- * read synchronously off their thenable status, and extracting a distinct
- * shell stage requires re-decoding a truncated copy of the same bytes. The
- * writes go through the shared payload-pair orchestration
- * (writeResponsePayloadsIntoCache): the full payload is written at
- * PPRRuntime and a distinct shell stage at the shell tier (RuntimeShell),
- * like any other runtime prefetch response. This flow owns no pending
- * entries, so every write is a detached upsert.
- */
-export async function writeRuntimePrefetchStreamIntoCache(
-  now: number,
-  runtimePrefetchStream: ReadableStream<Uint8Array>,
+  // Whether the response is partial. With Cached Navigations, a response that
+  // isn't partial is a complete prerender, which is itself a prefetch response.
+  // TODO: Temporary. Read this from the response once it says whether it's a
+  // complete prerender, instead of having each caller pass it.
+  isResponsePartial: boolean,
   baseTree: FlightRouterState,
   renderedSearch: string,
   // The map the work that spawned this response's request is bound to. See
   // writeServerResponseIntoCache.
   map: CacheMap<SegmentCacheEntry>
 ): Promise<void> {
-  const { stream, isPartial } = await stripIsPartialByte(runtimePrefetchStream)
-
-  const buffer = await bufferPrefetchResponseBody(stream)
-  const serverData = await decodeBufferedStage<NavigationFlightResponse>(
-    buffer,
-    undefined
-  )
-
-  // Extract the shell payload, when the response carries one. Same wire
-  // convention as the other live-render responses (see
-  // resolveShellStageResponse): `a` absent means the render wasn't staged —
-  // no shell exists; `null` means the shell IS the full response; a number
-  // is the byte boundary of a distinct shell prefix, which is re-decoded
-  // from a truncated copy of the buffer. An unreadable `a` — pending or
-  // rejected, which only an aborted render produces — conservatively reads
-  // as no shell: the full payload is still written, there's just no shell
-  // stage to extract from it.
-  let shellResponse: NavigationFlightResponse | null = null
-  if (serverData.a !== undefined) {
-    const shellByteLength = readFulfilledValue(serverData.a, undefined)
+  let prefetchResponse: NavigationFlightResponse
+  let shellResponse: NavigationFlightResponse | null
+  let staleAt: number
+  let isPartial: boolean
+  if (response.p != null) {
+    const stripped = await stripIsPartialByte(response.p)
+    const buffer = await bufferPrefetchResponseBody(stripped.stream)
+    prefetchResponse = await decodeBufferedStage<NavigationFlightResponse>(
+      buffer,
+      undefined
+    )
+    isPartial = stripped.isPartial
+    // The stream is fully buffered, so its stale time and shell byte length
+    // are read synchronously. A shell byte length that can't be read (an
+    // aborted render errors it, and a cut-off stream leaves it pending) reads
+    // as no shell; the full payload is still written.
+    staleAt = readFulfilledStaleAt(now, prefetchResponse.s)
+    const shellByteLength =
+      prefetchResponse.a !== undefined
+        ? readFulfilledValue(prefetchResponse.a, undefined)
+        : undefined
     if (shellByteLength === null) {
-      shellResponse = serverData
-    } else if (shellByteLength !== undefined) {
+      // The shell is the full response.
+      shellResponse = prefetchResponse
+    } else if (shellByteLength === undefined) {
+      shellResponse = null
+    } else {
       try {
         shellResponse = await decodeBufferedStage<NavigationFlightResponse>(
           buffer.subarray(0, shellByteLength),
@@ -4048,13 +3992,27 @@ export async function writeRuntimePrefetchStreamIntoCache(
         shellResponse = null
       }
     }
+  } else if (
+    process.env.__NEXT_CACHE_COMPONENTS &&
+    process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS &&
+    !isResponsePartial
+  ) {
+    prefetchResponse = response
+    isPartial = false
+    staleAt = await resolveStaleAt(now, response.s)
+    // Only the full payload is written. Cutting a complete prerender's shell
+    // needs the response's bytes.
+    shellResponse = null
+  } else {
+    return
   }
 
   writeResponsePayloadsIntoCache(
     now,
-    // A runtime prefetch stream is by definition a runtime prefetch.
+    // Every prefetch response a navigation carries is cache complete, so it's
+    // written as a runtime prefetch.
     FetchStrategy.PPRRuntime,
-    serverData,
+    prefetchResponse,
     shellResponse,
     baseTree,
     // The base tree is the navigation's current tree, not a prediction;
@@ -4064,9 +4022,10 @@ export async function writeRuntimePrefetchStreamIntoCache(
     // there's no pathname to parse them from (nor a need to).
     null,
     renderedSearch,
-    serverData.b,
-    // The response is fully buffered, so staleTime is read synchronously.
-    readFulfilledStaleAt(now, serverData.s),
+    // A navigation to a different build is an MPA navigation, so there's no
+    // build to check.
+    undefined,
+    staleAt,
     isPartial,
     null,
     // This flow owns no pending entries; every write is a detached upsert.
