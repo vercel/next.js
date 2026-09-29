@@ -12,7 +12,7 @@ const testFn =
     : describe
 
 testFn('import-meta-glob-monorepo', () => {
-  const { next } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: {
       apps: new FileRef(path.resolve(__dirname, 'apps')),
       // Deliberately shadows apps/web/content, to pin down which one a
@@ -26,8 +26,12 @@ testFn('import-meta-glob-monorepo', () => {
     buildCommand: 'pnpm build',
     startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
     installCommand: 'pnpm i',
-    env: { ENABLE_EXPERIMENTAL_COREPACK: '1' },
+    skipDeployment: true,
   })
+
+  if (skipped) {
+    return
+  }
 
   it('should resolve a `/`-rooted pattern from the project directory, like a plain import', async () => {
     const $ = await next.render$('/glob')
