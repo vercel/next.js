@@ -9,6 +9,10 @@ import {
   getHumanReadablePrefetchHints,
 } from '../../../../lib/prefetch-hints'
 
+// Temporary CI diagnostic: a retry reuses an ISR slug and hides the first error.
+// Remove this override once the deployed first-attempt failure is diagnosed.
+jest.retryTimes(0)
+
 function extractPrerenderedRouteInfo(cliOutput: string) {
   const before = 'Route (app)\n'
   const after =
