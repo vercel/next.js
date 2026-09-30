@@ -1,6 +1,8 @@
 /* eslint-env jest */
 
 import fs from 'fs-extra'
+import { getRouteCacheKey } from 'next/dist/server/lib/route-cache-key'
+import { RouteKind } from 'next/dist/server/route-kind'
 import { join } from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
@@ -114,14 +116,26 @@ function runTests(isDev) {
               await check(
                 () =>
                   fs
-                    .exists(join(pagesDir, mode, path + '.html'))
+                    .exists(
+                      join(
+                        appDir,
+                        '.next/server',
+                        `${getRouteCacheKey(`/${mode}/${path}`, { kind: RouteKind.PAGES, sourceRoute: `/${mode}/[slug]` })}.html`
+                      )
+                    )
                     .then((res) => (res ? 'yes' : 'no')),
                 'yes'
               )
               await check(
                 () =>
                   fs
-                    .exists(join(pagesDir, mode, path + '.json'))
+                    .exists(
+                      join(
+                        appDir,
+                        '.next/server',
+                        `${getRouteCacheKey(`/${mode}/${path}`, { kind: RouteKind.PAGES, sourceRoute: `/${mode}/[slug]` })}.json`
+                      )
+                    )
                     .then((res) => (res ? 'yes' : 'no')),
                 'yes'
               )

@@ -1360,6 +1360,9 @@ importers:
       gzip-size:
         specifier: 5.1.1
         version: 5.1.1
+      hash.js:
+        specifier: 1.1.7
+        version: 1.1.7
       http-proxy:
         specifier: 1.18.1
         version: 1.18.1(patch_hash=kzqzmw2zuo23hy3avffm6aqice)

@@ -1,10 +1,16 @@
+import type { RouteKind } from '../route-kind'
+import type { ResponseCacheOwner } from '../lib/route-cache-key'
 import type {
   ResponseCacheEntry,
   ResponseGenerator,
   ResponseCacheBase,
   IncrementalResponseCacheEntry,
   IncrementalResponseCache,
+  GetIncrementalResponseCacheContext,
+  GetIncrementalImageCacheContext,
 } from './types'
+import { IncrementalCacheKind } from './types'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
 import { Batcher } from '../../lib/batcher'
 import { LRUCache } from '../lib/lru-cache'
@@ -15,7 +21,6 @@ import {
   routeKindToIncrementalCacheKind,
   toResponseCacheEntry,
 } from './utils'
-import type { RouteKind } from '../route-kind'
 
 /**
  * Parses an environment variable as a positive integer, returning the fallback
@@ -159,12 +164,24 @@ export default class ResponseCache implements ResponseCacheBase {
   // be dynamic here
   private minimal_mode?: boolean
 
-  constructor(
-    minimal_mode: boolean,
-    maxSize: number = DEFAULT_MAX_SIZE,
-    ttl: number = DEFAULT_TTL_MS
-  ) {
-    this.minimal_mode = minimal_mode
+  private readonly route: ResponseCacheOwner | 'image'
+
+  constructor({
+    minimalMode,
+    route,
+    maxSize = DEFAULT_MAX_SIZE,
+    ttl = DEFAULT_TTL_MS,
+  }: {
+    minimalMode: boolean
+    route: ResponseCacheOwner | 'image'
+    maxSize?: number
+    ttl?: number
+  }) {
+    if (!route) {
+      throw new InvariantError('Response cache requires a source route')
+    }
+    this.route = route
+    this.minimal_mode = minimalMode
     this.maxSize = maxSize
     this.ttl = ttl
 
@@ -258,7 +275,6 @@ export default class ResponseCache implements ResponseCacheBase {
       isRoutePPREnabled = false,
       isPrefetch = false,
       waitUntil,
-      routeKind,
       invocationID,
     } = context
 
@@ -274,7 +290,6 @@ export default class ResponseCache implements ResponseCacheBase {
             isFallback,
             isRoutePPREnabled,
             isPrefetch,
-            routeKind,
             invocationID,
           },
           resolve
@@ -310,7 +325,6 @@ export default class ResponseCache implements ResponseCacheBase {
       isFallback: boolean
       isRoutePPREnabled: boolean
       isPrefetch: boolean
-      routeKind: RouteKind
       invocationID: string | undefined
     },
     resolve: (value: IncrementalResponseCacheEntry | null) => void
@@ -322,11 +336,10 @@ export default class ResponseCache implements ResponseCacheBase {
     try {
       // Get the previous cache entry if not in minimal mode
       previousIncrementalCacheEntry = !this.minimal_mode
-        ? await context.incrementalCache.get(key, {
-            kind: routeKindToIncrementalCacheKind(context.routeKind),
-            isRoutePPREnabled: context.isRoutePPREnabled,
-            isFallback: context.isFallback,
-          })
+        ? await context.incrementalCache.get(
+            key,
+            this.getCacheContext(context.isRoutePPREnabled, context.isFallback)
+          )
         : null
 
       if (previousIncrementalCacheEntry && !context.isOnDemandRevalidate) {
@@ -466,8 +479,7 @@ export default class ResponseCache implements ResponseCacheBase {
         } else {
           await incrementalCache.set(key, incrementalResponseCacheEntry.value, {
             cacheControl: incrementalResponseCacheEntry.cacheControl,
-            isRoutePPREnabled,
-            isFallback,
+            ...this.getCacheContext(isRoutePPREnabled, isFallback),
           })
         }
       }
@@ -493,14 +505,27 @@ export default class ResponseCache implements ResponseCacheBase {
               )
 
         await incrementalCache.set(key, previousIncrementalCacheEntry.value, {
+          ...this.getCacheContext(isRoutePPREnabled, isFallback),
           cacheControl: { revalidate: revalidate, expire: expire },
-          isRoutePPREnabled,
-          isFallback,
         })
       }
 
       // We haven't resolved yet, so let's throw to indicate an error.
       throw err
     }
+  }
+
+  private getCacheContext(
+    isRoutePPREnabled: boolean,
+    isFallback: boolean
+  ): GetIncrementalResponseCacheContext | GetIncrementalImageCacheContext {
+    if (this.route === 'image') {
+      return { kind: IncrementalCacheKind.IMAGE, isFallback: false }
+    }
+    const kind = routeKindToIncrementalCacheKind(this.route.kind)
+    if (kind === IncrementalCacheKind.IMAGE) {
+      throw new InvariantError('Images must use the image response cache')
+    }
+    return { route: this.route, kind, isRoutePPREnabled, isFallback }
   }
 }

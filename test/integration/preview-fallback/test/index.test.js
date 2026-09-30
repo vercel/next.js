@@ -1,6 +1,8 @@
 /* eslint-env jest */
 
 import cheerio from 'cheerio'
+import { getRouteCacheKey } from 'next/dist/server/lib/route-cache-key'
+import { RouteKind } from 'next/dist/server/route-kind'
 import cookie from 'cookie'
 import fs from 'fs-extra'
 import { join } from 'path'
@@ -239,7 +241,13 @@ function runTests(isDev) {
     })
 
     if (!isDev) {
-      const fsHtml = await fs.readFile(getCacheFile('fallback/second.html'))
+      const fsHtml = await fs.readFile(
+        join(
+          appDir,
+          '.next/server',
+          `${getRouteCacheKey('/fallback/second', { kind: RouteKind.PAGES, sourceRoute: '/fallback/[post]' })}.html`
+        )
+      )
       const fsProps = JSON.parse(cheerio.load(fsHtml)('#props').text())
 
       expect(fsProps).toEqual({

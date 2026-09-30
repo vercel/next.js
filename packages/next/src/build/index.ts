@@ -1,3 +1,8 @@
+import {
+  getRouteCacheKey,
+  ROUTE_CACHE_DIRECTORY,
+} from '../server/lib/route-cache-key'
+import { RouteKind } from '../server/route-kind'
 import type { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
 import type { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
@@ -152,7 +157,10 @@ import { lockfilePatchPromise, teardownTraceSubscriber } from './swc'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { getFilesInDir } from '../lib/get-files-in-dir'
 import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
-import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import {
+  normalizeAppPath,
+  selectAppPageEntry,
+} from '../shared/lib/router/utils/app-paths'
 import {
   ACTION_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
@@ -754,6 +762,24 @@ async function writeStandaloneDirectory(
         ),
         { overwrite: true }
       )
+      const responseCacheDir = path.join(
+        distDir,
+        SERVER_DIRECTORY,
+        ROUTE_CACHE_DIRECTORY
+      )
+      if (existsSync(responseCacheDir)) {
+        await recursiveCopy(
+          responseCacheDir,
+          path.join(
+            distDir,
+            STANDALONE_DIRECTORY,
+            path.relative(outputFileTracingRoot, distDir),
+            SERVER_DIRECTORY,
+            ROUTE_CACHE_DIRECTORY
+          ),
+          { overwrite: true }
+        )
+      }
       if (appDir) {
         const originalServerApp = path.join(distDir, SERVER_DIRECTORY, 'app')
         if (existsSync(originalServerApp)) {
@@ -2012,18 +2038,17 @@ export default async function build(
                 let originalAppPath: string | undefined
 
                 if (pageType === 'app' && mappedAppPages) {
-                  for (const [originalPath, normalizedPath] of Object.entries(
-                    appPathRoutes
-                  )) {
-                    if (normalizedPath === page) {
-                      pagePath = mappedAppPages[originalPath].replace(
-                        /^private-next-app-dir/,
-                        ''
-                      )
-                      originalAppPath = originalPath
-                      break
-                    }
-                  }
+                  originalAppPath = selectAppPageEntry(
+                    page,
+                    Object.keys(appPathRoutes).filter(
+                      (entry) => mappedAppPages[entry]
+                    ),
+                    (entry) => appPathRoutes[entry]
+                  )
+                  pagePath = mappedAppPages[originalAppPath].replace(
+                    /^private-next-app-dir/,
+                    ''
+                  )
                 }
 
                 const pageFilePath = isAppBuiltinNotFoundPage(pagePath)
@@ -3421,14 +3446,36 @@ export default async function build(
             page: string,
             file: string,
             isSsg: boolean,
-            ext: 'html' | 'json',
+            ext: 'html' | 'json' | 'meta',
             additionalSsgFile = false
           ) => {
+            if (
+              isSsg &&
+              config.experimental.adapterPath &&
+              config.output !== 'export'
+            )
+              return
+            if (isSsg && ext === 'html') {
+              await moveExportedPage(
+                originPage,
+                page,
+                file,
+                isSsg,
+                'meta',
+                additionalSsgFile
+              )
+            }
             return staticGenerationSpan
               .traceChild('move-exported-page')
               .traceAsyncFn(async () => {
                 file = `${file}.${ext}`
                 const orig = path.join(outdir, file)
+                if (
+                  ext === 'meta' &&
+                  (!i18n || additionalSsgFile) &&
+                  !existsSync(orig)
+                )
+                  return
                 const pagePath = getPagePath(
                   originPage,
                   distDir,
@@ -3543,8 +3590,12 @@ export default async function build(
                 const orig = path.join(
                   distDir,
                   'server',
-                  'app',
-                  '_not-found.html'
+                  config.experimental.adapterPath && config.output !== 'export'
+                    ? `${getRouteCacheKey(UNDERSCORE_NOT_FOUND_ROUTE, {
+                        kind: RouteKind.APP_PAGE,
+                        sourceRoute: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+                      })}.html`
+                    : 'app/_not-found.html'
                 )
                 const updatedRelativeDest = path
                   .join('pages', '404.html')

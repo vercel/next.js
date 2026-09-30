@@ -18,6 +18,7 @@ import {
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import stripAnsi from 'strip-ansi'
+import { RouteKind } from 'next/dist/server/route-kind'
 
 const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
@@ -57,28 +58,28 @@ describe('Prerender', () => {
   afterAll(() => next.destroy())
 
   async function waitForCacheWrite(
-    prerenderPath = '',
+    prerenderPath: string,
+    sourceRoute: string,
     timeBeforeRevalidateMilliseconds,
     retries = 30
   ) {
     for (let i = 0; i < retries; i++) {
       const lastRetry = i === retries - 1
-      const jsonPath = join(
+      const htmlPath = join(
         next.testDir,
-        '.next',
-        'server',
-        'pages',
-        `${prerenderPath}.html`
+        next.getPrerenderFilePath(prerenderPath, '.html', {
+          route: { kind: RouteKind.PAGES, sourceRoute },
+        })
       )
       try {
-        const jsonStats = await fs.stat(jsonPath)
-        const jsonLastModified = jsonStats.mtime.getTime()
+        const htmlStats = await fs.stat(htmlPath)
+        const htmlLastModified = htmlStats.mtime.getTime()
 
-        if (timeBeforeRevalidateMilliseconds <= jsonLastModified) {
+        if (timeBeforeRevalidateMilliseconds <= htmlLastModified) {
           break
         }
         throw new Error(
-          `revalidate cache not past ${timeBeforeRevalidateMilliseconds} received time ${jsonLastModified}`
+          `revalidate cache not past ${timeBeforeRevalidateMilliseconds} received time ${htmlLastModified}`
         )
       } catch (err) {
         if (lastRetry) {
@@ -383,7 +384,14 @@ describe('Prerender', () => {
 
       await waitFor(2500)
 
-      await Promise.all(toBuild.map((pg) => renderViaHTTP(next.url, pg)))
+      if (isDev) {
+        // Dev requests can concurrently update the prerender manifest.
+        for (const pg of toBuild) {
+          await renderViaHTTP(next.url, pg)
+        }
+      } else {
+        await Promise.all(toBuild.map((pg) => renderViaHTTP(next.url, pg)))
+      }
 
       const browser = await webdriver(next.url, '/')
       let text = await browser.elementByCss('p').text()
@@ -2445,6 +2453,7 @@ describe('Prerender', () => {
         )
         await waitForCacheWrite(
           '/blocking-fallback/test-if-generated-2',
+          '/blocking-fallback/[slug]',
           beforeRevalidate
         )
         const html = await res.text()

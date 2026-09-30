@@ -11,6 +11,28 @@ describe('AppPageRouteMatcherProvider', () => {
     await expect(matcher.matchers()).resolves.toEqual([])
   })
 
+  it.each([false, true])(
+    'selects the build owner regardless of manifest insertion order (%s)',
+    async (reverse) => {
+      const entries = [
+        ['/stories/@slot/[slug]/page', 'app/stories/@slot/[slug]/page.js'],
+        ['/stories/[slug]/page', 'app/stories/[slug]/page.js'],
+      ]
+      if (reverse) entries.reverse()
+      const loader: ManifestLoader = {
+        load: jest.fn(() => Object.fromEntries(entries)),
+      }
+      const provider = new AppPageRouteMatcherProvider('<root>', loader)
+      const matchers = await provider.matchers()
+      expect(matchers).toHaveLength(1)
+      expect(matchers[0].definition).toMatchObject({
+        page: '/stories/[slug]/page',
+        filename: `<root>/${SERVER_DIRECTORY}/app/stories/[slug]/page.js`,
+        appPaths: entries.map(([page]) => page),
+      })
+    }
+  )
+
   describe('manifest matching', () => {
     it.each<{
       manifest: Record<string, string>

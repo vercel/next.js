@@ -1,3 +1,4 @@
+import { isRouteCacheOwner } from '../../server/lib/route-cache-key'
 import type { LoaderTree } from '../../server/lib/app-dir-module'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 
@@ -175,7 +176,14 @@ export async function handler(
   let { isOnDemandRevalidate } = prepareResult
 
   const prerenderInfo = routeModule.match(pathname, prerenderManifest)
-  const isPrerendered = !!prerenderManifest.routes[resolvedPathname]
+  const isPrerendered =
+    !!prerenderManifest.routes[resolvedPathname] &&
+    (routeModule.isDev ||
+      isRouteCacheOwner(
+        resolvedPathname,
+        routeModule.cacheOwner,
+        prerenderManifest.routes[resolvedPathname]
+      ))
 
   let isSSG = Boolean(
     prerenderInfo ||

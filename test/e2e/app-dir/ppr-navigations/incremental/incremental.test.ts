@@ -22,16 +22,29 @@ describe('ppr-navigations incremental', () => {
   })
 
   it('can navigate between all the links and back without writing to disk', async () => {
-    const before =
-      !isNextDev && !isTurbopack && !isNextDeploy
-        ? await getDotNextFiles(next)
-        : []
+    const checkDisk = !isNextDev && !isTurbopack && !isNextDeploy
+    if (checkDisk) {
+      // Promote every route's existing build seed before measuring navigation.
+      for (const { href } of links) {
+        if (href === '/') continue
+        expect((await next.fetch(href)).status).toBe(200)
+        expect(
+          (
+            await next.fetch(href, {
+              headers: { RSC: '1', 'Next-Router-Prefetch': '1' },
+            })
+          ).status
+        ).toBe(200)
+      }
+    }
 
     const browser = await next.browser('/')
 
     await browser.waitForIdleNetwork()
     await waitForHydration(browser)
     await setTimeout(500)
+
+    const before = checkDisk ? await getDotNextFiles(next) : []
 
     // Add a variable to the window so we can tell if it MPA navigated. If this
     // value is still true at the end of the test, then we know that the page
@@ -65,7 +78,7 @@ describe('ppr-navigations incremental', () => {
       await browser.close()
     }
 
-    if (!isNextDev && !isTurbopack && !isNextDeploy) {
+    if (checkDisk) {
       const after = await getDotNextFiles(next)
 
       // Ensure that no new files were written to disk. If this test fails, it's

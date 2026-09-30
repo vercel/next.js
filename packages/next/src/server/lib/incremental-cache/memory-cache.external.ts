@@ -16,16 +16,20 @@ export function getMemoryCache(maxMemoryCacheSize: number) {
       } else if (value.kind === CachedRouteKind.FETCH) {
         return JSON.stringify(value.data || '').length
       } else if (value.kind === CachedRouteKind.APP_ROUTE) {
-        return value.body.length
+        return Math.max(1, value.body.length)
       }
       // rough estimate of size of cache value
-      return (
-        value.html.length +
-        (JSON.stringify(
-          value.kind === CachedRouteKind.APP_PAGE
-            ? value.rscData
-            : value.pageData
-        )?.length || 0)
+      return Math.max(
+        1,
+        (value.kind === CachedRouteKind.APP_PAGE
+          ? value.postponed?.length || 0
+          : 0) +
+          value.html.length +
+          (JSON.stringify(
+            value.kind === CachedRouteKind.APP_PAGE
+              ? value.rscData
+              : value.pageData
+          )?.length || 0)
       )
     })
   }

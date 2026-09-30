@@ -51,6 +51,24 @@ export function normalizeAppPath(route: string) {
   )
 }
 
+/** Select the last direct entry, matching Next 15's sorted appPaths at runtime. */
+export function selectAppPageEntry(
+  pathname: string,
+  appPaths: readonly string[],
+  normalizePathname: (appPath: string) => string = (appPath) =>
+    normalizeAppPath(appPath).replace(/%5F/g, '_')
+): string {
+  let entry: string | undefined
+  for (const appPath of appPaths) {
+    if (normalizePathname(appPath) !== pathname) continue
+    if (entry === undefined || entry < appPath) entry = appPath
+  }
+  if (entry === undefined) {
+    throw new Error(`Invariant: no direct app page entry found for ${pathname}`)
+  }
+  return entry
+}
+
 /**
  * Strips the `.rsc` extension if it's in the pathname.
  * Since this function is used on full urls it checks `?` for searchParams handling.

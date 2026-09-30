@@ -49,6 +49,10 @@ import { IncrementalCache } from '../lib/incremental-cache'
 import { initializeCacheHandlers, setCacheHandler } from '../use-cache/handlers'
 import { interopDefault } from '../app-render/interop-default'
 import type { RouteKind } from '../route-kind'
+import {
+  getResponseCacheOwner,
+  type ResponseCacheOwner,
+} from '../lib/route-cache-key'
 import type { BaseNextRequest } from '../base-http'
 import type { I18NConfig, NextConfigComplete } from '../config-shared'
 import ResponseCache, { type ResponseGenerator } from '../response-cache'
@@ -113,6 +117,9 @@ export abstract class RouteModule<
    */
   public readonly definition: Readonly<D>
 
+  /** The canonical source identity shared by cache reads, writes, and metadata. */
+  public readonly cacheOwner: ResponseCacheOwner
+
   /**
    * The shared modules that are exposed and required for the route module.
    */
@@ -133,6 +140,7 @@ export abstract class RouteModule<
   }: RouteModuleOptions<D, U>) {
     this.userland = userland
     this.definition = definition
+    this.cacheOwner = getResponseCacheOwner(definition)
     this.isDev = process.env.NODE_ENV === 'development'
     this.distDir = distDir
     this.relativeProjectDir = relativeProjectDir
@@ -456,6 +464,7 @@ export abstract class RouteModule<
         flushToDisk: nextConfig.experimental.isrFlushToDisk,
         getPrerenderManifest: () => prerenderManifest,
         CurCacheHandler: CacheHandler,
+        locales: nextConfig.i18n?.locales,
       })
     }
   }
@@ -848,7 +857,10 @@ export abstract class RouteModule<
   public getResponseCache(req: IncomingMessage | BaseNextRequest) {
     if (!this.responseCache) {
       const minimalMode = getRequestMeta(req, 'minimalMode') ?? false
-      this.responseCache = new ResponseCache(minimalMode)
+      this.responseCache = new ResponseCache({
+        minimalMode,
+        route: this.cacheOwner,
+      })
     }
     return this.responseCache
   }

@@ -1,3 +1,5 @@
+import { getRouteCacheKey } from '../../server/lib/route-cache-key'
+import { RouteKind } from '../../server/route-kind'
 import path from 'path'
 import fs from 'fs/promises'
 import { promisify } from 'util'
@@ -17,7 +19,10 @@ import type {
 } from '../webpack/plugins/middleware-plugin'
 import { isMiddlewareFilename } from '../utils'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
-import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
+import {
+  normalizeAppPath,
+  selectAppPageEntry,
+} from '../../shared/lib/router/utils/app-paths'
 import { AdapterOutputType } from '../../shared/lib/constants'
 import { RenderingMode } from '../rendering-mode'
 import { isDynamicRoute } from '../../shared/lib/router/utils'
@@ -262,7 +267,7 @@ export async function handleBuildComplete({
       const appDistDir = path.join(distDir, 'server', 'app')
 
       if (appPageKeys) {
-        for (const page of appPageKeys) {
+        for (const page of [...appPageKeys].sort().reverse()) {
           if (middlewareManifest.functions.hasOwnProperty(page)) {
             continue
           }
@@ -273,6 +278,15 @@ export async function handleBuildComplete({
             Log.warn(`Failed to copy traced files for ${pageFile}`, err)
             return {} as Record<string, string>
           })
+          // Parallel entries share one runtime owner but retain every traced asset.
+          const existingOutput = appOutputMap[normalizedPage]
+          if (existingOutput) {
+            existingOutput.assets ??= {}
+            Object.assign(existingOutput.assets, assets)
+            existingOutput.assets[path.relative(tracingRoot, pageFile)] =
+              pageFile
+            continue
+          }
           const functionConfig =
             functionsConfigManifest.functions[normalizedPage] || {}
 
@@ -322,6 +336,34 @@ export async function handleBuildComplete({
         contentTypeHeader,
       } = routesManifest.rsc
 
+      const getPrerenderFilePath = (
+        route: string,
+        isAppPage: boolean,
+        extension: string
+      ) => {
+        const normalizedRoute = route.startsWith('/') ? route : `/${route}`
+        const prerender = prerenderManifest.routes[normalizedRoute]
+        const dynamic = prerenderManifest.dynamicRoutes[normalizedRoute]
+        const source =
+          prerender?.srcRoute ?? dynamic?.fallbackSourceRoute ?? normalizedRoute
+        const dataRoute = prerender?.dataRoute ?? dynamic?.dataRoute
+        const sourceRoute = isAppPage
+          ? selectAppPageEntry(source, appPageKeys ?? [])
+          : source
+        return path.join(
+          distDir,
+          'server',
+          `${getRouteCacheKey(normalizedRoute, {
+            kind: isAppPage
+              ? dataRoute
+                ? RouteKind.APP_PAGE
+                : RouteKind.APP_ROUTE
+              : RouteKind.PAGES,
+            sourceRoute,
+          })}${extension}`
+        )
+      }
+
       const handleAppMeta = async (
         route: string,
         initialOutput: AdapterOutputs[0]
@@ -331,7 +373,7 @@ export async function handleBuildComplete({
           postponed?: string
         } = JSON.parse(
           await fs
-            .readFile(path.join(appDistDir, `${route}.meta`), 'utf8')
+            .readFile(getPrerenderFilePath(route, true, '.meta'), 'utf8')
             .catch(() => '{}')
         )
 
@@ -340,9 +382,10 @@ export async function handleBuildComplete({
         }
 
         if (meta?.segmentPaths) {
-          const segmentsDir = path.join(
-            appDistDir,
-            `${route}${prefetchSegmentDirSuffix}`
+          const segmentsDir = getPrerenderFilePath(
+            route,
+            true,
+            prefetchSegmentDirSuffix
           )
 
           for (const segmentPath of meta.segmentPaths) {
@@ -422,9 +465,10 @@ export async function handleBuildComplete({
           allowQuery = Object.values(routeKeys)
         }
 
-        let filePath = path.join(
-          isAppPage ? appDistDir : pagesDistDir,
-          `${route}.${isAppPage && !dataRoute ? 'body' : 'html'}`
+        let filePath = getPrerenderFilePath(
+          route,
+          isAppPage,
+          isAppPage && !dataRoute ? '.body' : '.html'
         )
 
         // we use the static 404 for notFound: true if available
@@ -466,7 +510,7 @@ export async function handleBuildComplete({
         outputs.push(initialOutput)
 
         if (dataRoute) {
-          let dataFilePath = path.join(pagesDistDir, `${route}.json`)
+          let dataFilePath = getPrerenderFilePath(route, false, '.json')
 
           if (isAppPage) {
             // When experimental PPR is enabled, we expect that the data
@@ -474,12 +518,13 @@ export async function handleBuildComplete({
             // be from the prefetch data route. If this isn't enabled
             // for ppr, the only way to get the data is from the data
             // route.
-            dataFilePath = path.join(
-              appDistDir,
+            dataFilePath = getPrerenderFilePath(
+              route,
+              true,
               prefetchDataRoute &&
                 renderingMode === RenderingMode.PARTIALLY_STATIC
-                ? prefetchDataRoute
-                : dataRoute
+                ? '.prefetch.rsc'
+                : '.rsc'
             )
           }
 
@@ -537,9 +582,10 @@ export async function handleBuildComplete({
           fallback:
             typeof fallback === 'string'
               ? {
-                  filePath: path.join(
-                    isAppPage ? appDistDir : pagesDistDir,
-                    fallback
+                  filePath: getPrerenderFilePath(
+                    fallback.replace(/\.html$/, ''),
+                    isAppPage,
+                    '.html'
                   ),
                   initialStatus: fallbackStatus,
                   initialHeaders: fallbackHeaders,

@@ -1,14 +1,16 @@
 /* eslint-env jest */
 
 import fs from 'fs-extra'
+import { getRouteCacheKey } from 'next/dist/server/lib/route-cache-key'
+import { RouteKind } from 'next/dist/server/route-kind'
 import {
   findPort,
   killApp,
   nextBuild,
   nextStart,
   renderViaHTTP,
+  retry,
   waitFor,
-  getPageFileFromPagesManifest,
   fetchViaHTTP,
 } from 'next-test-utils'
 import { join } from 'path'
@@ -18,15 +20,43 @@ let app
 let appPort
 let buildId
 
+function getScopedFile(routePath, extension) {
+  const cacheKey = getRouteCacheKey(routePath, {
+    kind: RouteKind.PAGES,
+    sourceRoute: routePath,
+  })
+  return join(appDir, '.next', 'server', `${cacheKey}${extension}`)
+}
+
+async function settleScopedResponse(fileName, requestPath, isJson = false) {
+  const warmStartedAt = Date.now()
+  await renderViaHTTP(appPort, requestPath)
+
+  return retry(
+    async () => {
+      const response = await renderViaHTTP(appPort, requestPath)
+      const file = await fs.readFile(fileName, 'utf8')
+      const { mtimeMs } = await fs.stat(fileName)
+      // A promoted build seed keeps its original age. Wait for any stale seed
+      // regeneration to finish before using the scoped file as the baseline.
+      expect(mtimeMs).toBeGreaterThanOrEqual(warmStartedAt)
+      expect(file).not.toBe('')
+      if (isJson) {
+        expect(JSON.parse(response)).toEqual(JSON.parse(file))
+      } else {
+        expect(response).toBe(file)
+      }
+      return file
+    },
+    15000,
+    500
+  )
+}
+
 function runTests(route, routePath) {
   it(`[${route}] should regenerate page when revalidate time exceeded`, async () => {
-    const fileName = join(
-      appDir,
-      '.next',
-      'server',
-      getPageFileFromPagesManifest(appDir, routePath).replace('.js', '.html')
-    )
-    const initialHtmlFile = await fs.readFile(fileName, 'utf8')
+    const fileName = getScopedFile(routePath, '.html')
+    const initialHtmlFile = await settleScopedResponse(fileName, route)
 
     await waitFor(1000) // Wait revalidate duration
 
@@ -40,14 +70,9 @@ function runTests(route, routePath) {
   })
 
   it(`[${route}] should regenerate /_next/data when revalidate time exceeded`, async () => {
-    const fileName = join(
-      appDir,
-      '.next',
-      'server',
-      getPageFileFromPagesManifest(appDir, routePath).replace('.js', '.json')
-    )
+    const fileName = getScopedFile(routePath, '.json')
     const route = join(`/_next/data/${buildId}`, `${routePath}.json`)
-    const initialFileJson = await fs.readFile(fileName, 'utf8')
+    const initialFileJson = await settleScopedResponse(fileName, route, true)
 
     await waitFor(1000) // Wait revalidate duration
 

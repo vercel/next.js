@@ -14,10 +14,7 @@ import type {
   RenderOptsPartial as AppRenderOptsPartial,
   ServerOnInstrumentationRequestError,
 } from './app-render/types'
-import type {
-  ServerComponentsHmrCache,
-  ResponseCacheBase,
-} from './response-cache'
+import type { ServerComponentsHmrCache } from './response-cache'
 import type { UrlWithParsedQuery } from 'url'
 import {
   NormalizeError,
@@ -74,7 +71,10 @@ import {
   setRequestMeta,
 } from './request-meta'
 import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
-import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import {
+  normalizeAppPath,
+  selectAppPageEntry,
+} from '../shared/lib/router/utils/app-paths'
 import { getHostname } from '../shared/lib/get-hostname'
 import { parseUrl as parseUrlUtil } from '../shared/lib/router/utils/parse-url'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
@@ -327,7 +327,6 @@ export default abstract class Server<
   protected interceptionRoutePatterns: RegExp[]
   protected nextFontManifest?: DeepReadonly<NextFontManifest>
   protected instrumentation: InstrumentationModule | undefined
-  private readonly responseCache: ResponseCacheBase
 
   protected abstract getPublicDir(): string
   protected abstract getHasStaticDir(): boolean
@@ -393,10 +392,6 @@ export default abstract class Server<
   protected abstract getIncrementalCache(options: {
     requestHeaders: Record<string, undefined | string | string[]>
   }): Promise<import('./lib/incremental-cache').IncrementalCache>
-
-  protected abstract getResponseCache(options: {
-    dev: boolean
-  }): ResponseCacheBase
 
   protected getServerComponentsHmrCache():
     | ServerComponentsHmrCache
@@ -605,7 +600,6 @@ export default abstract class Server<
     void this.matchers.reload()
 
     this.setAssetPrefix(assetPrefix)
-    this.responseCache = this.getResponseCache({ dev })
   }
 
   private handleRSCRequest: RouteHandler<ServerRequest, ServerResponse> = (
@@ -2474,8 +2468,8 @@ export default abstract class Server<
 
     let page = pathname
     if (isAppPath) {
-      // the last item in the array is the root page, if there are parallel routes
-      page = appPaths[appPaths.length - 1]
+      // Use the same direct entry as the build, independent of manifest order.
+      page = selectAppPageEntry(pathname, appPaths)
     }
 
     const result = await this.findPageComponents({

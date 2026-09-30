@@ -176,6 +176,7 @@ async function main() {
       env: {
         ...process.env,
         NEXT_TEST_MODE: testMode,
+        NEXT_TEST_PREVIEW_BUILDS_BASE_URL: previewBuildsBaseUrl,
         NEXT_TEST_VERSION: nextTestVersion,
         NEXT_EXTERNAL_TESTS_FILTERS:
           testMode === 'deploy' ? 'test/deploy-tests-manifest.json' : undefined,
