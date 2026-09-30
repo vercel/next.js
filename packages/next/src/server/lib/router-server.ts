@@ -222,7 +222,6 @@ export async function initialize(opts: {
 
     // Check only development; production startup does not query advisories.
     if (
-      developmentConfig.experimental.agentUpgrade === true ||
       developmentConfig.experimental.agentUpgrade === 'security' ||
       developmentConfig.experimental.agentUpgrade === 'latest' ||
       developmentConfig.experimental.agentUpgrade === 'experimental-future' ||

@@ -1165,7 +1165,6 @@ export default async function build(
 
       // Reuse the loaded config; ordinary builds do not load upgrade tooling.
       if (
-        config.experimental.agentUpgrade === true ||
         config.experimental.agentUpgrade === 'security' ||
         config.experimental.agentUpgrade === 'latest' ||
         config.experimental.agentUpgrade === 'experimental-future' ||

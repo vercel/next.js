@@ -17,6 +17,7 @@ import { getAgentName } from 'next/dist/telemetry/agent-name'
 import { getUpgradeAssessment } from 'next/dist/lib/upgrade/prepare-upgrade'
 import { warn } from 'next/dist/build/output/log'
 import { spawnNextUpgrade } from 'next/dist/cli/next-upgrade'
+import { defaultConfig } from 'next/dist/server/config-shared'
 
 jest.mock('next/dist/cli/next-upgrade', () => ({
   spawnNextUpgrade: jest.fn(),
@@ -94,7 +95,7 @@ const initialNextVersion = process.env.__NEXT_VERSION
 const initialRequestedUpgrade = process.env.__NEXT_AGENT_UPGRADE
 
 const config = (
-  policy: 'security' | 'latest' | 'experimental-future' | boolean,
+  policy: 'security' | 'latest' | 'experimental-future' | false,
   values: Record<string, unknown> = {}
 ) =>
   ({
@@ -103,8 +104,9 @@ const config = (
     experimental: { agentUpgrade: policy },
   }) as never
 
-it('uses the security policy when agentUpgrade is true', () => {
-  const context = getUpgradeContext(config(true))
+it('defaults agentUpgrade to the security policy', () => {
+  expect(defaultConfig.experimental.agentUpgrade).toBe('security')
+  const context = getUpgradeContext(config('security'))
   expect(context.experimental.agentUpgrade).toBe('security')
 })
 
