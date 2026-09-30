@@ -131,6 +131,87 @@ describe('parallel-route-refresh-after-navigation', () => {
         expect(await browser.eval(() => performance.timeOrigin)).toBe(origin)
       }
     )
+
+    it.each([
+      { direction: 'back', invalidate: false },
+      { direction: 'forward', invalidate: false },
+      { direction: 'back', invalidate: true },
+    ])(
+      'refreshes the original background after $direction restoration (invalidate: $invalidate)',
+      async ({ direction, invalidate }) => {
+        const browser = await next.browser(`${prefix}home?value=first`)
+        const origin = await browser.eval(() => performance.timeOrigin)
+
+        async function expectRestoredPage(
+          page: 'home' | 'about',
+          value: string,
+          dialog: 'edit' | 'result' | null
+        ) {
+          await retry(async () => {
+            expect(await browser.eval(() => performance.timeOrigin)).toBe(
+              origin
+            )
+            expect(
+              await browser.elementByCss('#background-page:visible').text()
+            ).toBe(page)
+            expect(
+              await browser.elementByCss('#background-value:visible').text()
+            ).toBe(value)
+            const url = new URL(await browser.url())
+            if (dialog === null) {
+              expect(url.pathname + url.search).toBe(
+                `${prefix}${page}?value=${value}`
+              )
+              expect(
+                await browser.hasElementByCss('#dialog-kind:visible')
+              ).toBe(false)
+            } else {
+              expect(url.pathname).toBe(`/${dialog}`)
+              expect(url.searchParams.get('closePath')).toBe(
+                `${prefix}${page}?value=${value}`
+              )
+              expect(
+                await browser.elementByCss('#dialog-kind:visible').text()
+              ).toBe(dialog)
+            }
+          })
+        }
+
+        await browser.elementByCss('#open-dialog:visible').click()
+        await browser.elementByCss('#mutate:visible').click()
+        await expectRestoredPage('home', 'first', 'result')
+
+        // Keep the first dialog in history, then create another with a different
+        // background URL and search params.
+        await browser.elementByCss('#about:visible').click()
+        await expectRestoredPage('about', 'second', null)
+        await browser.elementByCss('#open-dialog:visible').click()
+        await expectRestoredPage('about', 'second', 'edit')
+
+        if (invalidate) {
+          // router.refresh() invalidates the BFCache. The earlier home entry
+          // must then fetch its inactive background during restoration itself.
+          await refreshBackground(browser, origin, 'about', 'second')
+        }
+
+        await browser.back()
+        await expectRestoredPage('about', 'second', null)
+        await browser.back()
+        await expectRestoredPage('home', 'first', 'result')
+        if (direction === 'forward') {
+          await browser.forward()
+          await expectRestoredPage('about', 'second', null)
+          await browser.forward()
+          await expectRestoredPage('about', 'second', 'edit')
+        }
+        await refreshBackground(
+          browser,
+          origin,
+          direction === 'back' ? 'home' : 'about',
+          direction === 'back' ? 'first' : 'second'
+        )
+      }
+    )
   })
 
   it('refreshes nested inactive slots using their distinct original URLs', async () => {
