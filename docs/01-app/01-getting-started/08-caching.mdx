@@ -42,7 +42,7 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
-Set `partialPrefetching` to `false` only when migrating an app that already uses Cache Components. The initial release of Cache Components did not include Partial Prefetching. New projects should enable both options.
+When omitted, `partialPrefetching` remains disabled. Set it explicitly to `false` to confirm that you're migrating an app that already uses Cache Components. The initial release of Cache Components did not include Partial Prefetching. New projects should enable both options.
 
 In the next major release, Cache Components and Partial Prefetching will be enabled everywhere, and these configuration options will be removed. To prepare an existing app, follow [Migrating to Cache Components](/docs/app/guides/migrating-to-cache-components) and [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching).
 
