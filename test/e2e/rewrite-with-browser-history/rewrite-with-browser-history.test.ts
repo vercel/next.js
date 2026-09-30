@@ -7,7 +7,7 @@ describe('rewrites persist with browser history actions', () => {
       react: '19.3.0-canary-fef12a01-20260413',
       'react-dom': '19.3.0-canary-fef12a01-20260413',
     },
-    env: { npm_config_frozen_lockfile: 'false' },
+    env: { ENABLE_EXPERIMENTAL_COREPACK: '1' },
   })
 
   it('back-button should go back to rewritten path successfully', async () => {

@@ -7,7 +7,7 @@ describe('router hash navigation', () => {
       react: '19.3.0-canary-fef12a01-20260413',
       'react-dom': '19.3.0-canary-fef12a01-20260413',
     },
-    env: { npm_config_frozen_lockfile: 'false' },
+    env: { ENABLE_EXPERIMENTAL_COREPACK: '1' },
   })
 
   it('scrolls to top when href="/" and url already contains a hash', async () => {

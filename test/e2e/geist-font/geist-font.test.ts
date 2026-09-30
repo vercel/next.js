@@ -4,7 +4,7 @@ import { waitForNoRedbox } from 'next-test-utils'
 describe('geist-font', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    env: { npm_config_frozen_lockfile: 'false' },
+    env: { ENABLE_EXPERIMENTAL_COREPACK: '1' },
     dependencies: {
       geist: 'latest',
     },
