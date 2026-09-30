@@ -47,11 +47,13 @@ The export accepts `'auto'`, `'shell'`, `'prefetch'`, `'navigation'`, or `false`
 | `'prefetch'`       | Loads a static App Shell                   | Uses a static prefetch                             | Allows request-specific rendering |
 | `'navigation'`     | Loads a static App Shell                   | Uses a static prefetch                             | Requires static server output     |
 
-These values correspond to stages in a client navigation. Before the user follows a link, a default `<Link>` loads the App Shell and [`prefetch={true}`](/docs/app/api-reference/components/link#prefetch) can load a [per-link prefetch](/docs/app/guides/optimizing-prefetching#resolve-url-data-at-prefetch-time). When the user follows the link, the navigation request returns the remaining page.
+These values correspond to [navigation stages](/docs/app/glossary#navigation-stages). The App Shell and per-link prefetch are partial results of a navigation. The navigation is the complete result. Each level includes the static requirements of the levels before it.
+
+Before the user follows a link, a default `<Link>` loads the App Shell and [`prefetch={true}`](/docs/app/api-reference/components/link#prefetch) can add [URL-specific content](/docs/app/guides/optimizing-prefetching#resolve-url-data-at-prefetch-time). When the user follows the link, the navigation request returns the remaining page.
 
 Use `'shell'` and `'prefetch'` with [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), which enables their rendering stages. The `'navigation'` value works with Cache Components alone. Static output can include `<Suspense>` fallbacks, but it cannot depend on request-specific data.
 
-Each level moves request-specific content behind `<Suspense>` to a later stage. `'shell'` applies the effect of [`await prefetch()`](/docs/app/api-reference/functions/prefetch) across the route, while `'prefetch'` applies the effect of [`await navigation()`](/docs/app/api-reference/functions/navigation). `'navigation'` requires all server output to be static because there is no later server-rendering stage.
+Each level moves request-specific content behind `<Suspense>` to a later navigation stage. `'shell'` applies the effect of [`await prefetch()`](/docs/app/api-reference/functions/prefetch) across the route, while `'prefetch'` applies the effect of [`await navigation()`](/docs/app/api-reference/functions/navigation). `'navigation'` requires all server output to be static because there is no later server-rendering stage.
 
 ### `'shell'`
 
@@ -61,13 +63,15 @@ Use this level to require a static App Shell without adding [`await prefetch()`]
 
 ### `'prefetch'`
 
-Uses static output for both the App Shell and per-link prefetches. A `<Link prefetch={true}>` can include URL-specific static or cached content. Request-specific content behind `<Suspense>` renders during navigation.
+Uses static output for both the App Shell and per-link prefetches. A `<Link prefetch={true}>` can include URL-specific static or cached content. This is still a partial result; request-specific content behind `<Suspense>` renders when the navigation completes the route.
+
+The [static HTML shell](/docs/app/glossary#static-shell) can also include this static or cached per-link content. Unlike a per-link prefetch, it cannot include request-specific data because the HTML shell is prerendered.
 
 Use this level to require static prefetches without adding [`await navigation()`](/docs/app/api-reference/functions/navigation) to each request-specific subtree.
 
 ### `'navigation'`
 
-Requires every server-rendered segment of the route to complete during prerendering, so initial loads and client navigations use static output. This value works with Cache Components alone.
+Requires the complete server-rendered route to be produced during prerendering, so initial loads and client navigations use static output. This value works with Cache Components alone.
 
 On the root layout, this requirement applies to every route in the app. Set it on a nested layout or page to limit it to that route subtree.
 
