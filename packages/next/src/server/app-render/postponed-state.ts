@@ -164,7 +164,7 @@ export async function getDynamicHTMLPostponedState(
 }
 
 export async function getDynamicDataPostponedState(
-  resumeDataCache: PrerenderResumeDataCache | RenderResumeDataCache,
+  resumeDataCache: RenderResumeDataCache,
   isCacheComponentsEnabled: boolean,
   maxPostponedStateSizeBytes?: number,
   disableResumeDataCacheCompression = false,

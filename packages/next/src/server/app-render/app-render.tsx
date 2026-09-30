@@ -1284,7 +1284,7 @@ async function spawnRuntimePrefetchWithFilledCaches(
         shellByteLengthPromise: mode.shellByteLengthDeferred.promise,
         shellUsedSessionDataPromise: mode.shellUsedSessionDataDeferred.promise,
       }),
-      prerenderResumeDataCache,
+      createRenderResumeDataCache(prerenderResumeDataCache),
       rootParams,
       requestStore.headers,
       requestStore.cookies,
@@ -1697,7 +1697,7 @@ async function generateRuntimePrefetchResult(
           : undefined,
       shellUsedSessionDataPromise: mode.shellUsedSessionDataDeferred.promise,
     }),
-    prerenderResumeDataCache,
+    createRenderResumeDataCache(prerenderResumeDataCache),
     rootParams,
     requestStore.headers,
     requestStore.cookies,
@@ -1903,7 +1903,7 @@ async function finalRuntimeServerPrerender(
   mode: RuntimePrerenderMode,
   ctx: AppRenderContext,
   getPayload: () => Promise<RSCPayload>,
-  resumeDataCache: PrerenderResumeDataCache | null,
+  resumeDataCache: RenderResumeDataCache | null,
   rootParams: Params,
   headers: PrerenderStoreModernRuntime['headers'],
   cookies: PrerenderStoreModernRuntime['cookies'],
@@ -9128,7 +9128,7 @@ async function prerenderToStream(
   let reactServerPrerenderResult: null | ReactServerPrerenderResult = null
   let reactServerPrerenderResultIsDynamic: null | boolean = null
   let reactServerRenderChunks: Array<Uint8Array> | null = null
-  let reactServerResumeDataCache: ResumeDataCache | null = null
+  let reactServerResumeDataCache: RenderResumeDataCache | null = null
   let reactServerPrerenderStore: null | PrerenderStore = null
   const setMetadataHeader = (name: string) => {
     metadata.headers ??= {}
@@ -9264,7 +9264,7 @@ async function prerenderToStream(
       // when prerendering an optional fallback shell after having prerendered
       // pages with defined params, we use this instead of a mutable prerender
       // resume data cache.
-      let resumeDataCache: ResumeDataCache =
+      let initialresumeDataCache: ResumeDataCache =
         renderOpts.renderResumeDataCache ?? createPrerenderResumeDataCache()
 
       if (
@@ -9276,7 +9276,7 @@ async function prerenderToStream(
         // include root params, so replace entries that read roots this shell
         // doesn't know with markers explaining why they must become holes.
         // Keep the original seed intact for shells where those roots are known.
-        const cache = new Map(resumeDataCache.cache)
+        const cache = new Map(initialresumeDataCache.cache)
         for (const [key, pendingEntry] of cache) {
           if (
             pendingEntry === FALLBACK_PARAMS ||
@@ -9307,10 +9307,10 @@ async function prerenderToStream(
             }
           }
         }
-        resumeDataCache = { ...resumeDataCache, cache }
+        initialresumeDataCache = { ...initialresumeDataCache, cache }
       }
       reactServerPrerenderResultIsDynamic = null
-      reactServerResumeDataCache = resumeDataCache
+      reactServerResumeDataCache = null
       reactServerPrerenderStore = null
 
       const initialServerPayloadPrerenderStore: PrerenderStore = {
@@ -9336,7 +9336,7 @@ async function prerenderToStream(
         expire: INFINITE_CACHE,
         stale: INFINITE_CACHE,
         tags: [...implicitTags.tags],
-        resumeDataCache,
+        resumeDataCache: initialresumeDataCache,
         hmrRefreshHash: undefined,
         // We don't track vary params during initial prerender, only the final one
         varyParamsAccumulator: null,
@@ -9377,7 +9377,7 @@ async function prerenderToStream(
         expire: INFINITE_CACHE,
         stale: INFINITE_CACHE,
         tags: [...implicitTags.tags],
-        resumeDataCache,
+        resumeDataCache: initialresumeDataCache,
         hmrRefreshHash: undefined,
         // We don't track vary params during initial prerender, only the final one
         varyParamsAccumulator: null,
@@ -9505,7 +9505,7 @@ async function prerenderToStream(
           expire: INFINITE_CACHE,
           stale: INFINITE_CACHE,
           tags: [...implicitTags.tags],
-          resumeDataCache,
+          resumeDataCache: initialresumeDataCache,
           hmrRefreshHash: undefined,
           // Client prerenders don't track server param access
           varyParamsAccumulator: null,
@@ -9615,6 +9615,11 @@ async function prerenderToStream(
 
       const prerenderDataTracking = createPrerenderDataTracking()
 
+      const finalResumeDataCache = initialresumeDataCache.mutable
+        ? createRenderResumeDataCache(initialresumeDataCache)
+        : initialresumeDataCache
+      reactServerResumeDataCache = finalResumeDataCache
+
       const finalServerPayloadPrerenderStore: PrerenderStoreModernServer = {
         type: 'prerender',
         phase: 'render',
@@ -9638,7 +9643,7 @@ async function prerenderToStream(
         expire: INFINITE_CACHE,
         stale: INFINITE_CACHE,
         tags: [...implicitTags.tags],
-        resumeDataCache,
+        resumeDataCache: finalResumeDataCache,
         hmrRefreshHash: undefined,
         varyParamsAccumulator,
         ensureStaticLevel,
@@ -9694,7 +9699,7 @@ async function prerenderToStream(
         expire: INFINITE_CACHE,
         stale: INFINITE_CACHE,
         tags: [...implicitTags.tags],
-        resumeDataCache,
+        resumeDataCache: finalResumeDataCache,
         hmrRefreshHash: undefined,
         varyParamsAccumulator,
         ensureStaticLevel,
@@ -9950,7 +9955,7 @@ async function prerenderToStream(
         expire: INFINITE_CACHE,
         stale: INFINITE_CACHE,
         tags: [...implicitTags.tags],
-        resumeDataCache,
+        resumeDataCache: finalResumeDataCache,
         hmrRefreshHash: undefined,
         // Client prerenders don't track server param access
         varyParamsAccumulator: null,
@@ -10106,7 +10111,7 @@ async function prerenderToStream(
             // end up serving a fallback, make it usable
             metadata.hasPendingUi = true
             metadata.postponed = await getDynamicDataPostponedState(
-              resumeDataCache,
+              finalResumeDataCache,
               cacheComponents,
               renderOpts.experimental.maxPostponedStateSizeBytes,
               renderOpts.experimental.disableResumeDataCacheCompression,
@@ -10123,8 +10128,7 @@ async function prerenderToStream(
               collectedExpire: finalServerPrerenderStore.expire,
               collectedStale: selectStaleTime(finalServerPrerenderStore.stale),
               collectedTags: finalServerPrerenderStore.tags,
-              renderResumeDataCache:
-                createRenderResumeDataCache(resumeDataCache),
+              renderResumeDataCache: finalResumeDataCache,
             }
           } else {
             // If the result is partial, we should've errored when validating the prerender.
@@ -10144,14 +10148,14 @@ async function prerenderToStream(
               ? DynamicHTMLPreludeState.Empty
               : DynamicHTMLPreludeState.Full,
             fallbackRouteParams,
-            resumeDataCache,
+            finalResumeDataCache,
             cacheComponents,
             renderOpts.experimental.maxPostponedStateSizeBytes,
             renderOpts.experimental.disableResumeDataCacheCompression
           )
         } else {
           metadata.postponed = await getDynamicDataPostponedState(
-            resumeDataCache,
+            finalResumeDataCache,
             cacheComponents,
             renderOpts.experimental.maxPostponedStateSizeBytes,
             renderOpts.experimental.disableResumeDataCacheCompression,
@@ -10177,7 +10181,7 @@ async function prerenderToStream(
           collectedExpire: finalServerPrerenderStore.expire,
           collectedStale: selectStaleTime(finalServerPrerenderStore.stale),
           collectedTags: finalServerPrerenderStore.tags,
-          renderResumeDataCache: createRenderResumeDataCache(resumeDataCache),
+          renderResumeDataCache: finalResumeDataCache,
         }
       } else if (postponed != null) {
         // We postponed but nothing dynamic was used. We resume the render now and immediately abort it
@@ -10245,7 +10249,7 @@ async function prerenderToStream(
         collectedExpire: finalServerPrerenderStore.expire,
         collectedStale: selectStaleTime(finalServerPrerenderStore.stale),
         collectedTags: finalServerPrerenderStore.tags,
-        renderResumeDataCache: createRenderResumeDataCache(resumeDataCache),
+        renderResumeDataCache: finalResumeDataCache,
       }
     } else {
       const prerenderLegacyStore: PrerenderStore = (prerenderStore = {
