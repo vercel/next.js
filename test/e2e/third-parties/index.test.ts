@@ -1,5 +1,5 @@
-import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 
 describe('@next/third-parties basic usage', () => {
   const { next } = nextTestSetup({
@@ -33,7 +33,6 @@ describe('@next/third-parties basic usage', () => {
     const browser = await next.browser('/gtm')
 
     await browser.waitForElementByCss('script#_next-gtm')
-    await wait(1000)
 
     const gtmInlineScript = await browser.elementsByCss('#_next-gtm-init')
     expect(gtmInlineScript.length).toBe(1)
@@ -44,20 +43,30 @@ describe('@next/third-parties basic usage', () => {
 
     expect(gtmScript.length).toBe(1)
 
-    const dataLayer = await browser.eval('window.dataLayer')
-    expect(dataLayer.length).toBe(1)
+    // The remote GTM script may append its own events to dataLayer. Verify
+    // that the inline initializer ran once, rather than counting all entries.
+    await retry(async () => {
+      const initEvents = await browser.eval(
+        'window.dataLayer.filter((entry) => entry.event === "gtm.js")'
+      )
+      expect(initEvents).toHaveLength(1)
+      expect(initEvents[0]['gtm.start']).toEqual(expect.any(Number))
+    })
 
     await browser.elementByCss('#gtm-send').click()
 
-    const dataLayer2 = await browser.eval('window.dataLayer')
-    expect(dataLayer2.length).toBe(2)
+    await retry(async () => {
+      const clickEvents = await browser.eval(
+        'window.dataLayer.filter((entry) => entry.event === "buttonClicked")'
+      )
+      expect(clickEvents).toEqual([{ event: 'buttonClicked', value: 'xyz' }])
+    })
   })
 
   it('renders GA', async () => {
     const browser = await next.browser('/ga')
 
     await browser.waitForElementByCss('script#_next-ga')
-    await wait(1000)
 
     const gaInlineScript = await browser.elementsByCss('#_next-ga-init')
     expect(gaInlineScript.length).toBe(1)
@@ -67,12 +76,22 @@ describe('@next/third-parties basic usage', () => {
     )
 
     expect(gaScript.length).toBe(1)
-    const dataLayer = await browser.eval('window.dataLayer')
-    expect(dataLayer.length).toBe(4)
+    // Only the inline GA setup and our click event are under test. Network
+    // responses may append extra entries to dataLayer in either order.
+    await retry(async () => {
+      const configCalls = await browser.eval(
+        'window.dataLayer.filter((entry) => entry[0] === "config" && entry[1] === "GA-XYZ").length'
+      )
+      expect(configCalls).toBeGreaterThan(0)
+    })
 
     await browser.elementByCss('#ga-send').click()
 
-    const dataLayer2 = await browser.eval('window.dataLayer')
-    expect(dataLayer2.length).toBe(5)
+    await retry(async () => {
+      const clickEvents = await browser.eval(
+        'window.dataLayer.filter((entry) => entry[0]?.event === "buttonClicked").map((entry) => entry[0])'
+      )
+      expect(clickEvents).toEqual([{ event: 'buttonClicked', value: 'xyz' }])
+    })
   })
 })
