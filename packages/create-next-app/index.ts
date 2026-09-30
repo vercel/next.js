@@ -346,16 +346,16 @@ async function run(): Promise<void> {
     const hasSavedPreferences = Object.keys(preferences).length > 0
 
     // Check if user provided any configuration flags
-    // Unless --interactive is specified, skip all prompts and use recommended
-    // defaults for unspecified options. This is critical for AI agents, which pass flags like
+    // If they did, skip all prompts and use recommended defaults for unspecified
+    // options. This is critical for AI agents, which pass flags like
     // --typescript --tailwind --app and expect the rest to use sensible defaults
     // without entering interactive mode.
-    const hasProvidedOptionsAndIsNotInteractive =
-      !opts.interactive && process.argv.some((arg) => arg.startsWith('--'))
+    // --interactive opts back into prompts unless CI or --yes disables them
+    const hasProvidedOptions = process.argv.some((arg) => arg.startsWith('--'))
     const shouldPromptForAgentFeedback =
-      !skipPrompt && !hasProvidedOptionsAndIsNotInteractive
+      !skipPrompt && (opts.interactive || !hasProvidedOptions)
 
-    if (!skipPrompt && hasProvidedOptionsAndIsNotInteractive) {
+    if (!skipPrompt && hasProvidedOptions && !opts.interactive) {
       skipPrompt = true
       useRecommendedDefaults = true
     }
@@ -363,11 +363,7 @@ async function run(): Promise<void> {
     // Only show the "recommended defaults" prompt if:
     // - Not in CI and not using --yes flag
     // - User hasn't provided any custom options
-    if (
-      !skipPrompt &&
-      !hasProvidedOptionsAndIsNotInteractive &&
-      !opts.interactive
-    ) {
+    if (!skipPrompt && !hasProvidedOptions) {
       const choices: Array<{
         title: string
         value: string
@@ -745,7 +741,7 @@ async function run(): Promise<void> {
 
     // When prompts were skipped because flags were provided, print the
     // defaults that were assumed so agents and users know what to override.
-    if (hasProvidedOptionsAndIsNotInteractive && useRecommendedDefaults) {
+    if (hasProvidedOptions && useRecommendedDefaults) {
       const lines: string[] = []
 
       for (const config of displayConfig) {
