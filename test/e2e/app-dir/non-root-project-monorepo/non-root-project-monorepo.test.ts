@@ -30,13 +30,19 @@ describe('non-root-project-monorepo', () => {
       'apps/web/next.config.js': new PatchedFileRef(
         path.join(__dirname, 'apps/web/next.config.js'),
         (content) => {
-          const flag = process.env.__NEXT_CACHE_COMPONENTS
-          if (!isNextDeploy || !flag) return content
+          if (!isNextDeploy) return content
 
-          return (
-            `process.env.__NEXT_CACHE_COMPONENTS = ${JSON.stringify(flag)}\n` +
-            content
-          )
+          let prefix = ''
+          for (const flag of [
+            '__NEXT_CACHE_COMPONENTS',
+            '__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS',
+          ]) {
+            const value = process.env[flag]
+            if (value) {
+              prefix += `process.env.${flag} = ${JSON.stringify(value)}\n`
+            }
+          }
+          return prefix + content
         }
       ),
     },
