@@ -38,6 +38,10 @@ import { parseMaxPostponedStateSize } from '../../shared/lib/size-limit'
 import { toNodeOutgoingHttpHeaders } from '../../server/web/utils'
 import type { RequestMeta } from '../../server/request-meta'
 import { createDevRenderContext } from '../../server/route-modules/app-page/dev-render-context'
+import {
+  parseRequestHeaders,
+  type ParsedRequestHeaders,
+} from '../../server/route-modules/app-page/parse-request-headers'
 
 declare const incrementalCacheHandler: any
 // OPTIONAL_IMPORT:incrementalCacheHandler
@@ -115,7 +119,10 @@ async function requestHandler(
 
   const routeMatch: RouteMatch = { resolvedPathname }
   const dev: DevRenderContext | undefined = createDevRenderContext(baseReq)
-  const renderContext: AppPageRouteHandlerContext = {
+  const renderContextBase: Omit<
+    AppPageRouteHandlerContext,
+    'parsedRequestHeaders'
+  > = {
     page: normalizedSrcPage,
     routeMatch,
     query,
@@ -322,6 +329,20 @@ async function requestHandler(
 
   const invokeRender = async (span?: Span): Promise<Response> => {
     try {
+      const parsedRequestHeaders: ParsedRequestHeaders = parseRequestHeaders(
+        baseReq.headers,
+        {
+          isRoutePPREnabled:
+            renderContextBase.renderOpts.experimental.isRoutePPREnabled ===
+            true,
+          previewModeId:
+            renderContextBase.renderOpts.previewProps?.previewModeId,
+        }
+      )
+      const renderContext: AppPageRouteHandlerContext = {
+        ...renderContextBase,
+        parsedRequestHeaders,
+      }
       const result = await pageRouteModule
         .render(baseReq, baseRes, renderContext)
         .finally(() => {
