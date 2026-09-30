@@ -633,7 +633,9 @@ describe('use-cache', () => {
 
       if (withCacheComponents) {
         const cacheLifeWithDynamicMeta = JSON.parse(
-          await next.readFile('.next/server/app/cache-life-non-prerenderable.meta')
+          await next.readFile(
+            '.next/server/app/cache-life-non-prerenderable.meta'
+          )
         )
         expect(cacheLifeWithDynamicMeta.headers['x-nextjs-stale-time']).toBe(
           '30'
