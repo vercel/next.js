@@ -2,7 +2,7 @@ import type { OutgoingHttpHeaders } from 'node:http'
 import type { ExportRouteResult } from '../types'
 import type { RenderOpts } from '../../server/app-render/types'
 import type { NextParsedUrlQuery } from '../../server/request-meta'
-import type { RouteMetadata } from './types'
+import type { RouteCacheMetadata, RouteMetadata } from './types'
 
 import type {
   MockedRequest,
@@ -55,7 +55,8 @@ export async function exportAppPage(
   isDynamicError: boolean,
   fileWriter: MultiFileWriter,
   sharedContext: AppSharedContext,
-  routeMatch: RouteMatch
+  routeMatch: RouteMatch,
+  routeCache?: RouteCacheMetadata
 ): Promise<ExportRouteResult> {
   const afterRunner = new AfterRunner()
 
@@ -231,6 +232,7 @@ export async function exportAppPage(
       postponed,
       segmentPaths,
       prefetchHints,
+      routeCache,
     }
 
     fileWriter.append(
