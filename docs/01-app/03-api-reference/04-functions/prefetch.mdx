@@ -1,8 +1,10 @@
 ---
 title: prefetch
-description: API Reference for the prefetch function, which keeps a subtree out of a route's App Shell so it renders on a per-link prefetch or a navigation.
+description: API Reference for the prefetch function, which defers runtime work until a per-link prefetch or navigation.
 related:
   links:
+    - app/guides/keeping-pages-static
+    - app/api-reference/file-conventions/route-segment-config/ensureStatic
     - app/api-reference/functions/navigation
     - app/api-reference/functions/connection
     - app/guides/adopting-partial-prefetching
@@ -11,9 +13,9 @@ related:
     - app/api-reference/config/next-config-js/cacheComponents
 ---
 
-Calling `await prefetch()` defers the code below it to a per-link prefetch or a navigation, instead of rendering it in the route's [App Shell](/docs/app/glossary#app-shell). The fallback of the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary takes its place in the shell, and the deferred content renders once one of those happens.
+Calling `await prefetch()` keeps runtime work below it out of the route's [App Shell](/docs/app/glossary#app-shell). The work can run during a per-link prefetch or navigation, while the fallback of the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary renders in the shell.
 
-It is meant to defer content that the App Shell would otherwise render, typically content that depends on session data and is expensive to generate. During a build-time prerender nothing is deferred, so content below `prefetch()` is prerendered as usual.
+Use `prefetch()` for content that the App Shell would otherwise render but that is expensive to generate. Static prerenders still include the content in their output.
 
 ## Usage
 
@@ -30,15 +32,17 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-A route is then rendered in three stages, and content can arrive at any of them:
+With Partial Prefetching enabled, Next.js can load server-rendered output at three points before and during a client navigation. These are called [navigation stages](/docs/app/glossary#navigation-stages):
 
-1. The App Shell, which every `<Link>` into the route prefetches, and which holds the part of the route that does not depend on the URL.
-2. A per-link prefetch, requested with [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch), which resolves the URL and adds the content that depends on it.
-3. The navigation itself, which covers everything left.
+1. A default `<Link>` loads the App Shell, which holds the part of the route that does not depend on the URL.
+2. An optional [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch) can also load content that depends on the link's URL.
+3. When the user follows the link, the navigation renders any content that remains.
 
-Awaiting `prefetch()` keeps content out of the App Shell, so it renders only on a per-link prefetch or on the navigation.
+During runtime rendering, awaiting `prefetch()` keeps content out of the App Shell, so it renders during a per-link prefetch or navigation. Static prerenders can still include the content.
 
 To keep content out of per-link prefetches as well, so it renders only on the navigation, use [`navigation()`](/docs/app/api-reference/functions/navigation).
+
+To enforce a static App Shell across a route, use [`ensureStatic = 'shell'`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#shell). See [Keeping pages static](/docs/app/guides/keeping-pages-static) for how route-wide enforcement relates to `prefetch()`.
 
 Everything above `prefetch()` renders in the App Shell, and everything below renders on a per-link prefetch or on the navigation. Deferral is scoped to the component that awaits it and the tree below: sibling branches render in the shell as usual. Place it above the work to defer, and wrap the component in [`<Suspense>`](https://react.dev/reference/react/Suspense):
 
@@ -67,7 +71,7 @@ async function Greeting() {
 }
 
 async function Recommendations() {
-  await prefetch() // everything below renders on a per-link prefetch
+  await prefetch() // everything below renders on a per-link prefetch or navigation
   const items = await getRecommendations()
   return <List items={items} />
 }
@@ -105,7 +109,7 @@ async function Greeting() {
 }
 
 async function Recommendations() {
-  await prefetch() // everything below renders on a per-link prefetch
+  await prefetch() // everything below renders on a per-link prefetch or navigation
   const items = await getRecommendations()
   return <List items={items} />
 }
@@ -118,7 +122,7 @@ async function getRecommendations() {
 }
 ```
 
-The greeting reads the session and stays in the App Shell. The recommendations read it too, inside `getRecommendations`, so that read is deferred along with the ranking. Remove `prefetch()` and they become part of the App Shell that every link into the route prefetches.
+The greeting reads the session and stays in the App Shell. The recommendations read it too, inside `getRecommendations`, so that read is deferred along with the ranking. Remove `prefetch()` and they become part of the App Shell that every link into the route loads.
 
 Put the directive on a function called below it, as `getRecommendations` does here. Awaiting `prefetch()` inside a cached scope, such as [`use cache`](/docs/app/api-reference/directives/use-cache) or [`use cache: private`](/docs/app/api-reference/directives/use-cache-private), is not allowed.
 
@@ -126,17 +130,17 @@ Put the directive on a function called below it, as `getRecommendations` does he
 
 The [`connection()`](/docs/app/api-reference/functions/connection) function waits for a real request. It excludes the code that follows from prerendering and prefetching, making that work request-dependent.
 
-`prefetch()` only excludes the code that follows from the App Shell. It can resolve during a per-link prefetch without making that work request-dependent. A function called after `await prefetch()` can therefore use [`"use cache"`](/docs/app/api-reference/directives/use-cache) and keep its cache lifetime without generating its result for every link into the route.
+During runtime rendering, `prefetch()` excludes the code that follows from the App Shell. It can resolve during a per-link prefetch without making that work request-dependent. A function called after `await prefetch()` can therefore use [`"use cache"`](/docs/app/api-reference/directives/use-cache) and keep its cache lifetime without generating its result for every link into the route.
 
 Use `connection()` when the work must run for a real request. Use `prefetch()` when the work is reusable but should only run for a selected per-link prefetch or a navigation.
 
 ## When to use it
 
-Reach for it when the content below `prefetch()` is expensive to produce, in compute, in upstream requests, or in latency, and you do not want it generated in the App Shell that every `<Link>` into the route prefetches.
+Reach for it when the content below `prefetch()` is expensive to produce, in compute, in upstream requests, or in latency, and you do not want it generated in the App Shell that every `<Link>` into the route loads.
 
 Producing the App Shell does not run that code, so its upstream requests are not issued until a per-link prefetch or the navigation.
 
-Keeping that content out of the shell would otherwise mean leaving it uncached. With `prefetch()` it can be cached with [`use cache`](/docs/app/api-reference/directives/use-cache) or [`use cache: private`](/docs/app/api-reference/directives/use-cache-private), given a lifetime, and deferred to a per-link prefetch or the navigation.
+Leaving content uncached also keeps it out of the shell, but gives up its cache lifetime and cannot make it available during a per-link prefetch. With `prefetch()`, the content can be cached with [`use cache`](/docs/app/api-reference/directives/use-cache) or [`use cache: private`](/docs/app/api-reference/directives/use-cache-private), given a lifetime, and deferred to a per-link prefetch or navigation.
 
 Uncached reads, values with a short [`stale`](/docs/app/api-reference/functions/cacheLife#stale) time, and anything behind `params` or `searchParams` are already left out of the shell on their own.
 
@@ -147,7 +151,8 @@ When every read of [`cookies()`](/docs/app/api-reference/functions/cookies) and 
 ## Good to know
 
 - The function has no effect on the initial load of a page.
-- A call outside a `<Suspense>` boundary surfaces an [Instant Insight](/docs/messages/instant-navigation-stage) in development. It is reported even on a page that is currently prerendered in full, because the same page starts deferring content as soon as it switches to a runtime shell.
+- Unlike [`connection()`](/docs/app/api-reference/functions/connection), it does not mark the subtree as request-dependent. Content below `await prefetch()` stays fully cacheable and can be wrapped in [`use cache`](/docs/app/api-reference/directives/use-cache).
+- A call outside a `<Suspense>` boundary surfaces a [validation insight](/docs/messages/instant-navigation-stage) in development. It is reported even on a page that is currently prerendered in full, because the same page starts deferring content as soon as it switches to a runtime shell.
 - Calling it inside `use cache`, `use cache: private`, [`unstable_cache()`](/docs/app/api-reference/functions/unstable_cache), [`after()`](/docs/app/api-reference/functions/after), [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params), or a Client Component throws.
 - In a `page` or `layout` that sets the [`prefetch` route segment config](/docs/app/api-reference/file-conventions/route-segment-config/prefetch), import the function under another name, for example `import { prefetch as prefetchStage } from 'next/cache'`, since both are named `prefetch`.
 

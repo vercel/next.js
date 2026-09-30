@@ -179,6 +179,10 @@ export default function Page() {
 
 Cache uncached data with [`use cache`](/docs/app/api-reference/directives/use-cache) and a suitable [`cacheLife`](/docs/app/api-reference/functions/cacheLife). After removing the config, Request-time APIs read actual request values. Remove those dependencies if the route must remain fully prerendered.
 
+If the complete route must remain static, add [`ensureStatic = 'navigation'`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#navigation) after migrating its caching. Unlike `dynamic = 'force-static'`, `ensureStatic` does not make Request-time APIs return empty values. It reports an error if request-specific server work prevents the route from being prerendered.
+
+If the original config was only intended to make navigation faster, choose the static stage that matches the route instead. See [Keeping pages static](/docs/app/guides/keeping-pages-static).
+
 ```tsx filename="app/page.tsx" switcher
 // Before
 export const dynamic = 'force-static'
@@ -203,6 +207,8 @@ export default async function Page() {
 import { cacheLife } from 'next/cache'
 
 // After
+export const ensureStatic = 'navigation'
+
 export default async function Page() {
   'use cache'
   cacheLife('max')
@@ -215,6 +221,8 @@ export default async function Page() {
 import { cacheLife } from 'next/cache'
 
 // After
+export const ensureStatic = 'navigation'
+
 export default async function Page() {
   'use cache'
   cacheLife('max')
@@ -228,6 +236,18 @@ export default async function Page() {
 **Remove the config.** Without Cache Components, `dynamic = 'error'` required the route to prerender and treated `fetch` requests as cached by default. It raised an error only when uncached data or a Request-time API prevented prerendering.
 
 After removing the config, `fetch` no longer inherits that cached default. To preserve the route's existing caching behavior, wrap those requests in [`use cache`](/docs/app/api-reference/directives/use-cache) and set their lifetime with [`cacheLife`](/docs/app/api-reference/functions/cacheLife). If the route did not rely on the default, no replacement is needed.
+
+To preserve the full-route static requirement, replace the config with [`ensureStatic = 'navigation'`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#navigation) after making the route's caching explicit:
+
+```tsx filename="app/page.tsx" switcher
+export const ensureStatic = 'navigation'
+```
+
+```jsx filename="app/page.js" switcher
+export const ensureStatic = 'navigation'
+```
+
+Use a less restrictive level when only the App Shell or per-link prefetch must remain static. See [Keeping pages static](/docs/app/guides/keeping-pages-static) for how to choose a level.
 
 ## `revalidate`
 
