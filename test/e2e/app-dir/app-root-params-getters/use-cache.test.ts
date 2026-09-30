@@ -8,6 +8,7 @@ import { assertNoConsoleErrors, retry, waitForNoRedbox } from 'next-test-utils'
 describe('app-root-param-getters - cache - at runtime', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'use-cache-runtime'),
+    captureRuntimeLogs: true,
   })
 
   async function readSWR(key: string, roots: string) {
@@ -316,21 +317,23 @@ describe('app-root-param-getters - cache - at runtime', () => {
       expect(await browser.elementById('random').text()).toBe(frCaRandom)
     })
 
-    if (!isNextDeploy) {
-      it('should error when using root params within `unstable_cache` - start', async () => {
-        await next.render$('/en/us/unstable_cache')
+    it('should error when using root params within `unstable_cache` - start', async () => {
+      await next.render$('/en/us/unstable_cache')
+      await retry(() => {
         expect(next.cliOutput).toInclude(
           "Error: Route /[lang]/[countryCode]/unstable_cache used `import('next/root-params').lang()` inside `unstable_cache`"
         )
-      })
+      }, 30_000)
+    })
 
-      it('should error when using root params in "use cache" nested inside unstable_cache - start', async () => {
-        await next.render$('/en/us/nested-in-unstable_cache')
+    it('should error when using root params in "use cache" nested inside unstable_cache - start', async () => {
+      await next.render$('/en/us/nested-in-unstable_cache')
+      await retry(() => {
         expect(next.cliOutput).toInclude(
           'Error: Route /[lang]/[countryCode]/nested-in-unstable_cache used `import(\'next/root-params\').lang()` inside `"use cache"` nested within `unstable_cache`. Root params are not available in this context.'
         )
-      })
-    }
+      }, 30_000)
+    })
   }
 })
 
