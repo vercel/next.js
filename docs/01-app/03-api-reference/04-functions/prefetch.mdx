@@ -32,13 +32,13 @@ export default nextConfig
 
 With Partial Prefetching enabled, Next.js can prepare progressively more of a route before and during navigation:
 
-1. A default `<Link>` prefetch includes the App Shell, which holds the part of the route that does not depend on the URL.
-2. A [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch) prefetch can also include content that depends on the link's URL.
+1. A default `<Link>` loads the App Shell, which holds the part of the route that does not depend on the URL.
+2. A [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch) can also load content that depends on the link's URL.
 3. A navigation renders any content that remains.
 
-This control mechanism is called [navigation stages](/docs/app/glossary#navigation-stages).
+These points are called [navigation stages](/docs/app/glossary#navigation-stages).
 
-Awaiting `prefetch()` keeps content out of the App Shell, so it renders only on a per-link prefetch or on the navigation.
+For a runtime App Shell, awaiting `prefetch()` keeps content out of the App Shell, so it renders during a per-link prefetch or navigation. Static prerenders can still include the content.
 
 To keep content out of per-link prefetches as well, so it renders only on the navigation, use [`navigation()`](/docs/app/api-reference/functions/navigation).
 
@@ -120,7 +120,7 @@ async function getRecommendations() {
 }
 ```
 
-The greeting reads the session and stays in the App Shell. The recommendations read it too, inside `getRecommendations`, so that read is deferred along with the ranking. Remove `prefetch()` and they become part of the App Shell that every link into the route prefetches.
+The greeting reads the session and stays in the App Shell. The recommendations read it too, inside `getRecommendations`, so that read is deferred along with the ranking. Remove `prefetch()` and they become part of the App Shell that every link into the route loads.
 
 Put the directive on a function called below it, as `getRecommendations` does here. Awaiting `prefetch()` inside a cached scope, such as [`use cache`](/docs/app/api-reference/directives/use-cache) or [`use cache: private`](/docs/app/api-reference/directives/use-cache-private), is not allowed.
 
@@ -134,7 +134,7 @@ Use `connection()` when the work must run for a real request. Use `prefetch()` w
 
 ## When to use it
 
-Reach for it when the content below `prefetch()` is expensive to produce, in compute, in upstream requests, or in latency, and you do not want it generated in the App Shell that every `<Link>` into the route prefetches.
+Reach for it when the content below `prefetch()` is expensive to produce, in compute, in upstream requests, or in latency, and you do not want it generated in the App Shell that every `<Link>` into the route loads.
 
 Producing the App Shell does not run that code, so its upstream requests are not issued until a per-link prefetch or the navigation.
 

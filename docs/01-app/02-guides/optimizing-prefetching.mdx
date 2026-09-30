@@ -196,9 +196,9 @@ Everything inside the scope shares the same lifetime. Colocate `"use cache: priv
 
 ## Exclude content from a prefetch
 
-You can reduce prefetch work by excluding subtrees that are expensive to produce. [Navigation stages](/docs/app/glossary#navigation-stages) control how much of a route each prefetch includes.
+You can reduce prefetch work by excluding subtrees that are expensive to produce. Navigation stage APIs control when a subtree becomes available during a [client navigation](/docs/app/glossary#navigation-stages).
 
-Awaiting [`navigation()`](/docs/app/api-reference/functions/navigation) above the work leaves it out of every prefetch, so it is produced on the navigation. The nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) fallback is what the user sees while it streams in. Take the dashboard again, where a ranking keyed on the session is too expensive to produce for every link into the route:
+For a runtime App Shell, awaiting [`navigation()`](/docs/app/api-reference/functions/navigation) above the work leaves it out of the App Shell and per-link prefetches, so it is produced during navigation. Static prerenders can still include the work. The nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) fallback is what the user sees while it streams in. Take the dashboard again, where a ranking keyed on the session is too expensive to produce for every link into the route:
 
 ```tsx filename="app/dashboard/recommendations.tsx" highlight={6}
 import { cookies } from 'next/headers'
