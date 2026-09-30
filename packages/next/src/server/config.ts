@@ -645,6 +645,16 @@ function assignDefaultsAndValidate(
     )
   }
 
+  if (
+    result.cacheComponents &&
+    result.partialPrefetching === undefined &&
+    !silent
+  ) {
+    Log.warnOnce(
+      `\`cacheComponents\` is enabled, but \`partialPrefetching\` is not configured. Set \`partialPrefetching: true\` to enable Partial Prefetching, or set \`partialPrefetching: false\` to keep full prefetching. Learn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/partialPrefetching`
+    )
+  }
+
   if (result.experimental.ppr) {
     throw new HardDeprecatedConfigError(
       `\`experimental.ppr\` has been merged into \`cacheComponents\`. The Partial Prerendering feature is still available, but is now enabled via \`cacheComponents\`. Please update your ${configFileName} accordingly.`

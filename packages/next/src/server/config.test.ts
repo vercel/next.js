@@ -292,6 +292,51 @@ describe('loadConfig', () => {
     })
   })
 
+  describe('partialPrefetching validation', () => {
+    const warning =
+      '`cacheComponents` is enabled, but `partialPrefetching` is not configured.'
+
+    afterEach(() => {
+      jest.restoreAllMocks()
+    })
+
+    it('warns when cacheComponents is enabled without partialPrefetching', async () => {
+      const consoleWarn = jest
+        .spyOn(console, 'warn')
+        .mockImplementation(() => {})
+
+      await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {
+          cacheComponents: true,
+        },
+        silent: false,
+      })
+
+      expect(consoleWarn).toHaveBeenCalledWith(expect.stringContaining(warning))
+    })
+
+    it.each([true, false])(
+      'does not warn when partialPrefetching is explicitly set to %s',
+      async (partialPrefetching) => {
+        const consoleWarn = jest
+          .spyOn(console, 'warn')
+          .mockImplementation(() => {})
+
+        await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+          customConfig: {
+            cacheComponents: true,
+            partialPrefetching,
+          },
+          silent: false,
+        })
+
+        expect(consoleWarn).not.toHaveBeenCalledWith(
+          expect.stringContaining(warning)
+        )
+      }
+    )
+  })
+
   describe('experimental.cssChunking bundler validation', () => {
     it('should not validate `cssChunking` during `next info`', async () => {
       const result = await loadConfig(PHASE_INFO, __dirname, {

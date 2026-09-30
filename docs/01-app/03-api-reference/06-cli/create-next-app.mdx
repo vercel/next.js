@@ -38,7 +38,7 @@ The following options are available:
 | `--js` or `--javascript`                | Initialize as a JavaScript project                                    |
 | `--tailwind`                            | Initialize with Tailwind CSS config (default)                         |
 | `--react-compiler`                      | Initialize with React Compiler enabled                                |
-| `--cache-components`                    | Initialize with Cache Components enabled (default for App Router)     |
+| `--cache-components`                    | Initialize with Cache Components enabled (default)                    |
 | `--eslint`                              | Initialize with ESLint config                                         |
 | `--biome`                               | Initialize with Biome config                                          |
 | `--no-linter`                           | Skip linter configuration                                             |
@@ -62,6 +62,8 @@ The following options are available:
 | `--agent-feedback`                      | Prepare anonymized Next.js feedback for your review                   |
 | `--no-agent-feedback`                   | Do not prepare anonymized Next.js feedback for your review            |
 | `--yes`                                 | Use previous preferences or defaults for all options                  |
+
+`--cache-components` is the default for App Router and API-only projects. It enables Cache Components and Partial Prefetching in the generated Next.js config.
 
 ## Examples
 
