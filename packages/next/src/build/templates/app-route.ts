@@ -251,6 +251,7 @@ export async function handler(
       },
       cacheComponents: Boolean(nextConfig.cacheComponents),
       validationLevel: nextConfig.experimental.instantInsights.validationLevel,
+      isDraftMode,
       supportsDynamicResponse,
       incrementalCache,
       hmrRefreshHash: getRequestMeta(req, 'hmrRefreshHash'),
