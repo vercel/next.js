@@ -1,1 +1,1 @@
-Navigating away from a product and back briefly shows its loading state and repeats server work, even though React Query already has the product. Fix it without changing the initial render or routing.
+The React Query product page reloads when I navigate back to it. Fix it.
