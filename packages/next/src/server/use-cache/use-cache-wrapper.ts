@@ -204,18 +204,31 @@ class SharedCacheEntry {
   private stream: ReadableStream<Uint8Array>
 
   /**
-   * The pending metadata promise. Cross-request joiners need to await this for
-   * root param verification BEFORE calling fork(). Intra-request joiners chain
-   * .then() for fire-and-forget propagation.
+   * Resolves when collection finishes, without waiting for handler writes.
    */
   public readonly pendingMetadata: Promise<CacheResultMetadata>
 
+  /**
+   * Resolves with collected metadata after any handler writes settle. Write
+   * failures do not discard the metadata. Collection failures still reject this
+   * promise.
+   */
+  public readonly pendingCompletion: Promise<CacheResultMetadata>
+
   constructor(
     stream: ReadableStream<Uint8Array>,
-    pendingMetadata: Promise<CacheResultMetadata>
+    pendingMetadata: Promise<CacheResultMetadata>,
+    pendingWrite: Promise<CollectedCacheResult> | undefined
   ) {
     this.stream = stream
     this.pendingMetadata = pendingMetadata
+    this.pendingCompletion =
+      pendingWrite === undefined
+        ? pendingMetadata
+        : pendingWrite.then(
+            () => pendingMetadata,
+            () => pendingMetadata
+          )
   }
 
   /**
@@ -246,10 +259,9 @@ function ignoreReject() {}
  * Manages the deferred promise for a shared cache result, tracks which maps
  * it's registered in, and drives cleanup from resolve/reject.
  *
- * For 'cached' results, cleanup is lazy: entries stay in the maps until
- * metadata/collection resolves, giving late-arriving invocations a chance to
- * join while the leader streams. For 'prerender-dynamic' and errors, cleanup
- * is immediate.
+ * Cached results stay in the maps until collection finishes and handler writes
+ * settle. Later invocations can join while either remains pending. For
+ * 'prerender-dynamic' and errors, cleanup is immediate.
  */
 class ResolvableSharedCacheResult {
   private readonly deferred = createPromiseWithResolvers<SharedCacheResult>()
@@ -282,7 +294,7 @@ class ResolvableSharedCacheResult {
       // Retain only an entry that collected successfully. A failed collection
       // leaves metadata a later invocation cannot read, so it is dropped like
       // any other failure and the next invocation regenerates.
-      result.entry.pendingMetadata.then(
+      result.entry.pendingCompletion.then(
         () => this.cleanupAndRetain(),
         () => this.cleanup()
       )
@@ -582,22 +594,19 @@ function serveJoinedCacheEntry(
     resumeDataCache
   )
 
-  // End the cache signal read when the result is fully collected, not when the
-  // stream is available. A failed collection has no metadata to propagate but
-  // must still balance the read, so both settlements end it; leaving it open
-  // would stall a prerender waiting for its cache reads. The trailing .catch()
-  // covers propagation itself throwing after the rendering stream resolved.
+  // End the cache read after collection and metadata propagation, not when the
+  // value stream becomes available. This does not wait for handler persistence.
+  // A failed collection or propagation must still end the read so it cannot
+  // stall prerendering. The catch prevents an unhandled rejection after the
+  // stream has been returned.
   sharedCacheEntry.pendingMetadata
-    .then(
-      (metadata) => {
-        cacheSignal?.endRead()
-        maybePropagateCacheEntryMetadata(cacheContext, metadata)
-      },
-      () => {
-        cacheSignal?.endRead()
-      }
-    )
-    .catch(() => {})
+    .then((metadata) => {
+      maybePropagateCacheEntryMetadata(cacheContext, metadata)
+    })
+    .finally(() => {
+      cacheSignal?.endRead()
+    })
+    .catch(ignoreReject)
 
   return stream
 }
@@ -2928,10 +2937,11 @@ export async function cache(
           const sharedCacheResult = await crossRequestPendingCacheInvocation
 
           if (sharedCacheResult.type === 'cached') {
-            // Root param verification: wait for metadata, then check key. MUST
-            // happen before fork() — if key mismatches, we retry without having
-            // used the stream.
-            const metadata = await sharedCacheResult.entry.pendingMetadata
+            // Verify root params before forking the stream. The shared
+            // invocation must complete first, including collection and write
+            // settlement. A changed key retries the handler lookup, which must
+            // not run before the write settles.
+            const metadata = await sharedCacheResult.entry.pendingCompletion
 
             // Ensure known root param names are up-to-date before verifying the
             // key, since the leader's save path may not have updated them yet
@@ -3328,12 +3338,7 @@ export async function cache(
 
           const { stream: newStream, pendingCacheResult } = result
 
-          // Cross-request joiners derive their metadata from this promise. By
-          // default it's the collected result, but when we write to a cache
-          // handler we swap in a promise that resolves only after the write has
-          // landed, so a joiner that re-reads its recomputed key finds the
-          // entry.
-          let metadataSource: Promise<CollectedCacheResult> = pendingCacheResult
+          let pendingWrite: Promise<CollectedCacheResult> | undefined
 
           // When draft mode is enabled, we must not save the cache entry.
           if (!workStore.isDraftMode) {
@@ -3344,7 +3349,7 @@ export async function cache(
             )
 
             if (cacheHandler) {
-              metadataSource = saveToCacheHandler(
+              pendingWrite = saveToCacheHandler(
                 cacheHandler,
                 workStore,
                 id,
@@ -3358,7 +3363,7 @@ export async function cache(
           debug?.('leader resolved with generated entry', cacheHandlerKey)
 
           const pendingMetadata: Promise<CacheResultMetadata> =
-            metadataSource.then((collected) => ({
+            pendingCacheResult.then((collected) => ({
               tags: collected.entry.tags,
               revalidate: collected.entry.revalidate,
               expire: collected.entry.expire,
@@ -3372,7 +3377,8 @@ export async function cache(
 
           const sharedCacheEntry = new SharedCacheEntry(
             newStream,
-            pendingMetadata
+            pendingMetadata,
+            pendingWrite
           )
           stream = sharedCacheEntry.fork()
           resolvableSharedCacheResult.resolve({
@@ -3440,7 +3446,8 @@ export async function cache(
 
           const sharedCacheEntry = new SharedCacheEntry(
             stream,
-            Promise.resolve(entryMetadata)
+            Promise.resolve(entryMetadata),
+            undefined
           )
           stream = sharedCacheEntry.fork()
           resolvableSharedCacheResult.resolve({
