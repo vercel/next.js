@@ -1,5 +1,6 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup } from 'e2e-utils'
-import { retry, waitFor } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('use-cache-custom-handler-dev', () => {
   const { next, skipped } = nextTestSetup({
@@ -54,7 +55,7 @@ describe('use-cache-custom-handler-dev', () => {
     // it never appeared.
     await browser.refresh()
     await browser.elementById('value')
-    await waitFor(500)
+    await wait(500)
     expect(await browser.hasElementByCss('[data-cold-cache-badge]')).toBe(false)
   })
 

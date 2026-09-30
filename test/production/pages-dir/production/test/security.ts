@@ -1,8 +1,9 @@
 /* eslint-env jest */
+import { wait } from 'next/dist/lib/wait'
 import { readFileSync } from 'fs'
 import http from 'http'
 import { join } from 'path'
-import { getBrowserBodyText, waitFor, fetchViaHTTP } from 'next-test-utils'
+import { getBrowserBodyText, fetchViaHTTP } from 'next-test-utils'
 import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 import { homedir } from 'os'
 import { NextInstance } from 'e2e-utils'
@@ -15,7 +16,7 @@ async function checkInjected(browser) {
     if (/INJECTED/.test(bodyText)) {
       throw new Error('Vulnerable to XSS attacks')
     }
-    await waitFor(500)
+    await wait(500)
   }
 }
 

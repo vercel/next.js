@@ -1,5 +1,6 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup } from 'e2e-utils'
-import { retry, waitFor } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import type { Playwright } from 'next-webdriver'
 import type { Page } from 'playwright'
 import * as nodeFs from 'node:fs'
@@ -74,7 +75,7 @@ describe('route-change-refetch - App Router', () => {
       }, 15_000)
       // Announcing a route that didn't change makes every tab showing it
       // refetch for nothing.
-      await waitFor(1000)
+      await wait(1000)
       expect(announcements).toEqual(['addedPage /zz-added'])
     } finally {
       await cleanupAddedPage()
@@ -325,7 +326,7 @@ describe('route-change-refetch - App Router refetch count', () => {
       expect(await countRefetches(browser)).toBe(1)
     }, 15_000)
     // A later one would mean the change was announced more than once.
-    await waitFor(1000)
+    await wait(1000)
     expect(await countRefetches(browser)).toBe(1)
   })
 })

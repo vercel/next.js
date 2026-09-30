@@ -455,9 +455,8 @@ export default defineConfig([
     },
   },
   {
-    // Test files sleep via `waitFor()` from `next-test-utils`. Only test files
-    // are covered: fixture apps are compiled by `next build` and cannot
-    // resolve `next-test-utils`, which is a Jest-only module.
+    // Test files use the same `wait()` helper as runtime code. Fixture apps
+    // are compiled by `next build`, so only test files are covered here.
     files: ['test/**/*.test.ts', 'test/**/*.test.tsx'],
     ignores: ['test/tmp/**'],
     plugins: {
@@ -466,7 +465,11 @@ export default defineConfig([
     rules: {
       '@next/internal/no-adhoc-sleep': [
         'error',
-        { helper: 'waitFor', module: 'next-test-utils' },
+        {
+          helper: 'wait',
+          module: 'next/dist/lib/wait',
+          replaceNumericWaitFor: true,
+        },
       ],
     },
   },

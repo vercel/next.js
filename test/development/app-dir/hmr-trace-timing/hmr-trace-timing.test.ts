@@ -1,4 +1,5 @@
-import { waitFor } from 'next-test-utils'
+import { wait } from 'next/dist/lib/wait'
+
 import { nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
 import { existsSync } from 'fs'
@@ -23,7 +24,7 @@ describe('render-path tracing', () => {
       expect(await browser.elementByCss('p').text()).toBe('hello world')
       await browser.close()
       await next.stop('SIGTERM')
-      await waitFor(500)
+      await wait(500)
     }
 
     const traceStructure = parseTraceFile(tracePath)

@@ -1,3 +1,4 @@
+import { wait } from 'next/dist/lib/wait'
 import glob from 'glob'
 import fs from 'fs-extra'
 import cheerio from 'cheerio'
@@ -11,7 +12,6 @@ import {
   initNextServerScript,
   killApp,
   renderViaHTTP,
-  waitFor,
   withInvocationId,
 } from 'next-test-utils'
 import { ChildProcess } from 'child_process'
@@ -203,7 +203,7 @@ describe('required server files i18n', () => {
       's-maxage=1, stale-while-revalidate=31535999'
     )
 
-    await waitFor(2000)
+    await wait(2000)
     await next.patchFile('standalone/data.txt', 'hide')
 
     const res2 = await fetchViaHTTP(
@@ -324,7 +324,7 @@ describe('required server files i18n', () => {
     expect($('#slug').text()).toBe('first')
     expect(data.hello).toBe('world')
 
-    await waitFor(2000)
+    await wait(2000)
 
     const html2 = await renderViaHTTP(
       appPort,

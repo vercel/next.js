@@ -17,14 +17,13 @@ const packagesOptions = [
   { helper: 'wait', modulePath: 'packages/next/src/lib/wait' },
 ]
 
-/** Options used for `test/**` — bare specifier, same everywhere. */
+/** Legacy configurable helper option, to verify the rule still supports other modules. */
 const testOptions = [{ helper: 'waitFor', module: 'next-test-utils' }]
 
 describe('no-adhoc-sleep ESLint rule', () => {
   ruleTester.run('no-adhoc-sleep', rule, {
     valid: [
-      // ✅ No delay: `waitFor(undefined)` would take the polling branch and
-      // never resolve, so this must not be rewritten.
+      // ✅ No explicit delay; only explicit numeric sleeps are migrated.
       {
         code: `await new Promise((resolve) => setTimeout(resolve))`,
         filename: 'packages/next/src/a.ts',
@@ -346,4 +345,150 @@ await waitFor(10)`,
       },
     ],
   })
+})
+
+const directWaitOptions = [
+  {
+    helper: 'wait',
+    module: 'next/dist/lib/wait',
+    replaceNumericWaitFor: true,
+  },
+]
+
+describe('no-adhoc-sleep with the shared runtime helper in tests', () => {
+  ruleTester.run('no-adhoc-sleep', rule, {
+    valid: [
+      {
+        code: `import { waitFor } from 'next-test-utils'
+await waitFor(() => ready())`,
+        filename: 'test/e2e/x.test.ts',
+        options: directWaitOptions,
+      },
+      {
+        code: `await browser.locator('#target').waitFor({ state: 'visible' })`,
+        filename: 'test/e2e/x.test.ts',
+        options: directWaitOptions,
+      },
+      {
+        code: `async function waitFor(delay: number) { return delay }
+await waitFor(10)`,
+        filename: 'test/e2e/x.test.ts',
+        options: directWaitOptions,
+      },
+      {
+        code: `import { wait } from 'next/dist/lib/wait'
+await wait(100)`,
+        filename: 'test/e2e/x.test.ts',
+        options: directWaitOptions,
+      },
+    ],
+    invalid: [
+      {
+        code: `import { waitFor, retry } from 'next-test-utils'
+await waitFor(100)
+await waitFor(2 * 1000)`,
+        filename: 'test/e2e/x.test.ts',
+        options: directWaitOptions,
+        output: `import { waitFor, retry } from 'next-test-utils'
+await wait(100)
+await wait(2 * 1000)`,
+        errors: [
+          { messageId: 'numericWaitFor' },
+          { messageId: 'numericWaitFor' },
+        ],
+      },
+      {
+        code: `import { waitFor } from 'next-test-utils'
+await waitFor(500)`,
+        filename: 'test/e2e/x.test.ts',
+        options: directWaitOptions,
+        output: `import { waitFor } from 'next-test-utils'
+await wait(500)`,
+        errors: [{ messageId: 'numericWaitFor' }],
+      },
+      {
+        code: `import { waitFor, retry } from 'next-test-utils'
+await waitFor(() => ready())
+await waitFor(200 + delay)`,
+        filename: 'test/e2e/x.test.ts',
+        options: directWaitOptions,
+        output: `import { waitFor, retry } from 'next-test-utils'
+await waitFor(() => ready())
+await wait(200 + delay)`,
+        errors: [{ messageId: 'numericWaitFor' }],
+      },
+      {
+        code: `import { retry } from 'next-test-utils'
+await wait(100)`,
+        filename: 'test/e2e/x.test.ts',
+        options: directWaitOptions,
+        output: `import { wait } from 'next/dist/lib/wait'
+import { retry } from 'next-test-utils'
+await wait(100)`,
+        errors: [{ messageId: 'missingHelperImport' }],
+      },
+      {
+        code: `import { retry } from 'next-test-utils'
+await new Promise((resolve) => setTimeout(resolve, 100))`,
+        filename: 'test/e2e/x.test.ts',
+        options: directWaitOptions,
+        output: `import { wait } from 'next/dist/lib/wait'
+import { retry } from 'next-test-utils'
+await wait(100)`,
+        errors: [{ messageId: 'adhocSleep' }],
+      },
+      {
+        code: `import { waitFor, retry } from 'next-test-utils'
+await retry(() => ready())`,
+        filename: 'test/e2e/x.test.ts',
+        options: directWaitOptions,
+        output: `import { retry } from 'next-test-utils'
+await retry(() => ready())`,
+        errors: [{ messageId: 'unusedLegacyWaitFor' }],
+      },
+      {
+        code: `import { waitFor } from 'next-test-utils'`,
+        filename: 'test/e2e/x.test.ts',
+        options: directWaitOptions,
+        output: '',
+        errors: [{ messageId: 'unusedLegacyWaitFor' }],
+      },
+      {
+        code: `import { waitFor } from 'next-test-utils'
+function run(wait: (ms: number) => void) { return waitFor(100) }`,
+        filename: 'test/e2e/x.test.ts',
+        options: directWaitOptions,
+        output: null,
+        errors: [{ messageId: 'numericWaitForShadowed' }],
+      },
+    ],
+  })
+})
+
+test('numeric waitFor autofix converges on a valid direct import', () => {
+  const { Linter } = require('eslint')
+  const linter = new Linter()
+  const result = linter.verifyAndFix(
+    `import { nextTestSetup } from 'e2e-utils'
+import { waitFor, retry } from 'next-test-utils'
+await waitFor(500)
+await waitFor(1000)`,
+    [
+      {
+        files: ['**/*.ts'],
+        languageOptions: { parser: require('@typescript-eslint/parser') },
+        plugins: { '@next/internal': { rules: { 'no-adhoc-sleep': rule } } },
+        rules: {
+          '@next/internal/no-adhoc-sleep': ['error', directWaitOptions[0]],
+        },
+      },
+    ],
+    { filename: 'test/e2e/x.test.ts' }
+  )
+
+  expect(result.messages).toEqual([])
+  expect(result.output).toContain("import { wait } from 'next/dist/lib/wait'")
+  expect(result.output).not.toContain('import { waitFor, retry }')
+  expect(result.output).toContain('await wait(500)')
+  expect(result.output).toContain('await wait(1000)')
 })

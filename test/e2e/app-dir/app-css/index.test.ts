@@ -1,5 +1,6 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup } from 'e2e-utils'
-import { waitFor, check } from 'next-test-utils'
+import { check } from 'next-test-utils'
 
 describe('app dir - css', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
@@ -273,7 +274,7 @@ describe('app dir - css', () => {
         await browser.elementByCss('button').click()
 
         // Wait for error page to render and CSS to be loaded
-        await waitFor(2000)
+        await wait(2000)
 
         await check(
           async () =>

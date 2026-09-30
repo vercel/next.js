@@ -1,5 +1,6 @@
+import { wait } from 'next/dist/lib/wait'
 import { FileRef, nextTestSetup } from 'e2e-utils'
-import { waitFor } from 'next-test-utils'
+
 import path from 'path'
 
 describe('next-image-forward-ref', () => {
@@ -18,7 +19,7 @@ describe('next-image-forward-ref', () => {
       Number(await browser.elementById('img').getComputedCss('opacity'))
     ).toBeCloseTo(1)
     browser.elementById('img').click()
-    await waitFor(1000)
+    await wait(1000)
     expect(
       Number(await browser.elementById('img').getComputedCss('opacity'))
     ).toBeCloseTo(0)

@@ -1,4 +1,5 @@
-import { waitFor } from 'next-test-utils'
+import { wait } from 'next/dist/lib/wait'
+
 import { nextTestSetup } from 'e2e-utils'
 
 const strictRouteTypes =
@@ -121,7 +122,7 @@ describe('tsconfig.json verifier', () => {
     expect(await next.hasFile('tsconfig.json')).toBe(false)
 
     await next.patchFile('tsconfig.json', '')
-    await waitFor(500)
+    await wait(500)
     expect(await next.readFile('tsconfig.json')).toBe('')
 
     const { exitCode, cliOutput } = await next.build()
@@ -233,7 +234,7 @@ describe('tsconfig.json verifier', () => {
       // end comment
       `
     )
-    await waitFor(500)
+    await wait(500)
     const { exitCode } = await next.build()
     expect(exitCode).toBe(0)
 
@@ -351,7 +352,7 @@ describe('tsconfig.json verifier', () => {
       'tsconfig.json',
       `{ "compilerOptions": { "esModuleInterop": false, "module": "es2020" } }`
     )
-    await waitFor(500)
+    await wait(500)
     const { exitCode } = await next.build()
     expect(exitCode).toBe(0)
 
@@ -447,7 +448,7 @@ describe('tsconfig.json verifier', () => {
       'tsconfig.json',
       `{ "compilerOptions": { "esModuleInterop": false, "moduleResolution": "node16", "module": "node16" } }`
     )
-    await waitFor(500)
+    await wait(500)
     const { exitCode, cliOutput } = await next.build()
     expect(cliOutput).not.toContain('moduleResolution')
     expect(exitCode).toBe(0)
@@ -544,7 +545,7 @@ describe('tsconfig.json verifier', () => {
       'tsconfig.json',
       `{ "compilerOptions": { "esModuleInterop": false, "moduleResolution": "bundler" } }`
     )
-    await waitFor(500)
+    await wait(500)
     const { exitCode, cliOutput } = await next.build()
     expect(cliOutput).not.toContain('moduleResolution')
     expect(exitCode).toBe(0)
@@ -641,7 +642,7 @@ describe('tsconfig.json verifier', () => {
       'tsconfig.json',
       `{ "compilerOptions": { "target": "es2022" } }`
     )
-    await waitFor(500)
+    await wait(500)
     const { exitCode, cliOutput } = await next.build()
     expect(cliOutput).not.toContain('target')
     expect(exitCode).toBe(0)
@@ -738,7 +739,7 @@ describe('tsconfig.json verifier', () => {
       'tsconfig.json',
       `{ "compilerOptions": { "esModuleInterop": false, "module": "node16", "moduleResolution": "node16" } }`
     )
-    await waitFor(500)
+    await wait(500)
     const { exitCode, cliOutput } = await next.build()
     expect(cliOutput).not.toContain('moduleResolution')
     expect(exitCode).toBe(0)
@@ -835,7 +836,7 @@ describe('tsconfig.json verifier', () => {
       'tsconfig.json',
       `{ "compilerOptions": { "verbatimModuleSyntax": true } }`
     )
-    await waitFor(500)
+    await wait(500)
     const { exitCode, cliOutput } = await next.build()
     expect(cliOutput).not.toContain('isolatedModules')
     expect(exitCode).toBe(0)
@@ -973,7 +974,7 @@ describe('tsconfig.json verifier', () => {
       'tsconfig.json',
       `{ "extends": "./tsconfig.base.json" }`
     )
-    await waitFor(500)
+    await wait(500)
     const { exitCode, cliOutput } = await next.build()
     expect(cliOutput).not.toContain('isolatedModules')
     expect(exitCode).toBe(0)
@@ -1029,13 +1030,13 @@ describe('tsconfig.json verifier', () => {
       }
       `
     )
-    await waitFor(500)
+    await wait(500)
 
     await next.patchFile(
       'tsconfig.json',
       `{ "extends": "./tsconfig.base.json" }`
     )
-    await waitFor(500)
+    await wait(500)
 
     const { exitCode, cliOutput } = await next.build()
     expect(cliOutput).not.toContain('moduleResolution')
@@ -1091,13 +1092,13 @@ describe('tsconfig.json verifier', () => {
       }
       `
     )
-    await waitFor(500)
+    await wait(500)
 
     await next.patchFile(
       'tsconfig.json',
       `{ "extends": "./tsconfig.base.json" }`
     )
-    await waitFor(500)
+    await wait(500)
 
     const { exitCode, cliOutput } = await next.build()
     expect(cliOutput).not.toContain('moduleResolution')
@@ -1116,7 +1117,7 @@ describe('tsconfig.json verifier', () => {
       'tsconfig.json',
       `{ "compilerOptions": { "module": "preserve" } }`
     )
-    await waitFor(500)
+    await wait(500)
     const { exitCode, cliOutput } = await next.build()
     expect(cliOutput).not.toContain('moduleResolution')
     expect(cliOutput).not.toContain('esModuleInterop')
@@ -1168,7 +1169,7 @@ describe('tsconfig.json verifier 5.x', () => {
       'tsconfig.json',
       `{ "compilerOptions": { "esModuleInterop": false, "module": "commonjs" } }`
     )
-    await waitFor(500)
+    await wait(500)
     const { exitCode } = await next.build()
     expect(exitCode).toBe(0)
 

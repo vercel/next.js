@@ -1,6 +1,7 @@
+import { wait } from 'next/dist/lib/wait'
 import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
-import { renderViaHTTP, startStaticServer, waitFor } from 'next-test-utils'
+import { renderViaHTTP, startStaticServer } from 'next-test-utils'
 import { AddressInfo, Server } from 'net'
 
 describe('SSG Prerender export', () => {
@@ -57,7 +58,7 @@ describe('SSG Prerender export', () => {
       '/catchall/first',
     ]
 
-    await waitFor(2500)
+    await wait(2500)
 
     await Promise.all(toBuild.map((pg) => renderViaHTTP(appPort, pg)))
 
@@ -87,10 +88,10 @@ describe('SSG Prerender export', () => {
 
     // Client-side SSG data caching test
     {
-      await waitFor(2000)
+      await wait(2000)
       await goFromHomeToAnother()
       const snapTime = await browser.elementByCss('#anotherTime').text()
-      await waitFor(2000)
+      await wait(2000)
       await goFromAnotherToHome()
       await goFromHomeToAnother()
       const nextTime = await browser.elementByCss('#anotherTime').text()

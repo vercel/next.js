@@ -1,11 +1,7 @@
 /* eslint-env jest */
 
-import {
-  waitFor,
-  check,
-  retry,
-  getRedboxTotalErrorCount,
-} from 'next-test-utils'
+import { wait } from 'next/dist/lib/wait'
+import { check, retry, getRedboxTotalErrorCount } from 'next-test-utils'
 import path from 'path'
 import { isReact18, nextTestSetup } from 'e2e-utils'
 
@@ -442,7 +438,7 @@ describe('Client Navigation', () => {
     const browser = await next.browser('/script')
 
     await browser.waitForElementByCss('h1')
-    await waitFor(2000)
+    await wait(2000)
     expect(Number(await browser.eval('window.__test_async_executions'))).toBe(1)
     expect(Number(await browser.eval('window.__test_defer_executions'))).toBe(1)
   })

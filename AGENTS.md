@@ -199,11 +199,12 @@ tail -5 /tmp/test-output.log             # Summary
   await new Promise((resolve) => setTimeout(resolve, 1000))
   ```
 
-  When a fixed delay really is what you want, use `waitFor(ms)` from
-  `next-test-utils` rather than hand-rolling the promise. The
-  `@next/internal/no-adhoc-sleep` lint rule enforces this and can autofix it
-  (`pnpm lint-eslint . --fix`); shipped code in `packages/next/src` uses
-  `wait(ms)` from `src/lib/wait.ts` instead.
+  When a fixed delay really is what you want, use `wait(ms)` from
+  `next/dist/lib/wait` in tests (and `src/lib/wait.ts` in shipped source)
+  rather than hand-rolling the promise or using `waitFor(ms)` from
+  `next-test-utils`. Keep `waitFor(condition)` for condition-based waits.
+  The `@next/internal/no-adhoc-sleep` lint rule enforces and autofixes
+  fixed-delay sleeps (`pnpm lint-eslint . --fix`).
 
 - **Do NOT use `check()` - it is deprecated. Use `retry()` + `expect()` instead**
 

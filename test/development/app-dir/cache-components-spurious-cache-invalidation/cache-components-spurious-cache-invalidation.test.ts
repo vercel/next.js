@@ -1,5 +1,6 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup, type NextInstance, type Playwright } from 'e2e-utils'
-import { retry, waitFor } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import * as nodeFs from 'node:fs'
 import * as nodePath from 'node:path'
 
@@ -69,11 +70,11 @@ describe('cache-components-spurious-cache-invalidation', () => {
 
       try {
         await addPageAndWaitUntilServable('/unrelated')
-        await waitFor(2000)
+        await wait(2000)
         // If the page add re-evaluated the module, the counter restarted
         // from zero.
         expect(await readRenderCount()).toBeGreaterThan(second)
-        await waitFor(2000)
+        await wait(2000)
         expect(await readRenderCount()).toBeGreaterThan(second)
       } finally {
         if (nodeFs.existsSync(nodePath.join(next.testDir, 'app/unrelated'))) {

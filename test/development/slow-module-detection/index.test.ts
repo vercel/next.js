@@ -1,5 +1,6 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup } from 'e2e-utils'
-import { waitFor, fetchViaHTTP } from 'next-test-utils'
+import { fetchViaHTTP } from 'next-test-utils'
 ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'Slow Module Detection',
   () => {
@@ -32,7 +33,7 @@ import { waitFor, fetchViaHTTP } from 'next-test-utils'
       await fetchViaHTTP(next.url, '/')
 
       // Wait for compilation to complete and check logs
-      await waitFor(1000)
+      await wait(1000)
 
       // Verify slow module detection output
       expect(logs).toContain('🐌 Detected slow modules while compiling client:')

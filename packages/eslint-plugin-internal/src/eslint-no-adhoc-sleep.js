@@ -30,8 +30,8 @@ function resolveSpecifier(options, filename, cwd) {
  * and return the `ms` node. Returns `null` for anything that is not exactly a
  * sleep, so that the autofix can never change behaviour:
  *
- * - `setTimeout(resolve)` has no delay, and the canonical helpers treat a
- *   non-number as a condition to poll, so it would never resolve.
+ * - `setTimeout(resolve)` has no explicit delay; only explicit numeric sleep
+ *   promises are migrated, so the rule leaves this shape unchanged.
  * - `setTimeout(resolve, ms, arg)` forwards `arg` to `resolve`.
  * - `setTimeout(() => resolve(value), ms)` resolves with a value.
  * - an executor body that does anything else does more than sleep.
@@ -97,6 +97,24 @@ function getSleepDelay(node) {
   return delay
 }
 
+function isNumericDelay(node) {
+  if (node.type === 'Literal') {
+    return typeof node.value === 'number'
+  }
+  if (node.type === 'UnaryExpression' && ['+', '-'].includes(node.operator)) {
+    return isNumericDelay(node.argument)
+  }
+  if (
+    node.type === 'BinaryExpression' &&
+    ['+', '-', '*', '/', '%', '**'].includes(node.operator)
+  ) {
+    // A numeric operand establishes that this is a delay, rather than a
+    // condition callback. The other operand may be a named duration.
+    return isNumericDelay(node.left) || isNumericDelay(node.right)
+  }
+  return false
+}
+
 /**
  * @type {import('eslint').Rule.RuleModule}
  */
@@ -120,6 +138,9 @@ const plugin = {
           module: { type: 'string' },
           // Repo-relative path, e.g. `packages/next/src/lib/wait`.
           modulePath: { type: 'string' },
+          // In tests, migrate fixed-delay `waitFor(ms)` calls from test utils
+          // to the same `wait(ms)` helper that runtime code uses.
+          replaceNumericWaitFor: { type: 'boolean' },
         },
         additionalProperties: false,
       },
@@ -131,6 +152,16 @@ const plugin = {
         'Use the canonical sleep helper instead of hand-rolling a sleep promise. `{{helper}}` is already bound to something else in this scope, so this cannot be fixed automatically: rename that binding first.',
       adhocSleepComment:
         "Use `{{helper}}({{delay}})` from '{{module}}' instead of hand-rolling a sleep promise. Not fixed automatically because the expression contains a comment that would be lost.",
+      numericWaitFor:
+        "Use `{{helper}}({{delay}})` from '{{module}}' for fixed delays instead of `waitFor(ms)`; reserve `waitFor` for conditions.",
+      numericWaitForShadowed:
+        '`{{helper}}` is shadowed in this scope; rename that binding before migrating this numeric `waitFor` call.',
+      numericWaitForComment:
+        'Cannot automatically migrate this numeric `waitFor` call because it contains a comment.',
+      unusedLegacyWaitFor:
+        'Remove the unused `waitFor` import; fixed delays now use `wait`.',
+      missingHelperImport:
+        "Import `{{helper}}` from '{{module}}' for this fixed delay.",
     },
   },
 
@@ -179,6 +210,7 @@ const plugin = {
     // At most one report per pass may edit the import list, otherwise the
     // fixes overlap and ESLint discards all but one of them.
     let importFixQueued = false
+    let unboundHelperCalled = false
 
     /**
      * The declaration a `{ helper }` specifier can be added to: a *value*
@@ -210,81 +242,217 @@ const plugin = {
       })
     }
 
+    function getImportedWaitFor(node) {
+      for (let scope = sourceCode.getScope(node); scope; scope = scope.upper) {
+        const variable = scope.set.get('waitFor')
+        if (!variable) continue
+        const [def] = variable.defs
+        if (
+          variable.defs.length === 1 &&
+          def.type === 'ImportBinding' &&
+          def.node.type === 'ImportSpecifier' &&
+          def.node.imported.name === 'waitFor' &&
+          def.parent.importKind !== 'type' &&
+          def.node.importKind !== 'type' &&
+          (def.parent.source.value === 'next-test-utils' ||
+            def.parent.source.value.endsWith('/next-test-utils'))
+        ) {
+          return variable
+        }
+        return null
+      }
+      return null
+    }
+
+    function reportReplacement(node, delay, fromWaitFor = false) {
+      const data = {
+        helper,
+        delay: sourceCode.getText(delay),
+        module: specifier,
+      }
+      if (isShadowedAt(node)) {
+        context.report({
+          node,
+          messageId: fromWaitFor
+            ? 'numericWaitForShadowed'
+            : 'adhocSleepShadowed',
+          data,
+        })
+        return
+      }
+      if (sourceCode.getCommentsInside(node).length > 0) {
+        context.report({
+          node,
+          messageId: fromWaitFor
+            ? 'numericWaitForComment'
+            : 'adhocSleepComment',
+          data,
+        })
+        return
+      }
+
+      context.report({
+        node,
+        messageId: fromWaitFor ? 'numericWaitFor' : 'adhocSleep',
+        data,
+        *fix(fixer) {
+          yield fixer.replaceText(node, `${helper}(${data.delay})`)
+          // Numeric `waitFor` calls are rewritten first. A later ESLint fix
+          // pass adds the import after all call-site fixes have settled;
+          // otherwise an import fix can overlap another call-site fix.
+          if (fromWaitFor) return
+          if (importFixQueued) return
+
+          const declaration = findHelperImport()
+          if (declaration) {
+            const alreadyImported = declaration.specifiers.some(
+              (specifierNode) =>
+                specifierNode.type === 'ImportSpecifier' &&
+                specifierNode.local.name === helper
+            )
+            if (alreadyImported) return
+            importFixQueued = true
+            const named = declaration.specifiers.filter(
+              (specifierNode) => specifierNode.type === 'ImportSpecifier'
+            )
+            if (named.length > 0) {
+              yield fixer.insertTextBefore(named[0], `${helper}, `)
+            } else {
+              const last =
+                declaration.specifiers[declaration.specifiers.length - 1]
+              yield fixer.insertTextAfter(last, `, { ${helper} }`)
+            }
+            return
+          }
+
+          importFixQueued = true
+          const importLine = `import { ${helper} } from '${specifier}'`
+          const firstImport = sourceCode.ast.body.find(
+            (statement) => statement.type === 'ImportDeclaration'
+          )
+          if (firstImport) {
+            yield fixer.insertTextBefore(firstImport, `${importLine}\n`)
+          } else if (sourceCode.ast.body.length > 0) {
+            yield fixer.insertTextBefore(
+              sourceCode.ast.body[0],
+              `${importLine}\n\n`
+            )
+          }
+        },
+      })
+    }
+
     return {
       NewExpression(node) {
         const delay = getSleepDelay(node)
-        if (!delay) {
+        if (delay) reportReplacement(node, delay)
+      },
+      CallExpression(node) {
+        if (node.callee.type === 'Identifier' && node.callee.name === helper) {
+          if (!isShadowedAt(node)) unboundHelperCalled = true
           return
         }
-
-        const data = {
-          helper,
-          delay: sourceCode.getText(delay),
-          module: specifier,
-        }
-
-        if (isShadowedAt(node)) {
-          context.report({ node, messageId: 'adhocSleepShadowed', data })
+        if (
+          !options.replaceNumericWaitFor ||
+          node.callee.type !== 'Identifier' ||
+          node.callee.name !== 'waitFor' ||
+          node.arguments.length !== 1 ||
+          !isNumericDelay(node.arguments[0]) ||
+          !getImportedWaitFor(node)
+        ) {
           return
         }
-
-        // Rewriting would drop a comment that lives inside the expression.
-        if (sourceCode.getCommentsInside(node).length > 0) {
-          context.report({ node, messageId: 'adhocSleepComment', data })
-          return
+        reportReplacement(node, node.arguments[0], true)
+      },
+      'Program:exit'() {
+        if (!options.replaceNumericWaitFor) return
+        if (unboundHelperCalled) {
+          // On the pass after converting `waitFor(ms)`, add the helper import.
+          // Defer removing the unused legacy import until the following pass
+          // so fixes at adjacent import positions can never overlap.
+          const declaration = findHelperImport()
+          const alreadyImported = declaration?.specifiers.some(
+            (item) =>
+              item.type === 'ImportSpecifier' && item.local.name === helper
+          )
+          if (!alreadyImported) {
+            context.report({
+              node: sourceCode.ast,
+              messageId: 'missingHelperImport',
+              data: { helper, module: specifier },
+              fix(fixer) {
+                if (declaration) {
+                  const named = declaration.specifiers.filter(
+                    (item) => item.type === 'ImportSpecifier'
+                  )
+                  if (named.length) {
+                    return fixer.insertTextBefore(named[0], `${helper}, `)
+                  }
+                  return fixer.insertTextAfter(
+                    declaration.specifiers[declaration.specifiers.length - 1],
+                    `, { ${helper} }`
+                  )
+                }
+                const firstImport = sourceCode.ast.body.find(
+                  (item) => item.type === 'ImportDeclaration'
+                )
+                const importLine = `import { ${helper} } from '${specifier}'`
+                if (firstImport) {
+                  return fixer.insertTextBefore(firstImport, `${importLine}\n`)
+                }
+                if (sourceCode.ast.body.length) {
+                  return fixer.insertTextBefore(
+                    sourceCode.ast.body[0],
+                    `${importLine}\n\n`
+                  )
+                }
+                return fixer.insertTextAfterRange([0, 0], `${importLine}\n`)
+              },
+            })
+            return
+          }
         }
-
-        context.report({
-          node,
-          messageId: 'adhocSleep',
-          data,
-          *fix(fixer) {
-            yield fixer.replaceText(node, `${helper}(${data.delay})`)
-
-            if (importFixQueued) {
-              return
-            }
-
-            const declaration = findHelperImport()
-            if (declaration) {
-              const alreadyImported = declaration.specifiers.some(
-                (specifierNode) =>
-                  specifierNode.type === 'ImportSpecifier' &&
-                  specifierNode.local.name === helper
-              )
-              if (alreadyImported) {
-                return
+        for (const declaration of sourceCode.ast.body) {
+          if (
+            declaration.type !== 'ImportDeclaration' ||
+            (declaration.source.value !== 'next-test-utils' &&
+              !declaration.source.value.endsWith('/next-test-utils'))
+          ) {
+            continue
+          }
+          const named = declaration.specifiers.filter(
+            (item) => item.type === 'ImportSpecifier'
+          )
+          const target = named.find(
+            (item) =>
+              item.imported.name === 'waitFor' && item.local.name === 'waitFor'
+          )
+          if (!target) continue
+          const variable = sourceCode
+            .getDeclaredVariables(declaration)
+            .find((item) => item.name === 'waitFor')
+          if (!variable || variable.references.length !== 0) continue
+          context.report({
+            node: target,
+            messageId: 'unusedLegacyWaitFor',
+            fix(fixer) {
+              if (declaration.specifiers.length === 1) {
+                return fixer.remove(declaration)
               }
-              importFixQueued = true
-              const named = declaration.specifiers.filter(
-                (specifierNode) => specifierNode.type === 'ImportSpecifier'
-              )
-              if (named.length > 0) {
-                yield fixer.insertTextBefore(named[0], `${helper}, `)
-              } else {
-                // `import def from 'x'` -> `import def, { helper } from 'x'`
-                const last =
-                  declaration.specifiers[declaration.specifiers.length - 1]
-                yield fixer.insertTextAfter(last, `, { ${helper} }`)
-              }
-              return
-            }
-
-            importFixQueued = true
-            const importLine = `import { ${helper} } from '${specifier}'`
-            const firstImport = sourceCode.ast.body.find(
-              (statement) => statement.type === 'ImportDeclaration'
-            )
-            if (firstImport) {
-              yield fixer.insertTextBefore(firstImport, `${importLine}\n`)
-            } else if (sourceCode.ast.body.length > 0) {
-              yield fixer.insertTextBefore(
-                sourceCode.ast.body[0],
-                `${importLine}\n\n`
-              )
-            }
-          },
-        })
+              if (named.length === 1) return null
+              const index = named.indexOf(target)
+              return index < named.length - 1
+                ? fixer.removeRange([
+                    target.range[0],
+                    named[index + 1].range[0],
+                  ])
+                : fixer.removeRange([
+                    named[index - 1].range[1],
+                    target.range[1],
+                  ])
+            },
+          })
+        }
       },
     }
   },

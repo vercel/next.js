@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import { wait } from '../../packages/next/src/lib/wait'
+import { wait } from 'next/dist/lib/wait'
 import {
   IntervalsManager,
   TimeoutsManager,

@@ -1,6 +1,7 @@
 /* eslint-env jest */
 
-import { waitForNoRedbox, waitFor } from 'next-test-utils'
+import { wait } from 'next/dist/lib/wait'
+import { waitForNoRedbox } from 'next-test-utils'
 import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 
@@ -21,7 +22,7 @@ describe('Client navigation with foreign history manipulation', () => {
     await browser.elementByCss('#about-link').click()
     await browser.waitForElementByCss('.nav-about')
     await browser.back()
-    await waitFor(1000)
+    await wait(1000)
     await waitForNoRedbox(browser)
   })
 
@@ -34,7 +35,7 @@ describe('Client navigation with foreign history manipulation', () => {
     await browser.elementByCss('#about-link').click()
     await browser.waitForElementByCss('.nav-about')
     await browser.back()
-    await waitFor(1000)
+    await wait(1000)
     await waitForNoRedbox(browser)
   })
 
@@ -45,7 +46,7 @@ describe('Client navigation with foreign history manipulation', () => {
     await browser.elementByCss('#about-link').click()
     await browser.waitForElementByCss('.nav-about')
     await browser.back()
-    await waitFor(1000)
+    await wait(1000)
     await waitForNoRedbox(browser)
   })
 })

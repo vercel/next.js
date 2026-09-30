@@ -1,5 +1,6 @@
+import { wait } from 'next/dist/lib/wait'
 import { join } from 'path'
-import { getBrowserBodyText, retry, waitFor } from 'next-test-utils'
+import { getBrowserBodyText, retry } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
 export function runHotModuleReloadHmrTest(nextConfig: {
@@ -219,7 +220,7 @@ export function runHotModuleReloadHmrTest(nextConfig: {
         await next.patchFile(pagePath, editedContent)
 
         // wait for 5 seconds
-        await waitFor(5000)
+        await wait(5000)
 
         // Check whether the this page has reloaded or not.
         const editedDiv = await secondBrowser.elementByCss('#dynamic-component')

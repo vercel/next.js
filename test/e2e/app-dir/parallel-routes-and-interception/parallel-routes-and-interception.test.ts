@@ -1,6 +1,7 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup, FileRef } from 'e2e-utils'
 import { NextConfig } from 'next'
-import { waitFor, check, retry } from 'next-test-utils'
+import { check, retry } from 'next-test-utils'
 import path from 'path'
 
 const nextConfig: NextConfig = {
@@ -502,7 +503,7 @@ describe.each([true, false])(
           const browser = await next.browser('/parallel-no-page/foo')
           const timestamp = await browser.elementByCss('#timestamp').text()
 
-          await waitFor(3000)
+          await wait(3000)
 
           await check(async () => {
             // an invalid response triggers a fast refresh, so if the timestamp doesn't update, this behaved correctly
@@ -515,7 +516,7 @@ describe.each([true, false])(
           const browser = await next.browser('parallel-nested/home/nested')
           const timestamp = await browser.elementByCss('#timestamp').text()
 
-          await waitFor(3000)
+          await wait(3000)
 
           await check(async () => {
             // an invalid response triggers a fast refresh, so if the timestamp doesn't update, this behaved correctly

@@ -1,5 +1,6 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup, Playwright } from 'e2e-utils'
-import { retry, waitFor } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('cache-components-dev-streaming', () => {
   const { next } = nextTestSetup({
@@ -157,7 +158,7 @@ describe('cache-components-dev-streaming', () => {
 
     // Wait for the background write to settle so the next navigation hits the
     // warm entry instead of racing a pending write.
-    await waitFor(2000)
+    await wait(2000)
 
     // Hard-reload home so the first navigation below is a fresh, unknown-route
     // nav. An unknown route has no prior cache entry, so the server sends the
@@ -219,7 +220,7 @@ describe('cache-components-dev-streaming', () => {
 
     // Wait for the background write to settle so the next navigation hits the
     // warm entry instead of racing a pending write.
-    await waitFor(2000)
+    await wait(2000)
 
     // Hard-reload home so the warm navigation below starts from a fresh page.
     await browser.loadPage(new URL('/', next.url).href)

@@ -1,7 +1,7 @@
+import { wait } from 'next/dist/lib/wait'
 import { spawn, ChildProcess } from 'child_process'
 import { join } from 'path'
 import { nextTestSetup } from 'e2e-utils'
-import { waitFor } from 'next-test-utils'
 
 describe('react-virtualized wrapping next/image', () => {
   const { next, skipped } = nextTestSetup({
@@ -63,13 +63,13 @@ describe('react-virtualized wrapping next/image', () => {
     })
     expect(await getCancelCount()).toBe(0)
     await browser.eval('window.scrollTo({ top: 100, behavior: "smooth" })')
-    await waitFor(100)
+    await wait(100)
     expect(await getCancelCount()).toBe(0)
     await browser.eval('window.scrollTo({ top: 200, behavior: "smooth" })')
-    await waitFor(200)
+    await wait(200)
     expect(await getCancelCount()).toBe(0)
     await browser.eval('window.scrollTo({ top: 300, behavior: "smooth" })')
-    await waitFor(300)
+    await wait(300)
     expect(await getCancelCount()).toBe(0)
   })
 })

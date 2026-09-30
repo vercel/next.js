@@ -1,5 +1,6 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup } from 'e2e-utils'
-import { retry, waitFor } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
 describe('unhandled-rejection-logging', () => {
@@ -21,7 +22,7 @@ describe('unhandled-rejection-logging', () => {
     })
 
     // Give the remaining listeners a chance to log before asserting.
-    await waitFor(1000)
+    await wait(1000)
 
     const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 

@@ -1,7 +1,8 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup } from 'e2e-utils'
 import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
-import { retry, waitFor } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('segment cache prefetch fallback retry', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
@@ -142,7 +143,7 @@ describe('segment cache prefetch fallback retry', () => {
       await page.clock.fastForward(1000)
       // Let any in-flight retry settle and re-arm its next timer before the
       // next advance.
-      await waitFor(100)
+      await wait(100)
     }
 
     // The initial prefetch plus a small, fixed number of retries — never a

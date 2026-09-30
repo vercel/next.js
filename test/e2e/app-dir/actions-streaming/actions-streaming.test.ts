@@ -1,5 +1,6 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup } from 'e2e-utils'
-import { retry, waitFor } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('actions-streaming', () => {
   const { next } = nextTestSetup({
@@ -25,7 +26,7 @@ describe('actions-streaming', () => {
       )
 
       // Finally, wait for the response to finish streaming.
-      await waitFor(5000)
+      await wait(5000)
       await retry(
         async () => {
           expect(await browser.elementByCss('h3').text()).toBe(

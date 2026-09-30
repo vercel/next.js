@@ -1,5 +1,6 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup } from 'e2e-utils'
-import { getTitle, retry, waitFor } from 'next-test-utils'
+import { getTitle, retry } from 'next-test-utils'
 
 // bump this every time you want to validate flakiness: 1
 
@@ -705,7 +706,7 @@ describe('app dir - navigation', () => {
         })
 
         // wait a few seconds since prefetches are triggered in 1s intervals in the page component
-        await waitFor(5000)
+        await wait(5000)
 
         expect(requestCount).toBe(1)
       })
@@ -894,7 +895,7 @@ describe('app dir - navigation', () => {
         .elementByCss("[href='/metadata-await-promise/nested']")
         .click()
 
-      await waitFor(resolveMetadataDuration + 500)
+      await wait(resolveMetadataDuration + 500)
 
       expect(await browser.elementById('page-content').text()).toBe('Content')
       expect(await getTitle(browser)).toBe('Async Title')
@@ -905,7 +906,7 @@ describe('app dir - navigation', () => {
       const browser = await next.browser('/metadata-await-promise')
 
       if (!isNextDev) {
-        await waitFor(resolveMetadataDuration + 500)
+        await wait(resolveMetadataDuration + 500)
       }
 
       await browser

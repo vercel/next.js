@@ -1,8 +1,8 @@
+import { wait } from 'next/dist/lib/wait'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import {
   waitForRedbox,
   retry,
-  waitFor,
   getRedboxSource,
   listClientChunks,
 } from 'next-test-utils'
@@ -712,7 +712,7 @@ describe('app-dir action handling', () => {
 
       // add a little bit of delay to simulate user behavior & give
       // the requests a moment to start running
-      await waitFor(500)
+      await wait(500)
     }
 
     expect(await browser.elementByCss('h1').text()).toBe(
@@ -1976,7 +1976,7 @@ describe('app-dir action handling', () => {
         await browser.elementByCss('#navigate-destination').click()
 
         // wait for the 2s action to finish
-        await waitFor(2000)
+        await wait(2000)
 
         await retry(async () => {
           const newRandomNumber = await browser
@@ -2001,7 +2001,7 @@ describe('app-dir action handling', () => {
       await browser.elementByCss('#navigate-destination').click()
 
       // wait for the 2s action to finish
-      await waitFor(2000)
+      await wait(2000)
 
       await retry(async () => {
         const newRandomNumber = await browser

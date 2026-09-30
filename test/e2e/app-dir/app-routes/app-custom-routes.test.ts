@@ -1,5 +1,6 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup } from 'e2e-utils'
-import { check, waitFor, retry } from 'next-test-utils'
+import { check, retry } from 'next-test-utils'
 import { Readable } from 'stream'
 
 import {
@@ -155,7 +156,7 @@ describe('app-custom-routes', () => {
             await resProm
 
             for (let i = 0; i < 3; i++) {
-              await waitFor(1000)
+              await wait(1000)
               const trimmedOutput = next.cliOutput.substring(outputIdx)
               expect(trimmedOutput).not.toContain('Error')
               expect(trimmedOutput).not.toContain(

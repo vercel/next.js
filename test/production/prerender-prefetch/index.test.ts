@@ -1,11 +1,6 @@
+import { wait } from 'next/dist/lib/wait'
 import { FileRef, nextTestSetup } from 'e2e-utils'
-import {
-  check,
-  fetchViaHTTP,
-  renderViaHTTP,
-  retry,
-  waitFor,
-} from 'next-test-utils'
+import { check, fetchViaHTTP, renderViaHTTP, retry } from 'next-test-utils'
 import { join } from 'path'
 import assert from 'assert'
 
@@ -37,7 +32,7 @@ describe('Prerender prefetch', () => {
         }
         // do requests three times with 1 second between
         // to go over revalidate period
-        await waitFor(1000)
+        await wait(1000)
       }
       expect(next.cliOutput.substring(cliOutputStart)).not.toContain(
         'revalidating /blog'
