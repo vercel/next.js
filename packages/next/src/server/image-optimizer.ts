@@ -288,15 +288,13 @@ export class ImageOptimizerCache {
       }
     }
 
-    if (qualities) {
-      if (isDev) {
-        qualities.push(BLUR_QUALITY)
-      }
-
-      if (!qualities.includes(quality)) {
-        return {
-          errorMessage: `"q" parameter (quality) of ${q} is not allowed`,
-        }
+    if (
+      qualities &&
+      !qualities.includes(quality) &&
+      !(isDev && quality === BLUR_QUALITY)
+    ) {
+      return {
+        errorMessage: `"q" parameter (quality) of ${q} is not allowed`,
       }
     }
 
