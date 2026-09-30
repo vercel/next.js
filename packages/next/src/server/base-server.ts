@@ -638,8 +638,6 @@ export default abstract class Server<
             this.nextConfig.experimental.exposeTestingApiInProductionBuild ===
               true),
       },
-      onInstrumentationRequestError:
-        this.instrumentationOnRequestError.bind(this),
       prefetchHints: {},
       reactMaxHeadersLength: this.nextConfig.reactMaxHeadersLength,
       logServerFunctions:
