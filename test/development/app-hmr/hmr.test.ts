@@ -6,7 +6,7 @@ import path from 'path'
 const envFile = '.env.development.local'
 
 describe(`app-dir-hmr`, () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     patchFileDelay: 1000,
   })
@@ -191,15 +191,19 @@ describe(`app-dir-hmr`, () => {
         })
 
       const logs = await browser.log()
-      // TODO: Should assert on all logs but these are cluttered with logs from our test utils (e.g. playwright tracing or webdriver)
-      expect(logs).toEqual(
-        expect.arrayContaining([
-          {
-            message: expect.stringContaining('[Fast Refresh] done in'),
-            source: 'log',
-          },
-        ])
-      )
+      // A Turbopack navigation may not trigger a Fast Refresh cycle if the
+      // destination has already been compiled by an earlier test.
+      if (!isTurbopack) {
+        // TODO: Should assert on all logs but these are cluttered with logs from our test utils (e.g. playwright tracing or webdriver)
+        expect(logs).toEqual(
+          expect.arrayContaining([
+            {
+              message: expect.stringContaining('[Fast Refresh] done in'),
+              source: 'log',
+            },
+          ])
+        )
+      }
       expect(logs).not.toEqual(
         expect.arrayContaining([
           expect.objectContaining({
