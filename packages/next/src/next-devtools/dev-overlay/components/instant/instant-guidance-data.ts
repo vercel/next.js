@@ -963,10 +963,11 @@ export const SYNC_IO_CLIENT_DOCS: Record<string, string> = {
 
 export const EXPLANATIONS: Record<GuidanceKind, string> = {
   'static-viewport':
-    "This data prevents the route's viewport from being fully prerendered.",
+    'This route is configured to be fully static, but data prevents its viewport from being fully prerendered.',
   'static-metadata':
-    "This data prevents the route's metadata from being fully prerendered.",
-  'static-route': 'This data prevents the route from being fully prerendered.',
+    'This route is configured to be fully static, but data prevents its metadata from being fully prerendered.',
+  'static-route':
+    'This route is configured to be fully static, but data prevents it from being fully prerendered.',
   'blocking-route':
     'This prevents the route from being prerendered, blocking navigation and leading to a slower user experience.',
   'client-hook':

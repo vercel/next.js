@@ -30,13 +30,13 @@ import {
 describe('static route explanations', () => {
   it('matches the fully static build guidance', () => {
     expect(EXPLANATIONS['static-route']).toBe(
-      'This data prevents the route from being fully prerendered.'
+      'This route is configured to be fully static, but data prevents it from being fully prerendered.'
     )
     expect(EXPLANATIONS['static-metadata']).toBe(
-      "This data prevents the route's metadata from being fully prerendered."
+      'This route is configured to be fully static, but data prevents its metadata from being fully prerendered.'
     )
     expect(EXPLANATIONS['static-viewport']).toBe(
-      "This data prevents the route's viewport from being fully prerendered."
+      'This route is configured to be fully static, but data prevents its viewport from being fully prerendered.'
     )
   })
 })
