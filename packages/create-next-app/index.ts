@@ -350,13 +350,12 @@ async function run(): Promise<void> {
     // defaults for unspecified options. This is critical for AI agents, which pass flags like
     // --typescript --tailwind --app and expect the rest to use sensible defaults
     // without entering interactive mode.
-    const hasProvidedOptions = process.argv.some(
-      (arg) => arg.startsWith('--') && arg !== '--interactive'
-    )
+    const hasProvidedOptionsAndIsNotInteractive =
+      !opts.interactive && process.argv.some((arg) => arg.startsWith('--'))
     const shouldPromptForAgentFeedback =
-      !skipPrompt && (opts.interactive || !hasProvidedOptions)
+      !skipPrompt && !hasProvidedOptionsAndIsNotInteractive
 
-    if (!skipPrompt && hasProvidedOptions && !opts.interactive) {
+    if (!skipPrompt && hasProvidedOptionsAndIsNotInteractive) {
       skipPrompt = true
       useRecommendedDefaults = true
     }
@@ -364,7 +363,11 @@ async function run(): Promise<void> {
     // Only show the "recommended defaults" prompt if:
     // - Not in CI and not using --yes flag
     // - User hasn't provided any custom options
-    if (!skipPrompt && !hasProvidedOptions && !opts.interactive) {
+    if (
+      !skipPrompt &&
+      !hasProvidedOptionsAndIsNotInteractive &&
+      !opts.interactive
+    ) {
       const choices: Array<{
         title: string
         value: string
@@ -742,7 +745,7 @@ async function run(): Promise<void> {
 
     // When prompts were skipped because flags were provided, print the
     // defaults that were assumed so agents and users know what to override.
-    if (hasProvidedOptions && useRecommendedDefaults) {
+    if (hasProvidedOptionsAndIsNotInteractive && useRecommendedDefaults) {
       const lines: string[] = []
 
       for (const config of displayConfig) {
