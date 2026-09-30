@@ -2,7 +2,8 @@ import { wait } from 'next/dist/lib/wait'
 import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 import { renderViaHTTP, startStaticServer } from 'next-test-utils'
-import { AddressInfo, Server } from 'net'
+import type { Server } from 'http'
+import type { AddressInfo } from 'net'
 
 describe('SSG Prerender export', () => {
   const { next, skipped } = nextTestSetup({
@@ -29,7 +30,11 @@ describe('SSG Prerender export', () => {
 
   afterAll(async () => {
     if (server) {
-      await new Promise<void>((resolve) => server.close(() => resolve()))
+      await new Promise<void>((resolve) => {
+        server.close(() => resolve())
+        // The tests are done; active HTTP requests must not hold teardown open.
+        server.closeAllConnections()
+      })
     }
   })
 
