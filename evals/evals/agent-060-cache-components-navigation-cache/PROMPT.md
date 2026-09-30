@@ -1,0 +1,1 @@
+Returning to a previously visited product repeats its server data work and shows the loading fallback again. Make warm navigations reuse the cached server content. Keep Cache Components, server rendering, and normal Next.js file-system routing.

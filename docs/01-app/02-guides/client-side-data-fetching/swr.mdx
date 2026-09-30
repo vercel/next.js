@@ -15,6 +15,8 @@ related:
 
 Use [SWR](https://swr.vercel.app) to fetch data in Client Components, provide initial data from Server Components, and coordinate browser mutations with cached server data. See [Client-side data fetching](/docs/app/guides/client-side-data-fetching) to choose a pattern.
 
+If warm SWR data still causes repeated server work or a Suspense fallback during client navigation, the SWR cache and the Next.js client cache are out of sync. With Cache Components enabled, add `use cache` to the server read so the router can reuse the React Server Component payload. Use `cacheLife({ expire: 0 })` when only the client should reuse it, or choose a reusable server profile. See [Cache server-provided data with Cache Components](#cache-server-provided-data-with-cache-components).
+
 ## Fetch data on the client
 
 SWR can fetch entirely in the browser when the initial view can wait for a browser request after hydration. Choose an [inline or Suspense loading state](/docs/app/guides/client-side-data-fetching#choose-a-client-fetching-pattern) based on where the loading UI should appear. In these examples, `query` starts empty and updates from client state after hydration.
@@ -257,39 +259,81 @@ Learn more: [SWR arguments and keys](https://swr.vercel.app/docs/arguments) and 
 
 ## Cache server-provided data with Cache Components
 
-Enable [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) in `next.config.ts` before using this pattern. You can then cache the server data used as the SWR fallback. Add [`use cache`](/docs/app/api-reference/directives/use-cache), choose a [`cacheLife`](/docs/app/api-reference/functions/cacheLife) profile, and apply [`cacheTag`](/docs/app/api-reference/functions/cacheTag) so mutations can invalidate it:
+SWR can already have the product in its browser cache while Next.js requests the route's uncached React Server Component (RSC) payload again. That request repeats the server fallback work and can show the Suspense fallback during a warm navigation.
+
+Enable [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) in `next.config.ts`, then add [`use cache`](/docs/app/api-reference/directives/use-cache) and [`cacheLife`](/docs/app/api-reference/functions/cacheLife) to the server read:
 
 ```ts filename="app/products/[id]/data.ts" switcher
-import { cacheLife, cacheTag } from 'next/cache'
+import { cacheLife } from 'next/cache'
+import { notFound } from 'next/navigation'
 
 export async function getProduct(id: string) {
   'use cache'
-  cacheLife('max')
-  cacheTag(`product:${id}`)
+  cacheLife({ expire: 0 })
 
   const product = await db.product.findUnique({ where: { id } })
-  if (!product) throw new Error('Product not found')
+  if (!product) notFound()
   return product
 }
 ```
 
 ```js filename="app/products/[id]/data.js" switcher
-import { cacheLife, cacheTag } from 'next/cache'
+import { cacheLife } from 'next/cache'
+import { notFound } from 'next/navigation'
 
 export async function getProduct(id) {
   'use cache'
-  cacheLife('max')
-  cacheTag(`product:${id}`)
+  cacheLife({ expire: 0 })
 
   const product = await db.product.findUnique({ where: { id } })
-  if (!product) throw new Error('Product not found')
+  if (!product) notFound()
   return product
 }
 ```
 
-This example uses `cacheLife('max')` because writes invalidate the product tag. Within the cache profile, `stale` controls how long the Next.js client cache can reuse a prefetched payload, while `revalidate` and `expire` control the server cache. Choose a shorter profile when the server value should refresh with time.
+`expire: 0` prevents Next.js from reusing the value from the server cache in production. Because this profile omits `stale`, it inherits the `default` profile's client stale time, which is five minutes unless you override it in `next.config.ts`. During that time, the Next.js router can reuse the RSC payload without repeating the server fallback work.
 
-SWR owns a separate browser cache, so its revalidation options do not need to match `cacheLife`.
+Use this client-only profile when the data must be recomputed on every server request. If the data is safe to cache on the server, the following pattern can also improve initial and direct loads.
+
+### Cache server data across requests
+
+When the server can reuse the product across requests, replace the client-only profile with a reusable profile and add a cache tag:
+
+```diff filename="app/products/[id]/data.ts" switcher
+-import { cacheLife } from 'next/cache'
++import { cacheLife, cacheTag } from 'next/cache'
+
+ export async function getProduct(id: string) {
+   'use cache'
+-  cacheLife({ expire: 0 })
++  cacheLife('max')
++  cacheTag(`product:${id}`)
+
+   // ...
+ }
+```
+
+```diff filename="app/products/[id]/data.js" switcher
+-import { cacheLife } from 'next/cache'
++import { cacheLife, cacheTag } from 'next/cache'
+
+ export async function getProduct(id) {
+   'use cache'
+-  cacheLife({ expire: 0 })
++  cacheLife('max')
++  cacheTag(`product:${id}`)
+
+   // ...
+ }
+```
+
+This example uses `cacheLife('max')` because writes invalidate the product tag. Choose a profile with positive `revalidate` and `expire` values when the server should refresh the value on a schedule.
+
+### Coordinate Next.js and SWR cache lifetimes
+
+SWR revalidation does not need to match `cacheLife.stale`. Options such as `revalidateIfStale`, focus revalidation, and `refreshInterval` control when SWR refetches through its fetcher. `cacheLife.stale` controls how long the Next.js router can reuse an RSC payload.
+
+Set `cacheLife.stale` only when this route needs a different client reuse time from the `default` profile. The server-side `revalidate` and `expire` values do not control SWR's browser cache.
 
 When the same mutation updates the browser cache and invalidates cached server data, you may define both identities in one shared contract:
 
