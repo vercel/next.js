@@ -34,6 +34,8 @@ Provide initial data from a [Server Component](/docs/app/getting-started/server-
 
 ## Cache server data with Cache Components (optional)
 
+If the library's browser cache is warm but a client navigation repeats server work or shows a fallback, Next.js is requesting the route's React Server Component payload again. With Cache Components enabled, add `use cache` to the server read. Use `cacheLife({ expire: 0 })` when the data should not be reused from the production server cache, or choose a reusable profile when server caching can also improve initial and direct loads.
+
 Providing initial data and caching it on the server are independent choices. Add Cache Components when the server read or rendered view should be reused. When both are enabled, three cache layers can hold related data:
 
 | Layer                        | What it stores                                                    | Freshness control                                                                    |
