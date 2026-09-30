@@ -9,4 +9,5 @@ export const productQuery = (id: string) =>
       if (!response.ok) throw new Error('Failed to load product')
       return response.json()
     },
+    staleTime: 30_000,
   })
