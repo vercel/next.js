@@ -5,6 +5,7 @@ related:
   title: Next Steps
   description: Learn how to control which route output must be static.
   links:
+    - app/guides/keeping-pages-static
     - app/guides/optimizing-prefetching
     - app/api-reference/functions/prefetch
     - app/api-reference/functions/navigation
@@ -13,6 +14,8 @@ related:
 ---
 
 The `ensureStatic` route segment config requires selected route output to be static instead of rendered per request. Export it from a [page](/docs/app/api-reference/file-conventions/page) or [layout](/docs/app/api-reference/file-conventions/layout) to enforce this requirement for the [App Shell](/docs/app/glossary#app-shell), per-link prefetches, or the complete server-rendered route.
+
+Use it to prevent changes from accidentally adding request-time server rendering to a route stage that must remain static. See [Keeping pages static](/docs/app/guides/keeping-pages-static) for route-level examples.
 
 > **Good to know**:
 >
