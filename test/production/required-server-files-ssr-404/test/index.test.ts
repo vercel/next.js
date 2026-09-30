@@ -1,5 +1,6 @@
 /* eslint-env jest */
 
+import { wait } from 'next/dist/lib/wait'
 import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
@@ -8,7 +9,6 @@ import {
   nextServer,
   renderViaHTTP,
   startApp,
-  waitFor,
   withInvocationId,
 } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
@@ -162,7 +162,7 @@ describe('Required Server Files', () => {
         expect($('#slug').text()).toBe('first')
         expect(data.hello).toBe('world')
 
-        await waitFor(2000)
+        await wait(2000)
         const html2 = await renderViaHTTP(
           appPort,
           '/fallback/first',

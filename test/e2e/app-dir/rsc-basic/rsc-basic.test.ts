@@ -1,6 +1,6 @@
+import { wait } from 'next/dist/lib/wait'
 import path from 'path'
 import {
-  waitFor,
   check,
   getClientReferenceManifest,
   getDistDir,
@@ -222,10 +222,10 @@ describe('app dir - rsc basics', () => {
     const browser = await next.browser('/root')
 
     await browser.waitForElementByCss('#goto-next-link').click()
-    await waitFor(1000)
+    await wait(1000)
     await check(() => browser.url(), `${next.url}/next-api/link`)
     await browser.waitForElementByCss('#goto-home').click()
-    await waitFor(1000)
+    await wait(1000)
     await check(() => browser.url(), `${next.url}/root`)
     const content = await browser.elementByCss('body').text()
     expect(content).toContain('component:root.server')
@@ -285,7 +285,7 @@ describe('app dir - rsc basics', () => {
       // it will be a full redirection instead of being taken over by the next
       // router. This timeout prevents it being flaky caused by fast refresh's
       // rebuilding event.
-      await waitFor(1000)
+      await wait(1000)
       await browser.eval('window.beforeNav = 1')
 
       await browser.waitForElementByCss('#next_id').click()

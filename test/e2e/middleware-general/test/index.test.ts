@@ -1,9 +1,10 @@
 /* eslint-env jest */
 
+import { wait } from 'next/dist/lib/wait'
 import fs from 'fs-extra'
 import { join } from 'path'
 import { FileRef, isNextStart, nextTestSetup } from 'e2e-utils'
-import { check, fetchViaHTTP, waitFor } from 'next-test-utils'
+import { check, fetchViaHTTP } from 'next-test-utils'
 
 const urlsError = 'Please use only absolute URLs'
 
@@ -187,7 +188,7 @@ describe('Middleware Runtime', () => {
 
         try {
           fs.writeFileSync(middlewarePath, editedContent)
-          await waitFor(1000)
+          await wait(1000)
           const textb = await browser.elementByCss('h1').text()
           expect(await browser.eval('window.itdidnotrefresh')).not.toBe('hello')
           expect(textb).toEqual('AboutB')

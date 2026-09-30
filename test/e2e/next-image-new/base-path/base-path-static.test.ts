@@ -1,4 +1,5 @@
-import { waitFor } from 'next-test-utils'
+import { wait } from 'next/dist/lib/wait'
+
 import { nextTestSetup, isNextDev, type Playwright } from 'e2e-utils'
 import cheerio from 'cheerio'
 
@@ -75,7 +76,7 @@ describe('Static Image Component Tests for basePath', () => {
       await browser.eval(
         `document.getElementById("basic-static").scrollIntoView()`
       )
-      await waitFor(1000)
+      await wait(1000)
       const url = await browser.eval(
         `document.getElementById("basic-static").src`
       )
@@ -89,7 +90,7 @@ describe('Static Image Component Tests for basePath', () => {
       await browser.eval(
         `document.getElementById("static-unoptimized").scrollIntoView()`
       )
-      await waitFor(1000)
+      await wait(1000)
       const url = await browser.eval(
         `document.getElementById("static-unoptimized").src`
       )

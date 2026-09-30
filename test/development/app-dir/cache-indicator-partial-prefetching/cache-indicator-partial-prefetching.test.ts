@@ -1,5 +1,6 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup } from 'e2e-utils'
-import { retry, waitFor } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 // Partial prefetching is enabled here (and Cache Components), so a client
 // navigation to a route with `export const prefetch = 'partial'` reveals
@@ -39,14 +40,14 @@ describe('cache-indicator-partial-prefetching', () => {
         false
       )
     })
-    await waitFor(2000)
+    await wait(2000)
 
     // Warm navigation: the runtime shell is a cache hit, so no badge. An absence
     // can't be retried on, so wait out the replay window, then assert it never
     // appeared.
     await browser.elementByCss('a[href="/cookies"]').click()
     await browser.elementById('cookies')
-    await waitFor(500)
+    await wait(500)
     expect(await browser.hasElementByCss('[data-cold-cache-badge]')).toBe(false)
   })
 
@@ -60,7 +61,7 @@ describe('cache-indicator-partial-prefetching', () => {
       await browser.elementByCss('a[href="/params/prefetch-auto"]').click()
       await browser.elementById('params')
 
-      await waitFor(500)
+      await wait(500)
       expect(await browser.hasElementByCss('[data-cold-cache-badge]')).toBe(
         false
       )
@@ -91,12 +92,12 @@ describe('cache-indicator-partial-prefetching', () => {
             false
           )
         })
-        await waitFor(2000)
+        await wait(2000)
 
         // Warm navigation: the cache is a hit, so no badge.
         await browser.elementByCss('a[href="/params/prefetch-true"]').click()
         await browser.elementById('params')
-        await waitFor(500)
+        await wait(500)
         expect(await browser.hasElementByCss('[data-cold-cache-badge]')).toBe(
           false
         )
@@ -125,13 +126,13 @@ describe('cache-indicator-partial-prefetching', () => {
         false
       )
     })
-    await waitFor(2000)
+    await wait(2000)
 
     // Warm navigation: the private entry is served from the dev store, so no
     // badge.
     await browser.elementByCss('a[href="/private"]').click()
     await browser.elementById('private')
-    await waitFor(500)
+    await wait(500)
     expect(await browser.hasElementByCss('[data-cold-cache-badge]')).toBe(false)
   })
 })

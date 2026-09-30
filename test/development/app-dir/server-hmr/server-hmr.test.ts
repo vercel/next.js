@@ -1,6 +1,7 @@
+import { wait } from 'next/dist/lib/wait'
 import { join } from 'path'
 import { nextTestSetup, FileRef } from 'e2e-utils'
-import { retry, waitFor } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('server-hmr', () => {
   const { next, isTurbopack, isNextDev } = nextTestSetup({
@@ -81,7 +82,7 @@ describe('server-hmr', () => {
         await retry(async () => {
           expect(await browser.elementByCss('#value').text()).toBe('2: rev-1')
         })
-        await waitFor(1000)
+        await wait(1000)
 
         const outputAfterPatch = next.cliOutput.slice(outputLengthBeforePatch)
         const evaluatedPages = Array.from(

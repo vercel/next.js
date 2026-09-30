@@ -1,6 +1,7 @@
+import { wait } from 'next/dist/lib/wait'
 import cheerio from 'cheerio'
 import { nextTestSetup } from 'e2e-utils'
-import { retry, waitFor } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('Root Optional Catch-all Revalidate', () => {
   describe('production mode', () => {
@@ -21,7 +22,7 @@ describe('Root Optional Catch-all Revalidate', () => {
       expect(props.params).toEqual({})
 
       const outputIndex = next.cliOutput.length
-      await waitFor(1000)
+      await wait(1000)
       await getProps('/')
       expect(next.cliOutput.slice(outputIndex)).toEqual(
         'getStaticProps({ revalidateReason: "stale" })\n'
@@ -40,7 +41,7 @@ describe('Root Optional Catch-all Revalidate', () => {
       expect(props.params).toEqual({ slug: ['a'] })
 
       const outputIndex = next.cliOutput.length
-      await waitFor(1000)
+      await wait(1000)
       await getProps('/a')
       expect(next.cliOutput.slice(outputIndex)).toEqual(
         'getStaticProps({ revalidateReason: "stale" })\n'
@@ -59,7 +60,7 @@ describe('Root Optional Catch-all Revalidate', () => {
       expect(props.params).toEqual({ slug: ['hello', 'world'] })
 
       const outputIndex = next.cliOutput.length
-      await waitFor(1000)
+      await wait(1000)
       await getProps('/hello/world')
       expect(next.cliOutput.slice(outputIndex)).toEqual(
         'getStaticProps({ revalidateReason: "stale" })\n'

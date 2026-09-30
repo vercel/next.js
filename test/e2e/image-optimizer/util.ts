@@ -1,3 +1,4 @@
+import { wait } from 'next/dist/lib/wait'
 import http from 'http'
 import fs from 'fs-extra'
 import { join } from 'path'
@@ -11,7 +12,6 @@ import {
   listClientChunks,
   retry,
   shouldUseTurbopack,
-  waitFor,
 } from 'next-test-utils'
 import { nextTestSetup, isNextDev } from 'e2e-utils'
 import isAnimated from 'next/dist/compiled/is-animated'
@@ -55,7 +55,7 @@ export async function serveSlowImage() {
     const location = parsedUrl.searchParams.get('location')
 
     console.log('delaying image for', delay)
-    await waitFor(delay)
+    await wait(delay)
 
     res.statusCode = status
 
@@ -1110,7 +1110,7 @@ export function runTests(ctx: RunTestsCtx) {
 
       if (ctx.nextConfigImages?.minimumCacheTTL) {
         // Wait until expired so we can confirm image is regenerated
-        await waitFor(ctx.nextConfigImages.minimumCacheTTL * 1000)
+        await wait(ctx.nextConfigImages.minimumCacheTTL * 1000)
 
         const [three, four] = await Promise.all([
           fetchWithDuration(next, '/_next/image', query, opts),
@@ -1320,7 +1320,7 @@ export function runTests(ctx: RunTestsCtx) {
 
     if (ctx.nextConfigImages?.minimumCacheTTL) {
       // Wait until expired so we can confirm image is regenerated
-      await waitFor(ctx.nextConfigImages.minimumCacheTTL * 1000)
+      await wait(ctx.nextConfigImages.minimumCacheTTL * 1000)
 
       const [three, four] = await Promise.all([
         fetchWithDuration(next, '/_next/image', query, opts),

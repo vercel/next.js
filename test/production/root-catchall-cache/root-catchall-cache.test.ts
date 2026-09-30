@@ -1,5 +1,5 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup } from 'e2e-utils'
-import { waitFor } from 'next-test-utils'
 
 describe('Root Catch-all Cache', () => {
   describe('production mode', () => {
@@ -19,19 +19,19 @@ describe('Root Catch-all Cache', () => {
 
       {
         //cached response (revalidate is 2 seconds)
-        await waitFor(1000)
+        await wait(1000)
         const newRandom = await getRandom('/')
         expect(random).toBe(newRandom)
       }
       {
         //stale response, triggers revalidate
-        await waitFor(1000)
+        await wait(1000)
         const newRandom = await getRandom('/')
         expect(random).toBe(newRandom)
       }
       {
         //new response
-        await waitFor(100)
+        await wait(100)
         const newRandom = await getRandom('/')
         expect(random).not.toBe(newRandom)
       }

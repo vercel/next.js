@@ -1,9 +1,5 @@
-import {
-  waitForRedbox,
-  getBrowserBodyText,
-  retry,
-  waitFor,
-} from 'next-test-utils'
+import { wait } from 'next/dist/lib/wait'
+import { waitForRedbox, getBrowserBodyText, retry } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
 export function runBasicHmrTest(nextConfig: {
@@ -59,7 +55,7 @@ export function runBasicHmrTest(nextConfig: {
         (content) => `import hello from 'non-existent'\n` + content,
         async () => {
           await waitForRedbox(browser)
-          await waitFor(3000)
+          await wait(3000)
           outputLength = next.cliOutput.length
         }
       )

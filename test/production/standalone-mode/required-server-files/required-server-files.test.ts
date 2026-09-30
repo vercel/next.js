@@ -1,3 +1,4 @@
+import { wait } from 'next/dist/lib/wait'
 import glob from 'glob'
 import fs from 'fs-extra'
 import cheerio from 'cheerio'
@@ -13,7 +14,6 @@ import {
   killApp,
   renderViaHTTP,
   retry,
-  waitFor,
   withInvocationId,
 } from 'next-test-utils'
 import { ChildProcess } from 'child_process'
@@ -187,7 +187,7 @@ describe('required server files', () => {
         '/somewhere'
       )
 
-      await waitFor(3000)
+      await wait(3000)
       expect(stderr).not.toContain('ENOENT')
     } finally {
       await next.renameFile(`${toRename}.bak`, toRename)
@@ -533,7 +533,7 @@ describe('required server files', () => {
   })
 
   it('should set correct SWR headers with notFound gsp', async () => {
-    await waitFor(2000)
+    await wait(2000)
     await next.patchFile('standalone/data.txt', 'show')
 
     const res = await fetchViaHTTP(
@@ -549,7 +549,7 @@ describe('required server files', () => {
       's-maxage=1, stale-while-revalidate=31535999'
     )
 
-    await waitFor(2000)
+    await wait(2000)
     await next.patchFile('standalone/data.txt', 'hide')
 
     const res2 = await fetchViaHTTP(
@@ -670,7 +670,7 @@ describe('required server files', () => {
     expect($('#slug').text()).toBe('first')
     expect(data.hello).toBe('world')
 
-    await waitFor(2000)
+    await wait(2000)
 
     const html2 = await renderViaHTTP(
       appPort,

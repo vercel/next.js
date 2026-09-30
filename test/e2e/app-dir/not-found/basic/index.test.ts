@@ -1,5 +1,6 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup } from 'e2e-utils'
-import { waitFor, check } from 'next-test-utils'
+import { check } from 'next-test-utils'
 
 describe('app dir - not-found - basic', () => {
   const { next, isNextDev, isNextStart, skipped } = nextTestSetup({
@@ -121,7 +122,7 @@ describe('app dir - not-found - basic', () => {
         const browser = await next.browser('/random-content')
         const timestamp = await browser.elementByCss('#timestamp').text()
 
-        await waitFor(3000)
+        await wait(3000)
 
         await check(async () => {
           const newTimestamp = await browser.elementByCss('#timestamp').text()

@@ -1,6 +1,7 @@
 /* eslint-disable jest/no-identical-title */
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup, isNextDev } from 'e2e-utils'
-import { waitFor, waitForRedbox, getRedboxHeader, retry } from 'next-test-utils'
+import { waitForRedbox, getRedboxHeader, retry } from 'next-test-utils'
 
 jest.retryTimes(0)
 
@@ -30,7 +31,7 @@ describe('Invalid hrefs', () => {
       }
       if (click) {
         await browser.elementByCss('#click-me').click()
-        await waitFor(500)
+        await wait(500)
       }
       if (isWarn) {
         await retry(async () => {
@@ -63,7 +64,7 @@ describe('Invalid hrefs', () => {
       await browser.waitForElementByCss('#click-me')
       if (click) {
         await browser.elementByCss('#click-me').click()
-        await waitFor(500)
+        await wait(500)
       }
       const caughtErrors = await browser.eval(`window.caughtErrors`)
       expect(caughtErrors).toHaveLength(0)
@@ -102,7 +103,7 @@ describe('Invalid hrefs', () => {
           })
         })()`)
         await browser.elementByCss('a').click()
-        await waitFor(500)
+        await wait(500)
         const errors = await browser.eval('window.caughtErrors')
         expect(
           errors.find((err: string) =>

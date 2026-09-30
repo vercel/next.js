@@ -1,5 +1,5 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup } from 'e2e-utils'
-import { waitFor } from 'next-test-utils'
 
 describe('app-prefetch-static', () => {
   const { next, isNextDev } = nextTestSetup({
@@ -14,7 +14,7 @@ describe('app-prefetch-static', () => {
   it('should correctly navigate between static & dynamic pages', async () => {
     const browser = await next.browser('/')
     // Ensure the page is prefetched
-    await waitFor(1000)
+    await wait(1000)
 
     await browser.elementByCss('#static-prefetch').click()
 

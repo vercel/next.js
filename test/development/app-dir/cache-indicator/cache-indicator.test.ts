@@ -1,5 +1,6 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup, type Playwright } from 'e2e-utils'
-import { retry, waitFor } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 const enableCacheComponents = process.env.__NEXT_CACHE_COMPONENTS === 'true'
 
@@ -151,7 +152,7 @@ describe('cache-indicator', () => {
       // appeared.
       await browser.refresh()
       await browser.elementById('slow-render')
-      await waitFor(500)
+      await wait(500)
       expect(await browser.hasElementByCss('[data-cold-cache-badge]')).toBe(
         false
       )
@@ -210,7 +211,7 @@ describe('cache-indicator', () => {
       const warmStates = await recordIndicatorStates(browser, async () => {
         await browser.elementByCss('a[href="/slow-render/1"]').click()
         await browser.elementById('slow-render')
-        await waitFor(500)
+        await wait(500)
       })
       expect(warmStates).toEqual([{ status: 'none', cacheBadge: null }])
     })
@@ -265,7 +266,7 @@ describe('cache-indicator', () => {
       // replay-on-connect window and then assert it never showed.
       await browser.refresh()
       await browser.elementById('short-lived')
-      await waitFor(500)
+      await wait(500)
       expect(await browser.hasElementByCss('[data-cold-cache-badge]')).toBe(
         false
       )
@@ -285,7 +286,7 @@ describe('cache-indicator', () => {
       // on, so wait out the replay-on-connect window and then assert it never
       // showed.
       await browser.elementById('private')
-      await waitFor(500)
+      await wait(500)
       expect(await browser.hasElementByCss('[data-cold-cache-badge]')).toBe(
         false
       )
@@ -302,7 +303,7 @@ describe('cache-indicator', () => {
       // boundary. An absence can't be retried on, so wait out the
       // replay-on-connect window and then assert it never showed.
       await browser.elementById('dynamic')
-      await waitFor(500)
+      await wait(500)
       expect(await browser.hasElementByCss('[data-cold-cache-badge]')).toBe(
         false
       )

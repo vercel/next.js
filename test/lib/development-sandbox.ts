@@ -1,3 +1,4 @@
+import { wait } from 'next/dist/lib/wait'
 import {
   hasErrorToast,
   getRedboxComponentStack,
@@ -7,7 +8,6 @@ import {
   getVersionCheckerText,
   waitForRedbox,
   waitForNoRedbox,
-  waitFor,
   openRedbox,
   getRedboxDescriptionWarning,
   getRedboxErrorLink,
@@ -63,7 +63,7 @@ export async function createSandbox(
     ): Promise<any> {
       if (typeof snippet === 'function' || typeof snippet === 'string') {
         const result = await browser.eval(snippet)
-        await waitFor(30)
+        await wait(30)
         return result
       } else {
         throw new Error(
@@ -98,14 +98,14 @@ export async function createSandbox(
           for (;;) {
             const status = await browser.eval(() => (window as any).__HMR_STATE)
             if (!status) {
-              await waitFor(750)
+              await wait(750)
 
               // Wait for application to re-hydrate:
               await waitForHydration(browser)
 
               console.log('Application re-loaded.')
               // Slow down tests a bit:
-              await waitFor(750)
+              await wait(750)
               return false
             }
             if (status === 'success') {
@@ -118,11 +118,11 @@ export async function createSandbox(
               )
             }
 
-            await waitFor(30)
+            await wait(30)
           }
 
           // Slow down tests a bit (we don't know how long re-rendering takes):
-          await waitFor(750)
+          await wait(750)
           return true
         },
         async remove(filename) {

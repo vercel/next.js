@@ -1,5 +1,6 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup } from 'e2e-utils'
-import { retry, waitFor } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('revalidate-reason', () => {
   const { next, isNextDev } = nextTestSetup({
@@ -47,7 +48,7 @@ describe('revalidate-reason', () => {
     expect(res.status).toBe(200)
 
     // wait for the revalidation period
-    await waitFor(5000)
+    await wait(5000)
 
     await retry(async () => {
       const $ = await next.render$('/stale')

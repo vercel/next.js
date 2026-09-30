@@ -1,15 +1,16 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup } from 'e2e-utils'
-import { retry, waitFor } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('route-load-cancel', () => {
   const { next } = nextTestSetup({ files: __dirname })
 
   it('should cancel slow page loads on re-navigation', async () => {
     const browser = await next.browser('/')
-    await waitFor(5000)
+    await wait(5000)
 
     await browser.elementByCss('#link-1').click()
-    await waitFor(1000)
+    await wait(1000)
     await browser.elementByCss('#link-2').click()
 
     await retry(async () => {

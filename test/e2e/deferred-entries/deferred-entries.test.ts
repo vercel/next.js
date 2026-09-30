@@ -1,5 +1,6 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup } from 'e2e-utils'
-import { waitFor, retry } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import fs from 'fs'
 import path from 'path'
 
@@ -73,7 +74,7 @@ async function expectPngResponse(res: Response) {
 }
 
 function sleep(ms: number) {
-  return waitFor(ms)
+  return wait(ms)
 }
 
 async function waitForCallbackTimestampToStabilize(
@@ -513,7 +514,7 @@ describe('deferred-entries', () => {
       })
 
       // Wait a bit to ensure timestamps will be different
-      await waitFor(100)
+      await wait(100)
 
       // Modify the home page (non-deferred entry) to trigger HMR
       await next.patchFile('app/page.tsx', (content) =>
@@ -556,7 +557,7 @@ describe('deferred-entries', () => {
       })
 
       // Ensure callback timestamp changes after a non-deferred edit.
-      await waitFor(100)
+      await wait(100)
       await next.patchFile('app/page.tsx', (content) =>
         content.includes('Home Page Updated')
           ? content.replace('Home Page Updated', 'Home Page Updated Again')

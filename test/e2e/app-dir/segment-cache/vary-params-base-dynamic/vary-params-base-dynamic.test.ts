@@ -1,5 +1,6 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup } from 'e2e-utils'
-import { retry, waitFor } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
 
@@ -173,10 +174,10 @@ describe('segment cache - vary params base dynamic', () => {
         expect(result).toContain(`"mode":"${browserRevalidateMode}"`)
       })
 
-      await waitFor(500)
+      await wait(500)
     }
 
-    await waitFor(300)
+    await wait(300)
 
     await clickVisibleLink('/acme/dashboard')
     await expectTeamPage('/acme/dashboard')
@@ -184,11 +185,11 @@ describe('segment cache - vary params base dynamic', () => {
     for (let cycle = 0; cycle < 3; cycle++) {
       await browser.back()
       await expectHomePage()
-      await waitFor(250)
+      await wait(250)
 
       await browser.forward()
       await expectTeamPage('/acme/dashboard')
-      await waitFor(250)
+      await wait(250)
     }
 
     await clickVisibleLink('/globex/portal')
@@ -197,18 +198,18 @@ describe('segment cache - vary params base dynamic', () => {
     for (let cycle = 0; cycle < 2; cycle++) {
       await browser.back()
       await expectTeamPage('/acme/dashboard')
-      await waitFor(250)
+      await wait(250)
 
       await browser.forward()
       await expectTeamPage('/globex/portal')
-      await waitFor(250)
+      await wait(250)
     }
 
     await browser.back()
     await expectTeamPage('/acme/dashboard')
     await browser.back()
     await expectHomePage()
-    await waitFor(500)
+    await wait(500)
 
     const settledResponses = await Promise.all(segmentPrefetchResponses)
     await browser.close()
@@ -272,7 +273,7 @@ describe('segment cache - vary params base dynamic', () => {
       }
 
       await expectProjectSettingsPage('acme', 'dashboard')
-      await waitFor(300)
+      await wait(300)
 
       await clickVisibleLink('/acme/dashboard/settings/domains')
       await expectProjectDomainsPage('acme', 'dashboard')
@@ -280,11 +281,11 @@ describe('segment cache - vary params base dynamic', () => {
       for (let cycle = 0; cycle < 3; cycle++) {
         await browser.back()
         await expectProjectSettingsPage('acme', 'dashboard')
-        await waitFor(250)
+        await wait(250)
 
         await browser.forward()
         await expectProjectDomainsPage('acme', 'dashboard')
-        await waitFor(250)
+        await wait(250)
       }
 
       await clickVisibleLink('/globex/portal/settings/domains')
@@ -293,18 +294,18 @@ describe('segment cache - vary params base dynamic', () => {
       for (let cycle = 0; cycle < 2; cycle++) {
         await browser.back()
         await expectProjectDomainsPage('acme', 'dashboard')
-        await waitFor(250)
+        await wait(250)
 
         await browser.forward()
         await expectProjectDomainsPage('globex', 'portal')
-        await waitFor(250)
+        await wait(250)
       }
 
       await browser.back()
       await expectProjectDomainsPage('acme', 'dashboard')
       await browser.back()
       await expectProjectSettingsPage('acme', 'dashboard')
-      await waitFor(500)
+      await wait(500)
 
       const settledResponses = await Promise.all(segmentPrefetchResponses)
       await browser.close()
@@ -441,7 +442,7 @@ describe('segment cache - vary params base dynamic', () => {
     let lastGlobexMarker = initialGlobexMarker
 
     for (let checkIndex = 0; checkIndex < 5; checkIndex++) {
-      await waitFor(2_000)
+      await wait(2_000)
 
       const revalidatedResponses = [
         ...(await collectSegmentPrefetchResponses('/acme/dashboard')),

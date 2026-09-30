@@ -1,3 +1,4 @@
+import { wait } from 'next/dist/lib/wait'
 import { join } from 'path'
 import {
   waitForRedbox,
@@ -7,7 +8,6 @@ import {
   getRedboxDescription,
   getRedboxSource,
   retry,
-  waitFor,
   trimEndMultiline,
   getDistDir,
 } from 'next-test-utils'
@@ -133,7 +133,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
           const outputIndex = next.cliOutput.length
 
           // wait a few seconds to ensure polling didn't happen
-          await waitFor(3000)
+          await wait(3000)
 
           const logOccurrences =
             next.cliOutput.slice(outputIndex).split('getInitialProps called')
@@ -609,7 +609,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
 
         await retry(async () => {
           await browser.refresh()
-          await waitFor(2000)
+          await wait(2000)
           const text = await getBrowserBodyText(browser)
           if (text.includes('Hello')) {
             throw new Error('waiting')
@@ -641,7 +641,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
 
     await retry(async () => {
       await browser.refresh()
-      await waitFor(2000)
+      await wait(2000)
       const text = await getBrowserBodyText(browser)
       if (text.includes('Hello')) {
         throw new Error('waiting')

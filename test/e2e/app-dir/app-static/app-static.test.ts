@@ -1,3 +1,4 @@
+import { wait } from 'next/dist/lib/wait'
 import globOrig from 'glob'
 import cheerio from 'cheerio'
 import { promisify } from 'node:util'
@@ -9,7 +10,6 @@ import {
   getCacheHeader,
   normalizeRegEx,
   retry,
-  waitFor,
 } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
@@ -240,7 +240,7 @@ describe('app-dir static/dynamic handling', () => {
       })
 
       // wait for revalidation
-      await waitFor(3000)
+      await wait(3000)
       await retry(async () => {
         const $3 = await next.render$('/force-dynamic-fetch-cache/revalidate')
         const finalValue = $3('#data').text()
@@ -373,7 +373,7 @@ describe('app-dir static/dynamic handling', () => {
         expect(data1).toBeTruthy()
         expect(data1).toBe(data2)
 
-        await waitFor(250)
+        await wait(250)
       }
     }
   )
@@ -507,7 +507,7 @@ describe('app-dir static/dynamic handling', () => {
         expect(data.now).toBe(initialTimestamp)
 
         // wait for the revalidation time
-        await waitFor(3000)
+        await wait(3000)
 
         // verify fresh data
         res = await next.fetch('/route-handler/no-store-force-static')
@@ -612,7 +612,7 @@ describe('app-dir static/dynamic handling', () => {
           expect(prevData).toBe(data)
           prevData = data
         }
-        await waitFor(500)
+        await wait(500)
       }
 
       if (isNextStart) {
@@ -3536,7 +3536,7 @@ describe('app-dir static/dynamic handling', () => {
           expect(now).toBeTruthy()
 
           // wait revalidate period
-          await waitFor(3000)
+          await wait(3000)
         }
         expect(next.cliOutput).toContain('intentional error')
       })
@@ -3555,7 +3555,7 @@ describe('app-dir static/dynamic handling', () => {
     await res.text()
 
     for (let i = 0; i < 6; i++) {
-      await waitFor(1000)
+      await wait(1000)
 
       res = await next.fetch(path)
       // fetch resolves when the response headers arrive, which is the first
@@ -3613,7 +3613,7 @@ describe('app-dir static/dynamic handling', () => {
         expect(res.status).toBe(404)
       }
       expect(await res.text()).toContain('This page could not be found')
-      await waitFor(500)
+      await wait(500)
     }
   })
 
@@ -3738,7 +3738,7 @@ describe('app-dir static/dynamic handling', () => {
     })
 
     // wait for revalidation
-    await waitFor(3000)
+    await wait(3000)
 
     await retry(async () => {
       const curRes = await next.fetch('/force-cache-revalidate')
@@ -5121,7 +5121,7 @@ describe('app-dir static/dynamic handling', () => {
       )
 
     checkUrl()
-    await waitFor(1000)
+    await wait(1000)
     checkUrl()
   })
 
@@ -5283,7 +5283,7 @@ describe('app-dir static/dynamic handling', () => {
 
       if (isNextStart) {
         // give second so tag isn't still stale state
-        await waitFor(1000)
+        await wait(1000)
 
         const res1 = await next.fetch('/update-tag-test')
         const body1 = await res1.text()

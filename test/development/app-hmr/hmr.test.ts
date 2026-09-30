@@ -1,3 +1,4 @@
+import { wait } from 'next/dist/lib/wait'
 import { FileRef, nextTestSetup, Playwright } from 'e2e-utils'
 import { retry, waitFor } from 'next-test-utils'
 import path from 'path'
@@ -107,7 +108,7 @@ describe(`app-dir-hmr`, () => {
       const body = await browser.elementByCss('body').text()
       expect(body).toContain('404')
 
-      await waitFor(3000)
+      await wait(3000)
 
       expect(requestCount).toBe(1)
     })

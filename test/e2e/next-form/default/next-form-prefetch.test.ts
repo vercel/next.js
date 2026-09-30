@@ -1,3 +1,4 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup, isNextDev } from 'e2e-utils'
 import {
   NEXT_ROUTER_PREFETCH_HEADER,
@@ -5,7 +6,7 @@ import {
   RSC_HEADER,
 } from 'next/src/client/components/app-router-headers'
 import type { Page, Request as PlaywrightRequest } from 'playwright'
-import { waitFor, retry } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 const _describe =
   // prefetching is disabled in dev.
@@ -218,7 +219,7 @@ class RequestInterceptor {
             this.pendingRequests.delete(requestKey)
             await route.continue()
             // wait a moment to ensure the response is received
-            await waitFor(500)
+            await wait(500)
             blocked.resolve()
           },
         })

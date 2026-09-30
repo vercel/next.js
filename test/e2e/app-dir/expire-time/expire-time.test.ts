@@ -1,5 +1,6 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup } from 'e2e-utils'
-import { waitFor, retry } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('expire-time', () => {
   const { next, isNextDeploy } = nextTestSetup({
@@ -46,7 +47,7 @@ describe('expire-time', () => {
       // Wait past the `expireTime` (10 s). The next request must trigger a
       // blocking prerender, not stale-while-revalidate — so the response
       // returned right here carries a freshly-computed value.
-      await waitFor(10_000)
+      await wait(10_000)
 
       const $third = await next.render$('/')
       const v3 = $third('#value').text()

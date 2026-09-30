@@ -1,5 +1,6 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup } from 'e2e-utils'
-import { waitFor } from 'next-test-utils'
+
 import cheerio from 'cheerio'
 
 describe('app dir rendering', () => {
@@ -74,7 +75,7 @@ describe('app dir rendering', () => {
       const layoutNow = $('#layout-now').text()
       const pageNow = $('#page-now').text()
 
-      await waitFor(2000)
+      await wait(2000)
 
       // TODO: implement
       // Trigger revalidate

@@ -1,5 +1,5 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup } from 'e2e-utils'
-import { waitFor } from 'next-test-utils'
 
 describe('route cancel via CSS', () => {
   describe('production mode', () => {
@@ -13,11 +13,11 @@ describe('route cancel via CSS', () => {
       const browser = await next.browser('/')
 
       await browser.elementByCss('#link-1').click()
-      await waitFor(3000)
+      await wait(3000)
       expect(await browser.hasElementByCssSelector('#page-text')).toBeFalsy()
 
       await browser.elementByCss('#link-2').click()
-      await waitFor(3000)
+      await wait(3000)
 
       const text2 = await browser.elementByCss('#page-text').text()
       expect(text2).toMatch(/2/)

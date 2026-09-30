@@ -1,5 +1,6 @@
+import { wait } from 'next/dist/lib/wait'
 import { FileRef, nextTestSetup } from 'e2e-utils'
-import { waitFor, retry } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import { NEXT_RSC_UNION_QUERY } from 'next/dist/client/components/app-router-headers'
 import { computeCacheBustingSearchParam } from 'next/dist/shared/lib/router/utils/cache-busting-search-param'
 import { createRouterAct } from 'router-act'
@@ -69,7 +70,7 @@ describe('app dir - prefetching', () => {
   it('should not have prefetch error for static path', async () => {
     const browser = await next.browser('/')
     await browser.eval('window.next.router.prefetch("/dashboard/123")')
-    await waitFor(3000)
+    await wait(3000)
     await browser.eval('window.next.router.push("/dashboard/123")')
     expect(next.cliOutput).not.toContain('ReferenceError')
     expect(next.cliOutput).not.toContain('is not defined')
@@ -182,7 +183,7 @@ describe('app dir - prefetching', () => {
 
     // check five times to ensure prefetch didn't occur
     for (let i = 0; i < 5; i++) {
-      await waitFor(500)
+      await wait(500)
       expect(
         requests.filter(
           (request) =>

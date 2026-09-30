@@ -1,6 +1,7 @@
 /* eslint-env jest */
 
-import { waitFor, check } from 'next-test-utils'
+import { wait } from 'next/dist/lib/wait'
+import { check } from 'next-test-utils'
 import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 
@@ -30,9 +31,9 @@ describe('Client Navigation with <Link/>', () => {
     await browser.elementByCss('#about-link').click()
     await browser.waitForElementByCss('.nav-about')
     await browser.refresh()
-    await waitFor(3000)
+    await wait(3000)
     await browser.back()
-    await waitFor(3000)
+    await wait(3000)
     const text = await browser.elementByCss('#about-link').text()
     if (browser) await browser.close()
     expect(text).toMatch(/About/)
@@ -44,9 +45,9 @@ describe('Client Navigation with <Link/>', () => {
     await browser.waitForElementByCss('.nav-about')
     await browser.back()
     await browser.refresh()
-    await waitFor(3000)
+    await wait(3000)
     await browser.forward()
-    await waitFor(3000)
+    await wait(3000)
     const text = await browser.elementByCss('p').text()
     if (browser) await browser.close()
     expect(text).toMatch(/this is the about page/i)

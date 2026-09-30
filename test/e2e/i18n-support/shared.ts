@@ -1,5 +1,7 @@
 /* eslint-env jest */
 
+import { wait } from 'next/dist/lib/wait'
+
 import glob from 'glob'
 import fs from 'fs-extra'
 import cheerio from 'cheerio'
@@ -10,7 +12,6 @@ import {
   fetchViaHTTP,
   fetchViaRawHttp,
   renderViaHTTP,
-  waitFor,
   normalizeRegEx,
   retry,
   getDeploymentId,
@@ -3245,7 +3246,7 @@ export function runTests(ctx) {
     expect(Object.fromEntries(parsedUrl.searchParams.entries())).toEqual({})
     if (ctx.isDev) {
       // make sure page doesn't reload un-necessarily in development
-      await waitFor(10 * 1000)
+      await wait(10 * 1000)
     }
     expect(await browser.eval('window.beforeNav')).toBe(1)
   })
@@ -3276,7 +3277,7 @@ export function runTests(ctx) {
     expect(Object.fromEntries(parsedUrl.searchParams.entries())).toEqual({})
     if (ctx.isDev) {
       // make sure page doesn't reload un-necessarily in development
-      await waitFor(10 * 1000)
+      await wait(10 * 1000)
     }
     expect(await browser.eval('window.beforeNav')).toBe(1)
   })
@@ -3307,7 +3308,7 @@ export function runTests(ctx) {
     expect(Object.fromEntries(parsedUrl.searchParams.entries())).toEqual({})
     if (ctx.isDev) {
       // make sure page doesn't reload un-necessarily in development
-      await waitFor(10 * 1000)
+      await wait(10 * 1000)
     }
     expect(await browser.eval('window.beforeNav')).toBe(1)
   })
@@ -3338,7 +3339,7 @@ export function runTests(ctx) {
     expect(Object.fromEntries(parsedUrl.searchParams.entries())).toEqual({})
     if (ctx.isDev) {
       // make sure page doesn't reload un-necessarily in development
-      await waitFor(10 * 1000)
+      await wait(10 * 1000)
     }
     expect(await browser.eval('window.beforeNav')).toBe(1)
   })

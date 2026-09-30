@@ -1,4 +1,5 @@
-import { waitFor } from 'next-test-utils'
+import { wait } from 'next/dist/lib/wait'
+
 import { nextTestSetup } from 'e2e-utils'
 
 describe('unstable-cache-foreground-revalidate', () => {
@@ -19,13 +20,13 @@ describe('unstable-cache-foreground-revalidate', () => {
     const initialLogLength = next.cliOutput.length
 
     // Wait for both ISR and unstable_cache to become stale
-    await waitFor(11000)
+    await wait(11000)
 
     // This request triggers ISR background revalidation
     await next.render('/isr-10')
 
     // Wait for ISR background revalidation to complete
-    await waitFor(2000)
+    await wait(2000)
 
     // Get logs since the initial render
     const logs = next.cliOutput.substring(initialLogLength)
@@ -77,10 +78,10 @@ describe('unstable-cache-foreground-revalidate', () => {
 
     const initialLogLength = next.cliOutput.length
 
-    await waitFor(11000)
+    await wait(11000)
 
     await next.render('/isr-10-nested')
-    await waitFor(2000)
+    await wait(2000)
 
     const logs = next.cliOutput.substring(initialLogLength)
     const cacheExecutions = [

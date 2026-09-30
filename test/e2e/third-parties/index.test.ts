@@ -1,5 +1,5 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup } from 'e2e-utils'
-import { waitFor } from 'next-test-utils'
 
 describe('@next/third-parties basic usage', () => {
   const { next } = nextTestSetup({
@@ -33,7 +33,7 @@ describe('@next/third-parties basic usage', () => {
     const browser = await next.browser('/gtm')
 
     await browser.waitForElementByCss('script#_next-gtm')
-    await waitFor(1000)
+    await wait(1000)
 
     const gtmInlineScript = await browser.elementsByCss('#_next-gtm-init')
     expect(gtmInlineScript.length).toBe(1)
@@ -57,7 +57,7 @@ describe('@next/third-parties basic usage', () => {
     const browser = await next.browser('/ga')
 
     await browser.waitForElementByCss('script#_next-ga')
-    await waitFor(1000)
+    await wait(1000)
 
     const gaInlineScript = await browser.elementsByCss('#_next-ga-init')
     expect(gaInlineScript.length).toBe(1)

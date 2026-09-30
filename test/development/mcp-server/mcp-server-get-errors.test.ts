@@ -1,6 +1,7 @@
+import { wait } from 'next/dist/lib/wait'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
-import { waitFor, retry, debugPrint, getFullUrl } from 'next-test-utils'
+import { retry, debugPrint, getFullUrl } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 import { chromium, firefox, webkit } from 'playwright'
 import type { Browser } from 'playwright'
@@ -124,7 +125,7 @@ describe('mcp-server get_errors tool', () => {
 
     try {
       // Wait for server to be ready
-      await waitFor(1000)
+      await wait(1000)
       let errors: any = null
       await retry(async () => {
         const sessionId = 'test-multi-' + Date.now()

@@ -1,7 +1,8 @@
 /* eslint-env jest */
+import { wait } from 'next/dist/lib/wait'
 import { createSandbox } from 'development-sandbox'
 import { FileRef, isReact18, nextTestSetup } from 'e2e-utils'
-import { waitFor, check, retry } from 'next-test-utils'
+import { check, retry } from 'next-test-utils'
 import { outdent } from 'outdent'
 import path from 'path'
 
@@ -798,7 +799,7 @@ describe('pages/ error recovery', () => {
         export default function FunctionNamed() {`
     )
 
-    await waitFor(1000)
+    await wait(1000)
 
     if (isTurbopack) {
       // TODO: Remove this branching once import traces are implemented in Turbopack
@@ -864,7 +865,7 @@ describe('pages/ error recovery', () => {
     }
 
     // Test that runtime error does not take over:
-    await waitFor(3500)
+    await wait(3500)
 
     if (isTurbopack) {
       // TODO: Remove this branching once import traces are implemented in Turbopack

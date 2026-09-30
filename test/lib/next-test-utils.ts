@@ -794,11 +794,9 @@ export async function stopApp(server: http.Server | undefined) {
 }
 
 /**
- * Wait for a fixed number of milliseconds, or poll until a condition holds.
- *
- * Prefer `retry()` when you are waiting for something to become true — a fixed
- * sleep is a common source of flakiness. The `@next/internal/no-adhoc-sleep`
- * lint rule points hand-rolled sleep promises here.
+ * Poll until a condition holds. The numeric overload is kept for existing
+ * callers; new fixed delays should import `wait` from `next/dist/lib/wait`
+ * directly. Prefer `retry()` for condition-based waits whenever possible.
  */
 export async function waitFor(
   millisOrCondition: number | (() => boolean)
@@ -867,9 +865,9 @@ export async function check(
         // found the content
         return true
       }
-      await waitFor(1000)
+      await wait(1000)
     } catch (err) {
-      await waitFor(1000)
+      await wait(1000)
       lastErr = err
     }
   }
@@ -959,7 +957,7 @@ export async function retry<T>(
       debugPrint(
         `Retrying${description ? ` ${description}` : ''} in ${interval}ms`
       )
-      await waitFor(interval)
+      await wait(interval)
     }
   }
 }
@@ -994,7 +992,7 @@ export async function waitForNoRedbox(
   browser: Playwright,
   { waitInMs = 5000 }: { waitInMs?: number } = {}
 ) {
-  await waitFor(waitInMs)
+  await wait(waitInMs)
   const redbox = browser.locateRedbox()
 
   if (await redbox.isVisible()) {

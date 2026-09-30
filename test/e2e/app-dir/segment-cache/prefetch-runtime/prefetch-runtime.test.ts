@@ -1,5 +1,6 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup } from 'e2e-utils'
-import { waitFor } from 'next-test-utils'
+
 import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
 import { UNEXPECTED_CACHE_MISS_MESSAGE } from 'next/src/server/use-cache/use-cache-errors'
@@ -522,7 +523,7 @@ describe('runtime prefetching', () => {
 
       // wait a tick before navigating
       // TODO: Why does this need to be so long when deployed? What other signal do we have that we can wait on?
-      await waitFor(2000)
+      await wait(2000)
 
       // Navigate to the page
       await act(async () => {

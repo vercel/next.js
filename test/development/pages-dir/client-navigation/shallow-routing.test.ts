@@ -1,6 +1,7 @@
 /* eslint-env jest */
 
-import { retry, waitFor } from 'next-test-utils'
+import { wait } from 'next/dist/lib/wait'
+import { retry } from 'next-test-utils'
 import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 
@@ -96,13 +97,13 @@ describe('Client navigation with shallow routing', () => {
     expect(scrollPosition).toBeGreaterThan(3000)
 
     await browser.elementByCss('#increase').click()
-    await waitFor(500)
+    await wait(500)
     const newScrollPosition = await browser.eval('window.pageYOffset')
 
     expect(newScrollPosition).toBe(scrollPosition)
 
     await browser.elementByCss('#increase2').click()
-    await waitFor(500)
+    await wait(500)
     const newScrollPosition2 = await browser.eval('window.pageYOffset')
 
     expect(newScrollPosition2).toBe(0)
@@ -115,7 +116,7 @@ describe('Client navigation with shallow routing', () => {
     expect(scrollPositionDown).toBeGreaterThan(3000)
 
     await browser.elementByCss('#invalidShallow').click()
-    await waitFor(500)
+    await wait(500)
     const newScrollPosition3 = await browser.eval('window.pageYOffset')
 
     expect(newScrollPosition3).toBe(0)

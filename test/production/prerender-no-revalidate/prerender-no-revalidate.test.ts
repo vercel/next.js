@@ -1,5 +1,5 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup } from 'e2e-utils'
-import { waitFor } from 'next-test-utils'
 
 describe('SSG Prerender No Revalidate', () => {
   const { next } = nextTestSetup({
@@ -18,13 +18,13 @@ describe('SSG Prerender No Revalidate', () => {
       expect(initialHtml).toBe(newHtml)
       expect(await next.readFile(fileName)).toBe(initialFileHtml)
 
-      await waitFor(500)
+      await wait(500)
 
       newHtml = await next.render(route)
       expect(initialHtml).toBe(newHtml)
       expect(await next.readFile(fileName)).toBe(initialFileHtml)
 
-      await waitFor(500)
+      await wait(500)
 
       newHtml = await next.render(route)
       expect(initialHtml).toBe(newHtml)
@@ -42,11 +42,11 @@ describe('SSG Prerender No Revalidate', () => {
 
       expect(JSON.parse(await next.render(dataRoute))).toEqual(initialData)
       expect(await next.readFile(fileName)).toBe(initialFileJson)
-      await waitFor(500)
+      await wait(500)
 
       expect(JSON.parse(await next.render(dataRoute))).toEqual(initialData)
       expect(await next.readFile(fileName)).toBe(initialFileJson)
-      await waitFor(500)
+      await wait(500)
 
       expect(JSON.parse(await next.render(dataRoute))).toEqual(initialData)
       expect(await next.readFile(fileName)).toBe(initialFileJson)
