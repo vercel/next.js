@@ -19,7 +19,7 @@ describe('build-output-prerender', () => {
           if (isTurbopack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (Turbopack)
-             ⚠ \`cacheComponents\` is enabled, but \`partialPrefetching\` is not configured. Set \`partialPrefetching: true\` to enable Partial Prefetching, or set \`partialPrefetching: false\` to keep full prefetching. Learn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/partialPrefetching
+             ⚠ \`cacheComponents\` is enabled without \`partialPrefetching\`. We recommend enabling Partial Prefetching to use the improved prefetching model for client navigations. Learn how to adopt Partial Prefetching: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
              ✓ Running next.config.js took N
              - Cache Components enabled
              - Experiments (use with caution):
@@ -30,7 +30,7 @@ describe('build-output-prerender', () => {
           } else if (isRspack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (Rspack)
-             ⚠ \`cacheComponents\` is enabled, but \`partialPrefetching\` is not configured. Set \`partialPrefetching: true\` to enable Partial Prefetching, or set \`partialPrefetching: false\` to keep full prefetching. Learn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/partialPrefetching
+             ⚠ \`cacheComponents\` is enabled without \`partialPrefetching\`. We recommend enabling Partial Prefetching to use the improved prefetching model for client navigations. Learn how to adopt Partial Prefetching: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
              ✓ Running next.config.js took N
              - Cache Components enabled
              - Experiments (use with caution):
@@ -40,7 +40,7 @@ describe('build-output-prerender', () => {
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (webpack)
-             ⚠ \`cacheComponents\` is enabled, but \`partialPrefetching\` is not configured. Set \`partialPrefetching: true\` to enable Partial Prefetching, or set \`partialPrefetching: false\` to keep full prefetching. Learn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/partialPrefetching
+             ⚠ \`cacheComponents\` is enabled without \`partialPrefetching\`. We recommend enabling Partial Prefetching to use the improved prefetching model for client navigations. Learn how to adopt Partial Prefetching: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
              ✓ Running next.config.js took N
              - Cache Components enabled
              - Experiments (use with caution):
@@ -52,7 +52,7 @@ describe('build-output-prerender', () => {
           if (isTurbopack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (Turbopack)
-             ⚠ \`cacheComponents\` is enabled, but \`partialPrefetching\` is not configured. Set \`partialPrefetching: true\` to enable Partial Prefetching, or set \`partialPrefetching: false\` to keep full prefetching. Learn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/partialPrefetching
+             ⚠ \`cacheComponents\` is enabled without \`partialPrefetching\`. We recommend enabling Partial Prefetching to use the improved prefetching model for client navigations. Learn how to adopt Partial Prefetching: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
              ✓ Running next.config.js took N
              - Cache Components enabled
              - Experiments (use with caution):
@@ -62,7 +62,7 @@ describe('build-output-prerender', () => {
           } else if (isRspack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (Rspack)
-             ⚠ \`cacheComponents\` is enabled, but \`partialPrefetching\` is not configured. Set \`partialPrefetching: true\` to enable Partial Prefetching, or set \`partialPrefetching: false\` to keep full prefetching. Learn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/partialPrefetching
+             ⚠ \`cacheComponents\` is enabled without \`partialPrefetching\`. We recommend enabling Partial Prefetching to use the improved prefetching model for client navigations. Learn how to adopt Partial Prefetching: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
              ✓ Running next.config.js took N
              - Cache Components enabled
              - Experiments (use with caution):
@@ -71,7 +71,7 @@ describe('build-output-prerender', () => {
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (webpack)
-             ⚠ \`cacheComponents\` is enabled, but \`partialPrefetching\` is not configured. Set \`partialPrefetching: true\` to enable Partial Prefetching, or set \`partialPrefetching: false\` to keep full prefetching. Learn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/partialPrefetching
+             ⚠ \`cacheComponents\` is enabled without \`partialPrefetching\`. We recommend enabling Partial Prefetching to use the improved prefetching model for client navigations. Learn how to adopt Partial Prefetching: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
              ✓ Running next.config.js took N
              - Cache Components enabled
              - Experiments (use with caution):
@@ -147,7 +147,7 @@ describe('build-output-prerender', () => {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
              ▲ Next.js x.y.z (Turbopack)
-             ⚠ \`cacheComponents\` is enabled, but \`partialPrefetching\` is not configured. Set \`partialPrefetching: true\` to enable Partial Prefetching, or set \`partialPrefetching: false\` to keep full prefetching. Learn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/partialPrefetching
+             ⚠ \`cacheComponents\` is enabled without \`partialPrefetching\`. We recommend enabling Partial Prefetching to use the improved prefetching model for client navigations. Learn how to adopt Partial Prefetching: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
              ✓ Running next.config.js took N
              - Cache Components enabled
              - Experiments (use with caution):
@@ -163,7 +163,7 @@ describe('build-output-prerender', () => {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
              ▲ Next.js x.y.z (Rspack)
-             ⚠ \`cacheComponents\` is enabled, but \`partialPrefetching\` is not configured. Set \`partialPrefetching: true\` to enable Partial Prefetching, or set \`partialPrefetching: false\` to keep full prefetching. Learn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/partialPrefetching
+             ⚠ \`cacheComponents\` is enabled without \`partialPrefetching\`. We recommend enabling Partial Prefetching to use the improved prefetching model for client navigations. Learn how to adopt Partial Prefetching: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
              ✓ Running next.config.js took N
              - Cache Components enabled
              - Experiments (use with caution):
@@ -178,7 +178,7 @@ describe('build-output-prerender', () => {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
              ▲ Next.js x.y.z (webpack)
-             ⚠ \`cacheComponents\` is enabled, but \`partialPrefetching\` is not configured. Set \`partialPrefetching: true\` to enable Partial Prefetching, or set \`partialPrefetching: false\` to keep full prefetching. Learn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/partialPrefetching
+             ⚠ \`cacheComponents\` is enabled without \`partialPrefetching\`. We recommend enabling Partial Prefetching to use the improved prefetching model for client navigations. Learn how to adopt Partial Prefetching: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
              ✓ Running next.config.js took N
              - Cache Components enabled
              - Experiments (use with caution):
@@ -195,7 +195,7 @@ describe('build-output-prerender', () => {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
              ▲ Next.js x.y.z (Turbopack)
-             ⚠ \`cacheComponents\` is enabled, but \`partialPrefetching\` is not configured. Set \`partialPrefetching: true\` to enable Partial Prefetching, or set \`partialPrefetching: false\` to keep full prefetching. Learn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/partialPrefetching
+             ⚠ \`cacheComponents\` is enabled without \`partialPrefetching\`. We recommend enabling Partial Prefetching to use the improved prefetching model for client navigations. Learn how to adopt Partial Prefetching: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
              ✓ Running next.config.js took N
              - Cache Components enabled
              - Experiments (use with caution):
@@ -210,7 +210,7 @@ describe('build-output-prerender', () => {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
              ▲ Next.js x.y.z (Rspack)
-             ⚠ \`cacheComponents\` is enabled, but \`partialPrefetching\` is not configured. Set \`partialPrefetching: true\` to enable Partial Prefetching, or set \`partialPrefetching: false\` to keep full prefetching. Learn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/partialPrefetching
+             ⚠ \`cacheComponents\` is enabled without \`partialPrefetching\`. We recommend enabling Partial Prefetching to use the improved prefetching model for client navigations. Learn how to adopt Partial Prefetching: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
              ✓ Running next.config.js took N
              - Cache Components enabled
              - Experiments (use with caution):
@@ -224,7 +224,7 @@ describe('build-output-prerender', () => {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
              ▲ Next.js x.y.z (webpack)
-             ⚠ \`cacheComponents\` is enabled, but \`partialPrefetching\` is not configured. Set \`partialPrefetching: true\` to enable Partial Prefetching, or set \`partialPrefetching: false\` to keep full prefetching. Learn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/partialPrefetching
+             ⚠ \`cacheComponents\` is enabled without \`partialPrefetching\`. We recommend enabling Partial Prefetching to use the improved prefetching model for client navigations. Learn how to adopt Partial Prefetching: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
              ✓ Running next.config.js took N
              - Cache Components enabled
              - Experiments (use with caution):
@@ -353,7 +353,7 @@ describe('build-output-prerender', () => {
           if (isTurbopack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (Turbopack)
-             ⚠ \`cacheComponents\` is enabled, but \`partialPrefetching\` is not configured. Set \`partialPrefetching: true\` to enable Partial Prefetching, or set \`partialPrefetching: false\` to keep full prefetching. Learn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/partialPrefetching
+             ⚠ \`cacheComponents\` is enabled without \`partialPrefetching\`. We recommend enabling Partial Prefetching to use the improved prefetching model for client navigations. Learn how to adopt Partial Prefetching: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
              ✓ Running next.config took N
              - Cache Components enabled
              - Experiments (use with caution):
@@ -363,7 +363,7 @@ describe('build-output-prerender', () => {
           } else if (isRspack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (Rspack)
-             ⚠ \`cacheComponents\` is enabled, but \`partialPrefetching\` is not configured. Set \`partialPrefetching: true\` to enable Partial Prefetching, or set \`partialPrefetching: false\` to keep full prefetching. Learn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/partialPrefetching
+             ⚠ \`cacheComponents\` is enabled without \`partialPrefetching\`. We recommend enabling Partial Prefetching to use the improved prefetching model for client navigations. Learn how to adopt Partial Prefetching: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
              ✓ Running next.config took N
              - Cache Components enabled
              - Experiments (use with caution):
@@ -372,7 +372,7 @@ describe('build-output-prerender', () => {
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (webpack)
-             ⚠ \`cacheComponents\` is enabled, but \`partialPrefetching\` is not configured. Set \`partialPrefetching: true\` to enable Partial Prefetching, or set \`partialPrefetching: false\` to keep full prefetching. Learn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/partialPrefetching
+             ⚠ \`cacheComponents\` is enabled without \`partialPrefetching\`. We recommend enabling Partial Prefetching to use the improved prefetching model for client navigations. Learn how to adopt Partial Prefetching: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
              ✓ Running next.config took N
              - Cache Components enabled
              - Experiments (use with caution):
@@ -420,7 +420,7 @@ describe('build-output-prerender', () => {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
              ▲ Next.js x.y.z (Turbopack)
-             ⚠ \`cacheComponents\` is enabled, but \`partialPrefetching\` is not configured. Set \`partialPrefetching: true\` to enable Partial Prefetching, or set \`partialPrefetching: false\` to keep full prefetching. Learn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/partialPrefetching
+             ⚠ \`cacheComponents\` is enabled without \`partialPrefetching\`. We recommend enabling Partial Prefetching to use the improved prefetching model for client navigations. Learn how to adopt Partial Prefetching: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
              ✓ Running next.config took N
              - Cache Components enabled
              - Experiments (use with caution):
@@ -435,7 +435,7 @@ describe('build-output-prerender', () => {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
              ▲ Next.js x.y.z (Rspack)
-             ⚠ \`cacheComponents\` is enabled, but \`partialPrefetching\` is not configured. Set \`partialPrefetching: true\` to enable Partial Prefetching, or set \`partialPrefetching: false\` to keep full prefetching. Learn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/partialPrefetching
+             ⚠ \`cacheComponents\` is enabled without \`partialPrefetching\`. We recommend enabling Partial Prefetching to use the improved prefetching model for client navigations. Learn how to adopt Partial Prefetching: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
              ✓ Running next.config took N
              - Cache Components enabled
              - Experiments (use with caution):
@@ -449,7 +449,7 @@ describe('build-output-prerender', () => {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
              ▲ Next.js x.y.z (webpack)
-             ⚠ \`cacheComponents\` is enabled, but \`partialPrefetching\` is not configured. Set \`partialPrefetching: true\` to enable Partial Prefetching, or set \`partialPrefetching: false\` to keep full prefetching. Learn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/partialPrefetching
+             ⚠ \`cacheComponents\` is enabled without \`partialPrefetching\`. We recommend enabling Partial Prefetching to use the improved prefetching model for client navigations. Learn how to adopt Partial Prefetching: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
              ✓ Running next.config took N
              - Cache Components enabled
              - Experiments (use with caution):

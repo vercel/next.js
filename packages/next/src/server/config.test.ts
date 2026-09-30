@@ -293,8 +293,7 @@ describe('loadConfig', () => {
   })
 
   describe('partialPrefetching validation', () => {
-    const warning =
-      '`cacheComponents` is enabled, but `partialPrefetching` is not configured.'
+    const warning = '`cacheComponents` is enabled without `partialPrefetching`.'
 
     afterEach(() => {
       jest.restoreAllMocks()
