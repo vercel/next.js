@@ -167,7 +167,7 @@ async function resolveEnsureStaticConfigImpl(
               `\n` +
               `\n Possible fixes:` +
               `\n - Remove one of the \`unstable_ensureStatic\` exports` +
-              `\n - Change one of the  \`unstable_ensureStatic\` exports to match the other`
+              `\n - Change one of the \`unstable_ensureStatic\` exports to match the other`
           )
         }
       }
@@ -211,7 +211,7 @@ async function resolveEnsureStaticConfigImpl(
             `\n` +
             `\n Possible fixes:` +
             `\n - Remove one of the \`unstable_ensureStatic\` exports` +
-            `\n - Change one of the  \`unstable_ensureStatic\` exports to match the other`
+            `\n - Change one of the \`unstable_ensureStatic\` exports to match the other`
         )
       }
     }

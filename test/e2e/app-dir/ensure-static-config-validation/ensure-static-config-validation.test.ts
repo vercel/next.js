@@ -6,7 +6,11 @@ import {
   Playwright,
 } from 'e2e-utils'
 import { EnsureStatic } from 'next/dist/build/segment-config/app/app-segment-config'
-import { waitForNoRedbox, waitForRedbox } from '../../../lib/next-test-utils'
+import {
+  getRedboxDescription,
+  waitForNoRedbox,
+  waitForRedbox,
+} from '../../../lib/next-test-utils'
 import {
   createRedboxSnapshot,
   ErrorSnapshot,
@@ -52,6 +56,8 @@ describe('unstable_ensureStatic config validation', () => {
   // This test suite has many cases, and waiting for the default 5000ms
   // just to determine whether a redbox is shown makes it take a long time.
   const REDBOX_WAIT_OPTS = { waitInMs: 1000 }
+  const EXPECTED_CONFIG_FIX =
+    'Change one of the `unstable_ensureStatic` exports to match the other'
 
   describe('nesting unstable_ensureStatic', () => {
     const ALWAYS_ALLOWED_NESTINGS = [
@@ -159,6 +165,9 @@ describe('unstable_ensureStatic config validation', () => {
                 },
                 REDBOX_WAIT_OPTS
               )
+              expect(await getRedboxDescription(browser)).toContain(
+                EXPECTED_CONFIG_FIX
+              )
             }
           } else {
             const result = await prerenderPattern(`app/${route}/page.tsx`)
@@ -169,6 +178,7 @@ describe('unstable_ensureStatic config validation', () => {
               // Invalid nestings should error.
               expect(result.exitCode).toBe(1)
               expect(result.cliOutput).toContain(INVALID_CONFIG_MESSAGE)
+              expect(result.cliOutput).toContain(EXPECTED_CONFIG_FIX)
             }
           }
         }
@@ -214,6 +224,9 @@ describe('unstable_ensureStatic config validation', () => {
               },
               REDBOX_WAIT_OPTS
             )
+            expect(await getRedboxDescription(browser)).toContain(
+              EXPECTED_CONFIG_FIX
+            )
           }
         } else {
           const result = await prerenderPattern(`app/${route}/*/page.tsx`)
@@ -224,6 +237,7 @@ describe('unstable_ensureStatic config validation', () => {
             // Invalid combinations should error.
             expect(result.exitCode).toBe(1)
             expect(result.cliOutput).toContain(INVALID_CONFIG_MESSAGE)
+            expect(result.cliOutput).toContain(EXPECTED_CONFIG_FIX)
           }
         }
       }
