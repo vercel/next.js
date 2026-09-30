@@ -6,12 +6,15 @@ related:
   description: Learn how to use instant navigations in practice.
   links:
     - app/guides/instant-navigation
+    - app/api-reference/file-conventions/route-segment-config/ensureStatic
     - app/getting-started/caching
     - app/getting-started/revalidating
     - app/api-reference/directives/use-cache
 ---
 
 The `instant` route segment config controls how Next.js validates whether a navigation into this segment would produce an instant UI.
+
+`instant` and [`ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic) enforce different requirements. `instant` validates whether a navigation shows UI immediately. `ensureStatic` requires selected server-rendered output to be static instead of rendered for each request. A route can be fully static and still block a navigation, for example when a Client Component loads data in the browser.
 
 Next.js uses prefetching to preload navigations for all in-app links on the current page. However, client-side data fetching or partially prerendered results from the server can lead to navigations that don't update the UI immediately. To help you build fast-feeling navigations, `instant` lets you tell Next.js what to expect from navigations through the configured segment. For instance, you can indicate that navigations into this segment should produce a UI that renders instantly without waiting on any externally loaded data. You can also indicate that navigations aren't expected to be instant.
 
