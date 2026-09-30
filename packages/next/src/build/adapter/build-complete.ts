@@ -552,7 +552,8 @@ export interface NextAdapter {
      */
     projectDir: string
     /**
-     * repoRoot is the absolute path of the detected root of the repo
+     * repoRoot is the absolute path of the Turbopack root for Turbopack builds,
+     * or the detected repository root for webpack builds.
      */
     repoRoot: string
     /**

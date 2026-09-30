@@ -4667,7 +4667,10 @@ export default async function build(
               staticPages,
               serverPropsPages,
               nextVersion: process.env.__NEXT_VERSION as string,
-              repoRoot: config.repoRoot,
+              repoRoot:
+                bundler === Bundler.Turbopack
+                  ? (config.turbopack?.root ?? config.repoRoot)
+                  : config.repoRoot,
               outputFileTracingRoot,
               hasNodeMiddleware,
               hasInstrumentationHook,

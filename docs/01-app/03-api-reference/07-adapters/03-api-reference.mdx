@@ -34,8 +34,15 @@ Called after the build process completes with detailed information about routes 
   - `routing.rsc`: Route metadata used for React Server Components routing behavior
 - `context.outputs`: Detailed information about all build outputs organized by type
 - `context.projectDir`: Absolute path to the Next.js project directory
-- `context.repoRoot`: Absolute path to the detected repository root
+- `context.repoRoot`: Absolute path to `turbopack.root` for Turbopack builds, or the detected repository root for webpack builds. Output asset paths are relative to this directory.
 - `context.distDir`: Absolute path to the build output directory
 - `context.config`: The final Next.js configuration (with `modifyConfig` applied)
 - `context.nextVersion`: Version of Next.js being used
 - `context.buildId`: Unique identifier for the current build
+
+## Version History
+
+| Version   | Changes                                                                                                                              |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `v16.4.0` | `context.repoRoot` is `turbopack.root` for Turbopack builds, so output asset paths are relative to the Turbopack root.               |
+| `v16.2.0` | Adapters are configured with the stable top-level [`adapterPath`](/docs/app/api-reference/config/next-config-js/adapterPath) option. |
