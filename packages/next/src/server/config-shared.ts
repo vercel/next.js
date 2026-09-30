@@ -499,8 +499,8 @@ export interface DeprecatedConfig {
 }
 
 export interface ExperimentalConfig {
-  /** Nudge coding agents about security upgrades, stable releases, or Future Defaults. */
-  agenticAutoUpgrade?: 'security' | 'latest' | 'future' | false
+  /** Nudge coding agents about security upgrades, stable releases, or Future Defaults. `true` uses the security policy. */
+  agentUpgrade?: 'security' | 'latest' | 'experimental-future' | boolean
   /**
    * Adds managed instructions to AGENTS.md that let AI coding agents prepare
    * anonymized Next.js feedback for user review.
@@ -2363,6 +2363,7 @@ export const defaultConfig = Object.freeze({
   adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
   deprecated: {} as DeprecatedConfig,
   experimental: {
+    agentUpgrade: true,
     agentFeedback: false,
     coldCacheBadge: false,
     collapseAdapterRoutes: true,
