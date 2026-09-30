@@ -1347,12 +1347,18 @@ impl Project {
             TurbopackPluginRuntimeStrategy::ChildProcesses => child_process_backend(),
         };
 
+        let output_root = node_root.join("build")?;
+        // Relative to `output_root`, not `node_root`, as the runtime resolves this from the
+        // output root.
+        let output_root_to_root_path = output_root
+            .get_relative_path_to(&*self.output_fs().root().await?)
+            .context("Expected execution output root to be inside of output fs")?;
         let node_execution_chunking_context = Vc::upcast(
             NodeJsChunkingContext::builder(
                 self.project_root_path().owned().await?,
-                node_root.join("build")?,
-                self.node_root_to_root_path().owned().await?,
-                node_root.join("build")?,
+                output_root.clone(),
+                output_root_to_root_path,
+                output_root,
                 node_root.join("build/chunks")?,
                 node_root.join("build/assets")?,
                 node_build_environment().to_resolved().await?,
