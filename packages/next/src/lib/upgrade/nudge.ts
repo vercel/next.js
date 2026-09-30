@@ -157,7 +157,7 @@ export function getUpgradeContext(config: NextConfigComplete): UpgradeContext {
     cacheComponents: config.cacheComponents,
     experimental: {
       agentUpgrade:
-        getRequestedUpgrade() ?? (config.experimental.agentUpgrade ?? false),
+        getRequestedUpgrade() ?? config.experimental.agentUpgrade ?? false,
     },
   }
 }

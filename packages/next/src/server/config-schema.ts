@@ -198,7 +198,10 @@ const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
 
 export const experimentalSchema = {
   agentUpgrade: z
-    .union([z.enum(['security', 'latest', 'experimental-future']), z.literal(false)])
+    .union([
+      z.enum(['security', 'latest', 'experimental-future']),
+      z.literal(false),
+    ])
     .optional(),
   agentFeedback: z.boolean().optional(),
   turbopackAdditionalRoots: z
