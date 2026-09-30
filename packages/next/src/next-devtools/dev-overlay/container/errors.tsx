@@ -101,7 +101,7 @@ export function getErrorTypeLabel(
   if (errorDetails.type === 'blocking-route') {
     return errorDetails.inNavigation ? `Instant` : `Blocking Route`
   }
-  if (errorDetails.type === 'static-route') return 'Blocking Route'
+  if (errorDetails.type === 'static-route') return 'Static Route'
   if (errorDetails.type === 'client-hook') {
     return `Blocking Route`
   }
@@ -444,7 +444,7 @@ export function getBlockingRouteErrorDetails(
   const inNavigation = isBlockingRouteInNavError(message)
 
   const staticRouteMatch =
-    /https:\/\/nextjs\.org\/docs\/messages\/ensure-static-(route|metadata|viewport)\b/.exec(
+    /https:\/\/nextjs\.org\/docs\/messages\/static-(route|metadata|viewport)\b/.exec(
       message
     )
   if (staticRouteMatch) {

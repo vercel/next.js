@@ -1,6 +1,6 @@
 ---
 title: Next.js encountered runtime data on a route that must be fully static
-kind: insight
+kind: error
 ---
 
 <div
@@ -14,7 +14,7 @@ kind: insight
     lineHeight: '1.6',
   }}
 >
-  This Insight is part of the [Instant
+  This error is part of the [Instant
   Navigations](https://nextjs.org/blog/next-16-3-instant-navigations) feature
   introduced in Next.js 16.3. If you're new to it, start with the [Ensuring
   instant navigations](/docs/app/guides/instant-navigation) guide.
@@ -22,9 +22,11 @@ kind: insight
 
 A page or layout on this route exports [`unstable_ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic) with the `'navigation'` value, requiring all server-rendered work for the route to complete during prerendering.
 
-During [prerendering](/docs/app/glossary#prerendering), the page or layout read request-specific data from `cookies()`, `headers()`, `params`, `searchParams`, or a short-lived cache. This data is not available in fully static output.
+During [prerendering](/docs/app/glossary#prerendering), the page or layout read request-specific data from `cookies()`, `headers()`, `params`, or `searchParams`. This data is not available in static output.
 
-Uncached `fetch` requests, database calls, and `connection()` have different fixes. See [Uncached data on a route that must be fully static](/docs/messages/ensure-static-route-dynamic).
+A `use cache` scope also triggers this error when its [`expire`](/docs/app/api-reference/functions/cacheLife#expire) is under five minutes, [`stale`](/docs/app/api-reference/functions/cacheLife#stale) is under 30 seconds, or [`revalidate`](/docs/app/api-reference/functions/cacheLife#revalidate) is `0`.
+
+Uncached `fetch` requests, database calls, and `connection()` have different fixes. See [Uncached data on a route that must be fully static](/docs/messages/static-route-dynamic).
 
 ## Ways to fix this
 
@@ -111,7 +113,7 @@ The prerender includes the fallback, and the query-dependent UI renders in the b
 
 ### Extend the cache lifetime
 
-A cache with a short lifetime can also count as runtime data. For fully static navigation, `expire` must be at least 300 seconds, `stale` at least 30 seconds, and `revalidate` greater than zero. Increase the lifetime only when serving shared, older content is acceptable.
+Set `expire` to at least five minutes, `stale` to at least 30 seconds, and `revalidate` above `0`. Increase the lifetime only when serving shared, older content is acceptable.
 
 ## Verifying the fix
 
@@ -119,12 +121,12 @@ After applying a fix, rerun [`next build`](/docs/app/api-reference/cli/next#next
 
 In `next dev`, the error overlay points at the failing component with file paths and line numbers. Run [`next build --debug-prerender`](/docs/app/guides/building#debug-prerender-errors) for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
 
-## Remove the static requirement
+### Remove the static requirement
 
 The `'navigation'` value is usually set deliberately to guarantee static output for the entire server-rendered route. Removing it relaxes that requirement for every segment, not only the code that triggered this error.
 
 If request-time rendering is intentional for this route, remove `unstable_ensureStatic = 'navigation'` from every page or layout that sets it. The route then follows the ordinary [Cache Components](/docs/app/getting-started/caching) rendering rules.
 
-## Related Insights
+## Related validation errors
 
 See [Instant Navigation validation errors](/docs/messages/instant-navigation-validation) for the complete reference.

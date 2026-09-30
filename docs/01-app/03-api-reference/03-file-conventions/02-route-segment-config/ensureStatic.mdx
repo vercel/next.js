@@ -1,9 +1,9 @@
 ---
 title: unstable_ensureStatic
-description: API reference for the unstable_ensureStatic route segment config, which controls whether the App Shell, per-link prefetches, and server-rendered navigation output must be static.
+description: API reference for the unstable_ensureStatic route segment config, which requires selected route output to be reusable and static.
 related:
   title: Next Steps
-  description: Learn how prefetching and prerendering stages work.
+  description: Learn how to control which route output must be static.
   links:
     - app/guides/optimizing-prefetching
     - app/api-reference/functions/prefetch
@@ -12,7 +12,7 @@ related:
     - app/api-reference/config/next-config-js/partialPrefetching
 ---
 
-The `unstable_ensureStatic` route segment config controls which rendering stages must use reusable static output. Export it from a [page](/docs/app/api-reference/file-conventions/page) or [layout](/docs/app/api-reference/file-conventions/layout) to configure the [App Shell](/docs/app/glossary#app-shell), per-link prefetches, or the complete server-rendered route.
+The `unstable_ensureStatic` route segment config requires selected route output to be reusable and static. Export it from a [page](/docs/app/api-reference/file-conventions/page) or [layout](/docs/app/api-reference/file-conventions/layout) to enforce this requirement for the [App Shell](/docs/app/glossary#app-shell), per-link prefetches, or the complete server-rendered route.
 
 > **Good to know**:
 >
@@ -47,15 +47,15 @@ The export accepts `'auto'`, `'shell'`, `'prefetch'`, `'navigation'`, or `false`
 | `'prefetch'`       | Uses a reusable static App Shell           | Uses a reusable static prefetch                    | Allows request-specific rendering |
 | `'navigation'`     | Uses a reusable static App Shell           | Uses a reusable static prefetch                    | Requires static server output     |
 
-With [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), the router performs up to two requests before navigation. A default `<Link>` prefetches the App Shell. Setting [`prefetch={true}`](/docs/app/api-reference/components/link#prefetch) can request a [per-link prefetch](/docs/app/guides/optimizing-prefetching#resolve-url-data-at-prefetch-time) containing more of that destination.
+With [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), the router performs up to two requests before navigation. A default `<Link>` loads the App Shell. Setting [`prefetch={true}`](/docs/app/api-reference/components/link#prefetch) can request a [per-link prefetch](/docs/app/guides/optimizing-prefetching#resolve-url-data-at-prefetch-time) containing more of that destination.
 
-`'shell'` and `'prefetch'` use static output for the selected prefetch stages. That output can contain `<Suspense>` fallbacks for content that renders during a later request. `'navigation'` requires the complete server-rendered route to use static output.
+`'shell'` and `'prefetch'` require reusable static output before navigation. That output can contain `<Suspense>` fallbacks for content that renders during a later request. `'navigation'` requires the complete server-rendered route to use static output.
 
-Use `'shell'` and `'prefetch'` with [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching). The `'navigation'` value works with Cache Components alone. Each static level includes the previous one: `'prefetch'` includes `'shell'`, and `'navigation'` includes both.
+Use `'shell'` and `'prefetch'` with [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), which enables the App Shell and per-link prefetch stages. The `'navigation'` value works with Cache Components alone. Each static level includes the previous one: `'prefetch'` includes `'shell'`, and `'navigation'` includes both.
 
 ### `'shell'`
 
-Uses reusable static output for the App Shell requested by a default `<Link>`. Request-specific content behind `<Suspense>` can render during a later per-link prefetch with `<Link prefetch={true}>`, or during navigation.
+Uses reusable static output for the [App Shell](/docs/app/glossary#app-shell) loaded by a default `<Link>`. Request-specific content behind `<Suspense>` can render during a later per-link prefetch with `<Link prefetch={true}>`, or during navigation.
 
 ### `'prefetch'`
 
@@ -69,9 +69,9 @@ Requires every server-rendered segment of the route to complete during prerender
 
 Server content that requires per-request work fails `next build` and shows an error in the development overlay, even when it is wrapped in `<Suspense>` or the segment sets [`instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant#disabling-instant):
 
-- [Uncached data](/docs/messages/ensure-static-route-dynamic), including a `fetch` or database call without [`use cache`](/docs/app/api-reference/directives/use-cache), and [`connection()`](/docs/app/api-reference/functions/connection).
-- [Runtime data](/docs/messages/ensure-static-route-runtime), such as `cookies()`, `headers()`, and server-side `searchParams`.
-- A `use cache` scope whose [`expire`](/docs/app/api-reference/functions/cacheLife#expire) is under five minutes, whose [`stale`](/docs/app/api-reference/functions/cacheLife#stale) is under 30 seconds, or whose [`revalidate`](/docs/app/api-reference/functions/cacheLife#revalidate) is `0`. A `stale` time between 30 seconds and five minutes is allowed.
+- [Uncached data](/docs/messages/static-route-dynamic), including a `fetch` or database call without [`use cache`](/docs/app/api-reference/directives/use-cache), and [`connection()`](/docs/app/api-reference/functions/connection).
+- [Runtime data](/docs/messages/static-route-runtime), such as `cookies()`, `headers()`, and server-side `searchParams`.
+- A `use cache` scope whose [`expire`](/docs/app/api-reference/functions/cacheLife#expire) is under five minutes, [`stale`](/docs/app/api-reference/functions/cacheLife#stale) is under 30 seconds, or [`revalidate`](/docs/app/api-reference/functions/cacheLife#revalidate) is `0`. A `stale` time between 30 seconds and five minutes is allowed.
 - A promise for request-dependent server data passed to a Client Component, whether or not the component reads it.
 
 These constraints also apply to [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata) and [`generateViewport`](/docs/app/api-reference/functions/generate-viewport).
@@ -84,7 +84,7 @@ Dynamic routes must provide [`generateStaticParams()`](/docs/app/api-reference/f
 
 Parameters returned by `generateStaticParams()` can be read during prerendering. For parameter values that were not prerendered at build time, Next.js waits for the static result to be generated before serving the response.
 
-If `generateStaticParams()` is missing or a result omits a dynamic parameter, Next.js links to the [`generateStaticParams` error guide](/docs/messages/generate-static-params#with-unstable_ensurestatic).
+The build fails if `generateStaticParams()` is missing or a result omits a dynamic parameter. See the [`generateStaticParams` error guide](/docs/messages/generate-static-params#with-unstable_ensurestatic).
 
 #### Client Components
 
@@ -94,11 +94,11 @@ Client hooks such as [`useParams()`](/docs/app/api-reference/functions/use-param
 
 #### How errors are reported
 
-The `'navigation'` level is checked during development and `next build`. Start with [`next dev`](/docs/app/guides/building#find-blocking-work) to get source-mapped errors that rerun as you edit. If the error only appears during a build, use [`next build --debug-prerender`](/docs/app/guides/building#debug-prerender-errors) for detailed stack traces and code frames. See [Instant Navigation validation errors](/docs/messages/instant-navigation-validation) for the complete error reference.
+`next build` validates the `'navigation'` requirement. The same errors also appear in `next dev`, where source-mapped stack traces update as you edit. See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the development workflow. For build-only failures, follow [Debug prerender errors](/docs/app/guides/building#debug-prerender-errors). See [Instant Navigation validation errors](/docs/messages/instant-navigation-validation) for the complete error reference.
 
 ### `false`
 
-With Partial Prefetching, `false` keeps the route's normal rendering behavior and fails the build if another segment sets `'shell'`, `'prefetch'`, or `'navigation'`. Use it to catch a static level inherited from another segment.
+With Partial Prefetching, `false` signals that the segment is not intended to use reusable static output. The build fails if another segment in the route sets `'shell'`, `'prefetch'`, or `'navigation'`.
 
 ## Combining levels across layouts and pages
 

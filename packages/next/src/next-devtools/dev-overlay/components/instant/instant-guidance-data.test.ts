@@ -153,22 +153,22 @@ describe('instant-guidance-data card ordering', () => {
 describe('instant-guidance-data card links', () => {
   it('links each static error variant to its focused page', () => {
     expect(getStaticRouteDocsUrl('static-route', 'runtime')).toBe(
-      'https://nextjs.org/docs/messages/ensure-static-route-runtime'
+      'https://nextjs.org/docs/messages/static-route-runtime'
     )
     expect(getStaticRouteDocsUrl('static-route', 'dynamic')).toBe(
-      'https://nextjs.org/docs/messages/ensure-static-route-dynamic'
+      'https://nextjs.org/docs/messages/static-route-dynamic'
     )
     expect(getStaticRouteDocsUrl('static-metadata', 'runtime')).toBe(
-      'https://nextjs.org/docs/messages/ensure-static-metadata-runtime'
+      'https://nextjs.org/docs/messages/static-metadata-runtime'
     )
     expect(getStaticRouteDocsUrl('static-metadata', 'dynamic')).toBe(
-      'https://nextjs.org/docs/messages/ensure-static-metadata-dynamic'
+      'https://nextjs.org/docs/messages/static-metadata-dynamic'
     )
     expect(getStaticRouteDocsUrl('static-viewport', 'runtime')).toBe(
-      'https://nextjs.org/docs/messages/ensure-static-viewport-runtime'
+      'https://nextjs.org/docs/messages/static-viewport-runtime'
     )
     expect(getStaticRouteDocsUrl('static-viewport', 'dynamic')).toBe(
-      'https://nextjs.org/docs/messages/ensure-static-viewport-dynamic'
+      'https://nextjs.org/docs/messages/static-viewport-dynamic'
     )
   })
 

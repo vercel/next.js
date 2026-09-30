@@ -146,7 +146,7 @@ See [Proxy](#proxy).
 
 ## Navigation stages
 
-The control mechanism for choosing how much of a [Cache Components](#cache-components) route each prefetch includes. With [Partial Prefetching](#partial-prefetching), [`prefetch()`](/docs/app/api-reference/functions/prefetch) excludes subsequent work from the [App Shell](#app-shell), while [`navigation()`](/docs/app/api-reference/functions/navigation) excludes it from every prefetch. The work remains cacheable.
+The points at which server-rendered work becomes available during a client navigation. With [Partial Prefetching](#partial-prefetching), [`prefetch()`](/docs/app/api-reference/functions/prefetch) delays subsequent work until a per-link prefetch or navigation, while [`navigation()`](/docs/app/api-reference/functions/navigation) delays runtime work until navigation. Static prerenders can include work after either API, and the work remains cacheable.
 
 ## Not Found
 

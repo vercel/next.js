@@ -1,6 +1,6 @@
 ---
-title: Next.js encountered runtime data in `generateViewport()` on a route that must be fully static
-kind: insight
+title: Next.js encountered runtime data in `generateMetadata()` on a route that must be fully static
+kind: error
 ---
 
 <div
@@ -14,7 +14,7 @@ kind: insight
     lineHeight: '1.6',
   }}
 >
-  This Insight is part of the [Instant
+  This error is part of the [Instant
   Navigations](https://nextjs.org/blog/next-16-3-instant-navigations) feature
   introduced in Next.js 16.3. If you're new to it, start with the [Ensuring
   instant navigations](/docs/app/guides/instant-navigation) guide.
@@ -22,35 +22,37 @@ kind: insight
 
 A page or layout on this route exports [`unstable_ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic) with the `'navigation'` value, requiring all server-rendered work for the route to complete during prerendering.
 
-During [prerendering](/docs/app/glossary#prerendering), `generateViewport()` read request-specific data from `cookies()`, `headers()`, `params`, `searchParams`, or a short-lived cache. This data is not available in fully static output.
+During [prerendering](/docs/app/glossary#prerendering), `generateMetadata()` read request-specific data from `cookies()`, `headers()`, `params`, or `searchParams`. This data is not available in static output.
 
-Uncached `fetch` requests, database calls, and `connection()` have different fixes. See [Uncached data in `generateViewport()` on a route that must be fully static](/docs/messages/ensure-static-viewport-dynamic).
+A `use cache` scope also triggers this error when its [`expire`](/docs/app/api-reference/functions/cacheLife#expire) is under five minutes, [`stale`](/docs/app/api-reference/functions/cacheLife#stale) is under 30 seconds, or [`revalidate`](/docs/app/api-reference/functions/cacheLife#revalidate) is `0`.
+
+Uncached `fetch` requests, database calls, and `connection()` have different fixes. See [Uncached data in `generateMetadata()` on a route that must be fully static](/docs/messages/static-metadata-dynamic).
 
 ## Ways to fix this
 
 <FixCardGrid>
   <FixCard
     group="static"
-    title="Use static viewport"
-    href="#use-static-viewport"
+    title="Use static metadata"
+    href="#use-static-metadata"
     snippets={[
-      { text: 'export const viewport = {', highlight: true },
-      { text: "  themeColor: 'black'" },
+      { text: 'export const metadata = {', highlight: true },
+      { text: "  title: 'My page'" },
       { text: '}' },
     ]}
   />
 </FixCardGrid>
 
-## Use static viewport
+## Use static metadata
 
-Choose this fix when viewport settings do not need request-specific data.
+Choose this fix when metadata does not need request-specific data.
 
 ### Patterns
 
-Replace `generateViewport()` with a static [`viewport`](/docs/app/api-reference/functions/generate-viewport#the-viewport-object) export:
+Replace `generateMetadata()` with a static [`metadata`](/docs/app/api-reference/functions/generate-metadata#metadata-object) export:
 
 ```jsx filename="app/dashboard/layout.jsx"
-export const viewport = { themeColor: 'black' }
+export const metadata = { title: 'My page' }
 
 export default function Layout({ children }) {
   return <section>{children}</section>
@@ -59,18 +61,18 @@ export default function Layout({ children }) {
 
 ### Trade-off
 
-The viewport is determined during prerendering rather than per request.
+The metadata is determined during prerendering rather than per request.
 
 ### Gotchas
 
-- This fixes viewport settings only. Page content, metadata, and other segments must also satisfy the static requirement.
+- This fixes metadata only. Page content and other segments must also satisfy the static requirement.
 - A static export cannot read `cookies()`, `headers()`, `params`, or `searchParams`.
 
 ## Other options
 
 ### Extend the cache lifetime
 
-A cache with a short lifetime can also count as runtime data. For fully static navigation, `expire` must be at least 300 seconds, `stale` at least 30 seconds, and `revalidate` greater than zero. Increase the lifetime only when serving shared, older viewport data is acceptable.
+Set `expire` to at least five minutes, `stale` to at least 30 seconds, and `revalidate` above `0`. Increase the lifetime only when serving shared, older metadata is acceptable.
 
 ## Verifying the fix
 
@@ -78,12 +80,12 @@ After applying a fix, rerun [`next build`](/docs/app/api-reference/cli/next#next
 
 In `next dev`, the error overlay points at the failing function with file paths and line numbers. Run [`next build --debug-prerender`](/docs/app/guides/building#debug-prerender-errors) for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
 
-## Remove the static requirement
+### Remove the static requirement
 
-The `'navigation'` value is usually set deliberately to guarantee static output for the entire server-rendered route. Removing it relaxes that requirement for every segment, not only viewport settings.
+The `'navigation'` value is usually set deliberately to guarantee static output for the entire server-rendered route. Removing it relaxes that requirement for every segment, not only metadata.
 
 If request-time rendering is intentional for this route, remove `unstable_ensureStatic = 'navigation'` from every page or layout that sets it. The route then follows the ordinary [Cache Components](/docs/app/getting-started/caching) rendering rules.
 
-## Related Insights
+## Related validation errors
 
 See [Instant Navigation validation errors](/docs/messages/instant-navigation-validation) for the complete reference.

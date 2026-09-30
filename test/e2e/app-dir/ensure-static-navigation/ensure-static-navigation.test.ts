@@ -184,8 +184,7 @@ describe('ensureStatic = "navigation"', () => {
 
   const getRedboxErrors = async (
     browser: Playwright,
-    state: 'open' | 'collapsed',
-    expectInsight = true
+    state: 'open' | 'collapsed'
   ) => {
     // TODO: wait for validation
     if (state === 'collapsed') {
@@ -193,50 +192,7 @@ describe('ensureStatic = "navigation"', () => {
     } else {
       await waitForRedbox(browser)
     }
-    const snapshot = await createRedboxSnapshot(browser, next)
-    const errors = Array.isArray(snapshot) ? snapshot : [snapshot]
-    if (
-      errors.some((error) =>
-        error.description?.includes('on a route that must be fully static')
-      )
-    ) {
-      const guidance = await browser.eval(() => {
-        const root = Array.from(document.querySelectorAll('nextjs-portal'))
-          .map((portal) => portal.shadowRoot)
-          .find((root) => root?.querySelector('[data-nextjs-card-grid]'))
-        return {
-          hasCards: root !== undefined,
-          titles: Array.from(
-            root?.querySelectorAll('[data-nextjs-fix-card-description]') ?? [],
-            (card) => card.textContent
-          ),
-          links: Array.from(
-            root?.querySelectorAll('a[data-nextjs-fix-card]') ?? [],
-            (card) => card.getAttribute('href')
-          ),
-          docs: root
-            ?.querySelector('[data-nextjs-instant-explanation] a')
-            ?.getAttribute('href'),
-        }
-      })
-      expect(guidance.hasCards).toBe(expectInsight)
-      if (!expectInsight) {
-        return snapshot
-      }
-      expect(guidance.titles).not.toContain('Remove the static requirement')
-      expect(guidance.titles).not.toContain('Allow blocking route')
-      expect(guidance.titles).not.toContain(
-        'Provide a placeholder with Suspense'
-      )
-      expect(guidance.docs).toMatch(
-        /^https:\/\/nextjs\.org\/docs\/messages\/ensure-static-/
-      )
-      const docsPage = guidance.docs?.split('#')[0]
-      for (const link of guidance.links) {
-        expect(link).toMatch(new RegExp(`^${docsPage}#`))
-      }
-    }
-    return snapshot
+    return createRedboxSnapshot(browser, next)
   }
 
   describe('dynamic data', () => {
@@ -252,7 +208,7 @@ describe('ensureStatic = "navigation"', () => {
          {
            "description": "Next.js encountered uncached data on a route that must be fully static.",
            "environmentLabel": "Server",
-           "label": "Blocking Route",
+           "label": "Static Route",
            "source": "app/default/uncached-data/page.tsx (17:9) @ Inner
          > 17 |   await new Promise((resolve) => setTimeout(resolve))
               |         ^",
@@ -272,14 +228,14 @@ describe('ensureStatic = "navigation"', () => {
         expect(error).toMatchInlineSnapshot(`
          "Error: Route "/default/uncached-data": Next.js encountered uncached or runtime data on a route that must be fully static.
 
-         This route is configured to be fully static, but uncached or runtime data from \`fetch(...)\`, database calls, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, \`connection()\`, or a short-lived cache prevents it from being prerendered.
+         This route is configured to be fully static, but uncached or runtime data prevents it from being fully prerendered.
 
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
            - [remove] Remove the data access
            - Only applies to \`searchParams\`: read them on the client with \`useSearchParams()\`
 
-         Learn more: https://nextjs.org/docs/messages/ensure-static-route-dynamic
+         Learn more: https://nextjs.org/docs/messages/static-route-dynamic
              at Inner (app/default/uncached-data/page.tsx:15:16)
              at Page (app/default/uncached-data/page.tsx:9:9)
            13 | }
@@ -310,7 +266,7 @@ describe('ensureStatic = "navigation"', () => {
          {
            "description": "Next.js encountered uncached data on a route that must be fully static.",
            "environmentLabel": "Server",
-           "label": "Blocking Route",
+           "label": "Static Route",
            "source": "app/default/connection/page.tsx (17:19) @ Inner
          > 17 |   await connection()
               |                   ^",
@@ -327,14 +283,14 @@ describe('ensureStatic = "navigation"', () => {
         expect(error).toMatchInlineSnapshot(`
          "Error: Route "/default/connection": Next.js encountered uncached or runtime data on a route that must be fully static.
 
-         This route is configured to be fully static, but uncached or runtime data from \`fetch(...)\`, database calls, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, \`connection()\`, or a short-lived cache prevents it from being prerendered.
+         This route is configured to be fully static, but uncached or runtime data prevents it from being fully prerendered.
 
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
            - [remove] Remove the data access
            - Only applies to \`searchParams\`: read them on the client with \`useSearchParams()\`
 
-         Learn more: https://nextjs.org/docs/messages/ensure-static-route-dynamic
+         Learn more: https://nextjs.org/docs/messages/static-route-dynamic
              at Inner (app/default/connection/page.tsx:17:19)
              at Page (app/default/connection/page.tsx:10:9)
            15 |
@@ -365,7 +321,7 @@ describe('ensureStatic = "navigation"', () => {
          {
            "description": "Next.js encountered uncached data on a route that must be fully static.",
            "environmentLabel": "Server",
-           "label": "Blocking Route",
+           "label": "Static Route",
            "source": "app/default/instant-false/connection-blocking/page.tsx (20:19) @ Inner
          > 20 |   await connection()
               |                   ^",
@@ -382,14 +338,14 @@ describe('ensureStatic = "navigation"', () => {
         expect(error).toMatchInlineSnapshot(`
          "Error: Route "/default/instant-false/connection-blocking": Next.js encountered uncached or runtime data on a route that must be fully static.
 
-         This route is configured to be fully static, but uncached or runtime data from \`fetch(...)\`, database calls, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, \`connection()\`, or a short-lived cache prevents it from being prerendered.
+         This route is configured to be fully static, but uncached or runtime data prevents it from being fully prerendered.
 
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
            - [remove] Remove the data access
            - Only applies to \`searchParams\`: read them on the client with \`useSearchParams()\`
 
-         Learn more: https://nextjs.org/docs/messages/ensure-static-route-dynamic
+         Learn more: https://nextjs.org/docs/messages/static-route-dynamic
              at Inner (app/default/instant-false/connection-blocking/page.tsx:20:19)
              at Page (app/default/instant-false/connection-blocking/page.tsx:14:7)
            18 |
@@ -420,7 +376,7 @@ describe('ensureStatic = "navigation"', () => {
          {
            "description": "Next.js encountered uncached data on a route that must be fully static.",
            "environmentLabel": "Server",
-           "label": "Blocking Route",
+           "label": "Static Route",
            "source": "app/suspense-above-body/connection-blocking/page.tsx (20:19) @ Inner
          > 20 |   await connection()
               |                   ^",
@@ -437,14 +393,14 @@ describe('ensureStatic = "navigation"', () => {
         expect(error).toMatchInlineSnapshot(`
          "Error: Route "/suspense-above-body/connection-blocking": Next.js encountered uncached or runtime data on a route that must be fully static.
 
-         This route is configured to be fully static, but uncached or runtime data from \`fetch(...)\`, database calls, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, \`connection()\`, or a short-lived cache prevents it from being prerendered.
+         This route is configured to be fully static, but uncached or runtime data prevents it from being fully prerendered.
 
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
            - [remove] Remove the data access
            - Only applies to \`searchParams\`: read them on the client with \`useSearchParams()\`
 
-         Learn more: https://nextjs.org/docs/messages/ensure-static-route-dynamic
+         Learn more: https://nextjs.org/docs/messages/static-route-dynamic
              at Inner (app/suspense-above-body/connection-blocking/page.tsx:20:19)
              at Page (app/suspense-above-body/connection-blocking/page.tsx:14:7)
            18 |
@@ -475,7 +431,7 @@ describe('ensureStatic = "navigation"', () => {
          {
            "description": "Next.js encountered uncached data on a route that must be fully static.",
            "environmentLabel": "Server",
-           "label": "Blocking Route",
+           "label": "Static Route",
            "source": "app/default/dynamic-data-passed-to-client/client.tsx (6:19) @ UseServerData
          > 6 |   const data = use(serverData)
              |                   ^",
@@ -492,14 +448,14 @@ describe('ensureStatic = "navigation"', () => {
         expect(error).toMatchInlineSnapshot(`
          "Error: Route "/default/dynamic-data-passed-to-client": Next.js encountered uncached or runtime data on a route that must be fully static.
 
-         This route is configured to be fully static, but uncached or runtime data from \`fetch(...)\`, database calls, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, \`connection()\`, or a short-lived cache prevents it from being prerendered.
+         This route is configured to be fully static, but uncached or runtime data prevents it from being fully prerendered.
 
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
            - [remove] Remove the data access
            - Only applies to \`searchParams\`: read them on the client with \`useSearchParams()\`
 
-         Learn more: https://nextjs.org/docs/messages/ensure-static-route-dynamic
+         Learn more: https://nextjs.org/docs/messages/static-route-dynamic
              at UseServerData (app/default/dynamic-data-passed-to-client/client.tsx:6:19)
              at Page (app/default/dynamic-data-passed-to-client/page.tsx:11:9)
            4 |
@@ -688,7 +644,7 @@ describe('ensureStatic = "navigation"', () => {
          {
            "description": "Next.js encountered uncached data in \`generateMetadata()\` on a route that must be fully static.",
            "environmentLabel": "Server",
-           "label": "Blocking Route",
+           "label": "Static Route",
            "source": "app/default/dynamic-metadata/page.tsx (7:19) @ Module.generateMetadata
          >  7 |   await connection()
               |                   ^",
@@ -704,13 +660,13 @@ describe('ensureStatic = "navigation"', () => {
         expect(error).toMatchInlineSnapshot(`
          "Error: Route "/default/dynamic-metadata": Next.js encountered uncached or runtime data in \`generateMetadata()\` on a route that must be fully static.
 
-         This route is configured to be fully static, but uncached or runtime data from \`fetch(...)\`, database calls, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, \`connection()\`, or a short-lived cache prevents \`generateMetadata()\` from being prerendered.
+         This route is configured to be fully static, but uncached or runtime data prevents \`generateMetadata()\` from being fully prerendered.
 
          Ways to fix this:
            - [cache] For uncached data: cache the data used by \`generateMetadata()\` with \`"use cache"\` (does not apply to \`connection()\`)
            - [static] Replace the dynamic data used by \`generateMetadata()\` with static data
 
-         Learn more: https://nextjs.org/docs/messages/ensure-static-metadata-dynamic
+         Learn more: https://nextjs.org/docs/messages/static-metadata-dynamic
              at Module.generateMetadata (app/default/dynamic-metadata/page.tsx:7:19)
             5 |
             6 | export async function generateMetadata(): Promise<Metadata> {
@@ -740,7 +696,7 @@ describe('ensureStatic = "navigation"', () => {
          {
            "description": "Next.js encountered uncached data in \`generateViewport()\` on a route that must be fully static.",
            "environmentLabel": "Server",
-           "label": "Blocking Route",
+           "label": "Static Route",
            "source": "app/default/dynamic-viewport/page.tsx (7:19) @ Module.generateViewport
          >  7 |   await connection()
               |                   ^",
@@ -756,13 +712,13 @@ describe('ensureStatic = "navigation"', () => {
         expect(error).toMatchInlineSnapshot(`
          "Error: Route "/default/dynamic-viewport": Next.js encountered uncached or runtime data in \`generateViewport()\` on a route that must be fully static.
 
-         This route is configured to be fully static, but uncached or runtime data from \`fetch(...)\`, database calls, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, \`connection()\`, or a short-lived cache prevents \`generateViewport()\` from being prerendered.
+         This route is configured to be fully static, but uncached or runtime data prevents \`generateViewport()\` from being fully prerendered.
 
          Ways to fix this:
            - [cache] For uncached data: cache the data used by \`generateViewport()\` with \`"use cache"\` (does not apply to \`connection()\`)
            - [static] Replace the dynamic data used by \`generateViewport()\` with static data
 
-         Learn more: https://nextjs.org/docs/messages/ensure-static-viewport-dynamic
+         Learn more: https://nextjs.org/docs/messages/static-viewport-dynamic
              at Module.generateViewport (app/default/dynamic-viewport/page.tsx:7:19)
             5 |
             6 | export async function generateViewport(): Promise<Viewport> {
@@ -958,7 +914,7 @@ describe('ensureStatic = "navigation"', () => {
          {
            "description": "Next.js encountered runtime data on a route that must be fully static.",
            "environmentLabel": "Server",
-           "label": "Blocking Route",
+           "label": "Static Route",
            "source": "app/default/excluded-caches/non-prerenderable-cache/page.tsx (17:9) @ Inner
          > 17 |   await nonPrerenderableCache()
               |         ^",
@@ -975,14 +931,14 @@ describe('ensureStatic = "navigation"', () => {
         expect(error).toMatchInlineSnapshot(`
          "Error: Route "/default/excluded-caches/non-prerenderable-cache": Next.js encountered uncached or runtime data on a route that must be fully static.
 
-         This route is configured to be fully static, but uncached or runtime data from \`fetch(...)\`, database calls, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, \`connection()\`, or a short-lived cache prevents it from being prerendered.
+         This route is configured to be fully static, but uncached or runtime data prevents it from being fully prerendered.
 
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
            - [remove] Remove the data access
            - Only applies to \`searchParams\`: read them on the client with \`useSearchParams()\`
 
-         Learn more: https://nextjs.org/docs/messages/ensure-static-route-dynamic
+         Learn more: https://nextjs.org/docs/messages/static-route-dynamic
              at Inner (app/default/excluded-caches/non-prerenderable-cache/page.tsx:17:9)
              at Page (app/default/excluded-caches/non-prerenderable-cache/page.tsx:10:9)
            15 |
@@ -1170,7 +1126,7 @@ describe('ensureStatic = "navigation"', () => {
          {
            "description": "Next.js encountered uncached data during prerendering.",
            "environmentLabel": "Server",
-           "label": "Blocking Route",
+           "label": "Static Route",
            "source": "app/default/blocking-use-io/client.tsx (6:6) @ ClientIO
          > 6 |   use(io())
              |      ^",
@@ -1229,7 +1185,7 @@ describe('ensureStatic = "navigation"', () => {
          {
            "description": "Next.js encountered uncached data on a route that must be fully static.",
            "environmentLabel": "Server",
-           "label": "Blocking Route",
+           "label": "Static Route",
            "source": "app/default/mixed-server-client/connection-and-browser/page.tsx (21:19) @ Inner
          > 21 |   await connection()
               |                   ^",
@@ -1246,14 +1202,14 @@ describe('ensureStatic = "navigation"', () => {
         expect(error).toMatchInlineSnapshot(`
          "Error: Route "/default/mixed-server-client/connection-and-browser": Next.js encountered uncached or runtime data on a route that must be fully static.
 
-         This route is configured to be fully static, but uncached or runtime data from \`fetch(...)\`, database calls, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, \`connection()\`, or a short-lived cache prevents it from being prerendered.
+         This route is configured to be fully static, but uncached or runtime data prevents it from being fully prerendered.
 
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
            - [remove] Remove the data access
            - Only applies to \`searchParams\`: read them on the client with \`useSearchParams()\`
 
-         Learn more: https://nextjs.org/docs/messages/ensure-static-route-dynamic
+         Learn more: https://nextjs.org/docs/messages/static-route-dynamic
              at Inner (app/default/mixed-server-client/connection-and-browser/page.tsx:21:19)
              at Page (app/default/mixed-server-client/connection-and-browser/page.tsx:14:9)
            19 |
@@ -1285,7 +1241,7 @@ describe('ensureStatic = "navigation"', () => {
          {
            "description": "Next.js encountered uncached data on a route that must be fully static.",
            "environmentLabel": "Server",
-           "label": "Blocking Route",
+           "label": "Static Route",
            "source": "app/default/mixed-server-client/connection-and-use-search-params/page.tsx (21:19) @ Inner
          > 21 |   await connection()
               |                   ^",
@@ -1302,14 +1258,14 @@ describe('ensureStatic = "navigation"', () => {
         expect(error).toMatchInlineSnapshot(`
          "Error: Route "/default/mixed-server-client/connection-and-use-search-params": Next.js encountered uncached or runtime data on a route that must be fully static.
 
-         This route is configured to be fully static, but uncached or runtime data from \`fetch(...)\`, database calls, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, \`connection()\`, or a short-lived cache prevents it from being prerendered.
+         This route is configured to be fully static, but uncached or runtime data prevents it from being fully prerendered.
 
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
            - [remove] Remove the data access
            - Only applies to \`searchParams\`: read them on the client with \`useSearchParams()\`
 
-         Learn more: https://nextjs.org/docs/messages/ensure-static-route-dynamic
+         Learn more: https://nextjs.org/docs/messages/static-route-dynamic
              at Inner (app/default/mixed-server-client/connection-and-use-search-params/page.tsx:21:19)
              at Page (app/default/mixed-server-client/connection-and-use-search-params/page.tsx:14:9)
            19 |
@@ -1354,7 +1310,7 @@ describe('ensureStatic = "navigation"', () => {
            {
              "description": "Next.js encountered uncached data on a route that must be fully static.",
              "environmentLabel": "Server",
-             "label": "Blocking Route",
+             "label": "Static Route",
              "source": "app/default/mixed-server-client/connection-and-use-io/client.tsx (6:6) @ ClientIO
          > 6 |   use(io())
              |      ^",
@@ -1366,7 +1322,7 @@ describe('ensureStatic = "navigation"', () => {
            {
              "description": "Next.js encountered uncached data on a route that must be fully static.",
              "environmentLabel": "Server",
-             "label": "Blocking Route",
+             "label": "Static Route",
              "source": "app/default/mixed-server-client/connection-and-use-io/page.tsx (21:19) @ Inner
          > 21 |   await connection()
               |                   ^",
@@ -1384,14 +1340,14 @@ describe('ensureStatic = "navigation"', () => {
         expect(error).toMatchInlineSnapshot(`
          "Error: Route "/default/mixed-server-client/connection-and-use-io": Next.js encountered uncached or runtime data on a route that must be fully static.
 
-         This route is configured to be fully static, but uncached or runtime data from \`fetch(...)\`, database calls, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, \`connection()\`, or a short-lived cache prevents it from being prerendered.
+         This route is configured to be fully static, but uncached or runtime data prevents it from being fully prerendered.
 
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
            - [remove] Remove the data access
            - Only applies to \`searchParams\`: read them on the client with \`useSearchParams()\`
 
-         Learn more: https://nextjs.org/docs/messages/ensure-static-route-dynamic
+         Learn more: https://nextjs.org/docs/messages/static-route-dynamic
              at Inner (app/default/mixed-server-client/connection-and-use-io/page.tsx:21:19)
              at Page (app/default/mixed-server-client/connection-and-use-io/page.tsx:14:9)
            19 |
@@ -1404,14 +1360,14 @@ describe('ensureStatic = "navigation"', () => {
          To debug the issue, start the app in development mode by running \`next dev\`, then open "/default/mixed-server-client/connection-and-use-io" in your browser to investigate the error.
          Error: Route "/default/mixed-server-client/connection-and-use-io": Next.js encountered uncached or runtime data on a route that must be fully static.
 
-         This route is configured to be fully static, but uncached or runtime data from \`fetch(...)\`, database calls, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, \`connection()\`, or a short-lived cache prevents it from being prerendered.
+         This route is configured to be fully static, but uncached or runtime data prevents it from being fully prerendered.
 
          Ways to fix this:
            - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
            - [remove] Remove the data access
            - Only applies to \`searchParams\`: read them on the client with \`useSearchParams()\`
 
-         Learn more: https://nextjs.org/docs/messages/ensure-static-route-dynamic
+         Learn more: https://nextjs.org/docs/messages/static-route-dynamic
              at ClientIO (app/default/mixed-server-client/connection-and-use-io/client.tsx:6:6)
              at Page (app/default/mixed-server-client/connection-and-use-io/page.tsx:11:9)
            4 |

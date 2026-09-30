@@ -693,7 +693,7 @@ const staticRouteRuntimeCards: FixCard[] = [
       { text: '  return <Content />' },
     ],
     copyable: true,
-    link: 'https://nextjs.org/docs/messages/ensure-static-route-runtime#remove-the-data-access',
+    link: 'https://nextjs.org/docs/messages/static-route-runtime#remove-the-data-access',
   },
   {
     id: 'read-search-parameters-on-the-client',
@@ -705,7 +705,7 @@ const staticRouteRuntimeCards: FixCard[] = [
       { text: "return <p>{params.get('q')}</p>" },
     ],
     copyable: true,
-    link: 'https://nextjs.org/docs/messages/ensure-static-route-runtime#read-search-parameters-on-the-client',
+    link: 'https://nextjs.org/docs/messages/static-route-runtime#read-search-parameters-on-the-client',
   },
 ]
 
@@ -727,7 +727,7 @@ const staticRouteDynamicCards: FixCard[] = [
       },
     ],
     copyable: true,
-    link: 'https://nextjs.org/docs/messages/ensure-static-route-dynamic#cache-the-data',
+    link: 'https://nextjs.org/docs/messages/static-route-dynamic#cache-the-data',
   },
   {
     id: 'remove-the-data-access',
@@ -739,7 +739,7 @@ const staticRouteDynamicCards: FixCard[] = [
       { text: '  return <Content />' },
     ],
     copyable: true,
-    link: 'https://nextjs.org/docs/messages/ensure-static-route-dynamic#remove-the-data-access',
+    link: 'https://nextjs.org/docs/messages/static-route-dynamic#remove-the-data-access',
   },
 ]
 const staticMetadataRuntimeCards: FixCard[] = [
@@ -753,7 +753,7 @@ const staticMetadataRuntimeCards: FixCard[] = [
       { text: '}' },
     ],
     copyable: true,
-    link: 'https://nextjs.org/docs/messages/ensure-static-metadata-runtime#use-static-metadata',
+    link: 'https://nextjs.org/docs/messages/static-metadata-runtime#use-static-metadata',
   },
 ]
 
@@ -775,7 +775,7 @@ const staticMetadataDynamicCards: FixCard[] = [
       },
     ],
     copyable: true,
-    link: 'https://nextjs.org/docs/messages/ensure-static-metadata-dynamic#cache-the-metadata',
+    link: 'https://nextjs.org/docs/messages/static-metadata-dynamic#cache-the-metadata',
   },
   {
     id: 'use-static-metadata',
@@ -787,7 +787,7 @@ const staticMetadataDynamicCards: FixCard[] = [
       { text: '}' },
     ],
     copyable: true,
-    link: 'https://nextjs.org/docs/messages/ensure-static-metadata-dynamic#use-static-metadata',
+    link: 'https://nextjs.org/docs/messages/static-metadata-dynamic#use-static-metadata',
   },
 ]
 const staticViewportRuntimeCards: FixCard[] = [
@@ -801,7 +801,7 @@ const staticViewportRuntimeCards: FixCard[] = [
       { text: '}' },
     ],
     copyable: true,
-    link: 'https://nextjs.org/docs/messages/ensure-static-viewport-runtime#use-static-viewport',
+    link: 'https://nextjs.org/docs/messages/static-viewport-runtime#use-static-viewport',
   },
 ]
 
@@ -823,7 +823,7 @@ const staticViewportDynamicCards: FixCard[] = [
       },
     ],
     copyable: true,
-    link: 'https://nextjs.org/docs/messages/ensure-static-viewport-dynamic#cache-the-viewport',
+    link: 'https://nextjs.org/docs/messages/static-viewport-dynamic#cache-the-viewport',
   },
   {
     id: 'use-static-viewport',
@@ -835,7 +835,7 @@ const staticViewportDynamicCards: FixCard[] = [
       { text: '}' },
     ],
     copyable: true,
-    link: 'https://nextjs.org/docs/messages/ensure-static-viewport-dynamic#use-static-viewport',
+    link: 'https://nextjs.org/docs/messages/static-viewport-dynamic#use-static-viewport',
   },
 ]
 export type GuidanceKind =
@@ -854,9 +854,9 @@ export type GuidanceKind =
 export type GuidanceVariant = 'link' | 'runtime' | 'navigation' | 'dynamic'
 
 export const DOCS_URLS: Record<GuidanceKind, string> = {
-  'static-viewport': 'https://nextjs.org/docs/messages/ensure-static-viewport',
-  'static-metadata': 'https://nextjs.org/docs/messages/ensure-static-metadata',
-  'static-route': 'https://nextjs.org/docs/messages/ensure-static-route',
+  'static-viewport': 'https://nextjs.org/docs/messages/static-viewport',
+  'static-metadata': 'https://nextjs.org/docs/messages/static-metadata',
+  'static-route': 'https://nextjs.org/docs/messages/static-route',
   'blocking-route': 'https://nextjs.org/docs/messages/blocking-route',
   'client-hook':
     'https://nextjs.org/docs/messages/blocking-prerender-client-hook',

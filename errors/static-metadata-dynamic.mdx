@@ -1,6 +1,6 @@
 ---
 title: Next.js encountered uncached data in `generateMetadata()` on a route that must be fully static
-kind: insight
+kind: error
 ---
 
 <div
@@ -14,7 +14,7 @@ kind: insight
     lineHeight: '1.6',
   }}
 >
-  This Insight is part of the [Instant
+  This error is part of the [Instant
   Navigations](https://nextjs.org/blog/next-16-3-instant-navigations) feature
   introduced in Next.js 16.3. If you're new to it, start with the [Ensuring
   instant navigations](/docs/app/guides/instant-navigation) guide.
@@ -24,7 +24,9 @@ A page or layout on this route exports [`unstable_ensureStatic`](/docs/app/api-r
 
 During [prerendering](/docs/app/glossary#prerendering), `generateMetadata()` performed an uncached `fetch` request, database call, or `connection()`. The operation requires request-time server work and cannot be included in fully static output.
 
-Request-specific reads from `cookies()`, `headers()`, `params`, or `searchParams` have different fixes. See [Runtime data in `generateMetadata()` on a route that must be fully static](/docs/messages/ensure-static-metadata-runtime).
+During `next build`, Next.js may link to this page when it cannot distinguish uncached data from runtime data. For a short cache, [extend the cache lifetime](/docs/messages/static-metadata-runtime#extend-the-cache-lifetime).
+
+Request-specific reads from `cookies()`, `headers()`, `params`, or `searchParams` have different fixes. See [Runtime data in `generateMetadata()` on a route that must be fully static](/docs/messages/static-metadata-runtime).
 
 ## Ways to fix this
 
@@ -80,10 +82,6 @@ Visitors share the cached metadata until it is revalidated.
 - This fix does not apply to [`connection()`](/docs/app/api-reference/functions/connection), whose purpose is to require request-time rendering.
 - Caching does not make cookies, headers, parameters, or search parameters static.
 
-### Short-lived caches
-
-For fully static navigation, a cache's `expire` must be at least 300 seconds, `stale` at least 30 seconds, and `revalidate` greater than zero.
-
 ## Use static metadata
 
 Choose this fix when metadata does not need the uncached value.
@@ -111,12 +109,14 @@ After applying a fix, rerun [`next build`](/docs/app/api-reference/cli/next#next
 
 In `next dev`, the error overlay points at the failing function with file paths and line numbers. Run [`next build --debug-prerender`](/docs/app/guides/building#debug-prerender-errors) for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
 
-## Remove the static requirement
+## Other options
+
+### Remove the static requirement
 
 The `'navigation'` value is usually set deliberately to guarantee static output for the entire server-rendered route. Removing it relaxes that requirement for every segment, not only metadata.
 
 If request-time rendering is intentional for this route, remove `unstable_ensureStatic = 'navigation'` from every page or layout that sets it. The route then follows the ordinary [Cache Components](/docs/app/getting-started/caching) rendering rules.
 
-## Related Insights
+## Related validation errors
 
 See [Instant Navigation validation errors](/docs/messages/instant-navigation-validation) for the complete reference.
