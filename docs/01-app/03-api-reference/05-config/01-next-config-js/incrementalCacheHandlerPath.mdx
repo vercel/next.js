@@ -42,6 +42,8 @@ Returns the cached value or `null` if not found.
 
 The `data` object contains a `kind` property that indicates the type of cache entry. For image optimization, `kind` will be `'IMAGE'` and the data will include properties like `buffer`, `etag`, `extension`, and `revalidate`.
 
+For `'APP_PAGE'` and `'APP_ROUTE'` entries, `ctx.tags` includes both the explicit tags used during rendering (for example from `fetch` calls with `next: { tags: [...] }`) and the implicit path tags (prefixed with `_N_T_`) that `revalidatePath` relies on. You can use these to maintain a tag-to-key index so that `revalidateTag` can invalidate the matching entries.
+
 Returns `Promise<void>`.
 
 ### `revalidateTag()`
