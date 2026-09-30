@@ -4,9 +4,6 @@ import { join } from 'path'
 import { nextTestSetup, isNextDev } from 'e2e-utils'
 import { readFileSync, writeFileSync } from 'fs'
 
-// This suite mutates the workspace config and runs custom local build/start
-// commands.
-// @force-gate !deploy
 describe('TypeScript Features', () => {
   describe.each([
     { label: '', testBaseUrl: true },
