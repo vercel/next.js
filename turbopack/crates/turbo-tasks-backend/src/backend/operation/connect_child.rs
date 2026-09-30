@@ -173,7 +173,9 @@ pub fn connect_child(
         }
     }
 
-    queue.execute(&mut ctx);
+    if !queue.is_empty() {
+        queue.execute(&mut ctx);
+    }
 
     if let Some(parent_task_id) = parent_task_id {
         let mut parent_task = ctx.task(parent_task_id, TaskDataCategory::Meta);
