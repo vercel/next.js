@@ -98,7 +98,7 @@ Cache profiles control caching behavior through three timing properties:
 
 During this time, the client-side router displays cached content immediately without any network request. After this period expires, the router must check with the server on the next navigation or request. This provides instant page loads from the client cache, but data may be outdated.
 
-- If omitted, defaults to the `default` profile's `stale` value (5 minutes, see [`staleTimes`](/docs/app/api-reference/config/next-config-js/staleTimes))
+- If omitted, defaults to the [`default` profile's](#preset-cache-profiles) `stale` value (5 minutes)
 - Also determines whether the content can be part of the route's [App Shell](/docs/app/glossary#app-shell). See [Prerendering behavior](#prerendering-behavior).
 
 ```tsx
@@ -257,7 +257,7 @@ This 30-second minimum prevents prefetched data from expiring before users can c
 
 When you call revalidation functions from a Server Action ([`revalidateTag`](/docs/app/api-reference/functions/revalidateTag), [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath), [`updateTag`](/docs/app/api-reference/functions/updateTag), or [`refresh`](/docs/app/api-reference/functions/refresh)), the entire client cache is immediately cleared, bypassing the stale time.
 
-> **Good to know**: The `stale` property in `cacheLife` differs from [`staleTimes`](/docs/app/api-reference/config/next-config-js/staleTimes). While `staleTimes` is a global setting affecting all routes, `cacheLife` allows per-function or per-route configuration. Updating `staleTimes.static` also updates the `stale` value of the `default` cache profile.
+> **Good to know**: Do not configure [`staleTimes`](/docs/app/api-reference/config/next-config-js/staleTimes) when Cache Components is enabled. Use the `stale` property in `cacheLife` to control client cache reuse for each cached function or route.
 
 ### Prerendering behavior
 

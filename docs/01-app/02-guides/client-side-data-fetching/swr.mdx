@@ -15,7 +15,7 @@ related:
 
 Use [SWR](https://swr.vercel.app) to fetch data in Client Components, provide initial data from Server Components, and coordinate browser mutations with cached server data. See [Client-side data fetching](/docs/app/guides/client-side-data-fetching) to choose a pattern.
 
-If warm SWR data still causes repeated server work or a Suspense fallback during client navigation, see [Cache server-provided data with Cache Components](#cache-server-provided-data-with-cache-components).
+If warm SWR data still causes repeated server work or a Suspense fallback during client navigation, see [Browser-only caching with Cache Components](#browser-only-caching-with-cache-components).
 
 ## Fetch data on the client
 
@@ -257,7 +257,7 @@ The SWR key points to a [Route Handler](/docs/app/api-reference/file-conventions
 
 Learn more: [SWR arguments and keys](https://swr.vercel.app/docs/arguments) and [SWR with Next.js App Router](https://swr.vercel.app/docs/with-nextjs).
 
-## Cache server-provided data with Cache Components
+## Browser-only caching with Cache Components
 
 SWR can already have the product in its browser cache while Next.js requests the route's uncached React Server Component (RSC) payload again. That request repeats the server fallback work and can show the Suspense fallback during a warm navigation.
 
@@ -270,12 +270,14 @@ import { getProduct } from './data'
 import { productCache } from './product-cache'
 import { ProductView } from './product-view'
 
-function ProductData({ id }: { id: string }) {
+async function ProductData({ id }: { id: string }) {
   'use cache'
   cacheLife({ expire: 0 })
 
+  const product = await getProduct(id)
+
   return (
-    <SWRConfig value={{ fallback: { [productCache.key(id)]: getProduct(id) } }}>
+    <SWRConfig value={{ fallback: { [productCache.key(id)]: product } }}>
       <ProductView id={id} />
     </SWRConfig>
   )
@@ -289,19 +291,21 @@ import { getProduct } from './data'
 import { productCache } from './product-cache'
 import { ProductView } from './product-view'
 
-function ProductData({ id }) {
+async function ProductData({ id }) {
   'use cache'
   cacheLife({ expire: 0 })
 
+  const product = await getProduct(id)
+
   return (
-    <SWRConfig value={{ fallback: { [productCache.key(id)]: getProduct(id) } }}>
+    <SWRConfig value={{ fallback: { [productCache.key(id)]: product } }}>
       <ProductView id={id} />
     </SWRConfig>
   )
 }
 ```
 
-`expire: 0` prevents Next.js from reusing the `ProductData` output from the server cache in production. Because this profile omits `stale`, it inherits the `default` profile's client stale time, which is five minutes unless you override it in `next.config.ts`. During that time, the Next.js router can reuse the RSC payload, including the `<SWRConfig>` fallback, without repeating the server work.
+`expire: 0` prevents Next.js from reusing the `ProductData` output from the server cache in production. Because this profile omits `stale`, it inherits the [`default` cache profile's](/docs/app/api-reference/functions/cacheLife#preset-cache-profiles) client stale time, which is five minutes unless you redefine that profile in `next.config.ts`. During that time, the Next.js router can reuse the RSC payload, including the `<SWRConfig>` fallback, without repeating the server work.
 
 Use this client-only profile when the data must be recomputed on every server request. If the data is safe to cache on the server, [cache it across requests](#cache-server-data-across-requests) to improve initial and direct loads.
 
