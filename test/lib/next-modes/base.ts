@@ -9,6 +9,11 @@ import spawn from 'cross-spawn'
 import { quote as shellQuote } from 'shell-quote'
 import { createNextInstall } from '../create-next-install'
 import { Span } from 'next/dist/trace'
+import { normalizePagePath } from 'next/dist/shared/lib/page-path/normalize-page-path'
+import {
+  getRouteCacheKey,
+  type ResponseCacheOwner,
+} from 'next/dist/server/lib/route-cache-key'
 import webdriver from '../next-webdriver'
 import {
   renderViaHTTP,
@@ -918,6 +923,33 @@ export class NextInstance {
   // TODO: block these in deploy mode
   public async hasFile(filename: string) {
     return existsSync(path.join(this.testDir, filename))
+  }
+
+  /** Resolve a response artifact without assuming the cache key is its URL. */
+  public getPrerenderFilePath(
+    pathname: string,
+    extension: string,
+    {
+      router = 'app',
+      distDir = this.distDir,
+      route,
+    }: {
+      router?: 'app' | 'pages'
+      distDir?: string
+      /** Supply the source for an entry generated only at runtime. */
+      route?: ResponseCacheOwner
+    } = {}
+  ): string {
+    pathname = `/${pathname.replace(/^\/+/, '')}`
+    // Build artifacts retain their historical layout. A caller supplies an
+    // owner only when it is intentionally addressing a scoped runtime entry.
+    const cacheKey = route ? getRouteCacheKey(pathname, route) : undefined
+    const filename = normalizePagePath(pathname)
+    return path.join(
+      distDir,
+      'server',
+      `${cacheKey ?? `/${router}${filename}`}${extension}`
+    )
   }
 
   public async readFile(filename: string) {

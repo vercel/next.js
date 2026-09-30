@@ -78,6 +78,7 @@ import type { CacheControl } from '../../server/lib/cache-control'
 import { ENCODED_TAGS } from '../../server/stream-utils/encoded-tags' with { 'turbopack-transition': 'next-server-utility' }
 import { sendRenderResult } from '../../server/send-payload' with { 'turbopack-transition': 'next-server-utility' }
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external' with { 'turbopack-transition': 'next-server-utility' }
+import { isRouteCacheOwner } from '../../server/lib/route-cache-key' with { 'turbopack-transition': 'next-server-utility' }
 import { parseMaxPostponedStateSize } from '../../shared/lib/size-limit' with { 'turbopack-transition': 'next-server-utility' }
 import {
   getMaxPostponedStateSize,
@@ -277,7 +278,18 @@ export function createAppPageEntrypoint({
         : routeModule.match(resolvedPathname, prerenderManifest)
     const prerenderInfo = prerenderMatch?.route ?? null
 
-    const isPrerendered = !!prerenderManifest.routes[resolvedPathname]
+    // A sibling's prerender must not change this route's rendering mode or
+    // supply prefetch metadata for its response.
+    const prerenderedRoute =
+      routeModule.isDev ||
+      isRouteCacheOwner(
+        resolvedPathname,
+        routeModule.cacheOwner,
+        prerenderManifest.routes[resolvedPathname]
+      )
+        ? prerenderManifest.routes[resolvedPathname]
+        : undefined
+    const isPrerendered = Boolean(prerenderedRoute)
 
     const userAgent = req.headers['user-agent'] || ''
     const botType = getBotType(userAgent)
@@ -493,8 +505,7 @@ export function createAppPageEntrypoint({
     // If PPR is enabled, and this is a RSC request (but not a prefetch), then
     // we can use this fact to only generate the flight data for the request
     // because we can't cache the HTML (as it's also dynamic).
-    const staticPrefetchDataRoute =
-      prerenderManifest.routes[resolvedPathname]?.prefetchDataRoute
+    const staticPrefetchDataRoute = prerenderedRoute?.prefetchDataRoute
 
     let isDynamicRSCRequest =
       isRoutePPREnabled &&
@@ -1384,6 +1395,7 @@ export function createAppPageEntrypoint({
               resolvedPathname,
               {
                 kind: IncrementalCacheKind.APP_PAGE,
+                route: routeModule.cacheOwner,
                 isRoutePPREnabled: true,
                 isFallback: false,
               }

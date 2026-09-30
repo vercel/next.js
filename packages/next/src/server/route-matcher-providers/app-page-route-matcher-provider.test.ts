@@ -11,6 +11,32 @@ describe('AppPageRouteMatcherProvider', () => {
     await expect(matcher.matchers()).resolves.toEqual([])
   })
 
+  it.each([false, true])(
+    'selects the children entry regardless of slot insertion order (%s)',
+    async (reverse) => {
+      const root = '/(group)/parallel/[slug]/page'
+      const slot = '/(group)/parallel/@slot/[slug]/page'
+      const entries = [slot, root]
+      if (reverse) entries.reverse()
+      const loader: ManifestLoader = {
+        load: jest.fn(() =>
+          Object.fromEntries(entries.map((page) => [page, `app${page}.js`]))
+        ),
+      }
+      const provider = new AppPageRouteMatcherProvider('<root>', loader)
+      const matchers = await provider.matchers()
+      expect(matchers).toHaveLength(1)
+      expect(matchers[0].definition).toEqual({
+        kind: RouteKind.APP_PAGE,
+        pathname: '/parallel/[slug]',
+        page: root,
+        filename: `<root>/${SERVER_DIRECTORY}/app${root}.js`,
+        bundlePath: `app${root}`,
+        appPaths: entries,
+      })
+    }
+  )
+
   describe('manifest matching', () => {
     it.each<{
       manifest: Record<string, string>

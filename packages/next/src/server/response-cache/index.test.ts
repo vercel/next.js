@@ -1,8 +1,13 @@
 import ResponseCache from './index'
-import { CachedRouteKind, type ResponseCacheEntry } from './types'
+import {
+  CachedRouteKind,
+  IncrementalCacheKind,
+  type ResponseCacheEntry,
+} from './types'
 import { RouteKind } from '../route-kind'
 import RenderResult from '../render-result'
 import { HTML_CONTENT_TYPE_HEADER } from '../../lib/constants'
+import { fromResponseCacheEntry } from './utils'
 
 function mockIncrementalCache() {
   return {
@@ -27,9 +32,101 @@ function makeCacheEntry(html: string): ResponseCacheEntry {
 }
 
 describe('ResponseCache', () => {
+  const route = { kind: RouteKind.APP_PAGE, sourceRoute: '/test/page' }
+
+  it('rejects missing ownership even in minimal mode', () => {
+    expect(() => {
+      // @ts-expect-error response caches must explicitly select their owner
+      new ResponseCache({ minimalMode: true })
+    }).toThrow('Response cache requires a source route')
+  })
+
+  it('passes the source route to both reads and regeneration writes', async () => {
+    const cache = new ResponseCache({ minimalMode: false, route })
+    const incrementalCache = mockIncrementalCache()
+    await cache.get('/test', async () => makeCacheEntry('generated'), {
+      routeKind: RouteKind.APP_PAGE,
+      incrementalCache,
+    })
+    expect(incrementalCache.get).toHaveBeenCalledWith('/test', {
+      kind: IncrementalCacheKind.APP_PAGE,
+      route,
+      isFallback: false,
+      isRoutePPREnabled: false,
+    })
+    expect(incrementalCache.set).toHaveBeenCalledWith(
+      '/test',
+      expect.any(Object),
+      expect.objectContaining({ route })
+    )
+  })
+
+  it('uses an explicit image context without a source route', async () => {
+    const cache = new ResponseCache({ minimalMode: false, route: 'image' })
+    const incrementalCache = mockIncrementalCache()
+    await cache.get(
+      'image-key',
+      async () => ({
+        value: {
+          kind: CachedRouteKind.IMAGE,
+          buffer: Buffer.from('image'),
+          etag: 'etag',
+          upstreamEtag: 'upstream-etag',
+          extension: 'png',
+        },
+        cacheControl: { revalidate: 60, expire: undefined },
+      }),
+      {
+        routeKind: RouteKind.IMAGE,
+        incrementalCache,
+      }
+    )
+    expect(incrementalCache.get).toHaveBeenCalledWith('image-key', {
+      kind: IncrementalCacheKind.IMAGE,
+      isFallback: false,
+    })
+    expect(incrementalCache.set).toHaveBeenCalledWith(
+      'image-key',
+      expect.objectContaining({ kind: CachedRouteKind.IMAGE }),
+      {
+        kind: IncrementalCacheKind.IMAGE,
+        isFallback: false,
+        cacheControl: { revalidate: 60, expire: undefined },
+      }
+    )
+  })
+
+  it('keeps ownership when extending a previous entry after regeneration fails', async () => {
+    const cache = new ResponseCache({ minimalMode: false, route })
+    const incrementalCache = mockIncrementalCache()
+    const previous = await fromResponseCacheEntry(makeCacheEntry('cached'))
+    incrementalCache.get.mockResolvedValue(previous)
+    await expect(
+      cache.get(
+        '/test',
+        async () => {
+          throw new Error('regeneration failed')
+        },
+        {
+          routeKind: RouteKind.APP_PAGE,
+          incrementalCache,
+          isOnDemandRevalidate: true,
+        }
+      )
+    ).rejects.toThrow('regeneration failed')
+    expect(incrementalCache.set).toHaveBeenCalledWith(
+      '/test',
+      previous.value,
+      expect.objectContaining({
+        route,
+        cacheControl: { revalidate: 30, expire: undefined },
+      })
+    )
+  })
+
   describe('minimal mode LRU population for batched invocations', () => {
     it('should populate LRU for all batched invocationIDs, not just the winner', async () => {
-      const cache = new ResponseCache(true)
+      const cache = new ResponseCache({ minimalMode: true, route })
       const incrementalCache = mockIncrementalCache()
 
       let renderCount = 0
@@ -79,7 +176,7 @@ describe('ResponseCache', () => {
     })
 
     it('should use TTL-based LRU when invocationID is absent', async () => {
-      const cache = new ResponseCache(true)
+      const cache = new ResponseCache({ minimalMode: true, route })
       const incrementalCache = mockIncrementalCache()
 
       let renderCount = 0

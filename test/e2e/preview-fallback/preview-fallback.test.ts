@@ -4,6 +4,7 @@ import cookie from 'cookie'
 import { retry } from 'next-test-utils'
 import fs from 'fs'
 import { join } from 'path'
+import { RouteKind } from 'next/dist/server/route-kind'
 
 describe('Preview mode with fallback pages', () => {
   const { next } = nextTestSetup({
@@ -111,11 +112,13 @@ describe('Preview mode with fallback pages', () => {
       const fsHtml = fs.readFileSync(
         join(
           next.testDir,
-          '.next',
-          'server',
-          'pages',
-          'no-fallback',
-          'first.html'
+          next.getPrerenderFilePath('/no-fallback/first', '.html', {
+            router: 'pages',
+            route: {
+              kind: RouteKind.PAGES,
+              sourceRoute: '/no-fallback/[post]',
+            },
+          })
         ),
         'utf8'
       )
@@ -160,11 +163,13 @@ describe('Preview mode with fallback pages', () => {
         fs.existsSync(
           join(
             next.testDir,
-            '.next',
-            'server',
-            'pages',
-            'no-fallback',
-            'second.html'
+            next.getPrerenderFilePath('/no-fallback/second', '.html', {
+              router: 'pages',
+              route: {
+                kind: RouteKind.PAGES,
+                sourceRoute: '/no-fallback/[post]',
+              },
+            })
           )
         )
       ).toBe(false)
@@ -202,11 +207,10 @@ describe('Preview mode with fallback pages', () => {
       const fsHtml = fs.readFileSync(
         join(
           next.testDir,
-          '.next',
-          'server',
-          'pages',
-          'fallback',
-          'first.html'
+          next.getPrerenderFilePath('/fallback/first', '.html', {
+            router: 'pages',
+            route: { kind: RouteKind.PAGES, sourceRoute: '/fallback/[post]' },
+          })
         ),
         'utf8'
       )
@@ -262,11 +266,10 @@ describe('Preview mode with fallback pages', () => {
       const fsHtml = fs.readFileSync(
         join(
           next.testDir,
-          '.next',
-          'server',
-          'pages',
-          'fallback',
-          'second.html'
+          next.getPrerenderFilePath('/fallback/second', '.html', {
+            router: 'pages',
+            route: { kind: RouteKind.PAGES, sourceRoute: '/fallback/[post]' },
+          })
         ),
         'utf8'
       )

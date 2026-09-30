@@ -1,3 +1,8 @@
+import {
+  getRouteCacheKey,
+  ROUTE_CACHE_DIRECTORY,
+} from '../server/lib/route-cache-key'
+import { RouteKind } from '../server/route-kind'
 import type { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import type {
   ExportPathMap,
@@ -87,6 +92,7 @@ import {
 import {
   UNDERSCORE_NOT_FOUND_ROUTE,
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+  UNDERSCORE_GLOBAL_ERROR_ROUTE,
   UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
 } from '../shared/lib/entry-constants'
 import { isDynamicRoute } from '../shared/lib/router/utils'
@@ -151,7 +157,10 @@ import { installBindings } from './swc/install-bindings'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { getFilesInDir } from '../lib/get-files-in-dir'
 import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
-import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import {
+  normalizeAppPath,
+  selectAppPageEntry,
+} from '../shared/lib/router/utils/app-paths'
 import {
   ACTION_HEADER,
   type NEXT_ROUTER_PREFETCH_HEADER,
@@ -877,6 +886,25 @@ async function writeStandaloneDirectory(
             path.relative(outputFileTracingRoot, distDir),
             SERVER_DIRECTORY,
             'pages'
+          ),
+          { overwrite: true }
+        )
+      }
+
+      const responseCacheDir = path.join(
+        distDir,
+        SERVER_DIRECTORY,
+        ROUTE_CACHE_DIRECTORY
+      )
+      if (existsSync(responseCacheDir)) {
+        await recursiveCopy(
+          responseCacheDir,
+          path.join(
+            distDir,
+            STANDALONE_DIRECTORY,
+            path.relative(outputFileTracingRoot, distDir),
+            SERVER_DIRECTORY,
+            ROUTE_CACHE_DIRECTORY
           ),
           { overwrite: true }
         )
@@ -2366,21 +2394,17 @@ export default async function build(
                 let originalAppPath: string | undefined
 
                 if (pageType === 'app' && mappedAppPages) {
-                  for (const [originalPath, normalizedPath] of Object.entries(
-                    appPathRoutes
-                  )) {
-                    if (
-                      normalizedPath === page &&
-                      mappedAppPages[originalPath]
-                    ) {
-                      pagePath = mappedAppPages[originalPath].replace(
-                        /^private-next-app-dir/,
-                        ''
-                      )
-                      originalAppPath = originalPath
-                      break
-                    }
-                  }
+                  originalAppPath = selectAppPageEntry(
+                    page,
+                    Object.keys(appPathRoutes).filter(
+                      (entry) => mappedAppPages[entry]
+                    ),
+                    (entry) => appPathRoutes[entry]
+                  )
+                  pagePath = mappedAppPages[originalAppPath].replace(
+                    /^private-next-app-dir/,
+                    ''
+                  )
                 }
 
                 const pageFilePath = isAppBuiltinPage(pagePath)
@@ -3854,29 +3878,31 @@ export default async function build(
             }
           }
 
-          // The export worker writes files directly to server/pages/,
-          // so we must delete files for notFound routes that shouldn't be served.
-          const deleteNotFoundPageFiles = (normalizedPath: string) =>
-            Promise.all([
-              fs.rm(
-                path.join(
-                  distDir,
-                  SERVER_DIRECTORY,
-                  'pages',
-                  `${normalizedPath}.html`
-                ),
-                { force: true }
-              ),
-              fs.rm(
-                path.join(
-                  distDir,
-                  SERVER_DIRECTORY,
-                  'pages',
-                  `${normalizedPath}.json`
-                ),
-                { force: true }
-              ),
-            ])
+          // Remove files for Pages Router paths that returned notFound during export.
+          const deleteNotFoundPagesRouterFiles = (
+            pathname: string,
+            page: string
+          ) => {
+            const filename =
+              config.adapterPath && config.output !== 'export'
+                ? getRouteCacheKey(pathname, {
+                    kind: RouteKind.PAGES,
+                    sourceRoute: page,
+                  })
+                : `pages${normalizePagePath(pathname)}`
+            return Promise.all(
+              ['.html', '.json', '.meta'].map((extension) =>
+                fs.rm(
+                  path.join(
+                    distDir,
+                    SERVER_DIRECTORY,
+                    `${filename}${extension}`
+                  ),
+                  { force: true }
+                )
+              )
+            )
+          }
 
           async function moveExportedAppNotFoundTo404() {
             return staticGenerationSpan
@@ -3885,8 +3911,12 @@ export default async function build(
                 const orig = path.join(
                   distDir,
                   'server',
-                  'app',
-                  '_not-found.html'
+                  config.adapterPath && config.output !== 'export'
+                    ? `${getRouteCacheKey(UNDERSCORE_NOT_FOUND_ROUTE, {
+                        kind: RouteKind.APP_PAGE,
+                        sourceRoute: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+                      })}.html`
+                    : 'app/_not-found.html'
                 )
                 const updatedRelativeDest = path
                   .join('pages', '404.html')
@@ -3934,8 +3964,12 @@ export default async function build(
                 const orig = path.join(
                   distDir,
                   'server',
-                  'app',
-                  '_global-error.html'
+                  config.adapterPath && config.output !== 'export'
+                    ? `${getRouteCacheKey(UNDERSCORE_GLOBAL_ERROR_ROUTE, {
+                        kind: RouteKind.APP_PAGE,
+                        sourceRoute: UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
+                      })}.html`
+                    : 'app/_global-error.html'
                 )
                 if (existsSync(orig)) {
                   const error500Html = path.join(
@@ -4037,9 +4071,7 @@ export default async function build(
                       prerenderManifest.notFoundRoutes.includes(localePage)
 
                     if (isNotFoundTrue) {
-                      await deleteNotFoundPageFiles(
-                        normalizePagePath(localePage)
-                      )
+                      await deleteNotFoundPagesRouterFiles(localePage, page)
                     }
 
                     const cacheControl = getCacheControl(localePage)
@@ -4068,7 +4100,7 @@ export default async function build(
                   const isNotFoundTrue =
                     prerenderManifest.notFoundRoutes.includes(page)
                   if (isNotFoundTrue) {
-                    await deleteNotFoundPageFiles(file)
+                    await deleteNotFoundPagesRouterFiles(page, page)
                   }
 
                   const cacheControl = getCacheControl(page)
@@ -4105,9 +4137,7 @@ export default async function build(
                   const isNotFoundTrue =
                     prerenderManifest.notFoundRoutes.includes(route.pathname)
                   if (isNotFoundTrue) {
-                    await deleteNotFoundPageFiles(
-                      normalizePagePath(route.pathname)
-                    )
+                    await deleteNotFoundPagesRouterFiles(route.pathname, page)
                   }
 
                   const cacheControl = getCacheControl(route.pathname)

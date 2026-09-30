@@ -19,7 +19,10 @@ import picomatch from 'next/dist/compiled/picomatch'
 import { defaultOverrides } from '../server/require-hook'
 import { nodeFileTrace } from 'next/dist/compiled/@vercel/nft'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
-import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import {
+  normalizeAppPath,
+  selectAppPageEntry,
+} from '../shared/lib/router/utils/app-paths'
 import isError from '../lib/is-error'
 import type { NodeFileTraceReasons } from '@vercel/nft'
 import type { RoutesUsingEdgeRuntime } from './utils'
@@ -494,6 +497,74 @@ export async function collectBuildTraces({
                 ...existingTrace,
                 files: [...curTracedFiles].sort(),
               })
+            )
+          })
+        )
+
+        // A platform may package any one of the entries for a pathname into
+        // its route function. The runtime selects the children/root entry, so
+        // that entry and its dependencies must be present even when the
+        // platform packages a parallel slot entry instead.
+        const appEntriesByRoute = new Map<string, string[]>()
+        for (const entryName of Object.keys(entryNameFilesMap || {})) {
+          if (!entryName.startsWith('app/') || !entryName.endsWith('/page')) {
+            continue
+          }
+          const route = normalizeAppPath(entryName.slice('app'.length))
+          if (staticPages.includes(route)) continue
+          const entries = appEntriesByRoute.get(route) || []
+          entries.push(entryName)
+          appEntriesByRoute.set(route, entries)
+        }
+
+        await Promise.all(
+          [...appEntriesByRoute].map(async ([route, entries]) => {
+            if (entries.length < 2) return
+
+            const selectedEntry = `app${selectAppPageEntry(
+              route,
+              entries.map((entry) => entry.slice('app'.length)),
+              normalizeAppPath
+            )}`
+            const selectedOutputPath = path.join(
+              distDir,
+              'server',
+              `${selectedEntry}.js`
+            )
+            const selectedTracePath = `${selectedOutputPath}.nft.json`
+            const selectedTrace = JSON.parse(
+              await fs.readFile(selectedTracePath, 'utf8')
+            ) as { files: string[] }
+            const selectedTraceDir = path.dirname(selectedTracePath)
+            const selectedFiles = [
+              selectedOutputPath,
+              ...selectedTrace.files.map((file) =>
+                path.resolve(selectedTraceDir, file)
+              ),
+            ]
+
+            await Promise.all(
+              entries
+                .filter((entry) => entry !== selectedEntry)
+                .map(async (entry) => {
+                  const tracePath = path.join(
+                    distDir,
+                    'server',
+                    `${entry}.js.nft.json`
+                  )
+                  const traceDir = path.dirname(tracePath)
+                  const trace = JSON.parse(
+                    await fs.readFile(tracePath, 'utf8')
+                  ) as { files: string[] }
+                  const files = new Set(trace.files)
+                  for (const file of selectedFiles) {
+                    files.add(path.relative(traceDir, file).replace(/\\/g, '/'))
+                  }
+                  await fs.writeFile(
+                    tracePath,
+                    JSON.stringify({ ...trace, files: [...files].sort() })
+                  )
+                })
             )
           })
         )

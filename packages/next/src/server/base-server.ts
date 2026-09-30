@@ -76,7 +76,10 @@ import {
   setRequestMeta,
 } from './request-meta'
 import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
-import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import {
+  normalizeAppPath,
+  selectAppPageEntry,
+} from '../shared/lib/router/utils/app-paths'
 import { getHostname } from '../shared/lib/get-hostname'
 import {
   parseUrl,
@@ -2648,8 +2651,7 @@ export default abstract class Server<
 
     let page = pathname
     if (isAppPath) {
-      // the last item in the array is the root page, if there are parallel routes
-      page = appPaths[appPaths.length - 1]
+      page = selectAppPageEntry(pathname, appPaths)
     }
 
     const result = await this.findPageComponents({

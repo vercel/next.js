@@ -1,7 +1,9 @@
 import fs from 'fs'
+import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 import type { AdapterOutput, NextAdapter } from 'next'
 import { version as nextVersion } from 'next/package.json'
+import { RouteKind } from 'next/dist/server/route-kind'
 
 describe('adapter-config', () => {
   const { next } = nextTestSetup({
@@ -457,6 +459,140 @@ describe('adapter-config', () => {
       rsc: expect.toBeObject(),
     })
   })
+
+  it('uses scoped build files for response artifacts', async () => {
+    const { outputs }: Parameters<NextAdapter['onBuildComplete']>[0] =
+      await next.readJSON('build-complete.json')
+    for (const [pathname, router, extension, route, sidecar] of [
+      [
+        '/grouped',
+        'app',
+        '.html',
+        { kind: RouteKind.APP_PAGE, sourceRoute: '/(group)/grouped/page' },
+        '.rsc',
+      ],
+      [
+        '/_escaped',
+        'app',
+        '.html',
+        { kind: RouteKind.APP_PAGE, sourceRoute: '/_escaped/page' },
+        '.rsc',
+      ],
+      [
+        '/parallel',
+        'app',
+        '.html',
+        {
+          kind: RouteKind.APP_PAGE,
+          sourceRoute: '/(group)/parallel/page',
+        },
+        '.rsc',
+      ],
+      [
+        '/parallel/known',
+        'app',
+        '.html',
+        {
+          kind: RouteKind.APP_PAGE,
+          sourceRoute: '/(group)/parallel/[slug]/page',
+        },
+        '.rsc',
+      ],
+      [
+        '/isr-app/first',
+        'app',
+        '.html',
+        { kind: RouteKind.APP_PAGE, sourceRoute: '/isr-app/[slug]/page' },
+        '.rsc',
+      ],
+      [
+        '/isr-route/first',
+        'app',
+        '.body',
+        { kind: RouteKind.APP_ROUTE, sourceRoute: '/isr-route/[slug]/route' },
+        undefined,
+      ],
+      [
+        '/isr-pages/first',
+        'pages',
+        '.html',
+        { kind: RouteKind.PAGES, sourceRoute: '/isr-pages/[slug]' },
+        '.json',
+      ],
+      [
+        '/isr-pages-fallback-true/[slug]',
+        'pages',
+        '.html',
+        {
+          kind: RouteKind.PAGES,
+          sourceRoute: '/isr-pages-fallback-true/[slug]',
+        },
+        undefined,
+      ],
+    ] as const) {
+      const output = outputs.prerenders.find(
+        (item) => item.pathname === `/docs${pathname}`
+      )
+      const artifact = next.getPrerenderFilePath(pathname, extension, {
+        router,
+        route,
+      })
+      expect(output?.fallback?.filePath).toBe(path.join(next.testDir, artifact))
+      expect(await next.hasFile(artifact)).toBe(true)
+      expect(
+        await next.hasFile(`.next/server/${router}${pathname}${extension}`)
+      ).toBe(false)
+      expect(await next.hasFile(`.next/server/${router}${pathname}.meta`)).toBe(
+        false
+      )
+      const metadata = await next.readJSON(
+        artifact.replace(/\.(?:html|body)$/, '.meta')
+      )
+      expect(metadata.routeCache.owner).toEqual(route)
+      if (sidecar) {
+        expect(
+          await next.hasFile(artifact.replace(/\.(?:html|body)$/, sidecar))
+        ).toBe(true)
+        expect(
+          await next.hasFile(`.next/server/${router}${pathname}${sidecar}`)
+        ).toBe(false)
+      }
+    }
+  })
+
+  it('serves grouped parallel and escaped-underscore prerenders', async () => {
+    const parallel = await next.render('/docs/parallel')
+    expect(parallel).toContain('parallel children page')
+    expect(parallel).toContain('parallel slot page')
+    expect(await next.render('/docs/_escaped')).toContain(
+      'escaped underscore page'
+    )
+  })
+
+  it.each([false, true])(
+    'serves the closed parallel prerender with reversed manifest ordering (%s)',
+    async (reverse) => {
+      await next.stop()
+      const manifest = await next.readJSON(
+        '.next/server/app-paths-manifest.json'
+      )
+      const entries = Object.entries(manifest).sort(
+        ([a], [b]) => Number(b.includes('/@')) - Number(a.includes('/@'))
+      )
+      if (reverse) entries.reverse()
+      await next.patchFile(
+        '.next/server/app-paths-manifest.json',
+        JSON.stringify(Object.fromEntries(entries))
+      )
+      await next.start({ skipBuild: true })
+      const response = await next.fetch('/docs/parallel/known')
+      expect(response.status).toBe(200)
+      const html = await response.text()
+      expect(html).toContain('closed parallel children page')
+      expect(html).toContain('closed parallel slot page')
+      expect((await next.fetch('/docs/parallel/unlisted')).status).toBe(404)
+    }
+  )
 
   it('should propagate preferredRegion to adapter output', async () => {
     const { outputs }: Parameters<NextAdapter['onBuildComplete']>[0] =

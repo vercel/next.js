@@ -4,9 +4,29 @@ import { setTimeout } from 'node:timers/promises'
 import { retry } from 'next-test-utils'
 
 describe('parallel-routes-root-param-dynamic-child', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })
+
+  it.each(['en', 'fr'])(
+    'serves the owned fallback:false prerender for %s over HTTP',
+    async (locale) => {
+      const response = await next.fetch(`/${locale}/gsp/stories/static-123`)
+      expect(response.status).toBe(200)
+      const html = await response.text()
+      expect(html).toContain('id="story-locale"')
+      expect(html).toContain('id="breadcrumbs-locale"')
+      if (!isNextDev && !isNextDeploy) {
+        const metadata = await next.readJSON(
+          `.next/server/app/${locale}/gsp/stories/static-123.meta`
+        )
+        expect(metadata.routeCache.owner).toEqual({
+          kind: 'APP_PAGE',
+          sourceRoute: '/[locale]/gsp/stories/[slug]/page',
+        })
+      }
+    }
+  )
 
   async function createBrowserActor(
     url: string,

@@ -89,7 +89,10 @@ import {
   IncrementalCache,
   type CacheHandler as ICacheHandler,
 } from './lib/incremental-cache'
-import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import {
+  normalizeAppPath,
+  selectAppPageEntry,
+} from '../shared/lib/router/utils/app-paths'
 
 import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
 
@@ -232,7 +235,10 @@ export default class NextNodeServer extends BaseServer<
     }
 
     if (!this.minimalMode) {
-      this.imageResponseCache = new ResponseCache(this.minimalMode)
+      this.imageResponseCache = new ResponseCache({
+        minimalMode: this.minimalMode,
+        route: 'image',
+      })
     }
 
     if (
@@ -455,6 +461,7 @@ export default class NextNodeServer extends BaseServer<
       flushToDisk:
         !this.minimalMode && this.nextConfig.experimental.isrFlushToDisk,
       getPrerenderManifest: () => this.getPrerenderManifest(),
+      locales: this.nextConfig.i18n?.locales,
       CurCacheHandler: CacheHandler,
     })
   }
@@ -789,8 +796,7 @@ export default class NextNodeServer extends BaseServer<
 
       let page = ctx.pathname
       if (isAppPath) {
-        // When it's an array, we need to pass all parallel routes to the loader.
-        page = appPaths[0]
+        page = selectAppPageEntry(ctx.pathname, appPaths)
       }
 
       for (const edgeFunctionsPage of edgeFunctionsPages) {

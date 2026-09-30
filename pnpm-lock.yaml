@@ -1493,6 +1493,9 @@ importers:
       gzip-size:
         specifier: 5.1.1
         version: 5.1.1
+      hash.js:
+        specifier: 1.1.7
+        version: 1.1.7
       http-proxy-agent:
         specifier: 5.0.0
         version: 5.0.0
