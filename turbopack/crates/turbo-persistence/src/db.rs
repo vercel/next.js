@@ -2583,11 +2583,10 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     }
 }
 
-/// The fingerprint size of the used keys AMQFs, in bits. All of them use the same size, so their
-/// union can use qfilter's sorted merge. Lookups probe them with full key hashes, so the size only
-/// sets the false positive rate: about `keys / 2^32`, i.e. 0.06% for 2.5M used keys, for which a
-/// few cold keys are written into hot files. That costs about 1.7 bytes per key, compared to about
-/// 6 bytes per key with full 64 bit hashes.
+/// The fingerprint size of the used keys AMQFs, in bits. The size sets the false positive rate:
+/// about `keys / 2^32`, i.e. 0.06% for 2.5M used keys, for which a few cold keys are written into
+/// hot files. This costs about 1.7 bytes per key, compared to about 6 bytes per key with full 64
+/// bit hashes.
 const USED_KEYS_FINGERPRINT_BITS: u8 = 32;
 
 /// The union of the used keys recorded in the meta files, or `None` if there are none.
@@ -2605,7 +2604,6 @@ fn union_used_key_hashes(meta_files: &[MetaFile]) -> Result<Option<qfilter::Filt
         _ => {
             let total_len = filters.iter().map(|f| f.len()).sum::<u64>();
             // The fingerprint size must match the source filters to use qfilter's sorted merge.
-            // Filters with larger fingerprints (written before) are merged by truncating them.
             let mut merged =
                 qfilter::Filter::with_fingerprint_size(total_len, USED_KEYS_FINGERPRINT_BITS)
                     .context("Failed to create the merged used keys AMQF")?;
