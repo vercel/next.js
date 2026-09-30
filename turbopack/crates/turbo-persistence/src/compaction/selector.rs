@@ -332,8 +332,8 @@ fn plan_family<T: Compactable>(
 /// given as its compactables, in the order they are read (oldest first), and its shards.
 ///
 /// Returns the merge jobs of each family. The jobs of a family don't overlap each other, and each
-/// includes all files overlapping it, except that an intermediate merge leaves out the bottom run,
-/// which is older. So the outputs can be placed after all existing files without moving any file.
+/// job includes the 'newest' SSTs. So the outputs can be placed after all existing files without
+/// moving any file.
 pub fn plan_compaction<T: Compactable>(
     families: &[(&[T], ShardBits)],
     config: &CompactConfig,
