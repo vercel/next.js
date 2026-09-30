@@ -42,7 +42,6 @@ __turbopack_context__.s([
     "classFn",
     classFn,
     "default",
-    0,
     __TURBOPACK__default__export__,
     "evalFn",
     evalFn,

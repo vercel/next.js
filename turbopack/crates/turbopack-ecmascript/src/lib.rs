@@ -85,9 +85,9 @@ use swc_core::{
 use tracing::{Instrument, Level, instrument};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxDashMap, FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc,
-    SerializationInvalidator, TryJoinIterExt, Upcast, ValueToString, Vc,
-    get_serialization_invalidator, parking_lot_mutex_bincode, turbofmt,
+    FxDashMap, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, SerializationInvalidator,
+    TryJoinIterExt, Upcast, ValueToString, Vc, get_serialization_invalidator,
+    parking_lot_mutex_bincode, turbofmt,
 };
 use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
 use turbopack_core::{
@@ -2459,28 +2459,22 @@ async fn emit_content(
     .cell())
 }
 
-/// Appends the declarators of `incoming` to `existing`, so declarations that share a
-/// [`HoistedStmtKey::MergedValueBindings`] key accumulate rather than the later ones being dropped.
+/// Takes the `var` declaration out of a [`HoistedStmtKey::MergedValueBindings`] statement, keeping
+/// only the declarators that bind something no earlier one did.
 ///
-/// `bound` holds the bindings `existing` already declares. Several uses of one import declare the
-/// same binding, and only the first declaration is kept.
+/// `bound` holds every binding declared so far, across all namespaces. A value binding's name is
+/// unique to its value, so a binding declared again, whether through the same namespace or through
+/// a re-export's, holds the same value and only the first declaration is kept.
 ///
-/// Panics unless both are `var` declarations of the same kind, which is the only shape that key is
-/// produced with.
-fn append_var_decls(existing: &mut Stmt, incoming: Stmt, bound: &mut FxIndexSet<Id>) {
-    let (Stmt::Decl(Decl::Var(existing)), Stmt::Decl(Decl::Var(incoming))) = (existing, incoming)
-    else {
+/// Panics unless the statement is a `var` declaration, which is the only shape that key is produced
+/// with.
+fn take_unbound_var_decls(stmt: Stmt, bound: &mut FxHashSet<Id>) -> Box<ast::VarDecl> {
+    let Stmt::Decl(Decl::Var(mut decl)) = stmt else {
         panic!("mergeable hoisted statements must be `var` declarations");
     };
-    assert_eq!(
-        existing.kind, incoming.kind,
-        "mergeable hoisted declarations must all be of the same kind"
-    );
-    for decl in incoming.decls {
-        if !var_decl_binding(&decl).is_some_and(|id| !bound.insert(id)) {
-            existing.decls.push(decl);
-        }
-    }
+    decl.decls
+        .retain(|declarator| var_decl_binding(declarator).is_none_or(|id| bound.insert(id)));
+    decl
 }
 
 /// The identifier a `var <binding> = …` declarator binds.
@@ -2603,29 +2597,37 @@ fn process_content_with_code_gens(
     let mut root_visitors = Vec::new();
     let mut early_hoisted_stmts = FxIndexMap::default();
     let mut hoisted_stmts = FxIndexMap::default();
-    // The bindings each mergeable statement declares so far, to drop duplicates as they arrive.
-    let mut merged_bindings: FxIndexMap<HoistedStmtKey, FxIndexSet<Id>> = FxIndexMap::default();
+    // Every binding the mergeable statements declare so far, to drop duplicates as they arrive.
+    let mut value_bindings = FxHashSet::default();
+    // How many bindings each mergeable statement declares.
+    let mut value_binding_counts: FxIndexMap<HoistedStmtKey, usize> = FxIndexMap::default();
     let mut early_late_stmts = FxIndexMap::default();
     let mut late_stmts = FxIndexMap::default();
     for code_gen in code_gens {
         for CodeGenerationHoistedStmt { key, stmt } in code_gen.hoisted_stmts.drain(..) {
+            if !key.is_mergeable() {
+                // A duplicate is the same statement again, so the first one wins.
+                hoisted_stmts.entry(key).or_insert(stmt);
+                continue;
+            }
+            let incoming = take_unbound_var_decls(stmt, &mut value_bindings);
+            if incoming.decls.is_empty() {
+                continue;
+            }
+            *value_binding_counts.entry(key.clone()).or_default() += incoming.decls.len();
             match hoisted_stmts.entry(key) {
                 indexmap::map::Entry::Vacant(entry) => {
-                    if entry.key().is_mergeable()
-                        && let Stmt::Decl(Decl::Var(decl)) = &stmt
-                    {
-                        merged_bindings.insert(
-                            entry.key().clone(),
-                            decl.decls.iter().filter_map(var_decl_binding).collect(),
-                        );
-                    }
-                    entry.insert(stmt);
+                    entry.insert(Stmt::Decl(Decl::Var(incoming)));
                 }
                 indexmap::map::Entry::Occupied(mut entry) => {
-                    if entry.key().is_mergeable() {
-                        let bound = merged_bindings.entry(entry.key().clone()).or_default();
-                        append_var_decls(entry.get_mut(), stmt, bound);
-                    }
+                    let Stmt::Decl(Decl::Var(existing)) = entry.get_mut() else {
+                        unreachable!("only `var` declarations are inserted under a mergeable key");
+                    };
+                    assert_eq!(
+                        existing.kind, incoming.kind,
+                        "mergeable hoisted declarations must all be of the same kind"
+                    );
+                    existing.decls.extend(incoming.decls);
                 }
             }
         }
@@ -2650,9 +2652,9 @@ fn process_content_with_code_gens(
     // Only once every declaration has arrived is it known how many bindings read each namespace,
     // so destructuring happens once here rather than on every merge.
     if supports_destructuring {
-        for (key, bound) in &merged_bindings {
+        for (key, &count) in &value_binding_counts {
             // Each key is one namespace, and a lone binding stays a plain read.
-            if bound.len() < 2 {
+            if count < 2 {
                 continue;
             }
             if let Some(Stmt::Decl(Decl::Var(decl))) = hoisted_stmts.get_mut(key) {
@@ -3588,20 +3590,28 @@ mod tests {
 
     /// Merges `stmts` the way hoisted value bindings are merged, then destructures them.
     fn merge_value_bindings(stmts: Vec<Stmt>) -> Vec<VarDeclarator> {
-        let mut stmts = stmts.into_iter();
-        let mut merged = stmts.next().unwrap();
-        let Stmt::Decl(Decl::Var(first)) = &merged else {
-            unreachable!()
-        };
-        let mut bound = first.decls.iter().filter_map(var_decl_binding).collect();
-        for stmt in stmts {
-            append_var_decls(&mut merged, stmt, &mut bound);
-        }
-        let Stmt::Decl(Decl::Var(mut decl)) = merged else {
-            unreachable!()
-        };
-        destructure_shared_namespaces(&mut decl.decls);
-        decl.decls
+        let mut bound = FxHashSet::default();
+        let mut decls: Vec<_> = stmts
+            .into_iter()
+            .flat_map(|stmt| take_unbound_var_decls(stmt, &mut bound).decls)
+            .collect();
+        destructure_shared_namespaces(&mut decls);
+        decls
+    }
+
+    #[test]
+    fn value_binding_read_through_several_namespaces_is_declared_once() {
+        // A value binding's name is unique to its value, so reading it again through a
+        // re-export's namespace declares nothing new.
+        let decls = merge_value_bindings(vec![
+            namespace_read_stmt("ns", "a", "x"),
+            namespace_read_stmt("reexport", "b", "x"),
+        ]);
+        assert_eq!(decls.len(), 1);
+        assert!(matches!(
+            as_namespace_read(&decls[0]),
+            Some((namespace, _, binding)) if &*namespace.0 == "ns" && &*binding.sym == "x"
+        ));
     }
 
     #[test]

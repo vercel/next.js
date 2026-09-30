@@ -5,6 +5,12 @@ import * as zeroBeforeAccessor from './zero_before_accessor.js'
 import cjsFunctionDefault, * as cjsFunctionNs from './cjs_function_with_default.js'
 import constantDefault, { constant, live, setLive } from './import_bindings.js'
 import { result as circularResult } from './cycle_a.js'
+import reexportedConstantDefault, {
+  constant as reexportedConstant,
+  live as reexportedLive,
+  setLive as reexportedSetLive,
+} from './import_bindings_reexport.js'
+import { result as reexportedCircularResult } from './cycle_reexport.js'
 
 it('hoisted declarations are live', () => {
   expect(liveExports.bar()).toBe('bar')
@@ -84,6 +90,24 @@ it('direct live imports observe updates', () => {
 
 it('constant imports in a cycle are not captured before evaluation', () => {
   expect(circularResult).toBe('a')
+})
+
+it('re-exported constant imports retain value and call semantics', () => {
+  expect(reexportedConstant).toBe('constant')
+  expect({ reexportedConstant }).toEqual({ reexportedConstant: 'constant' })
+  expect(reexportedConstantDefault()).toBe('constant-default')
+})
+
+it('re-exported live imports observe updates', () => {
+  // Both imports read the same binding, whichever test changed it last.
+  expect(reexportedLive).toBe(live)
+  reexportedSetLive('updated through the re-export')
+  expect(reexportedLive).toBe('updated through the re-export')
+  expect(live).toBe('updated through the re-export')
+})
+
+it('re-exported constant imports in a cycle are not captured before evaluation', () => {
+  expect(reexportedCircularResult).toBe('a')
 })
 
 it('exported bindings that are free vars are live', () => {
