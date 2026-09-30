@@ -53,10 +53,6 @@ test('keeps Cache Components enabled', () => {
   expect(config).not.toMatch(/\bstaleTimes\s*:/)
 })
 
-test('caches the server-provided route for client reuse', () => {
-  expect(source).toMatch(/['"]use cache['"]/)
-})
-
 test('preserves one browser QueryClient across navigations', async () => {
   await expect(environment).toSatisfyCriterion(
     `The QueryClientProvider must reuse one stable QueryClient in the browser across product route navigations while keeping server requests isolated. Accept a module-scoped browser QueryClient or an equivalent implementation that cannot be recreated when the shared provider rerenders. Reject creating new QueryClient() directly during every Providers render.`
@@ -68,6 +64,12 @@ test('makes the server seed reusable by the Next.js client cache', async () => {
     `The server work that reads a product and produces the React Query hydration state must include a public "use cache" dependency so the Next.js client router can reuse the RSC payload after a navigation or prefetch retrieves it.
 
 Accept "use cache" on the getProduct server read, on the ProductData component that creates the hydration state, or on another public cache scope covering that work. A nested cached read contributes its stale lifetime to the route. Accept the default cache profile, an explicit reusable server profile, or an inline client-only profile such as cacheLife({ expire: 0 }). The exact cache duration is not important. Reject experimental staleTimes, native history APIs, and solutions that rely only on TanStack Query staleTime. Preserve the initial server hydration.`
+  )
+})
+
+test('preserves the initial server hydration', async () => {
+  await expect(environment).toSatisfyCriterion(
+    `The product route must continue to prefetch the product on the server and pass that initial data to the existing client ProductView through a TanStack Query HydrationBoundary. Reject moving the initial product request entirely into the browser or removing the hydration boundary.`
   )
 })
 

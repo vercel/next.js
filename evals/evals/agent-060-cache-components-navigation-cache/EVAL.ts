@@ -46,6 +46,6 @@ test('caches the server product read for client reuse', () => {
 
 test('preserves the product page and normal routing', async () => {
   await expect(environment).toSatisfyCriterion(
-    `The app still renders both product name and price from server-provided product data at the existing /products/[id] route. Navigation continues to use Next.js Link and file-system routing. The server product read is covered by a public "use cache" scope so its RSC output receives a client reuse lifetime. Accept the default cache profile or an explicit cacheLife profile. Reject experimental staleTimes, native history APIs, static placeholder content, and moving product rendering to a client-only request.`
+    `The app still renders both product name and price from server-provided product data at the existing /products/[id] route. Navigation continues to use Next.js Link and file-system routing. Reject native history APIs, static placeholder content, and moving product rendering to a client-only request.`
   )
 })
