@@ -1165,10 +1165,11 @@ export default async function build(
 
       // Reuse the loaded config; ordinary builds do not load upgrade tooling.
       if (
-        config.experimental.agenticAutoUpgrade === 'security' ||
-        config.experimental.agenticAutoUpgrade === 'latest' ||
-        config.experimental.agenticAutoUpgrade === 'future' ||
-        process.env.__NEXT_AGENTIC_AUTO_UPGRADE
+        config.experimental.agentUpgrade === true ||
+        config.experimental.agentUpgrade === 'security' ||
+        config.experimental.agentUpgrade === 'latest' ||
+        config.experimental.agentUpgrade === 'experimental-future' ||
+        process.env.__NEXT_AGENT_UPGRADE
       ) {
         const { nudgeUpgrade, getUpgradeContext } =
           require('../lib/upgrade/nudge') as typeof import('../lib/upgrade/nudge')
@@ -1184,11 +1185,8 @@ export default async function build(
           ).catch((error) => {
             Log.warn(`Could not offer the upgrade: ${String(error)}`)
           })
-          if (
-            action === 'update' &&
-            upgradeContext.experimental.agenticAutoUpgrade
-          ) {
-            return upgradeContext.experimental.agenticAutoUpgrade
+          if (action === 'update' && upgradeContext.experimental.agentUpgrade) {
+            return upgradeContext.experimental.agentUpgrade
           }
           if (action === 'interrupt') {
             return 'interrupt' as const
