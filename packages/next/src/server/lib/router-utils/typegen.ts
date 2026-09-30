@@ -569,6 +569,8 @@ export function generateValidatorFile(
     props: { params: Promise<ParamMap[Route]> } & any,
     parent: ResolvingViewport
   ) => Promise<any> | any
+  unstable_selectMetadata?: MetadataSelector
+  unstable_selectViewport?: ViewportSelector
   metadata?: any
   viewport?: any
 }
@@ -645,6 +647,9 @@ export function generateValidatorFile(
   }
   if (appPageValidations || layoutValidations) {
     nextTypes.push('ResolvingMetadata', 'ResolvingViewport')
+  }
+  if (layoutValidations) {
+    nextTypes.push('MetadataSelector', 'ViewportSelector')
   }
   const nextTypesImport =
     nextTypes.length > 0
@@ -804,6 +809,8 @@ export function generateValidatorFileStrict(
     props: { params: Promise<ParamMap[Route]> } & any,
     parent: ResolvingViewport
   ) => Promise<any> | any
+  unstable_selectMetadata?: MetadataSelector
+  unstable_selectViewport?: ViewportSelector
   metadata?: any
   viewport?: any
 }
@@ -880,6 +887,9 @@ export function generateValidatorFileStrict(
   }
   if (appPageValidations || layoutValidations) {
     nextTypes.push('ResolvingMetadata', 'ResolvingViewport')
+  }
+  if (layoutValidations) {
+    nextTypes.push('MetadataSelector', 'ViewportSelector')
   }
   const nextTypesImport =
     nextTypes.length > 0
