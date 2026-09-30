@@ -146,7 +146,7 @@ See [Proxy](#proxy).
 
 ## Navigation stages
 
-The points at which server-rendered work becomes available during a client navigation. With [Partial Prefetching](#partial-prefetching), [`prefetch()`](/docs/app/api-reference/functions/prefetch) delays subsequent work until a per-link prefetch or navigation, while [`navigation()`](/docs/app/api-reference/functions/navigation) delays runtime work until navigation. Static prerenders can include work after either API, and the work remains cacheable.
+The points at which server-rendered work becomes available during a client navigation. With [Partial Prefetching](#partial-prefetching), the stages are the [App Shell](#app-shell), a per-link prefetch, and the navigation. Learn more in the [`ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic), [`prefetch()`](/docs/app/api-reference/functions/prefetch), and [`navigation()`](/docs/app/api-reference/functions/navigation) API references.
 
 ## Not Found
 

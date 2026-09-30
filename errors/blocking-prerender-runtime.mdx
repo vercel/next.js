@@ -56,7 +56,7 @@ An ancestor [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary 
 
 ## Wrap in or move into Suspense
 
-Choose this fix when the value really is per-request, but the page has parts that don't depend on it. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary lets the static shell ship instantly while the dynamic region [streams](/docs/app/glossary#streaming) in once the request value resolves.
+Choose this fix when the value is per-request, but the page has parts that don't depend on it. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary lets the static shell ship instantly while the dynamic region [streams](/docs/app/glossary#streaming) in once the request value resolves.
 
 ### Patterns
 
