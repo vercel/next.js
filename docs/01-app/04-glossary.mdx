@@ -50,7 +50,7 @@ An in-memory cache in the browser that stores [RSC Payload](#rsc-payload) for vi
 
 The client cache is cleared on page refresh. It can be invalidated programmatically with [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag), [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath), [`updateTag`](/docs/app/api-reference/functions/updateTag), [`router.refresh`](/docs/app/api-reference/functions/use-router), [`cookies.set`](/docs/app/api-reference/functions/cookies), or [`cookies.delete`](/docs/app/api-reference/functions/cookies).
 
-With [Cache Components](/docs/app/getting-started/cache-components), use the `stale` property in [`cacheLife`](/docs/app/api-reference/functions/cacheLife#client-cache-behavior) to control client cache reuse. Without Cache Components, you can configure the duration globally with [`staleTimes`](/docs/app/api-reference/config/next-config-js/staleTimes).
+With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), use the `stale` property in [`cacheLife`](/docs/app/api-reference/functions/cacheLife#client-cache-behavior) to control client cache reuse. Without Cache Components, you can configure the duration globally with [`staleTimes`](/docs/app/api-reference/config/next-config-js/staleTimes).
 
 ## Code Splitting
 
