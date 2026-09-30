@@ -1,12 +1,14 @@
 import React, { Suspense } from 'react'
 import { connection } from 'next/server'
 
-import { cacheTag } from 'next/cache'
+import { getPhase } from '../../next-phase'
+import { tasky } from '../../../utils'
 
 async function getRandomNumber() {
   'use cache'
-  cacheTag('test')
-  return Math.random()
+  // no cacheTag - this cache is not meant to be revalidated
+  await tasky()
+  return `cache-random-${getPhase()}-${Date.now()}-${Math.random()}`
 }
 
 async function DynamicComponent() {
@@ -16,17 +18,12 @@ async function DynamicComponent() {
 
 export default async function Page() {
   const randomNumber = await getRandomNumber()
-  const anotherRandomNumber = await fetch(
-    'https://next-data-api-endpoint.vercel.app/api/random',
-    { cache: 'force-cache', next: { tags: ['test'] } }
-  ).then((res) => res.text())
   return (
-    <>
+    <main>
       <p id="random-number">{randomNumber}</p>
-      <p id="another-random-number">{anotherRandomNumber}</p>
       <Suspense>
         <DynamicComponent />
       </Suspense>
-    </>
+    </main>
   )
 }
