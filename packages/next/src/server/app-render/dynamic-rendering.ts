@@ -22,6 +22,7 @@
 
 import type { WorkStore } from './work-async-storage.external'
 import type {
+  RequestStore,
   WorkUnitStore,
   PrerenderStoreLegacy,
   PrerenderStoreModern,
@@ -221,9 +222,7 @@ export function markCurrentScopeAsDynamic(
 
         throw err
       case 'request':
-        if (process.env.NODE_ENV !== 'production') {
-          workUnitStore.usedDynamic = true
-        }
+        markRequestStoreAsDynamic(workUnitStore)
         break
       case 'build-time-generator':
         break
@@ -284,12 +283,16 @@ export function trackDynamicDataInDynamicRender(workUnitStore: WorkUnitStore) {
     case 'build-time-generator':
       break
     case 'request':
-      if (process.env.NODE_ENV !== 'production') {
-        workUnitStore.usedDynamic = true
-      }
+      markRequestStoreAsDynamic(workUnitStore)
       break
     default:
       workUnitStore satisfies never
+  }
+}
+
+function markRequestStoreAsDynamic(requestStore: RequestStore): void {
+  if (process.env.__NEXT_DEV_SERVER && requestStore.phase === 'render') {
+    requestStore.usedDynamic = true
   }
 }
 

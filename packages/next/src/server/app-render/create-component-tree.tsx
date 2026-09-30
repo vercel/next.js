@@ -322,7 +322,6 @@ async function createComponentTreeInternal(
       workStore.dynamicShouldError = true
     } else if (dynamic === 'force-dynamic') {
       workStore.forceDynamic = true
-
       if (isPrerendering) {
         const err = new DynamicServerError(
           `Page with \`dynamic = "force-dynamic"\` won't be rendered statically.`
