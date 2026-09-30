@@ -291,14 +291,8 @@ export function trackDynamicDataInDynamicRender(workUnitStore: WorkUnitStore) {
 }
 
 function markRequestStoreAsDynamic(requestStore: RequestStore): void {
-  if (process.env.__NEXT_DEV_SERVER) {
-    if (requestStore.phase === 'render') {
-      const onDevDynamicUsage = requestStore.onDevDynamicUsage
-      if (onDevDynamicUsage) {
-        requestStore.onDevDynamicUsage = undefined
-        onDevDynamicUsage()
-      }
-    }
+  if (process.env.__NEXT_DEV_SERVER && requestStore.phase === 'render') {
+    requestStore.usedDynamic = true
   }
 }
 

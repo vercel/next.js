@@ -3123,12 +3123,8 @@ async function renderAppPage(
       // Edge routes cannot use ISR, so there is no dynamic transition to watch.
       setDevIsrStatus(url.pathname, false)
     } else {
-      // Start with no dynamic usage observed. A request-time API or
-      // force-dynamic segment reports the transition as soon as it runs.
-      setDevIsrStatus(url.pathname, true)
-      requestStore.onDevDynamicUsage = () => {
-        setDevIsrStatus(url.pathname, false)
-      }
+      // The indicator remains pending until the output has finished rendering.
+      setDevIsrStatus(url.pathname, undefined)
     }
   }
 
@@ -3165,7 +3161,26 @@ async function renderAppPage(
         )
       } else {
         // MARK: RSC dynamic
-        return generateDynamicFlightRenderResult(req, ctx, requestStore)
+        const result = await generateDynamicFlightRenderResult(
+          req,
+          ctx,
+          requestStore
+        )
+        if (setDevIsrStatus && process.env.NEXT_RUNTIME !== 'edge') {
+          result.pipeThrough(
+            new TransformStream({
+              // Only a normally completed output can classify the route.
+              // Stream errors and cancellation leave the indicator pending.
+              flush() {
+                setDevIsrStatus(
+                  url.pathname,
+                  !requestStore.usedDynamic && !workStore.forceDynamic
+                )
+              },
+            })
+          )
+        }
+        return result
       }
     }
   }
@@ -3301,7 +3316,20 @@ async function renderAppPage(
     }
 
     // Create the new render result for the response.
-    return new RenderResult(stream, options)
+    const result = new RenderResult(stream, options)
+    if (setDevIsrStatus && process.env.NEXT_RUNTIME !== 'edge') {
+      result.pipeThrough(
+        new TransformStream({
+          flush() {
+            setDevIsrStatus(
+              url.pathname,
+              !requestStore.usedDynamic && !workStore.forceDynamic
+            )
+          },
+        })
+      )
+    }
+    return result
   } catch (renderError) {
     // Returning a stream may precede SSR readiness, which finishes success.
     // Only failures finish here; a finally would seal successful renders early.

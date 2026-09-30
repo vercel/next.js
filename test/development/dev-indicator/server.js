@@ -9,7 +9,7 @@ let gateResponse
 
 app.prepare().then(() => {
   const server = http.createServer(async (req, res) => {
-    if (req.url === '/__gate') {
+    if (req.url?.startsWith('/__gate/')) {
       gateResponse = res
       return
     }
@@ -35,6 +35,7 @@ app.prepare().then(() => {
 
   server.listen(port, () => {
     const address = server.address()
+    process.env.DEV_INDICATOR_GATE_ORIGIN = `http://localhost:${address.port}`
     console.log(`- Local: http://localhost:${address.port}`)
   })
 })

@@ -237,16 +237,38 @@ describe('dev indicator after a custom server consumes the request', () => {
 
   if (skipped) return
 
-  it('marks request-time API usage Dynamic before the render finishes', async () => {
+  async function expectPendingRoute(
+    browser: Awaited<ReturnType<typeof next.browser>>,
+    hasCacheComponents: boolean
+  ) {
+    await browser.locateDevToolsIndicator().click()
+    await retry(async () => {
+      const pendingRoute = browser.locator(
+        'nextjs-portal .dev-tools-indicator-item[title="Loading..."]'
+      )
+      const routeType = browser.locator(
+        'nextjs-portal [data-nextjs-route-type]'
+      )
+      if (hasCacheComponents) {
+        expect(await pendingRoute.count()).toBe(0)
+      } else {
+        expect(await pendingRoute.count()).toBe(1)
+        expect(await pendingRoute.innerText()).toContain('Route')
+      }
+      expect(await routeType.count()).toBe(0)
+    })
+  }
+
+  it('keeps a dynamic document Pending until its output finishes', async () => {
     let browser: Awaited<ReturnType<typeof next.browser>> | undefined
+    const hasCacheComponents = await gate(
+      (conditions) => conditions.cacheComponents
+    )
     try {
       browser = await next.browser('/app/static-indicator/gated', {
         waitUntil: 'commit',
         waitHydration: false,
       })
-      const hasCacheComponents = await gate(
-        (conditions) => conditions.cacheComponents
-      )
 
       await retry(async () => {
         expect((await next.fetch('/__gate-arrived')).status).toBe(200)
@@ -254,17 +276,7 @@ describe('dev indicator after a custom server consumes the request', () => {
           'Loading...'
         )
       })
-      await browser.locateDevToolsIndicator().click()
-      await retry(async () => {
-        const routeType = browser.locator(
-          'nextjs-portal [data-nextjs-route-type]'
-        )
-        if (hasCacheComponents) {
-          expect(await routeType.count()).toBe(0)
-        } else {
-          expect(await routeType.innerText()).toContain('Dynamic')
-        }
-      })
+      await expectPendingRoute(browser, hasCacheComponents)
     } finally {
       expect((await next.fetch('/__release-gate')).status).toBe(200)
     }
@@ -274,6 +286,86 @@ describe('dev indicator after a custom server consumes the request', () => {
         'The gate was released.'
       )
     })
+    if (!hasCacheComponents) {
+      await retry(async () => {
+        expect(
+          await browser!
+            .locator('nextjs-portal [data-nextjs-route-type]')
+            .innerText()
+        ).toContain('Dynamic')
+      })
+    }
+  })
+
+  it('keeps a static document Pending until its output finishes', async () => {
+    let browser: Awaited<ReturnType<typeof next.browser>> | undefined
+    const hasCacheComponents = await gate(
+      (conditions) => conditions.cacheComponents
+    )
+    try {
+      browser = await next.browser('/app/static-indicator/gated-static', {
+        waitUntil: 'commit',
+        waitHydration: false,
+      })
+      await retry(async () => {
+        expect((await next.fetch('/__gate-arrived')).status).toBe(200)
+        expect(await browser.locator('main > p').textContent()).toBe(
+          'Loading...'
+        )
+      })
+      await expectPendingRoute(browser, hasCacheComponents)
+    } finally {
+      expect((await next.fetch('/__release-gate')).status).toBe(200)
+    }
+
+    expect(await browser!.elementByCss('#static-gate-released').text()).toBe(
+      'The static gate was released.'
+    )
+    if (!hasCacheComponents) {
+      await retry(async () => {
+        expect(
+          await browser!
+            .locator('nextjs-portal [data-nextjs-route-type]')
+            .innerText()
+        ).toContain('Static')
+      })
+    }
+  })
+
+  it('waits for Client Component SSR usage before classifying', async () => {
+    let browser: Awaited<ReturnType<typeof next.browser>> | undefined
+    const hasCacheComponents = await gate(
+      (conditions) => conditions.cacheComponents
+    )
+    try {
+      browser = await next.browser('/app/static-indicator/gated-client', {
+        waitUntil: 'commit',
+        waitHydration: false,
+      })
+      await retry(async () => {
+        expect((await next.fetch('/__gate-arrived')).status).toBe(200)
+        expect(
+          await browser.locator('#client-gate-pending').textContent()
+        ).toBe('Loading client gate...')
+        expect(await browser.locator('#client-dynamic').count()).toBe(0)
+      })
+      await expectPendingRoute(browser, hasCacheComponents)
+    } finally {
+      expect((await next.fetch('/__release-gate')).status).toBe(200)
+    }
+
+    expect(await browser!.elementByCss('#client-dynamic').text()).toBe(
+      'Client SSR used noStore.'
+    )
+    if (!hasCacheComponents) {
+      await retry(async () => {
+        expect(
+          await browser!
+            .locator('nextjs-portal [data-nextjs-route-type]')
+            .innerText()
+        ).toContain('Dynamic')
+      })
+    }
   })
 
   it('classifies App Router document loads and navigation after request-body consumption', async () => {

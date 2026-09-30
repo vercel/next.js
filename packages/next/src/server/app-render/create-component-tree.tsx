@@ -38,7 +38,6 @@ import {
   type WorkUnitStore,
 } from './work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import { trackDynamicDataInDynamicRender } from './dynamic-rendering'
 import {
   createVaryParamsAccumulator,
   emptyVaryParamsAccumulator,
@@ -323,11 +322,6 @@ async function createComponentTreeInternal(
       workStore.dynamicShouldError = true
     } else if (dynamic === 'force-dynamic') {
       workStore.forceDynamic = true
-
-      if (process.env.__NEXT_DEV_SERVER) {
-        trackDynamicDataInDynamicRender(workUnitStore)
-      }
-
       if (isPrerendering) {
         const err = new DynamicServerError(
           `Page with \`dynamic = "force-dynamic"\` won't be rendered statically.`

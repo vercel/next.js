@@ -2,7 +2,7 @@ import { headers } from 'next/headers'
 
 export default async function Page() {
   const host = (await headers()).get('host')
-  await fetch(`http://${host}/__gate`, {
+  await fetch(`http://${host}/__gate/dynamic`, {
     cache: 'force-cache',
   })
 

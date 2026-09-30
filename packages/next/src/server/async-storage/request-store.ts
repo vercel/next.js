@@ -347,7 +347,7 @@ export function createRequestStore(inputs: RequestStoreInputs): RequestStore {
       (globalThis as any).__serverComponentsHmrCache,
     hmrRefreshHash,
     stagedFallbackParams,
-    onDevDynamicUsage: undefined,
+    usedDynamic: false,
   }
 }
 
