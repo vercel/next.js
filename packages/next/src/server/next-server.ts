@@ -25,7 +25,10 @@ import type {
 import type { Params } from './request/params'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { RouteMatch } from './route-matches/route-match'
-import type { RouteMatch as AppRenderRouteMatch } from './route-modules/app-page/module'
+import type {
+  DevRenderContext,
+  RouteMatch as AppRenderRouteMatch,
+} from './route-modules/app-page/module'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
 import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
@@ -674,6 +677,13 @@ export default class NextNodeServer extends BaseServer<
           !renderOpts.isPossibleServerAction
             ? lazyPrerenderAppPage
             : lazyRenderAppPage
+        const dev: DevRenderContext | undefined =
+          process.env.__NEXT_DEV_SERVER && renderAppPage === lazyRenderAppPage
+            ? {
+                serverComponentsHmrCache: this.getServerComponentsHmrCache(),
+                hmrRefreshHash: getRequestMeta(req, 'hmrRefreshHash'),
+              }
+            : undefined
 
         const result = await renderAppPage(
           req,
@@ -684,7 +694,7 @@ export default class NextNodeServer extends BaseServer<
           // shells. As a result, we don't need to pass in the unknown params.
           null,
           renderOpts as LoadedRenderOpts<AppPageModule>,
-          this.getServerComponentsHmrCache(),
+          dev,
           {
             buildId: this.buildId,
             deploymentId: this.deploymentId,

@@ -78,14 +78,19 @@ export type RouteMatch = {
   readonly resolvedPathname: string
 }
 
+/** Live dev-server state captured for a render; absent in production and build prerenders. */
+export type DevRenderContext = {
+  readonly serverComponentsHmrCache: ServerComponentsHmrCache | undefined
+  readonly hmrRefreshHash: string | undefined
+}
+
 export interface AppPageRouteHandlerContext extends RouteModuleHandleContext {
   page: string
   routeMatch: RouteMatch
   query: NextParsedUrlQuery
   fallbackRouteParams: OpaqueFallbackRouteParams | null
   renderOpts: RenderOpts
-  serverComponentsHmrCache?: ServerComponentsHmrCache
-  hmrRefreshHash?: string
+  dev: DevRenderContext | undefined
   sharedContext: AppSharedContext
 }
 
@@ -180,10 +185,9 @@ export class AppPageRouteModule extends RouteModule<
       process.env.__NEXT_DEV_SERVER && req.method === 'HEAD'
         ? { ...context.renderOpts, setIsrStatus: undefined }
         : context.renderOpts,
-      context.serverComponentsHmrCache,
+      context.dev,
       context.sharedContext,
-      context.routeMatch,
-      context.hmrRefreshHash
+      context.routeMatch
     )
   }
 
@@ -199,7 +203,7 @@ export class AppPageRouteModule extends RouteModule<
       context.query,
       context.fallbackRouteParams,
       context.renderOpts,
-      context.serverComponentsHmrCache,
+      undefined,
       context.sharedContext,
       context.routeMatch
     )

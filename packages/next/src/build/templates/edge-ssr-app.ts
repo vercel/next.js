@@ -22,6 +22,7 @@ import type { NextFetchEvent } from '../../server/web/spec-extension/fetch-event
 import type {
   AppPageRouteHandlerContext,
   AppPageRouteModule,
+  DevRenderContext,
   RouteMatch,
 } from '../../server/route-modules/app-page/module.compiled'
 import type { AppPageRenderResultMetadata } from '../../server/render-result'
@@ -113,12 +114,18 @@ async function requestHandler(
   const closeController = new CloseController()
 
   const routeMatch: RouteMatch = { resolvedPathname }
+  const dev: DevRenderContext | undefined = process.env.__NEXT_DEV_SERVER
+    ? {
+        serverComponentsHmrCache: undefined,
+        hmrRefreshHash: getRequestMeta(baseReq, 'hmrRefreshHash'),
+      }
+    : undefined
   const renderContext: AppPageRouteHandlerContext = {
     page: normalizedSrcPage,
     routeMatch,
     query,
     params,
-    hmrRefreshHash: getRequestMeta(baseReq, 'hmrRefreshHash'),
+    dev,
 
     sharedContext: {
       buildId,

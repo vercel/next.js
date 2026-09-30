@@ -5,6 +5,7 @@ import type { FallbackRouteParam } from '../static-paths/types'
 import {
   AppPageRouteModule,
   type AppPageRouteHandlerContext,
+  type DevRenderContext,
   type RouteMatch,
 } from '../../server/route-modules/app-page/module.compiled' with { 'turbopack-transition': 'next-ssr' }
 
@@ -862,6 +863,16 @@ export function createAppPageEntrypoint({
         renderOperation: AppPageRenderOperation
       }): Promise<ResponseCacheEntry | PrerenderFailure> => {
         const routeMatch: RouteMatch = { resolvedPathname }
+        const dev: DevRenderContext | undefined =
+          process.env.__NEXT_DEV_SERVER && renderOperation === 'render'
+            ? {
+                serverComponentsHmrCache: getRequestMeta(
+                  req,
+                  'serverComponentsHmrCache'
+                ),
+                hmrRefreshHash: getRequestMeta(req, 'hmrRefreshHash'),
+              }
+            : undefined
         const context: AppPageRouteHandlerContext = {
           query,
           params,
@@ -872,11 +883,7 @@ export function createAppPageEntrypoint({
             deploymentId,
             clientAssetToken,
           },
-          serverComponentsHmrCache: getRequestMeta(
-            req,
-            'serverComponentsHmrCache'
-          ),
-          hmrRefreshHash: getRequestMeta(req, 'hmrRefreshHash'),
+          dev,
           fallbackRouteParams,
           renderOpts: {
             App: () => null,
