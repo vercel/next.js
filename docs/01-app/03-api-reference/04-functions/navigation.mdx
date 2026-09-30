@@ -3,6 +3,7 @@ title: navigation
 description: API Reference for the navigation function, which defers runtime work until the user navigates.
 related:
   links:
+    - app/api-reference/file-conventions/route-segment-config/ensureStatic
     - app/api-reference/functions/prefetch
     - app/api-reference/functions/connection
     - app/guides/adopting-partial-prefetching
@@ -41,6 +42,8 @@ During runtime rendering, awaiting `navigation()` keeps content out of the App S
 Without Partial Prefetching, `navigation()` still defers the content for a default `<Link>`, but [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch) fetches the whole route, deferred content included, the same as a navigation.
 
 To keep content out of the App Shell while still including it in a per-link prefetch, use [`prefetch()`](/docs/app/api-reference/functions/prefetch).
+
+To enforce static App Shell and per-link prefetch output across a route, use [`ensureStatic = 'prefetch'`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#prefetch).
 
 During runtime rendering, everything above `navigation()` can render in the App Shell or a per-link prefetch, while everything below waits for navigation. Deferral is scoped to the component that awaits it and the tree below: sibling branches keep their existing behavior. Place it above the code to defer, and wrap the component in [`<Suspense>`](https://react.dev/reference/react/Suspense):
 

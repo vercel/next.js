@@ -3,6 +3,7 @@ title: prefetch
 description: API Reference for the prefetch function, which defers runtime work until a per-link prefetch or navigation.
 related:
   links:
+    - app/api-reference/file-conventions/route-segment-config/ensureStatic
     - app/api-reference/functions/navigation
     - app/api-reference/functions/connection
     - app/guides/adopting-partial-prefetching
@@ -39,6 +40,8 @@ With Partial Prefetching enabled, Next.js can load server-rendered output at thr
 During runtime rendering, awaiting `prefetch()` keeps content out of the App Shell, so it renders during a per-link prefetch or navigation. Static prerenders can still include the content.
 
 To keep content out of per-link prefetches as well, so it renders only on the navigation, use [`navigation()`](/docs/app/api-reference/functions/navigation).
+
+To enforce a static App Shell across a route, use [`ensureStatic = 'shell'`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#shell).
 
 Everything above `prefetch()` renders in the App Shell, and everything below renders on a per-link prefetch or on the navigation. Deferral is scoped to the component that awaits it and the tree below: sibling branches render in the shell as usual. Place it above the work to defer, and wrap the component in [`<Suspense>`](https://react.dev/reference/react/Suspense):
 
