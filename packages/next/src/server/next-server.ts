@@ -677,13 +677,12 @@ export default class NextNodeServer extends BaseServer<
           !renderOpts.isPossibleServerAction
             ? lazyPrerenderAppPage
             : lazyRenderAppPage
-        const dev: DevRenderContext | undefined =
-          process.env.__NEXT_DEV_SERVER && renderAppPage === lazyRenderAppPage
-            ? {
-                serverComponentsHmrCache: this.getServerComponentsHmrCache(),
-                hmrRefreshHash: getRequestMeta(req, 'hmrRefreshHash'),
-              }
-            : undefined
+        const dev: DevRenderContext | undefined = process.env.__NEXT_DEV_SERVER
+          ? {
+              serverComponentsHmrCache: this.getServerComponentsHmrCache(),
+              hmrRefreshHash: getRequestMeta(req, 'hmrRefreshHash'),
+            }
+          : undefined
 
         const result = await renderAppPage(
           req,

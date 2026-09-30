@@ -863,16 +863,15 @@ export function createAppPageEntrypoint({
         renderOperation: AppPageRenderOperation
       }): Promise<ResponseCacheEntry | PrerenderFailure> => {
         const routeMatch: RouteMatch = { resolvedPathname }
-        const dev: DevRenderContext | undefined =
-          process.env.__NEXT_DEV_SERVER && renderOperation === 'render'
-            ? {
-                serverComponentsHmrCache: getRequestMeta(
-                  req,
-                  'serverComponentsHmrCache'
-                ),
-                hmrRefreshHash: getRequestMeta(req, 'hmrRefreshHash'),
-              }
-            : undefined
+        const dev: DevRenderContext | undefined = process.env.__NEXT_DEV_SERVER
+          ? {
+              serverComponentsHmrCache: getRequestMeta(
+                req,
+                'serverComponentsHmrCache'
+              ),
+              hmrRefreshHash: getRequestMeta(req, 'hmrRefreshHash'),
+            }
+          : undefined
         const context: AppPageRouteHandlerContext = {
           query,
           params,
