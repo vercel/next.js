@@ -335,38 +335,67 @@ Learn more: [TanStack Query Advanced SSR](https://tanstack.com/query/latest/docs
 
 TanStack Query can already have the product in its browser cache while Next.js requests the route's uncached React Server Component (RSC) payload again. That request repeats the server prefetch and can show the Suspense fallback during a warm navigation.
 
-Enable [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) in `next.config.ts`, then add [`use cache`](/docs/app/api-reference/directives/use-cache) and [`cacheLife`](/docs/app/api-reference/functions/cacheLife) to the server read:
+Enable [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) in `next.config.ts`, then add [`use cache`](/docs/app/api-reference/directives/use-cache) and [`cacheLife`](/docs/app/api-reference/functions/cacheLife) to the Server Component that creates the hydration state:
 
-```ts filename="app/products/[id]/data.ts" switcher
+```tsx filename="app/products/[id]/page.tsx" switcher
+import {
+  dehydrate,
+  HydrationBoundary,
+  QueryClient,
+} from '@tanstack/react-query'
 import { cacheLife } from 'next/cache'
-import { notFound } from 'next/navigation'
-import type { Product } from './product-cache'
+import { getProduct } from './data'
+import { productCache } from './product-cache'
+import { ProductView } from './product-view'
 
-export async function getProduct(id: string): Promise<Product> {
+async function ProductData({ id }: { id: string }) {
   'use cache'
   cacheLife({ expire: 0 })
 
-  const product = await db.product.findUnique({ where: { id } })
-  if (!product) notFound()
-  return product
+  const queryClient = new QueryClient()
+  await queryClient.prefetchQuery({
+    ...productCache.options(id),
+    queryFn: () => getProduct(id),
+  })
+
+  return (
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <ProductView id={id} />
+    </HydrationBoundary>
+  )
 }
 ```
 
-```js filename="app/products/[id]/data.js" switcher
+```jsx filename="app/products/[id]/page.js" switcher
+import {
+  dehydrate,
+  HydrationBoundary,
+  QueryClient,
+} from '@tanstack/react-query'
 import { cacheLife } from 'next/cache'
-import { notFound } from 'next/navigation'
+import { getProduct } from './data'
+import { productCache } from './product-cache'
+import { ProductView } from './product-view'
 
-export async function getProduct(id) {
+async function ProductData({ id }) {
   'use cache'
   cacheLife({ expire: 0 })
 
-  const product = await db.product.findUnique({ where: { id } })
-  if (!product) notFound()
-  return product
+  const queryClient = new QueryClient()
+  await queryClient.prefetchQuery({
+    ...productCache.options(id),
+    queryFn: () => getProduct(id),
+  })
+
+  return (
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <ProductView id={id} />
+    </HydrationBoundary>
+  )
 }
 ```
 
-`expire: 0` prevents Next.js from reusing the value from the server cache in production. Because this profile omits `stale`, it inherits the `default` profile's client stale time, which is five minutes unless you override it in `next.config.ts`. During that time, the Next.js router can reuse the RSC payload without repeating the server prefetch.
+`expire: 0` prevents Next.js from reusing the `ProductData` output from the server cache in production. Because this profile omits `stale`, it inherits the `default` profile's client stale time, which is five minutes unless you override it in `next.config.ts`. During that time, the Next.js router can reuse the RSC payload, including the `<HydrationBoundary>` state, without repeating the server prefetch.
 
 Use this client-only profile when the data must be recomputed on every server request. If the data is safe to cache on the server, [cache it across requests](#cache-server-data-across-requests) to improve initial and direct loads.
 
