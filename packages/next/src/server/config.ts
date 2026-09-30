@@ -651,7 +651,7 @@ function assignDefaultsAndValidate(
     !silent
   ) {
     Log.warnOnce(
-      `\`cacheComponents\` is enabled without \`partialPrefetching\`. Partial Prefetching will be enabled with Cache Components by default in a future version. Follow the migration guide: https://nextjs.org/docs/app/guides/adopting-partial-prefetching`
+      `\`cacheComponents\` is enabled without a corresponding \`partialPrefetching\` option. Set \`partialPrefetching\` to \`true\` or \`false\`. Set it to \`false\` only when migrating an app that adopted Cache Components before Partial Prefetching was available. New projects should set it to \`true\`. In the next major release, both features will be enabled everywhere and these options will be removed. Follow the migration guide: https://nextjs.org/docs/app/guides/adopting-partial-prefetching`
     )
   }
 

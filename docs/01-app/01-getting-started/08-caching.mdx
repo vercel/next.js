@@ -42,7 +42,9 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
-For an existing app, follow [Migrating to Cache Components](/docs/app/guides/migrating-to-cache-components) and [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) before enabling these options. Partial Prefetching will be enabled with Cache Components by default in a future version.
+Set `partialPrefetching` to `false` only when migrating an app that already uses Cache Components. The initial release of Cache Components did not include Partial Prefetching. New projects should enable both options.
+
+In the next major release, Cache Components and Partial Prefetching will be enabled everywhere, and these configuration options will be removed. To prepare an existing app, follow [Migrating to Cache Components](/docs/app/guides/migrating-to-cache-components) and [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching).
 
 > **Good to know:** When Cache Components is enabled, `GET` Route Handlers follow the same prerendering model as pages. See [Route Handlers with Cache Components](/docs/app/getting-started/route-handlers#with-cache-components) for details.
 
