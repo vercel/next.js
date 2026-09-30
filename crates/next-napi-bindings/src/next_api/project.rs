@@ -19,7 +19,9 @@ use napi::{
 };
 use napi_derive::napi;
 use next_api::{
-    aggregate_hmr::{ServerHmrChunkListVersion, ServerHmrUpdate, compute_server_hmr_update},
+    aggregate_hmr::{
+        ServerHmrChunkListVersion, ServerHmrChunkLists, ServerHmrUpdate, compute_server_hmr_update,
+    },
     entrypoints::Entrypoints,
     next_server_nft::next_server_nft_assets,
     operation::{
@@ -54,7 +56,8 @@ use turbo_tasks::{
     ResolvedVc, TaskId, TransientInstance, TryJoinIterExt, TurboTasksApi, TurboTasksCallApi,
     UpdateInfo, Vc, mark_top_level_task,
     message_queue::{CompilationEvent, Severity, TraceEvent},
-    read_strongly_consistent_and_apply_effects, take_effects, turbo_tasks,
+    read_strongly_consistent_and_apply_effects,
+    resolve_strongly_consistent_and_take_and_apply_effects, take_effects, turbo_tasks,
     unmark_top_level_task_may_leak_eventually_consistent_state,
 };
 use turbo_tasks_backend::{BackingStorageOptions, db_invalidation::invalidation_reasons};
@@ -1914,58 +1917,66 @@ async fn hmr_update_with_issues_operation(
 }
 
 #[turbo_tasks::value(serialization = "skip")]
-struct ServerHmrSnapshotWithEffects {
+struct ServerHmrUpdateSnapshot {
+    update: ServerHmrUpdate,
+}
+
+#[turbo_tasks::value(serialization = "skip")]
+struct ServerHmrPullResult {
     update: ServerHmrUpdate,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
-    effects: Arc<Effects>,
 }
 
 #[turbo_tasks::value(serialization = "skip")]
 struct ServerHmrSnapshot {
-    update: ServerHmrUpdate,
+    chunk_lists: ReadRef<ServerHmrChunkLists>,
+    version: ReadRef<ServerHmrChunkListVersion>,
 }
 
 #[turbo_tasks::function(operation, root)]
 async fn project_server_hmr_snapshot_operation(
     project: ResolvedVc<Project>,
     entry_paths: Vec<RcStr>,
-    from: TransientInstance<Option<ReadRef<ServerHmrChunkListVersion>>>,
 ) -> Result<Vc<ServerHmrSnapshot>> {
     let chunk_lists = project.server_hmr_chunks_for_entries(entry_paths).await?;
     let version = ServerHmrChunkListVersion::from_chunk_lists(chunk_lists.as_slice())
         .await?
         .cell()
         .await?;
-    let update =
-        compute_server_hmr_update(chunk_lists.as_slice(), from.as_deref(), version).await?;
-    Ok(ServerHmrSnapshot { update }.cell())
+    // Keep baseline-independent work cacheable across pull requests and warm restarts.
+    Ok(ServerHmrSnapshot {
+        chunk_lists,
+        version,
+    }
+    .cell())
 }
 
 /// The caller reads this within a disposable root task so the old pull baseline
 /// cannot reactivate after the pull has completed.
-#[tracing::instrument(level = "info", name = "server hmr snapshot", skip_all)]
+#[tracing::instrument(level = "info", name = "server hmr update", skip_all)]
 #[turbo_tasks::function(operation, root)]
-async fn server_hmr_snapshot_with_effects_operation(
+async fn server_hmr_update_operation(
     project: ResolvedVc<Project>,
     entry_paths: Vec<RcStr>,
     from: TransientInstance<Option<ReadRef<ServerHmrChunkListVersion>>>,
-) -> Result<Vc<ServerHmrSnapshotWithEffects>> {
-    tracing::info!("server hmr snapshot");
-    let snapshot_op = project_server_hmr_snapshot_operation(project, entry_paths, from);
-    // Build-graph failures must reach the JS recovery path.
+) -> Result<Vc<ServerHmrUpdateSnapshot>> {
+    tracing::info!("server hmr update");
+    // The old baseline is a transient input: this diff must miss on a warm
+    // restart, while the snapshot operation below remains persistable.
+    let snapshot_op = project_server_hmr_snapshot_operation(project, entry_paths);
+    // The outer pull's strong read protects both this cached snapshot and the
+    // transient diff, so their update and next baseline cannot cross revisions.
     let snapshot = snapshot_op
         .read_strongly_consistent()
         .final_read_hint()
         .await?;
-    let filter = project.issue_filter().await?;
-    let issues = get_issues(snapshot_op, &filter).await?;
-    let effects = Arc::new(take_effects(snapshot_op).await?);
-    Ok(ServerHmrSnapshotWithEffects {
-        update: snapshot.update.clone(),
-        issues,
-        effects,
-    }
-    .cell())
+    let update = compute_server_hmr_update(
+        snapshot.chunk_lists.as_slice(),
+        from.as_deref(),
+        snapshot.version.clone(),
+    )
+    .await?;
+    Ok(ServerHmrUpdateSnapshot { update }.cell())
 }
 
 /// Explicitly dispose the pull's reactive root, including its old-version diff
@@ -2032,16 +2043,24 @@ pub async fn project_get_server_hmr_update(
                     // Match the existing project-resolution and effects boundary.
                     unmark_top_level_task_may_leak_eventually_consistent_state();
                     let project = container.project().to_resolved().await?;
-                    mark_top_level_task();
-                    let snapshot_op = server_hmr_snapshot_with_effects_operation(
+                    let snapshot_op = server_hmr_update_operation(
                         project,
                         entry_paths,
                         TransientInstance::new(from),
                     );
-                    let snapshot =
-                        read_strongly_consistent_and_apply_effects(snapshot_op, |v| &v.effects)
-                            .await?;
-                    Ok(ReadRef::cell(snapshot))
+                    // Capture and apply effects from the entire transient diff,
+                    // not just the cached, baseline-independent snapshot. The
+                    // helper owns retries when an effect requests invalidation.
+                    resolve_strongly_consistent_and_take_and_apply_effects(snapshot_op).await?;
+                    let snapshot = snapshot_op.read_strongly_consistent().await?;
+                    let filter = project.issue_filter().await?;
+                    let issues = get_issues(snapshot_op, &filter).await?;
+                    mark_top_level_task();
+                    Ok(ServerHmrPullResult {
+                        update: snapshot.update.clone(),
+                        issues,
+                    }
+                    .cell())
                 }
             }
         }),
@@ -2053,7 +2072,7 @@ pub async fn project_get_server_hmr_update(
             // A root task is not an OperationVc. Read it directly: wrapping it
             // in an operation would connect another parentless GC root that
             // disposing `root` could not release.
-            Vc::<ServerHmrSnapshotWithEffects>::from(RawVc::task_output(root_id))
+            Vc::<ServerHmrPullResult>::from(RawVc::task_output(root_id))
                 .strongly_consistent()
                 .await
         })

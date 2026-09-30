@@ -104,6 +104,8 @@ describe('warm-restart task statistics', () => {
       await stop()
 
       const missed = await readMissedTaskNames()
+      // Server HMR's old pull baseline is transient and must be diffed again,
+      // while its baseline-independent chunk-list snapshot stays cached.
       expect(missed).toMatchInlineSnapshot(`
          [
            "<turbopack_browser::ecmascript::list::content::EcmascriptDevChunkListContent as dyn turbopack_core::version::VersionedContent>::update",
@@ -111,6 +113,7 @@ describe('warm-restart task statistics', () => {
            "next_api::project::Project::hmr_version_state",
            "next_napi_bindings::next_api::project::hmr_update_with_issues_operation",
            "next_napi_bindings::next_api::project::project_hmr_update_operation",
+           "next_napi_bindings::next_api::project::server_hmr_update_operation",
            "turbopack_core::version::VersionState::get",
          ]
         `)
