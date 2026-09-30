@@ -44,6 +44,7 @@ pub const COMPACT_CONFIG: CompactConfig = CompactConfig {
     min_bottom_merge_bytes: 1024 * 1024,
     max_files_above_bottom: 6,
     rewrite_per_fresh_byte: 3.0,
+    size_ratio_percent: 100,
     max_merge_jobs: 16,
 };
 
