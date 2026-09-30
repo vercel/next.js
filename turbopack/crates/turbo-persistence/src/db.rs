@@ -49,7 +49,7 @@ use crate::{
     meta_file_builder::MetaFileBuilder,
     parallel_scheduler::ParallelScheduler,
     rc_bytes::RcBytes,
-    shard::{ShardBits, ShardIndex},
+    shard::{MetaEntryIndex, ShardBits, ShardIndex},
     sst_filter::SstFilter,
     static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFileIter},
     static_sorted_file_builder::{StaticSortedFileBuilderMeta, StreamingSstWriter},
@@ -1572,11 +1572,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     }
 
                     // The keys read recently: the used keys of the meta files written by commits
-                    // that are still alive, i.e. whose SST files were not all merged yet. As in
-                    // the previous warm/cold split, the marks are not copied into the meta files
-                    // written by compaction, so they expire with the meta files that recorded
-                    // them; carrying them forward would keep keys marked forever. A bottom merge
-                    // writes the marked keys into separate hot files, other merges don't need them.
+                    // that are still alive, i.e. whose SST files were not all merged yet. We only
+                    // capture this for non-trivial bottom compactions.
                     let used_key_hashes = if merge_jobs
                         .iter()
                         .any(|job| job.bottom && job.members.len() > 1)
@@ -2203,8 +2200,13 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         // Only the SST files of the key's shard can contain it, newest first.
         let meta_files = &inner.meta_files_by_family[family];
         let shard_files = inner.shard_index[family].candidates(hash);
-        for (range, &(meta_index, entry_index)) in
-            shard_files.ranges.iter().zip(&shard_files.locations)
+        for (
+            range,
+            &MetaEntryIndex {
+                meta_index,
+                entry_index,
+            },
+        ) in shard_files.ranges.iter().zip(&shard_files.locations)
         {
             let result = if range.contains(hash) {
                 meta_files[meta_index as usize].lookup_entry::<K, FIND_ALL>(
@@ -2362,8 +2364,13 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             run_start += run_len;
             let mut empty_run_cells = run_len;
             let shard_files = shard_index.shard(shard);
-            for (range, &(meta_index, entry_index)) in
-                shard_files.ranges.iter().zip(&shard_files.locations)
+            for (
+                range,
+                &MetaEntryIndex {
+                    meta_index,
+                    entry_index,
+                },
+            ) in shard_files.ranges.iter().zip(&shard_files.locations)
             {
                 let _result = inner.meta_files_by_family[family][meta_index as usize]
                     .batch_lookup_entry(
@@ -2636,10 +2643,8 @@ fn shard_bits<const FAMILIES: usize>(
         if covered_shards.is_empty() {
             return current;
         }
-        let estimated_bytes = (u128::from(bottom_bytes) * u128::from(current.count())
-            / covered_shards.len() as u128)
-            .try_into()
-            .unwrap_or(u64::MAX);
+        let estimated_bytes =
+            bottom_bytes.saturating_mul(current.count() as u64) / covered_shards.len() as u64;
         current.maybe_reshard(estimated_bytes, config.target_shard_size)
     })
 }

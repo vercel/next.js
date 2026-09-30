@@ -88,10 +88,9 @@ pub struct DbConfig<const FAMILIES: usize> {
     pub family_configs: [FamilyConfig; FAMILIES],
     /// How SST and meta files are read from disk.
     pub access_mode: AccessMode,
-    /// The size a shard of a family should have after compaction. Families with more data use more
-    /// shards, so that compacting a shard stays cheap.
+    /// The size a shard of a family should have after compaction.
     ///
-    /// This is a rough bound to avoid frequent reshading, See [`shard`] for sizing semantics.
+    /// This is a rough bound to avoid frequent resharding, See [`shard`] for sizing semantics.
     pub target_shard_size: u64,
 }
 

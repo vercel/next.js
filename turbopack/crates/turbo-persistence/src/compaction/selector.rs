@@ -64,8 +64,8 @@ pub struct CompactConfig {
     pub max_space_amplification_percent: u16,
 
     /// A shard is only merged into a new bottom run when at least this many bytes are above its
-    /// bottom run. Tiny families, which rewrite all their data with every commit, only get
-    /// intermediate merges.
+    /// bottom run. This is to avoid tiny families that always rewrite everything doing constant
+    /// full merges and starving other work.
     pub min_bottom_merge_bytes: u64,
 
     /// The files above the bottom run of a shard are merged when there are more than this many

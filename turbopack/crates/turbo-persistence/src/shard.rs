@@ -59,34 +59,39 @@ impl ShardBits {
         start..=end
     }
 
-    /// The shard bits for a family with `bytes` of compacted data that currently uses `self`. The
-    /// shard count only doubles once shards hold more than 1.5 times `target_shard_size`, and only
-    /// halves once they hold less than half of it. A change lands in the middle of that band, so
-    /// a family near a boundary doesn't flip back and forth, which would alternate the file
-    /// boundaries of commits.
+    /// Computes the shard bits for a family with size [`bytes`], targeting a shard size and using
+    /// `[self]` bits already.
+    ///
+    /// The shard count only doubles once shards hold more than 1.5 times `target_shard_size`, and
+    /// only halves once they hold less than half of it to prevent resharding around a threshold.
     pub fn maybe_reshard(self, bytes: u64, target_shard_size: u64) -> Self {
-        let bytes = u128::from(bytes);
-        let target = u128::from(target_shard_size.max(1));
+        let target = target_shard_size.max(1);
+        let shard_size = |bits: Self| bytes >> bits.0;
         let mut bits = self;
-        // shard size > 1.5 * target, i.e. 2 * bytes > 3 * target * count
-        while bits < Self::MAX && 2 * bytes > 3 * target * u128::from(bits.count()) {
+        // Grow while a shard would be over 1.5 * target.
+        while bits < Self::MAX && shard_size(bits) > target.saturating_add(target / 2) {
             bits.0 += 1;
         }
-        // shard size < 0.5 * target, i.e. 2 * bytes < target * count
-        while bits.0 > 0 && 2 * bytes < target * u128::from(bits.count()) {
+        // Shrink while a shard would be under 0.5 * target.
+        while bits.0 > 0 && shard_size(bits) < target / 2 {
             bits.0 -= 1;
         }
         bits
     }
 }
 
+#[derive(PartialEq, Eq, Copy, Clone, Debug)]
+pub(crate) struct MetaEntryIndex {
+    pub meta_index: u32,
+    pub entry_index: u32,
+}
 /// The SST files that can contain the keys of a shard, newest first, which is the order lookups
 /// consult them in. The hash ranges are stored densely so that a lookup scans them sequentially.
 #[derive(Default)]
 pub(crate) struct ShardFiles {
     pub ranges: Box<[StaticSortedFileRange]>,
     /// For each range, the index of the meta file and of the entry in the meta file.
-    pub locations: Box<[(u32, u32)]>,
+    pub locations: Box<[MetaEntryIndex]>,
 }
 
 /// The SST files of each shard of a family, so lookups only consult the files of the key's shard
@@ -122,7 +127,10 @@ impl ShardIndex {
                 let last = bits.shard_of(range.max_hash);
                 for (ranges, locations) in &mut shards[first as usize..=last as usize] {
                     ranges.push(*range);
-                    locations.push((meta_index as u32, entry_index as u32));
+                    locations.push(MetaEntryIndex {
+                        meta_index: meta_index as u32,
+                        entry_index: entry_index as u32,
+                    });
                 }
             }
         }
@@ -196,10 +204,53 @@ mod tests {
         let new = [range(1, 2), range(2, 2), range(3, 2)];
         let index = ShardIndex::build(ShardBits::new(2), [&old[..], &new[..]].into_iter());
         let locations = |shard| index.shard(shard).locations.to_vec();
-        assert_eq!(locations(0), vec![(0, 0)]);
-        assert_eq!(locations(1), vec![(1, 0), (0, 0)]);
-        assert_eq!(locations(2), vec![(1, 1), (0, 1)]);
-        assert_eq!(locations(3), vec![(1, 2), (0, 1)]);
+        assert_eq!(
+            locations(0),
+            vec![MetaEntryIndex {
+                meta_index: 0,
+                entry_index: 0
+            }]
+        );
+        assert_eq!(
+            locations(1),
+            vec![
+                MetaEntryIndex {
+                    meta_index: 1,
+                    entry_index: 0
+                },
+                MetaEntryIndex {
+                    meta_index: 0,
+                    entry_index: 0
+                }
+            ]
+        );
+        assert_eq!(
+            locations(2),
+            vec![
+                MetaEntryIndex {
+                    meta_index: 1,
+                    entry_index: 1
+                },
+                MetaEntryIndex {
+                    meta_index: 0,
+                    entry_index: 1
+                }
+            ]
+        );
+        assert_eq!(
+            locations(3),
+            vec![
+                MetaEntryIndex {
+                    meta_index: 1,
+                    entry_index: 2
+                },
+                MetaEntryIndex {
+                    meta_index: 0,
+                    entry_index: 1
+                }
+            ]
+        );
+
         assert_eq!(
             index.candidates(u64::MAX).locations,
             index.shard(3).locations
@@ -207,7 +258,14 @@ mod tests {
         for shard in 0..4 {
             let files = index.shard(shard);
             assert_eq!(files.ranges.len(), files.locations.len());
-            for (range, &(meta, entry)) in files.ranges.iter().zip(&files.locations) {
+            for (
+                range,
+                &MetaEntryIndex {
+                    meta_index: meta,
+                    entry_index: entry,
+                },
+            ) in files.ranges.iter().zip(&files.locations)
+            {
                 let expected = [&old[..], &new[..]][meta as usize][entry as usize];
                 assert_eq!(range.min_hash, expected.min_hash);
             }

@@ -31,13 +31,11 @@ bitfield! {
     impl Debug;
     impl From<u32>;
     /// The SST file was compacted and none of the entries have been accessed recently.
+    /// Only relevant for bottom files
     pub cold, set_cold: 0;
     /// The SST file was freshly written and has not been compacted yet.
     pub fresh, set_fresh: 1;
-    /// The SST file is part of the bottom run of its shard, i.e. it was written by merging all SST
-    /// files of the shard. A bottom merge writes the entries of recently read keys (the used keys of
-    /// the live meta files, see [`MetaFile::deserialize_used_key_hashes_amqf`]) into separate files
-    /// without the cold flag, so a process that reads the same keys again touches fewer blocks.
+    /// The SST file is part of the bottom run of its shard.
     pub bottom, set_bottom: 2;
 }
 

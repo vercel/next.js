@@ -60,11 +60,8 @@ pub(crate) struct FinishResult {
     pub(crate) keys_written: u64,
 }
 
-/// The most leading key hash bits that split a family's entries into collectors in memory, i.e. at
-/// most 4 collectors per family. A collector buffers up to [`Collector::is_full`] before it's
-/// written, so this bounds the memory of a write batch independently of the shard count of the
-/// family. Collectors split by a prefix of the shard bits, so a collector holds whole shards (or
-/// part of one), and its SST files are split at shard boundaries when it's written.
+/// The most leading key hash bits that split a family's entries into collectors in memory as part
+/// of a commit.
 const MAX_COLLECTOR_SHARD_BITS: ShardBits = ShardBits::new(2);
 
 enum GlobalCollectorState<K: StoreKey + Send> {
