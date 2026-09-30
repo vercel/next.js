@@ -20,7 +20,7 @@ kind: error
   instant navigations](/docs/app/guides/instant-navigation) guide.
 </div>
 
-A page or layout on this route exports [`unstable_ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic) with the `'navigation'` value, requiring all server-rendered work for the route to complete during prerendering.
+A page or layout on this route exports [`ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic) with the `'navigation'` value, requiring all server-rendered work for the route to complete during prerendering.
 
 During [prerendering](/docs/app/glossary#prerendering), `generateViewport()` read request-specific data from `cookies()`, `headers()`, `params`, or `searchParams`. This data is not available in static output.
 
@@ -84,7 +84,7 @@ In `next dev`, the error overlay points at the failing function with file paths 
 
 The `'navigation'` value is usually set deliberately to guarantee static output for the entire server-rendered route. Removing it relaxes that requirement for every segment, not only viewport settings.
 
-If request-time rendering is intentional for this route, remove `unstable_ensureStatic = 'navigation'` from every page or layout that sets it. The route then follows the ordinary [Cache Components](/docs/app/getting-started/caching) rendering rules.
+If request-time rendering is intentional for this route, remove `ensureStatic = 'navigation'` from every page or layout that sets it. The route then follows the ordinary [Cache Components](/docs/app/getting-started/caching) rendering rules.
 
 ## Related validation errors
 

@@ -40,7 +40,7 @@ These insights identify content that is deferred to a later navigation stage wit
 
 ## Fully static routes
 
-These errors occur when a route uses [`unstable_ensureStatic = 'navigation'`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#navigation). The requirement applies even inside `<Suspense>` because the complete server-rendered route must be static.
+These errors occur when a route uses [`ensureStatic = 'navigation'`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#navigation). The requirement applies even inside `<Suspense>` because the complete server-rendered route must be static.
 
 - [Runtime data on a route that must be fully static](/docs/messages/static-route-runtime)
 - [Uncached data on a route that must be fully static](/docs/messages/static-route-dynamic)

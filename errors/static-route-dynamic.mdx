@@ -20,7 +20,7 @@ kind: error
   instant navigations](/docs/app/guides/instant-navigation) guide.
 </div>
 
-A page or layout on this route exports [`unstable_ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic) with the `'navigation'` value, requiring all server-rendered work for the route to complete during prerendering.
+A page or layout on this route exports [`ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic) with the `'navigation'` value, requiring all server-rendered work for the route to complete during prerendering.
 
 During [prerendering](/docs/app/glossary#prerendering), the page or layout performed an uncached `fetch` request, database call, or `connection()`. The operation requires request-time server work and cannot be included in fully static output.
 
@@ -91,7 +91,7 @@ Choose this fix when the operation is unnecessary.
 Remove the access rather than only removing the JSX that displays its result:
 
 ```jsx filename="app/page.jsx"
-export const unstable_ensureStatic = 'navigation'
+export const ensureStatic = 'navigation'
 
 export default function Page() {
   return <h1>My page</h1>
@@ -119,7 +119,7 @@ In `next dev`, the error overlay points at the failing component with file paths
 
 The `'navigation'` value is usually set deliberately to guarantee static output for the entire server-rendered route. Removing it relaxes that requirement for every segment, not only the code that triggered this error.
 
-If request-time rendering is intentional for this route, remove `unstable_ensureStatic = 'navigation'` from every page or layout that sets it. The route then follows the ordinary [Cache Components](/docs/app/getting-started/caching) rendering rules.
+If request-time rendering is intentional for this route, remove `ensureStatic = 'navigation'` from every page or layout that sets it. The route then follows the ordinary [Cache Components](/docs/app/getting-started/caching) rendering rules.
 
 ## Related validation errors
 

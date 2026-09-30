@@ -1,6 +1,6 @@
 ---
-title: unstable_ensureStatic
-description: API reference for the unstable_ensureStatic route segment config, which requires selected route output to be static instead of rendered per request.
+title: ensureStatic
+description: API reference for the ensureStatic route segment config, which requires selected route output to be static instead of rendered per request.
 related:
   title: Next Steps
   description: Learn how to control which route output must be static.
@@ -12,15 +12,15 @@ related:
     - app/api-reference/config/next-config-js/partialPrefetching
 ---
 
-The `unstable_ensureStatic` route segment config requires selected route output to be static instead of rendered per request. Export it from a [page](/docs/app/api-reference/file-conventions/page) or [layout](/docs/app/api-reference/file-conventions/layout) to enforce this requirement for the [App Shell](/docs/app/glossary#app-shell), per-link prefetches, or the complete server-rendered route.
+The `ensureStatic` route segment config requires selected route output to be static instead of rendered per request. Export it from a [page](/docs/app/api-reference/file-conventions/page) or [layout](/docs/app/api-reference/file-conventions/layout) to enforce this requirement for the [App Shell](/docs/app/glossary#app-shell), per-link prefetches, or the complete server-rendered route.
 
 > **Good to know**:
 >
-> - The `unstable_ensureStatic` export only works when [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled. The build fails otherwise.
-> - Exporting `unstable_ensureStatic` from a Client Component throws an error.
+> - The `ensureStatic` export only works when [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled. The build fails otherwise.
+> - Exporting `ensureStatic` from a Client Component throws an error.
 
 ```tsx filename="app/blog/layout.tsx" highlight={1} switcher
-export const unstable_ensureStatic = 'navigation'
+export const ensureStatic = 'navigation'
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return <>{children}</>
@@ -28,7 +28,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 ```
 
 ```jsx filename="app/blog/layout.js" highlight={1} switcher
-export const unstable_ensureStatic = 'navigation'
+export const ensureStatic = 'navigation'
 
 export default function Layout({ children }) {
   return <>{children}</>
@@ -113,29 +113,29 @@ A level set on a layout applies to every route that renders the layout, includin
 Leaving the export unset or setting it to `'auto'` is compatible with any level and preserves another segment's setting. A descendant can set a stricter static level, but not a weaker one:
 
 ```tsx filename="app/blog/layout.tsx"
-export const unstable_ensureStatic = 'prefetch'
+export const ensureStatic = 'prefetch'
 ```
 
 ```tsx filename="app/blog/[slug]/page.tsx"
-export const unstable_ensureStatic = 'navigation' // allowed, stricter than 'prefetch'
+export const ensureStatic = 'navigation' // allowed, stricter than 'prefetch'
 ```
 
 A weaker level on a child segment fails the build:
 
 ```text filename="Terminal"
-A child segment cannot override a parent segment with a less-constrained `unstable_ensureStatic`.
+A child segment cannot override a parent segment with a less-constrained `ensureStatic`.
 ```
 
 Mixing `false` with `'shell'`, `'prefetch'`, or `'navigation'` in a parent and child fails with:
 
 ```text filename="Terminal"
-A child segment cannot override a parent segment with an incompatible `unstable_ensureStatic`.
+A child segment cannot override a parent segment with an incompatible `ensureStatic`.
 ```
 
 Parallel routes rendered together must set the same value, leave the export unset, or use `'auto'`. Conflicting values fail with:
 
 ```text filename="Terminal"
-Parallel slots cannot have incompatible `unstable_ensureStatic`.
+Parallel slots cannot have incompatible `ensureStatic`.
 ```
 
 ## TypeScript
@@ -143,11 +143,11 @@ Parallel slots cannot have incompatible `unstable_ensureStatic`.
 ```tsx filename="app/blog/layout.tsx"
 type EnsureStatic = 'auto' | 'shell' | 'prefetch' | 'navigation' | false
 
-export const unstable_ensureStatic: EnsureStatic = 'navigation'
+export const ensureStatic: EnsureStatic = 'navigation'
 ```
 
 ## Version History
 
-| Version   | Changes                             |
-| --------- | ----------------------------------- |
-| `v16.4.0` | `unstable_ensureStatic` introduced. |
+| Version   | Changes                    |
+| --------- | -------------------------- |
+| `v16.4.0` | `ensureStatic` introduced. |
