@@ -199,9 +199,13 @@ async function collectRoutesForAnalyze(
     isAppPPREnabled,
   })
 
-  return routesManifest.dynamicRoutes
-    .map((r) => r.page)
-    .concat(routesManifest.staticRoutes.map((r) => r.page))
+  return Array.from(
+    new Set(
+      routesManifest.dynamicRoutes
+        .map((r) => r.page)
+        .concat(routesManifest.staticRoutes.map((r) => r.page))
+    )
+  )
 }
 
 function startServer(dir: string, port: number): Promise<void> {

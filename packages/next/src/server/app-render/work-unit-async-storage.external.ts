@@ -117,7 +117,7 @@ export interface RequestStore extends CommonWorkUnitStore {
   validationSamples?: InstantValidationSamples
   validationSampleTracking?: InstantValidationSampleTracking | null
 
-  // DEV-only
+  // DEV-only. Whether a dynamic API was used during this render.
   usedDynamic?: boolean
 }
 

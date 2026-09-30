@@ -495,11 +495,6 @@ export class NextDeployInstance extends NextInstance {
 
     // Add experimental feature flags
 
-    if (process.env.__NEXT_CACHE_COMPONENTS) {
-      additionalEnv.push(
-        `NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS=${process.env.__NEXT_CACHE_COMPONENTS}`
-      )
-    }
     if (process.env.__NEXT_PARTIAL_PREFETCHING) {
       additionalEnv.push(
         `NEXT_PRIVATE_EXPERIMENTAL_PARTIAL_PREFETCHING=${process.env.__NEXT_PARTIAL_PREFETCHING}`
@@ -860,9 +855,15 @@ export class NextDeployInstance extends NextInstance {
     const baseUrlRaw = process.env.NEXT_TEST_PREVIEW_BUILDS_BASE_URL
     const access = process.env.PREVIEW_BUILDS_ACCESS
 
-    if (!baseUrlRaw || access !== 'private') {
+    if (access !== 'private') {
       require('console').log(
-        `Skipping .npmrc write for preview-builds mirror: missing base URL or preview builds are public`
+        `Skipping .npmrc write for preview-builds mirror: preview builds are public`
+      )
+      return
+    }
+    if (!baseUrlRaw) {
+      require('console').warn(
+        `Skipping .npmrc write for preview-builds mirror: PREVIEW_BUILDS_ACCESS=private but NEXT_TEST_PREVIEW_BUILDS_BASE_URL is not set, so the remote build cannot authenticate to the mirror`
       )
       return
     }

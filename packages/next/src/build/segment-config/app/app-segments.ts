@@ -18,6 +18,8 @@ import {
   type LoaderTree,
 } from '../../../server/lib/app-dir-module'
 import type { DynamicParamTypes } from '../../../shared/lib/app-router-types'
+import { resolveEnsureStaticConfig } from '../../../server/app-render/segment-config/ensure-static'
+import { anySegmentHasPartialPrefetchingEnabled } from '../../../server/app-render/instant-validation/instant-config'
 
 type GenerateStaticParams = (options: { params?: Params }) => Promise<Params[]>
 
@@ -79,13 +81,31 @@ export type AppSegment = {
  * @param routeModule the app page route module
  * @returns the segments for the app page route module
  */
-async function collectAppPageSegments(routeModule: AppPageRouteModule) {
+async function collectAppPageSegments(
+  routeModule: AppPageRouteModule,
+  config: { cacheComponents: boolean; partialPrefetching: boolean } | undefined
+) {
   // We keep track of unique segments, since with parallel routes, it's possible
   // to see the same segment multiple times.
   const segments: AppSegment[] = []
 
+  const rootLoaderTree = routeModule.userland.loaderTree
+
+  // `ensureStatic` needs to be validated against the tree structure,
+  // so we cannot compute it easily in `reduceAppConfig` after the tree
+  // is turned into an array of segments
+  const routeHasPartialPrefetching =
+    (config?.partialPrefetching ?? false) ||
+    (await anySegmentHasPartialPrefetchingEnabled(rootLoaderTree))
+  const prefetchConfig = routeHasPartialPrefetching ? 'partial' : 'auto'
+
+  const ensureStatic = await resolveEnsureStaticConfig(
+    rootLoaderTree,
+    routeHasPartialPrefetching
+  )
+
   // Queue will store loader trees.
-  const queue: LoaderTree[] = [routeModule.userland.loaderTree]
+  const queue: LoaderTree[] = [rootLoaderTree]
 
   while (queue.length > 0) {
     const loaderTree = queue.shift()!
@@ -109,6 +129,11 @@ async function collectAppPageSegments(routeModule: AppPageRouteModule) {
     // Only server components can have app segment configurations
     if (!isClientComponent) {
       attach(segment, userland, routeModule.definition.pathname)
+
+      if (segment.config) {
+        segment.config.prefetch = prefetchConfig
+        segment.config.unstable_ensureStatic = ensureStatic
+      }
     }
 
     // If this segment doesn't already exist, then add it to the segments array.
@@ -187,14 +212,15 @@ async function collectAppRouteSegments(
  * @returns the segments for the route module
  */
 export function collectSegments(
-  routeModule: AppRouteRouteModule | AppPageRouteModule
+  routeModule: AppRouteRouteModule | AppPageRouteModule,
+  config: { cacheComponents: boolean; partialPrefetching: boolean } | undefined
 ): Promise<AppSegment[]> | AppSegment[] {
   if (isAppRouteRouteModule(routeModule)) {
     return collectAppRouteSegments(routeModule)
   }
 
   if (isAppPageRouteModule(routeModule)) {
-    return collectAppPageSegments(routeModule)
+    return collectAppPageSegments(routeModule, config)
   }
 
   throw new InvariantError(

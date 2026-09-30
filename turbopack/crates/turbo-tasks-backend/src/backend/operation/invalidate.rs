@@ -115,7 +115,7 @@ pub fn try_make_task_dirty(
     queue: &mut AggregationUpdateQueue,
     ctx: &mut impl ExecuteContext<'_>,
 ) {
-    let Some(mut task) = ctx.try_get_task(task_id, TaskDataCategory::All) else {
+    let Some(mut task) = ctx.try_task(task_id, TaskDataCategory::All) else {
         return;
     };
     make_task_dirty_internal(
