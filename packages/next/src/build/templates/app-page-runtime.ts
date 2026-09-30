@@ -876,6 +876,7 @@ export function createAppPageEntrypoint({
             req,
             'serverComponentsHmrCache'
           ),
+          hmrRefreshHash: getRequestMeta(req, 'hmrRefreshHash'),
           fallbackRouteParams,
           renderOpts: {
             App: () => null,

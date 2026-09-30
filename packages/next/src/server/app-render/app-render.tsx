@@ -3043,7 +3043,8 @@ async function prerenderAppPage({
 async function renderAppPage(
   { req, ctx, metadata, loaderTree }: PreparedAppPageRender,
   postponedState: PostponedState | null,
-  serverComponentsHmrCache: ServerComponentsHmrCache | undefined
+  serverComponentsHmrCache: ServerComponentsHmrCache | undefined,
+  hmrRefreshHash: string | undefined
 ) {
   const {
     res,
@@ -3083,8 +3084,6 @@ async function renderAppPage(
       : stagedFallbackParams
         ? new Set(stagedFallbackParams.keys())
         : null
-  const hmrRefreshHash = getRequestMeta(req, 'hmrRefreshHash')
-
   const createRequestStore = createRequestStoreForRender.bind(
     null,
     req,
@@ -3348,7 +3347,8 @@ async function renderToHTMLOrFlightImpl(
   sharedContext: AppSharedContext,
   interpolatedParams: Params,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
-  routeMatch: RouteMatch
+  routeMatch: RouteMatch,
+  hmrRefreshHash: string | undefined
 ) {
   if (renderOpts.ComponentMod.__next_app__) {
     installGlobalModuleLoadingHandlers(
@@ -3380,7 +3380,12 @@ async function renderToHTMLOrFlightImpl(
       supportsPerSegmentPrefetching: renderOpts.cacheComponents,
     }
   )
-  return renderAppPage(prepared, postponedState, serverComponentsHmrCache)
+  return renderAppPage(
+    prepared,
+    postponedState,
+    serverComponentsHmrCache,
+    hmrRefreshHash
+  )
 }
 
 async function prerenderToHTMLOrFlightImpl(
@@ -3440,7 +3445,8 @@ export type AppPageRender = (
   renderOpts: RenderOpts,
   serverComponentsHmrCache: ServerComponentsHmrCache | undefined,
   sharedContext: AppSharedContext,
-  routeMatch: RouteMatch
+  routeMatch: RouteMatch,
+  hmrRefreshHash?: string
 ) => Promise<RenderResult<AppPageRenderResultMetadata>>
 
 export type AppPagePrerender = (
@@ -3537,7 +3543,8 @@ export const renderToHTMLOrFlight: AppPageRender = (
   renderOpts,
   serverComponentsHmrCache,
   sharedContext,
-  routeMatch
+  routeMatch,
+  hmrRefreshHash
 ) => {
   const { url, parsedRequestHeaders, interpolatedParams, postponedState } =
     prepareAppPage(req, pagePath, fallbackRouteParams, renderOpts)
@@ -3570,7 +3577,8 @@ export const renderToHTMLOrFlight: AppPageRender = (
     sharedContext,
     interpolatedParams,
     fallbackRouteParams,
-    routeMatch
+    routeMatch,
+    hmrRefreshHash
   )
 }
 

@@ -85,6 +85,7 @@ export interface AppPageRouteHandlerContext extends RouteModuleHandleContext {
   fallbackRouteParams: OpaqueFallbackRouteParams | null
   renderOpts: RenderOpts
   serverComponentsHmrCache?: ServerComponentsHmrCache
+  hmrRefreshHash?: string
   sharedContext: AppSharedContext
 }
 
@@ -181,7 +182,8 @@ export class AppPageRouteModule extends RouteModule<
         : context.renderOpts,
       context.serverComponentsHmrCache,
       context.sharedContext,
-      context.routeMatch
+      context.routeMatch,
+      context.hmrRefreshHash
     )
   }
 

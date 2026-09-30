@@ -36,6 +36,7 @@ import { CloseController } from '../../server/web/web-on-close'
 import { parseMaxPostponedStateSize } from '../../shared/lib/size-limit'
 import { toNodeOutgoingHttpHeaders } from '../../server/web/utils'
 import type { RequestMeta } from '../../server/request-meta'
+import { getRequestMeta } from '../../server/request-meta'
 
 declare const incrementalCacheHandler: any
 // OPTIONAL_IMPORT:incrementalCacheHandler
@@ -117,6 +118,7 @@ async function requestHandler(
     routeMatch,
     query,
     params,
+    hmrRefreshHash: getRequestMeta(baseReq, 'hmrRefreshHash'),
 
     sharedContext: {
       buildId,
