@@ -1,33 +1,26 @@
 //! Chooses which SST files to merge.
 //!
-//! The key space of each family is split into shards (see [`crate::shard`]) and SST files don't
-//! span shard boundaries, so every shard is compacted on its own. A shard consists of a bottom run
-//! (the files written by the last merge of the whole shard, flagged as bottom) and the files
-//! written since then, above it. Two kinds of merge jobs keep a shard in shape:
+//! The key space of each family is split into shards (see [`crate::shard`]).  Divide the SST files
+//! into disjoint components (mostly this is Per shard but during shard resizes SST files can span
+//! shards). For each 'component' of files we consider two kinds of merges
 //!
-//! - A bottom merge merges all files of the shard into a new bottom run. It drops all superseded
-//!   entries and all tombstones, so it bounds the space amplification: it runs when the files above
-//!   the bottom run are larger than `max_space_amplification_percent` of the bottom run. A
-//!   tombstone is small, but deletes an entry of the bottom run, so it counts as an average bottom
-//!   entry.
+//! - A 'bottom merge' merges all files of the component into a new bottom run. This is selected
+//!   based on how much the`max_space_amplification_percent` is exceeded. This bounds the bytes of
+//!   the shard
 //! - An intermediate merge merges only the files above the bottom run, when there are more than
 //!   `max_files_above_bottom` of them. This bounds the number of files a lookup has to consult
 //!   without rewriting the bottom run.
 //!
-//! The bytes rewritten by bottom merges are limited to `max_rewrite_factor` times the fresh bytes
-//! (written by commits and not compacted yet) of the family, so that the cost of compaction follows
-//! the amount of new data. Since keys are hashes, all shards of a family grow at the same rate; the
-//! budget spreads their bottom merges over multiple compactions. Fresh files that are not compacted
-//! keep counting, so an interrupted or skipped compaction only increases the next budget.
+//! Bottom merges are paced by the fresh bytes (written by commits and not compacted yet) of the
+//! family: they are scheduled until they rewrote `rewrite_per_fresh_byte` times the fresh bytes, so
+//! that the cost of compaction follows the amount of new data.
 //!
 //! A shard that is far behind, over twice the space amplification trigger or with over twice
-//! `max_files_above_bottom` files above its bottom run, is bottom merged even when the budget is
-//! spent. That bounds how far a shard can fall behind, e.g. after a GC purge: its tombstones count
-//! as the entries they delete, but they are small and give little budget.
+//! `max_files_above_bottom` files above its bottom run, is bottom merged even when the rewrite
+//! quota is reached. That bounds how far a shard can fall behind if the quota is too conservative
 //!
-//! When the shard count of a family grows, files written before cover multiple of the new shards.
-//! A merge job then covers all shards that such a file overlaps (a "component"), and its output is
-//! split at the new shard boundaries.
+//! If a 'component' spans multiple shards it will always be split across shard boundaries when
+//! re-written.
 
 use std::ops::RangeInclusive;
 
@@ -72,14 +65,15 @@ pub struct CompactConfig {
     /// (at least one, since merging a single file would only move it).
     pub max_files_above_bottom: usize,
 
-    /// Bottom merges of a family stop once they rewrote this factor times the size of the fresh
-    /// files of the family. The first bottom merge of a family always runs. E.g. with `3.0`, after
-    /// commits wrote 10MB to a family, its bottom merges stop once they rewrote 30MB.
+    /// Bottom merges of a family are scheduled until they rewrote this many bytes per byte of its
+    /// fresh files; the last one may go past it, and the first one always runs. E.g. with `3.0`,
+    /// after commits wrote 10MB to a family, no more bottom merges are scheduled once they rewrote
+    /// 30MB, except for shards far behind.
     ///
     /// A bottom merge at a space amplification of `a` rewrites `1 + a` times the bytes above the
     /// bottom run for every `a` of them, i.e. `(1 + a) / a` rewritten bytes per fresh byte: 3 at
     /// the default 50% trigger. So `3.0` is how often a written byte is copied in steady state.
-    pub max_rewrite_factor: f32,
+    pub rewrite_per_fresh_byte: f32,
 
     /// The maximum number of merge jobs in a compaction, across all families. Merge jobs run in
     /// parallel, so this bounds the work of a compaction. It doesn't limit the number of files
@@ -92,8 +86,8 @@ impl Default for CompactConfig {
         Self {
             max_space_amplification_percent: 50,
             min_bottom_merge_bytes: 1024 * 1024,
-            max_files_above_bottom: 4,
-            max_rewrite_factor: 3.0,
+            max_files_above_bottom: 6,
+            rewrite_per_fresh_byte: 3.0,
             max_merge_jobs: 8,
         }
     }
@@ -107,7 +101,7 @@ impl CompactConfig {
             min_bottom_merge_bytes: 0,
             // Irrelevant, as bottom merges are always chosen.
             max_files_above_bottom: usize::MAX,
-            max_rewrite_factor: f32::INFINITY,
+            rewrite_per_fresh_byte: f32::INFINITY,
             max_merge_jobs: usize::MAX,
         }
     }
@@ -255,8 +249,8 @@ fn plan_family<T: Compactable>(
                     f32::INFINITY
                 },
             };
-            // Far behind: bottom merged even when the budget is spent. A trigger of 0 merges every
-            // shard anyway, and then only the budget limits the rewrites.
+            // Far behind: bottom merged even when the rewrite quota is reached. A trigger of 0
+            // merges every shard anyway, and then only the quota limits the rewrites.
             let overdue = limit > 0.0
                 && (amplification > 2.0 * limit || above.len() > 2 * config.max_files_above_bottom);
             bottom_candidates.push((candidate, bottom_bytes + above_bytes, above, overdue));
@@ -265,25 +259,25 @@ fn plan_family<T: Compactable>(
         }
     }
 
-    // Spend the budget on the most amplified shards. Shards that don't fit into the budget still
+    // Schedule the most amplified shards until the rewrite quota is reached. Shards past it still
     // get an intermediate merge if they have too many files.
     bottom_candidates.sort_by(|a, b| b.0.priority.total_cmp(&a.0.priority));
-    let budget = if config.max_rewrite_factor.is_finite() {
+    let mut rewrite_target = if config.rewrite_per_fresh_byte.is_finite() {
         // Float to int casts saturate.
-        (f64::from(config.max_rewrite_factor) * fresh_bytes as f64) as u64
+        (f64::from(config.rewrite_per_fresh_byte) * fresh_bytes as f64) as u64
     } else {
-        // Not `INFINITY * fresh_bytes`, which is NaN (a budget of 0) without fresh bytes.
+        // Not `INFINITY * fresh_bytes`, which is NaN (a quota of 0) without fresh bytes.
         u64::MAX
     };
-    let mut spent = 0u64;
     let mut result = Vec::new();
     for (candidate, cost, above, overdue) in bottom_candidates {
-        // The first job always runs, even when the budget is 0.
-        if result.is_empty() || spent < budget || overdue {
-            spent = spent.saturating_add(cost);
+        // The first job always runs, even when the quota is 0, and we keep scheduling jobs while
+        // the quota isn't reached, so that we don't pathologically rewrite too little.
+        if result.is_empty() || rewrite_target > 0 || overdue {
+            rewrite_target = rewrite_target.saturating_sub(cost);
             result.push(candidate);
         } else if above.len() > config.max_files_above_bottom.max(1) {
-            // The budget is exhausted, but an intermediate merge of the same shard is cheap and
+            // The quota is reached, but an intermediate merge of the same shard is cheap and
             // still bounds the number of files a lookup consults.
             intermediate_candidates.push(intermediate_candidate(above, config));
         }
@@ -384,10 +378,12 @@ mod tests {
         }
     }
 
-    /// The default config without the byte floor, since test files are tiny.
+    /// The default config without the byte floor, since test files are tiny, and with the file
+    /// count limit the tests are written for, so they don't depend on the default.
     fn test_config() -> CompactConfig {
         CompactConfig {
             min_bottom_merge_bytes: 0,
+            max_files_above_bottom: 4,
             ..Default::default()
         }
     }
@@ -438,11 +434,11 @@ mod tests {
             .collect::<Vec<_>>();
         files.extend((0..4).map(|shard| file(shard, 2, 600 + u64::from(shard), false, true)));
         let config = CompactConfig {
-            max_rewrite_factor: 0.1,
+            rewrite_per_fresh_byte: 0.1,
             ..test_config()
         };
         assert_eq!(plan(&files, 2, &config), vec![(vec![3, 7], true)]);
-        // With enough budget, all of them are merged.
+        // With a large enough quota, all of them are merged.
         assert_eq!(
             plan(&files, 2, &test_config()),
             vec![
@@ -456,8 +452,8 @@ mod tests {
 
     #[test]
     fn test_full_config_merges_every_shard_without_fresh_bytes() {
-        // Nothing is fresh (everything was compacted before), so the budget is 0 for a finite
-        // factor, but the full config has no budget.
+        // Nothing is fresh (everything was compacted before), so the quota is 0 for a finite
+        // factor, but the full config has no quota.
         let mut files = (0..4)
             .map(|shard| file(shard, 2, 1000, true, false))
             .collect::<Vec<_>>();
@@ -466,17 +462,17 @@ mod tests {
         // With a finite factor, only the first job runs (the full config's trigger is 0, so no
         // shard counts as far behind).
         let config = CompactConfig {
-            max_rewrite_factor: 3.0,
+            rewrite_per_fresh_byte: 3.0,
             ..CompactConfig::full()
         };
         assert_eq!(plan(&files, 2, &config).len(), 1);
     }
 
     #[test]
-    fn test_budget_stops_when_exactly_spent() {
+    fn test_quota_stops_when_exactly_reached() {
         // Four shards, each a 360 byte bottom file with 140 compacted and 100 fresh bytes above it
-        // (67%, over the trigger but under twice it), so each job rewrites 600 bytes. The budget is
-        // 3 * 400 fresh bytes = 1200, which two jobs spend exactly: a third one doesn't run.
+        // (67%, over the trigger but under twice it), so each job rewrites 600 bytes. The quota is
+        // 3 * 400 fresh bytes = 1200, which two jobs reach exactly: a third one doesn't run.
         let mut files = (0..4)
             .map(|shard| file(shard, 2, 360, true, false))
             .collect::<Vec<_>>();
@@ -486,8 +482,8 @@ mod tests {
     }
 
     #[test]
-    fn test_shards_far_behind_are_merged_over_the_budget() {
-        // Four shards over the trigger with nothing fresh, so the budget pays for only the first
+    fn test_shards_far_behind_are_merged_over_the_quota() {
+        // Four shards over the trigger with nothing fresh, so the quota allows only the first
         // bottom merge: at 60% and 70% (under twice the trigger), 110% (over twice the trigger),
         // and 60% with 9 files above the bottom run (over twice `max_files_above_bottom`).
         let mut files = (0..4)
@@ -498,7 +494,7 @@ mod tests {
         );
         files.extend((0..9).map(|_| file(3, 2, 600 / 9 + 1, false, false)));
         let config = CompactConfig {
-            max_rewrite_factor: 0.0,
+            rewrite_per_fresh_byte: 0.0,
             ..test_config()
         };
         let bottom_merged = plan(&files, 2, &config)
@@ -507,7 +503,7 @@ mod tests {
             .map(|(members, _)| members[0])
             .collect::<Vec<_>>();
         // Shard 2 (most amplified, and over twice the trigger) runs first and shard 3 is over twice
-        // the file count; shards 0 and 1 wait for budget.
+        // the file count; shards 0 and 1 wait for quota.
         assert_eq!(bottom_merged, vec![2, 3]);
     }
 
@@ -775,11 +771,11 @@ mod tests {
 
     fn simulation_config(
         max_space_amplification_percent: u16,
-        max_rewrite_factor: f32,
+        rewrite_per_fresh_byte: f32,
     ) -> CompactConfig {
         CompactConfig {
             max_space_amplification_percent,
-            max_rewrite_factor,
+            rewrite_per_fresh_byte,
             max_merge_jobs: usize::MAX,
             ..test_config()
         }
@@ -800,7 +796,7 @@ mod tests {
             result.compactions_with_bottom_merges
         );
         // The bottom run of a shard lags its data by at most the threshold, plus one commit and the
-        // shards waiting for budget.
+        // shards waiting for quota.
         assert!(result.max_space_amplification < 1.6);
         assert!(result.max_files_per_shard <= config.max_files_above_bottom + 1);
         assert!(write_amplification < 2.0);

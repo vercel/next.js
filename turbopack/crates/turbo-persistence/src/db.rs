@@ -342,7 +342,7 @@ struct Inner<const FAMILIES: usize> {
     meta_files_by_family: [Vec<MetaFile>; FAMILIES],
     /// For each family, the SST files that can contain the keys of each shard. Must be rebuilt
     /// whenever `meta_files_by_family` changes.
-    shard_index: [ShardIndex; FAMILIES],
+    shard_indices: [ShardIndex; FAMILIES],
     /// The in progress set of hashes of keys that have been accessed.
     /// It will be flushed onto disk (into a meta file) on next commit.
     /// It's a dashset to allow modification while only tracking a read lock on Inner.
@@ -487,7 +487,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             read_only,
             inner: RwLock::new(Inner {
                 meta_files_by_family: [(); FAMILIES].map(|_| Vec::new()),
-                shard_index: [(); FAMILIES].map(|_| ShardIndex::default()),
+                shard_indices: [(); FAMILIES].map(|_| ShardIndex::default()),
                 accessed_key_hashes: [(); FAMILIES]
                     .map(|_| DashSet::with_hasher(BuildNoHashHasher::default())),
                 current_sequence_number: 0,
@@ -1570,14 +1570,19 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                             keys_written: 0,
                         });
                     }
+                    let sst_strictly_in_shard = |index: usize| {
+                        let sst = &ssts_with_ranges[index];
+                        let range = meta_files[sst.meta_index].hash_range(sst.index_in_meta);
+                        shard_bits.shard_of(range.min_hash) == shard_bits.shard_of(range.max_hash)
+                    };
 
                     // The keys read recently: the used keys of the meta files written by commits
                     // that are still alive, i.e. whose SST files were not all merged yet. We only
-                    // capture this for non-trivial bottom compactions.
-                    let used_key_hashes = if merge_jobs
-                        .iter()
-                        .any(|job| job.bottom && job.members.len() > 1)
-                    {
+                    // capture this for bottom compactions.
+                    let used_key_hashes = if merge_jobs.iter().any(|job| {
+                        job.bottom
+                            && (job.members.len() > 1 || !sst_strictly_in_shard(job.members[0]))
+                    }) {
                         union_used_key_hashes(meta_files)?
                     } else {
                         None
@@ -1626,11 +1631,11 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                 MetaEntryFlags::COMPACTED
                             };
 
-                            if indices.len() == 1 {
-                                // Only a shard's first bottom merge has a single file (an
-                                // intermediate merge takes at least two), so we can just move it.
-                                // Since the file doesn't span a shard boundary, it can become the
-                                // bottom run.
+                            // Only a shard's first bottom merge has a single file (an intermediate
+                            // merge takes at least two). If the file doesn't span a shard boundary,
+                            // it can become the bottom run as is. One that does (written before
+                            // the shard count grew) is rewritten, which splits it.
+                            if indices.len() == 1 && sst_strictly_in_shard(indices[0]) {
                                 debug_assert!(bottom, "a single file merge must be a bottom merge");
                                 let index = indices[0];
                                 let meta_index = ssts_with_ranges[index].meta_index;
@@ -1798,11 +1803,21 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     sequence_number: &AtomicU32,
                                     keys_written: &mut u64,
                                 ) -> Result<()> {
-                                    let key_changed = self.last_hash != Some(entry.hash);
-                                    let shard_changed = self.last_hash.is_some_and(|last| {
-                                        self.shard_bits.shard_of(last)
-                                            != self.shard_bits.shard_of(entry.hash)
-                                    });
+                                    let (key_changed, shard_changed) =
+                                        if let Some(last) = self.last_hash {
+                                            if last == entry.hash {
+                                                (false, false)
+                                            } else {
+                                                (
+                                                    true,
+                                                    self.shard_bits.shard_of(last)
+                                                        != self.shard_bits.shard_of(entry.hash),
+                                                )
+                                            }
+                                        } else {
+                                            (false, false)
+                                        };
+
                                     // Only check fullness at key boundaries to avoid splitting
                                     // a key group across two SST files.
                                     if key_changed
@@ -1920,15 +1935,19 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                         {
                                             continue;
                                         }
-                                        let collector = match &mut hot_collector {
-                                            Some(hot_collector)
-                                                if used_key_hashes.as_ref().is_some_and(
-                                                    |used| used.contains_fingerprint(entry.hash),
-                                                ) =>
-                                            {
-                                                hot_collector
-                                            }
-                                            _ => &mut collector,
+                                        let collector = if let Some(hot_collector) =
+                                            &mut hot_collector
+                                            && used_key_hashes
+                                                .as_ref()
+                                                .expect(
+                                                    "if we have a hot collector used key hashes \
+                                                     must be computed",
+                                                )
+                                                .contains_fingerprint(entry.hash)
+                                        {
+                                            hot_collector
+                                        } else {
+                                            &mut collector
                                         };
                                         collector.add_entry(
                                             entry,
@@ -2199,7 +2218,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         );
         // Only the SST files of the key's shard can contain it, newest first.
         let meta_files = &inner.meta_files_by_family[family];
-        let shard_files = inner.shard_index[family].candidates(hash);
+        let shard_files = inner.shard_indices[family].candidates(hash);
         for (
             range,
             &MetaEntryIndex {
@@ -2354,7 +2373,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         );
         // Cells are sorted by hash, so the keys of each shard are contiguous. Each run of cells is
         // only looked up in the SST files of its shard.
-        let shard_index = &inner.shard_index[family];
+        let shard_index = &inner.shard_indices[family];
         let mut run_start = 0;
         while run_start < cells.len() {
             let shard = shard_index.bits().shard_of(cells[run_start].0);
@@ -2602,7 +2621,7 @@ fn rebuild_shard_index<const FAMILIES: usize>(
 ) {
     let shard_bits = shard_bits(config, &inner.meta_files_by_family);
     for ((index, meta_files), shard_bits) in inner
-        .shard_index
+        .shard_indices
         .iter_mut()
         .zip(&inner.meta_files_by_family)
         .zip(shard_bits)
@@ -2614,7 +2633,8 @@ fn rebuild_shard_index<const FAMILIES: usize>(
 /// The number of key hash shards of each family (see [`crate::shard`]). It starts at
 /// `FamilyConfig::initial_shard_bits`, is recorded in every meta file, and follows the size of the
 /// bottom runs, which is about the size of the live data after compaction (see
-/// [`ShardBits::maybe_reshard`]).
+/// [`ShardBits::maybe_reshard`]). Before the first bottom merge, it follows the size of all files,
+/// so that the first bottom merges already split at a fitting shard count.
 fn shard_bits<const FAMILIES: usize>(
     config: &DbConfig<FAMILIES>,
     meta_files_by_family: &[Vec<MetaFile>; FAMILIES],
@@ -2625,26 +2645,30 @@ fn shard_bits<const FAMILIES: usize>(
             return config.family_configs[family].initial_shard_bits;
         };
         let current = newest.shard_bits();
-        // Estimate the size of the family from the shards that have a bottom run: before the first
-        // bottom merges, or while the rewrite budget spreads them over multiple compactions, other
-        // shards don't have one yet.
-        let mut bottom_bytes = 0;
+        // Estimate the size of the family from the shards that have a bottom run: while the rewrite
+        // quota spreads the bottom merges over multiple compactions, other shards don't have one
+        // yet.
+        let mut bottom_bytes = 0u64;
+        let mut all_bytes = 0u64;
         let mut covered_shards = FxHashSet::default();
         for (entry, range) in meta_files
             .iter()
             .flat_map(|meta| meta.entries().iter().zip(meta.hash_ranges()))
         {
+            all_bytes = all_bytes.saturating_add(entry.size());
             if entry.flags().bottom() {
-                bottom_bytes += entry.size();
+                bottom_bytes = bottom_bytes.saturating_add(entry.size());
                 covered_shards
                     .extend(current.shard_of(range.min_hash)..=current.shard_of(range.max_hash));
             }
         }
-        if covered_shards.is_empty() {
-            return current;
-        }
-        let estimated_bytes =
-            bottom_bytes.saturating_mul(current.count() as u64) / covered_shards.len() as u64;
+        // Before the first bottom merge there is no bottom run, so use the size of all files. They
+        // are only the first commits, so they hold little garbage.
+        let estimated_bytes = if covered_shards.is_empty() {
+            all_bytes
+        } else {
+            bottom_bytes.saturating_mul(u64::from(current.count())) / covered_shards.len() as u64
+        };
         current.maybe_reshard(estimated_bytes, config.target_shard_size)
     })
 }

@@ -3175,15 +3175,60 @@ fn initial_shard_bits_are_a_starting_value(#[case] mmap: bool) -> Result<()> {
     };
     // `meta_info` lists the newest meta file first.
     let newest_shard_bits = || -> Result<u8> { Ok(db.meta_info()?.first().unwrap().shard_bits) };
-    // Without a bottom run there is nothing to size the shards by, so the count is kept.
-    commit()?;
+    // The first commit has nothing to size the shards by, so it uses the initial count.
     commit()?;
     assert_eq!(newest_shard_bits()?, 2);
-    // Once compacted, the tiny family shrinks to a single shard, far below the initial count.
+    // Without a bottom run yet, the next commit sizes the shards by all files: the tiny family
+    // shrinks to a single shard, far below the initial count.
+    commit()?;
+    assert_eq!(newest_shard_bits()?, 0);
+    // Once compacted, the bottom run is as tiny, so the count stays.
     db.full_compact()?;
     commit()?;
     assert_eq!(newest_shard_bits()?, 0);
     for key in 0..1000u32 {
+        assert!(db.get(0, &key.to_be_bytes())?.is_some());
+    }
+    Ok(())
+}
+
+#[cfg(not(miri))]
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn first_bottom_merges_split_at_the_size_of_all_files(#[case] mmap: bool) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let mut config = config_with_mmap::<1>(mmap);
+    // Far less than the data, so the family needs several shards.
+    config.target_shard_size = 64 * 1024;
+    let db = open_db_with_config::<1>(tempdir.path(), config)?;
+    const KEYS: u32 = 20_000;
+    let batch = db.write_batch()?;
+    for key in 0..KEYS {
+        batch.put(0, key.to_be_bytes().to_vec(), vec![key as u8; 64].into())?;
+    }
+    db.commit_write_batch(batch)?;
+    // The commit used the initial single shard. There is no bottom run yet, so the compaction
+    // sizes the shards by all files and its bottom merges already split at the grown count.
+    db.full_compact()?;
+    let metas = db.meta_info()?;
+    // `meta_info` lists the newest meta file first.
+    let shard_bits = crate::shard::ShardBits::new(metas.first().unwrap().shard_bits);
+    assert!(shard_bits.count() > 1, "{} shards", shard_bits.count());
+    let bottom = metas
+        .iter()
+        .flat_map(|meta| &meta.entries)
+        .filter(|entry| entry.flags.bottom())
+        .collect::<Vec<_>>();
+    assert_eq!(bottom.len(), shard_bits.count() as usize);
+    for entry in bottom {
+        assert_eq!(
+            shard_bits.shard_of(entry.min_hash),
+            shard_bits.shard_of(entry.max_hash),
+            "a bottom file spans shards"
+        );
+    }
+    for key in 0..KEYS {
         assert!(db.get(0, &key.to_be_bytes())?.is_some());
     }
     Ok(())

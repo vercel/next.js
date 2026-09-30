@@ -148,7 +148,7 @@ impl<K: StoreKey, const SIZE_SHIFT: usize> Collector<K, SIZE_SHIFT> {
     /// This method does not deduplicate entries.
     ///
     /// In debug builds, asserts that SingleValue families have no duplicate keys.
-    pub fn sorted(&mut self, family_kind: FamilyKind) -> (&[CollectorEntry<K>], usize) {
+    pub fn sorted(&mut self, family_kind: FamilyKind) -> &[CollectorEntry<K>] {
         // We can use unstable sort because the relative order of equal elements
         // doesn't matter — duplicates are either disallowed (SingleValue) or
         // allowed without deduplication (MultiValue).
@@ -181,7 +181,7 @@ impl<K: StoreKey, const SIZE_SHIFT: usize> Collector<K, SIZE_SHIFT> {
         // Suppress unused variable warning in release builds
         let _ = family_kind;
 
-        (&self.entries, self.total_key_size)
+        &self.entries
     }
 
     /// Clears the collector.

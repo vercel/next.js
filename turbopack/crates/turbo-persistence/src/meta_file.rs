@@ -222,9 +222,6 @@ pub enum MetaLookupResult {
 /// The result of a batch lookup operation.
 #[derive(Default)]
 pub struct MetaBatchLookupResult {
-    /// The key was not found because it is from a different key family.
-    #[cfg(feature = "stats")]
-    pub family_miss: bool,
     /// The key was not found because it is out of the range of this SST file. But it was the
     /// correct key family.
     #[cfg(feature = "stats")]
@@ -639,6 +636,13 @@ impl MetaFile {
             .binary_search_by(|(hash, _, _)| hash.cmp(&range.min_hash).then(Ordering::Greater))
             .err()
             .unwrap();
+        if start_index >= cells.len() {
+            #[cfg(feature = "stats")]
+            {
+                lookup_result.range_misses += 1;
+            }
+            return Ok(lookup_result);
+        }
         let end_index = cells
             .binary_search_by(|(hash, _, _)| hash.cmp(&range.max_hash).then(Ordering::Less))
             .err()
