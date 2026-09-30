@@ -14,8 +14,7 @@ use crate::{
     backend::{
         TaskDataCategory,
         operation::{
-            AggregationUpdateQueue, ExecuteContext, Operation, TaskGuard,
-            invalidate::make_task_dirty_internal,
+            AggregationUpdateQueue, ExecuteContext, TaskGuard, invalidate::make_task_dirty_internal,
         },
         storage_schema::TaskStorageAccessors,
     },

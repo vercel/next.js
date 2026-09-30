@@ -4,7 +4,7 @@ use crate::{
     backend::{
         TaskDataCategory,
         operation::{
-            ExecuteContext, Operation, TaskGuard,
+            ExecuteContext, TaskGuard,
             aggregation_update::{
                 AggregationUpdateJob, AggregationUpdateQueue, get_aggregation_number, is_root_node,
             },

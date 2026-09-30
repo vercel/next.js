@@ -41,7 +41,7 @@ use crate::{
     backend::{
         TaskDataCategory,
         operation::{
-            ExecuteContext, Operation, TaskGuard,
+            ExecuteContext, TaskGuard,
             connect_child::resurrect_deleted,
             invalidate::{make_task_dirty, try_make_task_dirty},
         },
@@ -3493,16 +3493,16 @@ impl AggregationUpdateQueue {
 
     #[cfg(feature = "trace_aggregation_update_stats")]
     pub fn execute_with_stats(
-        mut self,
+        &mut self,
         ctx: &mut impl ExecuteContext<'_>,
     ) -> AggregationUpdateQueueStats {
         while !self.process(ctx) {}
-        self.stats
+        take(&mut self.stats)
     }
 }
 
-impl Operation for AggregationUpdateQueue {
-    fn execute(mut self, ctx: &mut impl ExecuteContext<'_>) {
+impl AggregationUpdateQueue {
+    pub fn execute(&mut self, ctx: &mut impl ExecuteContext<'_>) {
         while !self.process(ctx) {}
     }
 }

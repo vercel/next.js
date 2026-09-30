@@ -36,10 +36,6 @@ use crate::{
     data::{ActivenessState, CollectibleRef, Dirtyness, InProgressState, TransientTask},
 };
 
-pub trait Operation {
-    fn execute(self, ctx: &mut impl ExecuteContext<'_>);
-}
-
 /// The task storage `open_task` is working with, which may or may not still own its map entry.
 enum OpenedTask<'a> {
     Owned(TaskEntryGuard<'a>),

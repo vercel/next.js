@@ -161,7 +161,7 @@ pub fn connect_children(
             _span.record("stats", tracing::field::debug(stats));
         }
         #[cfg(not(feature = "trace_aggregation_update_stats"))]
-        crate::backend::operation::Operation::execute(queue, ctx);
+        queue.execute(ctx);
     }
 
     // Connecting a child varies a lot, but it's in the range of 10-30µs.

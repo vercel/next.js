@@ -9,9 +9,7 @@ use tracing::{span::Span, trace_span};
 use turbo_tasks::TaskId;
 
 use crate::backend::{
-    TaskDataCategory,
-    operation::{ExecuteContext, Operation},
-    storage_schema::TaskStorageAccessors,
+    TaskDataCategory, operation::ExecuteContext, storage_schema::TaskStorageAccessors,
 };
 
 /// The maximum number of leaf distance updates processed in one step.
@@ -170,8 +168,8 @@ impl LeafDistanceUpdateQueue {
     }
 }
 
-impl Operation for LeafDistanceUpdateQueue {
-    fn execute(mut self, ctx: &mut impl ExecuteContext<'_>) {
+impl LeafDistanceUpdateQueue {
+    pub fn execute(&mut self, ctx: &mut impl ExecuteContext<'_>) {
         if self.is_empty() {
             return;
         }

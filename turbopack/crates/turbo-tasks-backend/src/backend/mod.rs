@@ -65,10 +65,10 @@ use crate::{
     backend::{
         operation::{
             AggregationUpdateJob, AggregationUpdateQueue, ChildExecuteContext, ExecuteContext,
-            ExecuteContextImpl, LeafDistanceUpdateQueue, Operation, OutdatedEdge, TaskGuard,
-            TaskType, TaskTypeRef, capture_all_edges, cleanup_old_edges, connect_child,
-            connect_children, get_aggregation_number, get_uppers, invalidate,
-            make_task_dirty_internal, prepare_new_children, update_cell,
+            ExecuteContextImpl, LeafDistanceUpdateQueue, OutdatedEdge, TaskGuard, TaskType,
+            TaskTypeRef, capture_all_edges, cleanup_old_edges, connect_child, connect_children,
+            get_aggregation_number, get_uppers, invalidate, make_task_dirty_internal,
+            prepare_new_children, update_cell,
         },
         snapshot_coordinator::{OperationGuard, SnapshotCoordinator},
         storage::Storage,
