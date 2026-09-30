@@ -89,7 +89,7 @@ async function revalidateTags(
     return
   }
 
-  const handlers = getCacheHandlers()
+  const handlers = getCacheHandlers() ?? []
   const promises: Promise<void>[] = []
 
   // Group tags by profile for batch processing
@@ -167,7 +167,7 @@ async function revalidateTags(
     // If profile is not found and not 'max', durations will be undefined
     // which will trigger immediate expiration in the cache handler
 
-    for (const handler of handlers || []) {
+    for (const handler of handlers) {
       if (profile) {
         promises.push(handler.updateTags?.(tagsForProfile, durations))
       } else {

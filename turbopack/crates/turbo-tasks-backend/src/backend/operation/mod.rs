@@ -77,8 +77,8 @@ impl DerefMut for OpenedTask<'_> {
 
 /// Whether an [`ExecuteContext`] task open may create the task, requires it to already exist, or
 /// tolerates its absence. A private impl detail behind the three public methods
-/// ([`ExecuteContext::task`] = `MustExist`, [`ExecuteContext::open_or_create_task_storage`] =
-/// `MaybeCreate`, [`ExecuteContext::try_get_task`] = `AllowMissing`).
+/// ([`ExecuteContext::task`] = `MustExist`, [`ExecuteContext::task_or_create`] =
+/// `MaybeCreate`, [`ExecuteContext::try_task`] = `AllowMissing`).
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 enum TaskAccess {
     /// Open the task, creating it if it does not exist: `access_mut` inserts a blank entry, then
@@ -105,7 +105,7 @@ pub trait ExecuteContext<'e>: Sized {
     /// Opens a task that must **already exist**, restoring the requested `category` if needed. A
     /// task that exists in neither memory nor persistent storage is a stale reference, so this
     /// panics rather than fabricate a blank. This is the common case; use
-    /// [`Self::open_or_create_task_storage`] only where the task may be getting materialized for
+    /// [`Self::task_or_create`] only where the task may be getting materialized for
     /// the first time.
     ///
     /// The check applies only to persistent tasks; a `MustExist` open of a transient id falls
@@ -115,7 +115,7 @@ pub trait ExecuteContext<'e>: Sized {
     ///
     /// Gone covers both a task that exists nowhere and one that is soft-deleted: the caller cannot
     /// tell those apart, since only the timing of the next eviction separates them.
-    fn try_get_task(
+    fn try_task(
         &mut self,
         task_id: TaskId,
         category: TaskDataCategory,
@@ -127,8 +127,8 @@ pub trait ExecuteContext<'e>: Sized {
     ///
     /// This creates *storage for* an already-minted `TaskId`; it does not mint one. Compare
     /// `TurboTasksBackend::get_or_create_task`, which takes a function and arguments and returns a
-    /// new `TaskId`.
-    fn open_or_create_task_storage(
+    /// `TaskId` (reusing one if the task is already cached).
+    fn task_or_create(
         &mut self,
         task_id: TaskId,
         category: TaskDataCategory,
@@ -1102,7 +1102,7 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
             .expect("a MustExist open either yields a task or panics")
     }
 
-    fn try_get_task(
+    fn try_task(
         &mut self,
         task_id: TaskId,
         category: TaskDataCategory,
@@ -1110,7 +1110,7 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
         self.open_task(task_id, category, TaskAccess::AllowMissing)
     }
 
-    fn open_or_create_task_storage(
+    fn task_or_create(
         &mut self,
         task_id: TaskId,
         category: TaskDataCategory,

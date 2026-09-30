@@ -137,11 +137,16 @@ async function resolveAIUpgradeType(
     PHASE_PRODUCTION_BUILD,
     interopDefault(rawConfig)
   )
-  const policy = config.experimental?.agenticAutoUpgrade
+  const policy = config.experimental?.agentUpgrade
 
-  return policy === 'security' || policy === 'latest' || policy === 'future'
-    ? policy
-    : 'security'
+  if (
+    policy === 'security' ||
+    policy === 'latest' ||
+    policy === 'experimental-future'
+  ) {
+    return policy
+  }
+  return 'security'
 }
 
 async function resolveCanaryVersion(): Promise<string> {
@@ -234,10 +239,10 @@ export async function spawnNextUpgrade(
       if (
         upgradeType !== 'security' &&
         upgradeType !== 'latest' &&
-        upgradeType !== 'future'
+        upgradeType !== 'experimental-future'
       ) {
         throw new Error(
-          `Unsupported AI upgrade type ${JSON.stringify(upgradeType)}. Expected "security", "latest", or "future".`
+          `Unsupported AI upgrade type ${JSON.stringify(upgradeType)}. Expected "security", "latest", or "experimental-future".`
         )
       }
 
@@ -346,7 +351,7 @@ export async function spawnNextUpgrade(
           }
         }
 
-        if (upgradeType === 'future' && needsVersionUpdate) {
+        if (upgradeType === 'experimental-future' && needsVersionUpdate) {
           await cp(
             join(
               bundledDocs,
@@ -440,7 +445,7 @@ export async function spawnNextUpgrade(
         )
         .join('\n')
       const futureDefaultsPrompt =
-        upgradeType === 'future'
+        upgradeType === 'experimental-future'
           ? `${needsVersionUpdate ? `After completing and verifying the version update, read and follow ${JSON.stringify(futureGuidePath)}.\n` : ''}${futureDefaultsList ? `Adopt these Future Defaults in order:\n${futureDefaultsList}\nComplete each adoption. Temporary opt-outs and TODO markers are intermediate work only; do not stop until they are removed and the adoption is fully verified.` : 'No Future Defaults are pending adoption.'}`
           : ''
 
@@ -448,13 +453,15 @@ export async function spawnNextUpgrade(
       const taskSummary = needsVersionUpdate
         ? `We're upgrading the app in ${JSON.stringify(baseDir)} from Next.js ${result.installedVersion} to ${result.targetVersion} because ${reason}.`
         : `We're adopting the Future Defaults available to the app in ${JSON.stringify(baseDir)}, which already uses Next.js ${result.installedVersion}.`
-      const prompt = `Read and follow ${JSON.stringify(sharedGuidePath)} first. Attempt its applicable duplicate checks before changing files. If a check is unavailable, report it and continue. Stop only if you find equivalent work. Then read and follow every applicable instruction in ${JSON.stringify(guidePath)}.
+      const prompt = (
+        useWorktree: boolean | null
+      ) => `Read and follow ${JSON.stringify(sharedGuidePath)} first. Attempt its applicable duplicate checks before changing files. If a check is unavailable, report it and continue. Stop only if you find equivalent work. Then read and follow every applicable instruction in ${JSON.stringify(guidePath)}.
 
 ${taskSummary}
 
-If the app is in a Git repository, perform the upgrade in a separate Git worktree unless the user explicitly requests otherwise. Run upgrade commands from this app's corresponding directory in that worktree. If the app is not in a Git repository, upgrade it in place.
+${useWorktree === null ? "Follow the user's worktree choice. If they do not specify, use a separate Git worktree when the app is in a Git repository. Run upgrade commands from this app's corresponding directory in that worktree. If the app is not in a Git repository, upgrade it in place." : useWorktree ? "If the app is in a Git repository, perform the upgrade in a separate Git worktree. Run upgrade commands from this app's corresponding directory in that worktree. If the app is not in a Git repository, upgrade it in place." : 'Perform the upgrade in the current checkout.'}
 
-Set \`experimental.agenticAutoUpgrade\` to ${JSON.stringify(upgradeType)} in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
+Set \`experimental.agentUpgrade\` to ${JSON.stringify(upgradeType)} in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
 
 ${futureDefaultsPrompt ? `${futureDefaultsPrompt.trimStart()}\n\n` : ''}References:
 ${references}`

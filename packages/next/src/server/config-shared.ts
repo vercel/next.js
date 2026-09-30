@@ -500,7 +500,7 @@ export interface DeprecatedConfig {
 
 export interface ExperimentalConfig {
   /** Nudge coding agents about security upgrades, stable releases, or Future Defaults. */
-  agenticAutoUpgrade?: 'security' | 'latest' | 'future' | false
+  agentUpgrade?: 'security' | 'latest' | 'experimental-future' | false
   /**
    * Adds managed instructions to AGENTS.md that let AI coding agents prepare
    * anonymized Next.js feedback for user review.
@@ -1004,6 +1004,13 @@ export interface ExperimentalConfig {
    * Defaults to `false`.
    */
   turbopackLazyDynamicImports?: boolean
+
+  /**
+   * Compile SSR dynamic import targets when they are first reached during server rendering in development.
+   *
+   * Defaults to `false`.
+   */
+  turbopackLazyDynamicImportsSSR?: boolean
 
   /**
    * Enable filesystem cache for the turbopack dev server.
@@ -2356,6 +2363,7 @@ export const defaultConfig = Object.freeze({
   adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
   deprecated: {} as DeprecatedConfig,
   experimental: {
+    agentUpgrade: 'security',
     agentFeedback: false,
     coldCacheBadge: false,
     collapseAdapterRoutes: true,

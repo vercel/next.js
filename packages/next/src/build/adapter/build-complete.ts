@@ -2100,15 +2100,13 @@ export async function handleBuildComplete({
       return '?' + items.map(([key, value]) => `${value}=$${key}`).join('&')
     }
 
+    // The valid bypass token admits both Draft Mode and legacy Preview Mode.
+    // Pages Router validates legacy preview data after routing.
     const fallbackFalseHasCondition: RouteHas[] = [
       {
         type: 'cookie',
         key: '__prerender_bypass',
         value: previewProps.previewModeId,
-      },
-      {
-        type: 'cookie',
-        key: '__next_preview_data',
       },
     ]
 
@@ -2204,7 +2202,7 @@ export async function handleBuildComplete({
 
       // A single entry can serve both forms of the request only when both carry
       // the same conditions. A pages router route with `fallback: false` is the
-      // one case where they differ: it requires the preview cookies on the
+      // one case where they differ: it requires the bypass cookie on the
       // plain form, and not on the suffixed form. An entry holds one set of
       // conditions, so that case keeps a separate entry per form.
       const canMergeSuffixedAndPlain =

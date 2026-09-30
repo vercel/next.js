@@ -1468,4 +1468,153 @@ describe('cached navigations', () => {
   it('runtime-caches a route with prefetch = "partial"', async () => {
     await expectRuntimeCachedOnSecondNavigation('/prefetch-partial')
   })
+
+  it('cache values are consistent across the HTML shell, static prefetches, and cached navigations', async () => {
+    const href = '/cache-from-rdc'
+    const htmlId = 'cached-data'
+
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page, { includeAppShellRequests: true })
+
+    const getRenderId = async (): Promise<string> => {
+      return await browser.elementById('render-id').text()
+    }
+
+    // Reveal a link to the page. This should result in a static prefetch.
+    await act(async () => {
+      const linkToggle = await browser.elementByCss(
+        `[data-prefetch="auto"] input[data-link-accordion="${href}"]`
+      )
+      await linkToggle.click()
+    }, [
+      {
+        includes: 'cache-timestamp:',
+        kind: 'static',
+      },
+    ])
+
+    //===========================
+    // Test client navigation
+    //===========================
+
+    // Navigate to the page.
+    const { cachedValueFromPrefetch, prefetchRenderId } = await act(
+      async () => {
+        await browser
+          .elementByCss(`[data-prefetch="auto"] a[href="${href}"]`)
+          .click()
+
+        const cachedValueFromPrefetch = await browser.elementById(htmlId).text()
+        const prefetchRenderId = await getRenderId()
+        return { cachedValueFromPrefetch, prefetchRenderId }
+      },
+      { includes: 'Dynamic data' }
+    )
+    {
+      expect(await browser.elementById('dynamic-data').text()).toBe(
+        'Dynamic data'
+      )
+
+      // The navigation response should also contain the same cache value.
+      expect(await browser.elementById(htmlId).text()).toBe(
+        cachedValueFromPrefetch
+      )
+      const clientNavRenderId = await getRenderId()
+
+      // Navigate back to the index page.
+      await act(
+        () => browser.elementByCss('a[href="/"]').click(),
+        'no-requests'
+      )
+      // Then, navigate to the page again (without a prefetch).
+      // We should re-use the cacheable part of the UI from the navigation.
+      await act(
+        async () => {
+          await browser
+            .elementByCss(`[data-prefetch="false"] a[href="${href}"]`)
+            .click()
+
+          // Make sure we're showing the content from the cached navigation,
+          // not the static prefetch -- otherwise, the cache consistency check
+          // would be meaningless.
+          const visibleRenderId = await getRenderId()
+          expect(visibleRenderId).not.toBe(prefetchRenderId)
+          expect(visibleRenderId).toBe(clientNavRenderId)
+
+          // The cacheable UI extracted from the navigation (shown while navigating)
+          // should have the same cache value.
+          expect(await browser.elementById(htmlId).text()).toBe(
+            cachedValueFromPrefetch
+          )
+        },
+        { includes: 'Dynamic data' }
+      )
+
+      expect(await browser.elementById('dynamic-data').text()).toBe(
+        'Dynamic data'
+      )
+
+      // The second navigation result should have the same cache value.
+      expect(await browser.elementById(htmlId).text()).toBe(
+        cachedValueFromPrefetch
+      )
+      // We have uncached data, so this was a fresh render.
+      expect(await getRenderId()).not.toBe(clientNavRenderId)
+    }
+
+    //===========================
+    // Test initial load
+    //===========================
+    {
+      await browser.refresh()
+
+      expect(await browser.elementById('dynamic-data').text()).toBe(
+        'Dynamic data'
+      )
+      // The initial load should have the same cache value.
+      expect(await browser.elementById(htmlId).text()).toBe(
+        cachedValueFromPrefetch
+      )
+      const initialLoadRenderId = await getRenderId()
+
+      // Navigate to the index page.
+      await act(() => browser.elementByCss('a[href="/"]').click())
+      // Then, navigate back to the page without a prefetch.
+      // We should re-use the cacheable part of the UI from the navigation.
+      await act(
+        async () => {
+          await browser
+            .elementByCss(`[data-prefetch="false"] a[href="${href}"]`)
+            .click()
+
+          // Make sure we're showing the content from the cached navigation.
+          const visibleRenderId = await getRenderId()
+          expect(visibleRenderId).toBe(initialLoadRenderId)
+
+          // The cacheable UI extracted from the navigation (shown while navigating)
+          // should have the same cache value.
+          expect(await browser.elementById(htmlId).text()).toBe(
+            cachedValueFromPrefetch
+          )
+        },
+        { includes: 'Dynamic data' }
+      )
+
+      expect(await browser.elementById('dynamic-data').text()).toBe(
+        'Dynamic data'
+      )
+
+      // The second navigation result should have the same cache value.
+      expect(await browser.elementById(htmlId).text()).toBe(
+        cachedValueFromPrefetch
+      )
+      // We have uncached data, so this was a fresh render.
+      expect(await getRenderId()).not.toBe(initialLoadRenderId)
+    }
+  })
 })
