@@ -1630,8 +1630,11 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                             };
 
                             if indices.len() == 1 {
-                                // If we only have one file, we can just move it. Since the file
-                                // doesn't span a shard boundary, it can become the bottom run.
+                                // Only a shard's first bottom merge has a single file (an
+                                // intermediate merge takes at least two), so we can just move it.
+                                // Since the file doesn't span a shard boundary, it can become the
+                                // bottom run.
+                                debug_assert!(bottom, "a single file merge must be a bottom merge");
                                 let index = indices[0];
                                 let meta_index = ssts_with_ranges[index].meta_index;
                                 let index_in_meta = ssts_with_ranges[index].index_in_meta;

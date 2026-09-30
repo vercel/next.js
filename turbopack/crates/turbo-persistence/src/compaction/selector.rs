@@ -68,7 +68,8 @@ pub struct CompactConfig {
     /// intermediate merges.
     pub min_bottom_merge_bytes: u64,
 
-    /// The files above the bottom run of a shard are merged when there are more than this many.
+    /// The files above the bottom run of a shard are merged when there are more than this many
+    /// (at least one, since merging a single file would only move it).
     pub max_files_above_bottom: usize,
 
     /// Bottom merges of a family stop once they rewrote this factor times the size of the fresh
@@ -259,7 +260,7 @@ fn plan_family<T: Compactable>(
             let overdue = limit > 0.0
                 && (amplification > 2.0 * limit || above.len() > 2 * config.max_files_above_bottom);
             bottom_candidates.push((candidate, bottom_bytes + above_bytes, above, overdue));
-        } else if above.len() > config.max_files_above_bottom {
+        } else if above.len() > config.max_files_above_bottom.max(1) {
             intermediate_candidates.push(intermediate_candidate(above, config));
         }
     }
@@ -281,7 +282,7 @@ fn plan_family<T: Compactable>(
         if result.is_empty() || spent < budget || overdue {
             spent = spent.saturating_add(cost);
             result.push(candidate);
-        } else if above.len() > config.max_files_above_bottom {
+        } else if above.len() > config.max_files_above_bottom.max(1) {
             // The budget is exhausted, but an intermediate merge of the same shard is cheap and
             // still bounds the number of files a lookup consults.
             intermediate_candidates.push(intermediate_candidate(above, config));
