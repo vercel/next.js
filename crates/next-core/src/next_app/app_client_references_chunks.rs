@@ -7,7 +7,10 @@ use turbo_tasks::{
 use turbopack_core::{
     chunk::{ChunkGroupResult, ChunkingContext, availability_info::AvailabilityInfo},
     module::Module,
-    module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
+    module_graph::{
+        ModuleGraph,
+        chunk_group_info::{ChunkGroup, ChunkGroupKey},
+    },
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
 };
 
@@ -181,7 +184,7 @@ pub async fn get_app_client_references_chunks(
                 client_references_by_server_component.into_iter()
             {
                 let parent_chunk_group = *chunk_group_info
-                    .get_index_of(ChunkGroup::Shared(ResolvedVc::upcast(server_component)))
+                    .get_index_of(ChunkGroupKey::Shared(ResolvedVc::upcast(server_component)))
                     .await?;
 
                 let base_ident = server_component.ident().owned().await?;

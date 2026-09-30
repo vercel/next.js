@@ -1934,7 +1934,7 @@ impl AppEndpoint {
                         let span = tracing::trace_span!("server utils");
                         async {
                             let parent_chunk_group = *chunk_group_info
-                                .get_index_of(entry_chunk_group.clone())
+                                .get_index_of(entry_chunk_group.key())
                                 .await?;
 
                             let server_utils = client_references
