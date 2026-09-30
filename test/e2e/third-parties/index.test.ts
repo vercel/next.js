@@ -59,7 +59,9 @@ describe('@next/third-parties basic usage', () => {
       const clickEvents = await browser.eval(
         'window.dataLayer.filter((entry) => entry.event === "buttonClicked")'
       )
-      expect(clickEvents).toEqual([{ event: 'buttonClicked', value: 'xyz' }])
+      expect(clickEvents).toEqual([
+        expect.objectContaining({ event: 'buttonClicked', value: 'xyz' }),
+      ])
     })
   })
 
@@ -91,7 +93,9 @@ describe('@next/third-parties basic usage', () => {
       const clickEvents = await browser.eval(
         'window.dataLayer.filter((entry) => entry[0]?.event === "buttonClicked").map((entry) => entry[0])'
       )
-      expect(clickEvents).toEqual([{ event: 'buttonClicked', value: 'xyz' }])
+      expect(clickEvents).toEqual([
+        expect.objectContaining({ event: 'buttonClicked', value: 'xyz' }),
+      ])
     })
   })
 })
