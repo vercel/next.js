@@ -4,7 +4,7 @@ description: Learn how to require a static App Shell, per-link prefetch, or comp
 nav_title: Keeping pages static
 related:
   title: Learn more
-  description: Control what renders at each navigation stage.
+  description: Choose which route output must remain static.
   links:
     - app/api-reference/file-conventions/route-segment-config/ensureStatic
     - app/guides/optimizing-prefetching
@@ -16,7 +16,9 @@ related:
 
 Use [`ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic) to prevent changes from accidentally adding request-time server rendering to a route's App Shell, per-link prefetch, or navigation output.
 
-This is useful when a route must stay fast and cacheable as it evolves. For example, an email app can require:
+Use this guide after adopting [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) and deciding which data to cache or stream. `ensureStatic` is a final safeguard for a static site or route that must preserve specific static output as it evolves. If you are replacing `dynamic = 'force-static'`, first follow the [Cache Components migration guide](/docs/app/guides/migrating-to-cache-components#dynamic--force-static).
+
+For example, an email app can require:
 
 - A static inbox shell shared by every thread.
 - A static per-link prefetch containing the selected thread's cached header.
@@ -28,13 +30,13 @@ This is useful when a route must stay fast and cacheable as it evolves. For exam
 
 The examples build a mail route in three stages:
 
-| Stage             | Loaded when                              | Mail UI                                    |
-| ----------------- | ---------------------------------------- | ------------------------------------------ |
-| App Shell         | A default `<Link>` enters the viewport   | Inbox frame and thread loading state       |
-| Per-link prefetch | A `<Link prefetch={true}>` is prefetched | Cached subject, sender, and thread actions |
-| Navigation        | The user opens the thread                | Message bodies and other deferred content  |
+| Stage             | Loaded when                           | Mail UI                                    |
+| ----------------- | ------------------------------------- | ------------------------------------------ |
+| App Shell         | A default `<Link>` becomes visible    | Inbox frame and thread loading state       |
+| Per-link prefetch | A `<Link prefetch={true}>` is visible | Cached subject, sender, and thread actions |
+| Navigation        | The user opens the thread             | Message bodies and other deferred content  |
 
-The stages are cumulative. A per-link prefetch adds URL-specific UI to the App Shell, and the navigation adds the remaining content. The App Shell and per-link prefetch are partial results; the navigation is the complete result.
+Each later stage can include UI from earlier stages and add content that becomes available at that point. A per-link prefetch can add URL-specific UI to the App Shell, and the navigation renders the remaining content. The App Shell and per-link prefetch are partial results. Navigation produces the complete result.
 
 On an initial load, Next.js serves a [static HTML shell](/docs/app/glossary#static-shell). With `ensureStatic = 'prefetch'`, it can include the same static or cached UI as a per-link prefetch, but it cannot include request-specific data.
 
@@ -86,7 +88,7 @@ export default function MailLayout({
 
 The shell can include static and cached content. Request-specific work behind `<Suspense>` moves to the per-link prefetch or navigation instead of making the shell render per request.
 
-This level applies the effect of `await prefetch()` across the route. Use it when the static shell is a requirement, rather than adding `await prefetch()` to every request-specific subtree.
+You can apply a similar cutoff to an individual subtree with [`await prefetch()`](/docs/app/api-reference/functions/prefetch). Use `'shell'` when the static App Shell is a route-wide requirement instead of adding the cutoff to every request-specific subtree.
 
 ## 2. Require static per-link prefetches
 
@@ -158,7 +160,9 @@ export function ThreadLink({ id, subject }: { id: string; subject: string }) {
 }
 ```
 
-The cached thread header can render in the per-link prefetch because the link supplies `threadId`. The request-specific messages wait until navigation completes the route. This level applies the effect of `await navigation()` across the route.
+The cached thread header can render in the per-link prefetch because the link supplies `threadId`. The request-specific messages wait until navigation completes the route.
+
+You can apply a similar cutoff to an individual subtree with [`await navigation()`](/docs/app/api-reference/functions/navigation). Use `'prefetch'` when static App Shell and per-link prefetch output are route-wide requirements.
 
 ## 3. Require the complete route to be static
 
@@ -206,6 +210,16 @@ The development overlay and `next build` report the work that prevents prerender
       { text: 'async function Page() {' },
       { text: '- const store = await cookies()', highlight: true },
       { text: '  return <Content />' },
+    ]}
+  />
+  <FixCard
+    group="client"
+    title="Read search parameters on the client"
+    href="/docs/messages/static-route-runtime#read-search-parameters-on-the-client"
+    snippets={[
+      { text: "'use client'" },
+      { text: 'const params = useSearchParams()', highlight: true },
+      { text: "return <p>{params.get('q')}</p>" },
     ]}
   />
 </FixCardGrid>

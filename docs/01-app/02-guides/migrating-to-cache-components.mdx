@@ -175,9 +175,9 @@ export default function Page() {
 
 ## `dynamic = "force-static"`
 
-**Remove the config and keep the route fully prerendered.** Without Cache Components, `dynamic = 'force-static'` forced the route to prerender, cached its data, and made `cookies()`, `headers()`, and `useSearchParams()` return empty values.
+**Remove the config, then make its caching and static requirements explicit.** Without Cache Components, `dynamic = 'force-static'` forced the route to prerender, cached its data, and made `cookies()`, `headers()`, and `useSearchParams()` return empty values.
 
-Cache uncached data with [`use cache`](/docs/app/api-reference/directives/use-cache) and a suitable [`cacheLife`](/docs/app/api-reference/functions/cacheLife). After removing the config, Request-time APIs read actual request values. Remove those dependencies if the route must remain fully prerendered.
+Cache data that should be reused with [`use cache`](/docs/app/api-reference/directives/use-cache) and a suitable [`cacheLife`](/docs/app/api-reference/functions/cacheLife). After removing the config, Request-time APIs read actual request values. Remove those dependencies if the route must remain fully prerendered.
 
 If the complete route must remain static, add [`ensureStatic = 'navigation'`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#navigation) after migrating its caching. Unlike `dynamic = 'force-static'`, `ensureStatic` does not make Request-time APIs return empty values. It reports an error if request-specific server work prevents the route from being prerendered.
 
