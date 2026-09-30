@@ -487,7 +487,7 @@ export default abstract class Server<
 
     // TODO: should conf be normalized to prevent missing
     // values from causing issues as this can be user provided
-    this.nextConfig = { ...conf } as NextConfigRuntime
+    this.nextConfig = conf as NextConfigRuntime
     if (
       (dev || process.env.__NEXT_DEV_SERVER) &&
       this.nextConfig.experimental.requestInsights
@@ -2039,7 +2039,11 @@ export default abstract class Server<
   ): Promise<void>
 
   public setAssetPrefix(prefix?: string): void {
-    this.nextConfig.assetPrefix = prefix ? prefix.replace(/\/$/, '') : ''
+    this.renderOpts.assetPrefix = prefix ? prefix.replace(/\/$/, '') : ''
+  }
+
+  public getAssetPrefix(): string {
+    return this.renderOpts.assetPrefix || ''
   }
 
   protected prepared: boolean = false

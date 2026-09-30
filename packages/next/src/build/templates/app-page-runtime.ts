@@ -925,7 +925,8 @@ export function createAppPageEntrypoint({
             botType,
             isOnDemandRevalidate,
             isPossibleServerAction,
-            assetPrefix: nextConfig.assetPrefix,
+            assetPrefix:
+              routerServerContext?.getAssetPrefix?.() ?? nextConfig.assetPrefix,
             nextConfigOutput: nextConfig.output,
             crossOrigin: nextConfig.crossOrigin,
             trailingSlash: nextConfig.trailingSlash,

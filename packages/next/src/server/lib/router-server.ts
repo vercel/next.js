@@ -364,6 +364,7 @@ export async function initialize(opts: {
 
   const requestHandlerImpl: WorkerRequestHandler = async (req, res) => {
     addRequestMeta(req, 'relativeProjectDir', relativeProjectDir)
+    const assetPrefix = getAssetPrefix()
 
     // internal headers should not be honored by the request handler
     if (!process.env.NEXT_PRIVATE_TEST_HEADERS) {
@@ -581,11 +582,8 @@ export async function initialize(opts: {
         // so that the development bundler can find the correct file
         if (config.basePath && pathHasPrefix(origUrl, config.basePath)) {
           req.url = removePathPrefix(origUrl, config.basePath)
-        } else if (
-          config.assetPrefix &&
-          pathHasPrefix(origUrl, config.assetPrefix)
-        ) {
-          req.url = removePathPrefix(origUrl, config.assetPrefix)
+        } else if (assetPrefix && pathHasPrefix(origUrl, assetPrefix)) {
+          req.url = removePathPrefix(origUrl, assetPrefix)
         }
 
         const parsedUrl = parseUrlUtil(req.url || '/')
@@ -627,11 +625,8 @@ export async function initialize(opts: {
 
         if (config.basePath && pathHasPrefix(origUrl, config.basePath)) {
           req.url = removePathPrefix(origUrl, config.basePath)
-        } else if (
-          config.assetPrefix &&
-          pathHasPrefix(origUrl, config.assetPrefix)
-        ) {
-          req.url = removePathPrefix(origUrl, config.assetPrefix)
+        } else if (assetPrefix && pathHasPrefix(origUrl, assetPrefix)) {
+          req.url = removePathPrefix(origUrl, assetPrefix)
         }
 
         if (resHeaders !== null) {
@@ -867,10 +862,10 @@ export async function initialize(opts: {
             config.basePath
           )
         }
-        if (config.assetPrefix) {
+        if (assetPrefix) {
           realRequestPathname = removePathPrefix(
             realRequestPathname,
-            config.assetPrefix
+            assetPrefix
           )
         }
         if (config.i18n) {
@@ -1001,6 +996,7 @@ export async function initialize(opts: {
 
   // pre-initialize workers
   const handlers = await renderServer.instance.initialize(renderServerOpts)
+  const getAssetPrefix = () => handlers.server.getAssetPrefix()
 
   // this must come after initialize of render server since it's
   // using initialized methods
@@ -1010,7 +1006,8 @@ export async function initialize(opts: {
   const relativeProjectDir = path.relative(process.cwd(), opts.dir)
 
   routerServerGlobal[RouterServerContextSymbol][relativeProjectDir] = {
-    nextConfig: { ...getNextConfigRuntime(config) },
+    nextConfig: getNextConfigRuntime(config),
+    getAssetPrefix,
     hostname: handlers.server.hostname,
     revalidate: handlers.server.revalidate.bind(handlers.server),
     render404: handlers.server.render404.bind(handlers.server),
@@ -1046,6 +1043,7 @@ export async function initialize(opts: {
   const resolveRoutes = getResolveRoutes(
     fsChecker,
     config,
+    getAssetPrefix,
     opts,
     renderServer.instance,
     renderServerOpts,
@@ -1074,7 +1072,8 @@ export async function initialize(opts: {
         ) {
           return
         }
-        const { basePath, assetPrefix } = config
+        const { basePath } = config
+        const assetPrefix = getAssetPrefix()
 
         let hmrPrefix = basePath
 
