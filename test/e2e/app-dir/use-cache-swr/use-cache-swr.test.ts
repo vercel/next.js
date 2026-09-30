@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
+import { retry, waitFor } from 'next-test-utils'
 import { randomUUID } from 'crypto'
 import escapeStringRegexp from 'escape-string-regexp'
 import stripAnsi from 'strip-ansi'
@@ -32,7 +32,7 @@ describe('use-cache-swr', () => {
     expect(initialOuter).toBeDateString()
 
     // Wait for the outer cache to go stale (revalidate: 5).
-    await new Promise((resolve) => setTimeout(resolve, 6000))
+    await waitFor(6000)
 
     // Reset output index so the regen set we poll for below can't be satisfied
     // by the initial cold-fill set from the first fetch.
@@ -83,7 +83,7 @@ describe('use-cache-swr', () => {
     expect(dynamic1).toBeDateString()
 
     // Wait past the 1s revalidate window (cacheLife('seconds')).
-    await new Promise((resolve) => setTimeout(resolve, 1200))
+    await waitFor(1200)
 
     outputIndex = next.cliOutput.length
 
@@ -128,7 +128,7 @@ describe('use-cache-swr', () => {
     expect(dynamic1).toBeDateString()
 
     // Wait past the 1s revalidate window (cacheLife('seconds')).
-    await new Promise((resolve) => setTimeout(resolve, 1200))
+    await waitFor(1200)
 
     outputIndex = next.cliOutput.length
 
@@ -168,7 +168,7 @@ describe('use-cache-swr', () => {
     await browser.elementById('outer-data').text()
 
     // Wait for the outer cache to go stale (revalidate: 5).
-    await new Promise((resolve) => setTimeout(resolve, 6000))
+    await waitFor(6000)
 
     // Reset output index to capture only the SWR-related logs.
     outputIndex = next.cliOutput.length
@@ -179,7 +179,7 @@ describe('use-cache-swr', () => {
     await browser.refresh()
 
     // Wait for the background regen to complete.
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    await waitFor(1000)
 
     const cliOutput = next.cliOutput.slice(outputIndex)
 

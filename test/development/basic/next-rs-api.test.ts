@@ -1,3 +1,4 @@
+import { waitFor } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
 import { createDefineEnv, loadBindings } from 'next/dist/build/swc'
@@ -596,7 +597,7 @@ describe('next.rs api', () => {
       // eslint-disable-next-line no-loop-func
       it(`should have working HMR on ${name} ${i}`, async () => {
         console.log('start')
-        await new Promise((r) => setTimeout(r, 1000))
+        await waitFor(1000)
         const entrypointsSubscribtion = project.entrypointsSubscribe()
         const entrypoints: TurbopackResult<RawEntrypoints | {}> = (
           await entrypointsSubscribtion.next()
@@ -739,7 +740,7 @@ describe('next.rs api', () => {
 
   it.skip('should allow to make many HMR updates', async () => {
     console.log('start')
-    await new Promise((r) => setTimeout(r, 1000))
+    await waitFor(1000)
     const entrypointsSubscribtion = project.entrypointsSubscribe()
     const entrypoints: TurbopackResult<RawEntrypoints | {}> = (
       await entrypointsSubscribtion.next()

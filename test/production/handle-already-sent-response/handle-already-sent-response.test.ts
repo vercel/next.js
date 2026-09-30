@@ -1,3 +1,4 @@
+import { waitFor } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
 describe('handle already sent response', () => {
@@ -24,7 +25,7 @@ describe('handle already sent response', () => {
       if ((next.cliOutput.match(/getServerSideProps/g) || []).length >= 2) {
         break
       }
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      await waitFor(1000)
     }
     if (i === 3) {
       throw new Error('Timed out waiting for logs to show')

@@ -2,6 +2,7 @@ import cheerio from 'cheerio'
 import validateHTML from 'html-validator'
 import { nextTestSetup, isNextDev } from 'e2e-utils'
 import {
+  waitFor,
   waitForRedbox,
   waitForNoRedbox,
   getRedboxHeader,
@@ -728,7 +729,7 @@ describe('Image Component Tests', () => {
     )
 
     if (isNextDev) {
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      await waitFor(1000)
       const warnings = (await browser.log())
         .map((log) => log.message)
         .join('\n')
@@ -816,7 +817,7 @@ describe('Image Component Tests', () => {
     it('should warn when img with layout=fill is inside a container without position relative', async () => {
       const browser = await next.browser('/layout-fill-inside-nonrelative')
       await browser.eval(`document.querySelector("footer").scrollIntoView()`)
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      await waitFor(1000)
       const warnings = (await browser.log())
         .map((log) => log.message)
         .join('\n')
@@ -880,7 +881,7 @@ describe('Image Component Tests', () => {
         )
         expect(result).toBeGreaterThan(0)
       })
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      await waitFor(1000)
       const warnings = (await browser.log())
         .map((log) => log.message)
         .join('\n')
@@ -974,7 +975,7 @@ describe('Image Component Tests', () => {
         )
         expect(result).toBeGreaterThan(0)
       })
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      await waitFor(1000)
       const warnings = (await browser.log())
         .map((log) => log.message)
         .filter((log) => log.startsWith('Image with src'))
@@ -1008,7 +1009,7 @@ describe('Image Component Tests', () => {
       expect(result).toBeGreaterThan(0)
     })
 
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    await waitFor(1000)
 
     const computedWidth = await getComputed(browser, id, 'width')
     const computedHeight = await getComputed(browser, id, 'height')
@@ -1058,7 +1059,7 @@ describe('Image Component Tests', () => {
       const src = await getSrc(browser, 'img-blur')
       expect(src).toMatch(/^\/_next\/image/)
     })
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    await waitFor(1000)
 
     expect(await getComputedStyle(browser, 'img-plain', 'filter')).toBe(
       'opacity(0.5)'
@@ -1108,7 +1109,7 @@ describe('Image Component Tests', () => {
         expect(result).toBeGreaterThan(0)
       })
 
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      await waitFor(1000)
 
       const computedWidth = await getComputed(browser, id, 'width')
       const computedHeight = await getComputed(browser, id, 'height')
@@ -1287,7 +1288,7 @@ describe('Image Component Tests', () => {
 
   it('should be valid HTML', async () => {
     const browser = await next.browser('/valid-html-w3c')
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    await waitFor(1000)
     expect(await browser.hasElementByCssSelector('img')).toBeTruthy()
     const url = await browser.url()
     const result = (await validateHTML({
