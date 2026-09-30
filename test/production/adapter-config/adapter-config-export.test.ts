@@ -1,4 +1,5 @@
 import fs from 'fs'
+import path from 'path'
 import type { NextAdapter } from 'next'
 import { nextTestSetup } from 'e2e-utils'
 import { version as nextVersion } from 'next/package.json'
@@ -58,6 +59,9 @@ describe('adapter-config export', () => {
     expect(ctx.nextVersion).toBe(nextVersion)
     expect(ctx.projectDir).toBe(next.testDir)
     expect(config?.basePath).toBe('/docs')
+    expect(config?.distDir).toBe('custom-out')
+    expect(ctx.distDir).toBe(path.join(next.testDir, '.next'))
+    expect(fs.existsSync(path.join(next.testDir, 'custom-out'))).toBe(true)
 
     const combinedRouteOutputs = [
       ...outputs.appPages,

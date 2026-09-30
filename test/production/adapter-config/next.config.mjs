@@ -31,6 +31,7 @@ const nextConfig = {
     ]
   },
   output: process.env.TEST_EXPORT ? 'export' : undefined,
+  distDir: process.env.TEST_EXPORT ? 'custom-out' : undefined,
 }
 
 export default nextConfig
