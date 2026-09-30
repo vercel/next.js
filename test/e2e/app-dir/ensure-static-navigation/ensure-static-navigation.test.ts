@@ -1126,7 +1126,7 @@ describe('ensureStatic = "navigation"', () => {
          {
            "description": "Next.js encountered uncached data during prerendering.",
            "environmentLabel": "Server",
-           "label": "Static Route",
+           "label": "Blocking Route",
            "source": "app/default/blocking-use-io/client.tsx (6:6) @ ClientIO
          > 6 |   use(io())
              |      ^",
