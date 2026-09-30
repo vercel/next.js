@@ -20,17 +20,15 @@ import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
-  partialPrefetching: true, // Future default with Cache Components
+  partialPrefetching: true, // Recommended with Cache Components
 }
 
 export default nextConfig
 ```
 
-> **Good to know**:
->
-> - When omitted, `partialPrefetching` remains disabled. Set it explicitly to `false` to confirm that you're migrating an app that already uses Cache Components. The initial release of Cache Components did not include Partial Prefetching.
-> - New projects should enable both options. In the next major release, both will be enabled everywhere, and these configuration options will be removed. Follow [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) to prepare an existing app.
-> - Cache Components requires the Node.js runtime. Migrate any routes that set the deprecated `runtime = 'edge'` export, and note that other server-side JavaScript runtimes are not guaranteed to work. See [Migrating to Cache Components](/docs/app/guides/migrating-to-cache-components#runtime--edge).
+When omitted, `partialPrefetching` remains disabled. We recommend enabling it with Cache Components because it will be enabled by default in a future version. If your app already uses Cache Components, follow [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) before enabling it.
+
+> **Good to know**: Cache Components requires the Node.js runtime. Migrate any routes that set the deprecated `runtime = 'edge'` export, and note that other server-side JavaScript runtimes are not guaranteed to work. See [Migrating to Cache Components](/docs/app/guides/migrating-to-cache-components#runtime--edge).
 
 When `cacheComponents` is enabled, you can use the following cache functions and configurations:
 

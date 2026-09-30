@@ -17,16 +17,16 @@ Caching is a technique for storing the result of data fetching and other computa
 
 ## Enabling Cache Components
 
-New App Router apps created with the recommended [`create-next-app`](/docs/app/api-reference/cli/create-next-app) defaults enable Cache Components and Partial Prefetching.
+New App Router apps created with the recommended [`create-next-app`](/docs/app/api-reference/cli/create-next-app) defaults already have Cache Components enabled.
 
-To enable Cache Components in a manually created app, add the [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) and [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) options to your Next config file:
+To enable it in an existing or manually created app, add the [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) option to your Next config file:
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
-  partialPrefetching: true, // Future default with Cache Components
+  partialPrefetching: true, // Recommended with Cache Components
 }
 
 export default nextConfig
@@ -36,15 +36,13 @@ export default nextConfig
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   cacheComponents: true,
-  partialPrefetching: true, // Future default with Cache Components
+  partialPrefetching: true, // Recommended with Cache Components
 }
 
 module.exports = nextConfig
 ```
 
-When omitted, `partialPrefetching` remains disabled. Set it explicitly to `false` to confirm that you're migrating an app that already uses Cache Components. The initial release of Cache Components did not include Partial Prefetching. New projects should enable both options.
-
-In the next major release, Cache Components and Partial Prefetching will be enabled everywhere, and these configuration options will be removed. To prepare an existing app, follow [Migrating to Cache Components](/docs/app/guides/migrating-to-cache-components) and [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching).
+When omitted, `partialPrefetching` remains disabled. We recommend enabling it with Cache Components because it will be enabled by default in a future version. If your app already uses Cache Components, follow [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) before enabling it.
 
 > **Good to know:** When Cache Components is enabled, `GET` Route Handlers follow the same prerendering model as pages. See [Route Handlers with Cache Components](/docs/app/getting-started/route-handlers#with-cache-components) for details.
 
