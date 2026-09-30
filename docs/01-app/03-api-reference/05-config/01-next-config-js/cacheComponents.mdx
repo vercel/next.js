@@ -20,13 +20,11 @@ import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
-  partialPrefetching: true,
+  partialPrefetching: true, // Recommended with Cache Components
 }
 
 export default nextConfig
 ```
-
-Existing apps continue to use full prefetching when `partialPrefetching` is omitted. Next.js recommends enabling [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) to reuse prefetches across links and control how much each link prefetches. Follow [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) before enabling it in an existing app.
 
 > **Good to know**: Cache Components requires the Node.js runtime. Migrate any routes that set the deprecated `runtime = 'edge'` export, and note that other server-side JavaScript runtimes are not guaranteed to work. See [Migrating to Cache Components](/docs/app/guides/migrating-to-cache-components#runtime--edge).
 
