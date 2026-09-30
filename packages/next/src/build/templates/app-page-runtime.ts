@@ -8,6 +8,7 @@ import {
   type DevRenderContext,
   type RouteMatch,
 } from '../../server/route-modules/app-page/module.compiled' with { 'turbopack-transition': 'next-ssr' }
+import { createDevRenderContext } from '../../server/route-modules/app-page/dev-render-context' with { 'turbopack-transition': 'next-server-utility' }
 
 import { RouteKind } from '../../server/route-kind' with { 'turbopack-transition': 'next-server-utility' }
 
@@ -863,15 +864,7 @@ export function createAppPageEntrypoint({
         renderOperation: AppPageRenderOperation
       }): Promise<ResponseCacheEntry | PrerenderFailure> => {
         const routeMatch: RouteMatch = { resolvedPathname }
-        const dev: DevRenderContext | undefined = process.env.__NEXT_DEV_SERVER
-          ? {
-              serverComponentsHmrCache: getRequestMeta(
-                req,
-                'serverComponentsHmrCache'
-              ),
-              hmrRefreshHash: getRequestMeta(req, 'hmrRefreshHash'),
-            }
-          : undefined
+        const dev: DevRenderContext | undefined = createDevRenderContext(req)
         const context: AppPageRouteHandlerContext = {
           query,
           params,

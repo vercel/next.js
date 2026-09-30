@@ -29,6 +29,7 @@ import type {
   DevRenderContext,
   RouteMatch as AppRenderRouteMatch,
 } from './route-modules/app-page/module'
+import { createDevRenderContext } from './route-modules/app-page/dev-render-context'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
 import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
@@ -677,12 +678,12 @@ export default class NextNodeServer extends BaseServer<
           !renderOpts.isPossibleServerAction
             ? lazyPrerenderAppPage
             : lazyRenderAppPage
-        const dev: DevRenderContext | undefined = process.env.__NEXT_DEV_SERVER
-          ? {
-              serverComponentsHmrCache: this.getServerComponentsHmrCache(),
-              hmrRefreshHash: getRequestMeta(req, 'hmrRefreshHash'),
-            }
-          : undefined
+        const dev: DevRenderContext | undefined = createDevRenderContext(
+          req,
+          process.env.__NEXT_DEV_SERVER
+            ? this.getServerComponentsHmrCache()
+            : undefined
+        )
 
         const result = await renderAppPage(
           req,
