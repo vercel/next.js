@@ -9,6 +9,7 @@ use turbopack_core::resolve::ExportUsage;
 pub use crate::analyzer::graph::{
     effects::{ConditionalKind, Effect, EffectArg, EffectsBlock},
     eval_context::EvalContext,
+    namespace_access::NamespaceAccess,
 };
 use crate::{
     AnalyzeMode, SpecifiedModuleType,
@@ -20,6 +21,7 @@ use crate::{
 
 mod effects;
 mod eval_context;
+pub(crate) mod namespace_access;
 pub(crate) mod visitor;
 
 #[derive(Debug)]

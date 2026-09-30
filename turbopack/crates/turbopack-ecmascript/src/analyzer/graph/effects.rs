@@ -4,7 +4,7 @@ use turbo_rcstr::RcStr;
 use turbopack_core::resolve::ExportUsage;
 
 use crate::{
-    analyzer::{Bump, BumpVec, JsValue},
+    analyzer::{Bump, BumpVec, JsValue, graph::NamespaceAccess},
     utils::AstPathRange,
 };
 
@@ -173,6 +173,8 @@ pub enum Effect<'a> {
         export: Option<RcStr>,
         /// A single member read from a named import (`z.member`), used only to narrow the part.
         member: Option<RcStr>,
+        /// How a namespace member access (`ns.export`) is used, or `None` when this is not one.
+        namespace_access: Option<NamespaceAccess>,
         ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,
     },

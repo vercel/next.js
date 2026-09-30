@@ -1406,6 +1406,7 @@ async fn analyze_ecmascript_module_internal(
                     esm_reference_index,
                     export,
                     member,
+                    namespace_access,
                     ast_path,
                     span: _,
                 } => {
@@ -1473,11 +1474,11 @@ async fn analyze_ecmascript_module_internal(
                                                 .resolved_cell()
                                         },
                                     );
-                                analysis.add_code_gen(EsmBinding::new_maybe_keep_namespace(
+                                analysis.add_code_gen(EsmBinding::new(
                                     named_reference,
                                     Some(export),
                                     analysis.intern_path(&ast_path),
-                                    &ast_path,
+                                    namespace_access,
                                 ));
                                 continue;
                             }
@@ -1505,6 +1506,7 @@ async fn analyze_ecmascript_module_internal(
                                     narrowed_reference,
                                     export,
                                     analysis.intern_path(&ast_path),
+                                    namespace_access,
                                 ));
                                 continue;
                             }
@@ -1515,6 +1517,7 @@ async fn analyze_ecmascript_module_internal(
                             *r,
                             export,
                             analysis.intern_path(&ast_path),
+                            namespace_access,
                         ));
                     }
                 }
@@ -3873,6 +3876,7 @@ async fn handle_free_var_reference(
                 esm_reference,
                 export.clone(),
                 analysis.intern_path(ast_path),
+                None,
             ));
         }
         FreeVarReference::InputRelative(kind) => {

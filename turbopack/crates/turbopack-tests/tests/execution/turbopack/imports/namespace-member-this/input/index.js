@@ -173,3 +173,12 @@ it('keeps namespace access for the operand of delete', () => {
   }).toThrow(TypeError)
   expect(ns.readOnly).toBe(1)
 })
+
+it('reads namespace members through the other unary operators', () => {
+  // Unlike `delete`, these only read their operand, so it may be a captured local.
+  expect(typeof ns.value).toBe('number')
+  expect(!ns.value).toBe(false)
+  expect(void ns.value).toBe(undefined)
+  expect(-ns.value).toBe(-41)
+  expect(typeof ns.method).toBe('function')
+})
