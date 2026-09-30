@@ -365,8 +365,14 @@ export class NextServer implements NextWrapperServer {
           )
         ).config
 
-        config.experimental.isExperimentalCompile =
-          serializedConfig.experimental.isExperimentalCompile
+        return {
+          ...config,
+          experimental: {
+            ...config.experimental,
+            isExperimentalCompile:
+              serializedConfig.experimental.isExperimentalCompile,
+          },
+        }
       } catch (_) {
         // if distDir is customized we don't know until we
         // load the config so fallback to loading the config
