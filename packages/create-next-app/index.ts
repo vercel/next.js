@@ -89,6 +89,10 @@ const program = new Command(packageJson.name)
   )
   .option('--yes', 'Use saved preferences or defaults for unprovided options.')
   .option(
+    '--interactive',
+    'Prompt for configuration options not explicitly specified.'
+  )
+  .option(
     '-e, --example <example-name|github-url>',
     `
 
@@ -342,15 +346,17 @@ async function run(): Promise<void> {
     const hasSavedPreferences = Object.keys(preferences).length > 0
 
     // Check if user provided any configuration flags
-    // If they did, skip all prompts and use recommended defaults for unspecified
-    // options. This is critical for AI agents, which pass flags like
+    // Unless --interactive is specified, skip all prompts and use recommended
+    // defaults for unspecified options. This is critical for AI agents, which pass flags like
     // --typescript --tailwind --app and expect the rest to use sensible defaults
     // without entering interactive mode.
-    const hasProvidedOptions = process.argv.some((arg) => arg.startsWith('--'))
+    const hasProvidedOptions = process.argv.some(
+      (arg) => arg.startsWith('--') && arg !== '--interactive'
+    )
     const shouldPromptForAgentFeedback =
-      !ciInfo.isCI && !opts.yes && !hasProvidedOptions
+      !skipPrompt && (opts.interactive || !hasProvidedOptions)
 
-    if (!skipPrompt && hasProvidedOptions) {
+    if (!skipPrompt && hasProvidedOptions && !opts.interactive) {
       skipPrompt = true
       useRecommendedDefaults = true
     }
@@ -358,7 +364,7 @@ async function run(): Promise<void> {
     // Only show the "recommended defaults" prompt if:
     // - Not in CI and not using --yes flag
     // - User hasn't provided any custom options
-    if (!skipPrompt && !hasProvidedOptions) {
+    if (!skipPrompt && !hasProvidedOptions && !opts.interactive) {
       const choices: Array<{
         title: string
         value: string

@@ -70,7 +70,7 @@ describe('create-next-app', () => {
     }
   )
 
-  it('should list both agent feedback flags in help', async () => {
+  it('should list interactive and both agent feedback flags in help', async () => {
     await useTempDir(async (cwd) => {
       const res = await run(['--help'], nextTgzFilename, {
         cwd,
@@ -79,6 +79,7 @@ describe('create-next-app', () => {
 
       expect(res.stdout).toContain('--agent-feedback')
       expect(res.stdout).toContain('--no-agent-feedback')
+      expect(res.stdout).toContain('--interactive')
     })
   })
 
@@ -340,6 +341,26 @@ describe('create-next-app', () => {
         }
       )
       expect(res.exitCode).toBe(0)
+      expect(res.stdout).not.toContain('Using defaults for unprovided options')
+    })
+  })
+
+  it('should not prompt with --interactive in CI', async () => {
+    await useTempDir(async (cwd) => {
+      const res = await run(
+        [
+          'interactive-ci',
+          '--typescript',
+          '--interactive',
+          '--skip-install',
+          '--disable-git',
+        ],
+        nextTgzFilename,
+        { cwd, stdio: 'pipe', timeout: 30000, env: { CI: '1' } }
+      )
+      expect(res.exitCode).toBe(0)
+      expect(res.stdout).not.toContain('Would you like')
+      expect(res.stdout).not.toContain('Which linter')
       expect(res.stdout).not.toContain('Using defaults for unprovided options')
     })
   })
