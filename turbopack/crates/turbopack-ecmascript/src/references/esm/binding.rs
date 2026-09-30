@@ -10,8 +10,8 @@ use swc_core::{
         visit::{
             AstParentKind,
             fields::{
-                CalleeField, ExprField, OptCallField, ParenExprField, PatField, PropField,
-                TaggedTplField, UnaryExprField, UpdateExprField,
+                CalleeField, ExprField, MemberExprField, OptCallField, ParenExprField, PatField,
+                PropField, TaggedTplField, UnaryExprField, UpdateExprField,
             },
         },
     },
@@ -66,7 +66,12 @@ impl NamespaceAccess {
     /// inside the member expression (`.., MemberExpr(Obj)`).
     fn of_member_path(raw_path: &[AstParentKind]) -> Self {
         let mut parents = raw_path.iter().rev().copied();
-        parents.next();
+        let namespace_object = parents.next();
+        debug_assert_eq!(
+            namespace_object,
+            Some(AstParentKind::MemberExpr(MemberExprField::Obj)),
+            "a namespace member access path must end at the member expression's object"
+        );
         // Above that is the member expression itself.
         match parents.next() {
             // `ns.a = 1`, where the member expression is the assignment target itself.
@@ -428,7 +433,8 @@ impl ValueBindingCapture {
                 span: DUMMY_SP,
                 name: Pat::Ident(self.binding.into()),
                 init: Some(Box::new(Expr::Member(MemberExpr {
-                    // Marked pure so the declaration can be dropped when the binding is unused.
+                    // `PURE_SP` emits a `/*#__PURE__*/` annotation, see `namespace_read_decl` in
+                    // `lib.rs` and https://github.com/javascript-compiler-hints/compiler-notations-spec/issues/16.
                     span: PURE_SP,
                     obj: Box::new(Expr::Ident(namespace)),
                     prop: MemberProp::Computed(ComputedPropName {
@@ -448,7 +454,7 @@ impl ValueBindingCapture {
         // including those from other use sites and sibling code gens: one source import can be
         // split into a separate reference per named export.
         CodeGenerationHoistedStmt::new(
-            HoistedStmtKey::ValueBindings {
+            HoistedStmtKey::MergedValueBindings {
                 namespace_ident: self.namespace_ident,
                 ctxt: self.ctxt,
             },

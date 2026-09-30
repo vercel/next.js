@@ -2459,19 +2459,23 @@ async fn emit_content(
     .cell())
 }
 
-/// Appends the declarators of `incoming` to `existing` when both are `var` declarations, so
-/// declarations that share a hoist key accumulate rather than the later ones being dropped.
+/// Appends the declarators of `incoming` to `existing`, so declarations that share a
+/// [`HoistedStmtKey::MergedValueBindings`] key accumulate rather than the later ones being dropped.
 ///
 /// `bound` holds the bindings `existing` already declares. Several uses of one import declare the
 /// same binding, and only the first declaration is kept.
+///
+/// Panics unless both are `var` declarations of the same kind, which is the only shape that key is
+/// produced with.
 fn append_var_decls(existing: &mut Stmt, incoming: Stmt, bound: &mut FxIndexSet<Id>) {
     let (Stmt::Decl(Decl::Var(existing)), Stmt::Decl(Decl::Var(incoming))) = (existing, incoming)
     else {
-        return;
+        panic!("mergeable hoisted statements must be `var` declarations");
     };
-    if existing.kind != incoming.kind {
-        return;
-    }
+    assert_eq!(
+        existing.kind, incoming.kind,
+        "mergeable hoisted declarations must all be of the same kind"
+    );
     for decl in incoming.decls {
         if !var_decl_binding(&decl).is_some_and(|id| !bound.insert(id)) {
             existing.decls.push(decl);
@@ -2491,8 +2495,7 @@ fn var_decl_binding(decl: &VarDeclarator) -> Option<Id> {
 ///
 /// `var a = ns.a, b = ns.b` becomes `var {"a": a, "b": b} = ns`, which is smaller. A lone binding
 /// is left alone: a minifier that renames the local would have to write the key back out, making
-/// `var {a: x} = ns` longer than `var x = ns.a`, and only the single-binding form can carry the
-/// `/*#__PURE__*/` annotation that lets an unused declaration be dropped.
+/// `var {a: x} = ns` longer than `var x = ns.a`.
 fn destructure_shared_namespaces(decls: &mut Vec<VarDeclarator>) {
     let mut grouped: FxIndexMap<Id, Vec<(Str, Ident)>> = FxIndexMap::default();
     let mut rest = Vec::new();
@@ -2518,12 +2521,14 @@ fn destructure_shared_namespaces(decls: &mut Vec<VarDeclarator>) {
         rest.push(VarDeclarator {
             span: DUMMY_SP,
             name: Pat::Object(ObjectPat {
-                // Marked pure so the declaration can be dropped when the bindings are unused, the
-                // same as the single binding form. On a pattern this also asserts that the
+                // `PURE_SP` emits a `/*#__PURE__*/` annotation, asking that the declaration be
+                // dropped when the bindings are unused. On a pattern it also asserts that the
                 // initializer is not nullish, which holds: it is a module namespace object.
                 //
-                // swc only began honoring this on patterns in swc-project/swc#12384, so on older
-                // versions the annotation is inert rather than wrong.
+                // The annotation is only specified for calls today. Extending it to other
+                // expressions is still being discussed in
+                // https://github.com/javascript-compiler-hints/compiler-notations-spec/issues/16, so until
+                // minifiers adopt that it is inert rather than wrong.
                 span: PURE_SP,
                 optional: false,
                 type_ann: None,
@@ -2570,7 +2575,10 @@ fn namespace_read_decl(namespace: &Ident, key: Str, binding: Ident) -> VarDeclar
         span: DUMMY_SP,
         name: Pat::Ident(binding.into()),
         init: Some(Box::new(Expr::Member(MemberExpr {
-            // Marked pure so the declaration can be dropped when the binding is unused.
+            // `PURE_SP` emits a `/*#__PURE__*/` annotation, asking that the declaration be dropped
+            // when the binding is unused. It is only specified for calls today, see
+            // https://github.com/javascript-compiler-hints/compiler-notations-spec/issues/16, so until
+            // minifiers adopt that it is inert rather than wrong.
             span: PURE_SP,
             obj: Box::new(Expr::Ident(namespace.clone())),
             prop: MemberProp::Computed(ComputedPropName {

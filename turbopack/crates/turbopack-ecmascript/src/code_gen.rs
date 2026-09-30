@@ -114,16 +114,23 @@ impl CodeGeneration {
     }
 }
 
-/// Identifies a hoisted statement, so that a statement which is already present is emitted once.
+/// Identifies a hoisted statement, and what happens when a later statement has the same key.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum HoistedStmtKey {
     /// A fixed name, unique by construction (`__turbopack_esm__`, `import.meta`, …).
-    Named(RcStr),
-    /// The declarations that read one imported namespace.
+    ///
+    /// A later statement with the same key is the same statement again, so it is dropped and the
+    /// first one is kept.
+    Deduplicated(RcStr),
+    /// The `var` declarations that read one imported namespace.
+    ///
+    /// A later statement with the same key is merged into the first one: one source import is split
+    /// into a separate reference per named export, so several statements legitimately declare
+    /// different bindings against the same namespace.
     ///
     /// The namespace identifier is derived from the target module's chunk item id, so it names an
     /// actual dependency and is shared by exactly the declarations that should merge.
-    ValueBindings {
+    MergedValueBindings {
         namespace_ident: RcStr,
         ctxt: Option<SyntaxContext>,
     },
@@ -132,22 +139,17 @@ pub enum HoistedStmtKey {
 impl HoistedStmtKey {
     /// Whether a later statement sharing this key is merged into the one already emitted, rather
     /// than dropped.
-    ///
-    /// A duplicate key normally means the statement is already present, so the first one wins.
-    /// Value bindings are the exception: one source import is split into a separate reference per
-    /// named export, so several statements legitimately declare different bindings against the
-    /// same namespace.
     pub fn is_mergeable(&self) -> bool {
         match self {
-            HoistedStmtKey::Named(_) => false,
-            HoistedStmtKey::ValueBindings { .. } => true,
+            HoistedStmtKey::Deduplicated(_) => false,
+            HoistedStmtKey::MergedValueBindings { .. } => true,
         }
     }
 }
 
 impl From<RcStr> for HoistedStmtKey {
     fn from(name: RcStr) -> Self {
-        HoistedStmtKey::Named(name)
+        HoistedStmtKey::Deduplicated(name)
     }
 }
 

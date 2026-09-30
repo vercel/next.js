@@ -946,7 +946,7 @@ impl EsmAssetReference {
                         span: DUMMY_SP,
                     });
                     return Ok(CodeGeneration::hoisted_stmt(
-                        HoistedStmtKey::Named(format!("throw {request}").into()),
+                        HoistedStmtKey::Deduplicated(format!("throw {request}").into()),
                         stmt,
                     ));
                 }
@@ -968,7 +968,7 @@ impl EsmAssetReference {
                         // Insert a placeholder to inline the merged module at the right place
                         // relative to the other references (so to keep reference order).
                         result.push(CodeGenerationHoistedStmt::new(
-                            HoistedStmtKey::Named(format!("hoisted {merged_index}").into()),
+                            HoistedStmtKey::Deduplicated(format!("hoisted {merged_index}").into()),
                             quote!(
                                 "__turbopack_merged_esm__($id);" as Stmt,
                                 id: Expr = Lit::Num(merged_index.into()).into(),
@@ -1049,7 +1049,7 @@ impl EsmAssetReference {
                                                 // (which
                                                 // would cause hygiene to rename one of them).
                                                 (
-                                                    HoistedStmtKey::Named(
+                                                    HoistedStmtKey::Deduplicated(
                                                         format!("{} {:?}", id, ctxt).into(),
                                                     ),
                                                     quote!(
@@ -1089,7 +1089,9 @@ impl EsmAssetReference {
                                                     )
                                                 };
                                                 (
-                                                    HoistedStmtKey::Named(name.sym.as_str().into()),
+                                                    HoistedStmtKey::Deduplicated(
+                                                        name.sym.as_str().into(),
+                                                    ),
                                                     call,
                                                 )
                                             }
@@ -1115,7 +1117,9 @@ impl EsmAssetReference {
                                                     id: Expr = Expr::Lit(request.to_string().into())
                                                 );
                                                 (
-                                                    HoistedStmtKey::Named(name.sym.as_str().into()),
+                                                    HoistedStmtKey::Deduplicated(
+                                                        name.sym.as_str().into(),
+                                                    ),
                                                     call,
                                                 )
                                             }
