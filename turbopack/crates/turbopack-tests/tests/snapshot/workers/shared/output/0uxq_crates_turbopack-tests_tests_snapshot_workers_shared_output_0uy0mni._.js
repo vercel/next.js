@@ -14,7 +14,11 @@ if (
 var url = new URL(location.href);
 var paramsString = url.searchParams.get("params");
 if (!paramsString && url.hash.startsWith("#params=")) {
-    paramsString = decodeURIComponent(url.hash.slice("#params=".length));
+    // The payload is percent-encoded, so a raw `?` or `&` can only be text appended to the
+    // worker URL by the environment (e.g. `?fbclid=...`); drop it before parsing.
+    paramsString = decodeURIComponent(
+        url.hash.slice("#params=".length).split(/[?&]/, 1)[0]
+    );
 }
 
 if (!paramsString) abort("Missing worker bootstrap config");

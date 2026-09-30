@@ -41,6 +41,25 @@ describe('app dir - workers', () => {
     )
   })
 
+  it('should support web workers whose URL has a query appended', async () => {
+    if (!isTurbopack) {
+      // The params-in-hash bootstrap is Turbopack specific
+      return
+    }
+    // No `beforePageLoad`: the appended query intentionally alters the worker
+    // request URL, so the `dpl` assertion doesn't apply.
+    const browser = await next.browser('/appended-query')
+    expect(await browser.elementByCss('#worker-state').text()).toBe('default')
+
+    await browser.elementByCss('button').click()
+
+    await retry(async () =>
+      expect(await browser.elementByCss('#worker-state').text()).toBe(
+        'worker.ts:worker-dep'
+      )
+    )
+  })
+
   it('should support module web workers with dynamic imports', async () => {
     const browser = await next.browser('/module', {
       beforePageLoad,
