@@ -651,7 +651,7 @@ function assignDefaultsAndValidate(
     !silent
   ) {
     Log.warnOnce(
-      `\`cacheComponents\` is enabled without \`partialPrefetching\`. We recommend enabling Partial Prefetching to use the improved prefetching model for client navigations. Learn how to adopt Partial Prefetching: https://nextjs.org/docs/app/guides/adopting-partial-prefetching`
+      `\`cacheComponents\` is enabled without \`partialPrefetching\`. We recommend enabling it to reuse prefetches across links and control how much each link prefetches. Learn how: https://nextjs.org/docs/app/guides/adopting-partial-prefetching`
     )
   }
 
