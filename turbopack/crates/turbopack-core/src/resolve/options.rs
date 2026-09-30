@@ -5,7 +5,7 @@ use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexSet, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
-    debug::ValueDebugFormat, trace::TraceRawVcs, turbofmt,
+    debug::ValueDebugFormat, turbofmt,
 };
 use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 
@@ -25,9 +25,7 @@ use crate::{
 pub struct ExcludedExtensions(#[bincode(with = "turbo_bincode::indexset")] pub FxIndexSet<RcStr>);
 
 /// A location where to resolve modules.
-#[derive(
-    TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, ValueDebugFormat, NonLocalValue, Encode, Decode,
-)]
+#[derive(Hash, PartialEq, Eq, Clone, Debug, ValueDebugFormat, NonLocalValue, Encode, Decode)]
 pub enum ResolveModules {
     /// Starting from the lookup path, look for modules in these directories at each parent.
     Nested(Vec<RcStr>),
@@ -38,9 +36,7 @@ pub enum ResolveModules {
     },
 }
 
-#[derive(
-    TraceRawVcs, Hash, PartialEq, Eq, Clone, Copy, Debug, NonLocalValue, Encode, Decode, Default,
-)]
+#[derive(Hash, PartialEq, Eq, Clone, Copy, Debug, NonLocalValue, Encode, Decode, Default)]
 pub enum ConditionValue {
     Set,
     #[default]
@@ -61,7 +57,7 @@ impl From<bool> for ConditionValue {
 pub type ResolutionConditions = BTreeMap<RcStr, ConditionValue>;
 
 /// The different ways to resolve a package, as described in package.json.
-#[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, NonLocalValue, Encode, Decode)]
+#[derive(Hash, PartialEq, Eq, Clone, Debug, NonLocalValue, Encode, Decode)]
 pub enum ResolveIntoPackage {
     /// Using the [exports] field.
     ///
@@ -79,7 +75,7 @@ pub enum ResolveIntoPackage {
 }
 
 // The different ways to resolve a request within a package
-#[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, NonLocalValue, Encode, Decode)]
+#[derive(Hash, PartialEq, Eq, Clone, Debug, NonLocalValue, Encode, Decode)]
 pub enum ResolveInPackage {
     /// Using a alias field which allows to map requests
     AliasField(RcStr),

@@ -197,8 +197,11 @@ const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
 })
 
 export const experimentalSchema = {
-  agenticAutoUpgrade: z
-    .union([z.enum(['security', 'latest', 'future']), z.literal(false)])
+  agentUpgrade: z
+    .union([
+      z.enum(['security', 'latest', 'experimental-future']),
+      z.literal(false),
+    ])
     .optional(),
   agentFeedback: z.boolean().optional(),
   turbopackAdditionalRoots: z
@@ -446,6 +449,7 @@ export const experimentalSchema = {
   turbopackClientSideNestedAsyncChunking: z.boolean().optional(),
   turbopackServerSideNestedAsyncChunking: z.boolean().optional(),
   turbopackLazyDynamicImports: z.boolean().optional(),
+  turbopackLazyDynamicImportsSSR: z.boolean().optional(),
   turbopackImportTypeBytes: z.boolean().optional(),
   turbopackUseBuiltinBabel: z.boolean().optional(),
   turbopackUseBuiltinSass: z.boolean().optional(),

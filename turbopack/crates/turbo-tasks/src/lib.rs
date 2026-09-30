@@ -59,7 +59,6 @@ pub mod task;
 mod task_dirty_cause;
 mod task_execution_reason;
 pub mod task_statistics;
-pub mod trace;
 mod trait_ref;
 mod triomphe_utils;
 pub mod util;
@@ -293,7 +292,7 @@ pub use turbo_tasks_macros::value;
 ///
 /// ```ignore
 /// #[turbo_tasks::task_input]
-/// #[derive(Clone, Debug, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
+/// #[derive(Clone, Debug, Hash, PartialEq, Eq, Encode, Decode)]
 /// pub struct MyTaskInput { ... }
 /// ```
 ///
@@ -301,7 +300,7 @@ pub use turbo_tasks_macros::value;
 ///
 /// ```ignore
 /// #[turbo_tasks::task_input(contains_unresolved_vcs)]
-/// #[derive(Clone, Debug, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
+/// #[derive(Clone, Debug, Hash, PartialEq, Eq, Encode, Decode)]
 /// pub struct VcCarrier { vc: Vc<...> }
 /// ```
 pub use turbo_tasks_macros::task_input;

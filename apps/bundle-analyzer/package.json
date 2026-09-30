@@ -20,11 +20,12 @@
     "clsx": "^2.1.1",
     "cmdk": "1.0.4",
     "lucide-react": "^0.554.0",
-    "next": "16.2.3",
+    "next": "16.4.0-canary.31",
     "next-themes": "^0.4.6",
     "polished": "^4.3.1",
     "react": "19.2.0",
     "react-dom": "19.2.0",
+    "react-virtuoso": "4.18.13",
     "swr": "^2.2.4",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7"

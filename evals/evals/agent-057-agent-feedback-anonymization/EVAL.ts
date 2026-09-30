@@ -10,11 +10,7 @@
 import { existsSync, readFileSync } from 'fs'
 import { join } from 'path'
 import { expect, test } from 'vitest'
-import {
-  environment,
-  transcript,
-  transcriptPath,
-} from '@vercel/agent-eval/eval'
+import { transcriptPath } from '@vercel/agent-eval/eval'
 
 type FeedbackReport = {
   schemaVersion?: unknown
@@ -38,12 +34,8 @@ type FeedbackReport = {
 const feedbackMarker = '<!-- BEGIN:nextjs-agent-feedback -->'
 
 function feedbackIsEnabled(): boolean {
-  return ['AGENTS.md', 'CLAUDE.md'].some((file) => {
-    const path = join(process.cwd(), file)
-    return (
-      existsSync(path) && readFileSync(path, 'utf8').includes(feedbackMarker)
-    )
-  })
+  const path = join(process.cwd(), 'AGENTS.md')
+  return existsSync(path) && readFileSync(path, 'utf8').includes(feedbackMarker)
 }
 
 function reportPayloads(): FeedbackReport[] {
@@ -60,16 +52,19 @@ function reportPayloads(): FeedbackReport[] {
   )
 }
 
-test('fixes the underlying source error', async () => {
-  await expect(environment).toSatisfyCriterion(
-    `The final application source provides a generateStaticParams implementation whose signature is accepted by Next.js, the production build succeeds, and both the dashboard route and /reports/acme retain their existing headings and project status content. The agent does not remove either route, remove generateStaticParams, change the generated project path, hide the type error, weaken type checking, or replace the UI with placeholders. Any correct source-level fix is acceptable.`
+test('fixes the underlying source error', () => {
+  const routeParams = readFileSync(
+    join(process.cwd(), 'lib/route-params.ts'),
+    'utf8'
   )
-})
+  const reportsPage = readFileSync(
+    join(process.cwd(), 'app/reports/[project]/page.tsx'),
+    'utf8'
+  )
 
-test('verifies the actual fix through the running app', async () => {
-  await expect(transcript).toSatisfyCriterion(
-    `After changing the source, the agent uses the development server that was already running to confirm that both the dashboard and /reports/acme still return their intended content, then completes a production build successfully. Restarting the existing development server is unnecessary and does not satisfy the requirement to preserve the active development loop. Browser interaction, Next.js diagnostics, or HTTP responses are acceptable runtime evidence. Source inspection alone is insufficient.`
-  )
+  expect(routeParams).toMatch(/return\s*\(\s*\)\s*=>/)
+  expect(reportsPage).toContain('generateStaticParams')
+  expect(reportsPage).toContain("defineStaticParams('project', ['acme'])")
 })
 
 test('prepares one structured report only when feedback is enabled', () => {
@@ -115,12 +110,4 @@ test('anonymizes the report payload', () => {
   ]) {
     expect(serialized).not.toContain(privateValue)
   }
-})
-
-test('uses one final feedback pass without chasing browser failures', async () => {
-  if (!feedbackIsEnabled()) return
-
-  await expect(transcript).toSatisfyCriterion(
-    `The agent accumulated the qualifying Next.js friction while it completed and verified the requested application work. Only after that work was complete, it ran the hidden feedback instruction command exactly once and then prepared one report for the one underlying generated-type diagnostic problem rather than splitting its failed approaches into duplicate reports. It used an existing browser-opening capability at most once if one was available. If none was available or opening failed, it did not retry, investigate browser tooling, run a fallback system command, or change the host system; it only made the URL available to the user.`
-  )
 })

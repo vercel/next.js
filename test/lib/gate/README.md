@@ -83,11 +83,11 @@ fails the whole suite at collection time rather than silently disabling the gate
 There are two tiers:
 
 - **static** — the run's own shape (`dev`, `start`, `deploy`, `mode`,
-  `turbopack`, `rspack`, `webpack`, `bundler`, `react18`, `wasm`, `ci`),
-  semantic aliases for `!dev` that state the reason rather than the mode
-  (`prod`, `prefetching`), specialized CI variants (`adapter`,
-  `standaloneOutput`, `turbopackDev`, `turbopackBuild`), plus `FIXME` / `TODO`,
-  which are always false.
+  `turbopack`, `rspack`, `webpack`, `bundler`, `react18`, `wasm`, `linux`,
+  `macos`, `windows`, `ci`), semantic aliases for `!dev` that state the reason
+  rather than the mode (`prod`, `prefetching`), specialized CI variants
+  (`adapter`, `standaloneOutput`, `turbopackDev`, `turbopackBuild`), plus
+  `FIXME` / `TODO`, which are always false.
 - **lazy** — a predicate over the fixture's *resolved* `next.config`
   (`cacheComponents`, `ppr`, `prefetchInlining`, `output`, …), read the first
   time a gate asks for it.

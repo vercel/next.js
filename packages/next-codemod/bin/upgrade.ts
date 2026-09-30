@@ -386,8 +386,14 @@ export async function runUpgrade(
           : JSON.parse(eslintConfigNextPeerDepsJSON)
       const eslintRange = eslintConfigNextPeerDeps?.eslint
       if (eslintRange) {
+        // TODO: Target ESLint 10 once eslint-config-next's plugins, especially
+        // eslint-plugin-react, support its API removals (e.g. context.getFilename).
+        const cappedRange = eslintRange
+          .split('||')
+          .map((range) => `${range.trim()} <10`)
+          .join(' || ')
         const targetEslintVersion = await loadHighestNPMVersionMatching(
-          `eslint@${eslintRange}`
+          `eslint@${cappedRange}`
         )
         versionMapping['eslint'] = {
           version: targetEslintVersion,
@@ -496,7 +502,7 @@ export async function runUpgrade(
   try {
     if (refreshAgentRulesBlock(cwd) === 'refreshed') {
       console.log(
-        `${pc.green('✔')} Refreshed the managed agent-rules block in AGENTS.md / CLAUDE.md to match the upgraded Next.js.`
+        `${pc.green('✔')} Refreshed the managed agent-rules block in AGENTS.md to match the upgraded Next.js.`
       )
     }
   } catch {

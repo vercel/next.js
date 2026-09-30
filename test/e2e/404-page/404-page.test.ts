@@ -136,7 +136,6 @@ describe('404 Page Support', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
   if (skipped) return
 

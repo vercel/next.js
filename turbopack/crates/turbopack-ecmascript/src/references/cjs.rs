@@ -12,9 +12,7 @@ use swc_core::{
     quote,
 };
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{
-    NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
-};
+use turbo_tasks::{NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat};
 use turbopack_core::{
     chunk::{ChunkingContext, ChunkingType},
     issue::IssueSource,
@@ -194,9 +192,7 @@ impl IntoCodeGenReference for CjsRequireAssetReference {
     }
 }
 
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode)]
 pub struct CjsRequireAssetReferenceCodeGen {
     reference: ResolvedVc<CjsRequireAssetReference>,
     path: AstPathId,
@@ -342,9 +338,7 @@ impl IntoCodeGenReference for CjsRequireResolveAssetReference {
     }
 }
 
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode)]
 pub struct CjsRequireResolveAssetReferenceCodeGen {
     reference: ResolvedVc<CjsRequireResolveAssetReference>,
     path: AstPathId,
@@ -407,9 +401,7 @@ impl CjsRequireResolveAssetReferenceCodeGen {
     }
 }
 
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode)]
 pub struct CjsRequireCacheAccess {
     pub path: AstPathId,
 }
@@ -451,9 +443,7 @@ impl From<CjsRequireCacheAccess> for CodeGen {
 /// Removes each named CommonJS export the module graph proved unused. Built by the
 /// analyzer for statically-analyzable CommonJS modules; recognition happens inline
 /// during the walk (see `analyzer::graph::visitor`).
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode)]
 pub struct CjsExportsDropCodeGen {
     drops: Vec<DroppableCjsExportAssignment>,
     /// Writes to a discarded exports object, dropped whatever the export usage is.
@@ -464,9 +454,7 @@ pub struct CjsExportsDropCodeGen {
 }
 
 /// A recognized CommonJS export declaration, and thus how it's dropped.
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode)]
 pub enum DroppableCjsExportAssignment {
     /// A standalone `exports.NAME = …` write or `Object.defineProperty(exports, …)`
     /// call (the assignment is replaced by its value; the define call is removed).

@@ -310,7 +310,7 @@ napi = { version = "3.10.0", default-features = false, features = [
 napi-derive = "3.5.8"
 napi-build = "2.3.2"
 nohash-hasher = "0.2.0"
-notify = "8.1.0"
+notify = "9.0.0-rc.5"
 owo-colors = "4.2.2"
 parcel_selectors = "0.28.2"
 parking_lot = "0.12.1"

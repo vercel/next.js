@@ -8,7 +8,7 @@ use swc_core::{
     ecma::ast::{ComputedPropName, Expr, Lit, MemberProp, ObjectPatProp, Pat, PropName, Str},
 };
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, TaskInput};
 use turbopack_core::{chunk::ModuleId, resolve::pattern::Pattern};
 
 use crate::{
@@ -216,7 +216,7 @@ format_iter!(std::fmt::Pointer);
 format_iter!(std::fmt::UpperExp);
 format_iter!(std::fmt::UpperHex);
 
-#[derive(Clone, Copy, PartialEq, Eq, TraceRawVcs, Debug, NonLocalValue, Hash, Encode, Decode)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, NonLocalValue, Hash, Encode, Decode)]
 pub enum AstPathRange {
     /// The ast path to the block or expression.
     Exact(AstPathId),
@@ -265,12 +265,8 @@ pub fn module_value_to_well_known_object<'a>(module_value: &ModuleValue) -> Opti
     })
 }
 
-#[derive(Hash, Debug, Clone, Copy, Eq, PartialEq, TraceRawVcs, Encode, Decode)]
-pub struct AstSyntaxContext(
-    #[turbo_tasks(trace_ignore)]
-    #[bincode(with_serde)]
-    SyntaxContext,
-);
+#[derive(Hash, Debug, Clone, Copy, Eq, PartialEq, Encode, Decode)]
+pub struct AstSyntaxContext(#[bincode(with_serde)] SyntaxContext);
 
 impl TaskInput for AstSyntaxContext {
     fn is_transient(&self) -> bool {

@@ -3,7 +3,7 @@ use bincode::{Decode, Encode};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Upcast, Vc, trace::TraceRawVcs, turbobail};
+use turbo_tasks::{ResolvedVc, Upcast, Vc, turbobail};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::DeterministicHash;
 
@@ -29,17 +29,7 @@ use crate::{
 
 #[turbo_tasks::task_input]
 #[derive(
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Hash,
-    Deserialize,
-    TraceRawVcs,
-    DeterministicHash,
-    Encode,
-    Decode,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, DeterministicHash, Encode, Decode,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum MangleType {
@@ -112,7 +102,6 @@ pub struct UrlBehavior {
     Hash,
     Serialize,
     Deserialize,
-    TraceRawVcs,
     DeterministicHash,
     Encode,
     Decode,
@@ -245,7 +234,7 @@ pub struct EntryChunkGroupResult {
 }
 
 #[turbo_tasks::task_input]
-#[derive(Default, Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash, Encode, Decode)]
 pub struct ChunkingConfig {
     /// Try to avoid creating more than 1 chunk smaller than this size.
     /// It merges multiple small chunks into bigger ones to avoid that.
@@ -300,9 +289,7 @@ pub struct ChunkingConfigs(FxHashMap<ResolvedVc<Box<dyn ChunkType>>, ChunkingCon
 /// We could consider lifting EcmascriptDevChunkListSource to
 /// core instead if this grows. Or using this type in browser instead.
 #[turbo_tasks::task_input]
-#[derive(
-    Eq, PartialEq, Debug, Clone, Copy, Hash, TraceRawVcs, Serialize, Deserialize, Encode, Decode,
-)]
+#[derive(Eq, PartialEq, Debug, Clone, Copy, Hash, Serialize, Deserialize, Encode, Decode)]
 pub enum HmrChunkListSource {
     Entry,
     Dynamic,

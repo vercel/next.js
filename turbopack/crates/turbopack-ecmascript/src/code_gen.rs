@@ -11,7 +11,7 @@ use swc_core::{
     },
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, debug::ValueDebugFormat};
 use turbopack_core::{chunk::ChunkingContext, reference::ModuleReference};
 
 use crate::{
@@ -179,9 +179,7 @@ impl_modify!(visit_mut_function_body, FunctionBody);
 impl_modify!(visit_mut_switch_case, SwitchCase);
 impl_modify!(visit_mut_program, Program);
 
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode)]
 pub enum CodeGen {
     // AMD occurs very rarely and makes the enum much bigger
     AmdDefineWithDependenciesCodeGen(Box<AmdDefineWithDependenciesCodeGen>),

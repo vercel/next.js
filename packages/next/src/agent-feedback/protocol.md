@@ -1,6 +1,6 @@
 # Next.js agent feedback protocol
 
-Use this protocol only when the managed Next.js feedback block in `AGENTS.md` or `CLAUDE.md` instructs you to prepare agent feedback. Next.js Skills and upgrade workflows may add feedback candidates only while that managed block is present. Prepare report drafts for the user to review, but never submit them for the user.
+Use this protocol only when the managed Next.js feedback block in `AGENTS.md` instructs you to prepare agent feedback. Next.js Skills and upgrade workflows may add feedback candidates only while that managed block is present. Prepare report drafts for the user to review, but never submit them for the user.
 
 ## Terms
 
@@ -30,17 +30,17 @@ Each review form accepts one report draft. For every qualifying feedback candida
 
 - **Scope:** Report one observed Next.js behavior. Do not combine separate problems or infer a root cause.
 - **Trigger:** Set `triggerReason` to `unexpected-behavior`, `documentation-mismatch`, `misleading-error`, `repeated-failed-approach`, or `non-obvious-workaround`. Choose the single reason that caused the report draft.
-- **Summary:** Use a short, factual `title` that names the observed behavior.
-- **Setup:** Set `mode` to `development`, `production-build`, `production-server`, or `test`. Set `bundler` to `turbopack`, `webpack`, or `unknown`. Add up to three generic `relevantFeatures` when they help reproduce the issue.
-- **Reproduction:** Write 1–4 ordered `steps`. Include the generic starting state, the relevant Next.js feature or API, and the action that triggers the behavior. Split only actions or conditions whose order matters.
-- **Results:** Write 1–3 independently verifiable `observed` facts and one precise `expected` result. Split an observation only when each fact can stand alone and may be removed independently. Add `comparison` only when you observed a control or workaround.
+- **Summary:** Use a factual `title` of no more than 100 characters that names the observed behavior.
+- **Setup:** Set `mode` to `development`, `production-build`, `production-server`, or `test`. Set `bundler` to `turbopack`, `webpack`, or `unknown`. Add up to three generic `relevantFeatures` of no more than 32 characters each when they help reproduce the issue.
+- **Reproduction:** Write 1–4 ordered `steps` of no more than 240 characters each. Include the generic starting state, the relevant Next.js feature or API, and the action that triggers the behavior. Split only actions or conditions whose order matters.
+- **Results:** Write 1–3 independently verifiable `observed` facts of no more than 160 characters each and one precise `expected` result of no more than 200 characters. Split an observation only when each fact can stand alone and may be removed independently. Add a `comparison` of no more than 180 characters only when you observed a control or workaround.
 - **Outcome:** Set `frequency` to `once` or `reproduced`. Set `outcome` to `blocked`, `worked-around`, or `resolved`.
 - **Measurements:** Include measurements such as memory use, duration, extra builds, or repeated attempts only when observed directly. Do not estimate elapsed time, token usage, or tool-call counts.
 - **Privacy:** Replace customer, project, route, and component names with generic descriptions. Do not include source code, prompts, logs, stack traces, file paths, URLs, secrets, personal information, or unrelated product details.
 
 ## Encode the report draft
 
-Create a schema version 5 payload using only useful evidence. Always include `nextVersion` and `agent`. Omit `comparison` and `relevantFeatures` when they are not needed. Encode the UTF-8 JSON as unpadded base64url.
+Create a schema version 5 payload using only useful evidence. Always include `nextVersion` and `agent`, with no more than 64 characters each. Omit `comparison` and `relevantFeatures` when they are not needed. Encode the UTF-8 JSON as unpadded base64url.
 
 ```json
 {

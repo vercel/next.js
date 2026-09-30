@@ -79,7 +79,6 @@ impl Version for EcmascriptChunkVersion {
 /// essentially a composite [`EcmascriptChunkVersion`].
 #[turbo_tasks::value(serialization = "skip", shared)]
 pub struct EcmascriptMergedChunkVersion {
-    #[turbo_tasks(trace_ignore)]
     pub versions: Vec<ReadRef<EcmascriptChunkVersion>>,
 }
 

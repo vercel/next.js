@@ -18,7 +18,6 @@ describe('swcPlugins', () => {
   ;(isNextDev ? describe : describe.skip)('incompatible plugin version', () => {
     const { next, skipped, isTurbopack } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
       dependencies: {
         '@swc/plugin-react-remove-properties': '7.0.2',
       },
@@ -56,7 +55,6 @@ describe('swcPlugins', () => {
   ;(isNextDev ? describe : describe.skip)('invalid plugin name', () => {
     const { next, skipped, isTurbopack } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
       overrideFiles: {
         'next.config.js': `
 module.exports = {

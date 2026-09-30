@@ -18,7 +18,7 @@ use turbo_frozenmap::{FrozenMap, FrozenSet};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, JoinIterExt, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt,
-    TryJoinIterExt, ValueToString, ValueToStringRef, Vc, trace::TraceRawVcs,
+    TryJoinIterExt, ValueToString, ValueToStringRef, Vc,
 };
 use turbo_tasks_fs::{FileSystemEntryType, FileSystemPath, RealPathErrorType};
 use turbo_unix_path::normalize_request;
@@ -163,7 +163,7 @@ pub enum ImportUsage {
     /// This import is used only by these specific exports, if all exports are unused, the import
     /// can also be removed.
     ///
-    /// (This is only ever set on `ModulePart::Export` references. Side effects are handled via
+    /// (This is only ever set on named export module-part references. Side effects are handled via
     /// `ModulePart::Evaluation` references, which always have `ImportUsage::TopLevel`.)
     Exports(FrozenSet<RcStr>),
 }
@@ -239,6 +239,11 @@ impl ExportUsage {
     #[turbo_tasks::function]
     pub fn named(name: RcStr) -> Vc<Self> {
         Self::Named(name).cell()
+    }
+
+    #[turbo_tasks::function]
+    pub fn partial_namespace_object(names: Vec<RcStr>) -> Vc<Self> {
+        Self::PartialNamespaceObject(names.into_iter().collect()).cell()
     }
 
     #[turbo_tasks::function]
@@ -481,12 +486,39 @@ impl ModuleResolveResult {
             Ok(*ModuleResolveResult::unresolvable())
         }
     }
+
+    /// Combines results from distinct lookup directories. Unlike `alternatives`, entries with
+    /// identical request keys can point at different modules and must both be kept.
+    #[turbo_tasks::function]
+    pub async fn concat(results: Vec<Vc<ModuleResolveResult>>) -> Result<Vc<Self>> {
+        if results.len() == 1 {
+            return Ok(results.into_iter().next().unwrap());
+        }
+        let mut primary = Vec::new();
+        let mut affecting_sources = Vec::new();
+        let mut seen_sources = FxHashSet::default();
+        for result in results.into_iter().try_join().await? {
+            primary.extend(
+                result.primary.iter().map(|(key, item)| {
+                    (key.clone(), expand_duplicate(&result.primary, item).clone())
+                }),
+            );
+            for source in result.affecting_sources.iter().copied() {
+                if seen_sources.insert(source) {
+                    affecting_sources.push(source);
+                }
+            }
+        }
+        Self::mark_duplicates(&mut primary);
+        Ok(Self::cell(Self {
+            primary: primary.into_boxed_slice(),
+            affecting_sources: affecting_sources.into_boxed_slice(),
+        }))
+    }
 }
 
 #[turbo_tasks::task_input]
-#[derive(
-    Copy, Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Serialize, Deserialize, Encode, Decode,
-)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
 pub enum ExternalTraced {
     Untraced,
     Traced,
@@ -502,9 +534,7 @@ impl Display for ExternalTraced {
 }
 
 #[turbo_tasks::task_input]
-#[derive(
-    Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize, TraceRawVcs, Encode, Decode,
-)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize, Encode, Decode)]
 pub enum ExternalType {
     Url,
     CommonJs,
@@ -1195,7 +1225,7 @@ async fn realpath_if_exists(
 
 #[turbo_tasks::value(shared)]
 enum ExportsFieldResult {
-    Some(#[turbo_tasks(debug_ignore, trace_ignore)] ExportsField),
+    Some(#[turbo_tasks(debug_ignore, unsafe_ignore)] ExportsField),
     None,
 }
 
@@ -1232,7 +1262,7 @@ async fn exports_field(
 #[turbo_tasks::value(shared)]
 enum ImportsFieldResult {
     Some(
-        #[turbo_tasks(debug_ignore, trace_ignore)] ImportsField,
+        #[turbo_tasks(debug_ignore, unsafe_ignore)] ImportsField,
         FileSystemPath,
     ),
     None,
@@ -1365,7 +1395,7 @@ pub async fn find_context_file_or_package_key(
     Ok(find_context_file(lookup_path.parent(), names, false))
 }
 
-#[derive(Clone, PartialEq, Eq, TraceRawVcs, Debug, NonLocalValue, Encode, Decode)]
+#[derive(Clone, PartialEq, Eq, Debug, NonLocalValue, Encode, Decode)]
 enum FindPackageItem {
     PackageDirectory { name: RcStr, dir: FileSystemPath },
     PackageFile { name: RcStr, file: FileSystemPath },
@@ -3419,30 +3449,44 @@ async fn resolve_package_internal_with_imports_field(
 ///
 /// Currently this is used only for ESMs.
 #[turbo_tasks::task_input]
-#[derive(
-    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode,
-)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, Encode, Decode)]
 pub enum ModulePart {
-    /// Represents the side effects of a module. This part is evaluated even if
-    /// all exports are unused.
+    /// Represents the side effects of a module, such as `import "./module"`.
+    /// This part is evaluated even if all exports are unused.
     Evaluation,
-    /// Represents an export of a module.
+    /// Represents a named export, such as `foo` in `export const foo = "bar";`.
     Export(RcStr),
-    /// Represents a renamed export of a module.
+    /// Represents an export for which one member is used.
+    ///
+    /// For example, `import { value } from "./module"; value.member` is represented as
+    /// `{ export: "value", member: "member" }`. At this point, `value` has not yet been
+    /// resolved and might be either an ordinary value or a namespace object. If it is not a
+    /// namespace object, this behaves like [`ModulePart::Export`].
+    PartialExport { export: RcStr, member: RcStr },
+    /// Represents an export renamed while following re-exports, such as `foo` exported as `bar`
+    /// by `export { foo as bar } from "./module"`.
     RenamedExport {
         original_export: RcStr,
         export: RcStr,
     },
-    /// Represents a namespace object of a module exported as named export.
+    /// Represents a namespace object exported as a named export, such as `ns` in
+    /// `export * as ns from "./module"`.
     RenamedNamespace { export: RcStr },
-    /// A pointer to a specific part.
+    /// Represents a namespace object exported as a named export when only one member is used.
+    ///
+    /// For example, `import { ns } from "./lib"; ns.member`, where `lib` contains
+    /// `export * as ns from "./module"`, is represented as
+    /// `{ export: "ns", member: "member" }` after resolving `ns` to the namespace object.
+    RenamedPartialNamespace { export: RcStr, member: RcStr },
+    /// Points to a generated module-fragment part by its numeric index, such as the part that
+    /// contains one local declaration.
     Internal(u32),
-    /// The local declarations of a module.
+    /// Represents the local declarations of a module, such as `const value = 1`.
     Locals,
-    /// The whole exports of a module.
+    /// Represents the module's export declarations, such as `export { foo, bar }`.
     Exports,
-    /// A facade of the module behaving like the original, but referencing
-    /// internal parts.
+    /// Represents a facade that behaves like the original module while referencing its internal
+    /// parts, such as the facade emitted for a split module.
     Facade,
 }
 
@@ -3455,6 +3499,10 @@ impl ModulePart {
         ModulePart::Export(export)
     }
 
+    pub fn partial_export(export: RcStr, member: RcStr) -> Self {
+        ModulePart::PartialExport { export, member }
+    }
+
     pub fn renamed_export(original_export: RcStr, export: RcStr) -> Self {
         ModulePart::RenamedExport {
             original_export,
@@ -3464,6 +3512,22 @@ impl ModulePart {
 
     pub fn renamed_namespace(export: RcStr) -> Self {
         ModulePart::RenamedNamespace { export }
+    }
+
+    pub fn renamed_partial_namespace(export: RcStr, member: RcStr) -> Self {
+        ModulePart::RenamedPartialNamespace { export, member }
+    }
+
+    /// Returns the named export exposed by this part, if it has one.
+    pub fn get_export(&self) -> Option<&RcStr> {
+        match self {
+            ModulePart::Export(export)
+            | ModulePart::PartialExport { export, .. }
+            | ModulePart::RenamedExport { export, .. }
+            | ModulePart::RenamedNamespace { export }
+            | ModulePart::RenamedPartialNamespace { export, .. } => Some(export),
+            _ => None,
+        }
     }
 
     pub fn internal(id: u32) -> Self {
@@ -3488,12 +3552,16 @@ impl Display for ModulePart {
         match self {
             ModulePart::Evaluation => f.write_str("module evaluation"),
             ModulePart::Export(export) => write!(f, "export {export}"),
+            ModulePart::PartialExport { export, member } => {
+                write!(f, "export {export} .{member}")
+            }
             ModulePart::RenamedExport {
                 original_export,
                 export,
             } => write!(f, "export {original_export} as {export}"),
-            ModulePart::RenamedNamespace { export } => {
-                write!(f, "export * as {export}")
+            ModulePart::RenamedNamespace { export } => write!(f, "export * as {export}"),
+            ModulePart::RenamedPartialNamespace { export, member } => {
+                write!(f, "export * as {export} .{member}")
             }
             ModulePart::Internal(id) => write!(f, "internal part {id}"),
             ModulePart::Locals => f.write_str("locals"),
@@ -3520,6 +3588,44 @@ mod tests {
         asset::AssetContent, module::Module, raw_module::RawModule, source::Source,
         virtual_source::VirtualSource,
     };
+
+    #[test]
+    fn module_part_export_names_and_display() {
+        let export = rcstr!("value");
+        let member = rcstr!("member");
+        let original = rcstr!("original");
+
+        let with_exports = [
+            ModulePart::export(export.clone()),
+            ModulePart::partial_export(export.clone(), member.clone()),
+            ModulePart::renamed_export(original, export.clone()),
+            ModulePart::renamed_namespace(export.clone()),
+            ModulePart::renamed_partial_namespace(export.clone(), member.clone()),
+        ];
+        for part in with_exports {
+            assert_eq!(part.get_export(), Some(&export));
+        }
+
+        let without_exports = [
+            ModulePart::evaluation(),
+            ModulePart::internal(0),
+            ModulePart::locals(),
+            ModulePart::exports(),
+            ModulePart::facade(),
+        ];
+        for part in without_exports {
+            assert_eq!(part.get_export(), None);
+        }
+
+        assert_eq!(
+            ModulePart::partial_export(export.clone(), member.clone()).to_string(),
+            "export value .member"
+        );
+        assert_eq!(
+            ModulePart::renamed_partial_namespace(export, member).to_string(),
+            "export * as value .member"
+        );
+    }
 
     #[cfg(unix)]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -4160,6 +4266,38 @@ mod tests {
             assert_eq!(
                 snap.iter().map(String::as_str).collect::<Vec<_>>(),
                 vec!["module:a.js", "dup:0", "module:b.js"]
+            );
+            Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn concat_preserves_distinct_modules_with_same_request_key() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        #[turbo_tasks::function(operation, root)]
+        async fn run_test() -> Result<Vc<DupCheckResult>> {
+            let app = make_module(rcstr!("app.js")).to_resolved().await?;
+            let package = make_module(rcstr!("package.js")).to_resolved().await?;
+            let key = RequestKey::new(rcstr!("./config.js"));
+            let app_result = *ModuleResolveResult::module_with_key(key.clone(), app);
+            let package_result = *ModuleResolveResult::modules([
+                (key, package),
+                (RequestKey::new(rcstr!("also-app")), app),
+            ]);
+            let combined = ModuleResolveResult::concat(vec![app_result, package_result]).await?;
+            assert_eq!(combined.primary_modules().await?.as_slice(), [app, package]);
+            Ok(Vc::cell(snapshot_primary(&combined).await?))
+        }
+        tt.run_once(async move {
+            let snap = run_test().read_strongly_consistent().await?;
+            assert_eq!(
+                snap.iter().map(String::as_str).collect::<Vec<_>>(),
+                vec!["module:app.js", "module:package.js", "dup:0"]
             );
             Ok(())
         })

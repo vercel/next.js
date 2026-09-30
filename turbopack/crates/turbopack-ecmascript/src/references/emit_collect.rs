@@ -5,9 +5,7 @@ use swc_core::{
     ecma::ast::{Expr, IdentName, Invalid, MemberExpr, MemberProp},
 };
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{
-    NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
-};
+use turbo_tasks::{NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat};
 use turbopack_core::{
     chunk::{ChunkingContext, ChunkingType},
     compile_time_info::CompileTimeDefineValue,
@@ -239,9 +237,7 @@ impl IntoCodeGenReference for CollectReference {
     }
 }
 
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode)]
 pub struct CollectReferenceCodeGen {
     reference: ResolvedVc<CollectReference>,
     path: AstPathId,

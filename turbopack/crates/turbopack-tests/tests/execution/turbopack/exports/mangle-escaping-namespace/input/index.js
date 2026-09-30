@@ -1,5 +1,10 @@
 import { getEnums } from './provider'
-import { multiHopExportsInfo, readMultiHopDiamond } from './multi-hop-provider'
+import {
+  multiHopExportsInfo,
+  readMultiHopDiamond,
+  enumerateMultiHopNamespace,
+  readMultiHopByComputedKey,
+} from './multi-hop-provider'
 import { readForwardedNamespace } from './forwarded-provider'
 import {
   forwardedExportsInfo,
@@ -59,8 +64,19 @@ it('should preserve namespace reads through an export-star forwarding edge', () 
 
 it('should preserve namespace names through a multi-hop diamond', () => {
   expect(readMultiHopDiamond()).toEqual(['multi-hop', 'multi-hop'])
+  // Without a mangling-only facade, the escaped namespace and named consumers use the original
+  // export keys from the same source module.
   expect(multiHopExportsInfo.veryLongMultiHopExportName.canMangle).toBe(false)
   expect(multiHopExportsInfo.veryLongMultiHopExportName.mangledName).toBeNull()
+  // The escaped namespace must still expose the ORIGINAL names, both by enumeration and by
+  // dynamic (non-statically-analyzable) key access.
+  expect(enumerateMultiHopNamespace()).toEqual([
+    'multiHopExportsInfo',
+    'veryLongMultiHopExportName',
+  ])
+  expect(readMultiHopByComputedKey('veryLongMultiHopExportName')).toBe(
+    'multi-hop'
+  )
 })
 
 it('should still mangle ordinary named reads through an export-star forwarding edge', () => {

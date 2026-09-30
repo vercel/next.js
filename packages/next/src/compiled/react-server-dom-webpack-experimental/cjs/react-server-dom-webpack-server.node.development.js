@@ -4796,6 +4796,12 @@
       });
       enqueueFlush(request);
     }
+    function createStringDecoder() {
+      return new util.TextDecoder("utf-8", {
+        ignoreBOM:
+          0 < arguments.length && void 0 !== arguments[0] ? arguments[0] : !1
+      });
+    }
     function resolveServerReference(bundlerConfig, id) {
       var name = "",
         resolvedModuleData = bundlerConfig[id];
@@ -6148,7 +6154,7 @@
       function onClose() {
         closeDebugChannel(request);
       }
-      var stringDecoder = new util.TextDecoder(),
+      var stringDecoder = createStringDecoder(),
         lastWasPartial = !1,
         stringBuffer = "";
       "function" === typeof stream.addEventListener &&
@@ -6225,7 +6231,7 @@
         );
       }
       var reader = stream.getReader(),
-        stringDecoder = new util.TextDecoder(),
+        stringDecoder = createStringDecoder(),
         stringBuffer = "";
       reader.read().then(progress).catch(error);
     }

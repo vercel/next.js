@@ -1,3 +1,4 @@
+import type { NudgeKind } from '../lib/upgrade/nudge'
 import type { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import type {
   ExportPathMap,
@@ -243,6 +244,8 @@ import {
 import { generateRoutesManifest } from './generate-routes-manifest'
 import { buildCustomRoute } from '../lib/build-custom-route'
 import { validateAppPaths } from './validate-app-paths'
+import { throwMissingGspErrorInStaticRoute } from '../shared/lib/errors/ensure-static-gsp-errors'
+import { isEmptyParams } from '../server/lib/params-utils'
 
 type Fallback = null | boolean | string
 
@@ -319,6 +322,12 @@ export interface PrerenderManifestRoute
    * route.
    */
   renderingMode: RenderingMode | undefined
+
+  // TODO(ensure-static): communicate this in a better way
+  /**
+   * Whether this page had `ensureStatic = "navigation"`
+   * */
+  _isEnsureStaticPage?: true
 
   /**
    * The headers that are allowed to be used when revalidating this route. These
@@ -398,6 +407,12 @@ export interface DynamicPrerenderManifestRoute
    * route.
    */
   renderingMode: RenderingMode | undefined
+
+  // TODO(ensure-static): communicate this in a better way
+  /**
+   * Whether this page had `ensureStatic = "navigation"`
+   * */
+  _isEnsureStaticPage?: true
 
   /**
    * The headers that are allowed to be used when revalidating this route. These
@@ -1057,7 +1072,7 @@ async function getBuildId(
 
 export default async function build(
   dir: string,
-  experimentalAnalyze = false,
+  analyze = false,
   reactProductionProfiling = false,
   debugOutput = false,
   debugPrerender = false,
@@ -1067,12 +1082,13 @@ export default async function build(
   experimentalBuildMode: 'default' | 'compile' | 'generate' | 'generate-env',
   traceUploadUrl: string | undefined,
   debugBuildPathsPatterns: string[] | undefined,
-  enabledFeatures: Record<string, unknown> = {}
-): Promise<void> {
+  enabledFeatures: Record<string, unknown> = {},
+  allowHumanUpgrade = false
+): Promise<NudgeKind | 'interrupt' | void> {
   const isCompileMode = experimentalBuildMode === 'compile'
   const isGenerateMode = experimentalBuildMode === 'generate'
   NextBuildContext.isCompileMode = isCompileMode
-  NextBuildContext.analyze = experimentalAnalyze
+  NextBuildContext.analyze = analyze
   const buildStartTime = Date.now()
   let appType: RoutesManifest['appType']
 
@@ -1108,7 +1124,7 @@ export default async function build(
     NextBuildContext.noMangling = noMangling
     NextBuildContext.debugPrerender = debugPrerender
 
-    await nextBuildSpan.traceAsyncFn(async () => {
+    return await nextBuildSpan.traceAsyncFn(async () => {
       // attempt to load global env values so they are available in next.config.js
       const { loadedEnvFiles } = nextBuildSpan
         .traceChild('load-dotenv')
@@ -1149,16 +1165,38 @@ export default async function build(
 
       // Reuse the loaded config; ordinary builds do not load upgrade tooling.
       if (
-        config.experimental.agenticAutoUpgrade === 'security' ||
-        config.experimental.agenticAutoUpgrade === 'latest' ||
-        config.experimental.agenticAutoUpgrade === 'future'
+        config.experimental.agentUpgrade === 'security' ||
+        config.experimental.agentUpgrade === 'latest' ||
+        config.experimental.agentUpgrade === 'experimental-future' ||
+        process.env.__NEXT_AGENT_UPGRADE
       ) {
-        const { nudgeForUpgrade } =
+        const { nudgeUpgrade, getUpgradeContext } =
           require('../lib/upgrade/nudge') as typeof import('../lib/upgrade/nudge')
-        pendingUpgradeNudge = nudgeForUpgrade(dir, config, 'build')
-        // Build work proceeds in parallel, but a fatal security result must be
-        // observed before the command reports successful completion.
-        void pendingUpgradeNudge.catch(() => {})
+        const upgradeContext = getUpgradeContext(config)
+        if (allowHumanUpgrade) {
+          // TODO: Do not block the build while prompting for an upgrade.
+          // Preserve all logs for display after the prompt and stop the build before Update.
+          const action = await nudgeUpgrade(
+            dir,
+            upgradeContext,
+            'build',
+            new AbortController().signal
+          ).catch((error) => {
+            Log.warn(`Could not offer the upgrade: ${String(error)}`)
+          })
+          if (action === 'update' && upgradeContext.experimental.agentUpgrade) {
+            return upgradeContext.experimental.agentUpgrade
+          }
+          if (action === 'interrupt') {
+            return 'interrupt' as const
+          }
+        } else {
+          // Agent checks retain their parallel behavior; humans decide before building.
+          pendingUpgradeNudge = nudgeUpgrade(dir, upgradeContext, 'build').then(
+            () => {}
+          )
+          void pendingUpgradeNudge.catch(() => {})
+        }
       }
 
       // Resolve selective build paths now that the page extensions are known.
@@ -2316,6 +2354,7 @@ export default async function build(
               distDir,
               configFileName,
               cacheComponents: isAppCacheComponentsEnabled,
+              partialPrefetching: config.partialPrefetching,
               authInterrupts: isAuthInterruptsEnabled,
               useCacheTimeout: config.experimental.useCacheTimeout,
               durableUseCacheEntries: Boolean(
@@ -2418,6 +2457,7 @@ export default async function build(
                 const actualPage = normalizePagePath(page)
 
                 let isRoutePPREnabled = false
+                let isEnsureStaticPage = false
                 let isSSG = false
                 let isStatic = false
                 let isServerComponent = false
@@ -2550,6 +2590,7 @@ export default async function build(
                             edgeInfo,
                             pageType,
                             cacheComponents: isAppCacheComponentsEnabled,
+                            partialPrefetching: config.partialPrefetching,
                             authInterrupts: isAuthInterruptsEnabled,
                             useCacheTimeout:
                               config.experimental.useCacheTimeout,
@@ -2593,6 +2634,15 @@ export default async function build(
                             typeof workerResult.isRoutePPREnabled === 'boolean'
                           ) {
                             isRoutePPREnabled = workerResult.isRoutePPREnabled
+                            if (
+                              config.cacheComponents &&
+                              isRoutePPREnabled &&
+                              workerResult.appConfig
+                            ) {
+                              isEnsureStaticPage =
+                                workerResult.appConfig.unstable_ensureStatic ===
+                                'navigation'
+                            }
                           }
 
                           // If this route can be partially pre-rendered, then
@@ -2627,16 +2677,25 @@ export default async function build(
                           if (appConfig.revalidate !== 0) {
                             const hasGenerateStaticParams =
                               workerResult.prerenderedRoutes &&
-                              workerResult.prerenderedRoutes.length > 0
-
-                            if (
-                              config.output === 'export' &&
-                              isDynamic &&
-                              !hasGenerateStaticParams
-                            ) {
-                              throw new Error(
-                                `Page "${page}" is missing "generateStaticParams()" so it cannot be used with "output: export" config. See more info here: https://nextjs.org/docs/messages/generate-static-params`
+                              workerResult.prerenderedRoutes.length > 0 &&
+                              // in PPR, we create fallback routes with empty params.
+                              // If at least one non-empty param exists, it must've been
+                              // generated by `generateStaticParams`. Static metadata files
+                              // use a placeholder path with empty params instead.
+                              workerResult.prerenderedRoutes.some(
+                                (route) =>
+                                  isStaticMetadataFile(route.pathname) ||
+                                  !isEmptyParams(route.params)
                               )
+                            if (isDynamic && !hasGenerateStaticParams) {
+                              if (config.output === 'export') {
+                                throw new Error(
+                                  `Page "${page}" is missing "generateStaticParams()" so it cannot be used with "output: export" config. See more info here: https://nextjs.org/docs/messages/generate-static-params`
+                                )
+                              }
+                              if (isEnsureStaticPage) {
+                                throwMissingGspErrorInStaticRoute(page)
+                              }
                             }
 
                             // Mark the app as static if:
@@ -2789,6 +2848,7 @@ export default async function build(
                   isStatic,
                   isSSG,
                   isRoutePPREnabled,
+                  isEnsureStaticPage,
                   ssgPageRoutes,
                   initialCacheControl: undefined,
                   runtime: pageRuntime,
@@ -3517,6 +3577,9 @@ export default async function build(
               }
             }
 
+            const isEnsureStaticPage =
+              pageInfos.get(page)?.isEnsureStaticPage === true
+
             // Handle all the static routes.
             for (const route of concretePrerenderCandidates) {
               if (isDynamicRoute(page) && route.pathname === page) continue
@@ -3619,6 +3682,7 @@ export default async function build(
                       : RenderingMode.STATIC
                     : undefined,
                   ...classification,
+                  _isEnsureStaticPage: isEnsureStaticPage || undefined,
                   experimentalPPR: isRoutePPREnabled,
                   experimentalBypassFor: bypassFor,
                   initialRevalidateSeconds: cacheControl.revalidate,
@@ -3923,6 +3987,7 @@ export default async function build(
                     route.remainingPrerenderableParams,
                   throwOnEmptyStaticShell:
                     prerenderCandidate?.throwOnEmptyStaticShell,
+                  _isEnsureStaticPage: isEnsureStaticPage || undefined,
                   renderingMode: isAppPPREnabled
                     ? isRoutePPREnabled
                       ? RenderingMode.PARTIALLY_STATIC
@@ -4698,9 +4763,13 @@ export default async function build(
         })
 
         // Write an index of routes for the route picker
-        const routes = routesManifest.dynamicRoutes
-          .map((r) => r.page)
-          .concat(routesManifest.staticRoutes.map((r) => r.page))
+        const routes = Array.from(
+          new Set(
+            routesManifest.dynamicRoutes
+              .map((r) => r.page)
+              .concat(routesManifest.staticRoutes.map((r) => r.page))
+          )
+        )
         await writeFile(
           path.join(analyzeDir, 'data/routes.json'),
           JSON.stringify(routes, null, 2)

@@ -15,7 +15,6 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, Effects, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TurboTasks, Vc,
     debug::ValueDebugFormat, fxindexmap, read_strongly_consistent_and_apply_effects, take_effects,
-    trace::TraceRawVcs,
 };
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_env::CommandLineProcessEnv;
@@ -26,6 +25,7 @@ use turbo_tasks_fs::{
 use turbo_unix_path::sys_to_unix;
 use turbopack::{
     ModuleAssetContext,
+    global_module_ids::get_global_module_id_strategy,
     module_options::{
         EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions,
         side_effect_free_packages_glob,
@@ -80,7 +80,7 @@ struct RunTestResult {
 struct JsResult {
     uncaught_exceptions: Vec<String>,
     unhandled_rejections: Vec<String>,
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(unsafe_ignore)]
     jest_result: JestRunResult,
 }
 
@@ -261,9 +261,7 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
     .await
 }
 
-#[derive(
-    PartialEq, Eq, Debug, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, Debug, Deserialize, ValueDebugFormat, NonLocalValue, Encode, Decode)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct TestOptions {
     #[serde(default = "default_true")]
@@ -290,6 +288,8 @@ struct TestOptions {
     minify: bool,
     #[serde(default)]
     production_chunking: bool,
+    #[serde(default)]
+    global_module_ids: bool,
     /// Packages that are assumed to be side effect free, unless they declare otherwise in their
     /// package.json.
     #[serde(default)]
@@ -320,6 +320,7 @@ impl Default for TestOptions {
             infer_module_side_effects: default_true(),
             minify: false,
             production_chunking: false,
+            global_module_ids: false,
             side_effect_free_packages: Vec::new(),
             server_relative_root: default_true(),
         }
@@ -605,6 +606,14 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     } else {
         None
     });
+
+    if options.global_module_ids {
+        builder = builder.module_id_strategy(
+            get_global_module_id_strategy(module_graph)
+                .to_resolved()
+                .await?,
+        );
+    }
 
     if options.remove_unused_imports {
         builder = builder.unused_references(

@@ -55,7 +55,11 @@ import { patchSetHeaderWithCookieSupport } from '../lib/patch-set-header'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
 import { isStaticMetadataRoute } from '../../lib/metadata/is-metadata-route'
 import { IncrementalCache } from '../lib/incremental-cache'
-import { initializeCacheHandlers, setCacheHandler } from '../use-cache/handlers'
+import {
+  initializeCacheHandlers,
+  registerCustomCacheHandlers,
+  setCacheHandler,
+} from '../use-cache/handlers'
 import { interopDefault } from '../app-render/interop-default'
 import { RouteKind } from '../route-kind'
 import type { BaseNextRequest } from '../base-http'
@@ -453,35 +457,34 @@ export abstract class RouteModule<
       const { cacheMaxMemorySize, cacheHandlers } = nextConfig
       if (!cacheHandlers) return
 
-      // If we've already initialized the cache handlers interface, don't do it
-      // again.
-      if (!initializeCacheHandlers(cacheMaxMemorySize)) return
+      initializeCacheHandlers(cacheMaxMemorySize)
+      await registerCustomCacheHandlers(async () => {
+        for (const [kind, handler] of Object.entries(cacheHandlers)) {
+          if (!handler) continue
 
-      for (const [kind, handler] of Object.entries(cacheHandlers)) {
-        if (!handler) continue
+          const { formatDynamicImportPath } =
+            require('../../lib/format-dynamic-import-path') as typeof import('../../lib/format-dynamic-import-path')
 
-        const { formatDynamicImportPath } =
-          require('../../lib/format-dynamic-import-path') as typeof import('../../lib/format-dynamic-import-path')
+          const { join } = require('node:path') as typeof import('node:path')
+          const absoluteProjectDir = join(
+            /* turbopackIgnore: true */
+            process.cwd(),
+            getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
+          )
 
-        const { join } = require('node:path') as typeof import('node:path')
-        const absoluteProjectDir = join(
-          /* turbopackIgnore: true */
-          process.cwd(),
-          getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
-        )
-
-        setCacheHandler(
-          kind,
-          interopDefault(
-            await dynamicImportEsmDefault(
-              formatDynamicImportPath(
-                `${absoluteProjectDir}/${this.distDir}`,
-                handler
+          setCacheHandler(
+            kind,
+            interopDefault(
+              await dynamicImportEsmDefault(
+                formatDynamicImportPath(
+                  `${absoluteProjectDir}/${this.distDir}`,
+                  handler
+                )
               )
             )
           )
-        )
-      }
+        }
+      })
     }
   }
 
@@ -1093,7 +1096,6 @@ export abstract class RouteModule<
     } catch (_) {}
 
     resolvedPathname = removeTrailingSlash(resolvedPathname)
-    addRequestMeta(req, 'resolvedPathname', resolvedPathname)
 
     let deploymentId
     if (nextConfig.experimental?.runtimeServerDeploymentId) {

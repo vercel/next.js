@@ -63,6 +63,10 @@ import { resolveCacheHandlerPathToFilesystem } from '../../lib/format-dynamic-im
 import { InvariantError } from '../../shared/lib/invariant-error'
 import type { __ApiPreviewProps } from '../../server/api-utils'
 import { mapNftFileEntries, type NftJson } from '../nft'
+import {
+  createAdapterSyntheticSymlinkDirectory,
+  type SyntheticSymlinkManager,
+} from './synthetic-symlinks'
 
 interface SharedRouteFields {
   /**
@@ -654,6 +658,7 @@ export async function handleBuildComplete({
   ) as NextAdapter
 
   if (typeof adapterMod.onBuildComplete === 'function') {
+    const syntheticSymlinks = createAdapterSyntheticSymlinkDirectory(distDir)
     const outputs: AdapterOutputs = {
       pages: [],
       pagesApi: [],
@@ -725,6 +730,7 @@ export async function handleBuildComplete({
         bundler,
         hasInstrumentationHook,
         config,
+        syntheticSymlinks,
       })
 
       async function handleTraceFiles(
@@ -737,7 +743,9 @@ export async function handleBuildComplete({
           assets,
           assetsHashes,
           repoRoot,
-          `${entryFilePath}.nft.json`
+          `${entryFilePath}.nft.json`,
+          syntheticSymlinks,
+          config.outputHashSalt || ''
         )
         Object.assign(
           assets,
@@ -2092,15 +2100,13 @@ export async function handleBuildComplete({
       return '?' + items.map(([key, value]) => `${value}=$${key}`).join('&')
     }
 
+    // The valid bypass token admits both Draft Mode and legacy Preview Mode.
+    // Pages Router validates legacy preview data after routing.
     const fallbackFalseHasCondition: RouteHas[] = [
       {
         type: 'cookie',
         key: '__prerender_bypass',
         value: previewProps.previewModeId,
-      },
-      {
-        type: 'cookie',
-        key: '__next_preview_data',
       },
     ]
 
@@ -2196,7 +2202,7 @@ export async function handleBuildComplete({
 
       // A single entry can serve both forms of the request only when both carry
       // the same conditions. A pages router route with `fallback: false` is the
-      // one case where they differ: it requires the preview cookies on the
+      // one case where they differ: it requires the bypass cookie on the
       // plain form, and not on the suffixed form. An entry holds one set of
       // conditions, so that case keeps a separate entry per form.
       const canMergeSuffixedAndPlain =
@@ -2490,6 +2496,7 @@ async function getSharedNodeAssets({
   requiredServerFiles,
   hasInstrumentationHook,
   config,
+  syntheticSymlinks,
 }: {
   dir: string
   bundler: Bundler
@@ -2499,6 +2506,7 @@ async function getSharedNodeAssets({
   requiredServerFiles: string[]
   hasInstrumentationHook: boolean
   config: NextConfigComplete
+  syntheticSymlinks: SyntheticSymlinkManager
 }) {
   const sharedNodeAssets: Record<string, string> = {}
   const sharedNodeAssetsHashes: Record<string, string> = {}
@@ -2699,7 +2707,9 @@ async function getSharedNodeAssets({
       sharedNodeAssets,
       sharedNodeAssetsHashes,
       repoRoot,
-      path.join(distDir, 'server', 'instrumentation.js.nft.json')
+      path.join(distDir, 'server', 'instrumentation.js.nft.json'),
+      syntheticSymlinks,
+      salt
     )
 
     const fileOutputPath = path.relative(
@@ -2764,38 +2774,61 @@ async function loadNFT(
   assets: Record<string, string>,
   assetsHashes: Record<string, string>,
   repoRoot: string,
-  traceFilePath: string
+  traceFilePath: string,
+  syntheticSymlinks: SyntheticSymlinkManager,
+  salt: string
 ): Promise<{ entryHash?: string }> {
   const nft = JSON.parse(await fs.readFile(traceFilePath, 'utf8')) as NftJson
 
-  // This call site only records source locations and hashes, so it does not need
-  // the mapped symlink targets.
   for (const entry of mapNftFileEntries(nft, traceFilePath, repoRoot)) {
-    assets[entry.destination] = entry.source
-    if (entry.hash) {
-      assetsHashes[entry.destination] = entry.hash
+    let source = entry.source
+    let hash = entry.hash
+
+    if (entry.symlinkCrossesRoot) {
+      if (entry.symlinkTarget === undefined) {
+        throw new InvariantError(
+          `Expected cross-root symlink ${JSON.stringify(entry.destination)} to have a target`
+        )
+      }
+      const linkTarget =
+        path.relative(path.dirname(entry.destination), entry.symlinkTarget) ||
+        '.'
+      hash = hashLinkTarget(salt, linkTarget)
+      source = syntheticSymlinks.createLink(entry.source, linkTarget, hash)
+    }
+
+    assets[entry.destination] = source
+    if (hash) {
+      assetsHashes[entry.destination] = hash
     }
   }
   return { entryHash: nft.entryHash }
 }
 
 async function hashFile(salt: string, filePath: string): Promise<string> {
-  const hash = crypto.createHash('sha256')
-  hash.update(salt)
   try {
     // Try symlink first, since readFile just transparently resolves those (or fails if it's a
     // directory symlink).
     const linkTarget = await fs.readlink(filePath)
-    hash.update('link')
-    hash.update(linkTarget)
+    return hashLinkTarget(salt, linkTarget)
   } catch (e: any) {
     if (e.code === 'EINVAL') {
       // Not a symlink
+      const hash = crypto.createHash('sha256')
+      hash.update(salt)
       hash.update('file:')
       hash.update(await fs.readFile(filePath))
+      return hash.digest('hex')
     } else {
       throw e
     }
   }
+}
+
+function hashLinkTarget(salt: string, linkTarget: string): string {
+  const hash = crypto.createHash('sha256')
+  hash.update(salt)
+  hash.update('link')
+  hash.update(linkTarget)
   return hash.digest('hex')
 }

@@ -8,7 +8,7 @@ use swc_core::{
     quote,
 };
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::chunk::ChunkingContext;
 
@@ -26,9 +26,7 @@ use crate::{
 /// in the file. But we must only initialize the binding a single time.
 ///
 /// This singleton behavior must be enforced by the caller!
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode)]
 pub struct ImportMetaBinding {
     path: FileSystemPath,
     hmr_enabled: bool,
@@ -137,9 +135,7 @@ impl From<ImportMetaBinding> for CodeGen {
 ///
 /// There can be many references to import.meta, and they appear at any nesting
 /// in the file. But all references refer to the same mutable object.
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode)]
 pub struct ImportMetaRef {
     ast_path: AstPathId,
 }

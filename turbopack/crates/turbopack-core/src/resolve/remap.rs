@@ -537,7 +537,7 @@ fn expand_folder_shorthand(key: &str, value: &mut SubpathValue) -> Result<AliasP
 /// Content of an "alias" configuration
 #[turbo_tasks::value(shared)]
 #[derive(Default)]
-pub struct ResolveAliasMap(#[turbo_tasks(trace_ignore)] AliasMap<SubpathValue>);
+pub struct ResolveAliasMap(#[turbo_tasks(unsafe_ignore)] AliasMap<SubpathValue>);
 
 impl TryFrom<&FxIndexMap<RcStr, Value>> for ResolveAliasMap {
     type Error = anyhow::Error;

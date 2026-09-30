@@ -5,15 +5,11 @@ use next_core::{
     next_server_component::server_component_module::NextServerComponentModule,
 };
 use rustc_hash::FxHashMap;
-use turbo_tasks::{
-    JoinIterExt, NonLocalValue, ResolvedVc, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
-};
+use turbo_tasks::{JoinIterExt, NonLocalValue, ResolvedVc, Vc, debug::ValueDebugFormat};
 use turbopack_core::{module::Module, module_graph::ModuleGraphLayer};
 use turbopack_css::chunk::CssChunkPlaceable;
 
-#[derive(
-    Copy, Clone, Eq, PartialEq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Encode, Decode,
-)]
+#[derive(Copy, Clone, Eq, PartialEq, ValueDebugFormat, NonLocalValue, Encode, Decode)]
 pub enum ClientManifestEntryType {
     EcmascriptClientReference {
         module: ResolvedVc<EcmascriptClientReferenceModule>,

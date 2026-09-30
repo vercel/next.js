@@ -7,7 +7,7 @@ use next_core::app_structure::FileSystemPathVec;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     Completion, FxIndexMap, FxIndexSet, JoinIterExt, NonLocalValue, OperationVc, ResolvedVc,
-    TryJoinIterExt, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
+    TryJoinIterExt, Vc, debug::ValueDebugFormat,
 };
 use turbopack_core::{
     module_graph::{GraphEntries, ModuleGraph},
@@ -16,9 +16,7 @@ use turbopack_core::{
 
 use crate::{operation::OptionEndpoint, paths::AssetPath, project::Project};
 
-#[derive(
-    TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode)]
 pub struct AppPageRoute {
     pub original_name: RcStr,
     pub html_endpoint: ResolvedVc<Box<dyn Endpoint>>,
@@ -78,9 +76,7 @@ pub trait Endpoint {
     fn traced_files(self: Vc<Self>) -> Vc<FileSystemPathVec>;
 }
 
-#[derive(
-    TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode)]
 pub enum EndpointGroupKey {
     Instrumentation,
     InstrumentationEdge,
@@ -119,17 +115,13 @@ impl Display for EndpointGroupKey {
     }
 }
 
-#[derive(
-    TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode)]
 pub struct EndpointGroupEntry {
     pub endpoint: ResolvedVc<Box<dyn Endpoint>>,
     pub sub_name: Option<RcStr>,
 }
 
-#[derive(
-    TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode)]
 pub struct EndpointGroup {
     pub primary: Vec<EndpointGroupEntry>,
     pub additional: Vec<EndpointGroupEntry>,

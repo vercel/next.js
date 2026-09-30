@@ -5,9 +5,7 @@ use bincode::{Decode, Encode};
 use either::Either;
 use rustc_hash::FxHashMap;
 use smallvec::{SmallVec, smallvec};
-use turbo_tasks::{
-    FxIndexMap, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc, trace::TraceRawVcs,
-};
+use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 
 use crate::{
     chunk::{ChunkItemWithAsyncModuleInfo, ChunkType, ChunkableModule, ChunkingContext},
@@ -60,7 +58,7 @@ pub async fn attach_async_info_to_chunkable_module(
 }
 
 #[turbo_tasks::task_input]
-#[derive(Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Encode, Decode)]
 pub enum ChunkItemOrBatchWithAsyncModuleInfo {
     ChunkItem(ChunkItemWithAsyncModuleInfo),
     Batch(ResolvedVc<ChunkItemBatchWithAsyncModuleInfo>),

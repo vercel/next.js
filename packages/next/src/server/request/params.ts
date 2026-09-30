@@ -33,7 +33,7 @@ import {
   trackIncompatibleShellContent,
 } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
-import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
+import { abortOnDynamicAccess } from '../app-render/dynamic-access-async-storage.external'
 import {
   isEmptyParams,
   hasFallbackRouteParams,
@@ -378,6 +378,7 @@ function createStaticPrerenderParams(
             // to consider the awaiting of this params object "dynamic". Since
             // we are in cacheComponents mode we encode this as a promise that never
             // resolves.
+
             return makeHangingParams(
               underlyingParams,
               workStore,
@@ -573,8 +574,8 @@ function createStagedRenderParamsImpl(
     // so static params can resolve in the static stage, because session
     // shells are handled with a separate render.
     // However, in dev we might need to recover a session shell for instant validation.
-    // This is indicated by `needsAppShell`.
-    const staticParamsStage = workUnitStore.needsAppShell
+    // This is indicated by `needsRuntimeShell`.
+    const staticParamsStage = workUnitStore.needsRuntimeShell
       ? RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
       : RENDER_STAGES_BY_DATA_KIND.staticLinkData
 
@@ -694,13 +695,10 @@ const fallbackParamsProxyHandler: ProxyHandler<Promise<Params>> = {
             trackFallbackParamsAccessed(workUnitStore, '`params`')
           }
 
-          const store = dynamicAccessAsyncStorage.getStore()
-
-          if (store) {
-            store.abortController.abort(
-              new Error(`Accessed fallback \`params\` during prerendering.`)
-            )
-          }
+          abortOnDynamicAccess(
+            'fallback-params',
+            new Error(`Accessed fallback \`params\` during prerendering.`)
+          )
 
           return new Proxy(
             originalMethod.apply(target, args),

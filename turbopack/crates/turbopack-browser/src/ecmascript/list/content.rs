@@ -6,7 +6,7 @@ use either::Either;
 use indoc::writedoc;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, TryJoinIterExt, Vc, trace::TraceRawVcs};
+use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -28,9 +28,7 @@ use crate::chunking_context::{
     CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR, CurrentChunkMethod,
 };
 
-#[derive(
-    Clone, Debug, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, NonLocalValue, Encode, Decode,
-)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 enum CurrentChunkMethodWithData {
     StringLiteral(RcStr),
     DocumentCurrentScript,

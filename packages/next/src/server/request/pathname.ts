@@ -95,9 +95,7 @@ function createPrerenderPathname(
     case 'prerender': {
       const fallbackParams = prerenderStore.fallbackRouteParams
       if (fallbackParams && fallbackParams.size > 0) {
-        // The pathname only hangs when there are fallback params, and a
-        // concrete (ISR-upgraded) prerender resolves it — so this access is
-        // fallback-param data for the static-prefetch hint.
+        // The pathname depends on params, so we track it like a fallback params access.
         return makeFallbackParamsHangingPromise<string>(
           prerenderStore.renderSignal,
           workStore.route,

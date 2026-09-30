@@ -746,15 +746,19 @@ export function TreemapVisualizer({
     cssHeight: number
     canvasWidth: number
     canvasHeight: number
+    devicePixelRatio: number
   }>({
     cssWidth: 1200,
     cssHeight: 800,
     canvasWidth: 1200,
     canvasHeight: 800,
+    devicePixelRatio: 1,
   })
   const [, _setTheme] = useState<'light' | 'dark'>('light')
 
-  // Build ancestor chain for focused source (list of source indices from root to focused)
+  // React Compiler caches the selected and hovered chains below, but the
+  // focused chain needs a manual memo to keep the expensive layout and canvas
+  // draw effect stable across unrelated renders.
   const focusedAncestorChain = useMemo(() => {
     const chain: number[] = []
     let currentIndex = focusedSourceIndex
@@ -770,7 +774,7 @@ export function TreemapVisualizer({
   }, [analyzeData, focusedSourceIndex])
 
   // Build ancestor chain for selected source
-  const selectedAncestorChain = useMemo(() => {
+  const selectedAncestorChain = (() => {
     const chain: number[] = []
     let currentIndex = selectedSourceIndex
 
@@ -782,10 +786,10 @@ export function TreemapVisualizer({
     }
 
     return chain
-  }, [analyzeData, selectedSourceIndex])
+  })()
 
   // Build ancestor chain for hovered node (only used for dimming)
-  const hoveredAncestorChain = useMemo(() => {
+  const hoveredAncestorChain = (() => {
     if (
       !shouldDimOthers ||
       !hoveredNode ||
@@ -804,28 +808,31 @@ export function TreemapVisualizer({
     }
 
     return chain
-  }, [analyzeData, hoveredNode, shouldDimOthers])
+  })()
 
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
 
     const updateSize = () => {
-      const dpr = window.devicePixelRatio || 1
+      const devicePixelRatio = window.devicePixelRatio || 1
       setDimensions((dimensions) => {
-        const rect = container.getBoundingClientRect()
+        const cssWidth = container.clientWidth
+        const cssHeight = container.clientHeight
         if (
-          dimensions.cssWidth === Math.floor(rect.width) &&
-          dimensions.cssHeight === Math.floor(rect.height)
+          dimensions.cssWidth === cssWidth &&
+          dimensions.cssHeight === cssHeight &&
+          dimensions.devicePixelRatio === devicePixelRatio
         ) {
           return dimensions
         }
 
         return {
-          cssWidth: Math.floor(rect.width),
-          cssHeight: Math.floor(rect.height),
-          canvasWidth: Math.floor(rect.width * dpr),
-          canvasHeight: Math.floor(rect.height * dpr),
+          cssWidth,
+          cssHeight,
+          canvasWidth: Math.round(cssWidth * devicePixelRatio),
+          canvasHeight: Math.round(cssHeight * devicePixelRatio),
+          devicePixelRatio,
         }
       })
     }
@@ -835,46 +842,52 @@ export function TreemapVisualizer({
     const resizeObserver = new ResizeObserver(updateSize)
     resizeObserver.observe(container)
 
-    return () => resizeObserver.disconnect()
+    let resolutionQuery = window.matchMedia(
+      `(resolution: ${window.devicePixelRatio || 1}dppx)`
+    )
+    const handleResolutionChange = () => {
+      resolutionQuery.removeEventListener('change', handleResolutionChange)
+      updateSize()
+      resolutionQuery = window.matchMedia(
+        `(resolution: ${window.devicePixelRatio || 1}dppx)`
+      )
+      resolutionQuery.addEventListener('change', handleResolutionChange)
+    }
+    resolutionQuery.addEventListener('change', handleResolutionChange)
+
+    return () => {
+      resizeObserver.disconnect()
+      resolutionQuery.removeEventListener('change', handleResolutionChange)
+    }
   }, [])
 
-  const layout = useMemo(() => {
-    // Compute layout using the focused source index
-    const focusedLayout = computeTreemapLayoutFromAnalyze(
-      analyzeData,
-      focusedSourceIndex,
-      {
-        x: 0,
-        y: 12 * focusedAncestorChain.length,
-        width: dimensions.cssWidth,
-        height: dimensions.cssHeight,
-      },
-      filterSource,
-      sizeMode
-    )
-
-    // If we're not at the root, wrap with ancestor title bars
-    if (focusedAncestorChain.length > 1) {
-      return wrapLayoutWithAncestorsUsingIndices(
-        focusedLayout,
-        focusedAncestorChain,
-        analyzeData,
-        dimensions.cssWidth,
-        dimensions.cssHeight,
-        12
-      )
-    }
-
-    return focusedLayout
-  }, [
+  // Layout walks the entire focused subtree; hover and selection redraw it
+  // in the canvas effect below.
+  const focusedLayout = computeTreemapLayoutFromAnalyze(
     analyzeData,
     focusedSourceIndex,
-    focusedAncestorChain,
-    dimensions.cssWidth,
-    dimensions.cssHeight,
+    {
+      x: 0,
+      y: 12 * focusedAncestorChain.length,
+      width: dimensions.cssWidth,
+      height: dimensions.cssHeight,
+    },
     filterSource,
-    sizeMode,
-  ])
+    sizeMode
+  )
+
+  // If we're not at the root, wrap with ancestor title bars
+  const layout =
+    focusedAncestorChain.length > 1
+      ? wrapLayoutWithAncestorsUsingIndices(
+          focusedLayout,
+          focusedAncestorChain,
+          analyzeData,
+          dimensions.cssWidth,
+          dimensions.cssHeight,
+          12
+        )
+      : focusedLayout
 
   useLayoutEffect(() => {
     const canvas = canvasRef.current
@@ -883,9 +896,8 @@ export function TreemapVisualizer({
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    const dpr = window.devicePixelRatio || 1
     ctx.setTransform(1, 0, 0, 1, 0, 0)
-    ctx.scale(dpr, dpr)
+    ctx.scale(dimensions.devicePixelRatio, dimensions.devicePixelRatio)
 
     ctx.clearRect(0, 0, dimensions.cssWidth, dimensions.cssHeight)
 
@@ -908,6 +920,7 @@ export function TreemapVisualizer({
     selectedAncestorChain,
     dimensions.cssWidth,
     dimensions.cssHeight,
+    dimensions.devicePixelRatio,
     isMouseInTreemap,
     focusedAncestorChain,
     searchQuery,

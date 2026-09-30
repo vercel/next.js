@@ -4,6 +4,7 @@
         export: Some(
             "useMemo",
         ),
+        member: None,
         ast_path: [
             Program(
                 Module,
@@ -255,6 +256,7 @@
         export: Some(
             "jsx",
         ),
+        member: None,
         ast_path: [
             Program(
                 Module,
@@ -788,6 +790,7 @@
                             export: Some(
                                 "fooBar",
                             ),
+                            member: None,
                             ast_path: [
                                 Program(
                                     Module,

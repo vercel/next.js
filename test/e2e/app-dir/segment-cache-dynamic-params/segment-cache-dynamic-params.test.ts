@@ -1,7 +1,10 @@
 import cheerio from 'cheerio'
 import { nextTestSetup } from 'e2e-utils'
 import type { PrerenderManifest } from 'next/dist/build'
-import type { FlightRouterState } from 'next/dist/shared/lib/app-router-types'
+import {
+  type FlightRouterState,
+  PrefetchHint,
+} from 'next/dist/shared/lib/app-router-types'
 import { createRouterAct } from 'router-act'
 
 describe('segment cache closed params (dynamicParams = false)', () => {
@@ -14,33 +17,43 @@ describe('segment cache closed params (dynamicParams = false)', () => {
   ) {
     // If this private tree representation changes, reconstruct the regression
     // rather than preserving or exposing router internals just for this test.
-    return browser.eval(() => {
-      const closedSegments: string[] = []
-      function visit(tree: FlightRouterState) {
-        // PrefetchHint.IsClosedParam is a const enum bit. Check every node so
-        // stamping the root, static segments, or page nodes also fails.
-        if (((tree[4] ?? 0) & 0b1000000000000000) !== 0) {
-          const segment = tree[0]
-          closedSegments.push(
-            typeof segment === 'string' ? segment : `[${segment[0]}]`
-          )
+    return browser.eval(
+      (IsClosedParam: number) => {
+        const closedSegments: string[] = []
+        function visit(tree: FlightRouterState) {
+          // PrefetchHint.IsClosedParam is a const enum bit. Check every node so
+          // stamping the root, static segments, or page nodes also fails.
+          if (((tree[4] ?? 0) & IsClosedParam) !== 0) {
+            const segment = tree[0]
+            closedSegments.push(
+              typeof segment === 'string' ? segment : `[${segment[0]}]`
+            )
+          }
+          for (const child of Object.values(tree[1])) visit(child)
         }
-        for (const child of Object.values(tree[1])) visit(child)
-      }
-      visit(window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE.tree)
-      return closedSegments
-    })
+        visit(window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE.tree)
+        return closedSegments
+      },
+      // Client code in the closure cannot access this imported value,
+      // so we have to pass it in
+      PrefetchHint.IsClosedParam
+    )
   }
 
   async function hasClosedParamDescendants(
     browser: Awaited<ReturnType<typeof next.browser>>
   ) {
-    return browser.eval(() => {
-      const tree: FlightRouterState =
-        window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE.tree
-      // PrefetchHint.SubtreeHasClosedParams summarizes descendants at the root.
-      return ((tree[4] ?? 0) & 0b10000000000000000) !== 0
-    })
+    return browser.eval(
+      (SubtreeHasClosedParams: number) => {
+        const tree: FlightRouterState =
+          window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE.tree
+        // PrefetchHint.SubtreeHasClosedParams summarizes descendants at the root.
+        return ((tree[4] ?? 0) & SubtreeHasClosedParams) !== 0
+      },
+      // Client code in the closure cannot access this imported value,
+      // so we have to pass it in
+      PrefetchHint.SubtreeHasClosedParams
+    )
   }
 
   // @force-gate prefetching

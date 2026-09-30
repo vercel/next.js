@@ -25,7 +25,7 @@ use swc_core::{
     quote,
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat};
 use turbopack_core::chunk::ChunkingContext;
 
 use crate::{
@@ -34,9 +34,7 @@ use crate::{
     utils::AstPathRange,
 };
 
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode)]
 pub struct RemovalCodeGen {
     comment_replacement: RcStr,
     range: AstPathRange,

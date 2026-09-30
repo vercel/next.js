@@ -238,6 +238,7 @@
                         export: Some(
                             "Redis",
                         ),
+                        member: None,
                         ast_path: [
                             Program(
                                 Module,

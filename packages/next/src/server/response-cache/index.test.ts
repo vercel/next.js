@@ -1,7 +1,7 @@
 import ResponseCache from './index'
 import { CachedRouteKind, type ResponseCacheEntry } from './types'
 import { RouteKind } from '../route-kind'
-import RenderResult from '../render-result'
+import RenderResult, { type PrerenderFailure } from '../render-result'
 import { HTML_CONTENT_TYPE_HEADER } from '../../lib/constants'
 
 function mockIncrementalCache() {
@@ -76,6 +76,71 @@ describe('ResponseCache', () => {
 
       expect(renderCount).toBe(1)
       expect(followUpB).not.toBeNull()
+    })
+
+    it('shares an in-flight failure across invocations but retries for a later invocation', async () => {
+      const cache = new ResponseCache(true)
+      const incrementalCache = mockIncrementalCache()
+      const context = { routeKind: RouteKind.APP_PAGE, incrementalCache }
+
+      let startRender: () => void
+      const renderStarted = new Promise<void>((resolve) => {
+        startRender = resolve
+      })
+      let finishRender!: () => void
+      const renderPending = new Promise<void>((resolve) => {
+        finishRender = resolve
+      })
+
+      const failure: PrerenderFailure = {
+        error: new Error('Invocation A failed'),
+        result: RenderResult.fromStatic(
+          '<p>Error boundary</p>',
+          HTML_CONTENT_TYPE_HEADER
+        ),
+      }
+      const successfulEntry = makeCacheEntry('<p>Invocation C succeeded</p>')
+      const failedGenerator = jest.fn(async () => {
+        startRender()
+        await renderPending
+        return failure
+      })
+      const successfulGenerator = jest.fn(async () => successfulEntry)
+
+      const invocationA = cache.get('/test', failedGenerator, {
+        ...context,
+        invocationID: 'invocation-a',
+      })
+      await renderStarted
+
+      const invocationB = cache.get('/test', successfulGenerator, {
+        ...context,
+        invocationID: 'invocation-b',
+      })
+      finishRender()
+
+      const [resultA, resultB] = await Promise.all([invocationA, invocationB])
+      expect(resultA).toBe(failure)
+      expect(resultB).toBe(failure)
+      expect(successfulGenerator).not.toHaveBeenCalled()
+
+      for (const invocationID of ['invocation-a', 'invocation-b']) {
+        const followUp = await cache.get('/test', successfulGenerator, {
+          ...context,
+          invocationID,
+        })
+        expect(followUp).toBe(failure)
+      }
+      expect(successfulGenerator).not.toHaveBeenCalled()
+
+      const resultC = await cache.get('/test', successfulGenerator, {
+        ...context,
+        invocationID: 'invocation-c',
+      })
+      expect(resultC).toMatchObject(successfulEntry)
+      expect(failedGenerator).toHaveBeenCalledTimes(1)
+      expect(successfulGenerator).toHaveBeenCalledTimes(1)
+      expect(incrementalCache.set).not.toHaveBeenCalled()
     })
 
     it('should use TTL-based LRU when invocationID is absent', async () => {

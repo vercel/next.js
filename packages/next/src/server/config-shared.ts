@@ -500,10 +500,10 @@ export interface DeprecatedConfig {
 
 export interface ExperimentalConfig {
   /** Nudge coding agents about security upgrades, stable releases, or Future Defaults. */
-  agenticAutoUpgrade?: 'security' | 'latest' | 'future' | false
+  agentUpgrade?: 'security' | 'latest' | 'experimental-future' | false
   /**
-   * Adds managed instructions to AGENTS.md or CLAUDE.md that let AI coding
-   * agents prepare anonymized Next.js feedback for user review.
+   * Adds managed instructions to AGENTS.md that let AI coding agents prepare
+   * anonymized Next.js feedback for user review.
    */
   agentFeedback?: boolean
   /**
@@ -1004,6 +1004,13 @@ export interface ExperimentalConfig {
    * Defaults to `false`.
    */
   turbopackLazyDynamicImports?: boolean
+
+  /**
+   * Compile SSR dynamic import targets when they are first reached during server rendering in development.
+   *
+   * Defaults to `false`.
+   */
+  turbopackLazyDynamicImportsSSR?: boolean
 
   /**
    * Enable filesystem cache for the turbopack dev server.
@@ -2160,10 +2167,10 @@ export interface NextConfig {
 
   /**
    * When `next dev` detects an AI coding agent and no managed
-   * agent-rules block is present, Next.js auto-generates `AGENTS.md`
-   * and `CLAUDE.md` at the project root so the agent reads
-   * version-matched docs from `node_modules/next/dist/docs/` instead
-   * of stale training data. Set to `false` to disable this behavior.
+   * agent-rules block is present, Next.js auto-generates `AGENTS.md` at the
+   * project root so the agent reads version-matched docs from
+   * `node_modules/next/dist/docs/` instead of stale training data. Set to
+   * `false` to disable this behavior.
    *
    * @default true
    */
@@ -2356,6 +2363,7 @@ export const defaultConfig = Object.freeze({
   adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
   deprecated: {} as DeprecatedConfig,
   experimental: {
+    agentUpgrade: 'security',
     agentFeedback: false,
     coldCacheBadge: false,
     collapseAdapterRoutes: true,
