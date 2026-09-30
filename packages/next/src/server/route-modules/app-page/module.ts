@@ -174,7 +174,11 @@ export class AppPageRouteModule extends RouteModule<
       context.page,
       context.query,
       context.fallbackRouteParams,
-      context.renderOpts,
+      // HEAD responses do not consume the render stream, so they cannot
+      // establish a new status for the dev indicator.
+      process.env.__NEXT_DEV_SERVER && req.method === 'HEAD'
+        ? { ...context.renderOpts, setIsrStatus: undefined }
+        : context.renderOpts,
       context.serverComponentsHmrCache,
       context.sharedContext,
       context.routeMatch
