@@ -14,7 +14,7 @@ kind: error
     lineHeight: '1.6',
   }}
 >
-  This validation message is part of the [Instant
+  This error is part of the [Instant
   Navigations](https://nextjs.org/blog/next-16-3-instant-navigations) feature
   introduced in Next.js 16.3. If you're new to it, start with the [Ensuring
   instant navigations](/docs/app/guides/instant-navigation) guide for an
@@ -28,7 +28,7 @@ A [`use cache`](/docs/app/api-reference/directives/use-cache) scope is also trea
 
 Uncached data accesses ([`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Window/fetch), database calls, [`await connection()`](/docs/app/api-reference/functions/connection)) have different fixes. See [Next.js encountered uncached data during prerendering](/docs/messages/blocking-prerender-dynamic).
 
-During a client-side navigation, the same validation appears as an insight when a parent [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary catches the data access but is too high. The navigation can continue, but the boundary replaces the entire segment instead of only the request-specific part. Push the boundary closer to the data access so more of the [static shell](/docs/app/glossary#static-shell) remains visible. See [Choosing where to place the boundary](#choosing-where-to-place-the-boundary).
+An ancestor [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary can allow the initial route to prerender. During a later client navigation, however, runtime data without a closer boundary in the destination route delays the route update. Add a boundary near the data access so the navigation can show a fallback while the request-specific content renders. See [Choosing where to place the boundary](#choosing-where-to-place-the-boundary).
 
 ## Ways to fix this
 

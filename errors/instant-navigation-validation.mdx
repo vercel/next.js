@@ -34,8 +34,6 @@ If the error only appears during `next build`, follow [Debug prerender errors](/
 
 These insights identify content that is deferred to a later navigation stage without blocking navigation.
 
-The [runtime data](/docs/messages/blocking-prerender-runtime) and [uncached data](/docs/messages/blocking-prerender-dynamic) messages can also appear as insights during a client navigation. This happens when a parent `<Suspense>` boundary catches the work, so navigation can continue, but the fallback replaces more of the route than necessary.
-
 - [Dynamic data during prefetching](/docs/messages/instant-link-prefetch-partial)
 - [URL data outside of Suspense](/docs/messages/instant-shell-url-data)
 - [Unrendered segment](/docs/messages/instant-unrendered-segment)

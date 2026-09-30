@@ -16,6 +16,7 @@ import {
 } from '../../../../server/app-render/blocking-route-messages'
 import { createLinkPrefetchPartialError } from '../../../../shared/lib/instant-messages'
 import {
+  EXPLANATIONS,
   FIX_CARD_GROUPS,
   SYNC_IO_DOCS,
   SYNC_IO_CLIENT_DOCS,
@@ -25,6 +26,20 @@ import {
   type GuidanceKind,
   type GuidanceVariant,
 } from './instant-guidance-data'
+
+describe('static route explanations', () => {
+  it('matches the fully static build guidance', () => {
+    expect(EXPLANATIONS['static-route']).toBe(
+      'This data prevents the route from being fully prerendered.'
+    )
+    expect(EXPLANATIONS['static-metadata']).toBe(
+      "This data prevents the route's metadata from being fully prerendered."
+    )
+    expect(EXPLANATIONS['static-viewport']).toBe(
+      "This data prevents the route's viewport from being fully prerendered."
+    )
+  })
+})
 
 const GUIDANCE_VARIANTS = [
   'runtime',
