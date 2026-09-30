@@ -347,10 +347,10 @@ async function run(): Promise<void> {
 
     // Check if user provided any configuration flags
     // If they did, skip all prompts and use recommended defaults for unspecified
-    // options. This is critical for AI agents, which pass flags like
+    // options unless --interactive is specified. This is critical for AI agents,
+    // which pass flags like
     // --typescript --tailwind --app and expect the rest to use sensible defaults
     // without entering interactive mode.
-    // --interactive opts back into prompts unless CI or --yes disables them
     const hasProvidedOptions = process.argv.some((arg) => arg.startsWith('--'))
     const shouldPromptForAgentFeedback =
       !skipPrompt && (opts.interactive || !hasProvidedOptions)
