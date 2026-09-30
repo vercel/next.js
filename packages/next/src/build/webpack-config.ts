@@ -338,8 +338,6 @@ export default async function getBaseWebpackConfig(
     isDevFallback = false,
     pagesDir,
     rewrites,
-    originalRewrites,
-    originalRedirects,
     runWebpackSpan,
     appDir,
     middlewareMatchers,
@@ -366,8 +364,6 @@ export default async function getBaseWebpackConfig(
     isDevFallback?: boolean
     pagesDir: string | undefined
     rewrites: CustomRoutes['rewrites']
-    originalRewrites: CustomRoutes['rewrites'] | undefined
-    originalRedirects: CustomRoutes['redirects'] | undefined
     runWebpackSpan: Span
     appDir: string | undefined
     middlewareMatchers?: ProxyMatcher[]
@@ -2197,8 +2193,6 @@ export default async function getBaseWebpackConfig(
           dev,
           isEdgeServer,
           pageExtensions: config.pageExtensions,
-          originalRewrites,
-          originalRedirects,
         }),
       !dev &&
         isClient &&
