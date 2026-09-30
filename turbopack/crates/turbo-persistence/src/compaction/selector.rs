@@ -188,13 +188,21 @@ fn intermediate_candidate<T: Compactable>(
     let priority = above.len() as f32 / config.max_files_above_bottom.max(1) as f32;
     let mut taken = 0u64;
     let mut first = above.len();
+    // Enough of the newest files to get back to `max_files_above_bottom`, and at least two.
+    let min_to_take = (above.len() + 1)
+        .saturating_sub(config.max_files_above_bottom.max(1))
+        .max(2);
     while first > 0 {
         let size = compactables[above[first - 1]].size();
         let taken_files = above.len() - first;
-        // Saturates (and then never stops) for a huge ratio, which then merges all files.
-        let limit = taken.saturating_mul(100 + u64::from(config.size_ratio_percent));
-        if taken_files >= 2 && size.saturating_mul(100) > limit {
-            break;
+        // We have to merge at least 2 files or enough to take the merge below the
+        // max_files_above_bottom limit
+        if taken_files >= min_to_take {
+            // Once we have taken enough, keep taking to maintain the size ratio
+            let limit = taken.saturating_mul(100 + u64::from(config.size_ratio_percent));
+            if size.saturating_mul(100) > limit {
+                break;
+            }
         }
         taken += size;
         first -= 1;
