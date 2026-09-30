@@ -26,7 +26,6 @@ import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
-  partialPrefetching: true, // Recommended with Cache Components
 }
 
 export default nextConfig
@@ -36,15 +35,16 @@ export default nextConfig
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   cacheComponents: true,
-  partialPrefetching: true, // Recommended with Cache Components
 }
 
 module.exports = nextConfig
 ```
 
-When omitted, `partialPrefetching` remains disabled. We recommend enabling it with Cache Components because it will be enabled by default in a future version. If your app already uses Cache Components, follow [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) before enabling it.
-
 > **Good to know:** When Cache Components is enabled, `GET` Route Handlers follow the same prerendering model as pages. See [Route Handlers with Cache Components](/docs/app/getting-started/route-handlers#with-cache-components) for details.
+
+### Enable Partial Prefetching
+
+We also recommend setting [`partialPrefetching: true`](/docs/app/api-reference/config/next-config-js/partialPrefetching) with Cache Components. Partial Prefetching will be enabled by default in a future version. If your app already uses Cache Components, follow [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) before enabling it.
 
 ## Usage
 
