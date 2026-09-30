@@ -15,7 +15,7 @@ related:
 
 Use [SWR](https://swr.vercel.app) to fetch data in Client Components, provide initial data from Server Components, and coordinate browser mutations with cached server data. See [Client-side data fetching](/docs/app/guides/client-side-data-fetching) to choose a pattern.
 
-If warm SWR data still causes repeated server work or a Suspense fallback during client navigation, the SWR cache and the Next.js client cache are out of sync. With Cache Components enabled, add `use cache` to the server read so the router can reuse the React Server Component payload. Use `cacheLife({ expire: 0 })` when only the client should reuse it, or choose a reusable server profile. See [Cache server-provided data with Cache Components](#cache-server-provided-data-with-cache-components).
+If warm SWR data still causes repeated server work or a Suspense fallback during client navigation, see [Cache server-provided data with Cache Components](#cache-server-provided-data-with-cache-components).
 
 ## Fetch data on the client
 
@@ -293,38 +293,40 @@ export async function getProduct(id) {
 
 `expire: 0` prevents Next.js from reusing the value from the server cache in production. Because this profile omits `stale`, it inherits the `default` profile's client stale time, which is five minutes unless you override it in `next.config.ts`. During that time, the Next.js router can reuse the RSC payload without repeating the server fallback work.
 
-Use this client-only profile when the data must be recomputed on every server request. If the data is safe to cache on the server, the following pattern can also improve initial and direct loads.
+Use this client-only profile when the data must be recomputed on every server request. If the data is safe to cache on the server, [cache it across requests](#cache-server-data-across-requests) to improve initial and direct loads.
 
 ### Cache server data across requests
 
-When the server can reuse the product across requests, replace the client-only profile with a reusable profile and add a cache tag:
+When the server can reuse the product across requests, use a reusable profile and add a cache tag:
 
-```diff filename="app/products/[id]/data.ts" switcher
--import { cacheLife } from 'next/cache'
-+import { cacheLife, cacheTag } from 'next/cache'
+```ts filename="app/products/[id]/data.ts" switcher
+import { cacheLife, cacheTag } from 'next/cache'
+import { notFound } from 'next/navigation'
 
- export async function getProduct(id: string) {
-   'use cache'
--  cacheLife({ expire: 0 })
-+  cacheLife('max')
-+  cacheTag(`product:${id}`)
+export async function getProduct(id: string) {
+  'use cache'
+  cacheLife('max')
+  cacheTag(`product:${id}`)
 
-   // ...
- }
+  const product = await db.product.findUnique({ where: { id } })
+  if (!product) notFound()
+  return product
+}
 ```
 
-```diff filename="app/products/[id]/data.js" switcher
--import { cacheLife } from 'next/cache'
-+import { cacheLife, cacheTag } from 'next/cache'
+```js filename="app/products/[id]/data.js" switcher
+import { cacheLife, cacheTag } from 'next/cache'
+import { notFound } from 'next/navigation'
 
- export async function getProduct(id) {
-   'use cache'
--  cacheLife({ expire: 0 })
-+  cacheLife('max')
-+  cacheTag(`product:${id}`)
+export async function getProduct(id) {
+  'use cache'
+  cacheLife('max')
+  cacheTag(`product:${id}`)
 
-   // ...
- }
+  const product = await db.product.findUnique({ where: { id } })
+  if (!product) notFound()
+  return product
+}
 ```
 
 This example uses `cacheLife('max')` because writes invalidate the product tag. Choose a profile with positive `revalidate` and `expire` values when the server should refresh the value on a schedule.
