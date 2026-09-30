@@ -212,8 +212,6 @@ impl MetaEntry {
 
 /// The result of a lookup operation.
 pub enum MetaLookupResult {
-    /// The key was not found because it is from a different key family.
-    FamilyMiss,
     /// The key was not found because it is out of the range of this SST file. But it was the
     /// correct key family.
     RangeMiss,

@@ -100,7 +100,6 @@ pub struct Statistics {
     pub value_block_cache: CacheStatistics,
     pub hits: u64,
     pub misses: u64,
-    pub miss_family: u64,
     pub miss_range: u64,
     pub miss_amqf: u64,
     pub miss_key: u64,
@@ -112,7 +111,6 @@ struct TrackedStats {
     hits_deleted: std::sync::atomic::AtomicU64,
     hits_small: std::sync::atomic::AtomicU64,
     hits_blob: std::sync::atomic::AtomicU64,
-    miss_family: std::sync::atomic::AtomicU64,
     miss_range: std::sync::atomic::AtomicU64,
     miss_amqf: std::sync::atomic::AtomicU64,
     miss_key: std::sync::atomic::AtomicU64,
@@ -2217,10 +2215,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 MetaLookupResult::RangeMiss
             };
             match result {
-                MetaLookupResult::FamilyMiss => {
-                    #[cfg(feature = "stats")]
-                    self.stats.miss_family.fetch_add(1, Ordering::Relaxed);
-                }
                 MetaLookupResult::RangeMiss => {
                     #[cfg(feature = "stats")]
                     self.stats.miss_range.fetch_add(1, Ordering::Relaxed);
@@ -2440,15 +2434,11 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     #[cfg(feature = "stats")]
     fn record_batch_lookup_stats(&self, result: crate::meta_file::MetaBatchLookupResult) {
         let crate::meta_file::MetaBatchLookupResult {
-            family_miss,
             range_misses,
             quick_filter_misses,
             sst_misses,
             hits: _,
         } = result;
-        if family_miss {
-            self.stats.miss_family.fetch_add(1, Ordering::Relaxed);
-        }
         if range_misses > 0 {
             self.stats
                 .miss_range
@@ -2484,7 +2474,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 + self.stats.hits_small.load(Ordering::Relaxed)
                 + self.stats.hits_blob.load(Ordering::Relaxed),
             misses: self.stats.miss_global.load(Ordering::Relaxed),
-            miss_family: self.stats.miss_family.load(Ordering::Relaxed),
             miss_range: self.stats.miss_range.load(Ordering::Relaxed),
             miss_amqf: self.stats.miss_amqf.load(Ordering::Relaxed),
             miss_key: self.stats.miss_key.load(Ordering::Relaxed),

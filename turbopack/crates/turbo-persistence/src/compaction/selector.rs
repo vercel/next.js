@@ -152,6 +152,8 @@ fn components<T: Compactable>(compactables: &[T], shard_bits: ShardBits) -> Vec<
     for (shard_start, shard_end, index) in spans {
         match result.last_mut() {
             Some((component_end, members)) if shard_start <= *component_end => {
+                // Grow overlapping compactables by adding a new member and possibly expanding the
+                // component
                 *component_end = (*component_end).max(shard_end);
                 members.push(index);
             }
