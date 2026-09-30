@@ -397,13 +397,6 @@ async function exportAppImpl(
       )
   }
 
-  // Get the exportPathMap from the config file
-  if (typeof nextConfig.exportPathMap !== 'function') {
-    nextConfig.exportPathMap = async (defaultMap) => {
-      return defaultMap
-    }
-  }
-
   const {
     i18n,
     images: { loader = 'default', unoptimized },
@@ -550,6 +543,10 @@ async function exportAppImpl(
   const exportPathMap = await span
     .traceChild('run-export-path-map')
     .traceAsyncFn(async () => {
+      if (typeof nextConfig.exportPathMap !== 'function') {
+        return defaultPathMap
+      }
+
       const exportMap = await nextConfig.exportPathMap(defaultPathMap, {
         dev: false,
         dir,
