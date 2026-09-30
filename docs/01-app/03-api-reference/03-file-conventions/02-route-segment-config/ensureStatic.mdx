@@ -97,7 +97,7 @@ With `'navigation'`, a dynamic route must export [`generateStaticParams()`](/doc
 
 Values returned by `generateStaticParams()` are available during prerendering. When a request uses a value that was not prerendered at build time, Next.js waits for the static result to be generated before serving it.
 
-The build fails when `generateStaticParams()` is missing or returns an incomplete parameter set. See the [`generateStaticParams` error guide](/docs/messages/generate-static-params#with-unstable_ensurestatic).
+The build fails when `generateStaticParams()` is missing or returns an incomplete parameter set. See the [`generateStaticParams` error guide](/docs/messages/generate-static-params#with-ensurestatic).
 
 #### Client Components
 
