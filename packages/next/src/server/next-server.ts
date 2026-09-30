@@ -247,7 +247,10 @@ export default class NextNodeServer extends BaseServer<
     }
 
     if (!this.minimalMode) {
-      this.imageResponseCache = new ResponseCache(this.minimalMode)
+      this.imageResponseCache = new ResponseCache({
+        minimalMode: this.minimalMode,
+        route: 'image',
+      })
     }
 
     if (
@@ -473,6 +476,7 @@ export default class NextNodeServer extends BaseServer<
         !this.minimalMode && this.nextConfig.experimental.isrFlushToDisk,
       previewProps: this.getPreviewProps(),
       prerenderManifest: this.getPrerenderManifest(),
+      locales: this.nextConfig.i18n?.locales,
       CurCacheHandler: CacheHandler,
     })
   }
