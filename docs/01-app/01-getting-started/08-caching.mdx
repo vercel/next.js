@@ -19,13 +19,14 @@ Caching is a technique for storing the result of data fetching and other computa
 
 The generated config for new App Router and API-only projects created with the recommended [`create-next-app`](/docs/app/api-reference/cli/create-next-app) defaults enables Cache Components and Partial Prefetching.
 
-To enable it in an existing or manually created app, add the [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) option to your Next config file:
+To enable Cache Components in a manually created app, add the [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) and [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) options to your Next config file:
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
+  partialPrefetching: true, // Future default with Cache Components
 }
 
 export default nextConfig
@@ -35,10 +36,13 @@ export default nextConfig
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   cacheComponents: true,
+  partialPrefetching: true, // Future default with Cache Components
 }
 
 module.exports = nextConfig
 ```
+
+For an existing app, follow [Migrating to Cache Components](/docs/app/guides/migrating-to-cache-components) and [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) before enabling these options. Partial Prefetching will be enabled with Cache Components by default in a future version.
 
 > **Good to know:** When Cache Components is enabled, `GET` Route Handlers follow the same prerendering model as pages. See [Route Handlers with Cache Components](/docs/app/getting-started/route-handlers#with-cache-components) for details.
 

@@ -293,7 +293,8 @@ describe('loadConfig', () => {
   })
 
   describe('partialPrefetching validation', () => {
-    const warning = '`cacheComponents` is enabled without `partialPrefetching`.'
+    const warning =
+      '⚠ `cacheComponents` is enabled without `partialPrefetching`. Partial Prefetching will be enabled with Cache Components by default in a future version. Follow the migration guide: https://nextjs.org/docs/app/guides/adopting-partial-prefetching'
 
     afterEach(() => {
       jest.restoreAllMocks()
@@ -311,7 +312,7 @@ describe('loadConfig', () => {
         silent: false,
       })
 
-      expect(consoleWarn).toHaveBeenCalledWith(expect.stringContaining(warning))
+      expect(consoleWarn).toHaveBeenCalledWith(warning)
     })
 
     it.each([true, false])(

@@ -71,7 +71,10 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-> **Good to know:** If you were using `experimental.dynamicIO` or `experimental.useCache`, `cacheComponents` replaces them. See the [version 16 upgrade guide](/docs/app/guides/upgrading/version-16#experimentaldynamicio-and-experimentalusecache).
+> **Good to know:**
+>
+> - Partial Prefetching will be enabled with Cache Components by default in a future version. After adopting Cache Components, follow [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) to migrate your existing prefetch behavior before enabling it.
+> - If you were using `experimental.dynamicIO` or `experimental.useCache`, `cacheComponents` replaces them. See the [version 16 upgrade guide](/docs/app/guides/upgrading/version-16#experimentaldynamicio-and-experimentalusecache).
 
 After enabling the flag, route segments that still export `dynamic`, `revalidate`, or `fetchCache` will error. Start by replacing those configs. The sections below explain what to do for each one.
 
