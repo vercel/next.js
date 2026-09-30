@@ -137,6 +137,24 @@ describe('use-cache-custom-handler', () => {
     })
   })
 
+  it('should call updateTags once per profile group', async () => {
+    const browser = await next.browser(`/`)
+
+    outputIndex = next.cliOutput.length
+
+    await browser.elementById('revalidate-multiple-profiles').click()
+
+    await retry(async () => {
+      const cliOutput = next.cliOutput.slice(outputIndex)
+      expect(cliOutput).toInclude(
+        'ModernCustomCacheHandler::updateTags ["modern"]'
+      )
+      expect(cliOutput).toInclude(
+        'ModernCustomCacheHandler::updateTags ["other"]'
+      )
+    })
+  })
+
   if (isNextStart) {
     it('should save a short-lived cache during prerendering at buildtime', async () => {
       expect(next.cliOutput).toMatch(

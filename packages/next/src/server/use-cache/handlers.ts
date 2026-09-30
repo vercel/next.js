@@ -246,44 +246,34 @@ export function getDevTieredCacheHandler(
 }
 
 /**
- * Get an iterator over the cache handlers.
- * @returns An iterator over the cache handlers, or `undefined` if they are not
- * initialized.
+ * Get the cache handlers. In dev, this also includes the built-in handlers (the
+ * private handler and the per-kind front handlers). The built-in handlers are
+ * not part of the registered set, but tag operations must still reach them:
+ * their `updateTags` writes the shared tags manifest that their `get` consults,
+ * so `revalidateTag` can invalidate their entries.
+ * @returns The cache handlers, or `undefined` if they are not initialized.
  */
-export function getCacheHandlers(): IterableIterator<CacheHandler> | undefined {
+export function getCacheHandlers(): CacheHandler[] | undefined {
   const handlersSet = reference[handlersSetSymbol]
   if (!handlersSet) {
     return undefined
   }
 
+  const handlers = Array.from(handlersSet)
+
   if (process.env.__NEXT_DEV_SERVER) {
-    return iterateCacheHandlersWithDevBuiltIns(handlersSet)
+    const privateHandler = reference[privateHandlerSymbol]
+    if (privateHandler) {
+      handlers.push(privateHandler)
+    }
+
+    const devFrontHandlers = reference[devFrontHandlersSymbol]
+    if (devFrontHandlers) {
+      handlers.push(...devFrontHandlers.values())
+    }
   }
 
-  return handlersSet.values()
-}
-
-/**
- * Yields the registered handlers plus the dev-only built-in handlers (the
- * private handler and the per-kind front handlers). The built-in handlers are
- * not part of the registered set, but tag operations must still reach them:
- * their `updateTags` writes the shared tags manifest that their `get` consults,
- * so `revalidateTag` can invalidate their entries.
- */
-function* iterateCacheHandlersWithDevBuiltIns(
-  handlersSet: Set<CacheHandler>
-): IterableIterator<CacheHandler> {
-  yield* handlersSet
-
-  const privateHandler = reference[privateHandlerSymbol]
-  if (privateHandler) {
-    yield privateHandler
-  }
-
-  const devFrontHandlers = reference[devFrontHandlersSymbol]
-  if (devFrontHandlers) {
-    yield* devFrontHandlers.values()
-  }
+  return handlers
 }
 
 /**
