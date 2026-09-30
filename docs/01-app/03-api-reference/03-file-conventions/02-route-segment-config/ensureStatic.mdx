@@ -47,23 +47,29 @@ The export accepts `'auto'`, `'shell'`, `'prefetch'`, `'navigation'`, or `false`
 | `'prefetch'`       | Loads a static App Shell                   | Uses a static prefetch                             | Allows request-specific rendering |
 | `'navigation'`     | Loads a static App Shell                   | Uses a static prefetch                             | Requires static server output     |
 
-With [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), the router performs up to two requests before navigation. A default `<Link>` loads the App Shell. Setting [`prefetch={true}`](/docs/app/api-reference/components/link#prefetch) can request a [per-link prefetch](/docs/app/guides/optimizing-prefetching#resolve-url-data-at-prefetch-time) containing more of that destination.
+These values correspond to stages in a client navigation. Before the user follows a link, a default `<Link>` loads the App Shell and [`prefetch={true}`](/docs/app/api-reference/components/link#prefetch) can load a [per-link prefetch](/docs/app/guides/optimizing-prefetching#resolve-url-data-at-prefetch-time). When the user follows the link, the navigation request returns the remaining page.
 
-`'shell'` and `'prefetch'` require static output before navigation. Here, static means the output does not depend on request-specific data or require a request-specific render. It can contain `<Suspense>` fallbacks for content that renders during a later request. `'navigation'` requires the complete server-rendered route to use static output.
+Use `'shell'` and `'prefetch'` with [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), which enables their rendering stages. The `'navigation'` value works with Cache Components alone. Static output can include `<Suspense>` fallbacks, but it cannot depend on request-specific data.
 
-Use `'shell'` and `'prefetch'` with [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), which enables the App Shell and per-link prefetch stages. The `'navigation'` value works with Cache Components alone. Each static level includes the previous one: `'prefetch'` includes `'shell'`, and `'navigation'` includes both.
+Each level moves request-specific content behind `<Suspense>` to a later stage. `'shell'` applies the effect of [`await prefetch()`](/docs/app/api-reference/functions/prefetch) across the route, while `'prefetch'` applies the effect of [`await navigation()`](/docs/app/api-reference/functions/navigation). `'navigation'` requires all server output to be static because there is no later server-rendering stage.
 
 ### `'shell'`
 
 Uses static output for the [App Shell](/docs/app/glossary#app-shell) loaded by a default `<Link>`. The router can reuse this shell across links to the route. Request-specific content behind `<Suspense>` can render during a later per-link prefetch with `<Link prefetch={true}>`, or during navigation.
 
+Use this level to require a static App Shell without adding [`await prefetch()`](/docs/app/api-reference/functions/prefetch) to each request-specific subtree.
+
 ### `'prefetch'`
 
 Uses static output for both the App Shell and per-link prefetches. A `<Link prefetch={true}>` can include URL-specific static or cached content. Request-specific content behind `<Suspense>` renders during navigation.
 
+Use this level to require static prefetches without adding [`await navigation()`](/docs/app/api-reference/functions/navigation) to each request-specific subtree.
+
 ### `'navigation'`
 
 Requires every server-rendered segment of the route to complete during prerendering, so initial loads and client navigations use static output. This value works with Cache Components alone.
+
+On the root layout, this requirement applies to every route in the app. Set it on a nested layout or page to limit it to that route subtree.
 
 #### Validation
 
