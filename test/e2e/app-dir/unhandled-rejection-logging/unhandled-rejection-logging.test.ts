@@ -1,9 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
-import { gate, retry, waitFor } from 'next-test-utils'
+import { retry, waitFor } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
 describe('unhandled-rejection-logging', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,
     captureRuntimeLogs: true,
   })
@@ -19,7 +19,7 @@ describe('unhandled-rejection-logging', () => {
       )
     }, 30_000)
 
-    if (await gate((c) => c.deploy)) {
+    if (isNextDeploy) {
       // Vercel also reports the rejection from its function wrapper. These are
       // distinct records, not a replay to deduplicate. Assert both sources;
       // asynchronous deployment logs do not provide a complete count window.

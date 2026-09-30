@@ -1,9 +1,9 @@
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { nextTestSetup } from 'e2e-utils'
-import { gate, retry } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('edge-runtime-streaming-error', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,
     disableAutoSkewProtection: true,
     captureRuntimeLogs: true,
@@ -16,7 +16,7 @@ describe('edge-runtime-streaming-error', () => {
 
     // Vercel consumes the stream in its runtime; locally it is piped to a Node
     // response, which reports the invalid chunk differently.
-    const expectedError = (await gate((c) => c.deploy))
+    const expectedError = isNextDeploy
       ? /TypeError: This ReadableStream did not return bytes\./
       : /The "chunk" argument must be of type string or an instance of Buffer or Uint8Array. Received type boolean/
 
