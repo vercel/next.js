@@ -25,7 +25,7 @@ See the [`generateStaticParams` return value documentation](/docs/app/api-refere
 
 ## With `unstable_ensureStatic`
 
-A dynamic route that sets or inherits [`unstable_ensureStatic = 'navigation'`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#navigation) must export `generateStaticParams` and return at least one params object. Every object must include a value for each dynamic segment in the route.
+A dynamic route that uses [`unstable_ensureStatic = 'navigation'`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#navigation) must export `generateStaticParams` and return at least one params object. Every object must include a value for each dynamic segment in the route.
 
 ```tsx filename="app/blog/[slug]/page.tsx"
 export const unstable_ensureStatic = 'navigation'

@@ -39,13 +39,13 @@ export default function Layout({ children }) {
 
 The export accepts `'auto'`, `'shell'`, `'prefetch'`, `'navigation'`, or `false`. The default is `'auto'`, which is equivalent to omitting the export.
 
-| Value              | Default `<Link>` prefetch                  | `<Link prefetch={true}>`                           | Navigation                        |
+| Value              | Default `<Link>`                           | `<Link prefetch={true}>`                           | Navigation                        |
 | ------------------ | ------------------------------------------ | -------------------------------------------------- | --------------------------------- |
 | `'auto'` (default) | Uses the route's normal App Shell behavior | Uses the route's normal per-link prefetch behavior | Allows request-specific rendering |
 | `false`            | Uses the route's normal App Shell behavior | Uses the route's normal per-link prefetch behavior | Allows request-specific rendering |
-| `'shell'`          | Uses a reusable static App Shell           | Can render a request-specific prefetch             | Allows request-specific rendering |
-| `'prefetch'`       | Uses a reusable static App Shell           | Uses a reusable static prefetch                    | Allows request-specific rendering |
-| `'navigation'`     | Uses a reusable static App Shell           | Uses a reusable static prefetch                    | Requires static server output     |
+| `'shell'`          | Loads a reusable static App Shell          | Can render a request-specific prefetch             | Allows request-specific rendering |
+| `'prefetch'`       | Loads a reusable static App Shell          | Uses a reusable static prefetch                    | Allows request-specific rendering |
+| `'navigation'`     | Loads a reusable static App Shell          | Uses a reusable static prefetch                    | Requires static server output     |
 
 With [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), the router performs up to two requests before navigation. A default `<Link>` loads the App Shell. Setting [`prefetch={true}`](/docs/app/api-reference/components/link#prefetch) can request a [per-link prefetch](/docs/app/guides/optimizing-prefetching#resolve-url-data-at-prefetch-time) containing more of that destination.
 
@@ -98,7 +98,7 @@ Client hooks such as [`useParams()`](/docs/app/api-reference/functions/use-param
 
 ### `false`
 
-With Partial Prefetching, `false` signals that the segment is not intended to use reusable static output. The build fails if another segment in the route sets `'shell'`, `'prefetch'`, or `'navigation'`.
+With Partial Prefetching, `false` keeps the route's normal rendering behavior and fails the build if another segment sets `'shell'`, `'prefetch'`, or `'navigation'`. Use it to signal that a segment is not meant to be statically optimized.
 
 ## Combining levels across layouts and pages
 
