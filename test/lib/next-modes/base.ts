@@ -533,6 +533,11 @@ export class NextInstance {
           await fs.writeFile(
             fileName,
             `${content}\n` +
+              // Capture the test flag in the config so it does not need a
+              // deployment-compatible environment variable alias.
+              (process.env.__NEXT_CACHE_COMPONENTS
+                ? `process.env.__NEXT_CACHE_COMPONENTS = ${JSON.stringify(process.env.__NEXT_CACHE_COMPONENTS)}\n`
+                : '') +
               `
           // alias __NEXT_TEST_MODE for next-deploy as "_" is not a valid
           // env variable during deploy
@@ -541,9 +546,6 @@ export class NextInstance {
           }
 
           // alias experimental feature flags for deployment compatibility
-          if (process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS) {
-            process.env.__NEXT_CACHE_COMPONENTS = process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS
-          }
           if (process.env.NEXT_PRIVATE_EXPERIMENTAL_PARTIAL_PREFETCHING) {
             process.env.__NEXT_PARTIAL_PREFETCHING = process.env.NEXT_PRIVATE_EXPERIMENTAL_PARTIAL_PREFETCHING
           }
