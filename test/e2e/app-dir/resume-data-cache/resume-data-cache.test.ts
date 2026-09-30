@@ -120,7 +120,6 @@ describe('resume-data-cache', () => {
     describe('use cache', () => {
       const valuePattern = /cache-random-.+?-\d+-\d+\.\d+/
 
-      // @gate !partialPrefetchingGlobal
       it('initial', async () => {
         await testInitial({
           name: 'use cache - initial',
@@ -132,7 +131,6 @@ describe('resume-data-cache', () => {
       // TODO: propagation of RDC after revalidation seems very flaky in deploy mode,
       // so we're skipping this test in deploy until we figure out why
       // @force-gate !deploy
-      // @gate !partialPrefetchingGlobal
       it('after revalidation', async () => {
         await testRevalidation({
           name: 'use cache - revalidation',
@@ -146,7 +144,6 @@ describe('resume-data-cache', () => {
     describe('fetch cache', () => {
       const valuePattern = /fetch-random-\d+-\d+\.\d+/
 
-      // @gate !(partialPrefetchingGlobal && deploy)
       it('initial', async () => {
         await testInitial({
           name: 'fetch cache - initial',
@@ -158,7 +155,6 @@ describe('resume-data-cache', () => {
       // TODO: propagation of RDC after revalidation seems very flaky in deploy mode,
       // so we're skipping this test in deploy until we figure out why
       // @force-gate !deploy
-      // @force-gate !partialPrefetchingGlobal
       it('after revalidation', async () => {
         await testRevalidation({
           name: 'fetch cache - revalidation',
@@ -170,7 +166,6 @@ describe('resume-data-cache', () => {
     })
   })
 
-  // @gate !partialPrefetchingGlobal
   it('should use RDC for server action re-renders', async () => {
     const url = '/server-action'
     const valuePattern = /cache-random-\d+\.\d+/
@@ -228,7 +223,6 @@ describe('resume-data-cache', () => {
     })
   })
 
-  // @gate !partialPrefetchingGlobal
   it('should see fresh data after updateTag in server action with use cache', async () => {
     // This test verifies that when a server action calls updateTag(),
     // the subsequent re-render sees fresh data instead of stale RDC data.
@@ -293,7 +287,6 @@ describe('resume-data-cache', () => {
     })
   })
 
-  // @gate !(partialPrefetchingGlobal && deploy)
   it('should see fresh data after updateTag in server action with fetch cache', async () => {
     // This test verifies that when a server action calls updateTag(),
     // the subsequent re-render sees fresh data instead of stale RDC data.
