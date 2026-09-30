@@ -653,6 +653,7 @@ export async function setupFsCheck(opts: {
     onMatchHeaders,
     rewrites,
     redirects,
+    originalRedirects: customRoutes.originalRedirects,
 
     buildId,
     handleLocale,
