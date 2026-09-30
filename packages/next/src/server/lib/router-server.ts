@@ -1010,7 +1010,7 @@ export async function initialize(opts: {
   const relativeProjectDir = path.relative(process.cwd(), opts.dir)
 
   routerServerGlobal[RouterServerContextSymbol][relativeProjectDir] = {
-    nextConfig: getNextConfigRuntime(config),
+    nextConfig: { ...getNextConfigRuntime(config) },
     hostname: handlers.server.hostname,
     revalidate: handlers.server.revalidate.bind(handlers.server),
     render404: handlers.server.render404.bind(handlers.server),
