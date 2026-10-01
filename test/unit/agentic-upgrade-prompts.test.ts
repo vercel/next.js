@@ -195,7 +195,7 @@ describe('agentic upgrade prompts', () => {
     jest.mocked(writeFile).mockResolvedValue(undefined)
     jest.mocked(getAgentName).mockResolvedValue('codex')
     jest.mocked(loadConfig).mockResolvedValue({
-      default: { experimental: { agenticAutoUpgrade: false } },
+      default: { experimental: { agentUpgrade: false } },
     } as never)
     jest
       .mocked(normalizeConfig)
@@ -303,7 +303,7 @@ describe('agentic upgrade prompts', () => {
     }
   )
 
-  it.each([true, 'security', 'latest', 'future'])(
+  it.each([true, 'security', 'latest', 'experimental-future'])(
     'delegates %s to the exact canary and preserves its failure status',
     async (ai) => {
       delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
@@ -1220,7 +1220,7 @@ describe('agentic upgrade prompts', () => {
 
      Follow the user's worktree choice. If they do not specify, use a separate Git worktree when the app is in a Git repository. Run upgrade commands from this app's corresponding directory in that worktree. If the app is not in a Git repository, upgrade it in place.
 
-     Set \`experimental.agenticAutoUpgrade\` to "security" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
+     Set \`experimental.agentUpgrade\` to "security" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
 
      References:
      - https://api.github.com/advisories?affects=next
@@ -1259,11 +1259,11 @@ describe('agentic upgrade prompts', () => {
     expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', 'security')
   })
 
-  it.each(['security', 'latest', 'future'] as const)(
+  it.each(['security', 'latest', 'experimental-future'] as const)(
     'uses the configured %s policy for a bare AI upgrade',
     async (policy) => {
       jest.mocked(loadConfig).mockResolvedValue({
-        default: { experimental: { agenticAutoUpgrade: policy } },
+        default: { experimental: { agentUpgrade: policy } },
       } as never)
 
       await spawnNextUpgrade('/workspace/app', {
@@ -1275,7 +1275,7 @@ describe('agentic upgrade prompts', () => {
       expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', policy)
       expect(Log.bootstrap).toHaveBeenCalledWith(
         expect.stringContaining(
-          `Set \`experimental.agenticAutoUpgrade\` to "${policy}"`
+          `Set \`experimental.agentUpgrade\` to "${policy}"`
         )
       )
     }
@@ -1317,7 +1317,7 @@ describe('agentic upgrade prompts', () => {
 
      Follow the user's worktree choice. If they do not specify, use a separate Git worktree when the app is in a Git repository. Run upgrade commands from this app's corresponding directory in that worktree. If the app is not in a Git repository, upgrade it in place.
 
-     Set \`experimental.agenticAutoUpgrade\` to "latest" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
+     Set \`experimental.agentUpgrade\` to "latest" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
 
      References:
      - https://registry.npmjs.org/next/latest",
@@ -1392,7 +1392,7 @@ describe('agentic upgrade prompts', () => {
     await spawnNextUpgrade('/workspace/app', {
       revision: 'latest',
       verbose: false,
-      ai: 'future',
+      ai: 'experimental-future',
     })
 
     const prompt = normalizedBootstrapCalls().flat().join('\n')
@@ -1405,7 +1405,7 @@ describe('agentic upgrade prompts', () => {
     )
   })
 
-  it.each(['latest', 'future'] as const)(
+  it.each(['latest', 'experimental-future'] as const)(
     'hands off the exact canary target for %s upgrades',
     async (policy) => {
       jest.mocked(prepareUpgrade).mockResolvedValue({
@@ -1501,7 +1501,7 @@ describe('agentic upgrade prompts', () => {
     await spawnNextUpgrade('/workspace/app', {
       revision: 'latest',
       verbose: false,
-      ai: 'future',
+      ai: 'experimental-future',
     })
 
     expect(crossSpawn).toHaveBeenCalledTimes(1)
@@ -1526,7 +1526,7 @@ describe('agentic upgrade prompts', () => {
 
      Follow the user's worktree choice. If they do not specify, use a separate Git worktree when the app is in a Git repository. Run upgrade commands from this app's corresponding directory in that worktree. If the app is not in a Git repository, upgrade it in place.
 
-     Set \`experimental.agenticAutoUpgrade\` to "future" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
+     Set \`experimental.agentUpgrade\` to "experimental-future" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
 
      After completing and verifying the version update, read and follow "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/future-defaults.md".
      Adopt these Future Defaults in order:
@@ -1592,7 +1592,7 @@ describe('agentic upgrade prompts', () => {
     await spawnNextUpgrade('/workspace/app', {
       revision: 'latest',
       verbose: false,
-      ai: 'future',
+      ai: 'experimental-future',
     })
 
     expect(
@@ -1625,7 +1625,7 @@ describe('agentic upgrade prompts', () => {
 
      Follow the user's worktree choice. If they do not specify, use a separate Git worktree when the app is in a Git repository. Run upgrade commands from this app's corresponding directory in that worktree. If the app is not in a Git repository, upgrade it in place.
 
-     Set \`experimental.agenticAutoUpgrade\` to "future" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
+     Set \`experimental.agentUpgrade\` to "experimental-future" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
 
      Adopt these Future Defaults in order:
      - Cache Components

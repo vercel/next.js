@@ -1,4 +1,9 @@
 import type { NudgeKind } from '../lib/upgrade/nudge'
+import {
+  getRouteCacheKey,
+  ROUTE_CACHE_DIRECTORY,
+} from '../server/lib/route-cache-key'
+import { RouteKind } from '../server/route-kind'
 import type { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import type {
   ExportPathMap,
@@ -89,6 +94,7 @@ import {
 import {
   UNDERSCORE_NOT_FOUND_ROUTE,
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+  UNDERSCORE_GLOBAL_ERROR_ROUTE,
   UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
 } from '../shared/lib/entry-constants'
 import { isDynamicRoute } from '../shared/lib/router/utils'
@@ -131,6 +137,7 @@ import { writeAnalyzeSnapshot } from './analyze/snapshot'
 import { writeRouteBundleStats } from './route-bundle-stats'
 import {
   detectConflictingPaths,
+  printPrerenderMatchers,
   printCustomRoutes,
   printTreeView,
   copyTracedFiles,
@@ -148,6 +155,8 @@ import type {
   PrerenderedRoute,
 } from './static-paths/types'
 import type { AppSegmentConfig } from './segment-config/app/app-segment-config'
+import type { ParamMatching } from './segment-config/app/app-segments'
+import { validateParamMatchingCoherence } from './static-paths/param-matching'
 import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import isError from '../lib/is-error'
@@ -342,6 +351,18 @@ export interface DynamicPrerenderManifestRoute
   dataRouteRegex: string | null
   experimentalBypassFor?: RouteHas[]
   fallback: Fallback
+
+  /**
+   * A configured blocking policy must not be replaced by on-demand fallback
+   * shell generation when Partial Prefetching is enabled.
+   */
+  isExplicitlyBlocking?: true
+
+  /**
+   * Parameter-matching restrictions used by Next.js when constructing client
+   * route trees. Unlike legacy fallback=false, only these parameters are closed.
+   */
+  notFoundParams?: readonly string[]
 
   /**
    * The unresolved fallback route params that can still be specialized into a
@@ -913,6 +934,25 @@ async function writeStandaloneDirectory(
         )
       }
 
+      const responseCacheDir = path.join(
+        distDir,
+        SERVER_DIRECTORY,
+        ROUTE_CACHE_DIRECTORY
+      )
+      if (existsSync(responseCacheDir)) {
+        await recursiveCopy(
+          responseCacheDir,
+          path.join(
+            distDir,
+            STANDALONE_DIRECTORY,
+            path.relative(outputFileTracingRoot, distDir),
+            SERVER_DIRECTORY,
+            ROUTE_CACHE_DIRECTORY
+          ),
+          { overwrite: true }
+        )
+      }
+
       if (appDir) {
         const originalServerApp = path.join(distDir, SERVER_DIRECTORY, 'app')
         if (existsSync(originalServerApp)) {
@@ -1058,16 +1098,15 @@ async function getBuildId(
   if (isGenerateMode) {
     return await fs.readFile(path.join(distDir, BUILD_ID_FILE), 'utf8')
   }
-  if (config.deploymentId) {
+  if (config.deploymentId && !config.generateBuildId) {
     // Skew protection is enabled and NEXT_NAV_DEPLOYMENT_ID_HEADER will be used instead. Set a
     // constant but "random" string because various tools perform `.replace(escapedBuildId, ....)`
     // which would fail if this were something like "build-id" instead.
     return 'build-TfctsWXpff2fKS'
-  } else {
-    return await nextBuildSpan
-      .traceChild('generate-buildid')
-      .traceAsyncFn(() => generateBuildId(config.generateBuildId, nanoid))
   }
+  return await nextBuildSpan
+    .traceChild('generate-buildid')
+    .traceAsyncFn(() => generateBuildId(config.generateBuildId, nanoid))
 }
 
 export default async function build(
@@ -1165,10 +1204,10 @@ export default async function build(
 
       // Reuse the loaded config; ordinary builds do not load upgrade tooling.
       if (
-        config.experimental.agenticAutoUpgrade === 'security' ||
-        config.experimental.agenticAutoUpgrade === 'latest' ||
-        config.experimental.agenticAutoUpgrade === 'future' ||
-        process.env.__NEXT_AGENTIC_AUTO_UPGRADE
+        config.experimental.agentUpgrade === 'security' ||
+        config.experimental.agentUpgrade === 'latest' ||
+        config.experimental.agentUpgrade === 'experimental-future' ||
+        process.env.__NEXT_AGENT_UPGRADE
       ) {
         const { nudgeUpgrade, getUpgradeContext } =
           require('../lib/upgrade/nudge') as typeof import('../lib/upgrade/nudge')
@@ -1184,11 +1223,8 @@ export default async function build(
           ).catch((error) => {
             Log.warn(`Could not offer the upgrade: ${String(error)}`)
           })
-          if (
-            action === 'update' &&
-            upgradeContext.experimental.agenticAutoUpgrade
-          ) {
-            return upgradeContext.experimental.agenticAutoUpgrade
+          if (action === 'update' && upgradeContext.experimental.agentUpgrade) {
+            return upgradeContext.experimental.agentUpgrade
           }
           if (action === 'interrupt') {
             return 'interrupt' as const
@@ -2238,6 +2274,7 @@ export default async function build(
       const additionalPaths = new Map<string, PrerenderedRoute[]>()
       const staticPaths = new Map<string, PrerenderedRoute[]>()
       const prerenderRouteMatchers = new Map<string, PrerenderRouteMatcher[]>()
+      const paramMatchingByRoute = new Map<string, ParamMatching | undefined>()
       const appNormalizedPaths = new Map<string, string>()
       const fallbackModes = new Map<string, FallbackMode>()
       const appDefaultConfigs = new Map<string, AppSegmentConfig>()
@@ -2621,6 +2658,17 @@ export default async function build(
                       )
 
                       if (pageType === 'app' && originalAppPath) {
+                        if (
+                          isAppCacheComponentsEnabled &&
+                          !isAppRouteRoute(originalAppPath)
+                        ) {
+                          // Include pages without exports: an omitted policy
+                          // cannot silently inherit another route's closure.
+                          paramMatchingByRoute.set(
+                            originalAppPath,
+                            workerResult.paramMatching
+                          )
+                        }
                         appNormalizedPaths.set(originalAppPath, page)
                         // TODO-APP: handle prerendering with edge
                         if (isEdgeRuntime(pageRuntime)) {
@@ -2643,7 +2691,7 @@ export default async function build(
                               workerResult.appConfig
                             ) {
                               isEnsureStaticPage =
-                                workerResult.appConfig.unstable_ensureStatic ===
+                                workerResult.appConfig.ensureStatic ===
                                 'navigation'
                             }
                           }
@@ -2663,9 +2711,11 @@ export default async function build(
                               originalAppPath,
                               workerResult.prerenderedRoutes
                             )
-                            ssgPageRoutes = workerResult.prerenderedRoutes.map(
-                              (route) => route.pathname
-                            )
+                            ssgPageRoutes = workerResult.prerenderedRoutes
+                              .filter(
+                                (route) => route.isPrerenderOutput !== false
+                              )
+                              .map((route) => route.pathname)
                             isSSG = true
                           }
 
@@ -2683,9 +2733,12 @@ export default async function build(
                               workerResult.prerenderedRoutes.length > 0 &&
                               // in PPR, we create fallback routes with empty params.
                               // If at least one non-empty param exists, it must've been
-                              // generated by `generateStaticParams`.
+                              // generated by `generateStaticParams`. Static metadata files
+                              // use a placeholder path with empty params instead.
                               workerResult.prerenderedRoutes.some(
-                                (route) => !isEmptyParams(route.params)
+                                (route) =>
+                                  isStaticMetadataFile(route.pathname) ||
+                                  !isEmptyParams(route.params)
                               )
                             if (isDynamic && !hasGenerateStaticParams) {
                               if (config.output === 'export') {
@@ -2859,6 +2912,10 @@ export default async function build(
               })
             })
         )
+
+        if (isAppCacheComponentsEnabled) {
+          validateParamMatchingCoherence(paramMatchingByRoute)
+        }
 
         const errorPageResult = await errorPageStaticResult
         const nonStaticErrorPage =
@@ -3242,13 +3299,20 @@ export default async function build(
                 const appConfig = appDefaultConfigs.get(originalAppPath)
                 const isDynamicError = appConfig?.dynamic === 'error'
                 // Legacy dynamicParams=false closes the entire route tuple.
-                const notFoundParams =
+                // Explicit matching instead identifies the affected parameters.
+                const paramMatching = paramMatchingByRoute.get(originalAppPath)
+                let notFoundParams: readonly string[] | undefined
+                if (paramMatching) {
+                  notFoundParams = Object.keys(paramMatching).filter(
+                    (name) => paramMatching[name] === 'not-found'
+                  )
+                } else if (
                   fallbackModes.get(originalAppPath) === FallbackMode.NOT_FOUND
-                    ? Object.keys(
-                        getRouteRegex(normalizeAppPath(originalAppPath)).groups
-                      )
-                    : undefined
-
+                ) {
+                  notFoundParams = Object.keys(
+                    getRouteRegex(normalizeAppPath(originalAppPath)).groups
+                  )
+                }
                 const isRoutePPREnabled: boolean = appConfig
                   ? isAppCacheComponentsEnabled
                   : false
@@ -3353,13 +3417,16 @@ export default async function build(
             prerenderCandidate: PrerenderedRoute | undefined,
             hasEmptyStaticShell: boolean | undefined
           ) => {
-            // If the route has an empty static shell and is not configured to
-            // throw on empty static shell, then we should use the blocking
-            // static render mode.
+            // An unconfigured parameter uses its shell to infer the miss mode.
+            // This is separate from validation: even a required validation
+            // render can be empty when the user opts out with instant=false.
+            // Without matching configuration, preserve the existing heuristic
+            // for optional, more generic shells.
             if (
               prerenderCandidate &&
               hasEmptyStaticShell &&
-              !prerenderCandidate.throwOnEmptyStaticShell &&
+              (matcher.isFallbackModeInferred ||
+                !prerenderCandidate.throwOnEmptyStaticShell) &&
               matcher.fallbackMode === FallbackMode.PRERENDER
             ) {
               return FallbackMode.BLOCKING_STATIC_RENDER
@@ -3730,6 +3797,12 @@ export default async function build(
             }
 
             if (!hasRevalidateZero && isDynamicRoute(page)) {
+              const paramMatching = paramMatchingByRoute.get(originalAppPath)
+              const notFoundParams = paramMatching
+                ? Object.keys(paramMatching).filter(
+                    (name) => paramMatching[name] === 'not-found'
+                  )
+                : undefined
               // When PPR fallbacks aren't used, we need to include it here. If
               // they are enabled, then it'll already be included in the
               // prerendered routes.
@@ -3982,12 +4055,19 @@ export default async function build(
                 }
 
                 prerenderManifest.dynamicRoutes[prerenderOutputPathname] = {
+                  notFoundParams,
                   experimentalPPR: isRoutePPREnabled,
                   remainingPrerenderableParams:
                     route.remainingPrerenderableParams,
-                  throwOnEmptyStaticShell:
-                    prerenderCandidate?.throwOnEmptyStaticShell,
                   _isEnsureStaticPage: isEnsureStaticPage || undefined,
+                  // Only PPR routes use static-shell validation. Without a
+                  // build-time prerender, false lets runtime rendering resolve
+                  // the remaining prerenderable params during the static phase.
+                  throwOnEmptyStaticShell: isRoutePPREnabled
+                    ? prerenderCandidate
+                      ? prerenderCandidate.throwOnEmptyStaticShell
+                      : false
+                    : undefined,
                   renderingMode: isAppPPREnabled
                     ? isRoutePPREnabled
                       ? RenderingMode.PARTIALLY_STATIC
@@ -4002,6 +4082,16 @@ export default async function build(
                   ),
                   dataRoute,
                   fallback,
+                  isExplicitlyBlocking:
+                    fallbackMode === FallbackMode.BLOCKING_STATIC_RENDER &&
+                    route.fallbackRouteParams.some(
+                      ({ paramName }) =>
+                        paramMatchingByRoute.get(originalAppPath)?.[
+                          paramName
+                        ] === 'blocking'
+                    )
+                      ? true
+                      : undefined,
                   fallbackRevalidate: fallbackCacheControl?.revalidate,
                   fallbackExpire: fallbackCacheControl?.expire,
                   fallbackStatus: meta.status,
@@ -4072,29 +4162,31 @@ export default async function build(
             }
           }
 
-          // The export worker writes files directly to server/pages/,
-          // so we must delete files for notFound routes that shouldn't be served.
-          const deleteNotFoundPageFiles = (normalizedPath: string) =>
-            Promise.all([
-              fs.rm(
-                path.join(
-                  distDir,
-                  SERVER_DIRECTORY,
-                  'pages',
-                  `${normalizedPath}.html`
-                ),
-                { force: true }
-              ),
-              fs.rm(
-                path.join(
-                  distDir,
-                  SERVER_DIRECTORY,
-                  'pages',
-                  `${normalizedPath}.json`
-                ),
-                { force: true }
-              ),
-            ])
+          // Remove files for Pages Router paths that returned notFound during export.
+          const deleteNotFoundPagesRouterFiles = (
+            pathname: string,
+            page: string
+          ) => {
+            const filename =
+              config.adapterPath && config.output !== 'export'
+                ? getRouteCacheKey(pathname, {
+                    kind: RouteKind.PAGES,
+                    sourceRoute: page,
+                  })
+                : `pages${normalizePagePath(pathname)}`
+            return Promise.all(
+              ['.html', '.json', '.meta'].map((extension) =>
+                fs.rm(
+                  path.join(
+                    distDir,
+                    SERVER_DIRECTORY,
+                    `${filename}${extension}`
+                  ),
+                  { force: true }
+                )
+              )
+            )
+          }
 
           async function moveExportedAppNotFoundTo404() {
             return staticGenerationSpan
@@ -4103,8 +4195,12 @@ export default async function build(
                 const orig = path.join(
                   distDir,
                   'server',
-                  'app',
-                  '_not-found.html'
+                  config.adapterPath && config.output !== 'export'
+                    ? `${getRouteCacheKey(UNDERSCORE_NOT_FOUND_ROUTE, {
+                        kind: RouteKind.APP_PAGE,
+                        sourceRoute: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+                      })}.html`
+                    : 'app/_not-found.html'
                 )
                 const updatedRelativeDest = path
                   .join('pages', '404.html')
@@ -4152,8 +4248,12 @@ export default async function build(
                 const orig = path.join(
                   distDir,
                   'server',
-                  'app',
-                  '_global-error.html'
+                  config.adapterPath && config.output !== 'export'
+                    ? `${getRouteCacheKey(UNDERSCORE_GLOBAL_ERROR_ROUTE, {
+                        kind: RouteKind.APP_PAGE,
+                        sourceRoute: UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
+                      })}.html`
+                    : 'app/_global-error.html'
                 )
                 if (existsSync(orig)) {
                   const error500Html = path.join(
@@ -4255,9 +4355,7 @@ export default async function build(
                       prerenderManifest.notFoundRoutes.includes(localePage)
 
                     if (isNotFoundTrue) {
-                      await deleteNotFoundPageFiles(
-                        normalizePagePath(localePage)
-                      )
+                      await deleteNotFoundPagesRouterFiles(localePage, page)
                     }
 
                     const cacheControl = getCacheControl(localePage)
@@ -4286,7 +4384,7 @@ export default async function build(
                   const isNotFoundTrue =
                     prerenderManifest.notFoundRoutes.includes(page)
                   if (isNotFoundTrue) {
-                    await deleteNotFoundPageFiles(file)
+                    await deleteNotFoundPagesRouterFiles(page, page)
                   }
 
                   const cacheControl = getCacheControl(page)
@@ -4323,9 +4421,7 @@ export default async function build(
                   const isNotFoundTrue =
                     prerenderManifest.notFoundRoutes.includes(route.pathname)
                   if (isNotFoundTrue) {
-                    await deleteNotFoundPageFiles(
-                      normalizePagePath(route.pathname)
-                    )
+                    await deleteNotFoundPagesRouterFiles(route.pathname, page)
                   }
 
                   const cacheControl = getCacheControl(route.pathname)
@@ -4737,6 +4833,10 @@ export default async function build(
           hasGSPAndRevalidateZero,
         })
       )
+
+      if (process.env.NEXT_PRIVATE_DEBUG_PARAM_MATCHING) {
+        printPrerenderMatchers(prerenderManifest, routesManifest.dynamicRoutes)
+      }
 
       if (bundler === Bundler.Turbopack) {
         await nextBuildSpan

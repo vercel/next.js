@@ -5,7 +5,7 @@ export async function generateStaticParams() {
   return [{ slug: 'prerendered-1' }, { slug: 'prerendered-2' }]
 }
 
-export const unstable_ensureStatic = 'navigation'
+export const ensureStatic = 'navigation'
 
 type Params = { slug: string }
 

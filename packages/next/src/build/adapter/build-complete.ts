@@ -67,6 +67,8 @@ import {
   createAdapterSyntheticSymlinkDirectory,
   type SyntheticSymlinkManager,
 } from './synthetic-symlinks'
+import { getRouteCacheKey } from '../../server/lib/route-cache-key'
+import { RouteKind } from '../../server/route-kind'
 
 interface SharedRouteFields {
   /**
@@ -1257,6 +1259,15 @@ export async function handleBuildComplete({
         return parentOutput
       }
 
+      const sourcesWithOpenFallbacks = new Set<string>()
+      for (const [pathname, route] of Object.entries(
+        prerenderManifest.dynamicRoutes
+      )) {
+        if (route.fallback !== false) {
+          sourcesWithOpenFallbacks.add(route.fallbackSourceRoute ?? pathname)
+        }
+      }
+
       const {
         prefetchSegmentDirSuffix,
         prefetchSegmentSuffix,
@@ -1264,6 +1275,57 @@ export async function handleBuildComplete({
         didPostponeHeader,
         contentTypeHeader: rscContentTypeHeader,
       } = routesManifest.rsc
+
+      const appSourcePages = new Map<string, string>()
+      const getPrerenderFilePath = (
+        route: string,
+        isAppPage: boolean,
+        extension: string
+      ) => {
+        if (config.output !== 'export') {
+          route = path.posix.join('/', route)
+          const pathname = isAppPage
+            ? route
+            : normalizeLocalePath(route, config.i18n?.locales).pathname
+          const prerender = prerenderManifest.routes[route]
+          const dynamicPrerender = prerenderManifest.dynamicRoutes[pathname]
+
+          // Auto-static Pages and generated error documents are not response
+          // cache entries and retain their public filenames.
+          if (!isAppPage && !prerender && !dynamicPrerender) {
+            return path.join(
+              pagesDistDir,
+              `${normalizePagePath(route)}${extension}`
+            )
+          }
+
+          const source =
+            prerender?.srcRoute ??
+            dynamicPrerender?.fallbackSourceRoute ??
+            pathname
+          let page = source
+          let kind = RouteKind.PAGES
+          if (isAppPage) {
+            page =
+              appSourcePages.get(source) ??
+              selectAppPageEntry(source, appPageKeys ?? [])
+            appSourcePages.set(source, page)
+            kind = page.endsWith('/route')
+              ? RouteKind.APP_ROUTE
+              : RouteKind.APP_PAGE
+          }
+          return path.join(
+            distDir,
+            'server',
+            `${getRouteCacheKey(route, { kind, sourceRoute: page })}${extension}`
+          )
+        }
+
+        return path.join(
+          isAppPage ? appDistDir : pagesDistDir,
+          `${normalizePagePath(route)}${extension}`
+        )
+      }
 
       const handleAppMeta = async (
         route: string,
@@ -1280,9 +1342,10 @@ export async function handleBuildComplete({
 
         if (meta?.segmentPaths) {
           const normalizedRoute = normalizePagePath(route)
-          const segmentsDir = path.join(
-            appDistDir,
-            `${normalizedRoute}${prefetchSegmentDirSuffix}`
+          const segmentsDir = getPrerenderFilePath(
+            route,
+            true,
+            prefetchSegmentDirSuffix
           )
 
           // If client param parsing is enabled, we follow the same logic as
@@ -1366,11 +1429,10 @@ export async function handleBuildComplete({
         route: string,
         isAppPage: boolean
       ): Promise<AppRouteMeta> => {
-        const basename = route.endsWith('/') ? `${route}index` : route
         const meta: AppRouteMeta = isAppPage
           ? JSON.parse(
               await fs
-                .readFile(path.join(appDistDir, `${basename}.meta`), 'utf8')
+                .readFile(getPrerenderFilePath(route, true, '.meta'), 'utf8')
                 .catch(() => '{}')
             )
           : {}
@@ -1419,7 +1481,6 @@ export async function handleBuildComplete({
           initialHeaders,
           initialStatus,
           dataRoute,
-          prefetchDataRoute,
           renderingMode,
           routeType,
           response,
@@ -1455,18 +1516,20 @@ export async function handleBuildComplete({
           allowQuery = Object.values(routeKeys)
         }
 
-        let filePath = path.join(
-          isAppPage ? appDistDir : pagesDistDir,
-          `${normalizePagePath(route)}.${isAppPage && !dataRoute ? 'body' : 'html'}`
+        let filePath = getPrerenderFilePath(
+          route,
+          isAppPage,
+          isAppPage && !dataRoute ? '.body' : '.html'
         )
 
         // Check if this is a static metadata route (e.g., /favicon.ico, /icon.png, /opengraph-image.png)
         // These should be output as static files, not prerenders.
         if (isStaticMetadataFile(route)) {
           // For static metadata from app router, check if the .body file exists
-          const staticMetadataFilePath = path.join(
-            appDistDir,
-            `${normalizePagePath(route)}.body`
+          const staticMetadataFilePath = getPrerenderFilePath(
+            route,
+            true,
+            '.body'
           )
           if (await cachedFilePathCheck(staticMetadataFilePath)) {
             outputs.staticFiles.push({
@@ -1488,8 +1551,12 @@ export async function handleBuildComplete({
             normalizeLocalePath(route, config.i18n?.locales).detectedLocale
 
           for (const currentFilePath of [
-            path.join(pagesDistDir, locale || '', '404.html'),
-            path.join(pagesDistDir, '404.html'),
+            getPrerenderFilePath(
+              path.posix.join('/', locale || '', '404'),
+              false,
+              '.html'
+            ),
+            getPrerenderFilePath('/404', false, '.html'),
           ]) {
             if (await cachedFilePathCheck(currentFilePath)) {
               filePath = currentFilePath
@@ -1572,7 +1639,14 @@ export async function handleBuildComplete({
                 }
               : undefined,
 
-          parentFallbackMode: srcRouteInfo?.fallback,
+          // This describes the whole source page, not just its least-specific
+          // matcher. A closed prefix with an open suffix must remain callable
+          // for paths that weren't rendered at build time.
+          parentFallbackMode:
+            srcRouteInfo?.fallback === false &&
+            sourcesWithOpenFallbacks.has(srcRoute)
+              ? undefined
+              : srcRouteInfo?.fallback,
 
           fallback:
             !isNotFoundTrue || (isNotFoundTrue && hasStatic404)
@@ -1625,29 +1699,12 @@ export async function handleBuildComplete({
         }
 
         if (dataRoute) {
-          let dataFilePath: string | undefined = path.join(
-            pagesDistDir,
-            `${normalizePagePath(route)}.json`
+          const dataFilePath = getPrerenderFilePath(
+            route,
+            isAppPage,
+            isAppPage ? '.rsc' : '.json'
           )
           let postponed = meta.postponed
-
-          const dataRouteToUse =
-            renderingMode === RenderingMode.PARTIALLY_STATIC &&
-            prefetchDataRoute
-              ? prefetchDataRoute
-              : dataRoute
-
-          if (isAppPage) {
-            // When experimental PPR is enabled, we expect that the data
-            // that should be served as a part of the prerender should
-            // be from the prefetch data route. If this isn't enabled
-            // for ppr, the only way to get the data is from the data
-            // route.
-            dataFilePath = path.join(
-              appDistDir,
-              (dataRouteToUse ?? dataRoute)?.replace(/^\//, '')
-            )
-          }
 
           if (
             renderingMode === RenderingMode.PARTIALLY_STATIC &&
@@ -1758,7 +1815,9 @@ export async function handleBuildComplete({
         // present and able to be served.
         if (typeof fallback === 'string') {
           if (fallbackRootParams && fallbackRootParams.length > 0) {
-            htmlAllowQuery = fallbackRootParams as string[]
+            htmlAllowQuery = fallbackRootParams.map(
+              (paramName) => `${NEXT_QUERY_PARAM_PREFIX}${paramName}`
+            )
           }
 
           // We additionally vary based on if there's a postponed prerender
@@ -1825,7 +1884,11 @@ export async function handleBuildComplete({
 
         const fallbackHtmlPath =
           fallbackHtmlFile !== undefined
-            ? path.join(isAppPage ? appDistDir : pagesDistDir, fallbackHtmlFile)
+            ? getPrerenderFilePath(
+                fallbackHtmlFile.replace(/\.html$/, ''),
+                isAppPage,
+                '.html'
+              )
             : undefined
 
         const classification = getPrerenderClassification(
@@ -1991,10 +2054,14 @@ export async function handleBuildComplete({
                       ...initialOutput.fallback,
                       initialStatus: undefined,
                       postponedState: undefined,
-                      filePath: path.join(
-                        pagesDistDir,
-                        locale,
-                        fallbackHtmlFile
+                      filePath: getPrerenderFilePath(
+                        path.posix.join(
+                          '/',
+                          locale,
+                          fallbackHtmlFile.replace(/\.html$/, '')
+                        ),
+                        false,
+                        '.html'
                       ),
                     }
                   : undefined,

@@ -1,5 +1,5 @@
 // Deliberately no export
-// export const unstable_ensureStatic = ...
+// export const ensureStatic = ...
 
 export default function Page() {
   return <main>Page</main>

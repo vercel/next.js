@@ -25,7 +25,11 @@ import type {
 import type { Params } from './request/params'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { RouteMatch } from './route-matches/route-match'
-import type { RouteMatch as AppRenderRouteMatch } from './route-modules/app-page/module'
+import type {
+  DevRenderContext,
+  RouteMatch as AppRenderRouteMatch,
+} from './route-modules/app-page/module'
+import { createDevRenderContext } from './route-modules/app-page/dev-render-context'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
 import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
@@ -247,7 +251,10 @@ export default class NextNodeServer extends BaseServer<
     }
 
     if (!this.minimalMode) {
-      this.imageResponseCache = new ResponseCache(this.minimalMode)
+      this.imageResponseCache = new ResponseCache({
+        minimalMode: this.minimalMode,
+        route: 'image',
+      })
     }
 
     if (
@@ -473,6 +480,7 @@ export default class NextNodeServer extends BaseServer<
         !this.minimalMode && this.nextConfig.experimental.isrFlushToDisk,
       previewProps: this.getPreviewProps(),
       prerenderManifest: this.getPrerenderManifest(),
+      locales: this.nextConfig.i18n?.locales,
       CurCacheHandler: CacheHandler,
     })
   }
@@ -674,6 +682,12 @@ export default class NextNodeServer extends BaseServer<
           !renderOpts.isPossibleServerAction
             ? lazyPrerenderAppPage
             : lazyRenderAppPage
+        const dev: DevRenderContext | undefined = createDevRenderContext(
+          req,
+          process.env.__NEXT_DEV_SERVER
+            ? this.getServerComponentsHmrCache()
+            : undefined
+        )
 
         const result = await renderAppPage(
           req,
@@ -684,7 +698,7 @@ export default class NextNodeServer extends BaseServer<
           // shells. As a result, we don't need to pass in the unknown params.
           null,
           renderOpts as LoadedRenderOpts<AppPageModule>,
-          this.getServerComponentsHmrCache(),
+          dev,
           {
             buildId: this.buildId,
             deploymentId: this.deploymentId,

@@ -152,8 +152,13 @@ describe('typed-routes-validator', () => {
           /Type error: Type 'typeof import\(.*' does not satisfy the expected type 'AppPageConfig</
         )
       } else {
-        expect(cliOutput).toMatch(
-          /Type error: Type 'typeof import\(.*' does not satisfy the constraint 'AppPageConfig</
+        // Non-strict AppPageConfig accepts any props. The per-page type check
+        // rejects invalid props instead.
+        expect(cliOutput.replace(/\\/g, '/')).toContain(
+          'Type error: Page "app/invalid/page.tsx" has an invalid "default" export:'
+        )
+        expect(cliOutput).toContain(
+          'Type "{ invalidProp: string; }" is not valid.'
         )
       }
     })
