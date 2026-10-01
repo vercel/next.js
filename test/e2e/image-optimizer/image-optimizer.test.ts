@@ -13,9 +13,10 @@ function toQueryString(query: Record<string, any>): string {
 
 const largeSize = 1080
 
+// Preserve the file-wide deploy exclusion previously imposed by skipDeployment's it.only.
+// @force-gate !deploy
 describe('Image Optimizer', () => {
   // These checks inspect local build errors and cannot run against a deployment.
-  // @force-gate !deploy
   describe('config checks', () => {
     const { next } = nextTestSetup({
       files: join(__dirname, 'app'),
