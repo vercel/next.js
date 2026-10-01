@@ -87,6 +87,7 @@ import {
 import { RedirectStatusCode } from '../../../client/components/redirect-status-code'
 import { INFINITE_CACHE } from '../../../lib/constants'
 import { executeRevalidates } from '../../revalidation-utils'
+import { trackStreamConsumed } from '../../web/web-on-close'
 import { trackPendingModules } from '../../app-render/module-loading/track-module-loading.external'
 import { InvariantError } from '../../../shared/lib/invariant-error'
 import { LazyModule } from '../../lib/lazy-module'
@@ -399,14 +400,55 @@ export class AppRouteRouteModule extends RouteModule<
 
     if (maybeRevalidatesPromise !== false) {
       context.renderOpts.pendingWaitUntil = maybeRevalidatesPromise.finally(
-        () => {
-          if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
-            console.log(
-              'pending revalidates promise finished for:',
-              requestStore.url.pathname + requestStore.url.search
-            )
-          }
-        }
+        () => this.logPendingRevalidatesFinished(requestStore)
+      )
+    }
+  }
+
+  /**
+   * Defers executing pending revalidations until the handler's response body
+   * stream has ended, so that revalidations queued while the body streams
+   * (e.g. a write performed by a streaming handler after it returned its
+   * `Response`) are applied too, instead of being silently dropped.
+   *
+   * Returns the response to send, with its body wrapped to observe the end.
+   */
+  private deferPendingRevalidationsUntilBodyEnd(
+    res: Response,
+    workStore: WorkStore,
+    requestStore: RequestStore,
+    context: AppRouteRouteHandlerContext
+  ): Response {
+    // `bodyEnded` must settle when the *source* stream ends (or is cancelled
+    // or errors), not when the HTTP response finishes. Without a platform
+    // `waitUntil`, `sendResponse` passes `pendingWaitUntil` to the writer,
+    // whose `close()` awaits it before calling `res.end()` (see
+    // `pipe-readable.ts`); a promise tied to the HTTP response end would never
+    // settle there. `trackStreamConsumed` handles cancellation as well.
+    let onBodyEnd!: () => void
+    const bodyEnded = new Promise<void>((resolve) => {
+      onBodyEnd = resolve
+    })
+    const body = trackStreamConsumed(res.body!, () => onBodyEnd())
+
+    // `pendingWaitUntil` is read once, right after the route module returns,
+    // so it has to be set now even though it settles later.
+    context.renderOpts.pendingWaitUntil = bodyEnded
+      .then(() => executeRevalidates(workStore) || undefined)
+      .finally(() => this.logPendingRevalidatesFinished(requestStore))
+
+    return new Response(body, {
+      status: res.status,
+      statusText: res.statusText,
+      headers: res.headers,
+    })
+  }
+
+  private logPendingRevalidatesFinished(requestStore: RequestStore): void {
+    if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
+      console.log(
+        'pending revalidates promise finished for:',
+        requestStore.url.pathname + requestStore.url.search
       )
     }
   }
@@ -479,8 +521,23 @@ export class AppRouteRouteModule extends RouteModule<
       )
     }
 
+    let response: Response = res
     context.renderOpts.fetchMetrics = workStore.fetchMetrics
-    this.resolvePendingRevalidations(workStore, requestStore, context)
+
+    // A streamed body can keep running handler code (and queueing
+    // revalidations) after the handler has returned. HEAD responses never
+    // have their body read, and static generation consumes the body itself,
+    // so both keep executing revalidations now.
+    if (response.body && !prerenderStore && request.method !== 'HEAD') {
+      response = this.deferPendingRevalidationsUntilBodyEnd(
+        response,
+        workStore,
+        requestStore,
+        context
+      )
+    } else {
+      this.resolvePendingRevalidations(workStore, requestStore, context)
+    }
 
     if (prerenderStore) {
       context.renderOpts.collectedTags = prerenderStore.tags?.join(',')
@@ -491,16 +548,16 @@ export class AppRouteRouteModule extends RouteModule<
 
     // It's possible cookies were set in the handler, so we need to merge the
     // modified cookies and the returned response here.
-    const headers = new Headers(res.headers)
+    const headers = new Headers(response.headers)
     if (appendMutableCookies(headers, requestStore.mutableCookies)) {
-      return new Response(res.body, {
-        status: res.status,
-        statusText: res.statusText,
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
         headers,
       })
     }
 
-    return res
+    return response
   }
 
   private async prerenderToResponse(
