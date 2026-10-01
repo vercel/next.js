@@ -42,8 +42,9 @@ use crate::{
     backend::{
         TaskDataCategory,
         operation::{
-            ExecuteContext, Operation, TaskGuard, connect_child::resurrect_deleted,
-            invalidate::make_task_dirty,
+            ExecuteContext, Operation, TaskGuard,
+            connect_child::resurrect_deleted,
+            invalidate::{make_task_dirty, try_make_task_dirty},
         },
         storage_schema::TaskStorageAccessors,
     },
@@ -306,6 +307,11 @@ pub enum AggregationUpdateJob {
     },
     /// Notifies an upper task about changed data from an inner task.
     AggregatedDataUpdate(Box<AggregatedDataUpdateJob>),
+    /// Mark these tasks dirty because they have a dependency on a task being deleted by GC.
+    ///
+    /// The id references are weak by construction: a dependent that was itself collected is
+    /// skipped.
+    InvalidateDueToDependencyTornDown { task_ids: TaskIdVec },
     /// Invalidates tasks that are dependent on a collectible type.
     InvalidateDueToCollectiblesChange {
         task_ids: TaskIdVec,
@@ -318,6 +324,7 @@ pub enum AggregationUpdateJob {
         // upon attempted serialization) similar to #[serde(skip)] on variants
         #[bincode(skip, default = "unreachable_decode")]
         task: TaskId,
+        release_construction_ref: bool,
     },
     /// Increases the active counters of the tasks
     IncreaseActiveCounts {
@@ -982,6 +989,16 @@ impl AggregationUpdateQueue {
         }
     }
 
+    /// A queue that defers every optimization: each request is recorded on its task's
+    /// `optimization_pending` flag instead of being enqueued.
+    pub fn new_without_optimizations() -> Self {
+        Self {
+            // Start the budget already spent, so every optimization is refused.
+            optimizations_executed: MAX_OPTIMIZATIONS_PER_QUEUE,
+            ..Self::new()
+        }
+    }
+
     /// Returns true, when the queue is empty.
     pub fn is_empty(&self) -> bool {
         let Self {
@@ -1166,6 +1183,74 @@ impl AggregationUpdateQueue {
         let mut queue = Self::new();
         queue.push(job);
         queue.execute(ctx);
+    }
+
+    /// Whether only rebalance work (`balance_edge` / `optimize`) is left.
+    ///
+    /// GC uses this to stop once edge removal is done and defer the rebalance until the parallel
+    /// collect is quiescent.
+    pub fn only_rebalance_remains(&self) -> bool {
+        let Self {
+            jobs,
+            aggregation_number_updates,
+            find_and_schedule,
+            balance_queue: _,
+            optimize_queue: _,
+            optimizations_executed: _,
+            done_aggregation_number_updates: _,
+            scheduled_tasks,
+            #[cfg(feature = "trace_aggregation_update_stats")]
+                stats: _,
+        } = self;
+
+        assert!(
+            find_and_schedule.is_empty() && scheduled_tasks.is_empty(),
+            "GC deletion must not schedule task executions, but {} find_and_schedule and {} \
+             scheduled_tasks jobs are pending",
+            find_and_schedule.len(),
+            scheduled_tasks.len(),
+        );
+        jobs.is_empty() && aggregation_number_updates.is_empty()
+    }
+
+    /// Takes the deferred balance edges, leaving the queue empty of them.
+    ///
+    /// Only meaningful for a queue stopped at the rebalance boundary; see
+    /// [`CleanupOldEdgesOperation::run_edge_deletions_only`], which is the only caller.
+    pub(super) fn take_deferred_balance_edges(
+        &mut self,
+    ) -> impl Iterator<Item = (TaskId, TaskId)> + use<> {
+        assert!(
+            self.only_rebalance_remains(),
+            "take_deferred_balance_edges expects a queue stopped at the rebalance boundary"
+        );
+        assert!(
+            self.optimize_queue.is_empty(),
+            "a queue built with `new_without_optimizations` must never hold optimize jobs"
+        );
+        take(&mut self.balance_queue)
+            .into_iter()
+            .map(|job| (job.upper_id, job.task_id))
+    }
+
+    /// Queues balance jobs for `edges`, skipping any whose endpoints have since been collected:
+    /// the edge went with them, and balancing a deleted task is what the deferral exists to avoid.
+    pub fn extend_balance_edges(
+        &mut self,
+        edges: impl IntoIterator<Item = (TaskId, TaskId)>,
+        ctx: &mut impl ExecuteContext<'_>,
+    ) {
+        for (upper_id, task_id) in edges {
+            // structure as 2 if statements to ensure the first guard is dropped before the second
+            // one is fetched.
+            if ctx.task(upper_id, TaskDataCategory::Meta).deleted() {
+                continue;
+            }
+            if ctx.task(task_id, TaskDataCategory::Meta).deleted() {
+                continue;
+            }
+            self.push(AggregationUpdateJob::BalanceEdge { upper_id, task_id });
+        }
     }
 
     /// Executes a single step of the queue. Returns true, when the queue is empty.
@@ -1456,6 +1541,18 @@ impl AggregationUpdateQueue {
                     }
                     self.aggregated_data_update(upper_ids, ctx, update);
                 }
+                AggregationUpdateJob::InvalidateDueToDependencyTornDown { task_ids } => {
+                    for task_id in task_ids {
+                        // `try_*`: the dependent may itself have been collected in this cascade.
+                        try_make_task_dirty(
+                            task_id,
+                            #[cfg(feature = "task_dirty_cause")]
+                            TaskDirtyCause::DependencyTornDown,
+                            self,
+                            ctx,
+                        );
+                    }
+                }
                 AggregationUpdateJob::InvalidateDueToCollectiblesChange {
                     task_ids,
                     #[cfg(feature = "task_dirty_cause")]
@@ -1498,12 +1595,17 @@ impl AggregationUpdateQueue {
                         }
                     }
                 }
-                AggregationUpdateJob::IncreaseActiveCount { task } => {
-                    self.increase_active_count(ctx, task);
+                AggregationUpdateJob::IncreaseActiveCount {
+                    task,
+                    release_construction_ref,
+                } => {
+                    self.increase_active_count(ctx, task, release_construction_ref);
                 }
                 AggregationUpdateJob::IncreaseActiveCounts { mut task_ids } => {
                     if let Some(task_id) = task_ids.pop() {
-                        self.increase_active_count(ctx, task_id);
+                        self.increase_active_count(
+                            ctx, task_id, /* release_construction_ref */ false,
+                        );
                         if !task_ids.is_empty() {
                             self.jobs.push_front(AggregationUpdateJobItem::new(
                                 AggregationUpdateJob::IncreaseActiveCounts { task_ids },
@@ -1760,7 +1862,10 @@ impl AggregationUpdateQueue {
                         let has_active_count =
                             upper.get_activeness().is_some_and(|a| a.active_counter > 0);
                         if has_active_count {
-                            self.push(AggregationUpdateJob::IncreaseActiveCount { task: task_id });
+                            self.push(AggregationUpdateJob::IncreaseActiveCount {
+                                task: task_id,
+                                release_construction_ref: false,
+                            });
                         }
                     }
                     // notify uppers about new follower
@@ -3057,6 +3162,7 @@ impl AggregationUpdateQueue {
                     if has_active_count {
                         self.push(AggregationUpdateJob::IncreaseActiveCount {
                             task: new_follower_id,
+                            release_construction_ref: false,
                         });
                     }
 
@@ -3216,7 +3322,12 @@ impl AggregationUpdateQueue {
     /// Increases the active count of a task.
     ///
     /// Only used when activeness is tracked.
-    fn increase_active_count(&mut self, ctx: &mut impl ExecuteContext<'_>, task_id: TaskId) {
+    fn increase_active_count(
+        &mut self,
+        ctx: &mut impl ExecuteContext<'_>,
+        task_id: TaskId,
+        release_construction_ref: bool,
+    ) {
         #[cfg(feature = "trace_aggregation_update")]
         let _span = trace_span!("increase active count").entered();
 
@@ -3233,6 +3344,9 @@ impl AggregationUpdateQueue {
         let is_new = state.is_empty();
         let is_positive_now = state.increment_active_counter();
         let is_empty = state.is_empty();
+        if release_construction_ref {
+            task.update_and_get_transient_ref_count(-1);
+        }
         // This can happen if active count was negative before
         if is_empty {
             task.take_activeness();

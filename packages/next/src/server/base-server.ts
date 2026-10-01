@@ -37,6 +37,7 @@ import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-ma
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 import type { PagesAPIRouteMatch } from './route-matches/pages-api-route-match'
 import type { RouteMatch } from './route-matches/route-match'
+import type { RouteMatch as AppRenderRouteMatch } from './route-modules/app-page/module'
 import type { RouteDefinition } from './route-definitions/route-definition'
 import type { AppPageRouteDefinition } from './route-definitions/app-page-route-definition'
 import type { AppRouteRouteDefinition } from './route-definitions/app-route-route-definition'
@@ -414,7 +415,8 @@ export default abstract class Server<
     res: ServerResponse,
     pathname: string,
     query: NextParsedUrlQuery,
-    renderOpts: LoadedRenderOpts
+    renderOpts: LoadedRenderOpts,
+    routeMatch: AppRenderRouteMatch
   ): Promise<RenderResult>
 
   protected abstract getIncrementalCache(options: {

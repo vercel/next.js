@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use next_taskless::NEVER_EXTERNAL_RE;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, ResolvedVc, Vc};
 use turbo_tasks_fs::{
     self, FileJsonContent, FileSystemPath,
     glob::{Glob, GlobOptions},
@@ -212,9 +212,9 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
         let mut request_str = request_str.to_string();
 
         let node_resolve_options = if is_esm {
-            node_esm_resolve_options(lookup_path.root().owned().await?)
+            node_esm_resolve_options()
         } else {
-            node_cjs_resolve_options(lookup_path.root().owned().await?)
+            node_cjs_resolve_options()
         };
         let result_from_original_location = loop {
             let node_resolved_from_original_location = resolve(
@@ -274,8 +274,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                 // It would be more efficient to use an CJS external instead of an ESM external,
                 // but we need to verify if that would be correct (as in resolves to the same
                 // file).
-                let node_resolve_options =
-                    node_cjs_resolve_options(lookup_path.root().owned().await?);
+                let node_resolve_options = node_cjs_resolve_options();
                 let node_resolved = resolve(
                     lookup_path.clone(),
                     reference_type.clone(),
@@ -330,7 +329,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
     }
 }
 
-#[derive(TraceRawVcs, PartialEq, Eq, Debug, NonLocalValue, Encode, Decode)]
+#[derive(PartialEq, Eq, Debug, NonLocalValue, Encode, Decode)]
 pub struct PackagesGlobs {
     path_glob: ResolvedVc<Glob>,
     request_glob: ResolvedVc<Glob>,

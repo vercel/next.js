@@ -1,3 +1,5 @@
+#![cfg(feature = "mmap")]
+
 use std::{cell::UnsafeCell, path::Path, sync::LazyLock, time::Duration};
 
 use anyhow::Result;
@@ -12,7 +14,8 @@ use tempfile::TempDir;
 use turbo_persistence::{
     ArcBytes, BlockCache, CompactConfig, Compression, DbConfig as TpDbConfig, Entry, EntryValue,
     FamilyConfig, FamilyKind, MetaEntryFlags, SerialScheduler, StaticSortedFile,
-    StaticSortedFileMetaData, TurboPersistence, hash_key, write_static_stored_file,
+    StaticSortedFileMetaData, TurboPersistence, hash_key, shard::ShardBits,
+    write_static_stored_file,
 };
 use turbo_tasks_malloc::TurboMalloc;
 
@@ -623,6 +626,7 @@ fn prefill_multi_value_database(
             name: "test",
             kind: FamilyKind::MultiValue,
             compression: Compression::Lz4,
+            initial_shard_bits: ShardBits::new(0),
         }],
         ..TpDbConfig::new()
     };
@@ -699,6 +703,7 @@ fn open_multi_value_db(path: &Path) -> TurboPersistence<SerialScheduler, 1> {
             name: "test",
             kind: FamilyKind::MultiValue,
             compression: Compression::Lz4,
+            initial_shard_bits: ShardBits::new(0),
         }],
         ..TpDbConfig::new()
     };
@@ -840,6 +845,84 @@ fn bench_read_get_multiple(c: &mut Criterion) {
 // Compaction Benchmarks
 // =============================================================================
 
+fn family_benchmark_key(family: u32, commit: u32, item: u32) -> [u8; 12] {
+    let mut key = [0; 12];
+    key[..4].copy_from_slice(&family.to_be_bytes());
+    key[4..8].copy_from_slice(&commit.to_be_bytes());
+    key[8..].copy_from_slice(&item.to_be_bytes());
+    key
+}
+
+fn bench_family_sharding(c: &mut Criterion) {
+    const FAMILIES: usize = 4;
+    const COMMITS: u32 = 100;
+    let entries_per_commit = scaled(1_000);
+    let db = LazyLock::new(|| {
+        let tempdir = tempfile::tempdir().unwrap();
+        let config = TpDbConfig {
+            family_configs: ["family-0", "family-1", "family-2", "family-3"].map(|name| {
+                FamilyConfig {
+                    name,
+                    kind: FamilyKind::SingleValue,
+                    compression: Compression::Lz4,
+                    initial_shard_bits: ShardBits::new(0),
+                }
+            }),
+            ..TpDbConfig::new()
+        };
+        let db = TurboPersistence::<SerialScheduler, FAMILIES>::open_with_config(
+            tempdir.path().to_path_buf(),
+            config,
+        )
+        .unwrap();
+        for commit in 0..COMMITS {
+            for family in 0..FAMILIES as u32 {
+                let batch = db.write_batch().unwrap();
+                for item in 0..entries_per_commit as u32 {
+                    batch
+                        .put(
+                            family,
+                            family_benchmark_key(family, commit, item),
+                            item.to_be_bytes().to_vec().into(),
+                        )
+                        .unwrap();
+                }
+                db.commit_write_batch(batch).unwrap();
+            }
+        }
+        (tempdir, db)
+    });
+
+    let mut group = c.benchmark_group("read/family_sharding");
+    group.measurement_time(Duration::from_secs(5));
+    let hit = family_benchmark_key(2, COMMITS - 1, 0);
+    let miss = family_benchmark_key(2, COMMITS, 0);
+    let batch_hits = (0..64)
+        .map(|item| family_benchmark_key(2, COMMITS - 1, item))
+        .collect::<Vec<_>>();
+    let batch_misses = (0..64)
+        .map(|item| family_benchmark_key(2, COMMITS, item))
+        .collect::<Vec<_>>();
+
+    group.bench_function("get/hit", |b| {
+        let (_, db) = &*db;
+        b.iter(|| black_box(db.get(2, black_box(&hit)).unwrap()))
+    });
+    group.bench_function("get/miss", |b| {
+        let (_, db) = &*db;
+        b.iter(|| black_box(db.get(2, black_box(&miss)).unwrap()))
+    });
+    group.bench_function("batch_get/hit_64", |b| {
+        let (_, db) = &*db;
+        b.iter(|| black_box(db.batch_get(2, black_box(&batch_hits)).unwrap()))
+    });
+    group.bench_function("batch_get/miss_64", |b| {
+        let (_, db) = &*db;
+        b.iter(|| black_box(db.batch_get(2, black_box(&batch_misses)).unwrap()))
+    });
+    group.finish();
+}
+
 fn bench_compaction(c: &mut Criterion) {
     let mut group = c.benchmark_group("compaction");
     // Compaction is expensive, reduce sample size
@@ -889,13 +972,12 @@ fn bench_compaction(c: &mut Criterion) {
                     |(_tempdir, db)| {
                         // Timed: run normal compaction
                         db.compact(&CompactConfig {
-                            min_merge_count: 3,
-                            optimal_merge_count: 8,
-                            max_merge_count: 64,
-                            max_merge_bytes: 512 * MB,
-                            min_merge_duplication_bytes: 50 * MB,
-                            optimal_merge_duplication_bytes: 100 * MB,
-                            max_merge_segment_count: 16,
+                            max_space_amplification_percent: 50,
+                            min_bottom_merge_bytes: 1024 * 1024,
+                            max_files_above_bottom: 6,
+                            rewrite_per_fresh_byte: 3.0,
+                            size_ratio_percent: 100,
+                            max_merge_jobs: 16,
                         })
                         .unwrap();
                         black_box(db)
@@ -969,6 +1051,7 @@ fn bench_write_multi_value(c: &mut Criterion) {
                                 name: "test",
                                 kind: FamilyKind::MultiValue,
                                 compression: Compression::Lz4,
+                                initial_shard_bits: ShardBits::new(0),
                             }],
                             ..TpDbConfig::new()
                         };
@@ -1201,8 +1284,8 @@ fn bench_static_sorted_file_lookup(c: &mut Criterion) {
                 })
                 .collect();
 
-            // Sort by hash (required by write_static_stored_file)
-            entries.sort_by_key(|e| e.hash);
+            // Sort by (hash, key) order, as required by write_static_stored_file
+            entries.sort_by_key(|e| (e.hash, e.key));
 
             // Create temp directory and write SST file
             let tempdir = tempfile::tempdir().unwrap();
@@ -1499,6 +1582,6 @@ fn bench_block_cache(c: &mut Criterion) {
 criterion_group!(
     name = benches;
     config = Criterion::default();
-    targets = bench_write, bench_write_multi_value, bench_read_get, bench_read_batch_get, bench_read_get_multiple, bench_compaction, bench_compaction_multi_value, bench_qfilter, bench_static_sorted_file_lookup, bench_block_cache
+    targets = bench_write, bench_write_multi_value, bench_read_get, bench_read_batch_get, bench_read_get_multiple, bench_family_sharding, bench_compaction, bench_compaction_multi_value, bench_qfilter, bench_static_sorted_file_lookup, bench_block_cache
 );
 criterion_main!(benches);

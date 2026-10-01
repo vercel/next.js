@@ -207,18 +207,10 @@ mod tests {
     struct PersistableNeverV(#[allow(dead_code)] u32);
 
     #[turbo_tasks::value(serialization = "skip")]
-    struct SkipCheapV(
-        #[turbo_tasks(trace_ignore)]
-        #[allow(dead_code)]
-        u32,
-    );
+    struct SkipCheapV(#[allow(dead_code)] u32);
 
     #[turbo_tasks::value(serialization = "skip", evict = "last")]
-    struct SkipExpensiveV(
-        #[turbo_tasks(trace_ignore)]
-        #[allow(dead_code)]
-        u32,
-    );
+    struct SkipExpensiveV(#[allow(dead_code)] u32);
 
     #[turbo_tasks::value(serialization = "skip", evict = "never", cell = "new", eq = "manual")]
     struct SessionStatefulV;

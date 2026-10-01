@@ -1,8 +1,10 @@
 import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
 import { join } from 'path'
-import { existsSync } from 'fs'
+import { existsSync, rmSync } from 'fs'
 import { parseTraceFile } from '../../../lib/parse-trace-file'
 
+// The trace assertions require access to local build output.
+// @force-gate !deploy
 describe('trace-build-file', () => {
   const { next } = nextTestSetup({
     files: __dirname,
@@ -54,6 +56,13 @@ describe('trace-build-file', () => {
     })
 
     it('should only contain allowlisted events', async () => {
+      // Remove the persistent cache so this build re-executes (and re-emits
+      // the trace spans of) all turbo-tasks operations instead of serving
+      // them from the cache.
+      rmSync(join(next.testDir, '.next', 'cache', 'turbopack'), {
+        recursive: true,
+        force: true,
+      })
       await next.build()
 
       const traceBuildPath = join(next.testDir, '.next/trace-build')
@@ -88,7 +97,10 @@ describe('trace-build-file', () => {
                   "static-check",
                   "static-generation",
                   "telemetry-flush",
+                  "turbopack-emit",
+                  "turbopack-module-graph",
                   "turbopack-persistence",
+                  "turbopack-write-entrypoints",
                 ]
               `)
       } else {

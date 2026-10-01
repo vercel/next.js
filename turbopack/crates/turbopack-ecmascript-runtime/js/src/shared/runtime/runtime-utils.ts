@@ -166,6 +166,11 @@ type EsmBindings = Array<
 >
 
 /**
+ * Terminates a module's group of entries in an {@link EsmReexports} list.
+ */
+const REEXPORT_GROUP_END = 0
+
+/**
  * Adds the getters to the exports object.
  */
 function esm(exports: Exports, bindings: EsmBindings, dynamic?: boolean) {
@@ -234,6 +239,139 @@ function esmExport(
   esm(exports, bindings, dynamic)
 }
 contextPrototype.s = esmExport
+
+/**
+ * Registers re-exports that all forward to properties of other modules.
+ *
+ * This is a compact spelling of the pattern
+ *
+ * ```js
+ * var ns = context.i(moduleId)
+ * context.s([exportName, () => ns[importedName], ...])
+ * ```
+ *
+ * The list is a flat sequence of groups. Each group starts with the source the exports come from,
+ * followed by that group's entries, and is terminated by the `0` sentinel (or the end of the list).
+ *
+ * The group head is either a **module id**, which is instantiated here:
+ *
+ * ```js
+ * context.S([
+ *   76061, 'default', 'f', 'named', 'A', 0,
+ *   29842, 'otherModule', 'f',
+ * ])
+ * ```
+ *
+ * or the **namespace value** of a module that has already been imported, which is used directly:
+ *
+ * ```js
+ * var ns1 = context.i(76061)
+ * context.S([ns1, 'default', 'f', 'named', 'A'])
+ * ```
+ *
+ * The producer picks the namespace form when it has generated the import anyway -- because some
+ * later import must not be reordered past it -- so nothing is instantiated twice. The two are told
+ * apart by type: a module id is always a string or number. A CommonJS function export produces a
+ * callable namespace value, so namespace heads can be functions as well as objects.
+ *
+ * Entries are `exportName, importedName` pairs, except when a group holds exactly one string. That
+ * string is then a comma-joined list of the same pairs, which saves the repeated quoting:
+ *
+ * ```js
+ * context.S([
+ *   76061, 'default,f,named,A', 0,
+ *   29842, 'otherModule,f',
+ * ])
+ * ```
+ *
+ * The producer picks that spelling independently for each group whose names contain no commas,
+ * since that group's names are recovered by splitting on them.
+ *
+ * Groups whose head is a module id are instantiated in list order, at the point where the call
+ * appears, so the producer must not merge such a group across an import of another module. The
+ * destination reuses a source data value or getter descriptor when one exists, falling back to a
+ * wrapper getter for dynamic/proxy/inherited properties.
+ *
+ * `id` names the module the exports belong to when this module was merged into a scope-hoisting
+ * group, exactly as it does for {@link EsmExport}.
+ *
+ * Only the source descriptor's payload (value or getter) is reused. {@link esm} still defines a
+ * fresh enumerable, non-configurable destination property, and no source setter is ever forwarded.
+ */
+function esmReexport(
+  this: TurbopackBaseContext<Module>,
+  list: EsmReexports,
+  id?: ModuleId
+): void {
+  const bindings: EsmBindings = []
+  let i = 0
+  while (i < list.length) {
+    const head = list[i++]
+    const start = i
+    while (i < list.length && list[i] !== REEXPORT_GROUP_END) i++
+    const end = i
+    // Skip the sentinel, if this group was terminated by one rather than by the end of the list.
+    i++
+
+    // Module ids are always strings or numbers. Other values are already-imported namespaces;
+    // notably, interop with a CommonJS function export produces a callable namespace function.
+    // `esmImport` may return a promise for an async module, but re-exports of async modules keep
+    // going through `context.s`, so the producer never routes them here and this stays synchronous.
+    const namespace = (
+      typeof head === 'string' || typeof head === 'number'
+        ? esmImport.call(this, head)
+        : head
+    ) as Record<string, unknown>
+    if (end - start === 1) {
+      const pairs = (list[start] as string).split(',')
+      for (let j = 0; j < pairs.length; j += 2) {
+        appendReexportBinding(bindings, pairs[j], namespace, pairs[j + 1])
+      }
+    } else {
+      for (let j = start; j < end; j += 2) {
+        appendReexportBinding(
+          bindings,
+          list[j] as string,
+          namespace,
+          list[j + 1] as string
+        )
+      }
+    }
+  }
+  esmExport.call(this, bindings, id)
+}
+contextPrototype.S = esmReexport
+
+function appendReexportBinding(
+  bindings: EsmBindings,
+  exportedName: string,
+  namespace: Record<string, unknown>,
+  importedName: string
+): void {
+  const descriptor = Reflect.getOwnPropertyDescriptor(namespace, importedName)
+  if (descriptor) {
+    if ('value' in descriptor) {
+      // Code generation only routes immutable imported bindings through this helper, so a data
+      // descriptor is a constant export and can be captured once.
+      bindings.push(exportedName, BindingTag_Value, descriptor.value)
+      return
+    }
+    if (descriptor.get) {
+      // Accessors remain live by reusing the source getter. `esmReexport` is only called by
+      // generated code: every group head is either produced by
+      // `this.i` or is the namespace variable from a generated `this.i` call. Every getter on such
+      // a namespace is receiver-independent: ESM bindings are compiler-generated arrow functions,
+      // and the CommonJS/dynamic-namespace paths create arrows in `createGetter` and
+      // `getOwnPropertyDescriptor`. The destination can therefore reuse the exact function instead
+      // of allocating another wrapper getter.
+      bindings.push(exportedName, descriptor.get)
+      return
+    }
+  }
+
+  // Dynamic/proxy/inherited CommonJS edge cases may not expose a usable own descriptor.
+  bindings.push(exportedName, () => namespace[importedName])
+}
 
 type ReexportedObjects = Record<PropertyKey, unknown>[]
 function ensureDynamicExports(

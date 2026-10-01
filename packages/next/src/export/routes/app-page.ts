@@ -2,7 +2,7 @@ import type { OutgoingHttpHeaders } from 'node:http'
 import type { ExportRouteResult } from '../types'
 import type { RenderOpts } from '../../server/app-render/types'
 import type { NextParsedUrlQuery } from '../../server/request-meta'
-import type { RouteMetadata } from './types'
+import type { RouteCacheMetadata, RouteMetadata } from './types'
 
 import type {
   MockedRequest,
@@ -27,6 +27,7 @@ import type { OpaqueFallbackRouteParams } from '../../server/request/fallback-pa
 import { AfterRunner } from '../../server/after/run-with-after'
 import type { RequestLifecycleOpts } from '../../server/base-server'
 import type { AppSharedContext } from '../../server/app-render/app-render'
+import type { RouteMatch } from '../../server/route-modules/app-page/module'
 import type { MultiFileWriter } from '../../lib/multi-file-writer'
 import {
   deflateResumeDataCache,
@@ -53,7 +54,9 @@ export async function exportAppPage(
   debugOutput: boolean,
   isDynamicError: boolean,
   fileWriter: MultiFileWriter,
-  sharedContext: AppSharedContext
+  sharedContext: AppSharedContext,
+  routeMatch: RouteMatch,
+  routeCache?: RouteCacheMetadata
 ): Promise<ExportRouteResult> {
   const afterRunner = new AfterRunner()
 
@@ -86,8 +89,13 @@ export async function exportAppPage(
       fallbackRouteParams,
       renderOpts,
       undefined,
-      sharedContext
+      sharedContext,
+      routeMatch
     )
+
+    if ('error' in result) {
+      throw result.error
+    }
 
     const html = result.toUnchunkedString()
 
@@ -224,6 +232,7 @@ export async function exportAppPage(
       postponed,
       segmentPaths,
       prefetchHints,
+      routeCache,
     }
 
     fileWriter.append(

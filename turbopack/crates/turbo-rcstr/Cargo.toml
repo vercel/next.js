@@ -5,7 +5,6 @@ edition = "2024"
 license = "MIT"
 
 [features]
-atom_size_64 = ["turbo-rcstr-macros/atom_size_64"]
 atom_size_128 = ["turbo-rcstr-macros/atom_size_128"]
 napi = ["dep:napi"]
 

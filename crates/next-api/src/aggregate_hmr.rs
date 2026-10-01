@@ -10,7 +10,6 @@ use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, Vc,
     debug::ValueDebugFormat,
     message_queue::{CompilationEvent, Severity},
-    trace::TraceRawVcs,
     turbo_tasks,
 };
 use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_base64};
@@ -27,7 +26,7 @@ use turbopack_nodejs::ecmascript::node::entry::chunk_list_content::{
     EcmascriptBuildNodeChunkListContent, compute_update_from_version_operation,
 };
 
-#[derive(Clone, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
+#[derive(Clone, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
 pub struct ServerHmrChunkList {
     pub relative_path: RcStr,
     pub versioned_content: ResolvedVc<EcmascriptBuildNodeChunkListContent>,
@@ -55,7 +54,6 @@ impl ServerHmrChunkLists {
 #[turbo_tasks::value(serialization = "skip", shared)]
 #[derive(Debug)]
 pub struct ServerHmrChunkListVersion {
-    #[turbo_tasks(trace_ignore)]
     pub versions_by_chunk_list_path: FxIndexMap<RcStr, ReadRef<ChunkListVersion>>,
 }
 
@@ -138,7 +136,7 @@ impl ChunkListUpdateBuilder {
 }
 
 /// An update plus the baseline for the next pull.
-#[derive(Debug, TraceRawVcs)]
+#[derive(Debug)]
 pub enum ServerHmrUpdate {
     /// No runtime update and the graph is equivalent. However, `to` may still advance the pull
     /// version.

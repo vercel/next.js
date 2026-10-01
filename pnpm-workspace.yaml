@@ -50,5 +50,6 @@ minimumReleaseAgeExclude:
   - react-dom
   - react-is
   - react-server-dom-*
+  - satori@0.33.5
   - scheduler
   - turbo

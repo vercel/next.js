@@ -25,10 +25,10 @@ import {
 } from '@/components/ui/popover'
 import { cn, jsonFetcher } from '@/lib/utils'
 import { NetworkError } from '@/lib/errors'
+import { useHistoryIndex } from '@/lib/analyzer-data'
 import {
   formatRelativeTime,
   formatSnapshotLabel,
-  type HistoryIndex,
   type SnapshotMetadata,
 } from '@/lib/snapshot'
 
@@ -47,7 +47,7 @@ interface BaselinePickerProps {
  * Two instances can select arbitrary A and B snapshots for comparison.
  *
  * Snapshots are loaded from `history/history.json` — written by
- * `writeAnalyzeSnapshot` after each `next build --experimental-analyze`.
+ * `writeAnalyzeSnapshot` after each `next build --analyze`.
  */
 export function BaselinePicker({
   selectedSnapshotId,
@@ -59,23 +59,12 @@ export function BaselinePicker({
 }: BaselinePickerProps) {
   const [open, setOpen] = useState(false)
 
-  const {
-    data: history,
-    isLoading,
-    error,
-  } = useSWR<HistoryIndex>('history/history.json', jsonFetcher, {
-    // History rarely changes during a session — avoid spamming refetches.
-    revalidateOnFocus: false,
-    revalidateOnReconnect: false,
-    // Treat 404 as "no history yet" rather than an error so users on fresh
-    // installs see a graceful disabled state instead of a red banner.
-    shouldRetryOnError: false,
-  })
+  const { data: history, isLoading, error } = useHistoryIndex()
 
   // Metadata for the *current* build, so we can exclude its corresponding
   // entry from the history picker (you can't compare a build with itself).
   const { data: currentMetadata } = useSWR<SnapshotMetadata>(
-    'data/metadata.json',
+    '/data/metadata.json',
     jsonFetcher,
     {
       revalidateOnFocus: false,
@@ -157,7 +146,7 @@ export function BaselinePicker({
                   <div className="mt-1">
                     Run{' '}
                     <code className="rounded bg-muted px-1 py-0.5 text-xs">
-                      next experimental-analyze
+                      next analyze
                     </code>{' '}
                     again to capture a baseline you can compare against.
                   </div>
@@ -170,7 +159,7 @@ export function BaselinePicker({
                   <div className="mt-1">
                     Run{' '}
                     <code className="rounded bg-muted px-1 py-0.5 text-xs">
-                      next build --experimental-analyze
+                      next build --analyze
                     </code>{' '}
                     to start collecting snapshots.
                   </div>
@@ -182,7 +171,7 @@ export function BaselinePicker({
                 {snapshots.map((snapshot) => (
                   <CommandItem
                     key={snapshot.id}
-                    value={`${snapshot.id} ${snapshot.gitBranch ?? ''} ${snapshot.gitShortSha ?? ''} ${snapshot.gitMessage ?? ''} ${snapshot.baselineName ?? ''}`}
+                    value={`${snapshot.id} ${snapshot.gitBranch ?? ''} ${snapshot.gitShortSha ?? ''} ${snapshot.gitMessage ?? ''} ${snapshot.snapshotName ?? ''}`}
                     onSelect={() => {
                       onSelectionChange(snapshot)
                       setOpen(false)

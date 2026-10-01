@@ -18,20 +18,16 @@ use serde::{Deserialize, Serialize};
 use tracing::{Instrument, Level, Span};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    CollectiblesSource, FxIndexMap, NonLocalValue, OperationVc, ReadRef, ResolvedVc,
+    CollectiblesSource, FxIndexMap, JoinIterExt, NonLocalValue, OperationVc, ReadRef, ResolvedVc,
     TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
-    trace::TraceRawVcs,
 };
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::{
     chunk::{AsyncModuleInfo, ChunkingContext, ChunkingType, TracedMode},
-    issue::{
-        ImportTracer, ImportTraces, Issue, IssueExt, IssueSeverity, StyledString,
-        analyze::AnalyzeIssue,
-    },
+    issue::{ImportTracer, ImportTraces, Issue, IssueExt, IssueSeverity, analyze::AnalyzeIssue},
     module::Module,
     module_graph::{
         async_module_info::{AsyncModulesInfo, compute_async_module_info},
@@ -68,24 +64,10 @@ mod traced_di_graph;
 pub use self::module_batches::BatchingConfig;
 
 #[derive(
-    Debug,
-    Copy,
-    Clone,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    PartialEq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    Encode,
-    Decode,
+    Debug, Copy, Clone, Eq, PartialOrd, Ord, Hash, PartialEq, Serialize, Deserialize, Encode, Decode,
 )]
 pub struct GraphNodeIndex {
-    #[turbo_tasks(trace_ignore)]
     graph_idx: u32,
-    #[turbo_tasks(trace_ignore)]
     #[bincode(with_serde)]
     node_idx: NodeIndex,
 }
@@ -101,22 +83,11 @@ impl GraphNodeIndex {
 unsafe impl NonLocalValue for GraphNodeIndex {}
 
 #[derive(
-    Debug,
-    Copy,
-    Clone,
-    Eq,
-    PartialOrd,
-    Ord,
-    Hash,
-    PartialEq,
-    TraceRawVcs,
-    NonLocalValue,
-    Encode,
-    Decode,
+    Debug, Copy, Clone, Eq, PartialOrd, Ord, Hash, PartialEq, NonLocalValue, Encode, Decode,
 )]
 pub struct GraphEdgeIndex {
     graph_idx: u32,
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(unsafe_ignore)]
     #[bincode(with_serde)]
     edge_idx: EdgeIndex,
 }
@@ -308,17 +279,16 @@ pub struct SingleModuleGraph {
     // HashMaps have nondeterministic order, but this map is only used for lookups (in
     // `get_module`) and not iteration.
     //
-    // This contains Vcs, but they are already contained in the graph, so no need to trace this.
-    #[turbo_tasks(trace_ignore)]
+    // This contains Vcs, but they are already contained in the graph.
+    #[turbo_tasks(unsafe_ignore)]
     #[bincode(with_serde)]
     modules: FxHashMap<ResolvedVc<Box<dyn Module>>, NodeIndex>,
 
-    #[turbo_tasks(trace_ignore)]
     entries: GraphEntries,
 
     /// Derived from `entries` and `modules`. Both are immutable after graph construction, and node
     /// indices are stable because graph nodes are never removed.
-    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[turbo_tasks(debug_ignore, unsafe_ignore)]
     #[bincode(skip, default = "OnceLock::new")]
     entry_nodes: OnceLock<FxHashSet<NodeIndex>>,
 }
@@ -340,7 +310,6 @@ impl Clone for SingleModuleGraph {
     Debug,
     Clone,
     Hash,
-    TraceRawVcs,
     Serialize,
     Deserialize,
     Eq,
@@ -791,12 +760,11 @@ impl ImportTracer for ModuleGraphImportTracer {
                             AnalyzeIssue::new(
                                 IssueSeverity::Bug,
                                 module.ident(),
-                                Vc::cell(rcstr!("Module graph is missing an entry point")),
-                                StyledString::Text(rcstr!(
+                                rcstr!("Module graph is missing an entry point"),
+                                rcstr!(
                                     "The module cannot reach any of the explicit entry points in \
                                      its module graph."
-                                ))
-                                .cell(),
+                                ),
                                 None,
                                 None,
                             )
@@ -1039,7 +1007,7 @@ pub struct ModuleGraphLayers(Vec<OperationVc<ModuleGraphLayer>>);
 /// The API across the functions is pretty consistent, apart from:
 /// - traverse_edges_fixed_point_with_priority additionally provides the GraphEdgeIndex
 /// - traverse_edges_dfs is the only function with include_traced
-#[derive(TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(ValueDebugFormat, NonLocalValue)]
 pub struct ModuleGraphSnapshot {
     // TODO make this non-public
     pub graphs: Vec<ReadRef<SingleModuleGraph>>,
@@ -1184,13 +1152,12 @@ impl ModuleGraphSnapshot {
     /// Returns a map of all modules in the graphs to their identifiers.
     /// This is primarily useful for debugging.
     pub async fn get_ids(&self) -> Result<FxHashMap<ResolvedVc<Box<dyn Module>>, ReadRef<RcStr>>> {
-        Ok(self
-            .iter_nodes()
+        self.iter_nodes()
             .map(async |n| Ok((n, n.ident().to_string().await?)))
-            .try_join()
-            .await?
+            .join()
+            .await
             .into_iter()
-            .collect::<FxHashMap<_, _>>())
+            .collect()
     }
 
     /// Traverses all reachable nodes exactly once and calls the visitor.
@@ -1784,7 +1751,7 @@ impl SingleModuleGraph {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
+#[derive(Clone, Debug, Serialize, Deserialize, NonLocalValue)]
 pub enum SingleModuleGraphNode {
     Module(ResolvedVc<Box<dyn Module>>),
     // Models a module that is referenced but has already been visited by an earlier graph.

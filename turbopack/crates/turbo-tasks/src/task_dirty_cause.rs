@@ -24,6 +24,9 @@ pub enum TaskDirtyCause {
     /// Re-dirtied because a GC-soft-deleted task was resurrected by a new connection before its
     /// hard-delete: its edges were scrubbed, so it must re-execute to rebuild them.
     Resurrected,
+    /// Dirtied because a task this one depended on was torn down: the value this task's result was
+    /// derived from no longer exists, so the result cannot be trusted.
+    DependencyTornDown,
     Unknown,
 }
 
@@ -87,6 +90,7 @@ impl std::fmt::Display for TaskDirtyCause {
             }
             TaskDirtyCause::Invalidator => write!(f, "invalidator"),
             TaskDirtyCause::Resurrected => write!(f, "resurrected"),
+            TaskDirtyCause::DependencyTornDown => write!(f, "dependency torn down"),
             TaskDirtyCause::Unknown => write!(f, "unknown"),
         }
     }

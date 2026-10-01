@@ -85,6 +85,7 @@ import { parseNormalizedAppRoute } from '../shared/lib/router/routes/app'
 import { getStaticMetadataPrerenderPathname } from '../lib/metadata/get-metadata-route'
 import { isStaticMetadataFile } from '../lib/metadata/is-metadata-route'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import { mapNftFileEntries, type NftJson, resolveNftOutputPath } from './nft'
 
 /**
  * Get the display path for build output. For static metadata files under
@@ -213,6 +214,7 @@ export interface PageInfo {
    * If true, it means that the route has partial prerendering enabled.
    */
   isRoutePPREnabled: boolean
+  isEnsureStaticPage: boolean
   ssgPageRoutes: string[] | null
   initialCacheControl: CacheControl | undefined
   pageDuration: number | undefined
@@ -697,6 +699,7 @@ export async function isPageStatic({
   edgeInfo,
   pageType,
   cacheComponents,
+  partialPrefetching,
   authInterrupts,
   useCacheTimeout,
   durableUseCacheEntries,
@@ -717,6 +720,7 @@ export async function isPageStatic({
   page: string
   distDir: string
   cacheComponents: boolean
+  partialPrefetching: boolean
   authInterrupts: boolean
   useCacheTimeout: number
   durableUseCacheEntries: boolean
@@ -844,7 +848,8 @@ export async function isPageStatic({
           segments = await collectSegments(
             // We know this is an app page or app route module because we
             // checked above that the page type is 'app'.
-            routeModule as AppPageRouteModule | AppRouteRouteModule
+            routeModule as AppPageRouteModule | AppRouteRouteModule,
+            { cacheComponents, partialPrefetching }
           )
         } catch (err) {
           throw new Error(`Failed to collect configuration for ${page}`, {
@@ -869,6 +874,11 @@ export async function isPageStatic({
         // Cache Components is enabled.
         isRoutePPREnabled =
           routeModule.definition.kind === RouteKind.APP_PAGE && cacheComponents
+
+        const isEnsureStaticPage =
+          cacheComponents &&
+          isRoutePPREnabled &&
+          appConfig.ensureStatic === 'navigation'
 
         // If force dynamic was set and we don't have PPR enabled, then set the
         // revalidate to 0.
@@ -918,6 +928,7 @@ export async function isPageStatic({
               ComponentMod,
               nextConfigOutput,
               isRoutePPREnabled,
+              isEnsureStaticPage,
               buildId,
               deploymentId,
               rootParamKeys,
@@ -1019,6 +1030,8 @@ type ReducedAppConfig = Pick<
   | 'preferredRegion'
   | 'runtime'
   | 'maxDuration'
+  | 'prefetch'
+  | 'ensureStatic'
 >
 
 /**
@@ -1041,6 +1054,8 @@ export function reduceAppConfig(
       revalidate,
       runtime,
       maxDuration,
+      prefetch,
+      ensureStatic,
     } = segment.config || {}
 
     // TODO: should conflicting configs here throw an error
@@ -1077,6 +1092,15 @@ export function reduceAppConfig(
 
     if (typeof maxDuration !== 'undefined') {
       config.maxDuration = maxDuration
+    }
+
+    // These two should be set uniformly across all segments
+    // in `collectAppPageSegments`, but we need to forward them here.
+    if (typeof prefetch !== 'undefined') {
+      config.prefetch = prefetch
+    }
+    if (typeof ensureStatic !== 'undefined') {
+      config.ensureStatic = ensureStatic
     }
   }
 
@@ -1269,59 +1293,102 @@ export async function copyTracedFiles(
     await fs.writeFile(packageJsonOutputPath, packageJsonContent)
   } catch {}
   const copiedFiles = new Set()
+  const skippedTraceFiles = new Set<string>()
+
+  async function createTracedSymlink(
+    target: string,
+    linkPath: string,
+    sourcePath: string
+  ) {
+    let isDirectory = false
+    if (process.platform === 'win32') {
+      // Windows requires the target type when creating a symlink. Files are
+      // copied in an arbitrary order, so the target might not exist in the
+      // output yet. Inspect the original target through the source symlink
+      // instead.
+      try {
+        isDirectory = (await fs.stat(sourcePath)).isDirectory()
+      } catch (err: any) {
+        if (err.code !== 'ENOENT' && err.code !== 'ELOOP') {
+          throw err
+        }
+      }
+    }
+
+    try {
+      // the target type argument is ignored on non-windows platforms
+      await fs.symlink(target, linkPath, isDirectory ? 'dir' : 'file')
+    } catch (err: any) {
+      // Windows doesn't support creating symlinks without elevated privileges,
+      // unless "Developer Mode" is turned on. If we failed to create a symlink
+      // due to EPERM, try creating a junction point instead.
+      //
+      // Ideally we'd just preserve the input file type (junction point or
+      // symlink), but there's no API in node.js to differentiate between a
+      // junction point and a symlink, so we just try making a symlink first.
+      // Symlinks are preferred because they support relative paths and
+      // non-directory (file) targets.
+      //
+      // Note: Junction targets are stored as absolute paths, so this fallback
+      // is not relocatable even when the preferred symlink above is relative,
+      // but it's the best we can do.
+      if (process.platform === 'win32' && err.code === 'EPERM' && isDirectory) {
+        try {
+          await fs.symlink(
+            path.resolve(path.dirname(linkPath), target),
+            linkPath,
+            'junction'
+          )
+        } catch (junctionErr: any) {
+          if (junctionErr.code !== 'EEXIST') {
+            throw junctionErr
+          }
+        }
+      } else if (err.code !== 'EEXIST') {
+        throw err
+      }
+    }
+  }
 
   async function handleTraceFiles(traceFilePath: string) {
     const traceData = JSON.parse(
       await fs.readFile(/* turbopackIgnore: true */ traceFilePath, 'utf8')
-    ) as {
-      files: string[]
-    }
-    const copySema = new Sema(10, { capacity: traceData.files.length })
-    const traceFileDir = path.dirname(traceFilePath)
+    ) as NftJson
+    const entries = mapNftFileEntries(traceData, traceFilePath, tracingRoot, {
+      skipBaseRootEscapes: true,
+      onBaseRootEscape: (source) => skippedTraceFiles.add(source),
+    })
+    const copySema = new Sema(10, { capacity: entries.length })
 
     await Promise.all(
-      traceData.files.map(async (relativeFile) => {
+      entries.map(async (entry) => {
         await copySema.acquire()
 
-        const tracedFilePath = path.join(traceFileDir, relativeFile)
-        const fileOutputPath = path.join(
+        const tracedFilePath = entry.source
+        const fileOutputPath = resolveNftOutputPath(
           outputPath,
-          path.relative(tracingRoot, tracedFilePath)
+          entry.destination
         )
 
         if (!copiedFiles.has(fileOutputPath)) {
           copiedFiles.add(fileOutputPath)
 
           await fs.mkdir(path.dirname(fileOutputPath), { recursive: true })
-          const symlink = await fs.readlink(tracedFilePath).catch(() => null)
-
-          if (symlink) {
-            try {
-              await fs.symlink(symlink, fileOutputPath)
-            } catch (err: any) {
-              // Windows doesn't support creating symlinks without elevated privileges, unless
-              // "Developer Mode" is turned on. If we failed to create a symlink due to EPERM, try
-              // creating a junction point instead.
-              //
-              // Ideally we'd just preserve the input file type (junction point or symlink), but
-              // there's no API in node.js to differentiate between a junction point and a symlink,
-              // so we just try making a symlink first. Symlinks are preferred because they support
-              // relative paths and non-directory (file) targets.
-              if (
-                process.platform === 'win32' &&
-                err.code === 'EPERM' &&
-                path.isAbsolute(symlink)
-              ) {
-                try {
-                  await fs.symlink(symlink, fileOutputPath, 'junction')
-                } catch (junctionErr: any) {
-                  if (junctionErr.code !== 'EEXIST') {
-                    throw junctionErr
-                  }
-                }
-              } else if (err.code !== 'EEXIST') {
-                throw err
-              }
+          if (entry.symlinkTarget !== undefined) {
+            const targetOutputPath = resolveNftOutputPath(
+              outputPath,
+              entry.symlinkTarget
+            )
+            const target =
+              path.relative(path.dirname(fileOutputPath), targetOutputPath) ||
+              '.'
+            await createTracedSymlink(target, fileOutputPath, tracedFilePath)
+          } else if (traceData.symlinks === undefined) {
+            const target = await fs.readlink(tracedFilePath).catch(() => null)
+            if (target) {
+              await createTracedSymlink(target, fileOutputPath, tracedFilePath)
+            } else {
+              await fs.copyFile(tracedFilePath, fileOutputPath)
             }
           } else {
             await fs.copyFile(tracedFilePath, fileOutputPath)
@@ -1473,6 +1540,23 @@ startServer({
   process.exit(1);
 });`
   )
+
+  if (skippedTraceFiles.size > 0) {
+    const count = skippedTraceFiles.size
+    const skippedFilesOutput = [...skippedTraceFiles]
+      .slice(0, 100)
+      .map((file) => `  - ${path.relative(tracingRoot, file)}`)
+      .join('\n')
+    const warning = [
+      `${count} traced files were not included in the standalone output`,
+      'because their paths are outside of `outputFileTracingRoot`.',
+      'First 100 skipped files:',
+      skippedFilesOutput,
+      'Set `outputFileTracingRoot` to a common parent directory',
+      'to include these files.',
+    ].join('\n')
+    Log.warn(warning)
+  }
 }
 
 export function isReservedPage(page: string) {
