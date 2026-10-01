@@ -833,7 +833,7 @@ describe('ensureStatic = "navigation"', () => {
              |          ^
            5 | }
            6 |
-           7 | export const unstable_ensureStatic = 'navigation'
+           7 | export const ensureStatic = 'navigation'
 
          > Build error occurred
          Error: Failed to collect page data for /default/static-params-empty/[slug]

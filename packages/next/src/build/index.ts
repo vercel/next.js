@@ -2665,7 +2665,7 @@ export default async function build(
                               workerResult.appConfig
                             ) {
                               isEnsureStaticPage =
-                                workerResult.appConfig.unstable_ensureStatic ===
+                                workerResult.appConfig.ensureStatic ===
                                 'navigation'
                             }
                           }
