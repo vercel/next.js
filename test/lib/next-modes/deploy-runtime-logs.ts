@@ -1,6 +1,6 @@
 import execa from 'execa'
 
-const POLL_INTERVAL_MS = 2_000
+const RETRY_INTERVAL_MS = 2_000
 const REQUEST_LIMIT = 1_000
 const QUERY_TIMEOUT_MS = 30_000
 const MAX_QUERY_ATTEMPTS = 3
@@ -25,10 +25,8 @@ type RequestLogs = {
 
 /** Collect application messages, never CLI diagnostics, into the test output. */
 export class DeployRuntimeLogs {
-  private pending: Promise<void>
-  private timer: ReturnType<typeof setTimeout> | undefined
-  private resumeRetry: (() => void) | undefined
-  private stopping = false
+  private stopped = false
+  private refreshing = false
   private error: Error | undefined
   private readonly since = new Date().toISOString()
   private readonly seen = new Map<string, Map<string, number>>()
@@ -44,17 +42,15 @@ export class DeployRuntimeLogs {
       message: string,
       stream: 'stdout' | 'stderr'
     ) => void
-  ) {
-    this.pending = this.poll()
-  }
+  ) {}
 
-  private async query() {
+  private query() {
     for (let attempt = 1; ; attempt++) {
       // Live streams can omit messages present in the stored request logs and
       // expire after five minutes. Query complete request logs instead. Keep
       // the original lower bound: records can arrive late or gain more logs.
       try {
-        const result = await execa(
+        const result = execa.sync(
           'vercel',
           [
             'logs',
@@ -70,6 +66,7 @@ export class DeployRuntimeLogs {
             cwd: this.options.cwd,
             env: this.options.env,
             timeout: QUERY_TIMEOUT_MS,
+            killSignal: 'SIGKILL',
           }
         )
         return result.stdout
@@ -77,33 +74,38 @@ export class DeployRuntimeLogs {
         const failure = new Error(
           `Vercel runtime log collection failed (attempt ${attempt}/${MAX_QUERY_ATTEMPTS}: ${describeQueryFailure(error)})`
         )
-        if (this.stopping || attempt === MAX_QUERY_ATTEMPTS) throw failure
+        if (attempt === MAX_QUERY_ATTEMPTS) throw failure
 
         // A single failed API query must not disable collection for the rest
         // of a suite. Retry the same window; only a complete successful query
         // is delivered, so partial output cannot cause duplicates or gaps.
-        const delay = POLL_INTERVAL_MS * 2 ** (attempt - 1)
+        const delay = RETRY_INTERVAL_MS * 2 ** (attempt - 1)
         console.warn(`${failure.message}; retrying in ${delay}ms`)
-        await new Promise<void>((resolve) => {
-          this.resumeRetry = resolve
-          this.timer = setTimeout(resolve, delay)
-        })
-        this.resumeRetry = undefined
-        if (this.stopping) throw failure
+        // The getter must wait for retries too; an asynchronous timer would
+        // return the previous output before this refresh had finished.
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delay)
       }
     }
   }
 
-  private async poll() {
-    let output: string
+  /** Fetch and append newly indexed messages before cliOutput returns. */
+  refresh() {
+    this.assertHealthy()
+    // stdout/stderr listeners can read cliOutput while append() emits an event.
+    // Return the output being delivered rather than recursively querying logs.
+    if (this.stopped || this.refreshing) return
+    this.refreshing = true
     try {
-      output = await this.query()
+      this.appendOutput(this.query())
     } catch (error) {
-      this.error = error
-      return
+      this.error = error as Error
+      throw error
+    } finally {
+      this.refreshing = false
     }
-    if (this.stopping) return
+  }
 
+  private appendOutput(output: string) {
     let requests: RequestLogs[]
     try {
       requests = output
@@ -130,8 +132,7 @@ export class DeployRuntimeLogs {
         }
       }
     } catch {
-      this.error = new Error('Failed to read complete Vercel runtime logs')
-      return
+      throw new Error('Failed to read complete Vercel runtime logs')
     }
 
     try {
@@ -163,32 +164,16 @@ export class DeployRuntimeLogs {
         }
       }
     } catch {
-      this.error = new Error('Failed to deliver Vercel runtime logs')
-      return
+      throw new Error('Failed to deliver Vercel runtime logs')
     }
-
-    this.timer = setTimeout(() => {
-      this.pending = this.poll()
-    }, POLL_INTERVAL_MS)
   }
 
   assertHealthy() {
     if (this.error) throw this.error
   }
 
-  /** Confirm access to request logs before the suite sends any requests. */
-  async waitForReady() {
-    await this.pending
-    this.assertHealthy()
-  }
-
-  async stop() {
-    this.stopping = true
-    clearTimeout(this.timer)
-    this.resumeRetry?.()
-    // Let the bounded query finish rather than killing the CLI wrapper and
-    // leaving its native subprocess holding the output pipes open.
-    await this.pending
+  stop() {
+    this.stopped = true
     this.assertHealthy()
   }
 }
