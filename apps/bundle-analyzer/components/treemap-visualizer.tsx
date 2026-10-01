@@ -3,12 +3,10 @@
 import { darken, lighten, readableColor } from 'polished'
 import type React from 'react'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { AnalyzeData } from '@/lib/analyze-data'
 import {
-  computeTreemapLayoutFromAnalyze,
-  type LayoutRect,
   type LayoutNode,
   type LayoutNodeInfo,
+  type TreemapSource,
   SizeMode,
 } from '@/lib/treemap-layout'
 import { SpecialModule } from '@/lib/types'
@@ -17,8 +15,7 @@ import { formatBytes } from '@/lib/utils'
 const UI_FONT = 'system-ui, sans-serif'
 
 interface TreemapVisualizerProps {
-  analyzeData: AnalyzeData
-  sourceIndex: number
+  source: TreemapSource
   selectedSourceIndex?: number
   onSelectSourceIndex?: (index: number) => void
   focusedSourceIndex?: number
@@ -49,9 +46,6 @@ interface TreemapVisualizerProps {
    * compare view to render a red/green legend.
    */
   overlay?: React.ReactNode
-  computeLayout?: (sourceIndex: number, rect: LayoutRect) => LayoutNode
-  getParentSourceIndex?: (sourceIndex: number) => number | null
-  getSourceName?: (sourceIndex: number) => string
 }
 
 function getFileColor(node: {
@@ -718,12 +712,24 @@ function wrapLayoutWithAncestorsUsingIndices(
   return rootNode
 }
 
+function getAncestorChain(
+  source: TreemapSource,
+  sourceIndex: number
+): number[] {
+  const chain: number[] = []
+  let currentIndex: number | null = sourceIndex
+  while (currentIndex !== null) {
+    chain.unshift(currentIndex)
+    currentIndex = source.getParentSourceIndex(currentIndex)
+  }
+  return chain
+}
+
 export function TreemapVisualizer({
-  analyzeData,
-  sourceIndex,
-  selectedSourceIndex = sourceIndex,
+  source,
+  selectedSourceIndex: selectedSourceIndexProp,
   onSelectSourceIndex = () => {},
-  focusedSourceIndex = sourceIndex,
+  focusedSourceIndex: focusedSourceIndexProp,
   onFocusSourceIndex = () => {},
   isMouseInTreemap = false,
   onHoveredNodeChange,
@@ -734,10 +740,9 @@ export function TreemapVisualizer({
   getFileColorOverride,
   getFileSizeLabel,
   overlay,
-  computeLayout,
-  getParentSourceIndex,
-  getSourceName,
 }: TreemapVisualizerProps) {
+  const selectedSourceIndex = selectedSourceIndexProp ?? source.rootIndex
+  const focusedSourceIndex = focusedSourceIndexProp ?? source.rootIndex
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [hoveredNode, setHoveredNode] = useState<LayoutNode | null>(null)
@@ -758,66 +763,17 @@ export function TreemapVisualizer({
   })
   const [, _setTheme] = useState<'light' | 'dark'>('light')
 
-  // React Compiler caches the selected and hovered chains below, but the
-  // focused chain needs a manual memo to keep the expensive layout and canvas
-  // draw effect stable across unrelated renders.
-
-  const focusedAncestorChain = useMemo(() => {
-    const chain: number[] = []
-    let currentIndex = focusedSourceIndex
-
-    while (currentIndex !== undefined && currentIndex !== null) {
-      chain.unshift(currentIndex)
-      const parentIndex = getParentSourceIndex
-        ? getParentSourceIndex(currentIndex)
-        : (analyzeData.source(currentIndex)?.parent_source_index ?? null)
-      if (parentIndex === null) break
-      currentIndex = parentIndex
-    }
-
-    return chain
-  }, [analyzeData, focusedSourceIndex, getParentSourceIndex])
-
-  // Build ancestor chain for selected source
-  const selectedAncestorChain = (() => {
-    const chain: number[] = []
-    let currentIndex = selectedSourceIndex
-
-    while (currentIndex !== undefined && currentIndex !== null) {
-      chain.unshift(currentIndex)
-      const parentIndex = getParentSourceIndex
-        ? getParentSourceIndex(currentIndex)
-        : (analyzeData.source(currentIndex)?.parent_source_index ?? null)
-      if (parentIndex === null) break
-      currentIndex = parentIndex
-    }
-
-    return chain
-  })()
-
-  // Build ancestor chain for hovered node (only used for dimming)
-  const hoveredAncestorChain = (() => {
-    if (
-      !shouldDimOthers ||
-      !hoveredNode ||
-      hoveredNode.sourceIndex === undefined
-    )
-      return null
-
-    const chain: number[] = []
-    let currentIndex = hoveredNode.sourceIndex
-
-    while (currentIndex !== undefined && currentIndex !== null) {
-      chain.unshift(currentIndex)
-      const parentIndex = getParentSourceIndex
-        ? getParentSourceIndex(currentIndex)
-        : (analyzeData.source(currentIndex)?.parent_source_index ?? null)
-      if (parentIndex === null) break
-      currentIndex = parentIndex
-    }
-
-    return chain
-  })()
+  // The focused chain needs a manual memo: without it the compiler misses
+  // the expensive layout and redraws the canvas on unrelated renders.
+  const focusedAncestorChain = useMemo(
+    () => getAncestorChain(source, focusedSourceIndex),
+    [source, focusedSourceIndex]
+  )
+  const selectedAncestorChain = getAncestorChain(source, selectedSourceIndex)
+  const hoveredAncestorChain =
+    shouldDimOthers && hoveredNode?.sourceIndex !== undefined
+      ? getAncestorChain(source, hoveredNode.sourceIndex)
+      : null
 
   useEffect(() => {
     const container = containerRef.current
@@ -878,25 +834,19 @@ export function TreemapVisualizer({
     width: dimensions.cssWidth,
     height: dimensions.cssHeight,
   }
-  const focusedLayout = computeLayout
-    ? computeLayout(focusedSourceIndex, layoutRect)
-    : computeTreemapLayoutFromAnalyze(
-        analyzeData,
-        focusedSourceIndex,
-        layoutRect,
-        filterSource,
-        sizeMode
-      )
+  const focusedLayout = source.computeLayout(
+    focusedSourceIndex,
+    layoutRect,
+    filterSource,
+    sizeMode
+  )
 
   const layout =
     focusedAncestorChain.length > 1
       ? wrapLayoutWithAncestorsUsingIndices(
           focusedLayout,
           focusedAncestorChain,
-          (sourceIndex) =>
-            getSourceName
-              ? getSourceName(sourceIndex)
-              : (analyzeData.source(sourceIndex)?.path ?? ''),
+          source.getSourceName,
           dimensions.cssWidth,
           dimensions.cssHeight,
           12
@@ -956,7 +906,7 @@ export function TreemapVisualizer({
     if (node && node.sourceIndex !== undefined) {
       // If this node is already, refocus the root node to undim others
       if (node.sourceIndex === selectedSourceIndex) {
-        onSelectSourceIndex(sourceIndex)
+        onSelectSourceIndex(source.rootIndex)
       } else {
         onSelectSourceIndex(node.sourceIndex)
       }
