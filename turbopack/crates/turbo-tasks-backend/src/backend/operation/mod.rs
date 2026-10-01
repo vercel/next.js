@@ -2054,7 +2054,7 @@ mod must_exist_tests {
         let id = persistent(1);
         let (tt, _dir) = persisted_tasks(&[id], Some(SpecificTaskDataCategory::Data));
         let mut ctx = ExecuteContextImpl::new(tt.backend(), &tt);
-        assert!(ctx.try_get_task(id, TaskDataCategory::Meta).is_none());
+        assert!(ctx.try_task(id, TaskDataCategory::Meta).is_none());
     }
 
     #[tokio::test(flavor = "multi_thread")]
