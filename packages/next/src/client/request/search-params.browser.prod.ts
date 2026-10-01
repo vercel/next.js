@@ -1,4 +1,5 @@
 import type { SearchParams } from '../../server/request/search-params'
+import { markPromiseAsFulfilled } from './mark-promise-as-fulfilled'
 
 interface CacheLifetime {}
 const CachedSearchParams = new WeakMap<CacheLifetime, Promise<SearchParams>>()
@@ -12,6 +13,7 @@ function makeUntrackedSearchParams(
   }
 
   const promise = Promise.resolve(underlyingSearchParams)
+  markPromiseAsFulfilled(promise, underlyingSearchParams)
   CachedSearchParams.set(underlyingSearchParams, promise)
 
   return promise

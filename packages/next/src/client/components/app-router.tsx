@@ -3,6 +3,7 @@ import React, {
   useEffect,
   useMemo,
   useInsertionEffect,
+  useState,
   useDeferredValue,
 } from 'react'
 import {
@@ -49,6 +50,7 @@ import RootErrorBoundary from './errors/root-error-boundary'
 import DefaultGlobalError from './builtin/global-error'
 import { RootLayoutBoundary } from '../../lib/framework/boundary-components'
 import type { StaticIndicatorState } from '../dev/hot-reloader/app/hot-reloader-app'
+import type { Params } from '../../server/request/params'
 import { getAssetTokenQuery } from '../../shared/lib/deployment-id'
 
 const globalMutable: {
@@ -459,12 +461,17 @@ function Router({
     )
   }
 
+  // The params of the child segments are accumulated onto this object, and their
+  // identity should only change when the param values do. So unlike the rest of
+  // the context, this must not be recreated when the URL changes.
+  const [emptyParams] = useState<Params>(() => ({}))
+
   const layoutRouterContext = useMemo(() => {
     return {
       parentTree: tree,
       parentRenderTree: root.tree,
       parentSegmentPath: null,
-      parentParams: {},
+      parentParams: emptyParams,
       parentLoadingData: null,
       // This is the <Activity> "name" that shows up in the Suspense DevTools.
       // It represents the root of the app.
@@ -475,7 +482,7 @@ function Router({
       // Root segment is always active
       isActive: true,
     }
-  }, [tree, root, canonicalUrl])
+  }, [tree, root, canonicalUrl, emptyParams])
 
   const globalLayoutRouterContext = useMemo(() => {
     return {

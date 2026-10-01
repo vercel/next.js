@@ -20,6 +20,7 @@ import React, {
   Suspense,
   useDeferredValue,
   useLayoutEffect,
+  useMemo,
   type FragmentInstance,
   type JSX,
   type ActivityProps,
@@ -297,6 +298,36 @@ function ScrollHandler({
 }
 
 /**
+ * If the segment contains a route param, accumulates it onto the params of the
+ * parent segments. The result represents the set of params that the layout/page
+ * components are permitted to access below this point.
+ *
+ * The identity of the result is the cache key of the `params` promise that is
+ * passed to client layouts and pages, so it must only change when one of the
+ * param values does. The segment itself can't be used as a dependency because
+ * it's recreated whenever the tree is restored from a history entry.
+ */
+function useSegmentParams(parentParams: Params, segment: Segment): Params {
+  const isDynamic = Array.isArray(segment)
+  const paramName = isDynamic ? segment[0] : null
+  const paramCacheKey = isDynamic ? segment[1] : null
+  const paramType = isDynamic ? segment[2] : null
+  return useMemo(() => {
+    if (paramName === null || paramCacheKey === null || paramType === null) {
+      return parentParams
+    }
+    const paramValue = getParamValueFromCacheKey(paramCacheKey, paramType)
+    if (paramValue === null) {
+      return parentParams
+    }
+    return {
+      ...parentParams,
+      [paramName]: paramValue,
+    }
+  }, [parentParams, paramName, paramCacheKey, paramType])
+}
+
+/**
  * InnerLayoutRouter handles rendering the provided segment based on the cache.
  */
 function InnerLayoutRouter({
@@ -304,7 +335,7 @@ function InnerLayoutRouter({
   segmentPath,
   debugNameContext,
   renderTree,
-  params,
+  parentParams,
   url,
   isActive,
 }: {
@@ -312,12 +343,13 @@ function InnerLayoutRouter({
   segmentPath: FlightSegmentPath
   debugNameContext: string
   renderTree: RouteTree<CacheNode>
-  params: Params
+  parentParams: Params
   url: string
   isActive: boolean
 }) {
   const context = useContext(GlobalLayoutRouterContext)
   const parentNavPromises = useContext(NavigationPromisesContext)
+  const params = useSegmentParams(parentParams, tree[0])
 
   if (!context) {
     throw new Error('invariant global layout router not mounted')
@@ -629,23 +661,6 @@ export default function OuterLayoutRouter({
       )
     }
 
-    let params = parentParams
-    if (Array.isArray(segment)) {
-      // This segment contains a route param. Accumulate these as we traverse
-      // down the router tree. The result represents the set of params that
-      // the layout/page components are permitted to access below this point.
-      const paramName = segment[0]
-      const paramCacheKey = segment[1]
-      const paramType = segment[2]
-      const paramValue = getParamValueFromCacheKey(paramCacheKey, paramType)
-      if (paramValue !== null) {
-        params = {
-          ...parentParams,
-          [paramName]: paramValue,
-        }
-      }
-    }
-
     const debugName = getBoundaryDebugNameFromSegment(segment)
     // `debugNameContext` represents the nearest non-"virtual" parent segment.
     // `getBoundaryDebugNameFromSegment` returns undefined for virtual segments.
@@ -693,7 +708,7 @@ export default function OuterLayoutRouter({
                 <InnerLayoutRouter
                   url={url}
                   tree={tree}
-                  params={params}
+                  parentParams={parentParams}
                   renderTree={renderTree}
                   segmentPath={segmentPath}
                   debugNameContext={childDebugNameContext}
