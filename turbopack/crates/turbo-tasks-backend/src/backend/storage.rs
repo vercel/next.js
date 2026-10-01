@@ -297,7 +297,7 @@ impl Storage {
         task.flags.set_restored(TaskDataCategory::All);
         task.flags.set_new_task(true);
         if !task_id.is_transient() && !disk_bucket_was_empty {
-            task.set_task_cache_needs_read(());
+            task.set_task_cache_needs_read(true);
         }
         task.gc_pin_for_construction();
         if let Some(task_type) = task_type {
@@ -915,8 +915,8 @@ impl StorageWriteGuard<'_> {
                     snapshot.flags.set_data_modified(flags.data_modified());
                     snapshot.flags.set_meta_modified(flags.meta_modified());
                     snapshot.flags.set_new_task(flags.new_task());
-                    if self.inner.get_task_cache_needs_read().is_some() {
-                        snapshot.set_task_cache_needs_read(());
+                    if let Some(needs_read) = self.inner.get_task_cache_needs_read().copied() {
+                        snapshot.set_task_cache_needs_read(needs_read);
                     }
                     self.storage
                         .snapshots
@@ -1301,6 +1301,11 @@ mod tests {
                 .get_task_cache_needs_read()
                 .is_none()
         );
+        storage.access_mut(task_id).set_task_cache_needs_read(false);
+        assert_eq!(
+            storage.access_mut(task_id).get_task_cache_needs_read(),
+            Some(&false)
+        );
 
         let process =
             |id: TaskId, task: &super::TaskStorage, _: &mut TurboBincodeBuffer| SnapshotItem::Put {
@@ -1309,7 +1314,7 @@ mod tests {
                 data: None,
                 task_type_hash: None,
                 task_cache_empty_on_creation: task.flags.new_task()
-                    && task.get_task_cache_needs_read().is_none(),
+                    && !task.get_task_cache_needs_read().copied().unwrap_or(false),
             };
         let (guard, modified) = storage.start_snapshot();
         assert!(modified);
@@ -1318,7 +1323,8 @@ mod tests {
             let mut task = storage.access_mut(task_id);
             // The first modification captures a frozen copy, including its empty-bucket hint.
             let _ = task.track_modification(SpecificTaskDataCategory::Data, "test");
-            task.set_task_cache_needs_read(());
+            task.set_task_cache_needs_read(true);
+            assert_eq!(task.get_task_cache_needs_read(), Some(&true));
         }
         let items: Vec<_> = shards
             .into_iter()

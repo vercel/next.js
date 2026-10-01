@@ -1492,7 +1492,7 @@ impl TurboTasksBackend {
                 data,
                 task_type_hash,
                 task_cache_empty_on_creation: inner.flags.new_task()
-                    && inner.get_task_cache_needs_read().is_none(),
+                    && !inner.get_task_cache_needs_read().copied().unwrap_or(false),
             }
         };
 
@@ -4147,7 +4147,8 @@ mod snapshot_read_hint_tests {
                 .storage
                 .access_mut(third)
                 .get_task_cache_needs_read()
-                .is_some()
+                .copied()
+                .unwrap_or(false)
         );
         drop(pending_commit);
         assert!(
