@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 
 import type { AnalyzeData } from '@/lib/analyze-data'
 import type { DiffSummary, SourceDiffRow } from '@/lib/diff'
@@ -44,7 +44,7 @@ interface DiffTreemapProps {
  * - bright amber: removed from the comparison build
  * - blue tint: same file, grew since the baseline build
  * - amber tint: same file, shrank since the baseline build
- * - neutral: same size in both builds
+ * Only changed files are shown; unchanged rows have no delta area.
  *
  * Tile area represents the absolute size delta. The tree is synthesized from
  * the union of both builds, so additions and removals are both visible.
@@ -60,7 +60,12 @@ export function DiffTreemap({
 }: DiffTreemapProps) {
   const data = analyzeData ?? baselineAnalyzeData
 
-  const diffLayout = createDiffTreemapLayout(summary.rows, useCompressed)
+  // The React Compiler currently rebuilds this synthetic tree on every render.
+  // Keep it stable while hover and focus redraw the canvas.
+  const diffLayout = useMemo(
+    () => createDiffTreemapLayout(summary.rows, useCompressed),
+    [summary.rows, useCompressed]
+  )
   const { rowBySourceIndex, sourceIndexByKey } = diffLayout
 
   function getFileColorOverride(node: LayoutNode): string | undefined {
@@ -69,9 +74,7 @@ export function DiffTreemap({
     return row ? colorForRow(row, useCompressed) : undefined
   }
 
-  // Show size deltas on tiles instead of absolute sizes. Identical files fall
-  // back to the default (absolute size) since ±0 on every unchanged tile
-  // would be noise.
+  // Show size deltas on changed tiles instead of absolute sizes.
   function getFileSizeLabel(node: LayoutNode): string | undefined {
     if (node.sourceIndex === undefined) return undefined
     const row = rowBySourceIndex.get(node.sourceIndex)
