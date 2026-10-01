@@ -22,11 +22,11 @@ kind: error
 
 A page or layout on this route exports [`ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic) with the `'navigation'` value, requiring all server-rendered work for the route to complete during prerendering.
 
-During [prerendering](/docs/app/glossary#prerendering), the page or layout performed an uncached `fetch` request, database call, or `connection()`. The operation requires request-time server work and cannot be included in fully static output.
+During [prerendering](/docs/app/glossary#prerendering), the page or layout performed an uncached [`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Window/fetch) request, database call, or [`connection()`](/docs/app/api-reference/functions/connection). Because the operation requires request-time server work, the route cannot be fully prerendered.
 
 During `next build`, Next.js may link to this page when it cannot distinguish uncached data from runtime data. For a short cache, [extend the cache lifetime](/docs/messages/static-route-runtime#extend-the-cache-lifetime).
 
-Request-specific reads from `cookies()`, `headers()`, `params`, or `searchParams` have different fixes. See [Runtime data on a route that must be fully static](/docs/messages/static-route-runtime).
+Request-specific reads from [`cookies()`](/docs/app/api-reference/functions/cookies), [`headers()`](/docs/app/api-reference/functions/headers), [`params`](/docs/app/api-reference/file-conventions/page#params-optional), or [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) have different fixes. See [Runtime data on a route that must be fully static](/docs/messages/static-route-runtime).
 
 ## Ways to fix this
 
@@ -59,6 +59,8 @@ Choose this fix when the data can be shared across requests.
 
 ### Patterns
 
+#### Add `use cache` to the data access
+
 Cache the asynchronous function with [`use cache`](/docs/app/api-reference/directives/use-cache) and choose an appropriate [`cacheLife`](/docs/app/api-reference/functions/cacheLife) profile:
 
 ```jsx filename="app/page.jsx"
@@ -72,6 +74,8 @@ export default async function Page() {
   return <h1>{data.title}</h1>
 }
 ```
+
+Learn more: [Caching with `use cache`](/docs/app/api-reference/directives/use-cache).
 
 ### Trade-off
 
@@ -87,6 +91,8 @@ Visitors share the cached result until it is revalidated.
 Choose this fix when the operation is unnecessary.
 
 ### Patterns
+
+#### Remove the uncached operation
 
 Remove the access rather than only removing the JSX that displays its result:
 
@@ -113,13 +119,13 @@ After applying a fix, rerun [`next build`](/docs/app/api-reference/cli/next#next
 
 In `next dev`, the error overlay points at the failing component with file paths and line numbers. Run [`next build --debug-prerender`](/docs/app/guides/building#debug-prerender-errors) for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
 
-## Other options
-
-### Remove the static requirement
+## Remove the static requirement
 
 The `'navigation'` value is usually set deliberately to guarantee static output for the entire server-rendered route. Removing it relaxes that requirement for every segment, not only the code that triggered this error.
 
 If request-time rendering is intentional for this route, remove `ensureStatic = 'navigation'` from every page or layout that sets it. The route then follows the ordinary [Cache Components](/docs/app/getting-started/caching) rendering rules.
+
+Learn more: [Combining `ensureStatic` levels across layouts and pages](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#combining-levels-across-layouts-and-pages).
 
 ## Related validation errors
 
