@@ -3,14 +3,11 @@ title: ensureStatic
 description: API reference for the ensureStatic route segment config, which requires selected route output to be static instead of rendered per request.
 related:
   title: Next Steps
-  description: Learn how to control which route output must be static.
+  description: Apply static requirements, optimize prefetching, and validate navigation behavior.
   links:
     - app/guides/keeping-pages-static
     - app/guides/optimizing-prefetching
-    - app/api-reference/functions/prefetch
-    - app/api-reference/functions/navigation
     - app/api-reference/file-conventions/route-segment-config/instant
-    - app/api-reference/config/next-config-js/partialPrefetching
 ---
 
 The `ensureStatic` route segment config requires selected route output to be static instead of rendered per request. Export it from a [page](/docs/app/api-reference/file-conventions/page) or [layout](/docs/app/api-reference/file-conventions/layout) to enforce this requirement for the [App Shell](/docs/app/glossary#app-shell), per-link prefetches, or the complete server-rendered route.
