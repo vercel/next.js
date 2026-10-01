@@ -2,6 +2,8 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import { join } from 'path'
 
+// Preserve the sibling suite's deploy exclusion previously imposed by skipDeployment's it.only.
+// @force-gate !deploy
 describe('app-dir action allowed from opaque origins', () => {
   const { next } = nextTestSetup({
     files: join(__dirname, 'opaque-origin'),
