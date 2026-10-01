@@ -3,12 +3,13 @@ use std::collections::BTreeSet;
 use anyhow::{Context, Result, bail};
 use next_core::app_structure::FileSystemPathVec;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{Completion, ResolvedVc, Vc};
+use turbo_tasks::{Completion, Completions, ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack::module_federation::{module_federation_container_source, shared_provider_version};
 use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
     asset::AssetContent,
+    changed::any_source_content_changed_of_module,
     chunk::{
         AssetSuffix, ChunkableModule, ChunkingContext, ChunkingContextExt, EntryChunkGroupResult,
         availability_info::AvailabilityInfo,
@@ -351,7 +352,25 @@ impl Endpoint for ModuleFederationEndpoint {
 
     #[turbo_tasks::function]
     async fn client_changed(self: Vc<Self>) -> Result<Vc<Completion>> {
-        Ok(self.await?.project.federation_changed(self.output_assets()))
+        let project = self.await?.project;
+        let outputs = project.federation_changed(self.output_assets());
+        if !project
+            .next_config()
+            .turbopack_module_federation()
+            .await?
+            .dts_enabled
+        {
+            return Ok(outputs);
+        }
+        // A declaration-only edit need not change the emitted JS. Watch the exposed source
+        // graph as well so development type archives cannot silently become stale.
+        let source =
+            any_source_content_changed_of_module(*self.entry_module().to_resolved().await?);
+        Ok(Vc::<Completions>::cell(vec![
+            outputs.to_resolved().await?,
+            source.to_resolved().await?,
+        ])
+        .completed())
     }
 
     #[turbo_tasks::function]

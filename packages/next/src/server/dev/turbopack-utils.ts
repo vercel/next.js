@@ -37,6 +37,8 @@ import {
   type TopLevelIssuesMap,
 } from '../../shared/lib/turbopack/utils'
 import { MIDDLEWARE_FILENAME, PROXY_FILENAME } from '../../lib/constants'
+import type { TurbopackModuleFederationOptions } from '../config-shared'
+import { writeModuleFederationTypes } from '../../lib/module-federation-types'
 
 const onceErrorSet = new Set()
 /**
@@ -588,6 +590,11 @@ type HandleEntrypointsHooks = {
 }
 
 type HandleEntrypointsDevOpts = {
+  moduleFederationTypes: {
+    projectDir: string
+    distDir: string
+    federation: TurbopackModuleFederationOptions | undefined
+  }
   assetMapper: AssetMapper
   changeSubscriptions: ChangeSubscriptions
   clients: Array<ws>
@@ -738,7 +745,35 @@ export async function handleEntrypoints({
 
   if (moduleFederation) {
     const key = getEntryKey('assets', 'client', 'module-federation')
-    const writtenEndpoint = await moduleFederation.writeToDisk()
+    const withDtsIssues = async (result: TurbopackResult<WrittenEndpoint>) => {
+      try {
+        await writeModuleFederationTypes(dev.moduleFederationTypes)
+        return result
+      } catch (error) {
+        const message = String(error)
+        Log.error(`Module Federation type generation failed: ${message}`)
+        return {
+          ...result,
+          issues: [
+            ...result.issues,
+            {
+              severity: 'error',
+              stage: 'code generation',
+              filePath: '[project]',
+              title: {
+                type: 'text' as const,
+                value: 'Module Federation type generation failed',
+              },
+              description: { type: 'text' as const, value: message },
+              documentationLink: '',
+            },
+          ],
+        }
+      }
+    }
+    const writtenEndpoint = await withDtsIssues(
+      await moduleFederation.writeToDisk()
+    )
     dev?.hooks.handleWrittenEndpoint(key, writtenEndpoint, false)
     processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
     dev?.hooks.subscribeToChanges(
@@ -746,7 +781,9 @@ export async function handleEntrypoints({
       /** includeIssues=*/ false,
       moduleFederation,
       async () => {
-        const updatedEndpoint = await moduleFederation.writeToDisk()
+        const updatedEndpoint = await withDtsIssues(
+          await moduleFederation.writeToDisk()
+        )
         dev?.hooks.handleWrittenEndpoint(key, updatedEndpoint, false)
         processIssues(
           currentEntryIssues,
@@ -762,6 +799,11 @@ export async function handleEntrypoints({
         data: `error in Module Federation subscription: ${error}`,
       })
     )
+    // A type-only source edit can happen immediately after startup. Wait until the
+    // source graph subscription is registered before advertising the DTS endpoint.
+    if (dev.moduleFederationTypes.federation?.dts) {
+      await dev.changeSubscriptions.get(key)
+    }
   }
 
   if (middleware) {
