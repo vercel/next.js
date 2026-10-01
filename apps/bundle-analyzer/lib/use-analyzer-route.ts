@@ -5,7 +5,8 @@ import type { SnapshotMetadata } from './snapshot'
 export function useAnalyzerRoute(
   compare: boolean,
   snapshots: SnapshotMetadata[] | undefined,
-  latestSnapshot: SnapshotMetadata
+  latestSnapshot: SnapshotMetadata,
+  currentBaseDir: string
 ) {
   const router = useRouter()
   const pathname = usePathname()
@@ -32,7 +33,7 @@ export function useAnalyzerRoute(
     : singleSnapshot
   const activeBaseDir = comparisonSnapshot
     ? `/history/${comparisonSnapshot.id}`
-    : '/data'
+    : currentBaseDir
   const viewParam = searchParams.get('view')
   const compareView =
     viewParam === CompareView.Table || viewParam === CompareView.Treemap

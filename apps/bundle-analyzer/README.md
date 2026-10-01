@@ -4,6 +4,8 @@ A Next.js application for visualizing bundle sizes and analyzing dependencies us
 
 This package is not published to npm. Instead it's built and vendored into the main `next` package during its build process.
 
+The UI revalidates `history/history.json` on page load and tab focus to discover the newest build. Current-build views, including “Latest” comparisons, use that snapshot's versioned data paths so the large files remain cacheable. Older outputs without build history fall back to `data/`.
+
 
 ## Features
 

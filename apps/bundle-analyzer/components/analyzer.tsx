@@ -35,6 +35,7 @@ import {
 import { AnalyzeData, ModulesData } from '@/lib/analyze-data'
 import {
   analyzeDataUrl,
+  currentDataDir,
   fetchAnalyzeData,
   fetchModulesData,
   useHistoryIndex,
@@ -48,7 +49,7 @@ import {
   computeModuleDepthMap,
   computeSourceLoadScopes,
 } from '@/lib/module-graph'
-import type { SnapshotMetadata } from '@/lib/snapshot'
+import type { HistoryIndex, SnapshotMetadata } from '@/lib/snapshot'
 import { NetworkError } from '@/lib/errors'
 import { formatBytes } from '@/lib/utils'
 import { createAnalyzeTreemapSource, SizeMode } from '@/lib/treemap-layout'
@@ -56,27 +57,49 @@ import { createAnalyzeTreemapSource, SizeMode } from '@/lib/treemap-layout'
 export function SingleAnalyzer() {
   return (
     <AnalyzerBoundary defaultView={CompareView.Treemap}>
-      <SingleAnalyzerController />
+      <AnalyzerController compare={false} />
     </AnalyzerBoundary>
   )
-}
-
-function SingleAnalyzerController() {
-  const model = useAnalyzerModel(false)
-  return <SingleAnalyzerView model={model} />
 }
 
 export function CompareAnalyzer() {
   return (
     <AnalyzerBoundary defaultView={CompareView.Treemap}>
-      <CompareAnalyzerController />
+      <AnalyzerController compare />
     </AnalyzerBoundary>
   )
 }
 
-function CompareAnalyzerController() {
-  const model = useAnalyzerModel(true)
-  return <CompareAnalyzerView model={model} />
+function AnalyzerController({ compare }: { compare: boolean }) {
+  // Read the URL before suspense data so static prerendering can bail out.
+  useSearchParams()
+  const { data: history, isLoading, error } = useHistoryIndex()
+  // Don't request /data while we are still resolving the current snapshot.
+  if (isLoading) return <AnalyzerFallback view={CompareView.Treemap} />
+  return (
+    <LoadedAnalyzer
+      compare={compare}
+      history={history}
+      historyError={error instanceof NetworkError}
+    />
+  )
+}
+
+function LoadedAnalyzer({
+  compare,
+  history,
+  historyError,
+}: {
+  compare: boolean
+  history: HistoryIndex | undefined
+  historyError: boolean
+}) {
+  const model = useAnalyzerModel(compare, history, historyError)
+  return compare ? (
+    <CompareAnalyzerView model={model} />
+  ) : (
+    <SingleAnalyzerView model={model} />
+  )
 }
 
 function AnalyzerBoundary({
@@ -99,9 +122,11 @@ function AnalyzerFallback({ view }: { view: CompareView }) {
   return <AnalyzerChromeSkeleton view={view} />
 }
 
-function useAnalyzerModel(compare: boolean) {
-  // Read the URL before suspense data so static prerendering can bail out.
-  useSearchParams()
+function useAnalyzerModel(
+  compare: boolean,
+  history: HistoryIndex | undefined,
+  historyError: boolean
+) {
   const [routePickerOpen, setRoutePickerOpen] = useState(false)
   const [selectedSourceIndex, setSelectedSourceIndex] = useState<number | null>(
     null
@@ -110,19 +135,16 @@ function useAnalyzerModel(compare: boolean) {
     null
   )
 
-  const {
-    data: history,
-    isLoading: isHistoryLoading,
-    error: historyError,
-  } = useHistoryIndex()
+  const currentBaseDir = currentDataDir(history)
   const latestSnapshot = useSuspenseJsonData<SnapshotMetadata>(
-    '/data/metadata.json',
+    `${currentBaseDir}/metadata.json`,
     { revalidateOnFocus: false, revalidateOnReconnect: false }
   )
   const routeState = useAnalyzerRoute(
     compare,
     history?.snapshots,
-    latestSnapshot
+    latestSnapshot,
+    currentBaseDir
   )
   const {
     baselineSnapshot,
@@ -338,7 +360,7 @@ function useAnalyzerModel(compare: boolean) {
     compareView: activeView,
     comparisonSnapshot,
     historySnapshots: history?.snapshots ?? [],
-    historyError: historyError instanceof NetworkError,
+    historyError,
     invalidComparison: routeState.invalidComparison,
     latestSnapshot,
     isCompareMode: compare,
@@ -355,7 +377,6 @@ function useAnalyzerModel(compare: boolean) {
     focusedSourceIndex,
     hoveredNodeInfo,
     initialLoaded,
-    isHistoryLoading,
     isMouseInTreemap,
     isViewPending,
     moduleDepthMap,
@@ -436,7 +457,7 @@ function AnalyzerTopBar({
       setSearchQuery={model.setSearchQuery}
       isCompareMode={model.isCompareMode}
       historySnapshots={model.historySnapshots}
-      historyLoading={model.isHistoryLoading}
+      historyLoading={false}
       historyError={model.historyError}
       latestSnapshot={model.latestSnapshot}
       singleBuildId={model.singleBuildId}
@@ -458,15 +479,6 @@ function AnalyzerTopBar({
 }
 
 function CompareAnalyzerView({ model }: { model: AnalyzerModel }) {
-  if (model.isHistoryLoading) {
-    return (
-      <AnalyzerFrame topBar={<AnalyzerTopBar model={model} />}>
-        <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-          Loading comparison…
-        </div>
-      </AnalyzerFrame>
-    )
-  }
   if (
     model.baselineSnapshot &&
     !model.invalidComparison &&
@@ -678,16 +690,7 @@ function ComparisonContent({
 }
 
 function SingleAnalyzerView({ model }: { model: AnalyzerModel }) {
-  if (model.singleBuildId && model.isHistoryLoading) {
-    return (
-      <AnalyzerFrame topBar={<AnalyzerTopBar model={model} />}>
-        <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-          Loading build…
-        </div>
-      </AnalyzerFrame>
-    )
-  }
-  if (model.singleBuildId && !model.singleSnapshot && !model.isHistoryLoading) {
+  if (model.singleBuildId && !model.singleSnapshot) {
     return (
       <AnalyzerFrame topBar={<AnalyzerTopBar model={model} />}>
         <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
