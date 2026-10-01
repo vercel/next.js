@@ -93,7 +93,7 @@ pub fn cleanup_old_edges(
     queue: AggregationUpdateQueue,
     ctx: &mut impl ExecuteContext<'_>,
 ) -> Stats {
-    execute_inner(task_id, outdated, queue, ctx, false).0
+    cleanup_old_edges_inner(task_id, outdated, queue, ctx, false).0
 }
 
 /// GC variant: tears down `outdated`, running only the edge deletions.
@@ -107,7 +107,7 @@ pub fn cleanup_old_edges_deletions_only<'a, C: ExecuteContext<'a>>(
     outdated: Vec<OutdatedEdge>,
     ctx: &mut C,
 ) -> DeferredCleanup {
-    let (_, stopped) = execute_inner(
+    let (_, stopped) = cleanup_old_edges_inner(
         task_id,
         outdated,
         AggregationUpdateQueue::new_without_optimizations(),
@@ -118,7 +118,7 @@ pub fn cleanup_old_edges_deletions_only<'a, C: ExecuteContext<'a>>(
     stopped.unwrap()
 }
 
-fn execute_inner(
+fn cleanup_old_edges_inner(
     task_id: TaskId,
     mut outdated: Vec<OutdatedEdge>,
     mut queue: AggregationUpdateQueue,

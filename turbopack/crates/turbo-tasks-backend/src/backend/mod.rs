@@ -46,7 +46,7 @@ use turbo_tasks::{
     },
     event::{Event, EventDescription, EventListener},
     macro_helpers::NativeFunction,
-    message_queue::{TimingEvent, TraceEvent},
+    message_queue::{DiagnosticEvent, Severity, TimingEvent, TraceEvent},
     registry::get_value_type,
     scope_bounded::scope_bounded,
     task_statistics::TaskStatisticsApi,
@@ -70,7 +70,7 @@ use crate::{
             get_aggregation_number, get_uppers, invalidate, make_task_dirty_internal,
             prepare_new_children, update_cell,
         },
-        snapshot_coordinator::{OperationGuard, SnapshotCoordinator},
+        snapshot_coordinator::{OperationGuard, SlowSettle, SnapshotCoordinator},
         storage::Storage,
         storage_schema::{TaskStorage, TaskStorageAccessors},
     },
@@ -207,6 +207,14 @@ impl SnapshotReason {
             SnapshotReason::RegularSnapshotInterval => "regular snapshot interval",
             SnapshotReason::IdleTimeout => "idle timeout",
         }
+    }
+
+    /// Whether this snapshot waits for in-flight operations to settle. Otherwise it is skipped
+    /// if any operation is active when it starts.
+    fn waits_for_operations(self) -> bool {
+        // Idle snapshots are opportunistic: an active operation means we are no longer idle, so
+        // skip and let the background loop try again rather than pausing the work that woke us.
+        !matches!(self, SnapshotReason::IdleTimeout)
     }
 
     /// Whether a GC pass run for this reason may wind down early when an operation is waiting.
@@ -418,7 +426,8 @@ impl TurboTasksBackend {
         );
         let snapshot_result = self.snapshot_and_persist(None, SnapshotReason::Test, turbo_tasks);
         let (had_new_data, gc_outcome) = match snapshot_result {
-            Ok((_, new_data, gc_outcome)) => (new_data, gc_outcome),
+            Ok(Some((_, new_data, gc_outcome))) => (new_data, gc_outcome),
+            Ok(None) => unreachable!("test snapshots wait for operations to settle"),
             Err(_) => {
                 // Snapshot/persist failed — skip eviction since the data may not
                 // be on disk yet. Evicting now could lose in-memory state that
@@ -1127,7 +1136,9 @@ impl TurboTasksBackend {
 
     /// Runs a persistence cycle
     ///
-    /// Returns `(snapshot_start, had_new_data, gc_outcome)`. `gc_outcome` is `None` when GC is
+    /// Returns `None` if the cycle was skipped because operations were active and the reason
+    /// doesn't [wait for them](SnapshotReason::waits_for_operations). Otherwise returns
+    /// `(snapshot_start, had_new_data, gc_outcome)`. `gc_outcome` is `None` when GC is
     /// disabled; it is returned rather than stashed on `self` so a test can inspect the pass it
     /// just triggered without the backend carrying test-only state. Production reads the same
     /// numbers off the `gc` span.
@@ -1137,7 +1148,7 @@ impl TurboTasksBackend {
         parent_span: Option<tracing::Id>,
         reason: SnapshotReason,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
-    ) -> Result<(Instant, bool, Option<(GcStats, GcPassResult)>)> {
+    ) -> Result<Option<(Instant, bool, Option<(GcStats, GcPassResult)>)>> {
         let snapshot_span =
             tracing::trace_span!(parent: parent_span.clone(), "snapshot", reason = reason.as_str())
                 .entered();
@@ -1152,7 +1163,15 @@ impl TurboTasksBackend {
         // since epoch). Instant is monotonic but has no defined epoch, so it
         // can't be used for cross-process trace correlation.
         let wall_start = SystemTime::now();
-        let snapshot_phase = self.snapshot_coord.begin_snapshot();
+        let snapshot_phase = if reason.waits_for_operations() {
+            self.snapshot_coord
+                .begin_snapshot(|slow| Self::report_slow_settle(turbo_tasks, slow))
+        } else {
+            match self.snapshot_coord.try_begin_snapshot() {
+                Some(phase) => phase,
+                None => return Ok(None),
+            }
+        };
         let (gc_elapsed, gc_roots_to_persist, gc_outcome) = if self.gc_enabled {
             let gc_span = tracing::info_span!(
                 "gc",
@@ -1169,7 +1188,7 @@ impl TurboTasksBackend {
                 // This ensures that we don't persist roots that were not completely validated.
                 drop(snapshot_phase);
                 drop(gc_span);
-                return Ok((start, false, Some((stats, result))));
+                return Ok(Some((start, false, Some((stats, result)))));
             }
             (Some(start.elapsed()), roots, Some((stats, result)))
         } else {
@@ -1188,7 +1207,7 @@ impl TurboTasksBackend {
             // No tasks modified since the last snapshot — drop the guard (which
             // calls end_snapshot) and skip the expensive O(N) scan.
             drop(snapshot_guard);
-            return Ok((start, false, gc_outcome));
+            return Ok(Some((start, false, gc_outcome)));
         }
 
         #[cfg(feature = "print_cache_item_size")]
@@ -1479,7 +1498,7 @@ impl TurboTasksBackend {
             // was present, and every modification that increments the count also failed
             // during encoding.
             std::hint::cold_path();
-            return Ok((snapshot_time, false, gc_outcome));
+            return Ok(Some((snapshot_time, false, gc_outcome)));
         }
 
         let persist_start = Instant::now();
@@ -1613,7 +1632,7 @@ impl TurboTasksBackend {
             ]),
         )));
 
-        Ok((snapshot_time, true, gc_outcome))
+        Ok(Some((snapshot_time, true, gc_outcome)))
     }
 
     fn startup(&self, turbo_tasks: &TurboTasks<TurboTasksBackend>) {
@@ -2932,6 +2951,24 @@ impl TurboTasksBackend {
         removed_cell_data
     }
 
+    /// Warns through the compilation event queue (so Next.js logs it) that a snapshot is still
+    /// waiting for active operations to finish.
+    fn report_slow_settle(turbo_tasks: &TurboTasks<TurboTasksBackend>, slow: SlowSettle) {
+        let SlowSettle {
+            waited,
+            active_at_start,
+            active_now,
+        } = slow;
+        turbo_tasks.send_compilation_event(Arc::new(DiagnosticEvent::new(
+            Severity::Warning,
+            format!(
+                "Writing to the filesystem cache has been waiting {}s for active operations to \
+                 finish ({active_at_start} active when it started, {active_now} active now)",
+                waited.as_secs(),
+            ),
+        )));
+    }
+
     /// Prints the standard message emitted when the background persisting process stops due to an
     /// unrecoverable write error. The caller is responsible for returning from the background job.
     fn log_unrecoverable_persist_error() {
@@ -3080,7 +3117,15 @@ impl TurboTasksBackend {
                                 Self::log_unrecoverable_persist_error();
                                 return;
                             }
-                            Ok((snapshot_start, new_data, _gc_outcome)) => {
+                            Ok(None) => {
+                                // An idle snapshot found operations in flight. Nothing was
+                                // persisted, so keep the accumulated active time and scheduling
+                                // state. Re-arm the idle timeout so we retry if we are still
+                                // idle; otherwise the next idle period or interval picks it up.
+                                fresh_idle = true;
+                                continue 'outer;
+                            }
+                            Ok(Some((snapshot_start, new_data, _gc_outcome))) => {
                                 // if we see 'new_data' then the next idle transition is 'fresh'
                                 fresh_idle = new_data;
                                 is_first = false;

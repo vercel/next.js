@@ -450,7 +450,9 @@ impl TurboTasksBackend {
             "gc_for_testing requires a GC-enabled backend: set `BackendOptions::gc = Some(true)`"
         );
         let _serialize = self.snapshot_in_progress.lock();
-        let phase = self.snapshot_coord.begin_snapshot();
+        let phase = self
+            .snapshot_coord
+            .begin_snapshot(|slow| Self::report_slow_settle(turbo_tasks, slow));
         let (stats, _result, roots) =
             self.gc_collect(turbo_tasks, &phase, /* interruptible= */ false);
 
