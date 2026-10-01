@@ -209,7 +209,7 @@ export async function spawnNextUpgrade(
       inheritedRunId && !invalidRunId ? inheritedRunId : randomUUID()
 
     let resolvedPolicy: AIUpgradePolicy | null = null
-    let failureStage: 'other' | 'metadata' | 'guide' | 'handoff' = 'other'
+    let failureStage: 'cli' | 'metadata' | 'guide' | 'handoff' = 'cli'
     let cliResultRecorded = false
 
     // Preparation and handoff can both fail; record only the first terminal result.
@@ -287,7 +287,7 @@ export async function spawnNextUpgrade(
         Log.info(dim('Preparing upgrade...'))
         failureStage = 'metadata'
         const canaryVersion = await resolveCanaryVersion()
-        failureStage = 'other'
+        failureStage = 'cli'
         if (process.env.__NEXT_VERSION !== canaryVersion) {
           const [command, ...runnerArgs] = getNpxCommand(baseDir).split(' ')
           const aiArgument =
@@ -610,17 +610,22 @@ When this task ends, report its result once. After completing the requested upgr
         recordCLIResult('handoff_failed', null, null)
       }
     } catch (error) {
-      recordCLIResult(
-        failureStage === 'metadata'
-          ? 'metadata_failure'
-          : failureStage === 'guide'
-            ? 'guide_failure'
-            : failureStage === 'handoff'
-              ? 'handoff_failed'
-              : 'cli_failure',
-        null,
-        null
-      )
+      // Report the failed preparation stage while preserving the original error below.
+      switch (failureStage) {
+        case 'metadata':
+          recordCLIResult('metadata_failure', null, null)
+          break
+        case 'guide':
+          recordCLIResult('guide_failure', null, null)
+          break
+        case 'handoff':
+          recordCLIResult('handoff_failed', null, null)
+          break
+        case 'cli':
+          recordCLIResult('cli_failure', null, null)
+          break
+      }
+
       Log.error(
         'Could not prepare the upgrade:',
         error instanceof Error ? error.message : error

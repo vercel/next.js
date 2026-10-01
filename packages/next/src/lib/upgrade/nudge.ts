@@ -345,11 +345,11 @@ ${reference ? `Reference: ${reference}` : ''}`
   if (telemetry) {
     try {
       if (telemetry.isEnabled || process.env.NEXT_TELEMETRY_DEBUG) {
-        telemetry.flushDetached(
-          'dev',
-          options.directory,
-          resolve(options.directory, options.distDir),
-          [
+        telemetry.flushDetached({
+          mode: 'dev',
+          dir: options.directory,
+          distDir: resolve(options.directory, options.distDir),
+          events: [
             policyEvent,
             eventAIUpgradeNudgeShown({
               nudgeId,
@@ -359,8 +359,8 @@ ${reference ? `Reference: ${reference}` : ''}`
               policy: reminder.policy,
               nudgeKind: reminder.kind,
             }),
-          ]
-        )
+          ],
+        })
       }
     } catch (error) {
       Log.warn(`Could not queue upgrade telemetry: ${String(error)}`)
@@ -465,7 +465,12 @@ async function nudgeUpgradeForHuman(
     return 'skip'
   }
   const { promptUpgrade } = require('./prompt') as typeof import('./prompt')
-  const action = await promptUpgrade(message, signal, true, onShown)
+  const action = await promptUpgrade({
+    message,
+    signal,
+    canUpdate: true,
+    onShown,
+  })
   if (signal.aborted) {
     return 'skip'
   }

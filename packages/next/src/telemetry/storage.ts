@@ -231,12 +231,17 @@ export class Telemetry {
   // writes current events to disk and spawns separate
   // detached process to submit the records without blocking
   // the main process from exiting
-  flushDetached = (
-    mode: 'dev',
-    dir: string,
-    distDir: string | null,
+  flushDetached = ({
+    mode,
+    dir,
+    distDir,
+    events,
+  }: {
+    mode: 'dev'
+    dir: string
+    distDir: string | null
     events: TelemetryEvent[] | null
-  ) => {
+  }) => {
     // Nudges detach only their own events; shutdown flushes the full queue.
     const allEvents: TelemetryEvent[] = events ?? []
 

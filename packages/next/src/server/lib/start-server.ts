@@ -447,7 +447,12 @@ export async function startServer(
                   // Use flushDetached to avoid blocking process exit
                   // Each process writes to a unique file (_events_${pid}.json)
                   // to avoid race conditions with the parent process
-                  telemetry.flushDetached('dev', dir, null, null)
+                  telemetry.flushDetached({
+                    mode: 'dev',
+                    dir,
+                    distDir: null,
+                    events: null,
+                  })
                 }
               } catch (_) {
                 // Ignore telemetry errors during cleanup

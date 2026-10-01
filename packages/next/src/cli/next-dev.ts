@@ -180,7 +180,7 @@ const handleSessionStop = async (
       }),
       true
     )
-    telemetry.flushDetached('dev', dir, null, null)
+    telemetry.flushDetached({ mode: 'dev', dir, distDir: null, events: null })
   } catch (_) {
     // errors here aren't actionable so don't add
     // noise to the output

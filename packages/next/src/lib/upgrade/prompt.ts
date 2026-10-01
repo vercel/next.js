@@ -5,12 +5,17 @@ import { bold, cyan } from '../picocolors'
 
 export type UpgradeAction = 'update' | 'skip' | 'dismiss' | 'interrupt'
 
-export async function promptUpgrade(
-  message: string,
-  signal: AbortSignal,
-  canUpdate: boolean,
+export async function promptUpgrade({
+  message,
+  signal,
+  canUpdate,
+  onShown,
+}: {
+  message: string
+  signal: AbortSignal
+  canUpdate: boolean
   onShown: (() => void) | null
-): Promise<UpgradeAction> {
+}): Promise<UpgradeAction> {
   if (signal.aborted) {
     return 'skip'
   }

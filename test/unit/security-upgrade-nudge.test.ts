@@ -883,12 +883,12 @@ describe('human upgrade nudge', () => {
         mockUpgrade(targetVersion)
       }
       await expect(run(policy)).resolves.toBe('skip')
-      expect(promptUpgrade).toHaveBeenCalledWith(
-        message,
-        expect.any(AbortSignal),
-        true,
-        null
-      )
+      expect(promptUpgrade).toHaveBeenCalledWith({
+        message: message,
+        signal: expect.any(AbortSignal),
+        canUpdate: true,
+        onShown: null,
+      })
       jest.mocked(getAgentName).mockResolvedValue('codex')
       await expect(run(policy)).rejects.toMatchObject({
         message: expect.stringContaining(`next upgrade --ai=${policy}`),
@@ -906,12 +906,12 @@ describe('human upgrade nudge', () => {
       null,
       null
     )
-    expect(promptUpgrade).toHaveBeenCalledWith(
-      'Next.js Future Default upgrade available: 16.4.0 -> 17.0.0',
-      expect.any(AbortSignal),
-      true,
-      null
-    )
+    expect(promptUpgrade).toHaveBeenCalledWith({
+      message: 'Next.js Future Default upgrade available: 16.4.0 -> 17.0.0',
+      signal: expect.any(AbortSignal),
+      canUpdate: true,
+      onShown: null,
+    })
   })
 
   it.each(['update', 'skip', 'interrupt'] as const)(
@@ -919,12 +919,13 @@ describe('human upgrade nudge', () => {
     async (action) => {
       jest.mocked(promptUpgrade).mockResolvedValue(action)
       await expect(run()).resolves.toBe(action)
-      expect(promptUpgrade).toHaveBeenCalledWith(
-        '⚠ Installed Next.js version 16.4.0 is affected by a known security vulnerability.\n\nNext.js security version upgrade available: 16.4.0 -> 17.0.0',
-        expect.any(AbortSignal),
-        true,
-        null
-      )
+      expect(promptUpgrade).toHaveBeenCalledWith({
+        message:
+          '⚠ Installed Next.js version 16.4.0 is affected by a known security vulnerability.\n\nNext.js security version upgrade available: 16.4.0 -> 17.0.0',
+        signal: expect.any(AbortSignal),
+        canUpdate: true,
+        onShown: null,
+      })
       await expect(run()).resolves.toBe(action)
       expect(promptUpgrade).toHaveBeenCalledTimes(2)
     }
@@ -1033,7 +1034,7 @@ describe('human upgrade nudge', () => {
       null,
       null
     )
-    const message = jest.mocked(promptUpgrade).mock.calls[0][0]
+    const { message } = jest.mocked(promptUpgrade).mock.calls[0][0]
     expect(message).toContain(
       'Next.js latest version upgrade available: 16.4.0 -> 16.4.1'
     )
@@ -1207,14 +1208,14 @@ describe('human upgrade nudge', () => {
     mockUpgrade('17.0.0')
     jest.mocked(promptUpgrade).mockResolvedValue('skip')
     await expect(run()).resolves.toBe('skip')
-    expect(promptUpgrade).toHaveBeenCalledWith(
-      expect.stringContaining(
+    expect(promptUpgrade).toHaveBeenCalledWith({
+      message: expect.stringContaining(
         'Next.js Future Default upgrade available: 16.4.0 -> 17.0.0'
       ),
-      expect.any(AbortSignal),
-      true,
-      null
-    )
+      signal: expect.any(AbortSignal),
+      canUpdate: true,
+      onShown: null,
+    })
   })
 
   it.each(['blocked', 'unknown'] as const)(
