@@ -25,9 +25,8 @@ use turbo_persistence::{
     read_current_version,
     sst_filter::SstFilter,
     static_sorted_file::{
-        FIXED_KEY_BLOCK_MIXED_VALUE_TYPE, FixedRegions, KEY_BLOCK_ENTRY_TYPE_BLOB,
-        KEY_BLOCK_ENTRY_TYPE_INLINE_MIN, KEY_BLOCK_ENTRY_TYPE_KEY_DELETED,
-        KEY_BLOCK_ENTRY_TYPE_MEDIUM, KEY_BLOCK_ENTRY_TYPE_SMALL,
+        KEY_BLOCK_ENTRY_TYPE_BLOB, KEY_BLOCK_ENTRY_TYPE_INLINE_MIN,
+        KEY_BLOCK_ENTRY_TYPE_KEY_DELETED, KEY_BLOCK_ENTRY_TYPE_MEDIUM, KEY_BLOCK_ENTRY_TYPE_SMALL,
         KEY_BLOCK_TABLE_ENTRY_SIZE_NO_HASH, KeyBlockLayout, key_block_table_stride,
     },
 };
@@ -392,13 +391,6 @@ enum KeyBlockHeader {
         entry_count: u32,
         value_type: u8,
     },
-    /// Fixed-size layout whose entries share a value size but not a value type, so each carries
-    /// its own type byte ahead of its value in the block's tail region.
-    FixedMixedType {
-        entry_count: u32,
-        /// Where the block's search and tail regions sit, derived by the shared reader helper.
-        regions: FixedRegions,
-    },
 }
 
 /// Parses the header of a key block from the full decompressed block data.
@@ -416,40 +408,23 @@ fn parse_key_block_header(block: &[u8]) -> Result<KeyBlockHeader> {
         });
     }
     assert!(block.len() >= 6, "Fixed key block header too small");
-    if block[5] == FIXED_KEY_BLOCK_MIXED_VALUE_TYPE {
-        assert!(block.len() >= 7, "Mixed-type key block header too small");
-        Ok(KeyBlockHeader::FixedMixedType {
-            entry_count,
-            // `FixedRegions` owns the search/tail split; `val_size` includes the per-entry type
-            // byte, which the header stores separately from the value size.
-            regions: FixedRegions::new(
-                entry_count as usize,
-                layout,
-                block[4] as usize,
-                block[6] as usize + 1,
-            ),
-        })
-    } else {
-        Ok(KeyBlockHeader::Fixed {
-            entry_count,
-            value_type: block[5],
-        })
-    }
+    Ok(KeyBlockHeader::Fixed {
+        entry_count,
+        value_type: block[5],
+    })
 }
 
 /// Iterates over entry type bytes in a key block.
 ///
 /// For variable-size key blocks, reads byte 0 of each 4-byte offset table entry. For fixed-size
-/// key blocks, yields the single `value_type` repeated `entry_count` times, or reads the per-entry
-/// type byte when the block has mixed types.
+/// key blocks, yields the single `value_type` repeated `entry_count` times.
 fn iter_key_block_entry_types(
     header: KeyBlockHeader,
     block: &[u8],
 ) -> impl Iterator<Item = u8> + '_ {
     let entry_count = match header {
         KeyBlockHeader::Variable { entry_count, .. }
-        | KeyBlockHeader::Fixed { entry_count, .. }
-        | KeyBlockHeader::FixedMixedType { entry_count, .. } => entry_count,
+        | KeyBlockHeader::Fixed { entry_count, .. } => entry_count,
     };
     (0..entry_count).map(move |i| match header {
         // Variable block: offset table starts at byte 4 (after 1B type + 3B count). The type byte
@@ -460,11 +435,6 @@ fn iter_key_block_entry_types(
                 + (table_stride - KEY_BLOCK_TABLE_ENTRY_SIZE_NO_HASH)]
         }
         KeyBlockHeader::Fixed { value_type, .. } => value_type,
-        KeyBlockHeader::FixedMixedType { regions, .. } => {
-            // Entry data starts after the 7-byte mixed-type header; within the tail region the
-            // type byte precedes the value, after the key for `HashThenKey` blocks.
-            block[7 + regions.total_len(i as usize) + regions.tail_key_size()]
-        }
     })
 }
 
@@ -553,7 +523,7 @@ fn analyze_sst_file(db_path: &Path, info: &SstInfo) -> Result<SstStats> {
                     raw.was_compressed,
                 );
             }
-            KeyBlockHeader::Fixed { .. } | KeyBlockHeader::FixedMixedType { .. } => {
+            KeyBlockHeader::Fixed { .. } => {
                 stats.fixed_key_blocks.add(
                     raw.compressed_size,
                     raw.actual_size,

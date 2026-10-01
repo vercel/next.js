@@ -16,9 +16,9 @@ use crate::{
     constants::{MAX_INLINE_VALUE_SIZE, MAX_SMALL_VALUE_SIZE, MIN_SMALL_VALUE_BLOCK_SIZE},
     meta_file::MetaEntryFlags,
     static_sorted_file::{
-        BLOB_VALUE_REF_SIZE, BLOCK_TYPE_INDEX, FIXED_KEY_BLOCK_MIXED_VALUE_TYPE, FixedRegions,
-        KEY_BLOCK_ENTRY_TYPE_BLOB, KEY_BLOCK_ENTRY_TYPE_INLINE_MIN,
-        KEY_BLOCK_ENTRY_TYPE_KEY_DELETED, KEY_BLOCK_ENTRY_TYPE_MEDIUM, KEY_BLOCK_ENTRY_TYPE_SMALL,
+        BLOB_VALUE_REF_SIZE, BLOCK_TYPE_INDEX, FixedRegions, KEY_BLOCK_ENTRY_TYPE_BLOB,
+        KEY_BLOCK_ENTRY_TYPE_INLINE_MIN, KEY_BLOCK_ENTRY_TYPE_KEY_DELETED,
+        KEY_BLOCK_ENTRY_TYPE_MEDIUM, KEY_BLOCK_ENTRY_TYPE_SMALL,
         KEY_BLOCK_TABLE_ENTRY_SIZE_NO_HASH, KEY_DELETED_REF_SIZE, KeyBlockLayout,
         MEDIUM_VALUE_REF_SIZE, SMALL_VALUE_REF_SIZE, key_block_table_stride,
     },
@@ -66,12 +66,6 @@ const MIN_KEY_SIZE_FOR_COMPRESSION: usize = 16;
 /// fall back to variable-size layout.
 const MAX_FIXED_KEY_LEN: usize = u8::MAX as usize;
 
-/// Maximum value size that can use fixed-size key block layout.
-///
-/// Mixed-type fixed blocks store the value size in a single header byte, since it can no longer be
-/// derived from a single shared entry type.
-const MAX_FIXED_VAL_SIZE: usize = u8::MAX as usize;
-
 /// Newtype for the key block entry type byte.
 ///
 /// This encodes what kind of value reference an entry has (small, medium, blob, deleted, or
@@ -81,62 +75,47 @@ struct EntryType(u8);
 
 /// Tracks whether a key block's entries are uniform enough for fixed-size layout.
 ///
-/// Fixed layout needs a uniform *stride*, which requires a uniform key length and a uniform value
-/// size. A uniform value *type* is a stronger condition that additionally lets the type be hoisted
-/// into the block header; when types differ but sizes agree, the type is stored per entry instead
-/// (1 byte, still cheaper than the 4-byte offset table entry a variable block would need).
+/// Fixed layout requires every entry to have the same key length and value type, allowing both to
+/// be encoded once in the block header.
 ///
 /// State transitions:
 /// - `Unknown` → first entry → `Fixed`
-/// - `Fixed` + matching key_len and value type → stays `Fixed`
-/// - `Fixed` + matching key_len and value *size* → `Fixed` with `value_type: None`
-/// - `Fixed` + mismatched key_len or value size → `Variable`
+/// - `Fixed` + matching key length and value type → stays `Fixed`
+/// - `Fixed` + mismatched key length or value type → `Variable`
 /// - `Variable` → stays `Variable`
 #[derive(Clone, Copy)]
 enum KeyBlockFormat {
     /// No entries yet — format undetermined.
     Unknown,
-    /// All entries so far have uniform key length and value size.
-    Fixed {
-        key_len: u8,
-        val_size: u8,
-        /// The shared entry type, or `None` if entries have differing types of the same size.
-        value_type: Option<EntryType>,
-    },
-    /// Entries have mixed key lengths or value sizes; must use offset table.
+    /// All entries so far have a uniform key length and value type.
+    Fixed { key_len: u8, value_type: EntryType },
+    /// Entries have mixed key lengths or value types; must use an offset table.
     Variable,
 }
 
 impl KeyBlockFormat {
     /// Updates the format after seeing an entry with the given key length and value type.
     ///
-    /// A `Fixed` state is only reachable when all entries have matching key length and value size,
+    /// A `Fixed` state is only reachable when all entries have matching key length and value type,
     /// and the key length fits in a u8 (required by the on-disk header).
     fn update(&mut self, key_len: usize, value_type: EntryType) {
-        let val_size = value_type_val_size(value_type);
         *self = match *self {
-            KeyBlockFormat::Unknown => {
-                if key_len <= MAX_FIXED_KEY_LEN && val_size <= MAX_FIXED_VAL_SIZE {
-                    KeyBlockFormat::Fixed {
-                        key_len: key_len as u8,
-                        val_size: val_size as u8,
-                        value_type: Some(value_type),
-                    }
-                } else {
-                    KeyBlockFormat::Variable
+            KeyBlockFormat::Unknown if key_len <= MAX_FIXED_KEY_LEN => KeyBlockFormat::Fixed {
+                key_len: key_len as u8,
+                value_type,
+            },
+            KeyBlockFormat::Fixed {
+                key_len: fixed_key_len,
+                value_type: fixed_value_type,
+            } if fixed_key_len as usize == key_len && fixed_value_type == value_type => {
+                KeyBlockFormat::Fixed {
+                    key_len: fixed_key_len,
+                    value_type: fixed_value_type,
                 }
             }
-            KeyBlockFormat::Fixed {
-                key_len: k,
-                val_size: s,
-                value_type: v,
-            } if k as usize == key_len && s as usize == val_size => KeyBlockFormat::Fixed {
-                key_len: k,
-                val_size: s,
-                // Collapse to `None` as soon as two entries disagree on type.
-                value_type: v.filter(|v| *v == value_type),
-            },
-            KeyBlockFormat::Fixed { .. } | KeyBlockFormat::Variable => KeyBlockFormat::Variable,
+            KeyBlockFormat::Unknown | KeyBlockFormat::Fixed { .. } | KeyBlockFormat::Variable => {
+                KeyBlockFormat::Variable
+            }
         };
     }
 }
@@ -987,7 +966,6 @@ impl<E: Entry> StreamingSstWriter<E> {
 
         if let KeyBlockFormat::Fixed {
             key_len: key_size,
-            val_size,
             value_type,
         } = info.format
         {
@@ -997,7 +975,6 @@ impl<E: Entry> StreamingSstWriter<E> {
                 entry_count as u32,
                 layout,
                 key_size,
-                val_size,
                 value_type,
             );
             for pending in block_entries(start, end) {
@@ -1276,14 +1253,11 @@ impl<'l> KeyBlockBuilder<'l> {
 // ---------------------------------------------------------------------------
 
 /// The size of the fixed-size key block header (block type + entry count + key size + value type).
-/// Mixed-type blocks append one more byte for the value size.
 const FIXED_KEY_BLOCK_HEADER_SIZE: usize = 6;
 
-/// Builder for a fixed-size key block where all entries share the same key size and value size.
+/// Builder for a fixed-size key block where all entries share the same key size and value type.
 ///
-/// No offset table is written — entry positions are computed arithmetically from the stride. When
-/// entries share a value size but not a value type, the header records
-/// [`FIXED_KEY_BLOCK_MIXED_VALUE_TYPE`] and each entry carries its own type byte before its value.
+/// No offset table is written — entry positions are computed arithmetically from the stride.
 ///
 /// Entries are written as two regions rather than interleaved, so that the bytes a lookup's binary
 /// search probes are contiguous: the search region holds only what the lookup compares first (the
@@ -1296,8 +1270,6 @@ struct FixedKeyBlockBuilder<'l> {
     buffer: &'l mut Vec<u8>,
     /// Accumulates the tail region, appended to `buffer` by [`Self::finish`].
     tail: &'l mut Vec<u8>,
-    /// Whether each entry writes its own type byte (set for mixed-type blocks).
-    per_entry_type: bool,
     /// Which of the two regions the key goes in: the search region for `KeyOnly`, the tail for
     /// `HashThenKey`. Also checks that callers pair the layout with the matching `put` method.
     layout: KeyBlockLayout,
@@ -1310,14 +1282,11 @@ impl<'l> FixedKeyBlockBuilder<'l> {
         entry_count: u32,
         layout: KeyBlockLayout,
         key_size: u8,
-        val_size: u8,
-        value_type: Option<EntryType>,
+        value_type: EntryType,
     ) -> Self {
-        let per_entry_type = value_type.is_none();
         // The two regions partition the entry bytes: the search region takes the bytes compared
         // first, the tail takes the rest. `FixedRegions` owns that split for reader and writer
-        // alike, so the geometry is derived in one place. Its `val_size` includes the per-entry
-        // type byte, which the block header keeps separate from the value size.
+        // alike, so the geometry is derived in one place.
         let FixedRegions {
             search_stride,
             tail_stride,
@@ -1326,7 +1295,7 @@ impl<'l> FixedKeyBlockBuilder<'l> {
             entry_count as usize,
             layout,
             key_size as usize,
-            val_size as usize + usize::from(per_entry_type),
+            value_type_val_size(value_type),
         );
         // `finish` appends the tail back into `buffer`, so reserve room for the whole block here
         // and the append never reallocates.
@@ -1343,18 +1312,12 @@ impl<'l> FixedKeyBlockBuilder<'l> {
             (entry_count >> 8) as u8,
             entry_count as u8,
             key_size,
-            value_type.map_or(FIXED_KEY_BLOCK_MIXED_VALUE_TYPE, |ty| ty.0),
+            value_type.0,
         ]);
-        // Mixed-type blocks cannot derive the value size from the header's type byte, so it is
-        // written explicitly.
-        if per_entry_type {
-            buffer.push(val_size);
-        }
 
         Self {
             buffer,
             tail,
-            per_entry_type,
             layout,
         }
     }
@@ -1376,9 +1339,6 @@ impl<'l> FixedKeyBlockBuilder<'l> {
 
     /// Appends the parts of an entry that the search never reads.
     fn put_tail(&mut self, value_ref: &ValueRef) {
-        if self.per_entry_type {
-            self.tail.push(value_ref.entry_type().0);
-        }
         value_ref.write_value_to(self.tail);
     }
 
@@ -2081,22 +2041,17 @@ mod tests {
         })
     }
 
-    /// A tombstone and a value of the same size keep the block in fixed layout.
-    ///
-    /// This is what makes tombstones cheap for uniform-key families like the task cache: without
-    /// the mixed-type layout, one tombstone would demote its whole block to the variable format
-    /// and add a 4-byte offset table entry for every entry in it.
+    /// Differing value types use the variable layout even when their encoded sizes match.
     #[test]
-    #[cfg(any())]
-    fn fixed_layout_survives_mixed_value_types_of_equal_size() -> Result<()> {
+    fn mixed_value_types_of_equal_size_fall_back_to_variable_layout() -> Result<()> {
         let dir = tempfile::tempdir()?;
 
-        // Uniform 8-byte keys, uniform 4-byte values, but two different entry types.
+        // Uniform 8-byte keys and 4-byte values, but two different entry types.
         let mut entries: Vec<TestEntry> = (0..64u64)
             .map(|i| {
                 let key = format!("k-{i:06}");
                 if i % 4 == 0 {
-                    TestEntry::new(key.as_bytes())
+                    TestEntry::blob(key.as_bytes(), i as u32)
                 } else {
                     TestEntry::inline(key.as_bytes(), &[0xBBu8; 4])
                 }
@@ -2109,17 +2064,11 @@ mod tests {
 
         assert_eq!(
             KeyBlockLayout::from_block_type(block[0]).map(|(_, fixed)| fixed),
-            Some(true),
-            "mixed value types of equal size should stay in fixed layout, got block type {}",
+            Some(false),
+            "mixed value types should use variable layout, got block type {}",
             block[0]
         );
-        assert_eq!(
-            block[5], FIXED_KEY_BLOCK_MIXED_VALUE_TYPE,
-            "block should be marked mixed-type"
-        );
-        assert_eq!(block[6], 4, "value size should be recorded in the header");
 
-        // The layout is only useful if it still reads back correctly.
         let sst = open_sst(dir.path(), 1, &meta)?;
         let kc = make_cache();
         let vc = make_cache();

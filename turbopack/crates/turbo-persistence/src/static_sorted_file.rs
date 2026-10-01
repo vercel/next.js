@@ -93,10 +93,6 @@ impl KeyBlockLayout {
     }
 }
 
-/// Written in a fixed-size key block header's value type field when entries share a value size but
-/// not a value type. Each entry then carries its own type byte ahead of its value.
-pub const FIXED_KEY_BLOCK_MIXED_VALUE_TYPE: u8 = 4;
-
 /// The tag for a small-sized value.
 pub const KEY_BLOCK_ENTRY_TYPE_SMALL: u8 = 0;
 /// The tag for the blob value.
@@ -620,14 +616,9 @@ impl StaticSortedFile {
         ensure!(block.len() >= 6, "fixed key block too short");
         let entry_count = be::read_u24(&block[1..]) as usize;
         let key_size = be::read_u8(&block[4..]) as usize;
-        let header_type = be::read_u8(&block[5..]);
-        let FixedValueLayout {
-            value_type,
-            val_size,
-            header_size,
-        } = fixed_value_layout(block, header_type)?;
-        let regions = FixedRegions::new(entry_count, layout, key_size, val_size);
-        let entries = &block[header_size..];
+        let value_type = be::read_u8(&block[5..]);
+        let regions = FixedRegions::new(entry_count, layout, key_size, entry_val_size(value_type)?);
+        let entries = &block[6..];
         ensure!(
             entries.len() == regions.total_len(entry_count),
             "fixed key block for {entry_count} entries is the wrong size"
@@ -1182,10 +1173,9 @@ pub struct StaticSortedFileIter {
 enum CurrentKeyBlockKind {
     /// Variable-size entries with an offset table for random access.
     Variable { offsets: RcBytes },
-    /// Fixed-size entries with uniform key size and value size (no offset table).
+    /// Fixed-size entries with uniform key size and value type (no offset table).
     Fixed {
-        /// The type shared by every entry, or `None` if each entry carries its own type byte.
-        value_type: Option<u8>,
+        value_type: u8,
         regions: FixedRegions,
     },
 }
@@ -1354,13 +1344,14 @@ impl StaticSortedFileIter {
             // In fixed blocks the size of the keys (<=32) is stored immediately after the block len
             // (retrieved above)
             let key_size = data[4] as usize;
-            let FixedValueLayout {
-                value_type,
-                val_size,
-                header_size,
-            } = fixed_value_layout(data, data[5])?;
-            let regions = FixedRegions::new(entry_count as usize, layout, key_size, val_size);
-            let entries = block.slice(header_size..block_len);
+            let value_type = data[5];
+            let regions = FixedRegions::new(
+                entry_count as usize,
+                layout,
+                key_size,
+                entry_val_size(value_type)?,
+            );
+            let entries = block.slice(6..block_len);
             ensure!(
                 entries.len() == regions.total_len(entry_count as usize),
                 "fixed key block for {entry_count} entries is the wrong size"
@@ -1588,48 +1579,6 @@ fn get_key_entry<'l>(
     })
 }
 
-/// Reads a key entry from a fixed-size key block by direct indexing.
-///
-/// All entries have the same key size and value type, so positions are computed
-/// arithmetically with no offset table indirection.
-/// How a fixed-size key block encodes its entry values, decoded from the block header.
-struct FixedValueLayout {
-    /// The type shared by every entry, or `None` if each entry carries its own type byte.
-    value_type: Option<u8>,
-    /// Value bytes per entry, including any per-entry type byte.
-    val_size: usize,
-    /// Total header size, which the entry data follows.
-    header_size: usize,
-}
-
-/// Decodes the value layout from a fixed-size key block header.
-fn fixed_value_layout(block: &[u8], header_type: u8) -> Result<FixedValueLayout> {
-    if header_type == FIXED_KEY_BLOCK_MIXED_VALUE_TYPE {
-        // Mixed-type block: the value size follows the header's type byte, and each entry
-        // carries its own type.
-        ensure!(block.len() >= 7, "mixed-type fixed key block too short");
-        // Validate the value footprint byte
-        let value_footprint = be::read_u8(&block[6..]) as usize;
-        ensure!(
-            value_footprint <= MAX_INLINE_VALUE_SIZE,
-            "mixed-type fixed key block claims a {value_footprint} byte value footprint, over the \
-             {MAX_INLINE_VALUE_SIZE} byte maximum"
-        );
-        Ok(FixedValueLayout {
-            value_type: None,
-            // +1 for the per-entry type byte, which is part of the stride.
-            val_size: value_footprint + 1,
-            header_size: 7,
-        })
-    } else {
-        Ok(FixedValueLayout {
-            value_type: Some(header_type),
-            val_size: entry_val_size(header_type)?,
-            header_size: 6,
-        })
-    }
-}
-
 /// Where the two regions of a fixed-size key block sit, computed once per block.
 ///
 /// A fixed block stores the bytes the binary search probes in a dense leading region and everything
@@ -1653,9 +1602,7 @@ pub struct FixedRegions {
 }
 
 impl FixedRegions {
-    /// `val_size` is the tail's per-entry value footprint: the value bytes plus the per-entry type
-    /// byte of a mixed-type block. [`fixed_value_layout`] already folds that byte in; a caller
-    /// computing it from a block header must add it itself.
+    /// `val_size` is the tail's per-entry value footprint.
     pub fn new(
         entry_count: usize,
         layout: KeyBlockLayout,
@@ -1696,7 +1643,7 @@ fn get_fixed_key_entry<'l>(
     entries: &'l [u8],
     index: usize,
     regions: FixedRegions,
-    value_type: Option<u8>,
+    value_type: u8,
 ) -> Result<GetKeyEntryResult<'l>> {
     let FixedRegions {
         layout,
@@ -1718,16 +1665,11 @@ fn get_fixed_key_entry<'l>(
         ),
         KeyBlockLayout::KeyOnly => (&entries[..0], &entries[search..search + key_size], tail),
     };
-    // In a mixed-type block the entry's type byte precedes its value in the tail region.
-    let (ty, val_start) = match value_type {
-        Some(ty) => (ty, tail_rest),
-        None => (be::read_u8(&entries[tail_rest..]), tail_rest + 1),
-    };
     Ok(GetKeyEntryResult {
         hash,
         key,
-        ty,
-        val: &entries[val_start..tail + tail_stride],
+        ty: value_type,
+        val: &entries[tail_rest..tail + tail_stride],
     })
 }
 
