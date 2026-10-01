@@ -416,12 +416,34 @@ pub async fn combine_traced_files(
     Ok(Vc::cell(combined))
 }
 
+#[turbo_tasks::value]
+pub struct AnalyzedRoute {
+    pub content: ResolvedVc<FileContent>,
+    pub summary: RouteBundleSummary,
+}
+
+#[turbo_tasks::value_impl]
+impl AnalyzedRoute {
+    #[turbo_tasks::function]
+    fn file_content(&self) -> Vc<FileContent> {
+        *self.content
+    }
+}
+
 #[turbo_tasks::function]
 pub async fn analyze_output_assets(
     output_assets: Vc<OutputAssets>,
     traced_files: Vc<FileSystemPathVec>,
-) -> Result<Vc<FileContent>> {
+) -> Result<Vc<AnalyzedRoute>> {
     let output_assets = all_assets_from_entries(output_assets);
+    let mut summary = RouteBundleSummary {
+        size: 0,
+        compressed_size: 0,
+        client: BundleTotals {
+            size: 0,
+            compressed_size: 0,
+        },
+    };
 
     let mut builder = AnalyzeDataBuilder::new();
 
@@ -454,6 +476,7 @@ pub async fn analyze_output_assets(
             Either::Right(path) => path.to_string_ref().await?,
         };
 
+        let is_client = filename.starts_with("[client-fs]/");
         let output_file_index = builder.add_output_file(AnalyzeOutputFile {
             filename: filename.clone(),
         });
@@ -475,11 +498,18 @@ pub async fn analyze_output_assets(
             };
             let source_index = builder.ensure_source(&source).1;
             let size = chunk_part.real_size + chunk_part.unaccounted_size;
+            let compressed_size = chunk_part.get_compressed_size().await?.unwrap_or(size);
+            summary.size += u64::from(size);
+            summary.compressed_size += u64::from(compressed_size);
+            if is_client {
+                summary.client.size += u64::from(size);
+                summary.client.compressed_size += u64::from(compressed_size);
+            }
             let chunk_part_index = builder.add_chunk_part(AnalyzeChunkPart {
                 source_index,
                 output_file_index,
                 size,
-                compressed_size: chunk_part.get_compressed_size().await?.unwrap_or(size),
+                compressed_size,
             });
             builder.add_chunk_part_to_output_file(output_file_index, chunk_part_index);
             builder.add_chunk_part_to_source(source_index, chunk_part_index);
@@ -508,66 +538,12 @@ pub async fn analyze_output_assets(
     }
 
     let rope = builder.build();
-    Ok(FileContent::Content(File::from(rope)).cell())
-}
-
-#[turbo_tasks::function]
-pub async fn route_bundle_summary(
-    output_assets: Vc<OutputAssets>,
-    traced_files: Vc<FileSystemPathVec>,
-) -> Result<Vc<RouteBundleSummary>> {
-    let output_assets = all_assets_from_entries(output_assets);
-    let mut size = 0;
-    let mut compressed_size = 0;
-    let mut client_size = 0;
-    let mut client_compressed_size = 0;
-
-    for asset in output_assets
-        .await?
-        .iter()
-        .copied()
-        .map(Either::Left)
-        .chain(traced_files.await?.iter().cloned().map(Either::Right))
-    {
-        let (path, filename) = match &asset {
-            Either::Left(asset) => {
-                let path = asset.path().await?;
-                let filename = path.to_string_ref().await?;
-                (Cow::Owned(path.path.clone()), filename)
-            }
-            Either::Right(path) => {
-                let filename = path.to_string_ref().await?;
-                (Cow::Borrowed(&path.path), filename)
-            }
-        };
-        if path.ends_with(".map") || path.ends_with(".nft.json") {
-            continue;
-        }
-
-        let is_client = filename.starts_with("[client-fs]/");
-        let chunk_parts = match asset {
-            Either::Left(asset) => split_output_asset_into_parts(*asset).await?,
-            Either::Right(path) => split_traced_file_into_parts(path).await?,
-        };
-        for chunk_part in &chunk_parts {
-            let part_size = chunk_part.real_size + chunk_part.unaccounted_size;
-            let part_compressed_size = chunk_part.get_compressed_size().await?.unwrap_or(part_size);
-            size += u64::from(part_size);
-            compressed_size += u64::from(part_compressed_size);
-            if is_client {
-                client_size += u64::from(part_size);
-                client_compressed_size += u64::from(part_compressed_size);
-            }
-        }
-    }
-
-    Ok(RouteBundleSummary {
-        size,
-        compressed_size,
-        client: BundleTotals {
-            size: client_size,
-            compressed_size: client_compressed_size,
-        },
+    Ok(AnalyzedRoute {
+        content: FileContent::Content(File::from(rope))
+            .cell()
+            .to_resolved()
+            .await?,
+        summary,
     }
     .cell())
 }
@@ -736,7 +712,8 @@ impl AnalyzeDataOutputAsset {
 impl Asset for AnalyzeDataOutputAsset {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
-        let file_content = analyze_output_assets(*self.output_assets, *self.traced_files);
+        let file_content =
+            analyze_output_assets(*self.output_assets, *self.traced_files).file_content();
         AssetContent::file(file_content)
     }
 }

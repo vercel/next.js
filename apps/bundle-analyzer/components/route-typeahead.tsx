@@ -1,8 +1,7 @@
 'use client'
 
 import { Check, ChevronsUpDown, Route } from 'lucide-react'
-import { usePathname } from 'next/navigation'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { useSuspenseJsonData } from '@/lib/analyzer-data'
 import {
@@ -31,12 +30,24 @@ import {
 } from '@/lib/diff'
 import { formatBytes } from '@/lib/utils'
 
-export const OPEN_ROUTE_PICKER_EVENT = 'next-bundle-analyzer:open-route-picker'
+type RouteSelection =
+  | {
+      mode: 'link'
+      getRouteHref: (routeName: string) => string
+      onRouteSelected?: never
+    }
+  | {
+      mode: 'action'
+      onRouteSelected: (routeName: string) => void
+      getRouteHref?: never
+    }
 
-interface RouteTypeaheadProps {
+type PickerOpenState =
+  | { open: boolean; onOpenChange: (open: boolean) => void }
+  | { open?: never; onOpenChange?: never }
+
+interface RouteTypeaheadOptions {
   selectedRoute: string | null
-  onRouteSelected: (routeName: string) => void
-  getRouteHref?: (routeName: string) => string
   /**
    * When provided, the picker renders per-route size deltas next to each
    * route, sorts by largest impact, and uses the diff's route list as its
@@ -49,16 +60,15 @@ interface RouteTypeaheadProps {
   routeTotals?: ReadonlyMap<string, RouteSizeTotals> | null
 }
 
-export function RouteTypeahead({
-  selectedRoute,
-  onRouteSelected,
-  getRouteHref,
-  routeDiff,
-  useCompressed = true,
-  routeTotals,
-}: RouteTypeaheadProps) {
-  const pathname = usePathname()
-  const [open, setOpen] = useState(false)
+type RouteTypeaheadProps = RouteTypeaheadOptions &
+  RouteSelection &
+  PickerOpenState
+
+export function RouteTypeahead(props: RouteTypeaheadProps) {
+  const { selectedRoute, routeDiff, useCompressed = true, routeTotals } = props
+  const [localOpen, setLocalOpen] = useState(false)
+  const open = props.open ?? localOpen
+  const setOpen = props.onOpenChange ?? setLocalOpen
   const [shortcutLabel, setShortcutLabel] = useState<string | null>(null)
 
   useEffect(() => {
@@ -82,43 +92,31 @@ export function RouteTypeahead({
       }
     }
 
-    const handleOpenRequest = () => setOpen(true)
-
     window.addEventListener('keydown', handleKeyDown)
-    window.addEventListener(OPEN_ROUTE_PICKER_EVENT, handleOpenRequest)
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown)
-      window.removeEventListener(OPEN_ROUTE_PICKER_EVENT, handleOpenRequest)
-    }
-  }, [])
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [setOpen])
 
-  const routes = useSuspenseJsonData<string[]>('/data/routes.json', {
-    onSuccess: (routeNames) => {
-      if (pathname !== '/' && routeNames.length > 0 && selectedRoute == null) {
-        onRouteSelected(routeNames[0])
-      }
-    },
-  })
+  const routes = useSuspenseJsonData<string[]>('/data/routes.json')
 
-  const orderedItems = useMemo<RouteItem[]>(() => {
-    if (routeDiff) {
-      return uniqueRouteItems(
+  // When a route diff is provided, sort routes by largest absolute impact so
+  // the most-changed route bubbles to the top — matching the rest of the
+  // compare UI. Without a diff, sort by compressed route size.
+  const orderedItems: RouteItem[] = routeDiff
+    ? uniqueRouteItems(
         sortByImpact(routeDiff.rows, useCompressed).map((row) => ({
           name: row.key,
           row,
         }))
       )
-    }
-    return uniqueRouteItems(
-      routes
-        .map((name) => ({ name, row: null, totals: routeTotals?.get(name) }))
-        .sort(
-          (left, right) =>
-            (right.totals?.compressedSize ?? 0) -
-            (left.totals?.compressedSize ?? 0)
-        )
-    )
-  }, [routes, routeDiff, routeTotals, useCompressed])
+    : uniqueRouteItems(
+        routes
+          .map((name) => ({ name, row: null, totals: routeTotals?.get(name) }))
+          .sort(
+            (left, right) =>
+              (right.totals?.compressedSize ?? 0) -
+              (left.totals?.compressedSize ?? 0)
+          )
+      )
 
   // Find the currently selected route's diff row, used to render a delta
   // badge in the trigger button.
@@ -214,11 +212,11 @@ export function RouteTypeahead({
                     </>
                   )
                   const className = 'w-full min-w-0 overflow-hidden font-mono'
-                  return getRouteHref ? (
+                  return props.mode === 'link' ? (
                     <CommandLinkItem
                       key={name}
                       value={name}
-                      href={getRouteHref(name)}
+                      href={props.getRouteHref(name)}
                       className={className}
                     >
                       {content}
@@ -228,7 +226,7 @@ export function RouteTypeahead({
                       key={name}
                       value={name}
                       onSelect={() => {
-                        onRouteSelected(name)
+                        props.onRouteSelected(name)
                         setOpen(false)
                       }}
                       className={className}

@@ -82,7 +82,6 @@ export function TopBar({
   routeTotals,
   hasSourceData,
   showViewToggle,
-  showComparison = true,
 }: {
   hasSourceData: boolean
   showViewToggle: boolean
@@ -107,20 +106,37 @@ export function TopBar({
   onCompareViewChange: (view: CompareView) => void
   routeDiff: ReturnType<typeof diffRoutesWithSizes> | null
   routeTotals?: ReadonlyMap<string, RouteSizeTotals> | null
-  showComparison?: boolean
 }) {
   const isCompareMode = baselineSnapshot != null
+  const routeSelection = getRouteHref
+    ? ({ mode: 'link', getRouteHref } as const)
+    : ({
+        mode: 'action',
+        onRouteSelected: (route: string) => {
+          setSelectedRoute(route)
+          setSelectedSourceIndex(null)
+          setFocusedSourceIndex(null)
+        },
+      } as const)
+  const baselineSelection = getBaselineHref
+    ? ({
+        mode: 'link',
+        getSnapshotHref: getBaselineHref,
+        clearHref: stopComparisonHref,
+      } as const)
+    : ({
+        mode: 'action',
+        onSelectionChange: (snapshot: SnapshotMetadata | null) => {
+          if (snapshot) onBaselineChange(snapshot)
+        },
+        clearHref: stopComparisonHref,
+      } as const)
   return (
     <div className="flex-none px-4 py-2 border-b border-border flex items-center gap-3">
       <div className="flex min-w-0 flex-1">
         <RouteTypeahead
           selectedRoute={selectedRoute}
-          getRouteHref={getRouteHref}
-          onRouteSelected={(route) => {
-            setSelectedRoute(route)
-            setSelectedSourceIndex(null)
-            setFocusedSourceIndex(null)
-          }}
+          {...routeSelection}
           routeDiff={isCompareMode ? routeDiff : null}
           routeTotals={routeTotals}
           useCompressed
@@ -128,21 +144,16 @@ export function TopBar({
       </div>
 
       <div className="flex items-center gap-2">
-        {showComparison ? (
-          <BaselinePicker
-            selectedSnapshotId={baselineSnapshot?.id ?? null}
-            getSnapshotHref={getBaselineHref}
-            onSelectionChange={(snapshot) => {
-              if (snapshot) onBaselineChange(snapshot)
-            }}
-            clearHref={stopComparisonHref}
-            excludedSnapshotId={comparisonSnapshot?.id}
-            prefix="from"
-            placeholder="Compare from…"
-          />
-        ) : null}
+        <BaselinePicker
+          selectedSnapshotId={baselineSnapshot?.id ?? null}
+          {...baselineSelection}
+          excludedSnapshotId={comparisonSnapshot?.id}
+          prefix="from"
+          placeholder="Compare from…"
+        />
         {isCompareMode ? (
           <BaselinePicker
+            mode="action"
             selectedSnapshotId={comparisonSnapshot?.id ?? null}
             onSelectionChange={onComparisonChange}
             excludedSnapshotId={baselineSnapshot?.id}
