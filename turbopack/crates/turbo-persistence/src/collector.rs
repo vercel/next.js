@@ -147,39 +147,19 @@ impl<K: StoreKey, const SIZE_SHIFT: usize> Collector<K, SIZE_SHIFT> {
     /// tombstones last (see [`CollectorEntryValue::sort_rank`]).
     /// This method does not deduplicate entries.
     ///
-    /// In debug builds, asserts that SingleValue families have no duplicate keys.
-    pub fn sorted(&mut self, family_kind: FamilyKind) -> (&[CollectorEntry<K>], usize) {
+    /// A SingleValue family may contain duplicate keys here: which of them a reader sees is
+    /// undefined, so a caller that writes a key twice must supersede both entries with a later
+    /// write after [`WriteBatch::flush`](crate::WriteBatch::flush) (see
+    /// [`WriteBatch::put`](crate::WriteBatch::put)).
+    pub fn sorted(&mut self, _family_kind: FamilyKind) -> (&[CollectorEntry<K>], usize) {
         // We can use unstable sort because the relative order of equal elements
-        // doesn't matter — duplicates are either disallowed (SingleValue) or
+        // doesn't matter — duplicates are either superseded (SingleValue) or
         // allowed without deduplication (MultiValue).
         self.entries.sort_unstable_by(|a, b| {
             a.key
                 .cmp(&b.key)
                 .then_with(|| a.value.sort_rank().cmp(&b.value.sort_rank()))
         });
-
-        #[cfg(debug_assertions)]
-        if family_kind == FamilyKind::SingleValue {
-            // WriteBatch callers must not insert duplicate keys for SingleValue families.
-            for w in self.entries.windows(2) {
-                if w[0].key == w[1].key {
-                    let mut key_buf = Vec::new();
-                    w[0].key.data.write_to(&mut key_buf);
-                    panic!(
-                        "WriteBatch invariant violation: SingleValue family has duplicate key \
-                         (hash={:#018x}, key={})",
-                        w[0].key.hash,
-                        key_buf
-                            .iter()
-                            .map(|b| format!("{b:02x}"))
-                            .collect::<String>(),
-                    );
-                }
-            }
-        }
-
-        // Suppress unused variable warning in release builds
-        let _ = family_kind;
 
         (&self.entries, self.total_key_size)
     }

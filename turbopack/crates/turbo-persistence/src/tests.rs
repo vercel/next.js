@@ -1894,29 +1894,52 @@ fn multi_value_delete_with_compaction_interleaved(#[case] mmap: bool) -> Result<
 }
 
 // Tests for the new WriteBatch semantics:
-// - SingleValue: duplicate keys in the same batch is a user error (panics in debug builds)
+// - SingleValue: a write after `flush` supersedes earlier writes of the same key in the batch
 // - MultiValue: tombstone only shadows entries from older SSTs, not entries in the same batch
 
-#[test]
-#[cfg(debug_assertions)]
-#[should_panic(expected = "WriteBatch invariant violation: SingleValue family has duplicate key")]
-fn single_value_duplicate_key_panics() {
-    let tempdir = tempfile::tempdir().unwrap();
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn single_value_write_after_flush_supersedes_duplicates(#[case] mmap: bool) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
+    let duplicated = vec![1u8];
+    let deleted = vec![2u8];
+    let open = || {
+        let mut config = multi_value_config_with_mmap(mmap);
+        config.family_configs[0].kind = FamilyKind::SingleValue;
+        open_db_with_config(path, config)
+    };
 
-    // For SingleValue, writing the same key twice in one batch should panic in debug builds.
-    let key = vec![1u8];
+    {
+        let db = open()?;
+        let batch = db.write_batch()?;
+        // Two writes of one key between flushes: either may win until superseded.
+        batch.put(0, duplicated.clone(), vec![10u8].into())?;
+        batch.put(0, duplicated.clone(), vec![20u8].into())?;
+        batch.put(0, deleted.clone(), vec![30u8].into())?;
+        unsafe { batch.flush(0)? };
+        batch.put(0, duplicated.clone(), vec![40u8].into())?;
+        batch.delete(0, deleted.clone())?;
+        db.commit_write_batch(batch)?;
 
-    let db = TurboPersistence::<_, 1>::open_with_parallel_scheduler(
-        path.to_path_buf(),
-        RayonParallelScheduler,
-    )
-    .unwrap();
+        assert_eq!(db.get(0, &duplicated)?.as_deref(), Some(&[40u8][..]));
+        assert!(db.get(0, &deleted)?.is_none());
+        let results = db.batch_get(0, &[duplicated.clone(), deleted.clone()])?;
+        assert_eq!(results[0].as_deref(), Some(&[40u8][..]));
+        assert!(results[1].is_none());
 
-    let batch = db.write_batch().unwrap();
-    batch.put(0, key.clone(), vec![10u8].into()).unwrap();
-    batch.put(0, key.clone(), vec![20u8].into()).unwrap(); // should panic
-    db.commit_write_batch(batch).unwrap(); // panics during commit
+        db.full_compact()?;
+        assert_eq!(db.get(0, &duplicated)?.as_deref(), Some(&[40u8][..]));
+        assert!(db.get(0, &deleted)?.is_none());
+        db.shutdown()?;
+    }
+
+    let db = open()?;
+    assert_eq!(db.get(0, &duplicated)?.as_deref(), Some(&[40u8][..]));
+    assert!(db.get(0, &deleted)?.is_none());
+    db.shutdown()?;
+    Ok(())
 }
 
 #[rstest]
