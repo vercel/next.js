@@ -32,11 +32,11 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-With Partial Prefetching enabled, Next.js can load server-rendered output at three points before and during a client navigation. These are called [navigation stages](/docs/app/glossary#navigation-stages):
+With Partial Prefetching enabled, Next.js loads server-rendered output in stages, before and during a client navigation. These are the route's [navigation stages](/docs/app/glossary#navigation-stages):
 
 1. A default `<Link>` loads the App Shell, which holds the part of the route that does not depend on the URL.
 2. An optional [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch) can also load content that depends on the link's URL.
-3. When the user follows the link, the navigation renders any content that remains.
+3. When the user follows the link, the navigation renders the rest of the route.
 
 During runtime rendering, awaiting `prefetch()` keeps content out of the App Shell, so it renders during a per-link prefetch or navigation. Static prerenders can still include the content.
 
@@ -71,7 +71,7 @@ async function Greeting() {
 }
 
 async function Recommendations() {
-  await prefetch() // everything below renders on a per-link prefetch or navigation
+  await prefetch() // runtime work below renders on a per-link prefetch or navigation
   const items = await getRecommendations()
   return <List items={items} />
 }
@@ -109,7 +109,7 @@ async function Greeting() {
 }
 
 async function Recommendations() {
-  await prefetch() // everything below renders on a per-link prefetch or navigation
+  await prefetch() // runtime work below renders on a per-link prefetch or navigation
   const items = await getRecommendations()
   return <List items={items} />
 }
@@ -130,7 +130,7 @@ Put the directive on a function called below it, as `getRecommendations` does he
 
 The [`connection()`](/docs/app/api-reference/functions/connection) function waits for a real request. It excludes the code that follows from prerendering and prefetching, making that work request-dependent.
 
-During runtime rendering, `prefetch()` excludes the code that follows from the App Shell. It can resolve during a per-link prefetch without making that work request-dependent. A function called after `await prefetch()` can therefore use [`"use cache"`](/docs/app/api-reference/directives/use-cache) and keep its cache lifetime without generating its result for every link into the route.
+Awaiting `prefetch()` excludes the code that follows from the App Shell. It can resolve during a per-link prefetch without making that work request-dependent. A function called after `await prefetch()` can therefore use [`"use cache"`](/docs/app/api-reference/directives/use-cache) and keep its cache lifetime without generating its result for every link into the route.
 
 Use `connection()` when the work must run for a real request. Use `prefetch()` when the work is reusable but should only run for a selected per-link prefetch or a navigation.
 
@@ -152,7 +152,7 @@ When every read of [`cookies()`](/docs/app/api-reference/functions/cookies) and 
 
 - The function has no effect on the initial load of a page.
 - Unlike [`connection()`](/docs/app/api-reference/functions/connection), it does not mark the subtree as request-dependent. Content below `await prefetch()` stays fully cacheable and can be wrapped in [`use cache`](/docs/app/api-reference/directives/use-cache).
-- A call outside a `<Suspense>` boundary surfaces a [validation insight](/docs/messages/instant-navigation-stage) in development. It is reported even on a page that is currently prerendered in full, because the same page starts deferring content as soon as it switches to a runtime shell.
+- A call outside a `<Suspense>` boundary surfaces an [Instant Insight](/docs/messages/instant-navigation-stage) in development. It is reported even on a page that is currently prerendered in full, because the same page starts deferring content as soon as it switches to a runtime shell.
 - Calling it inside `use cache`, `use cache: private`, [`unstable_cache()`](/docs/app/api-reference/functions/unstable_cache), [`after()`](/docs/app/api-reference/functions/after), [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params), or a Client Component throws.
 - In a `page` or `layout` that sets the [`prefetch` route segment config](/docs/app/api-reference/file-conventions/route-segment-config/prefetch), import the function under another name, for example `import { prefetch as prefetchStage } from 'next/cache'`, since both are named `prefetch`.
 
