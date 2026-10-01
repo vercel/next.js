@@ -25,8 +25,8 @@ Each `ensureStatic` value extends the static requirement through another part of
 
 <Image
   alt="The Shell, Prefetch, and Navigation stages, with bars showing how each ensureStatic value extends the static requirement through those stages"
-  srcLight="/docs/light/ensure-static-stages.png"
-  srcDark="/docs/dark/ensure-static-stages.png"
+  srcLight="/docs/light/ensure-static-stage.png"
+  srcDark="/docs/dark/ensure-static-stage.png"
   width="1200"
   height="530"
 />
@@ -74,7 +74,7 @@ export default function StoreLayout({ children }: LayoutProps<'/store'>) {
 
 A default `<Link>` into the store loads this shell from static output. If a later change adds request-specific content behind `<Suspense>`, that content renders during a per-link prefetch or navigation instead of making the shell render per request.
 
-To keep one subtree out of the App Shell, call [`await prefetch()`](/docs/app/api-reference/functions/prefetch) within that subtree. `ensureStatic = 'shell'` applies the same boundary across the route.
+Within a `<Suspense>` boundary, [`await prefetch()`](/docs/app/api-reference/functions/prefetch) defers runtime work in one subtree until a per-link prefetch or navigation. Static content can still be prerendered. `ensureStatic = 'shell'` enforces the static requirement across the route.
 
 ### Step 2: Prefetch product details, not live inventory
 
@@ -114,21 +114,14 @@ Update the product links with `prefetch={true}` so each link can resolve its cac
 
 When a product link becomes visible, its prefetch includes the product heading and **Checking availability...** fallback. The uncached inventory query runs after the user follows the link.
 
-Pause the next navigation in the Next.js DevTools to inspect this result. Resume the navigation to load the current inventory.
-
-`ensureStatic = 'prefetch'` requires the output returned by a link prefetch to be static. It does not define which product UI must be ready when the user clicks.
-
-[Instant Navigation validation](/docs/app/api-reference/file-conventions/route-segment-config/instant) surfaces work that would block a client navigation. Check the prefetched UI in the inspector, then add an [`instant()` test](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) to prevent regressions, such as the product heading no longer being ready before the click. The test can pass whether the UI came from static output or a prefetch for the current client session.
-
-To keep one subtree out of both the App Shell and per-link prefetches, call [`await navigation()`](/docs/app/api-reference/functions/navigation) within that subtree. `ensureStatic = 'prefetch'` applies the same boundary to every prefetch for the route.
+To defer runtime work in one subtree until navigation, call [`await navigation()`](/docs/app/api-reference/functions/navigation) within a component wrapped in `<Suspense>`. Statically prerendered content can still appear in a prefetch. `ensureStatic = 'prefetch'` requires static output for every prefetch of the route.
 
 ### Step 3: Prerender every buying guide
 
-Buying guides are editorial pages whose complete server output should remain static. The dynamic `[id]` route reads a theme from `cookies()` and loads each guide from an uncached database query. Add `ensureStatic = 'navigation'`:
+Buying guides are editorial pages whose complete server output should remain static. Start with a page that displays the guide ID and reads a theme preference from `cookies()`. Add `ensureStatic = 'navigation'`:
 
-```tsx filename="app/store/guides/[id]/page.tsx" highlight={4}
+```tsx filename="app/store/guides/[id]/page.tsx" highlight={3}
 import { cookies } from 'next/headers'
-import { getGuide } from '@/lib/guides'
 
 export const ensureStatic = 'navigation'
 
@@ -137,8 +130,7 @@ export default async function GuidePage({
 }: PageProps<'/store/guides/[id]'>) {
   const { id } = await params
   const theme = (await cookies()).get('theme')?.value
-  const guide = await getGuide(id)
-  return <article data-theme={theme}>{guide.content}</article>
+  return <article data-theme={theme}>Buying guide: {id}</article>
 }
 ```
 
@@ -148,7 +140,7 @@ Export [`generateStaticParams()`](/docs/app/api-reference/functions/generate-sta
 
 ```tsx filename="app/store/guides/[id]/page.tsx" highlight={4,6-9}
 import { cookies } from 'next/headers'
-import { getGuide, getGuideIds } from '@/lib/guides'
+import { getGuideIds } from '@/lib/guides'
 
 export const ensureStatic = 'navigation'
 
@@ -162,8 +154,7 @@ export default async function GuidePage({
 }: PageProps<'/store/guides/[id]'>) {
   const { id } = await params
   const theme = (await cookies()).get('theme')?.value
-  const guide = await getGuide(id)
-  return <article data-theme={theme}>{guide.content}</article>
+  return <article data-theme={theme}>Buying guide: {id}</article>
 }
 ```
 
@@ -201,18 +192,41 @@ The client fix only applies to `searchParams`. Buying guides do not need a per-u
 
 ```diff filename="app/store/guides/[id]/page.tsx"
 - import { cookies } from 'next/headers'
-  import { getGuide, getGuideIds } from '@/lib/guides'
+  import { getGuideIds } from '@/lib/guides'
 
   export default async function GuidePage({ params }) {
     const { id } = await params
 -   const theme = (await cookies()).get('theme')?.value
-    const guide = await getGuide(id)
--   return <article data-theme={theme}>{guide.content}</article>
+-   return <article data-theme={theme}>Buying guide: {id}</article>
++   return <article>Buying guide: {id}</article>
+  }
+```
+
+Reload the page to confirm that the runtime data error clears. Next, load the guide content from the database. Add a query alongside `getGuideIds()` in `lib/guides.ts`:
+
+```ts filename="lib/guides.ts"
+import { db } from '@/lib/db'
+
+export async function getGuide(id: string) {
+  return db.guide.findUniqueOrThrow({ where: { id } })
+}
+```
+
+Call `getGuide()` from the page, keeping the `ensureStatic` and `generateStaticParams()` exports:
+
+```diff filename="app/store/guides/[id]/page.tsx"
+- import { getGuideIds } from '@/lib/guides'
++ import { getGuide, getGuideIds } from '@/lib/guides'
+
+  export default async function GuidePage({ params }) {
+    const { id } = await params
+-   return <article>Buying guide: {id}</article>
++   const guide = await getGuide(id)
 +   return <article>{guide.content}</article>
   }
 ```
 
-Reload the page. The runtime data error clears, but `getGuide()` still performs request-time server work. The development overlay now shows the [uncached data error](/docs/messages/static-route-dynamic) with these fixes:
+Reload the page. The query requires request-time server work, so the development overlay shows the [uncached data error](/docs/messages/static-route-dynamic) with these fixes:
 
 <FixCardGrid>
   <FixCard
@@ -250,7 +264,7 @@ export async function getGuide(id: string) {
 
 Reload the page in development. The static-route error clears. Run `next build` again to confirm that the returned guide IDs and their content are fully prerendered.
 
-If the guide must read uncached or request-specific data, remove `ensureStatic = 'navigation'` instead. That changes the route's requirement and allows the data to render per request.
+If request-time rendering is intentional, first confirm that the route no longer needs to be fully static. Then [remove the static requirement](/docs/messages/static-route-runtime#remove-the-static-requirement) and [wrap the component that reads the data in `<Suspense>`](/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense), so the route can show a fallback while the data loads.
 
 ## Next steps
 
