@@ -2,7 +2,6 @@ use anyhow::{Result, bail};
 use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use either::Either;
-use rustc_hash::FxHashSet;
 use strsim::jaro;
 use swc_core::{
     common::{BytePos, DUMMY_SP, Span, SyntaxContext, source_map::PURE_SP},
@@ -385,7 +384,6 @@ impl ReferencedAsset {
 
 /// Whether an imported export can be safely captured in a local value binding, see
 /// [`can_capture_export_value`].
-#[turbo_tasks::value]
 pub struct ExportCapture {
     /// The name of the local the export can be read into once instead of at every use, or `None`
     /// when it cannot be captured.
@@ -403,86 +401,66 @@ pub struct ExportCapture {
 impl ExportCapture {
     /// Nothing is known about the export, so it must be read through the namespace and called
     /// with it as the receiver.
-    fn unknown() -> Vc<Self> {
+    fn unknown() -> Self {
         ExportCapture {
             value_binding_name: None,
             maybe_uses_this: true,
         }
-        .cell()
     }
 }
 
 /// Whether `export` of `module` can be captured into a local value binding, and whether calling it
 /// could observe `this`.
 ///
-/// `module` is where the import points, and re-exports are followed from there to the binding.
-/// `namespace_module` is the module whose namespace the capture reads, which is the one that must
-/// have finished evaluating before the capture runs. The two differ when scope hoisting has
-/// already resolved part of a re-export chain.
-#[turbo_tasks::function]
+/// `module` is where the import points. The whole-graph export usage analysis has already followed
+/// its re-exports to the binding each export forwards, see
+/// [`ModuleExportUsage::capturable_exports`]. `namespace_module` is the module whose namespace the
+/// capture reads, which is the one that must have finished evaluating before the capture runs. The
+/// two differ when scope hoisting has already resolved part of a re-export chain.
 pub(crate) async fn can_capture_export_value(
     namespace_module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     export: RcStr,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-) -> Result<Vc<ExportCapture>> {
-    let mut module = module;
-    let mut export = export;
-    let mut visited = FxHashSet::default();
-    let binding = loop {
-        if !visited.insert((module, export.clone())) {
-            break None;
-        }
-        let EcmascriptExports::EsmExports(exports) = *module.get_exports().await? else {
-            break None;
-        };
-        let expanded = exports.expand_exports(ModuleExportUsageInfo::all()).await?;
-        match expanded.exports.get(&export) {
-            Some(EsmExport::LocalBinding(binding)) => {
-                break Some(binding.clone());
-            }
-            Some(EsmExport::ImportedBinding(reference, name, _)) => {
-                let ReferencedAsset::Some(reexported_module) =
-                    ReferencedAsset::from_resolve_result(reference.resolve_reference()).await?
-                else {
-                    break None;
-                };
-                module = reexported_module;
-                export = name.clone();
-            }
-            Some(EsmExport::ImportedNamespace(_) | EsmExport::Error) | None => break None,
-        }
+) -> Result<ExportCapture> {
+    let export_usage = chunking_context
+        .module_export_usage(*ResolvedVc::upcast(module))
+        .await?;
+    // Anything the analysis could not follow to a constant binding, or where it did not run, says
+    // nothing about the value, so stay conservative on both questions.
+    let Some(capturable) = export_usage.capturable_exports.await?.get(&export).cloned() else {
+        return Ok(ExportCapture::unknown());
     };
-    // A hop that could not be followed says nothing about the value, so stay conservative on both
-    // questions.
-    let Some(binding) = binding else {
+    let Some(origin_module) =
+        ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(capturable.origin_module)
+    else {
         return Ok(ExportCapture::unknown());
     };
 
-    // `maybe_uses_this` describes the value the binding was declared with. A binding that can be
-    // reassigned may hold something else by the time it is called, so the answer only holds for
-    // constants.
-    if binding.liveness != Liveness::Constant {
+    let is_circuit_breaker = if namespace_module == module {
+        export_usage.is_circuit_breaker
+    } else {
+        chunking_context
+            .module_export_usage(*ResolvedVc::upcast(namespace_module))
+            .await?
+            .is_circuit_breaker
+    };
+    if is_circuit_breaker {
         return Ok(ExportCapture::unknown());
     }
-
-    let export_usage = chunking_context
-        .module_export_usage(*ResolvedVc::upcast(namespace_module))
+    let value_binding_name = {
+        let source = ImportSource::Module {
+            asset: origin_module,
+        }
+        .get_namespace_description(chunking_context)
         .await?;
-    let value_binding_name = if export_usage.is_circuit_breaker {
-        None
-    } else {
-        // `module` and `export` now name where the binding is defined.
-        let source = ImportSource::Module { asset: module }
-            .get_namespace_description(chunking_context)
-            .await?;
-        Some(magic_identifier::mangle(&format!("imported binding {export} from {source}")).into())
+        let origin_export = &capturable.origin_export;
+        magic_identifier::mangle(&format!("imported binding {origin_export} from {source}")).into()
     };
     Ok(ExportCapture {
-        value_binding_name,
-        maybe_uses_this: binding.maybe_uses_this,
-    }
-    .cell())
+        value_binding_name: Some(value_binding_name),
+        maybe_uses_this: capturable.maybe_uses_this,
+    })
 }
 
 impl ReferencedAsset {

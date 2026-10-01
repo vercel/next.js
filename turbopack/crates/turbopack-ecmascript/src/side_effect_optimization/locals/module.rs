@@ -7,7 +7,7 @@ use turbopack_core::{
         MergeableModulesExposed,
     },
     ident::AssetIdent,
-    module::{Module, ModuleSideEffects},
+    module::{ExportBindings, Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     reference::ModuleReferences,
     resolve::ModulePart,
@@ -25,7 +25,7 @@ use crate::{
     parse::ParseResult,
     references::{
         async_module::OptionAsyncModule,
-        esm::{EsmExport, EsmExports},
+        esm::{EsmExport, EsmExports, export::esm_export_bindings},
     },
 };
 
@@ -80,6 +80,12 @@ impl Module for EcmascriptModuleLocalsModule {
         } else {
             Ok(Vc::cell(false))
         }
+    }
+
+    /// See [`esm_export_bindings`].
+    #[turbo_tasks::function]
+    async fn export_bindings(self: Vc<Self>) -> Result<Vc<ExportBindings>> {
+        Ok(esm_export_bindings(self.get_exports()).await?.cell())
     }
 
     #[turbo_tasks::function]

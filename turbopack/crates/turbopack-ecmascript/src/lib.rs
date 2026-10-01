@@ -99,7 +99,7 @@ use turbopack_core::{
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
     ident::AssetIdent,
-    module::{Module, ModuleSideEffects},
+    module::{ExportBindings, Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     reference::ModuleReferences,
     reference_type::InnerAssets,
@@ -129,7 +129,7 @@ use crate::{
     references::{
         analyze_ecmascript_module,
         async_module::OptionAsyncModule,
-        esm::{UrlRewriteBehavior, base::EsmAssetReferences, export},
+        esm::{UrlRewriteBehavior, base::EsmAssetReferences, export, export::esm_export_bindings},
         exports::compute_ecmascript_module_exports,
     },
     side_effect_optimization::reference::EcmascriptModulePartReference,
@@ -920,6 +920,12 @@ impl Module for EcmascriptModuleAsset {
         } else {
             Ok(Vc::cell(false))
         }
+    }
+
+    /// See [`esm_export_bindings`].
+    #[turbo_tasks::function]
+    async fn export_bindings(self: Vc<Self>) -> Result<Vc<ExportBindings>> {
+        Ok(esm_export_bindings(self.get_exports()).await?.cell())
     }
 
     #[turbo_tasks::function]

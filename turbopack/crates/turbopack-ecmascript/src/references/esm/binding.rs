@@ -121,8 +121,8 @@ impl EsmBinding {
                             Some(export),
                         ) => Some(
                             can_capture_export_value(
-                                **asset,
-                                **module,
+                                *asset,
+                                *module,
                                 export.clone(),
                                 chunking_context,
                             )
