@@ -7,6 +7,7 @@ const hrefs = [
   '/missing',
   '/throws',
   '/dynamic-viewport',
+  '/blocking-layout/redirect-in-suspense',
 ]
 
 export default function Page() {

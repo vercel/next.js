@@ -93,4 +93,18 @@ describe('blocking-route-errors-after-prefetch', () => {
     expect(await browser.elementById('destination').text()).toBe('Destination')
     expect(await browser.url()).toBe(`${next.url}/destination`)
   })
+
+  it('follows a redirect() inside of a Suspense boundary below a blocking layout', async () => {
+    const browser = await navigate('/', '/blocking-layout/redirect-in-suspense')
+    expect(await browser.elementById('destination').text()).toBe('Destination')
+    expect(await browser.url()).toBe(`${next.url}/destination`)
+  })
+
+  it('renders the not-found boundary after a notFound() in a partially prerendered route', async () => {
+    const browser = await navigate('/catch-all', '/catch-all/missing')
+    expect(await browser.elementById('not-found-boundary').text()).toBe(
+      'Not found boundary'
+    )
+    expect(await browser.url()).toBe(`${next.url}/catch-all/missing`)
+  })
 })
