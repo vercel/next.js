@@ -1968,7 +1968,7 @@ mod must_exist_tests {
 
         use crate::{BackingStorageOptions, GitVersionInfo, backing_storage::SnapshotItem};
 
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::utils::test_temp_dir::test_temp_dir().unwrap();
         let backing = crate::turbo_backing_storage(
             dir.path(),
             &GitVersionInfo {
@@ -2138,9 +2138,8 @@ mod must_exist_tests {
             .set_meta_restoring(false);
         tt.backend().storage.restored.notify(usize::MAX);
         worker.join().unwrap();
-        assert_eq!(
+        assert!(
             completed_without_peer.unwrap(),
-            true,
             "missing key must fail without waiting for Meta"
         );
         let task = tt.backend().storage.access_mut(id);
