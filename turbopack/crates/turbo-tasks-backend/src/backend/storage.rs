@@ -286,10 +286,19 @@ impl Storage {
     /// Mark a newly allocated task as restored (skip DB queries) and new (include in persistence
     /// snapshots). Optionally sets the `persistent_task_type` eagerly so it's available for
     /// persistence snapshots without needing to propagate it through `connect_child`.
-    pub fn initialize_new_task(&self, task_id: TaskId, task_type: Option<CachedTaskTypeArc>) {
+    /// `disk_bucket_was_empty` is valid only for a guarded, canonical lookup of the whole hash.
+    pub fn initialize_new_task(
+        &self,
+        task_id: TaskId,
+        task_type: Option<CachedTaskTypeArc>,
+        disk_bucket_was_empty: bool,
+    ) {
         let mut task = self.access_mut(task_id);
         task.flags.set_restored(TaskDataCategory::All);
         task.flags.set_new_task(true);
+        if !task_id.is_transient() && !disk_bucket_was_empty {
+            task.set_task_cache_needs_read(());
+        }
         task.gc_pin_for_construction();
         if let Some(task_type) = task_type {
             task.set_persistent_task_type(task_type);
@@ -906,6 +915,9 @@ impl StorageWriteGuard<'_> {
                     snapshot.flags.set_data_modified(flags.data_modified());
                     snapshot.flags.set_meta_modified(flags.meta_modified());
                     snapshot.flags.set_new_task(flags.new_task());
+                    if self.inner.get_task_cache_needs_read().is_some() {
+                        snapshot.set_task_cache_needs_read(());
+                    }
                     self.storage
                         .snapshots
                         .insert(*self.inner.key(), Some(Box::new(snapshot)));
@@ -976,6 +988,7 @@ impl StorageWriteGuard<'_> {
         self.inner.flags.set_meta_modified(false);
         self.inner.flags.set_data_modified(false);
         self.inner.flags.set_new_task(false);
+        self.inner.take_task_cache_needs_read();
     }
 }
 
@@ -1152,6 +1165,7 @@ where
                 inner.flags.set_data_modified(false);
                 inner.flags.set_meta_modified(false);
                 inner.flags.set_new_task(false);
+                inner.take_task_cache_needs_read();
                 self.shard
                     .storage
                     .promote_during_snapshot_flags(&mut inner, self.shard.shard_idx);
@@ -1221,7 +1235,7 @@ mod tests {
         let storage = Storage::new(2, true);
         let task_id = non_transient_task(1);
 
-        storage.initialize_new_task(task_id, None);
+        storage.initialize_new_task(task_id, None, false);
 
         let task = storage.access_mut(task_id);
         assert_eq!(task.gc_transient_ref_count(), 1);
@@ -1233,7 +1247,7 @@ mod tests {
         let storage = Storage::new(2, true);
         let old_id = non_transient_task(1);
         let new_id = non_transient_task(2);
-        storage.initialize_new_task(old_id, Some(test_cached_type()));
+        storage.initialize_new_task(old_id, Some(test_cached_type()), false);
         {
             let mut task = storage.access_mut(old_id);
             task.flags.set_new_task(false);
@@ -1244,7 +1258,7 @@ mod tests {
         // An earlier ordinary key eviction removed the old cache entry while retaining its
         // TaskStorage. After the GC tombstone commits, the same type can acquire a new ID.
         let newer_type = test_cached_type();
-        storage.initialize_new_task(new_id, Some(newer_type.clone()));
+        storage.initialize_new_task(new_id, Some(newer_type.clone()), false);
         storage.task_cache.insert(newer_type.clone(), new_id);
 
         let counts = storage.evict_after_snapshot(None);
@@ -1262,7 +1276,7 @@ mod tests {
         let storage = Storage::new(2, true);
         let task_id = non_transient_task(1);
         let task_type = test_cached_type();
-        storage.initialize_new_task(task_id, Some(task_type.clone()));
+        storage.initialize_new_task(task_id, Some(task_type.clone()), false);
         storage.task_cache.insert(task_type.clone(), task_id);
         {
             let mut task = storage.access_mut(task_id);
@@ -1274,6 +1288,52 @@ mod tests {
         assert_eq!(counts.full, 1);
         assert_eq!(counts.key_evictions, 1);
         assert!(storage.task_cache.get(task_type.as_ref()).is_none());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn fresh_task_empty_bucket_hint_survives_snapshot_copy_and_clears_after_use() {
+        let storage = Storage::new(2, true);
+        let task_id = non_transient_task(7);
+        storage.initialize_new_task(task_id, Some(test_cached_type()), true);
+        assert!(
+            storage
+                .access_mut(task_id)
+                .get_task_cache_needs_read()
+                .is_none()
+        );
+
+        let process =
+            |id: TaskId, task: &super::TaskStorage, _: &mut TurboBincodeBuffer| SnapshotItem::Put {
+                task_id: id,
+                meta: None,
+                data: None,
+                task_type_hash: None,
+                task_cache_empty_on_creation: task.flags.new_task()
+                    && task.get_task_cache_needs_read().is_none(),
+            };
+        let (guard, modified) = storage.start_snapshot();
+        assert!(modified);
+        let shards = storage.take_snapshot(guard, &process, false);
+        {
+            let mut task = storage.access_mut(task_id);
+            // The first modification captures a frozen copy, including its empty-bucket hint.
+            let _ = task.track_modification(SpecificTaskDataCategory::Data, "test");
+            task.set_task_cache_needs_read(());
+        }
+        let items: Vec<_> = shards
+            .into_iter()
+            .flat_map(|shard| shard.into_iter())
+            .collect();
+        assert!(matches!(
+            items.as_slice(),
+            [SnapshotItem::Put {
+                task_cache_empty_on_creation: true,
+                ..
+            }]
+        ));
+        let task = storage.access_mut(task_id);
+        assert!(!task.flags.new_task());
+        assert!(task.get_task_cache_needs_read().is_none());
     }
 
     /// A process fn that returns a non-empty SnapshotItem so the iterator doesn't
@@ -1288,6 +1348,7 @@ mod tests {
             meta: Some(TurboBincodeBuffer::default()),
             data: None,
             task_type_hash: None,
+            task_cache_empty_on_creation: false,
         }
     }
 

@@ -10,7 +10,7 @@ mod update_collectible;
 use std::{
     fmt::{Debug, Display, Formatter},
     ops::{Deref, DerefMut},
-    sync::Arc,
+    sync::{Arc, atomic::Ordering},
 };
 
 use anyhow::{Context, Result};
@@ -198,17 +198,16 @@ pub trait ExecuteContext<'e>: Sized {
     ///
     /// Uses hash-based lookup which may return multiple candidates due to hash collisions,
     /// then verifies each candidate by comparing the stored `persistent_task_type`.
-    /// Returns `Some((task_id, task_type))` if a matching task is found, where `task_type` is
-    /// the existing `CachedTaskTypeArc` from storage (avoiding a duplicate
-    /// allocation).
-    ///
+    /// Returns `(matching_task, disk_bucket_was_empty)`. The latter is true only if a guarded
+    /// lookup proved that the entire committed hash bucket was empty; a freshly allocated task
+    /// may carry it into its first snapshot. It is false for collisions and noncanonical reads.
     /// Accepts exploded components so the caller does not need to box the argument before calling.
     fn task_by_type(
         &mut self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
         arg: &dyn DynTaskInputs,
-    ) -> Option<(TaskId, CachedTaskTypeArc)>;
+    ) -> (Option<(TaskId, CachedTaskTypeArc)>, bool);
     fn debug_get_task_description(&self, task_id: TaskId) -> String;
 }
 
@@ -1395,12 +1394,17 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
         arg: &dyn DynTaskInputs,
-    ) -> Option<(TaskId, CachedTaskTypeArc)> {
+    ) -> (Option<(TaskId, CachedTaskTypeArc)>, bool) {
         if !self.backend.should_restore() {
-            return None;
+            return (None, false);
         }
 
-        // Get candidates from backing storage (hash-based lookup may return multiple)
+        // The exclusion phase waits for this guarded operation to finish or suspend. No suspend
+        // point occurs before the caller publishes the newly allocated task/cache entry. If a
+        // snapshot has already released exclusion, its disk writes are still in flight, so a
+        // read during that interval cannot prove the next snapshot's disk baseline.
+        let canonical = matches!(self.phase, ExecutePhase::Normal { guard: Some(_) })
+            && !self.backend.noncanonical_disk_reads.load(Ordering::Acquire);
         let candidates = self
             .backend
             .backing_storage
@@ -1409,15 +1413,18 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
 
         // Verify each candidate by comparing the stored persistent_task_type.
         // Only rarely is there more than one candidate, so no need for parallelization.
+        if candidates.is_empty() {
+            return (None, canonical);
+        }
         for candidate_id in candidates {
             let task = self.task(candidate_id, TaskDataCategory::Data);
             if let Some(stored_type) = task.get_persistent_task_type()
                 && stored_type.eq_components(native_fn, this, arg)
             {
-                return Some((candidate_id, stored_type.clone()));
+                return (Some((candidate_id, stored_type.clone())), false);
             }
         }
-        None
+        (None, false)
     }
 
     fn debug_get_task_description(&self, task_id: TaskId) -> String {

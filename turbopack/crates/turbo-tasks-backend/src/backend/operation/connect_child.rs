@@ -46,6 +46,9 @@ pub(super) fn resurrect_deleted<'e, C: ExecuteContext<'e>>(
         // restores All before marking it deleted, and eviction removes deleted tasks as
         // whole entries.
         task.set_new_task(true);
+        // The old type's disk entry may have been tombstoned while collision siblings remain.
+        // A resurrected task is not a freshly allocated ID with a canonical empty-bucket read.
+        task.set_task_cache_needs_read(());
         let _ = task.track_modification(SpecificTaskDataCategory::Data, "gc_resurrected");
 
         // Mark dirty so it is rescheduled. GC has already dropped its edges and data, so it needs

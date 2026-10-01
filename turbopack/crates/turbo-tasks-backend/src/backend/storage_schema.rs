@@ -230,6 +230,11 @@ struct TaskStorageSchema {
     #[field(storage = "flag", category = "transient")]
     pub new_task: bool,
 
+    /// Present when a fresh task's lookup did not prove its entire TaskCache hash bucket empty.
+    /// This transient, lazy field avoids growing the full 16-bit TaskFlags on the common path.
+    #[field(storage = "direct", category = "transient")]
+    pub task_cache_needs_read: (),
+
     /// GC soft-deletion marker. Set by the garbage collector when a task is marked for deletion.
     #[field(storage = "flag", category = "transient")]
     deleted: bool,
