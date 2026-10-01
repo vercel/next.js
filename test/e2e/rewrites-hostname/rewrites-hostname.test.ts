@@ -21,7 +21,10 @@ describe('rewrites hostname', () => {
     const closeServer = await createTargetServer(targetPort)
     closeTargetServer = closeServer
     await next.start({
-      env: { TEST_TARGET_PORT: String(targetPort) },
+      env: {
+        TEST_TARGET_PORT: String(targetPort),
+        TEST_KEEP_ALIVE: 'false',
+      },
     })
   })
 
@@ -35,6 +38,37 @@ describe('rewrites hostname', () => {
     expect(await response.json()).toEqual({
       forwardedHost: `localhost:${next.appPort}`,
       host: `xn--6qq79v.localhost:${targetPort}`,
+      socketId: expect.any(Number),
     })
+  })
+
+  it('does not reuse upstream connections when keepAlive is false', async () => {
+    const first = await next.fetch('/rewrite-idn-case-unicode')
+    const { socketId: firstSocketId } = await first.json()
+    const second = await next.fetch('/rewrite-idn-case-unicode')
+    const { socketId: secondSocketId } = await second.json()
+
+    expect(first.status).toBe(200)
+    expect(second.status).toBe(200)
+    expect(secondSocketId).not.toBe(firstSocketId)
+  })
+
+  it('reuses upstream connections when keepAlive is true', async () => {
+    await next.stop()
+    await next.start({
+      env: {
+        TEST_TARGET_PORT: String(targetPort),
+        TEST_KEEP_ALIVE: 'true',
+      },
+    })
+
+    const first = await next.fetch('/rewrite-idn-case-unicode')
+    const { socketId: firstSocketId } = await first.json()
+    const second = await next.fetch('/rewrite-idn-case-unicode')
+    const { socketId: secondSocketId } = await second.json()
+
+    expect(first.status).toBe(200)
+    expect(second.status).toBe(200)
+    expect(secondSocketId).toBe(firstSocketId)
   })
 })

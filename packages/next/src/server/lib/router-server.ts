@@ -692,7 +692,8 @@ export async function initialize(opts: {
           parsedUrl,
           undefined,
           getRequestMeta(req, 'clonableBody')?.cloneBodyStream(),
-          config.experimental.proxyTimeout
+          config.experimental.proxyTimeout,
+          config.httpAgentOptions.keepAlive
         )
       }
 
