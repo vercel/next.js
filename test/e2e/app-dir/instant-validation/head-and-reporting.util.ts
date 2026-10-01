@@ -1114,7 +1114,7 @@ export function registerHeadAndReportingTests(
            \`navigation()\` called outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the component that calls \`navigation()\`
              - [block] Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/instant-navigation-stage
@@ -1187,7 +1187,7 @@ export function registerHeadAndReportingTests(
            \`prefetch()\` called outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the component that calls \`prefetch()\`
              - [block] Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/instant-navigation-stage

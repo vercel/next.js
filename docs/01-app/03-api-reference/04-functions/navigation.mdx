@@ -1,9 +1,8 @@
 ---
 title: navigation
-description: API Reference for the navigation function, which defers runtime work until the user navigates.
+description: API Reference for the navigation function, which keeps a subtree out of a route's prefetches so it renders when the user navigates.
 related:
   links:
-    - app/api-reference/file-conventions/route-segment-config/ensureStatic
     - app/api-reference/functions/prefetch
     - app/api-reference/functions/connection
     - app/guides/adopting-partial-prefetching
@@ -12,9 +11,9 @@ related:
     - app/api-reference/config/next-config-js/cacheComponents
 ---
 
-Calling `await navigation()` keeps runtime work below it out of the [App Shell](/docs/app/glossary#app-shell) and per-link prefetches. The work runs when the user navigates, while the fallback of the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary renders in the prefetched output.
+Calling `await navigation()` defers the code below it to the navigation, instead of rendering it when a link to the route is prefetched. The fallback of the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary takes its place in the prefetch, and the deferred content renders when the user navigates.
 
-Use `navigation()` for reusable content that is expensive to generate and should wait until navigation. Static prerenders still include the content in their output, so it can appear in a static prefetch.
+It is meant to defer content that a prefetch would otherwise render, even content that would sit in the App Shell, typically because it depends on session data or URL data and is expensive to generate. During a build-time prerender nothing is deferred, so content below `navigation()` is prerendered as usual.
 
 ## Usage
 
@@ -31,21 +30,19 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-With Partial Prefetching enabled, Next.js can load server-rendered output at three points before and during a client navigation. These are called [navigation stages](/docs/app/glossary#navigation-stages):
+A route is then rendered in three stages, and content can arrive at any of them:
 
-1. A default `<Link>` loads the [App Shell](/docs/app/glossary#app-shell), which holds the part of the route that does not depend on the URL.
-2. An optional [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch) can also load content that depends on the link's URL.
-3. When the user follows the link, the navigation renders any content that remains.
+1. The [App Shell](/docs/app/glossary#app-shell), which every `<Link>` into the route prefetches, and which holds the part of the route that does not depend on the URL.
+2. A per-link prefetch, requested with [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch), which resolves the URL and adds the content that depends on it.
+3. The navigation itself, which covers everything left.
 
-During runtime rendering, awaiting `navigation()` keeps content out of the App Shell and per-link prefetches, so it renders during navigation. Static prerenders can still include the content.
+Awaiting `navigation()` keeps content out of the App Shell and out of per-link prefetches, so it renders only on the navigation.
 
 Without Partial Prefetching, `navigation()` still defers the content for a default `<Link>`, but [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch) fetches the whole route, deferred content included, the same as a navigation.
 
 To keep content out of the App Shell while still including it in a per-link prefetch, use [`prefetch()`](/docs/app/api-reference/functions/prefetch).
 
-To enforce static App Shell and per-link prefetch output across a route, use [`ensureStatic = 'prefetch'`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#prefetch).
-
-During runtime rendering, everything above `navigation()` can render in the App Shell or a per-link prefetch, while everything below waits for navigation. Deferral is scoped to the component that awaits it and the tree below: sibling branches keep their existing behavior. Place it above the code to defer, and wrap the component in [`<Suspense>`](https://react.dev/reference/react/Suspense):
+Everything above `navigation()` renders in the prefetch, and everything below renders on the navigation. Deferral is scoped to the component that awaits it and the tree below: sibling branches render in the prefetch as usual. Place it above the code to defer, and wrap the component in [`<Suspense>`](https://react.dev/reference/react/Suspense):
 
 ```tsx filename="app/post/[slug]/page.tsx" highlight={20} switcher
 import { Suspense } from 'react'
@@ -67,7 +64,7 @@ export default function Page({ params }: PageProps<'/post/[slug]'>) {
 }
 
 async function Comments({ params }: { params: Promise<{ slug: string }> }) {
-  await navigation() // runtime work below waits for navigation
+  await navigation() // everything below renders on the navigation
   const { slug } = await params
   const sort = (await cookies()).get('comment-sort')?.value ?? 'newest'
   const items = await getComments(slug, sort)
@@ -101,7 +98,7 @@ export default function Page({ params }) {
 }
 
 async function Comments({ params }) {
-  await navigation() // runtime work below waits for navigation
+  await navigation() // everything below renders on the navigation
   const { slug } = await params
   const sort = (await cookies()).get('comment-sort')?.value ?? 'newest'
   const items = await getComments(slug, sort)
@@ -125,7 +122,7 @@ Put the directive on a function called below it, as `getComments` does here. Awa
 
 The [`connection()`](/docs/app/api-reference/functions/connection) function waits for a real request. It excludes the code that follows from prerendering and prefetching, making that work request-dependent.
 
-During runtime rendering, `navigation()` excludes the code that follows from route prefetches. It resolves when the user navigates without making that work request-dependent. A function called after `await navigation()` can therefore use [`"use cache"`](/docs/app/api-reference/directives/use-cache) and keep its cache lifetime without generating its result during prefetching.
+`navigation()` only excludes the code that follows from route prefetches. It resolves when the user navigates without making that work request-dependent. A function called after `await navigation()` can therefore use [`"use cache"`](/docs/app/api-reference/directives/use-cache) and keep its cache lifetime without generating its result during prefetching.
 
 Use `connection()` when the work must run for a real request. Use `navigation()` when the work is reusable but should wait until the user navigates.
 
@@ -133,9 +130,9 @@ Use `connection()` when the work must run for a real request. Use `navigation()`
 
 Reach for it when the content below `navigation()` is expensive to produce, in compute, in upstream requests, or in latency, and you do not want every prefetch of the route to generate it.
 
-Neither the runtime App Shell nor a runtime per-link prefetch runs that code, so its upstream requests are not issued until the user navigates.
+Neither prefetch stage runs that code, so its upstream requests are not issued until the user navigates.
 
-Leaving content uncached also keeps it out of prefetches, but gives up its cache lifetime.
+Keeping that content out of a prefetch would otherwise mean leaving it uncached.
 
 With `navigation()` the content can be cached with [`use cache`](/docs/app/api-reference/directives/use-cache), given a lifetime, and deferred to the navigation. Give it a [`stale`](/docs/app/api-reference/functions/cacheLife#stale) time of five minutes or more and the client-side router reuses it after the first time a user navigates into the route. Below that, a [short lifetime keeps it out of the App Shell](/docs/app/api-reference/functions/cacheLife#prerendering-behavior), so each navigation fetches it again.
 
@@ -170,7 +167,7 @@ async function Stories() {
 
 - The function has no effect on the initial load of a page.
 - Reading `cookies()` or `headers()` below `navigation()` does not make the route's prefetches render per request, so they can still be served from static output. Those accesses are ignored, because they would not have resolved in a prefetch either.
-- A call outside a `<Suspense>` boundary surfaces a [validation insight](/docs/messages/instant-navigation-stage) in development. It is reported even on a page that is currently prerendered in full, because the same page starts deferring content as soon as it switches to a runtime shell.
+- A call outside a `<Suspense>` boundary surfaces an [Instant Insight](/docs/messages/instant-navigation-stage) in development. It is reported even on a page that is currently prerendered in full, because the same page starts deferring content as soon as it switches to a runtime shell.
 - Calling it inside `use cache`, `use cache: private`, [`unstable_cache()`](/docs/app/api-reference/functions/unstable_cache), [`after()`](/docs/app/api-reference/functions/after), [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params), or a Client Component throws.
 
 ## Reference

@@ -19,7 +19,7 @@ related:
 
 Prefetching downloads a route's JavaScript, CSS, and RSC payload before the user navigates to it, so the router can render the next route without waiting for a round trip. The [Prefetching guide](/docs/app/guides/prefetching) covers what the App Router prefetches by default.
 
-With [Cache Components](/docs/app/getting-started/caching) and [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), a [`<Link>`](/docs/app/api-reference/components/link) loads an [**App Shell**](/docs/app/glossary#app-shell) for the route by default. The App Shell includes the route's static output. For routes that read [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers), it also includes session-specific UI. Links to the same route reuse that App Shell.
+With [Cache Components](/docs/app/getting-started/caching) and [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), a [`<Link>`](/docs/app/api-reference/components/link) prefetches one reusable [**App Shell**](/docs/app/glossary#app-shell) per route by default. The App Shell includes the route's static output. For routes that read [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers), it also includes session-specific UI. Links to the same route reuse that App Shell.
 
 The shared App Shell does not include URL data that varies by destination, such as [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) and [`params`](/docs/app/api-reference/file-conventions/page#params-optional). Set `prefetch={true}` on a link to resolve cached content that depends on its [URL data](/docs/app/glossary#url-data) before navigation instead of streaming that content after navigation.
 
@@ -196,9 +196,9 @@ Everything inside the scope shares the same lifetime. Colocate `"use cache: priv
 
 ## Exclude content from a prefetch
 
-You can reduce prefetch work by excluding subtrees that are expensive to produce. Navigation stage APIs control when a subtree becomes available during a [client navigation](/docs/app/glossary#navigation-stages).
+Optimizing a prefetch also means excluding content from it. Some subtrees are expensive enough to produce that you would rather not pay for them on every prefetch of the route.
 
-During runtime rendering, awaiting [`navigation()`](/docs/app/api-reference/functions/navigation) above the work leaves it out of the App Shell and per-link prefetches, so it is produced during navigation. Static prerenders can still include the work. The nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) fallback is what the user sees while it streams in. Take the dashboard again, where a ranking keyed on the session is too expensive to produce for every link into the route:
+Awaiting [`navigation()`](/docs/app/api-reference/functions/navigation) above the work leaves it out of every prefetch, so it is produced on the navigation. The nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) fallback is what the user sees while it streams in. Take the dashboard again, where a ranking keyed on the session is too expensive to produce for every link into the route:
 
 ```tsx filename="app/dashboard/recommendations.tsx" highlight={6}
 import { cookies } from 'next/headers'
@@ -219,7 +219,7 @@ async function rank(session?: string) {
 
 The session is read above `navigation()`, so it resolves in the shell like any other session data. Only the ranking is left out, and it keeps its cache lifetime.
 
-Leaving the subtree uncached also keeps it out of prefetches, but gives up its cache lifetime during navigation. Awaiting `navigation()` inside a cached scope is not allowed, so put the caching directive on a function called below it, as `rank` does here.
+Without it, keeping a subtree out of a prefetch means leaving it uncached, which gives up that lifetime on the navigation too. Awaiting `navigation()` inside a cached scope is not allowed, so put the caching directive on a function called below it, as `rank` does here.
 
 For a subtree that would otherwise sit in the App Shell, but that a `<Link prefetch={true}>` should still resolve before the click, use [`prefetch()`](/docs/app/api-reference/functions/prefetch) instead.
 
@@ -275,7 +275,7 @@ Skip it when the prefetch can't produce a better UI than the App Shell. Each vis
 
 A per-link prefetch is best-effort. It only helps the navigations where it completes before the click. On a slow connection, on a feed of many links, or on a direct visit, it may not be ready when the user navigates, and the navigation falls back to the App Shell.
 
-When many links to a route are visible at once, such as a grid of cards, each `<Link prefetch={true}>` prefetches that link's content as it enters the viewport, so the grid makes one such server request per card. Prefetch on intent instead. A [hover-triggered prefetch](/docs/app/guides/prefetching#hover-triggered-prefetch) fetches only the links the user is likely to click. The default `<Link>` (without `prefetch={true}`) loads only the App Shell, so it doesn't carry this cost.
+When many links to a route are visible at once, such as a grid of cards, each `<Link prefetch={true}>` prefetches that link's content as it enters the viewport, so the grid makes one such server request per card. Prefetch on intent instead. A [hover-triggered prefetch](/docs/app/guides/prefetching#hover-triggered-prefetch) fetches only the links the user is likely to click. The default `<Link>` (without `prefetch={true}`) prefetches only the App Shell, so it doesn't carry this cost.
 
 |         | App Shell                                   | Per-link prefetch with `prefetch={true}` |
 | ------- | ------------------------------------------- | ---------------------------------------- |

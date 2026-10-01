@@ -48,7 +48,7 @@ export function createNavigationBodyErrorInNavigation(route: string): Error {
     `Route "${route}": Next.js encountered \`navigation()\` during prerendering or a navigation.\n\n` +
       `\`navigation()\` called outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.\n\n` +
       `Ways to fix this:\n` +
-      `  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access\n` +
+      `  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the component that calls \`navigation()\`\n` +
       `  - [block] Set \`export const instant = false\` to allow a blocking route\n\n` +
       `Learn more: https://nextjs.org/docs/messages/instant-navigation-stage`
   )
@@ -59,7 +59,7 @@ export function createPrefetchBodyErrorInNavigation(route: string): Error {
     `Route "${route}": Next.js encountered \`prefetch()\` during prerendering or a navigation.\n\n` +
       `\`prefetch()\` called outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.\n\n` +
       `Ways to fix this:\n` +
-      `  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access\n` +
+      `  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the component that calls \`prefetch()\`\n` +
       `  - [block] Set \`export const instant = false\` to allow a blocking route\n\n` +
       `Learn more: https://nextjs.org/docs/messages/instant-navigation-stage`
   )
