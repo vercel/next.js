@@ -224,12 +224,7 @@ async function requestHandler(
       },
       onAfterTaskError: () => {},
 
-      onInstrumentationRequestError: (
-        error,
-        _request,
-        errorContext,
-        silenceLog
-      ) =>
+      onInstrumentationRequestError: (error, errorContext, silenceLog) =>
         pageRouteModule.onRequestError(
           baseReq,
           error,

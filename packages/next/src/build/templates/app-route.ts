@@ -262,19 +262,6 @@ export async function handler(
         res.on('close', cb)
       },
       onAfterTaskError: undefined,
-      onInstrumentationRequestError: (
-        error,
-        _request,
-        errorContext,
-        silenceLog
-      ) =>
-        routeModule.onRequestError(
-          req,
-          error,
-          errorContext,
-          silenceLog,
-          routerServerContext
-        ),
     },
     sharedContext: {
       buildId,

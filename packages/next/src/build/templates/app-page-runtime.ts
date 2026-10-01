@@ -1022,12 +1022,7 @@ export function createAppPageEntrypoint({
             },
             onAfterTaskError: () => {},
 
-            onInstrumentationRequestError: (
-              error,
-              _request,
-              errorContext,
-              silenceLog
-            ) =>
+            onInstrumentationRequestError: (error, errorContext, silenceLog) =>
               routeModule.onRequestError(
                 req,
                 error,
