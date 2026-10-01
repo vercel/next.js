@@ -68,7 +68,7 @@ describe('param-matching-ensure-static-errors', () => {
     await expectError(
       'missing',
       '/missing/seed',
-      'Page "/missing/[slug]" is missing `generateStaticParams()`'
+      '`ensureStatic = "navigation"` requires an exported `generateStaticParams()` function'
     )
   })
 
@@ -76,7 +76,7 @@ describe('param-matching-ensure-static-errors', () => {
     await expectError(
       'incomplete',
       '/incomplete/t1/b1',
-      'Every params object must include all dynamic route parameters. Missing: "bottom".'
+      'Routes using `ensureStatic = "navigation"` must return every dynamic route parameter. Missing: "bottom"'
     )
   })
 
