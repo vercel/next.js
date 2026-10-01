@@ -137,10 +137,6 @@ export interface StartServerOptions {
   // this is dev-server only
   selfSignedCertificate?: SelfSignedCertificate
   serverFastRefresh?: boolean
-  // Resolve `import.meta.url` in Turbopack additional roots to their sources.
-  // Set by `next dev` and `next start`, but not by standalone servers, which
-  // run from relocated output.
-  exposeTurbopackAdditionalRoots?: boolean
 }
 
 export async function getRequestHandlers({
@@ -154,7 +150,6 @@ export async function getRequestHandlers({
   keepAliveTimeout,
   experimentalHttpsServer,
   serverFastRefresh,
-  exposeTurbopackAdditionalRoots,
   quiet,
 }: {
   dir: string
@@ -167,7 +162,6 @@ export async function getRequestHandlers({
   keepAliveTimeout?: number
   experimentalHttpsServer?: boolean
   serverFastRefresh?: boolean
-  exposeTurbopackAdditionalRoots?: boolean
   quiet?: boolean
 }): ReturnType<typeof initialize> {
   return initialize({
@@ -181,7 +175,6 @@ export async function getRequestHandlers({
     keepAliveTimeout,
     experimentalHttpsServer,
     serverFastRefresh,
-    exposeTurbopackAdditionalRoots,
     startServerSpan,
     quiet,
   })
@@ -203,7 +196,6 @@ export async function startServer(
     keepAliveTimeout,
     selfSignedCertificate,
     serverFastRefresh,
-    exposeTurbopackAdditionalRoots,
   } = serverOptions
   let { port } = serverOptions
 
@@ -504,7 +496,6 @@ export async function startServer(
           keepAliveTimeout,
           experimentalHttpsServer: !!selfSignedCertificate,
           serverFastRefresh,
-          exposeTurbopackAdditionalRoots,
         })
         devMemoryThresholdRestart = initResult.devMemoryThresholdRestart
         requestHandler = initResult.requestHandler

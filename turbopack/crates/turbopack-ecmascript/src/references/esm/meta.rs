@@ -58,8 +58,8 @@ impl ImportMetaBinding {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let root_path = chunking_context.root_path().await?;
-        // A module from another disk filesystem (such as an additional root) is resolved by the
-        // runtime from that filesystem's name, as it isn't inside the root path.
+        // A module from another disk filesystem (such as an additional root) isn't inside the root
+        // path, so the runtime returns a placeholder URL named after that filesystem.
         let (root, rel_path) = if self.path.fs != root_path.fs
             && let Some(fs) = ResolvedVc::try_downcast_type::<DiskFileSystem>(self.path.fs)
         {

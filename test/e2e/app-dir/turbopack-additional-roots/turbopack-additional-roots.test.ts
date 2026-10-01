@@ -4,7 +4,6 @@ import { isNextDeploy, isNextStart, nextTestSetup } from 'e2e-utils'
 import fs from 'fs-extra'
 import os from 'os'
 import path from 'path'
-import { pathToFileURL } from 'url'
 import type { NextAdapter } from 'next'
 import {
   fetchViaHTTP,
@@ -74,27 +73,18 @@ describe('turbopack additional roots', () => {
     expect(await browser.elementByCss('#loader-value').text()).toBe('processed')
   })
 
-  it('resolves import.meta.url in an additional root', async () => {
+  it('uses a placeholder for import.meta.url in an additional root', async () => {
     const $ = await next.render$('/root-info')
     expect(JSON.parse($('#server-root-info').text())).toEqual({
-      url: isNextDeploy
-        ? // Deployments don't include the sources.
-          placeholderRootInfoUrl
-        : pathToFileURL(path.join(externalRoot!, rootInfoPath)).href,
+      url: placeholderRootInfoUrl,
     })
 
-    // The browser never sees real filesystem paths.
     const browser = await next.browser('/root-info')
     await retry(async () => {
       expect(
         JSON.parse(await browser.elementByCss('#client-root-info').text())
       ).toEqual({ url: placeholderRootInfoUrl })
     })
-  })
-
-  it('resolves import.meta.url in an additional root from build workers', async () => {
-    const $ = await next.render$('/static-root/test')
-    expect($('#static-root').text()).toBe('additional root static params')
   })
 
   it('reports initialization warnings when startup succeeds', () => {
@@ -314,11 +304,6 @@ describe('turbopack additional roots', () => {
         const response = await fetchViaHTTP(appPort, '/')
         expect(response.status).toBe(200)
         expect(await response.text()).toContain('linked-initial-/next-plugin')
-
-        // Standalone output doesn't include the sources.
-        const rootInfoResponse = await fetchViaHTTP(appPort, '/root-info')
-        expect(rootInfoResponse.status).toBe(200)
-        expect(await rootInfoResponse.text()).toContain(placeholderRootInfoUrl)
       } finally {
         if (server) await killApp(server)
         await fs.remove(temporaryDirectory)

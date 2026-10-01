@@ -698,11 +698,6 @@ const relativePathToDistRoot = path.join(relativePathToRuntimeRoot, RELATIVE_ROO
 const RUNTIME_ROOT = path.resolve(__filename, relativePathToRuntimeRoot);
 // Compute the absolute path to the root, by stripping distDir from the absolute path to this file.
 const ABSOLUTE_ROOT = path.resolve(__filename, relativePathToDistRoot);
-// Absolute paths of filesystems outside the project root, keyed by filesystem
-// name and parsed on first use. The host sets `TURBOPACK_ADDITIONAL_ROOTS` to a
-// JSON object of names to paths only when the sources are on disk, so that it
-// isn't part of the build output.
-let additionalRoots;
 /**
  * Returns an absolute path to the given module path.
  * Module path should be relative, either path to a file or a directory.
@@ -725,18 +720,13 @@ Context.prototype.P = resolveAbsolutePath;
  * all platforms (forward slashes on Windows, drive letters handled
  * correctly, path segments URL-encoded).
  *
- * When the location of `root` is unknown (e.g. in a deployment, where the
- * sources don't exist), this returns a placeholder URL instead.
+ * The location of a named `root` isn't known at runtime (the output may have
+ * been moved away from the sources), so this returns a placeholder URL for it.
  */ function resolveFileUrl(modulePath, root) {
-    if (root === undefined) {
-        return require('url').pathToFileURL(resolveAbsolutePath(modulePath)).href;
-    }
-    additionalRoots ??= JSON.parse(process.env.TURBOPACK_ADDITIONAL_ROOTS ?? '{}');
-    const rootPath = additionalRoots[root];
-    if (rootPath === undefined) {
+    if (root !== undefined) {
         return placeholderFileUrl(modulePath, root);
     }
-    return require('url').pathToFileURL(path.join(rootPath, modulePath ?? '')).href;
+    return require('url').pathToFileURL(resolveAbsolutePath(modulePath)).href;
 }
 Context.prototype.F = resolveFileUrl;
 /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../../shared/runtime/runtime-utils.ts" />

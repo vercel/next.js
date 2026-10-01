@@ -29,7 +29,6 @@ import devalue from 'next/dist/compiled/devalue'
 import findUp from 'next/dist/compiled/find-up'
 import { nanoid } from 'next/dist/compiled/nanoid/index.cjs'
 import path from 'path'
-import { setTurbopackAdditionalRootsEnv } from '../lib/turbopack-additional-roots'
 import { resolveCacheHandlerPathToFilesystem } from '../lib/format-dynamic-import-path'
 import {
   STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
@@ -1276,10 +1275,6 @@ export default async function build(
         config.distDir = '.next'
       }
       const distDir = path.join(dir, config.distDir)
-      // Set before starting the bundler or any workers, which inherit it.
-      setTurbopackAdditionalRootsEnv(
-        config.experimental.turbopackAdditionalRoots
-      )
       NextBuildContext.distDir = distDir
       setGlobal('phase', PHASE_PRODUCTION_BUILD)
       setGlobal('distDir', distDir)

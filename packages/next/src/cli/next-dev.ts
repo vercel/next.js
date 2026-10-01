@@ -432,7 +432,6 @@ const nextDev = async (
     port,
     allowRetry,
     isDev: true,
-    exposeTurbopackAdditionalRoots: true,
     hostname: host,
     serverFastRefresh: options.serverFastRefresh,
   }
