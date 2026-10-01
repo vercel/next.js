@@ -19,7 +19,15 @@ function makeUntrackedSearchParamsWithDevWarnings(
   }
 
   const proxiedProperties = new Set<string>()
-  const promise = Promise.resolve(underlyingSearchParams)
+  const promise = Promise.resolve(
+    underlyingSearchParams
+  ) as Promise<SearchParams> & {
+    status?: string
+    value?: SearchParams
+  }
+  // React reads these to unwrap synchronously instead of suspending outside a Transition
+  promise.status = 'fulfilled'
+  promise.value = underlyingSearchParams
 
   Object.keys(underlyingSearchParams).forEach((prop) => {
     if (wellKnownProperties.has(prop)) {

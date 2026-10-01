@@ -20,7 +20,13 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
   // We don't use makeResolvedReactPromise here because params
   // supports copying with spread and we don't want to unnecessarily
   // instrument the promise with spreadable properties of ReactPromise.
-  const promise = Promise.resolve(underlyingParams)
+  const promise = Promise.resolve(underlyingParams) as Promise<Params> & {
+    status?: string
+    value?: Params
+  }
+  // React reads these to unwrap synchronously instead of suspending outside a Transition
+  promise.status = 'fulfilled'
+  promise.value = underlyingParams
 
   const proxiedProperties = new Set<string>()
 
