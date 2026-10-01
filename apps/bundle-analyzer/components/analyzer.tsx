@@ -11,7 +11,6 @@ import {
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import useSWR from 'swr'
-import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Kbd } from '@/components/ui/kbd'
 import { OPEN_ROUTE_PICKER_EVENT } from '@/components/route-typeahead'
@@ -306,6 +305,19 @@ function useAnalyzerModel(compare: boolean) {
       ),
     [routeSummaries]
   )
+  const serverRouteTotals = useMemo(
+    () =>
+      new Map(
+        routeSummaries.map(({ route, size, compressed_size, client }) => [
+          route,
+          {
+            size: size - client.size,
+            compressedSize: compressed_size - client.compressed_size,
+          },
+        ])
+      ),
+    [routeSummaries]
+  )
   const currentRouteTotals = useMemo(
     () =>
       new Map(
@@ -334,6 +346,7 @@ function useAnalyzerModel(compare: boolean) {
     modulesData,
     currentRouteTotals,
     clientRouteTotals,
+    serverRouteTotals,
     searchQuery: searchInput,
     selectedRoute,
     selectedSourceIndex,
@@ -411,7 +424,11 @@ function AnalyzerTopBar({
       comparisonSnapshot={model.comparisonSnapshot}
       onComparisonChange={model.routeState.setComparisonSnapshot}
       routeDiff={routeDiff}
-      routeTotals={model.clientRouteTotals}
+      routeTotals={
+        model.environmentFilter === Environment.Client
+          ? model.clientRouteTotals
+          : model.serverRouteTotals
+      }
       showComparison={showComparison}
     />
   )
