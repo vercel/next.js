@@ -190,9 +190,19 @@ Next.js encountered runtime data on a route that must be fully static.
       { text: '  return <Guide />' },
     ]}
   />
+  <FixCard
+    group="client"
+    title="Read search parameters on the client"
+    href="/docs/messages/static-route-runtime#read-search-parameters-on-the-client"
+    snippets={[
+      { text: "'use client'" },
+      { text: 'const params = useSearchParams()', highlight: true },
+      { text: "return <p>{params.get('q')}</p>" },
+    ]}
+  />
 </FixCardGrid>
 
-Buying guides do not need a per-user theme, so remove the cookie access:
+The client fix only applies to `searchParams`. Buying guides do not need a per-user theme, so remove the cookie access:
 
 ```diff filename="app/store/guides/[id]/page.tsx"
 - import { cookies } from 'next/headers'
@@ -222,6 +232,16 @@ Next.js encountered uncached data on a route that must be fully static.
       { text: 'async function getGuide(id) {' },
       { text: '  "use cache"', highlight: true },
       { text: '  return db.guide.findUnique(…)' },
+    ]}
+  />
+  <FixCard
+    group="remove"
+    title="Remove the data access"
+    href="/docs/messages/static-route-dynamic#remove-the-data-access"
+    snippets={[
+      { text: 'async function Page() {' },
+      { text: '- await connection()', highlight: true },
+      { text: '  return <Content />' },
     ]}
   />
 </FixCardGrid>
