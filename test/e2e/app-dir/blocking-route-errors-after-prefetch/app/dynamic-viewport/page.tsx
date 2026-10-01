@@ -8,7 +8,7 @@ export async function generateViewport() {
   return { themeColor: 'black' }
 }
 
-export default async function Page() {
+export default async function Page(): Promise<never> {
   await connection()
   redirect('/destination')
 }
