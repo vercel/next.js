@@ -1404,7 +1404,7 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
         // snapshot has already released exclusion, its disk writes are still in flight, so a
         // read during that interval cannot prove the next snapshot's disk baseline.
         let canonical = matches!(self.phase, ExecutePhase::Normal { guard: Some(_) })
-            && !self.backend.noncanonical_disk_reads.load(Ordering::Acquire);
+            && !self.backend.pending_db_commit.load(Ordering::Acquire);
         let candidates = self
             .backend
             .backing_storage
