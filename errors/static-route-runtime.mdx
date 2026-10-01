@@ -71,15 +71,12 @@ export default function Page() {
 }
 ```
 
-Every visitor receives the same output. Remove the data access itself, not only the JSX that displays its result.
-
 ### Trade-off
 
 Every visitor receives the same value because the route no longer reads request-specific data.
 
 ### Gotchas
 
-- Remove the access itself, not only the JSX that displays its result.
 - This fix applies to `cookies()`, `headers()`, and other removable reads. It does not provide replacement values when the content must vary by request.
 
 ## Read search parameters on the client
