@@ -25,6 +25,7 @@ import type {
 import type { Params } from './request/params'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { RouteMatch } from './route-matches/route-match'
+import type { RouteMatch as AppRenderRouteMatch } from './route-modules/app-page/module'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
 import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
@@ -126,7 +127,11 @@ import { RouteKind } from './route-kind'
 import { InvariantError } from '../shared/lib/invariant-error'
 import { AwaiterOnce } from './after/awaiter'
 import { AsyncCallbackSet } from './lib/async-callback-set'
-import { initializeCacheHandlers, setCacheHandler } from './use-cache/handlers'
+import {
+  initializeCacheHandlers,
+  registerCustomCacheHandlers,
+  setCacheHandler,
+} from './use-cache/handlers'
 import type { UnwrapPromise } from '../lib/coalesced-function'
 import { populateStaticEnv } from '../lib/static-env'
 import { NodeModuleLoader } from './lib/module-loader/node-module-loader'
@@ -242,7 +247,10 @@ export default class NextNodeServer extends BaseServer<
     }
 
     if (!this.minimalMode) {
-      this.imageResponseCache = new ResponseCache(this.minimalMode)
+      this.imageResponseCache = new ResponseCache({
+        minimalMode: this.minimalMode,
+        route: 'image',
+      })
     }
 
     if (
@@ -250,7 +258,10 @@ export default class NextNodeServer extends BaseServer<
       !this.minimalMode &&
       this.nextConfig.experimental.preloadEntriesOnStart
     ) {
-      this.unstable_preloadEntries()
+      // Preloading may join a failing registration started by a request.
+      void this.unstable_preloadEntries().catch((err) => {
+        Log.error('Failed to preload entries:', err)
+      })
     }
 
     if (!options.dev) {
@@ -412,22 +423,21 @@ export default class NextNodeServer extends BaseServer<
     const { cacheMaxMemorySize, cacheHandlers } = this.nextConfig
     if (!cacheHandlers) return
 
-    // If we've already initialized the cache handlers interface, don't do it
-    // again.
-    if (!initializeCacheHandlers(cacheMaxMemorySize)) return
+    initializeCacheHandlers(cacheMaxMemorySize)
+    await registerCustomCacheHandlers(async () => {
+      for (const [kind, handler] of Object.entries(cacheHandlers)) {
+        if (!handler) continue
 
-    for (const [kind, handler] of Object.entries(cacheHandlers)) {
-      if (!handler) continue
-
-      setCacheHandler(
-        kind,
-        interopDefault(
-          await dynamicImportEsmDefault(
-            formatDynamicImportPath(this.distDir, handler)
+        setCacheHandler(
+          kind,
+          interopDefault(
+            await dynamicImportEsmDefault(
+              formatDynamicImportPath(this.distDir, handler)
+            )
           )
         )
-      )
-    }
+      }
+    })
   }
 
   protected async getIncrementalCache({
@@ -466,6 +476,7 @@ export default class NextNodeServer extends BaseServer<
         !this.minimalMode && this.nextConfig.experimental.isrFlushToDisk,
       previewProps: this.getPreviewProps(),
       prerenderManifest: this.getPrerenderManifest(),
+      locales: this.nextConfig.i18n?.locales,
       CurCacheHandler: CacheHandler,
     })
   }
@@ -633,10 +644,11 @@ export default class NextNodeServer extends BaseServer<
     res: NodeNextResponse,
     pathname: string,
     query: NextParsedUrlQuery,
-    renderOpts: LoadedRenderOpts
+    renderOpts: LoadedRenderOpts,
+    routeMatch: AppRenderRouteMatch
   ): Promise<RenderResult> {
     return getTracer().trace(NextNodeServerSpan.renderHTML, async () =>
-      this.renderHTMLImpl(req, res, pathname, query, renderOpts)
+      this.renderHTMLImpl(req, res, pathname, query, renderOpts, routeMatch)
     )
   }
 
@@ -645,7 +657,8 @@ export default class NextNodeServer extends BaseServer<
     res: NodeNextResponse,
     pathname: string,
     query: NextParsedUrlQuery,
-    renderOpts: LoadedRenderOpts
+    renderOpts: LoadedRenderOpts,
+    routeMatch: AppRenderRouteMatch
   ): Promise<RenderResult> {
     if (process.env.NEXT_MINIMAL) {
       throw new Error(
@@ -682,7 +695,8 @@ export default class NextNodeServer extends BaseServer<
             clientAssetToken: this.nextConfig.supportsImmutableAssets
               ? ''
               : this.deploymentId,
-          }
+          },
+          routeMatch
         )
         if ('error' in result) {
           throw result.error

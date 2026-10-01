@@ -9,13 +9,7 @@ describe('interception-routes-output-export', () => {
   })
 
   it('should error when using interception routes with static export', async () => {
-    if (!isNextDev) {
-      await expect(next.start()).rejects.toThrow()
-      const cliOutput = next.cliOutput
-      expect(cliOutput).toContain(
-        'Intercepting routes are not supported with static export.'
-      )
-    } else if (isNextDev) {
+    if (isNextDev) {
       let stderr = ''
       let child: ChildProcess | undefined
       const port = await findPort()
@@ -42,6 +36,11 @@ describe('interception-routes-output-export', () => {
         }
         await exit.catch(() => {})
       }
+    } else {
+      await expect(next.start()).rejects.toThrow()
+      expect(next.cliOutput).toContain(
+        'Intercepting routes are not supported with static export.'
+      )
     }
   }, 240_000)
 })

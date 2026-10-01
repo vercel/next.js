@@ -1502,11 +1502,6 @@ function trackDynamic(
 
         throw err
       case 'request':
-        if (process.env.NODE_ENV !== 'production') {
-          // TODO: This is currently not really needed for route handlers, as it
-          // only controls the ISR status that's shown for pages.
-          workUnitStore.usedDynamic = true
-        }
         break
       case 'build-time-generator':
         break

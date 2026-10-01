@@ -3,7 +3,7 @@ const nextConfig = {
   // supplies the agent rules after preparing this fixture.
   agentRules: false,
   experimental: {
-    agenticAutoUpgrade: 'latest' as const,
+    agentUpgrade: 'latest' as const,
   },
 }
 

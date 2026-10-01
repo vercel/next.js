@@ -51,7 +51,6 @@ export type NextDevOptions = {
   turbo?: boolean
   turbopack?: boolean
   webpack?: boolean
-  customWebpack?: boolean
   port: number
   hostname?: string
   experimentalHttps?: boolean
@@ -255,7 +254,12 @@ const nextDev = async (
     '../lib/upgrade/nudge.js'
   )
   const humanUpgrade = await shouldPromptForUpgrade()
-  async function offerUpgrade(worker: ChildProcess, context: UpgradeContext) {
+  const allowedUpgradeRetries = new Set<string>()
+  async function offerUpgrade(
+    worker: ChildProcess,
+    context: UpgradeContext,
+    initialAssessment: Parameters<typeof nudgeUpgrade>[4]
+  ) {
     process.on('SIGHUP', onHangup)
     upgradeOffered = true
     upgradeInProgress = true
@@ -263,7 +267,13 @@ const nextDev = async (
     upgradeController = controller
     let action
     try {
-      action = await nudgeUpgrade(dir, context, 'dev', controller.signal)
+      action = await nudgeUpgrade(
+        dir,
+        context,
+        'dev',
+        controller.signal,
+        initialAssessment
+      )
     } catch (error) {
       Log.warn(`Could not offer the upgrade: ${String(error)}`)
     } finally {
@@ -278,7 +288,7 @@ const nextDev = async (
       onInterrupt()
       return
     }
-    if (action === 'update' && context.experimental.agenticAutoUpgrade) {
+    if (action === 'update' && context.experimental.agentUpgrade) {
       await handleSessionStop('SIGTERM', false)
       if (interruption) {
         process.exit(128 + os.constants.signals[interruption])
@@ -286,9 +296,7 @@ const nextDev = async (
       process.off('SIGINT', onInterrupt)
       process.off('SIGTERM', onTerminate)
       process.off('SIGHUP', onHangup)
-      process.exit(
-        await runUpgrade(dir, context.experimental.agenticAutoUpgrade)
-      )
+      process.exit(await runUpgrade(dir, context.experimental.agentUpgrade))
     }
     upgradeInProgress = false
     process.off('SIGHUP', onHangup)
@@ -487,6 +495,9 @@ const nextDev = async (
           NEXT_PRIVATE_WORKER: '1',
           NEXT_PRIVATE_UPGRADE_PROMPT:
             humanUpgrade && !upgradeOffered ? '1' : undefined,
+          NEXT_PRIVATE_ALLOWED_UPGRADE_RETRIES: Array.from(
+            allowedUpgradeRetries
+          ).join(','),
           NEXT_PRIVATE_TRACE_ID: traceId,
           NEXT_PRIVATE_ENABLED_FEATURES: JSON.stringify(enabledFeatures),
           NEXT_PRIVATE_DEV_SPAN_ATTRS: JSON.stringify(devSpanAttrs),
@@ -515,9 +526,19 @@ const nextDev = async (
 
       child.on('message', (msg: any) => {
         if (msg && typeof msg === 'object') {
-          if (msg.nextUpgradeContext) {
-            distDir = msg.nextUpgradeContext.distDir
-            void offerUpgrade(child!, msg.nextUpgradeContext).catch(
+          if (
+            typeof msg.nextUpgradeRetryAllowed === 'string' &&
+            /^[a-f0-9]{64}$/.test(msg.nextUpgradeRetryAllowed)
+          ) {
+            allowedUpgradeRetries.add(msg.nextUpgradeRetryAllowed)
+          } else if (msg.nextUpgradeContext) {
+            const context = msg.nextUpgradeContext as UpgradeContext
+            distDir = context.distDir
+            const initialAssessment =
+              msg.nextUpgradeAssessment !== undefined
+                ? Promise.resolve(msg.nextUpgradeAssessment)
+                : null
+            void offerUpgrade(child!, context, initialAssessment).catch(
               async (error) => {
                 console.error(error)
                 await handleSessionStop('SIGTERM', false)

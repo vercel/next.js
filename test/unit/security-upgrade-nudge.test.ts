@@ -17,6 +17,7 @@ import { getAgentName } from 'next/dist/telemetry/agent-name'
 import { getUpgradeAssessment } from 'next/dist/lib/upgrade/prepare-upgrade'
 import { warn } from 'next/dist/build/output/log'
 import { spawnNextUpgrade } from 'next/dist/cli/next-upgrade'
+import { defaultConfig } from 'next/dist/server/config-shared'
 
 jest.mock('next/dist/cli/next-upgrade', () => ({
   spawnNextUpgrade: jest.fn(),
@@ -45,6 +46,9 @@ jest.mock('next/dist/telemetry/agent-name', () => ({
   getAgentName: jest.fn(),
 }))
 jest.mock('next/dist/lib/upgrade/prepare-upgrade', () => ({
+  getPrereleaseChannel: jest.requireActual(
+    'next/dist/lib/upgrade/prepare-upgrade'
+  ).getPrereleaseChannel,
   getLatestUpgradeVersion: jest.requireActual(
     'next/dist/lib/upgrade/prepare-upgrade'
   ).getLatestUpgradeVersion,
@@ -88,20 +92,26 @@ function mockUpgrade(targetVersion = process.env.__NEXT_VERSION || '16.4.0') {
 
 let directory: string
 const initialNextVersion = process.env.__NEXT_VERSION
-const initialRequestedUpgrade = process.env.__NEXT_AGENTIC_AUTO_UPGRADE
+const initialRequestedUpgrade = process.env.__NEXT_AGENT_UPGRADE
 
 const config = (
-  policy: 'security' | 'latest' | 'future' | false,
+  policy: 'security' | 'latest' | 'experimental-future' | false,
   values: Record<string, unknown> = {}
 ) =>
   ({
     ...values,
     distDir: '.next',
-    experimental: { agenticAutoUpgrade: policy },
+    experimental: { agentUpgrade: policy },
   }) as never
 
+it('defaults agentUpgrade to the security policy', () => {
+  expect(defaultConfig.experimental.agentUpgrade).toBe('security')
+  const context = getUpgradeContext(config('security'))
+  expect(context.experimental.agentUpgrade).toBe('security')
+})
+
 beforeEach(async () => {
-  delete process.env.__NEXT_AGENTIC_AUTO_UPGRADE
+  delete process.env.__NEXT_AGENT_UPGRADE
   process.env.__NEXT_VERSION = '16.4.0'
   directory = await mkdtemp(join(tmpdir(), 'security-upgrade-nudge-'))
   await mkdir(join(directory, 'app'))
@@ -109,9 +119,9 @@ beforeEach(async () => {
 
 afterEach(async () => {
   if (initialRequestedUpgrade === undefined) {
-    delete process.env.__NEXT_AGENTIC_AUTO_UPGRADE
+    delete process.env.__NEXT_AGENT_UPGRADE
   } else {
-    process.env.__NEXT_AGENTIC_AUTO_UPGRADE = initialRequestedUpgrade
+    process.env.__NEXT_AGENT_UPGRADE = initialRequestedUpgrade
   }
   if (initialNextVersion === undefined) {
     delete process.env.__NEXT_VERSION
@@ -159,7 +169,7 @@ describe('security upgrade nudge', () => {
       name: 'SecurityFatalError',
       exitCode: 1,
       message: expect.stringMatching(
-        /affected by a published security advisory[\s\S]*\*\*We strongly recommend you upgrade Next\.js\.\*\*[\s\S]*reminder you configured is not missed\. Retry the same command to continue the original task\.[\s\S]*include this upgrade recommendation even if the retry succeeds\.[\s\S]*At the end of the task, ask the user whether they want you to run the upgrade using the configured 'security' policy in the background in a separate Git worktree unless they request otherwise\. Run this command from this app's directory:[\s\S]*```\nnext upgrade --ai=(?:security|latest|future)\n```/
+        /affected by a known security vulnerability[\s\S]*\*\*We strongly recommend you upgrade Next\.js\.\*\*[\s\S]*upgrade recommendation\. Retry the same command to continue the original task\.[\s\S]*include this upgrade recommendation even if the retry succeeds\.[\s\S]*ask the user once:[\s\S]*in a separate Git worktree\?[\s\S]*Use their worktree choice and continue in this agent session[\s\S]*Run this command from this app's directory:[\s\S]*```\nnext upgrade --ai=(?:security|latest|experimental-future)\n```/
       ),
     })
     expect(warn).not.toHaveBeenCalled()
@@ -182,42 +192,34 @@ describe('security upgrade nudge', () => {
       name: 'SecurityFatalError',
       exitCode: 1,
       message: expect.stringMatching(
-        /affected by a published security advisory[\s\S]*registry\.npmjs\.org/
+        /affected by a known security vulnerability[\s\S]*registry\.npmjs\.org/
       ),
     })
     expect(warn).not.toHaveBeenCalled()
   })
 
   it.each(['blocked', 'unknown'] as const)(
-    'preserves the advisory and retry behavior when target eligibility is %s',
+    'skips the security nudge when target eligibility is %s',
     async (status) => {
       jest.mocked(getUpgradeAssessment).mockResolvedValue({
         reference: 'https://api.github.com/advisories?affects=next',
         affected: true,
         upgrade: { status, reason: 'Target assessment detail.' },
       })
-      let message = ''
-      try {
-        await run()
-      } catch (error) {
-        expect(error).toMatchObject({ name: 'SecurityFatalError', exitCode: 1 })
-        message = (error as Error).message
-      }
-      expect(message).toContain('affected by a published security advisory')
-      expect(message).toContain('Target assessment detail.')
-      expect(message.includes('next upgrade --ai')).toBe(false)
-      expect(message.includes('can be automatically upgraded')).toBe(false)
-      expect(message).toContain(
-        status === 'unknown'
-          ? 'Upgrade availability could not be checked.'
-          : 'No safe newer target is available'
-      )
       await expect(run()).resolves.toBeUndefined()
-      expect(warn).toHaveBeenCalledWith(
-        expect.stringContaining('Target assessment detail.')
-      )
+      expect(warn).not.toHaveBeenCalled()
     }
   )
+
+  it('reuses the startup assessment for the agent nudge', async () => {
+    const assessment = assessUpgrade(directory, config('security'), '13.0.0')
+
+    await expect(
+      nudgeUpgrade(directory, config('security'), 'dev', null, assessment)
+    ).resolves.toBeUndefined()
+
+    expect(getUpgradeAssessment).toHaveBeenCalledTimes(1)
+  })
 
   it('stays silent when the version is unaffected', async () => {
     await run()
@@ -294,9 +296,94 @@ describe('security upgrade nudge', () => {
 
     expect(warn).toHaveBeenCalledWith(
       expect.stringMatching(
-        /continuing after the reminder you configured[\s\S]*Reference:/
+        /continuing after the upgrade reminder[\s\S]*Reference:/
       )
     )
+  })
+
+  it('keeps an accepted dev retry through a worker restart but not a new session', async () => {
+    const reminder = Promise.resolve({
+      kind: 'security' as const,
+      policy: 'security' as const,
+      installedVersion: '13.0.0',
+      targetVersion: '17.2.1',
+      reference: 'https://api.github.com/advisories?affects=next%4013.0.0',
+    })
+    const originalWorker = process.env.NEXT_PRIVATE_WORKER
+    const originalRetries = process.env.NEXT_PRIVATE_ALLOWED_UPGRADE_RETRIES
+    const originalSend = process.send
+    const send = jest.fn(
+      (_message: unknown, callback: (error: Error | null) => void) => {
+        callback(null)
+      }
+    )
+
+    try {
+      process.env.NEXT_PRIVATE_WORKER = '1'
+      process.send = send as unknown as typeof process.send
+
+      await expect(
+        nudgeUpgrade(directory, config('security'), 'dev', null, reminder)
+      ).rejects.toMatchObject({ name: 'SecurityFatalError' })
+      await expect(
+        nudgeUpgrade(directory, config('security'), 'dev', null, reminder)
+      ).resolves.toBeUndefined()
+
+      const message = send.mock.calls[0]?.[0] as {
+        nextUpgradeRetryAllowed: string
+      }
+      expect(message.nextUpgradeRetryAllowed).toMatch(/^[a-f0-9]{64}$/)
+
+      process.env.NEXT_PRIVATE_ALLOWED_UPGRADE_RETRIES =
+        message.nextUpgradeRetryAllowed
+      let restartedNudge: typeof nudgeUpgrade
+      jest.isolateModules(() => {
+        restartedNudge = jest.requireActual<{
+          nudgeUpgrade: typeof nudgeUpgrade
+        }>('../../packages/next/src/lib/upgrade/nudge').nudgeUpgrade
+        jest
+          .mocked(
+            jest.requireMock<typeof import('next/dist/telemetry/agent-name')>(
+              'next/dist/telemetry/agent-name'
+            ).getAgentName
+          )
+          .mockResolvedValue('codex')
+      })
+      await expect(
+        restartedNudge!(directory, config('security'), 'dev', null, reminder)
+      ).resolves.toBeUndefined()
+      expect(send).toHaveBeenCalledTimes(1)
+
+      delete process.env.NEXT_PRIVATE_ALLOWED_UPGRADE_RETRIES
+      let newSessionNudge: typeof nudgeUpgrade
+      jest.isolateModules(() => {
+        newSessionNudge = jest.requireActual<{
+          nudgeUpgrade: typeof nudgeUpgrade
+        }>('../../packages/next/src/lib/upgrade/nudge').nudgeUpgrade
+        jest
+          .mocked(
+            jest.requireMock<typeof import('next/dist/telemetry/agent-name')>(
+              'next/dist/telemetry/agent-name'
+            ).getAgentName
+          )
+          .mockResolvedValue('codex')
+      })
+      await expect(
+        newSessionNudge!(directory, config('security'), 'dev', null, reminder)
+      ).rejects.toMatchObject({ name: 'SecurityFatalError' })
+    } finally {
+      process.send = originalSend
+      if (originalWorker === undefined) {
+        delete process.env.NEXT_PRIVATE_WORKER
+      } else {
+        process.env.NEXT_PRIVATE_WORKER = originalWorker
+      }
+      if (originalRetries === undefined) {
+        delete process.env.NEXT_PRIVATE_ALLOWED_UPGRADE_RETRIES
+      } else {
+        process.env.NEXT_PRIVATE_ALLOWED_UPGRADE_RETRIES = originalRetries
+      }
+    }
   })
 
   it('keeps dev and build retry receipts independent', async () => {
@@ -348,9 +435,19 @@ describe('latest nudge release selection', () => {
     ['17.2.0-canary.4', '17.2.0-canary.4', null],
     ['17.2.0-canary.4', '17.1.0-canary.99', null],
     ['17.2.0-canary.4', '17.3.0-rc.1', null],
-    ['17.2.0-rc.1', '17.3.0', null],
+    ['17.2.0-rc.1', '17.3.0', '17.3.0'],
+    ['17.2.0-rc.1', '17.2.0', '17.2.0'],
+    ['17.2.0-rc.1', '17.2.0-rc.2', null],
+    ['17.2.0-beta.1', '17.2.0', '17.2.0'],
+    ['17.2.0-beta.1', '18.0.0-beta.1', null],
+    ['17.2.0-preview.1', '17.2.0', '17.2.0'],
+    ['17.2.0-rc.1', '17.3.0-rc.1', null],
+    ['17.2.0-beta.1', '17.3.0-beta.1', null],
+    ['17.2.0-preview.1', '17.3.0-preview.1', null],
+    ['17.2.0-rc.1', '17.3.0-beta.1', null],
+    ['16.4.0-preview-84cee7e6-20260917', '17.0.0', null],
   ])(
-    'selects %s → %s for a nudge only across major/minor versions',
+    'selects an eligible latest reminder for %s → %s',
     async (installed, latest, expected) => {
       expect(readLatestUpgradeVersion(installed, latest)).toBe(expected)
     }
@@ -364,7 +461,7 @@ describe('latest upgrade nudge', () => {
     mockUpgrade()
   })
 
-  it.each(['latest', 'future'] as const)(
+  it.each(['latest', 'experimental-future'] as const)(
     'links a canary %s reminder to the selected channel',
     async (policy) => {
       process.env.__NEXT_VERSION = '17.2.0-canary.4'
@@ -388,6 +485,27 @@ describe('latest upgrade nudge', () => {
     }
   )
 
+  it.each(['rc', 'beta', 'preview'] as const)(
+    'links a verified %s latest reminder to stable latest',
+    async (channel) => {
+      process.env.__NEXT_VERSION = `17.2.0-${channel}.1`
+      mockUpgrade('17.2.0')
+      await expect(
+        nudgeUpgrade(directory, config('latest'), 'build')
+      ).rejects.toMatchObject({
+        name: 'UpgradeNudgeError',
+        message: expect.stringContaining(
+          'Reference: https://registry.npmjs.org/next/latest'
+        ),
+      })
+      expect(getUpgradeAssessment).toHaveBeenCalledWith(
+        `17.2.0-${channel}.1`,
+        'latest',
+        false
+      )
+    }
+  )
+
   it('stops once and allows a matching retry with a warning', async () => {
     mockUpgrade('17.0.0')
 
@@ -397,7 +515,7 @@ describe('latest upgrade nudge', () => {
       name: 'UpgradeNudgeError',
       exitCode: 1,
       message: expect.stringMatching(
-        /Next\.js 17\.0\.0 is available\.[\s\S]*\*\*We recommend you upgrade Next\.js\.\*\*[\s\S]*reminder you configured is not missed\. Retry the same command to continue the original task\.[\s\S]*include this upgrade recommendation even if the retry succeeds\.[\s\S]*At the end of the task, ask the user whether they want you to run the upgrade using the configured 'latest' policy in the background in a separate Git worktree unless they request otherwise\. Run this command from this app's directory:[\s\S]*```\nnext upgrade --ai=(?:security|latest|future)\n```[\s\S]*registry\.npmjs\.org[\s\S]*agenticAutoUpgrade: 'latest'/
+        /Next\.js 17\.0\.0 is available\.[\s\S]*\*\*We recommend you upgrade Next\.js\.\*\*[\s\S]*upgrade recommendation\. Retry the same command to continue the original task\.[\s\S]*include this upgrade recommendation even if the retry succeeds\.[\s\S]*ask the user once:[\s\S]*in a separate Git worktree\?[\s\S]*Use their worktree choice and continue in this agent session[\s\S]*Run this command from this app's directory:[\s\S]*```\nnext upgrade --ai=(?:security|latest|experimental-future)\n```[\s\S]*registry\.npmjs\.org/
       ),
     })
     await expect(
@@ -407,12 +525,12 @@ describe('latest upgrade nudge', () => {
     expect(getUpgradeAssessment).toHaveBeenCalledTimes(2)
     expect(warn).toHaveBeenCalledWith(
       expect.stringMatching(
-        /Next\.js 17\.0\.0 is available\.[\s\S]*continuing after the reminder you configured[\s\S]*registry\.npmjs\.org/
+        /Next\.js 17\.0\.0 is available\.[\s\S]*continuing after the upgrade reminder[\s\S]*registry\.npmjs\.org/
       )
     )
   })
 
-  it.each(['latest', 'future'] as const)(
+  it.each(['latest', 'experimental-future'] as const)(
     'does not offer an unsafe %s target or fall through to Future adoption',
     async (policy) => {
       jest.mocked(getUpgradeAssessment).mockResolvedValue({
@@ -470,7 +588,7 @@ describe('composed latest nudge', () => {
     mockUpgrade('17.0.0')
   })
 
-  it.each(['latest', 'future'] as const)(
+  it.each(['latest', 'experimental-future'] as const)(
     'preserves the %s policy when security takes priority',
     async (policy) => {
       jest.mocked(getUpgradeAssessment).mockResolvedValue({
@@ -495,7 +613,7 @@ describe('composed latest nudge', () => {
       })
       await expect(nudge).rejects.toMatchObject({
         message: expect.stringContaining(
-          `experimental.agenticAutoUpgrade: '${policy}'`
+          'This command stopped to show the upgrade recommendation.'
         ),
       })
 
@@ -517,29 +635,27 @@ describe('composed future nudge', () => {
     mockUpgrade()
   })
 
-  it.each(['16.3.0-canary.1', '16.4.0-rc.1', '16.4.0-beta.1'])(
-    'does not offer defaults before stable availability or for another prerelease: %s',
-    async (version) => {
-      await expect(
-        assessUpgrade(
-          directory,
-          config('future', { cacheComponents: false }),
-          version
-        )
-      ).resolves.toBeNull()
-    }
-  )
+  it('does not offer defaults before stable availability on canary', async () => {
+    const version = '16.3.0-canary.1'
+    await expect(
+      assessUpgrade(
+        directory,
+        config('experimental-future', { cacheComponents: false }),
+        version
+      )
+    ).resolves.toBeNull()
+  })
 
   it('offers available defaults on canary without a version reminder', async () => {
     await expect(
       assessUpgrade(
         directory,
-        config('future', { cacheComponents: false }),
+        config('experimental-future', { cacheComponents: false }),
         '16.4.0-canary.1'
       )
     ).resolves.toEqual({
-      kind: 'future',
-      policy: 'future',
+      kind: 'experimental-future',
+      policy: 'experimental-future',
       installedVersion: '16.4.0-canary.1',
       targetVersion: '16.4.0',
       names: ['Cache Components'],
@@ -550,7 +666,7 @@ describe('composed future nudge', () => {
     await expect(
       assessUpgrade(
         directory,
-        config('future', { cacheComponents: true }),
+        config('experimental-future', { cacheComponents: true }),
         '16.4.0-canary.1'
       )
     ).resolves.toBeNull()
@@ -562,7 +678,7 @@ describe('composed future nudge', () => {
     await expect(
       nudgeUpgrade(
         directory,
-        config('future', { cacheComponents: false }),
+        config('experimental-future', { cacheComponents: false }),
         'build'
       )
     ).rejects.toMatchObject({
@@ -578,12 +694,12 @@ describe('composed future nudge', () => {
     await expect(
       assessUpgrade(
         directory,
-        config('future', { cacheComponents: false }),
+        config('experimental-future', { cacheComponents: false }),
         '16.4.0'
       )
     ).resolves.toEqual({
-      kind: 'future',
-      policy: 'future',
+      kind: 'experimental-future',
+      policy: 'experimental-future',
       installedVersion: '16.4.0',
       targetVersion: '16.4.0',
       names: ['Cache Components'],
@@ -596,7 +712,7 @@ describe('composed future nudge', () => {
     await expect(
       assessUpgrade(
         directory,
-        config('future', { cacheComponents: false }),
+        config('experimental-future', { cacheComponents: false }),
         '16.4.0'
       )
     ).resolves.toBeNull()
@@ -606,7 +722,7 @@ describe('composed future nudge', () => {
     await expect(
       assessUpgrade(
         directory,
-        config('future', { cacheComponents: true }),
+        config('experimental-future', { cacheComponents: true }),
         '16.4.0'
       )
     ).resolves.toBeNull()
@@ -618,13 +734,13 @@ describe('composed future nudge', () => {
     await expect(
       nudgeUpgrade(
         directory,
-        config('future', { cacheComponents: false }),
+        config('experimental-future', { cacheComponents: false }),
         'build'
       )
     ).rejects.toMatchObject({
       name: 'UpgradeNudgeError',
       message: expect.stringMatching(
-        /Next\.js 17\.0\.0 is available[\s\S]*include this upgrade recommendation even if the retry succeeds\.[\s\S]*next upgrade --ai=(?:security|latest|future)\n```[\s\S]*agenticAutoUpgrade: 'future'/
+        /Next\.js 17\.0\.0 is available[\s\S]*include this upgrade recommendation even if the retry succeeds\.[\s\S]*next upgrade --ai=(?:security|latest|experimental-future)\n```/
       ),
     })
   })
@@ -646,7 +762,10 @@ describe('human upgrade nudge', () => {
     },
   }
   const run = (
-    policy: 'security' | 'latest' | 'future' = 'future',
+    policy:
+      | 'security'
+      | 'latest'
+      | 'experimental-future' = 'experimental-future',
     signal = new AbortController().signal
   ) => nudgeUpgrade(directory, config(policy), 'build', signal)
 
@@ -685,6 +804,23 @@ describe('human upgrade nudge', () => {
     }
   })
 
+  it('reuses the startup assessment for the human prompt', async () => {
+    const assessment = assessUpgrade(directory, config('security'), '16.4.0')
+
+    await expect(
+      nudgeUpgrade(
+        directory,
+        config('security'),
+        'dev',
+        new AbortController().signal,
+        assessment
+      )
+    ).resolves.toBe('skip')
+
+    expect(getUpgradeAssessment).toHaveBeenCalledTimes(1)
+    expect(promptUpgrade).toHaveBeenCalledTimes(1)
+  })
+
   it.each([
     [
       'security',
@@ -697,17 +833,17 @@ describe('human upgrade nudge', () => {
       'Next.js latest version upgrade available: 16.4.0 -> 17.0.0',
     ],
     [
-      'future',
+      'experimental-future',
       '17.0.0',
       'Next.js Future Default upgrade available: 16.4.0 -> 17.0.0\n\n- Cache Components',
     ],
     [
-      'future',
+      'experimental-future',
       '16.4.1',
       'Next.js Future Default upgrade available: 16.4.0 -> 16.4.1\n\n- Cache Components',
     ],
     [
-      'future',
+      'experimental-future',
       '16.4.0',
       'Next.js Future Default upgrade available:\n\n- Cache Components',
     ],
@@ -734,7 +870,7 @@ describe('human upgrade nudge', () => {
     mockUpgrade('17.0.0')
     await nudgeUpgrade(
       directory,
-      config('future', { cacheComponents: true }),
+      config('experimental-future', { cacheComponents: true }),
       'build',
       new AbortController().signal
     )
@@ -760,42 +896,43 @@ describe('human upgrade nudge', () => {
     }
   )
 
-  it.each(['security', 'latest', 'future'] as const)(
-    'forces a %s request without changing installed-version eligibility',
+  it.each(['security', 'latest', 'experimental-future'] as const)(
+    'does not force a %s nudge without a valid installed version',
     async (policy) => {
-      process.env.__NEXT_AGENTIC_AUTO_UPGRADE = policy
-      process.env.__NEXT_VERSION = '16.4.0-preview-test'
+      process.env.__NEXT_AGENT_UPGRADE = policy
+      process.env.__NEXT_VERSION = 'not-a-version'
       processEnv([], directory)
-      updateInitialEnv({ __NEXT_AGENTIC_AUTO_UPGRADE: policy })
-      jest.mocked(promptUpgrade).mockResolvedValue('update')
-      for (const configured of [false, 'future'] as const) {
+      updateInitialEnv({ __NEXT_AGENT_UPGRADE: policy })
+      for (const configured of [false, 'experimental-future'] as const) {
         const original = config(configured)
         const context = getUpgradeContext(original)
-        expect(context.experimental.agenticAutoUpgrade).toBe(policy)
+        expect(context.experimental.agentUpgrade).toBe(policy)
         await expect(
           nudgeUpgrade(directory, context, 'dev', new AbortController().signal)
-        ).resolves.toBe('update')
+        ).resolves.toBeUndefined()
       }
-      expect(promptUpgrade).toHaveBeenCalledWith(
-        expect.stringContaining(`__NEXT_AGENTIC_AUTO_UPGRADE=${policy}`),
-        expect.any(AbortSignal),
-        true
-      )
+      expect(promptUpgrade).not.toHaveBeenCalled()
       expect(getUpgradeAssessment).not.toHaveBeenCalled()
-      const message = jest.mocked(promptUpgrade).mock.calls[0][0]
-      expect(message).toContain('Forced preview:')
-      expect(message).not.toContain(`next upgrade --ai`)
-      expect(message).not.toContain('You requested')
       jest.mocked(getAgentName).mockResolvedValue('codex')
-      await expect(run(policy)).rejects.toMatchObject({
-        message: expect.stringContaining(`next upgrade --ai=${policy}`),
-      })
+      await expect(run(policy)).resolves.toBeUndefined()
+    }
+  )
 
+  it.each(['security', 'latest', 'experimental-future'] as const)(
+    'runs an explicitly requested %s upgrade',
+    async (policy) => {
+      process.env.__NEXT_AGENT_UPGRADE = policy
+      process.env.__NEXT_VERSION = '16.4.0-preview-test'
+      processEnv([], directory)
+      updateInitialEnv({
+        __NEXT_AGENT_UPGRADE: policy,
+        __NEXT_VERSION: '16.4.0-preview-test',
+      })
       jest.mocked(spawnNextUpgrade).mockImplementationOnce(async () => {
-        expect(process.env.__NEXT_AGENTIC_AUTO_UPGRADE).toBeUndefined()
+        expect(process.env.__NEXT_AGENT_UPGRADE).toBeUndefined()
         // Future upgrade preparation reloads config and resets the environment.
         resetEnv()
-        expect(process.env.__NEXT_AGENTIC_AUTO_UPGRADE).toBeUndefined()
+        expect(process.env.__NEXT_AGENT_UPGRADE).toBeUndefined()
         expect(process.env.__NEXT_VERSION).toBe('16.4.0-preview-test')
       })
       await runUpgrade(directory, policy)
@@ -807,13 +944,29 @@ describe('human upgrade nudge', () => {
     }
   )
 
+  it.each(['blocked', 'unknown'] as const)(
+    'does not force a nudge when the target is %s',
+    async (status) => {
+      process.env.__NEXT_AGENT_UPGRADE = 'security'
+      jest.mocked(getUpgradeAssessment).mockResolvedValue({
+        affected: true,
+        reference:
+          'https://registry.npmjs.org/-/npm/v1/security/advisories/bulk',
+        upgrade: { status, reason: 'No verified target.' },
+      })
+      await expect(run('security')).resolves.toBeUndefined()
+      expect(promptUpgrade).not.toHaveBeenCalled()
+      expect(warn).not.toHaveBeenCalled()
+    }
+  )
+
   it('lets an explicit request bypass a saved dismissal', async () => {
     jest.mocked(promptUpgrade).mockResolvedValue('dismiss')
     await run('security')
     jest.clearAllMocks()
     await run('security')
     expect(promptUpgrade).not.toHaveBeenCalled()
-    process.env.__NEXT_AGENTIC_AUTO_UPGRADE = 'security'
+    process.env.__NEXT_AGENT_UPGRADE = 'security'
     jest.mocked(promptUpgrade).mockResolvedValue('skip')
     await expect(run('security')).resolves.toBe('skip')
     expect(promptUpgrade).toHaveBeenCalledTimes(1)
@@ -825,7 +978,7 @@ describe('human upgrade nudge', () => {
   })
 
   it('uses real release data for a forced latest nudge with config disabled', async () => {
-    process.env.__NEXT_AGENTIC_AUTO_UPGRADE = 'latest'
+    process.env.__NEXT_AGENT_UPGRADE = 'latest'
     mockUpgrade('16.4.1')
     await nudgeUpgrade(
       directory,
@@ -848,9 +1001,9 @@ describe('human upgrade nudge', () => {
   })
 
   it('ignores invalid requests and retains the configured policy', async () => {
-    process.env.__NEXT_AGENTIC_AUTO_UPGRADE = 'invalid'
+    process.env.__NEXT_AGENT_UPGRADE = 'invalid'
     const context = getUpgradeContext(config(false))
-    expect(context.experimental.agenticAutoUpgrade).toBe(false)
+    expect(context.experimental.agentUpgrade).toBe(false)
     await nudgeUpgrade(
       directory,
       context,
@@ -859,11 +1012,15 @@ describe('human upgrade nudge', () => {
     )
     expect(promptUpgrade).not.toHaveBeenCalled()
     await expect(run()).resolves.toBe('skip')
-    expect(getUpgradeAssessment).toHaveBeenCalledWith('16.4.0', 'future', false)
+    expect(getUpgradeAssessment).toHaveBeenCalledWith(
+      '16.4.0',
+      'experimental-future',
+      false
+    )
   })
 
   it('does not open an explicitly requested prompt after cancellation', async () => {
-    process.env.__NEXT_AGENTIC_AUTO_UPGRADE = 'security'
+    process.env.__NEXT_AGENT_UPGRADE = 'security'
     const controller = new AbortController()
     controller.abort()
     await run('security', controller.signal)
@@ -886,7 +1043,7 @@ describe('human upgrade nudge', () => {
     await expect(
       nudgeUpgrade(
         join(directory, 'app'),
-        config('future'),
+        config('experimental-future'),
         'build',
         new AbortController().signal
       )
@@ -930,7 +1087,7 @@ describe('human upgrade nudge', () => {
       const offer = (path: string) =>
         nudgeUpgrade(
           path,
-          config('future'),
+          config('experimental-future'),
           'build',
           new AbortController().signal
         )
@@ -949,7 +1106,9 @@ describe('human upgrade nudge', () => {
       >
       expect(Object.keys(saved)).toHaveLength(1)
       expect(Object.keys(saved)[0]).toMatch(/^[a-f0-9]{64}$/)
-      expect(Object.values(saved)).toEqual([{ security: '16.4.0:future' }])
+      expect(Object.values(saved)).toEqual([
+        { security: '16.4.0:experimental-future' },
+      ])
 
       const otherApp = join(worktree, 'other/web')
       await mkdir(otherApp, { recursive: true })
@@ -978,7 +1137,7 @@ describe('human upgrade nudge', () => {
       await run()
       expect(getUpgradeAssessment).toHaveBeenCalledWith(
         '16.4.0',
-        'future',
+        'experimental-future',
         true
       )
       expect(promptUpgrade).toHaveBeenCalledTimes(affected ? 1 : 0)
@@ -1005,18 +1164,14 @@ describe('human upgrade nudge', () => {
   })
 
   it.each(['blocked', 'unknown'] as const)(
-    'omits Update when security target availability is %s',
+    'does not prompt when security target availability is %s',
     async (status) => {
       jest.mocked(getUpgradeAssessment).mockResolvedValue({
         ...securityAssessment,
         upgrade: { status, reason: 'No eligible target.' },
       })
       await run()
-      expect(promptUpgrade).toHaveBeenCalledWith(
-        expect.stringContaining('No eligible target.'),
-        expect.any(AbortSignal),
-        false
-      )
+      expect(promptUpgrade).not.toHaveBeenCalled()
     }
   )
 
@@ -1057,7 +1212,7 @@ describe('human upgrade nudge', () => {
       await run()
       expect(getUpgradeAssessment).toHaveBeenCalledTimes(0)
       expect(promptUpgrade).toHaveBeenCalledTimes(0)
-      process.env.__NEXT_AGENTIC_AUTO_UPGRADE = 'security'
+      process.env.__NEXT_AGENT_UPGRADE = 'security'
       await run()
       expect(getUpgradeAssessment).toHaveBeenCalledTimes(0)
       expect(promptUpgrade).toHaveBeenCalledTimes(0)
@@ -1076,7 +1231,7 @@ describe('human upgrade nudge', () => {
       controller.abort()
       return securityAssessment
     })
-    await run('future', controller.signal)
+    await run('experimental-future', controller.signal)
     expect(promptUpgrade).toHaveBeenCalledTimes(0)
   })
 })

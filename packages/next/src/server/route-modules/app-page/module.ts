@@ -72,8 +72,15 @@ type AppPageUserlandModule = {
   loaderTree: LoaderTree
 }
 
+export type RouteMatch = {
+  // The pathname produced by route preparation, including its delimiter-safe
+  // encoding for path parameters.
+  readonly resolvedPathname: string
+}
+
 export interface AppPageRouteHandlerContext extends RouteModuleHandleContext {
   page: string
+  routeMatch: RouteMatch
   query: NextParsedUrlQuery
   fallbackRouteParams: OpaqueFallbackRouteParams | null
   renderOpts: RenderOpts
@@ -167,9 +174,14 @@ export class AppPageRouteModule extends RouteModule<
       context.page,
       context.query,
       context.fallbackRouteParams,
-      context.renderOpts,
+      // HEAD responses do not consume the render stream, so they cannot
+      // establish a new status for the dev indicator.
+      process.env.__NEXT_DEV_SERVER && req.method === 'HEAD'
+        ? { ...context.renderOpts, setIsrStatus: undefined }
+        : context.renderOpts,
       context.serverComponentsHmrCache,
-      context.sharedContext
+      context.sharedContext,
+      context.routeMatch
     )
   }
 
@@ -186,7 +198,8 @@ export class AppPageRouteModule extends RouteModule<
       context.fallbackRouteParams,
       context.renderOpts,
       context.serverComponentsHmrCache,
-      context.sharedContext
+      context.sharedContext,
+      context.routeMatch
     )
   }
 

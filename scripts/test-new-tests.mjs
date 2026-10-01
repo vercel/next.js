@@ -19,15 +19,14 @@ async function main() {
   const argv = await yargs(process.argv.slice(2))
     .string('mode')
     .string('group')
-    .string('preview-builds-base-url')
     .boolean('flake-detection').argv
 
   const testMode = argv.mode
   const isFlakeDetectionMode = argv['flake-detection']
   const attempts = isFlakeDetectionMode ? 3 : 1
-  // Left unset when the workflow passes an empty value, so that
+  // Left unset when the env var is not set, so that
   // wait-for-preview-tarball.mjs owns the default.
-  const previewBuildsBaseUrl = argv['preview-builds-base-url']
+  const previewBuildsBaseUrl = process.env.NEXT_TEST_PREVIEW_BUILDS_BASE_URL
 
   if (testMode && !['dev', 'deploy', 'start'].includes(testMode)) {
     throw new Error(
@@ -142,7 +141,6 @@ async function main() {
           ...process.env,
           NEXT_TEST_MODE: testMode,
           NEXT_TEST_VERSION: nextTestVersion,
-          NEXT_TEST_PREVIEW_BUILDS_BASE_URL: previewBuildsBaseUrl,
           NEXT_EXTERNAL_TESTS_FILTERS,
           NEXT_FLAKE_DETECTION: '1',
           IS_TURBOPACK_TEST: '1',
@@ -163,7 +161,6 @@ async function main() {
           NEXT_EXTERNAL_TESTS_FILTERS,
           NEXT_TEST_MODE: testMode,
           NEXT_TEST_VERSION: nextTestVersion,
-          NEXT_TEST_PREVIEW_BUILDS_BASE_URL: previewBuildsBaseUrl,
           TURBOPACK_BUILD:
             process.env.IS_TURBOPACK_TEST &&
             (testMode === 'start' || testMode === 'deploy')

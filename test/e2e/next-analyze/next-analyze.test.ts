@@ -4,6 +4,9 @@ import path from 'node:path'
 import type { ChildProcess } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely inspects local build artifacts that deploy tests do not expose.
+// @force-gate !deploy
 describe('next analyze', () => {
   if (!shouldUseTurbopack()) {
     // Test suites require at least one test
@@ -11,17 +14,10 @@ describe('next analyze', () => {
     return
   }
 
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    // Test suites require at least one test
-    it('is skipped', () => {})
-    return
-  }
 
   it('runs successfully without errors', async () => {
     let serveProcess: ChildProcess | undefined
@@ -65,6 +61,32 @@ describe('next analyze', () => {
       serveProcess?.kill()
       await exit.catch(() => {})
     }
+  })
+
+  it('stores the snapshot name in live and historical metadata', async () => {
+    const name = 'My snapshot'
+    const { exitCode, stderr } = await next.runCommand([
+      'analyze',
+      '--output',
+      '--snapshot-name',
+      name,
+    ])
+
+    expect(exitCode).toBe(0)
+    expect(stderr).not.toContain('Error')
+
+    const analyzeDir = path.join(next.testDir, '.next/diagnostics/analyze')
+    const metadata = JSON.parse(
+      readFileSync(path.join(analyzeDir, 'data/metadata.json'), 'utf-8')
+    )
+    expect(metadata.snapshotName).toBe(name)
+    expect(metadata).not.toHaveProperty('baselineName')
+
+    const history = JSON.parse(
+      readFileSync(path.join(analyzeDir, 'history/history.json'), 'utf-8')
+    )
+    expect(history.snapshots[0].snapshotName).toBe(name)
+    expect(history.snapshots[0]).not.toHaveProperty('baselineName')
   })
   ;['-o', '--output'].forEach((flag) => {
     describe(`with ${flag} flag`, () => {

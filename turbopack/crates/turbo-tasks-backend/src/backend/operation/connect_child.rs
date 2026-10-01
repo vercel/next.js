@@ -87,6 +87,13 @@ impl ConnectChildOperation {
         release_construction_ref: bool,
         mut ctx: impl ExecuteContext<'_>,
     ) {
+        if parent_task_id.is_none() {
+            // All parentless tasks receive a transient ref when connected: their lifetime cannot be
+            // constrained by turbo-tasks and needs to be managed by the caller. If the caller
+            // doesn't manage it, the GC root TTL handles it in a later session.
+            let mut child_task = ctx.task_or_create(child_task_id, TaskDataCategory::Meta);
+            child_task.update_and_get_transient_ref_count(1);
+        }
         if let Some(parent_task_id) = parent_task_id {
             let mut parent_task = ctx.task(parent_task_id, TaskDataCategory::Meta);
             let Some(InProgressState::InProgress(InProgressStateInner { new_children, .. })) =
@@ -144,7 +151,7 @@ impl ConnectChildOperation {
         } else {
             // First connect of this child: its id is minted but the storage entry may not exist
             // yet, and concurrent connects race to be the one that first touches it.
-            let child_task = ctx.open_or_create_task_storage(child_task_id, TaskDataCategory::Meta);
+            let child_task = ctx.task_or_create(child_task_id, TaskDataCategory::Meta);
 
             // Revive the child if GC soft-deleted it. This can happen in a rare race between a
             // cache hit on a task and snapshotting actually performing the delete.

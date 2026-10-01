@@ -1,4 +1,5 @@
 import { EventEmitter } from 'events'
+import { resolve } from 'path'
 import {
   access,
   cp,
@@ -39,12 +40,15 @@ jest.mock('next/dist/build/output/log', () => ({
   bootstrap: jest.fn(),
   error: jest.fn(),
   info: jest.fn(),
+  warn: jest.fn(),
 }))
 jest.mock('next/dist/compiled/cli-select', () => ({
   __esModule: true,
   default: jest.fn(),
 }))
-jest.mock('next/dist/compiled/cross-spawn', () => jest.fn())
+jest.mock('next/dist/compiled/cross-spawn', () =>
+  Object.assign(jest.fn(), { sync: jest.fn() })
+)
 jest.mock('next/dist/lib/find-pages-dir', () => ({
   findDir: jest.fn(),
 }))
@@ -72,9 +76,10 @@ jest.mock('next/dist/server/config-shared', () => ({
 jest.mock('next/dist/telemetry/agent-name', () => ({
   getAgentName: jest.fn(),
 }))
-
 const createSpinner = require('next/dist/build/spinner').default as jest.Mock
-const crossSpawn = require('next/dist/compiled/cross-spawn') as jest.Mock
+const crossSpawn = require('next/dist/compiled/cross-spawn') as jest.Mock & {
+  sync: jest.Mock
+}
 const cliVersion: string = require('next/package.json').version
 const restoreDescriptors: Array<() => void> = []
 
@@ -82,6 +87,16 @@ function normalizedBootstrapCalls(): string[][] {
   return jest
     .mocked(Log.bootstrap)
     .mock.calls.map(([message]) => [String(message).replace(/\\+/g, '/')])
+}
+
+function expectedHarnessPath(name: string): string {
+  const extension =
+    process.platform === 'win32'
+      ? (process.env.PATHEXT || '.EXE;.CMD;.BAT;.COM')
+          .split(';')
+          .filter(Boolean)[0]
+      : ''
+  return resolve('/agents', `${name}${extension}`)
 }
 
 function normalizedFileWriteCalls() {
@@ -93,13 +108,22 @@ function normalizedFileWriteCalls() {
     ])
 }
 
+function normalizedCopiedSources(): string[] {
+  return jest
+    .mocked(cp)
+    .mock.calls.map(([source]) => String(source).replace(/\\+/g, '/'))
+}
+
 function normalizedWriteFileCalls() {
   return normalizedFileWriteCalls().filter(([path]) =>
     String(path).includes('/skills/')
   )
 }
 
-function overrideTTY(target: NodeJS.ReadStream | NodeJS.WriteStream): void {
+function overrideTTY(
+  target: NodeJS.ReadStream | NodeJS.WriteStream,
+  value: boolean = true
+): void {
   const descriptor = Object.getOwnPropertyDescriptor(target, 'isTTY')
   restoreDescriptors.push(() => {
     if (descriptor) {
@@ -110,7 +134,7 @@ function overrideTTY(target: NodeJS.ReadStream | NodeJS.WriteStream): void {
   })
   Object.defineProperty(target, 'isTTY', {
     configurable: true,
-    value: true,
+    value,
   })
 }
 
@@ -124,6 +148,25 @@ describe('agentic upgrade prompts', () => {
 
   beforeEach(() => {
     jest.resetAllMocks()
+    crossSpawn.sync.mockImplementation((_path, args) => {
+      if (args[0] === 'debug') {
+        return {
+          status: 0,
+          stdout: JSON.stringify({
+            models: [
+              { slug: 'gpt-5.6-terra' },
+              { slug: 'gpt-5.6-sol' },
+              { slug: 'gpt-6-astra' },
+            ],
+          }),
+        }
+      }
+      return {
+        status: 0,
+        stdout:
+          '  --approve-for-me  Route approval requests through automatic review\n  --permission-mode <mode>  Permission mode to use for the session\n                                        (choices: "acceptEdits", "auto", "manual")',
+      }
+    })
     process.env.__NEXT_UPGRADE_USE_CURRENT_CLI = '1'
     process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION = cliVersion
     global.fetch = jest.fn()
@@ -152,7 +195,7 @@ describe('agentic upgrade prompts', () => {
     jest.mocked(writeFile).mockResolvedValue(undefined)
     jest.mocked(getAgentName).mockResolvedValue('codex')
     jest.mocked(loadConfig).mockResolvedValue({
-      default: { experimental: { agenticAutoUpgrade: false } },
+      default: { experimental: { agentUpgrade: false } },
     } as never)
     jest
       .mocked(normalizeConfig)
@@ -260,7 +303,7 @@ describe('agentic upgrade prompts', () => {
     }
   )
 
-  it.each([true, 'security', 'latest', 'future'])(
+  it.each([true, 'security', 'latest', 'experimental-future'])(
     'delegates %s to the exact canary and preserves its failure status',
     async (ai) => {
       delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
@@ -345,7 +388,7 @@ describe('agentic upgrade prompts', () => {
     jest.mocked(getAgentName).mockResolvedValue(null)
     jest.mocked(access).mockResolvedValue(undefined)
     jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
-    jest.mocked(cliSelect).mockResolvedValue({ id: 'cancel' } as never)
+    jest.mocked(cliSelect).mockRejectedValue(undefined)
 
     await handoffUpgrade('Prepared upgrade prompt.', '/workspace/app')
 
@@ -380,10 +423,6 @@ describe('agentic upgrade prompts', () => {
              "copy",
              "Copy prompt for another coding agent",
            ],
-           [
-             "cancel",
-             "Cancel",
-           ],
          ],
        },
        "progress": [
@@ -399,7 +438,7 @@ describe('agentic upgrade prompts', () => {
            "  Multiple coding agents detected. Which one would you like to use?",
          ],
          [
-           "  Use ↑/↓ to choose, then press Enter.
+           "  Use ↑/↓ to choose, Enter to confirm, or Esc to cancel.
      ",
          ],
          [
@@ -419,16 +458,727 @@ describe('agentic upgrade prompts', () => {
     jest.mocked(getAgentName).mockResolvedValue(null)
     jest.mocked(access).mockImplementation(async (file) => {
       if (/[/\\]codex(?:\.(?:exe|cmd|bat|com))?$/i.test(String(file))) return
-      throw new Error('not found')
+      throw Object.assign(new Error('not found'), { code: 'ENOENT' })
     })
     jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
-    jest.mocked(cliSelect).mockResolvedValue({ id: 'cancel' } as never)
+    jest.mocked(cliSelect).mockRejectedValue(undefined)
 
     await handoffUpgrade('Prepared upgrade prompt.', '/workspace/app')
 
     expect(Log.bootstrap).toHaveBeenCalledWith(
       '  Codex detected. Would you like to proceed?'
     )
+  })
+
+  it.each([
+    [
+      'codex',
+      'gpt-5.6-terra',
+      'ultra',
+      ['--model', 'gpt-5.6-terra', '-c', 'model_reasoning_effort=ultra'],
+    ],
+    [
+      'codex',
+      'gpt-5.6-sol',
+      'max',
+      ['--model', 'gpt-5.6-sol', '-c', 'model_reasoning_effort=max'],
+    ],
+    [
+      'codex',
+      'gpt-6-astra',
+      'high',
+      ['--model', 'gpt-6-astra', '-c', 'model_reasoning_effort=high'],
+    ],
+    [
+      'claude',
+      'claude-sonnet-5[1m]',
+      'high',
+      ['--model', 'claude-sonnet-5[1m]', '--effort', 'high'],
+    ],
+    ['claude', 'opus', 'max', ['--model', 'opus', '--effort', 'max']],
+    ['claude', 'fable', 'medium', ['--model', 'fable', '--effort', 'medium']],
+  ])(
+    'passes selected %s model %s and effort %s',
+    async (agent, model, effort, flags) => {
+      process.env.PATH = '/agents'
+      overrideTTY(process.stdin)
+      overrideTTY(process.stdout)
+      jest.mocked(getAgentName).mockResolvedValue(null)
+      jest.mocked(access).mockResolvedValue(undefined)
+      jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
+      jest
+        .mocked(cliSelect)
+        .mockResolvedValueOnce({ id: agent } as never)
+        .mockResolvedValueOnce({ id: model } as never)
+        .mockResolvedValueOnce({ id: effort } as never)
+        .mockResolvedValueOnce({ id: 'yes' } as never)
+        .mockResolvedValueOnce({ id: 'no' } as never)
+      crossSpawn.mockImplementation(() => {
+        const child = new EventEmitter()
+        process.nextTick(() => child.emit('close', 0, null))
+        return child
+      })
+
+      const prompt = jest.fn((useWorktree: boolean | null) =>
+        useWorktree ? 'Worktree prompt' : 'In-place prompt'
+      )
+      await handoffUpgrade(prompt, '/workspace/app')
+
+      expect(prompt).toHaveBeenCalledWith(false)
+      expect(crossSpawn).toHaveBeenCalledWith(
+        expectedHarnessPath(agent),
+        [
+          ...flags,
+          ...(agent === 'codex'
+            ? ['--approve-for-me']
+            : ['--permission-mode', 'auto']),
+          'In-place prompt',
+        ],
+        { cwd: '/workspace/app', stdio: 'inherit' }
+      )
+      const modelMenu = jest.mocked(cliSelect).mock.calls[1][0]
+      expect(modelMenu.values).toEqual(
+        agent === 'codex'
+          ? {
+              'gpt-5.6-terra': 'GPT-5.6-Terra',
+              'gpt-5.6-sol': 'GPT-5.6-Sol',
+              'gpt-6-astra': 'GPT-6-Astra',
+            }
+          : {
+              'claude-sonnet-5[1m]': 'Claude Sonnet 5 (1M)',
+              opus: 'Claude Opus (latest)',
+              fable: 'Claude Fable (latest)',
+            }
+      )
+      const effortMenu = jest.mocked(cliSelect).mock.calls[2][0]
+      expect(Object.keys(effortMenu.values)).toEqual(
+        agent === 'claude'
+          ? ['default', 'low', 'medium', 'high', 'max']
+          : ['default', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra']
+      )
+      expect(effortMenu.defaultValue).toBe(0)
+      const permissionMenu = jest.mocked(cliSelect).mock.calls[3][0]
+      expect(permissionMenu.values).toEqual({
+        yes: 'Yes',
+        no: 'No, ask for approval',
+      })
+      expect(permissionMenu.defaultValue).toBe(0)
+      expect(jest.mocked(cliSelect).mock.calls[4][0].values).toEqual({
+        yes: 'Yes',
+        no: 'No',
+      })
+      const questions = jest
+        .mocked(Log.bootstrap)
+        .mock.calls.map(([value]) => String(value))
+      expect(
+        questions.findIndex((value) => value.includes('model should run'))
+      ).toBeLessThan(
+        questions.findIndex((value) => value.includes('reasoning effort'))
+      )
+      expect(
+        questions.findIndex((value) => value.includes('reasoning effort'))
+      ).toBeLessThan(
+        questions.findIndex((value) => value.includes('permission mode'))
+      )
+    }
+  )
+
+  it('uses the selected model default when no effort override is chosen', async () => {
+    process.env.PATH = '/agents'
+    overrideTTY(process.stdin)
+    overrideTTY(process.stdout)
+    jest.mocked(getAgentName).mockResolvedValue(null)
+    jest.mocked(access).mockResolvedValue(undefined)
+    jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
+    jest
+      .mocked(cliSelect)
+      .mockResolvedValueOnce({ id: 'codex' } as never)
+      .mockResolvedValueOnce({ id: 'gpt-5.6-terra' } as never)
+      .mockResolvedValueOnce({ id: 'default' } as never)
+      .mockResolvedValueOnce({ id: 'yes' } as never)
+      .mockResolvedValueOnce({ id: 'no' } as never)
+    crossSpawn.mockImplementation(() => {
+      const child = new EventEmitter()
+      process.nextTick(() => child.emit('close', 0, null))
+      return child
+    })
+
+    await handoffUpgrade('Upgrade prompt', '/workspace/app')
+
+    expect(crossSpawn).toHaveBeenCalledWith(
+      expectedHarnessPath('codex'),
+      ['--model', 'gpt-5.6-terra', '--approve-for-me', 'Upgrade prompt'],
+      { cwd: '/workspace/app', stdio: 'inherit' }
+    )
+  })
+
+  it('omits Astra when the selected Codex catalog does not contain it', async () => {
+    process.env.PATH = '/agents'
+    overrideTTY(process.stdin)
+    overrideTTY(process.stdout)
+    jest.mocked(getAgentName).mockResolvedValue(null)
+    jest.mocked(access).mockResolvedValue(undefined)
+    jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
+    crossSpawn.sync.mockImplementation((_path, args) => {
+      if (args[0] === 'debug') {
+        return {
+          status: 0,
+          stdout: JSON.stringify({
+            models: [{ slug: 'gpt-5.6-terra' }, { slug: 'gpt-5.6-sol' }],
+          }),
+        }
+      }
+      return { status: 0, stdout: '  --approve-for-me' }
+    })
+    jest
+      .mocked(cliSelect)
+      .mockResolvedValueOnce({ id: 'codex' } as never)
+      .mockResolvedValueOnce({ id: 'gpt-5.6-sol' } as never)
+      .mockResolvedValueOnce({ id: 'default' } as never)
+      .mockResolvedValueOnce({ id: 'yes' } as never)
+      .mockResolvedValueOnce({ id: 'no' } as never)
+    crossSpawn.mockImplementation(() => {
+      const child = new EventEmitter()
+      process.nextTick(() => child.emit('close', 0, null))
+      return child
+    })
+
+    await handoffUpgrade('Upgrade prompt', '/workspace/app')
+
+    expect(jest.mocked(cliSelect).mock.calls[1][0].values).toEqual({
+      'gpt-5.6-terra': 'GPT-5.6-Terra',
+      'gpt-5.6-sol': 'GPT-5.6-Sol',
+    })
+    expect(crossSpawn.sync).toHaveBeenCalledWith(
+      expectedHarnessPath('codex'),
+      ['debug', 'models', '--bundled'],
+      expect.objectContaining({ encoding: 'utf8' })
+    )
+  })
+
+  it.each([
+    [
+      'unavailable',
+      { status: 1, stdout: '' },
+      'Could not read the Codex model catalog; using the CLI defaults.',
+      'exit status 1',
+    ],
+    [
+      'invalid JSON',
+      { status: 0, stdout: '{' },
+      'Could not parse the Codex model catalog; using the CLI defaults.',
+      expect.any(SyntaxError),
+    ],
+    [
+      'unexpected format',
+      { status: 0, stdout: '{}' },
+      'Codex model catalog has an unexpected format; using the CLI defaults.',
+      null,
+    ],
+    [
+      'empty',
+      { status: 0, stdout: JSON.stringify({ models: [] }) },
+      'Could not verify Codex models; using the CLI defaults.',
+      null,
+    ],
+  ])(
+    'uses Codex defaults when the model catalog is %s',
+    async (_, result, warning, cause) => {
+      process.env.PATH = '/agents'
+      overrideTTY(process.stdin)
+      overrideTTY(process.stdout)
+      jest.mocked(getAgentName).mockResolvedValue(null)
+      jest.mocked(access).mockResolvedValue(undefined)
+      jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
+      crossSpawn.sync.mockImplementation((_path, args) =>
+        args[0] === 'debug'
+          ? result
+          : { status: 0, stdout: '  --approve-for-me' }
+      )
+      jest
+        .mocked(cliSelect)
+        .mockResolvedValueOnce({ id: 'codex' } as never)
+        .mockResolvedValueOnce({ id: 'yes' } as never)
+        .mockResolvedValueOnce({ id: 'no' } as never)
+      crossSpawn.mockImplementation(() => {
+        const child = new EventEmitter()
+        process.nextTick(() => child.emit('close', 0, null))
+        return child
+      })
+
+      await handoffUpgrade('Upgrade prompt', '/workspace/app')
+
+      expect(cliSelect).toHaveBeenCalledTimes(3)
+      if (cause === null) {
+        expect(Log.warn).toHaveBeenCalledWith(warning)
+      } else {
+        expect(Log.warn).toHaveBeenCalledWith(warning, cause)
+      }
+      expect(crossSpawn).toHaveBeenCalledWith(
+        expectedHarnessPath('codex'),
+        ['--approve-for-me', 'Upgrade prompt'],
+        { cwd: '/workspace/app', stdio: 'inherit' }
+      )
+    }
+  )
+
+  it('preserves unexpected agent probe errors as the cause', async () => {
+    process.env.PATH = '/agents'
+    overrideTTY(process.stdin)
+    overrideTTY(process.stdout)
+    jest.mocked(getAgentName).mockResolvedValue(null)
+    const cause = Object.assign(new Error('too many open files'), {
+      code: 'EMFILE',
+    })
+    jest.mocked(access).mockRejectedValue(cause)
+
+    await expect(
+      handoffUpgrade('Upgrade prompt', '/workspace/app')
+    ).rejects.toMatchObject({ cause })
+  })
+
+  it.each([
+    ['codex', 'yes', ['--approve-for-me']],
+    [
+      'codex',
+      'no',
+      ['--sandbox', 'workspace-write', '--ask-for-approval', 'on-request'],
+    ],
+    ['claude', 'yes', ['--permission-mode', 'auto']],
+    ['claude', 'no', ['--permission-mode', 'manual']],
+  ])('passes %s %s permission flags', async (agent, useAuto, flags) => {
+    process.env.PATH = '/agents'
+    overrideTTY(process.stdin)
+    overrideTTY(process.stdout)
+    jest.mocked(getAgentName).mockResolvedValue(null)
+    jest.mocked(access).mockResolvedValue(undefined)
+    jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
+    jest
+      .mocked(cliSelect)
+      .mockResolvedValueOnce({ id: agent } as never)
+      .mockResolvedValueOnce({
+        id: agent === 'codex' ? 'gpt-5.6-terra' : 'opus',
+      } as never)
+      .mockResolvedValueOnce({ id: 'high' } as never)
+      .mockResolvedValueOnce({ id: useAuto } as never)
+      .mockResolvedValueOnce({ id: 'no' } as never)
+    crossSpawn.mockImplementation(() => {
+      const child = new EventEmitter()
+      process.nextTick(() => child.emit('close', 0, null))
+      return child
+    })
+
+    await handoffUpgrade('Upgrade prompt', '/workspace/app')
+
+    expect(crossSpawn).toHaveBeenCalledWith(
+      expectedHarnessPath(agent),
+      [
+        '--model',
+        agent === 'codex' ? 'gpt-5.6-terra' : 'opus',
+        ...(agent === 'codex'
+          ? ['-c', 'model_reasoning_effort=high']
+          : ['--effort', 'high']),
+        ...flags,
+        'Upgrade prompt',
+      ],
+      { cwd: '/workspace/app', stdio: 'inherit' }
+    )
+  })
+
+  it('defaults to approval requests when the Codex CLI lacks Auto review', async () => {
+    process.env.PATH = '/agents'
+    overrideTTY(process.stdin)
+    overrideTTY(process.stdout)
+    jest.mocked(getAgentName).mockResolvedValue(null)
+    jest.mocked(access).mockResolvedValue(undefined)
+    jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
+    crossSpawn.sync.mockImplementation((_path, args) => {
+      if (args[0] === 'debug') {
+        return {
+          status: 0,
+          stdout: JSON.stringify({ models: [{ slug: 'gpt-5.6-terra' }] }),
+        }
+      }
+      return { status: 0, stdout: '  --ask-for-approval <APPROVAL_POLICY>' }
+    })
+    jest
+      .mocked(cliSelect)
+      .mockResolvedValueOnce({ id: 'codex' } as never)
+      .mockResolvedValueOnce({ id: 'gpt-5.6-terra' } as never)
+      .mockResolvedValueOnce({ id: 'high' } as never)
+      .mockResolvedValueOnce({ id: 'no' } as never)
+    crossSpawn.mockImplementation(() => {
+      const child = new EventEmitter()
+      process.nextTick(() => child.emit('close', 0, null))
+      return child
+    })
+
+    await handoffUpgrade('Upgrade prompt', '/workspace/app')
+
+    expect(crossSpawn.sync).toHaveBeenCalledWith(
+      expectedHarnessPath('codex'),
+      ['--help'],
+      expect.objectContaining({ encoding: 'utf8' })
+    )
+    expect(jest.mocked(cliSelect).mock.calls[3][0].values).toEqual({
+      yes: 'Yes',
+      no: 'No',
+    })
+    expect(crossSpawn).toHaveBeenCalledWith(
+      expectedHarnessPath('codex'),
+      [
+        '--model',
+        'gpt-5.6-terra',
+        '-c',
+        'model_reasoning_effort=high',
+        '--sandbox',
+        'workspace-write',
+        '--ask-for-approval',
+        'on-request',
+        'Upgrade prompt',
+      ],
+      { cwd: '/workspace/app', stdio: 'inherit' }
+    )
+  })
+
+  it('uses explicit approval mode when the Claude CLI lacks Auto mode', async () => {
+    process.env.PATH = '/agents'
+    overrideTTY(process.stdin)
+    overrideTTY(process.stdout)
+    jest.mocked(getAgentName).mockResolvedValue(null)
+    jest.mocked(access).mockResolvedValue(undefined)
+    jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
+    crossSpawn.sync.mockReturnValue({
+      status: 0,
+      stdout:
+        '  --permission-mode <mode>  Permission mode to use for the session\n                                        (choices: "default", "acceptEdits", "plan", "dontAsk", "bypassPermissions")',
+    })
+    jest
+      .mocked(cliSelect)
+      .mockResolvedValueOnce({ id: 'claude' } as never)
+      .mockResolvedValueOnce({ id: 'opus' } as never)
+      .mockResolvedValueOnce({ id: 'high' } as never)
+      .mockResolvedValueOnce({ id: 'no' } as never)
+    crossSpawn.mockImplementation(() => {
+      const child = new EventEmitter()
+      process.nextTick(() => child.emit('close', 0, null))
+      return child
+    })
+
+    await handoffUpgrade('Upgrade prompt', '/workspace/app')
+
+    expect(crossSpawn.sync).toHaveBeenCalledWith(
+      expectedHarnessPath('claude'),
+      ['--help'],
+      expect.objectContaining({ encoding: 'utf8' })
+    )
+    expect(jest.mocked(cliSelect).mock.calls[3][0].values).toEqual({
+      yes: 'Yes',
+      no: 'No',
+    })
+    expect(crossSpawn).toHaveBeenCalledWith(
+      expectedHarnessPath('claude'),
+      [
+        '--model',
+        'opus',
+        '--effort',
+        'high',
+        '--permission-mode',
+        'default',
+        'Upgrade prompt',
+      ],
+      { cwd: '/workspace/app', stdio: 'inherit' }
+    )
+  })
+
+  it('cancels the handoff when Ctrl+C is pressed at permission selection', async () => {
+    process.env.PATH = '/agents'
+    overrideTTY(process.stdin)
+    overrideTTY(process.stdout)
+    jest.mocked(getAgentName).mockResolvedValue(null)
+    jest.mocked(access).mockResolvedValue(undefined)
+    jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
+    jest
+      .mocked(cliSelect)
+      .mockResolvedValueOnce({ id: 'codex' } as never)
+      .mockResolvedValueOnce({ id: 'gpt-5.6-terra' } as never)
+      .mockResolvedValueOnce({ id: 'high' } as never)
+      .mockImplementationOnce(() => {
+        process.stdin.emit('keypress', '\u0003', { name: 'c', ctrl: true })
+        return Promise.reject(undefined)
+      })
+
+    await handoffUpgrade('Upgrade prompt', '/workspace/app')
+
+    expect(process.exitCode).toBe(1)
+    expect(crossSpawn).not.toHaveBeenCalled()
+  })
+
+  it('goes back through worktree, permission, effort, and model before launching', async () => {
+    process.env.PATH = '/agents'
+    overrideTTY(process.stdin)
+    overrideTTY(process.stdout)
+    jest.mocked(getAgentName).mockResolvedValue(null)
+    jest.mocked(access).mockResolvedValue(undefined)
+    jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
+    jest
+      .mocked(cliSelect)
+      .mockResolvedValueOnce({ id: 'codex' })
+      .mockResolvedValueOnce({ id: 'gpt-5.6-terra' })
+      .mockResolvedValueOnce({ id: 'high' })
+      .mockResolvedValueOnce({ id: 'yes' })
+      .mockRejectedValueOnce(undefined)
+      .mockResolvedValueOnce({ id: 'no' })
+      .mockRejectedValueOnce(undefined)
+      .mockRejectedValueOnce(undefined)
+      .mockRejectedValueOnce(undefined)
+      .mockResolvedValueOnce({ id: 'gpt-6-astra' })
+      .mockResolvedValueOnce({ id: 'ultra' })
+      .mockResolvedValueOnce({ id: 'yes' })
+      .mockResolvedValueOnce({ id: 'no' })
+    crossSpawn.mockImplementation(() => {
+      const child = new EventEmitter()
+      process.nextTick(() => child.emit('close', 0, null))
+      return child
+    })
+
+    await handoffUpgrade('Upgrade prompt', '/workspace/app')
+
+    expect(
+      crossSpawn.sync.mock.calls.filter(([, args]) => args[0] === 'debug')
+    ).toHaveLength(1)
+    expect(
+      crossSpawn.sync.mock.calls.filter(([, args]) => args[0] === '--help')
+    ).toHaveLength(1)
+    expect(jest.mocked(cliSelect).mock.calls[7][0].defaultValue).toBe(1)
+    expect(jest.mocked(cliSelect).mock.calls[9][0].defaultValue).toBe(0)
+    expect(crossSpawn).toHaveBeenCalledWith(
+      expectedHarnessPath('codex'),
+      [
+        '--model',
+        'gpt-6-astra',
+        '-c',
+        'model_reasoning_effort=ultra',
+        '--approve-for-me',
+        'Upgrade prompt',
+      ],
+      { cwd: '/workspace/app', stdio: 'inherit' }
+    )
+  })
+
+  it('defaults to the selected model when the previous effort is unavailable', async () => {
+    process.env.PATH = '/agents'
+    overrideTTY(process.stdin)
+    overrideTTY(process.stdout)
+    jest.mocked(getAgentName).mockResolvedValue(null)
+    jest.mocked(access).mockResolvedValue(undefined)
+    jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
+    jest
+      .mocked(cliSelect)
+      .mockResolvedValueOnce({ id: 'codex' })
+      .mockResolvedValueOnce({ id: 'gpt-5.6-terra' })
+      .mockResolvedValueOnce({ id: 'ultra' })
+      .mockRejectedValueOnce(undefined)
+      .mockRejectedValueOnce(undefined)
+      .mockRejectedValueOnce(undefined)
+      .mockResolvedValueOnce({ id: 'claude' })
+      .mockResolvedValueOnce({ id: 'opus' })
+      .mockResolvedValueOnce({ id: 'default' })
+      .mockResolvedValueOnce({ id: 'yes' })
+      .mockResolvedValueOnce({ id: 'no' })
+    crossSpawn.mockImplementation(() => {
+      const child = new EventEmitter()
+      process.nextTick(() => child.emit('close', 0, null))
+      return child
+    })
+
+    await handoffUpgrade('Upgrade prompt', '/workspace/app')
+
+    expect(jest.mocked(cliSelect).mock.calls[8][0].defaultValue).toBe(0)
+    expect(crossSpawn).toHaveBeenCalledWith(
+      expectedHarnessPath('claude'),
+      ['--model', 'opus', '--permission-mode', 'auto', 'Upgrade prompt'],
+      { cwd: '/workspace/app', stdio: 'inherit' }
+    )
+  })
+
+  it('reuses Claude permission support after going back', async () => {
+    process.env.PATH = '/agents'
+    overrideTTY(process.stdin)
+    overrideTTY(process.stdout)
+    jest.mocked(getAgentName).mockResolvedValue(null)
+    jest.mocked(access).mockResolvedValue(undefined)
+    jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
+    jest
+      .mocked(cliSelect)
+      .mockResolvedValueOnce({ id: 'claude' })
+      .mockResolvedValueOnce({ id: 'opus' })
+      .mockResolvedValueOnce({ id: 'high' })
+      .mockRejectedValueOnce(undefined)
+      .mockResolvedValueOnce({ id: 'medium' })
+      .mockResolvedValueOnce({ id: 'yes' })
+      .mockResolvedValueOnce({ id: 'no' })
+    crossSpawn.mockImplementation(() => {
+      const child = new EventEmitter()
+      process.nextTick(() => child.emit('close', 0, null))
+      return child
+    })
+
+    await handoffUpgrade('Upgrade prompt', '/workspace/app')
+
+    expect(
+      crossSpawn.sync.mock.calls.filter(([, args]) => args[0] === '--help')
+    ).toHaveLength(1)
+    expect(crossSpawn).toHaveBeenCalledWith(
+      expectedHarnessPath('claude'),
+      [
+        '--model',
+        'opus',
+        '--effort',
+        'medium',
+        '--permission-mode',
+        'auto',
+        'Upgrade prompt',
+      ],
+      { cwd: '/workspace/app', stdio: 'inherit' }
+    )
+  })
+
+  it('returns from worktree to effort when Auto mode is unavailable', async () => {
+    process.env.PATH = '/agents'
+    overrideTTY(process.stdin)
+    overrideTTY(process.stdout)
+    jest.mocked(getAgentName).mockResolvedValue(null)
+    jest.mocked(access).mockResolvedValue(undefined)
+    jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
+    crossSpawn.sync.mockImplementation((_path, args) => {
+      if (args[0] === 'debug') {
+        return {
+          status: 0,
+          stdout: JSON.stringify({ models: [{ slug: 'gpt-5.6-terra' }] }),
+        }
+      }
+      return { status: 0, stdout: '  --ask-for-approval <APPROVAL_POLICY>' }
+    })
+    jest
+      .mocked(cliSelect)
+      .mockResolvedValueOnce({ id: 'codex' })
+      .mockResolvedValueOnce({ id: 'gpt-5.6-terra' })
+      .mockResolvedValueOnce({ id: 'high' })
+      .mockRejectedValueOnce(undefined)
+      .mockResolvedValueOnce({ id: 'max' })
+      .mockResolvedValueOnce({ id: 'no' })
+    crossSpawn.mockImplementation(() => {
+      const child = new EventEmitter()
+      process.nextTick(() => child.emit('close', 0, null))
+      return child
+    })
+
+    await handoffUpgrade('Upgrade prompt', '/workspace/app')
+
+    expect(
+      crossSpawn.sync.mock.calls.filter(([, args]) => args[0] === '--help')
+    ).toHaveLength(1)
+    expect(jest.mocked(cliSelect).mock.calls[4][0].values).toEqual({
+      default: 'Model default',
+      low: 'low',
+      medium: 'medium',
+      high: 'high',
+      xhigh: 'xhigh',
+      max: 'max',
+      ultra: 'ultra',
+    })
+    expect(crossSpawn).toHaveBeenCalledWith(
+      expectedHarnessPath('codex'),
+      [
+        '--model',
+        'gpt-5.6-terra',
+        '-c',
+        'model_reasoning_effort=max',
+        '--sandbox',
+        'workspace-write',
+        '--ask-for-approval',
+        'on-request',
+        'Upgrade prompt',
+      ],
+      { cwd: '/workspace/app', stdio: 'inherit' }
+    )
+  })
+
+  it('uses the existing agent settings without prompting interactively', async () => {
+    const prompt = jest.fn(() => 'Prepared upgrade prompt.')
+
+    await handoffUpgrade(prompt, '/workspace/app')
+
+    expect(prompt).toHaveBeenCalledWith(null)
+    expect(Log.bootstrap).toHaveBeenCalledWith('Prepared upgrade prompt.')
+    expect(cliSelect).toHaveBeenCalledTimes(0)
+    expect(crossSpawn).toHaveBeenCalledTimes(0)
+  })
+
+  it('passes the accepted worktree choice to the prompt factory', async () => {
+    process.env.PATH = '/agents'
+    overrideTTY(process.stdin)
+    overrideTTY(process.stdout)
+    jest.mocked(getAgentName).mockResolvedValue(null)
+    jest.mocked(access).mockResolvedValue(undefined)
+    jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
+    crossSpawn.sync.mockImplementation((_path, args) => {
+      if (args[0] === 'debug') {
+        return {
+          status: 0,
+          stdout: JSON.stringify({ models: [{ slug: 'gpt-5.6-terra' }] }),
+        }
+      }
+      return { status: 0, stdout: '  --approve-for-me' }
+    })
+    jest
+      .mocked(cliSelect)
+      .mockResolvedValueOnce({ id: 'codex' } as never)
+      .mockResolvedValueOnce({ id: 'gpt-5.6-terra' } as never)
+      .mockResolvedValueOnce({ id: 'high' } as never)
+      .mockResolvedValueOnce({ id: 'yes' } as never)
+      .mockResolvedValueOnce({ id: 'yes' } as never)
+    crossSpawn.mockImplementation(() => {
+      const child = new EventEmitter()
+      process.nextTick(() => child.emit('close', 0, null))
+      return child
+    })
+    const prompt = jest.fn(() => 'Worktree prompt')
+
+    await handoffUpgrade(prompt, '/workspace/app')
+
+    expect(prompt).toHaveBeenCalledWith(true)
+    expect(crossSpawn).toHaveBeenCalledWith(
+      expectedHarnessPath('codex'),
+      [
+        '--model',
+        'gpt-5.6-terra',
+        '-c',
+        'model_reasoning_effort=high',
+        '--approve-for-me',
+        'Worktree prompt',
+      ],
+      { cwd: '/workspace/app', stdio: 'inherit' }
+    )
+  })
+
+  it('leaves the worktree choice open outside a TTY', async () => {
+    overrideTTY(process.stdin, false)
+    overrideTTY(process.stdout, false)
+    jest.mocked(getAgentName).mockResolvedValue(null)
+    const prompt = jest.fn((useWorktree: boolean | null) =>
+      useWorktree === null ? 'Choice pending prompt' : 'Selected prompt'
+    )
+
+    await handoffUpgrade(prompt, '/workspace/app')
+
+    expect(prompt).toHaveBeenCalledWith(null)
+    expect(Log.bootstrap).toHaveBeenCalledWith(
+      expect.stringContaining('Choice pending prompt')
+    )
+    expect(cliSelect).toHaveBeenCalledTimes(0)
+    expect(crossSpawn).toHaveBeenCalledTimes(0)
   })
 
   it('passes the complete migration prompt to an existing agent', async () => {
@@ -441,21 +1191,36 @@ describe('agentic upgrade prompts', () => {
     expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', 'security')
     const [guidePath, guide] = jest.mocked(writeFile).mock.calls[0]
     expect(String(guidePath).replace(/\\+/g, '/')).toBe(
-      '/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade.md'
+      '/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/different-major.md'
     )
     expect(String(guide)).toMatch(
       /^Run npx @next\/codemod@\S+ upgrade 16\.3\.5 --yes --skip-adoption$/
     )
+    const copiedSources = normalizedCopiedSources()
+    expect(copiedSources).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining('/agentic-upgrade/shared.md'),
+        expect.stringContaining('/agentic-upgrade/different-major.md'),
+        expect.stringContaining('/codemods.md'),
+        expect.stringContaining('/version-15.md'),
+        expect.stringContaining('/version-16.md'),
+      ])
+    )
+    expect(
+      copiedSources.some((source) =>
+        source.includes('/agentic-upgrade/future-defaults.md')
+      )
+    ).toBe(false)
     expect(normalizedBootstrapCalls()).toMatchInlineSnapshot(`
      [
        [
-         "Read and follow every applicable instruction in "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade.md" before proceeding.
+         "Read and follow "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/shared.md" first. Attempt its applicable duplicate checks before changing files. If a check is unavailable, report it and continue. Stop only if you find equivalent work. Then read and follow every applicable instruction in "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/different-major.md".
 
      We're upgrading the app in "/workspace/app" from Next.js 14.1.1 to 16.3.5 because the installed version is affected by a published security advisory.
 
-     Unless the user explicitly requests otherwise, perform the upgrade in a separate Git worktree. Run upgrade commands from this app's corresponding directory in that worktree.
+     Follow the user's worktree choice. If they do not specify, use a separate Git worktree when the app is in a Git repository. Run upgrade commands from this app's corresponding directory in that worktree. If the app is not in a Git repository, upgrade it in place.
 
-     Set \`experimental.agenticAutoUpgrade\` to "security" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
+     Set \`experimental.agentUpgrade\` to "security" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
 
      References:
      - https://api.github.com/advisories?affects=next
@@ -474,7 +1239,7 @@ describe('agentic upgrade prompts', () => {
 
     const [guidePath, guide] = jest.mocked(writeFile).mock.calls[0]
     expect(String(guidePath).replace(/\\+/g, '/')).toBe(
-      '/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade.md'
+      '/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/different-major.md'
     )
     expect(String(guide)).toMatch(/--skip-adoption --verbose$/)
   })
@@ -494,11 +1259,11 @@ describe('agentic upgrade prompts', () => {
     expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', 'security')
   })
 
-  it.each(['security', 'latest', 'future'] as const)(
+  it.each(['security', 'latest', 'experimental-future'] as const)(
     'uses the configured %s policy for a bare AI upgrade',
     async (policy) => {
       jest.mocked(loadConfig).mockResolvedValue({
-        default: { experimental: { agenticAutoUpgrade: policy } },
+        default: { experimental: { agentUpgrade: policy } },
       } as never)
 
       await spawnNextUpgrade('/workspace/app', {
@@ -510,7 +1275,7 @@ describe('agentic upgrade prompts', () => {
       expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', policy)
       expect(Log.bootstrap).toHaveBeenCalledWith(
         expect.stringContaining(
-          `Set \`experimental.agenticAutoUpgrade\` to "${policy}"`
+          `Set \`experimental.agentUpgrade\` to "${policy}"`
         )
       )
     }
@@ -533,16 +1298,26 @@ describe('agentic upgrade prompts', () => {
 
     expect(loadConfig).not.toHaveBeenCalled()
     expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', 'latest')
+    expect(readFile).toHaveBeenCalledTimes(0)
+    expect(writeFile).toHaveBeenCalledTimes(0)
+    expect(
+      normalizedCopiedSources().some((source) =>
+        source.includes('/agentic-upgrade/future-defaults.md')
+      )
+    ).toBe(false)
+    expect(
+      normalizedCopiedSources().some((source) => source.includes('/02-pages/'))
+    ).toBe(false)
     expect(normalizedBootstrapCalls()).toMatchInlineSnapshot(`
      [
        [
-         "Read and follow every applicable instruction in "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade.md" before proceeding.
+         "Read and follow "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/shared.md" first. Attempt its applicable duplicate checks before changing files. If a check is unavailable, report it and continue. Stop only if you find equivalent work. Then read and follow every applicable instruction in "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/same-major.md".
 
      We're upgrading the app in "/workspace/app" from Next.js 16.2.12 to 16.3.5 because a newer stable Next.js release is available.
 
-     Unless the user explicitly requests otherwise, perform the upgrade in a separate Git worktree. Run upgrade commands from this app's corresponding directory in that worktree.
+     Follow the user's worktree choice. If they do not specify, use a separate Git worktree when the app is in a Git repository. Run upgrade commands from this app's corresponding directory in that worktree. If the app is not in a Git repository, upgrade it in place.
 
-     Set \`experimental.agenticAutoUpgrade\` to "latest" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
+     Set \`experimental.agentUpgrade\` to "latest" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
 
      References:
      - https://registry.npmjs.org/next/latest",
@@ -551,7 +1326,86 @@ describe('agentic upgrade prompts', () => {
     `)
   })
 
-  it.each(['latest', 'future'] as const)(
+  it('uses the same-major guide for a security update', async () => {
+    jest.mocked(prepareUpgrade).mockResolvedValue({
+      status: 'ready',
+      installedVersion: '15.0.0',
+      targetVersion: '15.5.26',
+      references: ['https://example.com/advisory'],
+      futureDefaults: [],
+    })
+
+    await spawnNextUpgrade('/workspace/app', {
+      revision: 'latest',
+      verbose: false,
+      ai: 'security',
+    })
+
+    expect(normalizedBootstrapCalls().flat().join('\n')).toContain(
+      '/agentic-upgrade/shared.md'
+    )
+    expect(normalizedBootstrapCalls().flat().join('\n')).toContain(
+      '/agentic-upgrade/same-major.md'
+    )
+    expect(readFile).toHaveBeenCalledTimes(0)
+    expect(writeFile).toHaveBeenCalledTimes(0)
+    expect(normalizedCopiedSources()).toEqual([
+      expect.stringContaining('/agentic-upgrade/shared.md'),
+      expect.stringContaining('/agentic-upgrade/same-major.md'),
+    ])
+  })
+
+  it('uses the different-major guide for a latest update', async () => {
+    jest.mocked(prepareUpgrade).mockResolvedValue({
+      status: 'ready',
+      installedVersion: '15.5.26',
+      targetVersion: '16.3.5',
+      references: ['https://registry.npmjs.org/next/latest'],
+      futureDefaults: [],
+    })
+
+    await spawnNextUpgrade('/workspace/app', {
+      revision: 'latest',
+      verbose: false,
+      ai: 'latest',
+    })
+
+    expect(normalizedBootstrapCalls().flat().join('\n')).toContain(
+      '/agentic-upgrade/different-major.md'
+    )
+    expect(
+      normalizedCopiedSources().some((source) =>
+        source.includes('/agentic-upgrade/future-defaults.md')
+      )
+    ).toBe(false)
+  })
+
+  it('adds the Future Defaults guide after a different-major update', async () => {
+    jest.mocked(prepareUpgrade).mockResolvedValue({
+      status: 'ready',
+      installedVersion: '15.5.26',
+      targetVersion: '16.3.5',
+      references: ['https://registry.npmjs.org/next/latest'],
+      futureDefaults: [],
+    })
+
+    await spawnNextUpgrade('/workspace/app', {
+      revision: 'latest',
+      verbose: false,
+      ai: 'experimental-future',
+    })
+
+    const prompt = normalizedBootstrapCalls().flat().join('\n')
+    expect(prompt).toContain('/agentic-upgrade/different-major.md')
+    expect(prompt).toContain('/agentic-upgrade/future-defaults.md')
+    expect(normalizedCopiedSources()).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining('/agentic-upgrade/future-defaults.md'),
+      ])
+    )
+  })
+
+  it.each(['latest', 'experimental-future'] as const)(
     'hands off the exact canary target for %s upgrades',
     async (policy) => {
       jest.mocked(prepareUpgrade).mockResolvedValue({
@@ -579,13 +1433,33 @@ describe('agentic upgrade prompts', () => {
           : 'latest canary release'
       )
       expect(prompt).toContain('https://registry.npmjs.org/next/canary')
-      expect(String(jest.mocked(writeFile).mock.calls[0][1])).toContain(
-        'upgrade 17.2.0-canary.9 --yes --skip-adoption'
-      )
+      expect(readFile).toHaveBeenCalledTimes(0)
+      expect(writeFile).toHaveBeenCalledTimes(0)
     }
   )
 
-  it('adds temporary Future Default instructions to the migration prompt', async () => {
+  it('names the stable target in a prerelease latest upgrade handoff', async () => {
+    jest.mocked(prepareUpgrade).mockResolvedValue({
+      status: 'ready',
+      installedVersion: '17.2.0-rc.1',
+      targetVersion: '17.2.0',
+      references: ['https://registry.npmjs.org/next/latest'],
+      futureDefaults: [],
+    })
+
+    await spawnNextUpgrade('/workspace/app', {
+      revision: 'latest',
+      verbose: false,
+      ai: 'latest',
+    })
+
+    const prompt = normalizedBootstrapCalls().flat().join('\n')
+    expect(prompt).toContain('from Next.js 17.2.0-rc.1 to 17.2.0')
+    expect(prompt).toContain('newer stable Next.js release')
+    expect(prompt).toContain('https://registry.npmjs.org/next/latest')
+  })
+
+  it('adds the Future Defaults guide after a same-major update', async () => {
     jest.mocked(prepareUpgrade).mockResolvedValue({
       status: 'ready',
       installedVersion: '16.2.0',
@@ -627,16 +1501,17 @@ describe('agentic upgrade prompts', () => {
     await spawnNextUpgrade('/workspace/app', {
       revision: 'latest',
       verbose: false,
-      ai: 'future',
+      ai: 'experimental-future',
     })
 
     expect(crossSpawn).toHaveBeenCalledTimes(1)
-    expect(normalizedFileWriteCalls()).toContainEqual([
-      '/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade.md',
-      expect.stringMatching(
-        /^Run npx @next\/codemod@\S+ upgrade 16\.4\.0 --yes --skip-adoption$/
-      ),
-    ])
+    expect(readFile).toHaveBeenCalledTimes(0)
+    expect(normalizedFileWriteCalls()).toEqual(normalizedWriteFileCalls())
+    expect(normalizedCopiedSources()).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining('/agentic-upgrade/future-defaults.md'),
+      ])
+    )
 
     expect({
       prompt: normalizedBootstrapCalls(),
@@ -645,15 +1520,16 @@ describe('agentic upgrade prompts', () => {
      {
        "prompt": [
          [
-           "Read and follow every applicable instruction in "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade.md" before proceeding.
+           "Read and follow "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/shared.md" first. Attempt its applicable duplicate checks before changing files. If a check is unavailable, report it and continue. Stop only if you find equivalent work. Then read and follow every applicable instruction in "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/same-major.md".
 
      We're upgrading the app in "/workspace/app" from Next.js 16.2.0 to 16.4.0 because the Future policy applies the latest stable release and adopts its Future Defaults.
 
-     Unless the user explicitly requests otherwise, perform the upgrade in a separate Git worktree. Run upgrade commands from this app's corresponding directory in that worktree.
+     Follow the user's worktree choice. If they do not specify, use a separate Git worktree when the app is in a Git repository. Run upgrade commands from this app's corresponding directory in that worktree. If the app is not in a Git repository, upgrade it in place.
 
-     Set \`experimental.agenticAutoUpgrade\` to "future" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
+     Set \`experimental.agentUpgrade\` to "experimental-future" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
 
-     After completing and verifying the version migration, adopt these Future Defaults in order:
+     After completing and verifying the version update, read and follow "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/future-defaults.md".
+     Adopt these Future Defaults in order:
      - Cache Components
        - Read and follow "/tmp/next-upgrade-test/docs/01-app/02-guides/migrating-to-cache-components.md".
        - Read and follow "/tmp/next-upgrade-test/skills/next-cache-components-adoption/PROMPT.md".
@@ -674,7 +1550,7 @@ describe('agentic upgrade prompts', () => {
     `)
   })
 
-  it('includes the shared preflight without a version migration when current', async () => {
+  it('uses only the Future Defaults guide when the version is unchanged', async () => {
     jest.mocked(prepareUpgrade).mockResolvedValue({
       status: 'ready',
       installedVersion: '16.4.0',
@@ -716,7 +1592,7 @@ describe('agentic upgrade prompts', () => {
     await spawnNextUpgrade('/workspace/app', {
       revision: 'latest',
       verbose: false,
-      ai: 'future',
+      ai: 'experimental-future',
     })
 
     expect(
@@ -730,26 +1606,26 @@ describe('agentic upgrade prompts', () => {
     ).toEqual(
       expect.arrayContaining([
         [
-          expect.stringContaining('/docs/01-app/02-guides/upgrading'),
-          '/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading',
+          expect.stringContaining('/agentic-upgrade/future-defaults.md'),
+          '/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/future-defaults.md',
         ],
       ])
     )
     expect(readFile).not.toHaveBeenCalled()
     expect(normalizedFileWriteCalls()).not.toContainEqual([
-      '/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade.md',
+      '/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/future-defaults.md',
       expect.anything(),
     ])
     expect(normalizedBootstrapCalls()).toMatchInlineSnapshot(`
      [
        [
-         "Read and follow every applicable instruction in "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade.md" before proceeding.
+         "Read and follow "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/shared.md" first. Attempt its applicable duplicate checks before changing files. If a check is unavailable, report it and continue. Stop only if you find equivalent work. Then read and follow every applicable instruction in "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/future-defaults.md".
 
      We're adopting the Future Defaults available to the app in "/workspace/app", which already uses Next.js 16.4.0.
 
-     Unless the user explicitly requests otherwise, perform the upgrade in a separate Git worktree. Run upgrade commands from this app's corresponding directory in that worktree.
+     Follow the user's worktree choice. If they do not specify, use a separate Git worktree when the app is in a Git repository. Run upgrade commands from this app's corresponding directory in that worktree. If the app is not in a Git repository, upgrade it in place.
 
-     Set \`experimental.agenticAutoUpgrade\` to "future" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
+     Set \`experimental.agentUpgrade\` to "experimental-future" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
 
      Adopt these Future Defaults in order:
      - Cache Components

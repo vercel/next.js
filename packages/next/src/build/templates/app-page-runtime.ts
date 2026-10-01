@@ -5,6 +5,7 @@ import type { FallbackRouteParam } from '../static-paths/types'
 import {
   AppPageRouteModule,
   type AppPageRouteHandlerContext,
+  type RouteMatch,
 } from '../../server/route-modules/app-page/module.compiled' with { 'turbopack-transition': 'next-ssr' }
 
 import { RouteKind } from '../../server/route-kind' with { 'turbopack-transition': 'next-server-utility' }
@@ -80,6 +81,7 @@ import type { CacheControl } from '../../server/lib/cache-control'
 import { ENCODED_TAGS } from '../../server/stream-utils/encoded-tags' with { 'turbopack-transition': 'next-server-utility' }
 import { sendRenderResult } from '../../server/send-payload' with { 'turbopack-transition': 'next-server-utility' }
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external' with { 'turbopack-transition': 'next-server-utility' }
+import { isRouteCacheOwner } from '../../server/lib/route-cache-key' with { 'turbopack-transition': 'next-server-utility' }
 import { parseMaxPostponedStateSize } from '../../shared/lib/size-limit' with { 'turbopack-transition': 'next-server-utility' }
 import {
   getMaxPostponedStateSize,
@@ -283,7 +285,18 @@ export function createAppPageEntrypoint({
     )
     const prerenderInfo = prerenderMatch?.route ?? null
 
-    const isPrerendered = !!prerenderManifest.routes[resolvedPathname]
+    // A sibling's prerender must not change this route's rendering mode or
+    // supply prefetch metadata for its response.
+    const prerenderedRoute =
+      routeModule.isDev ||
+      isRouteCacheOwner(
+        resolvedPathname,
+        routeModule.cacheOwner,
+        prerenderManifest.routes[resolvedPathname]
+      )
+        ? prerenderManifest.routes[resolvedPathname]
+        : undefined
+    const isPrerendered = Boolean(prerenderedRoute)
 
     const userAgent = req.headers['user-agent'] || ''
     const botType = getBotType(userAgent)
@@ -496,8 +509,8 @@ export function createAppPageEntrypoint({
     // If PPR is enabled, and this is a RSC request (but not a prefetch), then
     // we can use this fact to only generate the flight data for the request
     // because we can't cache the HTML (as it's also dynamic).
-    const staticPrefetchDataRoute =
-      prerenderManifest.routes[resolvedPathname]?.prefetchDataRoute
+    const staticPrefetchDataRoute = prerenderedRoute?.prefetchDataRoute
+    const isEnsureStaticPage = prerenderInfo?._isEnsureStaticPage === true
 
     let isDynamicRSCRequest =
       isRoutePPREnabled &&
@@ -506,7 +519,11 @@ export function createAppPageEntrypoint({
       // If generated at build time, treat the RSC request as static
       // so we can serve the prebuilt .rsc without a dynamic render.
       // Only do this for routes that have a concrete prefetchDataRoute.
-      !staticPrefetchDataRoute
+      !staticPrefetchDataRoute &&
+      // Do not serve `ensureStatic = "navigation"` with a dynamic response,
+      // (we want to do a blocking prerender instead)
+      // TODO(ensure-static): express this in a cleaner way
+      !isEnsureStaticPage
 
     // During a PPR revalidation, the RSC request is not dynamic if postponed
     // metadata is absent. An empty string represents a resume request without
@@ -855,10 +872,12 @@ export function createAppPageEntrypoint({
 
         renderOperation: AppPageRenderOperation
       }): Promise<ResponseCacheEntry | PrerenderFailure> => {
+        const routeMatch: RouteMatch = { resolvedPathname }
         const context: AppPageRouteHandlerContext = {
           query,
           params,
           page: normalizedSrcPage,
+          routeMatch,
           sharedContext: {
             buildId,
             deploymentId,
@@ -1165,6 +1184,8 @@ export function createAppPageEntrypoint({
           if (
             nextConfig.partialPrefetching &&
             prerenderInfo?.fallback === null &&
+            // TODO(ensure-static): express this in a cleaner way
+            !isEnsureStaticPage &&
             !hasOmittedConcreteFallbackParam &&
             !hasUnresolvedRootFallbackParams &&
             remainingPrerenderableParams.length > 0
@@ -1410,6 +1431,7 @@ export function createAppPageEntrypoint({
               incrementalCacheKey,
               {
                 kind: IncrementalCacheKind.APP_PAGE,
+                route: routeModule.cacheOwner,
                 isRoutePPREnabled: true,
                 isFallback: false,
               }

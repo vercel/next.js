@@ -147,7 +147,7 @@ function getEntrypointsFromTree(
     ? convertDynamicParamTypeToSyntax(segment[2], segment[0])
     : segment
 
-  const isPageSegment = currentSegment.startsWith(PAGE_SEGMENT_KEY)
+  const isPageSegment = currentSegment === PAGE_SEGMENT_KEY
 
   const currentPath = [...parentPath, isPageSegment ? '' : currentSegment]
 

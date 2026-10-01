@@ -692,11 +692,7 @@ export async function getAppPageStaticInfo({
     )
   }
 
-  for (const exportName of [
-    'instant',
-    'prefetch',
-    'unstable_ensureStatic',
-  ] as const) {
+  for (const exportName of ['instant', 'prefetch', 'ensureStatic'] as const) {
     if (exportName in config) {
       if (directives?.has('client')) {
         throw new Error(

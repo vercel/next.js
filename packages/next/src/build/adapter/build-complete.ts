@@ -63,6 +63,12 @@ import { resolveCacheHandlerPathToFilesystem } from '../../lib/format-dynamic-im
 import { InvariantError } from '../../shared/lib/invariant-error'
 import type { __ApiPreviewProps } from '../../server/api-utils'
 import { mapNftFileEntries, type NftJson } from '../nft'
+import {
+  createAdapterSyntheticSymlinkDirectory,
+  type SyntheticSymlinkManager,
+} from './synthetic-symlinks'
+import { getRouteCacheKey } from '../../server/lib/route-cache-key'
+import { RouteKind } from '../../server/route-kind'
 
 interface SharedRouteFields {
   /**
@@ -654,6 +660,7 @@ export async function handleBuildComplete({
   ) as NextAdapter
 
   if (typeof adapterMod.onBuildComplete === 'function') {
+    const syntheticSymlinks = createAdapterSyntheticSymlinkDirectory(distDir)
     const outputs: AdapterOutputs = {
       pages: [],
       pagesApi: [],
@@ -725,6 +732,7 @@ export async function handleBuildComplete({
         bundler,
         hasInstrumentationHook,
         config,
+        syntheticSymlinks,
       })
 
       async function handleTraceFiles(
@@ -737,7 +745,9 @@ export async function handleBuildComplete({
           assets,
           assetsHashes,
           repoRoot,
-          `${entryFilePath}.nft.json`
+          `${entryFilePath}.nft.json`,
+          syntheticSymlinks,
+          config.outputHashSalt || ''
         )
         Object.assign(
           assets,
@@ -1257,6 +1267,57 @@ export async function handleBuildComplete({
         contentTypeHeader: rscContentTypeHeader,
       } = routesManifest.rsc
 
+      const appSourcePages = new Map<string, string>()
+      const getPrerenderFilePath = (
+        route: string,
+        isAppPage: boolean,
+        extension: string
+      ) => {
+        if (config.output !== 'export') {
+          route = path.posix.join('/', route)
+          const pathname = isAppPage
+            ? route
+            : normalizeLocalePath(route, config.i18n?.locales).pathname
+          const prerender = prerenderManifest.routes[route]
+          const dynamicPrerender = prerenderManifest.dynamicRoutes[pathname]
+
+          // Auto-static Pages and generated error documents are not response
+          // cache entries and retain their public filenames.
+          if (!isAppPage && !prerender && !dynamicPrerender) {
+            return path.join(
+              pagesDistDir,
+              `${normalizePagePath(route)}${extension}`
+            )
+          }
+
+          const source =
+            prerender?.srcRoute ??
+            dynamicPrerender?.fallbackSourceRoute ??
+            pathname
+          let page = source
+          let kind = RouteKind.PAGES
+          if (isAppPage) {
+            page =
+              appSourcePages.get(source) ??
+              selectAppPageEntry(source, appPageKeys ?? [])
+            appSourcePages.set(source, page)
+            kind = page.endsWith('/route')
+              ? RouteKind.APP_ROUTE
+              : RouteKind.APP_PAGE
+          }
+          return path.join(
+            distDir,
+            'server',
+            `${getRouteCacheKey(route, { kind, sourceRoute: page })}${extension}`
+          )
+        }
+
+        return path.join(
+          isAppPage ? appDistDir : pagesDistDir,
+          `${normalizePagePath(route)}${extension}`
+        )
+      }
+
       const handleAppMeta = async (
         route: string,
         initialOutput: AdapterOutput['PRERENDER'],
@@ -1272,9 +1333,10 @@ export async function handleBuildComplete({
 
         if (meta?.segmentPaths) {
           const normalizedRoute = normalizePagePath(route)
-          const segmentsDir = path.join(
-            appDistDir,
-            `${normalizedRoute}${prefetchSegmentDirSuffix}`
+          const segmentsDir = getPrerenderFilePath(
+            route,
+            true,
+            prefetchSegmentDirSuffix
           )
 
           // If client param parsing is enabled, we follow the same logic as
@@ -1358,11 +1420,10 @@ export async function handleBuildComplete({
         route: string,
         isAppPage: boolean
       ): Promise<AppRouteMeta> => {
-        const basename = route.endsWith('/') ? `${route}index` : route
         const meta: AppRouteMeta = isAppPage
           ? JSON.parse(
               await fs
-                .readFile(path.join(appDistDir, `${basename}.meta`), 'utf8')
+                .readFile(getPrerenderFilePath(route, true, '.meta'), 'utf8')
                 .catch(() => '{}')
             )
           : {}
@@ -1411,7 +1472,6 @@ export async function handleBuildComplete({
           initialHeaders,
           initialStatus,
           dataRoute,
-          prefetchDataRoute,
           renderingMode,
           routeType,
           response,
@@ -1447,18 +1507,20 @@ export async function handleBuildComplete({
           allowQuery = Object.values(routeKeys)
         }
 
-        let filePath = path.join(
-          isAppPage ? appDistDir : pagesDistDir,
-          `${normalizePagePath(route)}.${isAppPage && !dataRoute ? 'body' : 'html'}`
+        let filePath = getPrerenderFilePath(
+          route,
+          isAppPage,
+          isAppPage && !dataRoute ? '.body' : '.html'
         )
 
         // Check if this is a static metadata route (e.g., /favicon.ico, /icon.png, /opengraph-image.png)
         // These should be output as static files, not prerenders.
         if (isStaticMetadataFile(route)) {
           // For static metadata from app router, check if the .body file exists
-          const staticMetadataFilePath = path.join(
-            appDistDir,
-            `${normalizePagePath(route)}.body`
+          const staticMetadataFilePath = getPrerenderFilePath(
+            route,
+            true,
+            '.body'
           )
           if (await cachedFilePathCheck(staticMetadataFilePath)) {
             outputs.staticFiles.push({
@@ -1480,8 +1542,12 @@ export async function handleBuildComplete({
             normalizeLocalePath(route, config.i18n?.locales).detectedLocale
 
           for (const currentFilePath of [
-            path.join(pagesDistDir, locale || '', '404.html'),
-            path.join(pagesDistDir, '404.html'),
+            getPrerenderFilePath(
+              path.posix.join('/', locale || '', '404'),
+              false,
+              '.html'
+            ),
+            getPrerenderFilePath('/404', false, '.html'),
           ]) {
             if (await cachedFilePathCheck(currentFilePath)) {
               filePath = currentFilePath
@@ -1617,29 +1683,12 @@ export async function handleBuildComplete({
         }
 
         if (dataRoute) {
-          let dataFilePath: string | undefined = path.join(
-            pagesDistDir,
-            `${normalizePagePath(route)}.json`
+          const dataFilePath = getPrerenderFilePath(
+            route,
+            isAppPage,
+            isAppPage ? '.rsc' : '.json'
           )
           let postponed = meta.postponed
-
-          const dataRouteToUse =
-            renderingMode === RenderingMode.PARTIALLY_STATIC &&
-            prefetchDataRoute
-              ? prefetchDataRoute
-              : dataRoute
-
-          if (isAppPage) {
-            // When experimental PPR is enabled, we expect that the data
-            // that should be served as a part of the prerender should
-            // be from the prefetch data route. If this isn't enabled
-            // for ppr, the only way to get the data is from the data
-            // route.
-            dataFilePath = path.join(
-              appDistDir,
-              (dataRouteToUse ?? dataRoute)?.replace(/^\//, '')
-            )
-          }
 
           if (
             renderingMode === RenderingMode.PARTIALLY_STATIC &&
@@ -1817,7 +1866,11 @@ export async function handleBuildComplete({
 
         const fallbackHtmlPath =
           fallbackHtmlFile !== undefined
-            ? path.join(isAppPage ? appDistDir : pagesDistDir, fallbackHtmlFile)
+            ? getPrerenderFilePath(
+                fallbackHtmlFile.replace(/\.html$/, ''),
+                isAppPage,
+                '.html'
+              )
             : undefined
 
         const classification = getPrerenderClassification(
@@ -1983,10 +2036,14 @@ export async function handleBuildComplete({
                       ...initialOutput.fallback,
                       initialStatus: undefined,
                       postponedState: undefined,
-                      filePath: path.join(
-                        pagesDistDir,
-                        locale,
-                        fallbackHtmlFile
+                      filePath: getPrerenderFilePath(
+                        path.posix.join(
+                          '/',
+                          locale,
+                          fallbackHtmlFile.replace(/\.html$/, '')
+                        ),
+                        false,
+                        '.html'
                       ),
                     }
                   : undefined,
@@ -2092,15 +2149,13 @@ export async function handleBuildComplete({
       return '?' + items.map(([key, value]) => `${value}=$${key}`).join('&')
     }
 
+    // The valid bypass token admits both Draft Mode and legacy Preview Mode.
+    // Pages Router validates legacy preview data after routing.
     const fallbackFalseHasCondition: RouteHas[] = [
       {
         type: 'cookie',
         key: '__prerender_bypass',
         value: previewProps.previewModeId,
-      },
-      {
-        type: 'cookie',
-        key: '__next_preview_data',
       },
     ]
 
@@ -2196,7 +2251,7 @@ export async function handleBuildComplete({
 
       // A single entry can serve both forms of the request only when both carry
       // the same conditions. A pages router route with `fallback: false` is the
-      // one case where they differ: it requires the preview cookies on the
+      // one case where they differ: it requires the bypass cookie on the
       // plain form, and not on the suffixed form. An entry holds one set of
       // conditions, so that case keeps a separate entry per form.
       const canMergeSuffixedAndPlain =
@@ -2490,6 +2545,7 @@ async function getSharedNodeAssets({
   requiredServerFiles,
   hasInstrumentationHook,
   config,
+  syntheticSymlinks,
 }: {
   dir: string
   bundler: Bundler
@@ -2499,6 +2555,7 @@ async function getSharedNodeAssets({
   requiredServerFiles: string[]
   hasInstrumentationHook: boolean
   config: NextConfigComplete
+  syntheticSymlinks: SyntheticSymlinkManager
 }) {
   const sharedNodeAssets: Record<string, string> = {}
   const sharedNodeAssetsHashes: Record<string, string> = {}
@@ -2699,7 +2756,9 @@ async function getSharedNodeAssets({
       sharedNodeAssets,
       sharedNodeAssetsHashes,
       repoRoot,
-      path.join(distDir, 'server', 'instrumentation.js.nft.json')
+      path.join(distDir, 'server', 'instrumentation.js.nft.json'),
+      syntheticSymlinks,
+      salt
     )
 
     const fileOutputPath = path.relative(
@@ -2764,38 +2823,61 @@ async function loadNFT(
   assets: Record<string, string>,
   assetsHashes: Record<string, string>,
   repoRoot: string,
-  traceFilePath: string
+  traceFilePath: string,
+  syntheticSymlinks: SyntheticSymlinkManager,
+  salt: string
 ): Promise<{ entryHash?: string }> {
   const nft = JSON.parse(await fs.readFile(traceFilePath, 'utf8')) as NftJson
 
-  // This call site only records source locations and hashes, so it does not need
-  // the mapped symlink targets.
   for (const entry of mapNftFileEntries(nft, traceFilePath, repoRoot)) {
-    assets[entry.destination] = entry.source
-    if (entry.hash) {
-      assetsHashes[entry.destination] = entry.hash
+    let source = entry.source
+    let hash = entry.hash
+
+    if (entry.symlinkCrossesRoot) {
+      if (entry.symlinkTarget === undefined) {
+        throw new InvariantError(
+          `Expected cross-root symlink ${JSON.stringify(entry.destination)} to have a target`
+        )
+      }
+      const linkTarget =
+        path.relative(path.dirname(entry.destination), entry.symlinkTarget) ||
+        '.'
+      hash = hashLinkTarget(salt, linkTarget)
+      source = syntheticSymlinks.createLink(entry.source, linkTarget, hash)
+    }
+
+    assets[entry.destination] = source
+    if (hash) {
+      assetsHashes[entry.destination] = hash
     }
   }
   return { entryHash: nft.entryHash }
 }
 
 async function hashFile(salt: string, filePath: string): Promise<string> {
-  const hash = crypto.createHash('sha256')
-  hash.update(salt)
   try {
     // Try symlink first, since readFile just transparently resolves those (or fails if it's a
     // directory symlink).
     const linkTarget = await fs.readlink(filePath)
-    hash.update('link')
-    hash.update(linkTarget)
+    return hashLinkTarget(salt, linkTarget)
   } catch (e: any) {
     if (e.code === 'EINVAL') {
       // Not a symlink
+      const hash = crypto.createHash('sha256')
+      hash.update(salt)
       hash.update('file:')
       hash.update(await fs.readFile(filePath))
+      return hash.digest('hex')
     } else {
       throw e
     }
   }
+}
+
+function hashLinkTarget(salt: string, linkTarget: string): string {
+  const hash = crypto.createHash('sha256')
+  hash.update(salt)
+  hash.update('link')
+  hash.update(linkTarget)
   return hash.digest('hex')
 }
