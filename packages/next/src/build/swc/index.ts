@@ -663,7 +663,9 @@ function bindingToApi(
       nextConfig: await serializeNextConfig(
         options.nextConfig,
         projectPath,
-        path.relative(projectPath, options.distDir)
+        path.isAbsolute(options.distDir)
+          ? path.relative(projectPath, options.distDir)
+          : options.distDir
       ),
       env: rustifyEnv(options.env),
     }
