@@ -222,6 +222,23 @@ The following options are available for the `next upgrade` command:
 | `[directory]`           | A directory with the Next.js application to upgrade. If not provided, the current directory will be used.                                          |
 | `--revision <revision>` | Specify a Next.js version or tag to upgrade to (e.g., `latest`, `canary`, `15.0.0`). Defaults to the release channel you have currently installed. |
 | `--verbose`             | Show verbose output during the upgrade process.                                                                                                    |
+| `--agent [type]`         | Prepare upgrade instructions for a coding agent using the `security`, `latest`, or `experimental-future` policy.                                     |
+
+#### Upgrade with a coding agent
+
+Run `next upgrade --agent` from your application's directory and follow the generated instructions with your coding agent. The command uses the latest Next.js canary CLI to prepare the upgrade.
+
+You can select a policy explicitly:
+
+```bash
+next upgrade --agent=latest
+```
+
+- `security`: Upgrade to a version that addresses known security vulnerabilities. Supported only for stable installations.
+- `latest`: Upgrade to the latest stable release, or the latest canary release if your application already uses canary.
+- `experimental-future`: Upgrade and adopt the available Future Defaults. Supported for stable and canary installations.
+
+When you omit the policy, the command uses the policy configured in `experimental.agentUpgrade`, or `security` if no policy is configured. The `--agent` option cannot be combined with `--revision`.
 
 ### `next analyze` options
 
