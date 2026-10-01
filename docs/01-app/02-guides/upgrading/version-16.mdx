@@ -1249,6 +1249,19 @@ For the full migration path, see [Migrating to Cache Components](/docs/app/guide
 
 The `unstable_rootParams` function has been removed. Use [`next/root-params`](/docs/app/api-reference/functions/next-root-params) instead.
 
+## Troubleshooting
+
+### Installation fails after upgrading to React 19
+
+- [ ] Follow the [React recovery checklist](/docs/app/guides/upgrading/version-15#installation-fails-after-upgrading-to-react-19).
+
+### Installation fails after upgrading ESLint
+
+Next.js 16 removes `next lint`, but migrating to the ESLint CLI does not require upgrading ESLint. `eslint-config-next@16` requires ESLint 9; an existing compatible lint configuration can use an older version.
+
+- [ ] If an ESLint upgrade causes peer dependency conflicts, restore the previous compatible versions of `eslint`, `eslint-config-next`, and `@next/eslint-plugin-next` (if present), along with the previous lint configuration.
+- [ ] If installation interrupted the upgrade, retry the same exact target with `--skip-eslint-upgrade` to preserve the repaired lint stack and skip the lint codemod. If Next.js already matches the target, install dependencies and complete interrupted migrations individually. Replace `next lint` scripts with ESLint CLI commands compatible with the preserved configuration. Confirm installation and lint pass.
+
 ## Review migration checklist
 
 After applying the changes relevant to your app, review these action items before

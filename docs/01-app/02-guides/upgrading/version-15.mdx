@@ -626,6 +626,19 @@ export function middleware(request: NextRequest) {
 }
 ```
 
+## Troubleshooting
+
+### Installation fails after upgrading to React 19
+
+- [ ] If another package's peer dependencies reject React 19, revert `react`, `react-dom`, their types, and `react-is` (if present) to the previous versions, provided the target Next.js version and router support them.
+- [ ] Restore or remove React type overrides or resolutions added by the upgrade in `package.json` or `pnpm-workspace.yaml`.
+- [ ] If installation interrupted the upgrade command, retry the same exact target with `--skip-react-upgrade` to preserve the repaired dependencies. If Next.js already matches the target, install dependencies and run any skipped codemods individually. Run the app's checks.
+
+### Installation fails after upgrading to ESLint 9
+
+- [ ] If another package's peer dependencies reject ESLint 9, restore the previous compatible versions of `eslint`, `eslint-config-next`, and `@next/eslint-plugin-next` (if present), along with the previous lint configuration.
+- [ ] If installation interrupted the upgrade command, retry the same exact target with `--skip-eslint-upgrade` to preserve the repaired dependency. If Next.js already matches the target, install dependencies and run any skipped codemods individually. Complete any required lint migration manually, then run the app's lint checks.
+
 ## Review migration checklist
 
 After applying the changes relevant to your app, review these action items before
