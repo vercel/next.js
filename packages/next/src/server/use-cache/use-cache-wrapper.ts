@@ -2896,27 +2896,6 @@ export async function cache(
 
       switch (workUnitStore.type) {
         case 'prerender':
-          if (resumeDataCache?.mutable === false) {
-            // We're prerendering a fallback shell whose Resume Data Cache is
-            // the prefilled, read-only seed from a phase-1 prerender of a more-
-            // specific sibling route. A miss here means the cache key depends
-            // on a fallback param. We short-circuit to a dynamic hole (which
-            // may produce an empty shell if there's no parent Suspense
-            // boundary). Currently this also catches layouts and pages that
-            // don't read params, which will be improved when we implement
-            // NAR-136. Compared to the instrumentation-based params bailout we
-            // also do here, this covers the case where params are transformed
-            // with an async function before being passed into the "use cache"
-            // function, which escapes the instrumentation.
-            // The cache key depends on fallback params, which are URL data.
-            return makeURLDataHangingPromise(
-              workUnitStore.renderSignal,
-              workStore.route,
-              'dynamic "use cache"',
-              workUnitStore
-            )
-          }
-        // fallthrough
         case 'prerender-runtime':
           if (!cacheSignal) {
             // This is the final prerender (cacheSignal is null), which means
