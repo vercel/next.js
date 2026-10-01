@@ -14,7 +14,13 @@ import { dim } from '../lib/picocolors'
 import type { UpgradeDocument } from '../lib/upgrade/future-defaults'
 import { runChildProcess } from '../lib/upgrade/run-child-process'
 import { getAgentName } from '../telemetry/agent-name'
-import { eventAIUpgradeRunStarted } from '../telemetry/events/ai-upgrade'
+import {
+  eventAIUpgradeCLIResult,
+  eventAIUpgradeRunStarted,
+  type AIUpgradeCLIResult,
+  type AIUpgradeHandoffMethod,
+  type AIUpgradePolicy,
+} from '../telemetry/events/ai-upgrade'
 import { Telemetry } from '../telemetry/storage'
 import loadConfig from '../server/config'
 import { normalizeConfig } from '../server/config-shared'
@@ -201,6 +207,31 @@ export async function spawnNextUpgrade(
     const runId =
       inheritedRunId && !invalidRunId ? inheritedRunId : randomUUID()
 
+    let resolvedPolicy: AIUpgradePolicy | null = null
+    let failureStage: 'other' | 'metadata' | 'guide' | 'handoff' = 'other'
+    let cliResultRecorded = false
+
+    // Preparation and handoff can both fail; record only the first terminal result.
+    const recordCLIResult = (
+      result: AIUpgradeCLIResult,
+      handoffMethod: AIUpgradeHandoffMethod | null,
+      selectedAgentProduct: string | null
+    ) => {
+      if (cliResultRecorded) {
+        return
+      }
+      cliResultRecorded = true
+      telemetry.record(
+        eventAIUpgradeCLIResult({
+          runId,
+          result,
+          resolvedPolicy,
+          handoffMethod,
+          selectedAgentProduct,
+        })
+      )
+    }
+
     try {
       // Only the original invocation records a start, including invalid-input failures.
       // Origin and nudge attribution stay on that event; results join through runId.
@@ -253,7 +284,9 @@ export async function spawnNextUpgrade(
         }
       } else {
         Log.info(dim('Preparing upgrade...'))
+        failureStage = 'metadata'
         const canaryVersion = await resolveCanaryVersion()
+        failureStage = 'other'
         if (process.env.__NEXT_VERSION !== canaryVersion) {
           const [command, ...runnerArgs] = getNpxCommand(baseDir).split(' ')
           const aiArgument =
@@ -270,18 +303,23 @@ export async function spawnNextUpgrade(
             args.push('--verbose')
           }
 
-          process.exitCode = await runChildProcess(command, args, {
-            cwd: baseDir,
-            stdio: 'inherit',
-            env: {
-              ...process.env,
-              // Preserve this run when delegating to the current canary CLI.
-              __NEXT_AI_UPGRADE_RUN_ID: runId,
-              __NEXT_UPGRADE_EXPECTED_CLI_VERSION: canaryVersion,
-              // Older canaries recognize only this recursion guard.
-              __NEXT_UPGRADE_USE_CURRENT_CLI: '1',
+          process.exitCode = await runChildProcess(
+            command,
+            args,
+            {
+              cwd: baseDir,
+              stdio: 'inherit',
+              env: {
+                ...process.env,
+                // The delegated CLI emits the CLI result for this invocation's run ID.
+                __NEXT_AI_UPGRADE_RUN_ID: runId,
+                __NEXT_UPGRADE_EXPECTED_CLI_VERSION: canaryVersion,
+                // Older canaries recognize only this recursion guard.
+                __NEXT_UPGRADE_USE_CURRENT_CLI: '1',
+              },
             },
-          })
+            null
+          )
           return
         }
       }
@@ -312,6 +350,7 @@ export async function spawnNextUpgrade(
           `Unsupported AI upgrade type ${JSON.stringify(upgradeType)}. Expected "security", "latest", or "experimental-future".`
         )
       }
+      resolvedPolicy = upgradeType
 
       // Resolve the requested target before preparing an agent session.
       const { prepareUpgrade } =
@@ -321,8 +360,21 @@ export async function spawnNextUpgrade(
         assessmentSpinner?.stop()
       )
 
+      // Expected assessment failures retain their status and stop before handoff.
+      if (result.status === 'blocked' || result.status === 'unknown') {
+        recordCLIResult(
+          result.status === 'blocked' ? 'no_safe_target' : 'metadata_failure',
+          null,
+          null
+        )
+        Log.error('Could not prepare the upgrade:', result.reason)
+        process.exitCode = 1
+        return
+      }
+
       if (result.status !== 'ready') {
         Log.info(result.reason)
+        recordCLIResult('no_update_needed', null, null)
         return
       }
 
@@ -339,6 +391,7 @@ export async function spawnNextUpgrade(
 
       // Use the invoking CLI's guides, even when the app runs an older Next.js.
       // Retain them outside the app so dependency changes cannot remove them.
+      failureStage = 'guide'
       const bundledDocs = join(__dirname, '../docs')
       const runDirectory = await mkdtemp(join(tmpdir(), 'next-upgrade-'))
       const guideName = crossesMajor
@@ -520,6 +573,7 @@ export async function spawnNextUpgrade(
       const taskSummary = needsVersionUpdate
         ? `We're upgrading the app in ${JSON.stringify(baseDir)} from Next.js ${result.installedVersion} to ${result.targetVersion} because ${reason}.`
         : `We're adopting the Future Defaults available to the app in ${JSON.stringify(baseDir)}, which already uses Next.js ${result.installedVersion}.`
+
       const prompt = (
         useWorktree: boolean | null
       ) => `Read and follow ${JSON.stringify(sharedGuidePath)} first. Attempt its applicable duplicate checks before changing files. If a check is unavailable, report it and continue. Stop only if you find equivalent work. Then read and follow every applicable instruction in ${JSON.stringify(guidePath)}.
@@ -535,15 +589,40 @@ ${references}`
 
       const { handoffUpgrade } =
         require('../lib/upgrade/harness') as typeof import('../lib/upgrade/harness')
-      await handoffUpgrade(prompt, baseDir)
+
+      // Delivery is observable here; completing the upgrade belongs to the agent.
+      failureStage = 'handoff'
+      const handoffResult = await handoffUpgrade(
+        prompt,
+        baseDir,
+        (method, selectedAgentProduct) => {
+          recordCLIResult('handoff_issued', method, selectedAgentProduct)
+        }
+      )
+      if (handoffResult === 'cancelled') {
+        recordCLIResult('cancelled', null, null)
+      } else if (handoffResult === 'failed') {
+        recordCLIResult('handoff_failed', null, null)
+      }
     } catch (error) {
+      recordCLIResult(
+        failureStage === 'metadata'
+          ? 'metadata_failure'
+          : failureStage === 'guide'
+            ? 'guide_failure'
+            : failureStage === 'handoff'
+              ? 'handoff_failed'
+              : 'cli_failure',
+        null,
+        null
+      )
       Log.error(
         'Could not prepare the upgrade:',
         error instanceof Error ? error.message : error
       )
       process.exitCode = 1
     } finally {
-      // Send queued starts before this short-lived CLI invocation exits.
+      // Send queued results before this short-lived CLI invocation exits.
       await telemetry.flush()
     }
 

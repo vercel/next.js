@@ -11,7 +11,7 @@ import {
 } from './future-defaults'
 
 type UpgradePreparation =
-  | { status: 'unaffected'; reason: string }
+  | { status: 'unaffected' | 'blocked' | 'unknown'; reason: string }
   | {
       status: 'ready'
       installedVersion: string
@@ -51,9 +51,6 @@ export async function prepareUpgrade(
     installedVersion,
     targetRequest
   )
-  if (upgrade.status === 'blocked' || upgrade.status === 'unknown') {
-    throw new Error(upgrade.reason)
-  }
   if (upgrade.status !== 'ready' || targetRequest !== 'experimental-future') {
     return upgrade
   }
@@ -84,10 +81,7 @@ export type UpgradeAssessment = {
   // null means advisory assessment is unsupported for this release channel.
   affected: boolean | null
   reference: string | null
-  upgrade:
-    | UpgradePreparation
-    | { status: 'blocked'; reason: string }
-    | { status: 'unknown'; reason: string }
+  upgrade: UpgradePreparation
 }
 
 // TODO: Cache assessments briefly by installed version, policy, and resolved

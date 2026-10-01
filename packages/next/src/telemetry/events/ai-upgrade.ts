@@ -7,6 +7,22 @@ export type AIUpgradeOrigin =
   | 'agent_manual'
   | 'agent_nudge'
 
+export type AIUpgradeHandoffMethod =
+  | 'existing_agent'
+  | 'launched_agent'
+  | 'copied_prompt'
+  | 'printed_prompt'
+
+export type AIUpgradeCLIResult =
+  | 'no_update_needed'
+  | 'no_safe_target'
+  | 'metadata_failure'
+  | 'guide_failure'
+  | 'cancelled'
+  | 'handoff_issued'
+  | 'handoff_failed'
+  | 'cli_failure'
+
 // Version every event so consumers can distinguish future schema changes.
 function event<T extends object>(eventName: string, fields: T) {
   return { eventName, payload: { schemaVersion: 1, ...fields } }
@@ -51,4 +67,15 @@ export function eventAIUpgradeRunStarted(fields: {
   requestedPolicy: AIUpgradePolicy | null
 }) {
   return event('NEXT_AI_UPGRADE_RUN_STARTED', fields)
+}
+
+// Report the CLI's preparation and prompt delivery, not completion of the agent's work.
+export function eventAIUpgradeCLIResult(fields: {
+  runId: string
+  result: AIUpgradeCLIResult
+  resolvedPolicy: AIUpgradePolicy | null
+  handoffMethod: AIUpgradeHandoffMethod | null
+  selectedAgentProduct: string | null
+}) {
+  return event('NEXT_AI_UPGRADE_CLI_RESULT', fields)
 }
