@@ -227,7 +227,7 @@ class NextTracerImpl implements NextTracer {
    * This should be lazily evaluated.
    */
   private getTracerInstance(): Tracer {
-    return trace.getTracer('next.js', '0.0.1')
+    return trace.getTracer('next.js', process.env.__NEXT_VERSION)
   }
 
   private isOpenTelemetryEnabled(): boolean {
