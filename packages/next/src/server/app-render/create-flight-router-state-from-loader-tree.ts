@@ -14,7 +14,7 @@ async function createFlightRouterStateFromLoaderTreeImpl(
   hintTree: PrefetchHints | null,
   prefetchInliningEnabled: boolean,
   cacheComponents: boolean,
-  partialPrefetching: boolean | 'unstable_eager' | undefined,
+  partialPrefetching: boolean,
   isStaticGeneration: boolean,
   isBuildTimePrerendering: boolean,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
@@ -38,11 +38,7 @@ async function createFlightRouterStateFromLoaderTreeImpl(
   const instantConfig = mod ? (mod as AppSegmentConfig).instant : undefined
   const prefetchConfig =
     (mod ? (mod as AppSegmentConfig).prefetch : undefined) ??
-    (partialPrefetching === 'unstable_eager'
-      ? 'unstable_eager'
-      : partialPrefetching
-        ? 'partial'
-        : undefined)
+    (partialPrefetching ? 'partial' : undefined)
   let prefetchHints = 0
 
   // Union in the precomputed build-time hints (e.g. segment inlining
@@ -108,23 +104,8 @@ async function createFlightRouterStateFromLoaderTreeImpl(
 
   if (prefetchConfig === 'partial') {
     prefetchHints |= PrefetchHint.SubtreeHasPartialPrefetching
-  } else if (prefetchConfig === 'unstable_eager') {
-    // Like 'partial' (uses the PPR fetch strategy) but also marks the segment
-    // as eager, so App Shells keeps prefetching it instead of relying on the
-    // shared app shell.
-    prefetchHints |=
-      PrefetchHint.SubtreeHasPartialPrefetching |
-      PrefetchHint.SubtreeHasEagerPrefetch
   } else if (prefetchConfig === 'force-disabled') {
     prefetchHints |= PrefetchHint.PrefetchDisabled
-  }
-
-  // Mark the segment as "eager" unless its effective prefetch strategy is
-  // 'partial'. 'unstable_eager' already set the bit above. Under App Shells,
-  // a subtree with no eager segment skips its Speculative prefetch and relies
-  // on the shared app shell instead.
-  if (prefetchConfig !== 'partial') {
-    prefetchHints |= PrefetchHint.SubtreeHasEagerPrefetch
   }
 
   // Check if this segment has a loading boundary
@@ -170,7 +151,7 @@ export async function createFlightRouterStateFromLoaderTree(
   hintTree: PrefetchHints | null,
   prefetchInliningEnabled: boolean,
   cacheComponents: boolean,
-  partialPrefetching: boolean | 'unstable_eager' | undefined,
+  partialPrefetching: boolean,
   isStaticGeneration: boolean,
   isBuildTimePrerendering: boolean,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
@@ -199,7 +180,7 @@ export async function createRouteTreePrefetch(
   hintTree: PrefetchHints | null,
   prefetchInliningEnabled: boolean,
   cacheComponents: boolean,
-  partialPrefetching: boolean | 'unstable_eager' | undefined,
+  partialPrefetching: boolean,
   isStaticGeneration: boolean,
   isBuildTimePrerendering: boolean,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
