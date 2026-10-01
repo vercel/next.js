@@ -31,6 +31,11 @@ describe('TypeScript Features', () => {
     expect(html).toContain(`{"key":"value"}`)
   })
 
+  it('should pass app-level initial props to the top-level App props', async () => {
+    const $ = await next.render$('/hello')
+    expect($('#app-initial-prop').text()).toBe('bar')
+  })
+
   it('should render the generics page', async () => {
     const $ = await next.render$('/generics')
     expect($('#value').text()).toBe('Hello World from Generic')
