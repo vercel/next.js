@@ -49,19 +49,10 @@ pub enum AccessMode {
     File,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum FamilyKind {
-    /// Each key maps to a single value (default LSM behavior).
-    /// When multiple entries have the same key, only the newest is retained during compaction or
-    /// returned by queries.
-    SingleValue,
-}
-
 /// Configuration for a single family to describe how the data is stored.
 #[derive(Clone, Copy, Debug)]
 pub struct FamilyConfig {
     pub name: &'static str,
-    pub kind: FamilyKind,
     pub compression: Compression,
 }
 
@@ -122,7 +113,6 @@ impl<const FAMILIES: usize> DbConfig<FAMILIES> {
         Self {
             family_configs: [FamilyConfig {
                 name: "unknown",
-                kind: FamilyKind::SingleValue,
                 compression: Compression::Lz4,
             }; FAMILIES],
             access_mode: default_access_mode(),
