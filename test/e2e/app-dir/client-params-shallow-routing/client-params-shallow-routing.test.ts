@@ -110,4 +110,15 @@ describe('client-params-shallow-routing', () => {
       await expectNoSyncAccessWarning(browser)
     })
   })
+
+  describe('a component that suspends on data for the new URL', () => {
+    // The router applies the URL as a Transition, so React keeps showing the
+    // current content until the new content is ready.
+    it('should keep showing the current content on pushState', async () => {
+      const browser = await load('/suspends-on-search-params')
+      await pushState(browser)
+      expect(await browser.elementByCss('#loaded').text()).toBe('pushed')
+      expect(await browser.eval('window.fallbackCommits')).toBe(0)
+    })
+  })
 })
