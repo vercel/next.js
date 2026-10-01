@@ -57,7 +57,7 @@ If you opt out while using TypeScript 7, `next build` exits because the TypeScri
 - TypeScript diagnostics are printed directly from `tsc`. Next.js-specific code frames and error rewriting are not applied.
 - The complete project selected by the configured `tsconfig` file is checked, including test files and `.next/dev/types` when included. The [`--debug-build-paths`](/docs/app/api-reference/cli/next#next-build-options) option does not limit this set and produces a warning when combined with the CLI checker.
 - [`typescript.tsconfigPath`](/docs/app/api-reference/config/typescript#custom-tsconfig-path) selects the project passed to `tsc`.
-- With TypeScript 7.1 and later, `tsc` runs with `--runExternalCode`, so the content mappers your `tsconfig` declares run during the type check. `next build` already runs your Next.js config and the loaders it installs. Earlier TypeScript versions do not accept the flag and do not receive it.
+- With TypeScript 7.1 and later, `tsc` runs with `--runExternalCode`, so the content mappers listed in your `tsconfig` take part in the type check and imports of the files they handle (such as `.mdx`, `.vue` or `.sql`) are checked like any other module. Earlier TypeScript versions don't have the flag, so it isn't passed to them.
 - [`typescript.ignoreBuildErrors`](/docs/app/api-reference/config/typescript#disabling-typescript-errors-in-production) skips the type-checking step, including the CLI checker.
 
 Learn more about [using TypeScript 7 with Next.js](/docs/app/api-reference/config/typescript#using-typescript-7).

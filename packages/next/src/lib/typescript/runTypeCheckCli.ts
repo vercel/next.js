@@ -9,8 +9,8 @@ import {
 } from './runTypeScriptCli'
 
 /**
- * Whether `tsc` accepts `--runExternalCode`, which TypeScript 7.1 added to let
- * the content mappers a tsconfig declares run. Earlier versions reject it.
+ * Whether `tsc` accepts `--runExternalCode`. TypeScript 7.1 added the flag;
+ * earlier versions refuse to start when they see it.
  */
 export function supportsRunExternalCode(typescriptVersion: string): boolean {
   // `7.1.0-0` sorts before every 7.1 prerelease, so betas and nightlies count.
@@ -55,9 +55,9 @@ export async function runTypeCheckCli({
     'false',
   ]
 
-  // Without the flag, TypeScript 7.1 rejects a tsconfig that declares
-  // `contentMappers`, and the files they map fail to resolve. `next build`
-  // already runs the project's Next.js config and the loaders it installs.
+  // TypeScript 7.1 only runs the content mappers listed in a tsconfig when this
+  // flag is set. Without them, imports of the files they handle (`.mdx`,
+  // `.vue`, `.sql`, ...) fail to type-check.
   if (supportsRunExternalCode(typescriptVersion)) {
     args.push('--runExternalCode')
   }
