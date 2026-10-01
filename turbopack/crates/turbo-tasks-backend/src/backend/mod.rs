@@ -7,6 +7,8 @@ mod snapshot_coordinator;
 mod storage;
 pub mod storage_schema;
 
+#[cfg(feature = "verify_aggregation_graph")]
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::{
     borrow::Cow,
     fmt::Write,
@@ -14,10 +16,7 @@ use std::{
     hash::BuildHasherDefault,
     mem::take,
     pin::Pin,
-    sync::{
-        Arc, LazyLock,
-        atomic::{AtomicBool, Ordering},
-    },
+    sync::{Arc, LazyLock},
     time::SystemTime,
 };
 
@@ -239,10 +238,9 @@ pub struct TurboTasksBackend {
     /// `begin_exclusion` asserts that exclusive phases don't overlap; this mutex
     /// enforces that contract for our callers (background loop and
     /// `stop_and_wait`).
+    /// Its locked state also prevents guarded lookups from reusing empty-bucket observations
+    /// until the snapshot's database commit is visible.
     snapshot_in_progress: Mutex<()>,
-    /// True from before snapshot exclusion releases operations until the database commit is
-    /// visible. Guarded lookups while a commit is pending cannot reuse empty-bucket observations.
-    pending_db_commit: AtomicBool,
 
     /// Experimental feature to enable dead tasks to be deleted from storage and ram.
     gc_enabled: bool,
@@ -265,23 +263,6 @@ pub struct TurboTasksBackend {
 
     #[cfg(feature = "verify_aggregation_graph")]
     root_tasks: Mutex<FxHashSet<TaskId>>,
-}
-
-/// Holds the pending-commit signal while snapshot writes may not yet be visible to disk readers.
-/// Set before releasing snapshot exclusion; snapshots are serialized by `snapshot_in_progress`.
-struct PendingDbCommitGuard<'a>(&'a AtomicBool);
-
-impl<'a> PendingDbCommitGuard<'a> {
-    fn new(signal: &'a AtomicBool) -> Self {
-        assert!(!signal.swap(true, Ordering::AcqRel));
-        Self(signal)
-    }
-}
-
-impl Drop for PendingDbCommitGuard<'_> {
-    fn drop(&mut self) {
-        self.0.store(false, Ordering::Release);
-    }
 }
 
 /// What [`TurboTasksBackend::snapshot_and_evict_for_testing`] observed.
@@ -365,7 +346,6 @@ impl TurboTasksBackend {
             storage: Storage::new(shard_amount, small_preallocation),
             snapshot_coord: SnapshotCoordinator::new(),
             snapshot_in_progress: Mutex::new(()),
-            pending_db_commit: AtomicBool::new(false),
             stopping: RwLock::new(false),
             stopping_event: Event::new(|| || "TurboTasksBackend::stopping_event".to_string()),
             idle_start_event: Event::new(|| || "TurboTasksBackend::idle_start_event".to_string()),
@@ -1207,9 +1187,8 @@ impl TurboTasksBackend {
         let suspended_operations = snapshot_phase.take_suspended_operations();
 
         let snapshot_time = Instant::now();
-        // Must be set before exclusion releases blocked operations. Normal lookups hold their
-        // OperationGuard from before the disk read through publishing a new task's hint.
-        let pending_commit = PendingDbCommitGuard::new(&self.pending_db_commit);
+        // Keep snapshot_in_progress locked after releasing exclusion so new lookups cannot
+        // carry an empty-bucket observation across this snapshot's pending disk commit.
         drop(snapshot_phase);
 
         if !has_modifications && gc_roots_to_persist.is_none() {
@@ -1528,9 +1507,6 @@ impl TurboTasksBackend {
             gc_roots_to_persist,
             task_snapshots,
         )?;
-        // The committed DB view is now visible. On errors the guard's Drop clears the signal
-        // after the write batch has failed/rolled back; the backend stops further persistence.
-        drop(pending_commit);
         span.record("snapshot_meta", display(snapshot_meta));
 
         #[cfg(feature = "print_cache_item_size")]
@@ -1805,7 +1781,7 @@ impl TurboTasksBackend {
 
         // A persistent miss returns both a matching task (if present) and whether a guarded
         // read proved that the entire disk hash bucket was empty for a freshly allocated task.
-        let (restored, disk_bucket_was_empty) = if transient {
+        let (restored, disk_bucket_was_definitely_empty) = if transient {
             (None, false)
         } else {
             ctx.task_by_type(native_fn, this, arg_ref)
@@ -1861,7 +1837,7 @@ impl TurboTasksBackend {
                         self.storage.initialize_new_task(
                             task_id,
                             Some(task_type.clone()),
-                            disk_bucket_was_empty,
+                            disk_bucket_was_definitely_empty,
                         );
                         entry.insert((task_type, task_id));
                         (task_id, true)
@@ -3996,31 +3972,29 @@ fn encode_task_data(
 
 #[cfg(test)]
 mod snapshot_read_hint_tests {
-    use std::sync::{
-        Arc,
-        atomic::{AtomicBool, Ordering},
-    };
+    use std::sync::Arc;
 
-    use super::{PendingDbCommitGuard, SnapshotCoordinator};
+    use parking_lot::Mutex;
+
+    use super::SnapshotCoordinator;
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn guarded_lookup_finishes_before_snapshot_and_late_lookup_sees_flag() {
+    async fn guarded_lookup_finishes_before_snapshot_and_late_lookup_sees_lock() {
         let coordinator = Arc::new(SnapshotCoordinator::<()>::new());
-        let signal = Arc::new(AtomicBool::new(false));
+        let snapshot_in_progress = Arc::new(Mutex::new(()));
         let lookup = coordinator.begin_operation();
         let (requested_tx, requested_rx) = tokio::sync::oneshot::channel();
         let (entered_tx, mut entered_rx) = tokio::sync::oneshot::channel();
         let (commit_tx, commit_rx) = tokio::sync::oneshot::channel();
         let worker_coord = Arc::clone(&coordinator);
-        let worker_signal = Arc::clone(&signal);
-        let worker = tokio::spawn(async move {
+        let worker_mutex = Arc::clone(&snapshot_in_progress);
+        let worker = tokio::task::spawn_blocking(move || {
+            let _snapshot = worker_mutex.lock();
             requested_tx.send(()).unwrap();
             let phase = worker_coord.begin_snapshot();
-            let pending_commit = PendingDbCommitGuard::new(&worker_signal);
             drop(phase);
             entered_tx.send(()).unwrap();
-            commit_rx.await.unwrap();
-            drop(pending_commit);
+            commit_rx.blocking_recv().unwrap();
         });
         requested_rx.await.unwrap();
         // Wait until the snapshot has actually requested exclusion, not merely until its
@@ -4032,7 +4006,7 @@ mod snapshot_read_hint_tests {
         })
         .await
         .expect("snapshot did not request exclusion");
-        assert!(!signal.load(Ordering::Acquire));
+        assert!(snapshot_in_progress.is_locked());
         assert!(matches!(
             entered_rx.try_recv(),
             Err(tokio::sync::oneshot::error::TryRecvError::Empty)
@@ -4040,18 +4014,26 @@ mod snapshot_read_hint_tests {
         drop(lookup);
         entered_rx.await.unwrap();
         let late_lookup = coordinator.begin_operation();
-        assert!(signal.load(Ordering::Acquire));
+        assert!(snapshot_in_progress.is_locked());
         drop(late_lookup);
         commit_tx.send(()).unwrap();
         worker.await.unwrap();
-        assert!(!signal.load(Ordering::Acquire));
+        assert!(!snapshot_in_progress.is_locked());
 
-        // RAII also clears the signal on a no-work early exit or error before commit.
+        // RAII also unlocks on a no-work early exit or error before commit.
         {
-            let _no_work = PendingDbCommitGuard::new(&signal);
-            assert!(signal.load(Ordering::Acquire));
+            let _no_work = snapshot_in_progress.lock();
+            assert!(snapshot_in_progress.is_locked());
         }
-        assert!(!signal.load(Ordering::Acquire));
+        assert!(!snapshot_in_progress.is_locked());
+        assert!(
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let _snapshot = snapshot_in_progress.lock();
+                panic!("snapshot failed before commit");
+            }))
+            .is_err()
+        );
+        assert!(!snapshot_in_progress.is_locked());
     }
 
     #[turbo_tasks::function(root)]
@@ -4064,7 +4046,7 @@ mod snapshot_read_hint_tests {
         ignore = "filesystem-backed TaskCache test needs native host"
     )]
     #[tokio::test(flavor = "multi_thread")]
-    async fn new_task_lookup_uses_empty_hint_only_outside_commit_window() -> anyhow::Result<()> {
+    async fn new_task_lookup_uses_empty_hint_only_outside_snapshot() -> anyhow::Result<()> {
         use turbo_tasks::{TaskId, TurboTasks, Vc};
 
         use crate::{BackingStorageOptions, GitVersionInfo, turbo_backing_storage};
@@ -4120,7 +4102,7 @@ mod snapshot_read_hint_tests {
                 .snapshot_and_evict_for_testing(&tt)
                 .had_new_data
         );
-        assert!(!tt.backend().pending_db_commit.load(Ordering::Acquire));
+        assert!(!tt.backend().snapshot_in_progress.is_locked());
 
         let second = leaf_id(tt.clone(), 22).await?;
         assert!(
@@ -4140,7 +4122,15 @@ mod snapshot_read_hint_tests {
             (0, 0)
         );
 
-        let pending_commit = PendingDbCommitGuard::new(&tt.backend().pending_db_commit);
+        let (locked_tx, locked_rx) = tokio::sync::oneshot::channel();
+        let (release_tx, release_rx) = tokio::sync::oneshot::channel();
+        let snapshot_tt = tt.clone();
+        let snapshot = tokio::task::spawn_blocking(move || {
+            let _snapshot = snapshot_tt.backend().snapshot_in_progress.lock();
+            locked_tx.send(()).unwrap();
+            release_rx.blocking_recv().unwrap();
+        });
+        locked_rx.await?;
         let third = leaf_id(tt.clone(), 33).await?;
         assert!(
             tt.backend()
@@ -4150,7 +4140,8 @@ mod snapshot_read_hint_tests {
                 .copied()
                 .unwrap_or(false)
         );
-        drop(pending_commit);
+        release_tx.send(()).unwrap();
+        snapshot.await?;
         assert!(
             tt.backend()
                 .snapshot_and_evict_for_testing(&tt)
@@ -4159,6 +4150,14 @@ mod snapshot_read_hint_tests {
         assert_eq!(
             tt.backend().backing_storage.task_cache_batch_read_counts(),
             (1, 1)
+        );
+        let fourth = leaf_id(tt.clone(), 44).await?;
+        assert!(
+            tt.backend()
+                .storage
+                .access_mut(fourth)
+                .get_task_cache_needs_read()
+                .is_none()
         );
         tt.stop_and_wait().await;
         Ok(())

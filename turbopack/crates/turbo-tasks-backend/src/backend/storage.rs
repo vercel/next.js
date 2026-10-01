@@ -286,17 +286,18 @@ impl Storage {
     /// Mark a newly allocated task as restored (skip DB queries) and new (include in persistence
     /// snapshots). Optionally sets the `persistent_task_type` eagerly so it's available for
     /// persistence snapshots without needing to propagate it through `connect_child`.
-    /// `disk_bucket_was_empty` is valid only for a guarded, canonical lookup of the whole hash.
+    /// `disk_bucket_was_definitely_empty` comes from a guarded lookup of the whole hash outside
+    /// a snapshot.
     pub fn initialize_new_task(
         &self,
         task_id: TaskId,
         task_type: Option<CachedTaskTypeArc>,
-        disk_bucket_was_empty: bool,
+        disk_bucket_was_definitely_empty: bool,
     ) {
         let mut task = self.access_mut(task_id);
         task.flags.set_restored(TaskDataCategory::All);
         task.flags.set_new_task(true);
-        if !task_id.is_transient() && !disk_bucket_was_empty {
+        if !task_id.is_transient() && !disk_bucket_was_definitely_empty {
             task.set_task_cache_needs_read(true);
         }
         task.gc_pin_for_construction();
@@ -684,8 +685,6 @@ impl Storage {
                 // All GC'd tasks were tombstoned during the snapshot (or are not persisted) so we
                 // can drop them fully now.
                 if task.flags.deleted() {
-                    // A sole Arc owner proves this type is already absent from TaskCache.
-                    // Additional owners might not be cache entries, so still check the TaskId.
                     if let Some(task_type) = task.get_persistent_task_type()
                         && task_type.count() > 1
                     {

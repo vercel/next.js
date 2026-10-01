@@ -22,6 +22,7 @@ use turbo_tasks::{
     macro_helpers::NativeFunction,
     panic_hooks::{PanicHookGuard, register_panic_hook},
     parallel,
+    scope_bounded::scope_bounded,
 };
 
 use crate::{
@@ -91,18 +92,14 @@ fn as_u32(bytes: impl Borrow<[u8]>) -> Result<u32> {
 /// One encoded value per TaskCache hash, with most buckets fitting inline.
 type TaskIdBucket = SmallVec<[TaskId; 3]>;
 
-/// TaskIds fit in 31 bits; the unused high bit signals that another ID follows.
-const TASK_CACHE_CONTINUATION_BIT: u32 = 1 << 31;
-
 /// Snapshot add/delete intents for one stable hash. The usual one or two IDs stay inline.
-/// `true` adds an ID, `false` removes it (removal wins if shards disagree).
+/// `true` adds an ID, `false` removes it. Each TaskId occurs once in a snapshot.
 type TaskCacheIntents = AutoMap<TaskId, bool, BuildHasherDefault<FxHasher>, 2>;
 
 #[derive(Default)]
 struct TaskCacheChanges {
     intents: TaskCacheIntents,
-    /// No changed task proved the whole previously committed bucket empty (or an intent was
-    /// deleted/restored/colliding). A single such intent requires a disk read for the hash.
+    /// At least one change requires reading the committed bucket to preserve its siblings.
     needs_read: bool,
 }
 
@@ -154,8 +151,7 @@ fn correct_task_cache_adds(
         }
         distinct += 1;
         if run.len() > 1 {
-            let mut ids: TaskIdBucket = run.iter().map(|(_, id)| *id).collect();
-            ids.dedup();
+            let ids: TaskIdBucket = run.iter().map(|(_, id)| *id).collect();
             batch.put(
                 KeySpace::TaskCache,
                 WriteBuffer::Borrowed(&hash),
@@ -166,7 +162,7 @@ fn correct_task_cache_adds(
     Ok((distinct, spilled))
 }
 
-/// Store each TaskId as a little-endian word, with a continuation bit on nonfinal IDs.
+/// Store each TaskId as an unmodified little-endian u32; the byte length determines the count.
 /// Most TaskCache buckets contain only one ID and occupy exactly four bytes.
 fn encode_task_ids(task_ids: &[TaskId]) -> Result<TurboBincodeBuffer> {
     ensure!(!task_ids.is_empty(), "empty TaskCache bucket");
@@ -175,16 +171,8 @@ fn encode_task_ids(task_ids: &[TaskId]) -> Result<TurboBincodeBuffer> {
         .checked_mul(size_of::<u32>())
         .context("TaskCache bucket length overflow")?;
     let mut bytes = TurboBincodeBuffer::with_capacity(capacity);
-    for (index, id) in task_ids.iter().enumerate() {
-        let raw = **id;
-        debug_assert_eq!(raw & TASK_CACHE_CONTINUATION_BIT, 0);
-        let word = raw
-            | if index + 1 < task_ids.len() {
-                TASK_CACHE_CONTINUATION_BIT
-            } else {
-                0
-            };
-        bytes.extend_from_slice(&word.to_le_bytes());
+    for id in task_ids {
+        bytes.extend_from_slice(&id.to_le_bytes());
     }
     Ok(bytes)
 }
@@ -195,15 +183,11 @@ fn decode_task_ids(bytes: &[u8]) -> Result<TaskIdBucket> {
         !words.is_empty() && remainder.is_empty(),
         "invalid TaskCache bucket length"
     );
-    let word_count = words.len();
-    let mut ids = TaskIdBucket::with_capacity(word_count);
-    for (index, chunk) in words.iter().enumerate() {
+    let mut ids = TaskIdBucket::with_capacity(words.len());
+    for chunk in words {
         let word = u32::from_le_bytes(*chunk);
-        ensure!(
-            (word & TASK_CACHE_CONTINUATION_BIT != 0) == (index + 1 < word_count),
-            "invalid TaskCache continuation bit"
-        );
-        ids.push(TaskId::try_from(word & !TASK_CACHE_CONTINUATION_BIT)?);
+        ensure!(word <= *TaskId::MAX, "TaskCache TaskId exceeds 31 bits");
+        ids.push(TaskId::try_from(word)?);
     }
     Ok(ids)
 }
@@ -420,7 +404,7 @@ impl TurboBackingStorage {
         {
             // The snapshot owns the database's only write batch, so emptiness cannot change
             // while it runs. On an empty database no committed TaskCache bucket exists.
-            let was_empty = self.inner.database.is_empty();
+            let db_is_empty = self.inner.database.is_empty();
             let span = tracing::trace_span!("update task data");
             let shard_results =
                 parallel::map_collect_owned::<_, _, Result<Vec<_>>>(snapshots, |shard: I| {
@@ -459,9 +443,8 @@ impl TurboBackingStorage {
                                 }
                                 // Register the task type only for new or resurrected tasks.
                                 if let Some(task_type_hash) = task_type_hash {
-                                    if was_empty || task_cache_empty_on_creation {
-                                        // Optimistic: superseded after the flush below if
-                                        // another shard adds an ID on this hash.
+                                    if db_is_empty || task_cache_empty_on_creation {
+                                        // Colliding additions are coalesced after the flush below.
                                         batch.put(
                                             KeySpace::TaskCache,
                                             WriteBuffer::Borrowed(&task_type_hash),
@@ -471,10 +454,7 @@ impl TurboBackingStorage {
                                     } else {
                                         let change = changes.entry(task_type_hash).or_default();
                                         change.needs_read = true;
-                                        // Do not override an earlier deletion of the same ID.
-                                        if !change.intents.contains_key(&task_id) {
-                                            change.intents.insert(task_id, true);
-                                        }
+                                        change.intents.insert(task_id, true);
                                     }
                                     max_new_task_id = max_new_task_id.max(*task_id);
                                 }
@@ -487,6 +467,7 @@ impl TurboBackingStorage {
                                 let key = key.as_ref();
                                 batch.delete(KeySpace::TaskMeta, WriteBuffer::Borrowed(key))?;
                                 batch.delete(KeySpace::TaskData, WriteBuffer::Borrowed(key))?;
+                                // Read the committed bucket to preserve any colliding siblings.
                                 let change = changes.entry(task_type_hash).or_default();
                                 change.needs_read = true;
                                 change.intents.insert(task_id, false);
@@ -523,150 +504,153 @@ impl TurboBackingStorage {
                 for (hash, other) in other_changes {
                     let combined = changes.entry(hash).or_default();
                     combined.needs_read |= other.needs_read;
-                    for (id, add) in other.intents {
-                        // A deletion wins regardless of shard completion order.
-                        if !add || !combined.intents.contains_key(&id) {
-                            combined.intents.insert(id, add);
+                    // SnapshotShardIter yields each TaskId once from disjoint map shards.
+                    combined.intents.extend(other.intents);
+                }
+            }
+
+            // The scope joins all three branches before errors are propagated or the batch
+            // commits. Each family is flushed only after all of its shard writes have finished.
+            snapshot_meta.task_cache_items = scope_bounded(3, |scope| {
+                let batch = &batch;
+                for key_space in [KeySpace::TaskMeta, KeySpace::TaskData] {
+                    scope.spawn(move || -> Result<usize> {
+                        let _span = tracing::trace_span!("flush task data", ?key_space).entered();
+                        // SAFETY: No writes to this family remain after map_collect_owned.
+                        unsafe { batch.flush(key_space)? };
+                        Ok(0)
+                    });
+                }
+                scope.spawn(move || -> Result<usize> {
+                    // SAFETY: All shard writes are done. Reconciliation starts only after this
+                    // family's flush, so correction writes supersede its optimistic SST files.
+                    unsafe { batch.flush(KeySpace::TaskCache)? };
+
+                    // Reads see committed buckets, not this batch's optimistic writes. Fast adds
+                    // need no read: the DB was empty or creation proved the whole bucket empty.
+                    let read_hashes: Vec<_> = if db_is_empty {
+                        Vec::new()
+                    } else {
+                        changes
+                            .iter()
+                            .filter(|(_, change)| change.needs_read)
+                            .map(|(hash, _)| *hash)
+                            .collect()
+                    };
+                    let mut old_values = FxHashMap::<TaskTypeHash, ArcBytes>::default();
+                    if !read_hashes.is_empty() {
+                        let keys: Vec<&[u8]> =
+                            read_hashes.iter().map(|hash| hash.as_slice()).collect();
+                        #[cfg(test)]
+                        self.inner
+                            .task_cache_batch_requests
+                            .fetch_add(1, Ordering::Relaxed);
+                        #[cfg(test)]
+                        self.inner
+                            .task_cache_batch_keys
+                            .fetch_add(keys.len(), Ordering::Relaxed);
+                        let values = self.inner.database.batch_get(KeySpace::TaskCache, &keys)?;
+                        old_values.extend(
+                            read_hashes
+                                .iter()
+                                .zip(values)
+                                .filter_map(|(hash, value)| Some((*hash, value?))),
+                        );
+                    }
+
+                    // Correct optimistic buckets in disjoint hash partitions. Slow-path hashes
+                    // spill into reconciliation below, so workers never write the same key.
+                    let total_adds: usize = shard_adds.iter().map(Vec::len).sum();
+                    let span = tracing::trace_span!(
+                        "correct task cache additions",
+                        adds = total_adds,
+                        shards = shard_adds.len(),
+                    );
+                    let fast_results = {
+                        let _entered = span.enter();
+                        if total_adds < TASK_CACHE_PARALLEL_MERGE_MIN_ADDS {
+                            vec![correct_task_cache_adds(batch, &shard_adds, &changes, None)?]
+                        } else {
+                            let partitions: Vec<u8> =
+                                (0..TASK_CACHE_MERGE_PARTITIONS).map(|p| p as u8).collect();
+                            parallel::map_collect::<_, _, Result<Vec<_>>>(&partitions, |&p| {
+                                let _span = span.clone().entered();
+                                correct_task_cache_adds(batch, &shard_adds, &changes, Some(p))
+                            })?
+                        }
+                    };
+                    drop(shard_adds);
+                    let mut task_cache_items = 0;
+                    for (distinct, spilled) in fast_results {
+                        task_cache_items += distinct;
+                        for (hash, id) in spilled {
+                            let change = changes
+                                .get_mut(&hash)
+                                .expect("spilled hashes have a change");
+                            change.intents.insert(id, true);
                         }
                     }
-                }
-            }
+                    task_cache_items += changes.len();
 
-            let span = tracing::trace_span!("flush task data");
-            parallel::try_for_each(
-                &[KeySpace::TaskMeta, KeySpace::TaskData, KeySpace::TaskCache],
-                |&key_space| {
-                    let _span = span.clone().entered();
-                    // No concurrent puts to these key spaces remain after map_collect_owned. The
-                    // TaskCache flush also puts the optimistic buckets into older SST files, so
-                    // every TaskCache write below supersedes them.
-                    unsafe { batch.flush(key_space) }
-                },
-            )?;
-
-            // Read every committed bucket the slow path needs. Reads see only committed data, so
-            // this batch's optimistic writes do not affect them. Fast additions never need a
-            // read: either the database was empty or their creation proved the whole committed
-            // bucket empty.
-            let read_hashes: Vec<_> = if was_empty {
-                Vec::new()
-            } else {
-                changes
-                    .iter()
-                    .filter(|(_, change)| change.needs_read)
-                    .map(|(hash, _)| *hash)
-                    .collect()
-            };
-            let mut old_values = FxHashMap::<TaskTypeHash, ArcBytes>::default();
-            if !read_hashes.is_empty() {
-                let keys: Vec<&[u8]> = read_hashes.iter().map(|hash| hash.as_slice()).collect();
-                #[cfg(test)]
-                self.inner
-                    .task_cache_batch_requests
-                    .fetch_add(1, Ordering::Relaxed);
-                #[cfg(test)]
-                self.inner
-                    .task_cache_batch_keys
-                    .fetch_add(keys.len(), Ordering::Relaxed);
-                let values = self.inner.database.batch_get(KeySpace::TaskCache, &keys)?;
-                old_values.extend(
-                    read_hashes
-                        .iter()
-                        .zip(values)
-                        .filter_map(|(hash, value)| Some((*hash, value?))),
-                );
-            }
-
-            // Supersede the optimistic buckets that were wrong, one hash partition per worker.
-            // Partitions hold disjoint hashes, and slow-path hashes are left to the reconcile
-            // below, so workers never write the same key.
-            let total_adds: usize = shard_adds.iter().map(Vec::len).sum();
-            let span = tracing::trace_span!(
-                "correct task cache additions",
-                adds = total_adds,
-                shards = shard_adds.len(),
-            );
-            let fast_results = {
-                let _entered = span.enter();
-                if total_adds < TASK_CACHE_PARALLEL_MERGE_MIN_ADDS {
-                    vec![correct_task_cache_adds(
-                        &batch,
-                        &shard_adds,
-                        &changes,
-                        None,
-                    )?]
-                } else {
-                    let partitions: Vec<u8> =
-                        (0..TASK_CACHE_MERGE_PARTITIONS).map(|p| p as u8).collect();
-                    parallel::map_collect::<_, _, Result<Vec<_>>>(&partitions, |&p| {
-                        let _span = span.clone().entered();
-                        correct_task_cache_adds(&batch, &shard_adds, &changes, Some(p))
-                    })?
-                }
-            };
-            drop(shard_adds);
-            let mut task_cache_items = 0;
-            for (distinct, spilled) in fast_results {
-                task_cache_items += distinct;
-                for (hash, id) in spilled {
-                    let change = changes
-                        .get_mut(&hash)
-                        .expect("spilled hashes have a change");
-                    if !change.intents.contains_key(&id) {
-                        change.intents.insert(id, true);
-                    }
-                }
-            }
-            snapshot_meta.task_cache_items = task_cache_items + changes.len();
-
-            if !changes.is_empty() {
-                let span = tracing::trace_span!(
-                    "reconcile task cache",
-                    changed_hashes = changes.len(),
-                    batch_read_requests = usize::from(!read_hashes.is_empty()),
-                    batch_read_keys = read_hashes.len(),
-                    batch_read_hits = old_values.len(),
-                );
-                let _entered = span.enter();
-                // Each hash appears once in `changes`, so workers write distinct keys while the
-                // batch supports concurrent puts and deletes.
-                let reconcile = |(hash, change): (TaskTypeHash, TaskCacheChanges)| -> Result<()> {
-                    let mut ids = old_values
-                        .get(&hash)
-                        .map(|bytes| decode_task_ids(Borrow::<[u8]>::borrow(bytes)))
-                        .transpose()?
-                        .unwrap_or_default();
-                    for (id, add) in change.intents.iter() {
-                        if *add {
-                            if !ids.contains(id) {
-                                ids.push(*id);
+                    if !changes.is_empty() {
+                        let span = tracing::trace_span!(
+                            "reconcile task cache",
+                            changed_hashes = changes.len(),
+                            batch_read_requests = usize::from(!read_hashes.is_empty()),
+                            batch_read_keys = read_hashes.len(),
+                            batch_read_hits = old_values.len(),
+                        );
+                        let _entered = span.enter();
+                        // Each hash appears once in `changes`, so workers write distinct keys while
+                        // the batch supports concurrent puts and deletes.
+                        let reconcile =
+                            |(hash, change): (TaskTypeHash, TaskCacheChanges)| -> Result<()> {
+                                let mut ids = old_values
+                                    .get(&hash)
+                                    .map(|bytes| decode_task_ids(Borrow::<[u8]>::borrow(bytes)))
+                                    .transpose()?
+                                    .unwrap_or_default();
+                                for (id, add) in change.intents.iter() {
+                                    if *add {
+                                        if !ids.contains(id) {
+                                            ids.push(*id);
+                                        }
+                                    } else {
+                                        ids.retain(|old_id| old_id != id);
+                                    }
+                                }
+                                if ids.is_empty() {
+                                    batch.delete(
+                                        KeySpace::TaskCache,
+                                        WriteBuffer::Borrowed(&hash),
+                                    )?;
+                                } else {
+                                    batch.put(
+                                        KeySpace::TaskCache,
+                                        WriteBuffer::Borrowed(&hash),
+                                        WriteBuffer::SmallVec(encode_task_ids(&ids)?),
+                                    )?;
+                                }
+                                Ok(())
+                            };
+                        let entries: Vec<_> = changes.into_iter().collect();
+                        // try_for_each_owned chunks multi-item inputs, but would schedule even two
+                        // hashes on a multi-core host; avoid overhead on typical small snapshots.
+                        if entries.len() < 64 {
+                            for entry in entries {
+                                reconcile(entry)?;
                             }
                         } else {
-                            ids.retain(|old_id| old_id != id);
+                            parallel::try_for_each_owned(entries, reconcile)?;
                         }
                     }
-                    if ids.is_empty() {
-                        batch.delete(KeySpace::TaskCache, WriteBuffer::Borrowed(&hash))?;
-                    } else {
-                        batch.put(
-                            KeySpace::TaskCache,
-                            WriteBuffer::Borrowed(&hash),
-                            WriteBuffer::SmallVec(encode_task_ids(&ids)?),
-                        )?;
-                    }
-                    Ok(())
-                };
-                let entries: Vec<_> = changes.into_iter().collect();
-                // try_for_each_owned chunks multi-item inputs, but would schedule even two
-                // hashes on a multi-core host; avoid overhead on typical small snapshots.
-                if entries.len() < 64 {
-                    for entry in entries {
-                        reconcile(entry)?;
-                    }
-                } else {
-                    parallel::try_for_each_owned(entries, reconcile)?;
-                }
-            }
+
+                    Ok(task_cache_items)
+                });
+            })
+            .collect::<Result<Vec<_>>>()?
+            .into_iter()
+            .sum();
 
             let mut next_task_id = get_next_free_task_id(&batch)?;
             next_task_id = next_task_id.max(snapshot_meta.max_next_task_id + 1);
@@ -863,21 +847,10 @@ mod tests {
     };
 
     #[test]
-    fn task_cache_bucket_codec_roundtrips_inline_and_spilled_lists() -> Result<()> {
-        let ids: Vec<_> = (1..=5).map(TaskId::try_from).collect::<Result<_, _>>()?;
-        for len in 1..=5 {
-            assert_eq!(
-                decode_task_ids(&encode_task_ids(&ids[..len])?)?.as_slice(),
-                &ids[..len]
-            );
-            assert_eq!(encode_task_ids(&ids[..len])?.len(), len * 4);
-        }
-        Ok(())
-    }
-
-    #[test]
-    fn task_cache_bucket_uses_continuation_words() -> Result<()> {
-        // TaskIds are nonzero and at most 31 bits, leaving bit 31 for continuation.
+    fn task_cache_bucket_uses_plain_words() -> Result<()> {
+        // The bucket length determines the count; every word is an unmodified TaskId.
+        let mut ids = Vec::new();
+        let mut expected = Vec::new();
         for (raw, bytes) in [
             (1u32, [1, 0, 0, 0]),
             (250, [250, 0, 0, 0]),
@@ -890,16 +863,17 @@ mod tests {
             let id = TaskId::try_from(raw)?;
             assert_eq!(encode_task_ids(&[id])?.as_slice(), &bytes);
             assert_eq!(decode_task_ids(&bytes)?.as_slice(), &[id]);
+            ids.push(id);
+            expected.extend_from_slice(&bytes);
+            // Prefixes exercise both inline and spilled lists, with no per-word markers.
+            assert_eq!(encode_task_ids(&ids)?.as_slice(), expected);
+            assert_eq!(decode_task_ids(&expected)?.as_slice(), ids);
         }
-        let ids = [TaskId::try_from(1)?, TaskId::try_from(65_536)?];
-        let bytes = [1, 0, 0, 0x80, 0, 0, 1, 0];
-        assert_eq!(encode_task_ids(&ids)?.as_slice(), &bytes);
-        assert_eq!(decode_task_ids(&bytes)?.as_slice(), &ids);
         Ok(())
     }
 
     #[test]
-    fn task_cache_bucket_rejects_invalid_continuation_words() {
+    fn task_cache_bucket_rejects_invalid_words() {
         assert!(
             encode_task_ids(&[]).is_err(),
             "empty buckets cannot be encoded"
@@ -912,7 +886,8 @@ mod tests {
             &[0, 0, 0, 0x80][..],
             &[0, 0, 0, 0x80, 1, 0, 0, 0][..],
             &[1, 0, 0, 0x80][..],
-            &[1, 0, 0, 0, 2, 0, 0, 0][..],
+            &[255, 255, 255, 255][..],
+            &[1, 0, 0, 0, 2, 0, 0, 0x80][..],
             &[1, 0, 0, 0, 2][..],
         ] {
             assert!(decode_task_ids(bytes).is_err(), "invalid bucket: {bytes:?}");
@@ -1328,100 +1303,6 @@ mod tests {
         Ok(())
     }
 
-    /// Two creations on different TaskId shards must publish one list, not two
-    /// competing writes under the same stable hash.
-    #[cfg_attr(
-        target_os = "wasi",
-        ignore = "filesystem-backed TaskCache test needs native host"
-    )]
-    #[tokio::test(flavor = "multi_thread")]
-    async fn snapshot_coalesces_two_new_colliding_puts() -> Result<()> {
-        let tempdir = test_temp_dir()?;
-        let db = TurboKeyValueDatabase::new(tempdir.path().to_path_buf(), TEST_STORAGE_OPTIONS)?;
-        let storage = TurboBackingStorage::new_in_memory(db);
-        assert!(storage.inner.database.is_empty());
-        let hash = 0xABCDEF_u64;
-        let first = TaskId::try_from(5u32).unwrap();
-        let second = TaskId::try_from(67u32).unwrap();
-        let put = |id| SnapshotItem::Put {
-            task_id: id,
-            meta: None,
-            data: None,
-            task_type_hash: Some(hash.to_le_bytes()),
-            task_cache_empty_on_creation: false,
-        };
-        let meta =
-            storage.save_snapshot(Vec::new(), None, vec![vec![put(first)], vec![put(second)]])?;
-        assert_eq!(meta.task_cache_items, 1);
-        assert_eq!(
-            storage.inner.task_cache_batch_keys.load(Ordering::Relaxed),
-            0
-        );
-        assert_eq!(
-            storage
-                .inner
-                .task_cache_batch_requests
-                .load(Ordering::Relaxed),
-            0
-        );
-        assert!(!storage.inner.database.is_empty());
-        assert_eq!(
-            task_cache_ids(&storage.inner.database, hash)?,
-            vec![first, second]
-        );
-        storage.inner.database.shutdown()?;
-        Ok(())
-    }
-
-    /// A type can miss the disk key before another task's snapshot commits it.
-    /// Its later snapshot must read the *current* bucket rather than trusting the miss.
-    #[cfg_attr(
-        target_os = "wasi",
-        ignore = "filesystem-backed TaskCache test needs native host"
-    )]
-    #[tokio::test(flavor = "multi_thread")]
-    async fn snapshot_merges_a_precommit_miss_with_a_later_commit() -> Result<()> {
-        let tempdir = test_temp_dir()?;
-        let db = TurboKeyValueDatabase::new(tempdir.path().to_path_buf(), TEST_STORAGE_OPTIONS)?;
-        let storage = TurboBackingStorage::new_in_memory(db);
-        let hash = 0xBADC0DE_u64;
-        let first = TaskId::try_from(55u32).unwrap();
-        let second = TaskId::try_from(66u32).unwrap();
-        assert!(
-            storage
-                .inner
-                .database
-                .get(KeySpace::TaskCache, &hash.to_le_bytes())?
-                .is_none()
-        ); // B's original pre-commit observation.
-        let put = |task_id| SnapshotItem::Put {
-            task_id,
-            meta: None,
-            data: None,
-            task_type_hash: Some(hash.to_le_bytes()),
-            task_cache_empty_on_creation: false,
-        };
-        storage.save_snapshot(Vec::new(), None, vec![vec![put(first)]])?;
-        storage.save_snapshot(Vec::new(), None, vec![vec![put(second)]])?;
-        assert_eq!(
-            task_cache_ids(&storage.inner.database, hash)?,
-            vec![first, second]
-        );
-        assert_eq!(
-            storage.inner.task_cache_batch_keys.load(Ordering::Relaxed),
-            1
-        );
-        assert_eq!(
-            storage
-                .inner
-                .task_cache_batch_requests
-                .load(Ordering::Relaxed),
-            1
-        );
-        storage.inner.database.shutdown()?;
-        Ok(())
-    }
-
     /// A fresh database skips hashing/sorting a large batch of absent disk keys, while
     /// the next snapshot observes the first commit and preserves its collision sibling.
     #[cfg_attr(
@@ -1441,6 +1322,15 @@ mod tests {
             task_type_hash: Some(hash.to_le_bytes()),
             task_cache_empty_on_creation: false,
         };
+        // An unguarded miss before the first commit must not become a creation hint: the later
+        // snapshot below reads the then-current bucket and preserves the first commit's ID.
+        assert!(
+            storage
+                .inner
+                .database
+                .get(KeySpace::TaskCache, &0x1001_u64.to_le_bytes())?
+                .is_none()
+        );
         let items: Vec<_> = (1..=64).map(|id| put(id, id as u64 + 0x1000)).collect();
         let meta = storage.save_snapshot(Vec::new(), None, vec![items])?;
         assert_eq!(meta.task_cache_items, 64);
@@ -1509,149 +1399,114 @@ mod tests {
         Ok(())
     }
 
-    /// Carry a new task's canonical empty-bucket observation to its *first* snapshot only.
-    /// A nonempty DB does not force a read when this hash was genuinely absent; once a
-    /// collision or deletion appears, the writer returns to batched read-modify-write.
+    /// Cross-shard collisions coalesce without reads in an empty DB or with creation hints.
+    /// Later unhinted additions and deletions preserve committed siblings with batched reads.
     #[cfg_attr(
         target_os = "wasi",
         ignore = "filesystem-backed TaskCache test needs native host"
     )]
     #[tokio::test(flavor = "multi_thread")]
-    async fn canonical_new_tasks_skip_disk_read_but_collisions_and_deletions_do_not() -> Result<()>
-    {
-        let tempdir = test_temp_dir()?;
-        let db = TurboKeyValueDatabase::new(tempdir.path().to_path_buf(), TEST_STORAGE_OPTIONS)?;
-        let unrelated_hash = 0xFF_u64;
-        write_task_cache_entry(&db, unrelated_hash, TaskId::try_from(2u32)?)?;
-        let storage = TurboBackingStorage::new_in_memory(db);
-        let hash = 0xCAFE_u64;
-        let first = TaskId::try_from(3u32)?;
-        let second = TaskId::try_from(4u32)?;
-        let third = TaskId::try_from(5u32)?;
-        let put = |task_id, hash: u64, empty| SnapshotItem::Put {
-            task_id,
-            meta: None,
-            data: None,
-            task_type_hash: Some(hash.to_le_bytes()),
-            task_cache_empty_on_creation: empty,
-        };
+    async fn new_tasks_skip_disk_read_but_collisions_and_deletions_do_not() -> Result<()> {
+        for db_starts_empty in [true, false] {
+            let tempdir = test_temp_dir()?;
+            let db =
+                TurboKeyValueDatabase::new(tempdir.path().to_path_buf(), TEST_STORAGE_OPTIONS)?;
+            let unrelated_hash = 0xFF_u64;
+            if !db_starts_empty {
+                write_task_cache_entry(&db, unrelated_hash, TaskId::try_from(2u32)?)?;
+            }
+            let storage = TurboBackingStorage::new_in_memory(db);
+            assert_eq!(storage.inner.database.is_empty(), db_starts_empty);
+            let hash = 0xCAFE_u64;
+            let first = TaskId::try_from(3u32)?;
+            let second = TaskId::try_from(4u32)?;
+            let third = TaskId::try_from(5u32)?;
+            let put = |task_id, hash: u64, empty| SnapshotItem::Put {
+                task_id,
+                meta: None,
+                data: None,
+                task_type_hash: Some(hash.to_le_bytes()),
+                task_cache_empty_on_creation: empty,
+            };
 
-        storage.save_snapshot(
-            Vec::new(),
-            None,
-            vec![vec![put(first, hash, true)], vec![put(second, hash, true)]],
-        )?;
-        assert_eq!(
-            task_cache_ids(&storage.inner.database, hash)?,
-            vec![first, second]
-        );
-        assert_eq!(
-            storage.inner.task_cache_batch_keys.load(Ordering::Relaxed),
-            0
-        );
-        assert_eq!(
-            storage
-                .inner
-                .task_cache_batch_requests
-                .load(Ordering::Relaxed),
-            0
-        );
-
-        // The next task saw a nonempty disk hash and must preserve both earlier IDs.
-        storage.save_snapshot(Vec::new(), None, vec![vec![put(third, hash, false)]])?;
-        assert_eq!(
-            task_cache_ids(&storage.inner.database, hash)?,
-            vec![first, second, third]
-        );
-        assert_eq!(
-            storage.inner.task_cache_batch_keys.load(Ordering::Relaxed),
-            1
-        );
-        assert_eq!(
-            storage
-                .inner
-                .task_cache_batch_requests
-                .load(Ordering::Relaxed),
-            1
-        );
-
-        // A deletion always reads the old bucket, but a different new hash with a canonical
-        // empty observation need not join that batch.
-        let another_hash = 0xBEEF_u64;
-        let fresh = TaskId::try_from(6u32)?;
-        storage.save_snapshot(
-            Vec::new(),
-            None,
-            vec![
-                vec![SnapshotItem::Delete {
-                    task_id: first,
-                    task_type_hash: hash.to_le_bytes(),
-                }],
-                vec![put(fresh, another_hash, true)],
-            ],
-        )?;
-        assert_eq!(
-            task_cache_ids(&storage.inner.database, hash)?,
-            vec![second, third]
-        );
-        assert_eq!(
-            task_cache_ids(&storage.inner.database, another_hash)?,
-            vec![fresh]
-        );
-        assert_eq!(
-            storage.inner.task_cache_batch_keys.load(Ordering::Relaxed),
-            2
-        );
-        assert_eq!(
-            storage
-                .inner
-                .task_cache_batch_requests
-                .load(Ordering::Relaxed),
-            2
-        );
-        storage.inner.database.shutdown()?;
-        Ok(())
-    }
-
-    /// Even if two snapshot shards produce conflicting intents for one ID, a
-    /// deletion wins regardless of shard iteration order.
-    #[cfg_attr(
-        target_os = "wasi",
-        ignore = "filesystem-backed TaskCache test needs native host"
-    )]
-    #[tokio::test(flavor = "multi_thread")]
-    async fn snapshot_delete_wins_over_conflicting_put() -> Result<()> {
-        let tempdir = test_temp_dir()?;
-        let db = TurboKeyValueDatabase::new(tempdir.path().to_path_buf(), TEST_STORAGE_OPTIONS)?;
-        let hash = 0xDE1E7E_u64;
-        let id = TaskId::try_from(99u32)?;
-        write_task_cache_entry(&db, hash, id)?;
-        let storage = TurboBackingStorage::new_in_memory(db);
-        let put = || SnapshotItem::Put {
-            task_id: id,
-            meta: None,
-            data: None,
-            task_type_hash: Some(hash.to_le_bytes()),
-            task_cache_empty_on_creation: false,
-        };
-        let delete = || SnapshotItem::Delete {
-            task_id: id,
-            task_type_hash: hash.to_le_bytes(),
-        };
-        for shards in [
-            vec![vec![put()], vec![delete()]],
-            vec![vec![delete()], vec![put()]],
-        ] {
-            storage.save_snapshot(Vec::new(), None, shards)?;
-            assert!(
+            storage.save_snapshot(
+                Vec::new(),
+                None,
+                vec![
+                    vec![put(first, hash, !db_starts_empty)],
+                    vec![put(second, hash, !db_starts_empty)],
+                ],
+            )?;
+            assert_eq!(
+                task_cache_ids(&storage.inner.database, hash)?,
+                vec![first, second]
+            );
+            assert_eq!(
+                storage.inner.task_cache_batch_keys.load(Ordering::Relaxed),
+                0
+            );
+            assert_eq!(
                 storage
                     .inner
-                    .database
-                    .get(KeySpace::TaskCache, &hash.to_le_bytes())?
-                    .is_none()
+                    .task_cache_batch_requests
+                    .load(Ordering::Relaxed),
+                0
             );
+
+            // The next task saw a nonempty disk hash and must preserve both earlier IDs.
+            storage.save_snapshot(Vec::new(), None, vec![vec![put(third, hash, false)]])?;
+            assert_eq!(
+                task_cache_ids(&storage.inner.database, hash)?,
+                vec![first, second, third]
+            );
+            assert_eq!(
+                storage.inner.task_cache_batch_keys.load(Ordering::Relaxed),
+                1
+            );
+            assert_eq!(
+                storage
+                    .inner
+                    .task_cache_batch_requests
+                    .load(Ordering::Relaxed),
+                1
+            );
+
+            // Deletion reads preserve siblings; a definitely-empty new hash need not join the
+            // batch.
+            let another_hash = 0xBEEF_u64;
+            let fresh = TaskId::try_from(6u32)?;
+            storage.save_snapshot(
+                Vec::new(),
+                None,
+                vec![
+                    vec![SnapshotItem::Delete {
+                        task_id: first,
+                        task_type_hash: hash.to_le_bytes(),
+                    }],
+                    vec![put(fresh, another_hash, true)],
+                ],
+            )?;
+            assert_eq!(
+                task_cache_ids(&storage.inner.database, hash)?,
+                vec![second, third]
+            );
+            assert_eq!(
+                task_cache_ids(&storage.inner.database, another_hash)?,
+                vec![fresh]
+            );
+            assert_eq!(
+                storage.inner.task_cache_batch_keys.load(Ordering::Relaxed),
+                2
+            );
+            assert_eq!(
+                storage
+                    .inner
+                    .task_cache_batch_requests
+                    .load(Ordering::Relaxed),
+                2
+            );
+            storage.inner.database.shutdown()?;
         }
-        storage.inner.database.shutdown()?;
         Ok(())
     }
 }

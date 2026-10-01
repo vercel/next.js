@@ -10,7 +10,7 @@ mod update_collectible;
 use std::{
     fmt::{Debug, Display, Formatter},
     ops::{Deref, DerefMut},
-    sync::{Arc, atomic::Ordering},
+    sync::Arc,
 };
 
 use anyhow::{Context, Result};
@@ -198,10 +198,11 @@ pub trait ExecuteContext<'e>: Sized {
     ///
     /// Uses hash-based lookup which may return multiple candidates due to hash collisions,
     /// then verifies each candidate by comparing the stored `persistent_task_type`.
-    /// Returns `(matching_task, disk_bucket_was_empty)`. The latter is true only if a guarded
-    /// lookup proved that the entire committed hash bucket was empty; a freshly allocated task
-    /// may carry it into its first snapshot. It is false for collisions and noncanonical reads.
-    /// Accepts exploded components so the caller does not need to box the argument before calling.
+    /// Returns `(matching_task, disk_bucket_was_definitely_empty)`. The latter is true only if a
+    /// guarded lookup proved that the entire committed hash bucket was empty; a freshly
+    /// allocated task may carry it into its first snapshot. It is false for collisions and
+    /// unguarded reads. Accepts exploded components so the caller does not need to box the
+    /// argument before calling.
     fn task_by_type(
         &mut self,
         native_fn: &'static NativeFunction,
@@ -1400,11 +1401,12 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
         }
 
         // The exclusion phase waits for this guarded operation to finish or suspend. No suspend
-        // point occurs before the caller publishes the newly allocated task/cache entry. If a
-        // snapshot has already released exclusion, its disk writes are still in flight, so a
-        // read during that interval cannot prove the next snapshot's disk baseline.
-        let canonical = matches!(self.phase, ExecutePhase::Normal { guard: Some(_) })
-            && !self.backend.pending_db_commit.load(Ordering::Acquire);
+        // point occurs before the caller publishes the newly allocated task/cache entry. The
+        // snapshot mutex stays locked through commit, so reads during a snapshot cannot prove
+        // the next snapshot's committed disk baseline.
+        let disk_bucket_was_definitely_empty =
+            matches!(self.phase, ExecutePhase::Normal { guard: Some(_) })
+                && !self.backend.snapshot_in_progress.is_locked();
         let candidates = self
             .backend
             .backing_storage
@@ -1414,7 +1416,7 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
         // Verify each candidate by comparing the stored persistent_task_type.
         // Only rarely is there more than one candidate, so no need for parallelization.
         if candidates.is_empty() {
-            return (None, canonical);
+            return (None, disk_bucket_was_definitely_empty);
         }
         for candidate_id in candidates {
             let task = self.task(candidate_id, TaskDataCategory::Data);
