@@ -410,6 +410,12 @@ pub struct BrowserChunkingContext {
 }
 
 impl BrowserChunkingContext {
+    pub fn clone_builder(&self) -> BrowserChunkingContextBuilder {
+        BrowserChunkingContextBuilder {
+            chunking_context: self.clone(),
+        }
+    }
+
     pub fn builder(
         root_path: FileSystemPath,
         output_root: FileSystemPath,
