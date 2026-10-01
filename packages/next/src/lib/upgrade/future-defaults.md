@@ -1,10 +1,3 @@
----
-title: Adopt Next.js Future Defaults with an agent
-description: Agent workflow for adopting Future Defaults after an optional Next.js version update.
-# Experimental agent workflow. Not ready for indexing; keep this document marked as draft.
-version: draft
----
-
 Follow the Future Default adoption documents listed in the prompt. If the
 installed and target Next.js versions differ, complete the version guide first.
 

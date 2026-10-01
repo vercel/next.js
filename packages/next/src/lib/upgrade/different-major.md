@@ -1,10 +1,3 @@
----
-title: Complete an agentic Next.js major upgrade
-description: Agent workflow for repository preflight, codemods, repairs, verification, and delivery across Next.js major versions.
-# Experimental agent workflow. Not ready for indexing; keep this document marked as draft.
-version: draft
----
-
 Each section has a checklist of items to complete. Read line by line and complete
 each item before moving on to the next section.
 
@@ -22,10 +15,11 @@ Canary installations support `latest` and `experimental-future` without advisory
 
 ## 1. Make a checklist
 
-- [ ] Read `../codemods.md` and `../version-<major>.md` for each crossed major
+- [ ] Read `../docs/01-app/02-guides/upgrading/codemods.md` and
+      `../docs/01-app/02-guides/upgrading/version-<major>.md` for each crossed major
       from version 14 onward. Include each **Review migration checklist**.
 - [ ] For crossed majors through version 13, read the Pages Router guide under
-      `docs/02-pages/02-guides/upgrading/` and derive the checklist from it.
+      `../docs/02-pages/02-guides/upgrading/` and derive the checklist from it.
 - [ ] Stop if a required guide is missing.
 
 ## 2. Upgrade and repair

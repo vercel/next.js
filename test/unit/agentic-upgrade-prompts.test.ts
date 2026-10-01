@@ -1239,7 +1239,7 @@ describe('agentic upgrade prompts', () => {
     expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', 'security')
     const [guidePath, guide] = jest.mocked(writeFile).mock.calls[0]
     expect(String(guidePath).replace(/\\+/g, '/')).toBe(
-      '/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/different-major.md'
+      '/tmp/next-upgrade-test/upgrade/different-major.md'
     )
     expect(String(guide)).toMatch(
       /^Run npx @next\/codemod@\S+ upgrade 16\.3\.5 --yes --skip-adoption$/
@@ -1247,8 +1247,8 @@ describe('agentic upgrade prompts', () => {
     const copiedSources = normalizedCopiedSources()
     expect(copiedSources).toEqual(
       expect.arrayContaining([
-        expect.stringContaining('/agentic-upgrade/shared.md'),
-        expect.stringContaining('/agentic-upgrade/different-major.md'),
+        expect.stringContaining('/lib/upgrade/shared.md'),
+        expect.stringContaining('/lib/upgrade/different-major.md'),
         expect.stringContaining('/codemods.md'),
         expect.stringContaining('/version-15.md'),
         expect.stringContaining('/version-16.md'),
@@ -1256,13 +1256,13 @@ describe('agentic upgrade prompts', () => {
     )
     expect(
       copiedSources.some((source) =>
-        source.includes('/agentic-upgrade/future-defaults.md')
+        source.includes('/lib/upgrade/future-defaults.md')
       )
     ).toBe(false)
     expect(normalizedBootstrapCalls()).toMatchInlineSnapshot(`
      [
        [
-         "Read and follow "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/shared.md" first. Attempt its applicable duplicate checks before changing files. If a check is unavailable, report it and continue. Stop only if you find equivalent work. Then read and follow every applicable instruction in "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/different-major.md".
+         "Read and follow "/tmp/next-upgrade-test/upgrade/shared.md" first. Attempt its applicable duplicate checks before changing files. If a check is unavailable, report it and continue. Stop only if you find equivalent work. Then read and follow every applicable instruction in "/tmp/next-upgrade-test/upgrade/different-major.md".
 
      We're upgrading the app in "/workspace/app" from Next.js 14.1.1 to 16.3.5 because the installed version is affected by a published security advisory.
 
@@ -1293,7 +1293,7 @@ describe('agentic upgrade prompts', () => {
 
     const [guidePath, guide] = jest.mocked(writeFile).mock.calls[0]
     expect(String(guidePath).replace(/\\+/g, '/')).toBe(
-      '/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/different-major.md'
+      '/tmp/next-upgrade-test/upgrade/different-major.md'
     )
     expect(String(guide)).toMatch(/--skip-adoption --verbose$/)
   })
@@ -1368,7 +1368,7 @@ describe('agentic upgrade prompts', () => {
     expect(writeFile).toHaveBeenCalledTimes(0)
     expect(
       normalizedCopiedSources().some((source) =>
-        source.includes('/agentic-upgrade/future-defaults.md')
+        source.includes('/lib/upgrade/future-defaults.md')
       )
     ).toBe(false)
     expect(
@@ -1377,7 +1377,7 @@ describe('agentic upgrade prompts', () => {
     expect(normalizedBootstrapCalls()).toMatchInlineSnapshot(`
      [
        [
-         "Read and follow "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/shared.md" first. Attempt its applicable duplicate checks before changing files. If a check is unavailable, report it and continue. Stop only if you find equivalent work. Then read and follow every applicable instruction in "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/same-major.md".
+         "Read and follow "/tmp/next-upgrade-test/upgrade/shared.md" first. Attempt its applicable duplicate checks before changing files. If a check is unavailable, report it and continue. Stop only if you find equivalent work. Then read and follow every applicable instruction in "/tmp/next-upgrade-test/upgrade/same-major.md".
 
      We're upgrading the app in "/workspace/app" from Next.js 16.2.12 to 16.3.5 because a newer stable Next.js release is available.
 
@@ -1414,16 +1414,16 @@ describe('agentic upgrade prompts', () => {
     )
 
     expect(normalizedBootstrapCalls().flat().join('\n')).toContain(
-      '/agentic-upgrade/shared.md'
+      '/upgrade/shared.md'
     )
     expect(normalizedBootstrapCalls().flat().join('\n')).toContain(
-      '/agentic-upgrade/same-major.md'
+      '/upgrade/same-major.md'
     )
     expect(readFile).toHaveBeenCalledTimes(0)
     expect(writeFile).toHaveBeenCalledTimes(0)
     expect(normalizedCopiedSources()).toEqual([
-      expect.stringContaining('/agentic-upgrade/shared.md'),
-      expect.stringContaining('/agentic-upgrade/same-major.md'),
+      expect.stringContaining('/lib/upgrade/shared.md'),
+      expect.stringContaining('/lib/upgrade/same-major.md'),
     ])
   })
 
@@ -1447,11 +1447,11 @@ describe('agentic upgrade prompts', () => {
     )
 
     expect(normalizedBootstrapCalls().flat().join('\n')).toContain(
-      '/agentic-upgrade/different-major.md'
+      '/upgrade/different-major.md'
     )
     expect(
       normalizedCopiedSources().some((source) =>
-        source.includes('/agentic-upgrade/future-defaults.md')
+        source.includes('/lib/upgrade/future-defaults.md')
       )
     ).toBe(false)
   })
@@ -1476,11 +1476,11 @@ describe('agentic upgrade prompts', () => {
     )
 
     const prompt = normalizedBootstrapCalls().flat().join('\n')
-    expect(prompt).toContain('/agentic-upgrade/different-major.md')
-    expect(prompt).toContain('/agentic-upgrade/future-defaults.md')
+    expect(prompt).toContain('/upgrade/different-major.md')
+    expect(prompt).toContain('/upgrade/future-defaults.md')
     expect(normalizedCopiedSources()).toEqual(
       expect.arrayContaining([
-        expect.stringContaining('/agentic-upgrade/future-defaults.md'),
+        expect.stringContaining('/lib/upgrade/future-defaults.md'),
       ])
     )
   })
@@ -1601,7 +1601,7 @@ describe('agentic upgrade prompts', () => {
     expect(normalizedFileWriteCalls()).toEqual(normalizedWriteFileCalls())
     expect(normalizedCopiedSources()).toEqual(
       expect.arrayContaining([
-        expect.stringContaining('/agentic-upgrade/future-defaults.md'),
+        expect.stringContaining('/lib/upgrade/future-defaults.md'),
       ])
     )
 
@@ -1612,7 +1612,7 @@ describe('agentic upgrade prompts', () => {
      {
        "prompt": [
          [
-           "Read and follow "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/shared.md" first. Attempt its applicable duplicate checks before changing files. If a check is unavailable, report it and continue. Stop only if you find equivalent work. Then read and follow every applicable instruction in "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/same-major.md".
+           "Read and follow "/tmp/next-upgrade-test/upgrade/shared.md" first. Attempt its applicable duplicate checks before changing files. If a check is unavailable, report it and continue. Stop only if you find equivalent work. Then read and follow every applicable instruction in "/tmp/next-upgrade-test/upgrade/same-major.md".
 
      We're upgrading the app in "/workspace/app" from Next.js 16.2.0 to 16.4.0 because the Future policy applies the latest stable release and adopts its Future Defaults.
 
@@ -1620,7 +1620,7 @@ describe('agentic upgrade prompts', () => {
 
      Set \`experimental.agentUpgrade\` to "experimental-future" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
 
-     After completing and verifying the version update, read and follow "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/future-defaults.md".
+     After completing and verifying the version update, read and follow "/tmp/next-upgrade-test/upgrade/future-defaults.md".
      Adopt these Future Defaults in order:
      - Cache Components
        - Read and follow "/tmp/next-upgrade-test/docs/01-app/02-guides/migrating-to-cache-components.md".
@@ -1704,20 +1704,20 @@ describe('agentic upgrade prompts', () => {
     ).toEqual(
       expect.arrayContaining([
         [
-          expect.stringContaining('/agentic-upgrade/future-defaults.md'),
-          '/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/future-defaults.md',
+          expect.stringContaining('/lib/upgrade/future-defaults.md'),
+          '/tmp/next-upgrade-test/upgrade/future-defaults.md',
         ],
       ])
     )
     expect(readFile).not.toHaveBeenCalled()
     expect(normalizedFileWriteCalls()).not.toContainEqual([
-      '/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/future-defaults.md',
+      '/tmp/next-upgrade-test/upgrade/future-defaults.md',
       expect.anything(),
     ])
     expect(normalizedBootstrapCalls()).toMatchInlineSnapshot(`
      [
        [
-         "Read and follow "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/shared.md" first. Attempt its applicable duplicate checks before changing files. If a check is unavailable, report it and continue. Stop only if you find equivalent work. Then read and follow every applicable instruction in "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade/future-defaults.md".
+         "Read and follow "/tmp/next-upgrade-test/upgrade/shared.md" first. Attempt its applicable duplicate checks before changing files. If a check is unavailable, report it and continue. Stop only if you find equivalent work. Then read and follow every applicable instruction in "/tmp/next-upgrade-test/upgrade/future-defaults.md".
 
      We're adopting the Future Defaults available to the app in "/workspace/app", which already uses Next.js 16.4.0.
 

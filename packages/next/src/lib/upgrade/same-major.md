@@ -1,10 +1,3 @@
----
-title: Complete an agentic Next.js version update
-description: Update Next.js within the same major version and verify the app.
-# Experimental agent workflow. Not ready for indexing; keep this document marked as draft.
-version: draft
----
-
 Use the exact target version in the handoff prompt. Do not run a codemod or
 follow a major-version migration guide for this same-major update.
 
