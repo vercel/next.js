@@ -3165,6 +3165,13 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
     // staleAt that corresponds to whatever payload the spawned entries get
     // filled with below.
     let staleAtForSpawnedEntries = staleAt
+    // Whether the payload that fulfills the spawned entries is an App Shell
+    // extracted from a larger response. Such a payload is a strict subset of
+    // the response, so it does not represent the entire UI of the target page
+    // — it's partial by construction, regardless of the server's marker. When
+    // the spawned entries are instead filled with the full response, its
+    // partialness comes from the marker (see `isResponsePartial` below).
+    let spawnedEntriesGetExtractedShell = false
     if (cacheData === null) {
       // No shell can be extracted without cache metadata (only present when
       // Cached Navigations is enabled). For routes without a distinct App Shell
@@ -3209,6 +3216,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
           // with the shell.
           serverDataThatSatisfiesSpawnedEntries = shellStageData
           staleAtForSpawnedEntries = shellStaleAt
+          spawnedEntriesGetExtractedShell = true
 
           // Separately, we'll also cache the entire response, by upserting it
           // into the cache.
@@ -3268,13 +3276,13 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
     )
 
     // PPRRuntime and RuntimeShell prefetches are partial when the server
-    // marks the response as '~' (Partial). RuntimeShell additionally omits
-    // every dynamic suspense boundary below the App Shell, so its segments
-    // are always partial regardless of what the server marker says.
-    // Full/LoadingBoundary prefetches are always complete.
+    // marks the response as '~' (Partial). Full/LoadingBoundary prefetches
+    // are always complete. An App Shell extracted from a larger response is
+    // partial by construction; see `spawnedEntriesGetExtractedShell`.
     const isResponsePartial =
-      fetchStrategy === FetchStrategy.RuntimeShell ||
-      (fetchStrategy === FetchStrategy.PPRRuntime &&
+      spawnedEntriesGetExtractedShell ||
+      ((fetchStrategy === FetchStrategy.PPRRuntime ||
+        fetchStrategy === FetchStrategy.RuntimeShell) &&
         (cacheData?.isResponsePartial ?? false))
 
     const flightDatas = normalizeFlightData(
