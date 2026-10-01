@@ -3,7 +3,6 @@
 import { ArrowRight, CircleCheck, Route } from 'lucide-react'
 import Link from 'next/link'
 import type { MouseEventHandler } from 'react'
-import { OPEN_ROUTE_PICKER_EVENT } from '@/components/route-typeahead'
 import { CompareSidebar } from '@/components/sidebar'
 import { DiffTable } from '@/components/diff-table'
 import { DiffTreemap } from '@/components/diff-treemap'
@@ -49,6 +48,7 @@ export interface CompareLayoutModel {
   searchQuery: string
   selectedKey: string | null
   onSelectedKeyChange: (key: string | null) => void
+  onOpenRoutePicker: () => void
 }
 
 /**
@@ -96,6 +96,7 @@ export function CompareLayout({ model, onResizeSidebar }: CompareLayoutProps) {
             comparisonSnapshot={model.comparisonSnapshot}
             compareSelectedKey={model.selectedKey}
             onCompareSelectedKeyChange={model.onSelectedKeyChange}
+            onOpenRoutePicker={model.onOpenRoutePicker}
           />
         </div>
         <button
@@ -351,6 +352,7 @@ export function ComparePerRoutePanel({
   comparisonSnapshot,
   compareSelectedKey,
   onCompareSelectedKeyChange,
+  onOpenRoutePicker,
 }: {
   compareView: CompareView
   isViewPending: boolean
@@ -366,6 +368,7 @@ export function ComparePerRoutePanel({
   comparisonSnapshot: SnapshotMetadata | null
   compareSelectedKey: string | null
   onCompareSelectedKeyChange: (key: string | null) => void
+  onOpenRoutePicker: () => void
 }) {
   if (!selectedRoute) {
     return (
@@ -405,7 +408,12 @@ export function ComparePerRoutePanel({
     sourceDiff.counts.changed === 0
 
   if (hasNoModuleChanges) {
-    return <NoModuleChangesState selectedRoute={selectedRoute} />
+    return (
+      <NoModuleChangesState
+        selectedRoute={selectedRoute}
+        onOpenRoutePicker={onOpenRoutePicker}
+      />
+    )
   }
 
   return (
@@ -451,7 +459,13 @@ export function ComparePerRoutePanel({
   )
 }
 
-function NoModuleChangesState({ selectedRoute }: { selectedRoute: string }) {
+function NoModuleChangesState({
+  selectedRoute,
+  onOpenRoutePicker,
+}: {
+  selectedRoute: string
+  onOpenRoutePicker: () => void
+}) {
   return (
     <div className="flex flex-1 items-center justify-center p-6 text-center">
       <div className="flex max-w-sm flex-col items-center">
@@ -466,13 +480,7 @@ function NoModuleChangesState({ selectedRoute }: { selectedRoute: string }) {
           revisions.
         </p>
         <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
-          <Button
-            type="button"
-            size="sm"
-            onClick={() =>
-              window.dispatchEvent(new Event(OPEN_ROUTE_PICKER_EVENT))
-            }
-          >
+          <Button type="button" size="sm" onClick={onOpenRoutePicker}>
             <Route aria-hidden="true" />
             Choose another route
           </Button>

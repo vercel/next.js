@@ -107,8 +107,7 @@ export function DiffTreemap({
 
   return (
     <TreemapVisualizer
-      analyzeData={data}
-      sourceIndex={initialRoot}
+      source={diffLayout}
       selectedSourceIndex={selectedSourceIndex}
       onSelectSourceIndex={handleSelectSourceIndex}
       focusedSourceIndex={focusedSourceIndex}
@@ -116,9 +115,6 @@ export function DiffTreemap({
       getFileSizeLabel={getFileSizeLabel}
       sizeMode={useCompressed ? SizeMode.Compressed : SizeMode.Uncompressed}
       getFileColorOverride={getFileColorOverride}
-      computeLayout={diffLayout.computeLayout}
-      getParentSourceIndex={diffLayout.getParentSourceIndex}
-      getSourceName={diffLayout.getSourceName}
       searchQuery={searchQuery}
       overlay={<DiffLegend />}
     />

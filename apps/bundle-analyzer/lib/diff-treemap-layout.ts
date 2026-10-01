@@ -1,7 +1,7 @@
 import type { SourceDiffRow } from './diff'
 import { delta } from './diff'
 import { layoutTreemap } from './layout-treemap'
-import type { LayoutNode, LayoutRect } from './treemap-layout'
+import type { LayoutNode, LayoutRect, TreemapSource } from './treemap-layout'
 
 interface DiffTreeNode {
   index: number
@@ -12,13 +12,9 @@ interface DiffTreeNode {
   children: DiffTreeNode[]
 }
 
-export interface DiffTreemapLayout {
-  rootIndex: number
+export interface DiffTreemapLayout extends TreemapSource {
   rowBySourceIndex: Map<number, SourceDiffRow>
   sourceIndexByKey: Map<string, number>
-  getParentSourceIndex(sourceIndex: number): number | null
-  getSourceName(sourceIndex: number): string
-  computeLayout(sourceIndex: number, rect: LayoutRect): LayoutNode
 }
 
 export function createDiffTreemapLayout(
