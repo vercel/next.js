@@ -60,26 +60,26 @@ pub fn with_entry_in_shard<K: Eq + Hash, V, S: BuildHasher + Clone, Q: ?Sized, R
 pub enum TryLockAndRemove {
     /// The shard lock was acquired and a matching entry was removed.
     Removed,
-    /// The shard lock was acquired but no matching entry was present.
+    /// The shard lock was acquired but the key was absent or held another value.
     NotFound,
     /// The shard lock was contended; the caller should retry later after releasing
     /// any other locks they are holding.
     WouldBlock,
 }
 
-/// Remove `key` from `map` without blocking on shard contention.
+/// Remove `key` only if it still maps to `expected`, without blocking on shard contention.
 ///
-/// Intended for call sites that already hold another lock and want to avoid a
-/// cyclic wait. On contention (`WouldBlock`), the caller is expected to defer the
-/// removal and retry after dropping the other lock.
+/// The value check prevents an eviction of an old TaskId from removing a newer mapping for
+/// the same task type. On contention the caller defers removal until releasing other locks.
 pub fn try_lock_and_remove<
     K: Eq + Hash + AsRef<Q>,
-    V,
+    V: Copy + PartialEq,
     Q: Eq + Hash + ?Sized,
     S: BuildHasher + Clone,
 >(
     map: &DashMap<K, V, S>,
     key: &Q,
+    expected: V,
 ) -> TryLockAndRemove {
     let hasher = map.hasher();
     let hash = hasher.hash_one(key);
@@ -88,10 +88,54 @@ pub fn try_lock_and_remove<
         return TryLockAndRemove::WouldBlock;
     };
     match shard.find_entry(hash, |(k, _v)| k.as_ref() == key) {
-        Ok(entry) => {
+        Ok(entry) if entry.get().1 == expected => {
             entry.remove();
             TryLockAndRemove::Removed
         }
-        Err(_) => TryLockAndRemove::NotFound,
+        _ => TryLockAndRemove::NotFound,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::hash::BuildHasher;
+
+    use turbo_tasks::FxDashMap;
+
+    use super::{TryLockAndRemove, get_shard, try_lock_and_remove};
+
+    #[test]
+    fn try_lock_and_remove_requires_matching_values() {
+        let map = FxDashMap::<String, u32>::default();
+        map.insert("task".to_string(), 2);
+        assert!(matches!(
+            try_lock_and_remove(&map, "task", 1),
+            TryLockAndRemove::NotFound
+        ));
+        assert_eq!(map.get("task").map(|id| *id), Some(2));
+        assert!(matches!(
+            try_lock_and_remove(&map, "task", 2),
+            TryLockAndRemove::Removed
+        ));
+        assert!(map.get("task").is_none());
+    }
+
+    #[test]
+    fn contended_removal_rechecks_the_expected_value_after_unlocking() {
+        let map = FxDashMap::<String, u32>::default();
+        map.insert("task".to_string(), 1);
+        let hash = map.hasher().hash_one("task");
+        let shard_guard = get_shard(&map, hash).write();
+        assert!(matches!(
+            try_lock_and_remove(&map, "task", 1),
+            TryLockAndRemove::WouldBlock
+        ));
+        drop(shard_guard);
+
+        // A new mapping can be published after the contended eviction releases its other lock.
+        map.insert("task".to_string(), 2);
+        assert!(map.remove_if("task", |_, id| *id == 1).is_none());
+        assert_eq!(map.get("task").map(|id| *id), Some(2));
+        assert!(map.remove_if("task", |_, id| *id == 2).is_some());
     }
 }

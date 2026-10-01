@@ -643,14 +643,15 @@ impl Storage {
             // was contended. We defer them until after the map shard lock is released to
             // avoid a lock cycle with get_or_create_persistent_task, which takes task_cache
             // before map. Allocated lazily on first conflict.
-            let mut deferred_task_cache_removals: Vec<CachedTaskTypeArc> = Vec::new();
+            let mut deferred_task_cache_removals: Vec<(CachedTaskTypeArc, TaskId)> = Vec::new();
             // Remove a task type from `task_cache`, deferring on contention. Shared by the
             // GC-deleted path below and the ordinary key eviction.
             let remove_from_task_cache =
                 |evicted: &mut EvictionCounts,
-                 deferred: &mut Vec<CachedTaskTypeArc>,
-                 task_type: &CachedTaskTypeArc| {
-                    match try_lock_and_remove(&self.task_cache, task_type.as_ref()) {
+                 deferred: &mut Vec<(CachedTaskTypeArc, TaskId)>,
+                 task_type: &CachedTaskTypeArc,
+                 task_id: TaskId| {
+                    match try_lock_and_remove(&self.task_cache, task_type.as_ref(), task_id) {
                         TryLockAndRemove::Removed => {
                             evicted.key_evictions += 1;
                         }
@@ -660,7 +661,7 @@ impl Storage {
                         }
                         TryLockAndRemove::WouldBlock => {
                             // Contention, to avoid a deadlock just defer
-                            deferred.push(task_type.clone());
+                            deferred.push((task_type.clone(), task_id));
                         }
                     }
                 };
@@ -674,11 +675,16 @@ impl Storage {
                 // All GC'd tasks were tombstoned during the snapshot (or are not persisted) so we
                 // can drop them fully now.
                 if task.flags.deleted() {
-                    if let Some(task_type) = task.get_persistent_task_type() {
+                    // A sole Arc owner proves this type is already absent from TaskCache.
+                    // Additional owners might not be cache entries, so still check the TaskId.
+                    if let Some(task_type) = task.get_persistent_task_type()
+                        && task_type.count() > 1
+                    {
                         remove_from_task_cache(
                             &mut evicted,
                             &mut deferred_task_cache_removals,
                             task_type,
+                            *task_id,
                         );
                     }
                     evicted.full += 1;
@@ -699,6 +705,7 @@ impl Storage {
                             &mut evicted,
                             &mut deferred_task_cache_removals,
                             task_type,
+                            *task_id,
                         );
                     }
                     KeyEvictability::AlreadyEvicted | KeyEvictability::Unevictable => {}
@@ -738,8 +745,12 @@ impl Storage {
             // Release the map shard lock before draining deferred removals so that a thread
             // holding a task_cache shard lock and waiting on this map shard can make progress.
             drop(shard);
-            for task_type in deferred_task_cache_removals {
-                if self.task_cache.remove(task_type.as_ref()).is_some() {
+            for (task_type, task_id) in deferred_task_cache_removals {
+                if self
+                    .task_cache
+                    .remove_if(task_type.as_ref(), |_, id| *id == task_id)
+                    .is_some()
+                {
                     evicted.key_evictions += 1;
                 }
             }
@@ -1172,10 +1183,33 @@ impl<P> Drop for SnapshotShardIter<'_, P> {
 #[cfg(test)]
 mod tests {
     use turbo_bincode::TurboBincodeBuffer;
-    use turbo_tasks::TaskId;
+    use turbo_tasks::{
+        TaskId,
+        backend::{CachedTaskType, CachedTaskTypeArc},
+        macro_helpers::{ArgMeta, NativeFunction, into_task_fn},
+    };
 
     use super::{SpecificTaskDataCategory, Storage, TrackOutcome};
     use crate::backing_storage::SnapshotItem;
+
+    fn dummy_fn() {}
+
+    static DUMMY_FN: NativeFunction = NativeFunction::new(
+        "task_cache_eviction_test",
+        "task_cache_eviction_test",
+        ArgMeta::new::<(i32,)>(),
+        &into_task_fn(dummy_fn),
+        false,
+        false,
+    );
+
+    fn test_cached_type() -> CachedTaskTypeArc {
+        CachedTaskTypeArc::new(CachedTaskType {
+            native_fn: &DUMMY_FN,
+            this: None,
+            arg: Box::new((42i32,)),
+        })
+    }
 
     fn non_transient_task(id: u32) -> TaskId {
         // TRANSIENT_TASK_BIT is 0x2000_0000; any id without that bit is non-transient.
@@ -1192,6 +1226,54 @@ mod tests {
         let task = storage.access_mut(task_id);
         assert_eq!(task.gc_transient_ref_count(), 1);
         assert!(!task.gc_collectible());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn gc_deleted_task_with_evicted_key_preserves_newer_cache_entry() {
+        let storage = Storage::new(2, true);
+        let old_id = non_transient_task(1);
+        let new_id = non_transient_task(2);
+        storage.initialize_new_task(old_id, Some(test_cached_type()));
+        {
+            let mut task = storage.access_mut(old_id);
+            task.flags.set_new_task(false);
+            task.flags.set_deleted(true);
+            let task_type = task.get_persistent_task_type().unwrap();
+            assert_eq!(task_type.count(), 1);
+        }
+        // An earlier ordinary key eviction removed the old cache entry while retaining its
+        // TaskStorage. After the GC tombstone commits, the same type can acquire a new ID.
+        let newer_type = test_cached_type();
+        storage.initialize_new_task(new_id, Some(newer_type.clone()));
+        storage.task_cache.insert(newer_type.clone(), new_id);
+
+        let counts = storage.evict_after_snapshot(None);
+        assert_eq!(counts.full, 1);
+        assert_eq!(counts.key_evictions, 0);
+        assert!(!storage.map.contains_key(&old_id));
+        assert_eq!(
+            storage.task_cache.get(newer_type.as_ref()).map(|id| *id),
+            Some(new_id)
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn gc_deleted_task_with_live_cache_key_removes_matching_id() {
+        let storage = Storage::new(2, true);
+        let task_id = non_transient_task(1);
+        let task_type = test_cached_type();
+        storage.initialize_new_task(task_id, Some(task_type.clone()));
+        storage.task_cache.insert(task_type.clone(), task_id);
+        {
+            let mut task = storage.access_mut(task_id);
+            task.flags.set_new_task(false);
+            task.flags.set_deleted(true);
+            assert!(task.get_persistent_task_type().unwrap().count() > 1);
+        }
+        let counts = storage.evict_after_snapshot(None);
+        assert_eq!(counts.full, 1);
+        assert_eq!(counts.key_evictions, 1);
+        assert!(storage.task_cache.get(task_type.as_ref()).is_none());
     }
 
     /// A process fn that returns a non-empty SnapshotItem so the iterator doesn't

@@ -1789,13 +1789,14 @@ impl TurboTasksBackend {
                 hash,
                 arg,
                 |k, arg| k.eq_components(native_fn, this, arg.as_ref()),
-                |entry, _arg| {
-                    if let Entry::Vacant(entry) = entry {
+                |entry, _arg| match entry {
+                    Entry::Occupied(entry) => entry.get().1,
+                    Entry::Vacant(entry) => {
                         entry.insert((stored_type, task_id));
+                        task_id
                     }
                 },
-            );
-            task_id
+            )
         } else {
             let (task_id, created) = with_entry_in_shard(
                 shard,

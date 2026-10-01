@@ -52,8 +52,8 @@ impl KeySpace {
             },
             KeySpace::TaskCache => FamilyConfig {
                 name: self.name(),
-                // TaskCache uses hash-based lookups with potential collisions.
-                kind: FamilyKind::MultiValue,
+                // TaskCache maps each hash to one list of TaskIds to handle rare collisions.
+                kind: FamilyKind::SingleValue,
                 compression: Compression::Lz4,
                 initial_shard_bits: ShardBits::new(0),
             },
