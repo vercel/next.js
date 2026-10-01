@@ -72,6 +72,7 @@ export function RouteTypeahead(props: RouteTypeaheadProps) {
   const [shortcutLabel, setShortcutLabel] = useState<string | null>(null)
 
   useEffect(() => {
+    // Match the platform shortcut: ⌘K on Apple devices, Ctrl+K elsewhere.
     const isAppleDevice = /Mac|iPhone|iPad|iPod/.test(navigator.userAgent)
     setShortcutLabel(isAppleDevice ? '⌘K' : 'Ctrl+K')
 
