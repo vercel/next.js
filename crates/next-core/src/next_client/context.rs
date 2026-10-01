@@ -168,7 +168,6 @@ pub async fn get_client_resolve_options_context(
     let concurrent_router_queue = *next_config.enable_concurrent_router_queue().await?;
     let next_client_resolved_map = get_next_client_resolved_map(
         project_path.clone(),
-        project_path.clone(),
         *mode.await?,
         expose_testing_api,
         concurrent_router_queue,
