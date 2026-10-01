@@ -1,5 +1,5 @@
 ---
-title: Next.js encountered a navigation stage API in `generateMetadata()`
+title: Next.js encountered `prefetch()` or `navigation()` in `generateMetadata()`
 kind: insight
 ---
 
@@ -26,7 +26,7 @@ During prerendering or a client-side navigation, [`generateMetadata()`](/docs/ap
 
 Metadata can already stream, so delaying it may be unintentional. Remove the API call if you do not need the delay. Otherwise, confirm that the metadata delay is intentional.
 
-For the same insight in the page body or viewport code, see [navigation stage API outside of Suspense](/docs/messages/instant-navigation-stage) or [navigation stage API in `generateViewport()`](/docs/messages/instant-navigation-stage-viewport).
+For the same insight in the page body or viewport code, see [`prefetch()` or `navigation()` outside of Suspense](/docs/messages/instant-navigation-stage) or [`prefetch()` or `navigation()` in `generateViewport()`](/docs/messages/instant-navigation-stage-viewport).
 
 ## Ways to fix this
 
@@ -73,6 +73,8 @@ export default function Page() {
   return <main>Dashboard</main>
 }
 ```
+
+Learn more: [`generateMetadata()`](/docs/app/api-reference/functions/generate-metadata).
 
 ### Trade-off
 
@@ -122,6 +124,8 @@ export default function Page() {
   )
 }
 ```
+
+Learn more: [`prefetch()`](/docs/app/api-reference/functions/prefetch) and [`navigation()`](/docs/app/api-reference/functions/navigation).
 
 ### Trade-off
 

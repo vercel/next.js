@@ -1,5 +1,5 @@
 ---
-title: Next.js encountered a navigation stage API outside of Suspense
+title: Next.js encountered `prefetch()` or `navigation()` outside of Suspense
 kind: insight
 ---
 
@@ -22,11 +22,11 @@ kind: insight
   come back here for the specific fix.
 </div>
 
-During prerendering or a client-side navigation, a Server Component called a [navigation stage API](/docs/app/glossary#navigation-stages) outside of [`<Suspense>`](https://react.dev/reference/react/Suspense). These APIs include [`prefetch()`](/docs/app/api-reference/functions/prefetch) and [`navigation()`](/docs/app/api-reference/functions/navigation). Next.js needs a fallback when either API excludes a subtree from a prefetch.
+During prerendering or a client-side navigation, a Server Component called [`prefetch()`](/docs/app/api-reference/functions/prefetch) or [`navigation()`](/docs/app/api-reference/functions/navigation) outside of [`<Suspense>`](https://react.dev/reference/react/Suspense). These [navigation stage APIs](/docs/app/glossary#navigation-stages) need a fallback when they exclude a subtree from a prefetch.
 
 For a route with a runtime [App Shell](/docs/app/glossary#app-shell), `prefetch()` excludes subsequent content from the App Shell but includes it in `<Link prefetch={true}>` prefetches and navigations. `navigation()` excludes the content from both the App Shell and per-link prefetches, then renders it during navigation. Neither API affects initial loads or [static prerenders](/docs/app/glossary#prerendering), and subsequent content remains cacheable.
 
-For the same insight in metadata or viewport code, see [navigation stage API in `generateMetadata()`](/docs/messages/instant-navigation-stage-metadata) or [navigation stage API in `generateViewport()`](/docs/messages/instant-navigation-stage-viewport).
+For the same insight in metadata or viewport code, see [`prefetch()` or `navigation()` in `generateMetadata()`](/docs/messages/instant-navigation-stage-metadata) or [`prefetch()` or `navigation()` in `generateViewport()`](/docs/messages/instant-navigation-stage-viewport).
 
 ## Ways to fix this
 
@@ -83,6 +83,8 @@ export default function Page() {
 }
 ```
 
+Learn more: [`prefetch()`](/docs/app/api-reference/functions/prefetch).
+
 #### Defer content until navigation
 
 Use `navigation()` when the region should be absent from prefetches and rendered only after navigation begins.
@@ -108,7 +110,7 @@ export default function Page() {
 }
 ```
 
-Learn more: [Streaming](/docs/app/guides/streaming).
+Learn more: [`navigation()`](/docs/app/api-reference/functions/navigation) and [Streaming](/docs/app/guides/streaming).
 
 ### Trade-off
 
