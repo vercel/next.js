@@ -132,7 +132,7 @@ async function collectAppPageSegments(
 
       if (segment.config) {
         segment.config.prefetch = prefetchConfig
-        segment.config.unstable_ensureStatic = ensureStatic
+        segment.config.ensureStatic = ensureStatic
       }
     }
 

@@ -10,6 +10,8 @@ import {
 import { createServer } from 'http'
 import type { AddressInfo } from 'net'
 import { join } from 'path'
+import { getRouteCacheKey } from 'next/dist/server/lib/route-cache-key'
+import { RouteKind } from 'next/dist/server/route-kind'
 
 // An on-demand entry must retain its lifetime when read by a new process.
 describe('isr-cache-control-restart', () => {
@@ -53,6 +55,10 @@ describe('isr-cache-control-restart', () => {
   )
 
   describe('replacement entries shared by running instances', () => {
+    const cacheKey = getRouteCacheKey('/1', {
+      kind: RouteKind.APP_PAGE,
+      sourceRoute: '/[id]/page',
+    })
     const { next } = nextTestSetup({
       files: join(__dirname, 'cache-components'),
       skipStart: true,
@@ -104,14 +110,14 @@ describe('isr-cache-control-restart', () => {
       const cacheFile = '.next/shared-cache.json'
       await retry(async () => {
         const entries = JSON.parse(await next.readFile(cacheFile))
-        expect(entries['/1'].cacheControl.revalidate).toBe(3600)
+        expect(entries[cacheKey].cacheControl.revalidate).toBe(3600)
       })
 
       // Evict the route directly. No revalidatePath() is used, so this does
       // not rely on the fixture handler's no-op revalidateTag(). Keep A alive.
       result = 'error'
       const entries = JSON.parse(await next.readFile(cacheFile))
-      delete entries['/1']
+      delete entries[cacheKey]
       await next.patchFile(cacheFile, JSON.stringify(entries))
 
       const replacement = await fetchViaHTTP(portB, '/1')
@@ -121,7 +127,7 @@ describe('isr-cache-control-restart', () => {
       expect(load(await replacement.text())('#result').text()).toBe('error')
 
       const lastModified = await retry(async () => {
-        const shared = JSON.parse(await next.readFile(cacheFile))['/1']
+        const shared = JSON.parse(await next.readFile(cacheFile))[cacheKey]
         expect(shared.cacheControl.revalidate).toBe(2)
         return shared.lastModified as number
       })

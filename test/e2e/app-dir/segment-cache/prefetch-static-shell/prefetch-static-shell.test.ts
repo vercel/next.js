@@ -2140,8 +2140,8 @@ describe('static App Shell prefetch attempt', () => {
     })
   })
 
-  describe('unstable_ensureStatic', () => {
-    describe('unstable_ensureStatic = false', () => {
+  describe('ensureStatic', () => {
+    describe('ensureStatic = false', () => {
       it('uses a runtime shell for a page that uses cookies', async () => {
         let page: Playwright.Page
         const browser = await next.browser('/', {
@@ -2152,7 +2152,7 @@ describe('static App Shell prefetch attempt', () => {
         const act = createRouterAct(page, { includeAppShellRequests: true })
 
         // Reveal the link to the page.
-        // The page has `unstable_ensureStatic = false`, and uses cookies (with no other dynamic holes).
+        // The page has `ensureStatic = false`, and uses cookies (with no other dynamic holes).
         // It should use a runtime shell.
         await act(async () => {
           await browser
@@ -2182,7 +2182,7 @@ describe('static App Shell prefetch attempt', () => {
       })
     })
 
-    describe('unstable_ensureStatic = "shell"', () => {
+    describe('ensureStatic = "shell"', () => {
       it('uses a static shell for a page that uses cookies`', async () => {
         let page: Playwright.Page
         const browser = await next.browser('/', {
@@ -2193,7 +2193,7 @@ describe('static App Shell prefetch attempt', () => {
         const act = createRouterAct(page, { includeAppShellRequests: true })
 
         // Reveal a prefetch-auto link to the page.
-        // The page has `unstable_ensureStatic = "shell"`, and uses cookies.
+        // The page has `ensureStatic = "shell"`, and uses cookies.
         // It should use a static prefetch.
         await act(async () => {
           await browser
@@ -2236,7 +2236,7 @@ describe('static App Shell prefetch attempt', () => {
         const act = createRouterAct(page, { includeAppShellRequests: true })
 
         // Reveal a prefetch-true link to the page.
-        // The page has `unstable_ensureStatic = "shell"`, and uses cookies.
+        // The page has `ensureStatic = "shell"`, and uses cookies.
         // It should use a static prefetch, and a runtime shell.
         await act(async () => {
           await browser
@@ -2268,7 +2268,7 @@ describe('static App Shell prefetch attempt', () => {
       })
     })
 
-    describe('unstable_ensureStatic = "prefetch"', () => {
+    describe('ensureStatic = "prefetch"', () => {
       it('uses a static request for a link to a page that uses cookies', async () => {
         let page: Playwright.Page
         const browser = await next.browser('/', {
@@ -2279,7 +2279,7 @@ describe('static App Shell prefetch attempt', () => {
         const act = createRouterAct(page, { includeAppShellRequests: true })
 
         // Reveal a prefetch-auto link to the page.
-        // The page has `unstable_ensureStatic = "prefetch"`, and uses cookies (with no other dynamic holes).
+        // The page has `ensureStatic = "prefetch"`, and uses cookies (with no other dynamic holes).
         // It should use a static prefetch.
         await act(async () => {
           await browser
@@ -2318,7 +2318,7 @@ describe('static App Shell prefetch attempt', () => {
         const act = createRouterAct(page, { includeAppShellRequests: true })
 
         // Reveal a prefetch-true link to the page.
-        // The page has `unstable_ensureStatic = "prefetch"`, and uses cookies (with no other dynamic holes).
+        // The page has `ensureStatic = "prefetch"`, and uses cookies (with no other dynamic holes).
         // It should use a static prefetch.
         await act(async () => {
           await browser
@@ -2348,7 +2348,7 @@ describe('static App Shell prefetch attempt', () => {
       })
     })
 
-    describe('unstable_ensureStatic = "navigation"', () => {
+    describe('ensureStatic = "navigation"', () => {
       // NOTE: "navigation" can't use IO, so we use params instead.
       it('uses a static request for a link to a page that uses static params', async () => {
         let page: Playwright.Page
@@ -2363,7 +2363,7 @@ describe('static App Shell prefetch attempt', () => {
         const href = `/ensure-static/navigation/${slug}`
 
         // Reveal a prefetch-auto link to the page.
-        // The page has `unstable_ensureStatic = "navigation"`, and uses params.
+        // The page has `ensureStatic = "navigation"`, and uses params.
         // It should use a static prefetch.
         await act(async () => {
           await browser
@@ -2402,7 +2402,7 @@ describe('static App Shell prefetch attempt', () => {
         const href = `/ensure-static/navigation/${slug}`
 
         // Reveal a prefetch-true link to the page.
-        // The page has `unstable_ensureStatic = "navigation"`, and uses params.
+        // The page has `ensureStatic = "navigation"`, and uses params.
         // It should use a static prefetch.
         await act(async () => {
           await browser
@@ -2441,7 +2441,7 @@ describe('static App Shell prefetch attempt', () => {
         const href = `/ensure-static/navigation/${slug}`
 
         // Reveal a prefetch-true link to the page.
-        // The page has `unstable_ensureStatic = "navigation"`, and uses params.
+        // The page has `ensureStatic = "navigation"`, and uses params.
         // This param was not prerendered at build, but we should not serve an ISR fallback,
         // because `ensureStatic = "navigation"` requires prerenders to be blocking.
         // It should use a static prefetch.

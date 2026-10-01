@@ -878,7 +878,7 @@ export async function isPageStatic({
         const isEnsureStaticPage =
           cacheComponents &&
           isRoutePPREnabled &&
-          appConfig.unstable_ensureStatic === 'navigation'
+          appConfig.ensureStatic === 'navigation'
 
         // If force dynamic was set and we don't have PPR enabled, then set the
         // revalidate to 0.
@@ -1031,7 +1031,7 @@ type ReducedAppConfig = Pick<
   | 'runtime'
   | 'maxDuration'
   | 'prefetch'
-  | 'unstable_ensureStatic'
+  | 'ensureStatic'
 >
 
 /**
@@ -1055,7 +1055,7 @@ export function reduceAppConfig(
       runtime,
       maxDuration,
       prefetch,
-      unstable_ensureStatic,
+      ensureStatic,
     } = segment.config || {}
 
     // TODO: should conflicting configs here throw an error
@@ -1099,8 +1099,8 @@ export function reduceAppConfig(
     if (typeof prefetch !== 'undefined') {
       config.prefetch = prefetch
     }
-    if (typeof unstable_ensureStatic !== 'undefined') {
-      config.unstable_ensureStatic = unstable_ensureStatic
+    if (typeof ensureStatic !== 'undefined') {
+      config.ensureStatic = ensureStatic
     }
   }
 

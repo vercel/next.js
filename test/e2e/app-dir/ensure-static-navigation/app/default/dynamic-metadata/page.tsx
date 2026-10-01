@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { connection } from 'next/server'
 
-export const unstable_ensureStatic = 'navigation'
+export const ensureStatic = 'navigation'
 
 export async function generateMetadata(): Promise<Metadata> {
   await connection()

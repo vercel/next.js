@@ -137,9 +137,7 @@ export async function loadStaticPaths({
     const isEnsureStaticPage =
       config.cacheComponents &&
       isRoutePPREnabled &&
-      segments.some(
-        (segment) => segment.config?.unstable_ensureStatic === 'navigation'
-      )
+      segments.some((segment) => segment.config?.ensureStatic === 'navigation')
 
     const rootParamKeys = collectRootParamKeys(routeModule)
 
