@@ -9,10 +9,10 @@ import * as Log from '../../build/output/log'
 import type { NextConfigComplete } from '../../server/config-shared'
 import type { Telemetry } from '../../telemetry/storage'
 import {
-  eventAIUpgradeNudgeDecision,
-  eventAIUpgradeNudgeShown,
-  eventAIUpgradePolicyDetected,
-} from '../../telemetry/events/ai-upgrade'
+  eventAgentUpgradeNudgeDecision,
+  eventAgentUpgradeNudgeShown,
+  eventAgentUpgradePolicyDetected,
+} from '../../telemetry/events/agent-upgrade'
 import semver from 'next/dist/compiled/semver'
 import type { UpgradeAction } from './prompt'
 import { getAgentName } from '../../telemetry/agent-name'
@@ -283,7 +283,7 @@ async function nudgeUpgradeForAgent(
   nudgeId: string,
   agentProduct: string,
   telemetry: Telemetry | null,
-  policyEvent: ReturnType<typeof eventAIUpgradePolicyDetected>
+  policyEvent: ReturnType<typeof eventAgentUpgradePolicyDetected>
 ): Promise<void> {
   let summary: string
   let recommendation: string
@@ -351,7 +351,7 @@ ${reference ? `Reference: ${reference}` : ''}`
           distDir: resolve(options.directory, options.distDir),
           events: [
             policyEvent,
-            eventAIUpgradeNudgeShown({
+            eventAgentUpgradeNudgeShown({
               nudgeId,
               recipient: 'agent',
               agentProduct,
@@ -402,7 +402,7 @@ async function getUpgradePreferences(directory: string) {
   const hash = createHash('sha256').update(identity).digest('hex')
   // Conf treats dots as separators, including dots in directory names.
   const name = encodeURIComponent(projectName).replace(/\./g, '%2E')
-  const key = `ai-upgrade.${name}.${hash}`
+  const key = `agent-upgrade.${name}.${hash}`
   // Upgrade preferences share Next.js' global config location, not telemetry consent.
   return { key, preferences: new Conf({ projectName: 'nextjs' }) }
 }
@@ -535,7 +535,7 @@ export async function nudgeUpgrade(
   }
   // Observe the effective policy even when assessment finds no upgrade to offer.
   const telemetry = telemetryOptions?.telemetry ?? null
-  const policyEvent = eventAIUpgradePolicyDetected({
+  const policyEvent = eventAgentUpgradePolicyDetected({
     configuredPolicy: config.configuredPolicy ?? null,
     effectivePolicy: policy,
     policySource: requested ? 'environment' : 'config',
@@ -613,7 +613,7 @@ export async function nudgeUpgrade(
           shown = true
           telemetryOptions.onNudgeId?.(nudgeId)
           telemetryOptions.telemetry.record(
-            eventAIUpgradeNudgeShown({
+            eventAgentUpgradeNudgeShown({
               nudgeId,
               recipient: 'human',
               agentProduct: null,
@@ -634,7 +634,7 @@ export async function nudgeUpgrade(
 
     if (shown && telemetry) {
       if (!signal.aborted) {
-        telemetry.record(eventAIUpgradeNudgeDecision({ nudgeId, action }))
+        telemetry.record(eventAgentUpgradeNudgeDecision({ nudgeId, action }))
       }
       await telemetry.flush()
     }

@@ -497,10 +497,10 @@ describe('prepare latest upgrade', () => {
     const directory = await createApp(version)
     global.fetch = jest.fn()
     await expect(prepareUpgrade(directory, 'latest')).rejects.toThrow(
-      'AI upgrades are not available for this prerelease version of Next.js.'
+      'Agent upgrades are not available for this prerelease version of Next.js.'
     )
     await expect(getUpgradeAssessment(version, 'latest')).rejects.toThrow(
-      'AI upgrades are not available for this prerelease version of Next.js.'
+      'Agent upgrades are not available for this prerelease version of Next.js.'
     )
     expect(global.fetch).toHaveBeenCalledTimes(0)
   })

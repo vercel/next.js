@@ -92,7 +92,10 @@ function normalizedBootstrapCalls(): string[][] {
     String(message)
       .replace(/\\+/g, '/')
       // Run IDs are intentionally unique; keep prompt snapshots stable.
-      .replace(/report-agent-upgrade [0-9a-f-]{36}/g, 'report-agent-upgrade <run-id>')
+      .replace(
+        /report-agent-upgrade [0-9a-f-]{36}/g,
+        'report-agent-upgrade <run-id>'
+      )
       .replaceAll(
         `next@${cliVersion} internal report-agent-upgrade`,
         'next@<cli-version> internal report-agent-upgrade'
@@ -1295,7 +1298,7 @@ describe('agentic upgrade prompts', () => {
     expect(String(guide)).toMatch(/--skip-adoption --verbose$/)
   })
 
-  it('defaults a bare AI upgrade to security', async () => {
+  it('defaults a bare agent upgrade to security', async () => {
     await spawnNextUpgrade(
       '/workspace/app',
       {
@@ -1315,7 +1318,7 @@ describe('agentic upgrade prompts', () => {
   })
 
   it.each(['security', 'latest', 'experimental-future'] as const)(
-    'uses the configured %s policy for a bare AI upgrade',
+    'uses the configured %s policy for a bare agent upgrade',
     async (policy) => {
       jest.mocked(loadConfig).mockResolvedValue({
         default: { experimental: { agentUpgrade: policy } },

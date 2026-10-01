@@ -30,7 +30,7 @@ export async function prepareUpgrade(
     targetRequest !== 'experimental-future'
   ) {
     throw new Error(
-      `Unsupported AI upgrade type ${JSON.stringify(targetRequest)}. Expected "security", "latest", or "experimental-future".`
+      `Unsupported agent upgrade type ${JSON.stringify(targetRequest)}. Expected "security", "latest", or "experimental-future".`
     )
   }
 
@@ -98,7 +98,7 @@ export async function getUpgradeAssessment(
   const channel = getPrereleaseChannel(installedVersion)
   if (semver.prerelease(installedVersion) && !channel) {
     throw new Error(
-      'AI upgrades are not available for this prerelease version of Next.js.'
+      'Agent upgrades are not available for this prerelease version of Next.js.'
     )
   }
   if (channel && (policy === 'security' || onlyIfAffected)) {
