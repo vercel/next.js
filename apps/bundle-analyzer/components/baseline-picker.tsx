@@ -1,13 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import {
-  Check,
-  ChevronsUpDown,
-  GitCompareArrows,
-  Loader,
-  X,
-} from 'lucide-react'
+import { Check, ChevronsUpDown, GitCompareArrows, X } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
@@ -25,7 +19,6 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
-import { NetworkError } from '@/lib/errors'
 import { useHistoryIndex } from '@/lib/analyzer-data'
 import {
   formatRelativeTime,
@@ -76,9 +69,9 @@ export function BaselinePicker(props: BaselinePickerProps) {
   } = props
   const [open, setOpen] = useState(false)
 
-  const { data: history, isLoading, error } = useHistoryIndex()
+  const history = useHistoryIndex()
 
-  const allSnapshots = history?.snapshots ?? []
+  const allSnapshots = history.snapshots
   // The index is also the source of truth for the current build's data URL.
   const currentSnapshotId = allSnapshots[0]?.id
   const snapshots = allSnapshots.filter(
@@ -90,19 +83,13 @@ export function BaselinePicker(props: BaselinePickerProps) {
       ? snapshots.find((s) => s.id === selectedSnapshotId)
       : null
 
-  // Surface only fatal/network problems; missing history files are not errors.
-  const hasError = error instanceof NetworkError
-
-  const isEmpty = !isLoading && snapshots.length === 0
+  const isEmpty = snapshots.length === 0
   // When the only snapshot on disk is the current build itself, surface a
   // distinct label/tooltip telling the user to run another build.
-  const isOnlyCurrentBuild =
-    !isLoading && allSnapshots.length > 0 && snapshots.length === 0
+  const isOnlyCurrentBuild = allSnapshots.length > 0 && snapshots.length === 0
 
   let triggerText: React.ReactNode
-  if (isLoading) {
-    triggerText = 'Loading history…'
-  } else if (selected) {
+  if (selected) {
     triggerText = (
       <span className="flex items-center gap-1.5 truncate">
         <span className="text-muted-foreground text-xs">{prefix}</span>
@@ -123,16 +110,10 @@ export function BaselinePicker(props: BaselinePickerProps) {
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            disabled={isLoading || hasError}
             className="min-w-44 max-w-72 justify-between text-sm"
-            title={hasError ? 'Unable to load build history' : undefined}
           >
             <div className="flex items-center min-w-0">
-              {isLoading ? (
-                <Loader className="mr-2 h-3.5 w-3.5 inline animate-spin" />
-              ) : (
-                <GitCompareArrows className="mr-2 h-3.5 w-3.5 inline" />
-              )}
+              <GitCompareArrows className="mr-2 h-3.5 w-3.5 inline" />
               <span className="truncate">{triggerText}</span>
             </div>
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />

@@ -25,15 +25,11 @@ export function RouteSummaryPage() {
 }
 
 function RouteSummaryContent() {
-  const { data: history, isLoading } = useHistoryIndex()
-  if (isLoading) return <RouteSummarySkeleton />
-  return <ResolvedRouteSummary currentBaseDir={currentDataDir(history)} />
-}
-
-function ResolvedRouteSummary({ currentBaseDir }: { currentBaseDir: string }) {
   // Read the client URL before Suspense data: static prerendering must bail out
   // before SWR attempts to fetch analyzer files on the server.
   const searchParams = useSearchParams()
+  const history = useHistoryIndex()
+  const currentBaseDir = currentDataDir(history)
   const routes = useSuspenseJsonData<string[]>(
     `${currentBaseDir}/routes.json`,
     {

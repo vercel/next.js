@@ -70,19 +70,9 @@ export function CompareAnalyzer() {
 }
 
 function AnalyzerController({ compare }: { compare: boolean }) {
-  const { data: history, isLoading } = useHistoryIndex()
-  // Don't request /data while we are still resolving the current snapshot.
-  if (isLoading) return <AnalyzerFallback view={CompareView.Treemap} />
-  return <LoadedAnalyzer compare={compare} history={history} />
-}
-
-function LoadedAnalyzer({
-  compare,
-  history,
-}: {
-  compare: boolean
-  history: HistoryIndex | undefined
-}) {
+  // Bail out of static prerendering before requesting client-only analyzer data.
+  useSearchParams()
+  const history = useHistoryIndex()
   const model = useAnalyzerModel(compare, history)
   return compare ? (
     <CompareAnalyzerView model={model} />
@@ -111,7 +101,7 @@ function AnalyzerFallback({ view }: { view: CompareView }) {
   return <AnalyzerChromeSkeleton view={view} />
 }
 
-function useAnalyzerModel(compare: boolean, history: HistoryIndex | undefined) {
+function useAnalyzerModel(compare: boolean, history: HistoryIndex) {
   const [routePickerOpen, setRoutePickerOpen] = useState(false)
   const [selectedSourceIndex, setSelectedSourceIndex] = useState<number | null>(
     null
@@ -120,7 +110,7 @@ function useAnalyzerModel(compare: boolean, history: HistoryIndex | undefined) {
     null
   )
 
-  const routeState = useAnalyzerRoute(compare, history?.snapshots)
+  const routeState = useAnalyzerRoute(compare, history.snapshots)
   const {
     baselineSnapshot,
     comparisonSnapshot,
@@ -165,7 +155,7 @@ function useAnalyzerModel(compare: boolean, history: HistoryIndex | undefined) {
   )
 
   // Routes for comparison side B: the newest snapshot by default, or an
-  // independently selected historical snapshot. Older exports fall back to /data.
+  // independently selected historical snapshot.
   const currentRoutes = useSuspenseJsonData<string[]>(
     `${comparisonBaseDir}/routes.json`,
     { revalidateOnFocus: false, revalidateOnReconnect: false }

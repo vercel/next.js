@@ -233,11 +233,11 @@ describe('next analyze', () => {
           await page.goto(`${baseUrl}/`)
           await retry(async () => {
             expect(await page.locator('body').innerText()).toContain(
-              'Largest client payloads'
+              'Failed to fetch /history/history.json: 404'
             )
           })
-          expect(requests.some(({ url }) => url === '/data/routes.json')).toBe(
-            true
+          expect(requests.some(({ url }) => url.startsWith('/data/'))).toBe(
+            false
           )
         } finally {
           if (browser) await browser.close()
