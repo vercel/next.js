@@ -288,7 +288,7 @@ describe('build-output-prerender', () => {
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time-client
                at Page (webpack:///app/client/page.tsx:4:28)
-               at ClientPageRoot (webpack:///src/client/components/client-page.tsx:56:10)
+               at ClientPageRoot (webpack:///src/client/components/client-page.tsx:69:10)
              2 |
              3 | export default function Page() {
            > 4 |   return <p>Current time: {new Date().toISOString()}</p>

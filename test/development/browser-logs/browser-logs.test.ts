@@ -384,7 +384,7 @@ describe(`Terminal Logging (${bundlerName})`, () => {
                    <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
                      <RedirectBoundary>
                        <RedirectErrorBoundary router={{...}}>
-                         <InnerLayoutRouter url="/hydration..." tree={[...]} params={{}} renderTree={{...}} segmentPath={[...]} ...>
+                         <InnerLayoutRouter url="/hydration..." tree={[...]} parentParams={{}} renderTree={{...}} ...>
                            <SegmentViewNode type="page" pagePath="hydration-...">
                              <SegmentTrieNode>
                              <ClientPageRoot Component={function Page} serverProvidedParams={{...}}>
