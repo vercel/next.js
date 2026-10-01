@@ -13,17 +13,15 @@ related:
 
 Before Cache Components, static and dynamic rendering were primarily a route-level choice. [Route segment configs](/docs/app/guides/caching-without-cache-components#dynamic) such as `dynamic = 'force-static'`, `dynamic = 'force-dynamic'`, and `dynamic = 'error'` controlled whether the entire route was prerendered, rendered on demand, or failed when it could not be prerendered.
 
-[Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) moves this boundary to the component and function level. A single route can have a static shell, cached content, and request-specific content that streams in later. In most cases, this mix provides useful UI early without requiring the entire route to be static.
+[Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) moves this boundary to the component and function level. A single route can have a static shell, cached content, and request-specific content that streams in later. Shared UI can render first without requiring the entire route to be static.
 
-However, some output must not introduce request-time server work. You may need predictable rendering performance, want to avoid request-time compute, or want to protect a route that is expected to remain fully prerendered. In these cases, [`ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic) makes the static requirement explicit so later changes cannot silently introduce request-time rendering.
-
-This guide explains where static output can be produced during navigation, then applies each `ensureStatic` level to a worked example. You will also use the development overlay and build errors to find work that does not meet the selected requirement.
+Some routes must still avoid request-time server work to control compute costs or remain fully prerendered as the codebase changes. [`ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic) makes that requirement explicit, so later changes cannot silently introduce request-time rendering.
 
 ## Decide what should stay static
 
-Static output is produced without request-specific data, so Next.js can generate it before a request and use it across requests. With [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), a default `<Link>` loads the destination's [App Shell](/docs/app/glossary#app-shell). Setting `prefetch={true}` can also load static or cached [URL-specific content](/docs/app/guides/optimizing-prefetching#resolve-url-data-at-prefetch-time). The navigation request returns the remaining server-rendered content after the user follows the link.
+Static output does not depend on request-specific data. Next.js can generate it before a request and reuse it across requests. With [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), a default `<Link>` loads the destination's [App Shell](/docs/app/glossary#app-shell). Setting `prefetch={true}` can also load static or cached [URL-specific content](/docs/app/guides/optimizing-prefetching#resolve-url-data-at-prefetch-time). The navigation request returns the remaining server-rendered content after the user follows the link.
 
-Each `ensureStatic` value extends the static requirement through another part of route loading. In the following diagram, gray marks output that must remain static, while blue marks work that can render later:
+Each `ensureStatic` value extends the static requirement through another part of route loading. Gray marks output that must remain static, while blue marks work that can render later:
 
 <Image
   alt="The Shell, Prefetch, and Navigation stages, with bars showing how each ensureStatic value extends the static requirement through those stages"
@@ -33,11 +31,11 @@ Each `ensureStatic` value extends the static requirement through another part of
   height="530"
 />
 
-Start with the smallest requirement that covers the output you need to protect. The following example begins with the App Shell, then extends the requirement through a per-link prefetch and the complete route.
+Start with the smallest requirement that protects the output you need.
 
 ## Example
 
-Consider an online store with existing data access for products, inventory, and buying guides. Its shared layout, product pages, and buying guides have different static requirements.
+An online store has product data, live inventory, and buying guides. Its shared layout, product pages, and buying guides have different static requirements.
 
 Enable [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) and [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching):
 
@@ -74,9 +72,9 @@ export default function StoreLayout({ children }: LayoutProps<'/store'>) {
 }
 ```
 
-A default `<Link>` into the store can load this shell from static output. If a later change adds request-specific content behind `<Suspense>`, that content waits for a per-link prefetch or navigation instead of making the shell render per request.
+A default `<Link>` into the store loads this shell from static output. If a later change adds request-specific content behind `<Suspense>`, that content renders during a per-link prefetch or navigation instead of making the shell render per request.
 
-For one subtree, [`await prefetch()`](/docs/app/api-reference/functions/prefetch) provides similar behavior by keeping the work below it out of the App Shell. Use `ensureStatic = 'shell'` when the static requirement applies across the route instead of adding that cutoff to each subtree.
+To keep one subtree out of the App Shell, call [`await prefetch()`](/docs/app/api-reference/functions/prefetch) within that subtree. `ensureStatic = 'shell'` applies the same boundary across the route.
 
 ### Step 2: Prefetch product details, not live inventory
 
@@ -118,9 +116,11 @@ When a product link becomes visible, its prefetch includes the product heading a
 
 Pause the next navigation in the Next.js DevTools to inspect this result. Resume the navigation to load the current inventory.
 
-`ensureStatic = 'prefetch'` keeps the prefetch static, but it does not assert which product UI the prefetch contains. [Instant Navigation validation](/docs/app/api-reference/file-conventions/route-segment-config/instant) surfaces work that would block a client navigation. Use the inspector to check the prefetched UI, and an [`instant()` test](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) to preserve a specific contract, such as keeping the product heading available before the click.
+`ensureStatic = 'prefetch'` requires the output returned by a link prefetch to be static. It does not define which product UI must be ready when the user clicks.
 
-For one subtree, [`await navigation()`](/docs/app/api-reference/functions/navigation) keeps the work below it out of both the App Shell and per-link prefetches. Use `ensureStatic = 'prefetch'` when every prefetch for the route must remain static.
+[Instant Navigation validation](/docs/app/api-reference/file-conventions/route-segment-config/instant) surfaces work that would block a client navigation. Check the prefetched UI in the inspector, then add an [`instant()` test](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) to prevent regressions, such as the product heading no longer being ready before the click. The test can pass whether the UI came from static output or a prefetch for the current client session.
+
+To keep one subtree out of both the App Shell and per-link prefetches, call [`await navigation()`](/docs/app/api-reference/functions/navigation) within that subtree. `ensureStatic = 'prefetch'` applies the same boundary to every prefetch for the route.
 
 ### Step 3: Prerender every buying guide
 
@@ -167,7 +167,7 @@ export default async function GuidePage({
 }
 ```
 
-The parameter error is now fixed. If the route has multiple dynamic segments, every result must include all of them.
+If the route has multiple dynamic segments, every result must include all of them.
 
 Reload the guide URL. Because `cookies()` is only available for a request, the development overlay shows the [runtime data error](/docs/messages/static-route-runtime) with these fixes:
 
@@ -212,7 +212,7 @@ The client fix only applies to `searchParams`. Buying guides do not need a per-u
   }
 ```
 
-Reload the page. The runtime data error clears, revealing that `getGuide()` still performs request-time server work. The development overlay now shows the [uncached data error](/docs/messages/static-route-dynamic) with these fixes:
+Reload the page. The runtime data error clears, but `getGuide()` still performs request-time server work. The development overlay now shows the [uncached data error](/docs/messages/static-route-dynamic) with these fixes:
 
 <FixCardGrid>
   <FixCard
@@ -253,10 +253,6 @@ Reload the page in development. The static-route error clears. Run `next build` 
 If the guide must read uncached or request-specific data, remove `ensureStatic = 'navigation'` instead. That changes the route's requirement and allows the data to render per request.
 
 ## Next steps
-
-You now know how to require static output for a route while allowing request-specific content at the points you choose.
-
-Next, learn how to:
 
 - [Ensure instant navigations](/docs/app/guides/instant-navigation) by structuring cached content and `<Suspense>` boundaries around client navigations.
 - [Optimize prefetching](/docs/app/guides/optimizing-prefetching) to choose which cached content loads before navigation and which subtrees wait.
