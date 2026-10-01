@@ -49,6 +49,20 @@ describe('back navigation before hydration after reload', () => {
     }
   }
 
+  // Waits for the heading of the page we expect to end up on; every page has
+  // its own heading id. `waitUntil` is off because the load event doesn't fire
+  // until the released scripts have run, which is most of what we're waiting
+  // for.
+  function waitForPage(
+    browser: Awaited<ReturnType<typeof next.browser>>,
+    headingSelector: string
+  ) {
+    return browser.elementByCss(headingSelector, {
+      waitUntil: false,
+      timeout: 10_000,
+    })
+  }
+
   // Navigates client-side (creating a same-document sibling entry), then
   // reloads with scripts stalled, returning as soon as the new document
   // commits. `window.__stayed` is set on the committed document so tests can
@@ -60,7 +74,7 @@ describe('back navigation before hydration after reload', () => {
   async function clickThenReloadStalled(
     startPath: string,
     linkId: string,
-    headingAfterClick: string
+    headingSelectorAfterClick: string
   ) {
     let page: Playwright.Page
     const browser = await next.browser(startPath, {
@@ -70,9 +84,7 @@ describe('back navigation before hydration after reload', () => {
     })
 
     await browser.elementById(linkId).click()
-    await retry(async () => {
-      expect(await browser.elementByCss('h1').text()).toBe(headingAfterClick)
-    })
+    await waitForPage(browser, headingSelectorAfterClick)
 
     const releaseScripts = await stallScripts(page)
     await browser.refresh({ waitUntil: 'commit' })
@@ -112,7 +124,7 @@ describe('back navigation before hydration after reload', () => {
       const { browser, releaseScripts } = await clickThenReloadStalled(
         homePath,
         'to-post',
-        'Post'
+        '#post'
       )
 
       // Back while the reloaded document is not hydrated: an instant
@@ -124,30 +136,24 @@ describe('back navigation before hydration after reload', () => {
 
       // We traversed back, so once the router is up it must render the home
       // page (or otherwise bring URL and content back in sync).
-      await retry(async () => {
-        expect(new URL(await browser.url()).pathname).toBe(homePath)
-        expect(await browser.elementByCss('h1').text()).toBe('Home')
-      })
+      await waitForPage(browser, '#home')
+      expect(new URL(await browser.url()).pathname).toBe(homePath)
 
       // History traversal must still work after recovery.
       await browser.forward()
-      await retry(async () => {
-        expect(new URL(await browser.url()).pathname).toBe(postPath)
-        expect(await browser.elementByCss('h1').text()).toBe('Post')
-      })
+      await waitForPage(browser, '#post')
+      expect(new URL(await browser.url()).pathname).toBe(postPath)
 
       await browser.back()
-      await retry(async () => {
-        expect(new URL(await browser.url()).pathname).toBe(homePath)
-        expect(await browser.elementByCss('h1').text()).toBe('Home')
-      })
+      await waitForPage(browser, '#home')
+      expect(new URL(await browser.url()).pathname).toBe(homePath)
     })
 
     it('reconciles when the traversed entry differs only in search params', async () => {
       const { browser, releaseScripts } = await clickThenReloadStalled(
         `${searchPath}?page=1`,
         'to-page-2',
-        'Page 2'
+        '#page-2'
       )
 
       await browser.back({ waitUntil: 'commit' })
@@ -155,16 +161,12 @@ describe('back navigation before hydration after reload', () => {
 
       releaseScripts()
 
-      await retry(async () => {
-        expect(new URL(await browser.url()).search).toBe('?page=1')
-        expect(await browser.elementByCss('h1').text()).toBe('Page 1')
-      })
+      await waitForPage(browser, '#page-1')
+      expect(new URL(await browser.url()).search).toBe('?page=1')
 
       await browser.forward()
-      await retry(async () => {
-        expect(new URL(await browser.url()).search).toBe('?page=2')
-        expect(await browser.elementByCss('h1').text()).toBe('Page 2')
-      })
+      await waitForPage(browser, '#page-2')
+      expect(new URL(await browser.url()).search).toBe('?page=2')
     })
 
     // History changes before hydration that are NOT missed traversals must
@@ -191,9 +193,7 @@ describe('back navigation before hydration after reload', () => {
 
         // The router still navigates.
         await browser.elementById('to-home').click()
-        await retry(async () => {
-          expect(await browser.elementByCss('h1').text()).toBe('Home')
-        })
+        await waitForPage(browser, '#home')
       })
 
       it('keeps an in-page anchor jump on a fresh load', async () => {
@@ -229,7 +229,7 @@ describe('back navigation before hydration after reload', () => {
         const { browser, page, releaseScripts } = await clickThenReloadStalled(
           homePath,
           'to-post',
-          'Post'
+          '#post'
         )
 
         await page.click('#hash-link')
@@ -245,10 +245,8 @@ describe('back navigation before hydration after reload', () => {
         // Traversing over the hash entry and the pushState entry still works.
         await browser.back() // -> post
         await browser.back() // -> home
-        await retry(async () => {
-          expect(new URL(await browser.url()).pathname).toBe(homePath)
-          expect(await browser.elementByCss('h1').text()).toBe('Home')
-        })
+        await waitForPage(browser, '#home')
+        expect(new URL(await browser.url()).pathname).toBe(homePath)
       })
 
       it('handles a pushState followed by back', async () => {
@@ -272,16 +270,14 @@ describe('back navigation before hydration after reload', () => {
         })
 
         await browser.elementById('to-home').click()
-        await retry(async () => {
-          expect(await browser.elementByCss('h1').text()).toBe('Home')
-        })
+        await waitForPage(browser, '#home')
       })
 
       it('leaves the traversal unhandled when a third-party write lands before the replay', async () => {
         const { browser, page, releaseScripts } = await clickThenReloadStalled(
           homePath,
           'to-post',
-          'Post'
+          '#post'
         )
 
         await browser.back({ waitUntil: 'commit' })
@@ -302,9 +298,7 @@ describe('back navigation before hydration after reload', () => {
         })
 
         await browser.elementById('to-home').click()
-        await retry(async () => {
-          expect(await browser.elementByCss('h1').text()).toBe('Home')
-        })
+        await waitForPage(browser, '#home')
       })
 
       it('handles a traversal onto a third-party entry', async () => {

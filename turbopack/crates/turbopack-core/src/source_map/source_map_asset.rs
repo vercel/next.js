@@ -3,7 +3,6 @@ use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexSet, NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat,
-    trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 
@@ -16,7 +15,7 @@ use crate::{
     source_map::{GenerateSourceMap, SourceMap},
 };
 
-#[derive(PartialEq, Eq, NonLocalValue, TraceRawVcs, ValueDebugFormat, Encode, Decode)]
+#[derive(PartialEq, Eq, NonLocalValue, ValueDebugFormat, Encode, Decode)]
 enum PathType {
     Fixed {
         path: FileSystemPath,

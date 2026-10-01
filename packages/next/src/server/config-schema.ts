@@ -39,6 +39,7 @@ const zExportMap: zod.ZodType<ExportPathMap> = z.record(
 
     // private optional properties
     _fallbackRouteParams: z.array(z.any()).optional(),
+    _notFoundParams: z.array(z.string()).optional(),
     _isAppDir: z.boolean().optional(),
     _isDynamicError: z.boolean().optional(),
     _isRoutePPREnabled: z.boolean().optional(),
@@ -170,9 +171,13 @@ const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
     .record(
       z.string(),
       z.union([
+        z.literal(false),
         z.string(),
         z.array(z.string()),
-        z.record(z.string(), z.union([z.string(), z.array(z.string())])),
+        z.record(
+          z.string(),
+          z.union([z.literal(false), z.string(), z.array(z.string())])
+        ),
       ])
     )
     .optional(),
@@ -192,11 +197,29 @@ const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
 })
 
 export const experimentalSchema = {
+  agentUpgrade: z
+    .union([
+      z.enum(['security', 'latest', 'experimental-future']),
+      z.literal(false),
+    ])
+    .optional(),
+  agentFeedback: z.boolean().optional(),
+  turbopackAdditionalRoots: z
+    .record(
+      z.string(),
+      z.strictObject({
+        path: z.string(),
+        ignoreIfMissing: z.boolean().optional(),
+      })
+    )
+    .optional(),
   outputHashSalt: z.string().optional(),
   useSkewCookie: z.boolean().optional(),
   after: z.boolean().optional(),
   appNavFailHandling: z.boolean().optional(),
+  parallelRouteMetadata: z.boolean().optional(),
   coldCacheBadge: z.boolean().optional(),
+  collapseAdapterRoutes: z.boolean().optional(),
   preloadEntriesOnStart: z.boolean().optional(),
   allowedRevalidateHeaderKeys: z.array(z.string()).optional(),
   staleTimes: z
@@ -225,8 +248,10 @@ export const experimentalSchema = {
   clientParamParsingOrigins: z.array(z.string()).optional(),
   cachedNavigations: z.boolean().optional(),
   dynamicOnHover: z.boolean().optional(),
+  reactBrowserBailout: z.boolean().optional(),
   useOffline: z.boolean().optional(),
   optimisticRouting: z.boolean().optional(),
+  concurrentRouterQueue: z.boolean().optional(),
   instrumentationClientRouterTransitionEvents: z.boolean().optional(),
   varyParams: z.boolean().optional(),
   prefetchInlining: z
@@ -251,6 +276,7 @@ export const experimentalSchema = {
     })
     .optional(),
   maxPostponedStateSize: zSizeLimit.optional(),
+  disableResumeDataCacheCompression: z.boolean().optional(),
   // The original type was Record<string, any>
   extensionAlias: z.record(z.string(), z.any()).optional(),
   externalDir: z.boolean().optional(),
@@ -268,6 +294,7 @@ export const experimentalSchema = {
   imgOptTimeoutInSeconds: z.number().int().optional(),
   imgOptMaxInputPixels: z.number().int().optional(),
   imgOptSequentialRead: z.boolean().optional().nullable(),
+  imgOptMozjpeg: z.boolean().optional(),
   isrFlushToDisk: z.boolean().optional(),
   largePageDataBytes: z.number().optional(),
   linkNoTouchStart: z.boolean().optional(),
@@ -308,6 +335,7 @@ export const experimentalSchema = {
   proxyTimeout: z.number().gte(0).optional(),
   rootParams: z.boolean().optional(),
   mcpServer: z.boolean().optional(),
+  exposeRuntimeErrorsToHMR: z.boolean().optional(),
   removeUncaughtErrorAndRejectionListeners: z.boolean().optional(),
   validateRSCRequestHeaders: z.boolean().optional(),
   scrollRestoration: z.boolean().optional(),
@@ -342,7 +370,6 @@ export const experimentalSchema = {
       z.union([
         z.literal('CLS'),
         z.literal('FCP'),
-        z.literal('FID'),
         z.literal('INP'),
         z.literal('LCP'),
         z.literal('TTFB'),
@@ -371,8 +398,17 @@ export const experimentalSchema = {
   turbopackMemoryEviction: z
     .union([z.literal(false), z.literal('full'), z.literal('auto')])
     .optional(),
+  turbopackGc: z
+    .union([
+      z.boolean(),
+      z.strictObject({
+        minProgressMs: z.number().min(0).finite().optional(),
+        rootTtlMs: z.number().min(0).finite().optional(),
+      }),
+    ])
+    .optional(),
   turbopackPluginRuntimeStrategy: z
-    .enum(['workerThreads', 'childProcesses'])
+    .enum(['workerThreads', 'childProcesses', 'forceWorkerThreads'])
     .optional(),
   turbopackMinify: z
     .union([
@@ -387,6 +423,7 @@ export const experimentalSchema = {
   turbopackFileSystemCacheForDev: z.boolean().optional(),
   turbopackFileSystemCacheForBuild: z.boolean().optional(),
   turbopackSeedCacheFromWorktree: z.boolean().optional(),
+  turbopackStaleOutputMaxAge: z.number().min(0).finite().optional(),
   turbopackSourceMaps: z.boolean().optional(),
   turbopackInputSourceMaps: z.boolean().optional(),
   turbopackModuleFragments: z.boolean().optional(),
@@ -396,6 +433,7 @@ export const experimentalSchema = {
   turbopackSharedRuntime: z.boolean().optional(),
   turbopackChunking: z
     .object({
+      clusters: z.array(z.array(z.instanceof(RegExp))).optional(),
       firstPageLoadPriority: z.number().min(0).max(1).optional(),
       priorityRoutes: z.array(z.instanceof(RegExp)).optional(),
       priorityBoost: z.number().min(1).optional(),
@@ -410,6 +448,8 @@ export const experimentalSchema = {
   turbopackWorkerAssetPrefix: z.string().optional(),
   turbopackClientSideNestedAsyncChunking: z.boolean().optional(),
   turbopackServerSideNestedAsyncChunking: z.boolean().optional(),
+  turbopackLazyDynamicImports: z.boolean().optional(),
+  turbopackLazyDynamicImportsSSR: z.boolean().optional(),
   turbopackImportTypeBytes: z.boolean().optional(),
   turbopackUseBuiltinBabel: z.boolean().optional(),
   turbopackUseBuiltinSass: z.boolean().optional(),
@@ -417,6 +457,9 @@ export const experimentalSchema = {
   turbopackModuleIds: z.enum(['named', 'deterministic']).optional(),
   turbopackInferModuleSideEffects: z.boolean().optional(),
   turbopackCjsTreeShaking: z.boolean().optional(),
+  turbopackMangleExportNames: z.boolean().optional(),
+  turbopackCjsScopeHoisting: z.boolean().optional(),
+  turbopackCrossModuleConstants: z.boolean().optional(),
   turbopackServerFastRefresh: z.boolean().optional(),
   optimizePackageImports: z.array(z.string()).optional(),
   optimizeServerReact: z.boolean().optional(),
@@ -467,6 +510,8 @@ export const experimentalSchema = {
     })
     .optional(),
   globalNotFound: z.boolean().optional(),
+  explicitParallelRouteChildren: z.boolean().optional(),
+  strictRouteMatching: z.boolean().optional(),
   turbopackRustReactCompiler: z.boolean().optional(),
   browserDebugInfoInTerminal: z
     .union([
@@ -606,6 +651,11 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     configOrigin: z.string().optional(),
     crossOrigin: z
       .union([z.literal('anonymous'), z.literal('use-credentials')])
+      .optional(),
+    deprecated: z
+      .strictObject({
+        looseRouteMatching: z.literal(true).optional(),
+      })
       .optional(),
     deploymentId: z.string().optional(),
     supportsImmutableAssets: z.boolean().optional(),
@@ -800,9 +850,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .optional(),
     pageExtensions: z.array(z.string()).min(1).optional(),
     instrumentationClientInject: z.array(z.string()).optional(),
-    partialPrefetching: z
-      .union([z.boolean(), z.literal('unstable_eager')])
-      .optional(),
+    partialPrefetching: z.boolean().optional(),
     poweredByHeader: z.boolean().optional(),
     productionBrowserSourceMaps: z.boolean().optional(),
     reactCompiler: z.union([

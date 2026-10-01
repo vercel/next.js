@@ -172,6 +172,14 @@ export async function loadClientReferenceManifestForPage(
   }
 }
 
+function loadRouteModule(page: string, distDir: string, isAppPath: boolean) {
+  return getTracer().trace(
+    LoadComponentsSpan.loadRouteModule,
+    { spanName: 'load route module' },
+    () => requirePage(page, distDir, isAppPath)
+  )
+}
+
 async function loadComponentsImpl<
   N extends GenericComponentMod = GenericComponentMod,
 >({
@@ -305,7 +313,7 @@ async function loadComponentsImpl<
       })
     }
 
-    const ComponentMod = await requirePage(page, distDir, isAppPath)
+    const ComponentMod = await loadRouteModule(page, distDir, isAppPath)
 
     const Component = interopDefault(ComponentMod)
     const Document = interopDefault(DocumentMod)
@@ -334,7 +342,7 @@ async function loadComponentsImpl<
       routeModule,
     }
   } else {
-    const ComponentMod = await requirePage(page, distDir, isAppPath)
+    const ComponentMod = await loadRouteModule(page, distDir, isAppPath)
 
     const Component = interopDefault(ComponentMod)
     const Document = interopDefault(DocumentMod)

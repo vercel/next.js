@@ -39,6 +39,16 @@ export function createWebSocket(
       webSocket.send(data)
     }
   }
+  let runtimeErrorStateReporter: ReturnType<
+    typeof import('../runtime-error-state').createRuntimeErrorStateReporter
+  > | null
+  if (process.env.__NEXT_EXPOSE_RUNTIME_ERRORS_TO_HMR) {
+    const { createRuntimeErrorStateReporter } =
+      require('../runtime-error-state') as typeof import('../runtime-error-state')
+    runtimeErrorStateReporter = createRuntimeErrorStateReporter(sendMessage)
+  } else {
+    runtimeErrorStateReporter = null
+  }
 
   const processTurbopackMessage = createProcessTurbopackMessage(sendMessage)
 
@@ -55,6 +65,7 @@ export function createWebSocket(
 
     function handleOnline() {
       logQueue.onSocketReady(newWebSocket)
+      runtimeErrorStateReporter?.reportCurrent()
 
       reconnections = 0
       window.console.log('[HMR] connected')
@@ -201,6 +212,8 @@ export function createProcessTurbopackMessage(
       },
       sendMessage,
       onUpdateError: (err: unknown) => performFullReload(err, sendMessage),
+      chunkUpdateListenersGlobal:
+        process.env.__NEXT_TURBOPACK_CHUNK_UPDATE_LISTENERS_GLOBAL!,
     })
   })
 

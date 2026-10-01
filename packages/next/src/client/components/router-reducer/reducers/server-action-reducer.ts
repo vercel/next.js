@@ -44,7 +44,10 @@ import {
   extractInfoFromServerReferenceId,
   omitUnusedArgs,
 } from '../../../../shared/lib/server-reference-info'
-import { invalidateEntirePrefetchCache } from '../../segment-cache/cache'
+import {
+  invalidateEntirePrefetchCache,
+  segmentCacheMap,
+} from '../../segment-cache/cache'
 import { startRevalidationCooldown } from '../../segment-cache/scheduler'
 import { getDeploymentId } from '../../../../shared/lib/deployment-id'
 import { getNavigationBuildId } from '../../../navigation-build-id'
@@ -53,8 +56,8 @@ import {
   completeHardNavigation,
   navigateToKnownRoute,
   navigate,
-} from '../../segment-cache/navigation'
-import { convertServerPatchToFullTree } from '../../segment-cache/decode-server-response'
+} from '../../app-router-state'
+import { createNavigationSeed } from '../../segment-cache/decode-server-response'
 import { discoverKnownRoute } from '../../segment-cache/optimistic-routes'
 import type { NormalizedSearch } from '../../segment-cache/cache-key'
 import {
@@ -64,7 +67,7 @@ import {
   type ActionRevalidationKind,
 } from '../../../../shared/lib/action-revalidation-kind'
 import { isExternalURL } from '../../app-router-utils'
-import { FreshnessPolicy, getCurrentNavigationLock } from '../ppr-navigations'
+import { FreshnessPolicy, getCurrentNavigationLock } from '../../render-tree'
 import { processFetch } from '../fetch-server-response'
 import {
   invalidateBfCache,
@@ -362,7 +365,7 @@ export function serverActionReducer(
         // invalidate both caches until we have a way to detect cookie
         // mutations on the client.
         if (revalidationKind === ActionDidRevalidateStaticAndDynamic) {
-          invalidateEntirePrefetchCache(nextUrl, state.tree)
+          invalidateEntirePrefetchCache(nextUrl, state.root)
         }
 
         // Start a cooldown before re-prefetching to allow CDN cache
@@ -474,31 +477,41 @@ export function serverActionReducer(
         const now = Date.now()
         // TODO: Store the dynamic stale time on the top-level state so it's
         // known during restores and refreshes.
-        const redirectSeed = convertServerPatchToFullTree(
+        const redirectSeed = createNavigationSeed(
           now,
           currentFlightRouterState,
           flightData,
+          // Action responses stream in incrementally, so their vary params
+          // can't be drained here — and nothing consumes them from a
+          // navigation seed (only segment-cache writes read vary params, and
+          // those decode their own, buffered, payloads).
+          null,
+          // Same for partiality: only segment-cache writes consume it, and
+          // action responses are never written to the segment cache. Pass
+          // the conservative value.
+          true,
+          // Navigation responses always include the param values in the
+          // tree, so there's no pathname to parse them from (nor a need to).
+          null,
           flightDataRenderedSearch,
+          null,
           UnknownDynamicStaleTime
         )
 
         // Learn the route pattern so we can predict it for future navigations.
-        const metadataVaryPath = redirectSeed.metadataVaryPath
-        if (metadataVaryPath !== null) {
-          discoverKnownRoute(
-            now,
-            redirectUrl.pathname,
-            redirectUrl.search as NormalizedSearch,
-            nextUrl,
-            null, // No pending entry
-            redirectSeed.routeTree,
-            metadataVaryPath,
-            couldBeIntercepted,
-            redirectCanonicalUrl,
-            isPrerender,
-            false // hasDynamicRewrite
-          )
-        }
+        discoverKnownRoute(
+          now,
+          redirectUrl.pathname,
+          redirectUrl.search as NormalizedSearch,
+          nextUrl,
+          null, // No pending entry
+          redirectSeed.root,
+          couldBeIntercepted,
+          redirectCanonicalUrl,
+          redirectSeed.renderedSearch,
+          isPrerender,
+          false // hasDynamicRewrite
+        )
         const navigationLock = getCurrentNavigationLock()
 
         return navigateToKnownRoute(
@@ -509,13 +522,14 @@ export function serverActionReducer(
           redirectSeed,
           currentUrl,
           currentRenderedSearch,
-          state.cache,
-          currentFlightRouterState,
+          state.root,
           freshnessPolicy,
           nextUrl,
           scrollBehavior,
           navigateType,
           navigationLock,
+          // A server-action redirect navigation is bound to the shared map.
+          segmentCacheMap,
           null,
           // Server action redirects don't use route prediction - we already
           // have the route tree from the server response. If a mismatch occurs
@@ -534,7 +548,7 @@ export function serverActionReducer(
         redirectUrl,
         currentUrl,
         currentRenderedSearch,
-        state.cache,
+        state.root,
         currentFlightRouterState,
         nextUrl,
         freshnessPolicy,

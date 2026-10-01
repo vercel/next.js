@@ -1,9 +1,8 @@
-//! `SubgraphView`: a borrow-only filtered view over a [`petgraph::graph::DiGraph`] driven by a
-//! [`rustc_hash::FxHashSet`] of node indices.
+//! Read-only graph abstractions for the style-group algorithms.
 //!
-//! The PoC algorithms ([`super::algorithm`]) accept any type that implements [`ReadonlyGraph`].
-//! That lets us pass either a `&DiGraph` directly or a `SubgraphView` restricted to e.g. one
-//! SCC, without cloning the underlying graph.
+//! Production algorithms use [`ReadonlyGraph`] with `&DiGraph`. Tests additionally use a
+//! borrow-only `SubgraphView` filtered by a node-index set to exercise subset behavior without
+//! cloning the underlying graph.
 
 use std::marker::PhantomData;
 
@@ -11,10 +10,11 @@ use petgraph::{
     Direction,
     graph::{DiGraph, NodeIndex},
 };
+#[cfg(test)]
 use rustc_hash::FxHashSet;
 
-/// Read-only view over a directed weighted graph. Implemented for `&DiGraph<N, u32>` and for
-/// [`SubgraphView`].
+/// Read-only view over a directed weighted graph. Production code uses the `&DiGraph<N, u32>`
+/// implementation; tests also use [`SubgraphView`] to exercise algorithms on filtered subsets.
 #[allow(dead_code)] // Some methods are kept for symmetry with the JS PoC; not all are used yet.
 pub(super) trait ReadonlyGraph<'a>: Copy {
     type NodesIter: Iterator<Item = NodeIndex>;
@@ -90,24 +90,29 @@ impl<'a, N> Iterator for NeighborsWithWeight<'a, N> {
 
 /// A live view over `graph` restricted to the nodes in `subset`. Edges whose source or target
 /// is outside the subset are filtered out on iteration.
+#[cfg(test)]
 pub(super) struct SubgraphView<'a, N> {
     graph: &'a DiGraph<N, u32>,
     subset: &'a FxHashSet<NodeIndex>,
 }
 
+#[cfg(test)]
 impl<'a, N> SubgraphView<'a, N> {
     pub(super) fn new(graph: &'a DiGraph<N, u32>, subset: &'a FxHashSet<NodeIndex>) -> Self {
         Self { graph, subset }
     }
 }
 
+#[cfg(test)]
 impl<'a, N> Clone for SubgraphView<'a, N> {
     fn clone(&self) -> Self {
         *self
     }
 }
+#[cfg(test)]
 impl<'a, N> Copy for SubgraphView<'a, N> {}
 
+#[cfg(test)]
 impl<'a, N: 'a> ReadonlyGraph<'a> for SubgraphView<'a, N> {
     type NodesIter = SubgraphNodes<'a>;
     type OutgoingIter = SubgraphNeighbors<'a, N>;
@@ -183,10 +188,12 @@ impl<'a, N: 'a> ReadonlyGraph<'a> for SubgraphView<'a, N> {
     }
 }
 
+#[cfg(test)]
 pub(super) struct SubgraphNodes<'a> {
     iter: std::collections::hash_set::Iter<'a, NodeIndex>,
 }
 
+#[cfg(test)]
 impl<'a> Iterator for SubgraphNodes<'a> {
     type Item = NodeIndex;
     fn next(&mut self) -> Option<Self::Item> {
@@ -194,12 +201,14 @@ impl<'a> Iterator for SubgraphNodes<'a> {
     }
 }
 
+#[cfg(test)]
 pub(super) struct SubgraphNeighbors<'a, N> {
     iter: Option<petgraph::graph::Neighbors<'a, u32>>,
     subset: &'a FxHashSet<NodeIndex>,
     _n: PhantomData<N>,
 }
 
+#[cfg(test)]
 impl<'a, N> Iterator for SubgraphNeighbors<'a, N> {
     type Item = NodeIndex;
     fn next(&mut self) -> Option<Self::Item> {
@@ -208,6 +217,7 @@ impl<'a, N> Iterator for SubgraphNeighbors<'a, N> {
     }
 }
 
+#[cfg(test)]
 pub(super) struct SubgraphNeighborsWithWeight<'a, N> {
     graph: &'a DiGraph<N, u32>,
     iter: Option<petgraph::graph::WalkNeighbors<u32>>,
@@ -215,6 +225,7 @@ pub(super) struct SubgraphNeighborsWithWeight<'a, N> {
     _n: PhantomData<N>,
 }
 
+#[cfg(test)]
 impl<'a, N> Iterator for SubgraphNeighborsWithWeight<'a, N> {
     type Item = (NodeIndex, u32);
     fn next(&mut self) -> Option<Self::Item> {

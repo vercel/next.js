@@ -10,6 +10,7 @@ import { getSupportedBrowsers } from '../get-supported-browsers'
 import { trace } from '../../trace'
 import { normalizePath } from '../../lib/normalize-path'
 import { PHASE_PRODUCTION_BUILD } from '../../shared/lib/constants'
+import { printBuildErrors } from '../print-build-errors'
 
 export type AnalyzeContext = {
   config: NextConfigComplete
@@ -51,7 +52,7 @@ export async function turbopackAnalyze(
   const persistentCaching =
     config.experimental?.turbopackFileSystemCacheForBuild || false
   const rootPath = config.turbopack?.root || config.outputFileTracingRoot || dir
-  const project = await bindings.turbo.createProject(
+  const projectResult = await bindings.turbo.createProject(
     {
       rootPath: config.turbopack?.root || config.outputFileTracingRoot || dir,
       projectPath: normalizePath(path.relative(rootPath, dir) || '.'),
@@ -94,13 +95,16 @@ export async function turbopackAnalyze(
     },
     {
       turbopackMemoryEviction: config.experimental.turbopackMemoryEvictionMode,
+      gc: config.experimental.turbopackGcOptions,
       dependencyTracking: persistentCaching,
       isCi: isCI,
       isShortSession: true,
     }
   )
-
+  const project = projectResult.value
   try {
+    printBuildErrors(projectResult, dev)
+
     const analyzeEventsSpan = trace('turbopack-analyze-events')
     // Stop immediately: this span is only used as a parent for
     // manualTraceChild calls which carry their own timestamps.

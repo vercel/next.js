@@ -7,7 +7,7 @@ The `'use client'` directive declares an entry point for the components to be re
 
 > **Good to know:**
 >
-> You do not need to add the `'use client'` directive to every file that contains Client Components. You only need to add it to the files whose components you want to render directly within Server Components. The `'use client'` directive defines the client-server [boundary](https://nextjs.org/docs/app/getting-started/server-and-client-components#using-client-components), and the components exported from such a file serve as entry points to the client.
+> You do not need to add the `'use client'` directive to every file that contains Client Components. You only need to add it to the files whose components you want to render directly within Server Components. The `'use client'` directive defines the [server and client boundary](/docs/app/guides/server-and-client-boundary), and the components exported from such a file serve as entry points to the client.
 
 ## Usage
 

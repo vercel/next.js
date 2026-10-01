@@ -52,9 +52,9 @@ pub fn benchmark(c: &mut Criterion) {
                 root_dir,
                 file,
                 analyze_mode: if trace_only {
-                    AnalyzeMode::Tracing
+                    AnalyzeMode::tracing()
                 } else {
-                    AnalyzeMode::CodeGenerationAndTracing
+                    AnalyzeMode::code_generation_and_tracing()
                 },
             },
             bench_full,
@@ -89,7 +89,7 @@ async fn setup(
         ResolvedVc::upcast(module_asset_context),
         EcmascriptInputTransforms::empty().to_resolved().await?,
         EcmascriptOptions {
-            follow_reexports: analyze_mode != AnalyzeMode::Tracing,
+            follow_reexports: analyze_mode.is_codegen,
             module_fragments_enabled: false,
             analyze_mode,
             ..Default::default()
@@ -145,7 +145,7 @@ fn bench_full(b: &mut Bencher, input: &BenchInput) {
             });
             (tt, module)
         },
-        |(tt, module)| async move {
+        async |(tt, module)| {
             tt.run_once(async move {
                 // `analyze_ecmascript_module` performs eventually-consistent Vc reads. Reading
                 // not-yet-settled state at the top level is fine for a throughput benchmark, but

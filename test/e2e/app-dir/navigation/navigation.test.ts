@@ -1031,6 +1031,17 @@ describe('app dir - navigation', () => {
 
   describe('middleware redirect', () => {
     it('should change browser location when router.refresh() gets a redirect response', async () => {
+      if (isNextDev) {
+        // The browser location only changes at the end of a chain of requests:
+        // the page posts to `/api/set-token`, calls `router.refresh()`, and the
+        // refresh gets a middleware redirect to the dashboard. In dev the first
+        // request to each of those routes compiles it on demand, which costs
+        // seconds on a CI runner. Hit them here so the chain below does not pay
+        // for it.
+        await next.fetch('/api/set-token', { method: 'POST' })
+        await next.fetch('/redirect-on-refresh/dashboard')
+      }
+
       const browser = await next.browser('/redirect-on-refresh/auth')
       await retry(async () =>
         expect(await browser.url()).toBe(

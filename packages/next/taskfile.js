@@ -3,7 +3,6 @@ const glob = require('glob')
 const fs = require('fs/promises')
 const resolveFrom = require('resolve-from')
 const execa = require('execa')
-const process = require('process')
 const recast = require('recast')
 
 export async function next__polyfill_nomodule(task, opts) {
@@ -44,6 +43,13 @@ export async function copy_docs(task, opts) {
       }
     })
     .target('dist/docs')
+
+  // The agent-feedback protocol is intentionally kept out of dist/docs so
+  // agents globbing the bundled docs don't read its instructions out of
+  // context. `next internal agent-feedback-instructions` prints it on demand.
+  await task
+    .source(join(__dirname, 'src/agent-feedback/protocol.md'))
+    .target('dist/agent-feedback')
 }
 
 export async function copy_styled_jsx_assets(task, opts) {
@@ -145,6 +151,9 @@ export async function ncc_busboy(task, opts) {
 
 externals['@mswjs/interceptors/ClientRequest'] =
   'next/dist/compiled/@mswjs/interceptors/ClientRequest'
+// Otherwise NCC emits `eval('require')('next/dist/compiled/@mswjs/interceptors/ClientRequest')`
+externals['next/dist/shared/lib/promise-with-resolvers'] =
+  'next/dist/shared/lib/promise-with-resolvers'
 export async function ncc_mswjs_interceptors(task, opts) {
   await task
     // @mswjs/interceptors is ESM-only, compile to CJS through a stub entry
@@ -1900,6 +1909,29 @@ export async function ncc_string_hash(task, opts) {
     .ncc({ packageName: 'string-hash', externals })
     .target('src/compiled/string-hash')
 }
+// Bundle only SHA-256, using browser entrypoints so this is safe in Edge.
+export async function ncc_hash_sha256(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('hash.js/lib/hash/sha/256')))
+    .ncc({
+      packageName: 'hash.js',
+      bundleName: 'hash.js/sha256',
+      externals,
+      mainFields: ['browser', 'main'],
+    })
+    .target('src/compiled/hash.js/sha256')
+
+  // hash.js publishes its license in the README rather than a LICENSE file.
+  const readme = await fs.readFile(require.resolve('hash.js/README.md'), 'utf8')
+  const license = readme.split('#### LICENSE\n')[1]
+  if (!license) {
+    throw new Error('Missing hash.js license')
+  }
+  await fs.writeFile(
+    join(__dirname, 'src/compiled/hash.js/sha256/LICENSE'),
+    `${license.trim()}\n`
+  )
+}
 externals['strip-ansi'] = 'next/dist/compiled/strip-ansi'
 externals['next/dist/compiled/strip-ansi'] = 'next/dist/compiled/strip-ansi'
 export async function ncc_strip_ansi(task, opts) {
@@ -2337,6 +2369,7 @@ export async function ncc(task, opts) {
         'ncc_source_map08',
         'ncc_serve_handler',
         'ncc_string_hash',
+        'ncc_hash_sha256',
         'ncc_strip_ansi',
         'ncc_superstruct',
         'ncc_zod',
@@ -2723,10 +2756,7 @@ export async function diagnostics(task, opts) {
 }
 
 export async function build(task, opts) {
-  await task.serial(
-    ['precompile', 'compile', 'check_error_codes', 'generate_types'],
-    opts
-  )
+  await task.serial(['precompile', 'compile', 'generate_types'], opts)
 }
 
 export async function generate_types(task, opts) {
@@ -2744,25 +2774,6 @@ export async function generate_types(task, opts) {
   // But taskr needs to know that it can start watching the files for the task it has to manually restart.
   if (!watchmode) {
     await typesPromise
-  }
-}
-
-export async function check_error_codes(task, opts) {
-  try {
-    await execa.command('pnpm -w run check-error-codes', {
-      stdio: 'inherit',
-    })
-  } catch (err) {
-    if (process.env.CI) {
-      await execa.command(
-        'echo check_error_codes FAILED: There are new errors introduced but no corresponding error codes are found in errors.json file, so make sure you run `pnpm build` or `pnpm update-error-codes` and then commit the change in errors.json.',
-        {
-          stdio: 'inherit',
-        }
-      )
-      process.exit(1)
-    }
-    await task.start('compile', opts)
   }
 }
 

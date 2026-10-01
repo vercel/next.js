@@ -4,18 +4,22 @@ function createCache() {
   return new IncrementalCache({
     dev: false,
     requestHeaders: {},
-    getPrerenderManifest: () =>
-      ({
-        version: 4,
-        routes: {},
-        dynamicRoutes: {},
-        notFoundRoutes: [],
-        preview: {
-          previewModeId: 'id',
-          previewModeSigningKey: 'key',
-          previewModeEncryptionKey: 'key',
-        },
-      }) as any,
+    previewProps: {
+      previewModeId: 'id',
+      previewModeSigningKey: 'key',
+      previewModeEncryptionKey: 'key',
+    },
+    prerenderManifest: {
+      version: 4,
+      routes: {},
+      dynamicRoutes: {},
+      notFoundRoutes: [],
+      preview: {
+        previewModeId: 'id',
+        previewModeSigningKey: 'key',
+        previewModeEncryptionKey: 'key',
+      },
+    },
   })
 }
 

@@ -1,6 +1,11 @@
 import { nextTestSetup } from 'e2e-utils'
 import { createProxyServer } from 'next/experimental/testmode/proxy'
 
+const PNG_1X1 = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+  'base64'
+)
+
 describe('testmode', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
@@ -17,6 +22,14 @@ describe('testmode', () => {
   beforeEach(async () => {
     proxyServer = await createProxyServer({
       onFetch: async (testData, request) => {
+        if (
+          request.method === 'GET' &&
+          request.url === 'https://example.com/image.png'
+        ) {
+          return new Response(PNG_1X1, {
+            headers: { 'content-type': 'image/png' },
+          })
+        }
         if (
           request.method === 'GET' &&
           [
@@ -54,6 +67,11 @@ describe('testmode', () => {
     it('should fetch real data when Next-Test-* headers are not present', async () => {
       const html = await (await next.fetch('/app/rsc-fetch')).text()
       expect(html).not.toContain('<pre>test1</pre>')
+    })
+
+    it('should pass http.get through to the real server when Next-Test-* headers are not present', async () => {
+      const html = await (await next.fetch('/app/rsc-httpget')).text()
+      expect(html).toContain('Example Domain')
     })
 
     it('should handle RSC with fetch in serverless function', async () => {
@@ -132,6 +150,17 @@ describe('testmode', () => {
     it('should handle rewrites', async () => {
       const text = await (await fetchForTest('/rewrite-1')).text()
       expect(text).toEqual('test1')
+    })
+  })
+
+  describe('image optimizer', () => {
+    it('should intercept external image requests', async () => {
+      const response = await fetchForTest(
+        '/_next/image?url=https%3A%2F%2Fexample.com%2Fimage.png&w=64&q=75'
+      )
+
+      expect(response.status).toBe(200)
+      expect(response.headers.get('content-type')).toMatch(/^image\//)
     })
   })
 })

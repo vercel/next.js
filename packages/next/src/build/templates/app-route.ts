@@ -35,6 +35,7 @@ import {
 import { getCacheControlHeader } from '../../server/lib/cache-control'
 import { INFINITE_CACHE, NEXT_CACHE_TAGS_HEADER } from '../../lib/constants'
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external'
+import { isRouteCacheOwner } from '../../server/lib/route-cache-key'
 import {
   CachedRouteKind,
   type ResponseCacheEntry,
@@ -156,13 +157,23 @@ export async function handler(
     resolvedPathname,
     clientReferenceManifest,
     serverActionsManifest,
+    previewProps,
   } = prepareResult
 
   const normalizedSrcPage = normalizeAppPath(srcPage)
 
+  // Only this route's prerenders can establish ISR or admit generated params.
+  const isPrerendered =
+    Boolean(prerenderManifest.routes[resolvedPathname]) &&
+    (routeModule.isDev ||
+      isRouteCacheOwner(
+        resolvedPathname,
+        routeModule.cacheOwner,
+        prerenderManifest.routes[resolvedPathname]
+      ))
+
   let isIsr = Boolean(
-    prerenderManifest.dynamicRoutes[normalizedSrcPage] ||
-      prerenderManifest.routes[resolvedPathname]
+    prerenderManifest.dynamicRoutes[normalizedSrcPage] || isPrerendered
   )
 
   const render404 = async () => {
@@ -176,7 +187,6 @@ export async function handler(
   }
 
   if (isIsr && !isDraftMode) {
-    const isPrerendered = Boolean(prerenderManifest.routes[resolvedPathname])
     const prerenderInfo = prerenderManifest.dynamicRoutes[normalizedSrcPage]
 
     if (prerenderInfo) {
@@ -221,6 +231,7 @@ export async function handler(
     (await routeModule.getIncrementalCache(
       req,
       nextConfig,
+      previewProps,
       prerenderManifest,
       isMinimalMode
     ))
@@ -230,11 +241,14 @@ export async function handler(
 
   const context: AppRouteRouteHandlerContext = {
     params,
-    previewProps: prerenderManifest.preview,
+    previewProps,
     renderOpts: {
       experimental: {
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
         useCacheTimeout: nextConfig.experimental.useCacheTimeout,
+        durableUseCacheEntries: Boolean(
+          nextConfig.experimental.durableUseCacheEntries
+        ),
       },
       cacheComponents: Boolean(nextConfig.cacheComponents),
       validationLevel: nextConfig.experimental.instantInsights.validationLevel,
@@ -401,6 +415,7 @@ export async function handler(
         cacheKey,
         routeKind: RouteKind.APP_ROUTE,
         isFallback: false,
+        previewProps,
         prerenderManifest,
         isRoutePPREnabled: false,
         isOnDemandRevalidate,
@@ -409,6 +424,10 @@ export async function handler(
         waitUntil: ctx.waitUntil,
         isMinimalMode,
       })
+
+      if (cacheEntry !== null && 'error' in cacheEntry) {
+        throw cacheEntry.error
+      }
 
       // we don't create a cacheEntry for ISR
       if (!isIsr) {
@@ -496,12 +515,31 @@ export async function handler(
       // If this is during static generation, throw the error again.
       if (isIsr) throw err
 
-      // Otherwise, send a 500 response.
-      await sendResponse(
-        nodeNextReq,
-        nodeNextRes,
-        new Response(null, { status: 500 })
-      )
+      // Otherwise, send a 500 response unless the original response has
+      // already committed. In that case, preserve its status code for
+      // telemetry while still recording the failure and terminating a response
+      // that the failed pipeline left open.
+      if (res.headersSent) {
+        if (currentSpan) {
+          const error =
+            err instanceof Error ? err : new Error('Unknown app route error')
+          currentSpan.recordException(error)
+          currentSpan.setStatus({
+            code: SpanStatusCode.ERROR,
+            message: error.message,
+          })
+          currentSpan.setAttribute('error.type', error.name)
+        }
+        if (!res.writableEnded && !res.destroyed) {
+          res.end()
+        }
+      } else {
+        await sendResponse(
+          nodeNextReq,
+          nodeNextRes,
+          new Response(null, { status: 500 })
+        )
+      }
       return
     } finally {
       ;(() => {

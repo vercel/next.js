@@ -3,17 +3,12 @@ import { retry } from 'next-test-utils'
 import { join } from 'path'
 
 describe('app-dir action allowed from opaque origins', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: join(__dirname, 'opaque-origin'),
-    skipDeployment: true,
     env: {
       NEXT_TEST_ALLOW_OPAQUE_ORIGIN: '1',
     },
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should succeed on submission', async function () {
     const browser = await next.browser('/sandboxed')

@@ -106,6 +106,8 @@ pub mod test_utils {
                         JsValue::Module(ModuleValue {
                             module: v.as_atom().into_owned().into(),
                             annotations: None,
+                            analyze_for_constants: false,
+                            reference: None,
                         }),
                     ),
                     _ => v.into_unknown(true, rcstr!("import() non constant")),
@@ -362,10 +364,11 @@ mod tests {
                 arena.get_or_default(),
                 &m,
                 &eval_context,
-                AnalyzeMode::CodeGenerationAndTracing,
+                AnalyzeMode::code_generation_and_tracing(),
                 true,
                 SpecifiedModuleType::EcmaScript,
                 true,
+                false,
             );
             anyhow::Ok((eval_context, var_graph))
         })?;
@@ -734,6 +737,7 @@ mod tests {
                     Effect::ImportMeta { .. }
                     | Effect::ImportedBinding { .. }
                     | Effect::Member { .. }
+                    | Effect::DestructuredMember { .. }
                     | Effect::In { .. } => 0,
                 };
                 let time = start.elapsed();

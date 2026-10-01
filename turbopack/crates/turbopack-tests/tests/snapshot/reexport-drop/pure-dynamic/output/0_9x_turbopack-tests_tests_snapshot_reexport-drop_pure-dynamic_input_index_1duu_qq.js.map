@@ -1,6 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/reexport-drop/pure-dynamic/input/index.js"],"sourcesContent":["async function load() {\n  const { a } = await import('./barrel.js')\n  console.log(a)\n}\n\nload()\n"],"names":["load","a","console","log"],"mappings":"AAAA,eAAeA;IACb,MAAM,EAAEC,CAAC,EAAE,GAAG;IACdC,QAAQC,GAAG,CAACF;AACd;AAEAD"}}]
-}

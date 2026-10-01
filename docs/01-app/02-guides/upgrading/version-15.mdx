@@ -625,3 +625,17 @@ export function middleware(request: NextRequest) {
   // ...
 }
 ```
+
+## Review migration checklist
+
+After applying the changes relevant to your app, review these action items before
+you consider the migration complete:
+
+- [ ] React dependencies and types meet the React 19 requirements for the app's router.
+- [ ] Async Request API access, including affected helpers and callers, is migrated. Resolve codemod error comments and `UnsafeUnwrapped` casts instead of treating them as completed repairs.
+- [ ] Route segment runtime settings no longer use `experimental-edge`.
+- [ ] Font imports use `next/font` instead of `@next/font`.
+- [ ] Existing `bundlePagesExternals` and `serverComponentsExternalPackages` settings use their documented stable names while preserving package configuration.
+- [ ] `NextRequest` `geo` and `ip` consumers use an appropriate source for the actual hosting provider.
+- [ ] Apps that relied on automatic Speed Insights instrumentation have an explicit integration if they still need it.
+- [ ] The app's supported checks and affected runtime behavior pass. Remaining required failures keep the migration incomplete.

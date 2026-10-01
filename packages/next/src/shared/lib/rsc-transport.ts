@@ -1,3 +1,4 @@
+import { PAGE_SEGMENT_KEY } from './segment'
 /**
  * The transport format for RSC responses.
  *
@@ -26,11 +27,8 @@ import type { VaryParamsIterable } from './segment-cache/vary-params-decoding'
  * Segment identity on the wire. A string for static segments; an object for
  * dynamic (parameterized) segments.
  *
- * TODO: Page segments currently smuggle search params inside the string
- * (`__PAGE__?{...}`, see addSearchParamsIfPageSegment). This convention is
- * carried over as-is for now. Consider giving search params a dedicated
- * field (or removing them from the response entirely, since the client
- * already knows the rendered search from the response-level `q`).
+ * Page segments are always `__PAGE__`. The search params are sent separately,
+ * in the response's `q` field.
  */
 export type TransportSegment = string | TransportDynamicSegment
 
@@ -63,8 +61,28 @@ export type TransportDynamicSegment = {
 export type TransportSegmentData = {
   /** rsc — the React node for this segment; null = skipped (not rendered) */
   r: React.ReactNode
-  /** isPartial — contains unresolved dynamic holes (static prerender) */
-  p: boolean
+  /**
+   * isPartial — whether anything in the segment's output is not fully
+   * resolved: dynamic holes, runtime holes, anything suspended.
+   *
+   * Navigation responses carry a plain boolean, known at render time. It is
+   * a render-wide constant (isPossiblyPartialResponse in
+   * create-component-tree.tsx), identical on every node and only
+   * conservatively accurate, so the client resolves a boolean-form node's
+   * actual partiality from the response-level signal instead (see
+   * decodeTransportNode).
+   *
+   * Per-segment prefetch responses carry the rewindable promise encoding
+   * instead: fulfilled = complete, pending forever = partial. Partiality is
+   * only discovered there by probing the buffered prerender (a partial
+   * segment's probe never resolves, the same way Flight encodes the holes
+   * themselves), and the encoding must survive the client's shell
+   * double-decode — the response buffer is decoded a second time truncated
+   * at the shell byte boundary (`a`), and a fulfillment row that landed past
+   * the boundary must read as "partial" in that decode. The promise form is
+   * only ever read off a fully-buffered decode's thenable status.
+   */
+  p: boolean | Promise<void>
   /**
    * varyParams — an iterable of the route params this segment's output
    * depends on (one name per yield, deduped). Used by the client router to
@@ -83,6 +101,18 @@ export type TransportSegmentData = {
    *   reused when those specific params match.
    */
   v: VaryParamsIterable | null
+  /**
+   * staleTime in seconds — present only in per-segment prefetch responses,
+   * where staleness is tracked per node. Navigation responses carry
+   * staleness at the response level instead (the wrapper's `s` iterable or
+   * the Next-Router-Stale-Time header).
+   *
+   * An async iterable rather than a plain number because the final value is
+   * only known late in the stream, and the iterable form survives a
+   * truncated/rewound shell decode (read via thenable status from the
+   * buffered response). The client takes the last yielded value.
+   */
+  s?: AsyncIterable<number>
 }
 
 /**
@@ -136,10 +166,10 @@ export type FullTransportNode = TransportNodeShape & {
  * - `h` omitted: on a skipped node, the client keeps its existing hints for
  *   the segment; on any other node it means the hints are zero.
  *
- * TODO: A node with `d` omitted currently ends the client's cache write for
- * its subtree (see writeSeedDataIntoCache), so "skip a middle segment but
- * render below it" is not expressible yet. Extend the decode/write semantics
- * when a producer needs that.
+ * The client's cache write descends through nodes with `d` omitted (see
+ * writeTreeDataIntoCache), so data may appear at any depth below a no-claim
+ * node — the identity spine of a per-segment prefetch response is the
+ * canonical producer of that shape.
  */
 export type PartialTransportNode = TransportNodeShape & {
   /** data — omitted when this segment was not rendered in this response */
@@ -185,6 +215,47 @@ export function createSkippedSegmentData(): TransportSegmentData {
 }
 
 /**
+ * Reads a late-resolving value from a fully-buffered Flight decode via the
+ * thenable's status. Flight sets `status`/`value` on a row's promise once
+ * its bytes are processed, and a buffered decode processes every byte
+ * synchronously, so any row that made it into the payload is readable
+ * without awaiting. Returns `unresolvedValue` for a row that is pending or
+ * absent in this decode — e.g. one whose fulfillment landed past a
+ * truncated shell decode's boundary; that's what scopes a response's
+ * late-resolving signals to the payload being decoded. Returns
+ * `rejectedValue` (defaults to `unresolvedValue`) for a rejected row — an
+ * aborted render errors rows that were still pending when it happened.
+ *
+ * Shared by client and server: the client reads buffered prefetch
+ * responses; the server (collect-segment-data) reads the buffered page
+ * payload it re-serializes into per-segment responses.
+ */
+export function readFulfilledValue<T, TFallback>(
+  valueFromServer: PromiseLike<T>,
+  unresolvedValue: TFallback,
+  rejectedValue: T | TFallback = unresolvedValue
+): T | TFallback {
+  const thenable = valueFromServer as PromiseLike<T> & {
+    status?: string
+    value?: T
+  }
+  // Force Flight to unwrap a received-but-not-yet-settled row.
+  thenable.then(noop, noop)
+  switch (thenable.status) {
+    case 'fulfilled':
+      return thenable.value as T
+    case 'rejected':
+      return rejectedValue
+    // No status yet: the row is still pending, or absent from this decode.
+    case undefined:
+    default:
+      return unresolvedValue
+  }
+}
+
+const noop = () => {}
+
+/**
  * Converts a segment's client/server-internal representation to its wire
  * representation.
  */
@@ -212,10 +283,12 @@ export function transportSegmentToSegment(
   }
   return [
     transportSegment.n,
-    // TODO: `k` may be null when the client is expected to parse the param
-    // value from the URL. Navigation responses always include the key today;
-    // this becomes relevant when per-segment prefetch responses converge on
-    // this format.
+    // `k` may be null when the client is expected to parse the param value
+    // from the URL (per-segment prefetch responses). Callers that need the
+    // real value resolve it from the rendered pathname instead of using this
+    // function (see resolveTransportSegment in decode-server-response); the
+    // remaining callers are value-insensitive (segment request keys, which
+    // never include param values) or only see concrete keys.
     transportSegment.k ?? '',
     transportSegment.t,
     transportSegment.s,
@@ -225,18 +298,20 @@ export function transportSegmentToSegment(
 /**
  * Derives a FlightRouterState from a transport tree. Used where the client
  * needs a router-state representation of a full response (e.g. the initial
- * hydration payload). Render output (`d`) is not carried over; page segments
- * keep their search params, which travel inside the segment string.
+ * hydration payload). Render output (`d`) is not carried over.
  */
 export function transportNodeToFlightRouterState(
-  node: TransportNode
+  node: TransportNode,
+  renderedSearch: string
 ): FlightRouterState {
   const parallelRoutes: Record<string, FlightRouterState> = {}
   const children = node.c
   if (children !== undefined) {
     for (const [parallelRouteKey, childNode] of children) {
-      parallelRoutes[parallelRouteKey] =
-        transportNodeToFlightRouterState(childNode)
+      parallelRoutes[parallelRouteKey] = transportNodeToFlightRouterState(
+        childNode,
+        renderedSearch
+      )
     }
   }
   const flightRouterState: FlightRouterState = [
@@ -245,6 +320,9 @@ export function transportNodeToFlightRouterState(
   ]
   if (node.h !== undefined) {
     flightRouterState[4] = node.h
+  }
+  if (flightRouterState[0] === PAGE_SEGMENT_KEY) {
+    flightRouterState[5] = renderedSearch
   }
   return flightRouterState
 }

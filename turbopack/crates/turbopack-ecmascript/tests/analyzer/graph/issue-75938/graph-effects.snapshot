@@ -4,6 +4,7 @@
         export: Some(
             "useMemo",
         ),
+        member: None,
         ast_path: [
             Program(
                 Module,
@@ -31,7 +32,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -72,6 +73,12 @@
                 ModuleValue {
                     module: "react",
                     annotations: None,
+                    analyze_for_constants: false,
+                    reference: Some(
+                        ModuleReferenceIndex(
+                            4,
+                        ),
+                    ),
                 },
             ),
             Constant(
@@ -127,7 +134,7 @@
                                 Function(
                                     Body,
                                 ),
-                                BlockStmt(
+                                FunctionBody(
                                     Stmts(
                                         0,
                                     ),
@@ -163,7 +170,7 @@
                                 ArrowExpr(
                                     Body,
                                 ),
-                                BlockStmtOrExpr(
+                                ArrowFunctionBody(
                                     Expr,
                                 ),
                                 Expr(
@@ -176,73 +183,9 @@
                         },
                     ],
                     range: Exact(
-                        [
-                            Program(
-                                Module,
-                            ),
-                            Module(
-                                Body(
-                                    4,
-                                ),
-                            ),
-                            ModuleItem(
-                                ModuleDecl,
-                            ),
-                            ModuleDecl(
-                                ExportDefaultDecl,
-                            ),
-                            ExportDefaultDecl(
-                                Decl,
-                            ),
-                            DefaultDecl(
-                                Fn,
-                            ),
-                            FnExpr(
-                                Function,
-                            ),
-                            Function(
-                                Body,
-                            ),
-                            BlockStmt(
-                                Stmts(
-                                    0,
-                                ),
-                            ),
-                            Stmt(
-                                Decl,
-                            ),
-                            Decl(
-                                Var,
-                            ),
-                            VarDecl(
-                                Decls(
-                                    0,
-                                ),
-                            ),
-                            VarDeclarator(
-                                Init,
-                            ),
-                            Expr(
-                                Call,
-                            ),
-                            CallExpr(
-                                Args(
-                                    0,
-                                ),
-                            ),
-                            ExprOrSpread(
-                                Expr,
-                            ),
-                            Expr(
-                                Arrow,
-                            ),
-                            ArrowExpr(
-                                Body,
-                            ),
-                            BlockStmtOrExpr(
-                                Expr,
-                            ),
-                        ],
+                        AstPathId(
+                            28,
+                        ),
                     ),
                 },
             ),
@@ -281,7 +224,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -313,6 +256,7 @@
         export: Some(
             "jsx",
         ),
+        member: None,
         ast_path: [
             Program(
                 Module,
@@ -340,7 +284,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -407,7 +351,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -452,7 +396,7 @@
             ArrowExpr(
                 Body,
             ),
-            BlockStmtOrExpr(
+            ArrowFunctionBody(
                 Expr,
             ),
             Expr(
@@ -469,6 +413,7 @@
             ),
         ],
         span: 366..379,
+        in_truthiness_context: false,
     },
     MemberCall {
         obj: Variable(
@@ -512,7 +457,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -557,7 +502,7 @@
             ArrowExpr(
                 Body,
             ),
-            BlockStmtOrExpr(
+            ArrowFunctionBody(
                 Expr,
             ),
             Expr(
@@ -575,6 +520,12 @@
                 ModuleValue {
                     module: "https://esm.sh/preact/jsx-runtime",
                     annotations: None,
+                    analyze_for_constants: false,
+                    reference: Some(
+                        ModuleReferenceIndex(
+                            2,
+                        ),
+                    ),
                 },
             ),
             Constant(
@@ -631,7 +582,7 @@
                             ),
                         ),
                     ],
-                    mutable: true,
+                    mutability: Mutable,
                 },
             ),
         ],
@@ -662,7 +613,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -709,7 +660,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -777,7 +728,7 @@
                                 Function(
                                     Body,
                                 ),
-                                BlockStmt(
+                                FunctionBody(
                                     Stmts(
                                         0,
                                     ),
@@ -805,10 +756,10 @@
                                 ArrowExpr(
                                     Body,
                                 ),
-                                BlockStmtOrExpr(
-                                    BlockStmt,
+                                ArrowFunctionBody(
+                                    FunctionBody,
                                 ),
-                                BlockStmt(
+                                FunctionBody(
                                     Stmts(
                                         0,
                                     ),
@@ -839,6 +790,7 @@
                             export: Some(
                                 "fooBar",
                             ),
+                            member: None,
                             ast_path: [
                                 Program(
                                     Module,
@@ -874,7 +826,7 @@
                                 Function(
                                     Body,
                                 ),
-                                BlockStmt(
+                                FunctionBody(
                                     Stmts(
                                         0,
                                     ),
@@ -902,10 +854,10 @@
                                 ArrowExpr(
                                     Body,
                                 ),
-                                BlockStmtOrExpr(
-                                    BlockStmt,
+                                ArrowFunctionBody(
+                                    FunctionBody,
                                 ),
-                                BlockStmt(
+                                FunctionBody(
                                     Stmts(
                                         0,
                                     ),
@@ -949,6 +901,12 @@
                                     ModuleValue {
                                         module: "./external",
                                         annotations: None,
+                                        analyze_for_constants: false,
+                                        reference: Some(
+                                            ModuleReferenceIndex(
+                                                6,
+                                            ),
+                                        ),
                                     },
                                 ),
                                 Constant(
@@ -995,7 +953,7 @@
                                 Function(
                                     Body,
                                 ),
-                                BlockStmt(
+                                FunctionBody(
                                     Stmts(
                                         0,
                                     ),
@@ -1023,10 +981,10 @@
                                 ArrowExpr(
                                     Body,
                                 ),
-                                BlockStmtOrExpr(
-                                    BlockStmt,
+                                ArrowFunctionBody(
+                                    FunctionBody,
                                 ),
-                                BlockStmt(
+                                FunctionBody(
                                     Stmts(
                                         0,
                                     ),
@@ -1070,6 +1028,12 @@
                                                 ModuleValue {
                                                     module: "./external",
                                                     annotations: None,
+                                                    analyze_for_constants: false,
+                                                    reference: Some(
+                                                        ModuleReferenceIndex(
+                                                            6,
+                                                        ),
+                                                    ),
                                                 },
                                             ),
                                             Constant(
@@ -1119,7 +1083,7 @@
                                 Function(
                                     Body,
                                 ),
-                                BlockStmt(
+                                FunctionBody(
                                     Stmts(
                                         0,
                                     ),
@@ -1147,10 +1111,10 @@
                                 ArrowExpr(
                                     Body,
                                 ),
-                                BlockStmtOrExpr(
-                                    BlockStmt,
+                                ArrowFunctionBody(
+                                    FunctionBody,
                                 ),
-                                BlockStmt(
+                                FunctionBody(
                                     Stmts(
                                         0,
                                     ),
@@ -1171,73 +1135,9 @@
                         },
                     ],
                     range: Exact(
-                        [
-                            Program(
-                                Module,
-                            ),
-                            Module(
-                                Body(
-                                    5,
-                                ),
-                            ),
-                            ModuleItem(
-                                Stmt,
-                            ),
-                            Stmt(
-                                Decl,
-                            ),
-                            Decl(
-                                Class,
-                            ),
-                            ClassDecl(
-                                Class,
-                            ),
-                            Class(
-                                Body(
-                                    0,
-                                ),
-                            ),
-                            ClassMember(
-                                Method,
-                            ),
-                            ClassMethod(
-                                Function,
-                            ),
-                            Function(
-                                Body,
-                            ),
-                            BlockStmt(
-                                Stmts(
-                                    0,
-                                ),
-                            ),
-                            Stmt(
-                                Expr,
-                            ),
-                            ExprStmt(
-                                Expr,
-                            ),
-                            Expr(
-                                Call,
-                            ),
-                            CallExpr(
-                                Args(
-                                    0,
-                                ),
-                            ),
-                            ExprOrSpread(
-                                Expr,
-                            ),
-                            Expr(
-                                Arrow,
-                            ),
-                            ArrowExpr(
-                                Body,
-                            ),
-                            BlockStmtOrExpr(
-                                BlockStmt,
-                            ),
-                        ],
+                        AstPathId(
+                            46,
+                        ),
                     ),
                 },
             ),
@@ -1277,7 +1177,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -1339,7 +1239,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -1394,7 +1294,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),

@@ -4,7 +4,6 @@ use serde::Serialize;
 
 #[cfg(debug_assertions)]
 use crate::debug::{ValueDebugFormat, ValueDebugFormatString};
-use crate::trace::{TraceRawVcs, TraceRawVcsContext};
 
 pub struct MappedReadRef<A, T> {
     value: *const T,
@@ -113,15 +112,6 @@ where
     fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString<'_> {
         let value = &**self;
         value.value_debug_format(depth)
-    }
-}
-
-impl<A, T> TraceRawVcs for MappedReadRef<A, T>
-where
-    T: TraceRawVcs,
-{
-    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
-        (**self).trace_raw_vcs(trace_context);
     }
 }
 

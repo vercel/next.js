@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, sync::LazyLock};
+use std::{borrow::Cow, collections::BTreeMap, sync::LazyLock};
 
 use anyhow::{Context, Result};
 use async_trait::async_trait;
@@ -17,7 +17,8 @@ use turbopack_core::{
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{
-        AliasPattern, ExternalTraced, ExternalType, ResolveAliasMap, ResolveResult, SubpathValue,
+        AliasKey, AliasPattern, AliasTemplate, ExternalTraced, ExternalType,
+        ReplacedSubpathValueResultType, ResolveAliasMap, ResolveResult, SubpathValue,
         node::node_cjs_resolve_options,
         options::{ConditionValue, ImportMap, ImportMapping, ResolvedMap},
         parse::Request,
@@ -64,6 +65,11 @@ pub async fn get_next_client_import_map(
 ) -> Result<Vc<ImportMap>> {
     let mut import_map = ImportMap::empty();
 
+    import_map.insert_exact_alias(
+        rcstr!("next/image"),
+        request_to_import_mapping(project_path.clone(), rcstr!("next/dist/api/image")),
+    );
+
     insert_next_shared_aliases(
         &mut import_map,
         project_path.clone(),
@@ -97,17 +103,11 @@ pub async fn get_next_client_import_map(
             );
         }
         ClientContextType::App { app_dir } => {
-            // Keep in sync with file:///./../../../packages/next/src/lib/needs-experimental-react.ts
-            let blocking_ssr = *next_config.enable_blocking_ssr().await?;
-            let taint = *next_config.enable_taint().await?;
-            let transition_indicator = *next_config.enable_transition_indicator().await?;
-            let gesture_transition = *next_config.enable_gesture_transition().await?;
-            let react_channel =
-                if blocking_ssr || taint || transition_indicator || gesture_transition {
-                    "-experimental"
-                } else {
-                    ""
-                };
+            let react_channel = if *next_config.use_react_experimental().await? {
+                "-experimental"
+            } else {
+                ""
+            };
 
             import_map.insert_exact_alias(
                 rcstr!("react"),
@@ -286,6 +286,11 @@ pub async fn get_next_server_import_map(
     collected_root_params: Option<Vc<CollectedRootParams>>,
 ) -> Result<Vc<ImportMap>> {
     let mut import_map = ImportMap::empty();
+
+    import_map.insert_exact_alias(
+        rcstr!("next/image"),
+        request_to_import_mapping(project_path.clone(), rcstr!("next/dist/api/image")),
+    );
 
     insert_next_shared_aliases(
         &mut import_map,
@@ -578,6 +583,7 @@ pub async fn get_next_client_resolved_map(
     root: FileSystemPath,
     _mode: NextMode,
     expose_testing_api: bool,
+    concurrent_router_queue: bool,
 ) -> Result<Vc<ResolvedMap>> {
     // In the browser bundle, swap every module that has a `.browser` sibling (see
     // BROWSER_VARIANT_MODULES, generated from the filesystem) for that sibling. The default
@@ -613,7 +619,7 @@ pub async fn get_next_client_resolved_map(
     // alias in `create-compiler-aliases.ts`.
     if !expose_testing_api {
         glob_mappings.push((
-            fs_root,
+            fs_root.clone(),
             Glob::new(
                 rcstr!("**/next/dist/client/components/segment-cache/navigation-testing-lock.js"),
                 GlobOptions::default(),
@@ -625,6 +631,40 @@ pub async fn get_next_client_resolved_map(
                 rcstr!(
                     "next/dist/client/components/segment-cache/navigation-testing-lock.disabled"
                 ),
+            ),
+        ));
+    }
+
+    // When `experimental.concurrentRouterQueue` is enabled, resolve the
+    // router's forked entry-point modules (the navigator interface and the
+    // callServer action door) to the concurrent implementations. Neither the
+    // interface module nor the sequential implementation is bundled at all.
+    // This mirrors the webpack alias in `create-compiler-aliases.ts`.
+    if concurrent_router_queue {
+        glob_mappings.push((
+            fs_root.clone(),
+            Glob::new(
+                rcstr!("**/next/dist/client/components/navigator.js"),
+                GlobOptions::default(),
+            )
+            .to_resolved()
+            .await?,
+            request_to_import_mapping(
+                context_path.clone(),
+                rcstr!("next/dist/client/components/concurrent-router-queue"),
+            ),
+        ));
+        glob_mappings.push((
+            fs_root,
+            Glob::new(
+                rcstr!("**/next/dist/client/app-call-server.js"),
+                GlobOptions::default(),
+            )
+            .to_resolved()
+            .await?,
+            request_to_import_mapping(
+                context_path.clone(),
+                rcstr!("next/dist/client/concurrent-call-server"),
             ),
         ));
     }
@@ -848,11 +888,7 @@ async fn apply_vendored_react_aliases_server(
     runtime: NextRuntime,
     next_config: Vc<NextConfig>,
 ) -> Result<()> {
-    let blocking_ssr = *next_config.enable_blocking_ssr().await?;
-    let taint = *next_config.enable_taint().await?;
-    let transition_indicator = *next_config.enable_transition_indicator().await?;
-    let gesture_transition = *next_config.enable_gesture_transition().await?;
-    let react_channel = if blocking_ssr || taint || transition_indicator || gesture_transition {
+    let react_channel = if *next_config.use_react_experimental().await? {
         "-experimental"
     } else {
         ""
@@ -1381,7 +1417,7 @@ pub async fn try_get_next_package(
         context_directory.clone(),
         ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
         Request::parse(Pattern::Constant(rcstr!("next/package.json"))),
-        node_cjs_resolve_options(root.clone()),
+        node_cjs_resolve_options(),
     );
     if let Some(source) = result.await?.first_source() {
         Ok(Vc::cell(Some(source.ident().await?.path.parent())))
@@ -1416,31 +1452,35 @@ fn export_value_to_import_mapping(
     conditions: &BTreeMap<RcStr, ConditionValue>,
     project_path: &FileSystemPath,
 ) -> Option<ResolvedVc<ImportMapping>> {
-    let mut result = Vec::new();
-    value.add_results(
+    let alias_key = AliasKey::Exact;
+    let mut results = Vec::new();
+    value.convert().add_results(
+        Cow::Borrowed(""),
+        &alias_key,
         conditions,
         &ConditionValue::Unset,
         &mut FxHashMap::default(),
-        &mut result,
+        &mut results,
     );
-    if result.is_empty() {
-        None
-    } else {
-        Some(if result.len() == 1 {
-            ImportMapping::PrimaryAlternative(result[0].0.into(), Some(project_path.clone()))
-                .resolved_cell()
-        } else {
-            ImportMapping::Alternatives(
-                result
-                    .iter()
-                    .map(|(m, _)| {
-                        ImportMapping::PrimaryAlternative((*m).into(), Some(project_path.clone()))
-                            .resolved_cell()
-                    })
-                    .collect(),
-            )
-            .resolved_cell()
+
+    let mappings: Vec<_> = results
+        .iter()
+        .filter_map(|r| match &r.ty {
+            ReplacedSubpathValueResultType::Path(path) => {
+                let m = path.as_constant_string()?;
+                Some(
+                    ImportMapping::PrimaryAlternative(m.clone(), Some(project_path.clone()))
+                        .resolved_cell(),
+                )
+            }
+            ReplacedSubpathValueResultType::Empty => Some(ImportMapping::Empty.resolved_cell()),
         })
+        .collect();
+
+    match mappings.len() {
+        0 => None,
+        1 => mappings.into_iter().next(),
+        _ => Some(ImportMapping::Alternatives(mappings).resolved_cell()),
     }
 }
 

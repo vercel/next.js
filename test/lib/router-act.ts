@@ -23,10 +23,10 @@ const APP_SHELL_PREFETCH_VALUE = '3'
 // - 'static': per-segment static prefetches. These carry the
 //   `next-router-segment-prefetch` header (NEXT_ROUTER_SEGMENT_PREFETCH_HEADER
 //   in the client), which is sent both by the per-segment data fetch
-//   (`fetchSegmentsOnCacheMissImpl`) and the route tree fetch
+//   (`fetchSegmentPrefetchesUsingStaticRequest`) and the route tree fetch
 //   (`fetchRouteOnCacheMiss`).
 // - 'runtime': dynamic prefetch requests, issued by
-//   `fetchSegmentPrefetchesUsingDynamicRequest` in the client. These carry a
+//   `fetchSegmentPrefetchesUsingRuntimeRequest` in the client. These carry a
 //   FlightRouterState request tree and a `next-router-prefetch` header value
 //   of '2' (FetchStrategy.PPRRuntime) or '3' (FetchStrategy.RuntimeShell).
 //   The other strategies used by that path — LoadingBoundary ('1') and Full
@@ -595,7 +595,7 @@ ${fulfilled.body}
               // If the response doesn't match any of the expectations, that's
               // fine. If it does match an expectation, but the only thing
               // it matches is an expectation that was already claimed, then
-              // that's an error — each occurence of an expectation must be
+              // that's an error — each occurrence of an expectation must be
               // given separately.
               let responseWasClaimed = false
               let firstAlreadyClaimedMatch: ExpectedResponseConfig | null = null
@@ -705,6 +705,79 @@ ${fulfilled.body}
           } else {
             if (route !== null) {
               const request = route.request()
+
+              // When fulfilling a redirect, for some reason, the page.route()
+              // handler installed earlier will not intercept the redirect
+              // request. Install an event listener to wait for the redirected
+              // request to finish. This works for this case because we don't
+              // need to modify or delay the response; we only need to observe
+              // when it has finished. The listener must be installed before
+              // fulfilling: the browser can issue the redirected request as
+              // soon as it receives the redirect, and a listener installed
+              // afterwards would miss it and latch onto whatever router
+              // request happens next — a request this act scope is itself
+              // holding, which would never receive a response.
+              // TODO: Because this request cannot be intercepted, it's
+              // incompatible with the "block" option. I haven't yet figured out
+              // a strategy to make that work. In the meantime, attempting to
+              // write a test that blocks a redirect will result in an error
+              // (see error above).
+              const redirectedRequestFinished =
+                fulfilled.status === 307 || fulfilled.status === 308
+                  ? new Promise<void>((resolve, reject) => {
+                      const handleRequest = (req: Playwright.Request) => {
+                        if (req.redirectedFrom()?.url() !== request.url()) {
+                          return
+                        }
+                        page.off('request', handleRequest)
+                        const handleResponse = (res: Playwright.Response) => {
+                          if (res.url() === req.url()) {
+                            batch.pendingRequests.add({
+                              url: req.url(),
+                              route: null,
+                              result: (async () => {
+                                return {
+                                  // For redirects, body may not be available,
+                                  // so catch the error and return an empty
+                                  // string.
+                                  text: await res.text().catch(() => ''),
+                                  body: await res
+                                    .body()
+                                    .catch(() => Buffer.from('')),
+                                  headers: res.headers(),
+                                  status: res.status(),
+                                }
+                              })(),
+                              didProcess: false,
+                              // The target of a redirect is a navigation, not
+                              // an App Shell prefetch.
+                              isAppShell: false,
+                              // Navigations have no prefetch kind.
+                              kind: undefined,
+                            })
+                            batch.didReceiveRouterRequest = true
+                            page.off('response', handleResponse)
+                            page.off('requestfailed', handleFailure)
+                            resolve()
+                          }
+                        }
+                        const handleFailure = (
+                          failedReq: Playwright.Request
+                        ) => {
+                          if (failedReq.url() === req.url()) {
+                            page.off('response', handleResponse)
+                            page.off('requestfailed', handleFailure)
+                            error.message = `Request failed: ${failedReq.failure()?.errorText || 'Unknown error'}\n\nURL: ${req.url()}`
+                            reject(error)
+                          }
+                        }
+                        page.on('response', handleResponse)
+                        page.on('requestfailed', handleFailure)
+                      }
+                      page.on('request', handleRequest)
+                    })
+                  : null
+
               await route.fulfill({
                 body: fulfilled.body,
                 headers: fulfilled.headers,
@@ -718,63 +791,11 @@ ${fulfilled.body}
                   await browserResponse.finished()
                 }
               }
-            }
-          }
 
-          if (fulfilled.status === 307 || fulfilled.status === 308) {
-            // When fulfilling a redirect, for some reason, the page.route()
-            // handler installed earlier will not intercept the
-            // redirect request. Install a one-off event listener to wait for
-            // the redirected request to finish. This works for this case
-            // because we don't need to modify to delay the response; we only
-            // need to observe when it has finished.
-            // TODO: Because this request cannot be intercepted, it's
-            // incompatible with the "block" option. I haven't yet figured out
-            // a strategy to make that work. In the meantime, attempting to
-            // write a test that blocks a redirect will result in an error
-            // (see error above).
-            await new Promise<void>((resolve, reject) => {
-              page.once('request', (req) => {
-                const handleResponse = (res: Playwright.Response) => {
-                  if (res.url() === req.url()) {
-                    batch.pendingRequests.add({
-                      url: req.url(),
-                      route: null,
-                      result: (async () => {
-                        return {
-                          // For redirects, body may not be available, so catch
-                          // the error and return an empty string.
-                          text: await res.text().catch(() => ''),
-                          body: await res.body().catch(() => Buffer.from('')),
-                          headers: res.headers(),
-                          status: res.status(),
-                        }
-                      })(),
-                      didProcess: false,
-                      // The target of a redirect is a navigation, not an App
-                      // Shell prefetch.
-                      isAppShell: false,
-                      // Navigations have no prefetch kind.
-                      kind: undefined,
-                    })
-                    batch.didReceiveRouterRequest = true
-                    page.off('response', handleResponse)
-                    page.off('requestfailed', handleFailure)
-                    resolve()
-                  }
-                }
-                const handleFailure = (failedReq: Playwright.Request) => {
-                  if (failedReq.url() === req.url()) {
-                    page.off('response', handleResponse)
-                    page.off('requestfailed', handleFailure)
-                    error.message = `Request failed: ${failedReq.failure()?.errorText || 'Unknown error'}\n\nURL: ${req.url()}`
-                    reject(error)
-                  }
-                }
-                page.on('response', handleResponse)
-                page.on('requestfailed', handleFailure)
-              })
-            })
+              if (redirectedRequestFinished !== null) {
+                await redirectedRequestFinished
+              }
+            }
           }
         }
 

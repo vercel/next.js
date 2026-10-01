@@ -1,6 +1,6 @@
 //! [`FileSystemPath`] and the path-resolution operations built on top of it.
 
-use std::path::MAIN_SEPARATOR;
+use std::{borrow::Cow, error::Error, fmt, path::MAIN_SEPARATOR};
 
 use anyhow::{Result, bail};
 use auto_hash_map::{AutoMap, AutoSet};
@@ -8,15 +8,16 @@ use bincode::{Decode, Encode};
 use indexmap::IndexSet;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    Completion, NonLocalValue, ResolvedVc, ValueToString, ValueToStringRef, Vc, trace::TraceRawVcs,
-    turbobail, turbofmt,
+    Completion, NonLocalValue, ResolvedVc, ValueToString, ValueToStringRef, Vc, turbobail, turbofmt,
 };
-use turbo_unix_path::{get_parent_path, get_relative_path_to, join_path, normalize_path};
+use turbo_unix_path::{
+    get_parent_path, get_relative_path_to, get_relative_request_to, join_path, normalize_path,
+};
 
 use crate::{
     DirectoryContent, DirectoryEntry, FileContent, FileJsonContent, FileMeta, FileSystem,
-    FileSystemEntryType, LinkContent, LinkType, RawDirectoryContent, RawDirectoryEntry,
-    ReadGlobResult,
+    FileSystemEntryType, LinkContent, RawDirectoryContent, RawDirectoryEntry, ReadGlobResult,
+    WriteLinkContent,
     glob::Glob,
     read_glob::{read_glob, track_glob},
 };
@@ -96,14 +97,39 @@ impl FileSystemPath {
         }
     }
 
-    /// Returns a unix-style path of `other` relative to `self`. Supports traversing upwards (`../`)
-    /// within the filesystem.
+    /// Returns a unix-style path of `other` relative to `self`, as a plain path: `dir/file.js`,
+    /// `../file.js`, or `.`. Supports traversing upwards (`../`) within the filesystem.
+    ///
+    /// Returns [`None`] when the two are on different filesystems.
+    ///
+    /// The result is not prefixed with `./`, so it is a path and not a module request. Use
+    /// [`FileSystemPath::get_relative_request_to`] to build an import specifier.
     pub fn get_relative_path_to(&self, other: &FileSystemPath) -> Option<RcStr> {
         if self.fs != other.fs {
             return None;
         }
 
-        Some(get_relative_path_to(&self.path, &other.path).into())
+        Some(match get_relative_path_to(&self.path, &other.path) {
+            Cow::Borrowed(path) if std::ptr::eq(path, other.path.as_str()) => other.path.clone(),
+            Cow::Borrowed(path) => path.into(),
+            Cow::Owned(path) => path.into(),
+        })
+    }
+
+    /// Returns a unix-style path of `other` relative to `self`, as an explicitly relative module
+    /// request: `./dir/file.js`, `../file.js`, or `.`. Supports traversing upwards (`../`) within
+    /// the filesystem.
+    ///
+    /// Returns [`None`] when the two are on different filesystems.
+    ///
+    /// The `./` prefix is what makes the result a relative request rather than a reference to a
+    /// package of that name. Use [`FileSystemPath::get_relative_path_to`] for a plain path.
+    pub fn get_relative_request_to(&self, other: &FileSystemPath) -> Option<RcStr> {
+        if self.fs != other.fs {
+            return None;
+        }
+
+        Some(get_relative_request_to(&self.path, &other.path).into())
     }
 
     /// Returns the final component of the FileSystemPath, or an empty string
@@ -390,6 +416,10 @@ impl FileSystemPath {
         self.fs().read_link(self.clone())
     }
 
+    pub fn is_junction_point(&self) -> Vc<bool> {
+        self.fs().is_junction_point(self.clone())
+    }
+
     pub fn read_json(&self) -> Vc<FileJsonContent> {
         self.fs().read(self.clone()).parse_json()
     }
@@ -410,24 +440,20 @@ impl FileSystemPath {
         self.fs().write(self.clone(), content)
     }
 
-    /// Creates a symbolic link to a directory on *nix platforms, or a directory junction point on
-    /// Windows.
+    /// Creates a symbolic link on *nix platforms. On Windows, directory links are created as
+    /// junction points. Links to files on Windows are attempted to be created as symbolic links.
     ///
     /// [Windows supports symbolic links][windows-symlink], but they [can require elevated
     /// privileges][windows-privileges] if "developer mode" is not enabled, so we can't safely use
     /// them. Using junction points [matches the behavior of pnpm][pnpm-windows].
     ///
-    /// This only supports directories because Windows junction points are incompatible with files.
-    /// To ensure compatibility, this will return an error if the target is a file, even on
-    /// platforms with full symlink support.
-    ///
-    /// **We intentionally do not provide an API for symlinking a file**, as we cannot support that
-    /// on all Windows configurations.
+    /// It is not recommended to create non-directory links, as this is not portable and will likely
+    /// fail on Windows.
     ///
     /// [windows-symlink]: https://blogs.windows.com/windowsdeveloper/2016/12/02/symlinks-windows-10/
     /// [windows-privileges]: https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-10/security/threat-protection/security-policy-settings/create-symbolic-links
     /// [pnpm-windows]: https://pnpm.io/faq#does-it-work-on-windows
-    pub fn write_symbolic_link_dir(&self, target: Vc<LinkContent>) -> Vc<()> {
+    pub fn write_link(&self, target: Vc<WriteLinkContent>) -> Vc<()> {
         self.fs().write_link(self.clone(), target)
     }
 
@@ -435,14 +461,12 @@ impl FileSystemPath {
         self.fs().metadata(self.clone())
     }
 
-    // Returns the realpath to the file, resolving all symlinks and reporting an error if the path
-    // is invalid.
-    pub async fn realpath(&self) -> Result<FileSystemPath> {
-        let result = &(*self.realpath_with_links().await?);
-        match &result.path_result {
-            Ok(path) => Ok(path.clone()),
-            Err(error) => bail!("{}", error.as_error_message(self, result).await?),
-        }
+    /// Returns the realpath to the file, resolving all symlinks.
+    ///
+    /// The outer [`anyhow::Error`] represents an internal error in turbo-tasks. Any other error is
+    /// represented using a structured `RealPathError`.
+    pub async fn realpath(&self) -> Result<Result<FileSystemPath, RealPathError>> {
+        Ok(self.realpath_with_links().await?.path_result.clone())
     }
 
     pub fn rebase(
@@ -483,59 +507,81 @@ impl FileSystemPath {
         get_type(self.clone())
     }
 
-    pub fn realpath_with_links(&self) -> Vc<RealPathResult> {
+    pub fn realpath_with_links(&self) -> Vc<RealPathWithLinksResult> {
         realpath_with_links(self.clone())
     }
 }
 
 #[derive(Clone, Debug)]
 #[turbo_tasks::value(shared)]
-pub struct RealPathResult {
-    pub path_result: Result<FileSystemPath, RealPathResultError>,
-    pub symlinks: Vec<FileSystemPath>,
+pub struct RealPathWithLinksResult {
+    pub path_result: Result<FileSystemPath, RealPathError>,
+    pub symlinks: Box<[FileSystemPath]>,
 }
 
 /// Errors that can occur when resolving a path with symlinks.
 /// Many of these can be transient conditions that might happen when package managers are running.
-#[derive(Debug, Clone, Hash, Eq, PartialEq, NonLocalValue, TraceRawVcs, Encode, Decode)]
-pub enum RealPathResultError {
-    TooManySymlinks,
-    CycleDetected,
-    Invalid,
-    NotFound,
+#[derive(Debug, Clone, Hash, Eq, PartialEq, NonLocalValue, Encode, Decode)]
+pub struct RealPathError {
+    original_path: FileSystemPath,
+    kind: RealPathErrorType,
 }
 
-impl RealPathResultError {
-    /// Formats the error message
-    pub async fn as_error_message(
-        &self,
-        orig: &FileSystemPath,
-        result: &RealPathResult,
-    ) -> Result<RcStr> {
-        Ok(match self {
-            RealPathResultError::TooManySymlinks => {
-                let len = result.symlinks.len();
-                turbofmt!("Symlink {orig} leads to too many other symlinks ({len} links)").await?
-            }
-            RealPathResultError::CycleDetected => {
-                // symlinks is Vec<FileSystemPath> — format with Debug since
-                // turbofmt can't resolve a whole Vec asynchronously.
-                let symlinks_dbg = format!(
-                    "{:?}",
-                    result.symlinks.iter().map(|s| &s.path).collect::<Vec<_>>()
-                );
-                turbofmt!("Symlink {orig} is in a symlink loop: {symlinks_dbg}").await?
-            }
-            RealPathResultError::Invalid => {
-                turbofmt!("Symlink {orig} is invalid, it points out of the filesystem root").await?
-            }
-            RealPathResultError::NotFound => {
-                turbofmt!("Symlink {orig} is invalid, it points at a file that doesn't exist")
-                    .await?
-            }
-        })
+#[derive(Debug, Clone, Hash, Eq, PartialEq, NonLocalValue, Encode, Decode)]
+pub enum RealPathErrorType {
+    TooManySymlinks {
+        symlinks: Box<[FileSystemPath]>,
+    },
+    CycleDetected {
+        symlinks: Box<[FileSystemPath]>,
+    },
+    /// A symlink or path component does not exist.
+    NotFound,
+    /// Resolution failed after finding a symlink, or the symlink was invalid to begin with.
+    Invalid {
+        reason: RcStr,
+    },
+}
+
+impl RealPathError {
+    pub fn kind(&self) -> &RealPathErrorType {
+        &self.kind
     }
 }
+
+impl fmt::Display for RealPathError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.kind {
+            RealPathErrorType::TooManySymlinks { symlinks } => write!(
+                f,
+                "Symlink {} leads to too many other symlinks ({} links)",
+                self.original_path,
+                symlinks.len()
+            ),
+            RealPathErrorType::CycleDetected { symlinks } => write!(
+                f,
+                "Symlink {} is in a symlink loop: {:?}",
+                self.original_path,
+                symlinks
+                    .iter()
+                    .map(|symlink| &symlink.path)
+                    .collect::<Vec<_>>()
+            ),
+            RealPathErrorType::Invalid { reason } => write!(
+                f,
+                "Symlink {} could not be resolved: {reason}",
+                self.original_path
+            ),
+            RealPathErrorType::NotFound => write!(
+                f,
+                "Path {} could not be resolved because a component does not exist",
+                self.original_path
+            ),
+        }
+    }
+}
+
+impl Error for RealPathError {}
 
 #[turbo_tasks::function]
 async fn read_dir(path: FileSystemPath) -> Result<Vc<DirectoryContent>> {
@@ -590,26 +636,43 @@ async fn get_type(path: FileSystemPath) -> Result<Vc<FileSystemEntryType>> {
 }
 
 #[turbo_tasks::function]
-async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>> {
+async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathWithLinksResult>> {
+    let error_result = |original_path, kind, symlinks| {
+        RealPathWithLinksResult {
+            path_result: Err(RealPathError {
+                original_path,
+                kind,
+            }),
+            symlinks,
+        }
+        .cell()
+    };
+
+    let original_path = path.clone();
     let mut current_path = path;
     let mut symlinks: IndexSet<FileSystemPath> = IndexSet::new();
-    let mut visited: AutoSet<RcStr> = AutoSet::new();
-    let mut error = RealPathResultError::TooManySymlinks;
+    let mut visited: AutoSet<FileSystemPath> = AutoSet::new();
     // Pick some arbitrary symlink depth limit... similar to the ELOOP logic for realpath(3).
     // SYMLOOP_MAX is 40 for Linux: https://unix.stackexchange.com/q/721724
     for _i in 0..40 {
         if current_path.is_root() {
             // fast path
-            return Ok(RealPathResult {
+            return Ok(RealPathWithLinksResult {
                 path_result: Ok(current_path),
                 symlinks: symlinks.into_iter().collect(),
             }
             .cell());
         }
 
-        if !visited.insert(current_path.path.clone()) {
-            error = RealPathResultError::CycleDetected;
-            break; // we detected a cycle
+        if !visited.insert(current_path.clone()) {
+            let symlinks: Box<[_]> = symlinks.into_iter().collect();
+            return Ok(error_result(
+                original_path,
+                RealPathErrorType::CycleDetected {
+                    symlinks: symlinks.clone(),
+                },
+                symlinks,
+            ));
         }
 
         // see if a parent segment of the path is a symlink and resolve that first
@@ -620,65 +683,73 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
             .rsplit_once('/')
             .map_or(current_path.path.as_str(), |(_, name)| name);
         symlinks.extend(parent_result.symlinks);
-        let parent_path = match parent_result.path_result {
+        match parent_result.path_result {
             Ok(path) => {
                 if path != parent {
                     current_path = path.join(basename)?;
                 }
-                path
             }
             Err(parent_error) => {
-                error = parent_error;
-                break;
+                let symlinks: Box<[_]> = symlinks.into_iter().collect();
+                return Ok(error_result(original_path, parent_error.kind, symlinks));
             }
-        };
+        }
 
         // use `get_type` before trying `read_link`, as there's a good chance of a cache hit on
         // `get_type`, and `read_link` isn't the common codepath.
-        if !matches!(
-            *current_path.get_type().await?,
-            FileSystemEntryType::Symlink
-        ) {
-            return Ok(RealPathResult {
+        let entry_type = *current_path.get_type().await?;
+        if !matches!(entry_type, FileSystemEntryType::Symlink) {
+            if matches!(entry_type, FileSystemEntryType::NotFound) {
+                return Ok(error_result(
+                    original_path,
+                    RealPathErrorType::NotFound,
+                    symlinks.into_iter().collect(),
+                ));
+            }
+            return Ok(RealPathWithLinksResult {
                 path_result: Ok(current_path),
-                symlinks: symlinks.into_iter().collect(), // convert set to vec
+                symlinks: symlinks.into_iter().collect(),
             }
             .cell());
         }
 
-        match &*current_path.read_link().await? {
-            LinkContent::Link { target, link_type } => {
-                symlinks.insert(current_path.clone());
-                current_path = if link_type.contains(LinkType::ABSOLUTE) {
-                    current_path.root().owned().await?
-                } else {
-                    parent_path
-                }
-                .join(target)?;
+        let link_content = current_path.read_link().await?;
+        match &*link_content {
+            LinkContent::Link { target } => {
+                let target_path = target.file_system_path().clone();
+                symlinks.insert(current_path);
+                current_path = target_path;
             }
             LinkContent::NotFound => {
-                error = RealPathResultError::NotFound;
-                break;
+                return Ok(error_result(
+                    original_path,
+                    RealPathErrorType::NotFound,
+                    symlinks.into_iter().collect(),
+                ));
             }
-            LinkContent::Invalid => {
-                error = RealPathResultError::Invalid;
-                break;
+            LinkContent::Invalid { reason } => {
+                return Ok(error_result(
+                    original_path,
+                    RealPathErrorType::Invalid {
+                        reason: reason.clone(),
+                    },
+                    symlinks.into_iter().collect(),
+                ));
             }
         }
     }
 
-    // Too many attempts or detected a cycle, we bailed out!
-    //
-    // TODO: There's no proper way to indicate an non-turbo-tasks error here, so just return the
-    // original path and all the symlinks we followed.
-    //
+    // Too many attempts, we bailed out!
     // Returning the followed symlinks is still important, even if there is an error! Otherwise
     // we may never notice if the symlink loop is fixed.
-    Ok(RealPathResult {
-        path_result: Err(error),
-        symlinks: symlinks.into_iter().collect(),
-    }
-    .cell())
+    let symlinks: Box<[_]> = symlinks.into_iter().collect();
+    Ok(error_result(
+        original_path,
+        RealPathErrorType::TooManySymlinks {
+            symlinks: symlinks.clone(),
+        },
+        symlinks,
+    ))
 }
 
 #[cfg(test)]
@@ -690,20 +761,39 @@ mod tests {
     use super::*;
     use crate::VirtualFileSystem;
 
-    #[test]
-    fn test_get_relative_path_to() {
-        assert_eq!(get_relative_path_to("a/b/c", "a/b/c").as_str(), ".");
-        assert_eq!(get_relative_path_to("a/c/d", "a/b/c").as_str(), "../../b/c");
-        assert_eq!(get_relative_path_to("", "a/b/c").as_str(), "./a/b/c");
-        assert_eq!(get_relative_path_to("a/b/c", "").as_str(), "../../..");
-        assert_eq!(
-            get_relative_path_to("a/b/c", "c/b/a").as_str(),
-            "../../../c/b/a"
-        );
-        assert_eq!(
-            get_relative_path_to("file:///a/b/c", "file:///c/b/a").as_str(),
-            "../../../c/b/a"
-        );
+    /// `turbo-unix-path` covers how the relative path itself is computed, so this only pins what
+    /// this layer adds: that each method reaches for the form it names, and that neither crosses
+    /// between filesystems.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn get_relative_to() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            let fs = Vc::upcast::<Box<dyn FileSystem>>(VirtualFileSystem::new())
+                .to_resolved()
+                .await?;
+            let dir = FileSystemPath::new_normalized_unchecked(fs, rcstr!("a/b"));
+            let file = FileSystemPath::new_normalized_unchecked(fs, rcstr!("a/b/c.js"));
+
+            assert_eq!(dir.get_relative_path_to(&file).as_deref(), Some("c.js"));
+            assert_eq!(
+                dir.get_relative_request_to(&file).as_deref(),
+                Some("./c.js")
+            );
+
+            let other_fs = Vc::upcast::<Box<dyn FileSystem>>(VirtualFileSystem::new())
+                .to_resolved()
+                .await?;
+            let elsewhere = FileSystemPath::new_normalized_unchecked(other_fs, rcstr!("a/b/c.js"));
+            assert_eq!(dir.get_relative_path_to(&elsewhere), None);
+            assert_eq!(dir.get_relative_request_to(&elsewhere), None);
+
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

@@ -3,6 +3,7 @@ import type { Readable } from 'stream'
 import type { CacheControl } from './lib/cache-control'
 import type { FetchMetrics } from './base-http'
 import type { PrefetchHints } from '../shared/lib/app-router-types'
+import type { ClientComponentLoadTracker } from './client-component-renderer-logger'
 
 import {
   chainStreams,
@@ -31,6 +32,8 @@ type ContentTypeOption =
   | typeof TEXT_PLAIN_CONTENT_TYPE_HEADER // For simplified errors
 
 export type AppPageRenderResultMetadata = {
+  /** Request-local metrics for the first response write. Never cache this. */
+  clientComponentLoadTracker?: ClientComponentLoadTracker
   flightData?: Buffer
   cacheControl?: CacheControl
   staticBailoutInfo?: {
@@ -75,6 +78,20 @@ export type AppPageRenderResultMetadata = {
    */
   renderResumeDataCache?: RenderResumeDataCache
 }
+
+export type PrerenderFailure = {
+  readonly error: Error
+  readonly result: RenderResult<
+    Pick<
+      AppPageRenderResultMetadata,
+      'headers' | 'flightData' | 'fetchMetrics' | 'postponed'
+    >
+  >
+}
+
+export type PrerenderResult =
+  | RenderResult<AppPageRenderResultMetadata>
+  | PrerenderFailure
 
 export type PagesRenderResultMetadata = {
   pageData?: any
@@ -417,9 +434,19 @@ export default class RenderResult<
       !Array.isArray(this.response) &&
       isNodeReadable(this.response)
     ) {
-      await pipeNodeReadableToNodeResponse(this.response, res, this.waitUntil)
+      await pipeNodeReadableToNodeResponse(
+        this.response,
+        res,
+        this.waitUntil,
+        this.metadata.clientComponentLoadTracker
+      )
       return
     }
-    await pipeToNodeResponse(this.readable, res, this.waitUntil)
+    await pipeToNodeResponse(
+      this.readable,
+      res,
+      this.waitUntil,
+      this.metadata.clientComponentLoadTracker
+    )
   }
 }
