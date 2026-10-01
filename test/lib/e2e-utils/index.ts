@@ -238,7 +238,16 @@ export class PatchedFileRef {
   }
 }
 
-/** Patch a copied file with captured test env assignments in deploy mode only. */
+/**
+ * Return a PatchedFileRef that prepends captured test env assignments when the
+ * harness copies the file in deploy mode. Other modes copy the content unchanged.
+ * Nested app configs need this because the deploy harness only patches the
+ * fixture-root config.
+ *
+ * TODO: Patch nested configs automatically in the deploy harness so fixtures no
+ * longer need these explicit overrides.
+ * https://github.com/vercel/next.js/blob/3854a98484ec2ce5bafcb074ef0fbad5290dede2/test/lib/next-modes/base.ts#L520-L554
+ */
 export function patchFileWithDeployEnvAssignments(
   path: string
 ): PatchedFileRef {
