@@ -9,7 +9,7 @@ related:
     - app/api-reference/cli/next
 ---
 
-The `experimental.agentUpgrade` option selects the default policy for [`next upgrade --agent`](/docs/app/guides/upgrading/agent-upgrade) and controls upgrade reminders during `next dev` and `next build`. It defaults to `true`, which uses the `security` policy.
+The `experimental.agentUpgrade` option selects the default policy for [`next upgrade --agent`](/docs/app/guides/upgrading/agent-upgrade) and controls upgrade reminders during `next dev` and `next build`. It uses the `security` policy by default.
 
 ```ts filename="next.config.ts" switcher highlight={5}
 import type { NextConfig } from 'next'
@@ -38,9 +38,8 @@ The option accepts these values:
 
 | Value                 | Behavior                                                                                                                                   |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `true` (default)      | Uses the `security` policy.                                                                                                                |
 | `false`               | Disables upgrade reminders.                                                                                                                |
-| `security`            | Checks stable installations for security advisories and recommends a safe upgrade when one is available.                                   |
+| `security` (default)  | Checks stable installations for security advisories and recommends a safe upgrade when one is available.                                   |
 | `latest`              | Recommends a newer major or minor release on the app's current stable or canary channel.                                                   |
 | `experimental-future` | Uses the `latest` policy and also recommends applicable [Future Defaults](/docs/app/guides/upgrading/agent-upgrade#adopt-future-defaults). |
 
