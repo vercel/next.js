@@ -306,7 +306,7 @@ async function nudgeUpgradeForAgent(
       break
   }
   // Pass attribution on the invocation using the same command syntax on every platform.
-  const command = `next upgrade --ai=${reminder.policy} --internal-nudge-id=${nudgeId}`
+  const command = `next upgrade --agent=${reminder.policy} --internal-nudge-id=${nudgeId}`
   const message = `${summary}
 
 **${recommendation}**
@@ -503,7 +503,7 @@ export async function runUpgrade(
   // Human Update actions invoke the CLI directly, so their ID does not need an env var.
   await spawnNextUpgrade(
     directory,
-    { revision: 'latest', verbose: false, ai: policy },
+    { revision: 'latest', verbose: false, agent: policy },
     nudgeId ? { id: nudgeId, recipient: 'human' } : null
   )
   return process.exitCode ?? 0

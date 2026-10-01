@@ -92,10 +92,10 @@ function normalizedBootstrapCalls(): string[][] {
     String(message)
       .replace(/\\+/g, '/')
       // Run IDs are intentionally unique; keep prompt snapshots stable.
-      .replace(/report-ai-upgrade [0-9a-f-]{36}/g, 'report-ai-upgrade <run-id>')
+      .replace(/report-agent-upgrade [0-9a-f-]{36}/g, 'report-agent-upgrade <run-id>')
       .replaceAll(
-        `next@${cliVersion} internal report-ai-upgrade`,
-        'next@<cli-version> internal report-ai-upgrade'
+        `next@${cliVersion} internal report-agent-upgrade`,
+        'next@<cli-version> internal report-agent-upgrade'
       ),
   ])
 }
@@ -257,7 +257,7 @@ describe('agentic upgrade prompts', () => {
       {
         revision: 'latest',
         verbose: false,
-        ai: 'security',
+        agent: 'security',
       },
       null
     )
@@ -277,7 +277,7 @@ describe('agentic upgrade prompts', () => {
       {
         revision: 'latest',
         verbose: false,
-        ai: 'security',
+        agent: 'security',
       },
       null
     )
@@ -315,7 +315,7 @@ describe('agentic upgrade prompts', () => {
         {
           revision: 'latest',
           verbose: false,
-          ai: 'security',
+          agent: 'security',
         },
         null
       )
@@ -335,7 +335,7 @@ describe('agentic upgrade prompts', () => {
 
   it.each([true, 'security', 'latest', 'experimental-future'])(
     'delegates %s to the exact canary and preserves its failure status',
-    async (ai) => {
+    async (agent) => {
       delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
       const version = '99.0.0-canary.35'
       jest
@@ -352,7 +352,7 @@ describe('agentic upgrade prompts', () => {
         {
           revision: 'latest',
           verbose: true,
-          ai,
+          agent,
         },
         null
       )
@@ -365,7 +365,7 @@ describe('agentic upgrade prompts', () => {
           `next@${version}`,
           'upgrade',
           '/workspace/app',
-          ai === true ? '--ai' : `--ai=${ai}`,
+          agent === true ? '--agent' : `--agent=${agent}`,
           '--verbose',
         ],
         expect.objectContaining({
@@ -404,7 +404,7 @@ describe('agentic upgrade prompts', () => {
       {
         revision: 'latest',
         verbose: false,
-        ai: 'security',
+        agent: 'security',
       },
       null
     )
@@ -1228,7 +1228,7 @@ describe('agentic upgrade prompts', () => {
       {
         revision: 'latest',
         verbose: false,
-        ai: 'security',
+        agent: 'security',
       },
       null
     )
@@ -1271,7 +1271,7 @@ describe('agentic upgrade prompts', () => {
      - https://api.github.com/advisories?affects=next
      - https://registry.npmjs.org/next
 
-     When this task ends, report its result once. After completing the requested upgrade and all applicable verification, run \`npx next@<cli-version> internal report-ai-upgrade <run-id> success\`. If the attempted upgrade remains unsuccessful after repairs or verification fails, run \`npx next@<cli-version> internal report-ai-upgrade <run-id> failure\`. If you stop for duplicate work, user cancellation, or an unavailable prerequisite, do not report success or failure. Explain the result to the user separately; never include project details or error text in the telemetry command.",
+     When this task ends, report its result once. After completing the requested upgrade and all applicable verification, run \`npx next@<cli-version> internal report-agent-upgrade <run-id> success\`. If the attempted upgrade remains unsuccessful after repairs or verification fails, run \`npx next@<cli-version> internal report-agent-upgrade <run-id> failure\`. If you stop for duplicate work, user cancellation, or an unavailable prerequisite, do not report success or failure. Explain the result to the user separately; never include project details or error text in the telemetry command.",
        ],
      ]
     `)
@@ -1283,7 +1283,7 @@ describe('agentic upgrade prompts', () => {
       {
         revision: 'latest',
         verbose: true,
-        ai: 'security',
+        agent: 'security',
       },
       null
     )
@@ -1301,7 +1301,7 @@ describe('agentic upgrade prompts', () => {
       {
         revision: 'latest',
         verbose: false,
-        ai: true,
+        agent: true,
       },
       null
     )
@@ -1326,7 +1326,7 @@ describe('agentic upgrade prompts', () => {
         {
           revision: 'latest',
           verbose: false,
-          ai: true,
+          agent: true,
         },
         null
       )
@@ -1354,7 +1354,7 @@ describe('agentic upgrade prompts', () => {
       {
         revision: 'latest',
         verbose: false,
-        ai: 'latest',
+        agent: 'latest',
       },
       null
     )
@@ -1385,7 +1385,7 @@ describe('agentic upgrade prompts', () => {
      References:
      - https://registry.npmjs.org/next/latest
 
-     When this task ends, report its result once. After completing the requested upgrade and all applicable verification, run \`npx next@<cli-version> internal report-ai-upgrade <run-id> success\`. If the attempted upgrade remains unsuccessful after repairs or verification fails, run \`npx next@<cli-version> internal report-ai-upgrade <run-id> failure\`. If you stop for duplicate work, user cancellation, or an unavailable prerequisite, do not report success or failure. Explain the result to the user separately; never include project details or error text in the telemetry command.",
+     When this task ends, report its result once. After completing the requested upgrade and all applicable verification, run \`npx next@<cli-version> internal report-agent-upgrade <run-id> success\`. If the attempted upgrade remains unsuccessful after repairs or verification fails, run \`npx next@<cli-version> internal report-agent-upgrade <run-id> failure\`. If you stop for duplicate work, user cancellation, or an unavailable prerequisite, do not report success or failure. Explain the result to the user separately; never include project details or error text in the telemetry command.",
        ],
      ]
     `)
@@ -1405,7 +1405,7 @@ describe('agentic upgrade prompts', () => {
       {
         revision: 'latest',
         verbose: false,
-        ai: 'security',
+        agent: 'security',
       },
       null
     )
@@ -1438,7 +1438,7 @@ describe('agentic upgrade prompts', () => {
       {
         revision: 'latest',
         verbose: false,
-        ai: 'latest',
+        agent: 'latest',
       },
       null
     )
@@ -1467,7 +1467,7 @@ describe('agentic upgrade prompts', () => {
       {
         revision: 'latest',
         verbose: false,
-        ai: 'experimental-future',
+        agent: 'experimental-future',
       },
       null
     )
@@ -1498,7 +1498,7 @@ describe('agentic upgrade prompts', () => {
         {
           revision: 'latest',
           verbose: false,
-          ai: policy,
+          agent: policy,
         },
         null
       )
@@ -1533,7 +1533,7 @@ describe('agentic upgrade prompts', () => {
       {
         revision: 'latest',
         verbose: false,
-        ai: 'latest',
+        agent: 'latest',
       },
       null
     )
@@ -1588,7 +1588,7 @@ describe('agentic upgrade prompts', () => {
       {
         revision: 'latest',
         verbose: false,
-        ai: 'experimental-future',
+        agent: 'experimental-future',
       },
       null
     )
@@ -1627,7 +1627,7 @@ describe('agentic upgrade prompts', () => {
      References:
      - https://registry.npmjs.org/next/latest
 
-     When this task ends, report its result once. After completing the requested upgrade and all applicable verification, run \`npx next@<cli-version> internal report-ai-upgrade <run-id> success\`. If the attempted upgrade remains unsuccessful after repairs or verification fails, run \`npx next@<cli-version> internal report-ai-upgrade <run-id> failure\`. If you stop for duplicate work, user cancellation, or an unavailable prerequisite, do not report success or failure. Explain the result to the user separately; never include project details or error text in the telemetry command.",
+     When this task ends, report its result once. After completing the requested upgrade and all applicable verification, run \`npx next@<cli-version> internal report-agent-upgrade <run-id> success\`. If the attempted upgrade remains unsuccessful after repairs or verification fails, run \`npx next@<cli-version> internal report-agent-upgrade <run-id> failure\`. If you stop for duplicate work, user cancellation, or an unavailable prerequisite, do not report success or failure. Explain the result to the user separately; never include project details or error text in the telemetry command.",
          ],
        ],
        "savedInstructions": [
@@ -1685,7 +1685,7 @@ describe('agentic upgrade prompts', () => {
       {
         revision: 'latest',
         verbose: false,
-        ai: 'experimental-future',
+        agent: 'experimental-future',
       },
       null
     )
@@ -1731,7 +1731,7 @@ describe('agentic upgrade prompts', () => {
      References:
      - https://registry.npmjs.org/next/latest
 
-     When this task ends, report its result once. After completing the requested upgrade and all applicable verification, run \`npx next@<cli-version> internal report-ai-upgrade <run-id> success\`. If the attempted upgrade remains unsuccessful after repairs or verification fails, run \`npx next@<cli-version> internal report-ai-upgrade <run-id> failure\`. If you stop for duplicate work, user cancellation, or an unavailable prerequisite, do not report success or failure. Explain the result to the user separately; never include project details or error text in the telemetry command.",
+     When this task ends, report its result once. After completing the requested upgrade and all applicable verification, run \`npx next@<cli-version> internal report-agent-upgrade <run-id> success\`. If the attempted upgrade remains unsuccessful after repairs or verification fails, run \`npx next@<cli-version> internal report-agent-upgrade <run-id> failure\`. If you stop for duplicate work, user cancellation, or an unavailable prerequisite, do not report success or failure. Explain the result to the user separately; never include project details or error text in the telemetry command.",
        ],
      ]
     `)

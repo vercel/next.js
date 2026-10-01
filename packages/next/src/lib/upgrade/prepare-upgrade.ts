@@ -107,7 +107,7 @@ export async function getUpgradeAssessment(
       reference: null,
       upgrade: {
         status: 'blocked',
-        reason: `The installed Next.js version (${installedVersion}) is a ${channel} prerelease. Security advisories target stable versions, and prereleases do not reliably follow stable version ordering, so an advisory could be a false positive. To upgrade to the latest ${channel === 'canary' ? 'canary' : 'stable'} release, run this command from the app's directory:\n\nnpx next@canary upgrade --ai=latest`,
+        reason: `The installed Next.js version (${installedVersion}) is a ${channel} prerelease. Security advisories target stable versions, and prereleases do not reliably follow stable version ordering, so an advisory could be a false positive. To upgrade to the latest ${channel === 'canary' ? 'canary' : 'stable'} release, run this command from the app's directory:\n\nnpx next@canary upgrade --agent=latest`,
       },
     }
   }
@@ -117,7 +117,7 @@ export async function getUpgradeAssessment(
       reference: null,
       upgrade: {
         status: 'blocked',
-        reason: `Future Defaults upgrades are not supported for Next.js ${installedVersion}. To upgrade to the latest stable release, run this command from the app's directory:\n\nnpx next@canary upgrade --ai=latest`,
+        reason: `Future Defaults upgrades are not supported for Next.js ${installedVersion}. To upgrade to the latest stable release, run this command from the app's directory:\n\nnpx next@canary upgrade --agent=latest`,
       },
     }
   }

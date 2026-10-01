@@ -114,7 +114,7 @@ class NextRootCommand extends Command {
       // production mode merely because they were launched through this CLI.
       if (
         commandName !== 'upgrade' ||
-        !event.getOptionValue('experimentalAi')
+        !event.getOptionValue('agent')
       ) {
         ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
         ;(process.env as any).NEXT_RUNTIME = 'nodejs'
@@ -586,7 +586,7 @@ program
   .option('--verbose', 'Verbose output', false)
   .addOption(
     new Option(
-      '--ai, --experimental-ai [type]',
+      '--agent [type]',
       'Upgrade with AI to security, latest, or experimental-future. Defaults to security.'
     ).conflicts('revision')
   )
@@ -596,10 +596,7 @@ program
     const mod = await import('../cli/next-upgrade.js')
     await mod.spawnNextUpgrade(
       directory,
-      {
-        ...options,
-        ai: options.experimentalAi,
-      },
+      options,
       options.internalNudgeId !== undefined
         ? { id: options.internalNudgeId, recipient: 'agent' }
         : null

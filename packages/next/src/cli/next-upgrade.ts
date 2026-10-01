@@ -30,7 +30,7 @@ import { PHASE_PRODUCTION_BUILD } from '../shared/lib/constants'
 type NextUpgradeOptions = {
   revision: string
   verbose: boolean
-  ai: boolean | string | undefined
+  agent: boolean | string | undefined
 }
 
 const UUID_PATTERN =
@@ -175,7 +175,7 @@ export async function spawnNextUpgrade(
 ) {
   let baseDir = resolvePath(directory || '.')
 
-  if (options.ai) {
+  if (options.agent) {
     // Match dev/build's telemetry storage, including custom output directories in CI.
     // Retain config errors until after recording the invocation so failed runs still count.
     let distDir = '.next'
@@ -253,10 +253,10 @@ export async function spawnNextUpgrade(
             origin,
             agentProduct,
             requestedPolicy:
-              options.ai === 'security' ||
-              options.ai === 'latest' ||
-              options.ai === 'experimental-future'
-                ? options.ai
+              options.agent === 'security' ||
+              options.agent === 'latest' ||
+              options.agent === 'experimental-future'
+                ? options.agent
                 : null,
           })
         )
@@ -290,14 +290,14 @@ export async function spawnNextUpgrade(
         failureStage = 'cli'
         if (process.env.__NEXT_VERSION !== canaryVersion) {
           const [command, ...runnerArgs] = getNpxCommand(baseDir).split(' ')
-          const aiArgument =
-            typeof options.ai === 'string' ? `--ai=${options.ai}` : '--ai'
+          const agentArgument =
+            typeof options.agent === 'string' ? `--agent=${options.agent}` : '--agent'
           const args = [
             ...runnerArgs,
             `next@${canaryVersion}`,
             'upgrade',
             baseDir,
-            aiArgument,
+            agentArgument,
           ]
 
           if (options.verbose) {
@@ -329,13 +329,13 @@ export async function spawnNextUpgrade(
       if (!findDir(baseDir, 'app') && !findDir(baseDir, 'pages')) {
         throw new Error(
           'No Next.js app found in this directory. Run the command from an app directory or pass its path:\n\n' +
-            `next upgrade [directory] --ai${typeof options.ai === 'string' ? `=${options.ai}` : ''}`
+            `next upgrade [directory] --agent${typeof options.agent === 'string' ? `=${options.agent}` : ''}`
         )
       }
 
       const upgradeType =
-        typeof options.ai === 'string'
-          ? options.ai
+        typeof options.agent === 'string'
+          ? options.agent
           : configuredPolicy === 'security' ||
               configuredPolicy === 'latest' ||
               configuredPolicy === 'experimental-future'
