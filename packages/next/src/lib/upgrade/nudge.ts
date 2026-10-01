@@ -454,6 +454,7 @@ export async function runUpgrade(directory: string, policy: NudgeKind) {
     revision: 'latest',
     verbose: false,
     ai: policy,
+    ci: undefined,
   })
   return process.exitCode ?? 0
 }
