@@ -85,8 +85,8 @@ export function TopBar({
   routeTotals,
   hasSourceData,
   showViewToggle,
-  initialOnly,
-  onInitialOnlyChange,
+  initialLoaded,
+  onInitialLoadedChange,
 }: {
   hasSourceData: boolean
   showViewToggle: boolean
@@ -113,8 +113,8 @@ export function TopBar({
   onCompareViewChange: (view: CompareView) => void
   routeDiff: ReturnType<typeof diffRoutesWithSizes> | null
   routeTotals?: ReadonlyMap<string, RouteSizeTotals> | null
-  initialOnly?: boolean
-  onInitialOnlyChange?: (value: boolean) => void
+  initialLoaded?: boolean
+  onInitialLoadedChange?: (value: boolean) => void
 }) {
   const isCompareMode = baselineSnapshot != null
   const routeSelection = getRouteHref
@@ -244,15 +244,15 @@ export function TopBar({
               aria-label="Filter by file type"
             />
 
-            {!isCompareMode && onInitialOnlyChange ? (
+            {!isCompareMode && onInitialLoadedChange ? (
               <label
                 className="flex h-8 cursor-pointer items-center gap-2 whitespace-nowrap px-1"
                 title="Show only modules with an initial synchronous path"
               >
-                <span className="text-xs">Initial only</span>
+                <span className="text-xs">Initial load only</span>
                 <Switch
-                  checked={initialOnly}
-                  onCheckedChange={onInitialOnlyChange}
+                  checked={initialLoaded}
+                  onCheckedChange={onInitialLoadedChange}
                   aria-label="Show only modules with an initial synchronous path"
                 />
               </label>
