@@ -194,7 +194,6 @@ export function BaselinePicker({
                       key={snapshot.id}
                       value={value}
                       href={getSnapshotHref(snapshot)}
-                      onNavigate={() => setOpen(false)}
                     >
                       {content}
                     </CommandLinkItem>

@@ -219,7 +219,6 @@ export function RouteTypeahead({
                       key={name}
                       value={name}
                       href={getRouteHref(name)}
-                      onNavigate={() => setOpen(false)}
                       className={className}
                     >
                       {content}

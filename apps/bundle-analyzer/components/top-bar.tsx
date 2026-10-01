@@ -72,6 +72,7 @@ export function TopBar({
   setSearchQuery,
   baselineSnapshot,
   getBaselineHref,
+  onBaselineChange,
   stopComparisonHref,
   comparisonSnapshot,
   onComparisonChange,
@@ -97,7 +98,8 @@ export function TopBar({
   searchQuery: string
   setSearchQuery: (query: string) => void
   baselineSnapshot: SnapshotMetadata | null
-  getBaselineHref: (snapshot: SnapshotMetadata) => string
+  getBaselineHref?: (snapshot: SnapshotMetadata) => string
+  onBaselineChange: (snapshot: SnapshotMetadata) => void
   stopComparisonHref: string
   comparisonSnapshot: SnapshotMetadata | null
   onComparisonChange: (snapshot: SnapshotMetadata | null) => void
@@ -130,6 +132,9 @@ export function TopBar({
           <BaselinePicker
             selectedSnapshotId={baselineSnapshot?.id ?? null}
             getSnapshotHref={getBaselineHref}
+            onSelectionChange={(snapshot) => {
+              if (snapshot) onBaselineChange(snapshot)
+            }}
             clearHref={stopComparisonHref}
             excludedSnapshotId={comparisonSnapshot?.id}
             prefix="from"
