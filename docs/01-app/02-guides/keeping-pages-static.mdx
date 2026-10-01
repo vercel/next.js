@@ -33,7 +33,7 @@ The following example starts with the App Shell and progressively extends the st
 
 ## Example
 
-Consider an online store whose shared layout, product pages, and buying guides have different static requirements.
+Consider an online store with existing data access for products, inventory, and buying guides. Its shared layout, product pages, and buying guides have different static requirements.
 
 Enable [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) and [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching):
 
@@ -138,12 +138,7 @@ export default async function GuidePage({
 }
 ```
 
-The `'navigation'` requirement is [validated during both `next dev` and `next build`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#validation). Start the development server and open a guide URL. Because Next.js does not know which `id` values to prerender, the development overlay shows:
-
-```text filename="Development overlay"
-Page "/store/guides/[id]": `ensureStatic = "navigation"` requires an exported `generateStaticParams()` function.
-Learn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic
-```
+The `'navigation'` requirement is [validated during both `next dev` and `next build`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#validation). Start the development server and open a guide URL. Because Next.js does not know which `id` values to prerender, the development overlay reports that the route requires an exported `generateStaticParams()` function and links to the [`generateStaticParams` error guide](/docs/messages/generate-static-params#with-ensurestatic).
 
 Export [`generateStaticParams()`](/docs/app/api-reference/functions/generate-static-params) and return every buying guide ID:
 
@@ -170,11 +165,7 @@ export default async function GuidePage({
 
 The parameter error is now fixed. If the route has multiple dynamic segments, every result must include all of them.
 
-Reload the guide URL. Because `cookies()` is only available for a request, the development overlay shows the [runtime data error](/docs/messages/static-route-runtime) with a fix card:
-
-```text filename="Development overlay"
-Next.js encountered runtime data on a route that must be fully static.
-```
+Reload the guide URL. Because `cookies()` is only available for a request, the development overlay shows the [runtime data error](/docs/messages/static-route-runtime) with these fixes:
 
 <FixCardGrid>
   <FixCard
@@ -217,11 +208,7 @@ The client fix only applies to `searchParams`. Buying guides do not need a per-u
   }
 ```
 
-Reload the page. The runtime data error clears, revealing that `getGuide()` still performs request-time server work. The development overlay now shows the [uncached data error](/docs/messages/static-route-dynamic) and its cache fix:
-
-```text filename="Development overlay"
-Next.js encountered uncached data on a route that must be fully static.
-```
+Reload the page. The runtime data error clears, revealing that `getGuide()` still performs request-time server work. The development overlay now shows the [uncached data error](/docs/messages/static-route-dynamic) with these fixes:
 
 <FixCardGrid>
   <FixCard
