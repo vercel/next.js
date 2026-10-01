@@ -232,6 +232,12 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
     }
 
     /// Puts a key-value pair into the write batch.
+    ///
+    /// In a [`FamilyKind::SingleValue`] family each key should be written once per batch. A key may
+    /// be written again only after [`WriteBatch::flush`] of the family: entries flushed earlier are
+    /// stored in older SST files, so the later write supersedes them for reads and compaction.
+    /// Which of several writes of one key between two flushes wins is undefined; a caller that
+    /// produces such duplicates must supersede all of them after a flush.
     pub fn put(&self, family: u32, key: K, value: ValueBuffer<'_>) -> Result<()> {
         let state = self.thread_local_state();
         let collector = self.thread_local_collector_mut(state, family)?;

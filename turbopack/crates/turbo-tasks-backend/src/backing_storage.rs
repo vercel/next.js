@@ -6,6 +6,8 @@ use turbo_tasks::{
 };
 use turbo_tasks_hash::Xxh3Hash64Hasher;
 
+// The TaskCache key is a stable hash, so different task types may share one encoded
+// list-valued disk entry. Snapshot reconciliation merges their IDs by hash.
 pub type TaskTypeHash = [u8; 8];
 
 /// A single item yielded by the snapshot iterator during persistence: either a put (persist a
@@ -21,6 +23,9 @@ pub enum SnapshotItem {
         data: Option<TurboBincodeBuffer>,
         /// Task type for new tasks that need to be added to the task cache
         task_type_hash: Option<TaskTypeHash>,
+        /// Only a freshly allocated task whose guarded lookup proved the entire disk hash bucket
+        /// empty may omit the TaskCache read on its first snapshot. Resurrection sets this false.
+        task_cache_empty_on_creation: bool,
     },
     Delete {
         task_id: TaskId,
