@@ -1,5 +1,6 @@
 import execa from 'execa'
 import { trace } from 'next/dist/trace'
+import { DeployRuntimeLogs } from '../../lib/next-modes/deploy-runtime-logs'
 
 jest.mock('execa', () => jest.fn())
 
@@ -27,6 +28,8 @@ describe('deployment lifecycle', () => {
   let deployResult: Result
   let logs: Result
   let customLogs: Result
+  let runtimeLogs: Result
+  let stopRuntimeLogs: jest.SpyInstance
 
   beforeEach(() => {
     jest.replaceProperty(process, 'env', {
@@ -63,6 +66,8 @@ describe('deployment lifecycle', () => {
     deployResult = { exitCode: 1, stdout: deploymentUrl, stderr: '' }
     logs = { exitCode: 1, stdout: '', stderr: diagnostic }
     customLogs = { ...logs, exitCode: 0 }
+    runtimeLogs = { exitCode: 0, stdout: '', stderr: '' }
+    stopRuntimeLogs = jest.spyOn(DeployRuntimeLogs.prototype, 'stop')
 
     jest
       .mocked(execa)
@@ -77,6 +82,9 @@ describe('deployment lifecycle', () => {
           result = { exitCode: 0, stdout: '', stderr: '' }
         } else if (command === 'vercel' && Array.isArray(args)) {
           switch (args[0]) {
+            case 'logs':
+              result = runtimeLogs
+              break
             case '--version':
             case 'link':
               result = { exitCode: 0, stdout: '', stderr: '' }
@@ -101,8 +109,11 @@ describe('deployment lifecycle', () => {
     jest.restoreAllMocks()
   })
 
-  async function instance() {
-    const next = new NextDeployInstance({ files: __dirname })
+  async function instance(captureRuntimeLogs = false) {
+    const next = new NextDeployInstance({
+      files: __dirname,
+      captureRuntimeLogs,
+    })
     await next.setup(trace('test'))
     return next
   }
@@ -125,6 +136,58 @@ describe('deployment lifecycle', () => {
     logs = { exitCode: 0, stdout: '', stderr: ids }
     customLogs = logs
   }
+
+  it('appends runtime messages to build output and stops collection on destroy', async () => {
+    successfulDeployment()
+    const next = await instance(true)
+    runtimeLogs.stdout = JSON.stringify({
+      id: 'request-1',
+      logs: [{ message: 'register-log', level: 'info' }],
+    })
+    await next.start()
+    expect(next.cliOutput).toBe(ids + '\nregister-log\n')
+    await next.destroy()
+    expect(stopRuntimeLogs).toHaveBeenCalled()
+  })
+
+  it('collects runtime logs for an existing Vercel deployment', async () => {
+    successfulDeployment()
+    process.env.NEXT_TEST_DEPLOY_URL = deploymentUrl
+    const next = await instance(true)
+    runtimeLogs.stdout = JSON.stringify({
+      id: 'request-1',
+      logs: [{ message: 'existing deployment' }],
+    })
+    await next.start()
+    expect(next.cliOutput).toContain('existing deployment')
+    await next.destroy()
+  })
+
+  it('stops the collector even if deployment cleanup fails', async () => {
+    successfulDeployment()
+    const next = await instance(true)
+    runtimeLogs.stdout = JSON.stringify({
+      id: 'request-1',
+      logs: [{ message: 'ready' }],
+    })
+    await next.start()
+    jest
+      .spyOn(NextInstance.prototype, 'destroy')
+      .mockRejectedValue(new Error('cleanup failed'))
+    await expect(next.destroy()).rejects.toThrow('cleanup failed')
+    expect(stopRuntimeLogs).toHaveBeenCalled()
+  })
+
+  it('rejects runtime capture for a custom provider before deploying', async () => {
+    process.env.NEXT_TEST_DEPLOY_SCRIPT_PATH = 'mock-deploy'
+    process.env.NEXT_TEST_DEPLOY_LOGS_SCRIPT_PATH = 'mock-logs'
+    const next = await instance(true)
+    await expect(next.start()).rejects.toThrow(
+      'requires the Vercel deployment provider'
+    )
+    expect(execa).not.toHaveBeenCalled()
+    await next.destroy()
+  })
 
   it('skipStart leaves deployment to the test body, where failures can be asserted', async () => {
     const { next, setup, teardown } = setupHarness(true)
