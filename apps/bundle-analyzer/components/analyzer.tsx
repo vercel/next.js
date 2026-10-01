@@ -50,7 +50,6 @@ import {
   computeSourceLoadScopes,
 } from '@/lib/module-graph'
 import type { HistoryIndex, SnapshotMetadata } from '@/lib/snapshot'
-import { NetworkError } from '@/lib/errors'
 import { formatBytes } from '@/lib/utils'
 import { createAnalyzeTreemapSource, SizeMode } from '@/lib/treemap-layout'
 
@@ -71,30 +70,10 @@ export function CompareAnalyzer() {
 }
 
 function AnalyzerController({ compare }: { compare: boolean }) {
-  // Read the URL before suspense data so static prerendering can bail out.
+  // Read the URL before requesting client-only analyzer data.
   useSearchParams()
-  const { data: history, isLoading, error } = useHistoryIndex()
-  // Don't request /data while we are still resolving the current snapshot.
-  if (isLoading) return <AnalyzerFallback view={CompareView.Treemap} />
-  return (
-    <LoadedAnalyzer
-      compare={compare}
-      history={history}
-      historyError={error instanceof NetworkError}
-    />
-  )
-}
-
-function LoadedAnalyzer({
-  compare,
-  history,
-  historyError,
-}: {
-  compare: boolean
-  history: HistoryIndex | undefined
-  historyError: boolean
-}) {
-  const model = useAnalyzerModel(compare, history, historyError)
+  const history = useHistoryIndex()
+  const model = useAnalyzerModel(compare, history)
   return compare ? (
     <CompareAnalyzerView model={model} />
   ) : (
@@ -122,11 +101,7 @@ function AnalyzerFallback({ view }: { view: CompareView }) {
   return <AnalyzerChromeSkeleton view={view} />
 }
 
-function useAnalyzerModel(
-  compare: boolean,
-  history: HistoryIndex | undefined,
-  historyError: boolean
-) {
+function useAnalyzerModel(compare: boolean, history: HistoryIndex) {
   const [routePickerOpen, setRoutePickerOpen] = useState(false)
   const [selectedSourceIndex, setSelectedSourceIndex] = useState<number | null>(
     null
@@ -142,7 +117,7 @@ function useAnalyzerModel(
   )
   const routeState = useAnalyzerRoute(
     compare,
-    history?.snapshots,
+    history.snapshots,
     latestSnapshot,
     currentBaseDir
   )
@@ -359,8 +334,7 @@ function useAnalyzerModel(
     compareSelectedKey,
     compareView: activeView,
     comparisonSnapshot,
-    historySnapshots: history?.snapshots ?? [],
-    historyError,
+    historySnapshots: history.snapshots,
     invalidComparison: routeState.invalidComparison,
     latestSnapshot,
     isCompareMode: compare,
@@ -458,7 +432,7 @@ function AnalyzerTopBar({
       isCompareMode={model.isCompareMode}
       historySnapshots={model.historySnapshots}
       historyLoading={false}
-      historyError={model.historyError}
+      historyError={false}
       latestSnapshot={model.latestSnapshot}
       singleBuildId={model.singleBuildId}
       fromId={model.fromId}

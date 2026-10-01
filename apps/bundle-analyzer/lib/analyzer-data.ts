@@ -9,8 +9,8 @@ export function analyzeDataUrl(baseDir: string, route: string): string {
 }
 
 // Snapshot paths keep large data cacheable without reusing a previous live build.
-export function currentDataDir(history: HistoryIndex | undefined): string {
-  const latest = history?.snapshots[0]
+export function currentDataDir(history: HistoryIndex): string {
+  const latest = history.snapshots[0]
   return latest ? `/history/${latest.id}` : '/data'
 }
 
@@ -20,12 +20,14 @@ async function fetchHistoryIndex(url: string): Promise<HistoryIndex> {
   return response.json() as Promise<HistoryIndex>
 }
 
-export function useHistoryIndex() {
-  return useSWR<HistoryIndex>('/history/history.json', fetchHistoryIndex, {
+export function useHistoryIndex(): HistoryIndex {
+  const { data } = useSWR('/history/history.json', fetchHistoryIndex, {
+    suspense: true,
     revalidateOnFocus: true,
     revalidateOnReconnect: false,
     shouldRetryOnError: false,
   })
+  return data
 }
 
 export function useSuspenseJsonData<Data>(
