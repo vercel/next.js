@@ -32,7 +32,7 @@ const SNAPSHOT_WAITING_BIT: usize = 1 << (usize::BITS - 2);
 const OPERATION_COUNT_MASK: usize = !(SNAPSHOT_RUNNING_BIT | SNAPSHOT_WAITING_BIT);
 /// How long a snapshot waits for operations to settle before reporting it. Later reports follow
 /// each time the total wait doubles.
-const SLOW_SETTLE_REPORT: Duration = Duration::from_secs(10);
+const DEFAULT_SLOW_SETTLE_REPORT_TIME: Duration = Duration::from_secs(10);
 
 /// Passed to the [`begin_snapshot`](SnapshotCoordinator::begin_snapshot) callback when a snapshot
 /// has been waiting a long time for active operations to finish.
@@ -64,6 +64,8 @@ pub struct SnapshotCoordinator {
     operations_drained: Condvar,
     /// Notified by [`SnapshotPhase::drop`]. Awaited by operations arriving during a snapshot.
     snapshot_completed: Condvar,
+    /// How long to
+    slow_settle_report_timeout: Duration,
 }
 
 impl Default for SnapshotCoordinator {
@@ -74,6 +76,9 @@ impl Default for SnapshotCoordinator {
 
 impl SnapshotCoordinator {
     pub fn new() -> Self {
+        Self::new_with_custom_slow_settle_report_timeout(DEFAULT_SLOW_SETTLE_REPORT_TIME)
+    }
+    fn new_with_custom_slow_settle_report_timeout(slow_settle_report_timeout: Duration) -> Self {
         Self {
             in_progress_operations: AtomicUsize::new(0),
             operations_waiting: AtomicBool::new(false),
@@ -82,6 +87,7 @@ impl SnapshotCoordinator {
             }),
             operations_drained: Condvar::new(),
             snapshot_completed: Condvar::new(),
+            slow_settle_report_timeout,
         }
     }
 
@@ -152,7 +158,7 @@ impl SnapshotCoordinator {
         let _span =
             info_span!("await operations settle", num_operations = active_at_start).entered();
         let wait_start = Instant::now();
-        let mut next_report = wait_start + SLOW_SETTLE_REPORT;
+        let mut next_report = wait_start + self.slow_settle_report_timeout;
         loop {
             if self
                 .in_progress_operations
@@ -661,8 +667,11 @@ mod tests {
 
     #[test]
     fn slow_settle_is_reported() {
-        run_with_timeout("slow settle", Duration::from_secs(60), || {
-            let coord = Arc::new(SnapshotCoordinator::new());
+        const SLOW_SETTLE_TIME: Duration = Duration::from_millis(200);
+        run_with_timeout("slow settle", Duration::from_secs(10), || {
+            let coord = Arc::new(
+                SnapshotCoordinator::new_with_custom_slow_settle_report_timeout(SLOW_SETTLE_TIME),
+            );
             let op = coord.begin_operation();
             let reports = Arc::new(Mutex::new(Vec::new()));
             let snapshot = thread::spawn({
@@ -686,7 +695,7 @@ mod tests {
             let reports = reports.lock();
             assert_eq!(reports.len(), 1);
             let (waited, active_at_start, active_now) = reports[0];
-            assert!(waited >= SLOW_SETTLE_REPORT);
+            assert!(waited >= SLOW_SETTLE_TIME);
             assert_eq!((active_at_start, active_now), (1, 1));
         });
     }
