@@ -1,4 +1,8 @@
-const deploymentTestFlags = ['__NEXT_CACHE_COMPONENTS']
+const deploymentTestFlags = [
+  '__NEXT_CACHE_COMPONENTS',
+  '__NEXT_PARTIAL_PREFETCHING',
+  '__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS',
+]
 
 /**
  * Capture test flags in the deployed config because Vercel environment variable
