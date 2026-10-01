@@ -1290,7 +1290,10 @@ impl AppEndpoint {
         let ssr_chunking_context = if process_ssr {
             Some(
                 match runtime {
-                    NextRuntime::NodeJs => Vc::upcast(project.server_chunking_context(true)),
+                    NextRuntime::NodeJs => Vc::upcast(project.server_chunking_context(
+                        true, // client_assets
+                        true, // supports_lazy_dynamic_imports
+                    )),
                     NextRuntime::Edge => this
                         .app_project
                         .project()
@@ -1401,7 +1404,10 @@ impl AppEndpoint {
                 original_name = app_entry.original_name
             ))?;
             let ssr_hmr_chunks = project
-                .server_chunking_context(process_client_assets)
+                .server_chunking_context(
+                    process_client_assets,
+                    true, // supports_lazy_dynamic_imports
+                )
                 .server_hmr_chunk_list(
                     ssr_hmr_chunk_list_path,
                     Vc::cell(ssr_client_reference_chunks),
@@ -1581,14 +1587,13 @@ impl AppEndpoint {
         let app_entry_chunks = app_entry_chunk_group_ref.assets;
         let app_entry_chunks_ref = app_entry_chunks.await?;
 
-        if is_app_page
-            && runtime == NextRuntime::NodeJs
+        if runtime == NextRuntime::NodeJs
             && *project
                 .next_config()
                 .turbopack_lazy_dynamic_imports_ssr(*project.next_mode().await?)
                 .await?
         {
-            let rsc_chunks = expanded_app_entry_chunks
+            let dynamic_import_chunks = expanded_app_entry_chunks
                 .await?
                 .iter()
                 .copied()
@@ -1606,18 +1611,21 @@ impl AppEndpoint {
                 .into_iter()
                 .flatten()
                 .collect::<Vec<_>>();
-            let rsc_hmr_chunks = project
-                .server_chunking_context(true)
+            let dynamic_import_hmr_chunks = project
+                .server_chunking_context(
+                    process_client_assets,
+                    true, // supports_lazy_dynamic_imports
+                )
                 .server_hmr_chunk_list(
                     server_path.join(&format!(
-                        "app{}/rsc-dynamic-imports.js",
+                        "app{}/dynamic-imports.js",
                         app_entry.original_name
                     ))?,
-                    Vc::cell(rsc_chunks),
+                    Vc::cell(dynamic_import_chunks),
                 )
                 .to_resolved()
                 .await?;
-            server_assets.insert(rsc_hmr_chunks);
+            server_assets.insert(dynamic_import_hmr_chunks);
         }
 
         // these references are important for turbotrace
@@ -2240,14 +2248,13 @@ impl Endpoint for AppEndpoint {
                         format!("{hmr_entry_path}.js").into(),
                         format!("{hmr_entry_path}/client-components-ssr.js").into(),
                     ];
-                    if matches!(this.ty, AppEndpointType::Page { .. })
-                        && *project
-                            .next_config()
-                            .turbopack_lazy_dynamic_imports_ssr(*project.next_mode().await?)
-                            .await?
+                    if *project
+                        .next_config()
+                        .turbopack_lazy_dynamic_imports_ssr(*project.next_mode().await?)
+                        .await?
                     {
                         server_hmr_entry_paths
-                            .push(format!("{hmr_entry_path}/rsc-dynamic-imports.js").into());
+                            .push(format!("{hmr_entry_path}/dynamic-imports.js").into());
                     }
                     EndpointOutputPaths::NodeJs {
                         server_hmr_entry_paths,

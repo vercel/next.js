@@ -1790,10 +1790,13 @@ impl Project {
         )))
     }
 
+    // Proxy and instrumentation stay eager: the lazy activation hook rebuilds route entries,
+    // not these startup entries.
     #[turbo_tasks::function]
     pub(super) async fn server_chunking_context(
         self: Vc<Self>,
         client_assets: bool,
+        supports_lazy_dynamic_imports: bool,
     ) -> Result<Vc<NodeJsChunkingContext>> {
         let css_url_suffix = self.next_config().asset_suffix_path();
         let options = ServerChunkingContextOptions {
@@ -1824,9 +1827,12 @@ impl Project {
             hash_salt: self.next_config().output_hash_salt().to_resolved().await?,
             style_groups_algorithm: self.next_config().css_chunking().owned().await?,
             per_page_module_graph: self.per_page_module_graph(),
-            lazy_dynamic_imports: self
-                .next_config()
-                .turbopack_lazy_dynamic_imports_ssr(*self.next_mode().await?),
+            lazy_dynamic_imports: if supports_lazy_dynamic_imports {
+                self.next_config()
+                    .turbopack_lazy_dynamic_imports_ssr(*self.next_mode().await?)
+            } else {
+                Vc::cell(false)
+            },
         };
         Ok(if client_assets {
             get_server_chunking_context_with_client_assets(options)
@@ -1884,7 +1890,10 @@ impl Project {
     ) -> Vc<Box<dyn ChunkingContext>> {
         match runtime {
             NextRuntime::Edge => self.edge_chunking_context(client_assets),
-            NextRuntime::NodeJs => Vc::upcast(self.server_chunking_context(client_assets)),
+            NextRuntime::NodeJs => Vc::upcast(self.server_chunking_context(
+                client_assets,
+                true, // supports_lazy_dynamic_imports
+            )),
         }
     }
 
