@@ -60,7 +60,7 @@ Handles client-side transitions, this method is useful for cases where [`next/li
 router.push(url, as, options)
 ```
 
-- `url`: `UrlObject | String` - The URL to navigate to (see [Node.JS URL module documentation](https://nodejs.org/api/url.html#legacy-urlobject) for `UrlObject` properties).
+- `url`: `UrlObject | String` - The URL to navigate to (see [Node.js URL module documentation](https://nodejs.org/api/url.html#legacy-urlobject) for `UrlObject` properties).
 - `as`: `UrlObject | String` - Optional decorator for the path that will be shown in the browser URL bar. Before Next.js 9.5.3 this was used for dynamic routes.
 - `options` - Optional object with the following configuration options:
   - `scroll` - Optional boolean, controls scrolling to the top of the page after navigation. Defaults to `true`
@@ -298,7 +298,7 @@ router.beforePopState(cb)
 
 If `cb` returns `false`, the Next.js router will not handle `popstate`, and you'll be responsible for handling it in that case. See [Disabling file-system routing](/docs/pages/guides/custom-server#disabling-file-system-routing).
 
-You could use `beforePopState` to manipulate the request, or force a SSR refresh, as in the following example:
+You could use `beforePopState` to manipulate the request, or force an SSR refresh, as in the following example:
 
 ```jsx
 import { useEffect } from 'react'
