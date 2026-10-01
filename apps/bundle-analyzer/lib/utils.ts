@@ -8,10 +8,13 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export async function fetchStrict(url: string): Promise<Response> {
+export async function fetchStrict(
+  url: string,
+  init?: RequestInit
+): Promise<Response> {
   let res: Response
   try {
-    res = await fetch(url)
+    res = await fetch(url, init)
   } catch (err) {
     throw new NetworkError(`Failed to fetch ${url}`, { cause: err })
   }

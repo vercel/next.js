@@ -60,6 +60,7 @@ export function ControlDivider() {
 }
 
 export function TopBar({
+  currentBaseDir,
   selectedRoute,
   routePickerOpen,
   onRoutePickerOpenChange,
@@ -88,6 +89,7 @@ export function TopBar({
   initialLoaded,
   onInitialLoadedChange,
 }: {
+  currentBaseDir: string
   hasSourceData: boolean
   showViewToggle: boolean
   selectedRoute: string | null
@@ -145,6 +147,7 @@ export function TopBar({
       <div className="flex flex-wrap items-center gap-2 px-4 py-2 sm:flex-nowrap sm:gap-3">
         <div className="flex min-w-0 flex-1 basis-full sm:basis-auto">
           <RouteTypeahead
+            currentBaseDir={currentBaseDir}
             selectedRoute={selectedRoute}
             open={routePickerOpen}
             onOpenChange={onRoutePickerOpenChange}

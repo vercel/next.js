@@ -35,6 +35,7 @@ import {
 import { AnalyzeData, ModulesData } from '@/lib/analyze-data'
 import {
   analyzeDataUrl,
+  currentDataDir,
   fetchAnalyzeData,
   fetchModulesData,
   useHistoryIndex,
@@ -48,34 +49,46 @@ import {
   computeModuleDepthMap,
   computeSourceLoadScopes,
 } from '@/lib/module-graph'
-import type { SnapshotMetadata } from '@/lib/snapshot'
+import type { HistoryIndex, SnapshotMetadata } from '@/lib/snapshot'
 import { formatBytes, jsonFetcher } from '@/lib/utils'
 import { createAnalyzeTreemapSource, SizeMode } from '@/lib/treemap-layout'
 
 export function SingleAnalyzer() {
   return (
     <AnalyzerBoundary defaultView={CompareView.Treemap}>
-      <SingleAnalyzerController />
+      <AnalyzerController compare={false} />
     </AnalyzerBoundary>
   )
-}
-
-function SingleAnalyzerController() {
-  const model = useAnalyzerModel(false)
-  return <SingleAnalyzerView model={model} />
 }
 
 export function CompareAnalyzer() {
   return (
     <AnalyzerBoundary defaultView={CompareView.Treemap}>
-      <CompareAnalyzerController />
+      <AnalyzerController compare />
     </AnalyzerBoundary>
   )
 }
 
-function CompareAnalyzerController() {
-  const model = useAnalyzerModel(true)
-  return <CompareAnalyzerView model={model} />
+function AnalyzerController({ compare }: { compare: boolean }) {
+  const { data: history, isLoading } = useHistoryIndex()
+  // Don't request /data while we are still resolving the current snapshot.
+  if (isLoading) return <AnalyzerFallback view={CompareView.Treemap} />
+  return <LoadedAnalyzer compare={compare} history={history} />
+}
+
+function LoadedAnalyzer({
+  compare,
+  history,
+}: {
+  compare: boolean
+  history: HistoryIndex | undefined
+}) {
+  const model = useAnalyzerModel(compare, history)
+  return compare ? (
+    <CompareAnalyzerView model={model} />
+  ) : (
+    <SingleAnalyzerView model={model} />
+  )
 }
 
 function AnalyzerBoundary({
@@ -98,7 +111,7 @@ function AnalyzerFallback({ view }: { view: CompareView }) {
   return <AnalyzerChromeSkeleton view={view} />
 }
 
-function useAnalyzerModel(compare: boolean) {
+function useAnalyzerModel(compare: boolean, history: HistoryIndex | undefined) {
   const [routePickerOpen, setRoutePickerOpen] = useState(false)
   const [selectedSourceIndex, setSelectedSourceIndex] = useState<number | null>(
     null
@@ -107,7 +120,6 @@ function useAnalyzerModel(compare: boolean) {
     null
   )
 
-  const { data: history, isLoading: isHistoryLoading } = useHistoryIndex()
   const routeState = useAnalyzerRoute(compare, history?.snapshots)
   const {
     baselineSnapshot,
@@ -142,17 +154,18 @@ function useAnalyzerModel(compare: boolean) {
 
   const activeView = pendingView ?? compareView
   const isViewPending = pendingView != null && pendingView !== compareView
+  const currentBaseDir = currentDataDir(history)
   const comparisonBaseDir = comparisonSnapshot
     ? `/history/${comparisonSnapshot.id}`
-    : '/data'
+    : currentBaseDir
   const { data: modulesData } = useSWR(
     `${comparisonBaseDir}/modules.data`,
     fetchModulesData,
     { suspense: true }
   )
 
-  // Routes for comparison side B. This is the live build by default, or an
-  // independently selected historical snapshot.
+  // Routes for comparison side B: the newest snapshot by default, or an
+  // independently selected historical snapshot. Older exports fall back to /data.
   const currentRoutes = useSuspenseJsonData<string[]>(
     `${comparisonBaseDir}/routes.json`,
     { revalidateOnFocus: false, revalidateOnReconnect: false }
@@ -324,6 +337,7 @@ function useAnalyzerModel(compare: boolean) {
     compareSelectedKey,
     compareView: activeView,
     comparisonSnapshot,
+    currentBaseDir,
     currentRoutes,
     routePickerOpen,
     setRoutePickerOpen,
@@ -332,7 +346,6 @@ function useAnalyzerModel(compare: boolean) {
     focusedSourceIndex,
     hoveredNodeInfo,
     initialLoaded,
-    isHistoryLoading,
     isMouseInTreemap,
     isViewPending,
     moduleDepthMap,
@@ -398,6 +411,7 @@ function AnalyzerTopBar({
       showViewToggle={model.analyzeData != null}
       compareView={model.compareView}
       onCompareViewChange={model.setCompareView}
+      currentBaseDir={model.currentBaseDir}
       selectedRoute={model.selectedRoute}
       routePickerOpen={model.routePickerOpen}
       onRoutePickerOpenChange={model.setRoutePickerOpen}
@@ -430,15 +444,6 @@ function AnalyzerTopBar({
 }
 
 function CompareAnalyzerView({ model }: { model: AnalyzerModel }) {
-  if (model.isHistoryLoading) {
-    return (
-      <AnalyzerFrame topBar={<AnalyzerTopBar model={model} />}>
-        <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-          Loading comparison…
-        </div>
-      </AnalyzerFrame>
-    )
-  }
   if (model.baselineSnapshot) return <ValidComparison model={model} />
 
   return (

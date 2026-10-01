@@ -1,6 +1,5 @@
 'use client'
 
-import useSWR from 'swr'
 import Link from 'next/link'
 import {
   Check,
@@ -25,7 +24,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import { cn, jsonFetcher } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 import { NetworkError } from '@/lib/errors'
 import { useHistoryIndex } from '@/lib/analyzer-data'
 import {
@@ -79,23 +78,12 @@ export function BaselinePicker(props: BaselinePickerProps) {
 
   const { data: history, isLoading, error } = useHistoryIndex()
 
-  // Metadata for the *current* build, so we can exclude its corresponding
-  // entry from the history picker (you can't compare a build with itself).
-  const { data: currentMetadata } = useSWR<SnapshotMetadata>(
-    '/data/metadata.json',
-    jsonFetcher,
-    {
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false,
-      shouldRetryOnError: false,
-    }
-  )
-
   const allSnapshots = history?.snapshots ?? []
-  // Filter out the current build's snapshot — comparing to self is a no-op.
+  // The index is also the source of truth for the current build's data URL.
+  const currentSnapshotId = allSnapshots[0]?.id
   const snapshots = allSnapshots.filter(
     (snapshot) =>
-      snapshot.id !== currentMetadata?.id && snapshot.id !== excludedSnapshotId
+      snapshot.id !== currentSnapshotId && snapshot.id !== excludedSnapshotId
   )
   const selected =
     selectedSnapshotId != null

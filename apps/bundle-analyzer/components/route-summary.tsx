@@ -8,7 +8,11 @@ import { RouteTypeahead } from '@/components/route-typeahead'
 import { Button } from '@/components/ui/button'
 import { Kbd } from '@/components/ui/kbd'
 import { RouteSummarySkeleton } from '@/components/ui/skeleton'
-import { useSuspenseJsonData } from '@/lib/analyzer-data'
+import {
+  currentDataDir,
+  useHistoryIndex,
+  useSuspenseJsonData,
+} from '@/lib/analyzer-data'
 import type { RouteSummary, RouteSizeTotals } from '@/lib/diff'
 import { formatBytes } from '@/lib/utils'
 
@@ -21,15 +25,24 @@ export function RouteSummaryPage() {
 }
 
 function RouteSummaryContent() {
+  const { data: history, isLoading } = useHistoryIndex()
+  if (isLoading) return <RouteSummarySkeleton />
+  return <ResolvedRouteSummary currentBaseDir={currentDataDir(history)} />
+}
+
+function ResolvedRouteSummary({ currentBaseDir }: { currentBaseDir: string }) {
   // Read the client URL before Suspense data: static prerendering must bail out
-  // before SWR attempts to fetch live analyzer files on the server.
+  // before SWR attempts to fetch analyzer files on the server.
   const searchParams = useSearchParams()
-  const routes = useSuspenseJsonData<string[]>('/data/routes.json', {
-    revalidateOnFocus: false,
-    revalidateOnReconnect: false,
-  })
+  const routes = useSuspenseJsonData<string[]>(
+    `${currentBaseDir}/routes.json`,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+    }
+  )
   const summaries = useSuspenseJsonData<RouteSummary[]>(
-    '/data/route-summaries.json',
+    `${currentBaseDir}/route-summaries.json`,
     { revalidateOnFocus: false, revalidateOnReconnect: false }
   )
   const clientRouteTotals = new Map<string, RouteSizeTotals>(
@@ -51,6 +64,7 @@ function RouteSummaryContent() {
       <div className="flex-none px-4 py-2 border-b border-border flex items-center gap-3">
         <div className="flex min-w-0 flex-1">
           <RouteTypeahead
+            currentBaseDir={currentBaseDir}
             selectedRoute={null}
             mode="link"
             getRouteHref={getRouteHref}

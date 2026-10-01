@@ -47,6 +47,7 @@ type PickerOpenState =
   | { open?: never; onOpenChange?: never }
 
 interface RouteTypeaheadOptions {
+  currentBaseDir: string
   selectedRoute: string | null
   /**
    * When provided, the picker renders per-route size deltas next to each
@@ -65,7 +66,13 @@ type RouteTypeaheadProps = RouteTypeaheadOptions &
   PickerOpenState
 
 export function RouteTypeahead(props: RouteTypeaheadProps) {
-  const { selectedRoute, routeDiff, useCompressed = true, routeTotals } = props
+  const {
+    currentBaseDir,
+    selectedRoute,
+    routeDiff,
+    useCompressed = true,
+    routeTotals,
+  } = props
   const [localOpen, setLocalOpen] = useState(false)
   const open = props.open ?? localOpen
   const setOpen = props.onOpenChange ?? setLocalOpen
@@ -97,7 +104,7 @@ export function RouteTypeahead(props: RouteTypeaheadProps) {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [setOpen])
 
-  const routes = useSuspenseJsonData<string[]>('/data/routes.json')
+  const routes = useSuspenseJsonData<string[]>(`${currentBaseDir}/routes.json`)
 
   // When a route diff is provided, sort routes by largest absolute impact so
   // the most-changed route bubbles to the top — matching the rest of the
