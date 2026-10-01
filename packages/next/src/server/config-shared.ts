@@ -878,8 +878,7 @@ export interface ExperimentalConfig {
   /**
    * Share the browser runtime across routes in a single `runtime.js` asset and inline the
    * per-route chunk-group bootstrap into the HTML, dropping the per-route runtime. Defaults to
-   * true on canary releases and false on stable releases. Only applies to production builds; has
-   * no effect in development mode.
+   * true. Only applies to production builds; has no effect in development mode.
    */
   turbopackSharedRuntime?: boolean
 
@@ -2470,7 +2469,7 @@ export const defaultConfig = Object.freeze({
     turbopackStaleOutputMaxAge: 7 * 24 * 60 * 60 * 1000, // One week
     turbopackInferModuleSideEffects: true,
     turbopackPluginRuntimeStrategy: 'childProcesses',
-    turbopackSharedRuntime: !isStableBuild(),
+    turbopackSharedRuntime: true,
     // Pinned off for stable releases. Left unset on canary so the Turbopack side picks the
     // default from the build mode (on for production builds, off in development) — see
     // `NextConfig::turbopack_mangle_export_names`. An explicit value always wins either way.
