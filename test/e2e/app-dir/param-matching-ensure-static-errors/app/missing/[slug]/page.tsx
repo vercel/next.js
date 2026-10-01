@@ -1,4 +1,4 @@
-export const unstable_ensureStatic = 'navigation'
+export const ensureStatic = 'navigation'
 export const unstable_paramMatching = { slug: 'blocking' }
 
 export default async function Page({

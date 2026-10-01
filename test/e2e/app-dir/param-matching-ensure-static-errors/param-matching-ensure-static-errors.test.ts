@@ -59,7 +59,7 @@ describe('param-matching-ensure-static-errors', () => {
       await expectError(
         route,
         `/${route}/seed`,
-        `Route "/${route}/[slug]" cannot configure parameter "slug" as "${mode}" with \`unstable_ensureStatic = "navigation"\`. Use "blocking" or "not-found" parameter matching, or remove the navigation constraint.`
+        `Route "/${route}/[slug]" cannot configure parameter "slug" as "${mode}" with \`ensureStatic = "navigation"\`. Use "blocking" or "not-found" parameter matching, or remove the navigation constraint.`
       )
     }
   )
