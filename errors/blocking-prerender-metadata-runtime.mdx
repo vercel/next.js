@@ -58,7 +58,7 @@ For errors in the page body rather than metadata, see [Next.js encountered runti
 
 ## Use static metadata
 
-Choose this fix when the metadata values are known at build time and don't change per request. Replace [`generateMetadata()`](/docs/app/api-reference/functions/generate-metadata) with a static [`metadata`](/docs/app/api-reference/functions/generate-metadata#metadata-object) export. The metadata is evaluated once during the build and included in every prerender.
+Choose this fix when the metadata values are known at build time and don't change per request. Replace [`generateMetadata()`](/docs/app/api-reference/functions/generate-metadata) with a static [`metadata`](/docs/app/api-reference/functions/generate-metadata#the-metadata-object) export. The metadata is evaluated once during the build and included in every prerender.
 
 ### Patterns
 
@@ -77,7 +77,7 @@ export default function Page() {
 }
 ```
 
-Learn more: [Static metadata](/docs/app/api-reference/functions/generate-metadata#metadata-object).
+Learn more: [Static metadata](/docs/app/api-reference/functions/generate-metadata#the-metadata-object).
 
 #### Use `generateStaticParams` for per-param metadata
 
