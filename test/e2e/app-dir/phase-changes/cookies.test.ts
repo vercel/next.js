@@ -29,9 +29,6 @@ describe('setting cookies', () => {
   const EXPECTED_ERROR =
     /Cookies can only be modified in a Server Action or Route Handler\./
 
-  const EXPECTED_ERROR_IN_AFTER =
-    /An error occurred in a function passed to `after\(\)`: .+?: Cookies can only be modified in a Server Action or Route Handler\./
-
   describe('stops cookie mutations when changing phases', () => {
     it('from an action to a page render', async () => {
       const path = '/cookies/action-to-render'
@@ -68,56 +65,54 @@ describe('setting cookies', () => {
         'illegalCookie'
       )
     })
+  })
+})
 
-    // these tests inspect CLI logs to see what happened in after,
-    // so they won't work in deploy mode
-    if (!isNextDeploy) {
-      it('from an action to after via closure', async () => {
-        const path = '/cookies/action-to-after/via-closure'
-        const session = await next.browser(path)
+// All three phases produce the same diagnostic. Separate instances prevent a
+// delayed log from another phase from satisfying the current assertion.
+describe.each([
+  {
+    phase: 'action',
+    path: '/cookies/action-to-after/via-closure',
+  },
+  {
+    phase: 'route handler',
+    path: '/cookies/route-handler-to-after/via-closure',
+  },
+  {
+    phase: 'middleware',
+    path: '/cookies/middleware-to-after/via-closure',
+  },
+])('setting cookies - from $phase to after via closure', ({ phase, path }) => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    captureRuntimeLogs: true,
+  })
 
-        // trigger an action
-        await session.elementByCss('[type="submit"]').click()
-        await retry(async () => {
-          // the .set() in after should error
-          expect(getCliOutput()).toMatch(EXPECTED_ERROR_IN_AFTER)
-        })
-
-        // no cookie should be set
-        expect(await session.eval('document.cookie')).not.toInclude(
-          'illegalCookie'
-        )
+  it('stops cookie mutations in after()', async () => {
+    if (phase === 'action') {
+      const browser = await next.browser(path)
+      await browser.elementByCss('[type="submit"]').click()
+      await expectAfterError()
+      expect(await browser.eval('document.cookie')).not.toInclude(
+        'illegalCookie'
+      )
+    } else {
+      const response = await next.fetch(path, {
+        method: phase === 'route handler' ? 'POST' : 'GET',
       })
-
-      it('from a route handler to after via closure', async () => {
-        const path = '/cookies/route-handler-to-after/via-closure'
-        const response = await next.fetch(path, { method: 'POST' })
-        await response.text()
-        expect(response.status).toBe(200)
-
-        // no cookie should be set
-        expect(response.headers.get('set-cookie')).toBe(null)
-
-        // the .set() in after should error
-        await retry(async () => {
-          expect(getCliOutput()).toMatch(EXPECTED_ERROR_IN_AFTER)
-        })
-      })
-
-      it('from middleware to after via closure', async () => {
-        const path = '/cookies/middleware-to-after/via-closure'
-        const response = await next.fetch(path)
-        await response.text()
-        expect(response.status).toBe(200)
-
-        // no cookie should be set
-        expect(response.headers.get('set-cookie')).toBe(null)
-
-        // the .set() in after should error
-        await retry(async () => {
-          expect(getCliOutput()).toMatch(EXPECTED_ERROR_IN_AFTER)
-        })
-      })
+      await response.text()
+      expect(response.status).toBe(200)
+      expect(response.headers.get('set-cookie')).toBe(null)
+      await expectAfterError()
     }
   })
+
+  async function expectAfterError() {
+    await retry(() => {
+      expect(next.cliOutput).toMatch(
+        /An error occurred in a function passed to `after\(\)`: .+?: Cookies can only be modified in a Server Action or Route Handler\./
+      )
+    }, 30_000)
+  }
 })
