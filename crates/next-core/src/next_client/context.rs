@@ -193,9 +193,7 @@ pub async fn get_client_resolve_options_context(
         // necessarily the root of the filesystem (e.g. in a monorepo).
         server_relative_root: Some(project_path.clone()),
         after_resolve_plugins: vec![ResolvedVc::upcast(
-            NextSharedRuntimeResolvePlugin::new(project_path.clone())
-                .to_resolved()
-                .await?,
+            NextSharedRuntimeResolvePlugin::new().to_resolved().await?,
         )],
         ..Default::default()
     };

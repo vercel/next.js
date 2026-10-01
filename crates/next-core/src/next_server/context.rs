@@ -186,7 +186,6 @@ pub async fn get_server_resolve_options_context(
     external_packages.retain(|item| !transpiled_packages.contains(item));
 
     let server_external_packages_plugin = ExternalCjsModulesResolvePlugin::new(
-        project_path.root().owned().await?,
         ExternalPredicate::Only(ResolvedVc::cell(external_packages)).cell(),
         *next_config.import_externals().await?,
     )
@@ -211,7 +210,6 @@ pub async fn get_server_resolve_options_context(
         server_external_packages_plugin
     } else {
         ExternalCjsModulesResolvePlugin::new(
-            project_path.root().owned().await?,
             ExternalPredicate::AllExcept(ResolvedVc::cell(transpiled_packages)).cell(),
             *next_config.import_externals().await?,
         )
@@ -219,13 +217,10 @@ pub async fn get_server_resolve_options_context(
         .await?
     };
 
-    let next_external_plugin = NextExternalResolvePlugin::new(project_path.clone())
+    let next_external_plugin = NextExternalResolvePlugin::new().to_resolved().await?;
+    let next_node_shared_runtime_plugin = NextNodeSharedRuntimeResolvePlugin::new(ty.clone())
         .to_resolved()
         .await?;
-    let next_node_shared_runtime_plugin =
-        NextNodeSharedRuntimeResolvePlugin::new(project_path.clone(), ty.clone())
-            .to_resolved()
-            .await?;
 
     let after_resolve_plugins = match ty {
         ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. } => {
