@@ -149,6 +149,16 @@ export interface RouteSizeTotals {
   compressedSize: number
 }
 
+export interface RouteSummary {
+  route: string
+  size: number
+  compressed_size: number
+  client: {
+    size: number
+    compressed_size: number
+  }
+}
+
 /**
  * Sums the `getOwnSizes` of every leaf source in an {@link AnalyzeData},
  * giving a single route's total contribution. This matches what the existing

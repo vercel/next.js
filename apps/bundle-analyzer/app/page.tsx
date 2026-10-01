@@ -1,5 +1,5 @@
-import { SingleAnalyzer } from '@/components/analyzer'
+import { RouteSummaryPage } from '@/components/analyzer'
 
 export default function HomePage() {
-  return <SingleAnalyzer />
+  return <RouteSummaryPage />
 }
