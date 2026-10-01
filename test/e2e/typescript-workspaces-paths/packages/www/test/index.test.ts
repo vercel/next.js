@@ -1,7 +1,11 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import { nextTestSetup, isNextDev } from 'e2e-utils'
+import {
+  nextTestSetup,
+  isNextDev,
+  patchFileWithDeployEnvAssignments,
+} from 'e2e-utils'
 import { readFileSync, writeFileSync } from 'fs'
 
 describe('TypeScript Features', () => {
@@ -53,6 +57,11 @@ describe('TypeScript Features', () => {
           }
         : undefined,
       files: join(__dirname, '../../../'),
+      overrideFiles: {
+        'packages/www/next.config.js': patchFileWithDeployEnvAssignments(
+          join(__dirname, '../next.config.js')
+        ),
+      },
       buildCommand: 'pnpm next build packages/www',
       startCommand:
         'pnpm next ' + (isNextDev ? 'dev' : 'start') + ' packages/www',
