@@ -23,9 +23,7 @@ export function useAnalyzerRoute(
   const compareView =
     viewParam === CompareView.Table || viewParam === CompareView.Treemap
       ? viewParam
-      : compare
-        ? CompareView.Table
-        : CompareView.Treemap
+      : CompareView.Treemap
   const environmentParam = searchParams.get('environment')
   const environmentFilter =
     environmentParam === Environment.Server
@@ -88,14 +86,10 @@ export function useAnalyzerRoute(
       pathname === '/compare'
         ? undefined
         : (snapshot: SnapshotMetadata) =>
-            buildHref('/compare', { from: snapshot.id, to: null, view: null }),
+            buildHref('/compare', { from: snapshot.id, to: null }),
     setBaselineSnapshot: (snapshot: SnapshotMetadata) =>
-      navigate('/compare', { from: snapshot.id, to: null, view: null }, 'push'),
-    stopComparisonHref: buildHref('/analyze', {
-      from: null,
-      to: null,
-      view: null,
-    }),
+      navigate('/compare', { from: snapshot.id, to: null }, 'push'),
+    stopComparisonHref: buildHref('/analyze', { from: null, to: null }),
     setComparisonSnapshot: (snapshot: SnapshotMetadata | null) =>
       navigate(pathname, { to: snapshot?.id ?? null }, 'replace'),
     setEnvironmentFilter: (environment: Environment) =>
