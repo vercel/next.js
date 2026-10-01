@@ -50,6 +50,7 @@ import DefaultGlobalError from './builtin/global-error'
 import { RootLayoutBoundary } from '../../lib/framework/boundary-components'
 import type { StaticIndicatorState } from '../dev/hot-reloader/app/hot-reloader-app'
 import { getAssetTokenQuery } from '../../shared/lib/deployment-id'
+import { getInitialRsc } from './render-tree'
 
 const globalMutable: {
   pendingMpaPath?: string
@@ -191,10 +192,10 @@ function Head({
   // should use that on initial render instead of `rsc`. Then we'll switch to
   // `rsc` when the dynamic response streams in.
   const head = headRenderTree.data.rsc
-  const prefetchHead = headRenderTree.data.prefetchRsc
 
-  // If no prefetch data is available, then we go straight to rendering `head`.
-  const resolvedPrefetchRsc = prefetchHead !== null ? prefetchHead : head
+  // If no prefetch data is available, or the dynamic response was already
+  // received, then we go straight to rendering `head`.
+  const resolvedPrefetchRsc = getInitialRsc(headRenderTree.data)
 
   // We use `useDeferredValue` to handle switching between the prefetched and
   // final values. The second argument is returned on initial render, then it

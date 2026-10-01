@@ -50,7 +50,7 @@ import {
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import { getParamValueFromCacheKey } from '../route-params'
 import type { Params } from '../../server/request/params'
-import { isDeferredRsc } from './render-tree'
+import { getInitialRsc, isDeferredRsc } from './render-tree'
 
 const enum ScrollTargetState {
   NoClientRects,
@@ -329,11 +329,9 @@ function InnerLayoutRouter({
   // We should use that on initial render instead of `rsc`. Then we'll switch
   // to `rsc` when the dynamic response streams in.
   //
-  // If no prefetch data is available, then we go straight to rendering `rsc`.
-  const resolvedPrefetchRsc =
-    renderTree.data.prefetchRsc !== null
-      ? renderTree.data.prefetchRsc
-      : renderTree.data.rsc
+  // If no prefetch data is available, or the dynamic response was already
+  // received, then we go straight to rendering `rsc`.
+  const resolvedPrefetchRsc = getInitialRsc(renderTree.data)
 
   // We use `useDeferredValue` to handle switching between the prefetched and
   // final values. The second argument is returned on initial render, then it

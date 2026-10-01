@@ -1220,9 +1220,9 @@ function createRenderTreeForSegment(
   if (seedRsc !== null) {
     // We already have a dynamic server response for this segment.
     if (isCachedRscPartial) {
-      // The seed data may still be streaming in, so it's worth showing the
-      // partial cached state in the meantime.
-      prefetchRsc = cachedRsc
+      // Skip the partial cached state, even though the seed data may still be
+      // streaming in. See getInitialRsc.
+      prefetchRsc = null
       rsc = seedRsc
       varyParams = seedVaryParams
     } else {
@@ -2166,6 +2166,32 @@ type DeferredRsc<T extends React.ReactNode = React.ReactNode> =
 // too. We can remove it once type Cache Node type is more settled.
 export function isDeferredRsc(value: any): value is DeferredRsc {
   return value && typeof value === 'object' && value.tag === DEFERRED
+}
+
+/**
+ * Returns the data a segment (or the head) should render first. It's passed to
+ * `useDeferredValue` as the initial value, which then switches to `rsc`.
+ */
+export function getInitialRsc(cacheNode: CacheNode): React.ReactNode {
+  const rsc = cacheNode.rsc
+  const prefetchRsc = cacheNode.prefetchRsc
+  if (prefetchRsc !== null && isDeferredRsc(rsc) && rsc.status === 'pending') {
+    return prefetchRsc
+  }
+  // Either there's no prefetched data, or the dynamic response was already
+  // received. Go straight to rendering `rsc`.
+  //
+  // Skipping the prefetched data in the latter case is not just an
+  // optimization. The prefetched data may contain dynamic holes that never
+  // resolve. If a hole isn't wrapped in a Suspense boundary, the render that
+  // starts with the prefetched data can't complete, and stays pending alongside
+  // the deferred render. If the dynamic data then throws (`redirect()`,
+  // `notFound()`, or any other error), React retries all the pending work
+  // synchronously before it commits an error boundary. If that attempt started
+  // with the prefetched data again, it would suspend, and React would discard
+  // the error and schedule another deferred render, which throws again, and so
+  // on, without ever committing.
+  return rsc
 }
 
 function createDeferredRsc<
