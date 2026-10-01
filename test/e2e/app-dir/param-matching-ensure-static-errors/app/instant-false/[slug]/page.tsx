@@ -1,4 +1,4 @@
-export const unstable_ensureStatic = 'navigation'
+export const ensureStatic = 'navigation'
 export const instant = false
 export const unstable_paramMatching = { slug: 'fallback' }
 
