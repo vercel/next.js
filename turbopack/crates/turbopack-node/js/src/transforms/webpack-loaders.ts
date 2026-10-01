@@ -8,51 +8,23 @@ import {
   StackFrame,
   parse as parseStackTrace,
 } from '../compiled/stacktrace-parser'
-import { structuredError, type StructuredError } from '../error'
-import { getReadEnvVariables, type TransformIpc } from './transforms'
+import { structuredError } from '../error'
+import {
+  getReadEnvVariables,
+  type BuildModuleRequest,
+  type IpcInfoMessage,
+  type IpcRequestMessage,
+  type TransformIpc,
+} from './transforms'
 import {
   evaluateBundle,
   type ImportModuleResult,
 } from './webpack-loaders-runtime'
 import fs from 'fs'
 import path from 'path'
+import { createRequire } from 'module'
 
-export type IpcInfoMessage =
-  | {
-      type: 'dependencies'
-      envVariables?: string[]
-      directories?: Array<[string, string]>
-      filePaths?: string[]
-      buildFilePaths?: string[]
-      buildDependencyRequests?: Array<[string, boolean]>
-    }
-  | {
-      type: 'emittedError'
-      severity: 'warning' | 'error'
-      error: StructuredError
-    }
-  | {
-      type: 'log'
-      logs: Array<{
-        time: number
-        logType: string
-        args: any[]
-        trace?: StackFrame[]
-      }>
-    }
-
-export type IpcRequestMessage =
-  | {
-      type: 'resolve'
-      options: any
-      lookupPath: string
-      request: string
-    }
-  | {
-      type: 'importModule'
-      lookupPath: string
-      request: string
-    }
+export type { IpcInfoMessage, IpcRequestMessage } from './transforms'
 
 type LoaderConfig =
   | string
@@ -169,7 +141,57 @@ const transform = (
     const loadersWithOptions = loaders.map((loader) =>
       typeof loader === 'string' ? { loader, options: {} } : loader
     )
-    const buildDependencies = new Set<string>()
+    const resolvedLoaders = loadersWithOptions.map((loader) => ({
+      loader: __turbopack_external_require__.resolve(loader.loader, {
+        paths: [contextDir, resourceDir],
+      }),
+      options: loader.options,
+    }))
+    const nodeRequire = createRequire(path.join(contextDir, 'package.json'))
+    const buildDependencies = new Set(
+      resolvedLoaders.map((loader) => loader.loader)
+    )
+    const buildModuleRequests = new Map<string, BuildModuleRequest>()
+    const buildDependencyRequests = new Set<string>()
+    const addBuildModuleRequest = (
+      dependency: string,
+      lookupPath: string,
+      expectedPath: string,
+      bypassExports = false
+    ) => {
+      let request = dependency
+      if (path.isAbsolute(request)) {
+        request = path.relative(lookupPath, request)
+        if (!path.isAbsolute(request) && request.split(path.sep)[0] !== '..') {
+          request = `./${request}`
+        }
+      }
+      request = request.replaceAll(path.sep, '/')
+      buildModuleRequests.set(`${lookupPath}\0${request}\0${bypassExports}`, {
+        lookupPath,
+        request,
+        expectedPath,
+        bypassExports,
+      })
+    }
+    for (let i = 0; i < loadersWithOptions.length; i++) {
+      addBuildModuleRequest(
+        loadersWithOptions[i].loader,
+        contextDir,
+        resolvedLoaders[i].loader
+      )
+    }
+    const addBuildDependency = (dependency: string) => {
+      buildDependencyRequests.add(dependency)
+      if (!/[\\/]$/.test(dependency)) {
+        try {
+          // Node resolution is only used to inspect the runtime cache. Rust tracks the request,
+          // classifies filesystem inputs, and reports unresolved dependencies.
+          const resolved = nodeRequire.resolve(dependency)
+          buildDependencies.add(resolved)
+        } catch {}
+      }
+    }
 
     const logs: Array<{
       time: number
@@ -200,7 +222,7 @@ const transform = (
               : {}
           },
           addBuildDependency(dependency: string) {
-            buildDependencies.add(dependency)
+            addBuildDependency(dependency)
           },
           fs: {
             readFile(p: string, optionsOrCb: any, maybeCb: any) {
@@ -531,12 +553,7 @@ const transform = (
           },
         },
 
-        loaders: loadersWithOptions.map((loader) => ({
-          loader: __turbopack_external_require__.resolve(loader.loader, {
-            paths: [contextDir, resourceDir],
-          }),
-          options: loader.options,
-        })),
+        loaders: resolvedLoaders,
         readResource: (_filename, callback) => {
           // TODO assuming that filename === resource, but loaders might change that
           let data =
@@ -551,6 +568,45 @@ const transform = (
           ipc.sendInfo({ type: 'log', logs: logs })
           logs.length = 0
         }
+        const pendingBuildDependencies = [...buildDependencies]
+        for (const dependency of pendingBuildDependencies) {
+          const loadedModule = nodeRequire.cache[dependency]
+          if (!loadedModule) continue
+          for (const child of loadedModule.children) {
+            if (!buildDependencies.has(child.filename)) {
+              buildDependencies.add(child.filename)
+              pendingBuildDependencies.push(child.filename)
+            }
+            const lookupPath = path.dirname(dependency)
+            // Match webpack's cached-child reconstruction, bypassing exports for package
+            // subpaths that Node has already loaded.
+            // https://github.com/webpack/webpack/blob/f1bdec5cc70236083e45b665831d5d79d6485db7/lib/FileSystemInfo.js#L1835-L1895
+            const modulePath = loadedModule.paths.find((modulePath) =>
+              child.filename.startsWith(`${modulePath}${path.sep}`)
+            )
+            let request = modulePath
+              ? child.filename.slice(modulePath.length + 1)
+              : path.relative(lookupPath, child.filename)
+            if (request.endsWith('.js')) request = request.slice(0, -3)
+            request = request.replaceAll(path.sep, '/')
+            if (
+              !modulePath &&
+              !request.startsWith('../') &&
+              !path.isAbsolute(request)
+            ) {
+              request = `./${request}`
+            }
+            addBuildModuleRequest(
+              request,
+              lookupPath,
+              child.filename,
+              !!modulePath
+            )
+          }
+        }
+        const buildModuleDependencies = [...buildDependencies].filter(
+          (dependency) => !nodeRequire.cache[dependency]
+        )
         ipc.sendInfo({
           type: 'dependencies',
           envVariables: getReadEnvVariables(),
@@ -559,10 +615,12 @@ const transform = (
             ...result.missingDependencies,
           ],
           directories: result.contextDependencies.map((dep) => [dep, '**']),
-          buildDependencyRequests: [...buildDependencies]
+          buildFilePaths: [...buildDependencies].sort(),
+          buildModulePaths: buildModuleDependencies.sort(),
+          buildDependencyRequests: [...buildDependencyRequests]
             .map((dependency) => {
-              // Webpack uses a trailing slash or backslash to identify directory build dependencies:
-              // https://github.com/webpack/webpack/blob/v5.98.0/lib/FileSystemInfo.js#L1741-L1748
+              // Webpack identifies directory build dependencies by a trailing slash or backslash.
+              // https://github.com/webpack/webpack/blob/f1bdec5cc70236083e45b665831d5d79d6485db7/lib/FileSystemInfo.js#L1741-L1748
               const isDirectory = /[\\/]$/.test(dependency)
               let request = isDirectory ? dependency.slice(0, -1) : dependency
               if (path.isAbsolute(request)) {
@@ -579,6 +637,11 @@ const transform = (
               return [request, isDirectory] as [string, boolean]
             })
             .sort(([a], [b]) => a.localeCompare(b)),
+          buildModuleRequests: [...buildModuleRequests.values()].sort(
+            (a, b) =>
+              a.lookupPath.localeCompare(b.lookupPath) ||
+              a.request.localeCompare(b.request)
+          ),
         })
         if (err) {
           // Resolve loader paths to include in the error message using
