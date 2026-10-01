@@ -6,8 +6,7 @@
 //! Entry types are the `KEY_BLOCK_ENTRY_TYPE_*` constants in
 //! [`turbo_persistence::static_sorted_file`]; the `--help` output lists them with their current
 //! values. The two ranged kinds encode a size in the type byte: an inline value's byte count is
-//! `type - KEY_BLOCK_ENTRY_TYPE_INLINE_MIN`, and a key-value tombstone's deleted byte count is
-//! `type - KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN`.
+//! `type - KEY_BLOCK_ENTRY_TYPE_INLINE_MIN`.
 
 use std::{
     collections::{BTreeMap, HashSet},
@@ -26,11 +25,9 @@ use turbo_persistence::{
     read_current_version,
     sst_filter::SstFilter,
     static_sorted_file::{
-        FIXED_KEY_BLOCK_MIXED_VALUE_TYPE, FixedRegions, KEY_BLOCK_ENTRY_TYPE_BLOB,
-        KEY_BLOCK_ENTRY_TYPE_INLINE_MIN, KEY_BLOCK_ENTRY_TYPE_KEY_DELETED,
-        KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN, KEY_BLOCK_ENTRY_TYPE_MEDIUM,
-        KEY_BLOCK_ENTRY_TYPE_SMALL, KEY_BLOCK_TABLE_ENTRY_SIZE_NO_HASH, KeyBlockLayout,
-        key_block_table_stride,
+        KEY_BLOCK_ENTRY_TYPE_BLOB, KEY_BLOCK_ENTRY_TYPE_INLINE_MIN,
+        KEY_BLOCK_ENTRY_TYPE_KEY_DELETED, KEY_BLOCK_ENTRY_TYPE_MEDIUM, KEY_BLOCK_ENTRY_TYPE_SMALL,
+        KEY_BLOCK_TABLE_ENTRY_SIZE_NO_HASH, KeyBlockLayout, key_block_table_stride,
     },
 };
 
@@ -97,11 +94,10 @@ struct SstStats {
 
     /// Value sizes by type (inline values track actual bytes)
     inline_value_bytes: u64,
-    small_value_refs: u64,        // Count of references to value blocks
-    medium_value_refs: u64,       // Count of references to medium values
-    blob_refs: u64,               // Count of blob references
-    key_deleted_count: u64,       // Count of key tombstones
-    key_value_deleted_count: u64, // Count of key-value tombstones
+    small_value_refs: u64,  // Count of references to value blocks
+    medium_value_refs: u64, // Count of references to medium values
+    blob_refs: u64,         // Count of blob references
+    key_deleted_count: u64, // Count of key tombstones
 
     /// File size in bytes
     file_size: u64,
@@ -124,7 +120,6 @@ impl SstStats {
         self.medium_value_refs += other.medium_value_refs;
         self.blob_refs += other.blob_refs;
         self.key_deleted_count += other.key_deleted_count;
-        self.key_value_deleted_count += other.key_value_deleted_count;
         self.file_size += other.file_size;
     }
 }
@@ -154,10 +149,6 @@ fn track_entry_type(stats: &mut SstStats, entry_type: u8) {
         KEY_BLOCK_ENTRY_TYPE_MEDIUM => {
             stats.medium_value_refs += 1;
         }
-        // Must precede the inline arm: both are open-ended and the tombstone range sits above it.
-        ty if ty >= KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN => {
-            stats.key_value_deleted_count += 1;
-        }
         ty if ty >= KEY_BLOCK_ENTRY_TYPE_INLINE_MIN => {
             let inline_size = (ty - KEY_BLOCK_ENTRY_TYPE_INLINE_MIN) as u64;
             stats.inline_value_bytes += inline_size;
@@ -172,11 +163,6 @@ fn entry_type_description(ty: u8) -> String {
         KEY_BLOCK_ENTRY_TYPE_BLOB => "blob reference".to_string(),
         KEY_BLOCK_ENTRY_TYPE_KEY_DELETED => "key tombstone".to_string(),
         KEY_BLOCK_ENTRY_TYPE_MEDIUM => "medium value".to_string(),
-        // Must precede the inline arm: both are open-ended and the tombstone range sits above it.
-        ty if ty >= KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN => {
-            let size = ty - KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN;
-            format!("key-value tombstone ({size} byte value)")
-        }
         ty if ty >= KEY_BLOCK_ENTRY_TYPE_INLINE_MIN => {
             let inline_size = ty - KEY_BLOCK_ENTRY_TYPE_INLINE_MIN;
             format!("inline {} bytes", inline_size)
@@ -405,13 +391,6 @@ enum KeyBlockHeader {
         entry_count: u32,
         value_type: u8,
     },
-    /// Fixed-size layout whose entries share a value size but not a value type, so each carries
-    /// its own type byte ahead of its value in the block's tail region.
-    FixedMixedType {
-        entry_count: u32,
-        /// Where the block's search and tail regions sit, derived by the shared reader helper.
-        regions: FixedRegions,
-    },
 }
 
 /// Parses the header of a key block from the full decompressed block data.
@@ -429,40 +408,23 @@ fn parse_key_block_header(block: &[u8]) -> Result<KeyBlockHeader> {
         });
     }
     assert!(block.len() >= 6, "Fixed key block header too small");
-    if block[5] == FIXED_KEY_BLOCK_MIXED_VALUE_TYPE {
-        assert!(block.len() >= 7, "Mixed-type key block header too small");
-        Ok(KeyBlockHeader::FixedMixedType {
-            entry_count,
-            // `FixedRegions` owns the search/tail split; `val_size` includes the per-entry type
-            // byte, which the header stores separately from the value size.
-            regions: FixedRegions::new(
-                entry_count as usize,
-                layout,
-                block[4] as usize,
-                block[6] as usize + 1,
-            ),
-        })
-    } else {
-        Ok(KeyBlockHeader::Fixed {
-            entry_count,
-            value_type: block[5],
-        })
-    }
+    Ok(KeyBlockHeader::Fixed {
+        entry_count,
+        value_type: block[5],
+    })
 }
 
 /// Iterates over entry type bytes in a key block.
 ///
 /// For variable-size key blocks, reads byte 0 of each 4-byte offset table entry. For fixed-size
-/// key blocks, yields the single `value_type` repeated `entry_count` times, or reads the per-entry
-/// type byte when the block has mixed types.
+/// key blocks, yields the single `value_type` repeated `entry_count` times.
 fn iter_key_block_entry_types(
     header: KeyBlockHeader,
     block: &[u8],
 ) -> impl Iterator<Item = u8> + '_ {
     let entry_count = match header {
         KeyBlockHeader::Variable { entry_count, .. }
-        | KeyBlockHeader::Fixed { entry_count, .. }
-        | KeyBlockHeader::FixedMixedType { entry_count, .. } => entry_count,
+        | KeyBlockHeader::Fixed { entry_count, .. } => entry_count,
     };
     (0..entry_count).map(move |i| match header {
         // Variable block: offset table starts at byte 4 (after 1B type + 3B count). The type byte
@@ -473,11 +435,6 @@ fn iter_key_block_entry_types(
                 + (table_stride - KEY_BLOCK_TABLE_ENTRY_SIZE_NO_HASH)]
         }
         KeyBlockHeader::Fixed { value_type, .. } => value_type,
-        KeyBlockHeader::FixedMixedType { regions, .. } => {
-            // Entry data starts after the 7-byte mixed-type header; within the tail region the
-            // type byte precedes the value, after the key for `HashThenKey` blocks.
-            block[7 + regions.total_len(i as usize) + regions.tail_key_size()]
-        }
     })
 }
 
@@ -566,7 +523,7 @@ fn analyze_sst_file(db_path: &Path, info: &SstInfo) -> Result<SstStats> {
                     raw.was_compressed,
                 );
             }
-            KeyBlockHeader::Fixed { .. } | KeyBlockHeader::FixedMixedType { .. } => {
+            KeyBlockHeader::Fixed { .. } => {
                 stats.fixed_key_blocks.add(
                     raw.compressed_size,
                     raw.actual_size,
@@ -714,13 +671,6 @@ fn print_value_storage(stats: &SstStats, prefix: &str) {
             "{}  Key tombstones: {} entries",
             prefix,
             format_number(stats.key_deleted_count)
-        );
-    }
-    if stats.key_value_deleted_count > 0 {
-        println!(
-            "{}  Key-value tombstones: {} entries",
-            prefix,
-            format_number(stats.key_value_deleted_count)
         );
     }
 }
@@ -915,13 +865,8 @@ fn main() -> Result<()> {
                  {KEY_BLOCK_ENTRY_TYPE_INLINE_MIN})",
                 KEY_BLOCK_ENTRY_TYPE_INLINE_MIN + MAX_INLINE_VALUE_SIZE as u8
             );
-            eprintln!(
-                "  {KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN}-{}: Key-value tombstone (deleted \
-                 value size = type - {KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN})",
-                KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN + MAX_INLINE_VALUE_SIZE as u8
-            );
             eprintln!();
-            eprintln!("For TaskCache (family 3), values are 4-byte TaskIds.");
+            eprintln!("For TaskCache (family 3), values are lists of 4-byte TaskIds.");
             eprintln!(
                 "Expected entry type is {} ({KEY_BLOCK_ENTRY_TYPE_INLINE_MIN} + 4) for inline \
                  optimization.",
