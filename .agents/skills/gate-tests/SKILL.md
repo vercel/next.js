@@ -93,8 +93,9 @@ Every name in a pragma must be declared in `test/lib/gate/conditions.ts`
 
 - **static** — the run's shape: `dev`, `start`, `deploy`, `mode`, `turbopack`,
   `rspack`, `webpack`, `bundler`, `react18`, `wasm`, `linux`, `macos`,
-  `windows`, `ci`; specialized CI variants `adapter`, `standaloneOutput`,
-  `turbopackDev`, and `turbopackBuild`; plus the always-false `FIXME`/`TODO`.
+  `windows`, `ci`; specialized CI variants `adapter`, `nodeMiddleware`,
+  `standaloneOutput`, `turbopackDev`, and `turbopackBuild`; plus the
+  always-false `FIXME`/`TODO`.
   `prod` and `prefetching` are semantic aliases for `!dev` — prefer the name
   that states _why_ the suite cannot run.
 - **lazy** — a predicate over the fixture's _resolved_ `next.config`

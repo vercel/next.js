@@ -1,6 +1,6 @@
 import path from 'path'
 import fs from 'fs-extra'
-import { isReact18, nextTestSetup } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import { findAllTelemetryEvents } from 'next-test-utils'
 
 // The telemetry suite drives multiple consecutive `next build` invocations
@@ -9,13 +9,15 @@ import { findAllTelemetryEvents } from 'next-test-utils'
 // first". The telemetry feature itself is not React-version-specific, so
 // skipping under React 18 is fine until the underlying build/server lifecycle
 // race is fixed.
-;(isReact18 ? describe.skip : describe)('Telemetry CLI', () => {
-  const { next, isNextStart, isTurbopack, skipped } = nextTestSetup({
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
+// @force-gate !react18
+describe('Telemetry CLI', () => {
+  const { next, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-  if (skipped) return
 
   it('can print telemetry status', async () => {
     const { stdout } = await next.runCommand(['telemetry'])
