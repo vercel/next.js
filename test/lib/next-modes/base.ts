@@ -65,15 +65,16 @@ export interface NextInstanceOpts {
   patchFileDelay?: number
   startServerTimeout?: number
   /**
-   * Append Vercel runtime messages to cliOutput in deploy mode. Delivery is
-   * asynchronous: use retry() for positive assertions. An empty query alone
-   * does not establish that an application message was not logged.
+   * Fetch Vercel runtime messages synchronously when cliOutput is read. Each
+   * read waits for a fresh query and appends newly indexed application logs.
+   * Vercel indexing can still lag behind the response: use retry() for positive
+   * assertions. An empty query does not prove that no message was logged.
    * Messages append in arrival order, not guaranteed execution order. String
    * offsets do not isolate requests, and remote severity only approximates the
-   * original stdout/stderr stream. Setup verifies access, then polls complete
-   * request logs. Queries make up to three attempts with backoff. Persistent
+   * original stdout/stderr stream. Reads query the original request window to
+   * recover late messages and make up to three attempts with backoff. Persistent
    * failures, truncation, and reaching the 1,000-request limit fail the test
-   * instead of silently leaving cliOutput incomplete.
+   * instead of silently leaving cliOutput incomplete. No background polling.
    * Unsupported for custom deployment/log scripts. Has no effect in dev or
    * start mode.
    */

@@ -2,7 +2,7 @@ import execa from 'execa'
 import { trace } from 'next/dist/trace'
 import { DeployRuntimeLogs } from '../../lib/next-modes/deploy-runtime-logs'
 
-jest.mock('execa', () => jest.fn())
+jest.mock('execa', () => Object.assign(jest.fn(), { sync: jest.fn() }))
 
 // Initialize the real harness in deploy mode, without running a deployment.
 const originalMode = process.env.NEXT_TEST_MODE
@@ -68,6 +68,13 @@ describe('deployment lifecycle', () => {
     customLogs = { ...logs, exitCode: 0 }
     runtimeLogs = { exitCode: 0, stdout: '', stderr: '' }
     stopRuntimeLogs = jest.spyOn(DeployRuntimeLogs.prototype, 'stop')
+
+    jest
+      .mocked(execa.sync)
+      .mockReset()
+      .mockImplementation(() => {
+        return runtimeLogs as unknown as ReturnType<typeof execa.sync>
+      })
 
     jest
       .mocked(execa)
@@ -137,17 +144,54 @@ describe('deployment lifecycle', () => {
     customLogs = logs
   }
 
-  it('appends runtime messages to build output and stops collection on destroy', async () => {
+  it('refreshes runtime messages on each cliOutput read and stops on destroy', async () => {
     successfulDeployment()
     const next = await instance(true)
+    await next.start()
+    expect(execa.sync).not.toHaveBeenCalled()
     runtimeLogs.stdout = JSON.stringify({
       id: 'request-1',
       logs: [{ message: 'register-log', level: 'info' }],
     })
-    await next.start()
     expect(next.cliOutput).toBe(ids + '\nregister-log\n')
+    runtimeLogs.stdout = JSON.stringify({
+      id: 'request-1',
+      logs: [
+        { message: 'register-log', level: 'info' },
+        { message: 'late-log' },
+      ],
+    })
+    expect(next.cliOutput).toBe(ids + '\nregister-log\nlate-log\n')
+    expect(execa.sync).toHaveBeenCalledTimes(2)
     await next.destroy()
     expect(stopRuntimeLogs).toHaveBeenCalled()
+    expect(next.cliOutput).toBe(ids + '\nregister-log\nlate-log\n')
+    expect(execa.sync).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not query runtime logs when capture is disabled', async () => {
+    successfulDeployment()
+    const next = await instance()
+    await next.start()
+    expect(next.cliOutput).toBe(ids)
+    expect(execa.sync).not.toHaveBeenCalled()
+    await next.destroy()
+  })
+
+  it('allows stdout listeners to read the newly appended output', async () => {
+    successfulDeployment()
+    const next = await instance(true)
+    await next.start()
+    const listener = jest.fn(() => next.cliOutput)
+    next.on('stdout', listener)
+    runtimeLogs.stdout = JSON.stringify({
+      id: 'request-1',
+      logs: [{ message: 'message' }],
+    })
+    expect(next.cliOutput).toBe(ids + '\nmessage\n')
+    expect(listener.mock.results[0].value).toBe(ids + '\nmessage\n')
+    expect(execa.sync).toHaveBeenCalledTimes(1)
+    await next.destroy()
   })
 
   it('collects runtime logs for an existing Vercel deployment', async () => {

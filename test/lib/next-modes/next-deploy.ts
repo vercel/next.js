@@ -359,7 +359,7 @@ export class NextDeployInstance extends NextInstance {
       }
 
       this.parseIdsFromCliOutput()
-      await this.startRuntimeLogs(process.env, [])
+      this.startRuntimeLogs(process.env, [])
       return
     }
 
@@ -608,10 +608,10 @@ export class NextDeployInstance extends NextInstance {
     )
 
     this.parseIdsFromCliOutput()
-    await this.startRuntimeLogs(vercelEnv, vercelFlags)
+    this.startRuntimeLogs(vercelEnv, vercelFlags)
   }
 
-  private async startRuntimeLogs(env: NodeJS.ProcessEnv, flags: string[]) {
+  private startRuntimeLogs(env: NodeJS.ProcessEnv, flags: string[]) {
     if (!this.captureRuntimeLogs) return
     this.runtimeLogs = new DeployRuntimeLogs(
       this._url,
@@ -625,12 +625,6 @@ export class NextDeployInstance extends NextInstance {
         this.emit(stream, [message])
       }
     )
-    try {
-      await this.runtimeLogs.waitForReady()
-    } catch (error) {
-      await this.runtimeLogs.stop().catch(() => {})
-      throw error
-    }
   }
 
   private async writeFixtureConfiguration(
@@ -1021,11 +1015,11 @@ export class NextDeployInstance extends NextInstance {
   }
 
   public async destroy() {
-    // Always release the stream, including when fixture cleanup fails.
+    // Stop runtime log reads even when fixture cleanup fails.
     try {
       return await this.destroyDeployment()
     } finally {
-      await this.runtimeLogs?.stop()
+      this.runtimeLogs?.stop()
     }
   }
 
@@ -1078,7 +1072,7 @@ export class NextDeployInstance extends NextInstance {
   }
 
   public get cliOutput() {
-    this.runtimeLogs?.assertHealthy()
+    this.runtimeLogs?.refresh()
     return this._cliOutput || ''
   }
 
