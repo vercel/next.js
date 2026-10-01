@@ -67,8 +67,8 @@ enum GcJob {
     /// Scan one shard of the resident map (by index) and enqueue its candidates as
     /// [`GcJob::Collect`].
     ScanShard(usize),
-    /// Collect a single task.
-    Collect(TaskId),
+    /// Collect a batch of tasks.
+    Collect(Vec<TaskId>),
 }
 
 /// Decides when a GC pass should stop early because it is delaying real work.
@@ -193,6 +193,10 @@ impl GcPassResult {
     }
 }
 
+/// Number of tasks carried per `GcJob::Collect`. Amortizes the per-item channel send and
+/// `remaining_tasks` atomic across a batch.
+const GC_BATCH: usize = 64;
+
 impl TurboTasksBackend {
     /// Collect all garbage from the task-cache
     ///
@@ -242,9 +246,11 @@ impl TurboTasksBackend {
 
         let (mut stats, mut result): (GcStats, GcPassResult) = scope_unbounded_with(
             // Start by scanning all shards and collecting the aged out roots from prior sessions.
-            (0..self.storage.shard_count())
-                .map(GcJob::ScanShard)
-                .chain(aged_out.into_iter().map(GcJob::Collect)),
+            (0..self.storage.shard_count()).map(GcJob::ScanShard).chain(
+                aged_out
+                    .chunks(GC_BATCH)
+                    .map(|c| GcJob::Collect(c.to_vec())),
+            ),
             Default::default,
             |spawner, job, (stats, result): &mut (GcStats, GcPassResult)| {
                 // Abort the gc loop if we are interrupted
@@ -253,58 +259,91 @@ impl TurboTasksBackend {
                 {
                     return ControlFlow::Break(());
                 }
-                let task_id = match job {
+                let batch = match job {
                     GcJob::ScanShard(index) => {
-                        let collector = |task_id| spawner.spawn(GcJob::Collect(task_id));
-                        self.storage.gc_scan_shard(index, collector);
+                        let mut buf: Vec<TaskId> = Vec::with_capacity(GC_BATCH);
+                        self.storage.gc_scan_shard(index, |task_id| {
+                            buf.push(task_id);
+                            if buf.len() >= GC_BATCH {
+                                spawner.spawn(GcJob::Collect(std::mem::take(&mut buf)));
+                                buf.reserve(GC_BATCH);
+                            }
+                        });
+                        if !buf.is_empty() {
+                            spawner.spawn(GcJob::Collect(buf));
+                        }
                         return ControlFlow::Continue(());
                     }
-                    GcJob::Collect(task_id) => task_id,
+                    GcJob::Collect(batch) => batch,
                 };
-                let collector = |child_id| spawner.spawn(GcJob::Collect(child_id));
-                let mut ctx = ExecuteContextImpl::new_for_gc(self, turbo_tasks, phase, &collector);
-                // `All` restores Data so `capture_all_edges` below can read the
-                // Data-category dependency sets. The recheck itself only needs Meta.
-                let mut task = ctx.task(task_id, TaskDataCategory::All);
-                // Recheck under the guard: the shard scan saw this task without holding it, and a
-                // racing teardown can add uppers that temporarily remove collectibility. Such a
-                // task is re-enqueued by a later pass.
-                if !task.is_gc_collectible() {
-                    return ControlFlow::Continue(());
+                // Children discovered while collecting this batch, flushed in chunks.
+                let pending = std::cell::RefCell::new(Vec::<TaskId>::new());
+                // Scope `collector`/`ctx` so their borrow of `pending` ends before we take it.
+                {
+                    let collector = |child_id| {
+                        let mut p = pending.borrow_mut();
+                        p.push(child_id);
+                        if p.len() >= GC_BATCH {
+                            spawner.spawn(GcJob::Collect(std::mem::take(&mut p)));
+                        }
+                    };
+                    let mut ctx =
+                        ExecuteContextImpl::new_for_gc(self, turbo_tasks, phase, &collector);
+                    for task_id in batch {
+                        // `All` restores Data so `capture_all_outgoing_edges` below can read the
+                        // Data-category dependency sets. The recheck itself only needs Meta.
+                        let mut task = ctx.task(task_id, TaskDataCategory::All);
+                        // Recheck under the guard: the shard scan saw this task without holding it,
+                        // and a racing teardown can add uppers that
+                        // temporarily remove collectibility. Such a task is
+                        // re-enqueued by a later pass.
+                        if !task.is_gc_collectible() {
+                            continue;
+                        }
+
+                        let old_edges = capture_all_edges(&task);
+                        // Clear `immutable` defensively so `resurrect_deleted` can mark the task
+                        // dirty if it needs to
+                        task.set_immutable(false);
+                        // Drop the whole cell payload. This recovers most of the RAM while
+                        // persistence writes the tombstone.
+                        drop(task.take_cell_data());
+                        task.set_deleted(true);
+                        if task.new_task() {
+                            task.discard_modifications_for_gc_new_task();
+                        } else {
+                            // Persisted ensure it is marked modified so the next snapshot
+                            // tombstones it. It is almost certainly
+                            // already marked modified, so this is
+                            // mostly a no-op.
+                            let _ = task
+                                .track_modification(SpecificTaskDataCategory::Meta, "gc_deleted");
+                        }
+                        drop(task); // drop the lock so CleanupOldEdgesOperation can run
+                        stats.collected += 1;
+                        stats.edges_deleted += old_edges.len();
+                        // If we happened to delete a known root at this point record it so we can
+                        // reconcile later.
+                        if roots.contains_key(&task_id) {
+                            result.deleted_roots.push(task_id);
+                        }
+                        // Delete outgoing edges but don't update the aggregation graph yet.
+                        // To avoid accidentally rebalancing on deleted tasks due to racing
+                        // deletions, we defer all rebalancing to the end
+                        let deferred = CleanupOldEdgesOperation::run_edge_deletions_only(
+                            task_id, old_edges, &mut ctx,
+                        );
+                        result.deferred_balance_edges.extend(deferred.balance_edges);
+                        result
+                            .deferred_dirty_dependents
+                            .extend(deferred.dirty_dependents);
+                    }
+                }
+                let rest = pending.into_inner();
+                if !rest.is_empty() {
+                    spawner.spawn(GcJob::Collect(rest));
                 }
 
-                let old_edges = capture_all_edges(&task);
-                // Clear `immutable` defensively so `resurrect_deleted` can mark the task dirty if
-                // it needs to
-                task.set_immutable(false);
-                // Drop the whole cell payload. This recovers most of the RAM while persistence
-                // writes the tombstone.
-                drop(task.take_cell_data());
-                task.set_deleted(true);
-                if task.new_task() {
-                    task.discard_modifications_for_gc_new_task();
-                } else {
-                    // Persisted ensure it is marked modified so the next snapshot tombstones it.
-                    // It is almost certainly already marked modified, so this is mostly a no-op.
-                    let _ = task.track_modification(SpecificTaskDataCategory::Meta, "gc_deleted");
-                }
-                drop(task); // drop the lock so CleanupOldEdgesOperation can run
-                stats.collected += 1;
-                stats.edges_deleted += old_edges.len();
-                // If we happened to delete a known root at this point record it so we can reconcile
-                // later.
-                if roots.contains_key(&task_id) {
-                    result.deleted_roots.push(task_id);
-                }
-                // Delete outgoing edges but don't update the aggregation graph yet.
-                // To avoid accidentally rebalancing on deleted tasks due to racing deletions,
-                // we defer all rebalancing to the end
-                let deferred =
-                    CleanupOldEdgesOperation::run_edge_deletions_only(task_id, old_edges, &mut ctx);
-                result.deferred_balance_edges.extend(deferred.balance_edges);
-                result
-                    .deferred_dirty_dependents
-                    .extend(deferred.dirty_dependents);
                 ControlFlow::Continue(())
             },
             |(stats, result), (other_stats, other_result)| {
