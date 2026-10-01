@@ -48,7 +48,7 @@ impl ModuleFederationEndpoint {
         let config = self
             .project
             .next_config()
-            .turbopack_module_federation()
+            .turbopack_module_federation_for_client(true)
             .await?;
         let source: Vc<Box<dyn Source>> = *module_federation_container_source(
             self.project.project_path().owned().await?,
@@ -57,7 +57,7 @@ impl ModuleFederationEndpoint {
         .await?;
         Ok(self
             .app_project
-            .client_module_context()
+            .federation_expose_module_context()
             .process(source, ReferenceType::Entry(EntryReferenceSubType::Web))
             .module())
     }
