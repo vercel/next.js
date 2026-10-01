@@ -84,8 +84,13 @@ export function useAnalyzerRoute(
       pathname === '/'
         ? (route: string) => buildHref('/analyze', { route })
         : undefined,
-    getBaselineHref: (snapshot: SnapshotMetadata) =>
-      buildHref('/compare', { from: snapshot.id, to: null, view: null }),
+    getBaselineHref:
+      pathname === '/compare'
+        ? undefined
+        : (snapshot: SnapshotMetadata) =>
+            buildHref('/compare', { from: snapshot.id, to: null, view: null }),
+    setBaselineSnapshot: (snapshot: SnapshotMetadata) =>
+      navigate('/compare', { from: snapshot.id, to: null, view: null }, 'push'),
     stopComparisonHref: buildHref('/analyze', {
       from: null,
       to: null,

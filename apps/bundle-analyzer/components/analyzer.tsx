@@ -403,6 +403,7 @@ function AnalyzerTopBar({
       setSearchQuery={model.setSearchQuery}
       baselineSnapshot={model.baselineSnapshot}
       getBaselineHref={model.routeState.getBaselineHref}
+      onBaselineChange={model.routeState.setBaselineSnapshot}
       stopComparisonHref={model.routeState.stopComparisonHref}
       comparisonSnapshot={model.comparisonSnapshot}
       onComparisonChange={model.routeState.setComparisonSnapshot}

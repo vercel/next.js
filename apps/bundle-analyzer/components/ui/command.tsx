@@ -160,13 +160,11 @@ function CommandItem({
 // link behavior (including modifier-click) for items that change pages.
 function CommandLinkItem({
   href,
-  onNavigate,
   className,
   children,
   ...props
 }: Omit<React.ComponentProps<typeof CommandItem>, 'onSelect'> & {
   href: string
-  onNavigate?: () => void
 }) {
   const linkRef = React.useRef<HTMLAnchorElement>(null)
   return (
@@ -182,7 +180,6 @@ function CommandLinkItem({
         onClick={(event) => {
           // Clicks on the link must not also select the parent command item.
           event.stopPropagation()
-          onNavigate?.()
         }}
       >
         {children}
