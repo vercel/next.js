@@ -23,13 +23,17 @@ This guide explains where static output can be produced during navigation, then 
 
 Static output is produced without request-specific data, so Next.js can generate it before a request and use it across requests. With [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), a default `<Link>` loads the destination's [App Shell](/docs/app/glossary#app-shell). Setting `prefetch={true}` can also load static or cached [URL-specific content](/docs/app/guides/optimizing-prefetching#resolve-url-data-at-prefetch-time). The navigation request returns the remaining server-rendered content after the user follows the link.
 
-Start with the smallest requirement that meets your goal:
+Each `ensureStatic` value extends the static requirement through another part of route loading. In the following diagram, gray marks output that must remain static, while blue marks work that can render later:
 
-- To keep the shared App Shell static, use **`'shell'`**. Request-specific content can render during a later per-link prefetch or navigation.
-- To keep per-link prefetches static too, use **`'prefetch'`**. Request-specific content waits for navigation.
-- To avoid request-time server rendering for the route, use **`'navigation'`**. Request-specific or uncached server work produces a validation error.
+<Image
+  alt="The Shell, Prefetch, and Navigation stages, with bars showing how each ensureStatic value extends the static requirement through those stages"
+  srcLight="/docs/light/ensure-static-stages.png"
+  srcDark="/docs/dark/ensure-static-stages.png"
+  width="1200"
+  height="530"
+/>
 
-The following example starts with the App Shell and progressively extends the static requirement through the complete route.
+Start with the smallest requirement that covers the output you need to protect. The following example begins with the App Shell, then extends the requirement through a per-link prefetch and the complete route.
 
 ## Example
 
