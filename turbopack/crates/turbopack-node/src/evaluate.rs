@@ -521,7 +521,11 @@ pub async fn get_evaluate_entries(
 
 /// Pass the file you cared as `runtime_entries` to invalidate and reload the
 /// evaluated result automatically.
-#[turbo_tasks::function]
+///
+/// `non_cancelable` for the same reason as [`evaluate_webpack_loader`][crate::transforms::webpack]:
+/// the evaluation drives a Node.js pool operation, and dropping this future mid-operation can lose
+/// a result the pool already produced.
+#[turbo_tasks::function(non_cancelable)]
 pub async fn evaluate(
     entries: ResolvedVc<EvaluateEntries>,
     cwd: FileSystemPath,

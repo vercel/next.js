@@ -21,7 +21,8 @@ use tracing::info_span;
 use tracing::trace_span;
 use turbo_tasks::{
     CellId, DynTaskInputs, FxIndexMap, RawVc, SharedReference, TaskExecutionReason, TaskId,
-    TaskPriority, TurboTasks, TurboTasksCallApi, ValueTypePersistence, backend::CachedTaskTypeArc,
+    TaskPriority, TurboTasks, TurboTasksCallApi, ValueTypePersistence,
+    backend::{CachedTaskTypeArc, TaskExecutionAbortReason},
     macro_helpers::NativeFunction,
 };
 
@@ -34,7 +35,10 @@ use crate::{
         storage::{SpecificTaskDataCategory, StorageWriteGuard, TaskEntryGuard, TrackOutcome},
         storage_schema::{TaskStorage, TaskStorageAccessors},
     },
-    data::{ActivenessState, CollectibleRef, Dirtyness, InProgressState, TransientTask},
+    data::{
+        AbortRequestOutcome, ActivenessState, CollectibleRef, Dirtyness, InProgressState,
+        TransientTask,
+    },
 };
 
 pub trait Operation: Encode + Decode<()> + Default + TryFrom<AnyOperation, Error = ()> {
@@ -189,8 +193,14 @@ pub trait ExecuteContext<'e>: Sized {
     /// Call this wherever an operation removes the last reference of some kind to a task. This may
     /// be a transition to collectibility.
     ///
-    /// Only effective in a gc context see [`Self::collects_gc_candidates`].
+    /// Only effective in a GC context.
     fn note_maybe_collectible(&mut self, task: &impl TaskGuard);
+    fn track_abort_request(
+        &self,
+        native_fn: Option<&'static NativeFunction>,
+        reason: TaskExecutionAbortReason,
+        outcome: AbortRequestOutcome,
+    );
     fn should_track_dependencies(&self) -> bool;
     fn should_track_activeness(&self) -> bool;
     fn turbo_tasks(&self) -> Arc<dyn TurboTasksCallApi>;
@@ -1378,6 +1388,32 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
             collector(task.id());
         }
     }
+
+    fn track_abort_request(
+        &self,
+        native_fn: Option<&'static NativeFunction>,
+        reason: TaskExecutionAbortReason,
+        outcome: AbortRequestOutcome,
+    ) {
+        let Some(native_fn) = native_fn else {
+            return;
+        };
+        if !matches!(outcome, AbortRequestOutcome::Duplicate) {
+            self.backend.task_statistics.map(|stats| {
+                stats.increment_abort_requested(native_fn, reason);
+                match outcome {
+                    AbortRequestOutcome::Accepted | AbortRequestOutcome::Duplicate => {}
+                    AbortRequestOutcome::Skipped => {
+                        stats.increment_abort_skipped(native_fn, reason)
+                    }
+                    AbortRequestOutcome::RacedCompletion => {
+                        stats.increment_abort_raced_completion(native_fn, reason)
+                    }
+                }
+            });
+        }
+    }
+
     fn should_track_dependencies(&self) -> bool {
         self.backend.should_track_dependencies()
     }
@@ -2091,7 +2127,7 @@ pub use self::{
     },
     cleanup_old_edges::{OutdatedEdge, capture_all_edges},
     connect_children::connect_children,
-    invalidate::make_task_dirty_internal,
+    invalidate::{MakeTaskDirtyOptions, make_task_dirty_internal},
     prepare_new_children::prepare_new_children,
     update_collectible::UpdateCollectibleOperation,
 };

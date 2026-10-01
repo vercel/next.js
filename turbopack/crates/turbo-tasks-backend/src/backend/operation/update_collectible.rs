@@ -12,7 +12,7 @@ use crate::{
         },
         storage_schema::TaskStorageAccessors,
     },
-    data::CollectibleRef,
+    data::{CollectibleRef, InProgressState},
 };
 
 pub struct UpdateCollectibleOperation;
@@ -21,11 +21,34 @@ impl UpdateCollectibleOperation {
     pub fn run(
         task_id: TaskId,
         collectible: CollectibleRef,
+        count: i32,
+        ctx: impl ExecuteContext<'_>,
+    ) {
+        Self::run_internal(task_id, collectible, count, /* rollback= */ false, ctx);
+    }
+
+    /// Reverses a collectible update made by an aborted execution. Unlike a user-level `unemit`,
+    /// rollback may remove a collectible from a non-root emitter: `root` is required to *read* or
+    /// explicitly remove collectibles, but any task may emit them.
+    pub(in crate::backend) fn run_rollback(
+        task_id: TaskId,
+        collectible: CollectibleRef,
+        count: i32,
+        ctx: impl ExecuteContext<'_>,
+    ) {
+        Self::run_internal(task_id, collectible, count, /* rollback= */ true, ctx);
+    }
+
+    fn run_internal(
+        task_id: TaskId,
+        collectible: CollectibleRef,
         mut count: i32,
+        rollback: bool,
         mut ctx: impl ExecuteContext<'_>,
     ) {
         let mut task = ctx.task(task_id, TaskDataCategory::All);
-        if count < 0
+        if !rollback
+            && count < 0
             && task
                 .get_persistent_task_type()
                 .is_some_and(|t| !t.native_fn.is_root)
@@ -54,6 +77,21 @@ impl UpdateCollectibleOperation {
             }
         }
         if count != 0 {
+            // Rollback runs after the aborted InProgressState was taken, so it cannot record its
+            // own reversal as a new generation delta.
+            if let Some(InProgressState::InProgress(in_progress)) = task.get_in_progress_mut() {
+                let remove = {
+                    let delta = in_progress
+                        .collectible_deltas
+                        .entry(collectible)
+                        .or_default();
+                    *delta += count;
+                    *delta == 0
+                };
+                if remove {
+                    in_progress.collectible_deltas.remove(&collectible);
+                }
+            }
             if task.update_collectibles_positive_crossing(collectible, count) {
                 let ty = collectible.collectible_type;
                 let dependent: SmallVec<[TaskId; 4]> = task

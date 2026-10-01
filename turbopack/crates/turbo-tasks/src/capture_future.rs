@@ -9,6 +9,7 @@ use std::{
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
+use futures::future::{AbortRegistration, Abortable};
 use pin_project_lite::pin_project;
 
 use crate::{backend::TurboTasksExecutionErrorMessage, panic_hooks::LAST_ERROR_LOCATION};
@@ -23,6 +24,39 @@ pin_project! {
 impl<T, F: Future<Output = T>> CaptureFuture<T, F> {
     pub fn new(future: F) -> Self {
         Self { future }
+    }
+}
+
+pub enum CaptureFutureOutcome<T, E> {
+    Value(T),
+    Error(E),
+    Panic(TurboTasksPanic),
+    Aborted,
+}
+
+impl<T, E, F> CaptureFuture<std::result::Result<T, E>, F>
+where
+    F: Future<Output = std::result::Result<T, E>>,
+{
+    /// Captures panics and optionally makes this future abortable, flattening all execution
+    /// outcomes into one semantic enum for the caller.
+    pub async fn with_optional_abort(
+        self,
+        abort_registration: Option<AbortRegistration>,
+    ) -> CaptureFutureOutcome<T, E> {
+        let captured = match abort_registration {
+            Some(abort_registration) => match Abortable::new(self, abort_registration).await {
+                Ok(captured) => captured,
+                Err(_) => return CaptureFutureOutcome::Aborted,
+            },
+            None => self.await,
+        };
+
+        match captured {
+            Ok(Ok(value)) => CaptureFutureOutcome::Value(value),
+            Ok(Err(error)) => CaptureFutureOutcome::Error(error),
+            Err(panic) => CaptureFutureOutcome::Panic(panic),
+        }
     }
 }
 
