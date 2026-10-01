@@ -391,6 +391,7 @@ function AnalyzerTopBar({
       compareView={model.compareView}
       onCompareViewChange={model.setCompareView}
       selectedRoute={model.selectedRoute}
+      getRouteHref={model.routeState.getRouteHref}
       setSelectedRoute={model.routeState.setRoute}
       environmentFilter={model.environmentFilter}
       setEnvironmentFilter={model.setEnvironmentFilter}
@@ -401,11 +402,8 @@ function AnalyzerTopBar({
       searchQuery={model.searchQuery}
       setSearchQuery={model.setSearchQuery}
       baselineSnapshot={model.baselineSnapshot}
-      onBaselineChange={(snapshot) => {
-        if (snapshot) {
-          model.routeState.startComparison(snapshot)
-        } else model.routeState.stopComparison()
-      }}
+      getBaselineHref={model.routeState.getBaselineHref}
+      stopComparisonHref={model.routeState.stopComparisonHref}
       comparisonSnapshot={model.comparisonSnapshot}
       onComparisonChange={model.routeState.setComparisonSnapshot}
       routeDiff={routeDiff}

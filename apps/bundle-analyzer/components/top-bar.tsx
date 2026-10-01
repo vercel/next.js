@@ -61,6 +61,7 @@ export function ControlDivider() {
 export function TopBar({
   selectedRoute,
   setSelectedRoute,
+  getRouteHref,
   environmentFilter,
   setEnvironmentFilter,
   setSelectedSourceIndex,
@@ -70,7 +71,8 @@ export function TopBar({
   searchQuery,
   setSearchQuery,
   baselineSnapshot,
-  onBaselineChange,
+  getBaselineHref,
+  stopComparisonHref,
   comparisonSnapshot,
   onComparisonChange,
   compareView,
@@ -85,6 +87,7 @@ export function TopBar({
   showViewToggle: boolean
   selectedRoute: string | null
   setSelectedRoute: (route: string | null) => void
+  getRouteHref?: (route: string) => string
   environmentFilter: Environment
   setEnvironmentFilter: (env: Environment) => void
   setSelectedSourceIndex: (index: number | null) => void
@@ -94,7 +97,8 @@ export function TopBar({
   searchQuery: string
   setSearchQuery: (query: string) => void
   baselineSnapshot: SnapshotMetadata | null
-  onBaselineChange: (snapshot: SnapshotMetadata | null) => void
+  getBaselineHref: (snapshot: SnapshotMetadata) => string
+  stopComparisonHref: string
   comparisonSnapshot: SnapshotMetadata | null
   onComparisonChange: (snapshot: SnapshotMetadata | null) => void
   compareView: CompareView
@@ -109,6 +113,7 @@ export function TopBar({
       <div className="flex min-w-0 flex-1">
         <RouteTypeahead
           selectedRoute={selectedRoute}
+          getRouteHref={getRouteHref}
           onRouteSelected={(route) => {
             setSelectedRoute(route)
             setSelectedSourceIndex(null)
@@ -124,7 +129,8 @@ export function TopBar({
         {showComparison ? (
           <BaselinePicker
             selectedSnapshotId={baselineSnapshot?.id ?? null}
-            onSelectionChange={onBaselineChange}
+            getSnapshotHref={getBaselineHref}
+            clearHref={stopComparisonHref}
             excludedSnapshotId={comparisonSnapshot?.id}
             prefix="from"
             placeholder="Compare from…"

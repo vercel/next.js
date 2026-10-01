@@ -1,6 +1,7 @@
 'use client'
 
 import useSWR from 'swr'
+import Link from 'next/link'
 import {
   Check,
   ChevronsUpDown,
@@ -16,6 +17,7 @@ import {
   CommandGroup,
   CommandInput,
   CommandItem,
+  CommandLinkItem,
   CommandList,
 } from '@/components/ui/command'
 import {
@@ -35,7 +37,9 @@ import {
 interface BaselinePickerProps {
   /** Selected historical snapshot id, or null for the control's default. */
   selectedSnapshotId: string | null
-  onSelectionChange: (snapshot: SnapshotMetadata | null) => void
+  onSelectionChange?: (snapshot: SnapshotMetadata | null) => void
+  getSnapshotHref?: (snapshot: SnapshotMetadata) => string
+  clearHref?: string
   excludedSnapshotId?: string | null
   prefix?: string
   placeholder?: string
@@ -52,6 +56,8 @@ interface BaselinePickerProps {
 export function BaselinePicker({
   selectedSnapshotId,
   onSelectionChange,
+  getSnapshotHref,
+  clearHref,
   excludedSnapshotId,
   prefix = 'vs',
   placeholder = 'Compare with…',
@@ -168,43 +174,67 @@ export function BaselinePicker({
                 <CommandEmpty>No snapshots found.</CommandEmpty>
               )}
               <CommandGroup>
-                {snapshots.map((snapshot) => (
-                  <CommandItem
-                    key={snapshot.id}
-                    value={`${snapshot.id} ${snapshot.gitBranch ?? ''} ${snapshot.gitShortSha ?? ''} ${snapshot.gitMessage ?? ''} ${snapshot.snapshotName ?? ''}`}
-                    onSelect={() => {
-                      onSelectionChange(snapshot)
-                      setOpen(false)
-                    }}
-                  >
-                    <Check
-                      className={cn(
-                        'mr-2 h-4 w-4',
-                        selectedSnapshotId === snapshot.id
-                          ? 'opacity-100'
-                          : 'opacity-0'
-                      )}
-                    />
-                    <SnapshotRow snapshot={snapshot} />
-                  </CommandItem>
-                ))}
+                {snapshots.map((snapshot) => {
+                  const value = `${snapshot.id} ${snapshot.gitBranch ?? ''} ${snapshot.gitShortSha ?? ''} ${snapshot.gitMessage ?? ''} ${snapshot.snapshotName ?? ''}`
+                  const content = (
+                    <>
+                      <Check
+                        className={cn(
+                          'mr-2 h-4 w-4',
+                          selectedSnapshotId === snapshot.id
+                            ? 'opacity-100'
+                            : 'opacity-0'
+                        )}
+                      />
+                      <SnapshotRow snapshot={snapshot} />
+                    </>
+                  )
+                  return getSnapshotHref ? (
+                    <CommandLinkItem
+                      key={snapshot.id}
+                      value={value}
+                      href={getSnapshotHref(snapshot)}
+                      onNavigate={() => setOpen(false)}
+                    >
+                      {content}
+                    </CommandLinkItem>
+                  ) : (
+                    <CommandItem
+                      key={snapshot.id}
+                      value={value}
+                      onSelect={() => {
+                        onSelectionChange?.(snapshot)
+                        setOpen(false)
+                      }}
+                    >
+                      {content}
+                    </CommandItem>
+                  )
+                })}
               </CommandGroup>
             </CommandList>
           </Command>
         </PopoverContent>
       </Popover>
 
-      {selected != null && (
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label={clearLabel}
-          onClick={() => onSelectionChange(null)}
-          className="h-8 w-8"
-        >
-          <X className="h-3.5 w-3.5" />
-        </Button>
-      )}
+      {selected != null &&
+        (clearHref ? (
+          <Button asChild variant="ghost" size="icon" className="h-8 w-8">
+            <Link href={clearHref} aria-label={clearLabel}>
+              <X className="h-3.5 w-3.5" />
+            </Link>
+          </Button>
+        ) : (
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={clearLabel}
+            onClick={() => onSelectionChange?.(null)}
+            className="h-8 w-8"
+          >
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        ))}
     </div>
   )
 }
