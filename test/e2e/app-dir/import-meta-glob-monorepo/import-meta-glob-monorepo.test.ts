@@ -1,4 +1,5 @@
 import { nextTestSetup, FileRef, PatchedFileRef, isNextDeploy } from 'e2e-utils'
+import { getDeploymentTestEnvAssignments } from 'e2e-utils/deployment-test-env'
 import * as path from 'path'
 
 // `import.meta.glob` is a Turbopack-only feature, and webpack compiles
@@ -32,17 +33,7 @@ testFn('import-meta-glob-monorepo', () => {
         (content) => {
           if (!isNextDeploy) return content
 
-          let prefix = ''
-          for (const flag of [
-            '__NEXT_CACHE_COMPONENTS',
-            '__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS',
-          ]) {
-            const value = process.env[flag]
-            if (value) {
-              prefix += `process.env.${flag} = ${JSON.stringify(value)}\n`
-            }
-          }
-          return prefix + content
+          return getDeploymentTestEnvAssignments() + content
         }
       ),
     },
