@@ -1,14 +1,10 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry, waitForRedbox, getRedboxDescription } from 'next-test-utils'
 
-describe('app-dir refresh', () => {
-  const { next, skipped, isNextDev } = nextTestSetup({
+describe('app-dir refresh - valid usage', () => {
+  const { next } = nextTestSetup({
     files: __dirname,
-    // We do not have access to runtime logs when deployed
-    skipDeployment: true,
   })
-
-  if (skipped) return
 
   it('should refresh client cache when refresh() is called in a server action', async () => {
     const browser = await next.browser('/refresh')
@@ -34,53 +30,6 @@ describe('app-dir refresh', () => {
     })
   })
 
-  it('should throw an error when refresh() is called during page render', async () => {
-    const browser = await next.browser('/refresh-invalid-render')
-
-    if (isNextDev) {
-      await waitForRedbox(browser)
-      const description = await getRedboxDescription(browser)
-      expect(description).toContain(
-        'refresh can only be called from within a Server Action'
-      )
-    } else {
-      await retry(async () => {
-        expect(next.cliOutput).toContain(
-          'refresh can only be called from within a Server Action'
-        )
-      })
-    }
-  })
-
-  it('should throw an error when refresh() is called in a route handler', async () => {
-    const res = await next.fetch('/refresh-invalid-route')
-    expect(res.status).toBe(500)
-
-    await retry(async () => {
-      expect(next.cliOutput).toContain(
-        'refresh can only be called from within a Server Action'
-      )
-    })
-  })
-
-  it('should throw an error when refresh() is called in unstable_cache', async () => {
-    const browser = await next.browser('/refresh-invalid-cache')
-
-    if (isNextDev) {
-      await waitForRedbox(browser)
-      const description = await getRedboxDescription(browser)
-      expect(description).toContain(
-        'refresh can only be called from within a Server Action'
-      )
-    } else {
-      await retry(async () => {
-        expect(next.cliOutput).toContain(
-          'refresh can only be called from within a Server Action'
-        )
-      })
-    }
-  })
-
   it('should let you read your write after a redirect and refresh', async () => {
     const browser = await next.browser('/redirect-and-refresh')
 
@@ -99,5 +48,41 @@ describe('app-dir refresh', () => {
 
     expect(await browser.hasElementByCssSelector('#foo-page')).toBe(true)
     expect(await browser.url()).toContain('/redirect-and-refresh/foo')
+  })
+})
+
+// Each invalid usage gets its own instance: the error messages are identical,
+// and delayed runtime logs from one request must not satisfy another test.
+describe.each([
+  {
+    usage: 'during page render',
+    path: '/refresh-invalid-render',
+    route: false,
+  },
+  { usage: 'in a route handler', path: '/refresh-invalid-route', route: true },
+  { usage: 'in unstable_cache', path: '/refresh-invalid-cache', route: false },
+])('app-dir refresh - $usage', ({ usage, path, route }) => {
+  const { next, isNextDev } = nextTestSetup({
+    files: __dirname,
+    captureRuntimeLogs: true,
+  })
+
+  it(`should throw an error when refresh() is called ${usage}`, async () => {
+    const message = 'refresh can only be called from within a Server Action'
+    if (route) {
+      const res = await next.fetch(path)
+      expect(res.status).toBe(500)
+    } else {
+      const browser = await next.browser(path)
+      if (isNextDev) {
+        await waitForRedbox(browser)
+        expect(await getRedboxDescription(browser)).toContain(message)
+        return
+      }
+    }
+
+    await retry(() => {
+      expect(next.cliOutput).toContain(message)
+    }, 30_000)
   })
 })
