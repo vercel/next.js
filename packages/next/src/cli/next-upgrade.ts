@@ -8,6 +8,7 @@ import * as Log from '../build/output/log'
 import createSpinner from '../build/spinner'
 import { findDir } from '../lib/find-pages-dir'
 import { getProjectDir } from '../lib/get-project-dir'
+import { warnMissingReactDependencies } from '../lib/warn-missing-react-dependencies'
 import { getNpxCommand } from '../lib/helpers/get-npx-command'
 import { interopDefault } from '../lib/interop-default'
 import { dim } from '../lib/picocolors'
@@ -183,6 +184,7 @@ export async function spawnNextUpgrade(
     let configError: unknown = null
     try {
       baseDir = getProjectDir(directory, false)
+      warnMissingReactDependencies(baseDir)
       const config = await loadAgentUpgradeConfig(baseDir)
       distDir = config.distDir || '.next'
       configuredPolicy = config.experimental?.agentUpgrade
@@ -627,6 +629,7 @@ When this task ends, report its result once. After completing the requested upgr
   }
 
   baseDir = getProjectDir(directory)
+  warnMissingReactDependencies(baseDir)
 
   const [upgradeProcessCommand, ...upgradeProcessDefaultArgs] =
     getNpxCommand(baseDir).split(' ')

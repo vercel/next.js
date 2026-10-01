@@ -33,7 +33,6 @@ import type { NextBuildOptions } from '../cli/next-build.js'
 import type { NextTypegenOptions } from '../cli/next-typegen.js'
 import type { NextPostBuildOptions } from '../cli/next-post-build.js'
 import { ensureProfilesDir } from '../lib/profiles-dir'
-import { getProjectDir } from '../lib/get-project-dir'
 import type { NextRequestInsightsOptions } from '../cli/next-request-insights.js'
 
 /**
@@ -81,29 +80,6 @@ class NextRootCommand extends Command {
     const command = new Command(name)
 
     command.hook('preAction', (event) => {
-      // Check the target app's dependencies, including when the CLI is downloaded
-      // by npx or linked from a separate Next.js checkout.
-      const directoryIndex = event.registeredArguments.findIndex(
-        (argument) => argument.name() === 'directory'
-      )
-      if (directoryIndex !== -1) {
-        const projectDir = getProjectDir(event.args[directoryIndex])
-
-        for (const dependency of ['react', 'react-dom']) {
-          try {
-            require.resolve(dependency, { paths: [projectDir] })
-          } catch (err) {
-            if ((err as NodeJS.ErrnoException).code !== 'MODULE_NOT_FOUND') {
-              throw err
-            }
-
-            console.warn(
-              `The module '${dependency}' was not found. Next.js requires that you include it in 'dependencies' of your 'package.json'. To add it, run 'npm install ${dependency}'`
-            )
-          }
-        }
-      }
-
       const commandName = event.name()
       const defaultEnv = commandName === 'dev' ? 'development' : 'production'
       const standardEnv = ['production', 'development', 'test']
