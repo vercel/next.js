@@ -35,6 +35,24 @@ pub enum OutdatedEdge {
     OutputDependentOfDeleted(TaskId),
 }
 
+impl OutdatedEdge {
+    /// Whether the other end of this edge is a transient task. The persisted task graph omits such
+    /// edges, so there is nothing to tear down for them in a later session.
+    fn references_transient_task(&self) -> bool {
+        match self {
+            OutdatedEdge::Child(task_id)
+            | OutdatedEdge::OutputDependency(task_id)
+            | OutdatedEdge::OutputDependentOfDeleted(task_id) => task_id.is_transient(),
+            OutdatedEdge::Collectible(collectible, _) => collectible.is_transient(),
+            OutdatedEdge::CellDependency(cell)
+            | OutdatedEdge::HashedCellDependency(cell, _)
+            | OutdatedEdge::CellDependentOfDeleted(cell)
+            | OutdatedEdge::HashedCellDependentOfDeleted(cell, _) => cell.is_transient(),
+            OutdatedEdge::CollectiblesDependency(collectibles) => collectibles.is_transient(),
+        }
+    }
+}
+
 /// Captures *every* edge incident to a task -- both directions -- as [`OutdatedEdge`]s.
 pub fn capture_all_edges(task: &impl TaskStorageAccessors) -> Vec<OutdatedEdge> {
     let mut old_edges: Vec<OutdatedEdge> = Vec::new();
