@@ -36,40 +36,6 @@ use crate::{
     data::{ActivenessState, CollectibleRef, Dirtyness, InProgressState, TransientTask},
 };
 
-/// The task storage `open_task` is working with, which may or may not still own its map entry.
-enum OpenedTask<'a> {
-    Owned(TaskEntryGuard<'a>),
-    Restored(StorageWriteGuard<'a>),
-}
-
-impl<'a> OpenedTask<'a> {
-    fn into_write_guard(self) -> StorageWriteGuard<'a> {
-        match self {
-            OpenedTask::Owned(g) => g.into_write_guard(),
-            OpenedTask::Restored(g) => g,
-        }
-    }
-}
-
-impl Deref for OpenedTask<'_> {
-    type Target = TaskStorage;
-    fn deref(&self) -> &Self::Target {
-        match self {
-            OpenedTask::Owned(g) => g,
-            OpenedTask::Restored(g) => g,
-        }
-    }
-}
-
-impl DerefMut for OpenedTask<'_> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        match self {
-            OpenedTask::Owned(g) => g,
-            OpenedTask::Restored(g) => g,
-        }
-    }
-}
-
 /// Whether an [`ExecuteContext`] task open may create the task, requires it to already exist, or
 /// tolerates its absence. A private impl detail behind the three public methods
 /// ([`ExecuteContext::task`] = `MustExist`, [`ExecuteContext::task_or_create`] =
@@ -2008,9 +1974,7 @@ mod must_exist_tests {
                 task_type_hash: None,
             })
             .collect::<Vec<_>>();
-        backing
-            .save_snapshot(Vec::new(), None, vec![items])
-            .unwrap();
+        backing.save_snapshot(None, vec![items]).unwrap();
         let tt = TurboTasks::new(TurboTasksBackend::new(
             BackendOptions {
                 storage_mode: Some(StorageMode::ReadOnly),
