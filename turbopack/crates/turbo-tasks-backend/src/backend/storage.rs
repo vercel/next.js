@@ -611,12 +611,6 @@ impl Storage {
         drop_contents(&self.task_cache);
     }
 
-    /// A sole Arc owner proves this type is already absent from TaskCache. Additional owners
-    /// might or might not be cache entries, so a removal must still check the TaskId.
-    fn gc_deleted_type_may_be_cached(task_type: &CachedTaskTypeArc) -> bool {
-        task_type.count() > 1
-    }
-
     /// Evict tasks from in-memory storage after a successful snapshot.
     ///
     /// Iterates all tasks and applies the eviction level returned by
@@ -681,8 +675,10 @@ impl Storage {
                 // All GC'd tasks were tombstoned during the snapshot (or are not persisted) so we
                 // can drop them fully now.
                 if task.flags.deleted() {
+                    // A sole Arc owner proves this type is already absent from TaskCache.
+                    // Additional owners might not be cache entries, so still check the TaskId.
                     if let Some(task_type) = task.get_persistent_task_type()
-                        && Self::gc_deleted_type_may_be_cached(task_type)
+                        && task_type.count() > 1
                     {
                         remove_from_task_cache(
                             &mut evicted,
@@ -1244,7 +1240,6 @@ mod tests {
             task.flags.set_deleted(true);
             let task_type = task.get_persistent_task_type().unwrap();
             assert_eq!(task_type.count(), 1);
-            assert!(!Storage::gc_deleted_type_may_be_cached(task_type));
         }
         // An earlier ordinary key eviction removed the old cache entry while retaining its
         // TaskStorage. After the GC tombstone commits, the same type can acquire a new ID.
@@ -1274,9 +1269,6 @@ mod tests {
             task.flags.set_new_task(false);
             task.flags.set_deleted(true);
             assert!(task.get_persistent_task_type().unwrap().count() > 1);
-            assert!(Storage::gc_deleted_type_may_be_cached(
-                task.get_persistent_task_type().unwrap()
-            ));
         }
         let counts = storage.evict_after_snapshot(None);
         assert_eq!(counts.full, 1);
