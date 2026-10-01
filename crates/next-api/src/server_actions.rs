@@ -501,19 +501,24 @@ async fn collect_root_param_dependencies_from_graph(
         let ignored = modules_to_ignore.await?;
         let modules = collect_cache_modules(&graph, entry, &ignored)?;
         let getters_path = root_param_getters_path().await?;
-        let mut names = FxIndexSet::default();
-        for module in modules {
-            let ident = module.ident().await?;
-            if let Some(filename) = getters_path.get_path_to(&ident.path)
-                && let Some(name) = filename.strip_suffix(".js")
-                && !name.is_empty()
-                && !name.contains('/')
-            {
-                names.insert(RcStr::from(name));
-            }
-        }
-        let mut names: Vec<_> = names.into_iter().collect();
-        names.sort();
+        let mut names = modules
+            .iter()
+            .map(async |module| {
+                let ident = module.ident().await?;
+                if let Some(filename) = getters_path.get_path_to(&ident.path)
+                    && let Some(name) = filename.strip_suffix(".js")
+                    && !name.is_empty()
+                    && !name.contains('/')
+                {
+                    Ok(Some(RcStr::from(name)))
+                } else {
+                    Ok(None)
+                }
+            })
+            .try_flat_join()
+            .await?;
+        names.sort_unstable();
+        names.dedup();
         anyhow::Ok(Vc::cell(names))
     }
     .instrument(span)
