@@ -44,7 +44,7 @@ import { useSidebarResize } from '@/lib/use-sidebar-resize'
 import { useAnalyzerRoute } from '@/lib/use-analyzer-route'
 import { computeActiveEntries, computeModuleDepthMap } from '@/lib/module-graph'
 import type { SnapshotMetadata } from '@/lib/snapshot'
-import { formatBytes } from '@/lib/utils'
+import { formatBytes, jsonFetcher } from '@/lib/utils'
 import { SizeMode } from '@/lib/treemap-layout'
 import { ArrowRight, Monitor } from 'lucide-react'
 
@@ -468,21 +468,28 @@ function ValidComparisonContent({
     `${baselineBaseDir}/routes.json`,
     { revalidateOnFocus: false, revalidateOnReconnect: false }
   )
-  const baselineRouteSummaries = useSuspenseJsonData<RouteSummary[]>(
+  const { data: baselineRouteSummaries } = useSWR<RouteSummary[]>(
     `${baselineBaseDir}/route-summaries.json`,
-    { revalidateOnFocus: false, revalidateOnReconnect: false }
+    jsonFetcher,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      shouldRetryOnError: false,
+    }
   )
   const baselineRouteTotals = useMemo(
     () =>
-      new Map(
-        baselineRouteSummaries.map(({ route, size, compressed_size }) => [
-          route,
-          { size, compressedSize: compressed_size },
-        ])
-      ),
+      baselineRouteSummaries
+        ? new Map(
+            baselineRouteSummaries.map(({ route, size, compressed_size }) => [
+              route,
+              { size, compressedSize: compressed_size },
+            ])
+          )
+        : null,
     [baselineRouteSummaries]
   )
-  const routeDiff = model.currentRouteTotals
+  const routeDiff = baselineRouteTotals && model.currentRouteTotals
     ? diffRoutesWithSizes(
         baselineRoutes,
         model.currentRoutes,
