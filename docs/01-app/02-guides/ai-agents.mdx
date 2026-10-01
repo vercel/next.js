@@ -111,10 +111,10 @@ Automatic agent feedback is experimental, disabled by default, and available onl
 
 ## Agent-guided upgrades
 
-`next upgrade --ai` checks for an available upgrade, gathers the version-matched migration guides, and hands the task to a coding agent. The agent applies the changes and verifies the app:
+`next upgrade --agent` checks for an available upgrade, gathers the version-matched migration guides, and hands the task to a coding agent. The agent applies the changes and verifies the app:
 
 ```bash filename="Terminal"
-npx next@canary upgrade --ai=latest
+npx next@canary upgrade --agent=latest
 ```
 
 The experimental [`agentUpgrade`](/docs/app/api-reference/config/next-config-js/agentUpgrade) option shows security upgrade reminders during `next dev` and `next build` by default. See [Upgrade with a coding agent](/docs/app/guides/upgrading/agent-upgrade) for the available policies and workflow.
