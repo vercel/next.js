@@ -33,19 +33,12 @@ pub enum CollectorEntryValue {
         blob: u32,
     },
     KeyDeleted,
-    /// Key-value tombstone: deletes only this one value from the key's group. MultiValue only.
-    /// The deleted value is stored inline, so it is capped at [`MAX_INLINE_VALUE_SIZE`].
-    KeyValueDeleted {
-        value: [u8; MAX_INLINE_VALUE_SIZE],
-        len: u8,
-    },
 }
 
 impl CollectorEntryValue {
     pub fn len(&self) -> usize {
         match self {
-            CollectorEntryValue::KeyValueDeleted { len, .. }
-            | CollectorEntryValue::Tiny { len, .. } => *len as usize,
+            CollectorEntryValue::Tiny { len, .. } => *len as usize,
             CollectorEntryValue::Small { value } => value.len(),
             CollectorEntryValue::Medium { value } => value.len(),
             CollectorEntryValue::Large { blob: _ } => 0,
@@ -63,10 +56,7 @@ impl CollectorEntryValue {
     #[cfg(feature = "verify_sst_content")]
     pub fn as_bytes(&self) -> Option<&[u8]> {
         match self {
-            // Separate arms: the inline buffers have different sizes, so they cannot be bound by
-            // a single or-pattern.
             CollectorEntryValue::Tiny { value, len } => Some(&value[..*len as usize]),
-            CollectorEntryValue::KeyValueDeleted { value, len } => Some(&value[..*len as usize]),
             CollectorEntryValue::Small { value } | CollectorEntryValue::Medium { value } => {
                 Some(value)
             }
@@ -85,20 +75,13 @@ impl CollectorEntryValue {
         }
     }
 
-    /// Sort rank within a key group. The two tombstone kinds sit at opposite ends:
-    ///
-    /// - Key-value tombstones (rank 0) go **first**, so a reader collects them before the values
-    ///   they filter and can apply them in one forward pass.
-    /// - Values (rank 1) go in the middle.
-    /// - Key tombstones (rank 2) go **last**, because they shadow only entries older than
-    ///   themselves — including entries in this same SST. A batch doing `put(A); delete; put(B)`
-    ///   must keep A and B, so a reader that stops at the first key tombstone it sees still returns
-    ///   the same-batch values it already collected.
+    /// Sort rank within a key group. Key tombstones go last because they shadow only entries older
+    /// than themselves, including entries in this same SST.
     pub fn sort_rank(&self) -> u8 {
-        match self {
-            CollectorEntryValue::KeyValueDeleted { .. } => 0,
-            CollectorEntryValue::KeyDeleted => 2,
-            _ => 1,
+        if matches!(self, CollectorEntryValue::KeyDeleted) {
+            1
+        } else {
+            0
         }
     }
 }
@@ -169,9 +152,6 @@ impl<K: StoreKey> Entry for CollectorEntry<K> {
             CollectorEntryValue::Medium { value } => EntryValue::Medium { value },
             CollectorEntryValue::Large { blob } => EntryValue::Large { blob: *blob },
             CollectorEntryValue::KeyDeleted => EntryValue::KeyDeleted,
-            CollectorEntryValue::KeyValueDeleted { value, len } => EntryValue::KeyValueDeleted {
-                value: &value[..*len as usize],
-            },
         }
     }
 }

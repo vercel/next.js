@@ -7,10 +7,9 @@ use crate::Compression;
 /// Bytes that fit in this many bytes are stored directly inside an `ArcBytes`/`RcBytes` rather
 /// than as a pointer into ref-counted backing storage.
 ///
-/// Sized to hold any inline value or key-value tombstone payload, which the writer caps at
-/// [`MAX_INLINE_VALUE_SIZE`][crate::constants::MAX_INLINE_VALUE_SIZE]. Those are the only values
-/// that live in a key block, so covering them means a lookup that returns one does not have to
-/// keep the whole block alive.
+/// Sized to hold any inline value, which the writer caps at
+/// [`MAX_INLINE_VALUE_SIZE`][crate::constants::MAX_INLINE_VALUE_SIZE]. Inline values live in key
+/// blocks, so covering them means a lookup does not have to keep the whole block alive.
 pub(crate) const INLINE_CAPACITY: usize = 8;
 
 // Anything the writer can place in a key block must fit, or the common case would silently fall

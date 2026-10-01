@@ -1,11 +1,10 @@
 use std::mem::take;
 
 use crate::{
-    FamilyKind, ValueBuffer,
+    ValueBuffer,
     collector_entry::{CollectorEntry, CollectorEntryValue, EntryKey, TINY_VALUE_THRESHOLD},
     constants::{
-        DATA_THRESHOLD_PER_INITIAL_FILE, MAX_ENTRIES_PER_INITIAL_FILE, MAX_INLINE_VALUE_SIZE,
-        MAX_SMALL_VALUE_SIZE,
+        DATA_THRESHOLD_PER_INITIAL_FILE, MAX_ENTRIES_PER_INITIAL_FILE, MAX_SMALL_VALUE_SIZE,
     },
     key::{StoreKey, hash_key},
     value_block_count_tracker::ValueBlockCountTracker,
@@ -100,38 +99,6 @@ impl<K: StoreKey, const SIZE_SHIFT: usize> Collector<K, SIZE_SHIFT> {
         });
     }
 
-    /// Adds a key-value tombstone to the collector: deletes only the single `key` -> `value` pair,
-    /// leaving any other values for `key` intact.
-    ///
-    /// Only meaningful for [`FamilyKind::MultiValue`] families, where a key can map to several
-    /// values and [`Collector::delete`] is too coarse: it would drop the unrelated values too.
-    /// The motivating case is the task cache, which is keyed by a hash and so holds more than one
-    /// value whenever two tasks collide. Removing one task must leave the colliding task's entry
-    /// readable, which requires naming the exact pair to delete.
-    ///
-    /// Deleting a pair written in the same batch is not supported; see
-    /// [`WriteBatch::delete_value`][crate::WriteBatch].
-    ///
-    /// `value` must be at most [`MAX_INLINE_VALUE_SIZE`] bytes; callers must validate this.  Larger
-    /// values could be supported in the future but there is currently no usecase.
-    pub fn delete_value(&mut self, key: K, value: &[u8]) {
-        debug_assert!(value.len() <= MAX_INLINE_VALUE_SIZE);
-        let key = EntryKey {
-            hash: hash_key(&key),
-            data: key,
-        };
-        self.total_key_size += key.len();
-        let mut data = [0u8; MAX_INLINE_VALUE_SIZE];
-        data[..value.len()].copy_from_slice(value);
-        self.entries.push(CollectorEntry {
-            key,
-            value: CollectorEntryValue::KeyValueDeleted {
-                value: data,
-                len: value.len() as u8,
-            },
-        });
-    }
-
     /// Adds an entry from another collector to this collector.
     pub fn add_entry(&mut self, entry: CollectorEntry<K>) {
         self.total_key_size += entry.key.len();
@@ -143,18 +110,15 @@ impl<K: StoreKey, const SIZE_SHIFT: usize> Collector<K, SIZE_SHIFT> {
         self.entries.push(entry);
     }
 
-    /// Sorts entries by key. Within a key group, key-value tombstones are placed first and key
-    /// tombstones last (see [`CollectorEntryValue::sort_rank`]).
-    /// This method does not deduplicate entries.
+    /// Sorts entries by key, placing key tombstones after values for the same key.
     ///
-    /// A SingleValue family may contain duplicate keys here: which of them a reader sees is
-    /// undefined, so a caller that writes a key twice must supersede both entries with a later
-    /// write after [`WriteBatch::flush`](crate::WriteBatch::flush) (see
+    /// A family may contain duplicate keys here: which of them a reader sees is undefined, so a
+    /// caller that writes a key twice must supersede both entries with a later write after
+    /// [`WriteBatch::flush`](crate::WriteBatch::flush) (see
     /// [`WriteBatch::put`](crate::WriteBatch::put)).
-    pub fn sorted(&mut self, _family_kind: FamilyKind) -> (&[CollectorEntry<K>], usize) {
-        // We can use unstable sort because the relative order of equal elements
-        // doesn't matter — duplicates are either superseded (SingleValue) or
-        // allowed without deduplication (MultiValue).
+    pub fn sorted(&mut self) -> (&[CollectorEntry<K>], usize) {
+        // We can use unstable sort because the relative order of duplicates doesn't matter:
+        // callers must supersede them after a flush.
         self.entries.sort_unstable_by(|a, b| {
             a.key
                 .cmp(&b.key)

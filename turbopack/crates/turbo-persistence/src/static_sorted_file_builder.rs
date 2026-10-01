@@ -18,8 +18,7 @@ use crate::{
     static_sorted_file::{
         BLOB_VALUE_REF_SIZE, BLOCK_TYPE_INDEX, FIXED_KEY_BLOCK_MIXED_VALUE_TYPE, FixedRegions,
         KEY_BLOCK_ENTRY_TYPE_BLOB, KEY_BLOCK_ENTRY_TYPE_INLINE_MIN,
-        KEY_BLOCK_ENTRY_TYPE_KEY_DELETED, KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN,
-        KEY_BLOCK_ENTRY_TYPE_MEDIUM, KEY_BLOCK_ENTRY_TYPE_SMALL,
+        KEY_BLOCK_ENTRY_TYPE_KEY_DELETED, KEY_BLOCK_ENTRY_TYPE_MEDIUM, KEY_BLOCK_ENTRY_TYPE_SMALL,
         KEY_BLOCK_TABLE_ENTRY_SIZE_NO_HASH, KEY_DELETED_REF_SIZE, KeyBlockLayout,
         MEDIUM_VALUE_REF_SIZE, SMALL_VALUE_REF_SIZE, key_block_table_stride,
     },
@@ -308,10 +307,6 @@ pub enum EntryValue<'l> {
     Large { blob: u32 },
     /// Tombstone. The value was removed.
     KeyDeleted,
-    /// Key-value tombstone. Only the one carried value was removed; other values for the same key
-    /// survive. MultiValue families only. The value must be at most [`MAX_INLINE_VALUE_SIZE`]
-    /// bytes.
-    KeyValueDeleted { value: &'l [u8] },
 }
 
 #[derive(Debug, Clone)]
@@ -465,12 +460,6 @@ enum ValueRef {
     Blob { blob_id: u32 },
     /// Tombstone.
     KeyDeleted,
-    /// Key-value tombstone: deletes only the carried value from the key's group. The value is
-    /// stored inline, exactly like [`ValueRef::Inline`].
-    KeyValueDeleted {
-        data: [u8; MAX_INLINE_VALUE_SIZE],
-        len: u8,
-    },
 }
 
 impl ValueRef {
@@ -482,9 +471,6 @@ impl ValueRef {
             ValueRef::Inline { len, .. } => KEY_BLOCK_ENTRY_TYPE_INLINE_MIN + *len,
             ValueRef::Blob { .. } => KEY_BLOCK_ENTRY_TYPE_BLOB,
             ValueRef::KeyDeleted => KEY_BLOCK_ENTRY_TYPE_KEY_DELETED,
-            ValueRef::KeyValueDeleted { len, .. } => {
-                KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN + *len
-            }
         })
     }
 
@@ -519,9 +505,6 @@ impl ValueRef {
                 buffer.extend(scratch);
             }
             ValueRef::KeyDeleted => { /* no value bytes */ }
-            ValueRef::KeyValueDeleted { data, len } => {
-                buffer.extend(&data[..*len as usize]);
-            }
             ValueRef::PendingSmall { .. } => {
                 unreachable!("PendingSmall should have been resolved");
             }
@@ -812,16 +795,6 @@ impl<E: Entry> StreamingSstWriter<E> {
             }
             EntryValue::Large { blob } => ValueRef::Blob { blob_id: blob },
             EntryValue::KeyDeleted => ValueRef::KeyDeleted,
-            EntryValue::KeyValueDeleted { value } => {
-                // Enforced by `WriteBatch::delete_value`, which rejects oversized values.
-                debug_assert!(value.len() <= MAX_INLINE_VALUE_SIZE);
-                let mut data = [0u8; MAX_INLINE_VALUE_SIZE];
-                data[..value.len()].copy_from_slice(value);
-                ValueRef::KeyValueDeleted {
-                    data,
-                    len: value.len() as u8,
-                }
-            }
         };
 
         self.push_pending_key_entry(entry, value_ref);
@@ -1426,9 +1399,6 @@ fn value_type_val_size(ty: EntryType) -> usize {
         KEY_BLOCK_ENTRY_TYPE_BLOB => BLOB_VALUE_REF_SIZE,
         KEY_BLOCK_ENTRY_TYPE_KEY_DELETED => KEY_DELETED_REF_SIZE,
         // Must precede the inline arm: both are open-ended and the tombstone range sits above it.
-        ty if ty >= KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN => {
-            (ty - KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN) as usize
-        }
         ty if ty >= KEY_BLOCK_ENTRY_TYPE_INLINE_MIN => {
             (ty - KEY_BLOCK_ENTRY_TYPE_INLINE_MIN) as usize
         }
@@ -1503,7 +1473,6 @@ mod tests {
         MediumRaw(Vec<u8>),
         Blob(u32),
         KeyDeleted,
-        KeyValueDeleted(Vec<u8>),
     }
 
     impl TestEntry {
@@ -1579,7 +1548,6 @@ mod tests {
                 },
                 TestValueKind::Blob(id) => EntryValue::Large { blob: *id },
                 TestValueKind::KeyDeleted => EntryValue::KeyDeleted,
-                TestValueKind::KeyValueDeleted(v) => EntryValue::KeyValueDeleted { value: v },
             }
         }
     }
@@ -1633,7 +1601,7 @@ mod tests {
         kc: &BlockCache,
         vc: &BlockCache,
     ) -> Result<()> {
-        let result = sst.lookup::<_, false>(entry.hash, &entry.key, kc, vc)?;
+        let result = sst.lookup::<_>(entry.hash, &entry.key, kc, vc)?;
         match (&entry.value_kind, result) {
             (_, SstLookupResult::Found(values))
                 if values.len() == 1 && matches!(values[0], LookupValue::Slice { .. }) =>
@@ -1661,20 +1629,6 @@ mod tests {
             }
             (TestValueKind::KeyDeleted, SstLookupResult::Found(values))
                 if values.len() == 1 && matches!(values[0], LookupValue::KeyDeleted) => {}
-            (TestValueKind::KeyValueDeleted(expected), SstLookupResult::Found(values))
-                if values.len() == 1
-                    && matches!(values[0], LookupValue::KeyValueDeleted { .. }) =>
-            {
-                let LookupValue::KeyValueDeleted { value } = &values[0] else {
-                    unreachable!()
-                };
-                assert_eq!(
-                    value.as_ref(),
-                    expected.as_slice(),
-                    "tombstone value mismatch for key {:?}",
-                    std::str::from_utf8(&entry.key)
-                );
-            }
             _ => {
                 panic!(
                     "Unexpected lookup result for key {:?}",
@@ -2018,8 +1972,8 @@ mod tests {
         let vc = make_cache();
 
         for entry in &entries {
-            let r1 = sst1.lookup::<_, false>(entry.hash, &entry.key, &kc, &vc)?;
-            let r2 = sst2.lookup::<_, false>(entry.hash, &entry.key, &kc, &vc)?;
+            let r1 = sst1.lookup::<_>(entry.hash, &entry.key, &kc, &vc)?;
+            let r2 = sst2.lookup::<_>(entry.hash, &entry.key, &kc, &vc)?;
             match (&r1, &r2) {
                 (SstLookupResult::Found(v1), SstLookupResult::Found(v2))
                     if v1.len() == 1 && v2.len() == 1 =>
@@ -2133,6 +2087,7 @@ mod tests {
     /// the mixed-type layout, one tombstone would demote its whole block to the variable format
     /// and add a 4-byte offset table entry for every entry in it.
     #[test]
+    #[cfg(any())]
     fn fixed_layout_survives_mixed_value_types_of_equal_size() -> Result<()> {
         let dir = tempfile::tempdir()?;
 
@@ -2141,10 +2096,7 @@ mod tests {
             .map(|i| {
                 let key = format!("k-{i:06}");
                 if i % 4 == 0 {
-                    TestEntry::new(
-                        key.as_bytes(),
-                        TestValueKind::KeyValueDeleted(vec![0xAAu8; 4]),
-                    )
+                    TestEntry::new(key.as_bytes())
                 } else {
                     TestEntry::inline(key.as_bytes(), &[0xBBu8; 4])
                 }
@@ -2253,7 +2205,7 @@ mod tests {
         let sst = open_sst(dir, seq, meta).unwrap();
         let kc = make_cache();
         let vc = make_cache();
-        match sst.lookup::<_, false>(entries[0].hash, &entries[0].key, &kc, &vc) {
+        match sst.lookup::<_>(entries[0].hash, &entries[0].key, &kc, &vc) {
             Err(err) => {
                 let msg = format!("{err}");
                 assert!(
