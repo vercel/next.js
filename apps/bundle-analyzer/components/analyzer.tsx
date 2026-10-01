@@ -40,7 +40,7 @@ import { useAnalyzerRoute } from '@/lib/use-analyzer-route'
 import { computeActiveEntries, computeModuleDepthMap } from '@/lib/module-graph'
 import type { SnapshotMetadata } from '@/lib/snapshot'
 import { formatBytes } from '@/lib/utils'
-import { SizeMode } from '@/lib/treemap-layout'
+import { createAnalyzeTreemapSource, SizeMode } from '@/lib/treemap-layout'
 
 export function SingleAnalyzer() {
   return (
@@ -89,6 +89,7 @@ function AnalyzerFallback({ view }: { view: CompareView }) {
 }
 
 function useAnalyzerModel(compare: boolean) {
+  const [routePickerOpen, setRoutePickerOpen] = useState(false)
   const [selectedSourceIndex, setSelectedSourceIndex] = useState<number | null>(
     null
   )
@@ -293,6 +294,8 @@ function useAnalyzerModel(compare: boolean) {
     compareView: activeView,
     comparisonSnapshot,
     currentRoutes,
+    routePickerOpen,
+    setRoutePickerOpen,
     environmentFilter,
     filterSource,
     focusedSourceIndex,
@@ -362,6 +365,8 @@ function AnalyzerTopBar({
       compareView={model.compareView}
       onCompareViewChange={model.setCompareView}
       selectedRoute={model.selectedRoute}
+      routePickerOpen={model.routePickerOpen}
+      onRoutePickerOpenChange={model.setRoutePickerOpen}
       getRouteHref={model.routeState.getRouteHref}
       setSelectedRoute={model.routeState.setRoute}
       environmentFilter={model.environmentFilter}
@@ -591,6 +596,7 @@ function ComparisonContent({
     isViewPending: model.isViewPending,
     selectedKey: model.compareSelectedKey,
     onSelectedKeyChange: model.setCompareSelectedKey,
+    onOpenRoutePicker: () => model.setRoutePickerOpen(true),
   }
 
   return (
@@ -627,7 +633,8 @@ function SingleAnalyzerContent({
   model: AnalyzerModel
   analyzeData: AnalyzeData
 }) {
-  const rootSourceIndex = getRootSourceIndex(analyzeData)
+  const source = createAnalyzeTreemapSource(analyzeData)
+  const rootSourceIndex = source.rootIndex
   const hasAlternateEnvironmentSources = hasEnvironmentSources(
     analyzeData,
     getAlternateEnvironment(model.environmentFilter),
@@ -665,8 +672,7 @@ function SingleAnalyzerContent({
           </div>
         ) : (
           <TreemapVisualizer
-            analyzeData={analyzeData}
-            sourceIndex={rootSourceIndex}
+            source={source}
             selectedSourceIndex={model.selectedSourceIndex ?? rootSourceIndex}
             onSelectSourceIndex={model.setSelectedSourceIndex}
             focusedSourceIndex={model.focusedSourceIndex ?? rootSourceIndex}
