@@ -43,7 +43,7 @@ interface TreemapVisualizerProps {
   getFileSizeLabel?: (node: LayoutNode) => string | undefined
   /**
    * Optional overlay rendered on top of the treemap canvas. Used by the
-   * compare view to render a red/green legend.
+   * compare view to render a blue/amber delta legend.
    */
   overlay?: React.ReactNode
 }
