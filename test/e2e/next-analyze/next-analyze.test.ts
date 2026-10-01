@@ -137,6 +137,48 @@ describe('next analyze', () => {
           expect(summary.size).toBeGreaterThanOrEqual(0)
           expect(Number.isFinite(summary.compressed_size)).toBe(true)
           expect(summary.compressed_size).toBeGreaterThanOrEqual(0)
+
+          // The summary and analyze.data must account for exactly the same
+          // chunk parts, including shared assets and traced files.
+          const routeDir = summary.route.replace(/^\//, '')
+          const analyzeBuffer = readFileSync(
+            path.join(defaultOutputPath, 'data', routeDir, 'analyze.data')
+          )
+          const header = JSON.parse(
+            analyzeBuffer
+              .subarray(4, 4 + analyzeBuffer.readUInt32BE(0))
+              .toString('utf-8')
+          ) as {
+            output_files: { filename: string }[]
+            chunk_parts: {
+              output_file_index: number
+              size: number
+              compressed_size: number
+            }[]
+          }
+          const totals = {
+            size: 0,
+            compressed_size: 0,
+            client: { size: 0, compressed_size: 0 },
+          }
+          for (const part of header.chunk_parts) {
+            totals.size += part.size
+            totals.compressed_size += part.compressed_size
+            if (
+              header.output_files[part.output_file_index].filename.startsWith(
+                '[client-fs]/'
+              )
+            ) {
+              totals.client.size += part.size
+              totals.client.compressed_size += part.compressed_size
+            }
+          }
+          expect(summary).toMatchObject(totals)
+          expect(
+            header.output_files.some(({ filename }) =>
+              /\.(?:map|nft\.json)$/.test(filename)
+            )
+          ).toBe(false)
         }
 
         const history = JSON.parse(

@@ -34,17 +34,30 @@ import {
   type SnapshotMetadata,
 } from '@/lib/snapshot'
 
-interface BaselinePickerProps {
+interface BaselinePickerOptions {
   /** Selected historical snapshot id, or null for the control's default. */
   selectedSnapshotId: string | null
-  onSelectionChange?: (snapshot: SnapshotMetadata | null) => void
-  getSnapshotHref?: (snapshot: SnapshotMetadata) => string
-  clearHref?: string
   excludedSnapshotId?: string | null
   prefix?: string
   placeholder?: string
   clearLabel?: string
 }
+
+type BaselinePickerProps = BaselinePickerOptions &
+  (
+    | {
+        mode: 'link'
+        getSnapshotHref: (snapshot: SnapshotMetadata) => string
+        clearHref: string
+        onSelectionChange?: never
+      }
+    | {
+        mode: 'action'
+        onSelectionChange: (snapshot: SnapshotMetadata | null) => void
+        clearHref?: string
+        getSnapshotHref?: never
+      }
+  )
 
 /**
  * Top-bar control that lets the user pick one historical analyze snapshot.
@@ -53,16 +66,15 @@ interface BaselinePickerProps {
  * Snapshots are loaded from `history/history.json` — written by
  * `writeAnalyzeSnapshot` after each `next build --analyze`.
  */
-export function BaselinePicker({
-  selectedSnapshotId,
-  onSelectionChange,
-  getSnapshotHref,
-  clearHref,
-  excludedSnapshotId,
-  prefix = 'vs',
-  placeholder = 'Compare with…',
-  clearLabel = 'Stop comparing',
-}: BaselinePickerProps) {
+export function BaselinePicker(props: BaselinePickerProps) {
+  const {
+    selectedSnapshotId,
+    clearHref,
+    excludedSnapshotId,
+    prefix = 'vs',
+    placeholder = 'Compare with…',
+    clearLabel = 'Stop comparing',
+  } = props
   const [open, setOpen] = useState(false)
 
   const { data: history, isLoading, error } = useHistoryIndex()
@@ -189,11 +201,11 @@ export function BaselinePicker({
                       <SnapshotRow snapshot={snapshot} />
                     </>
                   )
-                  return getSnapshotHref ? (
+                  return props.mode === 'link' ? (
                     <CommandLinkItem
                       key={snapshot.id}
                       value={value}
-                      href={getSnapshotHref(snapshot)}
+                      href={props.getSnapshotHref(snapshot)}
                     >
                       {content}
                     </CommandLinkItem>
@@ -202,7 +214,7 @@ export function BaselinePicker({
                       key={snapshot.id}
                       value={value}
                       onSelect={() => {
-                        onSelectionChange?.(snapshot)
+                        props.onSelectionChange(snapshot)
                         setOpen(false)
                       }}
                     >
@@ -223,17 +235,17 @@ export function BaselinePicker({
               <X className="h-3.5 w-3.5" />
             </Link>
           </Button>
-        ) : (
+        ) : props.mode === 'action' ? (
           <Button
             variant="ghost"
             size="icon"
             aria-label={clearLabel}
-            onClick={() => onSelectionChange?.(null)}
+            onClick={() => props.onSelectionChange(null)}
             className="h-8 w-8"
           >
             <X className="h-3.5 w-3.5" />
           </Button>
-        ))}
+        ) : null)}
     </div>
   )
 }

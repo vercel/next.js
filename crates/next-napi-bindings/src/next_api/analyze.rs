@@ -3,8 +3,8 @@ use std::sync::Arc;
 use anyhow::Result;
 use next_api::{
     analyze::{
-        AnalyzeDataOutputAsset, ModulesDataOutputAsset, RouteBundleSummary, combine_output_assets,
-        combine_traced_files, route_bundle_summary,
+        AnalyzeDataOutputAsset, ModulesDataOutputAsset, RouteBundleSummary, analyze_output_assets,
+        combine_output_assets, combine_traced_files,
     },
     project::ProjectContainer,
     route::EndpointGroupKey,
@@ -137,7 +137,9 @@ async fn get_analyze_data_operation(
             let summary = if let EndpointGroupKey::Route(route) = key {
                 Some(RouteSummary {
                     route: route.to_string(),
-                    bundles: *route_bundle_summary(output_assets, traced_files).await?,
+                    bundles: analyze_output_assets(output_assets, traced_files)
+                        .await?
+                        .summary,
                 })
             } else {
                 None
