@@ -293,8 +293,12 @@ describe('loadConfig', () => {
   })
 
   describe('partialPrefetching validation', () => {
-    const warning =
-      '⚠ `cacheComponents` is enabled without `partialPrefetching`. Set `partialPrefetching` to `true` for new projects or `false` only when migrating an older Cache Components app. In the next major release, both features will be enabled together by default. Learn more: https://nextjs.org/docs/app/guides/adopting-partial-prefetching'
+    const warning = [
+      '⚠ `cacheComponents` is enabled without a corresponding `partialPrefetching` option. Set `partialPrefetching` to either `true` or `false`.',
+      "The only reason to set `partialPrefetching` to `false` is if you're migrating an older Cache Components app. The initial release of Cache Components did not include Partial Prefetching. New projects should enable both Cache Components and Partial Prefetching.",
+      'Both Cache Components and Partial Prefetching will be enabled everywhere in the next major release, and the old configurations will be removed.',
+      'Learn more: https://nextjs.org/docs/app/guides/adopting-partial-prefetching',
+    ].join('\n\n')
 
     afterEach(() => {
       jest.restoreAllMocks()

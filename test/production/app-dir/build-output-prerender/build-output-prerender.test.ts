@@ -19,7 +19,13 @@ describe('build-output-prerender', () => {
           if (isTurbopack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (Turbopack)
-             ⚠ \`cacheComponents\` is enabled without \`partialPrefetching\`. Set \`partialPrefetching\` to \`true\` for new projects or \`false\` only when migrating an older Cache Components app. In the next major release, both features will be enabled together by default. Learn more: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
+             ⚠ \`cacheComponents\` is enabled without a corresponding \`partialPrefetching\` option. Set \`partialPrefetching\` to either \`true\` or \`false\`.
+
+             The only reason to set \`partialPrefetching\` to \`false\` is if you're migrating an older Cache Components app. The initial release of Cache Components did not include Partial Prefetching. New projects should enable both Cache Components and Partial Prefetching.
+
+             Both Cache Components and Partial Prefetching will be enabled everywhere in the next major release, and the old configurations will be removed.
+
+             Learn more: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
              ✓ Running next.config.js took N
              - Cache Components enabled
              - Experiments (use with caution):
@@ -30,7 +36,13 @@ describe('build-output-prerender', () => {
           } else if (isRspack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (Rspack)
-             ⚠ \`cacheComponents\` is enabled without \`partialPrefetching\`. Set \`partialPrefetching\` to \`true\` for new projects or \`false\` only when migrating an older Cache Components app. In the next major release, both features will be enabled together by default. Learn more: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
+             ⚠ \`cacheComponents\` is enabled without a corresponding \`partialPrefetching\` option. Set \`partialPrefetching\` to either \`true\` or \`false\`.
+
+             The only reason to set \`partialPrefetching\` to \`false\` is if you're migrating an older Cache Components app. The initial release of Cache Components did not include Partial Prefetching. New projects should enable both Cache Components and Partial Prefetching.
+
+             Both Cache Components and Partial Prefetching will be enabled everywhere in the next major release, and the old configurations will be removed.
+
+             Learn more: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
              ✓ Running next.config.js took N
              - Cache Components enabled
              - Experiments (use with caution):
@@ -40,7 +52,13 @@ describe('build-output-prerender', () => {
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (webpack)
-             ⚠ \`cacheComponents\` is enabled without \`partialPrefetching\`. Set \`partialPrefetching\` to \`true\` for new projects or \`false\` only when migrating an older Cache Components app. In the next major release, both features will be enabled together by default. Learn more: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
+             ⚠ \`cacheComponents\` is enabled without a corresponding \`partialPrefetching\` option. Set \`partialPrefetching\` to either \`true\` or \`false\`.
+
+             The only reason to set \`partialPrefetching\` to \`false\` is if you're migrating an older Cache Components app. The initial release of Cache Components did not include Partial Prefetching. New projects should enable both Cache Components and Partial Prefetching.
+
+             Both Cache Components and Partial Prefetching will be enabled everywhere in the next major release, and the old configurations will be removed.
+
+             Learn more: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
              ✓ Running next.config.js took N
              - Cache Components enabled
              - Experiments (use with caution):
@@ -52,7 +70,13 @@ describe('build-output-prerender', () => {
           if (isTurbopack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (Turbopack)
-             ⚠ \`cacheComponents\` is enabled without \`partialPrefetching\`. Set \`partialPrefetching\` to \`true\` for new projects or \`false\` only when migrating an older Cache Components app. In the next major release, both features will be enabled together by default. Learn more: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
+             ⚠ \`cacheComponents\` is enabled without a corresponding \`partialPrefetching\` option. Set \`partialPrefetching\` to either \`true\` or \`false\`.
+
+             The only reason to set \`partialPrefetching\` to \`false\` is if you're migrating an older Cache Components app. The initial release of Cache Components did not include Partial Prefetching. New projects should enable both Cache Components and Partial Prefetching.
+
+             Both Cache Components and Partial Prefetching will be enabled everywhere in the next major release, and the old configurations will be removed.
+
+             Learn more: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
              ✓ Running next.config.js took N
              - Cache Components enabled
              - Experiments (use with caution):
@@ -62,7 +86,13 @@ describe('build-output-prerender', () => {
           } else if (isRspack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (Rspack)
-             ⚠ \`cacheComponents\` is enabled without \`partialPrefetching\`. Set \`partialPrefetching\` to \`true\` for new projects or \`false\` only when migrating an older Cache Components app. In the next major release, both features will be enabled together by default. Learn more: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
+             ⚠ \`cacheComponents\` is enabled without a corresponding \`partialPrefetching\` option. Set \`partialPrefetching\` to either \`true\` or \`false\`.
+
+             The only reason to set \`partialPrefetching\` to \`false\` is if you're migrating an older Cache Components app. The initial release of Cache Components did not include Partial Prefetching. New projects should enable both Cache Components and Partial Prefetching.
+
+             Both Cache Components and Partial Prefetching will be enabled everywhere in the next major release, and the old configurations will be removed.
+
+             Learn more: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
              ✓ Running next.config.js took N
              - Cache Components enabled
              - Experiments (use with caution):
@@ -71,7 +101,13 @@ describe('build-output-prerender', () => {
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (webpack)
-             ⚠ \`cacheComponents\` is enabled without \`partialPrefetching\`. Set \`partialPrefetching\` to \`true\` for new projects or \`false\` only when migrating an older Cache Components app. In the next major release, both features will be enabled together by default. Learn more: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
+             ⚠ \`cacheComponents\` is enabled without a corresponding \`partialPrefetching\` option. Set \`partialPrefetching\` to either \`true\` or \`false\`.
+
+             The only reason to set \`partialPrefetching\` to \`false\` is if you're migrating an older Cache Components app. The initial release of Cache Components did not include Partial Prefetching. New projects should enable both Cache Components and Partial Prefetching.
+
+             Both Cache Components and Partial Prefetching will be enabled everywhere in the next major release, and the old configurations will be removed.
+
+             Learn more: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
              ✓ Running next.config.js took N
              - Cache Components enabled
              - Experiments (use with caution):
@@ -147,7 +183,13 @@ describe('build-output-prerender', () => {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
              ▲ Next.js x.y.z (Turbopack)
-             ⚠ \`cacheComponents\` is enabled without \`partialPrefetching\`. Set \`partialPrefetching\` to \`true\` for new projects or \`false\` only when migrating an older Cache Components app. In the next major release, both features will be enabled together by default. Learn more: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
+             ⚠ \`cacheComponents\` is enabled without a corresponding \`partialPrefetching\` option. Set \`partialPrefetching\` to either \`true\` or \`false\`.
+
+             The only reason to set \`partialPrefetching\` to \`false\` is if you're migrating an older Cache Components app. The initial release of Cache Components did not include Partial Prefetching. New projects should enable both Cache Components and Partial Prefetching.
+
+             Both Cache Components and Partial Prefetching will be enabled everywhere in the next major release, and the old configurations will be removed.
+
+             Learn more: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
              ✓ Running next.config.js took N
              - Cache Components enabled
              - Experiments (use with caution):
@@ -163,7 +205,13 @@ describe('build-output-prerender', () => {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
              ▲ Next.js x.y.z (Rspack)
-             ⚠ \`cacheComponents\` is enabled without \`partialPrefetching\`. Set \`partialPrefetching\` to \`true\` for new projects or \`false\` only when migrating an older Cache Components app. In the next major release, both features will be enabled together by default. Learn more: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
+             ⚠ \`cacheComponents\` is enabled without a corresponding \`partialPrefetching\` option. Set \`partialPrefetching\` to either \`true\` or \`false\`.
+
+             The only reason to set \`partialPrefetching\` to \`false\` is if you're migrating an older Cache Components app. The initial release of Cache Components did not include Partial Prefetching. New projects should enable both Cache Components and Partial Prefetching.
+
+             Both Cache Components and Partial Prefetching will be enabled everywhere in the next major release, and the old configurations will be removed.
+
+             Learn more: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
              ✓ Running next.config.js took N
              - Cache Components enabled
              - Experiments (use with caution):
@@ -178,7 +226,13 @@ describe('build-output-prerender', () => {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
              ▲ Next.js x.y.z (webpack)
-             ⚠ \`cacheComponents\` is enabled without \`partialPrefetching\`. Set \`partialPrefetching\` to \`true\` for new projects or \`false\` only when migrating an older Cache Components app. In the next major release, both features will be enabled together by default. Learn more: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
+             ⚠ \`cacheComponents\` is enabled without a corresponding \`partialPrefetching\` option. Set \`partialPrefetching\` to either \`true\` or \`false\`.
+
+             The only reason to set \`partialPrefetching\` to \`false\` is if you're migrating an older Cache Components app. The initial release of Cache Components did not include Partial Prefetching. New projects should enable both Cache Components and Partial Prefetching.
+
+             Both Cache Components and Partial Prefetching will be enabled everywhere in the next major release, and the old configurations will be removed.
+
+             Learn more: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
              ✓ Running next.config.js took N
              - Cache Components enabled
              - Experiments (use with caution):
@@ -195,7 +249,13 @@ describe('build-output-prerender', () => {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
              ▲ Next.js x.y.z (Turbopack)
-             ⚠ \`cacheComponents\` is enabled without \`partialPrefetching\`. Set \`partialPrefetching\` to \`true\` for new projects or \`false\` only when migrating an older Cache Components app. In the next major release, both features will be enabled together by default. Learn more: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
+             ⚠ \`cacheComponents\` is enabled without a corresponding \`partialPrefetching\` option. Set \`partialPrefetching\` to either \`true\` or \`false\`.
+
+             The only reason to set \`partialPrefetching\` to \`false\` is if you're migrating an older Cache Components app. The initial release of Cache Components did not include Partial Prefetching. New projects should enable both Cache Components and Partial Prefetching.
+
+             Both Cache Components and Partial Prefetching will be enabled everywhere in the next major release, and the old configurations will be removed.
+
+             Learn more: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
              ✓ Running next.config.js took N
              - Cache Components enabled
              - Experiments (use with caution):
@@ -210,7 +270,13 @@ describe('build-output-prerender', () => {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
              ▲ Next.js x.y.z (Rspack)
-             ⚠ \`cacheComponents\` is enabled without \`partialPrefetching\`. Set \`partialPrefetching\` to \`true\` for new projects or \`false\` only when migrating an older Cache Components app. In the next major release, both features will be enabled together by default. Learn more: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
+             ⚠ \`cacheComponents\` is enabled without a corresponding \`partialPrefetching\` option. Set \`partialPrefetching\` to either \`true\` or \`false\`.
+
+             The only reason to set \`partialPrefetching\` to \`false\` is if you're migrating an older Cache Components app. The initial release of Cache Components did not include Partial Prefetching. New projects should enable both Cache Components and Partial Prefetching.
+
+             Both Cache Components and Partial Prefetching will be enabled everywhere in the next major release, and the old configurations will be removed.
+
+             Learn more: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
              ✓ Running next.config.js took N
              - Cache Components enabled
              - Experiments (use with caution):
@@ -224,7 +290,13 @@ describe('build-output-prerender', () => {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
              ▲ Next.js x.y.z (webpack)
-             ⚠ \`cacheComponents\` is enabled without \`partialPrefetching\`. Set \`partialPrefetching\` to \`true\` for new projects or \`false\` only when migrating an older Cache Components app. In the next major release, both features will be enabled together by default. Learn more: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
+             ⚠ \`cacheComponents\` is enabled without a corresponding \`partialPrefetching\` option. Set \`partialPrefetching\` to either \`true\` or \`false\`.
+
+             The only reason to set \`partialPrefetching\` to \`false\` is if you're migrating an older Cache Components app. The initial release of Cache Components did not include Partial Prefetching. New projects should enable both Cache Components and Partial Prefetching.
+
+             Both Cache Components and Partial Prefetching will be enabled everywhere in the next major release, and the old configurations will be removed.
+
+             Learn more: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
              ✓ Running next.config.js took N
              - Cache Components enabled
              - Experiments (use with caution):
@@ -353,7 +425,13 @@ describe('build-output-prerender', () => {
           if (isTurbopack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (Turbopack)
-             ⚠ \`cacheComponents\` is enabled without \`partialPrefetching\`. Set \`partialPrefetching\` to \`true\` for new projects or \`false\` only when migrating an older Cache Components app. In the next major release, both features will be enabled together by default. Learn more: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
+             ⚠ \`cacheComponents\` is enabled without a corresponding \`partialPrefetching\` option. Set \`partialPrefetching\` to either \`true\` or \`false\`.
+
+             The only reason to set \`partialPrefetching\` to \`false\` is if you're migrating an older Cache Components app. The initial release of Cache Components did not include Partial Prefetching. New projects should enable both Cache Components and Partial Prefetching.
+
+             Both Cache Components and Partial Prefetching will be enabled everywhere in the next major release, and the old configurations will be removed.
+
+             Learn more: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
              ✓ Running next.config took N
              - Cache Components enabled
              - Experiments (use with caution):
@@ -363,7 +441,13 @@ describe('build-output-prerender', () => {
           } else if (isRspack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (Rspack)
-             ⚠ \`cacheComponents\` is enabled without \`partialPrefetching\`. Set \`partialPrefetching\` to \`true\` for new projects or \`false\` only when migrating an older Cache Components app. In the next major release, both features will be enabled together by default. Learn more: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
+             ⚠ \`cacheComponents\` is enabled without a corresponding \`partialPrefetching\` option. Set \`partialPrefetching\` to either \`true\` or \`false\`.
+
+             The only reason to set \`partialPrefetching\` to \`false\` is if you're migrating an older Cache Components app. The initial release of Cache Components did not include Partial Prefetching. New projects should enable both Cache Components and Partial Prefetching.
+
+             Both Cache Components and Partial Prefetching will be enabled everywhere in the next major release, and the old configurations will be removed.
+
+             Learn more: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
              ✓ Running next.config took N
              - Cache Components enabled
              - Experiments (use with caution):
@@ -372,7 +456,13 @@ describe('build-output-prerender', () => {
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (webpack)
-             ⚠ \`cacheComponents\` is enabled without \`partialPrefetching\`. Set \`partialPrefetching\` to \`true\` for new projects or \`false\` only when migrating an older Cache Components app. In the next major release, both features will be enabled together by default. Learn more: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
+             ⚠ \`cacheComponents\` is enabled without a corresponding \`partialPrefetching\` option. Set \`partialPrefetching\` to either \`true\` or \`false\`.
+
+             The only reason to set \`partialPrefetching\` to \`false\` is if you're migrating an older Cache Components app. The initial release of Cache Components did not include Partial Prefetching. New projects should enable both Cache Components and Partial Prefetching.
+
+             Both Cache Components and Partial Prefetching will be enabled everywhere in the next major release, and the old configurations will be removed.
+
+             Learn more: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
              ✓ Running next.config took N
              - Cache Components enabled
              - Experiments (use with caution):
@@ -420,7 +510,13 @@ describe('build-output-prerender', () => {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
              ▲ Next.js x.y.z (Turbopack)
-             ⚠ \`cacheComponents\` is enabled without \`partialPrefetching\`. Set \`partialPrefetching\` to \`true\` for new projects or \`false\` only when migrating an older Cache Components app. In the next major release, both features will be enabled together by default. Learn more: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
+             ⚠ \`cacheComponents\` is enabled without a corresponding \`partialPrefetching\` option. Set \`partialPrefetching\` to either \`true\` or \`false\`.
+
+             The only reason to set \`partialPrefetching\` to \`false\` is if you're migrating an older Cache Components app. The initial release of Cache Components did not include Partial Prefetching. New projects should enable both Cache Components and Partial Prefetching.
+
+             Both Cache Components and Partial Prefetching will be enabled everywhere in the next major release, and the old configurations will be removed.
+
+             Learn more: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
              ✓ Running next.config took N
              - Cache Components enabled
              - Experiments (use with caution):
@@ -435,7 +531,13 @@ describe('build-output-prerender', () => {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
              ▲ Next.js x.y.z (Rspack)
-             ⚠ \`cacheComponents\` is enabled without \`partialPrefetching\`. Set \`partialPrefetching\` to \`true\` for new projects or \`false\` only when migrating an older Cache Components app. In the next major release, both features will be enabled together by default. Learn more: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
+             ⚠ \`cacheComponents\` is enabled without a corresponding \`partialPrefetching\` option. Set \`partialPrefetching\` to either \`true\` or \`false\`.
+
+             The only reason to set \`partialPrefetching\` to \`false\` is if you're migrating an older Cache Components app. The initial release of Cache Components did not include Partial Prefetching. New projects should enable both Cache Components and Partial Prefetching.
+
+             Both Cache Components and Partial Prefetching will be enabled everywhere in the next major release, and the old configurations will be removed.
+
+             Learn more: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
              ✓ Running next.config took N
              - Cache Components enabled
              - Experiments (use with caution):
@@ -449,7 +551,13 @@ describe('build-output-prerender', () => {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
              ▲ Next.js x.y.z (webpack)
-             ⚠ \`cacheComponents\` is enabled without \`partialPrefetching\`. Set \`partialPrefetching\` to \`true\` for new projects or \`false\` only when migrating an older Cache Components app. In the next major release, both features will be enabled together by default. Learn more: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
+             ⚠ \`cacheComponents\` is enabled without a corresponding \`partialPrefetching\` option. Set \`partialPrefetching\` to either \`true\` or \`false\`.
+
+             The only reason to set \`partialPrefetching\` to \`false\` is if you're migrating an older Cache Components app. The initial release of Cache Components did not include Partial Prefetching. New projects should enable both Cache Components and Partial Prefetching.
+
+             Both Cache Components and Partial Prefetching will be enabled everywhere in the next major release, and the old configurations will be removed.
+
+             Learn more: https://nextjs.org/docs/app/guides/adopting-partial-prefetching
              ✓ Running next.config took N
              - Cache Components enabled
              - Experiments (use with caution):
