@@ -238,8 +238,10 @@ export class PatchedFileRef {
   }
 }
 
-/** Prepare a copied Next.js config with test flags in deploy mode only. */
-export function nextConfigFileRef(path: string): PatchedFileRef {
+/** Patch a copied file with captured test env assignments in deploy mode only. */
+export function patchFileWithDeployEnvAssignments(
+  path: string
+): PatchedFileRef {
   return new PatchedFileRef(path, (content) =>
     isNextDeploy ? getDeploymentTestEnvAssignments() + content : content
   )
