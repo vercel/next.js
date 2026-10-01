@@ -1,6 +1,5 @@
-// A local-only module should keep one identity when its namespace escapes: splitting it merely
-// for export mangling makes a dynamic import target a facade while named imports use locals.
-// The public namespace must still expose the original export names.
+// Explicitly opt out of materialized-namespace mangling to retain one module identity for
+// mixed dynamic and static imports. The public namespace still exposes the original names.
 
 import { ENUM_A, exportsInfo } from './enums'
 import { getEnums } from './provider'

@@ -1,3 +1,4 @@
+// Exercise the execution harness's default-on materialized namespace option.
 import { ENUM_A, exportsInfo } from './enums'
 import { getEnums } from './provider'
 
