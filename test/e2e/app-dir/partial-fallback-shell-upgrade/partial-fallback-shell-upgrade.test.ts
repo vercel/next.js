@@ -34,7 +34,7 @@ function createSplitHTMLFetcher(next: NextInstance) {
 // eligibility and upgrade behavior asserted here.
 // @force-gate !deploy || adapter
 describe('partial-fallback-shell-upgrade', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next, isNextDev, isNextDeploy } = nextTestSetup({
     // Deployed shell upgrades require `partialFallback` metadata, which the
     // adapter only emits when Partial Prefetching is enabled in the fixture.
     files: path.join(__dirname, 'fixtures', 'default'),
@@ -46,6 +46,130 @@ describe('partial-fallback-shell-upgrade', () => {
   }
 
   const fetchSplitHTML = createSplitHTMLFetcher(next)
+
+  async function fetchBlockingShell(one: string, two: string) {
+    const result = await fetchSplitHTML(`/blocking/${one}/${two}`)
+    const renderedAt = result.static$('#one').attr('data-rendered-at')
+
+    // The generic shell is empty. Even the first response must contain the
+    // completed shell, with only the never-prerenderable param deferred.
+    expect(result.static$('#one').text()).toBe(one)
+    expect(renderedAt).toMatch(/^\d+(?:\.\d+)?$/)
+    expect(result.static$('#two').length).toBe(0)
+    expect(result.static$('#two-fallback').text()).toBe('loading two...')
+    expect(result.dynamicPart).toContain(`<div id="two">${two}</div>`)
+
+    return { ...result, renderedAt: renderedAt! }
+  }
+
+  async function prefetchBlockingShell(one: string, two: string) {
+    const response = await next.fetch(`/blocking/${one}/${two}`, {
+      headers: {
+        rsc: '1',
+        'next-router-prefetch': '1',
+        'next-router-segment-prefetch': '/_full',
+      },
+    })
+    expect(response.status).toBe(200)
+    expect(response.headers.get('content-type')).toContain('text/x-component')
+
+    const body = await response.text()
+    expect(body).toContain(one)
+    expect(body).toContain('"id":"two-fallback"')
+    expect(body).not.toContain('"id":"two"')
+    const renderedAt = body.match(/"data-rendered-at":"(\d+(?:\.\d+)?)"/)?.[1]
+    expect(renderedAt).toBeDefined()
+    return renderedAt!
+  }
+
+  async function waitForDeployedShell(one: string, renderedAt: string) {
+    if (isNextDeploy) {
+      // Allow the platform cache write to propagate, without retrying the
+      // cold-response assertions or accepting a different rendered shell.
+      await retry(async () => {
+        const result = await fetchBlockingShell(one, 'foo')
+        expect(result.response.headers.get('x-vercel-cache')).toBe('HIT')
+        expect(result.renderedAt).toBe(renderedAt)
+      })
+    }
+  }
+
+  it('caches the first blocking response as a shell shared across dynamic params', async () => {
+    const one = `document-${randomUUID()}`
+    const first = await fetchBlockingShell(one, 'foo')
+
+    if (isNextDeploy) {
+      expect(first.response.headers.get('x-vercel-cache')).toBe('MISS')
+    } else {
+      // Keep this fixture on the blocking path even if build-time shell
+      // classification changes. Deployments expose this contract as MISS.
+      const manifest = await next.readJSON('.next/prerender-manifest.json')
+      const generic = manifest.dynamicRoutes['/blocking/[one]/[two]']
+      expect(generic.fallback).toBeNull()
+      expect(generic.fallbackRootParams ?? []).toEqual([])
+      expect(generic.remainingPrerenderableParams).toEqual([
+        expect.objectContaining({ paramName: 'one' }),
+      ])
+    }
+
+    await waitForDeployedShell(one, first.renderedAt)
+
+    const sibling = await fetchBlockingShell(one, 'bar')
+    expect(sibling.renderedAt).toBe(first.renderedAt)
+    expect(sibling.dynamicPart).not.toContain('<div id="two">foo</div>')
+  })
+
+  // Vercel serves a generic shell to cold static prefetches: NAR-945.
+  // @gate !deploy
+  it('caches a blocking shell when a static prefetch arrives first', async () => {
+    const one = `prefetch-${randomUUID()}`
+    const renderedAt = await prefetchBlockingShell(one, 'foo')
+    await waitForDeployedShell(one, renderedAt)
+
+    const sibling = await fetchBlockingShell(one, 'bar')
+    expect(sibling.renderedAt).toBe(renderedAt)
+    expect(sibling.dynamicPart).not.toContain('<div id="two">foo</div>')
+    expect(await prefetchBlockingShell(one, 'baz')).toBe(renderedAt)
+  })
+
+  async function testBlockingShellRevalidation(
+    firstRequest: 'document' | 'prefetch'
+  ) {
+    const one = `revalidate-${firstRequest}-${randomUUID()}`
+    const renderedAt =
+      firstRequest === 'prefetch'
+        ? await prefetchBlockingShell(one, 'foo')
+        : (await fetchBlockingShell(one, 'foo')).renderedAt
+    await waitForDeployedShell(one, renderedAt)
+
+    const response = await next.fetch(
+      `/api/revalidate?path=${encodeURIComponent(`/blocking/${one}/foo`)}`
+    )
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ revalidated: true })
+
+    await retry(async () => {
+      const revalidated = await fetchBlockingShell(one, 'foo')
+      expect(revalidated.renderedAt).not.toBe(renderedAt)
+
+      const sibling = await fetchBlockingShell(one, 'bar')
+      expect(sibling.renderedAt).toBe(revalidated.renderedAt)
+      expect(sibling.dynamicPart).not.toContain('<div id="two">foo</div>')
+      expect(await prefetchBlockingShell(one, 'baz')).toBe(
+        revalidated.renderedAt
+      )
+    })
+  }
+
+  it('keeps dynamic params deferred after revalidating a blocking shell first requested by document', async () => {
+    await testBlockingShellRevalidation('document')
+  })
+
+  // The first prefetch hits the same Vercel cold-shell bug: NAR-945.
+  // @gate !deploy
+  it('keeps dynamic params deferred after revalidating a blocking shell first requested by prefetch', async () => {
+    await testBlockingShellRevalidation('prefetch')
+  })
 
   it('should upgrade the fallback shell to a route shell', async () => {
     const pathname = '/two'
