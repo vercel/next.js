@@ -1,4 +1,4 @@
-export const unstable_ensureStatic = 'navigation'
+export const ensureStatic = 'navigation'
 
 export default function Page() {
   return <main>Page</main>
