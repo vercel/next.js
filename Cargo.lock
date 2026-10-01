@@ -9476,6 +9476,7 @@ dependencies = [
  "turbopack-resolve",
  "turbopack-static",
  "turbopack-wasm",
+ "url",
 ]
 
 [[package]]
