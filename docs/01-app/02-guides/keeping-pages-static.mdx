@@ -72,7 +72,7 @@ export default function StoreLayout({ children }: LayoutProps<'/store'>) {
 }
 ```
 
-A default `<Link>` into the store loads this shell from static output. If a later change adds request-specific content behind `<Suspense>`, that content renders during a per-link prefetch or navigation instead of making the shell render per request.
+A default `<Link>` into the store loads this shell from static output. If a later change adds request-specific content behind `<Suspense>`, that content renders during a per-link prefetch or navigation instead of making the shell render per request. Request-specific content outside `<Suspense>` is reported by [Instant Navigation validation](/docs/messages/instant-navigation-validation).
 
 For one subtree, awaiting [`prefetch()`](/docs/app/api-reference/functions/prefetch) inside `<Suspense>` defers the work below it to a per-link prefetch or navigation. Setting `ensureStatic = 'shell'` applies the requirement to the whole route instead. See [Defer work to a later stage](/docs/app/guides/optimizing-prefetching#defer-work-to-a-later-stage) for the per-subtree controls.
 
