@@ -12,7 +12,6 @@ import type { NextParsedUrlQuery } from './request-meta'
 import type { SizeLimit } from '../types'
 import type { SupportedTestRunners } from '../cli/next-test'
 import { INFINITE_CACHE } from '../lib/constants'
-import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
 import type { FallbackRouteParam } from '../build/static-paths/types'
 import type { MemoryEvictionMode, TurbopackGcOptions } from '../build/swc/types'
 import type { CacheLife } from './use-cache/cache-life'
@@ -41,6 +40,7 @@ export type NextConfigComplete = Required<
   Omit<
     NextConfig,
     | 'configFile'
+    | 'generateBuildId'
     | 'cacheLife'
     | 'expireTime'
     | 'output'
@@ -52,6 +52,7 @@ export type NextConfigComplete = Required<
   // Don't apply `Required<>` for these properties. They really can be undefined in the finalized config.
   Pick<
     NextConfig,
+    | 'generateBuildId'
     | 'cacheLife'
     | 'expireTime'
     | 'output'
@@ -878,8 +879,7 @@ export interface ExperimentalConfig {
   /**
    * Share the browser runtime across routes in a single `runtime.js` asset and inline the
    * per-route chunk-group bootstrap into the HTML, dropping the per-route runtime. Defaults to
-   * true on canary releases and false on stable releases. Only applies to production builds; has
-   * no effect in development mode.
+   * true. Only applies to production builds; has no effect in development mode.
    */
   turbopackSharedRuntime?: boolean
 
@@ -1089,7 +1089,7 @@ export interface ExperimentalConfig {
    * can be observed by user code (a namespace object that escapes, a dynamic `import()`, a
    * CommonJS `require()`) keeps its original names.
    *
-   * Defaults to `false`
+   * Defaults to `true` for production builds and `false` in development.
    */
   turbopackMangleExportNames?: boolean
 
@@ -2278,7 +2278,6 @@ export const defaultConfig = Object.freeze({
   cacheMaxMemorySize: 50 * 1024 * 1024,
   configOrigin: 'default',
   useFileSystemPublicRoutes: true,
-  generateBuildId: () => null,
   generateEtags: true,
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
   instrumentationClientInject: [],
@@ -2470,11 +2469,11 @@ export const defaultConfig = Object.freeze({
     turbopackStaleOutputMaxAge: 7 * 24 * 60 * 60 * 1000, // One week
     turbopackInferModuleSideEffects: true,
     turbopackPluginRuntimeStrategy: 'childProcesses',
-    turbopackSharedRuntime: !isStableBuild(),
-    // Pinned off for stable releases. Left unset on canary so the Turbopack side picks the
-    // default from the build mode (on for production builds, off in development) — see
-    // `NextConfig::turbopack_mangle_export_names`. An explicit value always wins either way.
-    turbopackMangleExportNames: isStableBuild() ? false : undefined,
+    turbopackSharedRuntime: true,
+    // Left unset so the Turbopack side picks the default from the build mode (on for production
+    // builds, off in development) — see `NextConfig::turbopack_mangle_export_names`. An explicit
+    // value always wins either way.
+    turbopackMangleExportNames: undefined,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,

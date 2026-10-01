@@ -63,7 +63,10 @@ import type { PageExtensions } from './page-extensions-type'
 import type { FallbackMode } from '../lib/fallback'
 import type { OutgoingHttpHeaders } from 'http'
 import type { AppSegmentConfig } from './segment-config/app/app-segment-config'
-import type { AppSegment } from './segment-config/app/app-segments'
+import type {
+  AppSegment,
+  ParamMatching,
+} from './segment-config/app/app-segments'
 import { collectSegments } from './segment-config/app/app-segments'
 import { createIncrementalCache } from '../export/helpers/create-incremental-cache'
 import { collectRootParamKeys } from './segment-config/app/collect-root-param-keys'
@@ -79,7 +82,11 @@ import type {
   AppRouteModule,
   AppRouteRouteModule,
 } from '../server/route-modules/app-route/module'
-import type { FunctionsConfigManifest, ManifestRoute } from './index'
+import type {
+  FunctionsConfigManifest,
+  ManifestRoute,
+  PrerenderManifest,
+} from './index'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { parseNormalizedAppRoute } from '../shared/lib/router/routes/app'
 import { getStaticMetadataPrerenderPathname } from '../lib/metadata/get-metadata-route'
@@ -593,6 +600,93 @@ export async function printTreeView(
   print()
 }
 
+type PrerenderMatcherDigestEntry = {
+  behavior: 'not-found' | 'blocking' | 'fallback' | 'prerender'
+  pathname: string
+}
+
+function countDynamicSegments(pathname: string): number {
+  return pathname.match(/\[[^/]+\]/g)?.length ?? 0
+}
+
+/** Prints the concrete request matchers emitted for the experimental API. */
+export function printPrerenderMatchers(
+  prerenderManifest: Pick<PrerenderManifest, 'routes' | 'dynamicRoutes'>,
+  emittedDynamicRoutes: ReadonlyArray<DynamicManifestRoute>
+): void {
+  const sourceRoutes = new Set<string>()
+  for (const route of Object.values(prerenderManifest.dynamicRoutes)) {
+    if (route.fallbackSourceRoute) {
+      sourceRoutes.add(route.fallbackSourceRoute)
+    }
+  }
+  for (const route of Object.values(prerenderManifest.routes)) {
+    if (route.srcRoute) {
+      sourceRoutes.add(route.srcRoute)
+    }
+  }
+
+  if (sourceRoutes.size === 0) return
+
+  print(underline('Experimental parameter matching'))
+  print('More-specific rows override broader rows for the same request.')
+  print()
+
+  for (const sourceRoute of [...sourceRoutes].sort()) {
+    const matchers = Object.entries(prerenderManifest.dynamicRoutes)
+      .filter(
+        ([pathname, route]) =>
+          pathname === sourceRoute || route.fallbackSourceRoute === sourceRoute
+      )
+      .map<PrerenderMatcherDigestEntry>(([pathname, route]) => ({
+        behavior:
+          route.fallback === false
+            ? 'not-found'
+            : route.fallback === null
+              ? 'blocking'
+              : 'fallback',
+        pathname,
+      }))
+      .sort(
+        (a, b) =>
+          countDynamicSegments(b.pathname) - countDynamicSegments(a.pathname) ||
+          a.pathname.localeCompare(b.pathname)
+      )
+
+    const prerenders = Object.entries(prerenderManifest.routes)
+      .filter(([, route]) => route.srcRoute === sourceRoute)
+      .map<PrerenderMatcherDigestEntry>(([pathname]) => ({
+        behavior: 'prerender',
+        pathname,
+      }))
+      .sort((a, b) => a.pathname.localeCompare(b.pathname))
+
+    const entries = [...matchers, ...prerenders]
+    const width = Math.max(...entries.map(({ behavior }) => behavior.length))
+    print(sourceRoute)
+    entries.forEach(({ behavior, pathname }, index) => {
+      print(
+        `  ${index === entries.length - 1 ? '└' : '├'} ${behavior.padEnd(width)}  ${pathname}`
+      )
+    })
+    print()
+  }
+
+  print(underline('Emitted dynamic route patterns'))
+  print('These are the patterns available to deployment routing metadata.')
+  print()
+  for (const sourceRoute of [...sourceRoutes].sort()) {
+    const patterns = emittedDynamicRoutes.filter(
+      (route) => route.page === sourceRoute || route.sourcePage === sourceRoute
+    )
+    print(`${sourceRoute} (${patterns.length})`)
+    patterns.forEach((route, index) => {
+      print(`  ${index === patterns.length - 1 ? '└' : '├'} ${route.page}`)
+    })
+    print()
+  }
+}
+
 export function printCustomRoutes({
   redirects,
   rewrites,
@@ -678,6 +772,7 @@ type PageIsStaticResult = {
   hasStaticProps?: boolean
   prerenderedRoutes: PrerenderedRoute[] | undefined
   prerenderRouteMatchers: PrerenderRouteMatcher[] | undefined
+  paramMatching: ParamMatching | undefined
   prerenderFallbackMode: FallbackMode | undefined
   rootParamKeys: readonly string[] | undefined
   isNextImageImported?: boolean
@@ -753,6 +848,7 @@ export async function isPageStatic({
       prerenderFallbackMode: undefined,
       prerenderedRoutes: undefined,
       prerenderRouteMatchers: undefined,
+      paramMatching: undefined,
       rootParamKeys: undefined,
       hasStaticProps: false,
       hasServerProps: false,
@@ -780,6 +876,7 @@ export async function isPageStatic({
       let componentsResult: LoadComponentsReturnType
       let prerenderedRoutes: PrerenderedRoute[] | undefined
       let prerenderRouteMatchers: PrerenderRouteMatcher[] | undefined
+      let paramMatching: ParamMatching | undefined
       let prerenderFallbackMode: FallbackMode | undefined
       let appConfig: AppSegmentConfig = {}
       let rootParamKeys: readonly string[] | undefined
@@ -843,9 +940,9 @@ export async function isPageStatic({
         const ComponentMod: AppPageModule | AppRouteModule =
           componentsResult.ComponentMod
 
-        let segments: AppSegment[]
+        let collectedSegments: Awaited<ReturnType<typeof collectSegments>>
         try {
-          segments = await collectSegments(
+          collectedSegments = await collectSegments(
             // We know this is an app page or app route module because we
             // checked above that the page type is 'app'.
             routeModule as AppPageRouteModule | AppRouteRouteModule,
@@ -856,6 +953,7 @@ export async function isPageStatic({
             cause: err,
           })
         }
+        const { segments, segmentTree } = collectedSegments
 
         appConfig =
           originalAppPath === UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY
@@ -878,7 +976,7 @@ export async function isPageStatic({
         const isEnsureStaticPage =
           cacheComponents &&
           isRoutePPREnabled &&
-          appConfig.unstable_ensureStatic === 'navigation'
+          appConfig.ensureStatic === 'navigation'
 
         // If force dynamic was set and we don't have PPR enabled, then set the
         // revalidate to 0.
@@ -908,6 +1006,7 @@ export async function isPageStatic({
             ;({
               prerenderedRoutes,
               prerenderRouteMatchers,
+              paramMatching,
               fallbackMode: prerenderFallbackMode,
             } = await buildAppStaticPaths({
               dir,
@@ -919,6 +1018,7 @@ export async function isPageStatic({
               durableUseCacheEntries,
               staticPageGenerationTimeout,
               segments,
+              segmentTree,
               distDir,
               requestHeaders: {},
               isrFlushToDisk,
@@ -1006,6 +1106,7 @@ export async function isPageStatic({
         prerenderFallbackMode,
         prerenderedRoutes,
         prerenderRouteMatchers,
+        paramMatching,
         rootParamKeys,
         hasStaticProps,
         hasServerProps,
@@ -1031,7 +1132,7 @@ type ReducedAppConfig = Pick<
   | 'runtime'
   | 'maxDuration'
   | 'prefetch'
-  | 'unstable_ensureStatic'
+  | 'ensureStatic'
 >
 
 /**
@@ -1055,7 +1156,7 @@ export function reduceAppConfig(
       runtime,
       maxDuration,
       prefetch,
-      unstable_ensureStatic,
+      ensureStatic,
     } = segment.config || {}
 
     // TODO: should conflicting configs here throw an error
@@ -1099,8 +1200,8 @@ export function reduceAppConfig(
     if (typeof prefetch !== 'undefined') {
       config.prefetch = prefetch
     }
-    if (typeof unstable_ensureStatic !== 'undefined') {
-      config.unstable_ensureStatic = unstable_ensureStatic
+    if (typeof ensureStatic !== 'undefined') {
+      config.ensureStatic = ensureStatic
     }
   }
 
