@@ -138,10 +138,6 @@ if (!e2eGlobal.__NEXT_E2E_TEST_CONFIG_PATCHED__) {
     if (typeof global.test === 'function') {
       global.test = wrapJestTestFn(global.test) as jest.It
     }
-
-    if (process.env.NEXT_TEST_CI && !process.env.NEXT_FLAKE_DETECTION) {
-      jest.retryTimes(1)
-    }
   }
 
   e2eGlobal.__NEXT_E2E_TEST_CONFIG_PATCHED__ = true

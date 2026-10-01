@@ -92,12 +92,9 @@ import { findAllTelemetryEvents } from 'next-test-utils'
     expect(stdout).toMatch(/Status: Disabled/)
   })
   ;(isNextStart ? describe : describe.skip)('production mode', () => {
-    // Tests in this block run a full `next build` per test. With a custom
-    // `.babelrc` webpack switches off SWC and the build can take 60s+,
-    // exceeding Jest's default 60s timeout. When the test times out, the
-    // build process keeps running, so the auto-retry (jest.retryTimes(1) in
-    // CI start mode) and subsequent tests see `this.childProcess` still set
-    // and throw "can not run export while server is running".
+    // Allow time for a full `next build` in each test. Webpack disables SWC
+    // with a custom `.babelrc`, so the build can exceed the default 60s
+    // per-test timeout.
     jest.setTimeout(180 * 1000)
 
     it('emits event when swc fails to load', async () => {
