@@ -120,6 +120,10 @@ pub struct ClientReferenceManifest {
     pub entry_name: RcStr,
     pub client_references: ResolvedVc<ClientReferenceGraphResult>,
     pub client_references_chunks: ResolvedVc<ClientReferencesChunks>,
+    /// The page's HMR chunk list (empty when HMR is disabled). It is listed with every client
+    /// reference so that a client-side navigation to the page loads it, which subscribes the
+    /// browser to updates for the page's client reference chunks.
+    pub page_hmr_chunk_lists: ResolvedVc<OutputAssets>,
     pub client_chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     pub ssr_chunking_context: Option<ResolvedVc<Box<dyn ChunkingContext>>>,
     pub async_module_info: ResolvedVc<AsyncModulesInfo>,
@@ -176,6 +180,7 @@ async fn build_manifest(
         entry_name,
         client_references,
         client_references_chunks,
+        page_hmr_chunk_lists,
         client_chunking_context,
         ssr_chunking_context,
         async_module_info,
@@ -209,6 +214,29 @@ async fn build_manifest(
         } = &*client_references_chunks.await?;
         let client_relative_path = client_relative_path.clone();
         let node_root_ref = node_root.clone();
+
+        // Must produce the URL the Turbopack browser runtime builds for the same path
+        // (`getChunkRelativeUrl`), since chunk loads are tracked by URL.
+        let client_chunk_url = |path: &str| {
+            RcStr::from(format!(
+                "{}{}{}",
+                prefix_path,
+                path.split('/').map(encode_uri_component).format("/"),
+                suffix_path
+            ))
+        };
+
+        // Without this, the page's HMR chunk list is only loaded by the server-rendered HTML,
+        // so a page reached by client-side navigation never subscribes to updates for its
+        // client components.
+        let mut page_hmr_chunk_list_urls = Vec::new();
+        for chunk_list in page_hmr_chunk_lists.await?.iter() {
+            let chunk_list_path = chunk_list.path().await?;
+            if let Some(path) = client_relative_path.get_path_to(&chunk_list_path) {
+                references.insert(*chunk_list);
+                page_hmr_chunk_list_urls.push(ClientChunk::Path(client_chunk_url(path)));
+            }
+        }
 
         let client_references_ecmascript = client_references
             .await?
@@ -316,15 +344,10 @@ async fn build_manifest(
                     client_reference_chunk_paths.insert(RcStr::from(path.as_str()));
                 }
 
-                let chunk_paths = js_chunks
+                let mut chunk_paths = js_chunks
                     .into_iter()
                     .map(async |(chunk, path)| {
-                        let url = RcStr::from(format!(
-                            "{}{}{}",
-                            prefix_path,
-                            path.split('/').map(encode_uri_component).format("/"),
-                            suffix_path
-                        ));
+                        let url = client_chunk_url(&path);
                         // If this is a merged chunk, emit its component chunk paths alongside the
                         // URL so the browser runtime can split it during navigation.
                         let components =
@@ -338,6 +361,7 @@ async fn build_manifest(
                     })
                     .try_join()
                     .await?;
+                chunk_paths.extend(page_hmr_chunk_list_urls.iter().cloned());
 
                 let is_async = async_modules.contains(&ResolvedVc::upcast(client_module));
 
