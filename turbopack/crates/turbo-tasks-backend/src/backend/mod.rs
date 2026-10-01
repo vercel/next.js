@@ -1165,7 +1165,7 @@ impl TurboTasksBackend {
         let wall_start = SystemTime::now();
         let snapshot_phase = if reason.waits_for_operations() {
             self.snapshot_coord
-                .begin_snapshot(|slow| Self::report_slow_settle(turbo_tasks, slow))
+                .begin_snapshot(|slow| Self::report_slow_settle_for_snapshot(turbo_tasks, slow))
         } else {
             match self.snapshot_coord.try_begin_snapshot() {
                 Some(phase) => phase,
@@ -2953,7 +2953,10 @@ impl TurboTasksBackend {
 
     /// Warns through the compilation event queue (so Next.js logs it) that a snapshot is still
     /// waiting for active operations to finish.
-    fn report_slow_settle(turbo_tasks: &TurboTasks<TurboTasksBackend>, slow: SlowSettle) {
+    fn report_slow_settle_for_snapshot(
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+        slow: SlowSettle,
+    ) {
         let SlowSettle {
             waited,
             active_at_start,

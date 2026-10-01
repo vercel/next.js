@@ -452,7 +452,7 @@ impl TurboTasksBackend {
         let _serialize = self.snapshot_in_progress.lock();
         let phase = self
             .snapshot_coord
-            .begin_snapshot(|slow| Self::report_slow_settle(turbo_tasks, slow));
+            .begin_snapshot(|slow| Self::report_slow_settle_for_snapshot(turbo_tasks, slow));
         let (stats, _result, roots) =
             self.gc_collect(turbo_tasks, &phase, /* interruptible= */ false);
 
