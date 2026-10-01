@@ -6,6 +6,12 @@ import * as fs from 'fs'
 const fsReadDirSyncCache = {}
 
 /**
+ * Default `pageExtensions` of a Next.js app, used when the ESLint config does
+ * not provide `settings.next.pageExtensions`.
+ */
+export const DEFAULT_PAGE_EXTENSIONS = ['tsx', 'ts', 'jsx', 'js']
+
+/**
  * Recursively parse directory for page URLs.
  */
 function parseUrlForPages(
@@ -162,7 +168,7 @@ export function normalizeAppPath(route: string) {
 export function getUrlFromPagesDirectories(
   urlPrefix: string,
   directories: string[],
-  pageExtensions: string[] = ['tsx', 'ts', 'jsx', 'js']
+  pageExtensions: string[] = DEFAULT_PAGE_EXTENSIONS
 ) {
   return Array.from(
     // De-duplicate similar pages across multiple directories.
@@ -185,7 +191,7 @@ export function getUrlFromPagesDirectories(
 export function getUrlFromAppDirectory(
   urlPrefix: string,
   directories: string[],
-  pageExtensions: string[] = ['tsx', 'ts', 'jsx', 'js']
+  pageExtensions: string[] = DEFAULT_PAGE_EXTENSIONS
 ) {
   return Array.from(
     // De-duplicate similar pages across multiple directories.

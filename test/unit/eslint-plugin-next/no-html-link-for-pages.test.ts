@@ -526,7 +526,7 @@ describe('no-html-link-for-pages', function () {
       'Do not use an `<a>` element to navigate to `/photo/1/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
     )
   })
-  it('does not crash and ignores routes with non-default extensions in appDir when pageExtensions is not configured', function () {
+  it('ignores appDir routes with non-default extensions when pageExtensions is not configured', function () {
     const report = linters.withAppCustomExtensions.verify(
       invalidCustomExtensionAppRouteCode,
       linterConfig,
