@@ -2666,7 +2666,11 @@ export default abstract class Server<
       req.method !== 'GET' &&
       (typeof components.Component === 'string' ||
         isSSG ||
-        (!isAppPath &&
+        // In development, automatically statically optimized pages are not
+        // pre-rendered to HTML (`components.Component` is a function, not a
+        // string), so mirror the production behavior explicitly here.
+        (this.dev &&
+          !isAppPath &&
           !hasServerProps &&
           !hasPageGetInitialProps &&
           !hasCustomAppGetInitialProps))
