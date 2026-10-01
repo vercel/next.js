@@ -11,6 +11,7 @@ import {
   CommandGroup,
   CommandInput,
   CommandItem,
+  CommandLinkItem,
   CommandList,
 } from '@/components/ui/command'
 import {
@@ -35,6 +36,7 @@ export const OPEN_ROUTE_PICKER_EVENT = 'next-bundle-analyzer:open-route-picker'
 interface RouteTypeaheadProps {
   selectedRoute: string | null
   onRouteSelected: (routeName: string) => void
+  getRouteHref?: (routeName: string) => string
   /**
    * When provided, the picker renders per-route size deltas next to each
    * route, sorts by largest impact, and uses the diff's route list as its
@@ -50,6 +52,7 @@ interface RouteTypeaheadProps {
 export function RouteTypeahead({
   selectedRoute,
   onRouteSelected,
+  getRouteHref,
   routeDiff,
   useCompressed = true,
   routeTotals,
@@ -180,43 +183,61 @@ export function RouteTypeahead({
             <CommandList className="min-w-0">
               <CommandEmpty>No route found.</CommandEmpty>
               <CommandGroup className="min-w-0 [&_[cmdk-group-items]]:min-w-0">
-                {orderedItems.map(({ name, row, totals }) => (
-                  <CommandItem
-                    key={name}
-                    value={name}
-                    onSelect={() => {
-                      onRouteSelected(name)
-                      setOpen(false)
-                    }}
-                    className="w-full min-w-0 overflow-hidden font-mono"
-                  >
-                    <Check
-                      className={cn(
-                        'mr-2 h-4 w-4 shrink-0',
-                        selectedRoute === name ? 'opacity-100' : 'opacity-0'
-                      )}
-                    />
-                    <span className="sr-only">{name}</span>
-                    <span
-                      aria-hidden="true"
-                      className="min-w-0 flex-1 truncate"
-                      title={name}
-                    >
-                      {truncateMiddle(name, 64)}
-                    </span>
-                    {row ? (
-                      <DeltaBadge
-                        row={row}
-                        useCompressed={useCompressed}
-                        className="ml-auto"
+                {orderedItems.map(({ name, row, totals }) => {
+                  const content = (
+                    <>
+                      <Check
+                        className={cn(
+                          'mr-2 h-4 w-4 shrink-0',
+                          selectedRoute === name ? 'opacity-100' : 'opacity-0'
+                        )}
                       />
-                    ) : totals ? (
-                      <span className="ml-auto shrink-0 font-sans text-xs tabular-nums text-muted-foreground">
-                        {formatBytes(totals.compressedSize)}
+                      <span className="sr-only">{name}</span>
+                      <span
+                        aria-hidden="true"
+                        className="min-w-0 flex-1 truncate"
+                        title={name}
+                      >
+                        {truncateMiddle(name, 64)}
                       </span>
-                    ) : null}
-                  </CommandItem>
-                ))}
+                      {row ? (
+                        <DeltaBadge
+                          row={row}
+                          useCompressed={useCompressed}
+                          className="ml-auto"
+                        />
+                      ) : totals ? (
+                        <span className="ml-auto shrink-0 font-sans text-xs tabular-nums text-muted-foreground">
+                          {formatBytes(totals.compressedSize)}
+                        </span>
+                      ) : null}
+                    </>
+                  )
+                  const className = 'w-full min-w-0 overflow-hidden font-mono'
+                  return getRouteHref ? (
+                    <CommandLinkItem
+                      key={name}
+                      value={name}
+                      href={getRouteHref(name)}
+                      onNavigate={() => setOpen(false)}
+                      className={className}
+                    >
+                      {content}
+                    </CommandLinkItem>
+                  ) : (
+                    <CommandItem
+                      key={name}
+                      value={name}
+                      onSelect={() => {
+                        onRouteSelected(name)
+                        setOpen(false)
+                      }}
+                      className={className}
+                    >
+                      {content}
+                    </CommandItem>
+                  )
+                })}
               </CommandGroup>
             </CommandList>
           </Command>

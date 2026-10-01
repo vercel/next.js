@@ -34,10 +34,9 @@ export function useAnalyzerRoute(
   const searchQuery = searchParams.get('query') ?? ''
   const typeFilter = parseTypeFilter(searchParams.get('types'))
 
-  function navigate(
+  function buildHref(
     nextPathname: string,
-    updates: Record<string, string | null>,
-    method: 'push' | 'replace'
+    updates: Record<string, string | null>
   ) {
     const nextSearchParams = new URLSearchParams(searchParams.toString())
     for (const [key, value] of Object.entries(updates)) {
@@ -45,7 +44,15 @@ export function useAnalyzerRoute(
       else nextSearchParams.set(key, value)
     }
     const query = nextSearchParams.toString()
-    router[method](`${nextPathname}${query ? `?${query}` : ''}`)
+    return `${nextPathname}${query ? `?${query}` : ''}`
+  }
+
+  function navigate(
+    nextPathname: string,
+    updates: Record<string, string | null>,
+    method: 'push' | 'replace'
+  ) {
+    router[method](buildHref(nextPathname, updates))
   }
 
   function replaceSearchParams(updates: Record<string, string | null>) {
@@ -62,10 +69,6 @@ export function useAnalyzerRoute(
     )
   }
 
-  function startComparison(snapshot: SnapshotMetadata) {
-    navigate('/compare', { from: snapshot.id, to: null, view: null }, 'push')
-  }
-
   return {
     baselineSnapshot,
     comparisonSnapshot,
@@ -75,17 +78,19 @@ export function useAnalyzerRoute(
     selectedRoute,
     typeFilter,
     setView: (view: CompareView) => navigate(pathname, { view }, 'replace'),
-    setRoute: (route: string | null) => {
-      const leavingSummary = pathname === '/' && route != null
-      navigate(
-        leavingSummary ? '/analyze' : pathname,
-        { route },
-        leavingSummary ? 'push' : 'replace'
-      )
-    },
-    startComparison,
-    stopComparison: () =>
-      navigate('/analyze', { from: null, to: null, view: null }, 'push'),
+    setRoute: (route: string | null) =>
+      navigate(pathname, { route }, 'replace'),
+    getRouteHref:
+      pathname === '/'
+        ? (route: string) => buildHref('/analyze', { route })
+        : undefined,
+    getBaselineHref: (snapshot: SnapshotMetadata) =>
+      buildHref('/compare', { from: snapshot.id, to: null, view: null }),
+    stopComparisonHref: buildHref('/analyze', {
+      from: null,
+      to: null,
+      view: null,
+    }),
     setComparisonSnapshot: (snapshot: SnapshotMetadata | null) =>
       navigate(pathname, { to: snapshot?.id ?? null }, 'replace'),
     setEnvironmentFilter: (environment: Environment) =>
