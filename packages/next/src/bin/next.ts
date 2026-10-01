@@ -590,12 +590,20 @@ program
       'Upgrade with AI to security, latest, or experimental-future. Defaults to security.'
     ).conflicts('revision')
   )
+  // Keep nudge attribution available to agents without exposing it in public help.
+  .addOption(new Option('--internal-nudge-id <id>').hideHelp())
   .action(async (directory, options) => {
     const mod = await import('../cli/next-upgrade.js')
-    await mod.spawnNextUpgrade(directory, {
-      ...options,
-      ai: options.experimentalAi,
-    })
+    await mod.spawnNextUpgrade(
+      directory,
+      {
+        ...options,
+        ai: options.experimentalAi,
+      },
+      options.internalNudgeId !== undefined
+        ? { id: options.internalNudgeId, recipient: 'agent' }
+        : null
+    )
   })
 
 program
@@ -664,6 +672,17 @@ const internal = program
   .command('internal')
   .description(
     'Internal debugging commands. Use with caution. Not covered by semver.'
+  )
+
+// Agents use the pinned CLI to report completion after the upgrade has changed dependencies.
+internal
+  .command('report-ai-upgrade', { hidden: true })
+  .argument('<run-id>', 'The upgrade run UUID.')
+  .argument('<result>', 'The agent-reported success or failure result.')
+  .action((runId: string, result: string) =>
+    import('../cli/next-upgrade.js').then((mod) =>
+      mod.reportAIUpgradeAgentResult(runId, result)
+    )
   )
 
 internal

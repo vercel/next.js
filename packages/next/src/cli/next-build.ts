@@ -157,7 +157,7 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
         process.off('SIGTERM', onTerminate)
         process.off('SIGINT', onInterrupt)
         process.off('SIGHUP', onHangup)
-        process.exit(await runUpgrade(dir, action))
+        process.exit(await runUpgrade(dir, action.policy, action.nudgeId))
       }
     })
     .catch((err) => {

@@ -1,7 +1,8 @@
 import { spawn } from 'child_process'
+import { randomUUID } from 'crypto'
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
-import { dirname, join } from 'path'
+import { dirname, join, resolve as resolvePath } from 'path'
 import { major, prerelease, valid } from 'next/dist/compiled/semver'
 import * as Log from '../build/output/log'
 import createSpinner from '../build/spinner'
@@ -12,6 +13,16 @@ import { interopDefault } from '../lib/interop-default'
 import { dim } from '../lib/picocolors'
 import type { UpgradeDocument } from '../lib/upgrade/future-defaults'
 import { runChildProcess } from '../lib/upgrade/run-child-process'
+import { getAgentName } from '../telemetry/agent-name'
+import {
+  eventAIUpgradeAgentResult,
+  eventAIUpgradeCLIResult,
+  eventAIUpgradeRunStarted,
+  type AIUpgradeCLIResult,
+  type AIUpgradeHandoffMethod,
+  type AIUpgradePolicy,
+} from '../telemetry/events/ai-upgrade'
+import { Telemetry } from '../telemetry/storage'
 import loadConfig from '../server/config'
 import { normalizeConfig } from '../server/config-shared'
 import { PHASE_PRODUCTION_BUILD } from '../shared/lib/constants'
@@ -21,6 +32,9 @@ type NextUpgradeOptions = {
   verbose: boolean
   ai: boolean | string | undefined
 }
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 const CODEMOD_COMMAND_PLACEHOLDER = '<codemod-command>'
 const SKILLS_CLI_VERSION = '1.5.26'
@@ -120,33 +134,13 @@ async function prepareUpgradeSkill(
   }
 }
 
-async function resolveAIUpgradeType(
-  directory: string,
-  option: NextUpgradeOptions['ai']
-): Promise<string> {
-  if (typeof option === 'string') {
-    return option
-  }
-
+async function loadAIUpgradeConfig(directory: string) {
   // Read and normalize the app's config without validating legacy options
   // against the current Next.js schema.
   const rawConfig = await loadConfig(PHASE_PRODUCTION_BUILD, directory, {
     rawConfig: true,
   })
-  const config = await normalizeConfig(
-    PHASE_PRODUCTION_BUILD,
-    interopDefault(rawConfig)
-  )
-  const policy = config.experimental?.agentUpgrade
-
-  if (
-    policy === 'security' ||
-    policy === 'latest' ||
-    policy === 'experimental-future'
-  ) {
-    return policy
-  }
-  return 'security'
+  return normalizeConfig(PHASE_PRODUCTION_BUILD, interopDefault(rawConfig))
 }
 
 async function resolveCanaryVersion(): Promise<string> {
@@ -176,12 +170,108 @@ async function resolveCanaryVersion(): Promise<string> {
 
 export async function spawnNextUpgrade(
   directory: string | undefined,
-  options: NextUpgradeOptions
+  options: NextUpgradeOptions,
+  nudgeSource: { id: string; recipient: 'human' | 'agent' } | null
 ) {
-  const baseDir = getProjectDir(directory)
+  let baseDir = resolvePath(directory || '.')
 
   if (options.ai) {
+    // Match dev/build's telemetry storage, including custom output directories in CI.
+    // Retain config errors until after recording the invocation so failed runs still count.
+    let distDir = '.next'
+    let configuredPolicy: unknown = null
+    let configError: unknown = null
     try {
+      baseDir = getProjectDir(directory, false)
+      const config = await loadAIUpgradeConfig(baseDir)
+      distDir = config.distDir || '.next'
+      configuredPolicy = config.experimental?.agentUpgrade
+    } catch (error) {
+      configError = error
+    }
+
+    // Count AI invocations even when resolving the directory or config fails.
+    const telemetry = new Telemetry({
+      distDir: join(baseDir, distDir),
+      skipNotify: true,
+    })
+
+    // The parent records attribution; canary only needs its run ID to report results.
+    // Remove it before launching an agent so later upgrades start their own runs.
+    const inheritedRunId = process.env.__NEXT_AI_UPGRADE_RUN_ID
+    delete process.env.__NEXT_AI_UPGRADE_RUN_ID
+    const invalidRunId =
+      inheritedRunId !== undefined && !UUID_PATTERN.test(inheritedRunId)
+    const invalidNudgeId =
+      nudgeSource !== null && !UUID_PATTERN.test(nudgeSource.id)
+
+    const runId =
+      inheritedRunId && !invalidRunId ? inheritedRunId : randomUUID()
+
+    let resolvedPolicy: AIUpgradePolicy | null = null
+    let failureStage: 'cli' | 'metadata' | 'guide' | 'handoff' = 'cli'
+    let cliResultRecorded = false
+
+    // Preparation and handoff can both fail; record only the first terminal result.
+    const recordCLIResult = (
+      result: AIUpgradeCLIResult,
+      handoffMethod: AIUpgradeHandoffMethod | null,
+      selectedAgentProduct: string | null
+    ) => {
+      if (cliResultRecorded) {
+        return
+      }
+      cliResultRecorded = true
+      telemetry.record(
+        eventAIUpgradeCLIResult({
+          runId,
+          result,
+          resolvedPolicy,
+          handoffMethod,
+          selectedAgentProduct,
+        })
+      )
+    }
+
+    try {
+      // Only the original invocation records a start, including invalid-input failures.
+      // Origin and nudge attribution stay on that event; results join through runId.
+      if (!inheritedRunId || invalidRunId) {
+        const agentProduct = await getAgentName()
+        const nudge = invalidRunId || invalidNudgeId ? null : nudgeSource
+        const origin = nudge
+          ? nudge.recipient === 'agent'
+            ? 'agent_nudge'
+            : 'human_nudge'
+          : agentProduct
+            ? 'agent_manual'
+            : 'human_manual'
+        telemetry.record(
+          eventAIUpgradeRunStarted({
+            runId,
+            nudgeId: nudge?.id ?? null,
+            origin,
+            agentProduct,
+            requestedPolicy:
+              options.ai === 'security' ||
+              options.ai === 'latest' ||
+              options.ai === 'experimental-future'
+                ? options.ai
+                : null,
+          })
+        )
+      }
+
+      if (invalidRunId) {
+        throw new Error('Invalid upgrade run ID.')
+      }
+      if (invalidNudgeId) {
+        throw new Error('Invalid upgrade nudge ID.')
+      }
+      if (configError) {
+        throw configError
+      }
+
       const expectedVersion = process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
       delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
       delete process.env.__NEXT_UPGRADE_USE_CURRENT_CLI
@@ -195,7 +285,9 @@ export async function spawnNextUpgrade(
         }
       } else {
         Log.info(dim('Preparing upgrade...'))
+        failureStage = 'metadata'
         const canaryVersion = await resolveCanaryVersion()
+        failureStage = 'cli'
         if (process.env.__NEXT_VERSION !== canaryVersion) {
           const [command, ...runnerArgs] = getNpxCommand(baseDir).split(' ')
           const aiArgument =
@@ -212,16 +304,23 @@ export async function spawnNextUpgrade(
             args.push('--verbose')
           }
 
-          process.exitCode = await runChildProcess(command, args, {
-            cwd: baseDir,
-            stdio: 'inherit',
-            env: {
-              ...process.env,
-              __NEXT_UPGRADE_EXPECTED_CLI_VERSION: canaryVersion,
-              // Older canaries recognize only this recursion guard.
-              __NEXT_UPGRADE_USE_CURRENT_CLI: '1',
+          process.exitCode = await runChildProcess(
+            command,
+            args,
+            {
+              cwd: baseDir,
+              stdio: 'inherit',
+              env: {
+                ...process.env,
+                // The delegated CLI emits the CLI result for this invocation's run ID.
+                __NEXT_AI_UPGRADE_RUN_ID: runId,
+                __NEXT_UPGRADE_EXPECTED_CLI_VERSION: canaryVersion,
+                // Older canaries recognize only this recursion guard.
+                __NEXT_UPGRADE_USE_CURRENT_CLI: '1',
+              },
             },
-          })
+            null
+          )
           return
         }
       }
@@ -234,7 +333,14 @@ export async function spawnNextUpgrade(
         )
       }
 
-      const upgradeType = await resolveAIUpgradeType(baseDir, options.ai)
+      const upgradeType =
+        typeof options.ai === 'string'
+          ? options.ai
+          : configuredPolicy === 'security' ||
+              configuredPolicy === 'latest' ||
+              configuredPolicy === 'experimental-future'
+            ? configuredPolicy
+            : 'security'
 
       if (
         upgradeType !== 'security' &&
@@ -245,6 +351,7 @@ export async function spawnNextUpgrade(
           `Unsupported AI upgrade type ${JSON.stringify(upgradeType)}. Expected "security", "latest", or "experimental-future".`
         )
       }
+      resolvedPolicy = upgradeType
 
       // Resolve the requested target before preparing an agent session.
       const { prepareUpgrade } =
@@ -254,8 +361,21 @@ export async function spawnNextUpgrade(
         assessmentSpinner?.stop()
       )
 
+      // Expected assessment failures retain their status and stop before handoff.
+      if (result.status === 'blocked' || result.status === 'unknown') {
+        recordCLIResult(
+          result.status === 'blocked' ? 'no_safe_target' : 'metadata_failure',
+          null,
+          null
+        )
+        Log.error('Could not prepare the upgrade:', result.reason)
+        process.exitCode = 1
+        return
+      }
+
       if (result.status !== 'ready') {
         Log.info(result.reason)
+        recordCLIResult('no_update_needed', null, null)
         return
       }
 
@@ -272,6 +392,7 @@ export async function spawnNextUpgrade(
 
       // Use the invoking CLI's guides, even when the app runs an older Next.js.
       // Retain them outside the app so dependency changes cannot remove them.
+      failureStage = 'guide'
       const bundledDocs = join(__dirname, '../docs')
       const runDirectory = await mkdtemp(join(tmpdir(), 'next-upgrade-'))
       const guideName = crossesMajor
@@ -453,6 +574,9 @@ export async function spawnNextUpgrade(
       const taskSummary = needsVersionUpdate
         ? `We're upgrading the app in ${JSON.stringify(baseDir)} from Next.js ${result.installedVersion} to ${result.targetVersion} because ${reason}.`
         : `We're adopting the Future Defaults available to the app in ${JSON.stringify(baseDir)}, which already uses Next.js ${result.installedVersion}.`
+
+      // Use the invoking CLI's reporter even after the app's Next.js package changes.
+      const reportCommand = `${getNpxCommand(baseDir)} next@${process.env.__NEXT_VERSION} internal report-ai-upgrade ${runId}`
       const prompt = (
         useWorktree: boolean | null
       ) => `Read and follow ${JSON.stringify(sharedGuidePath)} first. Attempt its applicable duplicate checks before changing files. If a check is unavailable, report it and continue. Stop only if you find equivalent work. Then read and follow every applicable instruction in ${JSON.stringify(guidePath)}.
@@ -464,21 +588,58 @@ ${useWorktree === null ? "Follow the user's worktree choice. If they do not spec
 Set \`experimental.agentUpgrade\` to ${JSON.stringify(upgradeType)} in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
 
 ${futureDefaultsPrompt ? `${futureDefaultsPrompt.trimStart()}\n\n` : ''}References:
-${references}`
+${references}
+
+When this task ends, report its result once. After completing the requested upgrade and all applicable verification, run \`${reportCommand} success\`. If the attempted upgrade remains unsuccessful after repairs or verification fails, run \`${reportCommand} failure\`. If you stop for duplicate work, user cancellation, or an unavailable prerequisite, do not report success or failure. Explain the result to the user separately; never include project details or error text in the telemetry command.`
 
       const { handoffUpgrade } =
         require('../lib/upgrade/harness') as typeof import('../lib/upgrade/harness')
-      await handoffUpgrade(prompt, baseDir)
+
+      // Delivery is observable here; completing the upgrade belongs to the agent.
+      failureStage = 'handoff'
+      const handoffResult = await handoffUpgrade(
+        prompt,
+        baseDir,
+        (method, selectedAgentProduct) => {
+          recordCLIResult('handoff_issued', method, selectedAgentProduct)
+        }
+      )
+      if (handoffResult === 'cancelled') {
+        recordCLIResult('cancelled', null, null)
+      } else if (handoffResult === 'failed') {
+        recordCLIResult('handoff_failed', null, null)
+      }
     } catch (error) {
+      // Report the failed preparation stage while preserving the original error below.
+      switch (failureStage) {
+        case 'metadata':
+          recordCLIResult('metadata_failure', null, null)
+          break
+        case 'guide':
+          recordCLIResult('guide_failure', null, null)
+          break
+        case 'handoff':
+          recordCLIResult('handoff_failed', null, null)
+          break
+        case 'cli':
+          recordCLIResult('cli_failure', null, null)
+          break
+      }
+
       Log.error(
         'Could not prepare the upgrade:',
         error instanceof Error ? error.message : error
       )
       process.exitCode = 1
+    } finally {
+      // Send queued results before this short-lived CLI invocation exits.
+      await telemetry.flush()
     }
 
     return
   }
+
+  baseDir = getProjectDir(directory)
 
   const [upgradeProcessCommand, ...upgradeProcessDefaultArgs] =
     getNpxCommand(baseDir).split(' ')
@@ -507,4 +668,28 @@ ${references}`
   upgradeProcess.on('close', (code) => {
     process.exitCode = code ?? 0
   })
+}
+
+export async function reportAIUpgradeAgentResult(
+  runId: string,
+  result: string
+) {
+  // Only accept the bounded result and run ID; project details never enter this event.
+  if (
+    !UUID_PATTERN.test(runId) ||
+    (result !== 'success' && result !== 'failure')
+  ) {
+    throw new Error(
+      'Expected an upgrade run UUID and a success or failure result.'
+    )
+  }
+
+  // Reuse normal telemetry consent and delivery without starting another upgrade.
+  const config = await loadAIUpgradeConfig(process.cwd())
+  const telemetry = new Telemetry({
+    distDir: join(process.cwd(), config.distDir || '.next'),
+    skipNotify: true,
+  })
+  await telemetry.record(eventAIUpgradeAgentResult({ runId, result }))
+  await telemetry.flush()
 }

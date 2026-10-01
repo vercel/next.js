@@ -142,9 +142,12 @@ describe('prepare latest upgrade', () => {
           "The installed Next.js version (17.2.0-canary.4) is a canary prerelease. Security advisories target stable versions, and prereleases do not reliably follow stable version ordering, so an advisory could be a false positive. To upgrade to the latest canary release, run this command from the app's directory:\n\nnpx next@canary upgrade --ai=latest",
       },
     })
-    await expect(prepareUpgrade(directory, 'security')).rejects.toThrow(
-      'The installed Next.js version (17.2.0-canary.4) is a canary prerelease.'
-    )
+    await expect(prepareUpgrade(directory, 'security')).resolves.toMatchObject({
+      status: 'blocked',
+      reason: expect.stringContaining(
+        'The installed Next.js version (17.2.0-canary.4) is a canary prerelease.'
+      ),
+    })
     expect(global.fetch).toHaveBeenCalledTimes(0)
   })
 
@@ -157,9 +160,10 @@ describe('prepare latest upgrade', () => {
       affected: null,
       upgrade: { status: 'unknown' },
     })
-    await expect(prepareUpgrade(directory, 'security')).rejects.toThrow(
-      'Could not check for security updates.'
-    )
+    await expect(prepareUpgrade(directory, 'security')).resolves.toMatchObject({
+      status: 'unknown',
+      reason: expect.stringContaining('Could not check for security updates.'),
+    })
   })
 
   it.each(['17.2.0', '17.1.9'])(
@@ -173,9 +177,14 @@ describe('prepare latest upgrade', () => {
         affected: true,
         upgrade: { status: 'blocked' },
       })
-      await expect(prepareUpgrade(directory, 'security')).rejects.toThrow(
-        'No safe Next.js update is currently available.'
-      )
+      await expect(
+        prepareUpgrade(directory, 'security')
+      ).resolves.toMatchObject({
+        status: 'blocked',
+        reason: expect.stringContaining(
+          'No safe Next.js update is currently available.'
+        ),
+      })
     }
   )
 
@@ -243,9 +252,10 @@ describe('prepare latest upgrade', () => {
             reason: expect.stringContaining('Could not fetch upgrade metadata'),
           },
         })
-        await expect(prepareUpgrade(directory, policy)).rejects.toThrow(
-          'Could not fetch upgrade metadata'
-        )
+        await expect(prepareUpgrade(directory, policy)).resolves.toMatchObject({
+          status: 'unknown',
+          reason: expect.stringContaining('Could not fetch upgrade metadata'),
+        })
       }
     )
 
@@ -265,9 +275,12 @@ describe('prepare latest upgrade', () => {
           affected: false,
           upgrade: { status: 'blocked' },
         })
-        await expect(prepareUpgrade(directory, policy)).rejects.toThrow(
-          `${target} is affected by an active advisory`
-        )
+        await expect(prepareUpgrade(directory, policy)).resolves.toMatchObject({
+          status: 'blocked',
+          reason: expect.stringContaining(
+            `${target} is affected by an active advisory`
+          ),
+        })
       }
     )
 
@@ -291,9 +304,10 @@ describe('prepare latest upgrade', () => {
             'https://registry.npmjs.org/-/npm/v1/security/advisories/bulk',
           upgrade: { status: 'unknown' },
         })
-        await expect(prepareUpgrade(directory, policy)).rejects.toThrow(
-          'Could not fetch upgrade metadata.'
-        )
+        await expect(prepareUpgrade(directory, policy)).resolves.toMatchObject({
+          status: 'unknown',
+          reason: expect.stringContaining('Could not fetch upgrade metadata.'),
+        })
       }
     )
   })
@@ -315,9 +329,10 @@ describe('prepare latest upgrade', () => {
         reason: `Next.js ${target} is affected by an active advisory.`,
       },
     })
-    await expect(prepareUpgrade(directory, 'latest')).rejects.toThrow(
-      'affected by an active advisory'
-    )
+    await expect(prepareUpgrade(directory, 'latest')).resolves.toMatchObject({
+      status: 'blocked',
+      reason: expect.stringContaining('affected by an active advisory'),
+    })
   })
 
   it('assesses the configured policy rather than a different safe security target', async () => {
@@ -336,9 +351,12 @@ describe('prepare latest upgrade', () => {
       await expect(
         getUpgradeAssessment('17.2.0', policy)
       ).resolves.toMatchObject({ upgrade: { status: 'blocked' } })
-      await expect(prepareUpgrade(directory, policy)).rejects.toThrow(
-        '17.3.0 is affected by an active advisory'
-      )
+      await expect(prepareUpgrade(directory, policy)).resolves.toMatchObject({
+        status: 'blocked',
+        reason: expect.stringContaining(
+          '17.3.0 is affected by an active advisory'
+        ),
+      })
     }
   })
 
@@ -421,9 +439,14 @@ describe('prepare latest upgrade', () => {
     async (version) => {
       const directory = await createApp(version)
       global.fetch = jest.fn()
-      await expect(prepareUpgrade(directory, 'security')).rejects.toThrow(
-        `The installed Next.js version (${version}) is a`
-      )
+      await expect(
+        prepareUpgrade(directory, 'security')
+      ).resolves.toMatchObject({
+        status: 'blocked',
+        reason: expect.stringContaining(
+          `The installed Next.js version (${version}) is a`
+        ),
+      })
       await expect(getUpgradeAssessment(version, 'security')).resolves.toEqual(
         expect.objectContaining({
           affected: null,
@@ -446,9 +469,12 @@ describe('prepare latest upgrade', () => {
       global.fetch = jest.fn()
       await expect(
         prepareUpgrade(directory, 'experimental-future')
-      ).rejects.toThrow(
-        `Future Defaults upgrades are not supported for Next.js ${version}.`
-      )
+      ).resolves.toMatchObject({
+        status: 'blocked',
+        reason: expect.stringContaining(
+          `Future Defaults upgrades are not supported for Next.js ${version}.`
+        ),
+      })
       await expect(
         getUpgradeAssessment(version, 'experimental-future')
       ).resolves.toEqual(
@@ -533,9 +559,12 @@ describe('prepare latest upgrade', () => {
         reason: `Next.js ${target} is affected by an active advisory.`,
       },
     })
-    await expect(prepareUpgrade(directory, 'latest')).rejects.toThrow(
-      `Next.js ${target} is affected by an active advisory.`
-    )
+    await expect(prepareUpgrade(directory, 'latest')).resolves.toMatchObject({
+      status: 'blocked',
+      reason: expect.stringContaining(
+        `Next.js ${target} is affected by an active advisory.`
+      ),
+    })
   })
 
   it('does not offer stable latest when advisory validation fails for a prerelease', async () => {
@@ -551,9 +580,10 @@ describe('prepare latest upgrade', () => {
         reason: 'Could not check for security updates. Please try again.',
       },
     })
-    await expect(prepareUpgrade(directory, 'latest')).rejects.toThrow(
-      'Could not check for security updates.'
-    )
+    await expect(prepareUpgrade(directory, 'latest')).resolves.toMatchObject({
+      status: 'unknown',
+      reason: expect.stringContaining('Could not check for security updates.'),
+    })
   })
 
   it.each([
@@ -565,9 +595,12 @@ describe('prepare latest upgrade', () => {
   ])('rejects a prerelease or invalid stable dist-tag: %s', async (target) => {
     const directory = await createApp('17.2.0-rc.1')
     mockLatestVersion(target)
-    await expect(prepareUpgrade(directory, 'latest')).rejects.toThrow(
-      'Could not determine the latest stable Next.js version.'
-    )
+    await expect(prepareUpgrade(directory, 'latest')).resolves.toMatchObject({
+      status: 'unknown',
+      reason: expect.stringContaining(
+        'Could not determine the latest stable Next.js version.'
+      ),
+    })
   })
 
   it.each(['17.3.0-rc.1', '17.3.0-beta.1', '17.3.0-preview.1'])(
@@ -638,9 +671,14 @@ describe('prepare latest upgrade', () => {
         async (target) => {
           const directory = await createApp('17.2.0-canary.4')
           mockSecurityMetadata({ target })
-          await expect(prepareUpgrade(directory, policy)).rejects.toThrow(
-            'Could not determine the latest Next.js version on the canary dist-tag.'
-          )
+          await expect(
+            prepareUpgrade(directory, policy)
+          ).resolves.toMatchObject({
+            status: 'unknown',
+            reason: expect.stringContaining(
+              'Could not determine the latest Next.js version on the canary dist-tag.'
+            ),
+          })
         }
       )
     }
@@ -712,7 +750,12 @@ describe('prepare latest upgrade', () => {
     })
     await expect(
       prepareUpgrade(directory, 'experimental-future')
-    ).rejects.toThrow('17.2.9 is affected by an active advisory.')
+    ).resolves.toMatchObject({
+      status: 'blocked',
+      reason: expect.stringContaining(
+        '17.2.9 is affected by an active advisory.'
+      ),
+    })
   })
 
   it.each(['latest', 'experimental-future'] as const)(
@@ -720,9 +763,12 @@ describe('prepare latest upgrade', () => {
     async (policy) => {
       const directory = await createApp('17.2.0')
       mockSecurityMetadata({ npmFailure: true })
-      await expect(prepareUpgrade(directory, policy)).rejects.toThrow(
-        'Could not check for security updates.'
-      )
+      await expect(prepareUpgrade(directory, policy)).resolves.toMatchObject({
+        status: 'unknown',
+        reason: expect.stringContaining(
+          'Could not check for security updates.'
+        ),
+      })
     }
   )
 
@@ -765,9 +811,12 @@ describe('prepare latest upgrade', () => {
           : Response.json(metadata)
       )
 
-      await expect(prepareUpgrade(directory, 'latest')).rejects.toThrow(
-        'Could not determine the latest stable Next.js version.'
-      )
+      await expect(prepareUpgrade(directory, 'latest')).resolves.toMatchObject({
+        status: 'unknown',
+        reason: expect.stringContaining(
+          'Could not determine the latest stable Next.js version.'
+        ),
+      })
       expect(
         getLatestUpgradeVersion(
           '17.1.0',
@@ -786,9 +835,10 @@ describe('prepare latest upgrade', () => {
       throw new Error('Network unavailable')
     })
 
-    await expect(prepareUpgrade(directory, 'latest')).rejects.toThrow(
-      'Could not fetch upgrade metadata.'
-    )
+    await expect(prepareUpgrade(directory, 'latest')).resolves.toMatchObject({
+      status: 'unknown',
+      reason: expect.stringContaining('Could not fetch upgrade metadata.'),
+    })
     await expect(
       getUpgradeAssessment('17.1.0', 'latest')
     ).resolves.toMatchObject({
@@ -853,9 +903,12 @@ describe('prepare latest upgrade', () => {
       affected: true,
       upgrade: { status: 'blocked' },
     })
-    await expect(prepareUpgrade(directory, 'latest')).rejects.toThrow(
-      'Next.js 17.3.0 is affected by an active advisory.'
-    )
+    await expect(prepareUpgrade(directory, 'latest')).resolves.toMatchObject({
+      status: 'blocked',
+      reason: expect.stringContaining(
+        'Next.js 17.3.0 is affected by an active advisory.'
+      ),
+    })
   })
 
   it('allows a Future target outside npm advisory ranges', async () => {
@@ -879,7 +932,12 @@ describe('prepare latest upgrade', () => {
 
     await expect(
       prepareUpgrade(directory, 'experimental-future')
-    ).rejects.toThrow('Next.js 16.4.0 is affected by an active advisory.')
+    ).resolves.toMatchObject({
+      status: 'blocked',
+      reason: expect.stringContaining(
+        'Next.js 16.4.0 is affected by an active advisory.'
+      ),
+    })
   })
 
   it('uses the adapter to detect an adopted Future Default', async () => {

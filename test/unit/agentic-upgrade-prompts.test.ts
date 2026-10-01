@@ -21,6 +21,7 @@ import loadConfig from 'next/dist/server/config'
 import { normalizeConfig } from 'next/dist/server/config-shared'
 import { PHASE_PRODUCTION_BUILD } from 'next/dist/shared/lib/constants'
 import { getAgentName } from 'next/dist/telemetry/agent-name'
+import { Telemetry } from 'next/dist/telemetry/storage'
 
 jest.mock('fs/promises', () => ({
   access: jest.fn(),
@@ -76,6 +77,9 @@ jest.mock('next/dist/server/config-shared', () => ({
 jest.mock('next/dist/telemetry/agent-name', () => ({
   getAgentName: jest.fn(),
 }))
+jest.mock('next/dist/telemetry/storage', () => ({
+  Telemetry: jest.fn(),
+}))
 const createSpinner = require('next/dist/build/spinner').default as jest.Mock
 const crossSpawn = require('next/dist/compiled/cross-spawn') as jest.Mock & {
   sync: jest.Mock
@@ -84,9 +88,16 @@ const cliVersion: string = require('next/package.json').version
 const restoreDescriptors: Array<() => void> = []
 
 function normalizedBootstrapCalls(): string[][] {
-  return jest
-    .mocked(Log.bootstrap)
-    .mock.calls.map(([message]) => [String(message).replace(/\\+/g, '/')])
+  return jest.mocked(Log.bootstrap).mock.calls.map(([message]) => [
+    String(message)
+      .replace(/\\+/g, '/')
+      // Run IDs are intentionally unique; keep prompt snapshots stable.
+      .replace(/report-ai-upgrade [0-9a-f-]{36}/g, 'report-ai-upgrade <run-id>')
+      .replaceAll(
+        `next@${cliVersion} internal report-ai-upgrade`,
+        'next@<cli-version> internal report-ai-upgrade'
+      ),
+  ])
 }
 
 function expectedHarnessPath(name: string): string {
@@ -148,6 +159,13 @@ describe('agentic upgrade prompts', () => {
 
   beforeEach(() => {
     jest.resetAllMocks()
+    jest.mocked(Telemetry).mockImplementation(
+      () =>
+        ({
+          record: jest.fn(),
+          flush: jest.fn().mockResolvedValue([]),
+        }) as never
+    )
     crossSpawn.sync.mockImplementation((_path, args) => {
       if (args[0] === 'debug') {
         return {
@@ -234,11 +252,15 @@ describe('agentic upgrade prompts', () => {
       reason: 'Already current.',
     })
 
-    await spawnNextUpgrade('/workspace/app', {
-      revision: 'latest',
-      verbose: false,
-      ai: 'security',
-    })
+    await spawnNextUpgrade(
+      '/workspace/app',
+      {
+        revision: 'latest',
+        verbose: false,
+        ai: 'security',
+      },
+      null
+    )
 
     expect(global.fetch).toHaveBeenCalledTimes(0)
     expect(crossSpawn).toHaveBeenCalledTimes(0)
@@ -250,11 +272,15 @@ describe('agentic upgrade prompts', () => {
   it('rejects a worker running a different CLI version', async () => {
     process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION = '0.0.0'
 
-    await spawnNextUpgrade('/workspace/app', {
-      revision: 'latest',
-      verbose: false,
-      ai: 'security',
-    })
+    await spawnNextUpgrade(
+      '/workspace/app',
+      {
+        revision: 'latest',
+        verbose: false,
+        ai: 'security',
+      },
+      null
+    )
 
     expect(Log.error).toHaveBeenCalledWith(
       'Could not prepare the upgrade:',
@@ -284,11 +310,15 @@ describe('agentic upgrade prompts', () => {
         reason: 'Already current.',
       })
 
-      await spawnNextUpgrade('/workspace/app', {
-        revision: 'latest',
-        verbose: false,
-        ai: 'security',
-      })
+      await spawnNextUpgrade(
+        '/workspace/app',
+        {
+          revision: 'latest',
+          verbose: false,
+          ai: 'security',
+        },
+        null
+      )
 
       expect(global.fetch).toHaveBeenCalledTimes(1)
       expect(global.fetch).toHaveBeenCalledWith(
@@ -317,11 +347,15 @@ describe('agentic upgrade prompts', () => {
         return child
       })
 
-      await spawnNextUpgrade('/workspace/app', {
-        revision: 'latest',
-        verbose: true,
-        ai,
-      })
+      await spawnNextUpgrade(
+        '/workspace/app',
+        {
+          revision: 'latest',
+          verbose: true,
+          ai,
+        },
+        null
+      )
 
       expect(global.fetch).toHaveBeenCalledTimes(1)
       expect(crossSpawn).toHaveBeenCalledTimes(1)
@@ -365,11 +399,15 @@ describe('agentic upgrade prompts', () => {
     delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
     jest.mocked(global.fetch).mockImplementation(response)
 
-    await spawnNextUpgrade('/workspace/app', {
-      revision: 'latest',
-      verbose: false,
-      ai: 'security',
-    })
+    await spawnNextUpgrade(
+      '/workspace/app',
+      {
+        revision: 'latest',
+        verbose: false,
+        ai: 'security',
+      },
+      null
+    )
 
     expect(Log.error).toHaveBeenCalledWith(
       'Could not prepare the upgrade:',
@@ -390,7 +428,7 @@ describe('agentic upgrade prompts', () => {
     jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
     jest.mocked(cliSelect).mockRejectedValue(undefined)
 
-    await handoffUpgrade('Prepared upgrade prompt.', '/workspace/app')
+    await handoffUpgrade('Prepared upgrade prompt.', '/workspace/app', null)
 
     const selectOptions = jest.mocked(cliSelect).mock.calls[0][0]
     expect({
@@ -463,7 +501,7 @@ describe('agentic upgrade prompts', () => {
     jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
     jest.mocked(cliSelect).mockRejectedValue(undefined)
 
-    await handoffUpgrade('Prepared upgrade prompt.', '/workspace/app')
+    await handoffUpgrade('Prepared upgrade prompt.', '/workspace/app', null)
 
     expect(Log.bootstrap).toHaveBeenCalledWith(
       '  Codex detected. Would you like to proceed?'
@@ -515,14 +553,17 @@ describe('agentic upgrade prompts', () => {
         .mockResolvedValueOnce({ id: 'no' } as never)
       crossSpawn.mockImplementation(() => {
         const child = new EventEmitter()
-        process.nextTick(() => child.emit('close', 0, null))
+        process.nextTick(() => {
+          child.emit('spawn')
+          child.emit('close', 0, null)
+        })
         return child
       })
 
       const prompt = jest.fn((useWorktree: boolean | null) =>
         useWorktree ? 'Worktree prompt' : 'In-place prompt'
       )
-      await handoffUpgrade(prompt, '/workspace/app')
+      await handoffUpgrade(prompt, '/workspace/app', null)
 
       expect(prompt).toHaveBeenCalledWith(false)
       expect(crossSpawn).toHaveBeenCalledWith(
@@ -603,7 +644,7 @@ describe('agentic upgrade prompts', () => {
       return child
     })
 
-    await handoffUpgrade('Upgrade prompt', '/workspace/app')
+    await handoffUpgrade('Upgrade prompt', '/workspace/app', null)
 
     expect(crossSpawn).toHaveBeenCalledWith(
       expectedHarnessPath('codex'),
@@ -643,7 +684,7 @@ describe('agentic upgrade prompts', () => {
       return child
     })
 
-    await handoffUpgrade('Upgrade prompt', '/workspace/app')
+    await handoffUpgrade('Upgrade prompt', '/workspace/app', null)
 
     expect(jest.mocked(cliSelect).mock.calls[1][0].values).toEqual({
       'gpt-5.6-terra': 'GPT-5.6-Terra',
@@ -706,7 +747,7 @@ describe('agentic upgrade prompts', () => {
         return child
       })
 
-      await handoffUpgrade('Upgrade prompt', '/workspace/app')
+      await handoffUpgrade('Upgrade prompt', '/workspace/app', null)
 
       expect(cliSelect).toHaveBeenCalledTimes(3)
       if (cause === null) {
@@ -733,7 +774,7 @@ describe('agentic upgrade prompts', () => {
     jest.mocked(access).mockRejectedValue(cause)
 
     await expect(
-      handoffUpgrade('Upgrade prompt', '/workspace/app')
+      handoffUpgrade('Upgrade prompt', '/workspace/app', null)
     ).rejects.toMatchObject({ cause })
   })
 
@@ -768,7 +809,7 @@ describe('agentic upgrade prompts', () => {
       return child
     })
 
-    await handoffUpgrade('Upgrade prompt', '/workspace/app')
+    await handoffUpgrade('Upgrade prompt', '/workspace/app', null)
 
     expect(crossSpawn).toHaveBeenCalledWith(
       expectedHarnessPath(agent),
@@ -813,7 +854,7 @@ describe('agentic upgrade prompts', () => {
       return child
     })
 
-    await handoffUpgrade('Upgrade prompt', '/workspace/app')
+    await handoffUpgrade('Upgrade prompt', '/workspace/app', null)
 
     expect(crossSpawn.sync).toHaveBeenCalledWith(
       expectedHarnessPath('codex'),
@@ -865,7 +906,7 @@ describe('agentic upgrade prompts', () => {
       return child
     })
 
-    await handoffUpgrade('Upgrade prompt', '/workspace/app')
+    await handoffUpgrade('Upgrade prompt', '/workspace/app', null)
 
     expect(crossSpawn.sync).toHaveBeenCalledWith(
       expectedHarnessPath('claude'),
@@ -908,7 +949,7 @@ describe('agentic upgrade prompts', () => {
         return Promise.reject(undefined)
       })
 
-    await handoffUpgrade('Upgrade prompt', '/workspace/app')
+    await handoffUpgrade('Upgrade prompt', '/workspace/app', null)
 
     expect(process.exitCode).toBe(1)
     expect(crossSpawn).not.toHaveBeenCalled()
@@ -942,7 +983,7 @@ describe('agentic upgrade prompts', () => {
       return child
     })
 
-    await handoffUpgrade('Upgrade prompt', '/workspace/app')
+    await handoffUpgrade('Upgrade prompt', '/workspace/app', null)
 
     expect(
       crossSpawn.sync.mock.calls.filter(([, args]) => args[0] === 'debug')
@@ -992,7 +1033,7 @@ describe('agentic upgrade prompts', () => {
       return child
     })
 
-    await handoffUpgrade('Upgrade prompt', '/workspace/app')
+    await handoffUpgrade('Upgrade prompt', '/workspace/app', null)
 
     expect(jest.mocked(cliSelect).mock.calls[8][0].defaultValue).toBe(0)
     expect(crossSpawn).toHaveBeenCalledWith(
@@ -1024,7 +1065,7 @@ describe('agentic upgrade prompts', () => {
       return child
     })
 
-    await handoffUpgrade('Upgrade prompt', '/workspace/app')
+    await handoffUpgrade('Upgrade prompt', '/workspace/app', null)
 
     expect(
       crossSpawn.sync.mock.calls.filter(([, args]) => args[0] === '--help')
@@ -1074,7 +1115,7 @@ describe('agentic upgrade prompts', () => {
       return child
     })
 
-    await handoffUpgrade('Upgrade prompt', '/workspace/app')
+    await handoffUpgrade('Upgrade prompt', '/workspace/app', null)
 
     expect(
       crossSpawn.sync.mock.calls.filter(([, args]) => args[0] === '--help')
@@ -1108,7 +1149,7 @@ describe('agentic upgrade prompts', () => {
   it('uses the existing agent settings without prompting interactively', async () => {
     const prompt = jest.fn(() => 'Prepared upgrade prompt.')
 
-    await handoffUpgrade(prompt, '/workspace/app')
+    await handoffUpgrade(prompt, '/workspace/app', null)
 
     expect(prompt).toHaveBeenCalledWith(null)
     expect(Log.bootstrap).toHaveBeenCalledWith('Prepared upgrade prompt.')
@@ -1146,7 +1187,7 @@ describe('agentic upgrade prompts', () => {
     })
     const prompt = jest.fn(() => 'Worktree prompt')
 
-    await handoffUpgrade(prompt, '/workspace/app')
+    await handoffUpgrade(prompt, '/workspace/app', null)
 
     expect(prompt).toHaveBeenCalledWith(true)
     expect(crossSpawn).toHaveBeenCalledWith(
@@ -1171,7 +1212,7 @@ describe('agentic upgrade prompts', () => {
       useWorktree === null ? 'Choice pending prompt' : 'Selected prompt'
     )
 
-    await handoffUpgrade(prompt, '/workspace/app')
+    await handoffUpgrade(prompt, '/workspace/app', null)
 
     expect(prompt).toHaveBeenCalledWith(null)
     expect(Log.bootstrap).toHaveBeenCalledWith(
@@ -1182,11 +1223,15 @@ describe('agentic upgrade prompts', () => {
   })
 
   it('passes the complete migration prompt to an existing agent', async () => {
-    await spawnNextUpgrade('/workspace/app', {
-      revision: 'latest',
-      verbose: false,
-      ai: 'security',
-    })
+    await spawnNextUpgrade(
+      '/workspace/app',
+      {
+        revision: 'latest',
+        verbose: false,
+        ai: 'security',
+      },
+      null
+    )
 
     expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', 'security')
     const [guidePath, guide] = jest.mocked(writeFile).mock.calls[0]
@@ -1224,18 +1269,24 @@ describe('agentic upgrade prompts', () => {
 
      References:
      - https://api.github.com/advisories?affects=next
-     - https://registry.npmjs.org/next",
+     - https://registry.npmjs.org/next
+
+     When this task ends, report its result once. After completing the requested upgrade and all applicable verification, run \`npx next@<cli-version> internal report-ai-upgrade <run-id> success\`. If the attempted upgrade remains unsuccessful after repairs or verification fails, run \`npx next@<cli-version> internal report-ai-upgrade <run-id> failure\`. If you stop for duplicate work, user cancellation, or an unavailable prerequisite, do not report success or failure. Explain the result to the user separately; never include project details or error text in the telemetry command.",
        ],
      ]
     `)
   })
 
   it('renders verbose codemod instructions in the guide', async () => {
-    await spawnNextUpgrade('/workspace/app', {
-      revision: 'latest',
-      verbose: true,
-      ai: 'security',
-    })
+    await spawnNextUpgrade(
+      '/workspace/app',
+      {
+        revision: 'latest',
+        verbose: true,
+        ai: 'security',
+      },
+      null
+    )
 
     const [guidePath, guide] = jest.mocked(writeFile).mock.calls[0]
     expect(String(guidePath).replace(/\\+/g, '/')).toBe(
@@ -1245,11 +1296,15 @@ describe('agentic upgrade prompts', () => {
   })
 
   it('defaults a bare AI upgrade to security', async () => {
-    await spawnNextUpgrade('/workspace/app', {
-      revision: 'latest',
-      verbose: false,
-      ai: true,
-    })
+    await spawnNextUpgrade(
+      '/workspace/app',
+      {
+        revision: 'latest',
+        verbose: false,
+        ai: true,
+      },
+      null
+    )
 
     expect(loadConfig).toHaveBeenCalledWith(
       PHASE_PRODUCTION_BUILD,
@@ -1266,11 +1321,15 @@ describe('agentic upgrade prompts', () => {
         default: { experimental: { agentUpgrade: policy } },
       } as never)
 
-      await spawnNextUpgrade('/workspace/app', {
-        revision: 'latest',
-        verbose: false,
-        ai: true,
-      })
+      await spawnNextUpgrade(
+        '/workspace/app',
+        {
+          revision: 'latest',
+          verbose: false,
+          ai: true,
+        },
+        null
+      )
 
       expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', policy)
       expect(Log.bootstrap).toHaveBeenCalledWith(
@@ -1290,13 +1349,17 @@ describe('agentic upgrade prompts', () => {
       futureDefaults: [],
     })
 
-    await spawnNextUpgrade('/workspace/app', {
-      revision: 'latest',
-      verbose: false,
-      ai: 'latest',
-    })
+    await spawnNextUpgrade(
+      '/workspace/app',
+      {
+        revision: 'latest',
+        verbose: false,
+        ai: 'latest',
+      },
+      null
+    )
 
-    expect(loadConfig).not.toHaveBeenCalled()
+    expect(loadConfig).toHaveBeenCalledTimes(1)
     expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', 'latest')
     expect(readFile).toHaveBeenCalledTimes(0)
     expect(writeFile).toHaveBeenCalledTimes(0)
@@ -1320,7 +1383,9 @@ describe('agentic upgrade prompts', () => {
      Set \`experimental.agentUpgrade\` to "latest" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
 
      References:
-     - https://registry.npmjs.org/next/latest",
+     - https://registry.npmjs.org/next/latest
+
+     When this task ends, report its result once. After completing the requested upgrade and all applicable verification, run \`npx next@<cli-version> internal report-ai-upgrade <run-id> success\`. If the attempted upgrade remains unsuccessful after repairs or verification fails, run \`npx next@<cli-version> internal report-ai-upgrade <run-id> failure\`. If you stop for duplicate work, user cancellation, or an unavailable prerequisite, do not report success or failure. Explain the result to the user separately; never include project details or error text in the telemetry command.",
        ],
      ]
     `)
@@ -1335,11 +1400,15 @@ describe('agentic upgrade prompts', () => {
       futureDefaults: [],
     })
 
-    await spawnNextUpgrade('/workspace/app', {
-      revision: 'latest',
-      verbose: false,
-      ai: 'security',
-    })
+    await spawnNextUpgrade(
+      '/workspace/app',
+      {
+        revision: 'latest',
+        verbose: false,
+        ai: 'security',
+      },
+      null
+    )
 
     expect(normalizedBootstrapCalls().flat().join('\n')).toContain(
       '/agentic-upgrade/shared.md'
@@ -1364,11 +1433,15 @@ describe('agentic upgrade prompts', () => {
       futureDefaults: [],
     })
 
-    await spawnNextUpgrade('/workspace/app', {
-      revision: 'latest',
-      verbose: false,
-      ai: 'latest',
-    })
+    await spawnNextUpgrade(
+      '/workspace/app',
+      {
+        revision: 'latest',
+        verbose: false,
+        ai: 'latest',
+      },
+      null
+    )
 
     expect(normalizedBootstrapCalls().flat().join('\n')).toContain(
       '/agentic-upgrade/different-major.md'
@@ -1389,11 +1462,15 @@ describe('agentic upgrade prompts', () => {
       futureDefaults: [],
     })
 
-    await spawnNextUpgrade('/workspace/app', {
-      revision: 'latest',
-      verbose: false,
-      ai: 'experimental-future',
-    })
+    await spawnNextUpgrade(
+      '/workspace/app',
+      {
+        revision: 'latest',
+        verbose: false,
+        ai: 'experimental-future',
+      },
+      null
+    )
 
     const prompt = normalizedBootstrapCalls().flat().join('\n')
     expect(prompt).toContain('/agentic-upgrade/different-major.md')
@@ -1416,11 +1493,15 @@ describe('agentic upgrade prompts', () => {
         futureDefaults: [],
       })
 
-      await spawnNextUpgrade('/workspace/app', {
-        revision: 'latest',
-        verbose: false,
-        ai: policy,
-      })
+      await spawnNextUpgrade(
+        '/workspace/app',
+        {
+          revision: 'latest',
+          verbose: false,
+          ai: policy,
+        },
+        null
+      )
 
       expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', policy)
       const prompt = normalizedBootstrapCalls().flat().join('\n')
@@ -1447,11 +1528,15 @@ describe('agentic upgrade prompts', () => {
       futureDefaults: [],
     })
 
-    await spawnNextUpgrade('/workspace/app', {
-      revision: 'latest',
-      verbose: false,
-      ai: 'latest',
-    })
+    await spawnNextUpgrade(
+      '/workspace/app',
+      {
+        revision: 'latest',
+        verbose: false,
+        ai: 'latest',
+      },
+      null
+    )
 
     const prompt = normalizedBootstrapCalls().flat().join('\n')
     expect(prompt).toContain('from Next.js 17.2.0-rc.1 to 17.2.0')
@@ -1498,11 +1583,15 @@ describe('agentic upgrade prompts', () => {
       return child
     })
 
-    await spawnNextUpgrade('/workspace/app', {
-      revision: 'latest',
-      verbose: false,
-      ai: 'experimental-future',
-    })
+    await spawnNextUpgrade(
+      '/workspace/app',
+      {
+        revision: 'latest',
+        verbose: false,
+        ai: 'experimental-future',
+      },
+      null
+    )
 
     expect(crossSpawn).toHaveBeenCalledTimes(1)
     expect(readFile).toHaveBeenCalledTimes(0)
@@ -1536,7 +1625,9 @@ describe('agentic upgrade prompts', () => {
      Complete each adoption. Temporary opt-outs and TODO markers are intermediate work only; do not stop until they are removed and the adoption is fully verified.
 
      References:
-     - https://registry.npmjs.org/next/latest",
+     - https://registry.npmjs.org/next/latest
+
+     When this task ends, report its result once. After completing the requested upgrade and all applicable verification, run \`npx next@<cli-version> internal report-ai-upgrade <run-id> success\`. If the attempted upgrade remains unsuccessful after repairs or verification fails, run \`npx next@<cli-version> internal report-ai-upgrade <run-id> failure\`. If you stop for duplicate work, user cancellation, or an unavailable prerequisite, do not report success or failure. Explain the result to the user separately; never include project details or error text in the telemetry command.",
          ],
        ],
        "savedInstructions": [
@@ -1589,11 +1680,15 @@ describe('agentic upgrade prompts', () => {
       return child
     })
 
-    await spawnNextUpgrade('/workspace/app', {
-      revision: 'latest',
-      verbose: false,
-      ai: 'experimental-future',
-    })
+    await spawnNextUpgrade(
+      '/workspace/app',
+      {
+        revision: 'latest',
+        verbose: false,
+        ai: 'experimental-future',
+      },
+      null
+    )
 
     expect(
       jest
@@ -1634,7 +1729,9 @@ describe('agentic upgrade prompts', () => {
      Complete each adoption. Temporary opt-outs and TODO markers are intermediate work only; do not stop until they are removed and the adoption is fully verified.
 
      References:
-     - https://registry.npmjs.org/next/latest",
+     - https://registry.npmjs.org/next/latest
+
+     When this task ends, report its result once. After completing the requested upgrade and all applicable verification, run \`npx next@<cli-version> internal report-ai-upgrade <run-id> success\`. If the attempted upgrade remains unsuccessful after repairs or verification fails, run \`npx next@<cli-version> internal report-ai-upgrade <run-id> failure\`. If you stop for duplicate work, user cancellation, or an unavailable prerequisite, do not report success or failure. Explain the result to the user separately; never include project details or error text in the telemetry command.",
        ],
      ]
     `)
