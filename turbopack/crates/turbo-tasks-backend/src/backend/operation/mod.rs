@@ -16,12 +16,14 @@ use std::{
 use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
 use parking_lot::RwLockReadGuard;
+use smallvec::SmallVec;
 use tracing::info_span;
 #[cfg(feature = "trace_prepare_tasks")]
 use tracing::trace_span;
 use turbo_tasks::{
     CellId, DynTaskInputs, FxIndexMap, RawVc, SharedReference, TaskExecutionReason, TaskId,
-    TaskPriority, TurboTasks, TurboTasksCallApi, ValueTypePersistence, backend::CachedTaskTypeArc,
+    TaskPriority, TurboTasks, TurboTasksCallApi, ValueTypePersistence,
+    backend::{CachedTaskType, CachedTaskTypeArc},
     macro_helpers::NativeFunction,
 };
 
@@ -34,6 +36,7 @@ use crate::{
         storage::{SpecificTaskDataCategory, StorageWriteGuard, TaskEntryGuard, TrackOutcome},
         storage_schema::{TaskStorage, TaskStorageAccessors},
     },
+    backing_storage::TaskTypeHash,
     data::{ActivenessState, CollectibleRef, Dirtyness, InProgressState, TransientTask},
 };
 
@@ -198,9 +201,8 @@ pub trait ExecuteContext<'e>: Sized {
     ///
     /// Uses hash-based lookup which may return multiple candidates due to hash collisions,
     /// then verifies each candidate by comparing the stored `persistent_task_type`.
-    /// Returns `Some((task_id, task_type))` if a matching task is found, where `task_type` is
-    /// the existing `CachedTaskTypeArc` from storage (avoiding a duplicate
-    /// allocation).
+    /// Records every candidate in the in-memory hash bucket, then returns the matching task and
+    /// its stored type, if any.
     ///
     /// Accepts exploded components so the caller does not need to box the argument before calling.
     fn task_by_type(
@@ -208,7 +210,9 @@ pub trait ExecuteContext<'e>: Sized {
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
         arg: &dyn DynTaskInputs,
+        task_type_hash: Option<TaskTypeHash>,
     ) -> Option<(TaskId, CachedTaskTypeArc)>;
+
     fn debug_get_task_description(&self, task_id: TaskId) -> String;
 }
 
@@ -956,13 +960,16 @@ impl<'e> ExecuteContextImpl<'e> {
             if !entry.self_restored {
                 continue;
             }
-            if let Some(task_type) = entry.task_type.clone() {
-                // Insert into the task cache to avoid future lookups
-                self.backend
-                    .storage
-                    .task_cache
-                    .entry(task_type)
-                    .or_insert(entry.task_id);
+            if let Some(task_type) = entry.task_type.as_ref() {
+                // Call task_by_type to ensure the task id is in the task cache and avoid future
+                // lookups. Direct TaskId restoration bypasses normal type lookup, so this also
+                // completes the collision bucket before GC can delete one of its members.
+                let CachedTaskType {
+                    native_fn,
+                    this,
+                    arg,
+                } = &**task_type;
+                let _ = self.task_by_type(native_fn, *this, arg.as_ref(), None);
             }
             // Only call the callback if no category is still being restored by another thread.
             // If so, Phase 3 calls the callback after all categories are fully restored.
@@ -1395,29 +1402,58 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
         arg: &dyn DynTaskInputs,
+        task_type_hash: Option<TaskTypeHash>,
     ) -> Option<(TaskId, CachedTaskTypeArc)> {
         if !self.backend.should_restore() {
             return None;
         }
 
-        // Get candidates from backing storage (hash-based lookup may return multiple)
+        let task_type_hash = task_type_hash.unwrap_or_else(|| {
+            crate::backing_storage::compute_task_type_hash_from_components(native_fn, this, arg)
+        });
+        // With persistence enabled, a published bucket includes every on-disk candidate.
+        // Direct-by-ID restores during eviction must not repeatedly read the DB or recurse into
+        // task storage when that bucket is already in memory.
+        if let Some(bucket) = self.backend.storage.task_cache.get(&task_type_hash) {
+            return bucket.find(native_fn, this, arg);
+        }
+
+        // Get candidates from backing storage (hash-based lookup may return multiple).
         let candidates = self
             .backend
             .backing_storage
-            .lookup_task_candidates(native_fn, this, arg)
+            .lookup_task_candidates(native_fn, this, task_type_hash)
             .expect("Failed to lookup task ids");
 
-        // Verify each candidate by comparing the stored persistent_task_type.
-        // Only rarely is there more than one candidate, so no need for parallelization.
+        // Restore every candidate's full type before locking the TaskCache bucket, even when
+        // the matching candidate appears first.
+        let mut restored_candidates = SmallVec::<[(CachedTaskTypeArc, TaskId); 1]>::new();
+        let mut matching_candidate = None;
         for candidate_id in candidates {
             let task = self.task(candidate_id, TaskDataCategory::Data);
-            if let Some(stored_type) = task.get_persistent_task_type()
-                && stored_type.eq_components(native_fn, this, arg)
-            {
-                return Some((candidate_id, stored_type.clone()));
+            let stored_type = task
+                .get_persistent_task_type()
+                .expect("TaskCache candidate must have a persistent task type")
+                .clone();
+            if stored_type.eq_components(native_fn, this, arg) {
+                matching_candidate = Some((candidate_id, stored_type.clone()));
             }
+            restored_candidates.push((stored_type, candidate_id));
         }
-        None
+
+        let mut bucket = self
+            .backend
+            .storage
+            .task_cache
+            .entry(task_type_hash)
+            .or_default();
+        if !bucket.is_empty() {
+            // A concurrent restore populated this complete bucket while we read from disk.
+            // Prefer the current bucket: reinserting our older candidates could revive a deletion.
+            return bucket.find(native_fn, this, arg);
+        }
+        bucket.insert_all(restored_candidates);
+        matching_candidate
     }
 
     fn debug_get_task_description(&self, task_id: TaskId) -> String {
