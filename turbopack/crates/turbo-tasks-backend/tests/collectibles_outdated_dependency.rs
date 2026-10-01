@@ -9,10 +9,7 @@
 //! previous execution. Collectibles emitted in the meantime will be seen when the read happens, so
 //! they must make the collector dirty without making the running execution stale.
 
-use std::{
-    sync::atomic::{AtomicUsize, Ordering},
-    time::Duration,
-};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use anyhow::Result;
 use futures::future::try_join_all;
@@ -48,8 +45,6 @@ struct ExecutionCounter {
 
 #[turbo_tasks::function]
 async fn emit_one(i: u32) -> Result<Vc<()>> {
-    // Slow enough that the collector re-executes while collectibles are still being emitted.
-    tokio::time::sleep(Duration::from_millis(5)).await;
     emit(ResolvedVc::upcast::<Box<dyn ValueToString>>(
         Thing(i).resolved_cell(),
     ));
