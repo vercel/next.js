@@ -181,7 +181,7 @@ Cache data that should be reused with [`use cache`](/docs/app/api-reference/dire
 
 If the complete route must remain static, add [`ensureStatic = 'navigation'`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#navigation) after migrating its caching. Unlike `dynamic = 'force-static'`, `ensureStatic` does not make Request-time APIs return empty values. It reports an error if request-specific server work prevents the route from being prerendered.
 
-If the original config was only intended to make navigation faster, choose the static stage that matches the route instead. See [Keeping pages static](/docs/app/guides/keeping-pages-static).
+If the original config was only intended to make navigation faster, choose the `ensureStatic` level that matches the route instead. See [Keeping pages static](/docs/app/guides/keeping-pages-static).
 
 ```tsx filename="app/page.tsx" switcher
 // Before
