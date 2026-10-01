@@ -175,10 +175,15 @@ export const TracedComponentActiveSpan = withActiveSpan(async function (
 
 type TestGlobal = typeof globalThis & {
   __nextTestEarlyTracer?: Tracer
+  __nextTestRegistrationTracer?: Tracer
 }
 
-export async function TracedComponentEarlyTracerSpan() {
-  const tracer = (globalThis as TestGlobal).__nextTestEarlyTracer
+export async function TracedComponentEarlyTracerSpan({
+  tracerKey = '__nextTestEarlyTracer',
+}: {
+  tracerKey?: '__nextTestEarlyTracer' | '__nextTestRegistrationTracer'
+} = {}) {
+  const tracer = (globalThis as TestGlobal)[tracerKey]
   if (!tracer) {
     throw new Error(
       'Expected instrumentation to register the early tracer before rendering'
