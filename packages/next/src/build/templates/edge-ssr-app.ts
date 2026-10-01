@@ -22,6 +22,7 @@ import type { NextFetchEvent } from '../../server/web/spec-extension/fetch-event
 import type {
   AppPageRouteHandlerContext,
   AppPageRouteModule,
+  DevRenderContext,
   RouteMatch,
 } from '../../server/route-modules/app-page/module.compiled'
 import type { AppPageRenderResultMetadata } from '../../server/render-result'
@@ -36,6 +37,7 @@ import { CloseController } from '../../server/web/web-on-close'
 import { parseMaxPostponedStateSize } from '../../shared/lib/size-limit'
 import { toNodeOutgoingHttpHeaders } from '../../server/web/utils'
 import type { RequestMeta } from '../../server/request-meta'
+import { createDevRenderContext } from '../../server/route-modules/app-page/dev-render-context'
 
 declare const incrementalCacheHandler: any
 // OPTIONAL_IMPORT:incrementalCacheHandler
@@ -112,11 +114,13 @@ async function requestHandler(
   const closeController = new CloseController()
 
   const routeMatch: RouteMatch = { resolvedPathname }
+  const dev: DevRenderContext | undefined = createDevRenderContext(baseReq)
   const renderContext: AppPageRouteHandlerContext = {
     page: normalizedSrcPage,
     routeMatch,
     query,
     params,
+    dev,
 
     sharedContext: {
       buildId,
