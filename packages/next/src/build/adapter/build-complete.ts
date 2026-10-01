@@ -836,7 +836,7 @@ export async function handleBuildComplete({
         for (const file of page.files) {
           const originalPath = path.join(distDir, file)
           const fileOutputPath = path.relative(
-            path.relative(dir, distDir),
+            config.distDir,
             path.join(path.relative(repoRoot, distDir), file)
           )
           output.assets[fileOutputPath] = originalPath
