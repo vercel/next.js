@@ -450,11 +450,15 @@ export async function runUpgrade(directory: string, policy: NudgeKind) {
   delete process.env.__NEXT_AGENT_UPGRADE
   updateInitialEnv({ __NEXT_AGENT_UPGRADE: undefined })
   const { spawnNextUpgrade } = await import('../../cli/next-upgrade.js')
-  await spawnNextUpgrade(directory, {
-    revision: 'latest',
-    verbose: false,
-    ai: policy,
-  })
+  await spawnNextUpgrade(
+    directory,
+    {
+      revision: 'latest',
+      verbose: false,
+      ai: policy,
+    },
+    null
+  )
   return process.exitCode ?? 0
 }
 

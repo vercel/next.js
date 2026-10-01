@@ -936,11 +936,15 @@ describe('human upgrade nudge', () => {
         expect(process.env.__NEXT_VERSION).toBe('16.4.0-preview-test')
       })
       await runUpgrade(directory, policy)
-      expect(spawnNextUpgrade).toHaveBeenCalledWith(directory, {
-        revision: 'latest',
-        verbose: false,
-        ai: policy,
-      })
+      expect(spawnNextUpgrade).toHaveBeenCalledWith(
+        directory,
+        {
+          revision: 'latest',
+          verbose: false,
+          ai: policy,
+        },
+        null
+      )
     }
   )
 

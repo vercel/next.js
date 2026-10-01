@@ -592,10 +592,14 @@ program
   )
   .action(async (directory, options) => {
     const mod = await import('../cli/next-upgrade.js')
-    await mod.spawnNextUpgrade(directory, {
-      ...options,
-      ai: options.experimentalAi,
-    })
+    await mod.spawnNextUpgrade(
+      directory,
+      {
+        ...options,
+        ai: options.experimentalAi,
+      },
+      null
+    )
   })
 
 program

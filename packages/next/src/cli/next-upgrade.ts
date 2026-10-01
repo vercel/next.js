@@ -1,7 +1,8 @@
 import { spawn } from 'child_process'
+import { randomUUID } from 'crypto'
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
-import { dirname, join } from 'path'
+import { dirname, join, resolve as resolvePath } from 'path'
 import { major, prerelease, valid } from 'next/dist/compiled/semver'
 import * as Log from '../build/output/log'
 import createSpinner from '../build/spinner'
@@ -12,6 +13,9 @@ import { interopDefault } from '../lib/interop-default'
 import { dim } from '../lib/picocolors'
 import type { UpgradeDocument } from '../lib/upgrade/future-defaults'
 import { runChildProcess } from '../lib/upgrade/run-child-process'
+import { getAgentName } from '../telemetry/agent-name'
+import { eventAIUpgradeRunStarted } from '../telemetry/events/ai-upgrade'
+import { Telemetry } from '../telemetry/storage'
 import loadConfig from '../server/config'
 import { normalizeConfig } from '../server/config-shared'
 import { PHASE_PRODUCTION_BUILD } from '../shared/lib/constants'
@@ -21,6 +25,9 @@ type NextUpgradeOptions = {
   verbose: boolean
   ai: boolean | string | undefined
 }
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 const CODEMOD_COMMAND_PLACEHOLDER = '<codemod-command>'
 const SKILLS_CLI_VERSION = '1.5.26'
@@ -120,33 +127,13 @@ async function prepareUpgradeSkill(
   }
 }
 
-async function resolveAIUpgradeType(
-  directory: string,
-  option: NextUpgradeOptions['ai']
-): Promise<string> {
-  if (typeof option === 'string') {
-    return option
-  }
-
+async function loadAIUpgradeConfig(directory: string) {
   // Read and normalize the app's config without validating legacy options
   // against the current Next.js schema.
   const rawConfig = await loadConfig(PHASE_PRODUCTION_BUILD, directory, {
     rawConfig: true,
   })
-  const config = await normalizeConfig(
-    PHASE_PRODUCTION_BUILD,
-    interopDefault(rawConfig)
-  )
-  const policy = config.experimental?.agentUpgrade
-
-  if (
-    policy === 'security' ||
-    policy === 'latest' ||
-    policy === 'experimental-future'
-  ) {
-    return policy
-  }
-  return 'security'
+  return normalizeConfig(PHASE_PRODUCTION_BUILD, interopDefault(rawConfig))
 }
 
 async function resolveCanaryVersion(): Promise<string> {
@@ -176,12 +163,83 @@ async function resolveCanaryVersion(): Promise<string> {
 
 export async function spawnNextUpgrade(
   directory: string | undefined,
-  options: NextUpgradeOptions
+  options: NextUpgradeOptions,
+  nudgeSource: { id: string; recipient: 'human' | 'agent' } | null
 ) {
-  const baseDir = getProjectDir(directory)
+  let baseDir = resolvePath(directory || '.')
 
   if (options.ai) {
+    // Match dev/build's telemetry storage, including custom output directories in CI.
+    // Retain config errors until after recording the invocation so failed runs still count.
+    let distDir = '.next'
+    let configuredPolicy: unknown = null
+    let configError: unknown = null
     try {
+      baseDir = getProjectDir(directory, false)
+      const config = await loadAIUpgradeConfig(baseDir)
+      distDir = config.distDir || '.next'
+      configuredPolicy = config.experimental?.agentUpgrade
+    } catch (error) {
+      configError = error
+    }
+
+    // Count AI invocations even when resolving the directory or config fails.
+    const telemetry = new Telemetry({
+      distDir: join(baseDir, distDir),
+      skipNotify: true,
+    })
+
+    // The parent records attribution; canary only needs its run ID to report results.
+    // Remove it before launching an agent so later upgrades start their own runs.
+    const inheritedRunId = process.env.__NEXT_AI_UPGRADE_RUN_ID
+    delete process.env.__NEXT_AI_UPGRADE_RUN_ID
+    const invalidRunId =
+      inheritedRunId !== undefined && !UUID_PATTERN.test(inheritedRunId)
+    const invalidNudgeId =
+      nudgeSource !== null && !UUID_PATTERN.test(nudgeSource.id)
+
+    const runId =
+      inheritedRunId && !invalidRunId ? inheritedRunId : randomUUID()
+
+    try {
+      // Only the original invocation records a start, including invalid-input failures.
+      // Origin and nudge attribution stay on that event; results join through runId.
+      if (!inheritedRunId || invalidRunId) {
+        const agentProduct = await getAgentName()
+        const nudge = invalidRunId || invalidNudgeId ? null : nudgeSource
+        const origin = nudge
+          ? nudge.recipient === 'agent'
+            ? 'agent_nudge'
+            : 'human_nudge'
+          : agentProduct
+            ? 'agent_manual'
+            : 'human_manual'
+        telemetry.record(
+          eventAIUpgradeRunStarted({
+            runId,
+            nudgeId: nudge?.id ?? null,
+            origin,
+            agentProduct,
+            requestedPolicy:
+              options.ai === 'security' ||
+              options.ai === 'latest' ||
+              options.ai === 'experimental-future'
+                ? options.ai
+                : null,
+          })
+        )
+      }
+
+      if (invalidRunId) {
+        throw new Error('Invalid upgrade run ID.')
+      }
+      if (invalidNudgeId) {
+        throw new Error('Invalid upgrade nudge ID.')
+      }
+      if (configError) {
+        throw configError
+      }
+
       const expectedVersion = process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
       delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
       delete process.env.__NEXT_UPGRADE_USE_CURRENT_CLI
@@ -217,6 +275,8 @@ export async function spawnNextUpgrade(
             stdio: 'inherit',
             env: {
               ...process.env,
+              // Preserve this run when delegating to the current canary CLI.
+              __NEXT_AI_UPGRADE_RUN_ID: runId,
               __NEXT_UPGRADE_EXPECTED_CLI_VERSION: canaryVersion,
               // Older canaries recognize only this recursion guard.
               __NEXT_UPGRADE_USE_CURRENT_CLI: '1',
@@ -234,7 +294,14 @@ export async function spawnNextUpgrade(
         )
       }
 
-      const upgradeType = await resolveAIUpgradeType(baseDir, options.ai)
+      const upgradeType =
+        typeof options.ai === 'string'
+          ? options.ai
+          : configuredPolicy === 'security' ||
+              configuredPolicy === 'latest' ||
+              configuredPolicy === 'experimental-future'
+            ? configuredPolicy
+            : 'security'
 
       if (
         upgradeType !== 'security' &&
@@ -475,10 +542,15 @@ ${references}`
         error instanceof Error ? error.message : error
       )
       process.exitCode = 1
+    } finally {
+      // Send queued starts before this short-lived CLI invocation exits.
+      await telemetry.flush()
     }
 
     return
   }
+
+  baseDir = getProjectDir(directory)
 
   const [upgradeProcessCommand, ...upgradeProcessDefaultArgs] =
     getNpxCommand(baseDir).split(' ')

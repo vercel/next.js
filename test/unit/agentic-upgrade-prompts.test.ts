@@ -21,6 +21,7 @@ import loadConfig from 'next/dist/server/config'
 import { normalizeConfig } from 'next/dist/server/config-shared'
 import { PHASE_PRODUCTION_BUILD } from 'next/dist/shared/lib/constants'
 import { getAgentName } from 'next/dist/telemetry/agent-name'
+import { Telemetry } from 'next/dist/telemetry/storage'
 
 jest.mock('fs/promises', () => ({
   access: jest.fn(),
@@ -75,6 +76,9 @@ jest.mock('next/dist/server/config-shared', () => ({
 }))
 jest.mock('next/dist/telemetry/agent-name', () => ({
   getAgentName: jest.fn(),
+}))
+jest.mock('next/dist/telemetry/storage', () => ({
+  Telemetry: jest.fn(),
 }))
 const createSpinner = require('next/dist/build/spinner').default as jest.Mock
 const crossSpawn = require('next/dist/compiled/cross-spawn') as jest.Mock & {
@@ -148,6 +152,13 @@ describe('agentic upgrade prompts', () => {
 
   beforeEach(() => {
     jest.resetAllMocks()
+    jest.mocked(Telemetry).mockImplementation(
+      () =>
+        ({
+          record: jest.fn(),
+          flush: jest.fn().mockResolvedValue([]),
+        }) as never
+    )
     crossSpawn.sync.mockImplementation((_path, args) => {
       if (args[0] === 'debug') {
         return {
@@ -234,11 +245,15 @@ describe('agentic upgrade prompts', () => {
       reason: 'Already current.',
     })
 
-    await spawnNextUpgrade('/workspace/app', {
-      revision: 'latest',
-      verbose: false,
-      ai: 'security',
-    })
+    await spawnNextUpgrade(
+      '/workspace/app',
+      {
+        revision: 'latest',
+        verbose: false,
+        ai: 'security',
+      },
+      null
+    )
 
     expect(global.fetch).toHaveBeenCalledTimes(0)
     expect(crossSpawn).toHaveBeenCalledTimes(0)
@@ -250,11 +265,15 @@ describe('agentic upgrade prompts', () => {
   it('rejects a worker running a different CLI version', async () => {
     process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION = '0.0.0'
 
-    await spawnNextUpgrade('/workspace/app', {
-      revision: 'latest',
-      verbose: false,
-      ai: 'security',
-    })
+    await spawnNextUpgrade(
+      '/workspace/app',
+      {
+        revision: 'latest',
+        verbose: false,
+        ai: 'security',
+      },
+      null
+    )
 
     expect(Log.error).toHaveBeenCalledWith(
       'Could not prepare the upgrade:',
@@ -284,11 +303,15 @@ describe('agentic upgrade prompts', () => {
         reason: 'Already current.',
       })
 
-      await spawnNextUpgrade('/workspace/app', {
-        revision: 'latest',
-        verbose: false,
-        ai: 'security',
-      })
+      await spawnNextUpgrade(
+        '/workspace/app',
+        {
+          revision: 'latest',
+          verbose: false,
+          ai: 'security',
+        },
+        null
+      )
 
       expect(global.fetch).toHaveBeenCalledTimes(1)
       expect(global.fetch).toHaveBeenCalledWith(
@@ -317,11 +340,15 @@ describe('agentic upgrade prompts', () => {
         return child
       })
 
-      await spawnNextUpgrade('/workspace/app', {
-        revision: 'latest',
-        verbose: true,
-        ai,
-      })
+      await spawnNextUpgrade(
+        '/workspace/app',
+        {
+          revision: 'latest',
+          verbose: true,
+          ai,
+        },
+        null
+      )
 
       expect(global.fetch).toHaveBeenCalledTimes(1)
       expect(crossSpawn).toHaveBeenCalledTimes(1)
@@ -365,11 +392,15 @@ describe('agentic upgrade prompts', () => {
     delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
     jest.mocked(global.fetch).mockImplementation(response)
 
-    await spawnNextUpgrade('/workspace/app', {
-      revision: 'latest',
-      verbose: false,
-      ai: 'security',
-    })
+    await spawnNextUpgrade(
+      '/workspace/app',
+      {
+        revision: 'latest',
+        verbose: false,
+        ai: 'security',
+      },
+      null
+    )
 
     expect(Log.error).toHaveBeenCalledWith(
       'Could not prepare the upgrade:',
@@ -1182,11 +1213,15 @@ describe('agentic upgrade prompts', () => {
   })
 
   it('passes the complete migration prompt to an existing agent', async () => {
-    await spawnNextUpgrade('/workspace/app', {
-      revision: 'latest',
-      verbose: false,
-      ai: 'security',
-    })
+    await spawnNextUpgrade(
+      '/workspace/app',
+      {
+        revision: 'latest',
+        verbose: false,
+        ai: 'security',
+      },
+      null
+    )
 
     expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', 'security')
     const [guidePath, guide] = jest.mocked(writeFile).mock.calls[0]
@@ -1231,11 +1266,15 @@ describe('agentic upgrade prompts', () => {
   })
 
   it('renders verbose codemod instructions in the guide', async () => {
-    await spawnNextUpgrade('/workspace/app', {
-      revision: 'latest',
-      verbose: true,
-      ai: 'security',
-    })
+    await spawnNextUpgrade(
+      '/workspace/app',
+      {
+        revision: 'latest',
+        verbose: true,
+        ai: 'security',
+      },
+      null
+    )
 
     const [guidePath, guide] = jest.mocked(writeFile).mock.calls[0]
     expect(String(guidePath).replace(/\\+/g, '/')).toBe(
@@ -1245,11 +1284,15 @@ describe('agentic upgrade prompts', () => {
   })
 
   it('defaults a bare AI upgrade to security', async () => {
-    await spawnNextUpgrade('/workspace/app', {
-      revision: 'latest',
-      verbose: false,
-      ai: true,
-    })
+    await spawnNextUpgrade(
+      '/workspace/app',
+      {
+        revision: 'latest',
+        verbose: false,
+        ai: true,
+      },
+      null
+    )
 
     expect(loadConfig).toHaveBeenCalledWith(
       PHASE_PRODUCTION_BUILD,
@@ -1266,11 +1309,15 @@ describe('agentic upgrade prompts', () => {
         default: { experimental: { agentUpgrade: policy } },
       } as never)
 
-      await spawnNextUpgrade('/workspace/app', {
-        revision: 'latest',
-        verbose: false,
-        ai: true,
-      })
+      await spawnNextUpgrade(
+        '/workspace/app',
+        {
+          revision: 'latest',
+          verbose: false,
+          ai: true,
+        },
+        null
+      )
 
       expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', policy)
       expect(Log.bootstrap).toHaveBeenCalledWith(
@@ -1290,13 +1337,17 @@ describe('agentic upgrade prompts', () => {
       futureDefaults: [],
     })
 
-    await spawnNextUpgrade('/workspace/app', {
-      revision: 'latest',
-      verbose: false,
-      ai: 'latest',
-    })
+    await spawnNextUpgrade(
+      '/workspace/app',
+      {
+        revision: 'latest',
+        verbose: false,
+        ai: 'latest',
+      },
+      null
+    )
 
-    expect(loadConfig).not.toHaveBeenCalled()
+    expect(loadConfig).toHaveBeenCalledTimes(1)
     expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', 'latest')
     expect(readFile).toHaveBeenCalledTimes(0)
     expect(writeFile).toHaveBeenCalledTimes(0)
@@ -1335,11 +1386,15 @@ describe('agentic upgrade prompts', () => {
       futureDefaults: [],
     })
 
-    await spawnNextUpgrade('/workspace/app', {
-      revision: 'latest',
-      verbose: false,
-      ai: 'security',
-    })
+    await spawnNextUpgrade(
+      '/workspace/app',
+      {
+        revision: 'latest',
+        verbose: false,
+        ai: 'security',
+      },
+      null
+    )
 
     expect(normalizedBootstrapCalls().flat().join('\n')).toContain(
       '/agentic-upgrade/shared.md'
@@ -1364,11 +1419,15 @@ describe('agentic upgrade prompts', () => {
       futureDefaults: [],
     })
 
-    await spawnNextUpgrade('/workspace/app', {
-      revision: 'latest',
-      verbose: false,
-      ai: 'latest',
-    })
+    await spawnNextUpgrade(
+      '/workspace/app',
+      {
+        revision: 'latest',
+        verbose: false,
+        ai: 'latest',
+      },
+      null
+    )
 
     expect(normalizedBootstrapCalls().flat().join('\n')).toContain(
       '/agentic-upgrade/different-major.md'
@@ -1389,11 +1448,15 @@ describe('agentic upgrade prompts', () => {
       futureDefaults: [],
     })
 
-    await spawnNextUpgrade('/workspace/app', {
-      revision: 'latest',
-      verbose: false,
-      ai: 'experimental-future',
-    })
+    await spawnNextUpgrade(
+      '/workspace/app',
+      {
+        revision: 'latest',
+        verbose: false,
+        ai: 'experimental-future',
+      },
+      null
+    )
 
     const prompt = normalizedBootstrapCalls().flat().join('\n')
     expect(prompt).toContain('/agentic-upgrade/different-major.md')
@@ -1416,11 +1479,15 @@ describe('agentic upgrade prompts', () => {
         futureDefaults: [],
       })
 
-      await spawnNextUpgrade('/workspace/app', {
-        revision: 'latest',
-        verbose: false,
-        ai: policy,
-      })
+      await spawnNextUpgrade(
+        '/workspace/app',
+        {
+          revision: 'latest',
+          verbose: false,
+          ai: policy,
+        },
+        null
+      )
 
       expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', policy)
       const prompt = normalizedBootstrapCalls().flat().join('\n')
@@ -1447,11 +1514,15 @@ describe('agentic upgrade prompts', () => {
       futureDefaults: [],
     })
 
-    await spawnNextUpgrade('/workspace/app', {
-      revision: 'latest',
-      verbose: false,
-      ai: 'latest',
-    })
+    await spawnNextUpgrade(
+      '/workspace/app',
+      {
+        revision: 'latest',
+        verbose: false,
+        ai: 'latest',
+      },
+      null
+    )
 
     const prompt = normalizedBootstrapCalls().flat().join('\n')
     expect(prompt).toContain('from Next.js 17.2.0-rc.1 to 17.2.0')
@@ -1498,11 +1569,15 @@ describe('agentic upgrade prompts', () => {
       return child
     })
 
-    await spawnNextUpgrade('/workspace/app', {
-      revision: 'latest',
-      verbose: false,
-      ai: 'experimental-future',
-    })
+    await spawnNextUpgrade(
+      '/workspace/app',
+      {
+        revision: 'latest',
+        verbose: false,
+        ai: 'experimental-future',
+      },
+      null
+    )
 
     expect(crossSpawn).toHaveBeenCalledTimes(1)
     expect(readFile).toHaveBeenCalledTimes(0)
@@ -1589,11 +1664,15 @@ describe('agentic upgrade prompts', () => {
       return child
     })
 
-    await spawnNextUpgrade('/workspace/app', {
-      revision: 'latest',
-      verbose: false,
-      ai: 'experimental-future',
-    })
+    await spawnNextUpgrade(
+      '/workspace/app',
+      {
+        revision: 'latest',
+        verbose: false,
+        ai: 'experimental-future',
+      },
+      null
+    )
 
     expect(
       jest
