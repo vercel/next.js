@@ -109,6 +109,14 @@ Client hooks such as [`useParams()`](/docs/app/api-reference/functions/use-param
 
 With Partial Prefetching, `false` keeps the route's normal rendering behavior and fails the build if another segment sets `'shell'`, `'prefetch'`, or `'navigation'`. Use it to signal that a segment is not meant to be statically optimized.
 
+## How `ensureStatic` differs from `instant`
+
+`ensureStatic` requires selected server-rendered output to avoid request-time work. Use it when the App Shell, a per-link prefetch, or the complete route must be static.
+
+[`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) validates whether a navigation can update the UI immediately. Cached or prerendered UI can satisfy this requirement while request-specific content streams later behind `<Suspense>`.
+
+Setting `instant = false` disables instant-navigation validation. It does not relax an `ensureStatic` requirement.
+
 ## Combining levels across layouts and pages
 
 A level set on the root layout applies to every route in the app. A level set on another layout applies to every route that renders it, including its nested layouts, pages, and [parallel routes](/docs/app/api-reference/file-conventions/parallel-routes). Within a route, the level covers every segment, including the layouts above the one that sets it.
