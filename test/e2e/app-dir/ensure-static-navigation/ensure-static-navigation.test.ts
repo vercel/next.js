@@ -75,7 +75,7 @@ const ERROR_PATTERNS = {
     )
   ),
   missingGSP: samePatternInDevAndBuild(
-    /Page ".*?": `unstable_ensureStatic = "navigation"` requires an exported `generateStaticParams\(\)` function/
+    /Page ".*?": `ensureStatic = "navigation"` requires an exported `generateStaticParams\(\)` function/
   ),
   emptyGSP: samePatternInDevAndBuild(
     literalError(
@@ -524,7 +524,7 @@ describe('ensureStatic = "navigation"', () => {
         expectErrorSnapshotToMatchPattern(error, errorPattern.dev)
         expect(error).toMatchInlineSnapshot(`
 {
-  "description": "Page "/default/fallback-params/[slug]": \`unstable_ensureStatic = "navigation"\` requires an exported \`generateStaticParams()\` function.\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic",
+  "description": "Page "/default/fallback-params/[slug]": \`ensureStatic = "navigation"\` requires an exported \`generateStaticParams()\` function.\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic",
   "environmentLabel": null,
   "label": "Runtime Error",
   "source": null,
@@ -538,7 +538,7 @@ describe('ensureStatic = "navigation"', () => {
         })
         expect(error).toMatch(errorPattern.build)
         expect(error).toMatchInlineSnapshot(`
-         "Error: Page "/default/fallback-params/[slug]": \`unstable_ensureStatic = "navigation"\` requires an exported \`generateStaticParams()\` function.
+         "Error: Page "/default/fallback-params/[slug]": \`ensureStatic = "navigation"\` requires an exported \`generateStaticParams()\` function.
          Learn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic
              at ignore-listed frames
 
@@ -565,7 +565,7 @@ describe('ensureStatic = "navigation"', () => {
         expectErrorSnapshotToMatchPattern(error, errorPattern.dev)
         expect(error).toMatchInlineSnapshot(`
 {
-  "description": "Page "/default/fallback-params-passed-to-client/[slug]": \`unstable_ensureStatic = "navigation"\` requires an exported \`generateStaticParams()\` function.\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic",
+  "description": "Page "/default/fallback-params-passed-to-client/[slug]": \`ensureStatic = "navigation"\` requires an exported \`generateStaticParams()\` function.\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic",
   "environmentLabel": null,
   "label": "Runtime Error",
   "source": null,
@@ -579,7 +579,7 @@ describe('ensureStatic = "navigation"', () => {
         })
         expect(error).toMatch(errorPattern.build)
         expect(error).toMatchInlineSnapshot(`
-         "Error: Page "/default/fallback-params-passed-to-client/[slug]": \`unstable_ensureStatic = "navigation"\` requires an exported \`generateStaticParams()\` function.
+         "Error: Page "/default/fallback-params-passed-to-client/[slug]": \`ensureStatic = "navigation"\` requires an exported \`generateStaticParams()\` function.
          Learn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic
              at ignore-listed frames
 
@@ -603,7 +603,7 @@ describe('ensureStatic = "navigation"', () => {
         expectErrorSnapshotToMatchPattern(error, errorPattern.dev)
         expect(error).toMatchInlineSnapshot(`
 {
-  "description": "Page "/default/fallback-params-client-segment/[slug]": \`unstable_ensureStatic = "navigation"\` requires an exported \`generateStaticParams()\` function.\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic",
+  "description": "Page "/default/fallback-params-client-segment/[slug]": \`ensureStatic = "navigation"\` requires an exported \`generateStaticParams()\` function.\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic",
   "environmentLabel": null,
   "label": "Runtime Error",
   "source": null,
@@ -617,7 +617,7 @@ describe('ensureStatic = "navigation"', () => {
         })
         expect(error).toMatch(errorPattern.build)
         expect(error).toMatchInlineSnapshot(`
-         "Error: Page "/default/fallback-params-client-segment/[slug]": \`unstable_ensureStatic = "navigation"\` requires an exported \`generateStaticParams()\` function.
+         "Error: Page "/default/fallback-params-client-segment/[slug]": \`ensureStatic = "navigation"\` requires an exported \`generateStaticParams()\` function.
          Learn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic
              at ignore-listed frames
 
@@ -838,7 +838,7 @@ describe('ensureStatic = "navigation"', () => {
         expectErrorSnapshotToMatchPattern(error, errorPattern.dev)
         expect(error).toMatchInlineSnapshot(`
 {
-  "description": "Page "/default/static-params-incomplete/[slug]/[snail]": \`generateStaticParams()\` returned incomplete params. Routes using \`unstable_ensureStatic = "navigation"\` must return every dynamic route parameter. Missing: "snail".\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic",
+  "description": "Page "/default/static-params-incomplete/[slug]/[snail]": \`generateStaticParams()\` returned incomplete params. Routes using \`ensureStatic = "navigation"\` must return every dynamic route parameter. Missing: "snail".\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic",
   "environmentLabel": null,
   "label": "Runtime Error",
   "source": null,
@@ -850,7 +850,7 @@ describe('ensureStatic = "navigation"', () => {
         const error = getPrerenderOutput(result.cliOutput, { isMinified: true })
         expect(error).toMatch(errorPattern.build)
         expect(error).toMatchInlineSnapshot(`
-         "Error: Page "/default/static-params-incomplete/[slug]/[snail]": \`generateStaticParams()\` returned incomplete params. Routes using \`unstable_ensureStatic = "navigation"\` must return every dynamic route parameter. Missing: "snail".
+         "Error: Page "/default/static-params-incomplete/[slug]/[snail]": \`generateStaticParams()\` returned incomplete params. Routes using \`ensureStatic = "navigation"\` must return every dynamic route parameter. Missing: "snail".
          Learn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic
              at ignore-listed frames
 
@@ -875,7 +875,7 @@ describe('ensureStatic = "navigation"', () => {
         expectErrorSnapshotToMatchPattern(error, errorPattern.dev)
         expect(error).toMatchInlineSnapshot(`
 {
-  "description": "Page "/default/static-params-incomplete-unused/[slug]/[snail]": \`generateStaticParams()\` returned incomplete params. Routes using \`unstable_ensureStatic = "navigation"\` must return every dynamic route parameter. Missing: "snail".\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic",
+  "description": "Page "/default/static-params-incomplete-unused/[slug]/[snail]": \`generateStaticParams()\` returned incomplete params. Routes using \`ensureStatic = "navigation"\` must return every dynamic route parameter. Missing: "snail".\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic",
   "environmentLabel": null,
   "label": "Runtime Error",
   "source": null,
@@ -887,7 +887,7 @@ describe('ensureStatic = "navigation"', () => {
         const error = getPrerenderOutput(result.cliOutput, { isMinified: true })
         expect(error).toMatch(errorPattern.build)
         expect(error).toMatchInlineSnapshot(`
-         "Error: Page "/default/static-params-incomplete-unused/[slug]/[snail]": \`generateStaticParams()\` returned incomplete params. Routes using \`unstable_ensureStatic = "navigation"\` must return every dynamic route parameter. Missing: "snail".
+         "Error: Page "/default/static-params-incomplete-unused/[slug]/[snail]": \`generateStaticParams()\` returned incomplete params. Routes using \`ensureStatic = "navigation"\` must return every dynamic route parameter. Missing: "snail".
          Learn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic
              at ignore-listed frames
 
