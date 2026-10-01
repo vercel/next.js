@@ -171,24 +171,18 @@ Logically keys are ordered by hash (this is how we chose file and block assignme
 
 #### Key Block (fixed-size)
 
-Used when all entries in a block have the same key size, and either the same value type or at least
-the same value size. Eliminates the per-entry offset table, enabling direct arithmetic indexing
-during binary search.
+Used when all entries in a block have the same key size and value type. Eliminates the per-entry
+offset table, enabling direct arithmetic indexing during binary search.
 
 - 1 byte block type (3: fixed-size with hash, 4: fixed-size without hash)
 - 3 bytes entry count
 - 1 byte key size (uniform across all entries)
-- 1 byte value type (shared by all entries, same encoding as variable-size type field), or
-  `FIXED_KEY_BLOCK_MIXED_VALUE_TYPE` (4) when entries share a value size but not a value type
-- 1 byte value size — only present when the value type is `FIXED_KEY_BLOCK_MIXED_VALUE_TYPE`
+- 1 byte value type (shared by all entries, same encoding as the variable-size type field)
 - search region, foreach entry at stride `search_stride`:
   - 8 bytes key hash (block type 3), or key data (block type 4, `key_size` bytes)
 - tail region, foreach entry at stride `tail_stride`:
   - key data (block type 3 only, `key_size` bytes)
-  - 1 byte value type — only present when the block is mixed-type
-  - value data (size determined by the block's or the entry's value type)
-
-Tag 4 remains reserved as the mixed marker and is not itself a valid entry type.
+  - value data (size determined by the block's value type)
 
 ##### Two regions, not interleaved
 
