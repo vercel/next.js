@@ -43,7 +43,7 @@ Context.prototype.P = resolveAbsolutePath
  * The location of a named `root` isn't known at runtime (the output may have
  * been moved away from the sources), so this returns a placeholder URL for it.
  */
-function resolveFileUrl(modulePath?: string, root?: string): string {
+function resolveFileUrl(modulePath: string, root?: string): string {
   if (root !== undefined) {
     return placeholderFileUrl(modulePath, root)
   }
