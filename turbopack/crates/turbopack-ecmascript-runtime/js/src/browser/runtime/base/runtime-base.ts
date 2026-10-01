@@ -455,10 +455,7 @@ browserContextPrototype.P = resolveAbsolutePath
  * relative to the project root or the named `root`. The browser runtime
  * intentionally does not expose the real filesystem path.
  */
-function resolveFileUrl(modulePath?: string, root?: string): string {
-  return placeholderFileUrl(modulePath, root)
-}
-browserContextPrototype.F = resolveFileUrl
+browserContextPrototype.F = placeholderFileUrl
 
 /**
  * Exports a URL with the static suffix appended.

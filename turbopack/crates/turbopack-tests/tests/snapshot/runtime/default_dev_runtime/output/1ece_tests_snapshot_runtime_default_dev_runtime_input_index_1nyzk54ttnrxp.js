@@ -1064,10 +1064,7 @@ browserContextPrototype.P = resolveAbsolutePath;
  * Returns a placeholder `file://` URL for the given module path, which is
  * relative to the project root or the named `root`. The browser runtime
  * intentionally does not expose the real filesystem path.
- */ function resolveFileUrl(modulePath, root) {
-    return placeholderFileUrl(modulePath, root);
-}
-browserContextPrototype.F = resolveFileUrl;
+ */ browserContextPrototype.F = placeholderFileUrl;
 /**
  * Exports a URL with the static suffix appended.
  */ function exportUrl(url, id) {
