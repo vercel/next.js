@@ -19,19 +19,17 @@ However, some output must not introduce request-time server work. You may need p
 
 This guide explains where static output can be produced during navigation, then applies each `ensureStatic` level to a worked example. You will also use the development overlay and build errors to find work that does not meet the selected requirement.
 
-## Choose how much output must be static
+## Decide what should stay static
 
 Static output is produced without request-specific data, so Next.js can generate it before a request and use it across requests. With [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), a default `<Link>` loads the destination's [App Shell](/docs/app/glossary#app-shell). Setting `prefetch={true}` can also load static or cached [URL-specific content](/docs/app/guides/optimizing-prefetching#resolve-url-data-at-prefetch-time). The navigation request returns the remaining server-rendered content after the user follows the link.
 
-`ensureStatic` lets you require progressively more of this output to remain static:
+Start with the smallest requirement that meets your goal:
 
-- **`'shell'`** keeps the App Shell static. Request-specific content can render during a later per-link prefetch or navigation.
-- **`'prefetch'`** keeps the App Shell and per-link prefetches static. Request-specific content waits for navigation.
-- **`'navigation'`** requires the complete server-rendered route to be static. Because there is no later server-rendering stage, request-specific or uncached server work produces a validation error.
+- To keep the shared App Shell static, use **`'shell'`**. Request-specific content can render during a later per-link prefetch or navigation.
+- To keep per-link prefetches static too, use **`'prefetch'`**. Request-specific content waits for navigation.
+- To avoid request-time server rendering for the route, use **`'navigation'`**. Request-specific or uncached server work produces a validation error.
 
-Each level includes the requirements before it. The following example starts with the App Shell and progressively extends the static requirement through the complete route.
-
-For more granular control, [`prefetch()`](/docs/app/api-reference/functions/prefetch) keeps one subtree out of the App Shell, while [`navigation()`](/docs/app/api-reference/functions/navigation) keeps it out of both the App Shell and per-link prefetches. `ensureStatic` takes the opposite approach: instead of choosing the subtree to defer, you declare which route output must remain static. See [Excluding content from a prefetch](/docs/app/guides/optimizing-prefetching#exclude-content-from-a-prefetch) for the subtree-level approach.
+The following example starts with the App Shell and progressively extends the static requirement through the complete route.
 
 ## Example
 
@@ -115,6 +113,8 @@ Update the product links with `prefetch={true}` so each link can resolve its cac
 When a product link becomes visible, its prefetch includes the product heading and **Checking availability...** fallback. The uncached inventory query runs after the user follows the link.
 
 Pause the next navigation in the Next.js DevTools to inspect this result. Resume the navigation to load the current inventory.
+
+`ensureStatic = 'prefetch'` keeps the prefetch static, but it does not assert which product UI the prefetch contains. [Instant Navigation validation](/docs/app/api-reference/file-conventions/route-segment-config/instant) surfaces work that would block a client navigation. Use the inspector to check the prefetched UI, and an [`instant()` test](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) to preserve a specific contract, such as keeping the product heading available before the click.
 
 For one subtree, [`await navigation()`](/docs/app/api-reference/functions/navigation) keeps the work below it out of both the App Shell and per-link prefetches. Use `ensureStatic = 'prefetch'` when every prefetch for the route must remain static.
 
