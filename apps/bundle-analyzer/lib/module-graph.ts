@@ -226,18 +226,19 @@ export function computeSourceLoadScopes(
 
     const hasInitial = (scope & ModuleLoadScope.Initial) !== 0
     const hasAsync = (scope & ModuleLoadScope.Async) !== 0
-    sourceScopes.set(
-      sourceIndex,
-      hasInitial && hasAsync
-        ? 'mixed'
-        : hasAsync
-          ? 'async'
-          : hasInitial
-            ? 'initial'
-            : (scope & ModuleLoadScope.Traced) !== 0
-              ? 'traced'
-              : 'unknown'
-    )
+    let loadScope: SourceLoadScope
+    if (hasInitial && hasAsync) {
+      loadScope = 'mixed'
+    } else if (hasAsync) {
+      loadScope = 'async'
+    } else if (hasInitial) {
+      loadScope = 'initial'
+    } else if ((scope & ModuleLoadScope.Traced) !== 0) {
+      loadScope = 'traced'
+    } else {
+      loadScope = 'unknown'
+    }
+    sourceScopes.set(sourceIndex, loadScope)
   }
 
   return sourceScopes
