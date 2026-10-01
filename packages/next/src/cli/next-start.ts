@@ -84,6 +84,7 @@ const nextStart = async (options: NextStartOptions, directory?: string) => {
   await startServer({
     dir,
     isDev: false,
+    exposeTurbopackAdditionalRoots: true,
     hostname,
     port,
     keepAliveTimeout,

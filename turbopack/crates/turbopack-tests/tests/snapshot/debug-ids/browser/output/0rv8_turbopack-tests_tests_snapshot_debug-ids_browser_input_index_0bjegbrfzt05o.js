@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="30bdd4b9-98f8-d92c-1735-98906e239378")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="c8d8a70a-19da-2064-ff57-27b0e66e8050")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/0rv8_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js",
     {"otherChunks":["output/0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvsq4xsbk.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -651,6 +651,15 @@ contextPrototype.U = relativeURL;
     return `Module ${moduleId} was instantiated ${instantiationReason}, but the module factory is not available.`;
 }
 /**
+ * Returns a `file://` URL under a synthetic directory named after `root`
+ * (`ROOT` for the project root), for when the real filesystem path is unknown.
+ * Without a `modulePath`, this is `file:///ROOT/`. The root name and path
+ * segments are percent-encoded so the result is always a valid file URI.
+ */ function placeholderFileUrl(modulePath, root) {
+    if (modulePath === undefined) return 'file:///ROOT/';
+    return `file:///${encodeURIComponent(root ?? 'ROOT')}/${modulePath.split('/').map(encodeURIComponent).join('/')}`;
+}
+/**
  * A stub function to make `require` available but non-functional in ESM.
  */ function requireStub(_moduleId) {
     throw new Error('dynamic usage of require is not supported');
@@ -1053,12 +1062,11 @@ browserContextPrototype.R = resolvePathFromModule;
 }
 browserContextPrototype.P = resolveAbsolutePath;
 /**
- * Returns a placeholder `file://` URL for the given module path. The browser
- * runtime intentionally does not expose the real filesystem path. Path
- * segments are percent-encoded so the result is always a valid file URI.
- */ function resolveFileUrl(modulePath) {
-    if (!modulePath) return 'file:///ROOT/';
-    return `file:///ROOT/${modulePath.split('/').map(encodeURIComponent).join('/')}`;
+ * Returns a placeholder `file://` URL for the given module path, which is
+ * relative to the project root or the named `root`. The browser runtime
+ * intentionally does not expose the real filesystem path.
+ */ function resolveFileUrl(modulePath, root) {
+    return placeholderFileUrl(modulePath, root);
 }
 browserContextPrototype.F = resolveFileUrl;
 /**
@@ -2610,5 +2618,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=30bdd4b9-98f8-d92c-1735-98906e239378
+//# debugId=c8d8a70a-19da-2064-ff57-27b0e66e8050
 //# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js.map

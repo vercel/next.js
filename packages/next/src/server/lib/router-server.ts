@@ -9,6 +9,7 @@ import '../require-hook'
 
 import url from 'url'
 import path from 'path'
+import { setTurbopackAdditionalRootsEnv } from '../../lib/turbopack-additional-roots'
 import loadConfig, { type ConfiguredExperimentalFeature } from '../config'
 import { finalizeBundlerFromConfig, getBundlerFromEnv } from '../../lib/bundler'
 import { serveStatic } from '../serve-static'
@@ -142,6 +143,7 @@ export async function initialize(opts: {
   serverFastRefresh?: boolean
   startServerSpan?: Span
   quiet?: boolean
+  exposeTurbopackAdditionalRoots?: boolean
 }): Promise<ServerInitResult> {
   if (!process.env.NODE_ENV) {
     // @ts-ignore not readonly
@@ -166,6 +168,15 @@ export async function initialize(opts: {
   )
   if (bundlerBeforeConfig !== undefined) {
     finalizeBundlerFromConfig(bundlerBeforeConfig)
+  }
+
+  // The runtime config subset omits this, but servers that set
+  // `exposeTurbopackAdditionalRoots` load the full config.
+  if (
+    opts.exposeTurbopackAdditionalRoots &&
+    'turbopackAdditionalRoots' in config.experimental
+  ) {
+    setTurbopackAdditionalRootsEnv(config.experimental.turbopackAdditionalRoots)
   }
 
   let compress: ReturnType<typeof setupCompression> | undefined

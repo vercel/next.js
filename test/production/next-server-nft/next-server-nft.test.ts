@@ -352,6 +352,7 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/lib/setup-exception-listeners.js",
            "/node_modules/next/dist/lib/static-env.js",
            "/node_modules/next/dist/lib/try-to-parse-path.js",
+           "/node_modules/next/dist/lib/turbopack-additional-roots.js",
            "/node_modules/next/dist/lib/turbopack-cache-seed.js",
            "/node_modules/next/dist/lib/turbopack-warning.js",
            "/node_modules/next/dist/lib/typescript/diagnosticFormatter.js",

@@ -628,6 +628,15 @@ contextPrototype.U = relativeURL;
     return `Module ${moduleId} was instantiated ${instantiationReason}, but the module factory is not available.`;
 }
 /**
+ * Returns a `file://` URL under a synthetic directory named after `root`
+ * (`ROOT` for the project root), for when the real filesystem path is unknown.
+ * Without a `modulePath`, this is `file:///ROOT/`. The root name and path
+ * segments are percent-encoded so the result is always a valid file URI.
+ */ function placeholderFileUrl(modulePath, root) {
+    if (modulePath === undefined) return 'file:///ROOT/';
+    return `file:///${encodeURIComponent(root ?? 'ROOT')}/${modulePath.split('/').map(encodeURIComponent).join('/')}`;
+}
+/**
  * A stub function to make `require` available but non-functional in ESM.
  */ function requireStub(_moduleId) {
     throw new Error('dynamic usage of require is not supported');
@@ -689,6 +698,11 @@ const relativePathToDistRoot = path.join(relativePathToRuntimeRoot, RELATIVE_ROO
 const RUNTIME_ROOT = path.resolve(__filename, relativePathToRuntimeRoot);
 // Compute the absolute path to the root, by stripping distDir from the absolute path to this file.
 const ABSOLUTE_ROOT = path.resolve(__filename, relativePathToDistRoot);
+// Absolute paths of filesystems outside the project root, keyed by filesystem
+// name and parsed on first use. The host sets `TURBOPACK_ADDITIONAL_ROOTS` to a
+// JSON object of names to paths only when the sources are on disk, so that it
+// isn't part of the build output.
+let additionalRoots;
 /**
  * Returns an absolute path to the given module path.
  * Module path should be relative, either path to a file or a directory.
@@ -704,13 +718,25 @@ const ABSOLUTE_ROOT = path.resolve(__filename, relativePathToDistRoot);
 }
 Context.prototype.P = resolveAbsolutePath;
 /**
- * Returns an absolute `file://` URL for the given module path.
+ * Returns an absolute `file://` URL for the given module path, which is
+ * relative to the project root or the named `root`.
  *
  * Uses `url.pathToFileURL` so that the resulting URL is a valid file URI on
  * all platforms (forward slashes on Windows, drive letters handled
  * correctly, path segments URL-encoded).
- */ function resolveFileUrl(modulePath) {
-    return require('url').pathToFileURL(resolveAbsolutePath(modulePath)).href;
+ *
+ * When the location of `root` is unknown (e.g. in a deployment, where the
+ * sources don't exist), this returns a placeholder URL instead.
+ */ function resolveFileUrl(modulePath, root) {
+    if (root === undefined) {
+        return require('url').pathToFileURL(resolveAbsolutePath(modulePath)).href;
+    }
+    additionalRoots ??= JSON.parse(process.env.TURBOPACK_ADDITIONAL_ROOTS ?? '{}');
+    const rootPath = additionalRoots[root];
+    if (rootPath === undefined) {
+        return placeholderFileUrl(modulePath, root);
+    }
+    return require('url').pathToFileURL(path.join(rootPath, modulePath ?? '')).href;
 }
 Context.prototype.F = resolveFileUrl;
 /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../../shared/runtime/runtime-utils.ts" />
