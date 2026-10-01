@@ -1227,6 +1227,8 @@ pub struct ExperimentalConfig {
     /// Shorten ("mangle") the export names modules expose to each other. Defaults to false in
     /// development mode, true in production mode.
     turbopack_mangle_export_names: Option<bool>,
+    /// Use a materialized namespace facade to mangle otherwise observable export names.
+    turbopack_mangle_via_materialized_namespace_object: Option<bool>,
     /// Enable scope hoisting of static CommonJS modules. Defaults to false.
     turbopack_cjs_scope_hoisting: Option<bool>,
     /// Enable cross-module constant inlining. Defaults to false.
@@ -1239,6 +1241,13 @@ pub struct ExperimentalConfig {
     // turbopack_file_system_cache_for_dev: Option<bool>,
     // turbopack_file_system_cache_for_build: Option<bool>,
     lightning_css_features: Option<LightningCssFeatures>,
+}
+
+impl ExperimentalConfig {
+    fn mangle_via_materialized_namespace_object(&self) -> bool {
+        self.turbopack_mangle_via_materialized_namespace_object
+            .unwrap_or(self.turbopack_mangle_export_names == Some(true))
+    }
 }
 
 #[derive(
@@ -2331,6 +2340,13 @@ impl NextConfig {
         ))
     }
 
+    /// Opt into splitting local-only modules behind a namespace facade for export mangling.
+    /// Inferred from the explicitly configured mangling option, not its mode-dependent default.
+    #[turbo_tasks::function]
+    pub fn turbopack_mangle_via_materialized_namespace_object(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.mangle_via_materialized_namespace_object())
+    }
+
     #[turbo_tasks::function]
     pub fn turbopack_cjs_scope_hoisting(&self) -> Vc<bool> {
         Vc::cell(
@@ -2796,6 +2812,39 @@ pub fn lightningcss_feature_names_to_mask(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_materialized_namespace_mangling_defaults() {
+        let mut experimental = ExperimentalConfig::default();
+        // The production default for export mangling must not opt in to facade splitting.
+        assert!(!experimental.mangle_via_materialized_namespace_object());
+
+        experimental.turbopack_mangle_export_names = Some(true);
+        assert!(experimental.mangle_via_materialized_namespace_object());
+
+        experimental.turbopack_mangle_via_materialized_namespace_object = Some(false);
+        assert!(!experimental.mangle_via_materialized_namespace_object());
+
+        experimental.turbopack_mangle_export_names = Some(false);
+        experimental.turbopack_mangle_via_materialized_namespace_object = Some(true);
+        assert!(experimental.mangle_via_materialized_namespace_object());
+
+        experimental.turbopack_mangle_via_materialized_namespace_object = None;
+        assert!(!experimental.mangle_via_materialized_namespace_object());
+
+        let parsed: NextConfig = serde_json::from_value(serde_json::json!({
+            "experimental": {
+                "turbopackMangleExportNames": true,
+                "turbopackMangleViaMaterializedNamespaceObject": false
+            }
+        }))
+        .unwrap();
+        assert!(
+            !parsed
+                .experimental
+                .mangle_via_materialized_namespace_object()
+        );
+    }
 
     #[test]
     fn test_serde_rule_config_item_options() {

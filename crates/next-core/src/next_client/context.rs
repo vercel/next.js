@@ -377,6 +377,9 @@ pub async fn get_client_module_options_context(
             infer_module_side_effects: *next_config.turbopack_infer_module_side_effects().await?,
             cjs_tree_shaking: *next_config.turbopack_cjs_tree_shaking().await?,
             mangle_export_names: *next_config.turbopack_mangle_export_names(mode).await?,
+            mangle_via_materialized_namespace_object: *next_config
+                .turbopack_mangle_via_materialized_namespace_object()
+                .await?,
             cjs_scope_hoisting: *next_config.turbopack_cjs_scope_hoisting().await?,
             cross_module_constants: *next_config.turbopack_cross_module_constants().await?,
             lazy_compilation: *next_config

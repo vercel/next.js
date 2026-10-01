@@ -323,12 +323,17 @@ impl EcmascriptExports {
     /// Returns whether this module should be split into separate locals and facade modules.
     ///
     /// Splitting is enabled for modules with re-exports (star exports or imported bindings),
-    /// allowing tree shaking to separate local definitions from re-exports. Do not split a
-    /// local-only module merely to mangle its export names: dynamic imports would resolve to the
-    /// facade while static named imports follow through to the locals module, giving a shared
-    /// module two different runtime identities.
+    /// allowing tree shaking to separate local definitions from re-exports. It can also be opted
+    /// into for export-name mangling, placing original names on a facade and shortened keys on
+    /// locals. This is off by default: dynamic imports would resolve to the facade while static
+    /// named imports follow through to locals, giving a shared module two runtime identities.
+    /// TODO: Make the mangling-only split safe for remote-components singletons before enabling it
+    /// by default (#99279).
     #[turbo_tasks::function]
-    pub async fn split_locals_and_reexports(&self) -> Result<Vc<bool>> {
+    pub async fn split_locals_and_reexports(
+        &self,
+        mangle_via_materialized_namespace_object: bool,
+    ) -> Result<Vc<bool>> {
         Ok(match self {
             EcmascriptExports::EsmExports(exports) => {
                 let exports = exports.await?;
@@ -339,9 +344,12 @@ impl EcmascriptExports {
                             EsmExport::ImportedBinding(..) | EsmExport::ImportedNamespace(_)
                         )
                     });
-                // TODO: Re-enable mangling-only facade splits once remote-components consumers
-                // can share a singleton across dynamic facade and static locals imports (#99279).
-                Vc::cell(has_reexports)
+                Vc::cell(
+                    has_reexports
+                        || (mangle_via_materialized_namespace_object
+                            && exports.mangle_export_names
+                            && !exports.exports.is_empty()),
+                )
             }
             _ => Vc::cell(false),
         })
