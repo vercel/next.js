@@ -195,12 +195,12 @@ function Head({
 
   // If no prefetch data is available, or the dynamic response was already
   // received, then we go straight to rendering `head`.
-  const resolvedPrefetchRsc = getInitialRsc(headRenderTree.data)
+  const initialRsc = getInitialRsc(headRenderTree.data)
 
   // We use `useDeferredValue` to handle switching between the prefetched and
   // final values. The second argument is returned on initial render, then it
   // re-renders with the first argument.
-  return useDeferredValue(head, resolvedPrefetchRsc)
+  return useDeferredValue(head, initialRsc)
 }
 
 /**

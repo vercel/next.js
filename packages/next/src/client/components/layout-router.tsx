@@ -331,12 +331,12 @@ function InnerLayoutRouter({
   //
   // If no prefetch data is available, or the dynamic response was already
   // received, then we go straight to rendering `rsc`.
-  const resolvedPrefetchRsc = getInitialRsc(renderTree.data)
+  const initialRsc = getInitialRsc(renderTree.data)
 
   // We use `useDeferredValue` to handle switching between the prefetched and
   // final values. The second argument is returned on initial render, then it
   // re-renders with the first argument.
-  const rsc: any = useDeferredValue(renderTree.data.rsc, resolvedPrefetchRsc)
+  const rsc: any = useDeferredValue(renderTree.data.rsc, initialRsc)
 
   // `rsc` is either a React node or a promise for a React node, except we
   // special case `null` to represent that this segment's data is missing. If

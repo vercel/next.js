@@ -1220,8 +1220,9 @@ function createRenderTreeForSegment(
   if (seedRsc !== null) {
     // We already have a dynamic server response for this segment.
     if (isCachedRscPartial) {
-      // Skip the partial cached state, even though the seed data may still be
-      // streaming in. See getInitialRsc.
+      // The partial cached state is only rendered while the dynamic data is
+      // pending (see getInitialRsc), so there's no use for it here, even though
+      // the seed data may still be streaming in.
       prefetchRsc = null
       rsc = seedRsc
       varyParams = seedVaryParams
@@ -2179,7 +2180,8 @@ export function getInitialRsc(cacheNode: CacheNode): React.ReactNode {
     return prefetchRsc
   }
   // Either there's no prefetched data, or the dynamic response was already
-  // received. Go straight to rendering `rsc`.
+  // received: `rsc` is a promise that has settled, or it was never a promise to
+  // begin with. Go straight to rendering `rsc`.
   //
   // Skipping the prefetched data in the latter case is not just an
   // optimization. The prefetched data may contain dynamic holes that never
