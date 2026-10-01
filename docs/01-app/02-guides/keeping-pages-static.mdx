@@ -19,9 +19,9 @@ Some routes must still avoid request-time server work to control compute costs o
 
 ## Decide what should stay static
 
-Static output does not depend on request-specific data. Next.js can generate it before a request and reuse it across requests. With [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), a default `<Link>` loads the destination's [App Shell](/docs/app/glossary#app-shell). Setting `prefetch={true}` can also load static or cached [URL-specific content](/docs/app/guides/optimizing-prefetching#resolve-url-data-at-prefetch-time). The navigation request returns the remaining server-rendered content after the user follows the link.
+Static output does not depend on request-specific data. Next.js can generate it before a request and reuse it across requests. With [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), a default `<Link>` loads the destination's [App Shell](/docs/app/glossary#app-shell). Setting `prefetch={true}` can also load static or cached [URL-specific content](/docs/app/guides/optimizing-prefetching#resolve-url-data-at-prefetch-time). The navigation request returns the remaining server-rendered content after the user follows the link. These are the route's [navigation stages](/docs/app/glossary#navigation-stages).
 
-Each `ensureStatic` value extends the static requirement through another part of route loading. Gray marks output that must remain static, while blue marks work that can render later:
+Each `ensureStatic` value extends the static requirement through one more stage. In the following diagram, gray marks output that must remain static, while blue marks work that can render later:
 
 <Image
   alt="The Shell, Prefetch, and Navigation stages, with bars showing how each ensureStatic value extends the static requirement through those stages"
@@ -31,7 +31,7 @@ Each `ensureStatic` value extends the static requirement through another part of
   height="530"
 />
 
-Start with the smallest requirement that protects the output you need.
+Start with the smallest requirement that protects the output you need. The following example begins with the App Shell, then extends the requirement through a per-link prefetch and the complete route.
 
 ## Example
 
@@ -74,7 +74,7 @@ export default function StoreLayout({ children }: LayoutProps<'/store'>) {
 
 A default `<Link>` into the store loads this shell from static output. If a later change adds request-specific content behind `<Suspense>`, that content renders during a per-link prefetch or navigation instead of making the shell render per request.
 
-Within a `<Suspense>` boundary, [`await prefetch()`](/docs/app/api-reference/functions/prefetch) defers runtime work in one subtree until a per-link prefetch or navigation. Static content can still be prerendered. `ensureStatic = 'shell'` enforces the static requirement across the route.
+For one subtree, awaiting [`prefetch()`](/docs/app/api-reference/functions/prefetch) inside `<Suspense>` defers the work below it to a per-link prefetch or navigation. Setting `ensureStatic = 'shell'` applies the requirement to the whole route instead. See [Defer work to a later stage](/docs/app/guides/optimizing-prefetching#defer-work-to-a-later-stage) for the per-subtree controls.
 
 ### Step 2: Prefetch product details, not live inventory
 
@@ -114,7 +114,7 @@ Update the product links with `prefetch={true}` so each link can resolve its cac
 
 When a product link becomes visible, its prefetch includes the product heading and **Checking availability...** fallback. The uncached inventory query runs after the user follows the link.
 
-To defer runtime work in one subtree until navigation, call [`await navigation()`](/docs/app/api-reference/functions/navigation) within a component wrapped in `<Suspense>`. Statically prerendered content can still appear in a prefetch. `ensureStatic = 'prefetch'` requires static output for every prefetch of the route.
+For one subtree, awaiting [`navigation()`](/docs/app/api-reference/functions/navigation) inside `<Suspense>` defers the work below it until navigation. Setting `ensureStatic = 'prefetch'` requires static output for every prefetch of the route instead. See [Keep the prefetch static](/docs/app/guides/optimizing-prefetching#keep-the-prefetch-static) for shaping one route this way.
 
 ### Step 3: Prerender every buying guide
 
@@ -262,7 +262,7 @@ export async function getGuide(id: string) {
 }
 ```
 
-Reload the page in development. The static-route error clears. Run `next build` again to confirm that the returned guide IDs and their content are fully prerendered.
+Reload the page in development. The static-route error clears. Run `next build` to confirm that the returned guide IDs and their content are fully prerendered.
 
 If request-time rendering is intentional, first confirm that the route no longer needs to be fully static. Then [remove the static requirement](/docs/messages/static-route-runtime#remove-the-static-requirement) and [wrap the component that reads the data in `<Suspense>`](/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense), so the route can show a fallback while the data loads.
 
