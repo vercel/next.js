@@ -1,3 +1,5 @@
+import { wait } from 'next/dist/lib/wait'
+
 import { nextTestSetup } from 'e2e-utils'
 
 // TODO(NAR-423): Migrate to Cache Components.
@@ -39,7 +41,7 @@ describe.skip('prefetch-navigation', () => {
               resolve: async () => {
                 await route.continue()
                 // wait a moment to ensure the response is received
-                await new Promise((res) => setTimeout(res, 500))
+                await wait(500)
                 resolvePromise()
               },
             })

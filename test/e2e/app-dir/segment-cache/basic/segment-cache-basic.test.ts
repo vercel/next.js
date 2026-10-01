@@ -1,6 +1,6 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup } from 'e2e-utils'
 import { createRouterAct } from 'router-act'
-import { waitFor } from 'next-test-utils'
 
 describe('segment cache (basic tests)', () => {
   const { next, isNextDev } = nextTestSetup({
@@ -422,7 +422,7 @@ describe('segment cache (basic tests)', () => {
     const link = await browser.elementByCss('a[href="/cache-life-seconds"]')
 
     // Give the prefetch a moment to potentially start looping
-    await waitFor(500)
+    await wait(500)
 
     // Check that we haven't made excessive requests during prefetch
     expect(requestCount).toBeLessThan(10)

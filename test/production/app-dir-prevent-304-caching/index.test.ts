@@ -1,6 +1,7 @@
+import { wait } from 'next/dist/lib/wait'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
-import { fetchViaHTTP, waitFor } from 'next-test-utils'
+import { fetchViaHTTP } from 'next-test-utils'
 
 describe('app-dir-prevent-304-caching', () => {
   const { next } = nextTestSetup({
@@ -17,7 +18,7 @@ describe('app-dir-prevent-304-caching', () => {
     const rStale = await fetchViaHTTP(next.url, '/')
     expect(rStale.status).toBe(200)
 
-    await waitFor(500)
+    await wait(500)
 
     // Cache HIT but still 200
     const rHit = await fetchViaHTTP(
@@ -34,7 +35,7 @@ describe('app-dir-prevent-304-caching', () => {
       }
     )
     expect(rHit.status).toBe(200)
-    await waitFor(500)
+    await wait(500)
 
     // Here happens the race condition
     const r304 = await fetchViaHTTP(
@@ -52,7 +53,7 @@ describe('app-dir-prevent-304-caching', () => {
     )
     expect(r304.status).toBe(304)
     // ... Postponed but should not save 304 ...
-    await waitFor(1000)
+    await wait(1000)
 
     // Now without cache headers should 200
     const rStillFresh = await fetchViaHTTP(next.url, '/')

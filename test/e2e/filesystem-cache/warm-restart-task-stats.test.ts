@@ -1,6 +1,7 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup, isNextDev } from 'e2e-utils'
 import { getPnpmRealpathWorkaround } from '../../lib/pnpm-realpath-workaround'
-import { waitFor } from 'next-test-utils'
+
 import fs from 'fs/promises'
 import path from 'path'
 
@@ -92,7 +93,7 @@ describe('warm-restart task statistics', () => {
         // is the least-bad option here since next.js doesn't expose
         // turbopack's internal idle signal. If this proves flaky in CI,
         // raise the value.
-        await waitFor(2000)
+        await wait(2000)
         await browser.close()
       }
       await runDevCycle()

@@ -1,4 +1,6 @@
 /* eslint-disable jest/no-standalone-expect */
+import { wait } from 'next/dist/lib/wait'
+
 import {
   nextTestSetup,
   isNextDev,
@@ -74,7 +76,7 @@ describe('Static Image Component Tests', () => {
       await browser.eval(
         `document.getElementById("basic-static").scrollIntoView()`
       )
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      await wait(1000)
       const url = await browser.eval(
         `document.getElementById("basic-static").src`
       )
@@ -90,7 +92,7 @@ describe('Static Image Component Tests', () => {
       await browser.eval(
         `document.getElementById("static-unoptimized").scrollIntoView()`
       )
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      await wait(1000)
       const url = await browser.eval(
         `document.getElementById("static-unoptimized").src`
       )

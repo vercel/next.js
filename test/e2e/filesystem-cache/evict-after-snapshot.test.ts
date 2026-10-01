@@ -1,6 +1,7 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup } from 'e2e-utils'
 import { getPnpmRealpathWorkaround } from '../../lib/pnpm-realpath-workaround'
-import { retry, waitFor } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 // Eviction requires the dev server (HMR) and persistent caching (Turbopack).
 // Skip entirely in prod/start mode.
@@ -27,7 +28,7 @@ describe('evict-after-snapshot', () => {
 
   async function waitForSnapshotAndEviction() {
     // The idle timeout is 1s, give extra time for snapshot + eviction to complete
-    await waitFor(5000)
+    await wait(5000)
   }
 
   // Turbopack-only: eviction requires persistent caching

@@ -1,5 +1,6 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup } from 'e2e-utils'
-import { check, waitFor, retry } from 'next-test-utils'
+import { check, retry } from 'next-test-utils'
 
 describe('app-dir action handling', () => {
   const { next } = nextTestSetup({
@@ -22,7 +23,7 @@ describe('app-dir action handling', () => {
     }, /Loading.../)
 
     // wait for 2 seconds, since the action takes a second to resolve
-    await waitFor(2000)
+    await wait(2000)
 
     expect(await browser.elementByCss('#form').text()).not.toContain(
       'Loading...'

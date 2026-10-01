@@ -28,6 +28,7 @@ import type { SpawnOptions, ChildProcess } from 'child_process'
 import type { NextServer } from 'next/dist/server/next'
 import type { Playwright } from './browsers/playwright'
 import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
+import { wait } from 'next/dist/lib/wait'
 
 import { shouldUseTurbopack } from './turbo'
 import stripAnsi from 'strip-ansi'
@@ -792,11 +793,16 @@ export async function stopApp(server: http.Server | undefined) {
   await promisify(server.close).apply(server)
 }
 
+/**
+ * Poll until a condition holds. The numeric overload is kept for existing
+ * callers; new fixed delays should import `wait` from `next/dist/lib/wait`
+ * directly. Prefer `retry()` for condition-based waits whenever possible.
+ */
 export async function waitFor(
   millisOrCondition: number | (() => boolean)
 ): Promise<void> {
   if (typeof millisOrCondition === 'number') {
-    return new Promise((resolve) => setTimeout(resolve, millisOrCondition))
+    return wait(millisOrCondition)
   }
 
   return new Promise((resolve) => {
@@ -859,9 +865,9 @@ export async function check(
         // found the content
         return true
       }
-      await waitFor(1000)
+      await wait(1000)
     } catch (err) {
-      await waitFor(1000)
+      await wait(1000)
       lastErr = err
     }
   }
@@ -951,7 +957,7 @@ export async function retry<T>(
       debugPrint(
         `Retrying${description ? ` ${description}` : ''} in ${interval}ms`
       )
-      await waitFor(interval)
+      await wait(interval)
     }
   }
 }
@@ -986,7 +992,7 @@ export async function waitForNoRedbox(
   browser: Playwright,
   { waitInMs = 5000 }: { waitInMs?: number } = {}
 ) {
-  await waitFor(waitInMs)
+  await wait(waitInMs)
   const redbox = browser.locateRedbox()
 
   if (await redbox.isVisible()) {

@@ -1,3 +1,4 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup } from 'e2e-utils'
 import { getRedboxHeader, retry } from 'next-test-utils'
 
@@ -17,7 +18,7 @@ describe('TypeScript HMR', () => {
       const editedContent = originalContent.replace('Hello', 'COOL page')
 
       if (isTurbopack) {
-        await new Promise((resolve) => setTimeout(resolve, 500))
+        await wait(500)
       }
 
       await next.patchFile('pages/hello.tsx', editedContent)
@@ -64,7 +65,7 @@ describe('TypeScript HMR', () => {
       '(): boolean => <p>hello with error</p>'
     )
     if (isTurbopack) {
-      await new Promise((resolve) => setTimeout(resolve, 500))
+      await wait(500)
     }
     try {
       await next.patchFile('pages/type-error-recover.tsx', errContent)

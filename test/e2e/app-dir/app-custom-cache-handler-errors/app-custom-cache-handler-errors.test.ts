@@ -1,5 +1,6 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup } from 'e2e-utils'
-import { hasErrorToast, retry, waitFor, waitForNoRedbox } from 'next-test-utils'
+import { hasErrorToast, retry, waitForNoRedbox } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
 // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
@@ -59,7 +60,7 @@ describe('app-custom-cache-handler-errors - get throws', () => {
 
     // Give a potential unhandled rejection a chance to be reported before
     // asserting its absence.
-    await waitFor(1000)
+    await wait(1000)
 
     const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 

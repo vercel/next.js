@@ -1,5 +1,6 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup } from 'e2e-utils'
-import { retry, waitFor } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('hmr-refetch-coalescing', () => {
   const { next, isTurbopack } = nextTestSetup({
@@ -43,7 +44,7 @@ describe('hmr-refetch-coalescing', () => {
       expect(await browser.elementByCss('h1').text()).toBe('a: rev-1')
     })
     // Let any trailing (redundant) refetches land before counting.
-    await waitFor(2000)
+    await wait(2000)
 
     // One edit must result in exactly one refetch of the page, no matter how
     // many route endpoints the edited file is part of. Server-side change
@@ -59,7 +60,7 @@ describe('hmr-refetch-coalescing', () => {
     await retry(async () => {
       expect(await browser.elementByCss('h1').text()).toBe('a: rev-2')
     })
-    await waitFor(2000)
+    await wait(2000)
 
     expect(refetches.count).toBe(2)
 
@@ -79,7 +80,7 @@ describe('hmr-refetch-coalescing', () => {
     )
     // The errored update must not be announced; wait long enough that a
     // refetch would have happened.
-    await waitFor(2000)
+    await wait(2000)
     expect(refetches.count).toBe(0)
 
     await next.patchFile('app/shared/banner.js', () =>
@@ -90,7 +91,7 @@ describe('hmr-refetch-coalescing', () => {
       expect(await browser.elementByCss('h1').text()).not.toBe(initialText)
       expect(await browser.elementByCss('h1').text()).toContain('rev-9')
     })
-    await waitFor(2000)
+    await wait(2000)
 
     expect(refetches.count).toBe(1)
 

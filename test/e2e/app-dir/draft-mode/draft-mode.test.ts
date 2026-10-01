@@ -1,5 +1,5 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup } from 'e2e-utils'
-import { waitFor } from 'next-test-utils'
 
 describe('app dir - draft mode', () => {
   const { next, isNextDev } = nextTestSetup({
@@ -101,7 +101,7 @@ describe('app dir - draft mode', () => {
         if (value !== 42) {
           throw new Error('Detected a full page navigation')
         }
-        await waitFor(200)
+        await wait(200)
       }
 
       expect(await browser.eval('window._test')).toBe(42)

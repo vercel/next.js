@@ -1,5 +1,6 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup } from 'e2e-utils'
-import { retry, shouldUseTurbopack, waitFor } from 'next-test-utils'
+import { retry, shouldUseTurbopack } from 'next-test-utils'
 ;(shouldUseTurbopack() ? describe.skip : describe)('On Demand Entries', () => {
   const { next } = nextTestSetup({
     files: __dirname,
@@ -37,7 +38,7 @@ import { retry, shouldUseTurbopack, waitFor } from 'next-test-utils'
     await next.render('/third')
 
     for (let i = 0; i < 30; ++i) {
-      await waitFor(1000)
+      await wait(1000)
       try {
         const manifest = JSON.parse(
           await next.readFile('.next/dev/build-manifest.json')

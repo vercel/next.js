@@ -1,3 +1,4 @@
+import { wait } from 'next/dist/lib/wait'
 import { isNextDeploy, nextTestSetup } from 'e2e-utils'
 import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
@@ -2500,9 +2501,7 @@ describe('static App Shell prefetch attempt', () => {
             for (let attempt = 1; attempt <= maxAttempts; attempt++) {
               try {
                 await act(async () => {
-                  await new Promise<void>((resolve) =>
-                    setTimeout(resolve, interval + 500)
-                  )
+                  await wait(interval + 500)
                 }, [
                   // Static prefetch
                   {

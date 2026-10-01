@@ -1,4 +1,5 @@
-import { waitFor, retry } from 'next-test-utils'
+import { wait } from 'next/dist/lib/wait'
+import { retry } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
 describe('app-fetch-deduping', () => {
@@ -24,7 +25,7 @@ describe('app-fetch-deduping', () => {
       })
 
       // wait for the revalidation period
-      await waitFor(3000)
+      await wait(3000)
 
       await retry(async () => {
         await browser.refresh()

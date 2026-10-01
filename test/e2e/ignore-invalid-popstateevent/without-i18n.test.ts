@@ -1,6 +1,7 @@
+import { wait } from 'next/dist/lib/wait'
 import { join } from 'path'
 import { FileRef, nextTestSetup, type Playwright } from 'e2e-utils'
-import { check, waitFor } from 'next-test-utils'
+import { check } from 'next-test-utils'
 
 import type { HistoryState } from 'next/dist/shared/lib/router/router'
 
@@ -35,7 +36,7 @@ describe('Event with stale state - static route previously was dynamic', () => {
 
     // 1st event is ignored
     await emitPopsStateEvent(browser, state)
-    await waitFor(1000)
+    await wait(1000)
     expect(await browser.elementByCss('#page-type').text()).toBe('static')
 
     // 2nd event isn't ignored
@@ -58,7 +59,7 @@ describe('Event with stale state - static route previously was dynamic', () => {
 
     // 1st event is ignored
     await emitPopsStateEvent(browser, state)
-    await waitFor(1000)
+    await wait(1000)
     expect(await browser.elementByCss('#page-type').text()).toBe('static')
 
     // 2nd event isn't ignored

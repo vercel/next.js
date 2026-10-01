@@ -1,3 +1,4 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup } from 'e2e-utils'
 
 import { PrefetchHint } from 'next/src/shared/lib/app-router-types'
@@ -7,6 +8,10 @@ import {
   HintsManifest,
   getHumanReadablePrefetchHints,
 } from '../../../../lib/prefetch-hints'
+
+// Temporary CI diagnostic: a retry reuses an ISR slug and hides the first error.
+// Remove this override once the deployed first-attempt failure is diagnosed.
+jest.retryTimes(0)
 
 function extractPrerenderedRouteInfo(cliOutput: string) {
   const before = 'Route (app)\n'
@@ -182,7 +187,7 @@ describe('Partial prefetching with static params and ISR fallbacks', () => {
             'no-requests'
           )
           // Wait for the router to do a retry.
-          await new Promise((resolve) => setTimeout(resolve, ISR_RETRY_DELAY))
+          await wait(ISR_RETRY_DELAY)
         }, [
           // The retried request yields a concrete prerender with params.
           {
@@ -246,7 +251,7 @@ describe('Partial prefetching with static params and ISR fallbacks', () => {
             },
           ])
           // Wait for the router to do a retry.
-          await new Promise((resolve) => setTimeout(resolve, ISR_RETRY_DELAY))
+          await wait(ISR_RETRY_DELAY)
         }, [
           // The retried request yields a concrete prerender with params.
           {
@@ -315,9 +320,7 @@ describe('Partial prefetching with static params and ISR fallbacks', () => {
                 },
               ])
               // Wait for the router to do a retry.
-              await new Promise((resolve) =>
-                setTimeout(resolve, ISR_RETRY_DELAY)
-              )
+              await wait(ISR_RETRY_DELAY)
             }, [
               // The retried request yields a concrete prerender with params.
               {
@@ -387,9 +390,7 @@ describe('Partial prefetching with static params and ISR fallbacks', () => {
                 },
               ])
               // Wait for the router to do a retry.
-              await new Promise((resolve) =>
-                setTimeout(resolve, ISR_RETRY_DELAY)
-              )
+              await wait(ISR_RETRY_DELAY)
             }, [
               // The retried request yields a concrete prerender with params.
               {
@@ -461,7 +462,7 @@ describe('Partial prefetching with static params and ISR fallbacks', () => {
           )
 
           // Wait for the router to do a retry.
-          await new Promise((resolve) => setTimeout(resolve, ISR_RETRY_DELAY))
+          await wait(ISR_RETRY_DELAY)
         }, [
           // The retried request yields a concrete prerender with params.
           {
@@ -529,7 +530,7 @@ describe('Partial prefetching with static params and ISR fallbacks', () => {
             },
           ])
           // Wait for the router to do a retry.
-          await new Promise((resolve) => setTimeout(resolve, ISR_RETRY_DELAY))
+          await wait(ISR_RETRY_DELAY)
         }, [
           // The retried request yields a concrete prerender with params.
           // It also says that the route needs a runtime prefetch (because it used
@@ -599,9 +600,7 @@ describe('Partial prefetching with static params and ISR fallbacks', () => {
                 },
               ])
               // Wait for the router to do a retry.
-              await new Promise((resolve) =>
-                setTimeout(resolve, ISR_RETRY_DELAY)
-              )
+              await wait(ISR_RETRY_DELAY)
             }, [
               // The retried request yields a concrete prerender with params.
               {
@@ -671,9 +670,7 @@ describe('Partial prefetching with static params and ISR fallbacks', () => {
                 },
               ])
               // Wait for the router to do a retry.
-              await new Promise((resolve) =>
-                setTimeout(resolve, ISR_RETRY_DELAY)
-              )
+              await wait(ISR_RETRY_DELAY)
             }, [
               // The retried request yields a concrete prerender with params.
               {

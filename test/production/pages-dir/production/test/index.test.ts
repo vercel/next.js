@@ -1,10 +1,10 @@
 /* eslint-env jest */
+import { wait } from 'next/dist/lib/wait'
 import cheerio from 'cheerio'
 import fs, { existsSync } from 'fs-extra'
 import globOriginal from 'glob'
 import {
   renderViaHTTP,
-  waitFor,
   getPageFileFromPagesManifest,
   check,
   fetchViaHTTP,
@@ -377,7 +377,7 @@ describe('Production Usage', () => {
         const browser = await next.browser('/regexp-polyfill')
         expect(await browser.eval('window.didRender')).toBe(true)
         // wait a second for the script to be loaded
-        await waitFor(1000)
+        await wait(1000)
 
         expect(await browser.eval('window.isSticky')).toBe(true)
         expect(await browser.eval('window.isMatch1')).toBe(true)
@@ -792,7 +792,7 @@ describe('Production Usage', () => {
       .back()
       .waitForElementByCss('p')
 
-    await waitFor(1000)
+    await wait(1000)
     const newText = await browser.elementByCss('p').text()
     expect(newText).toBe('server')
   })
@@ -809,7 +809,7 @@ describe('Production Usage', () => {
       .back()
       .waitForElementByCss('p')
 
-    await waitFor(1000)
+    await wait(1000)
     const newText = await browser.elementByCss('p').text()
     expect(newText).toBe('client')
   })
@@ -826,7 +826,7 @@ describe('Production Usage', () => {
       .back()
       .waitForElementByCss('p')
 
-    await waitFor(1000)
+    await wait(1000)
     const newText = await browser.elementByCss('p').text()
     expect(newText).toBe('server')
   })
@@ -850,7 +850,7 @@ describe('Production Usage', () => {
   describe('Runtime errors', () => {
     it('should render a server side error on the client side', async () => {
       const browser = await next.browser('/error-in-ssr-render')
-      await waitFor(2000)
+      await wait(2000)
       const text = await browser.elementByCss('body').text()
       // this makes sure we don't leak the actual error to the client side in production
       expect(text).toMatch(/Internal Server Error\./)
@@ -862,7 +862,7 @@ describe('Production Usage', () => {
 
     it('should render a client side component error', async () => {
       const browser = await next.browser('/error-in-browser-render')
-      await waitFor(2000)
+      await wait(2000)
       const text = await browser.elementByCss('body').text()
       expect(text).toMatch(
         /Application error: a client-side exception has occurred/
@@ -872,7 +872,7 @@ describe('Production Usage', () => {
 
     it('should call getInitialProps on _error page during a client side component error', async () => {
       const browser = await next.browser('/error-in-browser-render-status-code')
-      await waitFor(2000)
+      await wait(2000)
       const text = await browser.elementByCss('body').text()
       expect(text).toMatch(/This page could not be found\./)
       await browser.close()
@@ -959,7 +959,7 @@ describe('Production Usage', () => {
 
       if (global.browserName === 'internet explorer') {
         // IntersectionObserver isn't present so we need to trigger manually
-        await waitFor(1000)
+        await wait(1000)
         await browser.eval(`(function() {
         window.next.router.prefetch('/')
         window.next.router.prefetch('/process-env')
@@ -968,7 +968,7 @@ describe('Production Usage', () => {
       })()`)
       }
 
-      await waitFor(2000)
+      await wait(2000)
 
       if (global.browserName === 'safari') {
         const elements = await browser.elementsByCss('link[rel=preload]')
@@ -1021,7 +1021,7 @@ describe('Production Usage', () => {
         expect(counter).toBe('Counter: 2')
 
         // Let the browser to prefetch the page and error it on the console.
-        await waitFor(3000)
+        await wait(3000)
 
         // When we go to the 404 page, it'll do a hard reload.
         // So, it's possible for the front proxy to load a page from another zone.
@@ -1271,7 +1271,7 @@ describe('Production Usage', () => {
       window.next.router.push('/')
     })()`)
     await browser.waitForElementByCss('.index-page')
-    await waitFor(1000)
+    await wait(1000)
 
     await browser.eval(`(function() {
       window.beforeNav = 1
@@ -1295,7 +1295,7 @@ describe('Production Usage', () => {
           .elementByCss('#static-image')
           .getComputedCss('background-image')
       ).toBe('none')
-      await waitFor(500)
+      await wait(500)
     }
   })
 

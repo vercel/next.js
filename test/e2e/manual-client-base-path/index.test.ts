@@ -1,9 +1,10 @@
+import { wait } from 'next/dist/lib/wait'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import httpProxy from 'http-proxy'
 import { join } from 'path'
 import http from 'http'
 import assert from 'assert'
-import { check, renderViaHTTP, waitFor } from 'next-test-utils'
+import { check, renderViaHTTP } from 'next-test-utils'
 
 describe('manual-client-base-path', () => {
   if ((global as any).isNextDeploy) {
@@ -131,7 +132,7 @@ describe('manual-client-base-path', () => {
         return 'success'
       }, 'success')
 
-      await waitFor(5 * 1000)
+      await wait(5 * 1000)
       expect(await browser.eval('window.beforeNav')).toBe(1)
     })
   }

@@ -1,5 +1,6 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup } from 'e2e-utils'
-import { retry, waitFor } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import { getOutputLogJson } from '../_testing/utils'
 
 const outputLogPath = 'output-log.json'
@@ -38,7 +39,7 @@ describe('on-request-error - isr', () => {
   describe('app router ISR', () => {
     it('should capture correct reason for stale errored page', async () => {
       await next.fetch('/app/stale')
-      await waitFor(2 * 1000) // wait for revalidation
+      await wait(2 * 1000) // wait for revalidation
       await next.fetch('/app/stale')
 
       await matchRevalidateReason('app:stale', 'stale')
@@ -52,7 +53,7 @@ describe('on-request-error - isr', () => {
 
     it('should capture correct reason for build errored route', async () => {
       await next.fetch('/app/route/stale')
-      await waitFor(2 * 1000) // wait for revalidation
+      await wait(2 * 1000) // wait for revalidation
       await next.fetch('/app/route/stale')
 
       await matchRevalidateReason('app:route:stale', 'stale')
@@ -79,7 +80,7 @@ describe('on-request-error - isr', () => {
   describe('pages router ISR', () => {
     it('should capture correct reason for stale errored page', async () => {
       await next.fetch('/pages/stale')
-      await waitFor(2 * 1000) // wait for revalidation
+      await wait(2 * 1000) // wait for revalidation
       await next.fetch('/pages/stale')
 
       await matchRevalidateReason('pages:stale', 'stale')

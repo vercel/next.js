@@ -1,5 +1,6 @@
 /* eslint-env jest */
 
+import { wait } from 'next/dist/lib/wait'
 import cheerio from 'cheerio'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import escapeRegex from 'escape-string-regexp'
@@ -11,7 +12,6 @@ import {
   getRedboxHeader,
   normalizeRegEx,
   renderViaHTTP,
-  waitFor,
   waitForRedbox,
 } from 'next-test-utils'
 import { join } from 'path'
@@ -218,7 +218,7 @@ const navigateTest = (next: ReturnType<typeof nextTestSetup>['next']) => {
     expect(text).toMatch(/hello.*?world/)
 
     // hydration
-    await waitFor(2500)
+    await wait(2500)
 
     // go to /another
     async function goFromHomeToAnother() {
@@ -616,7 +616,7 @@ const runTests = (
 
   it('should parse query values on mount correctly', async () => {
     const browser = await next.browser('/blog/post-1?another=value')
-    await waitFor(2000)
+    await wait(2000)
     const text = await browser.elementByCss('#query').text()
     expect(text).toMatch(/another.*?value/)
     expect(text).toMatch(/post.*?post-1/)
@@ -636,7 +636,7 @@ const runTests = (
 
   it('should reload page on failed data request', async () => {
     const browser = await next.browser('/')
-    await waitFor(500)
+    await wait(500)
     await browser.eval('window.beforeClick = "abc"')
     await browser.elementByCss('#broken-post').click()
     await retry(async () => {
@@ -662,7 +662,7 @@ const runTests = (
 
   it('should not re-call getServerSideProps when updating query', async () => {
     const browser = await next.browser('/something?hello=world')
-    await waitFor(2000)
+    await wait(2000)
 
     const query = await browser.elementByCss('#query').text()
     expect(JSON.parse(query)).toEqual({ hello: 'world' })
@@ -694,7 +694,7 @@ const runTests = (
 
   it('should dedupe server data requests', async () => {
     const browser = await next.browser('/')
-    await waitFor(2000)
+    await wait(2000)
 
     // Keep clicking on the link
     await browser.elementByCss('#slow').click()
@@ -801,7 +801,7 @@ const runTests = (
     it('should not fetch data on mount', async () => {
       const browser = await next.browser('/blog/post-100')
       await browser.eval('window.thisShouldStay = true')
-      await waitFor(2 * 1000)
+      await wait(2 * 1000)
       const val = await browser.eval('window.thisShouldStay')
       expect(val).toBe(true)
     })

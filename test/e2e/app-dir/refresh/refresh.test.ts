@@ -1,3 +1,4 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup } from 'e2e-utils'
 import { retry, waitForRedbox, getRedboxDescription } from 'next-test-utils'
 
@@ -19,7 +20,7 @@ describe('app-dir refresh', () => {
 
     expect(initialServerTimestamp).toBeTruthy()
 
-    await new Promise((resolve) => setTimeout(resolve, 100))
+    await wait(100)
 
     await browser.elementById('refresh-button').click()
 

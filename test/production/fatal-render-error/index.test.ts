@@ -1,5 +1,6 @@
+import { wait } from 'next/dist/lib/wait'
 import { FileRef, nextTestSetup } from 'e2e-utils'
-import { check, renderViaHTTP, waitFor } from 'next-test-utils'
+import { check, renderViaHTTP } from 'next-test-utils'
 import { join } from 'path'
 
 describe('fatal-render-error', () => {
@@ -18,7 +19,7 @@ describe('fatal-render-error', () => {
     const browser = await next.browser('/with-error')
 
     // wait a bit to see if we are rendering multiple times unexpectedly
-    await waitFor(500)
+    await wait(500)
     expect(await browser.eval('window.renderAttempts')).toBeLessThan(10)
 
     const html = await browser.eval('document.documentElement.innerHTML')
@@ -36,7 +37,7 @@ describe('fatal-render-error', () => {
     await check(() => browser.eval('location.pathname'), '/with-error')
 
     // wait a bit to see if we are rendering multiple times unexpectedly
-    await waitFor(500)
+    await wait(500)
     expect(await browser.eval('window.renderAttempts')).toBeLessThan(10)
 
     const html = await browser.eval('document.documentElement.innerHTML')

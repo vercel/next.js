@@ -1,6 +1,7 @@
 /* eslint-env jest */
 
-import { fetchViaHTTP, waitFor } from 'next-test-utils'
+import { wait } from 'next/dist/lib/wait'
+import { fetchViaHTTP } from 'next-test-utils'
 import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 
@@ -22,7 +23,7 @@ describe('Client navigation on error pages', () => {
     // reloading non-stop
     for (let i = 0; i < 15; i++) {
       expect(await browser.eval('window.hello')).toBe(true)
-      await waitFor(1000)
+      await wait(1000)
     }
     const html = await browser.eval('document.documentElement.innerHTML')
 

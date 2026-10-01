@@ -1,3 +1,4 @@
+import { wait } from 'next/dist/lib/wait'
 import http from 'http'
 import stripAnsi from 'strip-ansi'
 import cheerio from 'cheerio'
@@ -6,7 +7,6 @@ import {
   waitForNoRedbox,
   findPort,
   getBrowserBodyText,
-  waitFor,
   normalizeRegEx,
   normalizeManifest,
   fetchViaRawHttp,
@@ -653,7 +653,7 @@ describe('Custom routes', () => {
     expect(await getBrowserBodyText(browser)).toMatch(/Hello/)
 
     await browser.eval('window.location.href = window.location.href')
-    await waitFor(500)
+    await wait(500)
     expect(await browser.eval('window.location.href')).toMatch(/\/first$/)
     expect(await getBrowserBodyText(browser)).toMatch(/Hello/)
 
@@ -666,7 +666,7 @@ describe('Custom routes', () => {
     expect(await getBrowserBodyText(browser)).toMatch(/Hello again/)
 
     await browser.eval('window.location.href = window.location.href')
-    await waitFor(500)
+    await wait(500)
     expect(await browser.eval('window.location.href')).toMatch(/\/second$/)
     expect(await getBrowserBodyText(browser)).toMatch(/Hello again/)
   })

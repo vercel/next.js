@@ -1,8 +1,9 @@
+import { wait } from 'next/dist/lib/wait'
 import spawn from 'cross-spawn'
 import { Span } from 'next/dist/trace'
 import { NextInstance } from './base'
 import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
-import { retry, waitFor } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 import { quote as shellQuote } from 'shell-quote'
 
@@ -231,7 +232,7 @@ export class NextDevInstance extends NextInstance {
     // to connect the WebSocket and start watching.
     if (process.env.IS_TURBOPACK_TEST) {
       require('console').log('fs dev delay before', filename)
-      await waitFor(500)
+      await wait(500)
     }
   }
 
@@ -283,7 +284,7 @@ export class NextDevInstance extends NextInstance {
           require('console').warn(
             `Applying patch delay of ${this.patchFileDelay}ms. Note: Introducing artificial delays is generally discouraged, as it may affect test reliability. However, this delay is configurable on a per-test basis.`
           )
-          await waitFor(this.patchFileDelay)
+          await wait(this.patchFileDelay)
           return
         }
       }

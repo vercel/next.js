@@ -1,6 +1,7 @@
 /* eslint-env jest */
+import { wait } from 'next/dist/lib/wait'
 import { FileRef, nextTestSetup } from 'e2e-utils'
-import { check, fetchViaHTTP, renderViaHTTP, waitFor } from 'next-test-utils'
+import { check, fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
 
 function splitLines(text) {
   return text
@@ -524,7 +525,7 @@ describe('Switchable runtime', () => {
         expect(renderedAt1).toBe(renderedAt2)
 
         // Trigger a revalidation after 3s.
-        await waitFor(4000)
+        await wait(4000)
         await renderViaHTTP(context.appPort, '/node-rsc-isr')
 
         await check(async () => {

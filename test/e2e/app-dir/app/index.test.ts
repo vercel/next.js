@@ -1,10 +1,6 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup } from 'e2e-utils'
-import {
-  check,
-  expectVaryHeaderToContain,
-  retry,
-  waitFor,
-} from 'next-test-utils'
+import { check, expectVaryHeaderToContain, retry } from 'next-test-utils'
 import cheerio from 'cheerio'
 import stripAnsi from 'strip-ansi'
 import {
@@ -269,7 +265,7 @@ describe('app dir - basic', () => {
 
         // check 5 times to ensure a reload didn't occur
         for (let i = 0; i < 5; i++) {
-          await waitFor(500)
+          await wait(500)
           expect(
             await browser.eval('document.documentElement.innerHTML')
           ).toContain('hello from pages/blog/[slug]')
@@ -317,7 +313,7 @@ describe('app dir - basic', () => {
         })
         .catch(() => {})
 
-      await waitFor(1000)
+      await wait(1000)
       controller1.abort()
 
       const controller3 = new AbortController()
@@ -326,7 +322,7 @@ describe('app dir - basic', () => {
           signal: controller3.signal,
         })
         .catch(() => {})
-      await waitFor(1000)
+      await wait(1000)
       controller2.abort()
       controller3.abort()
 
@@ -686,7 +682,7 @@ describe('app dir - basic', () => {
     try {
       // Check if hash is preserved
       expect(await browser.eval('window.location.hash')).toBe('#abc')
-      await waitFor(1000)
+      await wait(1000)
       // Check again to be sure as it might be timed different
       expect(await browser.eval('window.location.hash')).toBe('#abc')
     } finally {
@@ -1685,11 +1681,11 @@ describe('app dir - basic', () => {
       }
 
       await goToLinkingPage()
-      await waitFor(1000)
+      await wait(1000)
       await goToLinkingPage()
-      await waitFor(1000)
+      await wait(1000)
       await goToLinkingPage()
-      await waitFor(1000)
+      await wait(1000)
 
       expect(
         await browser.back().waitForElementByCss('#about-page', 2000).text()

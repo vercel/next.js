@@ -1,5 +1,6 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup } from 'e2e-utils'
-import { check, waitFor } from 'next-test-utils'
+import { check } from 'next-test-utils'
 import path from 'path'
 
 describe('multi-zone', () => {
@@ -68,7 +69,7 @@ describe('multi-zone', () => {
         'hmr content'
       )
 
-      await waitFor(1000)
+      await wait(1000)
 
       // verify that the page isn't unexpectedly reloading in the background
       const newTimestamp = await browser.elementById('now').text()

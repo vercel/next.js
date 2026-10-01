@@ -1,7 +1,8 @@
+import { wait } from 'next/dist/lib/wait'
 import fs from 'fs'
 import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
-import { retry, waitFor } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 // When `__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true` is set in CI, Next.js
 // regenerates `next-env.d.ts` with additional `cache-life`/`validator`
@@ -98,7 +99,7 @@ describe('typescript-app-type-declarations', () => {
     const prevContent = await next.readFile('next-env.d.ts')
     await next.patchFile('next-env.d.ts', prevContent)
     const prevStat = fs.statSync(envFile)
-    await waitFor(1000)
+    await wait(1000)
     await next.render('/')
     const stat = fs.statSync(envFile)
     expect(stat.mtimeMs).toEqual(prevStat.mtimeMs)

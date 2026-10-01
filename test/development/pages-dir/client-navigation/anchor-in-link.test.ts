@@ -1,6 +1,7 @@
 /* eslint-env jest */
 
-import { waitFor } from 'next-test-utils'
+import { wait } from 'next/dist/lib/wait'
+
 import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 
@@ -35,7 +36,7 @@ describe('Client Navigation', () => {
         .elementByCss('#target-link')
         .click()
 
-      await waitFor(1000)
+      await wait(1000)
 
       const counterText = await browser.elementByCss('#counter').text()
 
@@ -55,7 +56,7 @@ describe('Client Navigation', () => {
       await browser.elementByCss('#in-svg-link').click()
 
       await browser.keyup(key)
-      await waitFor(1000)
+      await wait(1000)
 
       const counterText = await browser.elementByCss('#counter').text()
 

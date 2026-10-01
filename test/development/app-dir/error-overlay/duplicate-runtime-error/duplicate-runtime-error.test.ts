@@ -1,5 +1,6 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup } from 'e2e-utils'
-import { retry, waitFor } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('duplicate-runtime-error', () => {
   const { next } = nextTestSetup({
@@ -23,7 +24,7 @@ describe('duplicate-runtime-error', () => {
       const errorProp = await badge.getAttribute('data-error')
 
       expect(errorProp).toBe('true')
-      await waitFor(50)
+      await wait(50)
     }
   })
 })

@@ -1,9 +1,9 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup } from 'e2e-utils'
 import {
   assertNoConsoleErrors,
   waitForNoErrorToast,
   retry,
-  waitFor,
   gate,
 } from 'next-test-utils'
 import type { Playwright } from 'e2e-utils'
@@ -881,21 +881,21 @@ describe('use-cache', () => {
       // Click 1: revalidateTag with profile - should NOT cause immediate refresh
       await browser.elementByCss('#revalidate-tag-with-profile').click()
       // Wait for the action to complete
-      await new Promise((r) => setTimeout(r, 1000))
+      await wait(1000)
       const afterClick1 = await browser.elementByCss('#random').text()
       console.log('[Test] After click 1:', afterClick1)
       expect(afterClick1).toBe(initial) // No change - stale-while-revalidate
 
       // Click 2: Same as click 1 - should still show stale data
       await browser.elementByCss('#revalidate-tag-with-profile').click()
-      await new Promise((r) => setTimeout(r, 1000))
+      await wait(1000)
       const afterClick2 = await browser.elementByCss('#random').text()
       console.log('[Test] After click 2:', afterClick2)
       expect(afterClick2).toBe(initial) // Still no change
 
       // Click 3: Same as before - should still show stale data (not data from click 1)
       await browser.elementByCss('#revalidate-tag-with-profile').click()
-      await new Promise((r) => setTimeout(r, 1000))
+      await wait(1000)
       const afterClick3 = await browser.elementByCss('#random').text()
       console.log('[Test] After click 3:', afterClick3)
       expect(afterClick3).toBe(initial) // Still no change - no read-your-own-writes
@@ -1906,7 +1906,7 @@ describe('use-cache', () => {
 
     // Let the 2s `revalidate` elapse. The entry is now stale, but still far
     // inside its 300s `expire` window.
-    await waitFor(3000)
+    await wait(3000)
 
     await browser.refresh()
     const reloadedValue = await browser.waitForElementByCss('#value').text()

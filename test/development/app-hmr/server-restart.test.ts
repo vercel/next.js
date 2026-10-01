@@ -1,5 +1,6 @@
+import { wait } from 'next/dist/lib/wait'
 import { FileRef, nextTestSetup } from 'e2e-utils'
-import { retry, waitFor } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import path from 'path'
 
 describe('app-dir server restart', () => {
@@ -42,7 +43,7 @@ describe('app-dir server restart', () => {
     await next.start()
 
     // Wait for the new server to be ready
-    await waitFor(1000)
+    await wait(1000)
 
     // Wait for the browser to reload
     await reloadPromise

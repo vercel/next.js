@@ -1,4 +1,5 @@
-import { retry, waitFor } from 'next-test-utils'
+import { wait } from 'next/dist/lib/wait'
+import { retry } from 'next-test-utils'
 
 describe('retry', () => {
   it('returns the first successful result', async () => {
@@ -25,7 +26,7 @@ describe('retry', () => {
       retry(
         async () => {
           attempts++
-          await waitFor(1000)
+          await wait(1000)
           throw new Error('never succeeds')
         },
         2000,

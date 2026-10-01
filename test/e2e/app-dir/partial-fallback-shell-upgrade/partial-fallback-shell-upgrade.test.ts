@@ -1,8 +1,9 @@
+import { wait } from 'next/dist/lib/wait'
 import cheerio from 'cheerio'
 import { randomUUID } from 'crypto'
 import { nextTestSetup } from 'e2e-utils'
 import { splitResponseWithPPRSentinel } from 'e2e-utils/ppr'
-import { retry, waitFor } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import path from 'path'
 
 type NextInstance = ReturnType<typeof nextTestSetup>['next']
@@ -118,7 +119,7 @@ describe('partial-fallback-shell-upgrade', () => {
     expect(prefetchResponse.status).toBe(200)
 
     // Wait a moment to let the background upgrade to finish
-    await waitFor(3000)
+    await wait(3000)
 
     const result = await fetchSplitHTML('/prefix/z/bar')
 

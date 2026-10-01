@@ -1,4 +1,5 @@
 /* eslint-disable jest/no-standalone-expect */
+import { wait } from 'next/dist/lib/wait'
 import http from 'http'
 import httpProxy from 'http-proxy'
 import cheerio from 'cheerio'
@@ -40,7 +41,7 @@ describe('CSS Module client-side navigation', () => {
           new URL(req.url, next.url).pathname.endsWith('.css')
         ) {
           console.log('stalling request for', req.url)
-          await new Promise((resolve) => setTimeout(resolve, 5 * 1000))
+          await wait(5 * 1000)
         }
         proxy.web(req, res)
       })

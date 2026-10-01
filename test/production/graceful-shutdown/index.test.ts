@@ -1,3 +1,4 @@
+import { wait } from 'next/dist/lib/wait'
 import { join } from 'path'
 import type { ChildProcess } from 'child_process'
 import { NextInstance, FileRef, nextTestSetup } from 'e2e-utils'
@@ -7,7 +8,6 @@ import {
   initNextServerScript,
   killApp,
   retry,
-  waitFor,
 } from 'next-test-utils'
 import fs from 'fs-extra'
 import glob from 'glob'
@@ -207,7 +207,7 @@ function runTests(dev = false) {
 
       const resPromise = fetchViaHTTP(appPort, '/api/long-running')
 
-      await waitFor(20)
+      await wait(20)
       process.kill(app.pid!, 'SIGTERM')
       expect(app.exitCode).toBe(null)
 
@@ -233,11 +233,11 @@ function runTests(dev = false) {
         })
         .catch(() => {})
 
-      await waitFor(20)
+      await wait(20)
       process.kill(app.pid!, 'SIGTERM')
       expect(app.exitCode).toBe(null)
 
-      await waitFor(LONG_RUNNING_MS / 2)
+      await wait(LONG_RUNNING_MS / 2)
       expect(app.exitCode).toBe(null)
       expect(responseResolved).toBe(false)
 
@@ -259,7 +259,7 @@ function runTests(dev = false) {
 
         const resPromise = fetchViaHTTPClose(appPort, '/api/long-running')
 
-        await waitFor(20)
+        await wait(20)
         process.kill(app.pid!, 'SIGTERM')
         expect(app.exitCode).toBe(null)
 

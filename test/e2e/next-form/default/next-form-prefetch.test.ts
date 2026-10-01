@@ -1,3 +1,4 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup, isNextDev } from 'e2e-utils'
 import {
   NEXT_ROUTER_PREFETCH_HEADER,
@@ -218,7 +219,7 @@ class RequestInterceptor {
             this.pendingRequests.delete(requestKey)
             await route.continue()
             // wait a moment to ensure the response is received
-            await new Promise((res) => setTimeout(res, 500))
+            await wait(500)
             blocked.resolve()
           },
         })

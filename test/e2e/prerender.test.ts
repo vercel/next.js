@@ -1,3 +1,4 @@
+import { wait } from 'next/dist/lib/wait'
 import fs from 'fs-extra'
 import cookie from 'cookie'
 import cheerio from 'cheerio'
@@ -13,7 +14,6 @@ import {
   normalizeRegEx,
   renderViaHTTP,
   retry,
-  waitFor,
   getCacheHeader,
 } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
@@ -81,7 +81,7 @@ describe('Prerender', () => {
           throw err
         }
       }
-      await waitFor(500)
+      await wait(500)
     }
   }
 
@@ -429,14 +429,14 @@ describe('Prerender', () => {
       // Client-side SSG data caching test
       {
         // Let revalidation period lapse
-        await waitFor(2000)
+        await wait(2000)
 
         // Trigger revalidation (visit page)
         await goFromHomeToAnother()
         const snapTime = await browser.elementByCss('#anotherTime').text()
 
         // Wait for revalidation to finish
-        await waitFor(2000)
+        await wait(2000)
 
         // Re-visit page
         await goFromAnotherToHome()
@@ -827,7 +827,7 @@ describe('Prerender', () => {
       )
       expect(res1.status).toBe(404)
 
-      await waitFor(500)
+      await wait(500)
 
       const res2 = await fetchViaHTTP(
         next.url,
@@ -835,7 +835,7 @@ describe('Prerender', () => {
       )
       expect(res2.status).toBe(404)
 
-      await waitFor(500)
+      await wait(500)
 
       const res3 = await fetchViaHTTP(
         next.url,
@@ -1329,7 +1329,7 @@ describe('Prerender', () => {
 
       it('should not re-call getStaticProps when updating query', async () => {
         const browser = await next.browser('/something?hello=world')
-        await waitFor(2000)
+        await wait(2000)
 
         const query = await browser.elementByCss('#query').text()
         expect(JSON.parse(query)).toEqual({ hello: 'world' })
@@ -2086,7 +2086,7 @@ describe('Prerender', () => {
         expect(newHtml).toMatch(/Post:.*?post-2/)
         expect(newHtml).toMatch(/Comment:.*?comment-2/)
 
-        await waitFor(2 * 1000)
+        await wait(2 * 1000)
         await renderViaHTTP(next.url, route)
 
         await check(async () => {
@@ -2115,7 +2115,7 @@ describe('Prerender', () => {
           expect(newJson).toBe(initialJson)
         }
 
-        await waitFor(2 * 1000)
+        await wait(2 * 1000)
         await renderViaHTTP(next.url, route)
 
         await check(async () => {
@@ -2142,7 +2142,7 @@ describe('Prerender', () => {
           // we can't guarantee the cache timing on deployment
           expect(newHtml).toBe(initialHtml)
         }
-        await waitFor(2 * 1000)
+        await wait(2 * 1000)
         await renderViaHTTP(next.url, route)
 
         await check(async () => {
@@ -2165,7 +2165,7 @@ describe('Prerender', () => {
           // we can't guarantee the cache on deploy
           expect(newJson).toBe(initialJson)
         }
-        await waitFor(2 * 1000)
+        await wait(2 * 1000)
         await renderViaHTTP(next.url, route)
 
         await check(async () => {
@@ -2193,7 +2193,7 @@ describe('Prerender', () => {
           expect(newHtml).toBe(initialHtml)
         }
 
-        await waitFor(2 * 1000)
+        await wait(2 * 1000)
         await renderViaHTTP(next.url, route)
 
         await check(async () => {
@@ -2222,7 +2222,7 @@ describe('Prerender', () => {
           // we can't guarantee the cache time on deploy
           expect(newJson).toBe(initialJson)
         }
-        await waitFor(2 * 1000)
+        await wait(2 * 1000)
         await renderViaHTTP(next.url, route)
 
         await check(async () => {
@@ -2239,14 +2239,14 @@ describe('Prerender', () => {
       it('should not fetch prerender data on mount', async () => {
         const browser = await next.browser('/blog/post-100')
         await browser.eval('window.thisShouldStay = true')
-        await waitFor(2 * 1000)
+        await wait(2 * 1000)
         const val = await browser.eval('window.thisShouldStay')
         expect(val).toBe(true)
       })
 
       it('should not error when flushing cache files', async () => {
         await fetchViaHTTP(next.url, '/user/user-1/profile')
-        await waitFor(500)
+        await wait(500)
         expect(next.cliOutput).not.toMatch(
           /Failed to update prerender files for/
         )
@@ -2398,7 +2398,7 @@ describe('Prerender', () => {
     if (!isDev && !isDeploy) {
       it('should automatically reset cache TTL when an error occurs and build cache was available', async () => {
         await next.patchFile('error.txt', 'yes', async () => {
-          await waitFor(2000)
+          await wait(2000)
 
           for (let i = 0; i < 5; i++) {
             const res = await fetchViaHTTP(
@@ -2423,7 +2423,7 @@ describe('Prerender', () => {
         )
 
         expect(res.status).toBe(200)
-        await waitFor(2000)
+        await wait(2000)
 
         await next.patchFile('error.txt', 'yes', async () => {
           for (let i = 0; i < 5; i++) {
@@ -2668,12 +2668,12 @@ describe('Prerender', () => {
 
     // this should come very last
     it('should not fail to update incremental cache', async () => {
-      await waitFor(1000)
+      await wait(1000)
       expect(next.cliOutput).not.toContain('Failed to update prerender cache')
     })
 
     it('should not have experimental undici warning', async () => {
-      await waitFor(1000)
+      await wait(1000)
       expect(next.cliOutput).not.toContain('option is unnecessary in Node.js')
     })
 

@@ -1,5 +1,6 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup } from 'e2e-utils'
-import { retry, waitFor } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('useLinkStatus', () => {
   const { next } = nextTestSetup({
@@ -135,7 +136,7 @@ describe('useLinkStatus', () => {
     // Click server action button for home
     await browser.elementById('server-action-home-btn').click()
 
-    await waitFor(1000) // buffer for server action to return a redirect
+    await wait(1000) // buffer for server action to return a redirect
 
     // Pending state for post 2 should be gone
     const post2Loading = await browser.elementsByCss('#post-2-loading')

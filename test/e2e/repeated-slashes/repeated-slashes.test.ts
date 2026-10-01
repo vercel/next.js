@@ -1,7 +1,7 @@
+import { wait } from 'next/dist/lib/wait'
 import path from 'path'
 import escapeRegex from 'escape-string-regexp'
 import {
-  waitFor,
   stopApp,
   startStaticServer,
   fetchViaHTTP,
@@ -34,7 +34,7 @@ function runTests({
 
   const didNotReload = async (browser) => {
     for (let i = 0; i < 4; i++) {
-      await waitFor(500)
+      await wait(500)
 
       const result = await browser.eval('window.errorLoad')
 

@@ -1,5 +1,6 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup } from 'e2e-utils'
-import { retry, waitFor, waitForNoErrorToast } from 'next-test-utils'
+import { retry, waitForNoErrorToast } from 'next-test-utils'
 
 describe('use-cache-size-zero', () => {
   const { next, skipped } = nextTestSetup({
@@ -79,7 +80,7 @@ describe('use-cache-size-zero', () => {
     // window in which a replayed push would arrive, then assert it never did.
     await browser.refresh()
     await browser.elementById('value')
-    await waitFor(500)
+    await wait(500)
     expect(await browser.hasElementByCss('[data-cold-cache-badge]')).toBe(false)
   })
 

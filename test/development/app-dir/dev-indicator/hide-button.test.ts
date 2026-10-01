@@ -1,9 +1,9 @@
+import { wait } from 'next/dist/lib/wait'
 import { nextTestSetup } from 'e2e-utils'
 import {
   waitForDevToolsIndicator,
   assertNoDevToolsIndicator,
   toggleDevToolsIndicatorPopover,
-  waitFor,
 } from 'next-test-utils'
 
 const COOLDOWN = 3000
@@ -59,7 +59,7 @@ describe('dev indicator - Hide DevTools Button', () => {
     await assertNoDevToolsIndicator(browser)
 
     // Wait for `__NEXT_DEV_INDICATOR_COOLDOWN` to pass.
-    await waitFor(COOLDOWN)
+    await wait(COOLDOWN)
 
     await browser.refresh()
     await waitForDevToolsIndicator(browser)

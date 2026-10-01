@@ -1,3 +1,4 @@
+import { wait } from 'next/dist/lib/wait'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import { retry } from 'next-test-utils'
@@ -106,7 +107,7 @@ describe('mcp-server get_page_metadata tool', () => {
       const session2 = await launchStandaloneSession(next.url, '/parallel')
 
       try {
-        await new Promise((resolve) => setTimeout(resolve, 1000))
+        await wait(1000)
 
         let metadata: any = null
         await retry(async () => {
@@ -158,13 +159,13 @@ describe('mcp-server get_page_metadata tool', () => {
     })
 
     it('should count multiple browser tabs with the same URL separately', async () => {
-      await new Promise((resolve) => setTimeout(resolve, 500))
+      await wait(500)
 
       const session1 = await launchStandaloneSession(next.url, '/')
       const session2 = await launchStandaloneSession(next.url, '/')
 
       try {
-        await new Promise((resolve) => setTimeout(resolve, 1000))
+        await wait(1000)
 
         let metadata: any = null
         await retry(async () => {

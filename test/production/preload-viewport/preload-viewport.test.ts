@@ -1,10 +1,10 @@
 /* eslint-disable jest/no-standalone-expect */
+import { wait } from 'next/dist/lib/wait'
 import { spawn, ChildProcess } from 'child_process'
 import { join } from 'path'
 import { nextTestSetup } from 'e2e-utils'
 import {
   retry,
-  waitFor,
   getClientBuildManifestLoaderChunkUrlPath,
 } from 'next-test-utils'
 
@@ -93,7 +93,7 @@ describe('Prefetching Links in viewport', () => {
 
       await browser.elementByCss('#scroll-to-another').click()
       // wait for preload to timeout
-      await waitFor(6 * 1000)
+      await wait(6 * 1000)
 
       await browser
         .elementByCss('#link-another')
@@ -198,7 +198,7 @@ describe('Prefetching Links in viewport', () => {
     try {
       browser = await next.browser('/', { baseUrl: proxyPort })
       await browser.elementByCss('button').click()
-      await waitFor(2 * 1000)
+      await wait(2 * 1000)
 
       const links = await browser.elementsByCss('link[rel=prefetch]')
       let foundFirst = false
@@ -329,7 +329,7 @@ describe('Prefetching Links in viewport', () => {
 
       expect(await hasAnotherScript()).toBe(false)
       await browser.elementByCss('#link-another').moveTo()
-      await waitFor(2 * 1000)
+      await wait(2 * 1000)
       expect(await hasAnotherScript()).toBe(true)
     } finally {
       if (browser) await browser.close()
@@ -360,12 +360,12 @@ describe('Prefetching Links in viewport', () => {
         return scriptFound
       }
 
-      await waitFor(2 * 1000)
+      await wait(2 * 1000)
       expect(await hasSsgScript()).toBe(false)
       const hrefs = await browser.eval(`Object.keys(window.next.router.sdc)`)
       expect(hrefs.map((href) => new URL(href).pathname)).toEqual([])
       await browser.elementByCss('#link-ssg').moveTo()
-      await waitFor(2 * 1000)
+      await wait(2 * 1000)
       expect(await hasSsgScript()).toBe(true)
       const hrefs2 = await browser.eval(`Object.keys(window.next.router.sdc)`)
       expect(hrefs2.map((href) => new URL(href).pathname)).toEqual([
@@ -528,7 +528,7 @@ describe('Prefetching Links in viewport', () => {
       }
       window.next.router.push('/not-de-duped')
     })()`)
-    await waitFor(2 * 1000)
+    await wait(2 * 1000)
     const calledPrefetch = await browser.eval(`window.calledPrefetch`)
     expect(calledPrefetch).toBe(true)
   })
@@ -555,7 +555,7 @@ describe('Prefetching Links in viewport', () => {
 
   it('should prefetch data files', async () => {
     const browser = await next.browser('/ssg/fixture', { baseUrl: proxyPort })
-    await waitFor(2 * 1000)
+    await wait(2 * 1000)
 
     const hrefs = await browser.eval(`Object.keys(window.next.router.sdc)`)
     hrefs.sort()
@@ -577,7 +577,7 @@ describe('Prefetching Links in viewport', () => {
     const browser = await next.browser('/ssg/fixture/mismatch', {
       baseUrl: proxyPort,
     })
-    await waitFor(2 * 1000)
+    await wait(2 * 1000)
 
     const hrefs = await browser.eval(`Object.keys(window.next.router.sdc)`)
     hrefs.sort()
