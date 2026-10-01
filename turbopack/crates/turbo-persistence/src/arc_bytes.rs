@@ -164,7 +164,7 @@ impl SharedBytes for ArcBytes {
     unsafe fn slice_from_subslice(&self, subslice: &[u8]) -> Self {
         // Short slices are copied instead of pointed at, so the result owns its bytes and the
         // caller's backing can be dropped. This is the common case on the lookup path: an inline
-        // value or a key-value tombstone payload, both of which live in a key block, so copying
+        // inline value, which lives in a key block, so copying
         // here is what lets a lookup avoid keeping that block alive.
         if subslice.len() <= INLINE_CAPACITY {
             return Self::from_inline(subslice);

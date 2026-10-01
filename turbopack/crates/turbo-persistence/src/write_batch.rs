@@ -6,7 +6,7 @@ use std::{
     sync::atomic::{AtomicU32, AtomicU64, Ordering},
 };
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use byteorder::{BE, WriteBytesExt};
 use either::Either;
 use fs_err::File;
@@ -15,11 +15,11 @@ use smallvec::SmallVec;
 use thread_local::ThreadLocal;
 
 use crate::{
-    FamilyConfig, FamilyKind, ValueBuffer,
+    FamilyConfig, ValueBuffer,
     collector::Collector,
     collector_entry::CollectorEntry,
     compression::{Compressor, checksum_block},
-    constants::{MAX_INLINE_VALUE_SIZE, MAX_MEDIUM_VALUE_SIZE, THREAD_LOCAL_SIZE_SHIFT},
+    constants::{MAX_MEDIUM_VALUE_SIZE, THREAD_LOCAL_SIZE_SHIFT},
     db::WriteOperationGuard,
     key::StoreKey,
     meta_file::MetaEntryFlags,
@@ -221,10 +221,7 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
         // driving the work to slow down task submission in this case.
         for mut global_collector in full_collectors {
             // When the global collector is full, we create a new SST file.
-            let sst = self.create_sst_file(
-                family,
-                global_collector.sorted(self.family_configs[usize_from_u32(family)].kind),
-            )?;
+            let sst = self.create_sst_file(family, global_collector.sorted())?;
             self.new_sst_files.lock().push(sst);
             drop(global_collector);
         }
@@ -233,7 +230,7 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
 
     /// Puts a key-value pair into the write batch.
     ///
-    /// In a [`FamilyKind::SingleValue`] family each key should be written once per batch. A key may
+    /// Each key should be written once per batch. A key may
     /// be written again only after [`WriteBatch::flush`] of the family: entries flushed earlier are
     /// stored in older SST files, so the later write supersedes them for reads and compaction.
     /// Which of several writes of one key between two flushes wins is undefined; a caller that
@@ -251,7 +248,7 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
         Ok(())
     }
 
-    /// Puts a delete operation into the write batch. This deletes *all* values for `key`.
+    /// Puts a delete operation into the write batch. This deletes the value for `key`.
     ///
     /// Combining this with a [`WriteBatch::put`] of the same key in the same batch is **not
     /// supported**: which one wins is undefined, and callers are expected to resolve the intent
@@ -260,39 +257,6 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
         let state = self.thread_local_state();
         let collector = self.thread_local_collector_mut(state, family)?;
         collector.delete(key);
-        Ok(())
-    }
-
-    /// Deletes a single key-value pair, leaving any other values for `key` intact.
-    ///
-    /// Only valid for [`FamilyKind::MultiValue`] families: in a `SingleValue` family a key has one
-    /// value and [`WriteBatch::delete`] already removes it exactly.
-    ///
-    /// Deleting a pair that is written in the same batch — by this or any other operation on the
-    /// key — is **not supported**, for the reason given on [`WriteBatch::delete`]: which one wins
-    /// is undefined, and it is the caller's job to resolve that before writing.
-    ///
-    /// Only values of at most [`MAX_INLINE_VALUE_SIZE`] bytes can be deleted this way.  This is a
-    /// simplifying limitation that could be relaxed if needed. Of course in general the storage
-    /// overhead of deleting large values by value makes it apriori inefficient.
-    pub fn delete_value(&self, family: u32, key: K, value: ValueBuffer<'_>) -> Result<()> {
-        let family_config = &self.family_configs[usize_from_u32(family)];
-        if family_config.kind != FamilyKind::MultiValue {
-            bail!(
-                "delete_value is only valid for MultiValue families, but family {} is SingleValue",
-                family_config.name
-            );
-        }
-        if value.len() > MAX_INLINE_VALUE_SIZE {
-            bail!(
-                "delete_value only supports values of at most {MAX_INLINE_VALUE_SIZE} bytes, got \
-                 {} bytes",
-                value.len()
-            );
-        }
-        let state = self.thread_local_state();
-        let collector = self.thread_local_collector_mut(state, family)?;
-        collector.delete_value(key, &value);
         Ok(())
     }
 
@@ -326,11 +290,10 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
         // Now we flush the global collector(s).
         let family_usize = usize_from_u32(family);
         let mut collector_state = self.collectors[family_usize].lock();
-        let family_config = self.family_configs[family_usize];
         match &mut *collector_state {
             GlobalCollectorState::Unsharded(collector) => {
                 if !collector.is_empty() {
-                    let sst = self.create_sst_file(family, collector.sorted(family_config.kind))?;
+                    let sst = self.create_sst_file(family, collector.sorted())?;
                     collector.clear();
                     self.new_sst_files.lock().push(sst);
                 }
@@ -345,8 +308,7 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
                 self.parallel_scheduler
                     .try_parallel_for_each_mut(&mut shards, |collector| {
                         if !collector.is_empty() {
-                            let sst =
-                                self.create_sst_file(family, collector.sorted(family_config.kind))?;
+                            let sst = self.create_sst_file(family, collector.sorted())?;
                             collector.clear();
                             self.new_sst_files.lock().push(sst);
                             collector.drop_contents();
@@ -431,10 +393,7 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
             |(family, mut collector)| {
                 let family = family as u32;
                 if !collector.is_empty() {
-                    let sst = self.create_sst_file(
-                        family,
-                        collector.sorted(self.family_configs[usize_from_u32(family)].kind),
-                    )?;
+                    let sst = self.create_sst_file(family, collector.sorted())?;
                     collector.clear();
                     drop(collector);
                     shared_new_sst_files.lock().push(sst);
@@ -573,7 +532,6 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
                 Default::default(),
             );
             let mut key_buf = Vec::new();
-            let family_config = self.family_configs[usize_from_u32(family)].kind;
             for entry in entries {
                 entry.write_key_to(&mut key_buf);
                 let result = sst
@@ -582,16 +540,7 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
                 key_buf.clear();
                 match result {
                     SstLookupResult::Found(values) => {
-                        if values.len() > 1 {
-                            use crate::FamilyKind;
-
-                            assert!(
-                                values.len() == 1 || family_config == FamilyKind::MultiValue,
-                                "only multi-value tables can have more than one value, got {} \
-                                 values",
-                                values.len()
-                            )
-                        }
+                        assert_eq!(values.len(), 1, "each key must have one value");
                         match &entry.value {
                             CollectorEntryValue::Large { blob } => {
                                 assert!(
@@ -607,16 +556,6 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
                                 values.last() == Some(&LookupValue::KeyDeleted),
                                 "we wrote a key tombstone but it was not last in results"
                             ),
-                            CollectorEntryValue::KeyValueDeleted { value, len } => {
-                                let expected = &value[..*len as usize];
-                                assert!(
-                                    values.iter().any(|lv| matches!(
-                                        lv,
-                                        LookupValue::KeyValueDeleted { value } if &**value == expected
-                                    )),
-                                    "we wrote a key-value tombstone but did not read it back"
-                                )
-                            }
                             v => {
                                 assert!(
                                     values.into_iter().any(|lv| {
