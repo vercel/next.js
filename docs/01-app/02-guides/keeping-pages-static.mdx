@@ -1,6 +1,6 @@
 ---
 title: Keeping pages static
-description: Learn how to require a static App Shell, per-link prefetch, or complete server-rendered route with ensureStatic.
+description: Learn how to keep an App Shell, per-link prefetch, or complete route static with ensureStatic.
 nav_title: Keeping pages static
 related:
   title: Learn more
@@ -8,41 +8,38 @@ related:
   links:
     - app/api-reference/file-conventions/route-segment-config/ensureStatic
     - app/guides/optimizing-prefetching
-    - app/api-reference/functions/prefetch
-    - app/api-reference/functions/navigation
     - app/guides/migrating-to-cache-components
-    - app/guides/instant-navigation
 ---
 
-Use [`ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic) to prevent changes from accidentally adding request-time server rendering to a route's App Shell, per-link prefetch, or navigation output.
+Before Cache Components, static and dynamic rendering were primarily a route-level choice. [Route segment configs](/docs/app/guides/caching-without-cache-components#dynamic) such as `dynamic = 'force-static'`, `dynamic = 'force-dynamic'`, and `dynamic = 'error'` controlled whether the entire route was prerendered, rendered on demand, or failed when it could not be prerendered.
 
-Use this guide after adopting [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) and deciding which data to cache or stream. `ensureStatic` is a final safeguard for a static site or route that must preserve specific static output as it evolves. If you are replacing `dynamic = 'force-static'`, first follow the [Cache Components migration guide](/docs/app/guides/migrating-to-cache-components#dynamic--force-static).
+[Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) moves this boundary to the component and function level. A single route can have a static shell, cached content, and request-specific content that streams in later. In most cases, this mix provides useful UI early without requiring the entire route to be static.
 
-For example, an email app can require:
+However, some output must not introduce request-time server work. You may need predictable rendering performance, want to avoid request-time compute, or want to protect a route that is expected to remain fully prerendered. In these cases, [`ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic) makes the static requirement explicit so later changes cannot silently introduce request-time rendering.
 
-- A static inbox shell shared by every thread.
-- A static per-link prefetch containing the selected thread's cached header.
-- Message bodies to wait until the user opens the thread.
+This guide explains where static output can be produced during navigation, then applies each `ensureStatic` level to a worked example. You will also use the development overlay and build errors to find work that does not meet the selected requirement.
 
-`ensureStatic` sets the route-wide requirement. To decide which content belongs in each stage, use [`prefetch()`](/docs/app/api-reference/functions/prefetch), [`navigation()`](/docs/app/api-reference/functions/navigation), and the [optimizing prefetching guide](/docs/app/guides/optimizing-prefetching).
+## Choose how much output must be static
+
+Static output is produced without request-specific data, so Next.js can generate it before a request and use it across requests. With [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), a default `<Link>` loads the destination's [App Shell](/docs/app/glossary#app-shell). Setting `prefetch={true}` can also load static or cached [URL-specific content](/docs/app/guides/optimizing-prefetching#resolve-url-data-at-prefetch-time). The navigation request returns the remaining server-rendered content after the user follows the link.
+
+`ensureStatic` lets you require progressively more of this output to remain static:
+
+- **`'shell'`** keeps the App Shell static. Request-specific content can render during a later per-link prefetch or navigation.
+- **`'prefetch'`** keeps the App Shell and per-link prefetches static. Request-specific content waits for navigation.
+- **`'navigation'`** requires the complete server-rendered route to be static. Because there is no later server-rendering stage, request-specific or uncached server work produces a validation error.
+
+Each level includes the requirements before it. The following example starts with the App Shell and progressively extends the static requirement through the complete route.
+
+For more granular control, [`prefetch()`](/docs/app/api-reference/functions/prefetch) keeps one subtree out of the App Shell, while [`navigation()`](/docs/app/api-reference/functions/navigation) keeps it out of both the App Shell and per-link prefetches. `ensureStatic` takes the opposite approach: instead of choosing the subtree to defer, you declare which route output must remain static. See [Excluding content from a prefetch](/docs/app/guides/optimizing-prefetching#exclude-content-from-a-prefetch) for the subtree-level approach.
 
 ## Example
 
-The examples build a mail route in three stages:
+Consider an online store with a shared layout, product pages, and editorial buying guides. The shared storefront should always have a static shell, product links should prefetch cached summaries without running live inventory queries, and buying guides should be fully prerendered.
 
-| Stage             | Loaded when                           | Mail UI                                    |
-| ----------------- | ------------------------------------- | ------------------------------------------ |
-| App Shell         | A default `<Link>` becomes visible    | Inbox frame and thread loading state       |
-| Per-link prefetch | A `<Link prefetch={true}>` is visible | Cached subject, sender, and thread actions |
-| Navigation        | The user opens the thread             | Message bodies and other deferred content  |
+You will add the static requirements after first establishing the routes and their data access.
 
-Each later stage can include UI from earlier stages and add content that becomes available at that point. A per-link prefetch can add URL-specific UI to the App Shell, and the navigation renders the remaining content. The App Shell and per-link prefetch are partial results. Navigation produces the complete result.
-
-On an initial load, Next.js serves a [static HTML shell](/docs/app/glossary#static-shell). With `ensureStatic = 'prefetch'`, it can include the same static or cached UI as a per-link prefetch, but it cannot include request-specific data.
-
-See the [Next.js mail demo](https://next16-mail.vercel.app/) and its [source code](https://github.com/aurorascharff/next16-mail) for a complete example.
-
-This guide requires [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents). The `'shell'` and `'prefetch'` levels also require [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching):
+Enable [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) and [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching):
 
 ```ts filename="next.config.ts" highlight={4,5}
 import type { NextConfig } from 'next'
@@ -55,197 +52,253 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-Choose the level based on what the route needs:
+Start with these routes:
 
-| Route                                           | Typical approach                                                                                   |
-| ----------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| Documentation, marketing page, or static blog   | Use `'navigation'` when all server output must remain static.                                      |
-| Large or frequently revalidated product catalog | Cache product data with `use cache` and `cacheLife`, then use `'shell'` or `'prefetch'` if needed. |
-| Dashboard, mail, or media app                   | Keep an earlier stage static while request-specific content renders during a later stage.          |
+```text filename="Folder structure"
+app/
+└── store/
+    ├── layout.tsx
+    ├── page.tsx
+    ├── products/
+    │   └── [slug]/
+    │       └── page.tsx
+    └── guides/
+        └── [id]/
+            └── page.tsx
+```
 
-Fully static rendering is not the default goal for every route. Use the least restrictive level that preserves the experience and caching behavior you need.
+The shared layout renders the store navigation:
 
-## 1. Require a static App Shell
+```tsx filename="app/store/layout.tsx"
+import Link from 'next/link'
 
-Set `ensureStatic = 'shell'` when the route's shared shell must not render per request:
-
-```tsx filename="app/mail/layout.tsx" highlight={1}
-export const ensureStatic = 'shell'
-
-export default function MailLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function StoreLayout({ children }: LayoutProps<'/store'>) {
   return (
-    <main>
-      <nav>Inbox</nav>
-      {children}
-    </main>
+    <>
+      <nav>
+        <Link href="/store">Products</Link>
+        <Link href="/store/guides">Buying guides</Link>
+      </nav>
+      <main>{children}</main>
+    </>
   )
 }
 ```
 
-The shell can include static and cached content. Request-specific work behind `<Suspense>` moves to the per-link prefetch or navigation instead of making the shell render per request.
+The catalog links to each product without opting into a per-link prefetch:
 
-You can apply a similar cutoff to an individual subtree with [`await prefetch()`](/docs/app/api-reference/functions/prefetch). Use `'shell'` when the static App Shell is a route-wide requirement instead of adding the cutoff to every request-specific subtree.
+```tsx filename="app/store/page.tsx"
+import Link from 'next/link'
+import { getProducts } from '@/lib/store'
 
-## 2. Require static per-link prefetches
+export default async function StorePage() {
+  const products = await getProducts()
 
-Set `ensureStatic = 'prefetch'` when both the shared shell and each per-link prefetch must be static:
+  return (
+    <ul>
+      {products.map((product) => (
+        <li key={product.slug}>
+          <Link href={`/store/products/${product.slug}`}>{product.name}</Link>
+        </li>
+      ))}
+    </ul>
+  )
+}
+```
 
-```tsx filename="app/mail/[threadId]/page.tsx" highlight={4}
+Each product page renders a cached product summary and current inventory. The two parts have separate `<Suspense>` boundaries so they can become available at different times:
+
+```tsx filename="app/store/products/[slug]/page.tsx"
 import { Suspense } from 'react'
-import { cookies } from 'next/headers'
+import { getInventory, getProduct } from '@/lib/store'
 
-export const ensureStatic = 'prefetch'
-
-export default function ThreadPage({ params }: PageProps<'/mail/[threadId]'>) {
+export default function ProductPage({
+  params,
+}: PageProps<'/store/products/[slug]'>) {
   return (
     <>
-      <Suspense fallback={<p>Loading thread...</p>}>
-        <ThreadHeader params={params} />
+      <Suspense fallback={<p>Loading product...</p>}>
+        <ProductDetails params={params} />
       </Suspense>
-      <Suspense fallback={<p>Loading messages...</p>}>
-        <Messages params={params} />
+      <Suspense fallback={<p>Checking availability...</p>}>
+        <Inventory params={params} />
       </Suspense>
     </>
   )
 }
 
-async function ThreadHeader({
-  params,
-}: {
-  params: PageProps<'/mail/[threadId]'>['params']
-}) {
-  const { threadId } = await params
-  const thread = await getThread(threadId)
-  return <h1>{thread.subject}</h1>
+type Params = PageProps<'/store/products/[slug]'>['params']
+
+async function ProductDetails({ params }: { params: Params }) {
+  const { slug } = await params
+  const product = await getProduct(slug)
+  return <h1>{product.name}</h1>
 }
 
-async function Messages({
-  params,
-}: {
-  params: PageProps<'/mail/[threadId]'>['params']
-}) {
-  const { threadId } = await params
-  const userId = (await cookies()).get('user-id')?.value ?? 'anonymous'
-  const messages = await db.messages.list({ threadId, userId })
-  return (
-    <ul>
-      {messages.map((message) => (
-        <li key={message.id}>{message.body}</li>
-      ))}
-    </ul>
-  )
+async function Inventory({ params }: { params: Params }) {
+  const { slug } = await params
+  const inventory = await getInventory(slug)
+  return <p>{inventory.count} available</p>
 }
+```
 
-async function getThread(threadId: string) {
+Product listings and details are reusable, so their data helpers use [`use cache`](/docs/app/api-reference/directives/use-cache). Inventory changes frequently and remains uncached:
+
+```ts filename="lib/store.ts" highlight={4,9}
+import { db } from '@/lib/db'
+
+export async function getProducts() {
   'use cache'
-  return db.threads.find(threadId)
+  return db.product.findMany()
+}
+
+export async function getProduct(slug: string) {
+  'use cache'
+  return db.product.findUniqueOrThrow({ where: { slug } })
+}
+
+export async function getInventory(slug: string) {
+  return db.inventory.findUniqueOrThrow({ where: { slug } })
 }
 ```
 
-Link to each thread with `prefetch={true}` so its cached, URL-specific header can be ready before the click:
+Finally, each buying guide reads its content from the database:
 
-```tsx filename="app/mail/thread-list.tsx" highlight={6}
-import Link from 'next/link'
+```tsx filename="app/store/guides/[id]/page.tsx"
+import { getGuide } from '@/lib/guides'
 
-export function ThreadLink({ id, subject }: { id: string; subject: string }) {
-  return (
-    <Link href={`/mail/${id}`} prefetch={true}>
-      {subject}
-    </Link>
-  )
+export default async function GuidePage({
+  params,
+}: PageProps<'/store/guides/[id]'>) {
+  const { id } = await params
+  const guide = await getGuide(id)
+  return <article>{guide.content}</article>
 }
 ```
 
-The cached thread header can render in the per-link prefetch because the link supplies `threadId`. The request-specific messages wait until navigation completes the route.
+The buying-guide query is initially uncached. A second helper returns the IDs that the store can prerender:
 
-You can apply a similar cutoff to an individual subtree with [`await navigation()`](/docs/app/api-reference/functions/navigation). Use `'prefetch'` when static App Shell and per-link prefetch output are route-wide requirements.
+```ts filename="lib/guides.ts"
+import { db } from '@/lib/db'
 
-## 3. Require the complete route to be static
+export async function getGuide(id: string) {
+  return db.guide.findUniqueOrThrow({ where: { id } })
+}
 
-Set `ensureStatic = 'navigation'` when every server-rendered part of the route must be produced during prerendering:
+export async function getGuideIds() {
+  const guides = await db.guide.findMany({ select: { id: true } })
+  return guides.map((guide) => guide.id)
+}
+```
 
-```tsx filename="app/blog/[slug]/page.tsx" highlight={1}
+At this point, the app lets Next.js decide what it can prerender. Add three explicit requirements:
+
+- Keep the shared storefront shell static.
+- Prefetch cached product details while leaving live inventory for navigation.
+- Prerender buying guides in full.
+
+### Step 1: Protect the storefront shell
+
+The store layout is shared by the catalog, product pages, and buying guides. Add `ensureStatic = 'shell'` above the existing layout so its App Shell remains static as the app changes:
+
+```tsx filename="app/store/layout.tsx"
+export const ensureStatic = 'shell'
+```
+
+A default `<Link>` into the store can load this shell from static output. If a later change adds request-specific content behind `<Suspense>`, that content waits for a per-link prefetch or navigation instead of making the shell render per request.
+
+For one subtree, [`await prefetch()`](/docs/app/api-reference/functions/prefetch) provides similar behavior by keeping the work below it out of the App Shell. Use `ensureStatic = 'shell'` when the static requirement applies across the route instead of adding that cutoff to each subtree.
+
+### Step 2: Prefetch product details, not live inventory
+
+A product page already separates its cached summary from live inventory with `<Suspense>`. Add `ensureStatic = 'prefetch'` so the shell and each per-link prefetch remain static:
+
+```tsx filename="app/store/products/[slug]/page.tsx"
+export const ensureStatic = 'prefetch'
+```
+
+Update the product links with `prefetch={true}` so each link can resolve its cached, URL-specific product details:
+
+```tsx filename="app/store/page.tsx" highlight={1}
+<Link href={`/store/products/${product.slug}`} prefetch={true}>
+  {product.name}
+</Link>
+```
+
+When a product link becomes visible, its prefetch includes the product heading and **Checking availability...** fallback. The uncached inventory query runs after the user follows the link.
+
+Pause the next navigation in the Next.js DevTools to inspect this result. Resume the navigation to load the current inventory.
+
+For one subtree, [`await navigation()`](/docs/app/api-reference/functions/navigation) keeps the work below it out of both the App Shell and per-link prefetches. Use `ensureStatic = 'prefetch'` when every prefetch for the route must remain static.
+
+### Step 3: Prerender every buying guide
+
+Buying guides are editorial pages whose complete server output should remain static. Add `ensureStatic = 'navigation'` to the existing dynamic `[id]` route:
+
+```tsx filename="app/store/guides/[id]/page.tsx"
+export const ensureStatic = 'navigation'
+```
+
+Run `next build`. The route cannot guarantee static output because Next.js does not know which `id` values to prerender:
+
+```text filename="Terminal"
+Page "/store/guides/[id]": `ensureStatic = "navigation"` requires an exported `generateStaticParams()` function.
+Learn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic
+```
+
+Export [`generateStaticParams()`](/docs/app/api-reference/functions/generate-static-params) and return every buying guide ID:
+
+```tsx filename="app/store/guides/[id]/page.tsx" highlight={3,5-8}
+import { getGuide, getGuideIds } from '@/lib/guides'
+
 export const ensureStatic = 'navigation'
 
-export function generateStaticParams() {
-  return [{ slug: 'welcome' }, { slug: 'roadmap' }]
+export async function generateStaticParams() {
+  const ids = await getGuideIds()
+  return ids.map((id) => ({ id }))
 }
 
-export default async function Page({ params }: PageProps<'/blog/[slug]'>) {
-  const { slug } = await params
-  const post = await getPost(slug)
-  return <article>{post.body}</article>
-}
-
-async function getPost(slug: string) {
-  'use cache'
-  return db.posts.find(slug)
+export default async function GuidePage({
+  params,
+}: PageProps<'/store/guides/[id]'>) {
+  const { id } = await params
+  const guide = await getGuide(id)
+  return <article>{guide.content}</article>
 }
 ```
 
-Navigation is the complete route result. There is no later server-rendering stage, so request-specific server work produces a validation error. Client Components can still read browser data, and cached server data can be prerendered.
+The parameter error is now fixed. If the route has multiple dynamic segments, every result must include all of them.
 
-The development overlay and `next build` report the work that prevents prerendering and suggest relevant fixes:
+Open one of the returned guide URLs with `next dev`. Because `getGuide()` still performs an uncached database query, the development overlay points to that query:
 
-<FixCardGrid>
-  <FixCard
-    group="cache"
-    title="Cache the data"
-    href="/docs/messages/static-route-dynamic#cache-the-data"
-    snippets={[
-      { text: 'async function getData() {' },
-      { text: '  "use cache"', highlight: true },
-      { text: '  return await db.query(…)' },
-    ]}
-  />
-  <FixCard
-    group="remove"
-    title="Remove the data access"
-    href="/docs/messages/static-route-runtime#remove-the-data-access"
-    snippets={[
-      { text: 'async function Page() {' },
-      { text: '- const store = await cookies()', highlight: true },
-      { text: '  return <Content />' },
-    ]}
-  />
-  <FixCard
-    group="client"
-    title="Read search parameters on the client"
-    href="/docs/messages/static-route-runtime#read-search-parameters-on-the-client"
-    snippets={[
-      { text: "'use client'" },
-      { text: 'const params = useSearchParams()', highlight: true },
-      { text: "return <p>{params.get('q')}</p>" },
-    ]}
-  />
-</FixCardGrid>
+```text filename="Development overlay"
+Next.js encountered uncached data on a route that must be fully static.
+```
 
-See the [uncached data](/docs/messages/static-route-dynamic) and [runtime data](/docs/messages/static-route-runtime) error guides for the complete remedies. The [Instant Navigation validation reference](/docs/messages/instant-navigation-validation) lists every related error.
+There are two ways to preserve the complete-route requirement:
 
-Use this level for routes such as documentation or marketing pages where request-time server rendering would be a regression. Setting it on the root layout applies the requirement to every route in the app. Prefer a nested layout or page when only one part of the app must remain static.
+- Remove the data access if the page does not need it.
+- Cache the data if its result can be shared across requests.
 
-## Choose route-wide enforcement or a local cutoff
+Buying-guide content is shared, so cache the query:
 
-Use `ensureStatic` when the rendering requirement applies to the whole route. Use the functions when only one subtree should move to a later stage:
+```ts filename="lib/guides.ts" highlight={4}
+import { db } from '@/lib/db'
 
-| Goal                                                      | Use                           |
-| --------------------------------------------------------- | ----------------------------- |
-| Require a static App Shell for the route                  | `ensureStatic = 'shell'`      |
-| Move one subtree out of the App Shell                     | `await prefetch()`            |
-| Require static App Shell and per-link prefetches          | `ensureStatic = 'prefetch'`   |
-| Move one subtree out of every prefetch                    | `await navigation()`          |
-| Require all server-rendered route output to remain static | `ensureStatic = 'navigation'` |
+export async function getGuide(id: string) {
+  'use cache'
+  return db.guide.findUniqueOrThrow({ where: { id } })
+}
+```
 
-For guidance on choosing which links should resolve URL data and which content should wait until navigation, see [Optimizing prefetching](/docs/app/guides/optimizing-prefetching).
+Reload the page in development. The static-route error clears. Run `next build` again to confirm that the returned guide IDs and their content are fully prerendered.
+
+If the guide must read uncached or request-specific data, remove `ensureStatic = 'navigation'` instead. That changes the route's requirement and allows the data to render per request.
 
 ## Next steps
 
-- [`ensureStatic` reference](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic) for validation rules and how levels combine across layouts and pages.
-- [Optimizing prefetching](/docs/app/guides/optimizing-prefetching) for controlling the cost and contents of each prefetch.
-- [Migrating to Cache Components](/docs/app/guides/migrating-to-cache-components) for replacing previous route-level caching and rendering configs.
-- [`prefetch()`](/docs/app/api-reference/functions/prefetch) and [`navigation()`](/docs/app/api-reference/functions/navigation) for moving individual subtrees to later stages.
-- [Ensuring instant navigations](/docs/app/guides/instant-navigation) for structuring Suspense boundaries and verifying navigation behavior.
+- Review the [`ensureStatic` API reference](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic) for combination rules across layouts and pages.
+- [Optimize prefetching](/docs/app/guides/optimizing-prefetching) to choose which cached content each link loads before navigation.
+- Use [`prefetch()`](/docs/app/api-reference/functions/prefetch) and [`navigation()`](/docs/app/api-reference/functions/navigation) when only one subtree should move to a later stage.
+- [Migrate to Cache Components](/docs/app/guides/migrating-to-cache-components) before replacing `dynamic = 'force-static'` with `ensureStatic`.
+- [Implement Incremental Static Regeneration](/docs/app/guides/incremental-static-regeneration-cache-components) for product URLs generated after the build.
