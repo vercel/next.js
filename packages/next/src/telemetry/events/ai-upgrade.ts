@@ -79,3 +79,11 @@ export function eventAIUpgradeCLIResult(fields: {
 }) {
   return event('NEXT_AI_UPGRADE_CLI_RESULT', fields)
 }
+
+// The agent reports its verified result separately from the CLI's prompt delivery.
+export function eventAIUpgradeAgentResult(fields: {
+  runId: string
+  result: 'success' | 'failure'
+}) {
+  return event('NEXT_AI_UPGRADE_AGENT_RESULT', fields)
+}

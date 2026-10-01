@@ -88,9 +88,16 @@ const cliVersion: string = require('next/package.json').version
 const restoreDescriptors: Array<() => void> = []
 
 function normalizedBootstrapCalls(): string[][] {
-  return jest
-    .mocked(Log.bootstrap)
-    .mock.calls.map(([message]) => [String(message).replace(/\\+/g, '/')])
+  return jest.mocked(Log.bootstrap).mock.calls.map(([message]) => [
+    String(message)
+      .replace(/\\+/g, '/')
+      // Run IDs are intentionally unique; keep prompt snapshots stable.
+      .replace(/report-ai-upgrade [0-9a-f-]{36}/g, 'report-ai-upgrade <run-id>')
+      .replaceAll(
+        `next@${cliVersion} internal report-ai-upgrade`,
+        'next@<cli-version> internal report-ai-upgrade'
+      ),
+  ])
 }
 
 function expectedHarnessPath(name: string): string {
@@ -1262,7 +1269,9 @@ describe('agentic upgrade prompts', () => {
 
      References:
      - https://api.github.com/advisories?affects=next
-     - https://registry.npmjs.org/next",
+     - https://registry.npmjs.org/next
+
+     When this task ends, report its result once. After completing the requested upgrade and all applicable verification, run \`npx next@<cli-version> internal report-ai-upgrade <run-id> success\`. If the attempted upgrade remains unsuccessful after repairs or verification fails, run \`npx next@<cli-version> internal report-ai-upgrade <run-id> failure\`. If you stop for duplicate work, user cancellation, or an unavailable prerequisite, do not report success or failure. Explain the result to the user separately; never include project details or error text in the telemetry command.",
        ],
      ]
     `)
@@ -1374,7 +1383,9 @@ describe('agentic upgrade prompts', () => {
      Set \`experimental.agentUpgrade\` to "latest" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
 
      References:
-     - https://registry.npmjs.org/next/latest",
+     - https://registry.npmjs.org/next/latest
+
+     When this task ends, report its result once. After completing the requested upgrade and all applicable verification, run \`npx next@<cli-version> internal report-ai-upgrade <run-id> success\`. If the attempted upgrade remains unsuccessful after repairs or verification fails, run \`npx next@<cli-version> internal report-ai-upgrade <run-id> failure\`. If you stop for duplicate work, user cancellation, or an unavailable prerequisite, do not report success or failure. Explain the result to the user separately; never include project details or error text in the telemetry command.",
        ],
      ]
     `)
@@ -1614,7 +1625,9 @@ describe('agentic upgrade prompts', () => {
      Complete each adoption. Temporary opt-outs and TODO markers are intermediate work only; do not stop until they are removed and the adoption is fully verified.
 
      References:
-     - https://registry.npmjs.org/next/latest",
+     - https://registry.npmjs.org/next/latest
+
+     When this task ends, report its result once. After completing the requested upgrade and all applicable verification, run \`npx next@<cli-version> internal report-ai-upgrade <run-id> success\`. If the attempted upgrade remains unsuccessful after repairs or verification fails, run \`npx next@<cli-version> internal report-ai-upgrade <run-id> failure\`. If you stop for duplicate work, user cancellation, or an unavailable prerequisite, do not report success or failure. Explain the result to the user separately; never include project details or error text in the telemetry command.",
          ],
        ],
        "savedInstructions": [
@@ -1716,7 +1729,9 @@ describe('agentic upgrade prompts', () => {
      Complete each adoption. Temporary opt-outs and TODO markers are intermediate work only; do not stop until they are removed and the adoption is fully verified.
 
      References:
-     - https://registry.npmjs.org/next/latest",
+     - https://registry.npmjs.org/next/latest
+
+     When this task ends, report its result once. After completing the requested upgrade and all applicable verification, run \`npx next@<cli-version> internal report-ai-upgrade <run-id> success\`. If the attempted upgrade remains unsuccessful after repairs or verification fails, run \`npx next@<cli-version> internal report-ai-upgrade <run-id> failure\`. If you stop for duplicate work, user cancellation, or an unavailable prerequisite, do not report success or failure. Explain the result to the user separately; never include project details or error text in the telemetry command.",
        ],
      ]
     `)
