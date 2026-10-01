@@ -1,5 +1,9 @@
-import { nextTestSetup, FileRef, PatchedFileRef, isNextDeploy } from 'e2e-utils'
-import { getDeploymentTestEnvAssignments } from 'e2e-utils/deployment-test-env'
+import {
+  nextTestSetup,
+  FileRef,
+  nextConfigFileRef,
+  isNextDeploy,
+} from 'e2e-utils'
 import {
   waitForRedbox,
   waitForNoRedbox,
@@ -28,13 +32,8 @@ describe('non-root-project-monorepo', () => {
     // It currently only patches the fixture-root config:
     // https://github.com/vercel/next.js/blob/3854a98484ec2ce5bafcb074ef0fbad5290dede2/test/lib/next-modes/base.ts#L520-L554
     overrideFiles: {
-      'apps/web/next.config.js': new PatchedFileRef(
-        path.join(__dirname, 'apps/web/next.config.js'),
-        (content) => {
-          if (!isNextDeploy) return content
-
-          return getDeploymentTestEnvAssignments() + content
-        }
+      'apps/web/next.config.js': nextConfigFileRef(
+        path.join(__dirname, 'apps/web/next.config.js')
       ),
     },
     packageJson: require('./package.json'),

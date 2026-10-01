@@ -1,3 +1,4 @@
+import { getDeploymentTestEnvAssignments } from './deployment-test-env'
 import path from 'path'
 import assert from 'assert'
 import { flushAllTraces, setGlobal, trace } from 'next/dist/trace'
@@ -235,6 +236,13 @@ export class PatchedFileRef {
     this.fsPath = path
     this.cb = cb
   }
+}
+
+/** Prepare a copied Next.js config with test flags in deploy mode only. */
+export function nextConfigFileRef(path: string): PatchedFileRef {
+  return new PatchedFileRef(path, (content) =>
+    isNextDeploy ? getDeploymentTestEnvAssignments() + content : content
+  )
 }
 
 let nextInstance: NextInstance | undefined = undefined
