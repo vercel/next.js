@@ -12,7 +12,6 @@ import type { NextParsedUrlQuery } from './request-meta'
 import type { SizeLimit } from '../types'
 import type { SupportedTestRunners } from '../cli/next-test'
 import { INFINITE_CACHE } from '../lib/constants'
-import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
 import type { FallbackRouteParam } from '../build/static-paths/types'
 import type { MemoryEvictionMode, TurbopackGcOptions } from '../build/swc/types'
 import type { CacheLife } from './use-cache/cache-life'
@@ -1090,7 +1089,7 @@ export interface ExperimentalConfig {
    * can be observed by user code (a namespace object that escapes, a dynamic `import()`, a
    * CommonJS `require()`) keeps its original names.
    *
-   * Defaults to `false`
+   * Defaults to `true` for production builds and `false` in development.
    */
   turbopackMangleExportNames?: boolean
 
@@ -2471,10 +2470,10 @@ export const defaultConfig = Object.freeze({
     turbopackInferModuleSideEffects: true,
     turbopackPluginRuntimeStrategy: 'childProcesses',
     turbopackSharedRuntime: true,
-    // Pinned off for stable releases. Left unset on canary so the Turbopack side picks the
-    // default from the build mode (on for production builds, off in development) — see
-    // `NextConfig::turbopack_mangle_export_names`. An explicit value always wins either way.
-    turbopackMangleExportNames: isStableBuild() ? false : undefined,
+    // Left unset so the Turbopack side picks the default from the build mode (on for production
+    // builds, off in development) — see `NextConfig::turbopack_mangle_export_names`. An explicit
+    // value always wins either way.
+    turbopackMangleExportNames: undefined,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
