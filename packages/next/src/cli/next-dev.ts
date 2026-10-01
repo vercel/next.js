@@ -265,14 +265,29 @@ const nextDev = async (
     upgradeInProgress = true
     const controller = new AbortController()
     upgradeController = controller
+
+    // Correlate the parent's rendered menu with the upgrade launched after Update.
+    const telemetry = new Telemetry({
+      distDir: path.join(dir, context.distDir),
+      skipNotify: true,
+    })
+
+    let nudgeId: string | null = null
     let action
+
     try {
       action = await nudgeUpgrade(
         dir,
         context,
         'dev',
         controller.signal,
-        initialAssessment
+        initialAssessment,
+        {
+          telemetry,
+          onNudgeId(id) {
+            nudgeId = id
+          },
+        }
       )
     } catch (error) {
       Log.warn(`Could not offer the upgrade: ${String(error)}`)
@@ -296,7 +311,9 @@ const nextDev = async (
       process.off('SIGINT', onInterrupt)
       process.off('SIGTERM', onTerminate)
       process.off('SIGHUP', onHangup)
-      process.exit(await runUpgrade(dir, context.experimental.agentUpgrade))
+      process.exit(
+        await runUpgrade(dir, context.experimental.agentUpgrade, nudgeId)
+      )
     }
     upgradeInProgress = false
     process.off('SIGHUP', onHangup)

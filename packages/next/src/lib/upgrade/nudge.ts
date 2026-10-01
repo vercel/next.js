@@ -7,6 +7,12 @@ import { updateInitialEnv } from '@next/env'
 
 import * as Log from '../../build/output/log'
 import type { NextConfigComplete } from '../../server/config-shared'
+import type { Telemetry } from '../../telemetry/storage'
+import {
+  eventAIUpgradeNudgeDecision,
+  eventAIUpgradeNudgeShown,
+  eventAIUpgradePolicyDetected,
+} from '../../telemetry/events/ai-upgrade'
 import semver from 'next/dist/compiled/semver'
 import type { UpgradeAction } from './prompt'
 import { getAgentName } from '../../telemetry/agent-name'
@@ -135,6 +141,7 @@ export type UpgradeContext = Pick<
   NextConfigComplete,
   'distDir' | 'cacheComponents'
 > & {
+  configuredPolicy: NudgeKind | false | null
   experimental: { agentUpgrade: NudgeKind | false }
 }
 
@@ -155,6 +162,7 @@ export function getUpgradeContext(config: NextConfigComplete): UpgradeContext {
   return {
     distDir: config.distDir,
     cacheComponents: config.cacheComponents,
+    configuredPolicy: config.experimental.agentUpgrade ?? null,
     experimental: {
       agentUpgrade:
         getRequestedUpgrade() ?? config.experimental.agentUpgrade ?? false,
@@ -271,7 +279,11 @@ export async function assessUpgrade(
 
 async function nudgeUpgradeForAgent(
   options: NudgeOptions,
-  reminder: UpgradeReminder
+  reminder: UpgradeReminder,
+  nudgeId: string,
+  agentProduct: string,
+  telemetry: Telemetry | null,
+  policyEvent: ReturnType<typeof eventAIUpgradePolicyDetected>
 ): Promise<void> {
   let summary: string
   let recommendation: string
@@ -293,7 +305,8 @@ async function nudgeUpgradeForAgent(
       recommendation = 'We recommend you adopt these Future Defaults.'
       break
   }
-  const command = `next upgrade --ai=${reminder.policy}`
+  // Pass attribution on the invocation using the same command syntax on every platform.
+  const command = `next upgrade --ai=${reminder.policy} --internal-nudge-id=${nudgeId}`
   const message = `${summary}
 
 **${recommendation}**
@@ -322,10 +335,36 @@ ${reference ? `Reference: ${reference}` : ''}`
     )
   }
   if (retryAllowed) {
+    telemetry?.record(policyEvent)
     Log.warn(
       `${summary} This command is continuing after the upgrade reminder.${reference ? `\nReference: ${reference}` : ''}`
     )
     return
+  }
+  // Queue the full nudge once, then send it outside the command that is about to stop.
+  if (telemetry) {
+    try {
+      if (telemetry.isEnabled || process.env.NEXT_TELEMETRY_DEBUG) {
+        telemetry.flushDetached(
+          'dev',
+          options.directory,
+          resolve(options.directory, options.distDir),
+          [
+            policyEvent,
+            eventAIUpgradeNudgeShown({
+              nudgeId,
+              recipient: 'agent',
+              agentProduct,
+              sourceCommand: options.command,
+              policy: reminder.policy,
+              nudgeKind: reminder.kind,
+            }),
+          ]
+        )
+      }
+    } catch (error) {
+      Log.warn(`Could not queue upgrade telemetry: ${String(error)}`)
+    }
   }
   const error = new Error(message)
   error.name =
@@ -397,7 +436,8 @@ async function getUpgradeDismissal(
 async function nudgeUpgradeForHuman(
   directory: string,
   reminder: UpgradeReminder,
-  signal: AbortSignal
+  signal: AbortSignal,
+  onShown: (() => void) | null
 ): Promise<UpgradeAction> {
   if (signal.aborted) {
     return 'skip'
@@ -425,7 +465,7 @@ async function nudgeUpgradeForHuman(
     return 'skip'
   }
   const { promptUpgrade } = require('./prompt') as typeof import('./prompt')
-  const action = await promptUpgrade(message, signal, true)
+  const action = await promptUpgrade(message, signal, true, onShown)
   if (signal.aborted) {
     return 'skip'
   }
@@ -445,19 +485,21 @@ async function nudgeUpgradeForHuman(
   return action
 }
 
-export async function runUpgrade(directory: string, policy: NudgeKind) {
+export async function runUpgrade(
+  directory: string,
+  policy: NudgeKind,
+  nudgeId: string | null
+) {
   // The agent's dev/build commands must not trigger this explicit request again.
   delete process.env.__NEXT_AGENT_UPGRADE
   updateInitialEnv({ __NEXT_AGENT_UPGRADE: undefined })
   const { spawnNextUpgrade } = await import('../../cli/next-upgrade.js')
+
+  // Human Update actions invoke the CLI directly, so their ID does not need an env var.
   await spawnNextUpgrade(
     directory,
-    {
-      revision: 'latest',
-      verbose: false,
-      ai: policy,
-    },
-    null
+    { revision: 'latest', verbose: false, ai: policy },
+    nudgeId ? { id: nudgeId, recipient: 'human' } : null
   )
   return process.exitCode ?? 0
 }
@@ -470,8 +512,12 @@ export async function nudgeUpgrade(
   directory: string,
   config: UpgradeContext,
   command: 'dev' | 'build',
-  signal: AbortSignal | null = null,
-  initialAssessment: Promise<UpgradeReminder | null> | null = null
+  signal: AbortSignal | null,
+  initialAssessment: Promise<UpgradeReminder | null> | null,
+  telemetryOptions: {
+    telemetry: Telemetry
+    onNudgeId: ((nudgeId: string) => void) | null
+  } | null
 ): Promise<UpgradeAction | void> {
   const requested = getRequestedUpgrade()
   const policy = requested ?? config.experimental.agentUpgrade
@@ -482,10 +528,24 @@ export async function nudgeUpgrade(
   ) {
     return
   }
+  // Observe the effective policy even when assessment finds no upgrade to offer.
+  const telemetry = telemetryOptions?.telemetry ?? null
+  const policyEvent = eventAIUpgradePolicyDetected({
+    configuredPolicy: config.configuredPolicy ?? null,
+    effectivePolicy: policy,
+    policySource: requested ? 'environment' : 'config',
+    sourceCommand: command,
+  })
   if (requested && isCI) {
+    telemetry?.record(policyEvent)
     return
   }
+
+  // An agent's stopped command sends policy and nudge together before synchronous exit.
   const agent = await getAgentName()
+  if (!agent) {
+    telemetry?.record(policyEvent)
+  }
   const installedVersion = process.env.__NEXT_VERSION || 'unknown'
   let stopBefore: NudgeKind | null = null
   if (!agent) {
@@ -506,24 +566,73 @@ export async function nudgeUpgrade(
       return
     }
   }
-  const reminder = await (stopBefore === null && initialAssessment
-    ? initialAssessment
-    : assessUpgrade(
-        directory,
-        { ...config, experimental: { agentUpgrade: policy } },
-        installedVersion,
-        stopBefore,
-        requested !== null
-      ))
+  const reminder = await (
+    stopBefore === null && initialAssessment
+      ? initialAssessment
+      : assessUpgrade(
+          directory,
+          { ...config, experimental: { agentUpgrade: policy } },
+          installedVersion,
+          stopBefore,
+          requested !== null
+        )
+  ).catch((error) => {
+    if (agent) {
+      telemetry?.record(policyEvent)
+    }
+    throw error
+  })
   if (!reminder || signal?.aborted) {
+    if (agent) {
+      telemetry?.record(policyEvent)
+    }
     return
   }
+
+  // The nudge and any resulting upgrade run share this ID across processes.
+  const nudgeId = randomUUID()
   if (agent) {
     await nudgeUpgradeForAgent(
       { directory, distDir: config.distDir, command },
-      reminder
+      reminder,
+      nudgeId,
+      agent,
+      telemetry,
+      policyEvent
     )
   } else if (signal) {
-    return nudgeUpgradeForHuman(directory, reminder, signal)
+    // Count a human nudge only after the menu renders, including its selected action.
+    let shown = false
+    const onShown = telemetryOptions
+      ? () => {
+          shown = true
+          telemetryOptions.onNudgeId?.(nudgeId)
+          telemetryOptions.telemetry.record(
+            eventAIUpgradeNudgeShown({
+              nudgeId,
+              recipient: 'human',
+              agentProduct: null,
+              sourceCommand: command,
+              policy: reminder.policy,
+              nudgeKind: reminder.kind,
+            })
+          )
+        }
+      : null
+
+    const action = await nudgeUpgradeForHuman(
+      directory,
+      reminder,
+      signal,
+      onShown
+    )
+
+    if (shown && telemetry) {
+      if (!signal.aborted) {
+        telemetry.record(eventAIUpgradeNudgeDecision({ nudgeId, action }))
+      }
+      await telemetry.flush()
+    }
+    return action
   }
 }

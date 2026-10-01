@@ -12,6 +12,36 @@ function event<T extends object>(eventName: string, fields: T) {
   return { eventName, payload: { schemaVersion: 1, ...fields } }
 }
 
+// Measure configured reach separately from whether an upgrade reminder is needed.
+export function eventAIUpgradePolicyDetected(fields: {
+  configuredPolicy: AIUpgradePolicy | false | null
+  effectivePolicy: AIUpgradePolicy
+  policySource: 'config' | 'environment'
+  sourceCommand: 'dev' | 'build'
+}) {
+  return event('NEXT_AI_UPGRADE_POLICY_DETECTED', fields)
+}
+
+// Correlate a displayed reminder with a later upgrade invocation.
+export function eventAIUpgradeNudgeShown(fields: {
+  nudgeId: string
+  recipient: 'human' | 'agent'
+  agentProduct: string | null
+  sourceCommand: 'dev' | 'build'
+  policy: AIUpgradePolicy
+  nudgeKind: AIUpgradePolicy
+}) {
+  return event('NEXT_AI_UPGRADE_NUDGE_SHOWN', fields)
+}
+
+// Human menus expose a decision directly; agent decisions are inferred from runs.
+export function eventAIUpgradeNudgeDecision(fields: {
+  nudgeId: string
+  action: 'update' | 'skip' | 'dismiss' | 'interrupt'
+}) {
+  return event('NEXT_AI_UPGRADE_NUDGE_DECISION', fields)
+}
+
 // Count invocations independently of whether preparation or handoff finishes.
 export function eventAIUpgradeRunStarted(fields: {
   runId: string

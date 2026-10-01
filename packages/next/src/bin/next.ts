@@ -590,6 +590,8 @@ program
       'Upgrade with AI to security, latest, or experimental-future. Defaults to security.'
     ).conflicts('revision')
   )
+  // Keep nudge attribution available to agents without exposing it in public help.
+  .addOption(new Option('--internal-nudge-id <id>').hideHelp())
   .action(async (directory, options) => {
     const mod = await import('../cli/next-upgrade.js')
     await mod.spawnNextUpgrade(
@@ -598,7 +600,9 @@ program
         ...options,
         ai: options.experimentalAi,
       },
-      null
+      options.internalNudgeId !== undefined
+        ? { id: options.internalNudgeId, recipient: 'agent' }
+        : null
     )
   })
 

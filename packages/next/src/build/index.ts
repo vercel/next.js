@@ -1123,7 +1123,7 @@ export default async function build(
   debugBuildPathsPatterns: string[] | undefined,
   enabledFeatures: Record<string, unknown> = {},
   allowHumanUpgrade = false
-): Promise<NudgeKind | 'interrupt' | void> {
+): Promise<{ policy: NudgeKind; nudgeId: string | null } | 'interrupt' | void> {
   const isCompileMode = experimentalBuildMode === 'compile'
   const isGenerateMode = experimentalBuildMode === 'generate'
   NextBuildContext.isCompileMode = isCompileMode
@@ -1202,42 +1202,6 @@ export default async function build(
         )
       loadedConfig = config
 
-      // Reuse the loaded config; ordinary builds do not load upgrade tooling.
-      if (
-        config.experimental.agentUpgrade === 'security' ||
-        config.experimental.agentUpgrade === 'latest' ||
-        config.experimental.agentUpgrade === 'experimental-future' ||
-        process.env.__NEXT_AGENT_UPGRADE
-      ) {
-        const { nudgeUpgrade, getUpgradeContext } =
-          require('../lib/upgrade/nudge') as typeof import('../lib/upgrade/nudge')
-        const upgradeContext = getUpgradeContext(config)
-        if (allowHumanUpgrade) {
-          // TODO: Do not block the build while prompting for an upgrade.
-          // Preserve all logs for display after the prompt and stop the build before Update.
-          const action = await nudgeUpgrade(
-            dir,
-            upgradeContext,
-            'build',
-            new AbortController().signal
-          ).catch((error) => {
-            Log.warn(`Could not offer the upgrade: ${String(error)}`)
-          })
-          if (action === 'update' && upgradeContext.experimental.agentUpgrade) {
-            return upgradeContext.experimental.agentUpgrade
-          }
-          if (action === 'interrupt') {
-            return 'interrupt' as const
-          }
-        } else {
-          // Agent checks retain their parallel behavior; humans decide before building.
-          pendingUpgradeNudge = nudgeUpgrade(dir, upgradeContext, 'build').then(
-            () => {}
-          )
-          void pendingUpgradeNudge.catch(() => {})
-        }
-      }
-
       // Resolve selective build paths now that the page extensions are known.
       const debugBuildPaths = debugBuildPathsPatterns
         ? await (async () => {
@@ -1287,6 +1251,58 @@ export default async function build(
       // events are captured if native bindings fail to load.
       const telemetry = new Telemetry({ distDir })
       setGlobal('telemetry', telemetry)
+
+      // Reuse the loaded config; ordinary builds do not load upgrade tooling.
+      if (
+        config.experimental.agentUpgrade === 'security' ||
+        config.experimental.agentUpgrade === 'latest' ||
+        config.experimental.agentUpgrade === 'experimental-future' ||
+        process.env.__NEXT_AGENT_UPGRADE
+      ) {
+        const { nudgeUpgrade, getUpgradeContext } =
+          require('../lib/upgrade/nudge') as typeof import('../lib/upgrade/nudge')
+        const upgradeContext = getUpgradeContext(config)
+        if (allowHumanUpgrade) {
+          // TODO: Do not block the build while prompting for an upgrade.
+          // Preserve all logs for display after the prompt and stop the build before Update.
+          let nudgeId: string | null = null
+          const action = await nudgeUpgrade(
+            dir,
+            upgradeContext,
+            'build',
+            new AbortController().signal,
+            null,
+            {
+              telemetry,
+              onNudgeId(id) {
+                nudgeId = id
+              },
+            }
+          ).catch((error) => {
+            Log.warn(`Could not offer the upgrade: ${String(error)}`)
+          })
+          if (action === 'update' && upgradeContext.experimental.agentUpgrade) {
+            return {
+              policy: upgradeContext.experimental.agentUpgrade,
+              nudgeId,
+            }
+          }
+          if (action === 'interrupt') {
+            return 'interrupt' as const
+          }
+        } else {
+          // Agent checks retain their parallel behavior; humans decide before building.
+          pendingUpgradeNudge = nudgeUpgrade(
+            dir,
+            upgradeContext,
+            'build',
+            null,
+            null,
+            { telemetry, onNudgeId: null }
+          ).then(() => {})
+          void pendingUpgradeNudge.catch(() => {})
+        }
+      }
 
       // Install the native bindings early so we can have synchronous access later.
       await installBindings(config.experimental?.useWasmBinary)
