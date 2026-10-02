@@ -554,6 +554,7 @@ impl<'e> ExecuteContextImpl<'e> {
             for (task_id, category) in task_ids {
                 self.task_lock_counter.acquire();
                 let task = self.backend.storage.access_mut(task_id);
+                #[cfg(debug_assertions)]
                 if !task.flags.is_restored(category) {
                     panic_missing_task(task_id, reason);
                 }
@@ -571,14 +572,15 @@ impl<'e> ExecuteContextImpl<'e> {
             .filter(|&(task_id, category)| {
                 self.task_lock_counter.acquire();
                 let task = self.backend.storage.access_mut(task_id);
-                if task.flags.is_restored(category) {
+                // Transient tasks are restored from creation and never evicted.
+                if task_id.is_transient() || task.flags.is_restored(category) {
+                    #[cfg(debug_assertions)]
+                    if !task.flags.is_restored(category) {
+                        panic_missing_task(task_id, reason);
+                    }
                     self.task_lock_counter.release();
                     prepared_task_callback(self, task_id, category, task);
                     return false;
-                }
-                // Transient tasks are restored from creation and never evicted.
-                if task_id.is_transient() {
-                    panic_missing_task(task_id, reason);
                 }
                 self.task_lock_counter.release();
                 true
@@ -806,7 +808,7 @@ impl<'e> ExecuteContextImpl<'e> {
 
         if !restore_errors.is_empty() || !missing_tasks.is_empty() {
             // About to fail: the transient refs taken in Phase 1a leak, which is fine since a panic
-            // drops the persistent cache. The restoring bits must be (and are) cleared by now, or
+            // poisons the persistent cache. The restoring bits must be (and are) cleared by now, or
             // threads waiting on them would hang.
             if let Some(&task_id) = missing_tasks.first() {
                 panic_missing_task(task_id, reason);
@@ -934,8 +936,8 @@ fn handle_missing_task(
 #[cold]
 fn panic_missing_task(task_id: TaskId, reason: &str) -> ! {
     panic!(
-        "task {task_id} ({reason}, MustExist): task is missing a required category in memory or \
-         persistent storage — a stale reference to an already-collected or never-created task"
+        "task {task_id} ({reason}, MustExist): task is missing in memory or persistent storage — \
+         a stale reference to an already-collected or never-created task"
     )
 }
 
@@ -1093,14 +1095,14 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
             drop(task1);
             drop(task2);
 
-            for i in 0..2 {
-                if restored[i] {
+            for (task_id, restored) in ids.into_iter().zip(restored) {
+                if restored {
                     continue;
                 }
-                let (task, outcome) = self.restore_task_or_panic(ids[i], category);
+                let (task, outcome) = self.restore_task_or_panic(task_id, category);
                 // Decide under the guard that may hold an empty read.
                 if outcome.missing_on_disk {
-                    handle_missing_task(task, ids[i], TaskAccess::MustExist, "task_pair");
+                    handle_missing_task(task, task_id, TaskAccess::MustExist, "task_pair");
                     unreachable!("MustExist must panic after clearing a missing task");
                 }
                 drop(task);
@@ -1882,6 +1884,7 @@ mod must_exist_tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
+    #[cfg(debug_assertions)]
     #[should_panic(expected = "prepare transient, MustExist")]
     async fn prepare_tasks_rejects_missing_transient() {
         let tt = backend(Some(StorageMode::ReadOnly));
