@@ -139,7 +139,7 @@ define_id!(
     TaskId: u32,
     // Capped below `u32::MAX` so the id fits in 31 bits when packed into `RawVc`.
     max = TASK_ID_MAX,
-    derive(Serialize, Deserialize, Encode, Decode),
+    derive(Serialize, Deserialize, Decode),
     serde(transparent),
 );
 define_id!(
@@ -162,6 +162,15 @@ define_id!(
     doc = "An identifier for a specific task execution. Used to assert that local `Vc`s don't \
         leak. This value may overflow and re-use old values.",
 );
+
+// Keep the derived NonZero<u32> wire format, but catch references to tasks that cannot survive
+// serialization. RawVc packs TaskId into its own integer and checks that path separately.
+impl Encode for TaskId {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        debug_assert!(!self.is_transient(), "transient TaskId must not be encoded");
+        self.id.encode(encoder)
+    }
+}
 
 impl Debug for TaskId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -287,3 +296,30 @@ make_registered_serializable!(
     registry::get_native_function,
     registry::validate_function_id,
 );
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn persistent_task_id_encoding_is_unchanged() {
+        let id = TaskId::new(42).unwrap();
+        let bytes = bincode::encode_to_vec(id, bincode::config::standard()).unwrap();
+        assert_eq!(
+            bytes,
+            bincode::encode_to_vec(id.id, bincode::config::standard()).unwrap()
+        );
+        let (restored, consumed): (TaskId, _) =
+            bincode::decode_from_slice(&bytes, bincode::config::standard()).unwrap();
+        assert_eq!((restored, consumed), (id, bytes.len()));
+    }
+
+    #[test]
+    #[cfg(debug_assertions)]
+    #[should_panic(expected = "transient TaskId must not be encoded")]
+    #[cfg_attr(target_family = "wasm", ignore = "no unwinding on wasm")]
+    fn transient_task_id_cannot_be_encoded() {
+        let id = TaskId::new(TRANSIENT_TASK_BIT).unwrap();
+        let _ = bincode::encode_to_vec(id, bincode::config::standard());
+    }
+}
