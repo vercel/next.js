@@ -238,13 +238,50 @@ async fn webpack_loaders_executor(
     ))
 }
 
-async fn loader_path(cwd: &FileSystemPath, path: &str) -> Result<FileSystemPath> {
+async fn try_loader_path(cwd: &FileSystemPath, path: &str) -> Result<Option<FileSystemPath>> {
     let fs = ResolvedVc::try_downcast_type::<DiskFileSystem>(cwd.fs)
         .context("webpack loader working directory must be on a disk filesystem")?;
     fs.await?
         .try_from_sys_path_across_roots(fs, Path::new(path), cwd)
+        .await
+}
+
+async fn loader_path(cwd: &FileSystemPath, path: &str) -> Result<FileSystemPath> {
+    try_loader_path(cwd, path)
         .await?
         .with_context(|| format!("webpack loader path {path:?} is outside configured roots"))
+}
+
+async fn build_dependency_path(
+    cwd: &FileSystemPath,
+    path: &RcStr,
+    source: ResolvedVc<Box<dyn Source>>,
+) -> Result<Option<FileSystemPath>> {
+    match try_loader_path(cwd, path).await {
+        Ok(Some(path)) => Ok(Some(path)),
+        Ok(None) if path.ends_with(".node") => {
+            // Native addons may be loaded from outside the watched roots. Node keeps them
+            // loaded for the lifetime of the worker, but their contents can change between
+            // sessions, so do not reuse the loader result from persistent cache.
+            Completion::session_dependent().await?;
+            Ok(None)
+        }
+        result => {
+            let error = match result {
+                Ok(None) => format!("webpack loader path {path:?} is outside configured roots"),
+                Err(error) => format!("{error:#}"),
+                Ok(Some(_)) => unreachable!(),
+            };
+            UnresolvedBuildDependencyIssue {
+                source: IssueSource::from_source_only(source),
+                request: path.clone(),
+                error: Some(error.into()),
+            }
+            .resolved_cell()
+            .emit();
+            Ok(None)
+        }
+    }
 }
 
 async fn build_dependency_paths(
@@ -252,23 +289,14 @@ async fn build_dependency_paths(
     paths: &[RcStr],
     source: ResolvedVc<Box<dyn Source>>,
 ) -> Result<Vec<FileSystemPath>> {
-    paths
+    Ok(paths
         .iter()
-        .map(async |path| match loader_path(cwd, path).await {
-            Ok(path) => Ok(vec![path]),
-            Err(error) => {
-                UnresolvedBuildDependencyIssue {
-                    source: IssueSource::from_source_only(source),
-                    request: path.clone(),
-                    error: Some(format!("{error:#}").into()),
-                }
-                .resolved_cell()
-                .emit();
-                Ok(vec![])
-            }
-        })
-        .try_flat_join()
-        .await
+        .map(|path| build_dependency_path(cwd, path, source))
+        .try_join()
+        .await?
+        .into_iter()
+        .flatten()
+        .collect())
 }
 
 #[turbo_tasks::function]
@@ -530,6 +558,26 @@ struct ResolvedBuildModuleRequest {
     request: RcStr,
     expected_path: FileSystemPath,
     bypass_exports: bool,
+}
+
+async fn resolve_build_module_request(
+    cwd: &FileSystemPath,
+    request: BuildModuleRequest,
+    source: ResolvedVc<Box<dyn Source>>,
+) -> Result<Option<ResolvedBuildModuleRequest>> {
+    match build_dependency_path(cwd, &request.expected_path, source).await? {
+        None => Ok(None),
+        Some(expected_path) => {
+            let lookup_path = build_dependency_path(cwd, &request.lookup_path, source).await?;
+
+            Ok(lookup_path.map(|lookup_path| ResolvedBuildModuleRequest {
+                lookup_path,
+                request: request.request,
+                expected_path,
+                bypass_exports: request.bypass_exports,
+            }))
+        }
+    }
 }
 
 #[turbo_tasks::function]
@@ -1055,32 +1103,18 @@ impl EvaluateContext for WebpackLoaderContext {
                         // Convert system paths before they enter persistent task inputs.
                         let requests = build_module_requests
                             .into_iter()
-                            .map(
-                                async |BuildModuleRequest {
-                                           lookup_path,
-                                           request,
-                                           expected_path,
-                                           bypass_exports,
-                                       }| {
-                                    let paths = build_dependency_paths(
-                                        &self.cwd,
-                                        &[lookup_path, expected_path],
-                                        self.context_source_for_issue,
-                                    )
-                                    .await?;
-                                    let [lookup_path, expected_path] = paths.as_slice() else {
-                                        return Ok(vec![]);
-                                    };
-                                    Ok(vec![ResolvedBuildModuleRequest {
-                                        lookup_path: lookup_path.clone(),
-                                        request,
-                                        expected_path: expected_path.clone(),
-                                        bypass_exports,
-                                    }])
-                                },
-                            )
-                            .try_flat_join()
-                            .await?;
+                            .map(|request| {
+                                resolve_build_module_request(
+                                    &self.cwd,
+                                    request,
+                                    self.context_source_for_issue,
+                                )
+                            })
+                            .try_join()
+                            .await?
+                            .into_iter()
+                            .flatten()
+                            .collect();
                         build_module_requests_changed(requests, *self.context_source_for_issue)
                             .await?;
                         Ok::<_, anyhow::Error>(())
