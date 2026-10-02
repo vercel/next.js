@@ -38,7 +38,7 @@ import { diffRoutesWithSizes, diffSources, type RouteSummary } from '@/lib/diff'
 import { useSidebarResize } from '@/lib/use-sidebar-resize'
 import { useAnalyzerRoute } from '@/lib/use-analyzer-route'
 import { computeActiveEntries, computeModuleDepthMap } from '@/lib/module-graph'
-import type { SnapshotMetadata } from '@/lib/snapshot'
+import { snapshotBaseDir, type SnapshotMetadata } from '@/lib/snapshot'
 import { formatBytes } from '@/lib/utils'
 import { SizeMode } from '@/lib/treemap-layout'
 
@@ -132,7 +132,7 @@ function useAnalyzerModel(compare: boolean) {
   const activeView = pendingView ?? compareView
   const isViewPending = pendingView != null && pendingView !== compareView
   const comparisonBaseDir = comparisonSnapshot
-    ? `/history/${comparisonSnapshot.id}`
+    ? snapshotBaseDir(comparisonSnapshot)
     : '/data'
   const { data: modulesData } = useSWR(
     `${comparisonBaseDir}/modules.data`,
@@ -425,7 +425,7 @@ function ValidComparisonContent({
   model: AnalyzerModel
   baselineSnapshot: SnapshotMetadata
 }) {
-  const baselineBaseDir = `/history/${baselineSnapshot.id}`
+  const baselineBaseDir = snapshotBaseDir(baselineSnapshot)
   const { data: baselineModulesData } = useSWR(
     `${baselineBaseDir}/modules.data`,
     fetchModulesData,

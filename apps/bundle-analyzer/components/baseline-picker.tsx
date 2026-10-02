@@ -35,9 +35,9 @@ import {
 } from '@/lib/snapshot'
 
 interface BaselinePickerOptions {
-  /** Selected historical snapshot id, or null for the control's default. */
-  selectedSnapshotId: string | null
-  excludedSnapshotId?: string | null
+  /** Selected historical snapshot name, or null for the control's default. */
+  selectedSnapshotName: string | null
+  excludedSnapshotName?: string | null
   prefix?: string
   placeholder?: string
   clearLabel?: string
@@ -68,9 +68,9 @@ type BaselinePickerProps = BaselinePickerOptions &
  */
 export function BaselinePicker(props: BaselinePickerProps) {
   const {
-    selectedSnapshotId,
+    selectedSnapshotName,
     clearHref,
-    excludedSnapshotId,
+    excludedSnapshotName,
     prefix = 'vs',
     placeholder = 'Compare with…',
     clearLabel = 'Stop comparing',
@@ -95,11 +95,12 @@ export function BaselinePicker(props: BaselinePickerProps) {
   // Filter out the current build's snapshot — comparing to self is a no-op.
   const snapshots = allSnapshots.filter(
     (snapshot) =>
-      snapshot.id !== currentMetadata?.id && snapshot.id !== excludedSnapshotId
+      snapshot.name !== currentMetadata?.name &&
+      snapshot.name !== excludedSnapshotName
   )
   const selected =
-    selectedSnapshotId != null
-      ? snapshots.find((s) => s.id === selectedSnapshotId)
+    selectedSnapshotName != null
+      ? snapshots.find((s) => s.name === selectedSnapshotName)
       : null
 
   // Surface only fatal/network problems; missing history files are not errors.
@@ -187,13 +188,13 @@ export function BaselinePicker(props: BaselinePickerProps) {
               )}
               <CommandGroup>
                 {snapshots.map((snapshot) => {
-                  const value = `${snapshot.id} ${snapshot.gitBranch ?? ''} ${snapshot.gitShortSha ?? ''} ${snapshot.gitMessage ?? ''} ${snapshot.snapshotName ?? ''}`
+                  const value = `${snapshot.name} ${snapshot.gitBranch ?? ''} ${snapshot.gitShortSha ?? ''} ${snapshot.gitMessage ?? ''}`
                   const content = (
                     <>
                       <Check
                         className={cn(
                           'mr-2 h-4 w-4',
-                          selectedSnapshotId === snapshot.id
+                          selectedSnapshotName === snapshot.name
                             ? 'opacity-100'
                             : 'opacity-0'
                         )}
@@ -203,7 +204,7 @@ export function BaselinePicker(props: BaselinePickerProps) {
                   )
                   return props.mode === 'link' ? (
                     <CommandLinkItem
-                      key={snapshot.id}
+                      key={snapshot.name}
                       value={value}
                       href={props.getSnapshotHref(snapshot)}
                     >
@@ -211,7 +212,7 @@ export function BaselinePicker(props: BaselinePickerProps) {
                     </CommandLinkItem>
                   ) : (
                     <CommandItem
-                      key={snapshot.id}
+                      key={snapshot.name}
                       value={value}
                       onSelect={() => {
                         props.onSelectionChange(snapshot)

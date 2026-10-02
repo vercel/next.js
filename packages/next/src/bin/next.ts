@@ -28,7 +28,10 @@ import type { NextTelemetryOptions } from '../cli/next-telemetry.js'
 import type { NextStartOptions } from '../cli/next-start.js'
 import type { NextInfoOptions } from '../cli/next-info.js'
 import type { NextDevOptions } from '../cli/next-dev.js'
-import type { NextAnalyzeOptions } from '../cli/next-analyze.js'
+import type {
+  NextAnalyzeOptions,
+  NextAnalyzeExportOptions,
+} from '../cli/next-analyze.js'
 import type { NextBuildOptions } from '../cli/next-build.js'
 import type { NextTypegenOptions } from '../cli/next-typegen.js'
 import type { NextPostBuildOptions } from '../cli/next-post-build.js'
@@ -152,6 +155,13 @@ function parseValidInspectAddress(value: string): DebugAddress {
 
 const program = new NextRootCommand()
 
+// Commander needs positional options on both ancestors (program and analyze)
+// to keep identically named capture/export flags local after the subcommand.
+// Leave option parsing for the rest of the CLI unchanged.
+program.enablePositionalOptions(
+  process.argv[2] === 'analyze' || process.argv[2] === 'experimental-analyze'
+)
+
 program
   .name('next')
   .description(
@@ -263,9 +273,11 @@ program
   })
   .usage('[directory] [options]')
 
-program
+const analyzeCommand = program
   .command('analyze')
   .alias('experimental-analyze')
+  .enablePositionalOptions()
+  .version(program.version()!, '-v, --version', 'Outputs the Next.js version.')
   .description(
     'Analyze production bundle output with an interactive web ui. Does not produce an application build. Only compatible with Turbopack.'
   )
@@ -279,12 +291,12 @@ program
   .option('--profile', 'Enables production profiling for React.')
   .option('--experimental-app-only', 'Analyzes only App Router routes.')
   .option(
-    '--snapshot-name <name>',
-    'Name this snapshot in the metadata, overriding branch/sha in the comparison UI.'
+    '--snapshot <name>',
+    'Save a named snapshot, replacing an existing capture with that name.'
   )
   .option(
     '-o, --output',
-    'Only write analysis files to disk. Does not start the server.'
+    'Write binary analysis data and UI files, save a snapshot, and exit without serving.'
   )
   .addOption(
     new Option(
@@ -297,8 +309,9 @@ program
       .env('PORT')
   )
   .action((directory: string, options: NextAnalyzeOptions) => {
-    return import('../cli/next-analyze.js')
-      .then((mod) => mod.nextAnalyze(options, directory))
+    const { nextAnalyze } =
+      require('../cli/next-analyze.js') as typeof import('../cli/next-analyze.js')
+    return nextAnalyze(options, directory)
       .then(() => {
         if (options.output) {
           // The Next.js process is held open by something on the event loop. Exit manually like the `build` command does.
@@ -306,6 +319,62 @@ program
           process.exit(0)
         }
       })
+      .catch((error) => {
+        console.error(error)
+        process.exit(1)
+      })
+  })
+
+analyzeCommand
+  .command('export')
+  .version(program.version()!, '-v, --version', 'Outputs the Next.js version.')
+  .description(
+    'Stream a saved analyzer graph as NDJSON without building or serving.'
+  )
+  .argument(
+    '[directory]',
+    `The application directory containing the saved analysis. ${italic(
+      'If no directory is provided, the current directory will be used.'
+    )}`
+  )
+  .option(
+    '--snapshot <name>',
+    'Select a saved snapshot by name (defaults to latest).'
+  )
+  .option('--route <route>', 'Filter graph records to a route.')
+  .option(
+    '--dist-dir <directory>',
+    'Read from an explicitly chosen build directory (defaults to .next).'
+  )
+  .action(async (directory: string, options: NextAnalyzeExportOptions) => {
+    try {
+      // Reject explicit capture/server options before the subcommand, but
+      // ignore defaults and inherited PORT. Options after export are local.
+      const captureOptions = [
+        ['output', '--output'],
+        ['profile', '--profile'],
+        ['experimentalAppOnly', '--experimental-app-only'],
+        ['mangling', '--no-mangling'],
+        ['port', '--port'],
+        ['snapshot', '--snapshot'],
+      ]
+      const offending = captureOptions
+        .filter(([key]) => analyzeCommand.getOptionValueSource(key) === 'cli')
+        .map(([, flag]) => flag)
+      if (offending.length > 0) {
+        throw new Error(
+          `next analyze export cannot use capture/server options before export: ${offending.join(', ')}`
+        )
+      }
+      const { nextAnalyzeExport } =
+        require('../cli/next-analyze.js') as typeof import('../cli/next-analyze.js')
+      nextAnalyzeExport(options, directory)
+      // The synchronous exporter has completed every fd write, including slow pipes.
+      process.exit(0)
+    } catch (error) {
+      console.error(error)
+      process.exit(1)
+    }
   })
 
 program

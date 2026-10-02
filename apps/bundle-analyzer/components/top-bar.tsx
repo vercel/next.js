@@ -145,18 +145,18 @@ export function TopBar({
 
       <div className="flex items-center gap-2">
         <BaselinePicker
-          selectedSnapshotId={baselineSnapshot?.id ?? null}
+          selectedSnapshotName={baselineSnapshot?.name ?? null}
           {...baselineSelection}
-          excludedSnapshotId={comparisonSnapshot?.id}
+          excludedSnapshotName={comparisonSnapshot?.name}
           prefix="from"
           placeholder="Compare from…"
         />
         {isCompareMode ? (
           <BaselinePicker
             mode="action"
-            selectedSnapshotId={comparisonSnapshot?.id ?? null}
+            selectedSnapshotName={comparisonSnapshot?.name ?? null}
             onSelectionChange={onComparisonChange}
-            excludedSnapshotId={baselineSnapshot?.id}
+            excludedSnapshotName={baselineSnapshot?.name}
             prefix="to"
             placeholder="to Latest"
             clearLabel="Compare with latest"

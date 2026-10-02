@@ -12,12 +12,13 @@ export function useAnalyzerRoute(
   const selectedRoute = searchParams.get('route')
   const baselineSnapshot = compare
     ? (snapshots?.find(
-        (snapshot) => snapshot.id === searchParams.get('from')
+        (snapshot) => snapshot.name === searchParams.get('from')
       ) ?? null)
     : null
   const comparisonSnapshot = compare
-    ? (snapshots?.find((snapshot) => snapshot.id === searchParams.get('to')) ??
-      null)
+    ? (snapshots?.find(
+        (snapshot) => snapshot.name === searchParams.get('to')
+      ) ?? null)
     : null
   const viewParam = searchParams.get('view')
   const compareView =
@@ -88,16 +89,24 @@ export function useAnalyzerRoute(
       pathname === '/compare'
         ? undefined
         : (snapshot: SnapshotMetadata) =>
-            buildHref('/compare', { from: snapshot.id, to: null, view: null }),
+            buildHref('/compare', {
+              from: snapshot.name,
+              to: null,
+              view: null,
+            }),
     setBaselineSnapshot: (snapshot: SnapshotMetadata) =>
-      navigate('/compare', { from: snapshot.id, to: null, view: null }, 'push'),
+      navigate(
+        '/compare',
+        { from: snapshot.name, to: null, view: null },
+        'push'
+      ),
     stopComparisonHref: buildHref('/analyze', {
       from: null,
       to: null,
       view: null,
     }),
     setComparisonSnapshot: (snapshot: SnapshotMetadata | null) =>
-      navigate(pathname, { to: snapshot?.id ?? null }, 'replace'),
+      navigate(pathname, { to: snapshot?.name ?? null }, 'replace'),
     setEnvironmentFilter: (environment: Environment) =>
       replaceSearchParams({
         environment: environment === Environment.Client ? null : environment,
