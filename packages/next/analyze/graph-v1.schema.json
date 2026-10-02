@@ -8,7 +8,8 @@
     { "$ref": "#/$defs/module" },
     { "$ref": "#/$defs/route" },
     { "$ref": "#/$defs/output" },
-    { "$ref": "#/$defs/part" }
+    { "$ref": "#/$defs/part" },
+    { "$ref": "#/$defs/unjoined" }
   ],
   "$defs": {
     "index": {
@@ -31,6 +32,7 @@
         "type",
         "schema_version",
         "snapshot_id",
+        "module_index_hash",
         "route_count",
         "selected_routes"
       ],
@@ -46,6 +48,10 @@
         "snapshot_id": {
           "type": "string",
           "description": "Generated snapshot-scoped capture ID, distinct from its optional UI name; not stable across rebuilds. New IDs include a collision-safe suffix; legacy captures may use timestamp/SHA-only IDs."
+        },
+        "module_index_hash": {
+          "type": ["string", "null"],
+          "description": "Fingerprint of the ordered, snapshot-scoped modules.data indices, not proof of identical graphs or builds; null for legacy snapshots without an index fingerprint."
         },
         "route_count": {
           "$ref": "#/$defs/index",
@@ -203,7 +209,14 @@
     },
     "output": {
       "type": "object",
-      "required": ["type", "route", "route_index", "filename"],
+      "required": [
+        "type",
+        "route",
+        "route_index",
+        "filename",
+        "modules",
+        "coverage"
+      ],
       "properties": {
         "type": {
           "const": "output",
@@ -217,6 +230,14 @@
         "filename": {
           "type": "string",
           "description": "Emitted output path scoped to this saved snapshot, not stable across rebuilds or proof of a browser request. Verify the chosen artifact's [client-fs]/ client-output convention; server outputs and traced files are not automatically browser work."
+        },
+        "modules": {
+          "description": "Joined module identities from this snapshot's global module table when enumerable. Null means unavailable data, not an empty output; separately compiled worker payloads can remain unjoined.",
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/identities" }]
+        },
+        "coverage": {
+          "description": "Membership evidence: exact joins all enumerable JS/CSS chunk members; unsupported could not establish complete enumeration or joining (partial members may exist); not_a_chunk is outside JS/CSS chunk membership; unknown is missing evidence. Unsupported and unknown never mean an empty chunk.",
+          "enum": ["exact", "unsupported", "not_a_chunk", "unknown"]
         }
       },
       "additionalProperties": true,
@@ -262,6 +283,41 @@
       },
       "additionalProperties": true,
       "description": "Source attribution within an emitted output. Count each selected part once; directory and descendant totals can overlap. Attribution weights predict neither savings nor transfer bytes and are separate from exact module membership."
+    },
+    "unjoined": {
+      "type": "object",
+      "required": [
+        "type",
+        "route",
+        "route_index",
+        "filename",
+        "module_ident",
+        "reason"
+      ],
+      "properties": {
+        "type": {
+          "const": "unjoined",
+          "description": "Identifies an output member that could not join the global snapshot module table."
+        },
+        "route": { "type": "string", "description": "Owning route key." },
+        "route_index": {
+          "$ref": "#/$defs/index",
+          "description": "Index of the owning route occurrence in this snapshot's routes.json; join route-local records by both route and route_index."
+        },
+        "filename": {
+          "type": "string",
+          "description": "Emitted output filename containing the unjoined module, scoped by route and route_index."
+        },
+        "module_ident": {
+          "$ref": "#/$defs/identity",
+          "description": "Exact module identity reported for this output but not joined to the snapshot's global module table; separately compiled worker payloads can be unjoined."
+        },
+        "reason": {
+          "type": "string",
+          "description": "Reason a reported output member cannot join the global snapshot module table."
+        }
+      },
+      "additionalProperties": true
     }
   }
 }

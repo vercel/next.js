@@ -17,10 +17,76 @@ type RouteEntry = {
   }>
 }
 
-function readAnalyzeHeader<T>(filename: string): T {
+type EdgesReference = { offset: number; length: number }
+
+type ChunkGraphHeader = {
+  schema_version: number
+  module_index_hash: string
+  output_files: Array<{ filename: string }>
+  output_file_modules: EdgesReference
+  output_file_module_coverage: Array<'exact' | 'unsupported' | 'not_a_chunk'>
+  unjoined_modules: Array<{
+    output_file_index: number
+    module_ident: string
+    reason: string
+  }>
+}
+
+function readAnalyzeFile<T>(filename: string) {
   const buffer = readFileSync(filename)
   const jsonLength = buffer.readUInt32BE(0)
-  return JSON.parse(buffer.subarray(4, 4 + jsonLength).toString('utf8')) as T
+  const binaryStart = 4 + jsonLength
+  expect(binaryStart).toBeLessThanOrEqual(buffer.length)
+  return {
+    header: JSON.parse(buffer.subarray(4, binaryStart).toString('utf8')) as T,
+    binary: buffer.subarray(binaryStart),
+  }
+}
+
+function readAnalyzeHeader<T>(filename: string): T {
+  return readAnalyzeFile<T>(filename).header
+}
+
+function assertNumericJoinSafe(
+  route: { schema_version?: number; module_index_hash?: string },
+  modules: { schema_version?: number; module_index_hash?: string }
+): boolean {
+  if (
+    route.schema_version === undefined &&
+    modules.schema_version === undefined
+  ) {
+    return false // legacy headers remain decodable, but have no numeric cross-file join
+  }
+  if (
+    route.schema_version !== 1 ||
+    modules.schema_version !== 1 ||
+    !route.module_index_hash ||
+    route.module_index_hash !== modules.module_index_hash
+  ) {
+    throw new Error('Unsupported version or mismatched module index snapshot')
+  }
+  return true
+}
+
+function readRows(binary: Buffer, reference: EdgesReference): number[][] {
+  const { offset, length } = reference
+  expect(offset + length).toBeLessThanOrEqual(binary.length)
+  const section = binary.subarray(offset, offset + length)
+  const count = section.readUInt32BE(0)
+  const offsets = Array.from({ length: count }, (_, i) =>
+    section.readUInt32BE(4 + 4 * i)
+  )
+  const total = offsets.at(-1) ?? 0
+  expect(section.length).toBe(4 * (1 + count + total))
+  let start = 0
+  return offsets.map((end) => {
+    expect(end).toBeGreaterThanOrEqual(start)
+    const row = Array.from({ length: end - start }, (_, i) =>
+      section.readUInt32BE(4 * (1 + count + start + i))
+    )
+    start = end
+    return row
+  })
 }
 
 // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
@@ -350,6 +416,26 @@ describe('next analyze', () => {
     expect(alias).toMatchObject({ exitCode: 0 })
     expect(alias.stdout).toBe(replay.stdout)
     expect(replay.stderr).not.toContain('Analyzing a production build')
+    const snapshot = path.join(analyzeDir, 'history', id)
+    const { header: membershipHeader, binary } =
+      readAnalyzeFile<ChunkGraphHeader>(path.join(snapshot, 'analyze.data'))
+    const moduleHeader = readAnalyzeHeader<{
+      modules: Array<{ ident: string }>
+    }>(path.join(snapshot, 'modules.data'))
+    const outputRecords = replay.stdout
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line))
+      .filter((record) => record.type === 'output' && record.route === '/')
+    const moduleRows = readRows(binary, membershipHeader.output_file_modules)
+    expect(outputRecords.map((record) => record.modules)).toEqual(
+      moduleRows.map((row) =>
+        row.map((index) => moduleHeader.modules[index].ident).sort()
+      )
+    )
+    expect(outputRecords.map((record) => record.coverage)).toEqual(
+      membershipHeader.output_file_module_coverage
+    )
     const root = await next.runCommand([
       'analyze',
       'export',
@@ -548,6 +634,45 @@ describe('next analyze', () => {
     } finally {
       writeFileSync(moduleFile, original)
     }
+
+    const routeFile = path.join(analyzeDir, 'history', id, 'analyze.data')
+    const routeOriginal = readFileSync(routeFile)
+    try {
+      const oldHeaderLength = routeOriginal.readUInt32BE(0)
+      const header = JSON.parse(
+        routeOriginal.toString('utf8', 4, 4 + oldHeaderLength)
+      )
+      const altered = Buffer.from(
+        JSON.stringify({ ...header, module_index_hash: 'wrong' })
+      )
+      const length = Buffer.alloc(4)
+      length.writeUInt32BE(altered.length)
+      writeFileSync(
+        routeFile,
+        Buffer.concat([
+          length,
+          altered,
+          routeOriginal.subarray(4 + oldHeaderLength),
+        ])
+      )
+      const mismatch = await next.runCommand([
+        'analyze',
+        'export',
+        '--snapshot',
+        id,
+      ])
+      expect(mismatch.exitCode).not.toBe(0)
+      const partial = mismatch.stdout
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line))
+      expect(partial[0]).toMatchObject({ type: 'meta', snapshot_id: id })
+      expect(partial.some((record) => record.type === 'module')).toBe(true)
+      expect(partial.some((record) => record.route === '/')).toBe(false)
+      expect(mismatch.stderr).toContain('module-index fingerprint mismatch')
+    } finally {
+      writeFileSync(routeFile, routeOriginal)
+    }
   })
   it('replays a snapshot created by next build --analyze', async () => {
     const build = await next.runCommand(['build', '--analyze'])
@@ -576,6 +701,30 @@ describe('next analyze', () => {
         .map((line) => JSON.parse(line))[0]
     ).toMatchObject({ type: 'meta', snapshot_id: id })
     expect(replay.stderr).not.toContain('Analyzing a production build')
+  })
+  it('does not join legacy or mismatched module indices', () => {
+    expect(assertNumericJoinSafe({}, {})).toBe(false)
+    expect(() =>
+      assertNumericJoinSafe({ schema_version: 1, module_index_hash: 'a' }, {})
+    ).toThrow()
+    expect(() =>
+      assertNumericJoinSafe(
+        { schema_version: 2, module_index_hash: 'a' },
+        { schema_version: 2, module_index_hash: 'a' }
+      )
+    ).toThrow()
+    expect(() =>
+      assertNumericJoinSafe(
+        { schema_version: 1, module_index_hash: 'a' },
+        { schema_version: 1, module_index_hash: 'b' }
+      )
+    ).toThrow()
+    expect(
+      assertNumericJoinSafe(
+        { schema_version: 1, module_index_hash: 'a' },
+        { schema_version: 1, module_index_hash: 'a' }
+      )
+    ).toBe(true)
   })
   ;['-o', '--output'].forEach((flag) => {
     describe(`with ${flag} flag`, () => {
@@ -615,9 +764,17 @@ describe('next analyze', () => {
         )
 
         const dataDir = path.join(defaultOutputPath, 'data')
-        const { modules } = readAnalyzeHeader<{
+        const {
+          modules,
+          schema_version: modulesVersion,
+          module_index_hash: moduleIndexHash,
+        } = readAnalyzeHeader<{
+          schema_version: number
+          module_index_hash: string
           modules: Array<{ ident: string }>
         }>(path.join(dataDir, 'modules.data'))
+        expect(moduleIndexHash).toMatch(/^[0-9a-f]{16}$/)
+        expect(modulesVersion).toBe(1)
         const moduleIdents = new Set(modules.map((module) => module.ident))
         const { route_entries: appEntries } = readAnalyzeHeader<{
           route_entries: RouteEntry[]
@@ -674,6 +831,60 @@ describe('next analyze', () => {
           expect(entry).not.toHaveProperty('initial')
           expect(entry).not.toHaveProperty('load_scope')
         }
+
+        const routeGraphs = [
+          'analyze.data',
+          'legacy/analyze.data',
+          'api/ping/analyze.data',
+        ].map((route) =>
+          readAnalyzeFile<ChunkGraphHeader>(path.join(dataDir, route))
+        )
+        for (const { header, binary } of routeGraphs) {
+          expect(header.schema_version).toBe(modulesVersion)
+          expect(header.module_index_hash).toBe(moduleIndexHash)
+          expect(
+            assertNumericJoinSafe(header, {
+              schema_version: modulesVersion,
+              module_index_hash: moduleIndexHash,
+            })
+          ).toBe(true)
+          expect(header.output_file_module_coverage).toHaveLength(
+            header.output_files.length
+          )
+          const rows = readRows(binary, header.output_file_modules)
+          expect(rows).toHaveLength(header.output_files.length)
+          for (const [i, row] of rows.entries()) {
+            if (header.output_file_module_coverage[i] === 'not_a_chunk') {
+              expect(row).toEqual([])
+            }
+            for (const index of row) {
+              expect(index).toBeLessThan(modules.length)
+              expect(moduleIdents.has(modules[index].ident)).toBe(true)
+            }
+          }
+          expect(header).not.toHaveProperty('chunk_groups')
+          expect(header).not.toHaveProperty('chunk_load_edges')
+          expect(header).not.toHaveProperty('initial')
+          expect(header).not.toHaveProperty('prefetched')
+        }
+        const appGraph = routeGraphs[0].header
+        const appRows = readRows(
+          routeGraphs[0].binary,
+          appGraph.output_file_modules
+        )
+        expect(
+          appRows.some((row) =>
+            row.some((index) => modules[index].ident.includes('client-entry'))
+          )
+        ).toBe(true)
+        expect(appGraph.output_file_module_coverage).toContain('exact')
+        expect(
+          appRows.some(
+            (row, index) =>
+              appGraph.output_files[index].filename.endsWith('.css') &&
+              row.some((module) => modules[module].ident.includes('page.css'))
+          )
+        ).toBe(true)
       })
     })
   })
