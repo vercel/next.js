@@ -100,9 +100,71 @@
       "description": "Whole-app module graph, even when --route filters route-local records. Follow exact identities, not source paths."
     },
     "identities": { "type": "array", "items": { "$ref": "#/$defs/identity" } },
+    "clientReference": {
+      "type": "object",
+      "required": ["module_ident", "module_path", "reference_kind"],
+      "properties": {
+        "module_ident": {
+          "$ref": "#/$defs/identity",
+          "description": "Exact identity of the nested client-reference module; join to the snapshot module graph by identity, not module_path."
+        },
+        "module_path": {
+          "type": "string",
+          "description": "Path associated with this nested client reference; join modules by exact identity instead."
+        },
+        "reference_kind": {
+          "type": "string",
+          "description": "Reference type such as ecmascript or css; this nested client reference is not an endpoint root or observed browser request."
+        }
+      },
+      "additionalProperties": true
+    },
+    "entry": {
+      "type": "object",
+      "required": [
+        "route_entry_id",
+        "module_ident",
+        "module_path",
+        "role",
+        "entry_kind",
+        "client_references"
+      ],
+      "properties": {
+        "route_entry_id": {
+          "type": "string",
+          "description": "Snapshot-scoped endpoint root ID; multiple endpoint variants may share one route key. Preserve unknown roles and unmatched nested client references rather than guessing a browser root."
+        },
+        "module_ident": {
+          "$ref": "#/$defs/identity",
+          "description": "Exact identity of this endpoint root module; multiple module variants can share one module_path."
+        },
+        "module_path": {
+          "type": "string",
+          "description": "Source path associated with this endpoint root; not a unique module identity."
+        },
+        "role": {
+          "type": "string",
+          "description": "Build-time role of the root; an app root may include nested client references and shared roots can appear on other endpoint artifacts. Not a browser-load classification."
+        },
+        "runtime": {
+          "type": ["string", "null"],
+          "description": "Endpoint runtime when known; null means unavailable."
+        },
+        "entry_kind": {
+          "type": ["string", "null"],
+          "description": "Server or client-bootstrap classification when known; null or another classification means do not infer client initial-load scope."
+        },
+        "client_references": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/clientReference" },
+          "description": "Client references nested under an endpoint root, not another root or proof of an initial browser request. Join only by the exact module identity."
+        }
+      },
+      "additionalProperties": true
+    },
     "route": {
       "type": "object",
-      "required": ["type", "route", "route_index"],
+      "required": ["type", "route", "route_index", "entries", "coverage"],
       "properties": {
         "type": {
           "const": "route",
@@ -115,6 +177,25 @@
         "route_index": {
           "$ref": "#/$defs/index",
           "description": "Occurrence of this route in routes.json; repeated route keys have distinct indices."
+        },
+        "entries": {
+          "description": "Route endpoint roots, including possible shared pages roots on an API artifact; their presence alone does not mean the browser loads them for that API. Null means legacy or unavailable evidence.",
+          "oneOf": [
+            { "type": "null" },
+            { "type": "array", "items": { "$ref": "#/$defs/entry" } }
+          ]
+        },
+        "coverage": {
+          "type": "object",
+          "required": ["entries"],
+          "properties": {
+            "entries": {
+              "enum": ["exact", "unknown"],
+              "description": "The producer supplied typed endpoint roots for this route when exact. This is not a statement about browser requests or timing."
+            }
+          },
+          "additionalProperties": true,
+          "description": "Completeness of separate build-time route evidence; unknown is not empty."
         }
       },
       "additionalProperties": true,
