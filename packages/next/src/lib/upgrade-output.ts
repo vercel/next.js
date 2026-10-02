@@ -131,6 +131,10 @@ export function isUpgradeOutputManaged() {
   return managed
 }
 
+export function isUpgradeOutputPending() {
+  return managed && !released
+}
+
 export function getUpgradeEnvironment(
   initialEnvironment: Record<string, string | undefined>
 ) {

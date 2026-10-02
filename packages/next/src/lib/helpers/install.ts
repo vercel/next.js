@@ -1,6 +1,7 @@
 import { yellow } from '../picocolors'
 import spawn from 'next/dist/compiled/cross-spawn'
 import type { PackageManager } from './get-pkg-manager'
+import { isUpgradeOutputPending, pipeWorkerOutput } from '../upgrade-output'
 
 interface InstallArgs {
   /**
@@ -58,15 +59,23 @@ export function install(
     }
   }
 
-  return new Promise((resolve, reject) => {
-    /**
-     * Spawn the installation process.
-     */
+  return new Promise<void>((resolve, reject) => {
+    // While the upgrade choice is pending, route logs through the held streams.
+    // New installs after Skip keep their existing terminal behavior.
+    const captureOutput = isUpgradeOutputPending()
+    // Automatic installs normally need no input. Keep stdin unavailable while
+    // the menu owns it; install scripts requiring input are not supported here,
+    // even after Skip, since the running install keeps its original stdio.
     const child = spawn(packageManager, args, {
       cwd: root,
-      stdio: 'inherit',
+      stdio: captureOutput ? ['ignore', 'pipe', 'pipe'] : 'inherit',
       env: {
         ...process.env,
+        // Piped output loses automatic color detection. Preserve explicit color
+        // settings and enable colors only when the caller has not opted out.
+        ...(captureOutput && process.stdout.isTTY && !process.env.NO_COLOR
+          ? { FORCE_COLOR: process.env.FORCE_COLOR ?? '1' }
+          : {}),
         ADBLOCK: '1',
         // we set NODE_ENV to development as pnpm skips dev
         // dependencies when production
@@ -74,7 +83,18 @@ export function install(
         DISABLE_OPENCOLLECTIVE: '1',
       },
     })
-    child.on('close', (code) => {
+
+    // Keep consuming both pipes while corked so installation cannot stall on
+    // buffered logs. Skip or the fatal exit path flushes the same child streams.
+    if (child.stdout) {
+      pipeWorkerOutput(child.stdout, process.stdout)
+    }
+    if (child.stderr) {
+      pipeWorkerOutput(child.stderr, process.stderr)
+    }
+
+    child.once('error', reject)
+    child.once('close', (code) => {
       if (code !== 0) {
         reject({ command: `${packageManager} ${args.join(' ')}` })
         return
