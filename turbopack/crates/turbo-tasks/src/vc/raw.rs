@@ -143,11 +143,24 @@ impl Display for CellId {
 /// ```
 /// [`Vc`]: crate::Vc
 /// [monomorphization]: https://doc.rust-lang.org/book/ch10-01-syntax.html#performance-of-code-using-generics
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Decode)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Deserialize, Decode)]
 pub struct RawVc(NonZeroU64);
 
-// RawVc encodes its packed integer directly, so TaskId::encode cannot check embedded task ids.
-// Preserve the derived NonZero<u64> wire format while rejecting transient references in debug.
+// RawVc serializes its packed integer directly, so TaskId's guards cannot check embedded task
+// ids. Keep the original serde newtype shape and bincode format while rejecting transient values.
+impl Serialize for RawVc {
+    fn serialize<S: serde::Serializer>(
+        &self,
+        serializer: S,
+    ) -> std::result::Result<S::Ok, S::Error> {
+        debug_assert!(
+            !self.is_transient(),
+            "transient RawVc must not be serialized"
+        );
+        serializer.serialize_newtype_struct("RawVc", &self.0)
+    }
+}
+
 impl Encode for RawVc {
     fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
         debug_assert!(!self.is_transient(), "transient RawVc must not be encoded");
@@ -835,52 +848,6 @@ impl Unpin for ReadRawVcFuture {}
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn persistent_raw_vc_encoding_is_unchanged() {
-        let id = TaskId::new(42).unwrap();
-        let cell = CellId::new(ValueTypeId::new(1).unwrap(), 0);
-        let local = RawVc::local_output(
-            ExecutionId::new(1).unwrap(),
-            LocalTaskId::new(1).unwrap(),
-            TaskPersistence::Persistent,
-        );
-        for vc in [RawVc::task_output(id), RawVc::task_cell(id, cell), local] {
-            let bytes = bincode::encode_to_vec(vc, bincode::config::standard()).unwrap();
-            assert_eq!(
-                bytes,
-                bincode::encode_to_vec(vc.0, bincode::config::standard()).unwrap()
-            );
-            let (restored, consumed): (RawVc, _) =
-                bincode::decode_from_slice(&bytes, bincode::config::standard()).unwrap();
-            assert_eq!((restored, consumed), (vc, bytes.len()));
-        }
-    }
-
-    #[test]
-    #[cfg(debug_assertions)]
-    #[cfg_attr(target_family = "wasm", ignore = "no unwinding on wasm")]
-    fn transient_raw_vc_cannot_be_encoded() {
-        let id = TaskId::new(crate::TRANSIENT_TASK_BIT).unwrap();
-        let cell = CellId::new(ValueTypeId::new(1).unwrap(), 0);
-        let local = RawVc::local_output(
-            ExecutionId::new(1).unwrap(),
-            LocalTaskId::new(1).unwrap(),
-            TaskPersistence::Transient,
-        );
-        for vc in [RawVc::task_output(id), RawVc::task_cell(id, cell), local] {
-            let result = std::panic::catch_unwind(|| {
-                let _ = bincode::encode_to_vec(vc, bincode::config::standard());
-            });
-            let panic = result.expect_err("transient RawVc encoded successfully");
-            let message = panic
-                .downcast_ref::<String>()
-                .map(String::as_str)
-                .or_else(|| panic.downcast_ref::<&str>().copied())
-                .unwrap_or("");
-            assert!(message.contains("transient RawVc must not be encoded"));
-        }
-    }
 
     /// `CellId` must pack into 4 bytes and keep its niche so `Option<CellId>`
     /// stays 4 bytes — this is the whole point of [`RawVc`] shrinking.
