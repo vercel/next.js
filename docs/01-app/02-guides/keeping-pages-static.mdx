@@ -74,7 +74,7 @@ export default function StoreLayout({ children }: LayoutProps<'/store'>) {
 
 A default `<Link>` into the store loads this shell from static output. If a later change adds request-specific content behind `<Suspense>`, that content renders during a per-link prefetch or navigation instead of making the shell render per request. Request-specific content outside `<Suspense>` is reported by [Instant Navigation validation](/docs/messages/instant-navigation-validation).
 
-For one subtree, awaiting [`prefetch()`](/docs/app/api-reference/functions/prefetch) inside `<Suspense>` defers the work below it to a per-link prefetch or navigation. Setting `ensureStatic = 'shell'` applies the same requirement to the whole route, but it does not move code. Keep `await prefetch()` where the work must not run in the App Shell. See [Defer work to a later stage](/docs/app/guides/optimizing-prefetching#defer-work-to-a-later-stage) for the per-subtree controls.
+For one subtree, awaiting [`prefetch()`](/docs/app/api-reference/functions/prefetch) inside `<Suspense>` defers the work below it to a per-link prefetch or navigation. Setting `ensureStatic = 'shell'` applies the requirement to the whole route instead. See [Defer work to a later stage](/docs/app/guides/optimizing-prefetching#defer-work-to-a-later-stage) for the per-subtree controls.
 
 ### Step 2: Prefetch product details, not live inventory
 
@@ -116,9 +116,9 @@ Update the product links with `prefetch={true}` so each link can resolve its cac
 
 When a product link becomes visible, its prefetch includes the product heading and **Checking availability...** fallback. The uncached inventory query runs after the user follows the link.
 
-The product page doesn't export `generateStaticParams()`, so on a new deployment no product page has been generated yet. The first prefetch for each product serves the route's fallback shell, and Next.js generates that product's page in the background. Later prefetches include the product heading. To prerender known products at build time, return them from [`generateStaticParams()`](/docs/app/api-reference/functions/generate-static-params). See [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components#at-runtime).
+On a new deployment, the first prefetch for each product serves the route's fallback shell instead, because no product page has been generated yet. Next.js generates it in the background, and later prefetches include the product heading. See [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components#at-runtime).
 
-For one subtree, awaiting [`navigation()`](/docs/app/api-reference/functions/navigation) inside `<Suspense>` defers the work below it until navigation. Setting `ensureStatic = 'prefetch'` requires static output for every prefetch of the route, but it does not move code. Keep `await navigation()` where the work must run during navigation, such as synchronous IO like `crypto.randomUUID()`. See [Keep the prefetch static](/docs/app/guides/optimizing-prefetching#keep-the-prefetch-static) for shaping one route this way.
+For one subtree, awaiting [`navigation()`](/docs/app/api-reference/functions/navigation) inside `<Suspense>` defers the work below it until navigation. Setting `ensureStatic = 'prefetch'` requires static output for every prefetch of the route instead. See [Keep the prefetch static](/docs/app/guides/optimizing-prefetching#keep-the-prefetch-static) for shaping one route this way.
 
 ### Step 3: Prerender every buying guide
 
