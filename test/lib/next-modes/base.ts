@@ -546,14 +546,6 @@ export class NextInstance {
           if (process.env.NEXT_PRIVATE_TEST_MODE) {
             process.env.__NEXT_TEST_MODE = process.env.NEXT_PRIVATE_TEST_MODE
           }
-
-          // alias experimental feature flags for deployment compatibility
-          if (process.env.NEXT_PRIVATE_EXPERIMENTAL_PARTIAL_PREFETCHING) {
-            process.env.__NEXT_PARTIAL_PREFETCHING = process.env.NEXT_PRIVATE_EXPERIMENTAL_PARTIAL_PREFETCHING
-          }
-          if (process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHED_NAVIGATIONS) {
-            process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS = process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHED_NAVIGATIONS
-          }
         `
           )
 
