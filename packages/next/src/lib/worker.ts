@@ -1,4 +1,4 @@
-import { pipeWorkerOutput } from './upgrade-output'
+import { uncork, pipeWorkerOutput } from './upgrade-output'
 import type { ChildProcess } from 'child_process'
 import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
 import { Transform } from 'stream'
@@ -82,7 +82,6 @@ export class Worker {
     let activeTasks = 0
 
     this._worker = undefined
-
     // ensure we end workers if they weren't before exit
     process.on('exit', () => {
       this.close()
@@ -175,13 +174,14 @@ export class Worker {
           []) as {
           _child?: ChildProcess
         }[]) {
-          worker._child?.on('exit', (code, signal) => {
+          worker._child?.on('exit', async (code, signal) => {
             if ((code || (signal && signal !== 'SIGINT')) && this._worker) {
               logger.error(
                 `Next.js build worker exited with code: ${code} and signal: ${signal}`
               )
 
               // if a child process doesn't exit gracefully, we want to bubble up the exit code to the parent process
+              await uncork()
               process.exit(code ?? 1)
             }
           })

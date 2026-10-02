@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { spawnSync } from 'node:child_process'
+import { isUpgradeOutputManaged, uncork } from '../upgrade-output'
 
 import spawn from 'next/dist/compiled/cross-spawn'
 
@@ -189,8 +190,13 @@ export function runTypeScriptCli({
     const terminateOnExit = () => terminateChild()
     process.once('exit', terminateOnExit)
 
-    const handler = () => {
+    const handler = async () => {
       terminateChild()
+      // Ordinary compiler invocations still exit synchronously. Only an
+      // upgrade-managed workload has held output to drain before termination.
+      if (isUpgradeOutputManaged()) {
+        await uncork()
+      }
       process.exit(1)
     }
     for (const signal of terminationSignals) {

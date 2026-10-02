@@ -1,15 +1,24 @@
 import { Writable } from 'stream'
 import type { ChildProcess } from 'child_process'
 import { updateInitialEnv } from '@next/env'
+import isError from './is-error'
 
-// The CLI owns the menu. This process keeps its inherited terminal and holds
-// its own stdout/stderr writes until the parent says the menu has closed.
+// The parent owns the menu; the work process keeps its real output TTYs and
+// buffers writes in stdout/stderr. IPC carries permission to print, not logs.
+// Keep supervision after Skip, but never hold output again once the parent
+// has released it. Config still loads with live output before the first cork.
 let corked = false
 let managed = false
 let released = false
 let outputLimitCheck: ReturnType<typeof setInterval> | null = null
 
-// Repeated Skip messages must not duplicate input forwarding.
+// Every caller waits for the same release. A new cork creates one shared
+// Promise; uncork resolves it after restoring the streams.
+let outputReleased: Promise<void> = Promise.resolve()
+let releaseOutput: (() => void) | null = null
+
+// Skip can arrive more than once. Connecting a worker twice would duplicate
+// its input, so remember each connection without retaining retired workers.
 const forwardedInputs = new WeakSet<ChildProcess>()
 
 export function forwardUpgradeInput(child: ChildProcess) {
@@ -37,6 +46,10 @@ export function forwardUpgradeInput(child: ChildProcess) {
   // stdout/stderr still inherit the terminal. Only stdin is a pipe, including
   // after Skip: plugins cannot use stdin.isTTY or setRawMode() as before.
   process.stdin.pipe(input)
+}
+
+export function isUpgradeOutputManaged() {
+  return managed
 }
 
 export function getUpgradeEnvironment(
@@ -110,6 +123,9 @@ export async function corkUpgradeOutput() {
   }
 
   corked = true
+  outputReleased = new Promise<void>((resolve) => {
+    releaseOutput = resolve
+  })
   process.stdout.cork()
   process.stderr.cork()
 
@@ -173,6 +189,49 @@ export function handleUpgradeOutputMessages() {
     process.exit(1)
   })
 }
+
+export async function uncork() {
+  // Exit waits only for the menu to close. Workers, native callbacks and final
+  // stream writes are not drained; their last output may be lost on termination.
+  if (!corked) {
+    return
+  }
+
+  // The parent must leave the menu before this child writes to the terminal.
+  // A disconnected parent cannot acknowledge; favor visibility in that case.
+  if (process.connected && process.send) {
+    process.send({ nextUpgradeOutput: true }, (error: Error | null) => {
+      if (error) {
+        uncorkUpgradeOutput()
+        console.error(
+          'Could not request the terminal for workload output:',
+          error
+        )
+      }
+    })
+    await waitForUpgradeOutput()
+  } else {
+    uncorkUpgradeOutput()
+  }
+}
+
+export function throwUpgradeError(message: string): never {
+  if (!corked) {
+    process.exit(1)
+  }
+
+  // The validator has already printed its diagnostic. Stop its synchronous
+  // caller here; its async owner must consume this marker, uncork, and exit
+  // before an ordinary recovery catch can continue or print another stack.
+  throw Object.assign(new Error(message), { code: 'NEXT_UPGRADE_FATAL' })
+}
+
+export function isUpgradeFatal(error: unknown) {
+  // Only the fatal validators use this marker. Other errors retain their
+  // existing reporting and recovery behavior.
+  return isError(error) && error.code === 'NEXT_UPGRADE_FATAL'
+}
+
 export function pipeWorkerOutput(
   source: NodeJS.ReadableStream,
   destination: Writable
@@ -215,7 +274,7 @@ function uncorkUpgradeOutput() {
     return
   }
 
-  // Release only our cork level; keep the inherited terminal streams open.
+  // Release only the cork level owned by this feature.
   corked = false
   if (outputLimitCheck) {
     clearInterval(outputLimitCheck)
@@ -225,7 +284,15 @@ function uncorkUpgradeOutput() {
   // TODO: stdout and stderr have separate buffers. Releasing stdout first can
   // print a later log before an earlier error. Use one buffer if we need to
   // keep the order between the two streams.
-
   process.stdout.uncork()
   process.stderr.uncork()
+
+  // Release promises only after changing stream state, so resumed callbacks
+  // can safely write immediately instead of waiting on another corked write.
+  releaseOutput?.()
+  releaseOutput = null
+}
+
+export function waitForUpgradeOutput() {
+  return outputReleased
 }

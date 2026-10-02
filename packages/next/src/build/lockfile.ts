@@ -1,3 +1,4 @@
+import { uncork } from '../lib/upgrade-output'
 import fs from 'fs'
 import nodePath from 'path'
 import { bold, cyan } from '../lib/picocolors'
@@ -230,6 +231,7 @@ export class Lockfile {
         console.error()
         Log.info(`${bold('Suggestion:')} Wait for the build to complete.`)
       }
+      await uncork()
       process.exit(1)
     }
     return lockfile

@@ -84,6 +84,7 @@ let upgradeController: AbortController | null = null
 let outputHeld = false
 let upgradeEnvironment: Record<string, string | null> | null = null
 let upgradeInProgress = false
+let workExitCode: number | null = null
 let interruption: NodeJS.Signals | null = null
 let devSpanAttrs: { 'rage-restart': boolean; 'missing-next-dir': boolean } = {
   'rage-restart': false,
@@ -131,10 +132,18 @@ const handleSessionStop = async (
   sessionStopHandled = true
   const interruptedUpgrade = upgradeInProgress
   upgradeController?.abort()
+  const wasHeld = outputHeld
+  outputHeld = false
+  if (child?.stdin) {
+    process.stdin.unpipe(child.stdin)
+  }
+  if (wasHeld && child?.connected) {
+    child.send({ nextUpgradeContinue: true })
+  }
 
   // Capture the child's exit code if it has already exited and caused the
   // session stop (via the 'exit' event), otherwise assume success (0).
-  const exitCode = child?.exitCode || 0
+  const exitCode = workExitCode ?? child?.exitCode ?? 0
 
   if (
     signal != null &&
@@ -144,9 +153,14 @@ const handleSessionStop = async (
   ) {
     let exitTimeout: NodeJS.Timeout | undefined
     if (!shouldWaitForChildExit) {
-      exitTimeout = setTimeout(() => {
-        child?.kill('SIGKILL')
-      }, CHILD_EXIT_TIMEOUT_MS)
+      exitTimeout = setTimeout(
+        () => {
+          child?.kill('SIGKILL')
+        },
+        wasHeld
+          ? parseInt(process.env.NEXT_EXIT_TIMEOUT_MS ?? '5000', 10)
+          : CHILD_EXIT_TIMEOUT_MS
+      )
     }
     await once(child, 'exit').catch(() => {})
     if (exitTimeout) clearTimeout(exitTimeout)
@@ -269,13 +283,29 @@ const nextDev = async (
 
   // One wait covers both context delivery and the user's choice. Ready can
   // arrive first; preflight warnings wait while the child keeps serving pages.
-  let finishUpgrade: ((task: Promise<void> | void) => void) | null = null
+  let finishUpgrade: (() => void) | null = null
   const upgradeDone = humanUpgrade
     ? new Promise<void>((resolve) => {
         finishUpgrade = resolve
       })
     : null
   const allowedUpgradeRetries = new Set<string>()
+  // Close the screen before permitting this worker to print. Fatal shutdown
+  // leaves input disconnected; a normal Skip returns it to the running server.
+  const skipUpgrade = (worker: ChildProcess, forwardInput: boolean) => {
+    if (sessionStopHandled) {
+      return
+    }
+    outputHeld = false
+    upgradeController?.abort()
+    if (worker.connected) {
+      worker.send({ nextUpgradeContinue: true })
+    }
+    if (forwardInput && worker === child) {
+      forwardUpgradeInput(worker)
+    }
+    finishUpgrade?.()
+  }
   async function offerUpgrade(
     worker: ChildProcess,
     context: UpgradeContext,
@@ -342,13 +372,8 @@ const nextDev = async (
       )
     }
     upgradeInProgress = false
-    outputHeld = false
     process.off('SIGHUP', onHangup)
-    // The prompt has restored the screen. Let the same server flush and continue.
-    if (worker.connected) {
-      worker.send({ nextUpgradeContinue: true })
-    }
-    forwardUpgradeInput(worker)
+    skipUpgrade(worker, true)
   }
 
   // Check if pages dir exists and warn if not
@@ -575,6 +600,25 @@ const nextDev = async (
       if (humanUpgrade && !outputHeld) {
         forwardUpgradeInput(worker)
       }
+      let workerError: Error | null = null
+      let workerExitTimeout: NodeJS.Timeout | null = null
+      const revealWorkerOutput = () => {
+        if (workerExitTimeout || sessionStopHandled) {
+          return
+        }
+        skipUpgrade(worker, false)
+        workerExitTimeout = setTimeout(() => worker.kill('SIGKILL'), 5_000)
+      }
+      worker.on('error', (error) => {
+        workerError = error
+        if (!humanUpgrade) {
+          workExitCode = 1
+          console.error(error)
+          void handleSessionStop('SIGTERM')
+          return
+        }
+        revealWorkerOutput()
+      })
       worker.on('message', (msg: any) => {
         if (msg && typeof msg === 'object') {
           if (
@@ -594,25 +638,17 @@ const nextDev = async (
               msg.nextUpgradeAssessment !== undefined
                 ? Promise.resolve(msg.nextUpgradeAssessment)
                 : null
-            finishUpgrade?.(
-              offerUpgrade(worker, context, initialAssessment).catch(
-                async (error) => {
-                  console.error(error)
-                  await handleSessionStop('SIGTERM', false)
-                  process.exit(1)
-                }
-              )
+            void offerUpgrade(worker, context, initialAssessment).catch(
+              async (error) => {
+                console.error(error)
+                await handleSessionStop('SIGTERM', false)
+                process.exit(1)
+              }
             )
           } else if (msg.nextUpgradeSkip) {
-            // Abort restores the screen before logs or input reach the child.
-            // A release before context also finishes the parent's startup wait.
-            outputHeld = false
-            upgradeController?.abort()
-            if (worker.connected) {
-              worker.send({ nextUpgradeContinue: true })
-            }
-            forwardUpgradeInput(worker)
-            finishUpgrade?.()
+            skipUpgrade(worker, true)
+          } else if (msg.nextUpgradeOutput) {
+            revealWorkerOutput()
           } else if (msg.nextWorkerReady) {
             worker.send({ nextWorkerOptions: startServerOptions })
           } else if (msg.nextServerReady && !resolved) {
@@ -632,17 +668,21 @@ const nextDev = async (
         }
       })
 
-      child.on('exit', async (code, signal) => {
-        upgradeController?.abort()
+      worker.on('close', async (code, signal) => {
+        const revealOutput = outputHeld || workerExitTimeout !== null
+        if (workerExitTimeout) {
+          clearTimeout(workerExitTimeout)
+        }
         if (sessionStopHandled) {
           return
         }
-        if (signal) {
-          if (upgradeInProgress) {
-            interruption ??= signal
-            await handleSessionStop(null)
+        if (code !== RESTART_EXIT_CODE && revealOutput) {
+          skipUpgrade(worker, false)
+          if (workerError) {
+            Log.error(workerError)
+          } else if (signal || code) {
+            Log.error(`Dev server stopped (${signal ?? `exit ${code}`}).`)
           }
-          return
         }
         if (code === RESTART_EXIT_CODE) {
           // Starting the dev server will overwrite the `.next/trace` file, so we
@@ -665,6 +705,9 @@ const nextDev = async (
 
           return startServer({ ...startServerOptions, port })
         }
+        workExitCode = workerError
+          ? 1
+          : (code ?? (signal ? 128 + os.constants.signals[signal] : 1))
         // Call handler (e.g. upload telemetry). Don't try to send a signal to
         // the child, as it has already exited.
         await handleSessionStop(/* signal */ null)

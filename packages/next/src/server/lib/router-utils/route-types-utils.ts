@@ -378,6 +378,8 @@ export async function createRouteTypesManifest({
 
   // Process redirects
   if (typeof redirects === 'function') {
+    // Type generation can call this hook while logs are held. The common cork
+    // deadline releases write callbacks without wrapping individual hooks.
     const rd = await redirects()
 
     for (const item of rd) {

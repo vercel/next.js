@@ -1,4 +1,4 @@
-import { handleUpgradeOutputMessages } from '../../lib/upgrade-output'
+import { uncork, handleUpgradeOutputMessages } from '../../lib/upgrade-output'
 // Start CPU profile if it wasn't already started.
 import './cpu-profile'
 import { getNetworkHost } from '../../lib/get-network-host'
@@ -300,7 +300,7 @@ export async function startServer(
   let portRetryCount = 0
   const originalPort = port
 
-  server.on('error', (err: NodeJS.ErrnoException) => {
+  server.on('error', async (err: NodeJS.ErrnoException) => {
     if (
       allowRetry &&
       port &&
@@ -314,6 +314,7 @@ export async function startServer(
     } else {
       Log.error(`Failed to start server`)
       console.error(err)
+      await uncork()
       process.exit(1)
     }
   })
@@ -462,6 +463,10 @@ export async function startServer(
 
             debug('start-server process cleanup finished')
 
+            // Close the menu and release held logs without waiting for final
+            // writes. Keep each existing signal's exit status below.
+            await uncork()
+
             // Exit with signal-based exit code (128 + signal number) so that
             // Node.js treats this as a signal termination, not a normal exit.
             // This avoids waiting for the debugger to disconnect.
@@ -563,6 +568,7 @@ export async function startServer(
         // fatal error if we can't setup
         handlersError()
         console.error(err)
+        await uncork()
         process.exit(1)
       }
     })
