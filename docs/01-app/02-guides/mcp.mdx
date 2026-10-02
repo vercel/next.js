@@ -54,7 +54,7 @@ Through `nextjs_call`, agents can use the tools the Next.js development server e
 - **`get_errors`**: Get the current error state, including Next.js global errors such as `next.config` validation, browser runtime errors, and build errors with source-mapped stack traces.
 - **`get_logs`**: Get the path to the development log file, which contains browser console logs and server output.
 - **`get_page_metadata`**: Get runtime metadata about what contributes to the current page render. Requires the page to be open in a browser.
-- **`get_project_metadata`**: Get the project path, configuration, and dev server URL.
+- **`get_project_metadata`**: Get the project path and dev server URL.
 - **`get_routes`**: Get all routes that will become entry points by scanning the filesystem. Returns routes grouped by router type (`appRouter`, `pagesRouter`). Dynamic segments appear as `[param]` or `[...slug]` patterns.
 - **`get_server_action_by_id`**: Look up a Server Action by its ID to find its source file and export name.
 - **`get_compilation_issues`**: Build the module graph for all routes and return compilation issues such as resolve errors, missing modules, and transform errors. Doesn't require a browser session. Turbopack only.
@@ -151,7 +151,7 @@ The Next.js 16+ development server runs a built-in MCP endpoint at `/_next/mcp`.
 - Forward tool calls to the right Next.js dev server
 - Give agents one set of tools for every instance
 
-Agents only talk to `next-devtools-mcp`, so the same setup works across Next.js projects and versions.
+Agents that connect through `next-devtools-mcp` use the same setup across Next.js projects and versions.
 
 The endpoint is enabled by default. To disable it, set `experimental.mcpServer` to `false` in `next.config`.
 
