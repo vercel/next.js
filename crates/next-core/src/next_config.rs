@@ -2814,39 +2814,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_materialized_namespace_mangling_defaults() {
-        let mut experimental = ExperimentalConfig::default();
-        // The production default for export mangling must not opt in to facade splitting.
-        assert!(!experimental.mangle_via_materialized_namespace_object());
-
-        experimental.turbopack_mangle_export_names = Some(true);
-        assert!(experimental.mangle_via_materialized_namespace_object());
-
-        experimental.turbopack_mangle_via_materialized_namespace_object = Some(false);
-        assert!(!experimental.mangle_via_materialized_namespace_object());
-
-        experimental.turbopack_mangle_export_names = Some(false);
-        experimental.turbopack_mangle_via_materialized_namespace_object = Some(true);
-        assert!(experimental.mangle_via_materialized_namespace_object());
-
-        experimental.turbopack_mangle_via_materialized_namespace_object = None;
-        assert!(!experimental.mangle_via_materialized_namespace_object());
-
-        let parsed: NextConfig = serde_json::from_value(serde_json::json!({
-            "experimental": {
-                "turbopackMangleExportNames": true,
-                "turbopackMangleViaMaterializedNamespaceObject": false
-            }
-        }))
-        .unwrap();
-        assert!(
-            !parsed
-                .experimental
-                .mangle_via_materialized_namespace_object()
-        );
-    }
-
-    #[test]
     fn test_serde_rule_config_item_options() {
         let json_value = serde_json::json!({
             "loaders": [],

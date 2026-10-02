@@ -1095,7 +1095,8 @@ export interface ExperimentalConfig {
 
   /**
    * Materialize namespace objects behind a facade so their local export keys can still be
-   * mangled. This can give dynamic and static imports of the same module different identities.
+   * mangled. This can interfere with code that patches modules, since a module might be split
+   * into multiple parts.
    *
    * Defaults to `true` only when `turbopackMangleExportNames` is explicitly `true`; otherwise
    * defaults to `false`, including when export mangling is enabled by default.

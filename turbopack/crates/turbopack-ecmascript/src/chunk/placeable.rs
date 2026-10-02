@@ -325,10 +325,10 @@ impl EcmascriptExports {
     /// Splitting is enabled for modules with re-exports (star exports or imported bindings),
     /// allowing tree shaking to separate local definitions from re-exports. It can also be opted
     /// into for export-name mangling, placing original names on a facade and shortened keys on
-    /// locals. This is off by default: dynamic imports would resolve to the facade while static
-    /// named imports follow through to locals, giving a shared module two runtime identities.
-    /// TODO: Make the mangling-only split safe for remote-components singletons before enabling it
-    /// by default (#99279).
+    /// locals. This is off by default because splitting a module into multiple parts can interfere
+    /// with code that patches modules: patching the facade does not also patch the locals module.
+    /// TODO: Make the mangling-only split compatible with module patching before enabling it by
+    /// default (#99279).
     #[turbo_tasks::function]
     pub async fn split_locals_and_reexports(
         &self,
