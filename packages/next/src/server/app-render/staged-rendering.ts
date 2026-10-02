@@ -9,6 +9,10 @@ export enum RenderStage {
    * Discrimination-only stage: `prefetch()` resolves here in static renders so
    * validation can tell it apart from URL data, which resolves in `PrefetchStatic`.
    * Nothing else is gated on it.
+   *
+   * Renders must advance to it in its own task (not implicitly via
+   * `advanceStage(PrefetchStatic)`), so that React flushes the content it
+   * unblocks into a separate chunk accumulator than URL data.
    */
   PrefetchStatic_prefetch = 11,
   PrefetchStatic = 12,

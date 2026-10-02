@@ -24,7 +24,7 @@ kind: insight
 
 During prerendering or a client-side navigation, a Server Component called [`prefetch()`](/docs/app/api-reference/functions/prefetch) or [`navigation()`](/docs/app/api-reference/functions/navigation) outside of [`<Suspense>`](https://react.dev/reference/react/Suspense). These [navigation stage APIs](/docs/app/glossary#navigation-stages) need a fallback when they exclude a subtree from a prefetch.
 
-For a route with a runtime [App Shell](/docs/app/glossary#app-shell), `prefetch()` excludes subsequent content from the App Shell but includes it in `<Link prefetch={true}>` prefetches and navigations. `navigation()` excludes the content from both the App Shell and per-link prefetches, then renders it during navigation. Neither API affects initial loads or [static prerenders](/docs/app/glossary#prerendering), and subsequent content remains cacheable.
+During runtime rendering, `prefetch()` excludes subsequent content from the [App Shell](/docs/app/glossary#app-shell) but includes it in `<Link prefetch={true}>` prefetches and navigations. `navigation()` excludes the content from both the App Shell and per-link prefetches, then renders it during navigation. Neither API affects initial loads or [static prerenders](/docs/app/glossary#prerendering), and subsequent content remains cacheable.
 
 For the same insight in metadata or viewport code, see [`prefetch()` or `navigation()` in `generateMetadata()`](/docs/messages/instant-navigation-stage-metadata) or [`prefetch()` or `navigation()` in `generateViewport()`](/docs/messages/instant-navigation-stage-viewport).
 

@@ -1103,6 +1103,7 @@ async function generateStagedDynamicFlightRenderResultNode(
 
       return dynamicStream
     },
+    () => stageController.advanceStage(RenderStage.PrefetchStatic_prefetch),
     () => stageController.advanceStage(RenderStage.PrefetchStatic),
     () => stageController.advanceStage(RenderStage.NavigationStatic),
     () => stageController.advanceStage(RenderStage.Static),
@@ -1243,6 +1244,7 @@ async function stagedRenderWithoutCachesInDevNode(
         }
       )
     },
+    () => stageController.advanceStage(RenderStage.PrefetchStatic_prefetch),
     () => stageController.advanceStage(RenderStage.PrefetchStatic),
     () => stageController.advanceStage(RenderStage.NavigationStatic),
     () => stageController.advanceStage(RenderStage.Static),
@@ -1917,6 +1919,10 @@ async function finalRuntimeServerPrerender(
         collectChunk,
         streamState
       )
+    },
+    () => {
+      if (checkUnexpectedAbort()) return
+      stageController.advanceStage(RenderStage.PrefetchStatic_prefetch)
     },
     () => {
       if (checkUnexpectedAbort()) return
@@ -4011,6 +4017,8 @@ async function renderToStream(
 
             return dynamicStream
           },
+          () =>
+            stageController.advanceStage(RenderStage.PrefetchStatic_prefetch),
           () => stageController.advanceStage(RenderStage.PrefetchStatic),
           () => stageController.advanceStage(RenderStage.NavigationStatic),
           () => stageController.advanceStage(RenderStage.Static),
@@ -5757,6 +5765,7 @@ async function streamStagedRenderInDev({
     },
     () => checkReveal(RenderStage.ShellStatic),
 
+    () => checkCacheMissAndAdvance(RenderStage.PrefetchStatic_prefetch),
     () => checkCacheMissAndAdvance(RenderStage.PrefetchStatic),
     () => checkCacheMissAndAdvance(RenderStage.NavigationStatic),
     () => checkCacheMissAndAdvance(RenderStage.Static),
@@ -5920,6 +5929,7 @@ async function renderWithWarmCachesForValidationInDev(
         validationAbortSignal
       )
     },
+    () => stageController.advanceStage(RenderStage.PrefetchStatic_prefetch),
     () => stageController.advanceStage(RenderStage.PrefetchStatic),
     () => stageController.advanceStage(RenderStage.NavigationStatic),
     () => stageController.advanceStage(RenderStage.Static),
@@ -6055,6 +6065,7 @@ async function prerenderWithWarmCachesForStaticValidationInDev(
         collectChunk
       )
     },
+    () => stageController.advanceStage(RenderStage.PrefetchStatic_prefetch),
     () => stageController.advanceStage(RenderStage.PrefetchStatic),
     () => stageController.advanceStage(RenderStage.NavigationStatic),
     () => stageController.advanceStage(RenderStage.Static),
@@ -8329,6 +8340,8 @@ async function renderWithRestartOnCacheMissInValidation(
         accumulatedChunksPromise,
       }
     },
+    () =>
+      finalStageController.advanceStage(RenderStage.PrefetchStatic_prefetch),
     () => finalStageController.advanceStage(RenderStage.PrefetchStatic),
     () => finalStageController.advanceStage(RenderStage.NavigationStatic),
     () => finalStageController.advanceStage(RenderStage.Static),
@@ -9713,6 +9726,10 @@ async function prerenderToStream(
             streamState,
             collectedChunks.allChunks !== null
           )
+        },
+        () => {
+          if (checkUnexpectedAbort()) return
+          finalStageController.advanceStage(RenderStage.PrefetchStatic_prefetch)
         },
         () => {
           if (checkUnexpectedAbort()) return

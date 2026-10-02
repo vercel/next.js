@@ -32,7 +32,7 @@ If the error only appears during `next build`, follow [Debug prerender errors](/
 
 ## Non-blocking insights
 
-These findings do not fail the build. They identify work that can delay or change what is available during a client navigation.
+These insights identify work that is deferred to a later navigation stage, or changes what a prefetch contains, without blocking navigation.
 
 - [`prefetch()` or `navigation()` outside of Suspense](/docs/messages/instant-navigation-stage)
 - [`prefetch()` or `navigation()` in `generateMetadata()`](/docs/messages/instant-navigation-stage-metadata)
