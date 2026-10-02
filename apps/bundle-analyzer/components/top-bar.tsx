@@ -60,6 +60,8 @@ export function ControlDivider() {
 
 export function TopBar({
   selectedRoute,
+  routePickerOpen,
+  onRoutePickerOpenChange,
   setSelectedRoute,
   getRouteHref,
   environmentFilter,
@@ -86,6 +88,8 @@ export function TopBar({
   hasSourceData: boolean
   showViewToggle: boolean
   selectedRoute: string | null
+  routePickerOpen: boolean
+  onRoutePickerOpenChange: (open: boolean) => void
   setSelectedRoute: (route: string | null) => void
   getRouteHref?: (route: string) => string
   environmentFilter: Environment
@@ -136,6 +140,8 @@ export function TopBar({
       <div className="flex min-w-0 flex-1">
         <RouteTypeahead
           selectedRoute={selectedRoute}
+          open={routePickerOpen}
+          onOpenChange={onRoutePickerOpenChange}
           {...routeSelection}
           routeDiff={isCompareMode ? routeDiff : null}
           routeTotals={routeTotals}
@@ -233,12 +239,8 @@ export function TopBar({
               aria-label="Filter by file type"
             />
 
-            {!isCompareMode && (
-              <>
-                <ControlDivider />
-                <FileSearch value={searchQuery} onChange={setSearchQuery} />
-              </>
-            )}
+            <ControlDivider />
+            <FileSearch value={searchQuery} onChange={setSearchQuery} />
           </>
         )}
       </div>
