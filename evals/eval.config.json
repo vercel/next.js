@@ -41,5 +41,9 @@
   "agent-059-browser-initial-load-optimizer": {
     "skills": ["next-browser-initial-load-optimizer"],
     "timeout": 1800
+  },
+  "agent-060-server-markdown-renderer": {
+    "skills": ["next-browser-initial-load-optimizer"],
+    "timeout": 1800
   }
 }
