@@ -44,7 +44,7 @@ test('enables Cache Components without incompatible segment config', () => {
 
 test('preserves routes that were explicitly static', async () => {
   await expect(environment).toSatisfyCriterion(
-    `Cache Components is enabled. Both routes that began with an explicit static contract are fully migrated in the first PR: the catalog route that used dynamic = 'force-static' remains prerendered and eligible for full-route prefetching, and the privacy route that used dynamic = 'error' remains fully static. Neither route, nor a parent segment covering it, is left under instant = false.`
+    `Cache Components is enabled. Both routes that began with an explicit static contract are fully migrated in the first checkpoint: the catalog route that used dynamic = 'force-static' remains prerendered and eligible for full-route prefetching, and the privacy route that used dynamic = 'error' remains fully static. The privacy route needs no replacement cache declaration when it has no uncached data or request-time APIs; its static build output is the proof. Neither route, nor a parent segment covering it, is left under instant = false.`
   )
 })
 
@@ -54,9 +54,9 @@ test('preserves the catalog route and data cache lifetimes', async () => {
   )
 })
 
-test('records the first incremental migration PR before continuing', async () => {
+test('establishes the first incremental checkpoint before continuing', async () => {
   await expect(transcript).toSatisfyCriterion(
-    `Before continuing to the full-app migration, the agent records a shippable first migration PR. The account route's incompatible dynamic = 'force-dynamic' export is removed without adding replacement rendering or caching code solely for that config. Its cookie greeting remains request-specific, and the route may remain under instant = false at this checkpoint. The product route may also remain explicitly opted out, but the explicitly static catalog and privacy routes are not deferred with them. The app builds at this checkpoint before the agent continues. Temporary Activity reset boundaries are allowed as an intermediate migration tool, but are not required at this checkpoint and must not remain in the completed migration.`
+    `Before continuing to the full-app migration, the agent establishes and verifies a shippable incremental checkpoint. The account route's incompatible dynamic = 'force-dynamic' export is removed without adding replacement rendering or caching code solely for that config. Its cookie greeting remains request-specific, and the route may remain under instant = false at this checkpoint. The product route may also remain explicitly opted out, but the explicitly static catalog and privacy routes are not deferred with them. The app builds at this checkpoint before the agent continues. Temporary Activity reset boundaries are allowed as an intermediate migration tool, but are not required at this checkpoint and must not remain in the completed migration. A Git commit or remote PR is not required inside the eval sandbox.`
   )
 })
 
@@ -122,6 +122,6 @@ test('resets transient offer UI without a route-wide boundary', async () => {
 
 test('removes the remaining opt-outs and completes the production migration', async () => {
   await expect(transcript).toSatisfyCriterion(
-    `The agent recognizes that Cache Components is already enabled and continues from the first incremental migration PR. It removes the remaining temporary validation opt-outs and Activity reset boundaries, uses a production build or Next.js runtime diagnostics to discover the account and product blockers, fixes each route according to whether its content is reusable or request-specific, reviews both the checkout wizard and transient offer menu for assumptions about route unmounting, and finishes with a successful production build. It does not stop after merely deleting instant = false or obtaining a green type check.`
+    `After establishing the first incremental checkpoint, the agent continues through the full migration without asking the user to choose a strategy again. It removes the remaining temporary validation opt-outs and Activity reset boundaries, uses a production build or Next.js runtime diagnostics to discover the account and product blockers, fixes each route according to whether its content is reusable or request-specific, reviews both the checkout wizard and transient offer menu for assumptions about route unmounting, and finishes with a successful production build. It does not stop after merely deleting instant = false or obtaining a green type check.`
   )
 })

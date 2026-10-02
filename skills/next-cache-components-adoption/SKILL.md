@@ -105,11 +105,11 @@ In preference order:
 
 ## step 1: choose a strategy
 
-Ask the user, in terms of the PRs they want, not the size of the job. Never use the internal labels (Incremental, Direct) when talking to the user — those are your own scaffolding. Ask in terms of PRs and features, e.g.: _"Do you want me to first open a PR that turns on Cache Components and opts every route out of validation, then handle the actual route adoptions feature-by-feature in follow-up PRs? Or do everything on one branch?"_ Even on a tiny app, the incremental path still has value (review-sized PR, revertible, the `// TODO: Cache Components adoption` markers double as your work queue for next session). Don't pick on their behalf.
+Honor a strategy already stated in the request. Do not ask the user to choose again. If the user asks to migrate incrementally and also asks you to complete the migration, establish and verify the incremental checkpoint before continuing to the remaining routes in the same task. “Complete” sets the stopping point; it does not change the chosen strategy.
 
-If there's no user to ask, default to **Incremental** and document the choice.
+If the request does not specify a strategy and the user is available, ask in terms of the PRs they want, not the size of the job. Never use the internal labels (Incremental, Direct) when talking to the user — those are your own scaffolding. Ask in terms of PRs and features, e.g.: _"Do you want me to first open a PR that turns on Cache Components and opts every route out of validation, then handle the actual route adoptions feature-by-feature in follow-up PRs? Or do everything on one branch?"_ Even on a tiny app, the incremental path still has value (review-sized PR, revertible, the `// TODO: Cache Components adoption` markers double as your work queue for next session). Don't pick on their behalf.
 
-Honor an explicit choice in the request. If the user asks to migrate incrementally and also asks you to complete the migration, establish and verify the incremental checkpoint before continuing to the remaining routes in the same task. “Complete” sets the stopping point; it does not change the chosen strategy.
+In a non-interactive run with no strategy in the prompt, default to **Incremental** and document the choice.
 
 - **Incremental** — quiet pre-step + the loop. Add temporary validation opt-outs, Activity reset boundaries, or both, depending on which behaviors the app needs to preserve. Get the build passing, stop and check in with the user (see [end of the pre-step](#end-of-the-pre-step-check-in)), then enter [step 2's loop](#step-2-the-inner-loop-remove-opt-outs-one-feature-at-a-time) and ship each feature as a follow-up PR.
 - **Direct** — skip the pre-step. Enable `cacheComponents` and go straight to [step 2's loop](#step-2-the-inner-loop-remove-opt-outs-one-feature-at-a-time); the build's blocking routes are the work queue.
@@ -126,7 +126,7 @@ Run the validation opt-out codemod if validation needs to be addressed route by 
 npx @next/codemod@canary cache-components-instant-false ./app
 ```
 
-Independently, run the Activity reset codemod when the app keeps UI state in Client Components that a navigation used to clear: multi-step flows, drafts, open/closed UI held in `useState`, or `useActionState` results. Also run it when the user asks to keep current behavior. Skip it for apps whose client state is derived from the URL or server data, and audit each route in the loop instead:
+Independently, inventory Client Components that use `useState`, `useReducer`, or `useActionState`. Run the Activity reset codemod when that state includes multi-step flows, drafts, open/closed UI, or other values that a navigation used to clear. Also run it when the user asks to keep current behavior. Skip it for apps whose client state is derived from the URL or server data, and audit each route in the loop instead:
 
 ```bash
 npx @next/codemod@canary cache-components-activity-reset ./app
@@ -213,6 +213,7 @@ Per route:
 - Remove the opt-out (Incremental) or target the failing route (Direct).
 - Rebuild with `--debug-build-paths app/<route>/**` (only that route) or `--debug-prerender` (full build, but past the first failure). Route passing? Move on. Still blocking? Fix.
 - Fix — fetch the docs page linked from the error (`https://nextjs.org/docs/messages/<slug>`), apply the recipe from there.
+- Inspect Client Components in the route for state that previously reset because the route unmounted. Remove any generated Activity reset wrapper, replace accidental reset behavior at the feature boundary using the [preserving UI state guide](https://nextjs.org/docs/app/guides/preserving-ui-state), and flag the behavior for browser verification.
 - Re-check siblings if the fix touched shared code.
 - Flag the route as build-only-verified when you hand the feature off. Each `◐` route still needs a browser pass before the feature is done.
 
