@@ -26,6 +26,12 @@ import {
   TableSkeleton,
   TreemapSkeleton,
 } from '@/components/ui/skeleton'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { AnalyzeData, ModulesData } from '@/lib/analyze-data'
 import {
   analyzeDataUrl,
@@ -37,7 +43,11 @@ import {
 import { diffRoutesWithSizes, diffSources, type RouteSummary } from '@/lib/diff'
 import { useSidebarResize } from '@/lib/use-sidebar-resize'
 import { useAnalyzerRoute } from '@/lib/use-analyzer-route'
-import { computeActiveEntries, computeModuleDepthMap } from '@/lib/module-graph'
+import {
+  computeActiveEntries,
+  computeModuleDepthMap,
+  computeSourceLoadScopes,
+} from '@/lib/module-graph'
 import type { SnapshotMetadata } from '@/lib/snapshot'
 import { formatBytes } from '@/lib/utils'
 import { createAnalyzeTreemapSource, SizeMode } from '@/lib/treemap-layout'
@@ -186,6 +196,7 @@ function useAnalyzerModel(compare: boolean) {
   const [compareSelectedKey, setCompareSelectedKey] = useState<string | null>(
     null
   )
+  const [initialLoaded, setInitialLoaded] = useState(false)
 
   // Reset compare selection when the route or either side changes — the
   // previous selection is unlikely to exist in the new diff.
@@ -218,11 +229,20 @@ function useAnalyzerModel(compare: boolean) {
 
   // React Compiler currently skips this hook. Keep the graph traversal cached
   // across selection and filter updates until that bailout is resolved.
-  const moduleDepthMap = useMemo(() => {
-    if (!analyzeData) return new Map()
+  const { moduleDepthMap, sourceLoadScopes } = useMemo(() => {
+    if (!analyzeData) {
+      return { moduleDepthMap: new Map(), sourceLoadScopes: new Map() }
+    }
 
     const activeEntries = computeActiveEntries(modulesData, analyzeData)
-    return computeModuleDepthMap(modulesData, activeEntries)
+    return {
+      moduleDepthMap: computeModuleDepthMap(modulesData, activeEntries),
+      sourceLoadScopes: computeSourceLoadScopes(
+        modulesData,
+        analyzeData,
+        activeEntries
+      ),
+    }
   }, [modulesData, analyzeData])
 
   // This hook isn't compiled; stable predicate identity keeps the source diff
@@ -245,9 +265,20 @@ function useAnalyzerModel(compare: boolean) {
         (typeFilter.includes('json') && flags.json) ||
         (typeFilter.includes('asset') && flags.asset)
 
-      return hasEnvironment && hasType
+      const hasLoadScope =
+        !initialLoaded ||
+        sourceLoadScopes.get(sourceIndex) === 'initial' ||
+        sourceLoadScopes.get(sourceIndex) === 'mixed'
+
+      return hasEnvironment && hasType && hasLoadScope
     }
-  }, [analyzeData, environmentFilter, typeFilter])
+  }, [
+    analyzeData,
+    environmentFilter,
+    initialLoaded,
+    sourceLoadScopes,
+    typeFilter,
+  ])
 
   // In single-build (non-compare) mode the table view still wants a list
   // of every source for the current route. We synthesize this by diffing
@@ -300,10 +331,12 @@ function useAnalyzerModel(compare: boolean) {
     filterSource,
     focusedSourceIndex,
     hoveredNodeInfo,
+    initialLoaded,
     isHistoryLoading,
     isMouseInTreemap,
     isViewPending,
     moduleDepthMap,
+    sourceLoadScopes,
     modulesData,
     currentRouteTotals,
     clientRouteTotals,
@@ -319,6 +352,7 @@ function useAnalyzerModel(compare: boolean) {
     setEnvironmentFilter: routeState.setEnvironmentFilter,
     setFocusedSourceIndex,
     setHoveredNodeInfo,
+    setInitialLoaded,
     setIsMouseInTreemap,
     setSearchQuery: setSearchInput,
     setSelectedSourceIndex,
@@ -389,6 +423,8 @@ function AnalyzerTopBar({
           ? model.clientRouteTotals
           : model.serverRouteTotals
       }
+      initialLoaded={model.initialLoaded}
+      onInitialLoadedChange={model.setInitialLoaded}
     />
   )
 }
@@ -656,6 +692,11 @@ function SingleAnalyzerContent({
             useCompressed
             nameHeading="Source"
             mode="single"
+            getLoadScope={(row) =>
+              row.sourceIndexB == null
+                ? 'unknown'
+                : (model.sourceLoadScopes.get(row.sourceIndexB) ?? 'unknown')
+            }
             searchQuery={model.searchQuery}
             emptyState={alternateEnvironmentEmptyState}
             onRowSelect={(row) => {
@@ -683,6 +724,10 @@ function SingleAnalyzerContent({
             searchQuery={model.searchQuery}
             filterSource={model.filterSource}
             sizeMode={SizeMode.Compressed}
+            getFileLoadScope={(sourceIndex) =>
+              model.sourceLoadScopes.get(sourceIndex) ?? 'unknown'
+            }
+            overlay={<AsyncScopeLegend />}
           />
         )}
       </div>
@@ -702,6 +747,34 @@ function SingleAnalyzerContent({
         filterSource={model.filterSource}
       />
     </>
+  )
+}
+
+function AsyncScopeLegend() {
+  return (
+    <TooltipProvider>
+      <div className="absolute bottom-3 left-3 flex items-center gap-3 rounded border border-border bg-background/95 px-2.5 py-1.5 text-xs shadow-sm">
+        <span className="flex items-center gap-1.5">
+          <span className="h-3 w-3 border border-foreground/40 bg-[repeating-linear-gradient(135deg,transparent_0,transparent_3px,currentColor_3px,currentColor_4px)] text-foreground/45" />
+          Behind async boundary
+        </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              className="flex items-center gap-1.5 rounded-sm text-left focus-visible:outline-2 focus-visible:outline-offset-2"
+            >
+              <span className="relative h-3 w-3 border border-foreground/40 after:absolute after:right-0 after:top-0 after:h-0 after:w-0 after:border-l-[5px] after:border-t-[5px] after:border-l-transparent after:border-t-foreground/60" />
+              Initial + async paths
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="top">
+            This file is reachable both during the initial load and behind an
+            async boundary.
+          </TooltipContent>
+        </Tooltip>
+      </div>
+    </TooltipProvider>
   )
 }
 
