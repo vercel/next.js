@@ -3,13 +3,20 @@ import { randomUUID } from 'crypto'
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
 import { dirname, join, resolve as resolvePath } from 'path'
-import { major, prerelease, valid } from 'next/dist/compiled/semver'
+import {
+  lte,
+  major,
+  prerelease,
+  rcompare,
+  valid,
+} from 'next/dist/compiled/semver'
 import * as Log from '../build/output/log'
 import createSpinner from '../build/spinner'
 import { findDir } from '../lib/find-pages-dir'
 import { getProjectDir } from '../lib/get-project-dir'
 import { warnMissingReactDependencies } from '../lib/warn-missing-react-dependencies'
 import { getNpxCommand } from '../lib/helpers/get-npx-command'
+import { getReleaseAgePolicy } from '../lib/helpers/get-release-age-policy'
 import { interopDefault } from '../lib/interop-default'
 import { dim } from '../lib/picocolors'
 import type { UpgradeDocument } from '../lib/upgrade/future-defaults'
@@ -144,29 +151,57 @@ async function loadAgentUpgradeConfig(directory: string) {
   return normalizeConfig(PHASE_PRODUCTION_BUILD, interopDefault(rawConfig))
 }
 
-async function resolveCanaryVersion(): Promise<string> {
+async function resolveCanaryVersion(directory: string): Promise<string> {
+  const policy = getReleaseAgePolicy(directory)
   try {
-    const response = await fetch('https://registry.npmjs.org/next/canary', {
-      signal: AbortSignal.timeout(10_000),
-      cache: 'no-store',
-      redirect: 'error',
-    })
+    // Full metadata includes the publication times needed to respect an age gate.
+    const ageGated = policy.minimumReleaseAge > 0
+    const response = await fetch(
+      `https://registry.npmjs.org/next${ageGated ? '' : '/canary'}`,
+      {
+        signal: AbortSignal.timeout(10_000),
+        cache: 'no-store',
+        redirect: 'error',
+      }
+    )
 
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`)
     }
 
-    const { version } = await response.json()
+    const metadata = await response.json()
+    const version = ageGated ? metadata['dist-tags']?.canary : metadata.version
     if (typeof version !== 'string' || valid(version) !== version) {
       throw new Error('Invalid canary version')
     }
 
-    return version
+    if (!ageGated || policy.isExcluded(version)) {
+      return version
+    }
+
+    // Pin the newest eligible canary without relying on manager-specific tag fallback.
+    const cutoff =
+      policy.publishedBefore ?? Date.now() - policy.minimumReleaseAge
+    const eligibleVersion = Object.keys(metadata.versions)
+      .filter((candidate) => {
+        return (
+          valid(candidate) === candidate &&
+          prerelease(candidate)?.[0] === 'canary' &&
+          lte(candidate, version) &&
+          (policy.isExcluded(candidate) ||
+            Date.parse(metadata.time?.[candidate]) <= cutoff)
+        )
+      })
+      .sort(rcompare)[0]
+    if (eligibleVersion) {
+      return eligibleVersion
+    }
   } catch (error) {
     throw new Error('Could not fetch the latest Next.js canary from npm.', {
       cause: error,
     })
   }
+  throw new Error('No Next.js canary satisfies the minimum release age.')
 }
 
 export async function spawnNextUpgrade(
@@ -288,7 +323,7 @@ export async function spawnNextUpgrade(
       } else {
         Log.info(dim('Preparing upgrade...'))
         failureStage = 'metadata'
-        const canaryVersion = await resolveCanaryVersion()
+        const canaryVersion = await resolveCanaryVersion(baseDir)
         failureStage = 'cli'
         if (process.env.__NEXT_VERSION !== canaryVersion) {
           const [command, ...runnerArgs] = getNpxCommand(baseDir).split(' ')
