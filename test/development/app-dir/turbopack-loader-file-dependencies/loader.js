@@ -16,6 +16,19 @@ const loader = async function (content) {
   }
 
   const resourceName = path.basename(this.resourcePath)
+  if (resourceName === 'native-build-dependency.ts') {
+    // Model a native addon already loaded by Node outside the project's watched roots.
+    const { Module } = require('node:module')
+    const filename = process.env.NATIVE_BUILD_DEPENDENCY
+    const nativeModule = new Module(filename, module)
+    nativeModule.filename = filename
+    nativeModule.loaded = true
+    require.cache[filename] = nativeModule
+    return this.callback(
+      null,
+      `export const utilFn = () => ${JSON.stringify(fs.readFileSync(filename, 'utf8'))};`
+    )
+  }
   if (resourceName === 'dynamic-build-dependency.ts') {
     const dependency = process.env.DYNAMIC_BUILD_DEPENDENCY
     this.addBuildDependency(require.resolve(dependency))

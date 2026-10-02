@@ -1,13 +1,23 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'fs'
+import { tmpdir } from 'os'
+import { join } from 'path'
 
 describe('turbopack-loader-file-dependencies', () => {
+  const nativeDependencyDirectory = mkdtempSync(
+    join(realpathSync(tmpdir()), 'loader-build-dependency-')
+  )
+  const nativeDependency = join(nativeDependencyDirectory, 'addon.node')
+  writeFileSync(nativeDependency, 'native-one')
+
   const { next } = nextTestSetup({
     files: __dirname,
     env: {
       // Do not let optional loader dependencies resolve from the repository's pnpm installation.
       NODE_PATH: '',
       DYNAMIC_BUILD_DEPENDENCY: './tracking/dynamic.js',
+      NATIVE_BUILD_DEPENDENCY: nativeDependency,
     },
     dependencies: {
       'build-dependency-esm-package': 'file:./build-dependency-esm-package',
@@ -19,6 +29,10 @@ describe('turbopack-loader-file-dependencies', () => {
       stylus: '0.64.0',
       'stylus-loader': '9.0.0',
     },
+  })
+
+  afterAll(() => {
+    rmSync(nativeDependencyDirectory, { recursive: true, force: true })
   })
 
   it('should update when the dependency file changes', async () => {
@@ -36,6 +50,15 @@ describe('turbopack-loader-file-dependencies', () => {
       const newText = $2('p').text()
       expect(newText).not.toBe(initialText)
     })
+  })
+
+  it('does not warn for a loaded native dependency outside the configured roots', async () => {
+    const outputIndex = next.cliOutput.length
+    const $ = await next.render$('/native')
+    expect($('p').text()).toBe('native-one')
+    expect(next.cliOutput.slice(outputIndex)).not.toMatch(
+      /Unable to resolve webpack loader build dependency|Resolver error/
+    )
   })
 
   it('should update when a missing dependency is created', async () => {
