@@ -11,17 +11,19 @@ describe('app-dir - no server actions', () => {
     {
       description: 'a malformed id',
       actionId: 'abc123',
+      expectedStatus: 400,
       expectedError:
         'The Server Reference ID did not match the expected format. Received "abc123".\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action',
     },
     {
       description: 'a plausible but missing id',
       actionId: missingActionId,
+      expectedStatus: 409,
       expectedError: `Failed to find Server Action "${missingActionId}". This request might be from an older or newer deployment.\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action`,
     },
   ])(
     'should error when triggering a fetch action with $description on an app with no server actions',
-    async ({ actionId, expectedError }) => {
+    async ({ actionId, expectedStatus, expectedError }) => {
       const res = await next.fetch('/', {
         method: 'POST',
         headers: {
@@ -29,7 +31,7 @@ describe('app-dir - no server actions', () => {
         },
       })
 
-      expect(res.status).toBe(404)
+      expect(res.status).toBe(expectedStatus)
       expect(res.headers.get('x-nextjs-action-not-found')).toBe('1')
 
       // Runtime logs and custom headers are not forwarded to the client when deployed.
@@ -52,7 +54,7 @@ describe('app-dir - no server actions', () => {
       body: formData,
     })
 
-    expect(res.status).toBe(404)
+    expect(res.status).toBe(409)
     expect(res.headers.get('x-nextjs-action-not-found')).toBe('1')
 
     // Runtime logs are not available when deployed.
