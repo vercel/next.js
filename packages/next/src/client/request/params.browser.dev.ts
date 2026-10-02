@@ -5,6 +5,7 @@ import {
   describeStringPropertyAccess,
   wellKnownProperties,
 } from '../../shared/lib/utils/reflect-utils'
+import { markPromiseAsFulfilled } from './mark-promise-as-fulfilled'
 
 interface CacheLifetime {}
 const CachedParams = new WeakMap<CacheLifetime, Promise<Params>>()
@@ -17,9 +18,6 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
     return cachedParams
   }
 
-  // We don't use makeResolvedReactPromise here because params
-  // supports copying with spread and we don't want to unnecessarily
-  // instrument the promise with spreadable properties of ReactPromise.
   const promise = Promise.resolve(underlyingParams)
 
   const proxiedProperties = new Set<string>()
@@ -57,6 +55,11 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
       return Reflect.ownKeys(target)
     },
   })
+
+  // This goes through the proxy, like it does when React tracks the promise, so
+  // that reading these fields later isn't mistaken for a sync access of a param
+  // with the same name.
+  markPromiseAsFulfilled(proxiedPromise, underlyingParams)
 
   CachedParams.set(underlyingParams, proxiedPromise)
   return proxiedPromise

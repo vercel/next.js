@@ -6,6 +6,7 @@ import {
   describeHasCheckingStringProperty,
   wellKnownProperties,
 } from '../../shared/lib/utils/reflect-utils'
+import { markPromiseAsFulfilled } from './mark-promise-as-fulfilled'
 
 interface CacheLifetime {}
 const CachedSearchParams = new WeakMap<CacheLifetime, Promise<SearchParams>>()
@@ -75,6 +76,11 @@ function makeUntrackedSearchParamsWithDevWarnings(
       return Reflect.ownKeys(target)
     },
   })
+
+  // This goes through the proxy, like it does when React tracks the promise, so
+  // that reading these fields later isn't mistaken for a sync access of a param
+  // with the same name.
+  markPromiseAsFulfilled(proxiedPromise, underlyingSearchParams)
 
   CachedSearchParams.set(underlyingSearchParams, proxiedPromise)
   return proxiedPromise

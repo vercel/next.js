@@ -11,6 +11,19 @@ import {
   createClientSearchParams,
 } from './client-boundary-params'
 
+// The identity of the parsed query is the cache key of the `searchParams`
+// promise that is passed to the Page, so it must not change on every render.
+const parsedUrlQueries = new WeakMap<URLSearchParams, ParsedUrlQuery>()
+
+function getParsedUrlQuery(urlSearchParams: URLSearchParams): ParsedUrlQuery {
+  let parsedUrlQuery = parsedUrlQueries.get(urlSearchParams)
+  if (parsedUrlQuery === undefined) {
+    parsedUrlQuery = urlSearchParamsToParsedUrlQuery(urlSearchParams)
+    parsedUrlQueries.set(urlSearchParams, parsedUrlQuery)
+  }
+  return parsedUrlQuery
+}
+
 /**
  * When the Page is a client component we send the params and searchParams to this client wrapper
  * where they are turned into dynamically tracked values before being passed to the actual Page component.
@@ -47,7 +60,7 @@ export function ClientPageRoot({
     // rewritten ones. Users should either call useSearchParams directly or pass
     // the rewritten ones in from a Server Component.
     // TODO: Log a deprecation error when this object is accessed
-    searchParams = urlSearchParamsToParsedUrlQuery(use(SearchParamsContext)!)
+    searchParams = getParsedUrlQuery(use(SearchParamsContext)!)
   }
 
   const clientSearchParams = createClientSearchParams(searchParams)
