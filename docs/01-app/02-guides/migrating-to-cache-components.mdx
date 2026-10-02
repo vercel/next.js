@@ -105,7 +105,7 @@ You don't have to migrate every route at once. The validation opt-out and UI-sta
    npx @next/codemod@canary cache-components-activity-reset ./app
    ```
 
-   This wraps every `page`, `layout`, and `default` in a temporary reset boundary. See the [`cache-components-activity-reset`](/docs/app/guides/upgrading/codemods#cache-components-activity-reset) codemod. The [Preserving UI state](/docs/app/guides/preserving-ui-state#keep-route-state-resetting-during-migration) guide explains how to remove the boundaries and replace broad resets with targeted ones.
+   This wraps every `page`, `layout`, and `default` below the root layout in a temporary reset boundary. See the [`cache-components-activity-reset`](/docs/app/guides/upgrading/codemods#cache-components-activity-reset) codemod. The [Preserving UI state](/docs/app/guides/preserving-ui-state#keep-route-state-resetting-during-migration) guide explains how to remove the boundaries and replace broad resets with targeted ones.
 
    > **Good to know**: For either codemod, pass `./src/app` in a `src/` project. A wrong path reports `0 ok` instead of failing, so check the file count. Both codemods leave `TODO: Cache Components adoption` comments as route-by-route work queues.
 

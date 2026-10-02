@@ -54,6 +54,18 @@ function isRouteSegment(path: string) {
   )
 }
 
+/**
+ * The root layout's segment is never recreated by a navigation, so its
+ * `bfcacheId` never changes and a wrapper there would only add a Client
+ * Component boundary above `<html>`.
+ */
+function isRootLayout(path: string, appDirectory: string) {
+  return (
+    /(^|[/\\])layout\.(js|jsx|ts|tsx)$/.test(path) &&
+    resolve(dirname(path)) === resolve(appDirectory)
+  )
+}
+
 function getAppDirectory(path: string) {
   const normalizedPath = path.replace(/\\/g, '/')
   const segments = normalizedPath.split('/')
@@ -128,21 +140,7 @@ function writeResetComponent(appDirectory: string) {
     return
   }
 
-  try {
-    writeFileSync(resetFile, resetSource, { flag: 'wx' })
-  } catch (error: any) {
-    if (error?.code !== 'EEXIST') throw error
-
-    const existingSource = readFileSync(resetFile, 'utf8')
-    if (
-      !existingSource.includes(`export function ${RESET_COMPONENT_NAME}`) ||
-      !existingSource.includes('const { bfcacheId } = useRouter()')
-    ) {
-      throw new Error(
-        `Could not use ${resetFile} because it does not export a compatible ${RESET_COMPONENT_NAME} component.`
-      )
-    }
-  }
+  writeFileSync(resetFile, resetSource)
 }
 
 export default function transformer(
@@ -155,7 +153,7 @@ export default function transformer(
   }
 
   const appDirectory = getAppDirectory(file.path)
-  if (!appDirectory) {
+  if (!appDirectory || isRootLayout(file.path, appDirectory)) {
     return file.source
   }
 
@@ -288,6 +286,12 @@ export default function transformer(
     )
   }
 
+  // Returning nothing renders nothing, so there is no state to reset.
+  const rendersNothing = (expression: any) =>
+    expression.type === 'NullLiteral' ||
+    (expression.type === 'Literal' && expression.value === null) ||
+    (expression.type === 'Identifier' && expression.name === 'undefined')
+
   const component = componentPath.node
   let wrappedReturn = false
 
@@ -295,11 +299,14 @@ export default function transformer(
     component.type === 'ArrowFunctionExpression' &&
     component.body.type !== 'BlockStatement'
   ) {
-    component.body = wrapExpression(component.body)
-    wrappedReturn = true
+    if (!rendersNothing(component.body)) {
+      component.body = wrapExpression(component.body)
+      wrappedReturn = true
+    }
   } else {
     root.find(j.ReturnStatement).forEach((returnPath) => {
       if (!returnPath.node.argument) return
+      if (rendersNothing(returnPath.node.argument)) return
 
       let parentPath = returnPath.parentPath
       while (parentPath && parentPath.node !== component) {

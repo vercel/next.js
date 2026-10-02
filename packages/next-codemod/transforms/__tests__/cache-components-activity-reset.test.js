@@ -59,6 +59,37 @@ export default function Layout({ children }: { children: ReactNode }) {
   })
 
   it('wraps a parenthesized multi-line return without stray parentheses', () => {
+    const source = `export default function Layout({ children }) {
+  return (
+    <section>
+      <nav>Dashboard</nav>
+      {children}
+    </section>
+  )
+}
+`
+
+    const output = transform('/project/app/dashboard/layout.tsx', source)
+    expect(output).not.toMatch(/>\(</)
+    expect(output).not.toMatch(/>\)</)
+    expect(output).toMatchInlineSnapshot(`
+"// TODO: Cache Components adoption. Remove this wrapper after verifying this route no longer relies on unmounting to reset state.
+// See: https://nextjs.org/docs/app/guides/preserving-ui-state
+import { CacheComponentsActivityReset } from \"../_next-cache-components/activity-reset\";
+
+export default function Layout({ children }) {
+  return (
+    <CacheComponentsActivityReset><section>
+        <nav>Dashboard</nav>
+        {children}
+      </section></CacheComponentsActivityReset>
+  );
+}
+"
+`)
+  })
+
+  it('leaves the root layout unchanged', () => {
     const source = `export default function RootLayout({ children }) {
   return (
     <html lang="en">
@@ -68,23 +99,28 @@ export default function Layout({ children }: { children: ReactNode }) {
 }
 `
 
-    const output = transform('/project/app/layout.tsx', source)
-    expect(output).not.toMatch(/>\(</)
-    expect(output).not.toMatch(/>\)</)
-    expect(output).toMatchInlineSnapshot(`
-"// TODO: Cache Components adoption. Remove this wrapper after verifying this route no longer relies on unmounting to reset state.
-// See: https://nextjs.org/docs/app/guides/preserving-ui-state
-import { CacheComponentsActivityReset } from \"./_next-cache-components/activity-reset\";
+    expect(transform('/project/app/layout.tsx', source)).toBe(source)
+    expect(transform('/project/src/app/layout.tsx', source)).toBe(source)
+  })
 
-export default function RootLayout({ children }) {
-  return (
-    <CacheComponentsActivityReset><html lang=\"en\">
-        <body>{children}</body>
-      </html></CacheComponentsActivityReset>
-  );
+  it('does not wrap returns that render nothing', () => {
+    const source = `export default function Page({ ready }) {
+  if (!ready) return null
+  return <p>Ready</p>
 }
-"
-`)
+`
+
+    const output = transform('/project/app/page.tsx', source)
+    expect(output).toContain('if (!ready) return null')
+    expect(output).toContain(
+      'return <CacheComponentsActivityReset><p>Ready</p></CacheComponentsActivityReset>;'
+    )
+
+    const onlyNull = `export default function Page() {
+  return null
+}
+`
+    expect(transform('/project/app/page.tsx', onlyNull)).toBe(onlyNull)
   })
 
   it('wraps each top-level return without touching nested functions', () => {
@@ -100,7 +136,7 @@ export default function RootLayout({ children }) {
 
     const output = transform('/project/app/page.tsx', source)
     expect(output).toContain(
-      'if (!ready) return <CacheComponentsActivityReset>{null}</CacheComponentsActivityReset>;'
+      'if (!ready) return null'
     )
     expect(output).toContain(
       'return <CacheComponentsActivityReset><p>{getLabel()}</p></CacheComponentsActivityReset>;'
