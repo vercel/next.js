@@ -51,15 +51,17 @@ npx next@canary upgrade --agent
 
 ### Adopt future defaults
 
-The `experimental-future` policy adopts new defaults even when the app already uses the latest Next.js version. For eligible App Router projects on Next.js 16.3 or later, the command currently prepares the [Cache Components](/docs/app/guides/migrating-to-cache-components) guide and adoption Skill:
+Future Defaults are features Next.js plans to enable by default, such as Cache Components and Partial Prefetching. The `experimental-future` policy is an early version of how upgrades will help apps adopt them, even when the app already uses the latest Next.js version. Moving to a new default then becomes part of the upgrade instead of a separate migration.
+
+For App Router projects on Next.js 16.3 or later, the policy currently prepares the Cache Components guide and adoption Skill:
 
 ```bash filename="Terminal"
 npx next@canary upgrade --agent=experimental-future
 ```
 
-Pages Router projects can use `experimental-future` for version upgrades, but the command does not offer Cache Components until the project uses the App Router.
+Pages Router projects can use it for version upgrades, but it does not offer Cache Components until the project uses the App Router.
 
-Partial Prefetching is not part of this policy yet. After the agent adopts Cache Components, enable it by following [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching).
+To adopt new features today, use their adoption Skills directly. See [Migrating to Cache Components](/docs/app/guides/migrating-to-cache-components#use-the-adoption-skill-recommended) and [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching#use-the-adoption-skill-recommended).
 
 ## What the command does
 
