@@ -1,10 +1,4 @@
 const path = require('path')
-
-// This app loads its config from packages/www, bypassing the root config's alias.
-if (process.env.NEXT_PRIVATE_TEST_MODE) {
-  process.env.__NEXT_TEST_MODE = process.env.NEXT_PRIVATE_TEST_MODE
-}
-
 module.exports = {
   webpack: function (config, { defaultLoaders }) {
     const resolvedBaseUrl = path.resolve(config.context, '../../')

@@ -5,8 +5,9 @@ const deploymentTestFlags = [
 ]
 
 /**
- * Capture test flags in the deployed config because Vercel environment variable
- * names cannot start with an underscore. This runs in the local test harness.
+ * Capture experimental test flags and restore the test-mode alias in the deployed
+ * config because Vercel environment variable names cannot start with an
+ * underscore. This runs in the local test harness.
  */
 export function getDeploymentTestEnvAssignments(): string {
   let assignments = ''
@@ -16,5 +17,13 @@ export function getDeploymentTestEnvAssignments(): string {
       assignments += `process.env.${flag} = ${JSON.stringify(value)}\n`
     }
   }
-  return assignments
+  return (
+    assignments +
+    `
+// Restore test mode from the alias supplied to the remote build.
+if (process.env.NEXT_PRIVATE_TEST_MODE) {
+  process.env.__NEXT_TEST_MODE = process.env.NEXT_PRIVATE_TEST_MODE
+}
+`
+  )
 }

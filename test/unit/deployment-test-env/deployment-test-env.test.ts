@@ -1,6 +1,47 @@
 import { runInNewContext } from 'vm'
 import { getDeploymentTestEnvAssignments } from '../../lib/e2e-utils/deployment-test-env'
 
+describe('deployment test mode', () => {
+  beforeEach(() => {
+    jest.replaceProperty(process, 'env', {
+      ...process.env,
+      __NEXT_CACHE_COMPONENTS: '',
+      __NEXT_PARTIAL_PREFETCHING: '',
+      __NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS: '',
+      __NEXT_TEST_MODE: 'jest',
+      NEXT_PRIVATE_TEST_MODE: 'local-value',
+    })
+  })
+
+  afterEach(() => {
+    jest.restoreAllMocks()
+  })
+
+  it('restores test mode from the remote alias instead of capturing the local mode', () => {
+    const assignments = getDeploymentTestEnvAssignments()
+    const env = { NEXT_PRIVATE_TEST_MODE: 'e2e' }
+
+    runInNewContext(assignments, { process: { env } })
+
+    expect(env).toEqual({
+      NEXT_PRIVATE_TEST_MODE: 'e2e',
+      __NEXT_TEST_MODE: 'e2e',
+    })
+  })
+
+  it.each(['', undefined])(
+    'preserves the existing test mode when the remote alias is %j',
+    (value) => {
+      const env: Record<string, string> = { __NEXT_TEST_MODE: 'existing-mode' }
+      if (value !== undefined) env.NEXT_PRIVATE_TEST_MODE = value
+
+      runInNewContext(getDeploymentTestEnvAssignments(), { process: { env } })
+
+      expect(env.__NEXT_TEST_MODE).toBe('existing-mode')
+    }
+  )
+})
+
 describe.each([
   '__NEXT_CACHE_COMPONENTS',
   '__NEXT_PARTIAL_PREFETCHING',
