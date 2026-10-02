@@ -1,0 +1,10 @@
+{
+  "name": "universal-module",
+  "private": true,
+  "imports": {
+    "#universal": {
+      "react-server": "./app/_universal/server.ts",
+      "default": "./app/_universal/client.ts"
+    }
+  }
+}
