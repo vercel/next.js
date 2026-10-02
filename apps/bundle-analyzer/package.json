@@ -5,8 +5,7 @@
   "scripts": {
     "build": "cross-env NEXT_TEST_NATIVE_IGNORE_LOCAL_INSTALL=true NEXT_TEST_WASM= next build --no-mangling",
     "dev": "cross-env NEXT_TEST_NATIVE_IGNORE_LOCAL_INSTALL=true next dev",
-    "lint": "eslint .",
-    "start": "cross-env NEXT_TEST_NATIVE_IGNORE_LOCAL_INSTALL=true next start"
+    "lint": "eslint ."
   },
   "dependencies": {
     "@radix-ui/react-dialog": "1.1.4",
@@ -20,7 +19,7 @@
     "clsx": "^2.1.1",
     "cmdk": "1.0.4",
     "lucide-react": "^0.554.0",
-    "next": "16.2.3",
+    "next": "16.4.0-canary.31",
     "next-themes": "^0.4.6",
     "polished": "^4.3.1",
     "react": "19.2.0",

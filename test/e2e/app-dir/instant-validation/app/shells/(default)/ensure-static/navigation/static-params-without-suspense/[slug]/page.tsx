@@ -5,7 +5,7 @@ import {
 } from '../../../_base/static-params-without-suspense/[slug]/page.base'
 
 export const prefetch = 'partial'
-export const unstable_ensureStatic = 'navigation'
+export const ensureStatic = 'navigation'
 
 export const instant: Instant = {
   level: 'experimental-error',

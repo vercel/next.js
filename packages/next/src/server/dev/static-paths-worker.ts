@@ -114,7 +114,7 @@ export async function loadStaticPaths({
 
   if (isAppPath) {
     const routeModule = components.routeModule
-    const segments = await collectSegments(
+    const { segments, segmentTree } = await collectSegments(
       // We know this is an app page or app route module because we checked
       // above that the page type is 'app'.
       routeModule as AppPageRouteModule | AppRouteRouteModule,
@@ -137,9 +137,7 @@ export async function loadStaticPaths({
     const isEnsureStaticPage =
       config.cacheComponents &&
       isRoutePPREnabled &&
-      segments.some(
-        (segment) => segment.config?.unstable_ensureStatic === 'navigation'
-      )
+      segments.some((segment) => segment.config?.ensureStatic === 'navigation')
 
     const rootParamKeys = collectRootParamKeys(routeModule)
 
@@ -149,6 +147,7 @@ export async function loadStaticPaths({
       route,
       cacheComponents: config.cacheComponents,
       segments,
+      segmentTree,
       distDir,
       requestHeaders,
       cacheHandler,

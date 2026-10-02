@@ -6,11 +6,11 @@ import {
 } from 'e2e-utils/instant-validation'
 import { waitForNoErrorToast } from '../../../lib/next-test-utils'
 
+// @force-gate !deploy
 describe('instant validation - level error', () => {
   const { next, skipped, isNextDev, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
     env: {
       NEXT_TEST_LOG_VALIDATION: '1',
     },

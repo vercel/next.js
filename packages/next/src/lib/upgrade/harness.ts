@@ -8,6 +8,7 @@ import spawn from 'next/dist/compiled/cross-spawn'
 
 import * as Log from '../../build/output/log'
 import { getAgentName } from '../../telemetry/agent-name'
+import type { AgentUpgradeHandoffMethod } from '../../telemetry/events/agent-upgrade'
 import { bold, cyan, dim } from '../picocolors'
 import { runChildProcess } from './run-child-process'
 
@@ -269,7 +270,10 @@ async function chooseHarness(
   return id === 'copy' ? 'copy' : harnesses.find(({ name }) => name === id)
 }
 
-function copyUpgradePrompt(prompt: string, noHarness = false): void {
+function copyUpgradePrompt(
+  prompt: string,
+  noHarness: boolean
+): AgentUpgradeHandoffMethod {
   const commands =
     process.platform === 'darwin'
       ? [['pbcopy']]
@@ -296,7 +300,7 @@ function copyUpgradePrompt(prompt: string, noHarness = false): void {
           ? 'No supported coding agent found. The upgrade prompt was copied to your clipboard.'
           : 'Upgrade prompt copied. Paste it into your coding agent.'
       )
-      return
+      return 'copied_prompt'
     }
   }
 
@@ -306,6 +310,7 @@ function copyUpgradePrompt(prompt: string, noHarness = false): void {
       : 'Could not access the clipboard. Copy this upgrade prompt:'
   )
   Log.bootstrap(prompt)
+  return 'printed_prompt'
 }
 
 function launchHarness(
@@ -314,7 +319,8 @@ function launchHarness(
   directory: string,
   model: string | null,
   effort: string,
-  permissionArgs: readonly string[]
+  permissionArgs: readonly string[],
+  onSpawn: () => void
 ): Promise<number> {
   // Windows shell shims cannot carry literal line breaks in an argument.
   if (process.platform === 'win32' && /\.(cmd|bat)$/i.test(harness.path)) {
@@ -331,34 +337,49 @@ function launchHarness(
   }
   args.push(...permissionArgs)
   args.push(prompt)
-  return runChildProcess(harness.path, args, {
-    cwd: directory,
-    stdio: 'inherit',
-  })
+  return runChildProcess(
+    harness.path,
+    args,
+    {
+      cwd: directory,
+      stdio: 'inherit',
+    },
+    onSpawn
+  )
 }
 
 export async function handoffUpgrade(
   prompt: UpgradePrompt,
-  directory: string
-): Promise<void> {
+  directory: string,
+  onHandoff:
+    | ((
+        method: AgentUpgradeHandoffMethod,
+        selectedAgentProduct: string | null
+      ) => void)
+    | null
+): Promise<'handed_off' | 'cancelled' | 'failed'> {
   // Existing agents keep their session and permissions.
-  if (await getAgentName()) {
+  const existingAgent = await getAgentName()
+  if (existingAgent) {
     Log.bootstrap(resolvePrompt(prompt, null))
-    return
+    onHandoff?.('existing_agent', existingAgent)
+    return 'handed_off'
   }
 
   if (!process.stdin.isTTY || !process.stdout.isTTY) {
     Log.info('Copy this upgrade prompt into your coding agent:')
     Log.bootstrap(resolvePrompt(prompt, null))
-    return
+    onHandoff?.('printed_prompt', null)
+    return 'handed_off'
   }
 
   Log.info(dim('Looking for coding agents...'))
   const installed = await findHarnesses()
 
   if (installed.length === 0) {
-    copyUpgradePrompt(resolvePrompt(prompt, null), true)
-    return
+    const method = copyUpgradePrompt(resolvePrompt(prompt, null), true)
+    onHandoff?.(method, null)
+    return 'handed_off'
   }
 
   let stage: 'harness' | 'model' | 'effort' | 'permission' | 'worktree' =
@@ -381,8 +402,9 @@ export async function handoffUpgrade(
     if (stage === 'harness') {
       const choice = await chooseHarness(installed, harness?.name)
       if (choice === 'copy') {
-        copyUpgradePrompt(resolvePrompt(prompt, null))
-        return
+        const method = copyUpgradePrompt(resolvePrompt(prompt, null), false)
+        onHandoff?.(method, null)
+        return 'handed_off'
       }
       if (!choice) {
         break
@@ -406,7 +428,7 @@ export async function handoffUpgrade(
           'No supported models were found for the selected coding agent.'
         )
         process.exitCode = 1
-        return
+        return 'failed'
       }
       const previousModelId = model?.id
       const modelId = await chooseOption(
@@ -465,7 +487,7 @@ export async function handoffUpgrade(
         if (!approvalMode) {
           Log.error('Could not determine a supported Claude approval mode.')
           process.exitCode = 1
-          return
+          return 'failed'
         }
         autoPermissionArgs = auto ? ['--permission-mode', 'auto'] : null
         approvalPermissionArgs = ['--permission-mode', approvalMode]
@@ -508,6 +530,9 @@ export async function handoffUpgrade(
       Log.bootstrap(
         `  Continuing with ${cyan(bold(getHarnessDisplayName(harness!.name)))}...\n`
       )
+      // Capture the selected agent before the launch callback runs.
+      const agentProduct = harness!.name
+
       try {
         process.exitCode = await launchHarness(
           harness!,
@@ -515,16 +540,19 @@ export async function handoffUpgrade(
           directory,
           model?.id ?? null,
           effort!,
-          permissionArgs
+          permissionArgs,
+          () => onHandoff?.('launched_agent', agentProduct)
         )
       } catch {
         Log.error(`Could not start ${getHarnessDisplayName(harness!.name)}.`)
         process.exitCode = 1
+        return 'failed'
       }
-      return
+      return 'handed_off'
     }
   }
 
   Log.bootstrap(`  ${dim('Upgrade cancelled.')}\n`)
   process.exitCode = 1
+  return 'cancelled'
 }

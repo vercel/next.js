@@ -18,7 +18,7 @@ use turbo_tasks::{
 
 use crate::{
     GitVersionInfo,
-    backend::{AnyOperation, SpecificTaskDataCategory, TtlCounter, storage_schema::TaskStorage},
+    backend::{SpecificTaskDataCategory, TtlCounter, storage_schema::TaskStorage},
     backing_storage::{SnapshotItem, SnapshotMeta, compute_task_type_hash_from_components},
     database::{
         db_invalidation::{StartupCacheState, check_db_invalidation_and_cleanup, invalidate_db},
@@ -34,9 +34,8 @@ use crate::{
 #[derive(Clone, Copy)]
 #[repr(u8)]
 enum InfraKey {
-    Operations = 0,
-    NextFreeTaskId = 1,
-    GcRoots = 2,
+    NextFreeTaskId = 0,
+    GcRoots = 1,
 }
 
 impl InfraKey {
@@ -237,19 +236,6 @@ impl TurboBackingStorage {
             .map_or(Ok(TaskId::MIN), TaskId::try_from)?)
     }
 
-    pub(crate) fn uncompleted_operations(&self) -> Result<Vec<AnyOperation>> {
-        fn get(database: &TurboKeyValueDatabase) -> Result<Vec<AnyOperation>> {
-            let Some(operations) =
-                database.get(KeySpace::Infra, InfraKey::Operations.key().as_ref())?
-            else {
-                return Ok(Vec::new());
-            };
-            let operations = turbo_bincode_decode(operations.borrow())?;
-            Ok(operations)
-        }
-        get(&self.inner.database).context("Unable to read uncompleted operations from database")
-    }
-
     /// Reads the persisted GC roots set (see [`InfraKey::GcRoots`]). Empty on a fresh database.
     pub(crate) fn roots(&self) -> Result<Vec<(TaskId, TtlCounter)>> {
         fn get(database: &TurboKeyValueDatabase) -> Result<Vec<(TaskId, TtlCounter)>> {
@@ -265,14 +251,13 @@ impl TurboBackingStorage {
 
     pub(crate) fn save_snapshot<I>(
         &self,
-        operations: Vec<Arc<AnyOperation>>,
         roots: Option<Vec<(TaskId, TtlCounter)>>,
         snapshots: Vec<I>,
     ) -> Result<SnapshotMeta>
     where
         I: IntoIterator<Item = SnapshotItem> + Send + Sync,
     {
-        let _span = tracing::info_span!("save snapshot", operations = operations.len()).entered();
+        let _span = tracing::info_span!("save snapshot").entered();
         let batch = self.inner.database.write_batch()?;
 
         {
@@ -367,7 +352,7 @@ impl TurboBackingStorage {
             let mut next_task_id = get_next_free_task_id(&batch)?;
             next_task_id = next_task_id.max(snapshot_meta.max_next_task_id + 1);
 
-            save_infra(&batch, next_task_id, operations, roots)?;
+            save_infra(&batch, next_task_id, roots)?;
             {
                 let _span = tracing::trace_span!("commit").entered();
                 // Byte totals are the physical on-disk bytes (post-compression, including .sst /
@@ -494,7 +479,6 @@ fn get_next_free_task_id(batch: &TurboWriteBatch<'_>) -> Result<u32, anyhow::Err
 fn save_infra(
     batch: &TurboWriteBatch<'_>,
     next_task_id: u32,
-    operations: Vec<Arc<AnyOperation>>,
     roots: Option<Vec<(TaskId, TtlCounter)>>,
 ) -> Result<(), anyhow::Error> {
     batch
@@ -504,19 +488,6 @@ fn save_infra(
             WriteBuffer::Borrowed(&next_task_id.to_le_bytes()),
         )
         .context("Unable to write next free task id")?;
-    {
-        let _span =
-            tracing::trace_span!("update operations", operations = operations.len()).entered();
-        let operations =
-            turbo_bincode_encode(&operations).context("Unable to serialize operations")?;
-        batch
-            .put(
-                KeySpace::Infra,
-                WriteBuffer::Borrowed(InfraKey::Operations.key().as_ref()),
-                WriteBuffer::SmallVec(operations),
-            )
-            .context("Unable to write operations")?;
-    }
     if let Some(roots) = roots {
         let _span = tracing::trace_span!("update roots", roots = roots.len()).entered();
         let roots = turbo_bincode_encode(&roots).context("Unable to serialize GC roots")?;
@@ -731,7 +702,6 @@ mod tests {
 
         // Snapshot with no task data, just the one deletion.
         storage.save_snapshot(
-            Vec::new(),
             None,
             vec![vec![SnapshotItem::Delete {
                 task_id: deleted_id,

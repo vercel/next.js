@@ -1,10 +1,10 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// @force-gate !deploy
 describe('empty-generate-static-params', () => {
   const { next, isNextDev, isTurbopack, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
 
   if (skipped) {

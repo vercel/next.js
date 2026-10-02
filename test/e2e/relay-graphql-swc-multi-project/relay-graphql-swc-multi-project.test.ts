@@ -1,10 +1,12 @@
 import {
+  FileRef,
   nextTestSetup,
   isNextDev,
   isNextDeploy,
   type NextInstance,
 } from 'e2e-utils'
 import execa from 'execa'
+import { join } from 'path'
 import { shouldUseTurbopack } from 'next-test-utils'
 
 function relayCompilerValidate(next: NextInstance) {
@@ -24,6 +26,10 @@ describe('Relay Compiler Transform - Multi Project Config', () => {
   describe('project-a', () => {
     const { next } = nextTestSetup({
       files: __dirname,
+      overrideFiles: {
+        'vercel.json': new FileRef(join(__dirname, 'vercel-project-a.json')),
+      },
+      env: { ENABLE_EXPERIMENTAL_COREPACK: '1' },
       dependencies: {
         'relay-compiler': '21.0.1',
         'relay-runtime': '21.0.1',
@@ -64,6 +70,10 @@ describe('Relay Compiler Transform - Multi Project Config', () => {
   describe('project-b', () => {
     const { next } = nextTestSetup({
       files: __dirname,
+      overrideFiles: {
+        'vercel.json': new FileRef(join(__dirname, 'vercel-project-b.json')),
+      },
+      env: { ENABLE_EXPERIMENTAL_COREPACK: '1' },
       dependencies: {
         'relay-compiler': '21.0.1',
         'relay-runtime': '21.0.1',

@@ -847,6 +847,19 @@ function factoryNotAvailableMessage(
 }
 
 /**
+ * Returns a `file://` URL under a synthetic directory named after `root`
+ * (`ROOT` for the project root), for when the real filesystem path is unknown.
+ * The root name and path segments are percent-encoded so the result is always
+ * a valid file URI.
+ */
+function placeholderFileUrl(modulePath: string, root?: string): string {
+  return `file:///${encodeURIComponent(root ?? 'ROOT')}/${modulePath
+    .split('/')
+    .map(encodeURIComponent)
+    .join('/')}`
+}
+
+/**
  * A stub function to make `require` available but non-functional in ESM.
  */
 function requireStub(_moduleId: ModuleId): never {

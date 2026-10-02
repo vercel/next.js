@@ -14,7 +14,8 @@ use tempfile::TempDir;
 use turbo_persistence::{
     ArcBytes, BlockCache, CompactConfig, Compression, DbConfig as TpDbConfig, Entry, EntryValue,
     FamilyConfig, FamilyKind, MetaEntryFlags, SerialScheduler, StaticSortedFile,
-    StaticSortedFileMetaData, TurboPersistence, hash_key, write_static_stored_file,
+    StaticSortedFileMetaData, TurboPersistence, hash_key, shard::ShardBits,
+    write_static_stored_file,
 };
 use turbo_tasks_malloc::TurboMalloc;
 
@@ -625,6 +626,7 @@ fn prefill_multi_value_database(
             name: "test",
             kind: FamilyKind::MultiValue,
             compression: Compression::Lz4,
+            initial_shard_bits: ShardBits::new(0),
         }],
         ..TpDbConfig::new()
     };
@@ -701,6 +703,7 @@ fn open_multi_value_db(path: &Path) -> TurboPersistence<SerialScheduler, 1> {
             name: "test",
             kind: FamilyKind::MultiValue,
             compression: Compression::Lz4,
+            initial_shard_bits: ShardBits::new(0),
         }],
         ..TpDbConfig::new()
     };
@@ -862,6 +865,7 @@ fn bench_family_sharding(c: &mut Criterion) {
                     name,
                     kind: FamilyKind::SingleValue,
                     compression: Compression::Lz4,
+                    initial_shard_bits: ShardBits::new(0),
                 }
             }),
             ..TpDbConfig::new()
@@ -968,13 +972,12 @@ fn bench_compaction(c: &mut Criterion) {
                     |(_tempdir, db)| {
                         // Timed: run normal compaction
                         db.compact(&CompactConfig {
-                            min_merge_count: 3,
-                            optimal_merge_count: 8,
-                            max_merge_count: 64,
-                            max_merge_bytes: 512 * MB,
-                            min_merge_duplication_bytes: 50 * MB,
-                            optimal_merge_duplication_bytes: 100 * MB,
-                            max_merge_segment_count: 16,
+                            max_space_amplification_percent: 50,
+                            min_bottom_merge_bytes: 1024 * 1024,
+                            max_files_above_bottom: 6,
+                            rewrite_per_fresh_byte: 3.0,
+                            size_ratio_percent: 100,
+                            max_merge_jobs: 16,
                         })
                         .unwrap();
                         black_box(db)
@@ -1048,6 +1051,7 @@ fn bench_write_multi_value(c: &mut Criterion) {
                                 name: "test",
                                 kind: FamilyKind::MultiValue,
                                 compression: Compression::Lz4,
+                                initial_shard_bits: ShardBits::new(0),
                             }],
                             ..TpDbConfig::new()
                         };

@@ -150,6 +150,10 @@ export const conditions: Record<string, Condition> = {
   adapter: staticCondition('running the adapter test variant', () =>
     Boolean(process.env.NEXT_ENABLE_ADAPTER === '1')
   ),
+  nodeMiddleware: staticCondition(
+    'running the Node.js middleware test variant (`TEST_NODE_MIDDLEWARE`)',
+    () => Boolean(process.env.TEST_NODE_MIDDLEWARE)
+  ),
   standaloneOutput: staticCondition(
     'running the standalone-output test variant (`TEST_OUTPUT_STANDALONE`)',
     () => process.env.TEST_OUTPUT_STANDALONE === 'true'
@@ -175,6 +179,10 @@ export const conditions: Record<string, Condition> = {
   cacheComponents: lazyCondition(
     'Cache Components are enabled for the fixture',
     (config) => config.cacheComponents
+  ),
+  partialPrefetchingGlobal: lazyCondition(
+    'Partial Prefetching is enabled globally for the fixture (does not check `export const prefetch = "partial"`)',
+    (config) => config.partialPrefetching
   ),
   ppr: lazyCondition(
     'partial prerendering is enabled (implied by `cacheComponents`)',
