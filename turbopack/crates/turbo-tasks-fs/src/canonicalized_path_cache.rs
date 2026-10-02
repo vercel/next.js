@@ -65,8 +65,7 @@ impl CanonicalizedPathWalkCache {
     /// The result of `visit` is cached for each prefix, so every call on this cache must use a
     /// visitor with the same behavior for a given canonical path.
     ///
-    /// This is a helper for [`DiskFileSystem::resolve_path_ancestry_slow_path`] and
-    /// [`DiskFileSystem::lookup_in_file_system_map`].
+    /// This is a helper for [`DiskFileSystem::resolve_path_ancestry_slow_path`].
     pub(crate) async fn walk_canonicalized_ancestry(
         &self,
         target: &Path,
