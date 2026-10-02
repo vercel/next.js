@@ -149,10 +149,7 @@ pub struct RawVc(NonZeroU64);
 // RawVc serializes its packed integer directly, so TaskId's guards cannot check embedded task
 // ids. Keep the original serde newtype shape and bincode format while rejecting transient values.
 impl Serialize for RawVc {
-    fn serialize<S: serde::Serializer>(
-        &self,
-        serializer: S,
-    ) -> std::result::Result<S::Ok, S::Error> {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         debug_assert!(
             !self.is_transient(),
             "transient RawVc must not be serialized"
