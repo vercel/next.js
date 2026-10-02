@@ -10,7 +10,9 @@
     { "$ref": "#/$defs/output" },
     { "$ref": "#/$defs/part" },
     { "$ref": "#/$defs/unjoined" },
-    { "$ref": "#/$defs/group" }
+    { "$ref": "#/$defs/group" },
+    { "$ref": "#/$defs/load_edge" },
+    { "$ref": "#/$defs/unresolved" }
   ],
   "$defs": {
     "index": {
@@ -194,7 +196,7 @@
         },
         "coverage": {
           "type": "object",
-          "required": ["entries", "groups"],
+          "required": ["entries", "groups", "load_edges"],
           "properties": {
             "entries": {
               "enum": ["exact", "unknown"],
@@ -203,6 +205,10 @@
             "groups": {
               "enum": ["exact", "unknown"],
               "description": "Whether typed build-time groups were supplied; even exact group metadata does not identify observed initial requests."
+            },
+            "load_edges": {
+              "enum": ["exact", "unknown"],
+              "description": "Whether typed and unresolved output load relationships were supplied. Even exact build-time coverage does not prove requests; absent or unresolved edges cannot establish that no other load is possible."
             }
           },
           "additionalProperties": true,
@@ -220,7 +226,8 @@
         "route_index",
         "filename",
         "modules",
-        "coverage"
+        "coverage",
+        "unresolved_references"
       ],
       "properties": {
         "type": {
@@ -243,6 +250,10 @@
         "coverage": {
           "description": "Membership evidence: exact joins all enumerable JS/CSS chunk members; unsupported could not establish complete enumeration or joining (partial members may exist); not_a_chunk is outside JS/CSS chunk membership; unknown is missing evidence. Unsupported and unknown never mean an empty chunk.",
           "enum": ["exact", "unsupported", "not_a_chunk", "unknown"]
+        },
+        "unresolved_references": {
+          "description": "Count of references whose runtime load type is not explicit. A positive count prevents claiming exhaustive known load edges; null means unknown, not zero.",
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/index" }]
         }
       },
       "additionalProperties": true,
@@ -370,6 +381,98 @@
       },
       "additionalProperties": true,
       "description": "Build-time output grouping for a route occurrence; a file can belong to several groups and layout groups may be cumulative. Not the exact contribution or request set of one client reference."
+    },
+    "load_edge": {
+      "type": "object",
+      "required": [
+        "type",
+        "route",
+        "route_index",
+        "source_output",
+        "target_output",
+        "kind",
+        "trigger_module_ident",
+        "trigger_join"
+      ],
+      "properties": {
+        "type": {
+          "const": "load_edge",
+          "description": "Identifies a conditional build-time load relationship between emitted outputs."
+        },
+        "route": { "type": "string", "description": "Owning route key." },
+        "route_index": {
+          "$ref": "#/$defs/index",
+          "description": "Index of the owning route occurrence in this snapshot's routes.json; join route-local records by both route and route_index."
+        },
+        "source_output": {
+          "type": "string",
+          "description": "Emitted source output path in this route occurrence."
+        },
+        "target_output": {
+          "type": "string",
+          "description": "Emitted target output path; the edge does not prove an observed request."
+        },
+        "kind": {
+          "type": "string",
+          "description": "Build-time relation: async/async_manifest from loaders or manifests, worker_registration from an importer linked to a worker output, and asset_reference is a generic reference rather than proof of a request."
+        },
+        "trigger_module_ident": {
+          "type": ["string", "null"],
+          "description": "Exact importer identity when known; null means no joined trigger."
+        },
+        "trigger_join": {
+          "enum": ["joined", "unjoined", "none"],
+          "description": "Whether the trigger identity joined the indexed snapshot modules, is unjoined, or absent."
+        }
+      },
+      "additionalProperties": true,
+      "description": "Conditional build-time relation between outputs, not observed request timing. A missing edge does not establish that no load is possible, especially where unresolved references remain."
+    },
+    "unresolved": {
+      "type": "object",
+      "required": [
+        "type",
+        "route",
+        "route_index",
+        "source_output",
+        "target_path",
+        "kind",
+        "reason",
+        "trigger_module_ident"
+      ],
+      "properties": {
+        "type": {
+          "const": "unresolved",
+          "description": "Identifies a load relationship that could not be joined or classified exactly."
+        },
+        "route": { "type": "string", "description": "Owning route key." },
+        "route_index": {
+          "$ref": "#/$defs/index",
+          "description": "Index of the owning route occurrence in this snapshot's routes.json; join route-local records by both route and route_index."
+        },
+        "source_output": {
+          "type": ["string", "null"],
+          "description": "Source output path when associated with this route, or null if unknown."
+        },
+        "target_path": {
+          "type": "string",
+          "description": "Unresolved or out-of-route output target path, not an indexed output join or proof that this file was requested."
+        },
+        "kind": {
+          "type": "string",
+          "description": "Producer-reported build-time relationship kind for this unresolved reference; it does not establish an observed browser request."
+        },
+        "reason": {
+          "type": "string",
+          "description": "Why this load relationship could not be joined or classified exactly."
+        },
+        "trigger_module_ident": {
+          "type": ["string", "null"],
+          "description": "Exact trigger module identity when supplied for this unresolved relationship, not proof of a join to the global module table; null means no identity was supplied."
+        }
+      },
+      "additionalProperties": true,
+      "description": "A load relationship whose target or trigger could not be joined exactly (including out-of-route targets). Preserve it rather than treating missing exact edges as proof of no load."
     }
   }
 }

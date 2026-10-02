@@ -1793,12 +1793,25 @@ impl Endpoint for PageEndpoint {
             .await?
             .first()
             .map(|module| ResolvedVc::upcast(*module));
-        Ok(Vc::cell(vec![AnalyzeChunkGroup {
+        let workers =
+            service_worker_output_assets(this.pages_project.project(), self.client_module_graph())
+                .to_resolved()
+                .await?;
+        let mut groups = vec![AnalyzeChunkGroup {
             kind: rcstr!("bootstrap"),
             trigger: bootstrap,
             assets: client.assets,
             pages_html: true,
-        }]))
+        }];
+        if !workers.await?.is_empty() {
+            groups.push(AnalyzeChunkGroup {
+                kind: rcstr!("worker"),
+                trigger: None,
+                assets: workers,
+                pages_html: false,
+            });
+        }
+        Ok(Vc::cell(groups))
     }
 
     #[turbo_tasks::function]
