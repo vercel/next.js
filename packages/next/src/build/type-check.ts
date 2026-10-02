@@ -1,3 +1,4 @@
+import { uncork } from '../lib/upgrade-output'
 import type { NextConfigComplete } from '../server/config-shared'
 import type { Telemetry } from '../telemetry/storage'
 import type { Span } from '../trace'
@@ -83,11 +84,12 @@ function verifyAndRunTypeScript(
       typeCheckWorker?.end()
       return result
     })
-    .catch(() => {
+    .catch(async () => {
       // The error is already logged (in the worker for the API checker, or
       // directly for the in-process CLI checker); we simply exit to prevent the
       // `Jest worker encountered 1 child process exceptions, exceeding retry
       // limit` message from showing up.
+      await uncork()
       process.exit(1)
     })
 }
@@ -186,6 +188,7 @@ export async function startTypeChecking({
     // isn't helpful for users and clutters output
     if (isError(err) && err.message === 'Call retries were exceeded') {
       await telemetry.flush()
+      await uncork()
       process.exit(1)
     }
     throw err

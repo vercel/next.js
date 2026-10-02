@@ -1,5 +1,6 @@
 import {
   corkUpgradeOutput,
+  uncork,
   getUpgradeEnvironment,
   isUpgradeOutputManaged,
 } from '../lib/upgrade-output'
@@ -2586,7 +2587,7 @@ export default async function build(
                   : undefined
 
                 if (staticInfo?.hadUnsupportedValue) {
-                  errorFromUnsupportedSegmentConfig()
+                  await errorFromUnsupportedSegmentConfig()
                 }
 
                 // If there's any thing that would contribute to the functions
@@ -2999,7 +3000,7 @@ export default async function build(
         })
 
         if (staticInfo.hadUnsupportedValue) {
-          errorFromUnsupportedSegmentConfig()
+          await errorFromUnsupportedSegmentConfig()
         }
 
         if (staticInfo.runtime === 'nodejs' || isProxyFile(page)) {
@@ -3233,7 +3234,7 @@ export default async function build(
         const staticGenerationSpan =
           nextBuildSpan.traceChild('static-generation')
         await staticGenerationSpan.traceAsyncFn(async () => {
-          detectConflictingPaths(
+          await detectConflictingPaths(
             [
               ...combinedPages,
               ...pageKeys.pages.filter((page) => !combinedPages.includes(page)),
@@ -4975,10 +4976,11 @@ export default async function build(
   }
 }
 
-function errorFromUnsupportedSegmentConfig(): never {
+async function errorFromUnsupportedSegmentConfig(): Promise<never> {
   Log.error(
     `Invalid segment configuration export detected. This can cause unexpected behavior from the configs not being applied. You should see the relevant failures in the logs above. Please fix them to continue.`
   )
+  await uncork()
   process.exit(1)
 }
 

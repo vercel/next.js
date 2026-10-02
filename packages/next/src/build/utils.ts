@@ -1,3 +1,4 @@
+import { uncork } from '../lib/upgrade-output'
 import type {
   NextConfigComplete,
   NextConfigRuntime,
@@ -1264,7 +1265,7 @@ export async function getDefinedNamedExports({
   })
 }
 
-export function detectConflictingPaths(
+export async function detectConflictingPaths(
   combinedPages: string[],
   ssgPages: Set<string>,
   additionalGeneratedSSGPaths: Map<string, string[]>
@@ -1348,6 +1349,9 @@ export function detectConflictingPaths(
         'See more info here: https://nextjs.org/docs/messages/conflicting-ssg-paths\n\n' +
         conflictingPathsOutput
     )
+    // The diagnostic above is complete. Release held logs before the existing
+    // exit without throwing another error through the generic build catch.
+    await uncork()
     process.exit(1)
   }
 }
