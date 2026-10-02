@@ -165,9 +165,6 @@ single dimension.
 - `afterEach` failures (e.g. redbox matchers) are not gated, only the body is.
   Hooks under a false lazy `@force-gate` are the exception: they are skipped
   with the suite instead of running against a fixture that was never booted.
-- `jest.retryTimes(1)` on non-dev CI means a _flaky_ gated-false test passes
-  whenever it happens to fail; the tripwire is only deterministic for
-  deterministic tests.
 - Gated titles are unchanged in the Jest output; the
   `⚠ gated test failed as expected` log line is the only signal.
 - `pragma-transform.js` bails out early on files containing neither `@gate`
