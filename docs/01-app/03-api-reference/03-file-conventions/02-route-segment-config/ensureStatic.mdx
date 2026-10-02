@@ -113,12 +113,6 @@ Client hooks such as [`useParams()`](/docs/app/api-reference/functions/use-param
 
 With Partial Prefetching, `false` keeps the route's normal rendering behavior and fails the build if another segment sets `'shell'`, `'prefetch'`, or `'navigation'`. Use it to signal that a segment is not meant to be statically optimized.
 
-## How `ensureStatic` differs from `prefetch()` and `navigation()`
-
-`ensureStatic` defers request-specific content. Under `'shell'` or `'prefetch'`, content behind `<Suspense>` that reads request data renders in a later stage, and the static output shows its fallback. Only content that cannot be deferred is reported, such as a read outside `<Suspense>`, or any request-specific work under `'navigation'`.
-
-[`prefetch()`](/docs/app/api-reference/functions/prefetch) and [`navigation()`](/docs/app/api-reference/functions/navigation) defer everything below the `await`, including cached work that reads no request data. Setting a level does not replace an existing call, so keep `await navigation()` where the code below it must not run before navigation.
-
 ## How `ensureStatic` differs from `instant`
 
 `ensureStatic` requires selected server-rendered output to avoid request-time work. Use it when the App Shell, a per-link prefetch, or the complete route must be static.
