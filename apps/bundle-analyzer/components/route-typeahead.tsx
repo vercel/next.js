@@ -48,6 +48,7 @@ type PickerOpenState =
 
 interface RouteTypeaheadOptions {
   selectedRoute: string | null
+  routesBaseDir?: string
   /**
    * When provided, the picker renders per-route size deltas next to each
    * route, sorts by largest impact, and uses the diff's route list as its
@@ -170,7 +171,9 @@ export function RouteTypeaheadContent(
     }
 ) {
   const { selectedRoute, routeDiff, useCompressed = true, routeTotals } = props
-  const routes = useSuspenseJsonData<string[]>('/data/routes.json')
+  const routes = useSuspenseJsonData<string[]>(
+    `${props.routesBaseDir ?? '/data'}/routes.json`
+  )
 
   // When a route diff is provided, sort routes by largest absolute impact so
   // the most-changed route bubbles to the top — matching the rest of the

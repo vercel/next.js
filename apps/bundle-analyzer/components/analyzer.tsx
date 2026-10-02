@@ -49,6 +49,7 @@ import {
   computeSourceLoadScopes,
 } from '@/lib/module-graph'
 import type { SnapshotMetadata } from '@/lib/snapshot'
+import { NetworkError } from '@/lib/errors'
 import { formatBytes } from '@/lib/utils'
 import { createAnalyzeTreemapSource, SizeMode } from '@/lib/treemap-layout'
 
@@ -99,6 +100,8 @@ function AnalyzerFallback({ view }: { view: CompareView }) {
 }
 
 function useAnalyzerModel(compare: boolean) {
+  // Read the URL before suspense data so static prerendering can bail out.
+  useSearchParams()
   const [routePickerOpen, setRoutePickerOpen] = useState(false)
   const [selectedSourceIndex, setSelectedSourceIndex] = useState<number | null>(
     null
@@ -107,8 +110,20 @@ function useAnalyzerModel(compare: boolean) {
     null
   )
 
-  const { data: history, isLoading: isHistoryLoading } = useHistoryIndex()
-  const routeState = useAnalyzerRoute(compare, history?.snapshots)
+  const {
+    data: history,
+    isLoading: isHistoryLoading,
+    error: historyError,
+  } = useHistoryIndex()
+  const latestSnapshot = useSuspenseJsonData<SnapshotMetadata>(
+    '/data/metadata.json',
+    { revalidateOnFocus: false, revalidateOnReconnect: false }
+  )
+  const routeState = useAnalyzerRoute(
+    compare,
+    history?.snapshots,
+    latestSnapshot
+  )
   const {
     baselineSnapshot,
     comparisonSnapshot,
@@ -142,17 +157,14 @@ function useAnalyzerModel(compare: boolean) {
 
   const activeView = pendingView ?? compareView
   const isViewPending = pendingView != null && pendingView !== compareView
-  const comparisonBaseDir = comparisonSnapshot
-    ? `/history/${comparisonSnapshot.id}`
-    : '/data'
+  const comparisonBaseDir = routeState.activeBaseDir
   const { data: modulesData } = useSWR(
     `${comparisonBaseDir}/modules.data`,
     fetchModulesData,
     { suspense: true }
   )
 
-  // Routes for comparison side B. This is the live build by default, or an
-  // independently selected historical snapshot.
+  // Routes for the active build, which is also comparison side B.
   const currentRoutes = useSuspenseJsonData<string[]>(
     `${comparisonBaseDir}/routes.json`,
     { revalidateOnFocus: false, revalidateOnReconnect: false }
@@ -202,7 +214,7 @@ function useAnalyzerModel(compare: boolean) {
   // previous selection is unlikely to exist in the new diff.
   useEffect(() => {
     setCompareSelectedKey(null)
-  }, [selectedRoute, baselineSnapshot, comparisonSnapshot])
+  }, [selectedRoute, routeState.fromId, routeState.toId])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -321,9 +333,20 @@ function useAnalyzerModel(compare: boolean) {
   return {
     analyzeData,
     baselineSnapshot,
+    baselineIsLatest: compare && routeState.fromId === 'latest',
     compareSelectedKey,
     compareView: activeView,
     comparisonSnapshot,
+    historySnapshots: history?.snapshots ?? [],
+    historyError: historyError instanceof NetworkError,
+    invalidComparison: routeState.invalidComparison,
+    latestSnapshot,
+    isCompareMode: compare,
+    singleBuildId: routeState.singleBuildId,
+    singleSnapshot: routeState.singleSnapshot,
+    fromId: routeState.fromId,
+    toId: routeState.toId,
+    activeBaseDir: routeState.activeBaseDir,
     currentRoutes,
     routePickerOpen,
     setRoutePickerOpen,
@@ -411,12 +434,17 @@ function AnalyzerTopBar({
       setTypeFilter={model.setTypeFilter}
       searchQuery={model.searchQuery}
       setSearchQuery={model.setSearchQuery}
-      baselineSnapshot={model.baselineSnapshot}
-      getBaselineHref={model.routeState.getBaselineHref}
-      onBaselineChange={model.routeState.setBaselineSnapshot}
-      stopComparisonHref={model.routeState.stopComparisonHref}
-      comparisonSnapshot={model.comparisonSnapshot}
-      onComparisonChange={model.routeState.setComparisonSnapshot}
+      isCompareMode={model.isCompareMode}
+      historySnapshots={model.historySnapshots}
+      historyLoading={model.isHistoryLoading}
+      historyError={model.historyError}
+      latestSnapshot={model.latestSnapshot}
+      singleBuildId={model.singleBuildId}
+      fromId={model.fromId}
+      toId={model.toId}
+      onSingleBuildChange={model.routeState.setSingleBuild}
+      onComparisonChange={model.routeState.setComparison}
+      routesBaseDir={model.activeBaseDir}
       routeDiff={routeDiff}
       routeTotals={
         model.environmentFilter === Environment.Client
@@ -439,12 +467,17 @@ function CompareAnalyzerView({ model }: { model: AnalyzerModel }) {
       </AnalyzerFrame>
     )
   }
-  if (model.baselineSnapshot) return <ValidComparison model={model} />
+  if (
+    model.baselineSnapshot &&
+    !model.invalidComparison &&
+    model.fromId !== (model.toId ?? 'latest')
+  )
+    return <ValidComparison model={model} />
 
   return (
     <AnalyzerFrame topBar={<AnalyzerTopBar model={model} />}>
       <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-        The baseline snapshot in this URL is unavailable.
+        The builds in this URL are unavailable or identical.
       </div>
     </AnalyzerFrame>
   )
@@ -466,7 +499,9 @@ function ValidComparisonContent({
   model: AnalyzerModel
   baselineSnapshot: SnapshotMetadata
 }) {
-  const baselineBaseDir = `/history/${baselineSnapshot.id}`
+  const baselineBaseDir = model.baselineIsLatest
+    ? '/data'
+    : `/history/${baselineSnapshot.id}`
   const { data: baselineModulesData } = useSWR(
     `${baselineBaseDir}/modules.data`,
     fetchModulesData,
@@ -498,6 +533,7 @@ function ValidComparisonContent({
   )
   const layoutProps = {
     baselineSnapshot,
+    baselineIsLatest: model.baselineIsLatest,
     comparisonSnapshot: model.comparisonSnapshot,
     comparisonRouteCount: model.currentRoutes.length,
     routeDiff,
@@ -562,6 +598,7 @@ function BaselineRouteComparison({
 type ComparisonLayoutProps = Pick<
   CompareLayoutModel,
   | 'baselineSnapshot'
+  | 'baselineIsLatest'
   | 'comparisonSnapshot'
   | 'comparisonRouteCount'
   | 'routeDiff'
@@ -641,6 +678,24 @@ function ComparisonContent({
 }
 
 function SingleAnalyzerView({ model }: { model: AnalyzerModel }) {
+  if (model.singleBuildId && model.isHistoryLoading) {
+    return (
+      <AnalyzerFrame topBar={<AnalyzerTopBar model={model} />}>
+        <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+          Loading build…
+        </div>
+      </AnalyzerFrame>
+    )
+  }
+  if (model.singleBuildId && !model.singleSnapshot && !model.isHistoryLoading) {
+    return (
+      <AnalyzerFrame topBar={<AnalyzerTopBar model={model} />}>
+        <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+          The build in this URL is unavailable.
+        </div>
+      </AnalyzerFrame>
+    )
+  }
   const analyzeData = model.analyzeData
   const content = analyzeData ? (
     <SingleAnalyzerContent model={model} analyzeData={analyzeData} />

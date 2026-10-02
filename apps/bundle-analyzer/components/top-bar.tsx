@@ -1,6 +1,6 @@
 'use client'
 
-import { BaselinePicker } from '@/components/baseline-picker'
+import { BuildPicker } from '@/components/build-picker'
 import { FileSearch } from '@/components/file-search'
 import { RouteTypeahead } from '@/components/route-typeahead'
 import {
@@ -55,10 +55,6 @@ const typeFilterOptions = [
   },
 ]
 
-export function ControlDivider() {
-  return <span className="h-6 w-px bg-muted-foreground/30" />
-}
-
 export function TopBar({
   selectedRoute,
   routePickerOpen,
@@ -73,12 +69,17 @@ export function TopBar({
   setTypeFilter,
   searchQuery,
   setSearchQuery,
-  baselineSnapshot,
-  getBaselineHref,
-  onBaselineChange,
-  stopComparisonHref,
-  comparisonSnapshot,
+  isCompareMode,
+  historySnapshots,
+  historyLoading,
+  historyError,
+  latestSnapshot,
+  singleBuildId,
+  fromId,
+  toId,
+  onSingleBuildChange,
   onComparisonChange,
+  routesBaseDir,
   compareView,
   onCompareViewChange,
   routeDiff,
@@ -103,12 +104,17 @@ export function TopBar({
   setTypeFilter: (types: string[]) => void
   searchQuery: string
   setSearchQuery: (query: string) => void
-  baselineSnapshot: SnapshotMetadata | null
-  getBaselineHref?: (snapshot: SnapshotMetadata) => string
-  onBaselineChange: (snapshot: SnapshotMetadata) => void
-  stopComparisonHref: string
-  comparisonSnapshot: SnapshotMetadata | null
-  onComparisonChange: (snapshot: SnapshotMetadata | null) => void
+  isCompareMode: boolean
+  historySnapshots: SnapshotMetadata[]
+  historyLoading: boolean
+  historyError: boolean
+  latestSnapshot: SnapshotMetadata
+  singleBuildId: string | null
+  fromId: string | null
+  toId: string | null
+  onSingleBuildChange: (id: string | null) => void
+  onComparisonChange: (from: string | null, to: string | null) => void
+  routesBaseDir: string
   compareView: CompareView
   onCompareViewChange: (view: CompareView) => void
   routeDiff: ReturnType<typeof diffRoutesWithSizes> | null
@@ -116,7 +122,6 @@ export function TopBar({
   initialLoaded?: boolean
   onInitialLoadedChange?: (value: boolean) => void
 }) {
-  const isCompareMode = baselineSnapshot != null
   const routeSelection = getRouteHref
     ? ({ mode: 'link', getRouteHref } as const)
     : ({
@@ -127,87 +132,68 @@ export function TopBar({
           setFocusedSourceIndex(null)
         },
       } as const)
-  const baselineSelection = getBaselineHref
-    ? ({
-        mode: 'link',
-        getSnapshotHref: getBaselineHref,
-        clearHref: stopComparisonHref,
-      } as const)
-    : ({
-        mode: 'action',
-        onSelectionChange: (snapshot: SnapshotMetadata | null) => {
-          if (snapshot) onBaselineChange(snapshot)
-        },
-        clearHref: stopComparisonHref,
-      } as const)
   return (
-    <div className="flex-none px-4 py-2 border-b border-border flex items-center gap-3">
-      <div className="flex min-w-0 flex-1">
-        <RouteTypeahead
-          selectedRoute={selectedRoute}
-          open={routePickerOpen}
-          onOpenChange={onRoutePickerOpenChange}
-          {...routeSelection}
-          routeDiff={isCompareMode ? routeDiff : null}
-          routeTotals={routeTotals}
-          useCompressed
-        />
-      </div>
-
-      <div className="flex items-center gap-2">
-        <BaselinePicker
-          selectedSnapshotId={baselineSnapshot?.id ?? null}
-          {...baselineSelection}
-          excludedSnapshotId={comparisonSnapshot?.id}
-          prefix="from"
-          placeholder="Compare from…"
-        />
-        {isCompareMode ? (
-          <BaselinePicker
-            mode="action"
-            selectedSnapshotId={comparisonSnapshot?.id ?? null}
-            onSelectionChange={onComparisonChange}
-            excludedSnapshotId={baselineSnapshot?.id}
-            prefix="to"
-            placeholder="to Latest"
-            clearLabel="Compare with latest"
+    <div className="flex-none border-b border-border">
+      <div className="flex min-w-0 items-center gap-2 overflow-x-auto px-4 py-2">
+        <div className="flex min-w-48 flex-1 gap-2">
+          <BuildPicker
+            compareMode={isCompareMode}
+            historySnapshots={historySnapshots}
+            historyLoading={historyLoading}
+            historyError={historyError}
+            latestSnapshot={latestSnapshot}
+            singleBuildId={singleBuildId}
+            fromId={fromId}
+            toId={toId}
+            onSingleBuildChange={onSingleBuildChange}
+            onComparisonChange={onComparisonChange}
           />
-        ) : null}
 
-        {showViewToggle && (
-          <ToggleGroup
-            type="single"
-            size="sm"
-            value={compareView}
-            onValueChange={(value) => {
-              if (value) onCompareViewChange(value as CompareView)
-            }}
-            aria-label="View"
-          >
-            <ToggleGroupItem
-              value={CompareView.Table}
-              aria-label="Table view"
-              title="Table view"
-              className="gap-1.5"
-            >
-              <TableIcon className="h-3.5 w-3.5" />
-              <span className="text-xs">Table</span>
-            </ToggleGroupItem>
-            <ToggleGroupItem
-              value={CompareView.Treemap}
-              aria-label="Treemap view"
-              title="Treemap view"
-              className="gap-1.5"
-            >
-              <LayoutGrid className="h-3.5 w-3.5" />
-              <span className="text-xs">Treemap</span>
-            </ToggleGroupItem>
-          </ToggleGroup>
-        )}
+          <RouteTypeahead
+            selectedRoute={selectedRoute}
+            open={routePickerOpen}
+            onOpenChange={onRoutePickerOpenChange}
+            {...routeSelection}
+            routeDiff={isCompareMode ? routeDiff : null}
+            routeTotals={routeTotals}
+            routesBaseDir={routesBaseDir}
+            useCompressed
+          />
+        </div>
 
         {hasSourceData && (
-          <>
-            <ControlDivider />
+          <div className="flex shrink-0 items-center gap-2">
+            {showViewToggle && (
+              <ToggleGroup
+                type="single"
+                size="sm"
+                value={compareView}
+                onValueChange={(value) => {
+                  if (value) onCompareViewChange(value as CompareView)
+                }}
+                aria-label="View"
+                className="shrink-0"
+              >
+                <ToggleGroupItem
+                  value={CompareView.Table}
+                  aria-label="Table view"
+                  title="Table view"
+                  className="gap-1.5"
+                >
+                  <TableIcon className="h-3.5 w-3.5" />
+                  <span className="text-xs">Table</span>
+                </ToggleGroupItem>
+                <ToggleGroupItem
+                  value={CompareView.Treemap}
+                  aria-label="Treemap view"
+                  title="Treemap view"
+                  className="gap-1.5"
+                >
+                  <LayoutGrid className="h-3.5 w-3.5" />
+                  <span className="text-xs">Treemap</span>
+                </ToggleGroupItem>
+              </ToggleGroup>
+            )}
 
             <Select
               value={environmentFilter}
@@ -258,9 +244,10 @@ export function TopBar({
               </label>
             ) : null}
 
-            <ControlDivider />
-            <FileSearch value={searchQuery} onChange={setSearchQuery} />
-          </>
+            {hasSourceData ? (
+              <FileSearch value={searchQuery} onChange={setSearchQuery} />
+            ) : null}
+          </div>
         )}
       </div>
     </div>
