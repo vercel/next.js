@@ -69,6 +69,8 @@ export default nextConfig
 
 After enabling the flag, links using the default behavior, `prefetch="auto"`, or `prefetch={true}` prefetch the destination's App Shell. A link with `prefetch={true}` can also resolve cached URL-specific content, but it no longer includes uncached dynamic content from the legacy full prefetch. New projects can enable the flag without this audit because they have no legacy full prefetches to migrate.
 
+> **Good to know**: When `cacheComponents` is enabled without a `partialPrefetching` value, Next.js logs a warning asking you to set it to `true` or `false`. Set `false` only to keep the previous prefetch behavior while you work through this guide. Both features will be enabled everywhere in the next major release, and the options will be removed.
+
 ## What changes for `<Link>`
 
 | `<Link>` prop                       | Before (Cache Components default)                              | After Partial Prefetching                                                                                                                              |
