@@ -9,7 +9,8 @@
     { "$ref": "#/$defs/route" },
     { "$ref": "#/$defs/output" },
     { "$ref": "#/$defs/part" },
-    { "$ref": "#/$defs/unjoined" }
+    { "$ref": "#/$defs/unjoined" },
+    { "$ref": "#/$defs/group" }
   ],
   "$defs": {
     "index": {
@@ -193,11 +194,15 @@
         },
         "coverage": {
           "type": "object",
-          "required": ["entries"],
+          "required": ["entries", "groups"],
           "properties": {
             "entries": {
               "enum": ["exact", "unknown"],
               "description": "The producer supplied typed endpoint roots for this route when exact. This is not a statement about browser requests or timing."
+            },
+            "groups": {
+              "enum": ["exact", "unknown"],
+              "description": "Whether typed build-time groups were supplied; even exact group metadata does not identify observed initial requests."
             }
           },
           "additionalProperties": true,
@@ -318,6 +323,53 @@
         }
       },
       "additionalProperties": true
+    },
+    "group": {
+      "type": "object",
+      "required": [
+        "type",
+        "route",
+        "route_index",
+        "id",
+        "kind",
+        "trigger_module_ident",
+        "trigger_join",
+        "outputs"
+      ],
+      "properties": {
+        "type": {
+          "const": "group",
+          "description": "Identifies a build-time output group for a route occurrence."
+        },
+        "route": { "type": "string", "description": "Owning route key." },
+        "route_index": {
+          "$ref": "#/$defs/index",
+          "description": "Index of the owning route occurrence in this snapshot's routes.json; join route-local records by both route and route_index."
+        },
+        "id": {
+          "$ref": "#/$defs/index",
+          "description": "Identifier scoped to this route occurrence's group list."
+        },
+        "kind": {
+          "type": "string",
+          "description": "Build-time group kind: bootstrap denotes a direct client build group, not every cold-navigation request; render_dependent can be needed at first render or later; async and worker roles depend on when their trigger executes."
+        },
+        "trigger_module_ident": {
+          "type": ["string", "null"],
+          "description": "Exact trigger identity when joined or explicitly unjoined."
+        },
+        "trigger_join": {
+          "enum": ["joined", "unjoined", "none"],
+          "description": "Whether the trigger identity joined the indexed snapshot modules, is unjoined, or absent."
+        },
+        "outputs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Direct emitted output filenames in this build-time group, possibly overlapping other groups. Neither file list nor order proves a browser request sequence."
+        }
+      },
+      "additionalProperties": true,
+      "description": "Build-time output grouping for a route occurrence; a file can belong to several groups and layout groups may be cumulative. Not the exact contribution or request set of one client reference."
     }
   }
 }
