@@ -92,7 +92,10 @@ type DynamicExport = (
 type LoadChunk = (chunkPath: ChunkPath) => Promise<any> | undefined
 type LoadChunkByUrl = (chunkUrl: ChunkUrl) => Promise<any> | undefined
 
-type ModuleCache<M> = Record<ModuleId, M>
+/**
+ * The runtime's module cache.  Stores the memoized 'Module' object for each instantiated module.
+ */
+type ModuleCache<M> = Map<ModuleId, M>
 // TODO properly type values here
 type ModuleFactories = Map<ModuleId, Function>
 /**
