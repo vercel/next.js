@@ -13,7 +13,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <nav>
           <Link href="/">Catalog</Link> <Link href="/privacy">Privacy</Link>{' '}
           <Link href="/account">Account</Link>{' '}
-          <Link href="/checkout">Checkout</Link>
+          <Link href="/checkout">Checkout</Link>{' '}
+          <Link href="/offers">Offers</Link>
         </nav>
         {children}
       </body>
