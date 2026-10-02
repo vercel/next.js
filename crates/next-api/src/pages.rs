@@ -79,7 +79,10 @@ use crate::{
         get_wasm_paths_from_root, paths_to_bindings, wasm_paths_to_bindings,
     },
     project::Project,
-    route::{Endpoint, EndpointOutput, EndpointOutputPaths, ModuleGraphs, Route, Routes},
+    route::{
+        AnalyzeClientEntries, Endpoint, EndpointOutput, EndpointOutputPaths, ModuleGraphs, Route,
+        Routes,
+    },
     service_worker::service_worker_output_assets,
     sri_manifest::get_sri_manifest_asset,
 };
@@ -1756,6 +1759,26 @@ impl Endpoint for PageEndpoint {
             .pages_project
             .project()
             .client_changed(self.output().client_assets()))
+    }
+
+    #[turbo_tasks::function]
+    async fn analyze_client_entries(self: Vc<Self>) -> Result<Vc<AnalyzeClientEntries>> {
+        let is_html = self.await?.ty == PageEndpointType::Html;
+        let server_modules = vec![self.internal_ssr_chunk_module().await?.ssr_module];
+        Ok(AnalyzeClientEntries {
+            server_modules,
+            bootstrap_modules: if is_html {
+                self.client_evaluatable_assets()
+                    .await?
+                    .iter()
+                    .map(|module| ResolvedVc::upcast(*module))
+                    .collect()
+            } else {
+                vec![]
+            },
+            references: vec![],
+        }
+        .cell())
     }
 
     #[turbo_tasks::function]
