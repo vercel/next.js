@@ -13473,10 +13473,13 @@ function performWorkOnRoot(root$jscomp$0, lanes, forceSync) {
               JSCompiler_inline_result,
               !1
             );
-            if (
-              2 !== JSCompiler_inline_result &&
-              6 !== JSCompiler_inline_result
-            ) {
+            if (6 === JSCompiler_inline_result)
+              wasRootDehydrated ||
+                (root.errorRecoveryDisabledLanes =
+                  root.errorRecoveryDisabledLanes |
+                  renderWasConcurrent |
+                  workInProgressDeferredLane);
+            else if (2 !== JSCompiler_inline_result) {
               if (
                 workInProgressRootDidAttachPingListener &&
                 !wasRootDehydrated
@@ -15452,20 +15455,20 @@ function debounceScrollEnd(targetInst, nativeEvent, nativeEventTarget) {
     (nativeEventTarget[internalScrollTimer] = targetInst));
 }
 for (
-  var i$jscomp$inline_1821 = 0;
-  i$jscomp$inline_1821 < simpleEventPluginEvents.length;
-  i$jscomp$inline_1821++
+  var i$jscomp$inline_1825 = 0;
+  i$jscomp$inline_1825 < simpleEventPluginEvents.length;
+  i$jscomp$inline_1825++
 ) {
-  var eventName$jscomp$inline_1822 =
-      simpleEventPluginEvents[i$jscomp$inline_1821],
-    domEventName$jscomp$inline_1823 =
-      eventName$jscomp$inline_1822.toLowerCase(),
-    capitalizedEvent$jscomp$inline_1824 =
-      eventName$jscomp$inline_1822[0].toUpperCase() +
-      eventName$jscomp$inline_1822.slice(1);
+  var eventName$jscomp$inline_1826 =
+      simpleEventPluginEvents[i$jscomp$inline_1825],
+    domEventName$jscomp$inline_1827 =
+      eventName$jscomp$inline_1826.toLowerCase(),
+    capitalizedEvent$jscomp$inline_1828 =
+      eventName$jscomp$inline_1826[0].toUpperCase() +
+      eventName$jscomp$inline_1826.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_1823,
-    "on" + capitalizedEvent$jscomp$inline_1824
+    domEventName$jscomp$inline_1827,
+    "on" + capitalizedEvent$jscomp$inline_1828
   );
 }
 registerSimpleEvent(ANIMATION_CANCEL, "onAnimationCancel");
@@ -20786,16 +20789,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_2269 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_2273 = React.version;
 if (
-  "19.3.0-experimental-8b0da1c6-20260922" !==
-  isomorphicReactPackageVersion$jscomp$inline_2269
+  "19.3.0-experimental-278794d7-20261002" !==
+  isomorphicReactPackageVersion$jscomp$inline_2273
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_2269,
-      "19.3.0-experimental-8b0da1c6-20260922"
+      isomorphicReactPackageVersion$jscomp$inline_2273,
+      "19.3.0-experimental-278794d7-20261002"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -20815,24 +20818,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2930 = {
+var internals$jscomp$inline_2939 = {
   bundleType: 0,
-  version: "19.3.0-experimental-8b0da1c6-20260922",
+  version: "19.3.0-experimental-278794d7-20261002",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-experimental-8b0da1c6-20260922"
+  reconcilerVersion: "19.3.0-experimental-278794d7-20261002"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2931 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2940 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2931.isDisabled &&
-    hook$jscomp$inline_2931.supportsFiber
+    !hook$jscomp$inline_2940.isDisabled &&
+    hook$jscomp$inline_2940.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2931.inject(
-        internals$jscomp$inline_2930
+      (rendererID = hook$jscomp$inline_2940.inject(
+        internals$jscomp$inline_2939
       )),
-        (injectedHook = hook$jscomp$inline_2931);
+        (injectedHook = hook$jscomp$inline_2940);
     } catch (err) {}
 }
 exports.createComponentSelector = function (component) {
@@ -21078,4 +21081,4 @@ exports.observeVisibleRects = function (
     }
   };
 };
-exports.version = "19.3.0-experimental-8b0da1c6-20260922";
+exports.version = "19.3.0-experimental-278794d7-20261002";

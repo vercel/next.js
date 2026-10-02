@@ -2313,19 +2313,19 @@ function getTargetInstForChangeEvent(domEventName, targetInst) {
 }
 var isInputEventSupported = !1;
 if (canUseDOM) {
-  var JSCompiler_inline_result$jscomp$363;
+  var JSCompiler_inline_result$jscomp$364;
   if (canUseDOM) {
-    var isSupported$jscomp$inline_521 = "oninput" in document;
-    if (!isSupported$jscomp$inline_521) {
-      var element$jscomp$inline_522 = document.createElement("div");
-      element$jscomp$inline_522.setAttribute("oninput", "return;");
-      isSupported$jscomp$inline_521 =
-        "function" === typeof element$jscomp$inline_522.oninput;
+    var isSupported$jscomp$inline_522 = "oninput" in document;
+    if (!isSupported$jscomp$inline_522) {
+      var element$jscomp$inline_523 = document.createElement("div");
+      element$jscomp$inline_523.setAttribute("oninput", "return;");
+      isSupported$jscomp$inline_522 =
+        "function" === typeof element$jscomp$inline_523.oninput;
     }
-    JSCompiler_inline_result$jscomp$363 = isSupported$jscomp$inline_521;
-  } else JSCompiler_inline_result$jscomp$363 = !1;
+    JSCompiler_inline_result$jscomp$364 = isSupported$jscomp$inline_522;
+  } else JSCompiler_inline_result$jscomp$364 = !1;
   isInputEventSupported =
-    JSCompiler_inline_result$jscomp$363 &&
+    JSCompiler_inline_result$jscomp$364 &&
     (!document.documentMode || 9 < document.documentMode);
 }
 function stopWatchingForValueChange() {
@@ -13487,23 +13487,28 @@ function performWorkOnRoot(root$jscomp$0, lanes, forceSync) {
           wasRootDehydrated &&
             (prepareFreshStack(root, JSCompiler_inline_result).flags |= 256);
           exitStatus = renderRootSync(root, JSCompiler_inline_result, !1);
-          2 !== exitStatus &&
-            6 !== exitStatus &&
-            (workInProgressRootDidAttachPingListener && !wasRootDehydrated
-              ? ((root.errorRecoveryDisabledLanes |= renderWasConcurrent),
-                (workInProgressRootInterleavedUpdatedLanes |=
-                  renderWasConcurrent),
-                (exitStatus = 4))
-              : ((renderWasConcurrent = workInProgressRootRecoverableErrors),
-                (workInProgressRootRecoverableErrors = yieldDuration),
-                null !== renderWasConcurrent &&
-                  ((yieldDuration = renderWasConcurrent),
-                  null === workInProgressRootRecoverableErrors
-                    ? (workInProgressRootRecoverableErrors = yieldDuration)
-                    : workInProgressRootRecoverableErrors.push.apply(
-                        workInProgressRootRecoverableErrors,
-                        yieldDuration
-                      ))));
+          6 === exitStatus
+            ? wasRootDehydrated ||
+              (root.errorRecoveryDisabledLanes =
+                root.errorRecoveryDisabledLanes |
+                renderWasConcurrent |
+                workInProgressDeferredLane)
+            : 2 !== exitStatus &&
+              (workInProgressRootDidAttachPingListener && !wasRootDehydrated
+                ? ((root.errorRecoveryDisabledLanes |= renderWasConcurrent),
+                  (workInProgressRootInterleavedUpdatedLanes |=
+                    renderWasConcurrent),
+                  (exitStatus = 4))
+                : ((renderWasConcurrent = workInProgressRootRecoverableErrors),
+                  (workInProgressRootRecoverableErrors = yieldDuration),
+                  null !== renderWasConcurrent &&
+                    ((yieldDuration = renderWasConcurrent),
+                    null === workInProgressRootRecoverableErrors
+                      ? (workInProgressRootRecoverableErrors = yieldDuration)
+                      : workInProgressRootRecoverableErrors.push.apply(
+                          workInProgressRootRecoverableErrors,
+                          yieldDuration
+                        ))));
           renderWasConcurrent = !1;
           if (2 !== exitStatus) continue;
           else yieldDuration = now$1();
@@ -15565,20 +15570,20 @@ function extractEvents$1(
   }
 }
 for (
-  var i$jscomp$inline_1972 = 0;
-  i$jscomp$inline_1972 < simpleEventPluginEvents.length;
-  i$jscomp$inline_1972++
+  var i$jscomp$inline_1976 = 0;
+  i$jscomp$inline_1976 < simpleEventPluginEvents.length;
+  i$jscomp$inline_1976++
 ) {
-  var eventName$jscomp$inline_1973 =
-      simpleEventPluginEvents[i$jscomp$inline_1972],
-    domEventName$jscomp$inline_1974 =
-      eventName$jscomp$inline_1973.toLowerCase(),
-    capitalizedEvent$jscomp$inline_1975 =
-      eventName$jscomp$inline_1973[0].toUpperCase() +
-      eventName$jscomp$inline_1973.slice(1);
+  var eventName$jscomp$inline_1977 =
+      simpleEventPluginEvents[i$jscomp$inline_1976],
+    domEventName$jscomp$inline_1978 =
+      eventName$jscomp$inline_1977.toLowerCase(),
+    capitalizedEvent$jscomp$inline_1979 =
+      eventName$jscomp$inline_1977[0].toUpperCase() +
+      eventName$jscomp$inline_1977.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_1974,
-    "on" + capitalizedEvent$jscomp$inline_1975
+    domEventName$jscomp$inline_1978,
+    "on" + capitalizedEvent$jscomp$inline_1979
   );
 }
 registerSimpleEvent(ANIMATION_CANCEL, "onAnimationCancel");
@@ -20473,16 +20478,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_2351 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_2355 = React.version;
 if (
-  "19.3.0-canary-8b0da1c6-20260922" !==
-  isomorphicReactPackageVersion$jscomp$inline_2351
+  "19.3.0-canary-278794d7-20261002" !==
+  isomorphicReactPackageVersion$jscomp$inline_2355
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_2351,
-      "19.3.0-canary-8b0da1c6-20260922"
+      isomorphicReactPackageVersion$jscomp$inline_2355,
+      "19.3.0-canary-278794d7-20261002"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -20502,24 +20507,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2907 = {
+var internals$jscomp$inline_2916 = {
   bundleType: 0,
-  version: "19.3.0-canary-8b0da1c6-20260922",
+  version: "19.3.0-canary-278794d7-20261002",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-canary-8b0da1c6-20260922"
+  reconcilerVersion: "19.3.0-canary-278794d7-20261002"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2908 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2917 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2908.isDisabled &&
-    hook$jscomp$inline_2908.supportsFiber
+    !hook$jscomp$inline_2917.isDisabled &&
+    hook$jscomp$inline_2917.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2908.inject(
-        internals$jscomp$inline_2907
+      (rendererID = hook$jscomp$inline_2917.inject(
+        internals$jscomp$inline_2916
       )),
-        (injectedHook = hook$jscomp$inline_2908);
+        (injectedHook = hook$jscomp$inline_2917);
     } catch (err) {}
 }
 function getCrossOriginStringAs(as, input) {
@@ -20778,7 +20783,7 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.3.0-canary-8b0da1c6-20260922";
+exports.version = "19.3.0-canary-278794d7-20261002";
 "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
   "function" ===
     typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&
