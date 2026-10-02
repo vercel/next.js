@@ -250,6 +250,12 @@ describe.each(
             )
           expect(requestSpans).toHaveLength(1)
           expect(spans[0].parentId).toBe(requestSpans[0].id)
+          // Span times are exported as epoch microseconds. The loads happen
+          // while the request is being handled, so a span anchored to
+          // `performance.now()` instead of the epoch would start in 1970.
+          expect(spans[0].timestamp).toBeGreaterThanOrEqual(
+            requestSpans[0].timestamp
+          )
           const count = spans[0].attributes?.[
             'next.clientComponentLoadCount'
           ] as number

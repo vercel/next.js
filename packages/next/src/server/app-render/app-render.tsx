@@ -2705,16 +2705,19 @@ function initializeClientComponentLoadTracking(
         metrics &&
         metrics.clientComponentLoadEnd >= metrics.clientComponentLoadStart
       ) {
+        // The tracker records `performance.now()` values. OpenTelemetry reads a
+        // plain number as epoch milliseconds, so anchor both to the time origin.
         getTracer()
           .startSpan(NextNodeServerSpan.clientComponentLoading, {
             parentSpan,
-            startTime: metrics.clientComponentLoadStart,
+            startTime:
+              performance.timeOrigin + metrics.clientComponentLoadStart,
             attributes: {
               'next.clientComponentLoadCount': metrics.clientComponentLoadCount,
               'next.span_type': NextNodeServerSpan.clientComponentLoading,
             },
           })
-          .end(metrics.clientComponentLoadEnd)
+          .end(performance.timeOrigin + metrics.clientComponentLoadEnd)
       }
     })
     workStore.clientComponentLoadTracker = tracker
