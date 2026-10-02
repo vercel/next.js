@@ -91,7 +91,7 @@ pub fn cleanup_old_edges(
     task_id: TaskId,
     outdated: Vec<OutdatedEdge>,
     queue: AggregationUpdateQueue,
-    ctx: &mut impl ExecuteContext<'_>,
+    ctx: &mut ExecuteContext<'_>,
 ) -> Stats {
     cleanup_old_edges_inner(task_id, outdated, queue, ctx, false).0
 }
@@ -102,10 +102,10 @@ pub fn cleanup_old_edges(
 /// parallel collect is quiescent. Deletion is safe to run concurrently; the deferred work is
 /// not. `balance_edge` *adds* edges, and dirtying propagates through the aggregation graph --
 /// neither is safe while other workers are still collecting.
-pub fn cleanup_old_edges_deletions_only<'a, C: ExecuteContext<'a>>(
+pub fn cleanup_old_edges_deletions_only(
     task_id: TaskId,
     outdated: Vec<OutdatedEdge>,
-    ctx: &mut C,
+    ctx: &mut ExecuteContext<'_>,
 ) -> DeferredCleanup {
     let (_, stopped) = cleanup_old_edges_inner(
         task_id,
@@ -122,7 +122,7 @@ fn cleanup_old_edges_inner(
     task_id: TaskId,
     mut outdated: Vec<OutdatedEdge>,
     mut queue: AggregationUpdateQueue,
-    ctx: &mut impl ExecuteContext<'_>,
+    ctx: &mut ExecuteContext<'_>,
     stop_when_only_rebalance_remains: bool,
 ) -> (Stats, Option<DeferredCleanup>) {
     let mut dirty_dependents = AutoSet::default();

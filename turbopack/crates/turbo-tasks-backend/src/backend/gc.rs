@@ -31,8 +31,8 @@ use crate::{
     backend::{
         TurboTasksBackend,
         operation::{
-            AggregationUpdateJob, AggregationUpdateQueue, ExecuteContext, ExecuteContextImpl,
-            TaskGuard, capture_all_edges, cleanup_old_edges_deletions_only,
+            AggregationUpdateJob, AggregationUpdateQueue, ExecuteContext, capture_all_edges,
+            cleanup_old_edges_deletions_only,
         },
         snapshot_coordinator::SnapshotPhase,
         storage::{SpecificTaskDataCategory, TaskDataCategory},
@@ -262,7 +262,7 @@ impl TurboTasksBackend {
                     GcJob::Collect(task_id) => task_id,
                 };
                 let collector = |child_id| spawner.spawn(GcJob::Collect(child_id));
-                let mut ctx = ExecuteContextImpl::new_for_gc(self, turbo_tasks, phase, &collector);
+                let mut ctx = ExecuteContext::new_for_gc(self, turbo_tasks, phase, &collector);
                 // `All` restores Data so `capture_all_edges` below can read the
                 // Data-category dependency sets. The recheck itself only needs Meta.
                 let mut task = ctx.task(task_id, TaskDataCategory::All);
@@ -321,7 +321,7 @@ impl TurboTasksBackend {
         let deferred = std::mem::take(&mut result.deferred_balance_edges);
         if !deferred.is_empty() {
             let noop_collector = |_task_id| {};
-            let mut ctx = ExecuteContextImpl::new_for_gc(self, turbo_tasks, phase, &noop_collector);
+            let mut ctx = ExecuteContext::new_for_gc(self, turbo_tasks, phase, &noop_collector);
             let mut queue = AggregationUpdateQueue::new();
             queue.extend_balance_edges(deferred, &mut ctx);
             while !queue.process(&mut ctx) {}
@@ -333,7 +333,7 @@ impl TurboTasksBackend {
         let dirty_dependents = std::mem::take(&mut result.deferred_dirty_dependents);
         if !dirty_dependents.is_empty() {
             let noop_collector = |_task_id| {};
-            let mut ctx = ExecuteContextImpl::new_for_gc(self, turbo_tasks, phase, &noop_collector);
+            let mut ctx = ExecuteContext::new_for_gc(self, turbo_tasks, phase, &noop_collector);
             let mut queue = AggregationUpdateQueue::new();
             // A dependent collected by this same pass is skipped: the job is weak by construction.
             queue.push(AggregationUpdateJob::InvalidateDueToDependencyTornDown {

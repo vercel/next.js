@@ -89,7 +89,7 @@ pub fn is_root_node(aggregation_number: u32) -> bool {
 
 /// Returns a list of tasks that are considered as "following" the task.
 fn get_followers_with_aggregation_number(
-    task: &impl TaskGuard,
+    task: &TaskGuard<'_>,
     aggregation_number: u32,
 ) -> TaskIdVec {
     if is_aggregating_node(aggregation_number) {
@@ -101,25 +101,25 @@ fn get_followers_with_aggregation_number(
 
 /// Returns a list of tasks that are considered as "following" the task. The current tasks is not
 /// aggregating over the follower tasks and they should be aggregated by all upper tasks.
-fn get_followers(task: &impl TaskGuard) -> TaskIdVec {
+fn get_followers(task: &TaskGuard<'_>) -> TaskIdVec {
     get_followers_with_aggregation_number(task, get_aggregation_number(task))
 }
 
 /// Returns a list of tasks that are considered as "upper" tasks of the task. The upper tasks are
 /// aggregating over the task.
-pub fn get_uppers(task: &impl TaskGuard) -> TaskIdVec {
+pub fn get_uppers(task: &TaskGuard<'_>) -> TaskIdVec {
     task.iter_upper().map(|(&id, _count)| id).collect()
 }
 
 /// Acquires a `Meta`-category guard for `task_id` and sets `optimization_pending`. Used in
 /// the optimize-queue drop paths when the caller doesn't already hold a guard for the task.
-fn lock_and_mark_optimization_pending(ctx: &mut impl ExecuteContext<'_>, task_id: TaskId) {
+fn lock_and_mark_optimization_pending(ctx: &mut ExecuteContext<'_>, task_id: TaskId) {
     let mut task = ctx.task(task_id, TaskDataCategory::Meta);
     task.set_optimization_pending(true);
 }
 
 /// Returns the aggregation number of the task.
-pub fn get_aggregation_number(task: &impl TaskGuard) -> u32 {
+pub fn get_aggregation_number(task: &TaskGuard<'_>) -> u32 {
     task.get_aggregation_number()
         .map(|a| a.effective)
         .unwrap_or_default()
@@ -323,7 +323,7 @@ pub enum AggregationUpdateJob {
 
 impl AggregationUpdateJob {
     pub fn data_update(
-        task: &mut impl TaskGuard,
+        task: &mut TaskGuard<'_>,
         update: AggregatedDataUpdate,
     ) -> Option<AggregationUpdateJob> {
         let upper_ids: SmallVec<_> = get_uppers(task);
@@ -360,7 +360,7 @@ pub struct AggregatedDataUpdate {
 impl AggregatedDataUpdate {
     /// Derives an `AggregatedDataUpdate` from a task. This is used when a task is connected to an
     /// upper task.
-    fn from_task(task: &mut impl TaskGuard) -> Self {
+    fn from_task(task: &mut TaskGuard<'_>) -> Self {
         let aggregation = get_aggregation_number(task);
         let mut dirty_count = 0;
         let mut current_session_clean_count = 0;
@@ -425,7 +425,7 @@ impl AggregatedDataUpdate {
     #[allow(clippy::needless_late_init)]
     fn apply(
         &self,
-        task: &mut impl TaskGuard,
+        task: &mut TaskGuard<'_>,
         should_track_activeness: bool,
         queue: &mut AggregationUpdateQueue,
     ) -> AggregatedDataUpdate {
@@ -1022,7 +1022,7 @@ impl AggregationUpdateQueue {
     /// it is free since the caller already holds the guard, and the saved flag value lets
     /// a later drop avoid an unnecessary flag write.
     /// If the job can't be enqueued the flag is set on the task instead.
-    fn push_optimize_task(&mut self, task: &mut impl TaskGuard) {
+    fn push_optimize_task(&mut self, task: &mut TaskGuard<'_>) {
         let optimization_pending_flag_already_set = task.optimization_pending();
         if !self.try_enqueue_optimize_job(task.id(), optimization_pending_flag_already_set) {
             task.set_optimization_pending(true);
@@ -1034,7 +1034,7 @@ impl AggregationUpdateQueue {
     /// Only called from `optimize_task`'s self re-enqueue, which has just cleared the flag at
     /// entry, so the enqueued job carries `optimization_pending_flag_already_set = false`. The
     /// `Meta`-category guard is acquired only when the push has to be dropped.
-    fn push_optimize_task_by_id(&mut self, ctx: &mut impl ExecuteContext<'_>, task_id: TaskId) {
+    fn push_optimize_task_by_id(&mut self, ctx: &mut ExecuteContext<'_>, task_id: TaskId) {
         if !self.try_enqueue_optimize_job(task_id, false) {
             lock_and_mark_optimization_pending(ctx, task_id);
         }
@@ -1050,7 +1050,7 @@ impl AggregationUpdateQueue {
     /// from up-to-date optimization, so we leave its tasks for one of the other recovery
     /// hooks to pick up. There is currently no dedicated unit test for the drop/recovery
     /// paths; coverage relies on integration tests that exercise the aggregation graph.
-    fn check_optimization_pending(&mut self, task: &impl TaskGuard) {
+    fn check_optimization_pending(&mut self, task: &TaskGuard<'_>) {
         if !task.optimization_pending() {
             // Common case: nothing pending, no work to do.
             return;
@@ -1061,7 +1061,7 @@ impl AggregationUpdateQueue {
     }
 
     /// Runs the job and all dependent jobs until it's done.
-    pub fn run(job: AggregationUpdateJob, ctx: &mut impl ExecuteContext<'_>) {
+    pub fn run(job: AggregationUpdateJob, ctx: &mut ExecuteContext<'_>) {
         let mut queue = Self::new();
         queue.push(job);
         queue.execute(ctx);
@@ -1120,7 +1120,7 @@ impl AggregationUpdateQueue {
     pub fn extend_balance_edges(
         &mut self,
         edges: impl IntoIterator<Item = (TaskId, TaskId)>,
-        ctx: &mut impl ExecuteContext<'_>,
+        ctx: &mut ExecuteContext<'_>,
     ) {
         for (upper_id, task_id) in edges {
             // structure as 2 if statements to ensure the first guard is dropped before the second
@@ -1136,7 +1136,7 @@ impl AggregationUpdateQueue {
     }
 
     /// Executes a single step of the queue. Returns true, when the queue is empty.
-    pub fn process(&mut self, ctx: &mut impl ExecuteContext<'_>) -> bool {
+    pub fn process(&mut self, ctx: &mut ExecuteContext<'_>) -> bool {
         if let Some(job) = self.jobs.pop_front() {
             let job: AggregationUpdateJobGuard = job.entered();
             match job.job {
@@ -1630,7 +1630,7 @@ impl AggregationUpdateQueue {
     /// triggers more changes to the structure.
     ///
     /// It locks both tasks simultaneously to atomically change the edges.
-    fn balance_edge(&mut self, ctx: &mut impl ExecuteContext, upper_id: TaskId, task_id: TaskId) {
+    fn balance_edge(&mut self, ctx: &mut ExecuteContext<'_>, upper_id: TaskId, task_id: TaskId) {
         #[cfg(feature = "trace_aggregation_update")]
         let _span = trace_span!("process balance edge").entered();
 
@@ -1802,7 +1802,7 @@ impl AggregationUpdateQueue {
     fn find_and_schedule_dirty(
         &mut self,
         jobs: SmallVec<[FindAndScheduleJob; 4]>,
-        ctx: &mut impl ExecuteContext,
+        ctx: &mut ExecuteContext<'_>,
     ) {
         #[cfg(feature = "trace_find_and_schedule")]
         let mut spans: FxHashMap<TaskId, Option<Span>> = jobs
@@ -1831,8 +1831,8 @@ impl AggregationUpdateQueue {
     fn find_and_schedule_dirty_internal(
         &mut self,
         task_id: TaskId,
-        mut task: impl TaskGuard,
-        ctx: &mut impl ExecuteContext<'_>,
+        mut task: TaskGuard<'_>,
+        ctx: &mut ExecuteContext<'_>,
     ) {
         // Task need to be scheduled if it's dirty or doesn't have output
         let dirty = task.is_dirty();
@@ -1873,7 +1873,7 @@ impl AggregationUpdateQueue {
     fn aggregated_data_update(
         &mut self,
         upper_ids: TaskIdVec,
-        ctx: &mut impl ExecuteContext<'_>,
+        ctx: &mut ExecuteContext<'_>,
         update: AggregatedDataUpdate,
     ) {
         // For performance reasons this should stay `Meta` and not `All`
@@ -1901,7 +1901,7 @@ impl AggregationUpdateQueue {
 
     fn inner_of_upper_lost_follower(
         &mut self,
-        ctx: &mut impl ExecuteContext<'_>,
+        ctx: &mut ExecuteContext<'_>,
         lost_follower_id: TaskId,
         upper_id: TaskId,
         mut retry: u16,
@@ -2079,7 +2079,7 @@ impl AggregationUpdateQueue {
 
     fn inner_of_uppers_lost_follower(
         &mut self,
-        ctx: &mut impl ExecuteContext<'_>,
+        ctx: &mut ExecuteContext<'_>,
         lost_follower_id: TaskId,
         mut upper_ids: TaskIdVec,
         mut retry: u16,
@@ -2272,7 +2272,7 @@ impl AggregationUpdateQueue {
 
     fn inner_of_upper_lost_followers(
         &mut self,
-        ctx: &mut impl ExecuteContext<'_>,
+        ctx: &mut ExecuteContext<'_>,
         mut lost_follower_ids: TaskIdVec,
         upper_id: TaskId,
         mut retry: u16,
@@ -2468,7 +2468,7 @@ impl AggregationUpdateQueue {
     /// See detailed comments in that function, follow the STEP numbers.
     fn inner_of_uppers_has_new_follower<T: TaskIdWithOptionalCount + Clone, const N: usize>(
         &mut self,
-        ctx: &mut impl ExecuteContext<'_>,
+        ctx: &mut ExecuteContext<'_>,
         new_follower_id: TaskId,
         mut upper_ids: SmallVec<[T; N]>,
     ) {
@@ -2714,7 +2714,7 @@ impl AggregationUpdateQueue {
     /// See detailed comments in that function, follow the STEP numbers.
     fn inner_of_upper_has_new_followers<T: TaskIdWithOptionalCount, const N: usize>(
         &mut self,
-        ctx: &mut impl ExecuteContext<'_>,
+        ctx: &mut ExecuteContext<'_>,
         new_follower_ids: SmallVec<[T; N]>,
         upper_id: TaskId,
     ) {
@@ -2975,7 +2975,7 @@ impl AggregationUpdateQueue {
 
     fn inner_of_upper_has_new_follower(
         &mut self,
-        ctx: &mut impl ExecuteContext<'_>,
+        ctx: &mut ExecuteContext<'_>,
         new_follower_id: TaskId,
         upper_id: TaskId,
         count: u32,
@@ -3157,7 +3157,7 @@ impl AggregationUpdateQueue {
     /// Decreases the active count of a task.
     ///
     /// Only used when activeness is tracked.
-    fn decrease_active_count(&mut self, ctx: &mut impl ExecuteContext<'_>, task_id: TaskId) {
+    fn decrease_active_count(&mut self, ctx: &mut ExecuteContext<'_>, task_id: TaskId) {
         #[cfg(feature = "trace_aggregation_update")]
         let _span = trace_span!("decrease active count").entered();
 
@@ -3204,7 +3204,7 @@ impl AggregationUpdateQueue {
     /// Only used when activeness is tracked.
     fn increase_active_count(
         &mut self,
-        ctx: &mut impl ExecuteContext<'_>,
+        ctx: &mut ExecuteContext<'_>,
         task_id: TaskId,
         release_construction_ref: bool,
     ) {
@@ -3256,7 +3256,7 @@ impl AggregationUpdateQueue {
 
     fn update_aggregation_number(
         &mut self,
-        ctx: &mut impl ExecuteContext<'_>,
+        ctx: &mut ExecuteContext<'_>,
         task_id: TaskId,
         base_effective_distance: Option<std::num::NonZero<u32>>,
         base_aggregation_number: u32,
@@ -3360,7 +3360,7 @@ impl AggregationUpdateQueue {
     /// does so); when `false`, the flag is known to be unset already and we can skip the write.
     fn optimize_task(
         &mut self,
-        ctx: &mut impl ExecuteContext<'_>,
+        ctx: &mut ExecuteContext<'_>,
         task_id: TaskId,
         optimization_pending_flag_already_set: bool,
     ) {
@@ -3505,7 +3505,7 @@ impl AggregationUpdateQueue {
     #[cfg(feature = "trace_aggregation_update_stats")]
     pub fn execute_with_stats(
         &mut self,
-        ctx: &mut impl ExecuteContext<'_>,
+        ctx: &mut ExecuteContext<'_>,
     ) -> AggregationUpdateQueueStats {
         while !self.process(ctx) {}
         take(&mut self.stats)
@@ -3513,7 +3513,7 @@ impl AggregationUpdateQueue {
 }
 
 impl AggregationUpdateQueue {
-    pub fn execute(&mut self, ctx: &mut impl ExecuteContext<'_>) {
+    pub fn execute(&mut self, ctx: &mut ExecuteContext<'_>) {
         while !self.process(ctx) {}
     }
 }
