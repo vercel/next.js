@@ -112,10 +112,7 @@ class NextRootCommand extends Command {
       // The upgrade harness may run both dev and production checks. Preserve
       // its caller's environment instead of forcing all child commands into
       // production mode merely because they were launched through this CLI.
-      if (
-        commandName !== 'upgrade' ||
-        !event.getOptionValue('experimentalAi')
-      ) {
+      if (commandName !== 'upgrade' || !event.getOptionValue('agent')) {
         ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
         ;(process.env as any).NEXT_RUNTIME = 'nodejs'
       }
@@ -586,8 +583,8 @@ program
   .option('--verbose', 'Verbose output', false)
   .addOption(
     new Option(
-      '--ai, --experimental-ai [type]',
-      'Upgrade with AI to security, latest, or experimental-future. Defaults to security.'
+      '--agent [type]',
+      'Upgrade with an agent to security, latest, or experimental-future. Defaults to security.'
     ).conflicts('revision')
   )
   // Keep nudge attribution available to agents without exposing it in public help.
@@ -596,10 +593,7 @@ program
     const mod = await import('../cli/next-upgrade.js')
     await mod.spawnNextUpgrade(
       directory,
-      {
-        ...options,
-        ai: options.experimentalAi,
-      },
+      options,
       options.internalNudgeId !== undefined
         ? { id: options.internalNudgeId, recipient: 'agent' }
         : null
@@ -676,12 +670,12 @@ const internal = program
 
 // Agents use the pinned CLI to report completion after the upgrade has changed dependencies.
 internal
-  .command('report-ai-upgrade', { hidden: true })
+  .command('report-agent-upgrade', { hidden: true })
   .argument('<run-id>', 'The upgrade run UUID.')
   .argument('<result>', 'The agent-reported success or failure result.')
   .action((runId: string, result: string) =>
     import('../cli/next-upgrade.js').then((mod) =>
-      mod.reportAIUpgradeAgentResult(runId, result)
+      mod.reportAgentUpgradeAgentResult(runId, result)
     )
   )
 

@@ -8,7 +8,7 @@ import spawn from 'next/dist/compiled/cross-spawn'
 
 import * as Log from '../../build/output/log'
 import { getAgentName } from '../../telemetry/agent-name'
-import type { AIUpgradeHandoffMethod } from '../../telemetry/events/ai-upgrade'
+import type { AgentUpgradeHandoffMethod } from '../../telemetry/events/agent-upgrade'
 import { bold, cyan, dim } from '../picocolors'
 import { runChildProcess } from './run-child-process'
 
@@ -273,7 +273,7 @@ async function chooseHarness(
 function copyUpgradePrompt(
   prompt: string,
   noHarness: boolean
-): AIUpgradeHandoffMethod {
+): AgentUpgradeHandoffMethod {
   const commands =
     process.platform === 'darwin'
       ? [['pbcopy']]
@@ -353,7 +353,7 @@ export async function handoffUpgrade(
   directory: string,
   onHandoff:
     | ((
-        method: AIUpgradeHandoffMethod,
+        method: AgentUpgradeHandoffMethod,
         selectedAgentProduct: string | null
       ) => void)
     | null

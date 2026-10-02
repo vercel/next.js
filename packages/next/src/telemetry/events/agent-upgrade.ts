@@ -1,19 +1,19 @@
 // Shared values keep event payloads consistent across the CLI, nudges, and handoffs.
-export type AIUpgradePolicy = 'security' | 'latest' | 'experimental-future'
+export type AgentUpgradePolicy = 'security' | 'latest' | 'experimental-future'
 
-export type AIUpgradeOrigin =
+export type AgentUpgradeOrigin =
   | 'human_manual'
   | 'human_nudge'
   | 'agent_manual'
   | 'agent_nudge'
 
-export type AIUpgradeHandoffMethod =
+export type AgentUpgradeHandoffMethod =
   | 'existing_agent'
   | 'launched_agent'
   | 'copied_prompt'
   | 'printed_prompt'
 
-export type AIUpgradeCLIResult =
+export type AgentUpgradeCLIResult =
   | 'no_update_needed'
   | 'no_safe_target'
   | 'metadata_failure'
@@ -29,61 +29,61 @@ function event<T extends object>(eventName: string, fields: T) {
 }
 
 // Measure configured reach separately from whether an upgrade reminder is needed.
-export function eventAIUpgradePolicyDetected(fields: {
-  configuredPolicy: AIUpgradePolicy | false | null
-  effectivePolicy: AIUpgradePolicy
+export function eventAgentUpgradePolicyDetected(fields: {
+  configuredPolicy: AgentUpgradePolicy | false | null
+  effectivePolicy: AgentUpgradePolicy
   policySource: 'config' | 'environment'
   sourceCommand: 'dev' | 'build'
 }) {
-  return event('NEXT_AI_UPGRADE_POLICY_DETECTED', fields)
+  return event('NEXT_AGENT_UPGRADE_POLICY_DETECTED', fields)
 }
 
 // Correlate a displayed reminder with a later upgrade invocation.
-export function eventAIUpgradeNudgeShown(fields: {
+export function eventAgentUpgradeNudgeShown(fields: {
   nudgeId: string
   recipient: 'human' | 'agent'
   agentProduct: string | null
   sourceCommand: 'dev' | 'build'
-  policy: AIUpgradePolicy
-  nudgeKind: AIUpgradePolicy
+  policy: AgentUpgradePolicy
+  nudgeKind: AgentUpgradePolicy
 }) {
-  return event('NEXT_AI_UPGRADE_NUDGE_SHOWN', fields)
+  return event('NEXT_AGENT_UPGRADE_NUDGE_SHOWN', fields)
 }
 
 // Human menus expose a decision directly; agent decisions are inferred from runs.
-export function eventAIUpgradeNudgeDecision(fields: {
+export function eventAgentUpgradeNudgeDecision(fields: {
   nudgeId: string
   action: 'update' | 'skip' | 'dismiss' | 'interrupt'
 }) {
-  return event('NEXT_AI_UPGRADE_NUDGE_DECISION', fields)
+  return event('NEXT_AGENT_UPGRADE_NUDGE_DECISION', fields)
 }
 
 // Count invocations independently of whether preparation or handoff finishes.
-export function eventAIUpgradeRunStarted(fields: {
+export function eventAgentUpgradeRunStarted(fields: {
   runId: string
   nudgeId: string | null
-  origin: AIUpgradeOrigin
+  origin: AgentUpgradeOrigin
   agentProduct: string | null
-  requestedPolicy: AIUpgradePolicy | null
+  requestedPolicy: AgentUpgradePolicy | null
 }) {
-  return event('NEXT_AI_UPGRADE_RUN_STARTED', fields)
+  return event('NEXT_AGENT_UPGRADE_RUN_STARTED', fields)
 }
 
 // Report the CLI's preparation and prompt delivery, not completion of the agent's work.
-export function eventAIUpgradeCLIResult(fields: {
+export function eventAgentUpgradeCLIResult(fields: {
   runId: string
-  result: AIUpgradeCLIResult
-  resolvedPolicy: AIUpgradePolicy | null
-  handoffMethod: AIUpgradeHandoffMethod | null
+  result: AgentUpgradeCLIResult
+  resolvedPolicy: AgentUpgradePolicy | null
+  handoffMethod: AgentUpgradeHandoffMethod | null
   selectedAgentProduct: string | null
 }) {
-  return event('NEXT_AI_UPGRADE_CLI_RESULT', fields)
+  return event('NEXT_AGENT_UPGRADE_CLI_RESULT', fields)
 }
 
 // The agent reports its verified result separately from the CLI's prompt delivery.
-export function eventAIUpgradeAgentResult(fields: {
+export function eventAgentUpgradeAgentResult(fields: {
   runId: string
   result: 'success' | 'failure'
 }) {
-  return event('NEXT_AI_UPGRADE_AGENT_RESULT', fields)
+  return event('NEXT_AGENT_UPGRADE_AGENT_RESULT', fields)
 }

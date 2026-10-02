@@ -153,7 +153,7 @@ export function duplicateSecurityChecks(source: string, target: string) {
   test('recognizes the existing security upgrade', async () => {
     expect(records('invocations.jsonl')).toContainEqual(
       expect.objectContaining({
-        args: ['upgrade', '--ai'],
+        args: ['upgrade', '--agent'],
         packageRunner: 'npx',
         requestedPackage: 'next@canary',
       })

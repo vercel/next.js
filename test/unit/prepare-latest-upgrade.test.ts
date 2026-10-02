@@ -139,7 +139,7 @@ describe('prepare latest upgrade', () => {
       upgrade: {
         status: 'blocked',
         reason:
-          "The installed Next.js version (17.2.0-canary.4) is a canary prerelease. Security advisories target stable versions, and prereleases do not reliably follow stable version ordering, so an advisory could be a false positive. To upgrade to the latest canary release, run this command from the app's directory:\n\nnpx next@canary upgrade --ai=latest",
+          "The installed Next.js version (17.2.0-canary.4) is a canary prerelease. Security advisories target stable versions, and prereleases do not reliably follow stable version ordering, so an advisory could be a false positive. To upgrade to the latest canary release, run this command from the app's directory:\n\nnpx next@canary upgrade --agent=latest",
       },
     })
     await expect(prepareUpgrade(directory, 'security')).resolves.toMatchObject({
@@ -453,7 +453,7 @@ describe('prepare latest upgrade', () => {
           upgrade: expect.objectContaining({
             status: 'blocked',
             reason: expect.stringContaining(
-              'npx next@canary upgrade --ai=latest'
+              'npx next@canary upgrade --agent=latest'
             ),
           }),
         })
@@ -483,7 +483,7 @@ describe('prepare latest upgrade', () => {
           upgrade: expect.objectContaining({
             status: 'blocked',
             reason: expect.stringContaining(
-              'npx next@canary upgrade --ai=latest'
+              'npx next@canary upgrade --agent=latest'
             ),
           }),
         })
@@ -497,10 +497,10 @@ describe('prepare latest upgrade', () => {
     const directory = await createApp(version)
     global.fetch = jest.fn()
     await expect(prepareUpgrade(directory, 'latest')).rejects.toThrow(
-      'AI upgrades are not available for this prerelease version of Next.js.'
+      'Agent upgrades are not available for this prerelease version of Next.js.'
     )
     await expect(getUpgradeAssessment(version, 'latest')).rejects.toThrow(
-      'AI upgrades are not available for this prerelease version of Next.js.'
+      'Agent upgrades are not available for this prerelease version of Next.js.'
     )
     expect(global.fetch).toHaveBeenCalledTimes(0)
   })
