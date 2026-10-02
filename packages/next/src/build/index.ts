@@ -457,6 +457,8 @@ const ALLOWED_HEADERS: string[] = [
 
 export type PrerenderManifest = {
   version: 4
+  /** Whether parameter matching exports were evaluated for this build. */
+  hasParamMatching?: true
   routes: { [route: string]: PrerenderManifestRoute }
   dynamicRoutes: { [route: string]: DynamicPrerenderManifestRoute }
   notFoundRoutes: string[]
@@ -3165,6 +3167,12 @@ export default async function build(
 
       const prerenderManifest: PrerenderManifest = {
         version: 4,
+        // Record evaluated exports, including empty fragments, rather than
+        // inferring API usage from the resulting fallback modes.
+        hasParamMatching:
+          [...paramMatchingByRoute.values()].some(
+            (paramMatching) => paramMatching !== undefined
+          ) || undefined,
         routes: {},
         dynamicRoutes: {},
         notFoundRoutes: [],
