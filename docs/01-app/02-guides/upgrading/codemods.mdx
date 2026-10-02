@@ -71,6 +71,39 @@ npx @next/codemod upgrade canary --yes
 
 ## Codemods
 
+### 16.4
+
+#### Preserve route state reset behavior during Cache Components adoption
+
+##### `cache-components-activity-reset`
+
+```bash filename="Terminal"
+npx @next/codemod@canary cache-components-activity-reset ./app
+```
+
+This codemod adds a temporary state reset boundary to every existing `page`, `layout`, and parallel-route `default`. It creates a shared Client Component at `app/_next-cache-components/activity-reset.tsx` (`.jsx` in JavaScript projects) that uses [`useRouter().bfcacheId`](/docs/app/api-reference/functions/use-router#bfcacheid) as a React key. Each route imports the component and wraps its rendered output.
+
+The boundary resets the route subtree on push and replace navigations while preserving state during browser back and forward navigation. Generated `TODO: Cache Components adoption` comments mark each boundary for later removal.
+
+> **Good to know**: Pass `./src/app` in a `src/` project. Remove the generated `_next-cache-components` directory after removing the final wrapper.
+
+```diff filename="app/dashboard/page.tsx"
++ // TODO: Cache Components adoption. Remove this wrapper after verifying this route no longer relies on unmounting to reset state.
++ // See: https://nextjs.org/docs/app/guides/preserving-ui-state
++ import { CacheComponentsActivityReset } from '../_next-cache-components/activity-reset'
++
+  export default function Page() {
+-   return <Dashboard />
++   return (
++     <CacheComponentsActivityReset>
++       <Dashboard />
++     </CacheComponentsActivityReset>
++   )
+  }
+```
+
+See [Preserving UI state](/docs/app/guides/preserving-ui-state#keep-route-state-resetting-during-migration) to remove the boundaries incrementally and replace them with targeted reset patterns.
+
 ### 16.3
 
 #### Opt every route out of Cache Components validation

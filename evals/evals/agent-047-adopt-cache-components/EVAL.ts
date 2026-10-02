@@ -56,7 +56,7 @@ test('preserves the catalog route and data cache lifetimes', async () => {
 
 test('records the first incremental migration PR before continuing', async () => {
   await expect(transcript).toSatisfyCriterion(
-    `Before continuing to the full-app migration, the agent records a shippable first migration PR. The account route's incompatible dynamic = 'force-dynamic' export is removed without adding replacement rendering or caching code solely for that config. Its cookie greeting remains request-specific, and the route may remain under instant = false at this checkpoint. The product route may also remain explicitly opted out, but the explicitly static catalog and privacy routes are not deferred with them. The app builds at this checkpoint before the agent continues.`
+    `Before continuing to the full-app migration, the agent records a shippable first migration PR. The account route's incompatible dynamic = 'force-dynamic' export is removed without adding replacement rendering or caching code solely for that config. Its cookie greeting remains request-specific, and the route may remain under instant = false at this checkpoint. The product route may also remain explicitly opted out, but the explicitly static catalog and privacy routes are not deferred with them. Existing pages and layouts receive temporary bfcacheId reset boundaries with Cache Components adoption TODOs so fresh navigations do not unexpectedly preserve route state during the staged migration. The app builds at this checkpoint before the agent continues.`
   )
 })
 
@@ -72,6 +72,11 @@ test('completes Cache Components adoption without route opt-outs', () => {
   expect(config).toMatch(/cacheComponents\s*:\s*true/)
   expect(source).not.toMatch(/export\s+(?:const|var|let)\s+instant\s*=\s*false/)
   expect(source).not.toMatch(/TODO:\s*Cache Components adoption/)
+})
+
+test('removes temporary route-wide Activity reset boundaries', () => {
+  expect(source).not.toMatch(/CacheComponentsActivityReset/)
+  expect(source).not.toMatch(/\bbfcacheId\b/)
 })
 
 test('keeps incompatible route segment config removed', () => {
@@ -103,8 +108,14 @@ test('keeps URL-specific product work below a Suspense boundary', async () => {
   )
 })
 
+test('makes the checkout state reset intentional', async () => {
+  await expect(environment).toSatisfyCriterion(
+    `The checkout wizard no longer relies on the page being unmounted to return to step 1 after the user starts a fresh navigation. The final migration removes the broad generated bfcacheId route wrapper and replaces it with targeted state handling in the checkout feature, such as resetting from an event or cleanup, or deriving the active step from navigation state. It does not remove the compatibility wrapper without addressing the preserved step state.`
+  )
+})
+
 test('removes the remaining opt-outs and completes the production migration', async () => {
   await expect(transcript).toSatisfyCriterion(
-    `The agent recognizes that Cache Components is already enabled and continues from the first incremental migration PR. It removes the remaining temporary opt-outs, uses a production build or Next.js runtime diagnostics to discover the account and product blockers, fixes each route according to whether its content is reusable or request-specific, and finishes with a successful production build. It does not stop after merely deleting instant = false or obtaining a green type check.`
+    `The agent recognizes that Cache Components is already enabled and continues from the first incremental migration PR. It removes the remaining temporary validation opt-outs and Activity reset boundaries, uses a production build or Next.js runtime diagnostics to discover the account and product blockers, fixes each route according to whether its content is reusable or request-specific, reviews the checkout's reliance on unmounting, and finishes with a successful production build. It does not stop after merely deleting instant = false or obtaining a green type check.`
   )
 })

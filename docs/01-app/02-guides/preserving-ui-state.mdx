@@ -18,7 +18,54 @@ Instead of unmounting pages on navigation, Next.js hides them using React's [`<A
 
 Next.js preserves up to 3 routes. Beyond that, the oldest route is evicted and will re-render fresh.
 
-> **Good to know:** Use [`useRouter().bfcacheId`](/docs/app/api-reference/functions/use-router#bfcacheid) as a [React `key`](https://react.dev/learn/preserving-and-resetting-state#option-2-resetting-state-with-a-key): a single `<Fragment key={bfcacheId}>` resets an entire subtree on push or replace navigations (including `<Link>` clicks and `router.push` / `router.replace`) while still restoring state on browser back/forward. `bfcacheId` is mainly a migration tool. For new code, prefer the per-pattern resets below.
+## Keep route state resetting during migration
+
+An existing app may rely on a route unmounting after each new navigation. To keep that behavior while you adopt Cache Components, add a temporary reset boundary to each existing page and layout:
+
+```bash filename="Terminal"
+npx @next/codemod@canary cache-components-activity-reset ./app
+```
+
+> **Good to know**: Pass `./src/app` in a `src/` project.
+
+The codemod creates this Client Component:
+
+```tsx filename="app/_next-cache-components/activity-reset.tsx"
+'use client'
+
+import { Fragment, type ReactNode } from 'react'
+import { useRouter } from 'next/navigation'
+
+export function CacheComponentsActivityReset({
+  children,
+}: {
+  children: ReactNode
+}) {
+  const { bfcacheId } = useRouter()
+
+  return <Fragment key={bfcacheId}>{children}</Fragment>
+}
+```
+
+It then wraps each existing `page`, `layout`, and parallel-route `default`:
+
+```tsx filename="app/dashboard/page.tsx" highlight={1-3,7,9}
+// TODO: Cache Components adoption. Remove this wrapper after verifying this route no longer relies on unmounting to reset state.
+// See: https://nextjs.org/docs/app/guides/preserving-ui-state
+import { CacheComponentsActivityReset } from '../_next-cache-components/activity-reset'
+
+export default function Page() {
+  return (
+    <CacheComponentsActivityReset>
+      <Dashboard />
+    </CacheComponentsActivityReset>
+  )
+}
+```
+
+[`bfcacheId`](/docs/app/api-reference/functions/use-router#bfcacheid) changes on a new push or replace navigation, so the React `key` resets the wrapped subtree. It stays stable during browser back and forward navigation, preserving the state users expect when returning through their history.
+
+The generated TODO comments form a migration checklist. Remove the wrappers from layouts before their child routes, then use the patterns below to reset only the state that should not persist. An ancestor wrapper continues to reset every route beneath it. After removing the final wrapper, delete the generated `_next-cache-components` directory.
 
 ## Choosing what to preserve
 

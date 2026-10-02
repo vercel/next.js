@@ -43,7 +43,7 @@ Adopt Cache Components in this project using the next-cache-components-adoption 
 Migrating an existing app by hand follows a few steps, in order:
 
 1. [Enable Cache Components](#enable-cache-components) in `next.config.ts`.
-2. Decide your approach: convert every route now, or [adopt incrementally](#adopting-incrementally) by [opting routes out of validation](#opting-out-of-validation) first and converting one at a time.
+2. Decide your approach: convert every route now, or [adopt incrementally](#adopting-incrementally) by adding temporary validation and UI-state compatibility layers, then removing them one route at a time.
 3. [Follow the validation errors and insights](#following-validation) it surfaces, replacing each route segment config with its Cache Components equivalent and caching uncached data with [`use cache`](/docs/app/api-reference/directives/use-cache) or wrapping runtime data in [`<Suspense>`](https://react.dev/reference/react/Suspense). The per-key sections below cover each config and API.
 
 Your existing `fetch` and `unstable_cache` caching keeps working. Migrating `unstable_cache` is optional and can happen later.
@@ -87,21 +87,22 @@ export const instant = false
 
 ## Adopting incrementally
 
-You don't have to migrate every route at once. `instant = false` lets you get the whole app building and running first, then convert routes one at a time:
+You don't have to migrate every route at once. Start with temporary compatibility layers for validation and UI state, then convert routes one at a time:
 
 1. **Enable the flag and migrate each route segment config.** Follow the relevant sections below for [`dynamic = "force-dynamic"`](#dynamic--force-dynamic), [`dynamic = "force-static"`](#dynamic--force-static), [`dynamic = "error"`](#dynamic--error), [`revalidate`](#revalidate), and [`fetchCache`](#fetchcache). For routes with dynamic params, also follow the [`generateStaticParams`](#generatestaticparams-and-dynamicparams) guidance. Routes that still render instantly need no further work.
-2. **Opt out the routes that aren't ready.** Where an insight or error appears, set `instant = false` on the segment that raised it. To do this in one pass across the whole app, run the [`cache-components-instant-false`](/docs/app/guides/upgrading/codemods#cache-components-instant-false) codemod, which adds the opt-out to every `page`, `layout`, and `default` that doesn't already declare `instant`:
+2. **Add temporary compatibility layers.** Run these codemods across the app:
 
    ```bash filename="Terminal"
    npx @next/codemod@canary cache-components-instant-false ./app
+   npx @next/codemod@canary cache-components-activity-reset ./app
    ```
 
    > **Good to know**: Pass `./src/app` in a `src/` project. A wrong path reports `0 ok` instead of failing, so check the file count.
 
-   The app keeps building and serving, now with validation deferred for the opted-out routes.
+   The first codemod adds `instant = false` to each route segment so validation can be addressed gradually. The second adds a temporary [`bfcacheId`](/docs/app/api-reference/functions/use-router#bfcacheid) boundary that resets route state on new navigations. Both leave `TODO: Cache Components adoption` comments as a route-by-route work queue.
 
 3. **Fix synchronous IO. It can't be deferred.** Calls like `new Date()`, `Date.now()`, `Math.random()`, and `crypto.randomUUID()` during prerender throw a build error that `instant = false` does not clear, so a route that uses them won't build until you address it, opt-out or not. Move the call out of the prerendered shell so it runs at request time: wrap the part that needs it in [`<Suspense>`](https://react.dev/reference/react/Suspense) and call [`connection()`](/docs/app/api-reference/functions/connection) before the call, or move it into a Client Component.
-4. **Convert one route at a time.** Remove `instant = false` from a route, then resolve its insights by caching data with [`use cache`](/docs/app/api-reference/directives/use-cache) or wrapping runtime data in [`<Suspense>`](https://react.dev/reference/react/Suspense). Repeat until no routes opt out.
+4. **Convert one route at a time.** Remove `instant = false`, then resolve the route's insights by caching data with [`use cache`](/docs/app/api-reference/directives/use-cache) or wrapping runtime data in [`<Suspense>`](https://react.dev/reference/react/Suspense). Remove its Activity reset wrapper after checking that the route no longer depends on unmounting to reset state. Work from layouts down to their child routes so an ancestor does not hide the behavior you are testing.
 
 ## Following validation
 
@@ -952,6 +953,8 @@ export default function Page() {
 ## UI state preservation
 
 **Component state now persists across navigations.** With Cache Components, Next.js preserves routes using React's [`<Activity>`](https://react.dev/reference/react/Activity) component in [`"hidden"`](https://react.dev/reference/react/Activity#activity) mode instead of unmounting them. Effects clean up and re-run normally, but `useState` values, form inputs, and scroll position are no longer reset when navigating away and back.
+
+For an incremental migration, run the [`cache-components-activity-reset`](/docs/app/guides/upgrading/codemods#cache-components-activity-reset) codemod before enabling Cache Components. It adds a temporary reset boundary to each existing page and layout. Remove those boundaries one route at a time as you review the state that should persist.
 
 If your code relied on unmounting to clear state, you may need to add explicit reset logic:
 
