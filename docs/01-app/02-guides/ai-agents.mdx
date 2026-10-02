@@ -191,6 +191,14 @@ Then give the agent this prompt:
 After every edit, verify the page still works at runtime using the next-dev-loop Skill.
 ```
 
+### `next-browser-initial-load-optimizer`
+
+For slow route startup, oversized client bundles, duplicate browser dependencies, or features that can wait for interaction, use [`next-browser-initial-load-optimizer`](https://github.com/vercel/next.js/tree/canary/skills/next-browser-initial-load-optimizer). It audits a route by default; explicitly request fixes to enter its edit, measure, and verify loop.
+
+```bash filename="Terminal"
+npx skills add vercel/next.js --skill next-browser-initial-load-optimizer
+```
+
 ### `next-cache-components-adoption`
 
 The [`next-cache-components-adoption`](https://www.skills.sh/vercel/next.js/next-cache-components-adoption) Skill migrates an app to [Cache Components](/docs/app/getting-started/caching):
