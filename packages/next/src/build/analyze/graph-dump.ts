@@ -45,12 +45,27 @@ type RouteHeader = {
     module_ident: string
     reason: string
   }>
+  unresolved_output_references?: number[]
   chunk_groups?: Array<{
     id: number
     kind: string
     trigger_module_index?: number
     unjoined_trigger_ident?: string
     output_file_indices: number[]
+  }>
+  chunk_load_edges?: Array<{
+    source_output_file_index: number
+    target_output_file_index: number
+    kind: string
+    trigger_module_index?: number
+    unjoined_trigger_ident?: string
+  }>
+  unjoined_chunk_load_edges?: Array<{
+    source_output_file_index?: number
+    target_path: string
+    kind: string
+    reason: string
+    trigger_module_ident?: string
   }>
 }
 
@@ -278,7 +293,91 @@ function parseRoutes(file: string, modules: ReturnType<typeof parseModules>) {
     membership,
     unjoined,
     groups: groupRecords(header, modules),
+    load: loadRecords(header, modules),
   }
+}
+
+function loadRecords(
+  header: RouteHeader,
+  modules: ReturnType<typeof parseModules>
+) {
+  const output = (index: number) => {
+    requireIndex(index, header.output_files.length, 'load output')
+    return header.output_files[index].filename
+  }
+  const edges = header.chunk_load_edges?.map((edge) => {
+    if (typeof edge.kind !== 'string')
+      throw new Error('Invalid analyzer load edge kind')
+    return {
+      source_output: output(edge.source_output_file_index),
+      target_output: output(edge.target_output_file_index),
+      kind: edge.kind,
+      ...triggerRecord(
+        header,
+        modules,
+        edge.trigger_module_index,
+        edge.unjoined_trigger_ident
+      ),
+    }
+  })
+  const unresolved = header.unjoined_chunk_load_edges?.map((edge) => {
+    if (
+      typeof edge.target_path !== 'string' ||
+      typeof edge.kind !== 'string' ||
+      typeof edge.reason !== 'string' ||
+      (edge.trigger_module_ident !== undefined &&
+        typeof edge.trigger_module_ident !== 'string')
+    ) {
+      throw new Error('Invalid unresolved analyzer load edge')
+    }
+    return {
+      source_output:
+        edge.source_output_file_index === undefined
+          ? null
+          : output(edge.source_output_file_index),
+      target_path: edge.target_path,
+      kind: edge.kind,
+      reason: edge.reason,
+      trigger_module_ident: edge.trigger_module_ident ?? null,
+    }
+  })
+  if (
+    header.unresolved_output_references !== undefined &&
+    (!Array.isArray(header.unresolved_output_references) ||
+      header.unresolved_output_references.length !==
+        header.output_files.length ||
+      header.unresolved_output_references.some(
+        (count) => !integer(count, UINT32_LIMIT)
+      ))
+  ) {
+    throw new Error('Invalid unresolved analyzer output references')
+  }
+  return { edges: edges ?? null, unresolved: unresolved ?? null }
+}
+
+function triggerRecord(
+  header: RouteHeader,
+  modules: ReturnType<typeof parseModules>,
+  index?: number,
+  unjoined?: string
+) {
+  if (index !== undefined && unjoined !== undefined)
+    throw new Error('Conflicting analyzer trigger identities')
+  if (index !== undefined) {
+    if (!header.module_index_hash || header.module_index_hash !== modules.hash)
+      throw new Error('Analyzer module-index fingerprint mismatch')
+    requireIndex(index, modules.modules.length, 'trigger module')
+    return {
+      trigger_module_ident: modules.modules[index].ident,
+      trigger_join: 'joined',
+    }
+  }
+  if (unjoined !== undefined) {
+    if (typeof unjoined !== 'string')
+      throw new Error('Invalid unjoined analyzer trigger')
+    return { trigger_module_ident: unjoined, trigger_join: 'unjoined' }
+  }
+  return { trigger_module_ident: null, trigger_join: 'none' }
 }
 
 function groupRecords(
@@ -442,7 +541,7 @@ export function dumpAnalyzeGraph(
   // Retain only the current route's data. A later validation error may leave
   // partial output; callers must check the exit status before using it.
   for (const route of selected) {
-    const { paths, header, entries, membership, unjoined, groups } =
+    const { paths, header, entries, membership, unjoined, groups, load } =
       parseRoutes(routeFile(directory, route), moduleData)
     const prefix = { route }
     writeRecord({
@@ -452,6 +551,7 @@ export function dumpAnalyzeGraph(
       coverage: {
         entries: entries ? 'exact' : 'unknown',
         groups: groups ? 'exact' : 'unknown',
+        load_edges: load.edges && load.unresolved ? 'exact' : 'unknown',
       },
     })
     for (let i = 0; i < header.output_files.length; i++) {
@@ -461,6 +561,7 @@ export function dumpAnalyzeGraph(
         filename: header.output_files[i].filename,
         modules: membership.row(i).map((id) => modules[id].ident),
         coverage: header.output_file_module_coverage[i],
+        unresolved_references: header.unresolved_output_references?.[i] ?? null,
       })
     }
     for (const part of header.chunk_parts) {
@@ -475,6 +576,10 @@ export function dumpAnalyzeGraph(
     }
     for (const group of groups ?? [])
       writeRecord({ type: 'group', ...prefix, ...group })
+    for (const edge of load.edges ?? [])
+      writeRecord({ type: 'load_edge', ...prefix, ...edge })
+    for (const edge of load.unresolved ?? [])
+      writeRecord({ type: 'unresolved', ...prefix, ...edge })
     for (const module of unjoined)
       writeRecord({ type: 'unjoined', ...prefix, ...module })
   }
