@@ -53,6 +53,8 @@ In an interactive terminal, an eligible reminder during `next dev` or `next buil
 - **Skip** returns to the running command and replays its buffered output.
 - **Skip until next version** saves the dismissal for the installed version and policy.
 
+If you don't choose within ten seconds, or the buffered output grows past about 10 MiB, the reminder skips automatically.
+
 When a coding agent runs `next dev` or `next build`, the first eligible reminder stops the command with instructions to report the upgrade. Retrying the same command promptly continues the original task with a warning.
 
 Reminders require the installed Next.js version to support `experimental.agentUpgrade`. Running the current canary upgrade CLI does not add reminders to an older installation.

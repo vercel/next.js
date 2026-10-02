@@ -29,7 +29,7 @@ From a workspace root, pass the app directory:
 npx next@canary upgrade apps/web --agent=latest
 ```
 
-Using `next@canary` runs the latest upgrade tooling, even when the app uses an older Next.js version. The CLI reads the version installed in the app and selects a canary target only when the app already uses a canary version.
+Using `next@canary` runs the latest upgrade tooling, even when the app uses an older Next.js version. If the project's package manager sets a minimum release age, the CLI uses the newest canary that policy allows. The CLI reads the version installed in the app and selects a canary target only when the app already uses a canary version.
 
 ## Choose a policy
 
@@ -58,6 +58,8 @@ npx next@canary upgrade --agent=experimental-future
 ```
 
 Pages Router projects can use `experimental-future` for version upgrades, but the command does not offer Cache Components until the project uses the App Router.
+
+Partial Prefetching is not part of this policy yet. After the agent adopts Cache Components, enable it by following [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching).
 
 ## What the command does
 
