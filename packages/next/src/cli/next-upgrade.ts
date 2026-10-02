@@ -152,10 +152,10 @@ async function loadAgentUpgradeConfig(directory: string) {
 }
 
 async function resolveCanaryVersion(directory: string): Promise<string> {
-  const policy = getReleaseAgePolicy(directory)
+  const { publishedBefore, isExcluded } = getReleaseAgePolicy(directory)
   try {
     // Full metadata includes the publication times needed to respect an age gate.
-    const ageGated = policy.minimumReleaseAge > 0
+    const ageGated = publishedBefore !== null
     const response = await fetch(
       `https://registry.npmjs.org/next${ageGated ? '' : '/canary'}`,
       {
@@ -175,21 +175,19 @@ async function resolveCanaryVersion(directory: string): Promise<string> {
       throw new Error('Invalid canary version')
     }
 
-    if (!ageGated || policy.isExcluded(version)) {
+    if (publishedBefore === null || isExcluded(version)) {
       return version
     }
 
     // Pin the newest eligible canary without relying on manager-specific tag fallback.
-    const cutoff =
-      policy.publishedBefore ?? Date.now() - policy.minimumReleaseAge
     const eligibleVersion = Object.keys(metadata.versions)
       .filter((candidate) => {
         return (
           valid(candidate) === candidate &&
           prerelease(candidate)?.[0] === 'canary' &&
           lte(candidate, version) &&
-          (policy.isExcluded(candidate) ||
-            Date.parse(metadata.time?.[candidate]) <= cutoff)
+          (isExcluded(candidate) ||
+            Date.parse(metadata.time?.[candidate]) <= publishedBefore)
         )
       })
       .sort(rcompare)[0]
