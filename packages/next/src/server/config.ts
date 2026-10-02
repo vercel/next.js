@@ -63,7 +63,7 @@ import { hrtimeBigIntDurationToString } from '../build/duration-to-string'
 
 export { normalizeConfig } from './config-shared'
 import { verifyDistDir } from '../lib/dist-dir'
-import { isStableBuild } from 'next/src/shared/lib/errors/canary-only-config-error'
+import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
 export type { DomainLocale, NextConfig } from './config-shared'
 
 const REACT_18_DEPRECATION_WARNING =
