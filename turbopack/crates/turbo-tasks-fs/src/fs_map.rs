@@ -50,10 +50,16 @@ impl FromIterator<(PathBuf, ResolvedVc<DiskFileSystem>)> for DiskFileSystemMap {
 }
 
 impl DiskFileSystemMap {
-    pub fn has_file_system_other_than(&self, current: ResolvedVc<DiskFileSystem>) -> bool {
-        self.roots
-            .values()
-            .any(|file_system| *file_system != current)
+    pub(crate) fn contains(&self, root: &Path, current: ResolvedVc<DiskFileSystem>) -> bool {
+        self.roots.get(root).is_some_and(|fs| *fs == current)
+    }
+
+    pub fn len(&self) -> usize {
+        self.roots.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.roots.is_empty()
     }
 
     /// Finds the containing root; the suffix is empty only when `path` is that root.
@@ -111,7 +117,8 @@ mod tests {
                 .to_resolved()
                 .await?;
             let map: DiskFileSystemMap = [(PathBuf::from("/tmp/root"), fs)].into_iter().collect();
-            assert!(!map.has_file_system_other_than(fs));
+            assert_eq!(map.len(), 1);
+            assert!(map.contains(Path::new("/tmp/root"), fs));
             assert_eq!(
                 map.lookup(Path::new("/tmp/root/file")).unwrap().path,
                 "file"

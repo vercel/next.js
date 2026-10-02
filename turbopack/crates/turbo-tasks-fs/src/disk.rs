@@ -214,7 +214,7 @@ pub(crate) struct DiskFileSystemInner {
     /// In the future, we should consider using `Path`/`PathBuf` here. Paths inside of the
     /// `DiskFileSystem` must be valid unicode, but the root path doesn't need to be.
     root: RcStr,
-    /// Results of checking prefixes in order for this filesystem's root.
+    /// Results of checking prefixes for this root when the filesystem map does not contain it.
     #[turbo_tasks(debug_ignore, unsafe_ignore)]
     #[bincode(skip)]
     root_prefixes: CanonicalizedPathWalkCache,
@@ -614,14 +614,9 @@ impl DiskFileSystem {
         ) -> Result<Vc<FileSystemPathOption>> {
             let this = vc_self.await?;
             let absolute_path = Path::new(&*absolute_path);
-            let mut path = this
+            let path = this
                 .resolve_path_ancestry_slow_path(vc_self, absolute_path)
                 .await?;
-            if path.is_none() {
-                path = this
-                    .lookup_in_file_system_map(vc_self, absolute_path)
-                    .await?;
-            }
             Ok(Vc::cell(path))
         }
 
@@ -683,10 +678,10 @@ impl DiskFileSystem {
         return sys_path;
     }
 
-    /// Resolves an absolute path whose spelling differs from the [`DiskFileSystem`] root,
-    /// creating a [`FileSystemPath`] relative to that root.
+    /// Resolves an absolute path into this filesystem or another configured filesystem, using
+    /// lexical prefix stripping first and canonicalizing successive prefixes if needed.
     ///
-    /// Returns [`None`] if the path never reaches the filesystem root, an ancestor can't be
+    /// Returns [`None`] if the path never reaches a filesystem root, an ancestor can't be
     /// canonicalized, or the first matching prefix lands inside the root.
     ///
     /// In some cases that absolute path may contain symlinks, different capitalization, or Windows
@@ -701,36 +696,37 @@ impl DiskFileSystem {
         vc_self: ResolvedVc<Self>,
         target_sys_path: &Path,
     ) -> Result<Option<FileSystemPath>> {
-        Ok(self
-            .inner
-            .root_prefixes
-            .walk_canonicalized_ancestry(target_sys_path, |canonical| {
-                let root_path = self.inner.root_path();
-                if canonical == root_path {
-                    ControlFlow::Break(Some(vc_self))
-                } else if canonical.starts_with(root_path) {
-                    ControlFlow::Break(None)
-                } else {
-                    ControlFlow::Continue(())
-                }
-            })
-            .await)
-    }
-
-    /// Looks up a system path in any configured filesystem other than the current filesystem.
-    ///
-    /// Like [`Self::resolve_path_ancestry_slow_path`], the fallback handles paths whose
-    /// spelling differs from a configured root.
-    async fn lookup_in_file_system_map(
-        &self,
-        vc_self: ResolvedVc<Self>,
-        target_sys_path: &Path,
-    ) -> Result<Option<FileSystemPath>> {
         let map = self.inner.map.connect().await?;
-        if !map.has_file_system_other_than(vc_self) {
-            return Ok(None);
+        if !map.contains(self.inner.root_path(), vc_self) {
+            if let Some(found) = self.try_from_sys_path(vc_self, target_sys_path, None) {
+                return Ok(Some(found));
+            }
+            if let Some(found) = self
+                .inner
+                .root_prefixes
+                .walk_canonicalized_ancestry(target_sys_path, |canonical| {
+                    let root_path = self.inner.root_path();
+                    if canonical == root_path {
+                        ControlFlow::Break(Some(vc_self))
+                    } else if canonical.starts_with(root_path) {
+                        ControlFlow::Break(None)
+                    } else {
+                        ControlFlow::Continue(())
+                    }
+                })
+                .await
+            {
+                return Ok(Some(found));
+            }
+            if map.is_empty() {
+                return Ok(None);
+            }
         }
-        if let Some(found) = map.lookup(target_sys_path) {
+        if let Some(found) = target_sys_path
+            .normalize_lexically()
+            .ok()
+            .and_then(|path| map.lookup(&path))
+        {
             return Ok(Some(found));
         }
         Ok(map
@@ -1039,11 +1035,6 @@ impl FileSystem for DiskFileSystem {
                     .resolve_path_ancestry_slow_path(self, &target_sys_path)
                     .await?;
             }
-            if target_fs_path.is_none() {
-                target_fs_path = this
-                    .lookup_in_file_system_map(self, &target_sys_path)
-                    .await?;
-            }
 
             let Some(target_fs_path) = target_fs_path else {
                 // The target leaves the filesystem root (or is a dangling link whose parent
@@ -1106,11 +1097,8 @@ impl FileSystem for DiskFileSystem {
             };
             let raw = RcStr::from(sys_to_unix(target_str));
 
-            // Require the target to stay within the filesystem root at every step, not just at
-            // the end. A target like `../../<root dir name>/foo` steps out of the root and back
-            // in; resolving that needs the names of the root's own ancestors, which a
-            // root-relative `FileSystemPath` doesn't carry. Rejecting it here is what lets
-            // `LinkTarget` carry a resolved path at all.
+            // If the relative target steps above the root, resolve its absolute system path
+            // against this filesystem and the other configured roots.
             let resolved = if let Some(resolved) = fs_path.parent().try_join(&raw) {
                 resolved
             } else {
@@ -1120,7 +1108,7 @@ impl FileSystem for DiskFileSystem {
                     .normalize_lexically()
                     .ok();
                 let Some(resolved) = (match absolute_target {
-                    Some(path) => this.lookup_in_file_system_map(self, &path).await?,
+                    Some(path) => this.resolve_path_ancestry_slow_path(self, &path).await?,
                     None => None,
                 }) else {
                     return Ok(LinkContent::Invalid {
@@ -2230,10 +2218,8 @@ mod tests {
             tt.stop_and_wait().await;
         }
 
-        /// A relative target must stay inside the filesystem root at every step, not just at the
-        /// end. Both of these step above the root; one comes back into it and one doesn't, but
-        /// neither resolves into a configured filesystem, so `read_link` rejects both and every
-        /// [`LinkContent::Link`] stays resolvable by construction.
+        /// A relative target can step above the root and return to it, but a target that ends
+        /// outside all configured roots is invalid.
         #[cfg(unix)]
         #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
         async fn test_read_escaping_relative_symlink() {
@@ -2272,15 +2258,16 @@ mod tests {
                 fs: ResolvedVc<DiskFileSystem>,
                 root_path: FileSystemPath,
             ) -> anyhow::Result<()> {
-                // sub/link-reentrant -> ../../<root dir name>/root.txt, which steps above the root
-                // and back down into it. It cannot be resolved through the configured filesystem
-                // map because no filesystem owns the path while it is outside the root.
                 let reentrant = fs.read_link(root_path.join("sub/link-reentrant")?).await?;
-                assert!(matches!(
-                    &*reentrant,
-                    LinkContent::Invalid { reason }
-                        if reason == "the symlink target leaves the configured filesystem roots"
-                ));
+                assert_eq!(
+                    *reentrant,
+                    LinkContent::Link {
+                        target: LinkTarget::Relative {
+                            raw: rcstr!("../../the-root/root.txt"),
+                            resolved: root_path.join("root.txt")?,
+                        },
+                    }
+                );
 
                 // sub/link-sideways -> ../../sibling/root.txt, which steps above the root and down
                 // into a sibling, so it genuinely ends outside.
