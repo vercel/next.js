@@ -160,14 +160,11 @@ import { NoFallbackError } from '../shared/lib/no-fallback-error.external'
 import { fixMojibake } from './lib/fix-mojibake'
 import { setCacheBustingSearchParamWithHash } from '../client/components/router-reducer/set-cache-busting-search-param'
 import type { CacheControl } from './lib/cache-control'
-import type {
-  PrerenderRouteMatcher,
-  PrerenderedRoute,
-  StaticPathsResult,
-} from '../build/static-paths/types'
+import type { StaticPathsResult } from '../build/static-paths/types'
 import {
   createOpaqueFallbackRouteParams,
   getStagedFallbackParams,
+  selectPrerenderedRoute,
 } from './request/fallback-params'
 import { RouteKind } from './route-kind'
 import type { ErrorModule } from './load-default-error-components'
@@ -2775,31 +2772,13 @@ export default abstract class Server<
 
           // Match both build-time prerenders and routes that have no
           // build-time output, such as an explicit blocking match.
-          let matchedRoute: PrerenderedRoute | PrerenderRouteMatcher | undefined
-          for (const route of pathsResults.prerenderedRoutes ?? []) {
-            if (!getRouteRegex(route.pathname).re.test(decodedPathname)) {
-              continue
-            }
-            if (
-              matchedRoute === undefined ||
-              (route.fallbackRouteParams?.length ?? 0) <
-                (matchedRoute.fallbackRouteParams?.length ?? 0)
-            ) {
-              matchedRoute = route
-            }
-          }
-          for (const route of pathsResults.prerenderRouteMatchers ?? []) {
-            if (!getRouteRegex(route.pathname).re.test(decodedPathname)) {
-              continue
-            }
-            if (
-              matchedRoute === undefined ||
-              route.fallbackRouteParams.length <
-                (matchedRoute.fallbackRouteParams?.length ?? 0)
-            ) {
-              matchedRoute = route
-            }
-          }
+          const matchedRoute = selectPrerenderedRoute(
+            [
+              ...(pathsResults.prerenderedRoutes ?? []),
+              ...(pathsResults.prerenderRouteMatchers ?? []),
+            ],
+            decodedPathname
+          )
           if (
             paramMatching !== undefined &&
             matchedRoute?.fallbackMode === FallbackMode.NOT_FOUND
