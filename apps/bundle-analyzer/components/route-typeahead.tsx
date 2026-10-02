@@ -309,9 +309,9 @@ function DeltaBadge({
 
   const tone =
     row.status === 'added' || d > 0
-      ? 'text-red-600 dark:text-red-400'
+      ? 'text-delta-increase'
       : row.status === 'removed' || d < 0
-        ? 'text-green-600 dark:text-green-400'
+        ? 'text-delta-decrease'
         : 'text-muted-foreground'
 
   return (
