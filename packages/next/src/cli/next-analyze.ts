@@ -8,6 +8,7 @@ import analyze from '../build/analyze'
 import { warn } from '../build/output/log'
 import { printAndExit } from '../server/lib/utils'
 import { getProjectDir } from '../lib/get-project-dir'
+import { warnMissingReactDependencies } from '../lib/warn-missing-react-dependencies'
 
 export type NextAnalyzeOptions = {
   experimentalAnalyze?: boolean
@@ -45,6 +46,7 @@ const nextAnalyze = async (options: NextAnalyzeOptions, directory?: string) => {
   }
 
   const dir = getProjectDir(directory)
+  warnMissingReactDependencies(dir)
 
   if (!existsSync(dir)) {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
