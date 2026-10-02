@@ -28,6 +28,7 @@ export interface CompareLayoutProps {
 
 export interface CompareLayoutModel {
   baselineSnapshot: SnapshotMetadata
+  baselineIsLatest: boolean
   comparisonSnapshot: SnapshotMetadata | null
   comparisonRouteCount: number | null
   routeDiff: ReturnType<typeof diffRoutesWithSizes> | null
@@ -93,6 +94,7 @@ export function CompareLayout({ model, onResizeSidebar }: CompareLayoutProps) {
               model.hasAlternateEnvironmentSources
             }
             baselineSnapshot={model.baselineSnapshot}
+            baselineIsLatest={model.baselineIsLatest}
             comparisonSnapshot={model.comparisonSnapshot}
             compareSelectedKey={model.selectedKey}
             onCompareSelectedKeyChange={model.onSelectedKeyChange}
@@ -116,7 +118,11 @@ export function CompareLayout({ model, onResizeSidebar }: CompareLayoutProps) {
           baselineModuleDepthMap={model.baselineModuleDepthMap}
           environmentFilter={model.environmentFilter}
           sidebarWidth={model.sidebarWidth}
-          aLabel={formatSnapshotLabel(model.baselineSnapshot)}
+          aLabel={
+            model.baselineIsLatest
+              ? 'Latest'
+              : formatSnapshotLabel(model.baselineSnapshot)
+          }
           bLabel={
             model.comparisonSnapshot
               ? formatSnapshotLabel(model.comparisonSnapshot)
@@ -349,6 +355,7 @@ export function ComparePerRoutePanel({
   environmentFilter,
   hasAlternateEnvironmentSources,
   baselineSnapshot,
+  baselineIsLatest,
   comparisonSnapshot,
   compareSelectedKey,
   onCompareSelectedKeyChange,
@@ -365,6 +372,7 @@ export function ComparePerRoutePanel({
   environmentFilter: Environment
   hasAlternateEnvironmentSources: boolean
   baselineSnapshot: SnapshotMetadata
+  baselineIsLatest: boolean
   comparisonSnapshot: SnapshotMetadata | null
   compareSelectedKey: string | null
   onCompareSelectedKeyChange: (key: string | null) => void
@@ -439,7 +447,9 @@ export function ComparePerRoutePanel({
           summary={sourceDiff}
           useCompressed={compressed}
           nameHeading="Source"
-          aHeading={formatSnapshotLabel(baselineSnapshot)}
+          aHeading={
+            baselineIsLatest ? 'Latest' : formatSnapshotLabel(baselineSnapshot)
+          }
           bHeading={
             comparisonSnapshot
               ? formatSnapshotLabel(comparisonSnapshot)
