@@ -86,7 +86,10 @@ import {
 } from '../../../client/components/http-access-fallback/http-access-fallback'
 import { RedirectStatusCode } from '../../../client/components/redirect-status-code'
 import { INFINITE_CACHE } from '../../../lib/constants'
-import { executeRevalidates } from '../../revalidation-utils'
+import {
+  executeRevalidates,
+  withExecuteRevalidates,
+} from '../../revalidation-utils'
 import { trackStreamConsumed } from '../../web/web-on-close'
 import { trackPendingModules } from '../../app-render/module-loading/track-module-loading.external'
 import { InvariantError } from '../../../shared/lib/invariant-error'
@@ -406,14 +409,15 @@ export class AppRouteRouteModule extends RouteModule<
   }
 
   /**
-   * Defers executing pending revalidations until the handler's response body
-   * stream has ended, so that revalidations queued while the body streams
+   * Executes pending revalidations now, and again when the handler's response
+   * body stream has ended, so that revalidations queued while the body streams
    * (e.g. a write performed by a streaming handler after it returned its
-   * `Response`) are applied too, instead of being silently dropped.
+   * `Response`) are applied too, instead of being silently dropped. The second
+   * pass only executes revalidations added after the first.
    *
    * Returns the response to send, with its body wrapped to observe the end.
    */
-  private deferPendingRevalidationsUntilBodyEnd(
+  private resolvePendingRevalidationsNowAndAtBodyEnd(
     res: Response,
     workStore: WorkStore,
     requestStore: RequestStore,
@@ -431,11 +435,16 @@ export class AppRouteRouteModule extends RouteModule<
     })
     const body = trackStreamConsumed(res.body!, () => onBodyEnd())
 
+    // Revalidations queued before the handler returned are applied right away,
+    // not held for the lifetime of a long-lived stream.
+    const returnedRevalidates = executeRevalidates(workStore) || undefined
+
     // `pendingWaitUntil` is read once, right after the route module returns,
     // so it has to be set now even though it settles later.
-    context.renderOpts.pendingWaitUntil = bodyEnded
-      .then(() => executeRevalidates(workStore) || undefined)
-      .finally(() => this.logPendingRevalidatesFinished(requestStore))
+    context.renderOpts.pendingWaitUntil = Promise.all([
+      returnedRevalidates,
+      withExecuteRevalidates(workStore, () => bodyEnded),
+    ]).finally(() => this.logPendingRevalidatesFinished(requestStore))
 
     return new Response(body, {
       status: res.status,
@@ -527,9 +536,9 @@ export class AppRouteRouteModule extends RouteModule<
     // A streamed body can keep running handler code (and queueing
     // revalidations) after the handler has returned. HEAD responses never
     // have their body read, and static generation consumes the body itself,
-    // so both keep executing revalidations now.
+    // so both only execute revalidations now.
     if (response.body && !prerenderStore && request.method !== 'HEAD') {
-      response = this.deferPendingRevalidationsUntilBodyEnd(
+      response = this.resolvePendingRevalidationsNowAndAtBodyEnd(
         response,
         workStore,
         requestStore,
