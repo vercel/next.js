@@ -23,7 +23,7 @@ Enable Cache Components on an app and walk it to a passing build. This skill seq
 
 - **A runnable app.** The whole loop verifies against `next dev` and a browser, so the app has to boot. If it reads a database or required env at import (e.g. an `env.ts` that throws on a missing `DATABASE_URL`), confirm it actually starts — with the real environment, or local data you stand up — before step 1. Adoption can't be verified against an app that won't run.
 
-- **Next.js 16 or later.** Cache Components requires Next.js 16. If `next --version` reports below 16, upgrade first. The adoption codemods are fetched from `@next/codemod@canary` and do not require the app itself to use Next.js 16.4:
+- **Next.js 16.3 or later.** That release is where the pieces this skill relies on land: top-level `cacheComponents`, `export const instant`, `useRouter().bfcacheId`, and the dev-overlay instant-navigation validation warnings. If `next --version` reports below 16.3, upgrade first:
   - `npx @next/codemod@latest upgrade latest` to apply the version-to-version codemods.
   - Read the relevant [version upgrade guide](https://nextjs.org/docs/app/guides/upgrading) (e.g. [Version 16](https://nextjs.org/docs/app/guides/upgrading/version-16)) for what the codemod doesn't cover.
 
@@ -126,7 +126,7 @@ Run the validation opt-out codemod if validation needs to be addressed route by 
 npx @next/codemod@canary cache-components-instant-false ./app
 ```
 
-Independently, run the Activity reset codemod if the app relies on routes unmounting during navigation:
+Independently, run the Activity reset codemod when the app keeps UI state in Client Components that a navigation used to clear: multi-step flows, drafts, open/closed UI held in `useState`, or `useActionState` results. Also run it when the user asks to keep current behavior. Skip it for apps whose client state is derived from the URL or server data, and audit each route in the loop instead:
 
 ```bash
 npx @next/codemod@canary cache-components-activity-reset ./app
@@ -134,7 +134,7 @@ npx @next/codemod@canary cache-components-activity-reset ./app
 
 Pass the app directory you resolved in [requires](#requires). A wrong path is not an error: it reports `0 ok` and exits `0`, so read the file count and treat zero as a failed run, not an adopted app.
 
-Confirm that each command you chose changed files, then set `cacheComponents: true`. Treat the resulting `// TODO: Cache Components adoption` comments as migration work queues. The two queues are independent: removing `instant = false` re-enables validation, while removing an Activity reset boundary changes route-state behavior. Follow the [migration guide](https://nextjs.org/docs/app/guides/migrating-to-cache-components#adopting-incrementally) for the codemod behavior and removal steps.
+Confirm that each command you chose changed files, then set `cacheComponents: true`. The resulting `// TODO: Cache Components adoption` comments are the work queues for the loop. The two queues are independent: removing `instant = false` re-enables validation, while removing an Activity reset boundary changes route-state behavior. Follow the [migration guide](https://nextjs.org/docs/app/guides/migrating-to-cache-components#adopting-incrementally) for the codemod behavior and removal steps.
 
 If the validation opt-out codemod isn't available (older `@next/codemod`, sandboxed environment, offline run), reproduce it by hand: for every `{page,layout,default}.{js,jsx,ts,tsx}` in the app directory that isn't `"use client"` or `"use server"` and doesn't already declare `instant`, insert this after the imports:
 

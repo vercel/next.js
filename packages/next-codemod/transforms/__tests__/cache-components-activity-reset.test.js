@@ -58,6 +58,35 @@ export default function Layout({ children }: { children: ReactNode }) {
 `)
   })
 
+  it('wraps a parenthesized multi-line return without stray parentheses', () => {
+    const source = `export default function RootLayout({ children }) {
+  return (
+    <html lang="en">
+      <body>{children}</body>
+    </html>
+  )
+}
+`
+
+    const output = transform('/project/app/layout.tsx', source)
+    expect(output).not.toMatch(/>\(</)
+    expect(output).not.toMatch(/>\)</)
+    expect(output).toMatchInlineSnapshot(`
+"// TODO: Cache Components adoption. Remove this wrapper after verifying this route no longer relies on unmounting to reset state.
+// See: https://nextjs.org/docs/app/guides/preserving-ui-state
+import { CacheComponentsActivityReset } from \"./_next-cache-components/activity-reset\";
+
+export default function RootLayout({ children }) {
+  return (
+    <CacheComponentsActivityReset><html lang=\"en\">
+        <body>{children}</body>
+      </html></CacheComponentsActivityReset>
+  );
+}
+"
+`)
+  })
+
   it('wraps each top-level return without touching nested functions', () => {
     const source = `export default function Page({ ready }) {
   function getLabel() {

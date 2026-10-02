@@ -262,6 +262,12 @@ export default function transformer(
   const wrapExpression = (expression: any) => {
     if (isResetElement(expression)) return expression
 
+    // A `return (...)` keeps its parentheses on the node. Inside the wrapper
+    // element they would print as JSX text, so drop them.
+    if (expression.extra?.parenthesized) {
+      expression.extra.parenthesized = false
+    }
+
     if (!usesJsx) {
       return j.callExpression(j.identifier(localCreateElementName), [
         j.identifier(localResetName),

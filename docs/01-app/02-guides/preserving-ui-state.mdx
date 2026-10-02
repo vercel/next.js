@@ -67,23 +67,11 @@ export default function Page() {
 
 It also stays stable when only the URL's search parameters change. If a search parameter should reset part of the UI, derive that state from the URL or key that specific subtree by the parameter instead.
 
-The generated TODO comments form a migration checklist. Remove the wrappers from layouts before their child routes, then use the patterns below to reset only the state that should not persist. An ancestor wrapper continues to reset every route beneath it. After removing the final wrapper, delete the generated `_next-cache-components` directory.
+The generated TODO comments form a migration checklist. An ancestor wrapper resets every route beneath it, so remove wrappers from layouts before their child routes. As you remove each one, use the patterns below to reset only the state that should not persist. After removing the final wrapper, delete the generated `_next-cache-components` directory.
 
 ## Choosing what to preserve
 
-Activity preserves all component state and DOM state by default. For each piece of state, you decide whether that's the right behavior for your UI. The patterns below show common scenarios and how to handle both sides.
-
-Use the pattern that matches the state you need to manage:
-
-- For a dropdown or popover, [reset transient state when the route is hidden](#expandable-ui-dropdowns-accordions-panels).
-- For a dialog controlled by the URL, [derive its state from search parameters](#dialog-and-initialization-logic).
-- For a new-item form, [reset it after a successful submission](#resetting-form-state-on-submit).
-- For an edit form, [reset the form when its record changes](#resetting-a-form-when-its-record-changes).
-- For state scoped to a signed-in user, [reset or key it by the user ID](#state-and-authentication).
-- For code that searches the document, [exclude DOM retained by hidden routes](#global-dom-queries).
-- For timers, subscriptions, or media, [clean up work when the route is hidden](#effect-and-media-cleanup).
-- For an imperative third-party widget, [destroy and recreate its instance across visibility changes](#third-party-widgets).
-- For end-to-end tests, [use visibility-aware selectors](#use-visibility-aware-selectors).
+Activity preserves all component state and DOM state by default. For each piece of state, you decide whether that's the right behavior for your UI. The patterns below show common scenarios and how to handle both sides. Beyond component state, see [Global DOM queries](#global-dom-queries), [Third-party widgets](#third-party-widgets), and [Testing](#testing) for code that assumes hidden routes have left the document.
 
 ### Expandable UI (dropdowns, accordions, panels)
 
@@ -313,7 +301,7 @@ This resets all fields whenever the user navigates away.
 
 #### Resetting a form when its record changes
 
-An edit form can receive fresh server data while preserving its existing React and DOM state. This is especially noticeable with uncontrolled inputs: changing `defaultValue` does not replace the current input value.
+With Activity, an edit form that receives fresh server data keeps its existing React and DOM state. This is most visible with uncontrolled inputs: changing `defaultValue` does not replace the current input value.
 
 Key the form by the identity or version of the data that should start a new editing session:
 
