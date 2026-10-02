@@ -26,7 +26,11 @@ import {
   TableSkeleton,
   TreemapSkeleton,
 } from '@/components/ui/skeleton'
-import { AnalyzeData, ModulesData } from '@/lib/analyze-data'
+import {
+  AnalyzeData,
+  ModulesData,
+  assertMatchingModuleIndex,
+} from '@/lib/analyze-data'
 import {
   analyzeDataUrl,
   fetchAnalyzeData,
@@ -219,6 +223,7 @@ function useAnalyzerModel(compare: boolean) {
   // across selection and filter updates until that bailout is resolved.
   const moduleDepthMap = useMemo(() => {
     if (!analyzeData) return new Map()
+    assertMatchingModuleIndex(modulesData, analyzeData, 'Current snapshot')
 
     const activeEntries = computeActiveEntries(modulesData, analyzeData)
     return computeModuleDepthMap(modulesData, activeEntries)
@@ -535,6 +540,13 @@ function ComparisonContent({
   baselineAnalyzeData: AnalyzeData | null
   layoutProps: ComparisonLayoutProps
 }) {
+  if (baselineAnalyzeData) {
+    assertMatchingModuleIndex(
+      layoutProps.baselineModulesData,
+      baselineAnalyzeData,
+      'Baseline snapshot'
+    )
+  }
   const baselineModuleDepthMap = baselineAnalyzeData
     ? computeModuleDepthMap(
         layoutProps.baselineModulesData,

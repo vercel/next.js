@@ -8,7 +8,8 @@
     { "$ref": "#/$defs/module" },
     { "$ref": "#/$defs/route" },
     { "$ref": "#/$defs/output" },
-    { "$ref": "#/$defs/part" }
+    { "$ref": "#/$defs/part" },
+    { "$ref": "#/$defs/unjoined" }
   ],
   "$defs": {
     "index": { "type": "integer", "minimum": 0 },
@@ -27,6 +28,7 @@
         "type",
         "schema_version",
         "snapshot_name",
+        "module_index_hash",
         "route_count",
         "selected_routes"
       ],
@@ -37,6 +39,11 @@
           "type": "string",
           "minLength": 1,
           "description": "Saved snapshot name. Explicit names replace earlier captures with that name."
+        },
+        "module_index_hash": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Fingerprint of the ordered, snapshot-scoped modules.data indices; not proof of identical graphs or builds."
         },
         "route_count": {
           "$ref": "#/$defs/index",
@@ -179,13 +186,21 @@
     },
     "output": {
       "type": "object",
-      "required": ["type", "route", "filename"],
+      "required": ["type", "route", "filename", "modules", "coverage"],
       "properties": {
         "type": { "const": "output" },
         "route": { "type": "string", "description": "Owning route path." },
         "filename": {
           "type": "string",
           "description": "Snapshot-scoped emitted path, not stable across builds or proof of a browser request."
+        },
+        "modules": {
+          "$ref": "#/$defs/identities",
+          "description": "Joined module identities from this snapshot's global module table. Unsupported enumeration or joining can yield partial or empty membership; separately compiled worker payloads can remain unjoined."
+        },
+        "coverage": {
+          "description": "Membership evidence: exact joins all enumerable JS/CSS chunk members; unsupported could not establish complete enumeration or joining (partial members may exist); not_a_chunk is outside JS/CSS chunk membership. Unsupported never means an empty chunk.",
+          "enum": ["exact", "unsupported", "not_a_chunk"]
         }
       },
       "additionalProperties": true,
@@ -220,6 +235,30 @@
       },
       "additionalProperties": true,
       "description": "Source-size attribution, separate from exact module membership. Count each selected part once; directory and descendant totals can overlap."
+    },
+    "unjoined": {
+      "type": "object",
+      "required": ["type", "route", "filename", "module_ident", "reason"],
+      "properties": {
+        "type": {
+          "const": "unjoined",
+          "description": "Identifies an output member that could not join the global snapshot module table."
+        },
+        "route": { "type": "string", "description": "Owning route key." },
+        "filename": {
+          "type": "string",
+          "description": "Emitted output filename containing the unjoined module, scoped by route."
+        },
+        "module_ident": {
+          "$ref": "#/$defs/identity",
+          "description": "Exact module identity reported for this output but not joined to the snapshot's global module table; separately compiled worker payloads can be unjoined."
+        },
+        "reason": {
+          "type": "string",
+          "description": "Reason a reported output member cannot join the global snapshot module table."
+        }
+      },
+      "additionalProperties": true
     }
   }
 }

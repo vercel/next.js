@@ -258,6 +258,7 @@ async fn get_analyze_data_operation(
                 output_assets,
                 traced_files,
                 route_entries,
+                *whole_app_module_graphs.await?.full,
             )
             .to_resolved()
             .await?;
@@ -265,9 +266,14 @@ async fn get_analyze_data_operation(
             let summary = if let EndpointGroupKey::Route(route) = key {
                 Some(RouteSummary {
                     route: route.to_string(),
-                    bundles: analyze_output_assets(output_assets, traced_files, route_entries)
-                        .await?
-                        .summary,
+                    bundles: analyze_output_assets(
+                        output_assets,
+                        traced_files,
+                        route_entries,
+                        *whole_app_module_graphs.await?.full,
+                    )
+                    .await?
+                    .summary,
                 })
             } else {
                 None
