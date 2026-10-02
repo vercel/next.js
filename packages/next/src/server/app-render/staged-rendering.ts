@@ -5,9 +5,15 @@ export enum RenderStage {
   Before = 1,
   //
   ShellStatic = 10,
-  PrefetchStatic = 11,
-  NavigationStatic = 12,
-  Static = 13,
+  /**
+   * Discrimination-only stage: `prefetch()` resolves here in static renders so
+   * validation can tell it apart from URL data, which resolves in `PrefetchStatic`.
+   * Nothing else is gated on it.
+   */
+  PrefetchStatic_prefetch = 11,
+  PrefetchStatic = 12,
+  NavigationStatic = 13,
+  Static = 14,
   //
   ShellRuntime = 20,
   PrefetchRuntime = 21,
@@ -25,6 +31,7 @@ export type AdvanceableRenderStage = Exclude<
 
 export const RENDER_STAGE_ADVANCE_ORDER: AdvanceableRenderStage[] = [
   RenderStage.ShellStatic,
+  RenderStage.PrefetchStatic_prefetch,
   RenderStage.PrefetchStatic,
   RenderStage.NavigationStatic,
   RenderStage.Static,

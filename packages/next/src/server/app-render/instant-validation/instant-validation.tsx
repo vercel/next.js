@@ -204,6 +204,7 @@ export async function collectStagedSegmentData(
     case ValidationPrefetchKind.StaticAppShell: {
       partialStages = [
         RenderStage.ShellStatic,
+        RenderStage.PrefetchStatic_prefetch,
         RenderStage.PrefetchStatic,
         RenderStage.NavigationStatic, // TODO(cache-stages): only if needed
         RenderStage.Runtime,
@@ -289,6 +290,7 @@ async function collectSegmentDataForStage(
     switch (currentStage) {
       case RenderStage.Before:
       case RenderStage.ShellStatic:
+      case RenderStage.PrefetchStatic_prefetch:
       case RenderStage.PrefetchStatic:
       case RenderStage.Static:
       case RenderStage.NavigationStatic:

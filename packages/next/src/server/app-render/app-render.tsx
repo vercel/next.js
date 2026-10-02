@@ -1254,6 +1254,7 @@ function getEnvironmentNameForStageWithoutCaches(stage: RenderStage) {
   switch (stage) {
     case RenderStage.Before:
     case RenderStage.ShellStatic:
+    case RenderStage.PrefetchStatic_prefetch:
     case RenderStage.PrefetchStatic:
     case RenderStage.NavigationStatic:
     case RenderStage.Static:
@@ -5483,6 +5484,7 @@ function getEnvironmentNameForStage(stage: RenderStage) {
   switch (stage) {
     case RenderStage.Before:
     case RenderStage.ShellStatic:
+    case RenderStage.PrefetchStatic_prefetch:
     case RenderStage.PrefetchStatic:
     case RenderStage.NavigationStatic:
     case RenderStage.Static:
@@ -7648,6 +7650,7 @@ async function validateInstantConfigs(
     [ValidationPrefetchKind.StaticAppShell]: defineValidationSequence({
       stageOrder: [
         RenderStage.ShellStatic,
+        RenderStage.PrefetchStatic_prefetch,
         RenderStage.PrefetchStatic,
         RenderStage.NavigationStatic,
         RenderStage.Runtime,
@@ -7655,7 +7658,8 @@ async function validateInstantConfigs(
       ],
       holeResolution: {
         [RenderStage.ShellStatic]: null, // initial stage
-        [RenderStage.PrefetchStatic]: DynamicHoleKind.Link, // TODO(ensure-static): distinguish static link data
+        [RenderStage.PrefetchStatic_prefetch]: DynamicHoleKind.Prefetch,
+        [RenderStage.PrefetchStatic]: DynamicHoleKind.Link,
         [RenderStage.NavigationStatic]: DynamicHoleKind.Navigation,
         [RenderStage.Runtime]: DynamicHoleKind.Runtime, // TODO(ensure-static): distinguish session data
         [RenderStage.Dynamic]: DynamicHoleKind.Dynamic,

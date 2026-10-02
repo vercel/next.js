@@ -61,6 +61,7 @@ export function io(expression: string, type: SyncIOApiType) {
         // `shouldTrackSyncInterrupt`/`syncInterruptCurrentStageWithReason`
         switch (stageController.currentStage) {
           case RenderStage.ShellStatic:
+          case RenderStage.PrefetchStatic_prefetch:
           case RenderStage.PrefetchStatic:
           case RenderStage.NavigationStatic:
           case RenderStage.Static: {
