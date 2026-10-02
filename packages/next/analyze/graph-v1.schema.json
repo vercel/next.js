@@ -87,14 +87,91 @@
       "additionalProperties": true,
       "description": "Whole-app module graph, including when --route filters route-local records."
     },
+    "clientReference": {
+      "type": "object",
+      "required": ["module_ident", "module_path", "reference_kind"],
+      "properties": {
+        "module_ident": {
+          "$ref": "#/$defs/identity",
+          "description": "Exact nested client module ident; join to the module graph's ident, not module_path."
+        },
+        "module_path": {
+          "type": "string",
+          "description": "Client reference path, not a unique module key."
+        },
+        "reference_kind": {
+          "type": "string",
+          "description": "Producer category such as ecmascript or css; not an endpoint root or observed request."
+        }
+      },
+      "additionalProperties": true
+    },
+    "entry": {
+      "type": "object",
+      "required": [
+        "route_entry_id",
+        "module_ident",
+        "module_path",
+        "role",
+        "entry_kind",
+        "client_references"
+      ],
+      "properties": {
+        "route_entry_id": {
+          "type": "string",
+          "description": "Snapshot-scoped endpoint root ID, distinguishing endpoint variants on one route."
+        },
+        "module_ident": {
+          "$ref": "#/$defs/identity",
+          "description": "Exact root module ident; variants can share a module_path."
+        },
+        "module_path": {
+          "type": "string",
+          "description": "Source path associated with this endpoint root; not a unique module identity."
+        },
+        "role": {
+          "type": "string",
+          "description": "Endpoint build role, not a browser-load classification."
+        },
+        "entry_kind": {
+          "type": ["string", "null"],
+          "description": "Server or client_bootstrap when known; null/unknown roles do not establish initial-load scope."
+        },
+        "client_references": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/clientReference" },
+          "description": "Nested client references, not additional roots or proof of an initial request. Join by module_ident."
+        }
+      },
+      "additionalProperties": true
+    },
     "route": {
       "type": "object",
-      "required": ["type", "route"],
+      "required": ["type", "route", "entries", "coverage"],
       "properties": {
         "type": { "const": "route" },
         "route": {
           "type": "string",
           "description": "Unique normalized route path from routes.json."
+        },
+        "entries": {
+          "description": "Endpoint roots; shared Pages roots on an API artifact do not establish browser work for that API. Null means unavailable evidence.",
+          "oneOf": [
+            { "type": "null" },
+            { "type": "array", "items": { "$ref": "#/$defs/entry" } }
+          ]
+        },
+        "coverage": {
+          "type": "object",
+          "required": ["entries"],
+          "properties": {
+            "entries": {
+              "enum": ["exact", "unknown"],
+              "description": "The producer supplied typed endpoint roots for this route when exact. This is not a statement about browser requests or timing."
+            }
+          },
+          "additionalProperties": true,
+          "description": "Completeness of separate build-time route evidence; unknown is not empty."
         }
       },
       "additionalProperties": true,

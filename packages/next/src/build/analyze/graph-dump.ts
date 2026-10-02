@@ -24,6 +24,18 @@ type RouteHeader = {
   sources: Source[]
   chunk_parts: Part[]
   output_files: Array<{ filename: string }>
+  route_entries?: Array<{
+    route_entry_id: string
+    module_ident: string
+    module_path: string
+    role: string
+    entry_kind?: string
+    client_references?: Array<{
+      module_ident: string
+      module_path: string
+      reference_kind: string
+    }>
+  }>
 }
 
 type Data<H> = { header: H; binary: Buffer }
@@ -199,7 +211,51 @@ function parseRoutes(file: string) {
   for (const output of outputs)
     if (typeof output.filename !== 'string')
       throw new Error('Invalid output filename')
-  return { paths, header }
+  return { paths, header, entries: routeEntries(header.route_entries) }
+}
+
+function routeEntries(entries: RouteHeader['route_entries']) {
+  if (entries === undefined) return null
+  if (!Array.isArray(entries)) throw new Error('Invalid analyzer route entries')
+  return entries.map((entry) => {
+    if (
+      !entry ||
+      typeof entry !== 'object' ||
+      typeof entry.route_entry_id !== 'string' ||
+      typeof entry.module_ident !== 'string' ||
+      typeof entry.module_path !== 'string' ||
+      typeof entry.role !== 'string' ||
+      (entry.entry_kind !== undefined &&
+        typeof entry.entry_kind !== 'string') ||
+      (entry.client_references !== undefined &&
+        !Array.isArray(entry.client_references))
+    ) {
+      throw new Error('Invalid analyzer route entry')
+    }
+    return {
+      route_entry_id: entry.route_entry_id,
+      module_ident: entry.module_ident,
+      module_path: entry.module_path,
+      role: entry.role,
+      entry_kind: entry.entry_kind ?? null,
+      client_references: (entry.client_references ?? []).map((ref) => {
+        if (
+          !ref ||
+          typeof ref !== 'object' ||
+          typeof ref.module_ident !== 'string' ||
+          typeof ref.module_path !== 'string' ||
+          typeof ref.reference_kind !== 'string'
+        ) {
+          throw new Error('Invalid analyzer client reference')
+        }
+        return {
+          module_ident: ref.module_ident,
+          module_path: ref.module_path,
+          reference_kind: ref.reference_kind,
+        }
+      }),
+    }
+  })
 }
 
 function writeRecord(record: object): void {
@@ -262,11 +318,13 @@ export function dumpAnalyzeGraph(
   // Retain only the current route's data. A later validation error may leave
   // partial output; callers must check the exit status before using it.
   for (const route of selected) {
-    const { paths, header } = parseRoutes(routeFile(directory, route))
+    const { paths, header, entries } = parseRoutes(routeFile(directory, route))
     const prefix = { route }
     writeRecord({
       type: 'route',
       ...prefix,
+      entries,
+      coverage: { entries: entries ? 'exact' : 'unknown' },
     })
     for (let i = 0; i < header.output_files.length; i++) {
       writeRecord({
