@@ -1932,7 +1932,7 @@ struct ServerHmrSnapshot {
     version: ReadRef<ServerHmrChunkListVersion>,
 }
 
-#[turbo_tasks::function(operation, root)]
+#[turbo_tasks::function(operation, root, session_dependent)]
 async fn project_server_hmr_snapshot_operation(
     project: ResolvedVc<Project>,
     entry_key: next_api::aggregate_hmr::ServerHmrEntryKey,

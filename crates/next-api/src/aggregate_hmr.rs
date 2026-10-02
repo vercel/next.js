@@ -87,28 +87,19 @@ impl ServerHmrChunkLists {
     }
 }
 
-#[derive(Debug)]
+#[turbo_tasks::value(serialization = "skip", eq = "manual", cell = "new", evict = "never")]
 pub struct ServerHmrEntryMap {
     entries: State<FxIndexMap<ServerHmrEntryKey, GcRoot<EndpointOutput>>>,
 }
 
-impl Default for ServerHmrEntryMap {
-    fn default() -> Self {
+impl ServerHmrEntryMap {
+    pub fn new() -> ResolvedVc<Self> {
         Self {
             entries: State::new(FxIndexMap::default()),
         }
+        .resolved_cell()
     }
-}
 
-impl PartialEq for ServerHmrEntryMap {
-    fn eq(&self, other: &Self) -> bool {
-        std::ptr::eq(self, other)
-    }
-}
-
-impl Eq for ServerHmrEntryMap {}
-
-impl ServerHmrEntryMap {
     pub fn set(&self, entry_key: ServerHmrEntryKey, output: OperationVc<EndpointOutput>) {
         let output = GcRoot::pin(turbo_tasks(), output);
         self.entries.update_conditionally(|entries| {
@@ -405,10 +396,7 @@ pub async fn compute_server_hmr_update(
 
 #[cfg(test)]
 mod tests {
-    use std::sync::{
-        Arc,
-        atomic::{AtomicUsize, Ordering},
-    };
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
     use anyhow::Result;
     use turbo_rcstr::RcStr;
@@ -577,14 +565,20 @@ mod tests {
                 let other_snapshot =
                     read_chunk_list_version(project, other_route.clone(), other_reads.clone());
                 let empty = snapshot.read_strongly_consistent().await?;
-                project.await?.register_server_hmr_entry(
-                    route.clone(),
-                    changing_endpoint_output(project, first.clone()),
-                );
-                project.await?.register_server_hmr_entry(
-                    other_route,
-                    changing_endpoint_output(project, other.clone()),
-                );
+                project
+                    .await?
+                    .register_server_hmr_entry(
+                        route.clone(),
+                        changing_endpoint_output(project, first.clone()),
+                    )
+                    .await?;
+                project
+                    .await?
+                    .register_server_hmr_entry(
+                        other_route,
+                        changing_endpoint_output(project, other.clone()),
+                    )
+                    .await?;
                 let initial = snapshot.read_strongly_consistent().await?;
                 assert_ne!(initial, empty);
                 let other_initial = other_snapshot.read_strongly_consistent().await?;
@@ -599,10 +593,13 @@ mod tests {
                 );
                 assert_eq!(other_reads.load(Ordering::SeqCst), other_reads_before);
 
-                project.await?.register_server_hmr_entry(
-                    route.clone(),
-                    changing_endpoint_output(project, second.clone()),
-                );
+                project
+                    .await?
+                    .register_server_hmr_entry(
+                        route.clone(),
+                        changing_endpoint_output(project, second.clone()),
+                    )
+                    .await?;
                 let replaced = snapshot.read_strongly_consistent().await?;
                 assert_ne!(replaced, edited);
                 let reads_before = reads.load(Ordering::SeqCst);
@@ -629,12 +626,18 @@ mod tests {
                     .await?;
                 let updated_snapshot =
                     read_chunk_list_version(updated_project, route.clone(), reads.clone());
-                assert_eq!(updated_snapshot.read_strongly_consistent().await?, empty);
-                updated_project.await?.register_server_hmr_entry(
-                    route,
-                    changing_endpoint_output(updated_project, second.clone()),
-                );
                 assert_eq!(updated_snapshot.read_strongly_consistent().await?, latest);
+                let replacement = TransientInstance::new(EndpointInputs {
+                    content: State::new("new project".into()),
+                });
+                updated_project
+                    .await?
+                    .register_server_hmr_entry(
+                        route,
+                        changing_endpoint_output(updated_project, replacement),
+                    )
+                    .await?;
+                assert_ne!(updated_snapshot.read_strongly_consistent().await?, latest);
                 anyhow::Ok(())
             })
             .await
@@ -648,7 +651,7 @@ mod tests {
             noop_backing_storage(),
         ));
         let registry = turbo_tasks::run_once(tasks.clone(), async {
-            anyhow::Ok(Arc::new(ServerHmrEntryMap::default()))
+            anyhow::Ok(ServerHmrEntryMap::new())
         })
         .await
         .unwrap();
@@ -667,8 +670,10 @@ mod tests {
             .unwrap();
 
         let registered = turbo_tasks::run(tasks, async move {
-            registry.set(ServerHmrEntryKey::new("route".into()), output);
-            anyhow::Ok(registry.get(&ServerHmrEntryKey::new("route".into())))
+            registry
+                .await?
+                .set(ServerHmrEntryKey::new("route".into()), output);
+            anyhow::Ok(registry.await?.get(&ServerHmrEntryKey::new("route".into())))
         })
         .await
         .unwrap();

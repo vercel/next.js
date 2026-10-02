@@ -229,12 +229,14 @@ struct ServerHmrRegistration {
 }
 
 impl EndpointWriteResult {
-    pub fn register_server_hmr_entry(&self, entry_key: ServerHmrEntryKey) {
+    pub async fn register_server_hmr_entry(&self, entry_key: ServerHmrEntryKey) -> Result<()> {
         if let Some(registration) = &self.registration {
             registration
                 .project
-                .register_server_hmr_entry(entry_key, registration.output);
+                .register_server_hmr_entry(entry_key, registration.output)
+                .await?;
         }
+        Ok(())
     }
 }
 

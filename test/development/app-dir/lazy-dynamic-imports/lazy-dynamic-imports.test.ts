@@ -223,6 +223,34 @@ import { getRedboxSource, retry, waitForRedbox } from 'next-test-utils'
         expect(html).not.toContain('Could not find the module')
       }
     })
+    it('updates a lazy server import without reloading the page', async () => {
+      const targetPath = path.join('app', 'server-import', 'value.ts')
+      const originalTarget = await next.readFile(targetPath)
+      const browser = await next.browser('/server-import')
+      const timeOrigin = await browser.eval('performance.timeOrigin')
+
+      expect(await browser.elementByCss('#server-import').text()).toBe(
+        'server-dynamic-import'
+      )
+
+      try {
+        await next.patchFile(
+          targetPath,
+          originalTarget.replace(
+            'server-dynamic-import',
+            'updated-server-import'
+          )
+        )
+        await retry(async () => {
+          expect(await browser.elementByCss('#server-import').text()).toBe(
+            'updated-server-import'
+          )
+        })
+        expect(await browser.eval('performance.timeOrigin')).toBe(timeOrigin)
+      } finally {
+        await next.patchFile(targetPath, originalTarget)
+      }
+    })
 
     it('preserves client and server references behind a lazy server component import', async () => {
       const browser = await next.browser('/server-graph')

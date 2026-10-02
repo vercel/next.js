@@ -169,14 +169,18 @@ pub async fn endpoint_write_to_disk(
             let WrittenEndpointWithIssues {
                 written, issues, ..
             } = &*read;
-            let written = written.as_ref().map(|written| {
+            let written = if let Some(written) = written.as_ref() {
                 if let Some(entry_key) = entry_key {
-                    written.register_server_hmr_entry(
-                        next_api::aggregate_hmr::ServerHmrEntryKey::new(entry_key),
-                    );
+                    written
+                        .register_server_hmr_entry(next_api::aggregate_hmr::ServerHmrEntryKey::new(
+                            entry_key,
+                        ))
+                        .await?;
                 }
-                written.output_paths.clone()
-            });
+                Some(written.output_paths.clone())
+            } else {
+                None
+            };
             let issues = issues.clone();
 
             Ok((written, issues))

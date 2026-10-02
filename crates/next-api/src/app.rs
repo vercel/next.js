@@ -1586,7 +1586,7 @@ impl AppEndpoint {
         let app_entry_chunks = app_entry_chunk_group_ref.assets;
         let app_entry_chunks_ref = app_entry_chunks.await?;
 
-        if is_app_page
+        let rsc_dynamic_imports_hmr_chunk_list = if is_app_page
             && runtime == NextRuntime::NodeJs
             && *project
                 .next_config()
@@ -1623,7 +1623,10 @@ impl AppEndpoint {
                 .to_resolved()
                 .await?;
             server_assets.insert(rsc_hmr_chunks);
-        }
+            Some(rsc_hmr_chunks)
+        } else {
+            None
+        };
 
         // these references are important for turbotrace
         let mut client_reference_manifest = None;
@@ -1837,6 +1840,14 @@ impl AppEndpoint {
                     if let Some(ssr_hmr_chunk_list) = ssr_hmr_chunk_list {
                         server_hmr_chunks
                             .push(ServerHmrChunkList::from_chunk_list(ssr_hmr_chunk_list).await?);
+                    }
+                    if let Some(rsc_dynamic_imports_hmr_chunk_list) =
+                        rsc_dynamic_imports_hmr_chunk_list
+                    {
+                        server_hmr_chunks.push(
+                            ServerHmrChunkList::from_chunk_list(rsc_dynamic_imports_hmr_chunk_list)
+                                .await?,
+                        );
                     }
                     Some(ServerHmrChunkLists::new(server_hmr_chunks).resolved_cell())
                 } else {

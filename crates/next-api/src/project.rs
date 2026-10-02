@@ -430,6 +430,7 @@ pub struct ProjectContainer {
     #[bincode(skip)]
     fs_map_init_lock: tokio::sync::Mutex<()>,
     versioned_content_map: Option<ResolvedVc<VersionedContentMap>>,
+    server_hmr_entry_map: Option<ResolvedVc<ServerHmrEntryMap>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -445,6 +446,7 @@ impl ProjectContainer {
             } else {
                 None
             },
+            server_hmr_entry_map: dev.then(ServerHmrEntryMap::new),
             options_state: State::new(None),
             file_systems_state: State::new(None),
             additional_roots_state: State::new(Vec::new()),
@@ -971,7 +973,7 @@ impl ProjectContainer {
                 NextMode::Build.resolved_cell()
             },
             versioned_content_map: self.versioned_content_map,
-            server_hmr_entry_map: dev.then(|| Arc::new(ServerHmrEntryMap::default())),
+            server_hmr_entry_map: self.server_hmr_entry_map,
             build_id,
             encryption_key,
             preview_props,
@@ -1018,8 +1020,7 @@ impl ProjectContainer {
 }
 
 #[derive(Clone)]
-// HMR registrations are session-local, so Project must not be persisted or evicted.
-#[turbo_tasks::value(serialization = "skip", evict = "never")]
+#[turbo_tasks::value]
 pub struct Project {
     /// An absolute root path (Windows or Unix path) from which all files must be nested under.
     /// Trying to access a file outside this root will fail, so think of this as a chroot.
@@ -1031,9 +1032,7 @@ pub struct Project {
     /// E.g. `apps/my-app`
     project_path: RcStr,
 
-    // The registry lives with Project and needs no Turbo Tasks tracing.
-    #[turbo_tasks(unsafe_ignore, debug_ignore)]
-    server_hmr_entry_map: Option<Arc<ServerHmrEntryMap>>,
+    server_hmr_entry_map: Option<ResolvedVc<ServerHmrEntryMap>>,
 
     /// A path where to emit the build outputs, relative to [`Project::project_path`], always a
     /// Unix path. Corresponds to next.config.js's `distDir`.
@@ -1096,28 +1095,31 @@ pub struct Project {
 
     project_file_system: OperationVc<DiskFileSystem>,
     output_file_system: OperationVc<DiskFileSystem>,
+    #[bincode(with = "turbo_bincode::indexmap")]
     pub(crate) additional_roots: FxIndexMap<RcStr, AdditionalDiskFileSystem>,
 }
 
 impl Project {
-    pub fn register_server_hmr_entry(
+    pub async fn register_server_hmr_entry(
         &self,
         entry_key: ServerHmrEntryKey,
         output: OperationVc<EndpointOutput>,
-    ) {
-        if let Some(server_hmr_entry_map) = &self.server_hmr_entry_map {
-            server_hmr_entry_map.set(entry_key, output);
+    ) -> Result<()> {
+        if let Some(server_hmr_entry_map) = self.server_hmr_entry_map {
+            server_hmr_entry_map.await?.set(entry_key, output);
         }
+        Ok(())
     }
 
     pub async fn server_hmr_chunk_lists(
         &self,
         entry_key: &ServerHmrEntryKey,
     ) -> Result<ReadRef<ServerHmrChunkLists>> {
-        let output = self
-            .server_hmr_entry_map
-            .as_ref()
-            .and_then(|server_hmr_entry_map| server_hmr_entry_map.get(entry_key));
+        let output = if let Some(server_hmr_entry_map) = self.server_hmr_entry_map {
+            server_hmr_entry_map.await?.get(entry_key)
+        } else {
+            None
+        };
         if let Some(output) = output
             && let Some(chunk_lists) = output.connect().await?.server_hmr_chunks
         {
