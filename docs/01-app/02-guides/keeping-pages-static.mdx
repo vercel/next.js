@@ -31,7 +31,9 @@ Each `ensureStatic` value extends the static requirement through one more stage.
   height="530"
 />
 
-Start with the smallest requirement that protects the output you need. The following example begins with the App Shell, then extends the requirement through a per-link prefetch and the complete route.
+For most apps, `'prefetch'` on a shared layout is the right starting point. It keeps both the App Shell and per-link prefetches static, while request-specific content behind `<Suspense>` still renders on navigation. Use `'shell'` only when per-link prefetches should render request-specific content on the server, and `'navigation'` for routes that must be fully prerendered. A page can set a stricter level than its layout.
+
+The following example sets `'prefetch'` on a store layout, structures its product pages for static prefetches, then requires `'navigation'` for buying guides.
 
 ## Example
 
@@ -50,14 +52,16 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-### Step 1: Protect the storefront shell
+### Step 1: Keep the storefront shell and prefetches static
 
-The store layout is shared by the catalog, product pages, and buying guides. Add `ensureStatic = 'shell'` so its App Shell remains static as the app changes:
+The store layout is shared by the catalog, product pages, and buying guides. Add `ensureStatic = 'prefetch'` so its App Shell and every per-link prefetch under it stay static as the app changes:
 
-```tsx filename="app/store/layout.tsx" highlight={3}
+```tsx filename="app/store/layout.tsx" highlight={5}
 import Link from 'next/link'
+import { Suspense } from 'react'
+import { CartButton } from '@/app/ui/cart'
 
-export const ensureStatic = 'shell'
+export const ensureStatic = 'prefetch'
 
 export default function StoreLayout({ children }: LayoutProps<'/store'>) {
   return (
@@ -65,6 +69,9 @@ export default function StoreLayout({ children }: LayoutProps<'/store'>) {
       <nav>
         <Link href="/store">Products</Link>
         <Link href="/store/guides">Buying guides</Link>
+        <Suspense fallback={<CartButton count={0} />}>
+          <CartButton />
+        </Suspense>
       </nav>
       <main>{children}</main>
     </>
@@ -72,19 +79,25 @@ export default function StoreLayout({ children }: LayoutProps<'/store'>) {
 }
 ```
 
-A default `<Link>` into the store loads this shell from static output. If a later change adds request-specific content behind `<Suspense>`, that content renders during a per-link prefetch or navigation instead of making the shell render per request. Request-specific content outside `<Suspense>` is reported by [Instant Navigation validation](/docs/messages/instant-navigation-validation).
+A default `<Link>` into the store loads the shell from static output, and a `<Link prefetch={true}>` loads its per-link prefetch from static output too. `CartButton` reads the cart cookie, so it renders on navigation behind its `<Suspense>` boundary, and the prefetched UI shows the empty button until then. Request-specific content outside `<Suspense>` is reported by [Instant Navigation validation](/docs/messages/instant-navigation-validation).
 
-For one subtree, awaiting [`prefetch()`](/docs/app/api-reference/functions/prefetch) inside `<Suspense>` defers the work below it to a per-link prefetch or navigation. Setting `ensureStatic = 'shell'` applies the requirement to the whole route instead. See [Defer work to a later stage](/docs/app/guides/optimizing-prefetching#defer-work-to-a-later-stage) for the per-subtree controls.
+`'shell'` would not be enough here. Product links will resolve `params` in their per-link prefetch, and under `'shell'` each of those prefetches would render on the server, with nothing in the UI to show that cost. `'prefetch'` serves them from prerendered output instead.
+
+For one subtree, awaiting [`navigation()`](/docs/app/api-reference/functions/navigation) inside `<Suspense>` defers the work below it until navigation. Setting `ensureStatic = 'prefetch'` on the layout applies that requirement to every route under it, so the subtrees need no call of their own. See [Defer work to a later stage](/docs/app/guides/optimizing-prefetching#defer-work-to-a-later-stage) for the per-subtree controls.
 
 ### Step 2: Prefetch product details, not live inventory
 
-A product page separates its cached summary from live inventory with `<Suspense>`. Add `ensureStatic = 'prefetch'` so the shell and each per-link prefetch remain static:
+The layout's `'prefetch'` level already covers the product page. What the page controls is how much of it a static prefetch can include. Separate the cached product details from live inventory with `<Suspense>`, and return the products to prerender from [`generateStaticParams()`](/docs/app/api-reference/functions/generate-static-params):
 
-```tsx filename="app/store/products/[slug]/page.tsx" highlight={4}
+```tsx filename="app/store/products/[slug]/page.tsx" highlight={5-8}
 import { Suspense } from 'react'
 import { Inventory, ProductDetails } from '@/app/ui/product'
+import { getFeaturedProductSlugs } from '@/lib/products'
 
-export const ensureStatic = 'prefetch'
+export async function generateStaticParams() {
+  const slugs = await getFeaturedProductSlugs()
+  return slugs.map((slug) => ({ slug }))
+}
 
 export default function ProductPage({
   params,
@@ -104,25 +117,44 @@ export default function ProductPage({
 
 `ProductDetails` uses [`use cache`](/docs/app/api-reference/directives/use-cache), while `Inventory` reads uncached data.
 
-`'shell'` would not be enough here. `ProductDetails` reads `params`, so under `'shell'` each visible product link with `prefetch={true}` would render its prefetch on the server, and navigation would show no sign of that cost. `'prefetch'` serves those prefetches from static output instead.
+A default `<Link>` loads only the App Shell. To include the product details in the prefetch, a link needs `prefetch={true}`. A grid of products should not request that for every card, so upgrade each link when the user shows intent:
 
-Update the product links with `prefetch={true}` so each link can resolve its cached, URL-specific product details:
+```tsx filename="app/ui/product-link.tsx" highlight={11}
+'use client'
 
-```tsx filename="app/store/page.tsx" highlight={1}
-<Link href={`/store/products/${product.slug}`} prefetch={true}>
-  {product.name}
-</Link>
+import Link from 'next/link'
+import { useState } from 'react'
+
+export function ProductLink({
+  slug,
+  children,
+}: {
+  slug: string
+  children: React.ReactNode
+}) {
+  const [active, setActive] = useState(false)
+  return (
+    <Link
+      href={`/store/products/${slug}`}
+      prefetch={active ? true : 'auto'}
+      onMouseEnter={() => setActive(true)}
+      onFocus={() => setActive(true)}
+    >
+      {children}
+    </Link>
+  )
+}
 ```
 
-When a product link becomes visible, its prefetch includes the product heading and **Checking availability...** fallback. The uncached inventory query runs after the user follows the link.
+The link starts with the default App Shell prefetch and switches to a per-link prefetch on hover or focus. See [Hover-triggered prefetch](/docs/app/guides/prefetching#hover-triggered-prefetch) for the trade-offs of extending `<Link>`.
 
-On a new deployment, the first prefetch for each product serves the route's fallback shell instead, because no product page has been generated yet. Next.js generates it in the background, and later prefetches include the product heading. See [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components#at-runtime).
+That prefetch includes the product heading and the **Checking availability...** fallback. The uncached inventory query runs after the user follows the link.
 
-For one subtree, awaiting [`navigation()`](/docs/app/api-reference/functions/navigation) inside `<Suspense>` defers the work below it until navigation. Setting `ensureStatic = 'prefetch'` requires static output for every prefetch of the route instead. See [Keep the prefetch static](/docs/app/guides/optimizing-prefetching#keep-the-prefetch-static) for shaping one route this way.
+Products returned from `generateStaticParams()` are prerendered at build time. For any other product, the first prefetch on a new deployment serves the route's fallback shell instead, because no page has been generated yet. Next.js generates it in the background, and later prefetches include the product heading. See [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components#at-runtime).
 
 ### Step 3: Prerender every buying guide
 
-Buying guides are editorial pages whose complete server output should remain static. Start with a page that displays the guide ID and reads a theme preference from `cookies()`. Add `ensureStatic = 'navigation'`:
+Buying guides are editorial pages whose complete server output should remain static. The page can require a stricter level than the layout's `'prefetch'`. Start with a page that displays the guide ID and reads a theme preference from `cookies()`. Add `ensureStatic = 'navigation'`:
 
 ```tsx filename="app/store/guides/[id]/page.tsx" highlight={3}
 import { cookies } from 'next/headers'
@@ -140,7 +172,7 @@ export default async function GuidePage({
 
 The `'navigation'` requirement is [validated during both `next dev` and `next build`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#validation). Start the development server and open a guide URL. Because Next.js does not know which `id` values to prerender, the development overlay reports that the route requires an exported `generateStaticParams()` function and links to the [`generateStaticParams` error guide](/docs/messages/generate-static-params#with-ensurestatic).
 
-Export [`generateStaticParams()`](/docs/app/api-reference/functions/generate-static-params) and return every buying guide ID:
+Export `generateStaticParams()` and return every buying guide ID. Unlike the product page, which lists only featured products and leaves the rest to the fallback shell, `'navigation'` has no later stage to fall back to, so the list must be complete:
 
 ```tsx filename="app/store/guides/[id]/page.tsx" highlight={4,6-9}
 import { cookies } from 'next/headers'
@@ -274,4 +306,5 @@ If request-time rendering is intentional, first confirm that the route no longer
 
 - [Ensure instant navigations](/docs/app/guides/instant-navigation) by structuring cached content and `<Suspense>` boundaries around client navigations.
 - [Optimize prefetching](/docs/app/guides/optimizing-prefetching) to choose which cached content loads before navigation and which subtrees wait.
+- [Prefetching](/docs/app/guides/prefetching#hover-triggered-prefetch) for the trade-offs of hover-triggered and manual prefetching.
 - [Migrate to Cache Components](/docs/app/guides/migrating-to-cache-components) when replacing route-level configs such as `dynamic = 'force-static'` in an existing app.
