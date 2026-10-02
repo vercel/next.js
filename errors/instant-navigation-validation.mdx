@@ -1,0 +1,51 @@
+---
+title: Instant Navigation validation errors
+---
+
+Instant Navigation validation checks whether a route can produce the UI required at each [navigation stage](/docs/app/glossary#navigation-stages). This page collects the errors and non-blocking insights it can report.
+
+## Debug validation errors
+
+Start with [`next dev`](/docs/app/guides/building#find-blocking-work) and open the affected route. The development overlay and terminal show source-mapped stack frames and rerun validation as you edit.
+
+If the error only appears during `next build`, follow [Debug prerender errors](/docs/app/guides/building#debug-prerender-errors) to enable more detailed stack traces and code frames. You can combine `--debug-prerender` with `--debug-build-paths` to focus on specific routes.
+
+## Static shell and prerendering
+
+- [Runtime data during prerendering](/docs/messages/blocking-prerender-runtime)
+- [Uncached data during prerendering](/docs/messages/blocking-prerender-dynamic)
+- [URL data in a Client Component outside of Suspense](/docs/messages/blocking-prerender-client-hook)
+- [Runtime data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-runtime)
+- [Uncached data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-dynamic)
+- [Runtime data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-runtime)
+- [Uncached data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-dynamic)
+- [Uncached data outside of Suspense](/docs/messages/blocking-route)
+
+## Unstable values
+
+- [`Math.random()` while prerendering](/docs/messages/blocking-prerender-random)
+- [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client)
+- [`Date.now()` while prerendering](/docs/messages/blocking-prerender-current-time)
+- [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client)
+- [Crypto APIs while prerendering](/docs/messages/blocking-prerender-crypto)
+- [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client)
+
+## Non-blocking insights
+
+These insights identify content that is deferred to a later navigation stage without blocking navigation.
+
+- [Dynamic data during prefetching](/docs/messages/instant-link-prefetch-partial)
+- [URL data outside of Suspense](/docs/messages/instant-shell-url-data)
+- [Unrendered segment](/docs/messages/instant-unrendered-segment)
+
+## Fully static routes
+
+These errors occur when a route uses [`ensureStatic = 'navigation'`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#navigation). The requirement applies even inside `<Suspense>` because the complete server-rendered route must be static.
+
+- [Runtime data on a route that must be fully static](/docs/messages/static-route-runtime)
+- [Uncached data on a route that must be fully static](/docs/messages/static-route-dynamic)
+- [Runtime data in `generateMetadata()`](/docs/messages/static-metadata-runtime)
+- [Uncached data in `generateMetadata()`](/docs/messages/static-metadata-dynamic)
+- [Runtime data in `generateViewport()`](/docs/messages/static-viewport-runtime)
+- [Uncached data in `generateViewport()`](/docs/messages/static-viewport-dynamic)
+- [Missing or incomplete `generateStaticParams()`](/docs/messages/generate-static-params#with-ensurestatic)

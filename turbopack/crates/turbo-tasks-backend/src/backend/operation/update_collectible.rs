@@ -8,7 +8,6 @@ use crate::{
         TaskDataCategory,
         operation::{
             AggregatedDataUpdate, AggregationUpdateJob, AggregationUpdateQueue, ExecuteContext,
-            Operation,
         },
         storage_schema::TaskStorageAccessors,
     },

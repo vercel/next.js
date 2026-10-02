@@ -1,13 +1,11 @@
 'use client'
 
 import {
-  Component,
   Suspense,
   useEffect,
   useMemo,
   useRef,
   useState,
-  type ErrorInfo,
   type ReactNode,
 } from 'react'
 import Link from 'next/link'
@@ -18,7 +16,6 @@ import {
   type CompareLayoutModel,
 } from '@/components/compare-layout'
 import { DiffTable } from '@/components/diff-table'
-import { ErrorState } from '@/components/error-state'
 import { Sidebar } from '@/components/sidebar'
 import { TopBar, Environment, CompareView } from '@/components/top-bar'
 import { TreemapVisualizer } from '@/components/treemap-visualizer'
@@ -80,38 +77,10 @@ function AnalyzerBoundary({
   defaultView: CompareView
 }) {
   return (
-    <AnalyzerErrorBoundary>
-      <Suspense fallback={<AnalyzerFallback view={defaultView} />}>
-        {children}
-      </Suspense>
-    </AnalyzerErrorBoundary>
+    <Suspense fallback={<AnalyzerFallback view={defaultView} />}>
+      {children}
+    </Suspense>
   )
-}
-
-class AnalyzerErrorBoundary extends Component<
-  { children: ReactNode },
-  { error: unknown }
-> {
-  state: { error: unknown } = { error: null }
-
-  static getDerivedStateFromError(error: unknown) {
-    return { error }
-  }
-
-  componentDidCatch(error: unknown, info: ErrorInfo) {
-    console.error(error, info.componentStack)
-  }
-
-  render() {
-    if (this.state.error) {
-      return (
-        <main className="h-screen bg-background">
-          <ErrorState error={this.state.error} />
-        </main>
-      )
-    }
-    return this.props.children
-  }
 }
 
 function AnalyzerFallback({ view }: { view: CompareView }) {

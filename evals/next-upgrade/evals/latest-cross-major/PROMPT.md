@@ -1,1 +1,1 @@
-Run `npx next@canary upgrade --ai latest` for this app.
+Run `npx next@canary upgrade --agent latest` for this app.

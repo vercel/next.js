@@ -2,13 +2,13 @@ import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 
 describe('build trace with extra entries', () => {
+  // This suite controls the local build lifecycle directly, which deployment tests cannot reproduce.
+  // @force-gate !deploy
   describe('production mode', () => {
-    const { next, isTurbopack, skipped } = nextTestSetup({
+    const { next, isTurbopack } = nextTestSetup({
       files: path.join(__dirname, 'app'),
       skipStart: true,
-      skipDeployment: true,
     })
-    if (skipped) return
 
     it('should build and trace correctly', async () => {
       const { exitCode } = await next.build()

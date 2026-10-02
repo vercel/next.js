@@ -1088,6 +1088,106 @@ describe('runtime prefetching', () => {
     })
   })
 
+  describe('cache values are consistent across HTML shell and runtime requests', () => {
+    const href = '/cache-from-rdc'
+    const htmlId = 'cached-data'
+
+    const getCacheValueFromInitialHTML = async (): Promise<string> => {
+      const $ = await next.render$(href)
+      const text = $(`#${htmlId}`).text()
+      if (!text) {
+        throw new Error('Cached value not found in HTML')
+      }
+      return text
+    }
+
+    it('runtime shell', async () => {
+      let page: Playwright.Page
+      const browser = await next.browser('/', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      const act = createRouterAct(page, { includeAppShellRequests: true })
+
+      const cacheValueFromHTMLShell = await getCacheValueFromInitialHTML()
+
+      // Reveal the link to trigger a runtime prefetch for the page
+      await act(async () => {
+        const linkToggle = await browser.elementByCss(
+          `input[data-prefetch="auto"][data-link-accordion="${href}"]`
+        )
+        await linkToggle.click()
+      }, [
+        {
+          includes: 'Cookie data',
+          kind: 'runtime',
+        },
+      ])
+
+      // Navigate to the page.
+      await act(async () => {
+        await browser.elementByCss(`a[href="${href}"]`).click()
+
+        // The runtime shell should contain the same cache value as the HTML.
+        expect(await browser.elementById(htmlId).text()).toBe(
+          cacheValueFromHTMLShell
+        )
+      }, [{ includes: 'Dynamic data' }])
+
+      // The navigation response should also contain the same cache value.
+      expect(await browser.elementById(htmlId).text()).toBe(
+        cacheValueFromHTMLShell
+      )
+    })
+
+    it('runtime prefetch', async () => {
+      let page: Playwright.Page
+      const browser = await next.browser('/', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      const act = createRouterAct(page, { includeAppShellRequests: true })
+
+      const cacheValueFromHTMLShell = await getCacheValueFromInitialHTML()
+
+      // Reveal the link to trigger a runtime prefetch for the page
+      await act(async () => {
+        const linkToggle = await browser.elementByCss(
+          `input[data-prefetch="true"][data-link-accordion="${href}"]`
+        )
+        await linkToggle.click()
+      }, [
+        // Shell
+        {
+          includes: 'Cookie data',
+          kind: 'runtime',
+        },
+        // Prefetch
+        {
+          includes: 'Search params data',
+          kind: 'runtime',
+        },
+      ])
+
+      // Navigate to the page.
+      await act(async () => {
+        await browser.elementByCss(`a[href="${href}"]`).click()
+
+        // The runtime prefetch should contain the same cache value as the HTML.
+        expect(await browser.elementById(htmlId).text()).toBe(
+          cacheValueFromHTMLShell
+        )
+      }, [{ includes: 'Dynamic data' }])
+
+      // The navigation response should also contain the same cache value.
+      expect(await browser.elementById(htmlId).text()).toBe(
+        cacheValueFromHTMLShell
+      )
+    })
+  })
+
   describe('errors', () => {
     it.each([
       {

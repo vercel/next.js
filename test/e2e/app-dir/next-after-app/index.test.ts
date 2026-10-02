@@ -7,14 +7,13 @@ import * as Log from './utils/log'
 
 const runtimes = ['nodejs', 'edge']
 
+// This suite patches fixture files and reads process-local runtime logs, which
+// are unavailable after deployment.
+// @force-gate !deploy
 describe.each(runtimes)('after() in %s runtime', (runtimeValue) => {
-  const { next, isNextDeploy, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    // `patchFile` and reading runtime logs are not supported in a deployed environment
-    skipDeployment: true,
   })
-
-  if (skipped) return
   const pathPrefix = '/' + runtimeValue
 
   let currentCliOutputIndex = 0
@@ -218,91 +217,89 @@ describe.each(runtimes)('after() in %s runtime', (runtimeValue) => {
     })
   })
 
-  if (!isNextDeploy) {
-    it('only runs callbacks after the response is fully sent', async () => {
-      const pageStartedFetching = promiseWithResolvers<void>()
-      pageStartedFetching.promise.catch(() => {})
-      const shouldSendResponse = promiseWithResolvers<void>()
-      shouldSendResponse.promise.catch(() => {})
+  it('only runs callbacks after the response is fully sent', async () => {
+    const pageStartedFetching = promiseWithResolvers<void>()
+    pageStartedFetching.promise.catch(() => {})
+    const shouldSendResponse = promiseWithResolvers<void>()
+    shouldSendResponse.promise.catch(() => {})
 
-      const abort = (error: Error) => {
-        pageStartedFetching.reject(
-          new Error('pageStartedFetching was aborted', { cause: error })
-        )
-        shouldSendResponse.reject(
-          new Error('shouldSendResponse was aborted', {
-            cause: error,
-          })
-        )
-      }
+    const abort = (error: Error) => {
+      pageStartedFetching.reject(
+        new Error('pageStartedFetching was aborted', { cause: error })
+      )
+      shouldSendResponse.reject(
+        new Error('shouldSendResponse was aborted', {
+          cause: error,
+        })
+      )
+    }
 
-      const proxyServer = await createProxyServer({
-        async onFetch(_, request) {
-          if (request.url === 'https://example.test/delayed-request') {
-            pageStartedFetching.resolve()
-            await shouldSendResponse.promise
-            return new Response('')
-          }
-        },
-      })
+    const proxyServer = await createProxyServer({
+      async onFetch(_, request) {
+        if (request.url === 'https://example.test/delayed-request') {
+          pageStartedFetching.resolve()
+          await shouldSendResponse.promise
+          return new Response('')
+        }
+      },
+    })
 
-      try {
-        const pendingReq = next
-          .fetch(pathPrefix + '/delay', {
-            headers: { 'Next-Test-Proxy-Port': String(proxyServer.port) },
-          })
-          .then(
-            async (res) => {
-              if (res.status !== 200) {
-                const err = new Error(
-                  `Got non-200 response (${res.status}) for ${res.url}, aborting`
-                )
-                abort(err)
-                throw err
-              }
-              return res
-            },
-            (err) => {
+    try {
+      const pendingReq = next
+        .fetch(pathPrefix + '/delay', {
+          headers: { 'Next-Test-Proxy-Port': String(proxyServer.port) },
+        })
+        .then(
+          async (res) => {
+            if (res.status !== 200) {
+              const err = new Error(
+                `Got non-200 response (${res.status}) for ${res.url}, aborting`
+              )
               abort(err)
               throw err
             }
-          )
+            return res
+          },
+          (err) => {
+            abort(err)
+            throw err
+          }
+        )
 
-        await Promise.race([
-          pageStartedFetching.promise,
-          pendingReq, // if the page throws before it starts fetching, we want to catch that
-          timeoutPromise(
-            10_000,
-            'Timeout while waiting for the page to call fetch'
-          ),
-        ])
+      await Promise.race([
+        pageStartedFetching.promise,
+        pendingReq, // if the page throws before it starts fetching, we want to catch that
+        timeoutPromise(
+          10_000,
+          'Timeout while waiting for the page to call fetch'
+        ),
+      ])
 
-        // we blocked the request from completing, so there should be no logs yet,
-        // because after() shouldn't run callbacks until the request is finished.
-        expect(getLogs()).not.toContainEqual({
+      // we blocked the request from completing, so there should be no logs yet,
+      // because after() shouldn't run callbacks until the request is finished.
+      expect(getLogs()).not.toContainEqual({
+        source: '[page] /delay (Page)',
+      })
+      expect(getLogs()).not.toContainEqual({
+        source: '[page] /delay (Inner)',
+      })
+
+      shouldSendResponse.resolve()
+      await pendingReq.then((res) => res.text())
+
+      // the request is finished, so after() should run, and the logs should appear now.
+      await retry(() => {
+        expect(getLogs()).toContainEqual({
           source: '[page] /delay (Page)',
         })
-        expect(getLogs()).not.toContainEqual({
+        expect(getLogs()).toContainEqual({
           source: '[page] /delay (Inner)',
         })
-
-        shouldSendResponse.resolve()
-        await pendingReq.then((res) => res.text())
-
-        // the request is finished, so after() should run, and the logs should appear now.
-        await retry(() => {
-          expect(getLogs()).toContainEqual({
-            source: '[page] /delay (Page)',
-          })
-          expect(getLogs()).toContainEqual({
-            source: '[page] /delay (Inner)',
-          })
-        })
-      } finally {
-        proxyServer.close()
-      }
-    })
-  }
+      })
+    } finally {
+      proxyServer.close()
+    }
+  })
 
   it('runs in generateMetadata()', async () => {
     await next.browser(pathPrefix + '/123/with-metadata')

@@ -2886,7 +2886,8 @@ export async function cache(
       debug?.(
         logPrefix,
         'Resume Data Cache entry not found',
-        serializedCacheKey
+        serializedCacheKey,
+        `(${resumeDataCache.cache.size} entries)`
       )
 
       if (cacheSignal) {
@@ -3094,7 +3095,14 @@ export async function cache(
     // headers, so concurrent requests with identical request data should share
     // a fill too; that request-scoped `cacheHandlerKey` keeps requests with
     // different cookies or headers in separate entries.
-    const skipCrossRequestDedupe = isPrivate && !process.env.__NEXT_DEV_SERVER
+    //
+    // Draft mode requests are skipped as well, in both directions. A fill that
+    // runs with draft mode enabled can contain unpublished content, so it must
+    // not be registered for other requests to join. And a draft mode request
+    // must not join a pending public fill, because it would be served the
+    // published content instead of the draft.
+    const skipCrossRequestDedupe =
+      (isPrivate && !process.env.__NEXT_DEV_SERVER) || workStore.isDraftMode
 
     try {
       // The loop handles cross-request root param mismatches: when a

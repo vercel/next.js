@@ -1224,7 +1224,8 @@ pub struct ExperimentalConfig {
     turbopack_infer_module_side_effects: Option<bool>,
     /// Enable tree shaking of unused exports from static CommonJS modules. Defaults to false.
     turbopack_cjs_tree_shaking: Option<bool>,
-    /// Shorten ("mangle") the export names modules expose to each other. Defaults to false.
+    /// Shorten ("mangle") the export names modules expose to each other. Defaults to false in
+    /// development mode, true in production mode.
     turbopack_mangle_export_names: Option<bool>,
     /// Enable scope hoisting of static CommonJS modules. Defaults to false.
     turbopack_cjs_scope_hoisting: Option<bool>,

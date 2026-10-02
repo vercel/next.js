@@ -120,7 +120,7 @@ type AsyncModule = (
 ) => void
 
 type ResolveAbsolutePath = (modulePath?: string) => string
-type ResolveFileUrl = (modulePath?: string) => string
+type ResolveFileUrl = (modulePath: string, root?: string) => string
 
 type ExternalRequire = (
   id: DependencySpecifier,
