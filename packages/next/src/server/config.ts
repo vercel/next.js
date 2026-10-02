@@ -1579,6 +1579,9 @@ function assignDefaultsAndValidate(
   const userProvidedOptimizePackageImports =
     result.experimental?.optimizePackageImports || []
 
+  // Both bundlers treat optimized packages as transpiled and fail the build
+  // when one is also listed in `serverExternalPackages`. A default entry must
+  // yield to that explicit choice; a user-provided entry still conflicts.
   result.experimental.optimizePackageImports = [
     ...new Set([
       ...userProvidedOptimizePackageImports,
@@ -1662,7 +1665,11 @@ function assignDefaultsAndValidate(
       'react-icons/vsc',
       'react-icons/wi',
     ]),
-  ]
+  ].filter(
+    (pkg) =>
+      userProvidedOptimizePackageImports.includes(pkg) ||
+      !result.serverExternalPackages?.includes(pkg)
+  )
 
   if (!result.htmlLimitedBots) {
     // @ts-expect-error: override the htmlLimitedBots with default string, type covert: RegExp -> string
