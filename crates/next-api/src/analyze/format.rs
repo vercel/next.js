@@ -1,11 +1,39 @@
 //! Binary sections and JSON header for the per-route analyzer artifact.
 
+use serde::Serialize;
+use turbo_rcstr::RcStr;
 use turbo_tasks_fs::rope::{Rope, RopeBuilder};
 
 use crate::analyze::{
-    ANALYZE_SCHEMA_VERSION, AnalyzeDataBuilder, AnalyzeDataHeader, EdgesData,
-    EdgesDataSectionBuilder,
+    ANALYZE_SCHEMA_VERSION, AnalyzeChunkGroupData, AnalyzeChunkPart, AnalyzeDataBuilder,
+    AnalyzeOutputFile, AnalyzeOutputFileCoverage, AnalyzeRouteEntry, AnalyzeSource,
+    AnalyzeUnjoinedModule, EdgesData, EdgesDataReference, EdgesDataSectionBuilder,
 };
+
+#[derive(Serialize)]
+struct AnalyzeDataHeader {
+    /// The header and modules.data must use the same supported schema version.
+    pub schema_version: u32,
+    pub module_index_hash: RcStr,
+    pub sources: Vec<AnalyzeSource>,
+    pub chunk_parts: Vec<AnalyzeChunkPart>,
+    pub output_files: Vec<AnalyzeOutputFile>,
+    /// Exact indices into this snapshot's modules.data.modules, one row per output file.
+    pub output_file_modules: EdgesDataReference,
+    pub output_file_module_coverage: Vec<AnalyzeOutputFileCoverage>,
+    pub unjoined_modules: Vec<AnalyzeUnjoinedModule>,
+    pub chunk_groups: Vec<AnalyzeChunkGroupData>,
+    /// Exact endpoint roots; nested client references do not become roots.
+    pub route_entries: Vec<AnalyzeRouteEntry>,
+    /// Edges from chunks to chunk parts
+    pub output_file_chunk_parts: EdgesDataReference,
+    /// Edges from sources to chunk parts
+    pub source_chunk_parts: EdgesDataReference,
+    /// Edges from sources to their children sources
+    pub source_children: EdgesDataReference,
+    /// Root level sources, walking their children will reach all sources
+    pub source_roots: Vec<u32>,
+}
 
 impl AnalyzeDataBuilder {
     pub(super) fn build(self) -> Rope {
@@ -52,6 +80,7 @@ impl AnalyzeDataBuilder {
                 .map(|of| of.output_file)
                 .collect(),
             unjoined_modules: self.unjoined_modules,
+            chunk_groups: self.chunk_groups,
             route_entries: self.route_entries,
             output_file_chunk_parts: binary_section.add_edges(&output_file_chunk_parts),
             source_chunk_parts: binary_section.add_edges(&source_chunk_parts),
