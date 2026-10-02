@@ -184,15 +184,15 @@ describe('next analyze', () => {
           await page.goto(
             `${baseUrl}/compare?from=${second.id}&to=${first.id}&route=%2F`
           )
-          await page
-            .getByRole('button', { name: 'Compare with latest' })
-            .waitFor()
+          const buildPicker = page.getByRole('button', {
+            name: /^Select builds\./,
+          })
+          await buildPicker.waitFor()
           const indexRequestCount = requests.filter(
             ({ url }) => url === '/history/history.json'
           ).length
-          await page
-            .getByRole('button', { name: 'Compare with latest' })
-            .click()
+          await buildPicker.click()
+          await page.getByRole('button', { name: 'To Latest' }).click()
           await retry(async () => {
             expect(new URL(page.url()).searchParams.has('to')).toBe(false)
             expect(
