@@ -1,6 +1,12 @@
 import type { ChildProcess } from 'node:child_process'
 import { EventEmitter } from 'node:events'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  mkdirSync,
+  mkdtempSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { PassThrough } from 'node:stream'
@@ -22,7 +28,11 @@ function createTypeScriptFixture({
   packageJson: Record<string, unknown>
   files: string[]
 }) {
-  const baseDir = mkdtempSync(path.join(tmpdir(), 'next-typescript-'))
+  // Resolve symlinks (e.g. /var -> /private/var on macOS) so expected paths
+  // match the resolved paths returned by getTypeScriptPackageInfo.
+  const baseDir = realpathSync(
+    mkdtempSync(path.join(tmpdir(), 'next-typescript-'))
+  )
   const packageDir = path.join(baseDir, 'node_modules', 'typescript')
 
   mkdirSync(packageDir, { recursive: true })
