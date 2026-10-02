@@ -14,7 +14,7 @@ Use this protocol only when the managed Next.js feedback block in `AGENTS.md` in
 
 Create a separate report draft for each distinct Next.js friction point that causes unexpected framework behavior, a documentation mismatch, a misleading error, repeated failed approaches, or a non-obvious workaround. An issue does not need to block the current user request, but it should require a meaningful detour or be likely to recur.
 
-Do not report routine first-pass debugging, vague task scope, problems caused by unverified changes, or issues resolved immediately by following existing guidance. Keep unrelated issues in separate report drafts.
+Do not report routine first-pass debugging, vague task scope, problems caused by unverified changes, or issues resolved immediately by following existing guidance. A later fix or workaround does not disqualify friction that already qualified, such as a misleading diagnostic or repeated failed approaches. Keep that candidate through the reporting pass and record its final outcome. Keep unrelated issues in separate report drafts.
 
 ## Run the reporting pass before the final response
 
@@ -79,6 +79,6 @@ For each report draft, attempt to open the following URL once in a separate tab 
 https://nextjs.org/agent-feedback#report=<encoded-json>
 ```
 
-Do not ask for permission before opening the review forms. Opening a form does not send feedback. If a form does not open, do not retry, investigate the failure, install tooling, or change host configuration. Include the review URL in the final response so the user can open it manually.
+Do not ask for permission before opening the review forms. Opening a form does not send feedback. If a form does not open, do not retry, investigate the failure, install tooling, or change host configuration.
 
-After attempting to open every review form, clear the feedback candidate queue from the context of the current user request. Mention opened forms and fallback URLs in the final response. Never submit a report or close a review form for the user.
+After attempting to open every review form, clear the feedback candidate queue from the context of the current user request. Include every review URL in the final response whether or not its browser tab opened, so the user can always find the form. Never submit a report or close a review form for the user.
