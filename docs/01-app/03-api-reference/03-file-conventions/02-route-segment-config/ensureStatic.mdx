@@ -70,8 +70,6 @@ The [static HTML shell](/docs/app/glossary#static-shell) can also include this s
 
 For an individual subtree, [`await navigation()`](/docs/app/api-reference/functions/navigation) provides similar behavior by deferring code below the call until navigation. Setting `'prefetch'` enforces that stage boundary across the route without adding `await navigation()` to each request-specific subtree.
 
-A per-link prefetch can still serve the route's fallback shell. Params not returned by [`generateStaticParams()`](/docs/app/api-reference/functions/generate-static-params) have no prerendered page until a visitor requests one, so on a new deployment the first navigation to such a URL shows the `<Suspense>` fallbacks while Next.js generates the page in the background. See [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components#at-runtime).
-
 ### `'navigation'`
 
 Requires the complete server-rendered route to be produced during prerendering, so initial loads and client navigations use static output. This value works with Cache Components alone and does not require Partial Prefetching.
@@ -100,6 +98,8 @@ Data cached with `use cache` can be prerendered. [`prefetch()`](/docs/app/api-re
 With `'navigation'`, a dynamic route must export [`generateStaticParams()`](/docs/app/api-reference/functions/generate-static-params) and return at least one complete parameter set. Each result must include every dynamic parameter in the route, even if the parameter is unused or only read in a Client Component.
 
 Values returned by `generateStaticParams()` are available during prerendering. When a request uses a value that was not prerendered at build time, Next.js waits for the static result to be generated before serving it.
+
+With `'shell'` or `'prefetch'`, a value that was not prerendered serves the route's fallback shell instead, with `<Suspense>` fallbacks in place of its content, while Next.js generates the page in the background. See [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components#at-runtime).
 
 The build fails when `generateStaticParams()` is missing or returns an incomplete parameter set. See the [`generateStaticParams` error guide](/docs/messages/generate-static-params#with-ensurestatic).
 
