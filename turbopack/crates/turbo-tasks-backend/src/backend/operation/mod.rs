@@ -1789,7 +1789,7 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         } else if let Some(task_type) = self.get_transient_task_type() {
             TaskTypeRef::Transient(task_type)
         } else {
-            panic!("Every task must have a task type {self:?}");
+            panic!("Every task must have a task type {self:#?}");
         }
     }
 

@@ -62,7 +62,7 @@ impl UpdateCollectibleOperation {
                 if !dependent.is_empty() {
                     queue.push(AggregationUpdateJob::InvalidateDueToCollectiblesChange {
                         task_ids: dependent,
-                        #[cfg(feature = "task_dirty_cause")]
+                        collectibles_task: task_id,
                         collectible_type: ty,
                     })
                 }

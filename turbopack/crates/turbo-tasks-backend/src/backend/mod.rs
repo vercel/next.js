@@ -2112,6 +2112,10 @@ impl TurboTasksBackend {
 
                 let outdated_output_dependencies = task.iter_output_dependencies().collect();
                 task.set_outdated_output_dependencies(outdated_output_dependencies);
+
+                let outdated_collectibles_dependencies =
+                    task.iter_collectibles_dependencies().collect();
+                task.set_outdated_collectibles_dependencies(outdated_collectibles_dependencies);
             }
         }
 
@@ -2491,6 +2495,10 @@ impl TurboTasksBackend {
             old_edges.extend(
                 task.iter_outdated_output_dependencies()
                     .map(OutdatedEdge::OutputDependency),
+            );
+            old_edges.extend(
+                task.iter_outdated_collectibles_dependencies()
+                    .map(OutdatedEdge::CollectiblesDependency),
             );
         }
 
@@ -2940,9 +2948,7 @@ impl TurboTasksBackend {
             }
         }
 
-        // Clean up task storage after execution:
-        // - Shrink collections marked with shrink_on_completion
-        // - Drop dependency fields for immutable tasks (they'll never re-execute)
+        // Free memory now that execution is complete.
         task.cleanup_after_execution();
 
         drop(task);
