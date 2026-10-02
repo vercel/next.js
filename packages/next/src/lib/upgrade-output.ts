@@ -1,9 +1,11 @@
+import { Writable } from 'stream'
 import type { ChildProcess } from 'child_process'
 import { updateInitialEnv } from '@next/env'
 
 // The CLI owns the menu. This process keeps its inherited terminal and holds
 // its own stdout/stderr writes until the parent says the menu has closed.
 let corked = false
+let managed = false
 let released = false
 let outputLimitCheck: ReturnType<typeof setInterval> | null = null
 
@@ -150,6 +152,7 @@ export async function corkUpgradeOutput() {
 }
 
 export function handleUpgradeOutputMessages() {
+  managed = true
   // Listen before config loads, but leave its output live. router-server corks
   // only after config and custom routes finish, so their write callbacks work.
   process.on(
@@ -170,6 +173,43 @@ export function handleUpgradeOutputMessages() {
     process.exit(1)
   })
 }
+export function pipeWorkerOutput(
+  source: NodeJS.ReadableStream,
+  destination: Writable
+) {
+  // Ordinary runs and new workers after Skip keep the existing pipe behavior.
+  if (!managed || released) {
+    source.pipe(destination, { end: false })
+    return
+  }
+
+  // Acknowledge held writes immediately so the terminal cannot pause workers.
+  // After Skip, wait for writes again to restore backpressure without changing
+  // pipe listeners. Ending this forwarding stream never ends the terminal.
+  // TODO: A worker may still be waiting for an earlier write when we cork.
+  // Its work can pause until the ten-second limit skips the menu.
+  const output = new Writable({
+    write(chunk, encoding, callback) {
+      if (corked) {
+        destination.write(chunk, encoding)
+        callback()
+        return
+      }
+
+      destination.write(chunk, encoding, (error) => {
+        if (error) {
+          // The destination emits this error itself. Stop forwarding without
+          // emitting the same terminal error through a second stream.
+          output.destroy()
+          return
+        }
+        callback()
+      })
+    },
+  })
+  source.pipe(output)
+}
+
 function uncorkUpgradeOutput() {
   if (!corked) {
     return
@@ -185,6 +225,7 @@ function uncorkUpgradeOutput() {
   // TODO: stdout and stderr have separate buffers. Releasing stdout first can
   // print a later log before an earlier error. Use one buffer if we need to
   // keep the order between the two streams.
+
   process.stdout.uncork()
   process.stderr.uncork()
 }

@@ -1,3 +1,4 @@
+import { pipeWorkerOutput } from './upgrade-output'
 import type { ChildProcess } from 'child_process'
 import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
 import { Transform } from 'stream'
@@ -220,8 +221,10 @@ export class Worker {
       this._worker.getStderr().pipe(abortActivityStreamOnLog)
 
       // Pipe the worker's stdout and stderr to the parent process
-      this._worker.getStdout().pipe(process.stdout)
-      this._worker.getStderr().pipe(process.stderr)
+      // Worker logs join this process's corked streams. Keep reading them so
+      // the workers do not stall just because the menu owns terminal output.
+      pipeWorkerOutput(this._worker.getStdout(), process.stdout)
+      pipeWorkerOutput(this._worker.getStderr(), process.stderr)
     }
     createWorker()
 

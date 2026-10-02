@@ -1,3 +1,4 @@
+import { pipeWorkerOutput } from '../../lib/upgrade-output'
 import type { NextConfigComplete } from '../config-shared'
 import type {
   EncodedArgumentsForProbe,
@@ -120,8 +121,10 @@ export function installUseCacheProbe(options: InstallOptions): void {
         },
       },
     }) as Worker & ProbePool
-    worker.getStdout().pipe(process.stdout)
-    worker.getStderr().pipe(process.stderr)
+    // Probes must keep running while the menu holds output. Their logs use the
+    // same buffers as dev logs, without pipe backpressure stopping the probes.
+    pipeWorkerOutput(worker.getStdout(), process.stdout)
+    pipeWorkerOutput(worker.getStderr(), process.stderr)
     pool = worker
     return worker
   }

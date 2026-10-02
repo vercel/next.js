@@ -1,3 +1,4 @@
+import { pipeWorkerOutput } from '../../lib/upgrade-output'
 import type { NextConfigComplete } from '../config-shared'
 import type { NodeJsPartialHmrUpdate } from '../../build/swc/types'
 import type {
@@ -184,8 +185,10 @@ export function installDevValidationWorker(options: InstallOptions): void {
         },
       },
     }) as Worker & ValidationPool
-    worker.getStdout().pipe(process.stdout)
-    worker.getStderr().pipe(process.stderr)
+    // Validation continues during the choice. Drain its logs into our held
+    // streams instead of allowing pipe backpressure to pause the worker.
+    pipeWorkerOutput(worker.getStdout(), process.stdout)
+    pipeWorkerOutput(worker.getStderr(), process.stderr)
     pool = worker
     return worker
   }
