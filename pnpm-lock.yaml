@@ -262,6 +262,9 @@ importers:
       '@vercel/sandbox':
         specifier: 1.8.0
         version: 1.8.0
+      ajv:
+        specifier: 8.17.1
+        version: 8.17.1
       alex:
         specifier: 9.1.0
         version: 9.1.0

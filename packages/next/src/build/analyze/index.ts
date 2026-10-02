@@ -8,13 +8,15 @@ import loadConfig from '../../server/config'
 import { PHASE_ANALYZE } from '../../shared/lib/constants'
 import { turbopackAnalyze, type AnalyzeContext } from '../turbopack-analyze'
 import { durationToString } from '../duration-to-string'
-import { cp, writeFile, mkdir } from 'node:fs/promises'
+import { Lockfile } from '../lockfile'
+import { installBindings } from '../swc/install-bindings'
+import { cpSync, writeFileSync, mkdirSync } from 'node:fs'
 import { discoverRoutes } from '../route-discovery'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import loadCustomRoutes from '../../lib/load-custom-routes'
 import { generateRoutesManifest } from '../generate-routes-manifest'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
-import { writeAnalyzeSnapshot } from './snapshot'
+import { writeAnalyzeSnapshot, type SnapshotMetadata } from './snapshot'
 import http from 'node:http'
 
 // @ts-expect-error types are in @types/serve-handler
@@ -44,7 +46,8 @@ export default async function analyze({
   output = false,
   port = 4000,
   snapshotName,
-}: AnalyzeOptions): Promise<void> {
+}: AnalyzeOptions): Promise<SnapshotMetadata> {
+  let lockfile: Lockfile | undefined
   try {
     // analyze is Turbopack-only. Mirror what parseBundlerArgs does for build/dev
     // so every process.env.TURBOPACK consumer in this run agrees with the bundler choice.
@@ -57,12 +60,25 @@ export default async function analyze({
 
     process.env.NEXT_DEPLOYMENT_ID = config.deploymentId || ''
 
-    const distDir = path.join(dir, '.next')
+    const distDir = path.join(dir, config.distDir)
     const telemetry = new Telemetry({ distDir })
     setGlobal('phase', PHASE_ANALYZE)
     setGlobal('distDir', distDir)
     setGlobal('telemetry', telemetry)
 
+    // Native locks require synchronous access to bindings. Like next build,
+    // install them before acquiring the lock, but still lock before writes.
+    await installBindings(config.experimental?.useWasmBinary)
+
+    // Match next build/dev: protect the directory before Turbopack writes its
+    // data, not only the later snapshot copy. The UI keeps this lock until exit.
+    if (config.experimental.lockDistDir) {
+      mkdirSync(distDir, { recursive: true })
+      lockfile = await Lockfile.acquireWithRetriesOrExit(
+        path.join(distDir, 'lock'),
+        'next analyze'
+      )
+    }
     Log.info('Analyzing a production build...')
 
     const analyzeContext: AnalyzeContext = {
@@ -83,18 +99,18 @@ export default async function analyze({
 
     const routes = await collectRoutesForAnalyze(dir, config, appDirOnly)
 
-    await cp(path.join(__dirname, '../../bundle-analyzer'), analyzeDir, {
+    cpSync(path.join(__dirname, '../../bundle-analyzer'), analyzeDir, {
       recursive: true,
     })
-    await mkdir(path.join(analyzeDir, 'data'), { recursive: true })
-    await writeFile(
+    mkdirSync(path.join(analyzeDir, 'data'), { recursive: true })
+    writeFileSync(
       path.join(analyzeDir, 'data', 'routes.json'),
       JSON.stringify(routes, null, 2)
     )
 
     // Capture this build alongside any prior builds so the analyzer UI can
     // offer it as a comparison baseline in the future.
-    await writeAnalyzeSnapshot({
+    const snapshot = writeAnalyzeSnapshot({
       projectDir: dir,
       analyzeDir,
       routes,
@@ -119,8 +135,15 @@ export default async function analyze({
 
     if (!output) {
       await startServer(analyzeDir, port)
+    } else {
+      // Headless capture is complete; release the lock for another build even
+      // when the analyzer is invoked programmatically rather than via the CLI.
+      await lockfile?.unlock()
+      lockfile = undefined
     }
+    return snapshot
   } catch (e) {
+    await lockfile?.unlock()
     const telemetry = traceGlobals.get('telemetry') as Telemetry | undefined
     if (telemetry) {
       telemetry.record(

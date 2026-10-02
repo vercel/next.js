@@ -1,0 +1,186 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:nextjs:analyze:analyzer-graph:v1",
+  "title": "Next.js analyzer graph v1 record",
+  "description": "Validates one typed JSON record per line of a versioned analyzer graph, not stream ordering, completion or cross-record joins. Extra fields can be additive in v1; missing, null or unknown evidence is not empty. Fields and record types vary with available producers. A valid record is build evidence, not observed browser requests or savings.",
+  "oneOf": [
+    { "$ref": "#/$defs/meta" },
+    { "$ref": "#/$defs/module" },
+    { "$ref": "#/$defs/route" },
+    { "$ref": "#/$defs/output" },
+    { "$ref": "#/$defs/part" }
+  ],
+  "$defs": {
+    "index": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Nonnegative snapshot-scoped index or count."
+    },
+    "size": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Byte attribution, not measured transfer or savings."
+    },
+    "identity": {
+      "type": "string",
+      "description": "Exact bundler module identity; different variants can share one source path, so join by identity rather than path."
+    },
+    "meta": {
+      "type": "object",
+      "required": [
+        "type",
+        "schema_version",
+        "snapshot_id",
+        "route_count",
+        "selected_routes"
+      ],
+      "properties": {
+        "type": {
+          "const": "meta",
+          "description": "Identifies this record as snapshot metadata."
+        },
+        "schema_version": {
+          "const": 1,
+          "description": "Version of each emitted record, not the private binary encoding."
+        },
+        "snapshot_id": {
+          "type": "string",
+          "description": "Generated snapshot-scoped capture ID, distinct from its optional UI name; not stable across rebuilds. New IDs include a collision-safe suffix; legacy captures may use timestamp/SHA-only IDs."
+        },
+        "route_count": {
+          "$ref": "#/$defs/index",
+          "description": "Number of all routes in this saved snapshot."
+        },
+        "selected_routes": {
+          "$ref": "#/$defs/index",
+          "description": "Number of route occurrences selected by the optional route filter."
+        }
+      },
+      "additionalProperties": true,
+      "description": "Snapshot metadata, expected first in a complete stream; the schema validates individual records, not stream ordering."
+    },
+    "module": {
+      "type": "object",
+      "required": ["type", "ident", "path", "dependencies"],
+      "properties": {
+        "type": {
+          "const": "module",
+          "description": "Identifies a module and its dependencies in the whole-app graph."
+        },
+        "ident": {
+          "$ref": "#/$defs/identity",
+          "description": "Exact module identity used by dependency lists."
+        },
+        "path": {
+          "type": "string",
+          "description": "Source path; multiple module identities may share it, so paths are not safe module join keys."
+        },
+        "dependencies": {
+          "description": "Importer-to-imported module identity lists. Sync and async imports differ from traced file relationships, which are not browser imports; the import graph may contain cycles.",
+          "type": "object",
+          "required": ["sync", "async", "traced"],
+          "properties": {
+            "sync": {
+              "$ref": "#/$defs/identities",
+              "description": "Synchronous imports from this module."
+            },
+            "async": {
+              "$ref": "#/$defs/identities",
+              "description": "Asynchronous import relationships."
+            },
+            "traced": {
+              "$ref": "#/$defs/identities",
+              "description": "File-tracing relationships, not browser imports."
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true,
+      "description": "Whole-app module graph, even when --route filters route-local records. Follow exact identities, not source paths."
+    },
+    "identities": { "type": "array", "items": { "$ref": "#/$defs/identity" } },
+    "route": {
+      "type": "object",
+      "required": ["type", "route", "route_index"],
+      "properties": {
+        "type": {
+          "const": "route",
+          "description": "Identifies a route occurrence and its available build-time evidence."
+        },
+        "route": {
+          "type": "string",
+          "description": "Route key from this snapshot's routes.json."
+        },
+        "route_index": {
+          "$ref": "#/$defs/index",
+          "description": "Occurrence of this route in routes.json; repeated route keys have distinct indices."
+        }
+      },
+      "additionalProperties": true,
+      "description": "One snapshot route occurrence; repeated route keys remain distinct through route_index. Route-local records join by both keys."
+    },
+    "output": {
+      "type": "object",
+      "required": ["type", "route", "route_index", "filename"],
+      "properties": {
+        "type": {
+          "const": "output",
+          "description": "Identifies an emitted output file for a route occurrence."
+        },
+        "route": { "type": "string", "description": "Owning route key." },
+        "route_index": {
+          "$ref": "#/$defs/index",
+          "description": "Owning route occurrence index."
+        },
+        "filename": {
+          "type": "string",
+          "description": "Emitted output path scoped to this saved snapshot, not stable across rebuilds or proof of a browser request. Verify the chosen artifact's [client-fs]/ client-output convention; server outputs and traced files are not automatically browser work."
+        }
+      },
+      "additionalProperties": true,
+      "description": "An emitted file for a route occurrence, not an observed browser request. Output membership and source-part size attribution are separate; check which files are actually client outputs before treating them as browser work."
+    },
+    "part": {
+      "type": "object",
+      "required": [
+        "type",
+        "route",
+        "route_index",
+        "filename",
+        "source_path",
+        "size",
+        "compressed_size"
+      ],
+      "properties": {
+        "type": {
+          "const": "part",
+          "description": "Identifies source-size attribution within an emitted output file."
+        },
+        "route": { "type": "string", "description": "Owning route key." },
+        "route_index": {
+          "$ref": "#/$defs/index",
+          "description": "Owning route occurrence index."
+        },
+        "filename": {
+          "type": "string",
+          "description": "Output file to which this source part is attributed."
+        },
+        "source_path": {
+          "type": "string",
+          "description": "Reconstructed source path, not a unique module identity."
+        },
+        "size": {
+          "$ref": "#/$defs/size",
+          "description": "Attributed uncompressed bytes, not predicted savings."
+        },
+        "compressed_size": {
+          "$ref": "#/$defs/size",
+          "description": "Attributed compressed bytes, not observed network transfer."
+        }
+      },
+      "additionalProperties": true,
+      "description": "Source attribution within an emitted output. Count each selected part once; directory and descendant totals can overlap. Attribution weights predict neither savings nor transfer bytes and are separate from exact module membership."
+    }
+  }
+}

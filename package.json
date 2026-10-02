@@ -172,6 +172,7 @@
     "@vercel/kv": "3.0.0",
     "@vercel/og": "1.0.1",
     "@vercel/sandbox": "1.8.0",
+    "ajv": "8.17.1",
     "alex": "9.1.0",
     "async-sema": "3.0.1",
     "babel-plugin-react-compiler": "0.0.0-experimental-1371fcb-20260227",
