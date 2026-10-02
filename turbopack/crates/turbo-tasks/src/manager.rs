@@ -721,6 +721,10 @@ struct CurrentTaskState {
     /// True if the current task uses an external invalidator
     has_invalidator: bool,
 
+    /// True if the current task read something that doesn't survive a session, so it must be
+    /// re-executed when restored from the persistent cache. See [`mark_session_dependent`].
+    session_dependent: bool,
+
     /// True if we're in a top-level task (e.g. `.run_once(...)` or `.run(...)`).
     /// Eventually consistent reads are not allowed in top-level tasks.
     in_top_level_task: bool,
@@ -750,6 +754,7 @@ impl CurrentTaskState {
             #[cfg(feature = "verify_determinism")]
             stateful: false,
             has_invalidator: false,
+            session_dependent: false,
             in_top_level_task,
             cell_counters: Some(AutoMap::default()),
             local_tasks: LocalTaskTracker::new(),
@@ -768,6 +773,7 @@ impl CurrentTaskState {
             #[cfg(feature = "verify_determinism")]
             stateful: false,
             has_invalidator: false,
+            session_dependent: false,
             in_top_level_task,
             cell_counters: None,
             local_tasks: LocalTaskTracker::new(),
@@ -1482,6 +1488,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                 #[cfg(feature = "verify_determinism")]
                 stateful: current_task_state.stateful,
                 has_invalidator: current_task_state.has_invalidator,
+                session_dependent: current_task_state.session_dependent,
             }
         })
     }
@@ -1599,6 +1606,7 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                                     #[cfg(feature = "verify_determinism")]
                                     finished_state.stateful,
                                     finished_state.has_invalidator,
+                                    finished_state.session_dependent,
                                     &*this,
                                 )
                             }
@@ -1703,6 +1711,9 @@ struct FinishedTaskState {
 
     /// True if the task uses an external invalidator
     has_invalidator: bool,
+
+    /// True if the task must be re-executed when restored from the persistent cache
+    session_dependent: bool,
 }
 
 impl<B: Backend + 'static> TurboTasksCallApi for TurboTasks<B> {
@@ -2235,6 +2246,18 @@ pub fn mark_invalidator() {
         } = &mut *cell.write().unwrap();
         *has_invalidator = true;
     })
+}
+
+/// Marks the current task as session-dependent, like a
+/// [`#[turbo_tasks::function(session_dependent)]`][macro@crate::function], but decided at runtime:
+/// the task is re-executed when restored from the persistent cache instead of reusing its cached
+/// output. Use this when the task read something that doesn't survive a session.
+///
+/// Does nothing outside of a task.
+pub fn mark_session_dependent() {
+    let _ = CURRENT_TASK_STATE.try_with(|cell| {
+        cell.write().unwrap().session_dependent = true;
+    });
 }
 
 /// Marks the current task as stateful. This is used to indicate that the task

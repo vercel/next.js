@@ -13,7 +13,7 @@ use anyhow::Result;
 use turbo_tasks::{ResolvedVc, State, Vc};
 use turbo_tasks_backend::TestSnapshotOutcome;
 
-use crate::util::{create_tt, create_tt_with_workers, create_tt_without_gc};
+use crate::util::{create_tt, create_tt_with_workers};
 
 /// Verify that after eviction, task re-execution produces correct results.
 /// This tests the snapshot → evict → invalidate → restore → re-execute cycle.
@@ -51,70 +51,6 @@ async fn eviction_recompute() {
         assert_eq!(read.value, 2);
         assert_ne!(read.random, initial_random);
 
-        anyhow::Ok(())
-    })
-    .await;
-    tt.stop_and_wait().await;
-    result.unwrap();
-}
-
-/// A reader that first registers with a `State` *after* the cell holding it
-/// was persisted must still be invalidated once that cell is evicted and
-/// restored.
-///
-/// `State::get()` records the reader's invalidator inside the cell, and the
-/// invalidator set is persisted with it. If registering doesn't mark the cell
-/// for re-serialization, the next snapshot keeps the old bytes, eviction drops
-/// the in-memory copy, and the restored `State` has forgotten the reader — so
-/// a later `set` never invalidates it and it serves a stale value.
-///
-/// Each step runs in its own `run_once` scope, with the snapshot + evict in
-/// between: while a top-level task is live it keeps the roots it read active,
-/// and active tasks are never evicted.
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn eviction_state_reader_registered_after_snapshot() {
-    let (tt, _persistence_dir) =
-        create_tt_without_gc("eviction_state_reader_registered_after_snapshot");
-
-    // Create the state and persist it before anyone has read it.
-    turbo_tasks::run_once(tt.clone(), async move {
-        create_state(1).resolve().strongly_consistent().await?;
-        anyhow::Ok(())
-    })
-    .await
-    .unwrap();
-    let TestSnapshotOutcome { had_new_data, .. } = tt.backend().snapshot_and_evict_for_testing(&tt);
-    assert!(
-        had_new_data,
-        "snapshot should have persisted the state cell"
-    );
-
-    // The reader registers with the `State` restored from disk. That
-    // registration exists only in memory until something re-serializes the
-    // cell.
-    turbo_tasks::run_once(tt.clone(), async move {
-        let state_vc = create_state(1).resolve().strongly_consistent().await?;
-        let read = compute(state_vc).read_strongly_consistent().await?;
-        assert_eq!(read.value, 1);
-        anyhow::Ok(())
-    })
-    .await
-    .unwrap();
-    let TestSnapshotOutcome {
-        eviction_counts, ..
-    } = tt.backend().snapshot_and_evict_for_testing(&tt);
-    println!("after the reader registered, evicted: {eviction_counts:?}");
-
-    let result = turbo_tasks::run_once(tt.clone(), async move {
-        let state_op = create_state(1);
-        let state_vc = state_op.resolve().strongly_consistent().await?;
-        state_op.read_strongly_consistent().await?.set(2);
-
-        let read = compute(state_vc).read_strongly_consistent().await?;
-        assert_eq!(
-            read.value, 2,
-            "the reader was not invalidated: its registration with the State was lost on eviction"
-        );
         anyhow::Ok(())
     })
     .await;

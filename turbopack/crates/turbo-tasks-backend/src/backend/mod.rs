@@ -1900,12 +1900,16 @@ impl TurboTasksBackend {
         {
             let mut task = ctx.task(task_id, TaskDataCategory::Data);
             let _ = task.track_modification(SpecificTaskDataCategory::Data, "mutate_interior");
-            let _ = task.track_modification(SpecificTaskDataCategory::Meta, "mutate_interior");
         }
         {
             let _scope = InteriorMutationScope::enter();
             mutate();
         }
+        // The context holds an operation open, and a snapshot waits for every open operation
+        // before it persists anything. Keeping it alive until `mutate` has returned is what stops
+        // a snapshot from persisting the task between marking it modified and mutating it: that
+        // snapshot would clear the modified flag while persisting the old value, and the new
+        // value would never be persisted.
         drop(ctx);
     }
 
@@ -2149,6 +2153,7 @@ impl TurboTasksBackend {
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
         #[cfg(feature = "verify_determinism")] stateful: bool,
         has_invalidator: bool,
+        session_dependent: bool,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
     ) -> Option<TaskPriority> {
         // Task completion is a 4 step process:
@@ -2212,6 +2217,7 @@ impl TurboTasksBackend {
             #[cfg(feature = "verify_determinism")]
             stateful,
             has_invalidator,
+            session_dependent,
         ) {
             Ok(r) => r,
             Err(stale_priority) => {
@@ -2290,13 +2296,15 @@ impl TurboTasksBackend {
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
         #[cfg(feature = "verify_determinism")] stateful: bool,
         has_invalidator: bool,
+        session_dependent: bool,
     ) -> Result<TaskExecutionCompletePrepareResult, TaskPriority> {
         let mut task = ctx.task(task_id, TaskDataCategory::All);
         let is_recomputation = task.is_dirty().is_none();
         // Without dependency tracking, the SessionDependent dirty state is never read (no session
         // restore), so skip the work
         let is_session_dependent = self.should_track_dependencies()
-            && matches!(task.get_task_type(), TaskTypeRef::Cached(tt) if tt.native_fn.is_session_dependent);
+            && (session_dependent
+                || matches!(task.get_task_type(), TaskTypeRef::Cached(tt) if tt.native_fn.is_session_dependent));
         let Some(in_progress) = task.get_in_progress_mut() else {
             panic!("Task execution completed, but task is not in progress: {task:#?}");
         };
@@ -3767,6 +3775,7 @@ impl Backend for TurboTasksBackend {
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
         #[cfg(feature = "verify_determinism")] stateful: bool,
         has_invalidator: bool,
+        session_dependent: bool,
         turbo_tasks: &TurboTasks<Self>,
     ) -> Option<TaskPriority> {
         self.task_execution_completed(
@@ -3776,6 +3785,7 @@ impl Backend for TurboTasksBackend {
             #[cfg(feature = "verify_determinism")]
             stateful,
             has_invalidator,
+            session_dependent,
             turbo_tasks,
         )
     }

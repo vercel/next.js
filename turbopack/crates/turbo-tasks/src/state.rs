@@ -13,7 +13,7 @@ use tracing::trace_span;
 
 use crate::{
     InteriorMutator, Invalidator, OperationValue, get_interior_mutator, get_invalidator,
-    manager::{mark_stateful, with_turbo_tasks},
+    manager::{mark_session_dependent, mark_stateful, with_turbo_tasks},
 };
 
 #[derive(Encode, Decode)]
@@ -310,20 +310,6 @@ impl<T> State<T> {
         drop(old);
         run_invalidators(invalidators);
     }
-
-    /// Updates the current state with the `update` function. The `update`
-    /// function need to return `true` when the value was modified. Exposing
-    /// the current value from the `update` function is not allowed and will
-    /// result in incorrect cache invalidation.
-    ///
-    /// `update` runs inside [`InteriorMutator::mutate`], so it must not call back into turbo-tasks,
-    /// and must not drop anything that does (such as a `GcRoot` it replaces); see there. The state
-    /// is marked for persisting even when `update` returns `false`.
-    pub fn update_conditionally(&self, update: impl FnOnce(&mut T) -> bool) {
-        if let Some(invalidators) = self.mutate(|inner| inner.update_conditionally(update)) {
-            run_invalidators(invalidators);
-        }
-    }
 }
 
 impl<T: PartialEq> State<T> {
@@ -346,10 +332,10 @@ impl<T: PartialEq> State<T> {
 /// Like [`State`], but never persisted: for values that are themselves never persisted, i.e.
 /// declared with `serialization = "skip"`.
 ///
-/// A [`State`] keeps its persisted copy in sync on every change, which costs a backend operation
-/// and forbids calling back into turbo-tasks from an update closure. A `TransientState` needs none
-/// of that, since there is no persisted copy to keep in sync. For the same reason it can hand out
-/// a reference to its value instead of a copy.
+/// A [`State`] keeps its persisted copy in sync on every change, which costs a backend operation.
+/// A `TransientState` needs none of that, since there is no persisted copy to keep in sync. For the
+/// same reason it can hand out a reference to its value instead of a copy, and offers
+/// [`update_conditionally`][Self::update_conditionally] to modify the value in place.
 ///
 /// The same warnings apply as for [`State`].
 pub struct TransientState<T> {
@@ -395,8 +381,15 @@ impl<T> TransientState<T> {
     /// Gets the current value of the state. The current task will be registered
     /// as dependency of the state and will be invalidated when the state
     /// changes.
+    ///
+    /// The current task is also marked as session-dependent (see [`mark_session_dependent`]): the
+    /// state and the readers it knows about are lost when the session ends, so a reader restored
+    /// from the persistent cache would never be invalidated again and must be re-executed instead.
     pub fn get(&self) -> StateRef<'_, T> {
         let invalidator = get_invalidator();
+        if invalidator.is_some() {
+            mark_session_dependent();
+        }
         let mut inner = self.lock();
         if let Some(invalidator) = invalidator {
             inner.add_invalidator(invalidator);

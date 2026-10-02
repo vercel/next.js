@@ -9,6 +9,7 @@ mod update_cell;
 mod update_collectible;
 use std::{
     fmt::{Debug, Display, Formatter},
+    marker::PhantomData,
     ops::DerefMut,
     sync::Arc,
 };
@@ -235,7 +236,10 @@ thread_local! {
 ///
 /// The closure runs inside an operation, so creating a context from it would begin a nested one,
 /// which waits on a pending snapshot that is itself waiting on the outer one.
-pub(crate) struct InteriorMutationScope(());
+///
+/// The flag is thread-local, so the scope is `!Send`: it must be dropped on the thread that
+/// entered it.
+pub(crate) struct InteriorMutationScope(PhantomData<*const ()>);
 
 impl InteriorMutationScope {
     pub(crate) fn enter() -> Self {
@@ -244,20 +248,21 @@ impl InteriorMutationScope {
             assert!(!flag.get(), "interior mutations must not nest");
             flag.set(true);
         });
-        Self(())
+        Self(PhantomData)
     }
 
-    fn assert_not_inside() {
+    fn debug_assert_not_inside() {
         #[cfg(debug_assertions)]
         assert!(
             !IN_INTERIOR_MUTATION.with(|flag| flag.get()),
             "turbo-tasks was called from inside an `InteriorMutator::mutate` closure (such as a \
-             `State::update_conditionally` update), which must not call back into turbo-tasks: it \
-             would deadlock against a pending snapshot. Do that work before or after."
+             `State` update), which must not call back into turbo-tasks: it would deadlock \
+             against a pending snapshot. Do that work before or after."
         );
     }
 }
 
+#[cfg(debug_assertions)]
 impl Drop for InteriorMutationScope {
     fn drop(&mut self) {
         #[cfg(debug_assertions)]
@@ -282,7 +287,7 @@ impl<'e> ExecuteContextImpl<'e> {
         backend: &'e TurboTasksBackend,
         turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
     ) -> Self {
-        InteriorMutationScope::assert_not_inside();
+        InteriorMutationScope::debug_assert_not_inside();
         Self {
             backend,
             turbo_tasks,
@@ -301,7 +306,7 @@ impl<'e> ExecuteContextImpl<'e> {
         turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
         shutdown_guard: RwLockReadGuard<'e, bool>,
     ) -> Self {
-        InteriorMutationScope::assert_not_inside();
+        InteriorMutationScope::debug_assert_not_inside();
         Self {
             backend,
             turbo_tasks,

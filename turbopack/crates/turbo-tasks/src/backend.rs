@@ -641,6 +641,7 @@ pub trait Backend: Sized + Sync + Send {
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
         #[cfg(feature = "verify_determinism")] stateful: bool,
         has_invalidator: bool,
+        session_dependent: bool,
         turbo_tasks: &TurboTasks<Self>,
     ) -> Option<TaskPriority>;
 
