@@ -58,7 +58,7 @@ The shell can include static or cached content and `<Suspense>` fallbacks. Reque
 
 For an individual subtree, [`await prefetch()`](/docs/app/api-reference/functions/prefetch) provides similar behavior by deferring code below the call to a per-link prefetch or navigation. Setting `'shell'` enforces that stage boundary across the route without adding `await prefetch()` to each request-specific subtree.
 
-> **Good to know**: `'shell'` does not keep per-link prefetches static. When the route reads `cookies()`, `headers()`, or URL data, each visible `<Link prefetch={true}>` into it triggers a server render. Navigation shows no fallback, so this cost does not appear in the UI. Use [`'prefetch'`](#prefetch) when per-link prefetches must be served from static output.
+> **Good to know**: `'shell'` only covers the App Shell. If the route reads `cookies()`, `headers()`, or URL data, each visible [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch) into it still renders its prefetch on the server, and the prefetched UI gives no sign of that work. Use [`'prefetch'`](#prefetch) when per-link prefetches must also come from static output.
 
 ### `'prefetch'`
 
@@ -70,7 +70,7 @@ The [static HTML shell](/docs/app/glossary#static-shell) can also include this s
 
 For an individual subtree, [`await navigation()`](/docs/app/api-reference/functions/navigation) provides similar behavior by deferring code below the call until navigation. Setting `'prefetch'` enforces that stage boundary across the route without adding `await navigation()` to each request-specific subtree.
 
-In a dynamic route, a per-link prefetch uses the prerendered page for params returned by [`generateStaticParams()`](/docs/app/api-reference/functions/generate-static-params). For other params, it serves the route's fallback shell until Next.js generates that page in the background. On a new deployment, the first navigation to each of those URLs can show the fallback shell. Later navigations use the generated page. See [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components#at-runtime).
+A per-link prefetch can still serve the route's fallback shell. Params not returned by [`generateStaticParams()`](/docs/app/api-reference/functions/generate-static-params) have no prerendered page until a visitor requests one, so on a new deployment the first navigation to such a URL shows the `<Suspense>` fallbacks while Next.js generates the page in the background. See [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components#at-runtime).
 
 ### `'navigation'`
 
@@ -115,9 +115,9 @@ With Partial Prefetching, `false` keeps the route's normal rendering behavior an
 
 ## How `ensureStatic` differs from `prefetch()` and `navigation()`
 
-`ensureStatic` declares which navigation stages must be static and validates that requirement. It does not change when code runs.
+`ensureStatic` defers request-specific content. Under `'shell'` or `'prefetch'`, content behind `<Suspense>` that reads request data renders in a later stage, and the static output shows its fallback. Only content that cannot be deferred is reported, such as a read outside `<Suspense>`, or any request-specific work under `'navigation'`.
 
-[`prefetch()`](/docs/app/api-reference/functions/prefetch) and [`navigation()`](/docs/app/api-reference/functions/navigation) move the code below them to a later stage. Keep the call when that code must not run earlier, even if the route sets `'shell'` or `'prefetch'`. For example, synchronous IO such as `crypto.randomUUID()` or `Date.now()` interrupts the stage it runs in. Below `await navigation()`, it runs during the navigation instead of during the prefetch. Removing the call moves it into the earlier stages. In development, the page reports the synchronous IO when you open it.
+[`prefetch()`](/docs/app/api-reference/functions/prefetch) and [`navigation()`](/docs/app/api-reference/functions/navigation) defer everything below the `await`, including cached work that reads no request data. Setting a level does not replace an existing call, so keep `await navigation()` where the code below it must not run before navigation.
 
 ## How `ensureStatic` differs from `instant`
 
