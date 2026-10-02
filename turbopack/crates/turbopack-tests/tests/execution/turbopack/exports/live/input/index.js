@@ -1,6 +1,8 @@
 import * as liveDefaultClass from './live_default_class.js'
 import * as liveExports from './live_exports.js'
 import * as constDefaultExportFunction from './const_default_export_function.js'
+import * as zeroBeforeAccessor from './zero_before_accessor.js'
+import cjsFunctionDefault, * as cjsFunctionNs from './cjs_function_with_default.js'
 
 it('hoisted declarations are live', () => {
   expect(liveExports.bar()).toBe('bar')
@@ -73,6 +75,41 @@ it('exported bindings that are free vars are live', () => {
 
   const ns = moduleNamespaceOf('live_exports.js')
   expectGetter(ns, liveExports.exportsInfo.g.mangledName)
+})
+
+it('a constant 0 directly before an accessor binding is bound as a value', () => {
+  // Enumerating the namespace means its keys cannot be mangled, so it is emitted under the
+  // original names and in name order, which puts `zero` immediately before `zeroLive`.
+  expect(Object.keys(zeroBeforeAccessor)).toEqual([
+    'setZeroLive',
+    'zero',
+    'zeroLive',
+  ])
+
+  const ns = moduleNamespaceOf('zero_before_accessor.js')
+  expectValue(ns, 'zero', 0)
+  expectGetter(ns, 'zeroLive')
+
+  expect(zeroBeforeAccessor.zeroLive).toBe('zeroLive')
+  zeroBeforeAccessor.setZeroLive('patched')
+  expect(zeroBeforeAccessor.zeroLive).toBe('patched')
+  expect(zeroBeforeAccessor.zero).toBe(0)
+})
+
+it('CommonJS function exports with a default key bind the function as default', () => {
+  expect(cjsFunctionDefault).toEqual(expect.any(Function))
+  expect(cjsFunctionDefault()).toBe('cjsFunction')
+
+  // Interop replaces the `default` getter with the exports function itself as a value. That
+  // swaps an accessor for a value in the middle of the bindings, so the binding after it has to
+  // stay intact, and in the same position.
+  expectValue(cjsFunctionNs, 'default', cjsFunctionDefault)
+  expectGetter(cjsFunctionNs, 'afterDefault')
+  expect(cjsFunctionNs.afterDefault).toBe('afterDefault')
+  expect(Object.keys(cjsFunctionNs).slice(-2)).toEqual([
+    'default',
+    'afterDefault',
+  ])
 })
 
 function expectValue(ns, propName, value) {

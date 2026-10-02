@@ -7,6 +7,7 @@ __turbopack_context__.q("/static/ignore-worker.3cqstqcuvhq6o.cjs");}),
 
 __turbopack_context__.s([
     "foo",
+    0,
     ()=>foo
 ]);
 var __TURBOPACK__import$2e$meta__ = {
@@ -63,6 +64,7 @@ __turbopack_context__.v(__turbopack_context__.r("[turbopack-ecmascript]/worker/b
 // values are read from `globalThis`.
 __turbopack_context__.s([
     "default",
+    0,
     ()=>generateCreateWorker
 ]);
 /**

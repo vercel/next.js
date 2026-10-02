@@ -288,9 +288,11 @@ impl EcmascriptChunkPlaceable for EcmascriptCollectModuleWithChunkGroup {
         )
         .await?;
 
+        // `getList` is a function declaration that is never reassigned, and it is emitted above
+        // this call, so the binding can be exported by value. Values need no accessor tag.
         writeln!(
             code,
-            "{TURBOPACK_ESM}([\n    {}, ()=>getList\n]);",
+            "{TURBOPACK_ESM}([\n    {}, getList\n]);",
             StringifyJs(&export),
         )?;
 
