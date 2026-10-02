@@ -7,7 +7,8 @@ description: >
   blocking-prerender / instant validation errors, run the
   `cache-components-instant-false` or `cache-components-activity-reset`
   codemods, preserve route reset behavior during migration, or decide between
-  temporary compatibility layers and fixing routes in place.
+  temporary validation opt-outs, temporary UI-state reset boundaries, and
+  fixing routes in place.
 ---
 
 # next-cache-components-adoption
@@ -22,7 +23,7 @@ Enable Cache Components on an app and walk it to a passing build. This skill seq
 
 - **A runnable app.** The whole loop verifies against `next dev` and a browser, so the app has to boot. If it reads a database or required env at import (e.g. an `env.ts` that throws on a missing `DATABASE_URL`), confirm it actually starts — with the real environment, or local data you stand up — before step 1. Adoption can't be verified against an app that won't run.
 
-- **Next.js 16.4 or later.** That release includes both adoption codemods. If `next --version` reports below 16.4, upgrade first:
+- **Next.js 16 or later.** Cache Components requires Next.js 16. If `next --version` reports below 16, upgrade first. The adoption codemods are fetched from `@next/codemod@canary` and do not require the app itself to use Next.js 16.4:
   - `npx @next/codemod@latest upgrade latest` to apply the version-to-version codemods.
   - Read the relevant [version upgrade guide](https://nextjs.org/docs/app/guides/upgrading) (e.g. [Version 16](https://nextjs.org/docs/app/guides/upgrading/version-16)) for what the codemod doesn't cover.
 
@@ -110,7 +111,7 @@ If there's no user to ask, default to **Incremental** and document the choice.
 
 Honor an explicit choice in the request. If the user asks to migrate incrementally and also asks you to complete the migration, establish and verify the incremental checkpoint before continuing to the remaining routes in the same task. “Complete” sets the stopping point; it does not change the chosen strategy.
 
-- **Incremental** — quiet pre-step + the loop. Run the codemods to opt every page and layout out of validation and preserve its previous state-reset behavior, get the build passing, stop and check in with the user (see [end of the pre-step](#end-of-the-pre-step-check-in)), then enter [step 2's loop](#step-2-the-inner-loop-remove-opt-outs-one-feature-at-a-time) and ship each feature as a follow-up PR.
+- **Incremental** — quiet pre-step + the loop. Add temporary validation opt-outs, Activity reset boundaries, or both, depending on which behaviors the app needs to preserve. Get the build passing, stop and check in with the user (see [end of the pre-step](#end-of-the-pre-step-check-in)), then enter [step 2's loop](#step-2-the-inner-loop-remove-opt-outs-one-feature-at-a-time) and ship each feature as a follow-up PR.
 - **Direct** — skip the pre-step. Enable `cacheComponents` and go straight to [step 2's loop](#step-2-the-inner-loop-remove-opt-outs-one-feature-at-a-time); the build's blocking routes are the work queue.
 
 ### incremental
@@ -119,16 +120,23 @@ Before invoking the codemod, grep for `^export const (revalidate|dynamic|fetchCa
 
 The codemod refuses to run on a dirty working tree. Commit or stash unrelated work first, or pass `--force` to let its edits land alongside your WIP. Common false positive: if you recently upgraded Next.js, `package.json` and the lockfile will already be dirty — commit those first.
 
+Run the validation opt-out codemod if validation needs to be addressed route by route:
+
 ```bash
-npx @next/codemod@latest cache-components-instant-false ./app
-npx @next/codemod@latest cache-components-activity-reset ./app
+npx @next/codemod@canary cache-components-instant-false ./app
+```
+
+Independently, run the Activity reset codemod if the app relies on routes unmounting during navigation:
+
+```bash
+npx @next/codemod@canary cache-components-activity-reset ./app
 ```
 
 Pass the app directory you resolved in [requires](#requires). A wrong path is not an error: it reports `0 ok` and exits `0`, so read the file count and treat zero as a failed run, not an adopted app.
 
-Confirm that both commands changed files, then set `cacheComponents: true`. Treat their `// TODO: Cache Components adoption` comments as the migration work queue. Follow the [migration guide](https://nextjs.org/docs/app/guides/migrating-to-cache-components#adopting-incrementally) for the codemod behavior and removal steps.
+Confirm that each command you chose changed files, then set `cacheComponents: true`. Treat the resulting `// TODO: Cache Components adoption` comments as migration work queues. The two queues are independent: removing `instant = false` re-enables validation, while removing an Activity reset boundary changes route-state behavior. Follow the [migration guide](https://nextjs.org/docs/app/guides/migrating-to-cache-components#adopting-incrementally) for the codemod behavior and removal steps.
 
-If the codemod isn't available (older `@next/codemod`, sandboxed environment, offline run), reproduce it by hand: for every `{page,layout,default}.{js,jsx,ts,tsx}` in the app directory that isn't `"use client"` or `"use server"` and doesn't already declare `instant`, insert this after the imports:
+If the validation opt-out codemod isn't available (older `@next/codemod`, sandboxed environment, offline run), reproduce it by hand: for every `{page,layout,default}.{js,jsx,ts,tsx}` in the app directory that isn't `"use client"` or `"use server"` and doesn't already declare `instant`, insert this after the imports:
 
 ```ts
 // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
@@ -138,7 +146,7 @@ export const instant = false
 
 If the Activity reset codemod is unavailable, follow the [preserving UI state guide's migration section](https://nextjs.org/docs/app/guides/preserving-ui-state#keep-route-state-resetting-during-migration).
 
-The codemod opts every segment out, not only the root, on purpose. Resolution is top-down, first-explicit-config-wins: the highest `instant = false` decides the whole subtree. With an opt-out on every segment, removing one segment's opt-out validates only that segment; descendants keep their own opt-outs and stay passing. If only the root were opted out, removing it would re-arm validation for the entire app at once.
+The validation codemod opts every segment out, not only the root, on purpose. Resolution is top-down, first-explicit-config-wins: the highest `instant = false` decides the whole subtree. With an opt-out on every segment, removing one segment's opt-out validates only that segment; descendants keep their own opt-outs and stay passing. If only the root were opted out, removing it would re-arm validation for the entire app at once.
 
 Because the highest opt-out wins, remove them top-down (root layout first, then descend). Removing a leaf's opt-out does nothing while an ancestor still holds one.
 

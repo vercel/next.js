@@ -65,11 +65,25 @@ export default function Page() {
 
 [`bfcacheId`](/docs/app/api-reference/functions/use-router#bfcacheid) changes on a new push or replace navigation, so the React `key` resets the wrapped subtree. It stays stable during browser back and forward navigation, preserving the state users expect when returning through their history.
 
+It also stays stable when only the URL's search parameters change. If a search parameter should reset part of the UI, derive that state from the URL or key that specific subtree by the parameter instead.
+
 The generated TODO comments form a migration checklist. Remove the wrappers from layouts before their child routes, then use the patterns below to reset only the state that should not persist. An ancestor wrapper continues to reset every route beneath it. After removing the final wrapper, delete the generated `_next-cache-components` directory.
 
 ## Choosing what to preserve
 
 Activity preserves all component state and DOM state by default. For each piece of state, you decide whether that's the right behavior for your UI. The patterns below show common scenarios and how to handle both sides.
+
+Use the pattern that matches the state you need to manage:
+
+- For a dropdown or popover, [reset transient state when the route is hidden](#expandable-ui-dropdowns-accordions-panels).
+- For a dialog controlled by the URL, [derive its state from search parameters](#dialog-and-initialization-logic).
+- For a new-item form, [reset it after a successful submission](#resetting-form-state-on-submit).
+- For an edit form, [reset the form when its record changes](#resetting-a-form-when-its-record-changes).
+- For state scoped to a signed-in user, [reset or key it by the user ID](#state-and-authentication).
+- For code that searches the document, [exclude DOM retained by hidden routes](#global-dom-queries).
+- For timers, subscriptions, or media, [clean up work when the route is hidden](#effect-and-media-cleanup).
+- For an imperative third-party widget, [destroy and recreate its instance across visibility changes](#third-party-widgets).
+- For end-to-end tests, [use visibility-aware selectors](#use-visibility-aware-selectors).
 
 ### Expandable UI (dropdowns, accordions, panels)
 
@@ -297,6 +311,36 @@ This resets all fields whenever the user navigates away.
 
 </details>
 
+#### Resetting a form when its record changes
+
+An edit form can receive fresh server data while preserving its existing React and DOM state. This is especially noticeable with uncontrolled inputs: changing `defaultValue` does not replace the current input value.
+
+Key the form by the identity or version of the data that should start a new editing session:
+
+```tsx filename="app/products/[id]/edit-form.tsx" highlight={8-10}
+'use client'
+
+export function EditProduct({
+  product,
+}: {
+  product: { id: string; name: string; version: string }
+}) {
+  return (
+    <ProductForm key={`${product.id}:${product.version}`} product={product} />
+  )
+}
+
+function ProductForm({
+  product,
+}: {
+  product: { id: string; name: string; version: string }
+}) {
+  return <input name="name" defaultValue={product.name} />
+}
+```
+
+When the record or its version changes, React creates a new form and applies the new `defaultValue`. Keep the key on the smallest subtree that should reset so unrelated page state remains preserved.
+
 ## State and authentication
 
 Activity preserves local component state (`useState`, DOM input values) across navigations, including authentication changes. This is standard React behavior: props changing (such as receiving a new user) triggers a re-render but does not reset existing state. A draft composed by one user shouldn't be visible to another.
@@ -396,6 +440,39 @@ Reserve `:has()` for local parent/child styling within a component:
 This isn't only a React data-flow or Next.js concern. Broad `:has()` selectors are a real performance bottleneck. See [Performance considerations](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Selectors/:has#performance_considerations) on MDN.
 
 > **Good to know:** If the hidden component itself defines the global `:has` rule, the toggle from the section above disables it along with the component's other styles.
+
+## Global DOM queries
+
+Hidden routes remain in the document. Code that searches from `document` can therefore find both the visible route and retained, hidden routes. This commonly affects table-of-contents logic, focus management, and `IntersectionObserver` setup.
+
+When possible, scope the query to a ref owned by the visible component:
+
+```tsx highlight={8-11}
+'use client'
+
+import { useLayoutEffect, useRef } from 'react'
+
+export function Article() {
+  const articleRef = useRef<HTMLElement>(null)
+
+  useLayoutEffect(() => {
+    const headings = articleRef.current?.querySelectorAll('h2, h3') ?? []
+    // Set up the table of contents or observer from these headings.
+  }, [])
+
+  return <article ref={articleRef}>{/* ... */}</article>
+}
+```
+
+For a document-wide query, filter out hidden elements with [`checkVisibility()`](https://developer.mozilla.org/en-US/docs/Web/API/Element/checkVisibility):
+
+```ts
+const visibleHeadings = [
+  ...document.querySelectorAll<HTMLElement>('h2, h3'),
+].filter((heading) => heading.checkVisibility())
+```
+
+Create observers in an Effect and disconnect them in its cleanup function. Activity runs the cleanup when the route becomes hidden and runs the Effect again when it becomes visible, so the observer is rebuilt against the current visible elements.
 
 ## Testing
 
@@ -562,6 +639,30 @@ function VideoPlayer({ src }: { src: string }) {
 
 When the component becomes visible again, effects re-run and playback position is preserved since the DOM node was never removed.
 
+### Third-party widgets
+
+An imperative library may assume its DOM is removed when the user leaves a route. Initialize the library in an Effect and dispose of it in the cleanup function so it follows the Activity visibility lifecycle:
+
+```tsx
+'use client'
+
+import { useLayoutEffect, useRef } from 'react'
+import { createSearchWidget } from '@acme/search-widget'
+
+export function SearchWidget() {
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  useLayoutEffect(() => {
+    const widget = createSearchWidget(containerRef.current!)
+    return () => widget.destroy()
+  }, [])
+
+  return <div ref={containerRef} />
+}
+```
+
+When the route is hidden, the cleanup destroys the active instance without removing the preserved React state. When the route is shown again, the Effect creates a new instance against the existing container.
+
 ### Distinguishing first mount from re-show
 
 Effects run on every hide-to-visible transition, not just the initial mount. If you need to distinguish the first mount from subsequent visibility changes, use a ref:
@@ -588,6 +689,8 @@ function TrackedComponent() {
 ```
 
 The ref persists across hide/show cycles (refs aren't cleaned up), so `hasMountedRef.current` stays `true` after the first mount. Each time Activity becomes visible, the Effect runs again, but now it takes the `else` branch.
+
+Do not add this guard to work that should run whenever the user returns, such as scrolling the current item into view. Put that work directly in the Effect so it runs again when Activity reveals the route.
 
 ## Examples
 
