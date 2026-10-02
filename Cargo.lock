@@ -9342,6 +9342,7 @@ dependencies = [
  "tracing",
  "triomphe 0.1.12",
  "turbo-bincode",
+ "turbo-frozenmap",
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-backend",
