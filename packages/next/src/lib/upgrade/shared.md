@@ -1,9 +1,3 @@
----
-title: Shared agentic Next.js upgrade checks and delivery
-description: Duplicate checks, verification, and delivery for all agentic Next.js upgrade policies.
-version: draft
----
-
 ## Before changing files: check for duplicates
 
 - [ ] Check the app for an equivalent upgrade or Future Defaults adoption already
