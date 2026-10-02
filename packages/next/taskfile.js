@@ -1600,6 +1600,13 @@ export async function copy_vendor_react(task_) {
         // We replace the module/chunk loading code with our own implementation in Next.js.
         let newSource = aliasVendoredReactPackages(source)
 
+        // Cursor injects these attributes before hydration to identify DOM nodes.
+        // Ignore only extra attributes, preserving checks for application-owned props.
+        newSource = newSource.replace(
+          'extraAttributes.add(attributes[i].name);',
+          'if (\n              attributes[i].name !== "data-cursor-ref" ||\n              props.hasOwnProperty("data-cursor-ref")\n            )\n              extraAttributes.add(attributes[i].name);'
+        )
+
         file.data = newSource
 
         // Note that we don't replace `react-dom` with `next/dist/compiled/react-dom`

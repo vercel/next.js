@@ -23111,7 +23111,11 @@
           case "vt-parent-exit":
             break;
           default:
-            extraAttributes.add(attributes[i].name);
+            if (
+              attributes[i].name !== "data-cursor-ref" ||
+              props.hasOwnProperty("data-cursor-ref")
+            )
+              extraAttributes.add(attributes[i].name);
         }
       if (isCustomElement(tag))
         for (var propKey in props) {

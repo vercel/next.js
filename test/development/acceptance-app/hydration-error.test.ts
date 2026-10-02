@@ -14,6 +14,127 @@ describe('Error overlay for hydration errors in App router', () => {
     files: new FileRef(path.join(__dirname, 'fixtures', 'hydration-errors')),
   })
 
+  describe('Cursor attributes injected before hydration', () => {
+    async function openWithInjectedAttributes({
+      selector = '#cursor-attributes h1, #injected',
+      attributes = { 'data-cursor-ref': 'e0' },
+      textContent = null,
+    }: {
+      selector?: string
+      attributes?: Record<string, string>
+      textContent?: string | null
+    } = {}) {
+      const browser = await next.browser('/cursor-attributes', {
+        pushErrorAsConsoleLog: true,
+        beforePageLoad: async (page) => {
+          await page.addInitScript(
+            ({ selector, attributes, textContent }) => {
+              const stamped = new WeakSet<Element>()
+              const stamp = () => {
+                document.querySelectorAll(selector).forEach((element) => {
+                  if (stamped.has(element)) return
+                  stamped.add(element)
+                  for (const [name, value] of Object.entries(attributes)) {
+                    element.setAttribute(name, value)
+                  }
+                  if (textContent !== null) element.textContent = textContent
+                })
+              }
+              new MutationObserver(stamp).observe(document, {
+                childList: true,
+                subtree: true,
+              })
+              stamp()
+            },
+            { selector, attributes, textContent }
+          )
+        },
+      })
+      await browser.waitForElementByCss('[data-hydrated="true"]')
+      return browser
+    }
+
+    it('ignores extra data-cursor-ref attributes without removing them', async () => {
+      const browser = await openWithInjectedAttributes()
+
+      expect(
+        await browser.elementByCss('h1').getAttribute('data-cursor-ref')
+      ).toBe('e0')
+      expect(
+        await browser.elementByCss('#injected').getAttribute('data-cursor-ref')
+      ).toBe('e0')
+      expect(
+        await browser.elementByCss('#declared').getAttribute('data-cursor-ref')
+      ).toBe('app-owned')
+      expect(
+        (await browser.log()).filter((log) => log.source === 'error')
+      ).toEqual([])
+      expect(await getToastErrorCount(browser)).toBe(0)
+    })
+
+    it.each([
+      {
+        name: 'application-owned data-cursor-ref attributes',
+        selector: '#declared',
+        attributes: { 'data-cursor-ref': 'injected' },
+        expected: 'data-cursor-ref="app-owned"',
+      },
+      {
+        name: 'application-owned null data-cursor-ref attributes',
+        selector: '#declared-null',
+        attributes: { 'data-cursor-ref': 'injected' },
+        expected: 'data-cursor-ref="injected"',
+      },
+      {
+        name: 'other extra attributes',
+        selector: '#injected',
+        attributes: { 'data-cursor-ref': 'e0', 'data-other': 'unexpected' },
+        expected: 'data-other="unexpected"',
+      },
+      {
+        name: 'similarly named extra attributes',
+        selector: '#injected',
+        attributes: { 'data-cursor-ref-extra': 'unexpected' },
+        expected: 'data-cursor-ref-extra="unexpected"',
+      },
+    ])('still reports $name', async ({ selector, attributes, expected }) => {
+      const browser = await openWithInjectedAttributes({ selector, attributes })
+
+      await retry(async () => {
+        expect(await getToastErrorCount(browser)).toBe(1)
+      })
+      expect(await browser.log()).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            source: 'error',
+            message: expect.stringContaining(expected),
+          }),
+        ])
+      )
+    })
+
+    it('still reports text mismatches alongside injected attributes', async () => {
+      const browser = await openWithInjectedAttributes({
+        selector: '#injected',
+        textContent: 'Changed by an extension',
+      })
+
+      await retry(async () => {
+        expect(await getToastErrorCount(browser)).toBe(1)
+      })
+      expect(await browser.log()).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            source: 'error',
+            message: expect.stringContaining(
+              'Hydration failed because the server rendered text'
+            ),
+          }),
+        ])
+      )
+    })
+  })
+
   it('includes a React docs link when hydration error does occur', async () => {
     const browser = await next.browser('/text-mismatch', {
       pushErrorAsConsoleLog: true,
