@@ -629,11 +629,11 @@ const nextDev = async (
           } else if (msg.nextUpgradeContext) {
             // Restore config and .env changes only if Upgrade is selected.
             upgradeEnvironment = msg.nextUpgradeEnvironment ?? null
+            const context = msg.nextUpgradeContext as UpgradeContext
+            distDir = context.distDir
             if (!outputHeld || upgradeInProgress) {
               return
             }
-            const context = msg.nextUpgradeContext as UpgradeContext
-            distDir = context.distDir
             const initialAssessment =
               msg.nextUpgradeAssessment !== undefined
                 ? Promise.resolve(msg.nextUpgradeAssessment)
@@ -676,11 +676,11 @@ const nextDev = async (
         if (sessionStopHandled) {
           return
         }
-        if (code !== RESTART_EXIT_CODE && revealOutput) {
+        if (revealOutput) {
           skipUpgrade(worker, false)
           if (workerError) {
             Log.error(workerError)
-          } else if (signal || code) {
+          } else if (signal || (code && code !== RESTART_EXIT_CODE)) {
             Log.error(`Dev server stopped (${signal ?? `exit ${code}`}).`)
           }
         }

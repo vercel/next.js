@@ -269,6 +269,7 @@ export async function startServer(
           'memory.heapUsed': String(memoryRestartStats.used_heap_size),
         }).stop()
         flushAllTraces()
+        await uncork()
         process.exit(RESTART_EXIT_CODE)
       }
     }
@@ -615,9 +616,10 @@ export async function startServer(
           filename
         )}. Restarting the server to apply the changes...`
       )
+      await uncork()
       process.exit(RESTART_EXIT_CODE)
     })
-    wp.on('remove', (removedPath: string) => {
+    wp.on('remove', async (removedPath: string) => {
       if (dirWatchPaths.includes(removedPath)) {
         Log.error(
           `The directory at "${removedPath}" was deleted.\n\n` +
@@ -626,6 +628,7 @@ export async function startServer(
             'Deleting this directory while Next.js is running can lead to ' +
             'undefined behavior. Restarting the server to recover...'
         )
+        await uncork()
         process.exit(RESTART_EXIT_CODE)
       }
     })
