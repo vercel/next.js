@@ -10,11 +10,13 @@ import pc from 'picocolors'
 import { BadInput } from './shared'
 import {
   getNextjsVersion,
+  getBundledDocsInfo,
+  getBundledDocsLinkPath,
   pullDocs,
   collectDocFiles,
   buildDocTree,
-  generateClaudeMdIndex,
-  injectIntoClaudeMd,
+  generateAgentsMdIndex,
+  injectIntoAgentsMd,
   ensureGitignoreEntry,
 } from '../lib/agents-md'
 import { onCancel } from '../lib/utils'
@@ -50,7 +52,7 @@ export async function runAgentsMd(options: AgentsMdOptions): Promise<void> {
     if (!options.output) {
       throw new BadInput(
         'When using --version, --output is also required.\n' +
-          'Example: npx @next/codemod agents-md --version 15.1.3 --output CLAUDE.md'
+          'Example: npx @next/codemod agents-md --version 15.1.3 --output AGENTS.md'
       )
     }
     nextjsVersion = options.version
@@ -73,49 +75,69 @@ export async function runAgentsMd(options: AgentsMdOptions): Promise<void> {
     targetFile = promptedOptions.targetFile
   }
 
-  const claudeMdPath = path.join(cwd, targetFile)
-  const docsPath = path.join(cwd, DOCS_DIR_NAME)
-  const docsLinkPath = `./${DOCS_DIR_NAME}`
+  const agentsMdPath = path.join(cwd, targetFile)
+
+  // Next.js >= 16.2.0 ships its docs inside the published package. When the
+  // installed version matches the requested one, index the bundled docs
+  // directly instead of downloading a copy into .next-docs.
+  const bundledDocs = getBundledDocsInfo(cwd)
+  const useBundledDocs =
+    bundledDocs !== null && bundledDocs.version === nextjsVersion
+
+  const docsPath = useBundledDocs
+    ? bundledDocs.docsPath
+    : path.join(cwd, DOCS_DIR_NAME)
+  const docsLinkPath = useBundledDocs
+    ? getBundledDocsLinkPath(cwd, bundledDocs.docsPath)
+    : `./${DOCS_DIR_NAME}`
 
   let sizeBefore = 0
   let isNewFile = true
   let existingContent = ''
 
-  if (fs.existsSync(claudeMdPath)) {
-    existingContent = fs.readFileSync(claudeMdPath, 'utf-8')
+  if (fs.existsSync(agentsMdPath)) {
+    existingContent = fs.readFileSync(agentsMdPath, 'utf-8')
     sizeBefore = Buffer.byteLength(existingContent, 'utf-8')
     isNewFile = false
   }
 
-  console.log(
-    `\nDownloading Next.js ${pc.cyan(nextjsVersion)} documentation to ${pc.cyan(DOCS_DIR_NAME)}...`
-  )
+  if (useBundledDocs) {
+    console.log(
+      `\nUsing the docs bundled with Next.js ${pc.cyan(nextjsVersion)} at ${pc.cyan(docsLinkPath)} (no download needed).`
+    )
+  } else {
+    console.log(
+      `\nDownloading Next.js ${pc.cyan(nextjsVersion)} documentation to ${pc.cyan(DOCS_DIR_NAME)}...`
+    )
 
-  const pullResult = await pullDocs({
-    cwd,
-    version: nextjsVersion,
-    docsDir: docsPath,
-  })
+    const pullResult = await pullDocs({
+      cwd,
+      version: nextjsVersion,
+      docsDir: docsPath,
+    })
 
-  if (!pullResult.success) {
-    throw new BadInput(`Failed to pull docs: ${pullResult.error}`)
+    if (!pullResult.success) {
+      throw new BadInput(`Failed to pull docs: ${pullResult.error}`)
+    }
   }
 
   const docFiles = collectDocFiles(docsPath)
   const sections = buildDocTree(docFiles)
 
-  const indexContent = generateClaudeMdIndex({
+  const indexContent = generateAgentsMdIndex({
     docsPath: docsLinkPath,
     sections,
     outputFile: targetFile,
   })
 
-  const newContent = injectIntoClaudeMd(existingContent, indexContent)
-  fs.writeFileSync(claudeMdPath, newContent, 'utf-8')
+  const newContent = injectIntoAgentsMd(existingContent, indexContent)
+  fs.writeFileSync(agentsMdPath, newContent, 'utf-8')
 
   const sizeAfter = Buffer.byteLength(newContent, 'utf-8')
 
-  const gitignoreResult = ensureGitignoreEntry(cwd)
+  // .next-docs only exists on the download path; bundled docs live in
+  // node_modules, which is already ignored.
+  const gitignoreResult = useBundledDocs ? null : ensureGitignoreEntry(cwd)
 
   const action = isNewFile ? 'Created' : 'Updated'
   const sizeInfo = isNewFile
@@ -123,7 +145,7 @@ export async function runAgentsMd(options: AgentsMdOptions): Promise<void> {
     : `${formatSize(sizeBefore)} → ${formatSize(sizeAfter)}`
 
   console.log(`${pc.green('✓')} ${action} ${pc.bold(targetFile)} (${sizeInfo})`)
-  if (gitignoreResult.updated) {
+  if (gitignoreResult?.updated) {
     console.log(
       `${pc.green('✓')} Added ${pc.bold(DOCS_DIR_NAME)} to .gitignore`
     )
@@ -161,7 +183,6 @@ async function promptForOptions(
         name: 'targetFile',
         message: 'Target markdown file',
         choices: [
-          { title: 'CLAUDE.md', value: 'CLAUDE.md' },
           { title: 'AGENTS.md', value: 'AGENTS.md' },
           { title: 'Custom...', value: '__custom__' },
         ],
@@ -185,7 +206,7 @@ async function promptForOptions(
         type: 'text',
         name: 'customFile',
         message: 'Enter custom file path',
-        initial: 'CLAUDE.md',
+        initial: 'AGENTS.md',
         validate: (value: string) =>
           value.trim() ? true : 'Please enter a file path',
       },

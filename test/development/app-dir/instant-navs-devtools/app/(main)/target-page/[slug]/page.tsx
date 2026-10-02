@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { ClientFeatures } from './client'
 import { HydrationMarker } from '../../hydration-marker'
 
-export const unstable_prefetch = 'force-runtime'
+export const prefetch = 'partial'
 
 function Box({
   label,

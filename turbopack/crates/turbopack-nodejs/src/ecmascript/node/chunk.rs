@@ -12,7 +12,7 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::chunk::EcmascriptChunk;
 
-use super::content::EcmascriptBuildNodeChunkContent;
+use super::content::EcmascriptNodeChunkContent;
 use crate::NodeJsChunkingContext;
 
 /// Production Ecmascript chunk targeting Node.js.
@@ -62,9 +62,9 @@ fn modifier() -> RcStr {
 #[turbo_tasks::value_impl]
 impl EcmascriptBuildNodeChunk {
     #[turbo_tasks::function]
-    async fn own_content(self: Vc<Self>) -> Result<Vc<EcmascriptBuildNodeChunkContent>> {
+    async fn own_content(self: Vc<Self>) -> Result<Vc<EcmascriptNodeChunkContent>> {
         let this = self.await?;
-        Ok(EcmascriptBuildNodeChunkContent::new(
+        Ok(EcmascriptNodeChunkContent::new(
             *this.chunking_context,
             self,
             this.chunk.chunk_content(),

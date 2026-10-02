@@ -3,14 +3,9 @@ import { retry } from 'next-test-utils'
 import path from 'path'
 
 describe('app dir - next/dynamic', () => {
-  const { next, isNextStart, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextStart, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should handle ssr: false in pages when appDir is enabled', async () => {
     const $ = await next.render$('/legacy/no-ssr')

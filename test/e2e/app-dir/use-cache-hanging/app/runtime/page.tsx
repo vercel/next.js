@@ -1,16 +1,14 @@
 import { cookies } from 'next/headers'
 import { Suspense } from 'react'
-import { getData, preload } from '../shared'
-
-const sharedUrl =
-  'https://next-data-api-endpoint.vercel.app/api/random?page=runtime'
 
 async function getCachedData(): Promise<string> {
   'use cache'
 
-  // Joins the outer fetch via the module-scoped dedupe map (see note in
-  // ../shared.ts).
-  return getData(sharedUrl).then((res) => res.text())
+  // A cache fill that never completes, exceeding the configured
+  // `useCacheTimeout`, so the fill times out.
+  await new Promise<void>(() => {})
+
+  return 'data'
 }
 
 async function Cached() {
@@ -27,11 +25,6 @@ async function Cached() {
 
 async function Runtime() {
   await cookies()
-
-  // Simulate another part of the tree (e.g. a sibling component or a shared
-  // data loader) kicking off the same fetch in outer scope before `Cached`
-  // runs.
-  preload(sharedUrl)
 
   return <Cached />
 }

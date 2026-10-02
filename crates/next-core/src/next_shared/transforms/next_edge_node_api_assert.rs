@@ -5,32 +5,25 @@ use swc_core::{
     common::SyntaxContext,
     ecma::{ast::*, utils::ExprCtx, visit::VisitWith},
 };
-use turbo_tasks::{ResolvedVc, Vc};
-use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
-use turbopack_ecmascript::{
-    CustomTransformer, EcmascriptInputTransform, TransformContext, TransformPlugin,
-};
+use turbo_tasks::Vc;
+use turbopack::module_options::ModuleRule;
+use turbopack_ecmascript::{CustomTransformer, TransformContext, TransformPlugin};
 
-use super::module_rule_match_js_no_url;
+use super::{EcmascriptTransformStage, get_ecma_transform_rule};
 
 pub async fn next_edge_node_api_assert(
     enable_mdx_rs: bool,
     should_error_for_node_apis: bool,
     is_production: bool,
 ) -> Result<ModuleRule> {
-    let transformer = EcmascriptInputTransform::Plugin(
+    let transformer =
         next_edge_node_api_assert_transform_plugin(should_error_for_node_apis, is_production)
             .to_resolved()
-            .await?,
-    );
-    // TODO: use get_ecma_transform_rule instead
-    Ok(ModuleRule::new(
-        module_rule_match_js_no_url(enable_mdx_rs),
-        vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
-            preprocess: ResolvedVc::cell(vec![]),
-            main: ResolvedVc::cell(vec![]),
-            postprocess: ResolvedVc::cell(vec![transformer]),
-        }],
+            .await?;
+    Ok(get_ecma_transform_rule(
+        transformer,
+        enable_mdx_rs,
+        EcmascriptTransformStage::Postprocess,
     ))
 }
 

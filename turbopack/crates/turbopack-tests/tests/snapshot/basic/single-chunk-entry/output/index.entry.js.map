@@ -1,0 +1,8 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/single-chunk-entry/input/dep1.js"],"sourcesContent":["// `dep1` is reached via `import('./dep1')` and itself dynamically imports\n// `dep2` — exercising a nested dynamic-import boundary that must also inline.\nexport function dep1() {\n  console.log('dep1')\n  import('./dep2').then(({ dep2 }) => {\n    dep2()\n  })\n}\n"],"names":["dep1","console","log","then","dep2"],"mappings":"AAAA,0EAA0E;AAC1E,8EAA8E;;;;;AACvE,SAASA;IACdC,QAAQC,GAAG,CAAC;IACZ,4KAAiBC,IAAI,CAAC,CAAC,EAAEC,IAAI,EAAE;QAC7BA;IACF;AACF"}},
+    {"offset": {"line": 20, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/single-chunk-entry/input/dep2.js"],"sourcesContent":["// Leaf module reached via the nested `import('./dep2')`.\nexport function dep2() {\n  console.log('dep2')\n}\n"],"names":["dep2","console","log"],"mappings":"AAAA,yDAAyD;;;;;AAClD,SAASA;IACdC,QAAQC,GAAG,CAAC;AACd"}},
+    {"offset": {"line": 31, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/single-chunk-entry/input/index.js"],"sourcesContent":["// Service-worker-style entry: the whole transitive closure (including the\n// dynamic `import()` targets) must be inlined into a single output file.\nconsole.log('service worker entry')\n\nimport('./dep1').then(({ dep1 }) => {\n  dep1()\n})\n"],"names":["console","log","then","dep1"],"mappings":"AAAA,0EAA0E;AAC1E,yEAAyE;AACzEA,QAAQC,GAAG,CAAC;AAEZ,4KAAiBC,IAAI,CAAC,CAAC,EAAEC,IAAI,EAAE;IAC7BA;AACF"}}]
+}

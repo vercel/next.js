@@ -4,31 +4,23 @@ use next_custom_transforms::transforms::debug_instant_stack::DebugInstantStack;
 use swc_core::ecma::ast::Program;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
-use turbopack_ecmascript::{
-    CustomTransformer, EcmascriptInputTransform, TransformContext, TransformPlugin,
-};
+use turbopack::module_options::ModuleRule;
+use turbopack_ecmascript::{CustomTransformer, TransformContext, TransformPlugin};
 
-use super::module_rule_match_js_no_url;
+use super::{EcmascriptTransformStage, get_ecma_transform_rule};
 
 pub async fn get_next_debug_instant_stack_rule(
     enable_mdx_rs: bool,
     page_extensions: Vc<Vec<RcStr>>,
 ) -> Result<ModuleRule> {
-    let transform: EcmascriptInputTransform = EcmascriptInputTransform::Plugin(
-        next_debug_instant_stack_transform_plugin(page_extensions)
-            .to_resolved()
-            .await?,
-    );
+    let transform = next_debug_instant_stack_transform_plugin(page_extensions)
+        .to_resolved()
+        .await?;
 
-    // TODO: use get_ecma_transform_rule instead
-    Ok(ModuleRule::new(
-        module_rule_match_js_no_url(enable_mdx_rs),
-        vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
-            preprocess: ResolvedVc::cell(vec![]),
-            main: ResolvedVc::cell(vec![]),
-            postprocess: ResolvedVc::cell(vec![transform]),
-        }],
+    Ok(get_ecma_transform_rule(
+        transform,
+        enable_mdx_rs,
+        EcmascriptTransformStage::Postprocess,
     ))
 }
 

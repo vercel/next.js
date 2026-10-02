@@ -1,7 +1,9 @@
 import fs from 'fs'
+import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 import type { AdapterOutput, NextAdapter } from 'next'
 import { version as nextVersion } from 'next/package.json'
+import { RouteKind } from 'next/dist/server/route-kind'
 
 describe('adapter-config', () => {
   const { next } = nextTestSetup({
@@ -89,6 +91,73 @@ describe('adapter-config', () => {
     expect(edgeOutputs.length).toBeGreaterThan(0)
     expect(staticOutputs.length).toBeGreaterThan(0)
     expect(prerenderOutputs.length).toBeGreaterThan(0)
+
+    const expectedRouteConfigs = [
+      {
+        pathname: '/docs/node-app',
+        type: 'APP_PAGE',
+        runtime: 'nodejs',
+        maxDuration: 10,
+      },
+      {
+        pathname: '/docs/edge-app',
+        type: 'APP_PAGE',
+        runtime: 'edge',
+        maxDuration: 20,
+      },
+      {
+        pathname: '/docs/node-route',
+        type: 'APP_ROUTE',
+        runtime: 'nodejs',
+        maxDuration: 30,
+      },
+      {
+        pathname: '/docs/edge-route',
+        type: 'APP_ROUTE',
+        runtime: 'edge',
+        maxDuration: 40,
+      },
+      {
+        pathname: '/docs/node-pages',
+        type: 'PAGES',
+        runtime: 'nodejs',
+        maxDuration: 50,
+      },
+      {
+        pathname: '/docs/edge-pages',
+        type: 'PAGES',
+        runtime: 'edge',
+        maxDuration: 60,
+      },
+      {
+        pathname: '/docs/api/node-pages',
+        type: 'PAGES_API',
+        runtime: 'nodejs',
+        maxDuration: 70,
+      },
+      {
+        pathname: '/docs/api/edge-pages',
+        type: 'PAGES_API',
+        runtime: 'edge',
+        maxDuration: 80,
+      },
+    ] as const
+
+    for (const {
+      pathname,
+      type,
+      runtime,
+      maxDuration,
+    } of expectedRouteConfigs) {
+      expect(combinedRouteOutputs).toContainEqual(
+        expect.objectContaining({
+          pathname,
+          type,
+          runtime,
+          config: expect.objectContaining({ maxDuration }),
+        })
+      )
+    }
 
     for (const output of staticOutputs) {
       expect(output.id).toBeTruthy()
@@ -307,6 +376,10 @@ describe('adapter-config', () => {
 
     expect(appPageOutput).toBeDefined()
     expect(pagesOutput).toBeDefined()
+    expect(appPageOutput?.sourcePage).toBe('/node-app/page')
+    expect(appPageOutput?.filePath).toEndWith(
+      path.join('server', 'app', 'node-app', 'page.js')
+    )
 
     // Check that vendored context files are included in assets
     const appPageAssets = Object.values(appPageOutput!.assets)
@@ -389,6 +462,78 @@ describe('adapter-config', () => {
       shouldNormalizeNextData: expect.toBeBoolean(),
       rsc: expect.toBeObject(),
     })
+  })
+
+  it('uses scoped build files for response artifacts', async () => {
+    const { outputs }: Parameters<NextAdapter['onBuildComplete']>[0] =
+      await next.readJSON('build-complete.json')
+    for (const [pathname, router, extension, route, sidecar] of [
+      [
+        '/grouped',
+        'app',
+        '.html',
+        { kind: RouteKind.APP_PAGE, sourceRoute: '/(group)/grouped/page' },
+        '.rsc',
+      ],
+      [
+        '/isr-app/first',
+        'app',
+        '.html',
+        { kind: RouteKind.APP_PAGE, sourceRoute: '/isr-app/[slug]/page' },
+        '.rsc',
+      ],
+      [
+        '/isr-route/first',
+        'app',
+        '.body',
+        { kind: RouteKind.APP_ROUTE, sourceRoute: '/isr-route/[slug]/route' },
+        undefined,
+      ],
+      [
+        '/isr-pages/first',
+        'pages',
+        '.html',
+        { kind: RouteKind.PAGES, sourceRoute: '/isr-pages/[slug]' },
+        '.json',
+      ],
+      [
+        '/isr-pages-fallback-true/[slug]',
+        'pages',
+        '.html',
+        {
+          kind: RouteKind.PAGES,
+          sourceRoute: '/isr-pages-fallback-true/[slug]',
+        },
+        undefined,
+      ],
+    ] as const) {
+      const output = outputs.prerenders.find(
+        (item) => item.pathname === `/docs${pathname}`
+      )
+      const artifact = next.getPrerenderFilePath(pathname, extension, {
+        router,
+        route,
+      })
+      expect(output?.fallback?.filePath).toBe(path.join(next.testDir, artifact))
+      expect(await next.hasFile(artifact)).toBe(true)
+      expect(
+        await next.hasFile(`.next/server/${router}${pathname}${extension}`)
+      ).toBe(false)
+      expect(await next.hasFile(`.next/server/${router}${pathname}.meta`)).toBe(
+        false
+      )
+      expect(
+        await next.hasFile(artifact.replace(/\.(?:html|body)$/, '.meta'))
+      ).toBe(true)
+      if (sidecar) {
+        expect(
+          await next.hasFile(artifact.replace(/\.(?:html|body)$/, sidecar))
+        ).toBe(true)
+        expect(
+          await next.hasFile(`.next/server/${router}${pathname}${sidecar}`)
+        ).toBe(false)
+      }
+    }
   })
 
   it('should propagate preferredRegion to adapter output', async () => {

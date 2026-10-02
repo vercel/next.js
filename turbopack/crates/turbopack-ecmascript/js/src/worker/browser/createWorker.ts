@@ -21,6 +21,9 @@ declare const _TURBOPACK_WORKER_BASE_PATH_: string | null
 
 type WorkerConstructor = new (url: URL, options?: object) => Worker
 
+// Mirrors the runtime's `ChunkData`.
+type WorkerChunkData = string | { path: string }
+
 /**
  * Creates a web worker by instantiating the given WorkerConstructor with the
  * appropriate URL and options.
@@ -29,7 +32,7 @@ type WorkerConstructor = new (url: URL, options?: object) => Worker
  * which module chunks to load and which module to run as the entry point.
  *
  * The params are a JSON array of the following structure:
- * `[TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, ...workerForwardedGlobals values]`
+ * `[TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, WORKER_CHUNK_BASE_PATH, ...workerForwardedGlobals values]`
  *
  * @param WorkerConstructor The Worker or SharedWorker constructor
  * @param entrypoint path to the worker entrypoint chunk
@@ -39,7 +42,7 @@ type WorkerConstructor = new (url: URL, options?: object) => Worker
 function createWorker(
   WorkerConstructor: WorkerConstructor,
   entrypoint: string,
-  moduleChunks: string[],
+  moduleChunks: WorkerChunkData[],
   workerOptions?: object
 ): Worker {
   const isSharedWorker = WorkerConstructor.name === 'SharedWorker'
@@ -52,9 +55,18 @@ function createWorker(
     _TURBOPACK_WORKER_BASE_PATH_ ?? __turbopack_chunk_base_path__
 
   const chunkUrls = moduleChunks
-    .map((chunk) => __turbopack_chunk_relative_url__(chunk, workerBasePath))
+    .map((chunk) =>
+      __turbopack_chunk_relative_url__(
+        typeof chunk === 'string' ? chunk : chunk.path,
+        workerBasePath
+      )
+    )
     .reverse()
-  const params: unknown[] = [chunkUrls, __turbopack_chunk_asset_suffix__]
+  const params: unknown[] = [
+    chunkUrls,
+    __turbopack_chunk_asset_suffix__,
+    workerBasePath,
+  ]
   const globals = _TURBOPACK_WORKER_FORWARDED_GLOBALS_
   for (let i = 0; i < globals.length; i++) {
     params.push((globalThis as Record<string, unknown>)[globals[i]])
@@ -85,7 +97,7 @@ function createWorker(
  */
 export default function generateCreateWorker(
   entrypoint: string,
-  moduleChunks: string[]
+  moduleChunks: WorkerChunkData[]
 ) {
   return (
     WorkerConstructor: { new (url: URL, options?: object): Worker },

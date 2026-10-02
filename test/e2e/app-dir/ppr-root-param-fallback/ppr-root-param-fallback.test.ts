@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('ppr-root-param-fallback', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
   })
 
@@ -15,7 +15,14 @@ describe('ppr-root-param-fallback', () => {
 
     for (const locale of ['en', 'fr']) {
       // next.render$ doesn't stream, so we get just the shell content
-      const $ = await next.render$(`/${locale}/blog/new-post`)
+      let $ = await next.render$(`/${locale}/blog/new-post`)
+
+      // In dev the initial request fills the caches while streaming the
+      // response. So we need to do a second page load after caches were filled
+      // to get the production-like response.
+      if (isNextDev) {
+        $ = await next.render$(`/${locale}/blog/new-post`)
+      }
 
       // The shell should have the locale-header with cached content,
       // NOT the locale-loading Suspense fallback

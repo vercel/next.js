@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 
-export const unstable_instant = false
+export const instant = false
 
 export function generateStaticParams() {
   return [{ slug: 'not-found' }]

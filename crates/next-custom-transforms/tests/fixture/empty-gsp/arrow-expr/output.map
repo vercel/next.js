@@ -1,0 +1,1 @@
+{"version":3,"sources":["input.js"],"sourcesContent":["export const generateStaticParams = async () => []\n"],"names":[],"mappings":"AAAA,OAAO,MAAM,uBAAuB,UAAY,EAAE,CAAA;6CAAF;WAAA"}

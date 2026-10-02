@@ -16,7 +16,7 @@ export default async function Page(props: {
   params: Promise<{ slug: string }>
 }) {
   const params = await props.params
-  await fetch('https://next-data-api.vercel.app/api/random', {
+  await fetch('https://next-data-api-endpoint.vercel.app/api/random', {
     next: {
       tags: ['explicit-tag'],
     },

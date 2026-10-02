@@ -4,7 +4,6 @@ import { retry } from 'next-test-utils'
 describe('404 Page Support', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   const gip404Err =
@@ -137,7 +136,6 @@ describe('404 Page Support', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
   if (skipped) return
 

@@ -15,6 +15,8 @@ export const NEXT_TS_ERRORS = {
 export const ALLOWED_EXPORTS = [
   'config',
   'generateStaticParams',
+  'unstable_paramMatching',
+  'unstable_generateParamMatching',
   'metadata',
   'generateMetadata',
   'viewport',

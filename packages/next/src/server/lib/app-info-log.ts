@@ -4,9 +4,14 @@ import * as Log from '../../build/output/log'
 import { bold, purple, strikethrough } from '../../lib/picocolors'
 import type { ConfiguredExperimentalFeature } from '../config'
 import { experimentalSchema } from '../config-schema'
-import { detectAgent } from '../../telemetry/detect-agent'
+import { getAgentName } from '../../telemetry/agent-name'
+import { bundlerName, getBundlerFromEnv } from '../../lib/bundler'
 import {
-  hasAgentRulesInstalled,
+  hasCurrentAgentFeedback,
+  hasCurrentAgentRules,
+  removeAgentFeedbackFiles,
+  removeAgentRulesFiles,
+  writeAgentFeedbackFiles,
   writeAgentFiles,
   type AgentFilesResult,
 } from './generate-agent-files'
@@ -29,22 +34,9 @@ export function logStartInfo({
   envInfo?: string[]
   logBundler: boolean
 }) {
-  let versionSuffix = ''
-  const parts = []
-
-  if (logBundler) {
-    if (process.env.TURBOPACK) {
-      parts.push('Turbopack')
-    } else if (process.env.NEXT_RSPACK) {
-      parts.push('Rspack')
-    } else {
-      parts.push('webpack')
-    }
-  }
-
-  if (parts.length > 0) {
-    versionSuffix = ` (${parts.join(', ')})`
-  }
+  const versionSuffix = logBundler
+    ? ` (${bundlerName(getBundlerFromEnv())})`
+    : ''
 
   Log.bootstrap(
     `${bold(
@@ -76,12 +68,18 @@ export function logStartInfo({
 export function logExperimentalInfo({
   experimentalFeatures,
   cacheComponents,
+  partialPrefetching,
 }: {
   experimentalFeatures?: ConfiguredExperimentalFeature[]
   cacheComponents?: boolean
+  partialPrefetching?: boolean
 }) {
   if (cacheComponents) {
     Log.bootstrap(`- Cache Components enabled`)
+  }
+
+  if (partialPrefetching) {
+    Log.bootstrap(`- Partial Prefetching enabled`)
   }
 
   if (experimentalFeatures?.length) {
@@ -120,20 +118,35 @@ export function logExperimentalInfo({
 }
 
 /**
- * When `next dev` detects an AI coding agent but the managed
- * agent-rules block is missing from AGENTS.md / CLAUDE.md,
- * auto-generate the files so the agent has access to version-matched
- * docs. Returns the write result when files were generated, or `null`
- * when no action was needed.
- *
- * Callers gate this on `config.agentRules !== false` — opt-out is
- * declarative in next.config, not inside this function.
+ * Keep the agent-rules block in sync with next.config. Enabling it still
+ * requires a detected agent; disabling it removes only that managed block,
+ * even when no agent is currently detected.
  */
-export function ensureAgentRulesForDev(dir: string): AgentFilesResult | null {
-  if (detectAgent() === null) return null
-  if (hasAgentRulesInstalled(dir)) return null
+export async function syncAgentRulesForDev(
+  dir: string,
+  enabled: boolean
+): Promise<AgentFilesResult | null> {
+  if (!enabled) return removeAgentRulesFiles(dir)
+  if ((await getAgentName()) === null) return null
+  if (hasCurrentAgentRules(dir)) return null
 
   return writeAgentFiles(dir)
+}
+
+/**
+ * Keep the opt-in agent-feedback block in sync with next.config. Enabling it
+ * still requires a detected agent; disabling it removes only that managed
+ * block, even when no agent is currently detected.
+ */
+export async function syncAgentFeedbackForDev(
+  dir: string,
+  enabled: boolean
+): Promise<AgentFilesResult | null> {
+  if (!enabled) return removeAgentFeedbackFiles(dir)
+  if ((await getAgentName()) === null) return null
+  if (hasCurrentAgentFeedback(dir)) return null
+
+  return writeAgentFeedbackFiles(dir)
 }
 
 /**

@@ -4,7 +4,7 @@ describe('MDX-rs Plugin support', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     dependencies: {
-      '@next/mdx': 'canary',
+      '@next/mdx': 'workspace:*',
       '@mdx-js/loader': '*',
       '@mdx-js/react': '*',
     },
@@ -27,7 +27,7 @@ describe('MDX-rs Plugin support with mdx transform options', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     dependencies: {
-      '@next/mdx': 'canary',
+      '@next/mdx': 'workspace:*',
       '@mdx-js/loader': '*',
       '@mdx-js/react': '*',
     },

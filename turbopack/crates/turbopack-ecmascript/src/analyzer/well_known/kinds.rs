@@ -13,6 +13,8 @@ pub enum WellKnownObjectKind {
     FsModulePromises,
     FsExtraModule,
     FsExtraModuleDefault,
+    GracefulFsModule,
+    GracefulFsModuleDefault,
     ModuleModule,
     ModuleModuleDefault,
     UrlModule,
@@ -32,10 +34,15 @@ pub enum WellKnownObjectKind {
     NodeBuffer,
     RequireCache,
     ImportMeta,
+    ImportMetaEnv,
     /// An iterator object, used to model generator return values.
     Generator,
     /// The `module.hot` object providing HMR API.
     ModuleHot,
+    /// The browser `navigator` global.
+    Navigator,
+    /// The `navigator.serviceWorker` container (`ServiceWorkerContainer`).
+    NavigatorServiceWorker,
 }
 
 impl WellKnownObjectKind {
@@ -78,6 +85,10 @@ impl WellKnownObjectKind {
             Self::FsExtraModule | Self::FsExtraModuleDefault => (
                 "fs-extra",
                 "The Node.js fs-extra module: https://github.com/jprichardson/node-fs-extra",
+            ),
+            Self::GracefulFsModule | Self::GracefulFsModuleDefault => (
+                "graceful-fs",
+                "The Node.js graceful-fs module: https://github.com/isaacs/node-graceful-fs",
             ),
             Self::FsModulePromises => (
                 "fs/promises",
@@ -136,14 +147,23 @@ impl WellKnownObjectKind {
                 "The CommonJS require.cache object: https://nodejs.org/api/modules.html#requirecache",
             ),
             Self::ImportMeta => ("import.meta", "The import.meta object"),
+            Self::ImportMetaEnv => ("import.meta.env", "The import.meta.env object"),
             Self::ModuleHot => ("module.hot", "The module.hot HMR API"),
+            Self::Navigator => (
+                "navigator",
+                "The browser navigator global: https://developer.mozilla.org/en-US/docs/Web/API/Navigator",
+            ),
+            Self::NavigatorServiceWorker => (
+                "navigator.serviceWorker",
+                "The ServiceWorkerContainer: https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerContainer",
+            ),
         }
     }
 }
 
 /// A list of well-known functions that have special meaning in the analysis.
 #[derive(Debug, Clone, Hash, PartialEq)]
-pub enum WellKnownFunctionKind {
+pub enum WellKnownFunctionKind<'a> {
     ArrayFilter,
     ArrayForEach,
     ArrayMap,
@@ -151,7 +171,7 @@ pub enum WellKnownFunctionKind {
     PathJoin,
     PathDirname,
     /// `0` is the current working directory.
-    PathResolve(Box<JsValue>),
+    PathResolve(&'a JsValue<'a>),
     Import,
     Require,
     /// `0` is the path to resolve from (relative to the current module).
@@ -187,6 +207,8 @@ pub enum WellKnownFunctionKind {
     SharedWorkerConstructor,
     // The worker_threads Worker class
     NodeWorkerConstructor,
+    /// `navigator.serviceWorker.register(scriptURL, options?)`
+    ServiceWorkerRegister,
     URLConstructor,
     /// `module.hot.accept(deps, callback, errorHandler)` — accept HMR updates for dependencies.
     ModuleHotAccept,
@@ -194,9 +216,13 @@ pub enum WellKnownFunctionKind {
     ModuleHotDecline,
     /// `import.meta.glob(patterns, options?)` — Vite-compatible glob import.
     ImportMetaGlob,
+    /// `__turbopack_emit__` — Emit data to the bundler.
+    TurbopackEmit,
+    /// `__turbopack_collect__` — Collect emitted data from the bundler.
+    TurbopackCollect,
 }
 
-impl WellKnownFunctionKind {
+impl WellKnownFunctionKind<'_> {
     pub fn as_define_name(&self) -> Option<&[&str]> {
         match self {
             Self::Import { .. } => Some(&["import"]),
@@ -358,6 +384,10 @@ impl WellKnownFunctionKind {
                 "SharedWorker".to_string(),
                 "The standard SharedWorker constructor: https://developer.mozilla.org/en-US/docs/Web/API/SharedWorker/SharedWorker",
             ),
+            Self::ServiceWorkerRegister => (
+                "navigator.serviceWorker.register".to_string(),
+                "The ServiceWorkerContainer.register method: https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerContainer/register",
+            ),
             Self::URLConstructor => (
                 "URL".to_string(),
                 "The standard URL constructor: https://developer.mozilla.org/en-US/docs/Web/API/URL/URL",
@@ -374,6 +404,14 @@ impl WellKnownFunctionKind {
                 "import.meta.glob".to_string(),
                 "The import.meta.glob() function from Vite: https://vite.dev/guide/features.html#glob-import",
             ),
+            Self::TurbopackEmit => (
+                "__turbopack_emit__".to_string(),
+                "The __turbopack_emit__ function for emitting data to the bundler"
+            ),
+            Self::TurbopackCollect => (
+                "__turbopack_collect__".to_string(),
+                "The __turbopack_collect__ function for collecting emitted data from the bundler"
+            )
         }
     }
 }

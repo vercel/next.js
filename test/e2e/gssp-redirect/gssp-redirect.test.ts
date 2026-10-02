@@ -2,15 +2,14 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 describe('GS(S)P Redirect Support', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     dependencies: {
       react: '19.3.0-canary-fef12a01-20260413',
       'react-dom': '19.3.0-canary-fef12a01-20260413',
     },
-    skipDeployment: true,
+    env: { ENABLE_EXPERIMENTAL_COREPACK: '1' },
   })
-  if (skipped) return
 
   it('should apply temporary redirect when visited directly for GSSP page', async () => {
     const res = await next.fetch('/gssp-blog/redirect-1', {
@@ -18,7 +17,7 @@ describe('GS(S)P Redirect Support', () => {
     })
     expect(res.status).toBe(307)
 
-    const { pathname } = new URL(res.headers.get('location')!)
+    const { pathname } = new URL(res.headers.get('location')!, res.url)
     expect(pathname).toBe('/404')
   })
 
@@ -28,7 +27,7 @@ describe('GS(S)P Redirect Support', () => {
     })
     expect(res.status).toBe(308)
 
-    const { pathname } = new URL(res.headers.get('location')!)
+    const { pathname } = new URL(res.headers.get('location')!, res.url)
     expect(pathname).toBe('/404')
     expect(res.headers.get('refresh')).toMatch(/url=\/404/)
   })
@@ -39,7 +38,7 @@ describe('GS(S)P Redirect Support', () => {
     })
     expect(res.status).toBe(301)
 
-    const { pathname } = new URL(res.headers.get('location')!)
+    const { pathname } = new URL(res.headers.get('location')!, res.url)
     expect(pathname).toBe('/404')
     expect(res.headers.get('refresh')).toBe(null)
   })
@@ -50,7 +49,7 @@ describe('GS(S)P Redirect Support', () => {
     })
     expect(res.status).toBe(303)
 
-    const { pathname } = new URL(res.headers.get('location')!)
+    const { pathname } = new URL(res.headers.get('location')!, res.url)
     expect(pathname).toBe('/404')
     expect(res.headers.get('refresh')).toBe(null)
   })
@@ -253,7 +252,7 @@ describe('GS(S)P Redirect Support', () => {
     })
     expect(res.status).toBe(307)
 
-    const parsed = new URL(res.headers.get('location')!)
+    const parsed = new URL(res.headers.get('location')!, res.url)
     expect(parsed.hostname).toBe('example.vercel.sh')
     expect(parsed.pathname).toBe('/')
   })

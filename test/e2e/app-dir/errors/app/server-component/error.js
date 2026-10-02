@@ -1,6 +1,6 @@
 'use client'
 
-export default function ErrorBoundary({ error, reset, unstable_retry }) {
+export default function ErrorBoundary({ error, reset, retry }) {
   return (
     <>
       <p id="error-boundary-message">{error.message}</p>
@@ -8,7 +8,7 @@ export default function ErrorBoundary({ error, reset, unstable_retry }) {
       <button id="reset" onClick={() => reset()}>
         Try again
       </button>
-      <button id="retry" onClick={() => unstable_retry()}>
+      <button id="retry" onClick={() => retry()}>
         Retry
       </button>
     </>

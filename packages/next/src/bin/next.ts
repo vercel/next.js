@@ -32,7 +32,28 @@ import type { NextAnalyzeOptions } from '../cli/next-analyze.js'
 import type { NextBuildOptions } from '../cli/next-build.js'
 import type { NextTypegenOptions } from '../cli/next-typegen.js'
 import type { NextPostBuildOptions } from '../cli/next-post-build.js'
-import { mkdirSync } from 'fs'
+import { ensureProfilesDir } from '../lib/profiles-dir'
+import type { NextRequestInsightsOptions } from '../cli/next-request-insights.js'
+
+/**
+ * Create `.next-profiles` (with its `.gitignore`) when profiling/tracing is
+ * enabled — whether via the CLI flags or the env vars directly — so the
+ * gitignore logic lives in one place. Also points CPU profiles at the directory.
+ * Skipped for tracing when `NEXT_TURBOPACK_TRACING_PATH` redirects the output.
+ */
+function setupProfilesDir(dir: string): void {
+  const cpuProf = !!process.env.NEXT_CPU_PROF
+  const turbopackTrace =
+    !!process.env.NEXT_TURBOPACK_TRACING &&
+    !process.env.NEXT_TURBOPACK_TRACING_PATH
+  if (!cpuProf && !turbopackTrace) {
+    return
+  }
+  const profilesDir = ensureProfilesDir(dir)
+  if (cpuProf) {
+    process.env.NEXT_CPU_PROF_DIR = profilesDir
+  }
+}
 
 if (process.env.NEXT_RSPACK) {
   // silent rspack's schema check
@@ -53,17 +74,6 @@ if (
 }
 
 process.env.NEXT_PRIVATE_START_TIME = Date.now().toString()
-
-for (const dependency of ['react', 'react-dom']) {
-  try {
-    // When 'npm link' is used it checks the clone location. Not the project.
-    require.resolve(dependency)
-  } catch (err) {
-    console.warn(
-      `The module '${dependency}' was not found. Next.js requires that you include it in 'dependencies' of your 'package.json'. To add it, run 'npm install ${dependency}'`
-    )
-  }
-}
 
 class NextRootCommand extends Command {
   createCommand(name: string) {
@@ -88,8 +98,13 @@ class NextRootCommand extends Command {
         }
       }
 
-      ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
-      ;(process.env as any).NEXT_RUNTIME = 'nodejs'
+      // The upgrade harness may run both dev and production checks. Preserve
+      // its caller's environment instead of forcing all child commands into
+      // production mode merely because they were launched through this CLI.
+      if (commandName !== 'upgrade' || !event.getOptionValue('agent')) {
+        ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
+        ;(process.env as any).NEXT_RUNTIME = 'nodejs'
+      }
 
       if (
         process.platform === 'darwin' &&
@@ -165,10 +180,8 @@ program
       'If no directory is provided, the current directory will be used.'
     )}`
   )
-  .option(
-    '--experimental-analyze',
-    'Analyze bundle output. Only compatible with Turbopack.'
-  )
+  .option('--analyze', 'Analyze bundle output. Only compatible with Turbopack.')
+  .addOption(new Option('--experimental-analyze').hideHelp())
   .option('-d, --debug', 'Enables a more verbose build output.')
   .option(
     '--debug-prerender',
@@ -227,11 +240,6 @@ program
     if (options.experimentalCpuProf) {
       process.env.NEXT_CPU_PROF = '1'
       process.env.__NEXT_PRIVATE_CPU_PROFILE = 'build-main'
-      const { join } = require('path') as typeof import('path')
-      const dir = directory || process.cwd()
-      const cpuProfileDir = join(dir, '.next-profiles')
-      mkdirSync(cpuProfileDir, { recursive: true })
-      process.env.NEXT_CPU_PROF_DIR = cpuProfileDir
     }
     if (options.internalTrace) {
       process.env.NEXT_TURBOPACK_TRACING =
@@ -239,6 +247,7 @@ program
           ? 'turbo-tasks'
           : String(options.internalTrace)
     }
+    setupProfilesDir(directory || process.cwd())
 
     // ensure process exits after build completes so open handles/connections
     // don't cause process to hang
@@ -255,7 +264,8 @@ program
   .usage('[directory] [options]')
 
 program
-  .command('experimental-analyze')
+  .command('analyze')
+  .alias('experimental-analyze')
   .description(
     'Analyze production bundle output with an interactive web ui. Does not produce an application build. Only compatible with Turbopack.'
   )
@@ -267,6 +277,11 @@ program
   )
   .option('--no-mangling', 'Disables mangling.')
   .option('--profile', 'Enables production profiling for React.')
+  .option('--experimental-app-only', 'Analyzes only App Router routes.')
+  .option(
+    '--snapshot-name <name>',
+    'Name this snapshot in the metadata, overriding branch/sha in the comparison UI.'
+  )
   .option(
     '-o, --output',
     'Only write analysis files to disk. Does not start the server.'
@@ -380,11 +395,6 @@ program
       if (options.experimentalCpuProf) {
         process.env.NEXT_CPU_PROF = '1'
         process.env.__NEXT_PRIVATE_CPU_PROFILE = 'dev-main'
-        const { join } = require('path') as typeof import('path')
-        const dir = directory || process.cwd()
-        const cpuProfileDir = join(dir, '.next-profiles')
-        mkdirSync(cpuProfileDir, { recursive: true })
-        process.env.NEXT_CPU_PROF_DIR = cpuProfileDir
       }
       if (options.internalTrace) {
         process.env.NEXT_TURBOPACK_TRACING =
@@ -392,6 +402,7 @@ program
             ? 'turbo-tasks'
             : String(options.internalTrace)
       }
+      setupProfilesDir(directory || process.cwd())
       const portSource = _optionValueSources.port
       import('../cli/next-dev.js').then((mod) =>
         mod.nextDev(options, portSource, directory)
@@ -470,12 +481,8 @@ program
     if (options.experimentalCpuProf) {
       process.env.NEXT_CPU_PROF = '1'
       process.env.__NEXT_PRIVATE_CPU_PROFILE = 'start-main'
-      const { join } = require('path') as typeof import('path')
-      const dir = directory || process.cwd()
-      const cpuProfileDir = join(dir, '.next-profiles')
-      mkdirSync(cpuProfileDir, { recursive: true })
-      process.env.NEXT_CPU_PROF_DIR = cpuProfileDir
     }
+    setupProfilesDir(directory || process.cwd())
     return import('../cli/next-start.js').then((mod) =>
       mod.nextStart(options, directory)
     )
@@ -514,6 +521,7 @@ program
       'If no directory is provided, the current directory will be used.'
     )}`
   )
+  .option('--webpack', 'Use webpack when validating next.config.js')
   .action((directory: string, options: NextTypegenOptions) =>
     // ensure process exits after typegen completes so open handles/connections
     // don't cause process to hang
@@ -539,6 +547,7 @@ program
 const nextVersion = process.env.__NEXT_VERSION || 'unknown'
 program
   .command('upgrade')
+  .aliases(['update', 'up'])
   .description(
     'Upgrade Next.js apps to desired versions with a single command.'
   )
@@ -561,9 +570,23 @@ program
           : 'latest'
   )
   .option('--verbose', 'Verbose output', false)
+  .addOption(
+    new Option(
+      '--agent [type]',
+      'Upgrade with an agent to security, latest, or experimental-future. Defaults to security.'
+    ).conflicts('revision')
+  )
+  // Keep nudge attribution available to agents without exposing it in public help.
+  .addOption(new Option('--internal-nudge-id <id>').hideHelp())
   .action(async (directory, options) => {
     const mod = await import('../cli/next-upgrade.js')
-    mod.spawnNextUpgrade(directory, options)
+    await mod.spawnNextUpgrade(
+      directory,
+      options,
+      options.internalNudgeId !== undefined
+        ? { id: options.internalNudgeId, recipient: 'agent' }
+        : null
+    )
   })
 
 program
@@ -599,10 +622,62 @@ program
   )
   .usage('[directory] [options]')
 
+program
+  .command('experimental-request-insights')
+  .description(
+    'Inspect experimental Request Insights from a running Next.js dev server.'
+  )
+  .argument(
+    '[directory]',
+    `A directory containing the Next.js application. ${italic(
+      'If no directory is provided, the current directory will be used.'
+    )}`
+  )
+  .option(
+    '--url <url>',
+    'Override automatic discovery with the complete HTTP(S) URL of the running Next.js dev server.'
+  )
+  .option('--json', 'Print raw request insight JSON.')
+  .addOption(
+    new Option(
+      '--limit <count>',
+      'Maximum number of recent request summaries to print.'
+    ).argParser(parseValidPositiveInteger)
+  )
+  .action((directory: string, options: NextRequestInsightsOptions) => {
+    return import('../cli/next-request-insights.js').then((mod) =>
+      mod.nextRequestInsights(options, directory)
+    )
+  })
+  .usage('[directory] [options]')
+
 const internal = program
   .command('internal')
   .description(
     'Internal debugging commands. Use with caution. Not covered by semver.'
+  )
+
+// Agents use the pinned CLI to report completion after the upgrade has changed dependencies.
+internal
+  .command('report-agent-upgrade', { hidden: true })
+  .argument('<run-id>', 'The upgrade run UUID.')
+  .argument('<result>', 'The agent-reported success or failure result.')
+  .action((runId: string, result: string) =>
+    import('../cli/next-upgrade.js').then((mod) =>
+      mod.reportAgentUpgradeAgentResult(runId, result)
+    )
+  )
+
+internal
+  .command('agent-feedback-instructions', { hidden: true })
+  .option(
+    '--dry-run',
+    'Print report preview URLs without opening the review form.'
+  )
+  .action((options: { dryRun?: boolean }) =>
+    import('../cli/internal/agent-feedback-instructions.js').then((mod) =>
+      mod.agentFeedbackInstructionsCli(options)
+    )
   )
 
 internal

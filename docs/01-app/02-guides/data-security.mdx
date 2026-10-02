@@ -9,6 +9,7 @@ related:
     - app/guides/authentication
     - app/guides/content-security-policy
     - app/guides/forms
+    - app/guides/server-actions
 ---
 
 [React Server Components](https://react.dev/reference/rsc/server-components) improve performance and simplify data fetching, but also shift where and how data is accessed, changing some of the traditional security assumptions for handling data in frontend apps.
@@ -54,7 +55,7 @@ This approach works well when:
 
 ### Data Access Layer
 
-For new projects, we recommend creating a dedicated **Data Access Layer (DAL)**. This is a internal library that controls how and when data is fetched, and what gets passed to your render context.
+For new projects, we recommend creating a dedicated **Data Access Layer (DAL)**. This is an internal library that controls how and when data is fetched, and what gets passed to your render context.
 
 A Data Access Layer should:
 

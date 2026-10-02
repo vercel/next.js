@@ -24,6 +24,10 @@
   },
   "include": [
     "run-tests.js",
+    "evals/lib/**/*",
+    "evals/next-upgrade/experiments/**/*.ts",
+    "evals/next-upgrade/lib/**/*.ts",
+    "evals/next-upgrade/security/setup.ts",
     "test/**/*.test.ts",
     "test/**/*.test.tsx",
     "test/**/*.util.ts",

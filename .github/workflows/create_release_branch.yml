@@ -14,7 +14,7 @@ on:
 name: Create Release Branch
 
 env:
-  NAPI_CLI_VERSION: 2.18.4
+  NAPI_CLI_VERSION: 3.7.2
   TURBO_VERSION: 2.9.4
   NODE_LTS_VERSION: 20
 
@@ -24,15 +24,12 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NEXT_TELEMETRY_DISABLED: 1
-      # we build a dev binary for use in CI so skip downloading
-      # canary next-swc binaries in the monorepo
-      NEXT_SKIP_NATIVE_POSTINSTALL: 1
 
     steps:
       - name: Setup node
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
           package-manager-cache: false
 
@@ -45,7 +42,6 @@ jobs:
           owner: ${{ github.repository_owner }}
           repositories: next.js
           permission-contents: write
-          permission-environments: write
           permission-workflows: write
 
       - name: Get GitHub App user ID

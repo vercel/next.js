@@ -16,7 +16,7 @@ use crate::{
         any_as_encode,
     },
     macro_helpers::into_task_fn,
-    registry::{RegistryType, turbo_registry},
+    registry::{RegistryType, impl_ptr_identity},
     task::{TaskFn, TaskFnInputs, function::NativeTaskFuture},
 };
 
@@ -218,6 +218,7 @@ pub struct NativeFunction {
     /// (filesystem, environment, network) that may change between sessions.
     pub is_session_dependent: bool,
 }
+impl_ptr_identity!(NativeFunction);
 
 impl Debug for NativeFunction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -288,6 +289,9 @@ impl NativeFunction {
             TaskPersistence::Persistent => "",
             TaskPersistence::Transient => "transient",
         };
+        // `inline_execution` is recorded when a read executed this task on its own thread instead
+        // of waiting for a worker: "complete" if it finished there, "partial" if it yielded
+        // and was handed to the runtime. It stays unset for a task a worker executed.
         #[cfg(feature = "task_dirty_cause")]
         {
             tracing::trace_span!(
@@ -297,6 +301,7 @@ impl NativeFunction {
                 flags = flags,
                 reason = reason.as_str(),
                 cause = cause.map(tracing::field::display),
+                inline_execution = tracing::field::Empty,
             )
         }
         #[cfg(not(feature = "task_dirty_cause"))]
@@ -307,13 +312,17 @@ impl NativeFunction {
                 priority = %priority,
                 flags = flags,
                 reason = reason.as_str(),
+                inline_execution = tracing::field::Empty,
             )
         }
     }
 
     pub fn resolve_span(&'static self, priority: TaskPriority) -> Span {
-        tracing::trace_span!("turbo_tasks::resolve_call", name = self.ty.name, priority = %priority)
+        tracing::trace_span!(
+            "turbo_tasks::resolve_call",
+            name = self.ty.name,
+            priority = %priority,
+            inline_execution = tracing::field::Empty,
+        )
     }
 }
-
-turbo_registry!("Function", NativeFunction);

@@ -1,4 +1,5 @@
 export const runtime = 'edge'
+export const maxDuration = 20
 
 export default function Page() {
   return (

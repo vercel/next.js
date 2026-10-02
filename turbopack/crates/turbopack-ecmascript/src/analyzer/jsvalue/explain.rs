@@ -5,8 +5,12 @@ use either::Either;
 use crate::analyzer::{JsValue, ModuleValue, ObjectPart, jsvalue::pretty_join};
 
 // Methods for explaining a value
-impl JsValue {
-    pub fn explain_args(args: &[JsValue], depth: usize, unknown_depth: usize) -> (String, String) {
+impl JsValue<'_> {
+    pub fn explain_args(
+        args: &[JsValue<'_>],
+        depth: usize,
+        unknown_depth: usize,
+    ) -> (String, String) {
         let mut hints = Vec::new();
         let args = args
             .iter()
@@ -87,9 +91,11 @@ impl JsValue {
                     ""
                 )
             ),
-            JsValue::Object { parts, mutable, .. } => format!(
+            JsValue::Object {
+                parts, mutability, ..
+            } => format!(
                 "{}{{{}}}",
-                if *mutable { "" } else { "frozen " },
+                mutability,
                 pretty_join(
                     &parts
                         .iter()
@@ -338,17 +344,31 @@ impl JsValue {
                     prop.explain_internal_inner(hints, indent_depth, depth, unknown_depth)
                 )
             }
+            JsValue::In(_, left, right) => {
+                format!(
+                    "{} in {}",
+                    left.explain_internal_inner(hints, indent_depth, depth, unknown_depth),
+                    right.explain_internal_inner(hints, indent_depth, depth, unknown_depth)
+                )
+            }
             JsValue::Module(ModuleValue {
                 module: name,
                 annotations,
+                analyze_for_constants,
+                reference: _,
             }) => {
                 format!(
-                    "module<{}, {}>",
+                    "module<{}, {}{}>",
                     name.to_string_lossy(),
                     if let Some(annotations) = annotations {
                         Either::Left(annotations)
                     } else {
                         Either::Right("{}")
+                    },
+                    if *analyze_for_constants {
+                        ", analyze for constants"
+                    } else {
+                        ""
                     }
                 )
             }

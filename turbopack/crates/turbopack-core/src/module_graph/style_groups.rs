@@ -5,7 +5,7 @@
 //! produce. Living here means neither algorithm has to import from the other.
 
 use bincode::{Decode, Encode};
-use turbo_tasks::{FxIndexMap, OperationValue, ResolvedVc, Vc, trace::TraceRawVcs};
+use turbo_tasks::{FxIndexMap, OperationValue, ResolvedVc, Vc};
 
 use crate::chunk::{ChunkItemBatchWithAsyncModuleInfo, ChunkItemWithAsyncModuleInfo};
 
@@ -14,7 +14,7 @@ use crate::chunk::{ChunkItemBatchWithAsyncModuleInfo, ChunkItemWithAsyncModuleIn
 /// [`F32TaskInput::get`] / [`F32TaskInput::from`] at the boundary; do not match on the inner
 /// `u32` directly.
 #[turbo_tasks::task_input]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, OperationValue, TraceRawVcs, Encode, Decode)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, OperationValue, Encode, Decode)]
 pub struct F32TaskInput(u32);
 
 impl F32TaskInput {
@@ -39,23 +39,23 @@ pub enum StyleGroupsAlgorithm {
     Graph {
         /// See `experimental.cssChunking.requestCost` in Next.js.
         request_cost: F32TaskInput,
-        /// See `experimental.cssChunking.moduleFactorCost` in Next.js.
-        module_factor_cost: F32TaskInput,
+        /// See `experimental.cssChunking.weightDistribution` in Next.js.
+        weight_distribution: F32TaskInput,
     },
 }
 
 impl StyleGroupsAlgorithm {
     /// Build a [`StyleGroupsAlgorithm::Graph`] variant from real `f32` cost parameters.
-    pub fn graph(request_cost: f32, module_factor_cost: f32) -> Self {
+    pub fn graph(request_cost: f32, weight_distribution: f32) -> Self {
         Self::Graph {
             request_cost: F32TaskInput::from(request_cost),
-            module_factor_cost: F32TaskInput::from(module_factor_cost),
+            weight_distribution: F32TaskInput::from(weight_distribution),
         }
     }
 }
 
 #[turbo_tasks::task_input]
-#[derive(Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Encode, Decode)]
 pub struct StyleGroupsConfig {
     pub max_chunk_size: usize,
     pub algorithm: StyleGroupsAlgorithm,
@@ -63,7 +63,7 @@ pub struct StyleGroupsConfig {
 
 /// Per-item metadata produced by the style chunking algorithms.
 #[turbo_tasks::task_input]
-#[derive(Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Encode, Decode)]
 pub struct StyleItemInfo {
     /// Stable sort key applied by the production-chunking pass when ordering chunks within a chunk
     /// group. The loose algorithm produces all `None` orders and relies on input order; the graph

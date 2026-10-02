@@ -4,6 +4,7 @@
         export: Some(
             "calledA1",
         ),
+        member: None,
         ast_path: [
             Program(
                 Module,
@@ -28,7 +29,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -61,6 +62,12 @@
                 ModuleValue {
                     module: "foo",
                     annotations: None,
+                    analyze_for_constants: false,
+                    reference: Some(
+                        ModuleReferenceIndex(
+                            2,
+                        ),
+                    ),
                 },
             ),
             Constant(
@@ -96,7 +103,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -140,7 +147,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -169,6 +176,7 @@
         export: Some(
             "unreachableA3",
         ),
+        member: None,
         ast_path: [
             Program(
                 Module,
@@ -193,7 +201,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     2,
                 ),
@@ -226,6 +234,12 @@
                 ModuleValue {
                     module: "foo",
                     annotations: None,
+                    analyze_for_constants: false,
+                    reference: Some(
+                        ModuleReferenceIndex(
+                            8,
+                        ),
+                    ),
                 },
             ),
             Constant(
@@ -261,7 +275,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     2,
                 ),
@@ -285,6 +299,7 @@
         export: Some(
             "unreachableB1",
         ),
+        member: None,
         ast_path: [
             Program(
                 Module,
@@ -309,7 +324,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -356,6 +371,12 @@
                 ModuleValue {
                     module: "foo",
                     annotations: None,
+                    analyze_for_constants: false,
+                    reference: Some(
+                        ModuleReferenceIndex(
+                            9,
+                        ),
+                    ),
                 },
             ),
             Constant(
@@ -391,7 +412,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -449,7 +470,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -478,6 +499,7 @@
         export: Some(
             "calledB1",
         ),
+        member: None,
         ast_path: [
             Program(
                 Module,
@@ -502,7 +524,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -535,6 +557,12 @@
                 ModuleValue {
                     module: "foo",
                     annotations: None,
+                    analyze_for_constants: false,
+                    reference: Some(
+                        ModuleReferenceIndex(
+                            3,
+                        ),
+                    ),
                 },
             ),
             Constant(
@@ -570,7 +598,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -594,6 +622,7 @@
         export: Some(
             "calledC1",
         ),
+        member: None,
         ast_path: [
             Program(
                 Module,
@@ -618,7 +647,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -665,6 +694,12 @@
                 ModuleValue {
                     module: "foo",
                     annotations: None,
+                    analyze_for_constants: false,
+                    reference: Some(
+                        ModuleReferenceIndex(
+                            4,
+                        ),
+                    ),
                 },
             ),
             Constant(
@@ -700,7 +735,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -758,7 +793,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -787,6 +822,7 @@
         export: Some(
             "calledC2",
         ),
+        member: None,
         ast_path: [
             Program(
                 Module,
@@ -811,7 +847,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -844,6 +880,12 @@
                 ModuleValue {
                     module: "foo",
                     annotations: None,
+                    analyze_for_constants: false,
+                    reference: Some(
+                        ModuleReferenceIndex(
+                            5,
+                        ),
+                    ),
                 },
             ),
             Constant(
@@ -879,7 +921,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),

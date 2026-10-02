@@ -120,7 +120,6 @@ describe('turbopack-trace-server', () => {
   const { next, isTurbopack, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
     env: { NEXT_TURBOPACK_TRACING: '1' },
-    skipDeployment: true,
   })
 
   if (skipped) return
@@ -161,7 +160,7 @@ describe('turbopack-trace-server', () => {
     const traceFileNewPath = path.join(
       next.testDir,
       '.next-profiles',
-      'trace-turbopack'
+      'trace-turbopack.bin'
     )
     const traceFileOldPath = path.join(
       next.testDir,

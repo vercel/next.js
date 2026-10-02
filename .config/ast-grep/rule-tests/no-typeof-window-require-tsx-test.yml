@@ -1,0 +1,9 @@
+id: no-typeof-window-require-tsx
+valid:
+  - "const mod = require('./mod')"
+  - "const mod = cond ? require('./a') : require('./b')"
+  - "const el = typeof window === 'undefined' ? <Server /> : <Browser />"
+invalid:
+  - "const x = typeof window === 'undefined' ? require('./server').x : undefined"
+  - "if (typeof window === 'undefined') { const s = require('./server') }"
+  - "const x = typeof window === 'undefined' && FLAG ? require('./server').x : {}"

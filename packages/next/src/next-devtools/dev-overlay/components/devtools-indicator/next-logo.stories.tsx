@@ -64,14 +64,27 @@ export const Rendering: Story = {
   ],
 }
 
-export const Prerendering: Story = {
+export const ColdCache: Story = {
   decorators: [
     withDevOverlayContexts({
       totalErrorCount: 0,
       state: {
         buildingIndicator: false,
         renderingIndicator: false,
-        cacheIndicator: 'filling',
+        cacheIndicator: 'cold',
+      },
+    }),
+  ],
+}
+
+export const RenderingColdCache: Story = {
+  decorators: [
+    withDevOverlayContexts({
+      totalErrorCount: 0,
+      state: {
+        buildingIndicator: false,
+        renderingIndicator: true,
+        cacheIndicator: 'cold',
       },
     }),
   ],
@@ -83,7 +96,7 @@ export const CacheDisabled: Story = {
       totalErrorCount: 0,
       state: {
         buildingIndicator: false,
-        renderingIndicator: true,
+        renderingIndicator: false,
         cacheIndicator: 'bypass',
       },
     }),

@@ -1,3 +1,5 @@
+#![cfg(feature = "mmap")]
+
 use std::{cell::UnsafeCell, path::Path, sync::LazyLock, time::Duration};
 
 use anyhow::Result;
@@ -10,9 +12,10 @@ use quick_cache::sync::GuardResult;
 use rand::{RngExt, SeedableRng, rngs::SmallRng, seq::SliceRandom};
 use tempfile::TempDir;
 use turbo_persistence::{
-    ArcBytes, BlockCache, CompactConfig, DbConfig as TpDbConfig, Entry, EntryValue, FamilyConfig,
-    FamilyKind, MetaEntryFlags, SerialScheduler, StaticSortedFile, StaticSortedFileMetaData,
-    TurboPersistence, hash_key, write_static_stored_file,
+    ArcBytes, BlockCache, CompactConfig, Compression, DbConfig as TpDbConfig, Entry, EntryValue,
+    FamilyConfig, FamilyKind, MetaEntryFlags, SerialScheduler, StaticSortedFile,
+    StaticSortedFileMetaData, TurboPersistence, hash_key, shard::ShardBits,
+    write_static_stored_file,
 };
 use turbo_tasks_malloc::TurboMalloc;
 
@@ -24,10 +27,30 @@ static ALLOC: TurboMalloc = TurboMalloc;
 // =============================================================================
 
 const MB: u64 = 1024 * 1024;
-/// Data amount for batch read benchmarks (1 GiB)
-const BATCH_READ_DATA_AMOUNT: usize = 1024 * MB as usize;
+/// Data amount for batch read benchmarks (128 MiB).
+const BATCH_READ_DATA_AMOUNT: usize = 128 * MB as usize;
 /// Maximum memory to use for storing keys during prefill (4 GiB)
 const MAX_KEY_MEMORY: usize = 4 * 1024 * MB as usize;
+
+/// Entry-count cap applied to prefill/setup work unless `LARGE_DB` is set, so the default
+/// `cargo bench` / `cargo test --benches` run stays fast.
+const SCALED_MAX_ENTRIES: usize = 100 * 1024;
+
+/// True when the `LARGE_DB` env var is set, unlocking the full (large) benchmark sizes.
+/// Defaults to false so both `cargo bench` and `cargo test --benches` run scaled-down; set
+/// `LARGE_DB=1` for a real benchmarking run.
+static LARGE_DB: LazyLock<bool> = LazyLock::new(|| std::env::var_os("LARGE_DB").is_some());
+
+/// Cap an entry count to [`SCALED_MAX_ENTRIES`] unless `LARGE_DB` is set; otherwise return it
+/// unchanged. Used only to bound prefill/setup work — benchmark `id` strings keep using the
+/// configured (unscaled) sizes so real-run reports are unaffected.
+fn scaled(full: usize) -> usize {
+    if *LARGE_DB {
+        full
+    } else {
+        full.min(SCALED_MAX_ENTRIES)
+    }
+}
 
 // =============================================================================
 // Helper Types and Functions
@@ -90,6 +113,21 @@ fn random_key(rng: &mut SmallRng, size: usize) -> Box<[u8]> {
     )
 }
 
+/// Generate `count` distinct keys of `size` bytes each, in random order.
+fn unique_keys(rng: &mut SmallRng, size: usize, count: usize) -> Vec<Box<[u8]>> {
+    let mut counters: Vec<u64> = (0..count as u64).collect();
+    counters.shuffle(rng);
+    let counter_len = size.min(size_of::<u64>());
+    counters
+        .into_iter()
+        .map(|counter| {
+            let mut data = random_key(rng, size);
+            data[..counter_len].copy_from_slice(&counter.to_le_bytes()[..counter_len]);
+            data
+        })
+        .collect()
+}
+
 /// Generate a random value of the specified size
 fn random_value(rng: &mut SmallRng, size: usize) -> Box<[u8]> {
     random_data(
@@ -104,32 +142,32 @@ fn random_value(rng: &mut SmallRng, size: usize) -> Box<[u8]> {
 fn prefill_database(path: &Path, config: &DbConfig) -> Result<Vec<Box<[u8]>>> {
     let db = TurboPersistence::<SerialScheduler, 1>::open(path.to_path_buf())?;
     let mut rng = SmallRng::seed_from_u64(42);
+    // Bound prefill work unless `LARGE_DB` is set; `LARGE_DB` runs use the full count.
+    let entry_count = scaled(config.entry_count);
     let mut keys = Vec::with_capacity(
-        config
-            .entry_count
-            .min(MAX_KEY_MEMORY / (config.key_size + size_of::<Box<[u8]>>())),
+        entry_count.min(MAX_KEY_MEMORY / (config.key_size + size_of::<Box<[u8]>>())),
     );
+    let all_keys = unique_keys(&mut rng, config.key_size, entry_count);
 
-    let entries_per_commit = config.entry_count / config.commit_count;
+    let entries_per_commit = entry_count / config.commit_count;
 
     for commit_idx in 0..config.commit_count {
         let batch = db.write_batch()?;
         let start = commit_idx * entries_per_commit;
         let end = if commit_idx == config.commit_count - 1 {
-            config.entry_count
+            entry_count
         } else {
             start + entries_per_commit
         };
 
-        for _ in start..end {
-            let key = random_key(&mut rng, config.key_size);
+        for key in &all_keys[start..end] {
             let value = random_value(&mut rng, config.value_size);
             batch.put(0, key.clone(), value.into())?;
             if keys.len() < keys.capacity() {
-                keys.push(key);
+                keys.push(key.clone());
             } else {
                 let replace = rng.random_range(0..keys.len());
-                keys[replace] = key;
+                keys[replace] = key.clone();
             }
         }
         db.commit_write_batch(batch)?;
@@ -151,7 +189,8 @@ fn prefill_database(path: &Path, config: &DbConfig) -> Result<Vec<Box<[u8]>>> {
 fn setup_prefilled_db(config: &DbConfig, id: &str) -> Result<(TempDir, Vec<Box<[u8]>>)> {
     let tempdir = tempfile::tempdir()?;
     let keys = prefill_database(tempdir.path(), config)?;
-    // Measure disk usage of the database and print it for informational purposes
+    // Measure disk usage of the database and print it for informational purposes.
+    let entry_count = scaled(config.entry_count);
     let db_size = tempdir
         .path()
         .read_dir()?
@@ -162,8 +201,8 @@ fn setup_prefilled_db(config: &DbConfig, id: &str) -> Result<(TempDir, Vec<Box<[
     println!(
         "\n{id} db size: {}B = {}B per item = {}% of original size",
         format_number(db_size as usize),
-        format_number(db_size as usize / config.entry_count),
-        (db_size as usize * 100 / (config.entry_count * (config.key_size + config.value_size)))
+        format_number(db_size as usize / entry_count),
+        (db_size as usize * 100 / (entry_count * (config.key_size + config.value_size)))
     );
     Ok((tempdir, keys))
 }
@@ -245,13 +284,14 @@ fn bench_write(c: &mut Criterion) {
 
     for &(key_size, value_size) in &entry_sizes {
         for &database_size in &database_sizes {
-            let entry_count = database_size / (key_size + value_size);
+            let full_entry_count = database_size / (key_size + value_size);
+            let entry_count = scaled(full_entry_count);
 
             let id = format!(
                 "key_{}/value_{}/entries_{}",
                 format_number(key_size),
                 format_number(value_size),
-                format_number(entry_count)
+                format_number(full_entry_count)
             );
             group.bench_function(&id, |b| {
                 b.iter_batched(
@@ -259,8 +299,18 @@ fn bench_write(c: &mut Criterion) {
                         // Setup: create temp directory and RNG
                         let tempdir = tempfile::tempdir().unwrap();
                         let mut rng = SmallRng::seed_from_u64(42);
-                        let mut random_data = vec![0u8; entry_count * (key_size + value_size)];
+                        let entry_size = key_size + value_size;
+                        let mut random_data = vec![0u8; entry_count * entry_size];
                         rng.fill(&mut random_data[..]);
+                        // SingleValue families forbid duplicate keys, so overwrite each key region
+                        // with a distinct, shuffled key (see `unique_keys`).
+                        for (i, key) in unique_keys(&mut rng, key_size, entry_count)
+                            .iter()
+                            .enumerate()
+                        {
+                            let key_start = i * entry_size;
+                            random_data[key_start..key_start + key_size].copy_from_slice(key);
+                        }
 
                         (tempdir, random_data)
                     },
@@ -319,14 +369,11 @@ fn bench_read_get(c: &mut Criterion) {
 
     // Configuration parameters: (key_size, value_size)
     let entry_sizes = [(8, 4), (4, 32 * 1024), (32 * 1024, 4)];
-    // Configuration parameters: (entry_count, commit_count, compacted)
+    // Configuration parameters: (database_size, commit_count, compacted)
     let size_commits_compacted = [
         (128 * 1024 * 1024, 1, true),
         (128 * 1024 * 1024, 1, false),
         (128 * 1024 * 1024, 20, false),
-        (1024 * 1024 * 1024, 1, true),
-        (1024 * 1024 * 1024, 1, false),
-        (1024 * 1024 * 1024, 20, false),
     ];
 
     for &(key_size, value_size) in &entry_sizes {
@@ -578,27 +625,30 @@ fn prefill_multi_value_database(
         family_configs: [FamilyConfig {
             name: "test",
             kind: FamilyKind::MultiValue,
+            compression: Compression::Lz4,
+            initial_shard_bits: ShardBits::new(0),
         }],
+        ..TpDbConfig::new()
     };
     let db =
         TurboPersistence::<SerialScheduler, 1>::open_with_config(path.to_path_buf(), db_config)?;
     let mut rng = SmallRng::seed_from_u64(42);
 
-    // Generate all distinct keys up front
-    let max_stored_keys = config
-        .distinct_key_count
-        .min(MAX_KEY_MEMORY / (config.key_size + size_of::<Box<[u8]>>()));
-    let mut keys: Vec<Box<[u8]>> = (0..max_stored_keys)
-        .map(|_| random_key(&mut rng, config.key_size))
-        .collect();
+    let entry_count = scaled(config.entry_count);
+    let distinct_key_count = scaled(config.distinct_key_count);
 
-    let entries_per_commit = config.entry_count / config.commit_count;
+    // Generate all distinct keys up front.
+    let max_stored_keys =
+        distinct_key_count.min(MAX_KEY_MEMORY / (config.key_size + size_of::<Box<[u8]>>()));
+    let mut keys = unique_keys(&mut rng, config.key_size, max_stored_keys);
+
+    let entries_per_commit = entry_count / config.commit_count;
 
     for commit_idx in 0..config.commit_count {
         let batch = db.write_batch()?;
         let start = commit_idx * entries_per_commit;
         let end = if commit_idx == config.commit_count - 1 {
-            config.entry_count
+            entry_count
         } else {
             start + entries_per_commit
         };
@@ -630,6 +680,7 @@ fn setup_prefilled_multi_value_db(
 ) -> Result<(TempDir, Vec<Box<[u8]>>)> {
     let tempdir = tempfile::tempdir()?;
     let keys = prefill_multi_value_database(tempdir.path(), config)?;
+    let entry_count = scaled(config.entry_count);
     let db_size = tempdir
         .path()
         .read_dir()?
@@ -640,8 +691,8 @@ fn setup_prefilled_multi_value_db(
     println!(
         "\n{id} db size: {}B = {}B per item = {}% of original size",
         format_number(db_size as usize),
-        format_number(db_size as usize / config.entry_count),
-        (db_size as usize * 100 / (config.entry_count * (config.key_size + config.value_size)))
+        format_number(db_size as usize / entry_count),
+        (db_size as usize * 100 / (entry_count * (config.key_size + config.value_size)))
     );
     Ok((tempdir, keys))
 }
@@ -651,7 +702,10 @@ fn open_multi_value_db(path: &Path) -> TurboPersistence<SerialScheduler, 1> {
         family_configs: [FamilyConfig {
             name: "test",
             kind: FamilyKind::MultiValue,
+            compression: Compression::Lz4,
+            initial_shard_bits: ShardBits::new(0),
         }],
+        ..TpDbConfig::new()
     };
     TurboPersistence::<SerialScheduler, 1>::open_with_config(path.to_path_buf(), db_config).unwrap()
 }
@@ -791,6 +845,84 @@ fn bench_read_get_multiple(c: &mut Criterion) {
 // Compaction Benchmarks
 // =============================================================================
 
+fn family_benchmark_key(family: u32, commit: u32, item: u32) -> [u8; 12] {
+    let mut key = [0; 12];
+    key[..4].copy_from_slice(&family.to_be_bytes());
+    key[4..8].copy_from_slice(&commit.to_be_bytes());
+    key[8..].copy_from_slice(&item.to_be_bytes());
+    key
+}
+
+fn bench_family_sharding(c: &mut Criterion) {
+    const FAMILIES: usize = 4;
+    const COMMITS: u32 = 100;
+    let entries_per_commit = scaled(1_000);
+    let db = LazyLock::new(|| {
+        let tempdir = tempfile::tempdir().unwrap();
+        let config = TpDbConfig {
+            family_configs: ["family-0", "family-1", "family-2", "family-3"].map(|name| {
+                FamilyConfig {
+                    name,
+                    kind: FamilyKind::SingleValue,
+                    compression: Compression::Lz4,
+                    initial_shard_bits: ShardBits::new(0),
+                }
+            }),
+            ..TpDbConfig::new()
+        };
+        let db = TurboPersistence::<SerialScheduler, FAMILIES>::open_with_config(
+            tempdir.path().to_path_buf(),
+            config,
+        )
+        .unwrap();
+        for commit in 0..COMMITS {
+            for family in 0..FAMILIES as u32 {
+                let batch = db.write_batch().unwrap();
+                for item in 0..entries_per_commit as u32 {
+                    batch
+                        .put(
+                            family,
+                            family_benchmark_key(family, commit, item),
+                            item.to_be_bytes().to_vec().into(),
+                        )
+                        .unwrap();
+                }
+                db.commit_write_batch(batch).unwrap();
+            }
+        }
+        (tempdir, db)
+    });
+
+    let mut group = c.benchmark_group("read/family_sharding");
+    group.measurement_time(Duration::from_secs(5));
+    let hit = family_benchmark_key(2, COMMITS - 1, 0);
+    let miss = family_benchmark_key(2, COMMITS, 0);
+    let batch_hits = (0..64)
+        .map(|item| family_benchmark_key(2, COMMITS - 1, item))
+        .collect::<Vec<_>>();
+    let batch_misses = (0..64)
+        .map(|item| family_benchmark_key(2, COMMITS, item))
+        .collect::<Vec<_>>();
+
+    group.bench_function("get/hit", |b| {
+        let (_, db) = &*db;
+        b.iter(|| black_box(db.get(2, black_box(&hit)).unwrap()))
+    });
+    group.bench_function("get/miss", |b| {
+        let (_, db) = &*db;
+        b.iter(|| black_box(db.get(2, black_box(&miss)).unwrap()))
+    });
+    group.bench_function("batch_get/hit_64", |b| {
+        let (_, db) = &*db;
+        b.iter(|| black_box(db.batch_get(2, black_box(&batch_hits)).unwrap()))
+    });
+    group.bench_function("batch_get/miss_64", |b| {
+        let (_, db) = &*db;
+        b.iter(|| black_box(db.batch_get(2, black_box(&batch_misses)).unwrap()))
+    });
+    group.finish();
+}
+
 fn bench_compaction(c: &mut Criterion) {
     let mut group = c.benchmark_group("compaction");
     // Compaction is expensive, reduce sample size
@@ -840,13 +972,12 @@ fn bench_compaction(c: &mut Criterion) {
                     |(_tempdir, db)| {
                         // Timed: run normal compaction
                         db.compact(&CompactConfig {
-                            min_merge_count: 3,
-                            optimal_merge_count: 8,
-                            max_merge_count: 64,
-                            max_merge_bytes: 512 * MB,
-                            min_merge_duplication_bytes: 50 * MB,
-                            optimal_merge_duplication_bytes: 100 * MB,
-                            max_merge_segment_count: 16,
+                            max_space_amplification_percent: 50,
+                            min_bottom_merge_bytes: 1024 * 1024,
+                            max_files_above_bottom: 6,
+                            rewrite_per_fresh_byte: 3.0,
+                            size_ratio_percent: 100,
+                            max_merge_jobs: 16,
                         })
                         .unwrap();
                         black_box(db)
@@ -890,14 +1021,17 @@ fn bench_write_multi_value(c: &mut Criterion) {
 
     for &(key_size, value_size) in &entry_sizes {
         for &(database_size, values_per_key) in configs {
-            let entry_count = database_size / (key_size + value_size);
-            let distinct_key_count = entry_count / values_per_key;
+            // `id` uses the configured size so real-run reports are unaffected; the scaled
+            // counts bound the actual work unless `LARGE_DB` is set.
+            let full_entry_count = database_size / (key_size + value_size);
+            let entry_count = scaled(full_entry_count);
+            let distinct_key_count = (entry_count / values_per_key).max(1);
 
             let id = format!(
                 "key_{}/value_{}/entries_{}/vpk_{}",
                 format_number(key_size),
                 format_number(value_size),
-                format_number(entry_count),
+                format_number(full_entry_count),
                 values_per_key,
             );
             group.bench_function(&id, |b| {
@@ -905,10 +1039,8 @@ fn bench_write_multi_value(c: &mut Criterion) {
                     || {
                         let tempdir = tempfile::tempdir().unwrap();
                         let mut rng = SmallRng::seed_from_u64(42);
-                        // Generate distinct keys
-                        let keys: Vec<Box<[u8]>> = (0..distinct_key_count)
-                            .map(|_| random_key(&mut rng, key_size))
-                            .collect();
+                        // Generate distinct (unique) keys to keep the true distinct count exact.
+                        let keys = unique_keys(&mut rng, key_size, distinct_key_count);
                         let mut random_data = vec![0u8; entry_count * value_size];
                         rng.fill(&mut random_data[..]);
                         (tempdir, keys, random_data)
@@ -918,7 +1050,10 @@ fn bench_write_multi_value(c: &mut Criterion) {
                             family_configs: [FamilyConfig {
                                 name: "test",
                                 kind: FamilyKind::MultiValue,
+                                compression: Compression::Lz4,
+                                initial_shard_bits: ShardBits::new(0),
                             }],
+                            ..TpDbConfig::new()
                         };
                         let db = TurboPersistence::<SerialScheduler, 1>::open_with_config(
                             tempdir.path().to_path_buf(),
@@ -1115,8 +1250,8 @@ impl Entry for BenchEntry {
         8
     }
 
-    fn write_key_to(&self, buf: &mut Vec<u8>) {
-        buf.extend_from_slice(&self.key);
+    fn key_bytes(&self) -> &[u8] {
+        &self.key
     }
 
     fn value(&self) -> EntryValue<'_> {
@@ -1149,21 +1284,32 @@ fn bench_static_sorted_file_lookup(c: &mut Criterion) {
                 })
                 .collect();
 
-            // Sort by hash (required by write_static_stored_file)
-            entries.sort_by_key(|e| e.hash);
+            // Sort by (hash, key) order, as required by write_static_stored_file
+            entries.sort_by_key(|e| (e.hash, e.key));
 
             // Create temp directory and write SST file
             let tempdir = tempfile::tempdir().unwrap();
             let sst_path = tempdir.path().join("00000001.sst");
-            let (meta, _file) =
-                write_static_stored_file(&entries, &sst_path, MetaEntryFlags::FRESH).unwrap();
+            let (meta, _file) = write_static_stored_file(
+                &entries,
+                &sst_path,
+                MetaEntryFlags::FRESH,
+                Compression::Lz4,
+            )
+            .unwrap();
 
             // Open the SST file
             let sst_meta = StaticSortedFileMetaData {
                 sequence_number: 1,
                 block_count: meta.block_count,
             };
-            let sst = StaticSortedFile::open(tempdir.path(), sst_meta).unwrap();
+            let sst = StaticSortedFile::open(
+                tempdir.path(),
+                sst_meta,
+                Compression::Lz4,
+                turbo_persistence::AccessMode::Mmap,
+            )
+            .unwrap();
 
             // Create block caches
             let key_block_cache: BlockCache = BlockCache::with(
@@ -1436,6 +1582,6 @@ fn bench_block_cache(c: &mut Criterion) {
 criterion_group!(
     name = benches;
     config = Criterion::default();
-    targets = bench_write, bench_write_multi_value, bench_read_get, bench_read_batch_get, bench_read_get_multiple, bench_compaction, bench_compaction_multi_value, bench_qfilter, bench_static_sorted_file_lookup, bench_block_cache
+    targets = bench_write, bench_write_multi_value, bench_read_get, bench_read_batch_get, bench_read_get_multiple, bench_family_sharding, bench_compaction, bench_compaction_multi_value, bench_qfilter, bench_static_sorted_file_lookup, bench_block_cache
 );
 criterion_main!(benches);

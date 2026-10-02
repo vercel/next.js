@@ -11,17 +11,25 @@ import * as pageMod from 'VAR_USERLAND'
 import { setManifestsSingleton } from '../../server/app-render/manifests-singleton'
 import * as cacheHandlers from '../../server/use-cache/handlers'
 import { BaseServerSpan } from '../../server/lib/trace/constants'
-import { getTracer, SpanKind, type Span } from '../../server/lib/trace/tracer'
+import {
+  getTracer,
+  SpanKind,
+  SpanStatusCode,
+  type Span,
+} from '../../server/lib/trace/tracer'
 import { WebNextRequest, WebNextResponse } from '../../server/base-http/web'
 import type { NextFetchEvent } from '../../server/web/spec-extension/fetch-event'
 import type {
   AppPageRouteHandlerContext,
   AppPageRouteModule,
+  DevRenderContext,
+  RouteMatch,
 } from '../../server/route-modules/app-page/module.compiled'
 import type { AppPageRenderResultMetadata } from '../../server/render-result'
 import type RenderResult from '../../server/render-result'
 import { getIsPossibleServerAction } from '../../server/lib/server-action-request-meta'
 import { getBotType } from '../../shared/lib/router/utils/is-bot'
+import { shouldServeStreamingMetadata } from '../../server/lib/streaming-metadata'
 import { interopDefault } from '../../lib/interop-default'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { checkIsOnDemandRevalidate } from '../../server/api-utils'
@@ -29,6 +37,11 @@ import { CloseController } from '../../server/web/web-on-close'
 import { parseMaxPostponedStateSize } from '../../shared/lib/size-limit'
 import { toNodeOutgoingHttpHeaders } from '../../server/web/utils'
 import type { RequestMeta } from '../../server/request-meta'
+import { createDevRenderContext } from '../../server/route-modules/app-page/dev-render-context'
+import {
+  parseRequestHeaders,
+  type ParsedRequestHeaders,
+} from '../../server/route-modules/app-page/parse-request-headers'
 
 declare const incrementalCacheHandler: any
 // OPTIONAL_IMPORT:incrementalCacheHandler
@@ -78,6 +91,7 @@ async function requestHandler(
     nextConfig,
     buildManifest,
     prerenderManifest,
+    previewProps,
     reactLoadableManifest,
     subresourceIntegrityManifest,
     dynamicCssManifest,
@@ -94,18 +108,26 @@ async function requestHandler(
   // INJECT_RAW:cacheHandlerRegistration
 
   const isPossibleServerAction = getIsPossibleServerAction(req)
-  const botType = getBotType(req.headers.get('User-Agent') || '')
+  const userAgent = req.headers.get('User-Agent') || ''
+  const botType = getBotType(userAgent)
   const { isOnDemandRevalidate } = checkIsOnDemandRevalidate(
     req.headers,
-    prerenderManifest.preview
+    previewProps
   )
 
   const closeController = new CloseController()
 
-  const renderContext: AppPageRouteHandlerContext = {
+  const routeMatch: RouteMatch = { resolvedPathname }
+  const dev: DevRenderContext | undefined = createDevRenderContext(baseReq)
+  const renderContextBase: Omit<
+    AppPageRouteHandlerContext,
+    'parsedRequestHeaders'
+  > = {
     page: normalizedSrcPage,
+    routeMatch,
     query,
     params,
+    dev,
 
     sharedContext: {
       buildId,
@@ -125,8 +147,10 @@ async function requestHandler(
       params,
       page: srcPage,
       postponed: undefined,
-      shouldWaitOnAllReady: false,
-      serveStreamingMetadata: true,
+      serveStreamingMetadata: shouldServeStreamingMetadata(
+        userAgent,
+        nextConfig.htmlLimitedBots
+      ),
       supportsDynamicResponse: true,
       buildManifest,
       nextFontManifest,
@@ -145,9 +169,8 @@ async function requestHandler(
       crossOrigin: nextConfig.crossOrigin,
       trailingSlash: nextConfig.trailingSlash,
       images: nextConfig.images,
-      previewProps: prerenderManifest.preview,
+      previewProps: previewProps,
       enableTainting: nextConfig.experimental.taint,
-      htmlLimitedBots: nextConfig.htmlLimitedBots,
       reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
 
       multiZoneDraftMode: false,
@@ -166,12 +189,23 @@ async function requestHandler(
         staleTimes: nextConfig.experimental.staleTimes,
         dynamicOnHover: Boolean(nextConfig.experimental.dynamicOnHover),
         optimisticRouting: Boolean(nextConfig.experimental.optimisticRouting),
+        parallelRouteMetadata: Boolean(
+          nextConfig.experimental.parallelRouteMetadata
+        ),
         inlineCss: Boolean(nextConfig.experimental.inlineCss),
         prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
+        reactBrowserBailout: Boolean(
+          nextConfig.experimental.reactBrowserBailout
+        ),
+        // Edge has no Node response-close signal, so HMR cancellation is a
+        // no-op.
+        serverComponentsHmrCancellation: false,
         useCacheTimeout: nextConfig.experimental.useCacheTimeout,
-        cachedNavigations: Boolean(nextConfig.experimental.cachedNavigations),
-        appShells: nextConfig.experimental.appShells,
+        durableUseCacheEntries: Boolean(
+          nextConfig.experimental.durableUseCacheEntries
+        ),
+        cachedNavigations: nextConfig.experimental.cachedNavigations ?? false,
         clientTraceMetadata:
           nextConfig.experimental.clientTraceMetadata || ([] as any),
         clientParamParsingOrigins:
@@ -179,11 +213,18 @@ async function requestHandler(
         maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
           nextConfig.experimental.maxPostponedStateSize
         ),
+        disableResumeDataCacheCompression:
+          nextConfig.experimental.disableResumeDataCacheCompression ?? false,
+        exposeTestingApi:
+          nextConfig.cacheComponents === true &&
+          (pageRouteModule.isDev === true ||
+            nextConfig.experimental.exposeTestingApiInProductionBuild === true),
       },
 
       incrementalCache: await pageRouteModule.getIncrementalCache(
         baseReq,
         nextConfig,
+        previewProps,
         prerenderManifest,
         true
       ),
@@ -194,12 +235,7 @@ async function requestHandler(
       },
       onAfterTaskError: () => {},
 
-      onInstrumentationRequestError: (
-        error,
-        _request,
-        errorContext,
-        silenceLog
-      ) =>
+      onInstrumentationRequestError: (error, errorContext, silenceLog) =>
         pageRouteModule.onRequestError(
           baseReq,
           error,
@@ -293,6 +329,20 @@ async function requestHandler(
 
   const invokeRender = async (span?: Span): Promise<Response> => {
     try {
+      const parsedRequestHeaders: ParsedRequestHeaders = parseRequestHeaders(
+        baseReq.headers,
+        {
+          isRoutePPREnabled:
+            renderContextBase.renderOpts.experimental.isRoutePPREnabled ===
+            true,
+          previewModeId:
+            renderContextBase.renderOpts.previewProps?.previewModeId,
+        }
+      )
+      const renderContext: AppPageRouteHandlerContext = {
+        ...renderContextBase,
+        parsedRequestHeaders,
+      }
       const result = await pageRouteModule
         .render(baseReq, baseRes, renderContext)
         .finally(() => {
@@ -302,6 +352,16 @@ async function requestHandler(
             'http.status_code': finalStatus,
             'next.rsc': false,
           })
+
+          if (finalStatus && finalStatus >= 500) {
+            // For 5xx status codes: SHOULD be set to 'Error' span status.
+            // x-ref: https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+            span.setStatus({
+              code: SpanStatusCode.ERROR,
+            })
+            // For span status 'Error', SHOULD set 'error.type' attribute.
+            span.setAttribute('error.type', finalStatus.toString())
+          }
 
           const rootSpanAttributes = tracer.getRootSpanAttributes()
           // We were unable to get attributes, probably OTEL is not enabled

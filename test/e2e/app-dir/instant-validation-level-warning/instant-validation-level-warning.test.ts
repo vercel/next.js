@@ -1,15 +1,16 @@
 import { nextTestSetup } from 'e2e-utils'
 import {
+  createGetInstantInsight,
   expectBuildValidationSkipped,
   extractBuildValidationError,
 } from 'e2e-utils/instant-validation'
 import { waitForNoErrorToast } from '../../../lib/next-test-utils'
 
+// @force-gate !deploy
 describe('instant validation - level warning', () => {
   const { next, skipped, isNextDev, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
     env: {
       NEXT_TEST_LOG_VALIDATION: '1',
     },
@@ -21,9 +22,30 @@ describe('instant validation - level warning', () => {
     return
   }
 
+  let currentCliOutputIndex = 0
+  beforeEach(() => {
+    currentCliOutputIndex = next.cliOutput.length
+  })
+
+  function getCliOutputSinceMark(): string {
+    if (next.cliOutput.length < currentCliOutputIndex) {
+      currentCliOutputIndex = 0
+    }
+    return next.cliOutput.slice(currentCliOutputIndex)
+  }
+
+  const getInstantInsight = createGetInstantInsight(getCliOutputSinceMark, next)
+
   if (isNextStart) {
     beforeAll(async () => {
-      await next.build({ args: ['--experimental-build-mode', 'compile'] })
+      const result = await next.build({
+        args: ['--experimental-build-mode', 'compile'],
+      })
+      if (result.exitCode !== 0) {
+        throw new Error(
+          `Build exited with exit code ${result.exitCode}. CLI Output:\n\n${result.cliOutput}`
+        )
+      }
     })
     afterEach(async () => {
       await next.stop()
@@ -58,9 +80,8 @@ describe('instant validation - level warning', () => {
     describe('dev', () => {
       it('bare page: implicit validation surfaces a redbox (warning level fires)', async () => {
         const browser = await next.browser('/bare')
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
          {
-           "code": "E1298",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -76,21 +97,20 @@ describe('instant validation - level warning', () => {
 
       it('explicit-error page: instant redbox surfaces in dev', async () => {
         const browser = await next.browser('/explicit-error')
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
          {
            "cause": [
              {
                "label": "Caused by: Instant Validation",
-               "source": "app/explicit-error/page.tsx (7:33) @ unstable_instant
-         >  7 | export const unstable_instant = { level: 'experimental-error' as const }
-              |                                 ^",
+               "source": "app/explicit-error/page.tsx (7:24) @ instant
+         >  7 | export const instant = { level: 'experimental-error' as const }
+              |                        ^",
                "stack": [
-                 "unstable_instant app/explicit-error/page.tsx (7:33)",
+                 "instant app/explicit-error/page.tsx (7:24)",
                  "Set.forEach <anonymous>",
                ],
              },
            ],
-           "code": "E1298",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -106,21 +126,20 @@ describe('instant validation - level warning', () => {
 
       it('explicit-true page: aliases to warning level, instant redbox in dev', async () => {
         const browser = await next.browser('/explicit-true')
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
          {
            "cause": [
              {
                "label": "Caused by: Instant Validation",
-               "source": "app/explicit-true/page.tsx (8:33) @ unstable_instant
-         >  8 | export const unstable_instant = true
-              |                                 ^",
+               "source": "app/explicit-true/page.tsx (8:24) @ instant
+         >  8 | export const instant = true
+              |                        ^",
                "stack": [
-                 "unstable_instant app/explicit-true/page.tsx (8:33)",
+                 "instant app/explicit-true/page.tsx (8:24)",
                  "Set.forEach <anonymous>",
                ],
              },
            ],
-           "code": "E1298",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -136,21 +155,20 @@ describe('instant validation - level warning', () => {
 
       it('explicit-warning page: explicit override at the configured level, instant redbox in dev', async () => {
         const browser = await next.browser('/explicit-warning')
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
          {
            "cause": [
              {
                "label": "Caused by: Instant Validation",
-               "source": "app/explicit-warning/page.tsx (8:33) @ unstable_instant
-         >  8 | export const unstable_instant = { level: 'warning' as const }
-              |                                 ^",
+               "source": "app/explicit-warning/page.tsx (8:24) @ instant
+         >  8 | export const instant = { level: 'warning' as const }
+              |                        ^",
                "stack": [
-                 "unstable_instant app/explicit-warning/page.tsx (8:33)",
+                 "instant app/explicit-warning/page.tsx (8:24)",
                  "Set.forEach <anonymous>",
                ],
              },
            ],
-           "code": "E1298",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -171,13 +189,12 @@ describe('instant validation - level warning', () => {
       })
 
       it('layered: bare page under layout-with-instant-false still validates', async () => {
-        // The intermediate layout exports `unstable_instant = false`, but
+        // The intermediate layout exports `instant = false`, but
         // that's per-segment — it doesn't shield descendants. The bare
         // page should still surface an instant redbox in dev.
         const browser = await next.browser('/layered')
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
          {
-           "code": "E1298",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -207,12 +224,11 @@ describe('instant validation - level warning', () => {
          \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
-           - [cache] Cache the data access with \`"use cache"\`
-             https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-             https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-           - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
-             https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
+           - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
+           - [block] Set \`export const instant = false\` to allow a blocking route
+
+         Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
              at a (<anonymous>)
              at body (<anonymous>)
              at html (<anonymous>)

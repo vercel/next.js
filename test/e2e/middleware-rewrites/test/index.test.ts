@@ -6,8 +6,11 @@ import { check, fetchViaHTTP, retry } from 'next-test-utils'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import escapeStringRegexp from 'escape-string-regexp'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// FIXME: Fails to deploy
+// @force-gate !deploy || !adapter || !turbopack
 describe('Middleware Rewrite', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextDeploy } = nextTestSetup({
     files: {
       pages: new FileRef(join(__dirname, '../app/pages')),
       'next.config.js': new FileRef(join(__dirname, '../app/next.config.js')),
@@ -93,6 +96,26 @@ describe('Middleware Rewrite', () => {
       expect(json.headers['x-hello-from-middleware1']).toBe('hello')
     })
 
+    // Regression test for https://github.com/vercel/next.js/issues/94647.
+    it('should preserve rewrite query and dynamic params in Pages API routes', async () => {
+      const res = await next.fetch('/foo/bar?key=value')
+
+      expect(res.status).toBe(200)
+      expect(await res.json()).toEqual({
+        // Deployed proxies include query values added while resolving rewrites
+        // in the URL passed to the function. Locally they are only in req.query.
+        url: isNextDeploy
+          ? '/foo/bar?key=value&added=1&extra=2'
+          : '/foo/bar?key=value',
+        query: {
+          key: 'value',
+          added: '1',
+          extra: '2',
+          slug: ['bar'],
+        },
+      })
+    })
+
     it('should handle static dynamic rewrite from middleware correctly', async () => {
       const browser = await next.browser('/rewrite-to-static')
 
@@ -171,12 +194,9 @@ describe('Middleware Rewrite', () => {
       expect(await browser.eval('next.router.asPath')).toBe('/param-1')
     })
 
+    // TODO: investigate test failure during client navigation on deployment.
+    // @force-gate !deploy
     it('should have props for afterFiles rewrite to SSG page', async () => {
-      // TODO: investigate test failure during client navigation
-      // on deployment
-      if ((global as any).isNextDeploy) {
-        return
-      }
       let browser = await next.browser('/')
       await browser.eval(`next.router.push("/afterfiles-rewrite-ssg")`)
 
@@ -700,8 +720,7 @@ describe('Middleware Rewrite', () => {
     const label = locale ? `${locale} ` : ``
 
     function getCookieFromResponse(res, cookieName) {
-      // node-fetch bundles the cookies as string in the Response
-      const cookieArray = res.headers.raw()['set-cookie']
+      const cookieArray = res.headers.getSetCookie()
       for (const cookie of cookieArray) {
         let individualCookieParams = cookie.split(';', 1)
         let individualCookie = individualCookieParams[0].split('=', 2)
@@ -717,7 +736,7 @@ describe('Middleware Rewrite', () => {
       const html = await res.text()
       const $ = cheerio.load(html)
       // Set-Cookie header with Expires should not be split into two
-      expect(res.headers.raw()['set-cookie']).toHaveLength(1)
+      expect(res.headers.getSetCookie()).toHaveLength(1)
       const bucket = getCookieFromResponse(res, 'bucket')
       const expectedText = bucket === 'a' ? 'Welcome Page A' : 'Welcome Page B'
       const browser = await next.browser(`${locale}/rewrite-to-ab-test`)
@@ -842,20 +861,20 @@ describe('Middleware Rewrite', () => {
       }
     })
 
-    if (!(global as any).isNextDeploy) {
-      it(`${label}should rewrite when not using localhost`, async () => {
-        const customUrl = new URL(next.url)
-        customUrl.hostname = 'localtest.me'
+    // This assertion uses a local hostname to reach the test server.
+    // @force-gate !deploy
+    it(`${label}should rewrite when not using localhost`, async () => {
+      const customUrl = new URL(next.url)
+      customUrl.hostname = 'localtest.me'
 
-        const res = await fetchViaHTTP(
-          customUrl.toString(),
-          `${locale}/rewrite-me-without-hard-navigation`
-        )
-        const html = await res.text()
-        const $ = cheerio.load(html)
-        expect($('.title').text()).toBe('About Page')
-      })
-    }
+      const res = await fetchViaHTTP(
+        customUrl.toString(),
+        `${locale}/rewrite-me-without-hard-navigation`
+      )
+      const html = await res.text()
+      const $ = cheerio.load(html)
+      expect($('.title').text()).toBe('About Page')
+    })
 
     it(`${label}should rewrite to Vercel`, async () => {
       const res = await fetchViaHTTP(next.url, `${locale}/rewrite-me-to-vercel`)

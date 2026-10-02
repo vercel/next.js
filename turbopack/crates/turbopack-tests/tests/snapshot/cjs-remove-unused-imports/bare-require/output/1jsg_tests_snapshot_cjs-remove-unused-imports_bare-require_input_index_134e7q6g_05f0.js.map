@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/cjs-remove-unused-imports/bare-require/input/index.js"],"sourcesContent":["// The result of this bare require is discarded, and the target is side-effect\n// free, so the `require(...)` call is replaced with a `0` placeholder (later\n// removed by minification) instead of loading the module.\nrequire('./pure.js')\n\nconsole.log('kept')\n"],"names":["console","log"],"mappings":"AAAA,8EAA8E;AAC9E,6EAA6E;AAC7E,0DAA0D;;AAG1DA,QAAQC,GAAG,CAAC"}}]
+}

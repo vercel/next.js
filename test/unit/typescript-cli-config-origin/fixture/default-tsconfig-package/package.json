@@ -1,0 +1,5 @@
+{
+  "name": "@fixture/default-tsconfig",
+  "version": "1.0.0",
+  "main": "nested/main.json"
+}

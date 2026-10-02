@@ -5,18 +5,77 @@
 
 use std::{
     cmp::Reverse,
-    collections::{BinaryHeap, VecDeque},
+    collections::{BTreeSet, BinaryHeap},
 };
 
-use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
+use petgraph::{
+    graph::{DiGraph, EdgeIndex, NodeIndex},
+    visit::EdgeRef,
+};
 use rustc_hash::{FxHashMap, FxHashSet};
+use turbo_tasks::FxIndexMap;
 
-use super::subgraph_view::{ReadonlyGraph, SubgraphView};
+use super::subgraph_view::ReadonlyGraph;
 use crate::module::StyleType;
 
 // ---------------------------------------------------------------------------
 // create_graph
 // ---------------------------------------------------------------------------
+
+/// The index of a chunk group, as ordered by the caller of [`create_graph`].
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub(super) struct ChunkGroupIndex(pub(super) usize);
+
+/// Per-module chunk-group membership: for each module id, the **ascending** list of chunk groups
+/// that contain it. The sorted invariant is what lets [`ModuleChunkGroups::shared`] intersect two
+/// modules' lists with a single linear merge; [`create_graph`] preserves it by appending groups in
+/// index order. Reading membership from here (rather than post-[`make_acyclic`] edge weights) keeps
+/// the co-occurrence signal lossless.
+pub(super) struct ModuleChunkGroups {
+    per_module: Vec<Vec<ChunkGroupIndex>>,
+}
+
+impl ModuleChunkGroups {
+    /// Number of chunk groups that contain both module `a` and module `b`. Runs in
+    /// O(min(|groups_a|, |groups_b|)) thanks to the ascending invariant.
+    pub(super) fn shared(&self, a: NodeIndex, b: NodeIndex) -> usize {
+        let a_groups = &self.per_module[a.index()];
+        let b_groups = &self.per_module[b.index()];
+        let mut count = 0;
+        let mut i = 0;
+        let mut j = 0;
+        while i < a_groups.len() && j < b_groups.len() {
+            match a_groups[i].cmp(&b_groups[j]) {
+                std::cmp::Ordering::Equal => {
+                    count += 1;
+                    i += 1;
+                    j += 1;
+                }
+                std::cmp::Ordering::Less => i += 1,
+                std::cmp::Ordering::Greater => j += 1,
+            }
+        }
+        count
+    }
+
+    /// Build directly from per-module group lists, each of which must already be ascending. For
+    /// tests and callers that assemble the lists themselves.
+    #[cfg(test)]
+    pub(super) fn from_sorted(per_module: Vec<Vec<usize>>) -> Self {
+        Self {
+            per_module: per_module
+                .into_iter()
+                .map(|groups| groups.into_iter().map(ChunkGroupIndex).collect())
+                .collect(),
+        }
+    }
+
+    /// The (ascending) chunk groups containing `module`. For tests/inspection.
+    #[cfg(test)]
+    pub(super) fn groups_of(&self, module: usize) -> &[ChunkGroupIndex] {
+        &self.per_module[module]
+    }
+}
 
 /// Build a directed weighted graph from `chunk_groups`.
 ///
@@ -24,14 +83,26 @@ use crate::module::StyleType;
 /// inside the group, an edge `later → earlier` is added (weight 1). Repeated edges accumulate.
 /// `node_count` is the total number of distinct module ids referenced; node ids are dense in
 /// `0..node_count`.
-pub(super) fn create_graph(chunk_groups: &[Vec<usize>], node_count: usize) -> DiGraph<usize, u32> {
+///
+/// Also returns the [`ModuleChunkGroups`] index, used by [`linearize`] to count shared chunk groups
+/// between two modules.
+pub(super) fn create_graph(
+    chunk_groups: &[Vec<usize>],
+    node_count: usize,
+) -> (DiGraph<usize, u32>, ModuleChunkGroups) {
     let mut graph: DiGraph<usize, u32> = DiGraph::with_capacity(node_count, 0);
+    let mut per_module: Vec<Vec<ChunkGroupIndex>> = vec![Vec::new(); node_count];
     for i in 0..node_count {
         let idx = graph.add_node(i);
         debug_assert_eq!(idx.index(), i);
     }
     let mut edge_index: FxHashMap<(NodeIndex, NodeIndex), EdgeIndex> = FxHashMap::default();
-    for group in chunk_groups {
+    for (group_idx, group) in chunk_groups.iter().enumerate() {
+        // Appended in ascending `group_idx` order, preserving `ModuleChunkGroups`' sorted
+        // invariant.
+        for &module_id in group {
+            per_module[module_id].push(ChunkGroupIndex(group_idx));
+        }
         for (i, &later_id) in group.iter().enumerate() {
             let later = NodeIndex::new(later_id);
             for &earlier_id in &group[..i] {
@@ -49,7 +120,7 @@ pub(super) fn create_graph(chunk_groups: &[Vec<usize>], node_count: usize) -> Di
             }
         }
     }
-    graph
+    (graph, ModuleChunkGroups { per_module })
 }
 
 // ---------------------------------------------------------------------------
@@ -148,300 +219,327 @@ where
 }
 
 // ---------------------------------------------------------------------------
-// find_short_cycle (bidirectional Dijkstra)
-// ---------------------------------------------------------------------------
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Direction2 {
-    Forward,
-    Backward,
-    Cycle,
-}
-
-#[derive(Debug, Clone)]
-struct Candidate {
-    direction: Direction2,
-    /// Predecessor on the forward half of the search tree. `Some` for nodes reached by the
-    /// forward frontier (`Forward` or `Cycle` direction); `None` for the start node and for
-    /// nodes reached only by the backward frontier.
-    forward_predecessor: Option<NodeIndex>,
-    /// Predecessor on the backward half of the search tree. Mirror of `forward_predecessor`.
-    backward_predecessor: Option<NodeIndex>,
-    /// `u64::MAX` is used as the sentinel for "visited / +infinity" — matches the JS `Infinity`.
-    distance: u64,
-}
-
-/// Find a short cycle inside `graph`. Returns `None` if `graph` is empty or has no cycle
-/// reachable from `start_node` (or, when `start_node` is `None`, from the first node yielded
-/// by `graph.nodes()`). The cycle is returned as an array of distinct node ids; every
-/// consecutive pair has an edge and the last node has an edge back to the first (the closing
-/// wrap is implicit, not repeated).
-///
-/// The result is "a short" cycle, not necessarily the global shortest: only starts that
-/// already appear on the current best cycle are tried.
-pub(super) fn find_short_cycle<'a, G>(
-    graph: G,
-    start_node: Option<NodeIndex>,
-) -> Option<Vec<NodeIndex>>
-where
-    G: ReadonlyGraph<'a>,
-{
-    let start = match start_node {
-        Some(n) => n,
-        None => graph.nodes().next()?,
-    };
-
-    let initial = find_shortest_cycle_from_node(graph, start)?;
-    let mut cycle: VecDeque<NodeIndex> = initial.into();
-    // 2-cycles are already minimal — no shift can produce a shorter one. Skip the (otherwise
-    // up-to-k-call) shift loop in this common case.
-    let mut remaining_shifts = if cycle.len() <= 2 { 0 } else { cycle.len() };
-
-    while remaining_shifts > 0 {
-        let Some(shifted) = cycle.pop_front() else {
-            break;
-        };
-        cycle.push_back(shifted);
-        // Every node on a cycle is itself on a cycle (within the same graph snapshot), so this
-        // call is expected to find one.
-        let new_cycle = find_shortest_cycle_from_node(graph, shifted)
-            .expect("every node on a cycle must itself be on a cycle");
-        if new_cycle.len() < cycle.len() {
-            remaining_shifts = new_cycle.len();
-            cycle = new_cycle.into();
-        } else {
-            remaining_shifts -= 1;
-        }
-    }
-    Some(cycle.into())
-}
-
-/// Returns `None` if no cycle is reachable from `start`.
-fn find_shortest_cycle_from_node<'a, G>(graph: G, start: NodeIndex) -> Option<Vec<NodeIndex>>
-where
-    G: ReadonlyGraph<'a>,
-{
-    let mut candidates: FxHashMap<NodeIndex, Candidate> = FxHashMap::default();
-    // Min-heap keyed by `(distance, seq)`. `seq` is a strictly-increasing counter so ties break
-    // by insertion order (earlier insertions win). Entries are never removed on relaxation;
-    // stale entries are filtered when popped by comparing to `candidates[node].distance`.
-    let mut heap: BinaryHeap<Reverse<(u64, u32, NodeIndex)>> = BinaryHeap::new();
-    let mut next_seq: u32 = 0;
-
-    // Seed: a backward "stub" at the start node, plus a forward step over each outgoing edge.
-    candidates.insert(
-        start,
-        Candidate {
-            direction: Direction2::Backward,
-            forward_predecessor: None,
-            backward_predecessor: None,
-            distance: 0,
-        },
-    );
-    heap.push(Reverse((0, next_seq, start)));
-    next_seq += 1;
-
-    for (edge, weight) in graph.outgoing_edges_with_weight(start) {
-        let distance = weight as u64;
-        candidates.insert(
-            edge,
-            Candidate {
-                direction: Direction2::Forward,
-                forward_predecessor: Some(start),
-                backward_predecessor: None,
-                distance,
-            },
-        );
-        heap.push(Reverse((distance, next_seq, edge)));
-        next_seq += 1;
-    }
-
-    loop {
-        // Pop the lowest-distance live entry, skipping stale ones.
-        let (node, current_distance) = loop {
-            let Reverse((dist, _, node)) = heap.pop()?;
-            match candidates.get(&node) {
-                Some(cand) if cand.distance == dist => break (node, dist),
-                _ => continue,
-            }
-        };
-
-        let direction = candidates[&node].direction;
-
-        // A node with `direction == Cycle` is one where the forward and backward frontiers
-        // collided. Splice the two halves back into a cycle and return.
-        if direction == Direction2::Cycle {
-            let cand = candidates.remove(&node).unwrap();
-            let mut result = reconstruct_path(&candidates, cand.forward_predecessor, true);
-            result.push(node);
-            // `backward_path` always begins with the cycle's start node; drop that head before
-            // reversing.
-            let backward = reconstruct_path(&candidates, cand.backward_predecessor, false);
-            result.extend(backward.into_iter().skip(1).rev());
-            return Some(result);
-        }
-
-        // Mark `node` as visited (sentinel `u64::MAX` distance).
-        candidates.get_mut(&node).unwrap().distance = u64::MAX;
-        // Snapshot neighbours before mutating `candidates` (avoids overlapping borrows).
-        let neighbours: Vec<(NodeIndex, u32)> = match direction {
-            Direction2::Forward => graph.outgoing_edges_with_weight(node).collect(),
-            Direction2::Backward => graph.incoming_edges_with_weight(node).collect(),
-            Direction2::Cycle => unreachable!(),
-        };
-
-        for (edge, weight) in neighbours {
-            let new_distance = current_distance + weight as u64;
-            match candidates.get_mut(&edge) {
-                None => {
-                    // Unseen neighbour — extend the unidirectional frontier.
-                    let (fwd, bwd) = match direction {
-                        Direction2::Forward => (Some(node), None),
-                        Direction2::Backward => (None, Some(node)),
-                        Direction2::Cycle => unreachable!(),
-                    };
-                    candidates.insert(
-                        edge,
-                        Candidate {
-                            direction,
-                            forward_predecessor: fwd,
-                            backward_predecessor: bwd,
-                            distance: new_distance,
-                        },
-                    );
-                    heap.push(Reverse((new_distance, next_seq, edge)));
-                    next_seq += 1;
-                }
-                Some(existing) if existing.distance == u64::MAX => {
-                    // Already visited — leave it.
-                }
-                Some(existing) if existing.direction == direction => {
-                    // Same-direction relaxation.
-                    if new_distance < existing.distance {
-                        if direction == Direction2::Forward {
-                            existing.forward_predecessor = Some(node);
-                        } else {
-                            existing.backward_predecessor = Some(node);
-                        }
-                        existing.distance = new_distance;
-                        heap.push(Reverse((new_distance, next_seq, edge)));
-                        next_seq += 1;
-                    }
-                }
-                Some(existing) if existing.direction == Direction2::Cycle => {
-                    // Already a cycle candidate — relax the half coming from `direction`.
-                    if new_distance < existing.distance {
-                        if direction == Direction2::Forward {
-                            existing.forward_predecessor = Some(node);
-                        } else {
-                            existing.backward_predecessor = Some(node);
-                        }
-                        existing.distance = new_distance;
-                        heap.push(Reverse((new_distance, next_seq, edge)));
-                        next_seq += 1;
-                    }
-                }
-                Some(existing) => {
-                    // Opposite unidirectional frontiers met → upgrade to a cycle candidate.
-                    // The opposite-direction predecessor was already populated when `existing`
-                    // joined the frontier; we just fill in our side.
-                    existing.direction = Direction2::Cycle;
-                    if direction == Direction2::Forward {
-                        existing.forward_predecessor = Some(node);
-                    } else {
-                        existing.backward_predecessor = Some(node);
-                    }
-                    // Distance is unchanged; the existing heap entry at the old distance is
-                    // still valid and will pop the upgraded `Cycle` candidate.
-                }
-            }
-        }
-    }
-}
-
-/// Walk back through predecessors to reconstruct the path from `start` to (but not including)
-/// the cycle node. `forward = true` follows forward predecessors; `false` follows backward.
-/// Returns the path in order `[start, ..., last_predecessor]`.
-fn reconstruct_path(
-    candidates: &FxHashMap<NodeIndex, Candidate>,
-    from: Option<NodeIndex>,
-    forward: bool,
-) -> Vec<NodeIndex> {
-    let mut path: Vec<NodeIndex> = Vec::new();
-    let mut cur = from;
-    while let Some(n) = cur {
-        path.push(n);
-        let c = &candidates[&n];
-        cur = if forward {
-            c.forward_predecessor
-        } else {
-            c.backward_predecessor
-        };
-    }
-    path.reverse();
-    path
-}
-
-// ---------------------------------------------------------------------------
 // make_acyclic
 // ---------------------------------------------------------------------------
 
-/// Mutate `graph` in place to remove all multi-node cycles by repeatedly cutting the
-/// lowest-weight edge of a short cycle in each SCC.
-pub(super) fn make_acyclic<N>(graph: &mut DiGraph<N, u32>) {
-    let mut queue: Vec<FxHashSet<NodeIndex>> = Vec::new();
-    for scc in strongly_connected_components(&*graph) {
-        if scc.len() > 1 {
-            queue.push(scc);
+type ScoreHeap = BinaryHeap<(i64, Reverse<NodeIndex>)>;
+
+struct FeedbackArcScratch {
+    active: Vec<bool>,
+    incoming_count: Vec<usize>,
+    outgoing_count: Vec<usize>,
+    incoming_weight: Vec<i64>,
+    outgoing_weight: Vec<i64>,
+}
+
+impl FeedbackArcScratch {
+    fn new(bound: usize) -> Self {
+        Self {
+            active: vec![false; bound],
+            incoming_count: vec![0; bound],
+            outgoing_count: vec![0; bound],
+            incoming_weight: vec![0; bound],
+            outgoing_weight: vec![0; bound],
+        }
+    }
+}
+
+/// Queue an active node according to its current source/sink status and weighted score.
+fn queue_feedback_arc_node(
+    node: NodeIndex,
+    active: &[bool],
+    incoming_count: &[usize],
+    outgoing_count: &[usize],
+    incoming_weight: &[i64],
+    outgoing_weight: &[i64],
+    sources: &mut BTreeSet<NodeIndex>,
+    sinks: &mut BTreeSet<NodeIndex>,
+    scores: &mut ScoreHeap,
+) {
+    if !active[node.index()] {
+        return;
+    }
+    if incoming_count[node.index()] == 0 {
+        sources.insert(node);
+    }
+    if outgoing_count[node.index()] == 0 {
+        sinks.insert(node);
+    }
+    if incoming_count[node.index()] > 0 && outgoing_count[node.index()] > 0 {
+        scores.push((
+            outgoing_weight[node.index()] - incoming_weight[node.index()],
+            Reverse(node),
+        ));
+    }
+}
+
+/// Compute a deterministic weighted feedback-arc ordering for one SCC.
+///
+/// This is the weighted Eades-Lin-Smyth heuristic: peel sinks and sources, and when neither exists,
+/// peel the node with the largest `outgoing_weight - incoming_weight`. Edges that point backward in
+/// the resulting order are the approximate minimum feedback arc set.
+fn feedback_arc_order<N>(
+    graph: &DiGraph<N, u32>,
+    scc: &FxHashSet<NodeIndex>,
+    scratch: &mut FeedbackArcScratch,
+) -> Vec<NodeIndex> {
+    let mut nodes: Vec<_> = scc.iter().copied().collect();
+    nodes.sort_unstable_by_key(|node| node.index());
+
+    let FeedbackArcScratch {
+        active,
+        incoming_count,
+        outgoing_count,
+        incoming_weight,
+        outgoing_weight,
+    } = scratch;
+    for &node in &nodes {
+        active[node.index()] = true;
+        incoming_count[node.index()] = 0;
+        outgoing_count[node.index()] = 0;
+        incoming_weight[node.index()] = 0;
+        outgoing_weight[node.index()] = 0;
+    }
+
+    for &node in &nodes {
+        for (target, weight) in graph.outgoing_edges_with_weight(node) {
+            if target != node && scc.contains(&target) {
+                outgoing_count[node.index()] += 1;
+                outgoing_weight[node.index()] += i64::from(weight);
+                incoming_count[target.index()] += 1;
+                incoming_weight[target.index()] += i64::from(weight);
+            }
         }
     }
 
-    while let Some(scc) = queue.pop() {
-        // Inner loop: keep cutting edges from cycles inside this SCC, seeding each subsequent
-        // search at the previous cut's target. The seed is likely still on a cycle until the
-        // local cycles around it are gone, at which point `find_short_cycle` returns `None` and
-        // we re-run SCC to discover any remaining components.
-        let mut seed_node: Option<NodeIndex> = None;
-        loop {
-            // Live view restricted to the current SCC.
-            let view = SubgraphView::new(&*graph, &scc);
-            let Some(short_cycle) = find_short_cycle(view, seed_node) else {
-                break;
-            };
+    let mut sources = BTreeSet::new();
+    let mut sinks = BTreeSet::new();
+    let mut scores = ScoreHeap::new();
+    for &node in &nodes {
+        queue_feedback_arc_node(
+            node,
+            active,
+            incoming_count,
+            outgoing_count,
+            incoming_weight,
+            outgoing_weight,
+            &mut sources,
+            &mut sinks,
+            &mut scores,
+        );
+    }
 
-            // Walk the cycle's k edges directly (closing wrap implicit) and find the minimum-
-            // weight one. Considering edges *on the cycle path* — rather than any edge between
-            // cycle nodes — guarantees the chosen cut breaks this cycle, not an unrelated chord.
-            let mut min_weight: Option<u32> = None;
-            let mut min_edge: Option<EdgeIndex> = None;
-            let mut min_to: Option<NodeIndex> = None;
-            for i in 0..short_cycle.len() {
-                let from = short_cycle[i];
-                let to = short_cycle[(i + 1) % short_cycle.len()];
-                let Some(edge) = graph.find_edge(from, to) else {
-                    continue;
-                };
-                let weight = *graph.edge_weight(edge).unwrap();
-                if min_weight.is_none_or(|w| weight < w) {
-                    min_weight = Some(weight);
-                    min_edge = Some(edge);
-                    min_to = Some(to);
+    let mut left = Vec::with_capacity(nodes.len());
+    let mut right = Vec::new();
+    while left.len() + right.len() < nodes.len() {
+        let (node, place_left) = if let Some(&node) = sinks.first() {
+            (node, false)
+        } else if let Some(&node) = sources.first() {
+            (node, true)
+        } else {
+            loop {
+                let (score, Reverse(node)) = scores
+                    .pop()
+                    .expect("every active non-source/non-sink node has a score");
+                let current_score = outgoing_weight[node.index()] - incoming_weight[node.index()];
+                if active[node.index()]
+                    && incoming_count[node.index()] > 0
+                    && outgoing_count[node.index()] > 0
+                    && score == current_score
+                {
+                    break (node, true);
+                }
+            }
+        };
+
+        active[node.index()] = false;
+        sources.remove(&node);
+        sinks.remove(&node);
+        if place_left {
+            left.push(node);
+        } else {
+            right.push(node);
+        }
+
+        for (target, weight) in graph.outgoing_edges_with_weight(node) {
+            if target != node && active[target.index()] {
+                incoming_count[target.index()] -= 1;
+                incoming_weight[target.index()] -= i64::from(weight);
+                queue_feedback_arc_node(
+                    target,
+                    active,
+                    incoming_count,
+                    outgoing_count,
+                    incoming_weight,
+                    outgoing_weight,
+                    &mut sources,
+                    &mut sinks,
+                    &mut scores,
+                );
+            }
+        }
+        for (source, weight) in graph.incoming_edges_with_weight(node) {
+            if source != node && active[source.index()] {
+                outgoing_count[source.index()] -= 1;
+                outgoing_weight[source.index()] -= i64::from(weight);
+                queue_feedback_arc_node(
+                    source,
+                    active,
+                    incoming_count,
+                    outgoing_count,
+                    incoming_weight,
+                    outgoing_weight,
+                    &mut sources,
+                    &mut sinks,
+                    &mut scores,
+                );
+            }
+        }
+    }
+
+    left.extend(right.into_iter().rev());
+    left
+}
+
+// In a deterministic 5,000-case corpus every SCC converged within four sweeps; the 499-module
+// production reproduction converged after six. Ten leaves headroom while the strict-improvement
+// rule still terminates already-converged orders early.
+const MAX_REFINEMENT_SWEEPS: usize = 10;
+
+/// Improve a feedback-arc order with deterministic node-insertion sweeps.
+///
+/// Moving one node only changes its pairwise contribution against the nodes it crosses, so every
+/// candidate position can be scored in one pass over `order`. A move is accepted only when it
+/// strictly increases the total weight of forward-pointing original edges; equal scores keep the
+/// existing order. The fixed sweep limit bounds the work while allowing earlier moves to unlock
+/// improvements for nodes already visited in the same sweep.
+pub(super) fn refine_feedback_arc_order<N>(
+    order: &mut [NodeIndex],
+    graph: &DiGraph<N, u32>,
+    scc: &FxHashSet<NodeIndex>,
+) {
+    // The weighted seed is already optimal for a two-node SCC, and no non-adjacent insertion is
+    // possible. Avoid per-SCC allocation for this common fragmented-graph shape.
+    if order.len() <= 2 {
+        return;
+    }
+
+    let mut weights = FxHashMap::default();
+    for &source in order.iter() {
+        for (target, weight) in graph.outgoing_edges_with_weight(source) {
+            if target != source && scc.contains(&target) {
+                weights.insert((source, target), weight as u64);
+            }
+        }
+    }
+
+    let edge_weight = |source, target| weights.get(&(source, target)).copied().unwrap_or(0);
+    let mut score: u64 = order
+        .iter()
+        .enumerate()
+        .map(|(i, &source)| {
+            order[i + 1..]
+                .iter()
+                .map(|&target| edge_weight(source, target))
+                .sum::<u64>()
+        })
+        .sum();
+    let mut nodes = order.to_vec();
+    nodes.sort_unstable_by_key(|node| node.index());
+
+    for _ in 0..MAX_REFINEMENT_SWEEPS {
+        let mut changed = false;
+        for &node in &nodes {
+            let old_position = order
+                .iter()
+                .position(|&candidate| candidate == node)
+                .expect("refinement nodes come from the current order");
+            let (before, node_and_after) = order.split_at(old_position);
+            let after = &node_and_after[1..];
+            let old_contribution: u64 = before
+                .iter()
+                .map(|&source| edge_weight(source, node))
+                .chain(after.iter().map(|&target| edge_weight(node, target)))
+                .sum();
+            let score_without_node = score - old_contribution;
+
+            // Score every insertion position in the conceptual `before + after` sequence. This
+            // avoids cloning and removing the whole order for every node.
+            let mut contribution: u64 = before
+                .iter()
+                .chain(after)
+                .map(|&target| edge_weight(node, target))
+                .sum();
+            let mut best_score = score;
+            let mut best_position = None;
+            for (position, crossed) in before
+                .iter()
+                .chain(after)
+                .copied()
+                .map(Some)
+                .chain(std::iter::once(None))
+                .enumerate()
+            {
+                let candidate_score = score_without_node + contribution;
+                if candidate_score > best_score {
+                    best_score = candidate_score;
+                    best_position = Some(position);
+                }
+                if let Some(crossed) = crossed {
+                    contribution =
+                        contribution + edge_weight(crossed, node) - edge_weight(node, crossed);
                 }
             }
 
-            let (Some(edge), Some(to)) = (min_edge, min_to) else {
-                break;
-            };
-            graph.remove_edge(edge);
-            seed_node = Some(to);
+            if let Some(position) = best_position {
+                if position < old_position {
+                    order[position..=old_position].rotate_right(1);
+                } else {
+                    order[old_position..=position].rotate_left(1);
+                }
+                score = best_score;
+                changed = true;
+            }
+        }
+        if !changed {
+            break;
+        }
+    }
+}
+
+/// Mutate `graph` in place to remove all multi-node cycles in one bulk pass per SCC.
+pub(super) fn make_acyclic<N>(graph: &mut DiGraph<N, u32>) {
+    let cyclic_sccs: Vec<_> = strongly_connected_components(&*graph)
+        .into_iter()
+        .filter(|scc| scc.len() > 1)
+        .collect();
+
+    let mut scratch = FeedbackArcScratch::new(graph.node_count());
+    let mut position = vec![usize::MAX; graph.node_count()];
+    for scc in cyclic_sccs {
+        let mut order = feedback_arc_order(&*graph, &scc, &mut scratch);
+        refine_feedback_arc_order(&mut order, &*graph, &scc);
+        for (index, &node) in order.iter().enumerate() {
+            position[node.index()] = index;
         }
 
-        // Re-check this SCC for residual multi-node SCCs.
-        let view = SubgraphView::new(&*graph, &scc);
-        for new_scc in strongly_connected_components(view) {
-            if new_scc.len() > 1 {
-                queue.push(new_scc);
+        let mut backward_edges = Vec::new();
+        for &source in &order {
+            for edge in graph.edges(source) {
+                let target = edge.target();
+                if target != source
+                    && scc.contains(&target)
+                    && position[source.index()] > position[target.index()]
+                {
+                    backward_edges.push(edge.id());
+                }
             }
+        }
+        // `DiGraph::remove_edge` fills the removed slot with the last edge. Removing in descending
+        // index order keeps every not-yet-removed edge index valid.
+        backward_edges.sort_unstable_by_key(|edge| Reverse(edge.index()));
+        for edge in backward_edges {
+            graph.remove_edge(edge);
         }
     }
 }
@@ -450,55 +548,90 @@ pub(super) fn make_acyclic<N>(graph: &mut DiGraph<N, u32>) {
 // linearize
 // ---------------------------------------------------------------------------
 
-/// Topologically sort `graph` (Kahn). Tie-break: when multiple dependents become unblocked at
-/// once, the heaviest edge wins; insertion order breaks ties at equal weight.
-pub(super) fn linearize<'a, G>(graph: G) -> Vec<NodeIndex>
+/// Topologically sort `graph` (Kahn). Among the currently unblocked candidates, prefer the one
+/// that shares the most chunk groups with the previously placed module, so modules that load
+/// together end up adjacent in the global order.
+///
+/// The shared-group count is read from [`ModuleChunkGroups`] (built by [`create_graph`]). Reading
+/// from the original chunk-group data (not the post-[`make_acyclic`] graph) gives a lossless
+/// signal: the feedback-arc heuristic deletes edges that still represent real co-occurrences.
+///
+/// **Tie-breaking** is done by looking further back through `result`: when multiple candidates
+/// share the same count with the last-placed module, the tie is broken by the count with the
+/// second-to-last module, then the third-to-last, and so on. Formally, the per-candidate key is
+/// the lexicographic sequence `[shared(last), shared(last-1), shared(last-2), …]`, sorted
+/// descending — equivalent to choosing the candidate with the best `(Reverse(distance), shared)`
+/// metric, where `distance` is the first look-back position that produces a non-tie. Final ties
+/// (zero shared at all positions) fall back to the earliest remaining candidate — the one inserted
+/// first into `remaining_deps`, which mirrors `graph.nodes()` order.
+pub(super) fn linearize<'a, G>(graph: G, module_chunk_groups: &ModuleChunkGroups) -> Vec<NodeIndex>
 where
     G: ReadonlyGraph<'a>,
 {
-    let mut remaining_deps: FxHashMap<NodeIndex, usize> = FxHashMap::default();
+    // `remaining_deps` is an insertion-ordered map (matching `graph.nodes()`), so each node's
+    // position is a stable "seniority" index. Candidates carry that index as their tie-break key,
+    // so the `swap_remove` below — which scrambles positions within `candidates` — cannot disturb
+    // the "earliest remaining candidate" tie-break.
+    let mut remaining_deps: FxIndexMap<NodeIndex, usize> =
+        FxIndexMap::with_capacity_and_hasher(graph.node_count(), Default::default());
     for n in graph.nodes() {
         remaining_deps.insert(n, graph.outgoing_edges(n).count());
     }
 
-    let mut candidates: Vec<NodeIndex> = remaining_deps
+    // Candidates are `(node, index in `remaining_deps`)`. Seeded in ascending index order because
+    // `FxIndexMap` iterates in insertion order.
+    let mut candidates: Vec<(NodeIndex, usize)> = remaining_deps
         .iter()
-        .filter_map(|(n, &c)| if c == 0 { Some(*n) } else { None })
+        .enumerate()
+        .filter_map(|(idx, (&n, &c))| (c == 0).then_some((n, idx)))
         .collect();
-    // Stable seed order: matches insertion order of `nodes()`.
-    {
-        let order: FxHashMap<NodeIndex, usize> =
-            graph.nodes().enumerate().map(|(i, n)| (n, i)).collect();
-        candidates.sort_by_key(|n| std::cmp::Reverse(order[n]));
-    }
 
     let mut result: Vec<NodeIndex> = Vec::new();
-    while let Some(placed) = candidates.pop() {
-        result.push(placed);
-
-        // petgraph iterates neighbours in reverse insertion order; flip it back so the
-        // tie-break below sees them in insertion order — matching the PoC.
-        let mut incoming: Vec<(NodeIndex, u32)> =
-            graph.incoming_edges_with_weight(placed).collect();
-        incoming.reverse();
-
-        let mut new_candidates: Vec<(NodeIndex, u32, usize)> = Vec::new();
-        for (dependent, weight) in incoming {
-            let Some(cur) = remaining_deps.get(&dependent).copied() else {
-                continue;
-            };
-            let next = cur.saturating_sub(1);
-            remaining_deps.insert(dependent, next);
-            if next == 0 {
-                let idx = new_candidates.len();
-                new_candidates.push((dependent, weight, idx));
+    while !candidates.is_empty() {
+        // Narrow the candidates with progressive look-back tie-breaking. `survivors` holds
+        // `(position in `candidates`, shared count)` and is narrowed in place by comparing shared
+        // group counts at increasing look-back distances until one candidate remains or `result`
+        // is exhausted.
+        let mut survivors: Vec<(usize, usize)> = (0..candidates.len()).map(|i| (i, 0)).collect();
+        'outer: for depth in 0..result.len() {
+            let reference = result[result.len() - 1 - depth];
+            // Recompute the shared count for each surviving candidate at this depth, in place.
+            let mut max_shared = 0;
+            for entry in survivors.iter_mut() {
+                let s = module_chunk_groups.shared(candidates[entry.0].0, reference);
+                entry.1 = s;
+                max_shared = max_shared.max(s);
+            }
+            // Only filter when at least one candidate has a real match at this depth; otherwise all
+            // are equally far from `reference` and we try the next depth.
+            if max_shared > 0 {
+                survivors.retain(|&(_, s)| s == max_shared);
+                if survivors.len() == 1 {
+                    break 'outer;
+                }
             }
         }
-        // Weight ascending; ties broken by reverse insertion order so the earliest-encountered
-        // dependent ends up on top of the stack and pops first.
-        new_candidates.sort_by(|a, b| a.1.cmp(&b.1).then(b.2.cmp(&a.2)));
-        for (dep, _, _) in new_candidates {
-            candidates.push(dep);
+        // Final tie-break among equal-scoring survivors: the earliest remaining candidate, i.e. the
+        // one with the smallest `remaining_deps` index (stable regardless of `swap_remove`).
+        let pick = survivors
+            .iter()
+            .min_by_key(|&&(i, _)| candidates[i].1)
+            .map(|&(i, _)| i)
+            .unwrap();
+
+        let (placed, _) = candidates.swap_remove(pick);
+        result.push(placed);
+
+        // Unblock dependents. The order they are pushed is irrelevant: candidate ties are broken
+        // by the stable `remaining_deps` index, not by position in `candidates`.
+        for dependent in graph.incoming_edges(placed) {
+            let Some((idx, _, cur)) = remaining_deps.get_full_mut(&dependent) else {
+                continue;
+            };
+            *cur = cur.saturating_sub(1);
+            if *cur == 0 {
+                candidates.push((dependent, idx));
+            }
         }
     }
 
@@ -535,18 +668,25 @@ impl PartialOrd for OrdF32 {
 ///   * `module_style_types` — per-module style type, indexed by module id. Used to forbid merges
 ///     that would leak global CSS into unrelated chunk groups.
 ///   * `request_cost` — per-request overhead in bytes.
-///   * `module_factor_cost` — see module-level docs.
+///   * `weight_distribution` — see module-level docs.
 ///   * `max_chunk_size` — bytes; merges that produce a multi-item chunk above this are forbidden
 ///     (`+infinity`). `0` disables the cap.
+///
+/// Returns one `(chunk, merge_cost_to_next)` tuple per chunk, in global order. `merge_cost_to_next`
+/// is the surviving split's metric — the cost-delta of merging this chunk with the following one
+/// (`cost(merged) - cost(this) - cost(next)`, always `>= 0` since every negative metric was merged
+/// away). It is `None` for the last chunk, which has no following neighbour. These metrics are
+/// surfaced by the `TURBOPACK_DEBUG_CSS_CHUNKING` dump so a boundary that was close to merging can
+/// be told apart from one held back by a hard constraint (`+infinity`).
 pub(super) fn split_into_chunks(
     global_order: &[NodeIndex],
     chunk_groups: &[Vec<usize>],
     module_sizes: &[u64],
     module_style_types: &[StyleType],
     request_cost: f32,
-    module_factor_cost: f32,
+    weight_distribution: f32,
     max_chunk_size: u64,
-) -> Vec<Vec<usize>> {
+) -> Vec<(Vec<usize>, Option<f32>)> {
     if global_order.is_empty() {
         return Vec::new();
     }
@@ -555,12 +695,18 @@ pub(super) fn split_into_chunks(
     let order: Vec<usize> = global_order.iter().map(|n| n.index()).collect();
     let n = order.len();
 
-    // Per-group total CSS byte size — denominator in the cost formula. Memoized once because
-    // `chunk_groups` is fixed for the duration of this call. `.max(1)` avoids a div-by-zero
-    // when a chunk group has only zero-sized modules.
-    let group_total_size: Vec<u64> = chunk_groups
+    // Per-chunk-group weight applied to that group's share of every chunk cost. Derived once from
+    // each group's total CSS byte size as `group_total_size ^ (-weight_distribution)`:
+    //   * `weight_distribution == 0` → weight `1` for every group (all groups weighted equally).
+    //   * `weight_distribution > 0` → smaller groups get a larger weight, so the algorithm cares
+    //     proportionally more about the bytes/requests it ships to small chunk groups.
+    // `.max(1)` avoids a zero base when a chunk group has only zero-sized modules.
+    let chunk_group_weight: Vec<f32> = chunk_groups
         .iter()
-        .map(|g| g.iter().map(|&id| module_sizes[id]).sum::<u64>().max(1))
+        .map(|g| {
+            let total = g.iter().map(|&id| module_sizes[id]).sum::<u64>().max(1) as f32;
+            total.powf(-weight_distribution)
+        })
         .collect();
 
     // Inverse index: for each module id, the sorted, deduplicated list of chunk-group indices
@@ -581,11 +727,10 @@ pub(super) fn split_into_chunks(
 
     let cx = CostContext {
         module_to_groups: &module_to_groups,
-        group_total_size: &group_total_size,
+        chunk_group_weight: &chunk_group_weight,
         module_sizes,
         module_style_types,
         request_cost,
-        module_factor_cost,
         max_chunk_size,
     };
 
@@ -641,12 +786,14 @@ pub(super) fn split_into_chunks(
     }
 
     // Materialize chunks by walking `order` and starting a new chunk on each true split point.
-    let mut result: Vec<Vec<usize>> = vec![vec![order[0]]];
+    // When a split closes the current chunk, record its metric as that chunk's cost-to-next.
+    let mut result: Vec<(Vec<usize>, Option<f32>)> = vec![(vec![order[0]], None)];
     for i in 1..n {
         if split_points[i - 1] {
-            result.push(vec![order[i]]);
+            result.last_mut().unwrap().1 = metrics[i - 1];
+            result.push((vec![order[i]], None));
         } else {
-            result.last_mut().unwrap().push(order[i]);
+            result.last_mut().unwrap().0.push(order[i]);
         }
     }
     result
@@ -668,17 +815,28 @@ fn affected_range(split_points: &[bool], index: usize) -> (usize, usize) {
 }
 
 /// Constant inputs to [`CostContext::chunk_cost`]. Bundled together so we don't have to pass
-/// seven arguments at every call site.
+/// six arguments at every call site.
 struct CostContext<'a> {
     /// Inverse of `chunk_groups`: per module id, the sorted list of group indices containing
     /// that module. Built once in [`split_into_chunks`] and reused for every `chunk_cost`
-    /// invocation.
+    /// invocation. Used both to collect the groups that load a chunk (the union over its
+    /// modules) and to test, via binary search, whether a given group originally contains a
+    /// module.
     module_to_groups: &'a [Vec<u32>],
-    group_total_size: &'a [u64],
+    /// Per chunk-group weight applied to that group's share of a chunk's cost, indexed by group
+    /// index. Precomputed in [`split_into_chunks`] as `group_total_size ^ (-weight_distribution)`
+    /// so [`CostContext::chunk_cost`] only looks it up. Larger for smaller groups (when
+    /// `weight_distribution > 0`), making the algorithm care more about what it ships to them.
+    chunk_group_weight: &'a [f32],
+    /// Byte size of each module's chunk item, indexed by module id.
     module_sizes: &'a [u64],
+    /// Style type of each module, indexed by module id. Used to enforce that `GlobalStyle`
+    /// modules never leak into a chunk group that doesn't already load them.
     module_style_types: &'a [StyleType],
+    /// Per-request overhead in bytes, charged once for every chunk group that loads the chunk.
     request_cost: f32,
-    module_factor_cost: f32,
+    /// Byte cap for multi-item chunks; a merge that would exceed it costs `+infinity`. `0`
+    /// disables the cap.
     max_chunk_size: u64,
 }
 
@@ -735,17 +893,15 @@ impl CostContext<'_> {
             }
         }
 
-        // Per-group cost: `chunk_size + (chunk_size / group_total) * module_factor_cost +
-        // request_cost`. Total is the sum across all loading groups.
+        // Per-group cost: `chunk_group_weight * (chunk_size + request_cost)`, summed across all
+        // loading groups. The per-group weight (larger for smaller groups) is what makes shipping
+        // a chunk's bytes and request to a small chunk group more expensive than to a large one,
+        // so overshipping to small groups is discouraged.
         let chunk_size_f = chunk_size as f32;
+        let base = chunk_size_f + self.request_cost;
         loading_groups
             .iter()
-            .map(|&gi| {
-                let group_total = self.group_total_size[gi as usize] as f32;
-                chunk_size_f
-                    + (chunk_size_f / group_total) * self.module_factor_cost
-                    + self.request_cost
-            })
+            .map(|&gi| self.chunk_group_weight[gi as usize] * base)
             .sum()
     }
 }

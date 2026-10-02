@@ -1,27 +1,39 @@
+import {
+  FileRef,
+  nextTestSetup,
+  isNextDev,
+  isNextDeploy,
+  type NextInstance,
+} from 'e2e-utils'
+import execa from 'execa'
 import { join } from 'path'
-import { execFileSync } from 'child_process'
-import { nextTestSetup, isNextDev } from 'e2e-utils'
 import { shouldUseTurbopack } from 'next-test-utils'
 
-const relayCompilerPath = join(
-  __dirname,
-  '../../../node_modules/relay-compiler/cli.js'
-)
-
-describe('Relay Compiler Transform - Multi Project Config', () => {
-  beforeAll(() => {
-    execFileSync(process.execPath, [relayCompilerPath], {
-      cwd: __dirname,
-      stdio: 'inherit',
+function relayCompilerValidate(next: NextInstance) {
+  ;(isNextDeploy ? it.skip : it)('has up-to-date graphql types', async () => {
+    await execa('pnpm', ['exec', 'relay-compiler', '--validate'], {
+      cwd: next.testDir,
+      stdout: 'inherit',
+      stderr: 'inherit',
     })
   })
+}
 
+describe('Relay Compiler Transform - Multi Project Config', () => {
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // Vercel deployment fails to build/deploy this fixture in CI; skip in deploy mode.
+  // @force-gate !deploy
   describe('project-a', () => {
     const { next } = nextTestSetup({
       files: __dirname,
+      overrideFiles: {
+        'vercel.json': new FileRef(join(__dirname, 'vercel-project-a.json')),
+      },
+      env: { ENABLE_EXPERIMENTAL_COREPACK: '1' },
       dependencies: {
-        'relay-runtime': '13.0.2',
-        '@types/relay-runtime': '14.1.13',
+        'relay-compiler': '21.0.1',
+        'relay-runtime': '21.0.1',
+        '@types/relay-runtime': '20.1.1',
         react: '19.3.0-canary-fef12a01-20260413',
         'react-dom': '19.3.0-canary-fef12a01-20260413',
       },
@@ -41,9 +53,9 @@ describe('Relay Compiler Transform - Multi Project Config', () => {
       startCommand: isNextDev
         ? 'pnpm run dev-project-a'
         : 'pnpm run start-project-a',
-      // Vercel deployment fails to build/deploy this fixture in CI; skip in deploy mode.
-      skipDeployment: true,
     })
+
+    relayCompilerValidate(next)
 
     it('should resolve index page correctly', async () => {
       const html = await next.render('/')
@@ -52,12 +64,20 @@ describe('Relay Compiler Transform - Multi Project Config', () => {
     })
   })
 
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // Vercel deployment fails to build/deploy this fixture in CI; skip in deploy mode.
+  // @force-gate !deploy
   describe('project-b', () => {
     const { next } = nextTestSetup({
       files: __dirname,
+      overrideFiles: {
+        'vercel.json': new FileRef(join(__dirname, 'vercel-project-b.json')),
+      },
+      env: { ENABLE_EXPERIMENTAL_COREPACK: '1' },
       dependencies: {
-        'relay-runtime': '13.0.2',
-        '@types/relay-runtime': '14.1.13',
+        'relay-compiler': '21.0.1',
+        'relay-runtime': '21.0.1',
+        '@types/relay-runtime': '20.1.1',
         react: '19.3.0-canary-fef12a01-20260413',
         'react-dom': '19.3.0-canary-fef12a01-20260413',
       },
@@ -72,9 +92,9 @@ describe('Relay Compiler Transform - Multi Project Config', () => {
       startCommand: isNextDev
         ? 'pnpm run dev-project-b'
         : 'pnpm run start-project-b',
-      // Vercel deployment fails to build/deploy this fixture in CI; skip in deploy mode.
-      skipDeployment: true,
     })
+
+    relayCompilerValidate(next)
 
     it('should resolve index page correctly', async () => {
       const html = await next.render('/')

@@ -16,6 +16,8 @@ import {
 } from '../server/lib/utils'
 import * as Log from '../build/output/log'
 import { getProjectDir } from '../lib/get-project-dir'
+import { warnMissingReactDependencies } from '../lib/warn-missing-react-dependencies'
+import { ensureProfilesDir } from '../lib/profiles-dir'
 import path from 'path'
 import { traceGlobals } from '../trace/shared'
 import { Telemetry } from '../telemetry/storage'
@@ -28,6 +30,7 @@ import uploadTrace from '../trace/upload-trace'
 import { initialEnv } from '@next/env'
 import { fork } from 'child_process'
 import type { ChildProcess } from 'child_process'
+import type { UpgradeContext } from '../lib/upgrade/nudge'
 import {
   getReservedPortExplanation,
   isPortIsReserved,
@@ -71,6 +74,10 @@ let distDir: string | undefined
 let isTurbopack: boolean
 let traceUploadUrl: string
 let sessionStopHandled = false
+let upgradeController: AbortController | null = null
+let upgradeOffered = false
+let upgradeInProgress = false
+let interruption: NodeJS.Signals | null = null
 let devSpanAttrs: { 'rage-restart': boolean; 'missing-next-dir': boolean } = {
   'rage-restart': false,
   'missing-next-dir': false,
@@ -101,11 +108,22 @@ const CHILD_EXIT_TIMEOUT_MS = parseInt(
   process.env.NEXT_EXIT_TIMEOUT_MS ?? '100',
   10
 )
+const shouldWaitForChildExit =
+  process.env.__NEXT_DEV_WAIT_FOR_TURBOPACK_SHUTDOWN === '1'
 
-const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
-  if (signal != null && child?.pid) child.kill(signal)
-  if (sessionStopHandled) return
+const handleSessionStop = async (
+  signal: NodeJS.Signals | number | null,
+  exit = true
+) => {
+  if (signal != null && child?.pid) {
+    child.kill(signal)
+  }
+  if (sessionStopHandled) {
+    return
+  }
   sessionStopHandled = true
+  const interruptedUpgrade = upgradeInProgress
+  upgradeController?.abort()
 
   // Capture the child's exit code if it has already exited and caused the
   // session stop (via the 'exit' event), otherwise assume success (0).
@@ -117,11 +135,14 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
     child.exitCode === null &&
     child.signalCode === null
   ) {
-    let exitTimeout = setTimeout(() => {
-      child?.kill('SIGKILL')
-    }, CHILD_EXIT_TIMEOUT_MS)
+    let exitTimeout: NodeJS.Timeout | undefined
+    if (!shouldWaitForChildExit) {
+      exitTimeout = setTimeout(() => {
+        child?.kill('SIGKILL')
+      }, CHILD_EXIT_TIMEOUT_MS)
+    }
     await once(child, 'exit').catch(() => {})
-    clearTimeout(exitTimeout)
+    if (exitTimeout) clearTimeout(exitTimeout)
   }
 
   sessionSpan.stop()
@@ -160,7 +181,7 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
       }),
       true
     )
-    telemetry.flushDetached('dev', dir)
+    telemetry.flushDetached({ mode: 'dev', dir, distDir: null, events: null })
   } catch (_) {
     // errors here aren't actionable so don't add
     // noise to the output
@@ -185,11 +206,29 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
   // the program, or the cursor could remain hidden
   process.stdout.write('\x1B[?25h')
   process.stdout.write('\n')
-  process.exit(exitCode)
+  if (exit) {
+    process.exit(
+      interruption && (interruption === 'SIGHUP' || interruptedUpgrade)
+        ? 128 + os.constants.signals[interruption]
+        : exitCode
+    )
+  }
 }
 
-process.on('SIGINT', () => handleSessionStop('SIGINT'))
-process.on('SIGTERM', () => handleSessionStop('SIGTERM'))
+const onInterrupt = () => {
+  interruption = 'SIGINT'
+  void handleSessionStop('SIGINT')
+}
+const onTerminate = () => {
+  interruption = 'SIGTERM'
+  void handleSessionStop('SIGTERM')
+}
+const onHangup = () => {
+  interruption = 'SIGHUP'
+  void handleSessionStop('SIGTERM')
+}
+process.on('SIGINT', onInterrupt)
+process.on('SIGTERM', onTerminate)
 
 // exit event must be synchronous
 process.on('exit', () => {
@@ -211,6 +250,79 @@ const nextDev = async (
   isTurbopack = parseBundlerArgs(options) === Bundler.Turbopack
 
   dir = getProjectDir(process.env.NEXT_PRIVATE_DEV_DIR || directory)
+  warnMissingReactDependencies(dir)
+
+  const { shouldPromptForUpgrade, runUpgrade, nudgeUpgrade } = await import(
+    '../lib/upgrade/nudge.js'
+  )
+  const humanUpgrade = await shouldPromptForUpgrade()
+  const allowedUpgradeRetries = new Set<string>()
+  async function offerUpgrade(
+    worker: ChildProcess,
+    context: UpgradeContext,
+    initialAssessment: Parameters<typeof nudgeUpgrade>[4]
+  ) {
+    process.on('SIGHUP', onHangup)
+    upgradeOffered = true
+    upgradeInProgress = true
+    const controller = new AbortController()
+    upgradeController = controller
+
+    // Correlate the parent's rendered menu with the upgrade launched after Update.
+    const telemetry = new Telemetry({
+      distDir: path.join(dir, context.distDir),
+      skipNotify: true,
+    })
+
+    let nudgeId: string | null = null
+    let action
+
+    try {
+      action = await nudgeUpgrade(
+        dir,
+        context,
+        'dev',
+        controller.signal,
+        initialAssessment,
+        {
+          telemetry,
+          onNudgeId(id) {
+            nudgeId = id
+          },
+        }
+      )
+    } catch (error) {
+      Log.warn(`Could not offer the upgrade: ${String(error)}`)
+    } finally {
+      upgradeController = null
+    }
+    if (controller.signal.aborted || sessionStopHandled) {
+      upgradeInProgress = false
+      process.off('SIGHUP', onHangup)
+      return
+    }
+    if (action === 'interrupt') {
+      onInterrupt()
+      return
+    }
+    if (action === 'update' && context.experimental.agentUpgrade) {
+      await handleSessionStop('SIGTERM', false)
+      if (interruption) {
+        process.exit(128 + os.constants.signals[interruption])
+      }
+      process.off('SIGINT', onInterrupt)
+      process.off('SIGTERM', onTerminate)
+      process.off('SIGHUP', onHangup)
+      process.exit(
+        await runUpgrade(dir, context.experimental.agentUpgrade, nudgeId)
+      )
+    }
+    upgradeInProgress = false
+    process.off('SIGHUP', onHangup)
+    if (worker.connected) {
+      worker.send({ nextUpgradeContinue: true })
+    }
+  }
 
   // Check if pages dir exists and warn if not
   if (!(await fileExists(dir, FileType.Directory))) {
@@ -400,6 +512,11 @@ const nextDev = async (
           __NEXT_DEV_SERVER: '1',
           NEXT_PRIVATE_START_TIME: process.env.NEXT_PRIVATE_START_TIME,
           NEXT_PRIVATE_WORKER: '1',
+          NEXT_PRIVATE_UPGRADE_PROMPT:
+            humanUpgrade && !upgradeOffered ? '1' : undefined,
+          NEXT_PRIVATE_ALLOWED_UPGRADE_RETRIES: Array.from(
+            allowedUpgradeRetries
+          ).join(','),
           NEXT_PRIVATE_TRACE_ID: traceId,
           NEXT_PRIVATE_ENABLED_FEATURES: JSON.stringify(enabledFeatures),
           NEXT_PRIVATE_DEV_SPAN_ATTRS: JSON.stringify(devSpanAttrs),
@@ -416,7 +533,7 @@ const nextDev = async (
           ...(options.experimentalCpuProf
             ? {
                 NEXT_CPU_PROF: '1',
-                NEXT_CPU_PROF_DIR: path.join(dir, '.next-profiles'),
+                NEXT_CPU_PROF_DIR: ensureProfilesDir(dir),
                 __NEXT_PRIVATE_CPU_PROFILE: 'dev-server',
               }
             : undefined),
@@ -428,7 +545,26 @@ const nextDev = async (
 
       child.on('message', (msg: any) => {
         if (msg && typeof msg === 'object') {
-          if (msg.nextWorkerReady) {
+          if (
+            typeof msg.nextUpgradeRetryAllowed === 'string' &&
+            /^[a-f0-9]{64}$/.test(msg.nextUpgradeRetryAllowed)
+          ) {
+            allowedUpgradeRetries.add(msg.nextUpgradeRetryAllowed)
+          } else if (msg.nextUpgradeContext) {
+            const context = msg.nextUpgradeContext as UpgradeContext
+            distDir = context.distDir
+            const initialAssessment =
+              msg.nextUpgradeAssessment !== undefined
+                ? Promise.resolve(msg.nextUpgradeAssessment)
+                : null
+            void offerUpgrade(child!, context, initialAssessment).catch(
+              async (error) => {
+                console.error(error)
+                await handleSessionStop('SIGTERM', false)
+                process.exit(1)
+              }
+            )
+          } else if (msg.nextWorkerReady) {
             child?.send({ nextWorkerOptions: startServerOptions })
           } else if (msg.nextServerReady && !resolved) {
             if (msg.port) {
@@ -448,7 +584,15 @@ const nextDev = async (
       })
 
       child.on('exit', async (code, signal) => {
-        if (sessionStopHandled || signal) {
+        upgradeController?.abort()
+        if (sessionStopHandled) {
+          return
+        }
+        if (signal) {
+          if (upgradeInProgress) {
+            interruption ??= signal
+            await handleSessionStop(null)
+          }
           return
         }
         if (code === RESTART_EXIT_CODE) {

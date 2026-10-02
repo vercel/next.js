@@ -3,20 +3,19 @@ import http from 'http'
 import path from 'path'
 import fs from 'fs'
 
+// This suite controls the local build lifecycle directly, which deployment tests cannot reproduce.
+// @force-gate !deploy
 describe('upload-trace', () => {
   if (!isNextStart) {
     it('skipped for non-start mode', () => {})
     return
   }
 
-  const { next, isTurbopack, skipped } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
     buildCommand: 'pnpm next build --experimental-cpu-prof --internal-trace',
   })
-
-  if (skipped) return
 
   it('should upload profiles and trace to the mock endpoint after build', async () => {
     const buildResult = await next.build()
@@ -32,11 +31,11 @@ describe('upload-trace', () => {
     expect(cpuProfiles.length).toBeGreaterThan(0)
 
     if (isTurbopack) {
-      expect(allFiles).toContain('trace-turbopack')
+      expect(allFiles).toContain('trace-turbopack.bin')
     }
 
     const uploadableFiles = allFiles.filter(
-      (f: string) => f.endsWith('.cpuprofile') || f === 'trace-turbopack'
+      (f: string) => f.endsWith('.cpuprofile') || f === 'trace-turbopack.bin'
     )
     const expectedUploadCount = uploadableFiles.length
 

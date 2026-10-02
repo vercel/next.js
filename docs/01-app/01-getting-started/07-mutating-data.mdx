@@ -2,15 +2,16 @@
 title: Mutating Data
 description: Learn how to mutate data using Server Functions and Server Actions in Next.js.
 related:
-  title: API Reference
-  description: Learn more about the features mentioned in this page by reading the API Reference.
+  title: Next steps
+  description: Learn more about Server Actions and the APIs mentioned in this page.
   links:
+    - app/guides/server-actions
     - app/api-reference/functions/revalidatePath
     - app/api-reference/functions/revalidateTag
     - app/api-reference/functions/redirect
 ---
 
-You can mutate data in Next.js using [React Server Functions](https://react.dev/reference/rsc/server-functions). This page will go through how you can [create](#creating-server-functions) and [invoke](#invoking-server-functions) Server Functions.
+You can mutate data in Next.js using [React Server Functions](https://react.dev/reference/rsc/server-functions). This page will go through how you can [create](#creating-server-functions) and [invoke](#invoking-server-functions) Server Functions. For Next.js-specific behaviors (single-roundtrip response, sequential dispatch, security, deployment), see [Server Actions and Mutations](/docs/app/guides/server-actions).
 
 ## What are Server Functions?
 
@@ -373,6 +374,10 @@ export function Button() {
 }
 ```
 
+See the [Building interactive apps](/docs/app/guides/interactive-apps) guide for a deeper walkthrough of responsive interactions, including pending feedback, optimistic UI, transitions, and error handling.
+
+> **Good to know**: With the **experimental** [`useOffline`](/docs/app/guides/offline-support) config enabled, a Server Action interrupted by a connectivity drop stays pending and completes when the network returns.
+
 ### Refresh data
 
 After a mutation, you may want to refresh the current page to show the latest data. You can do this by calling [`refresh`](/docs/app/api-reference/functions/refresh) from `next/cache` in a Server Action:
@@ -436,7 +441,7 @@ export async function createPost(formData: FormData) {
 }
 ```
 
-```js filename="app/actions.js" switcher
+```js filename="app/lib/actions.js" switcher
 import { auth } from '@/lib/auth'
 import { revalidatePath } from 'next/cache'
 
@@ -476,7 +481,7 @@ export async function createPost(formData: FormData) {
 }
 ```
 
-```js filename="app/actions.js" switcher
+```js filename="app/lib/actions.js" switcher
 'use server'
 
 import { auth } from '@/lib/auth'

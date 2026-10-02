@@ -34,31 +34,26 @@ DEALINGS IN THE SOFTWARE.
 
 use std::sync::Arc;
 
-use napi::bindgen_prelude::*;
-use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
-    atoms::Atom,
-    base::{Compiler, TransformOutput},
+    base::Compiler,
     common::{FilePathMapping, SourceMap},
 };
 
 pub mod code_frame;
-#[cfg(not(target_arch = "wasm32"))]
 pub mod css;
 pub mod lockfile;
 pub mod mdx;
 pub mod minify;
-#[cfg(not(target_arch = "wasm32"))]
 pub mod next_api;
 pub mod parse;
 pub mod react_compiler;
 pub mod rspack;
 pub mod transform;
-#[cfg(not(target_arch = "wasm32"))]
 pub mod turbo_trace_server;
-#[cfg(not(target_arch = "wasm32"))]
 pub mod turbopack;
 pub mod util;
+
+pub use transform::TransformOutputResult;
 
 #[cfg(not(any(feature = "__internal_dhat-heap", feature = "__internal_dhat-ad-hoc")))]
 #[global_allocator]
@@ -69,7 +64,7 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 static ALLOC: dhat::Alloc = dhat::Alloc;
 
 #[cfg(not(target_arch = "wasm32"))]
-#[napi::module_init]
+#[napi_derive::module_init]
 fn init() {
     use std::{
         cell::RefCell,
@@ -81,6 +76,7 @@ fn init() {
         static LAST_SWC_ATOM_GC_TIME: RefCell<Option<Instant>> = const { RefCell::new(None) };
     }
 
+    use napi::bindgen_prelude::create_custom_tokio_runtime;
     use tokio::runtime::Builder;
     use turbo_tasks::{panic_hooks::handle_panic, parallel::available_parallelism};
     use turbo_tasks_malloc::TurboMalloc;
@@ -115,6 +111,18 @@ fn init() {
         .build()
         .unwrap();
     create_custom_tokio_runtime(rt);
+
+    // napi v2 permanently entered its tokio runtime context on the addon's main thread. Both
+    // these bindings and turbo-tasks (e.g. `PriorityRunner`) schedule tokio work from
+    // synchronous N-API calls and rely on that ambient context. napi v3 no longer provides it,
+    // so restore it: capture the runtime handle (this also forces napi to adopt the custom
+    // runtime registered above) and enter it for the lifetime of this thread.
+    //
+    // TODO: Leaking the guard keeps the runtime alive for the whole process, so tokio never shuts
+    // down. Fix the callers that rely on an ambient runtime handle so that this can be dropped.
+    let handle =
+        napi::bindgen_prelude::within_runtime_if_available(tokio::runtime::Handle::current);
+    std::mem::forget(Box::leak(Box::new(handle)).enter());
 }
 
 #[inline]
@@ -122,36 +130,4 @@ fn get_compiler() -> Compiler {
     let cm = Arc::new(SourceMap::new(FilePathMapping::empty()));
 
     Compiler::new(cm)
-}
-
-pub fn complete_output(
-    env: &Env,
-    output: TransformOutput,
-    eliminated_packages: FxHashSet<Atom>,
-    use_cache_telemetry_tracker: FxHashMap<String, usize>,
-) -> napi::Result<Object> {
-    let mut js_output = env.create_object()?;
-    js_output.set_named_property("code", env.create_string_from_std(output.code)?)?;
-    if let Some(map) = output.map {
-        js_output.set_named_property("map", env.create_string_from_std(map)?)?;
-    }
-    if !eliminated_packages.is_empty() {
-        js_output.set_named_property(
-            "eliminatedPackages",
-            env.create_string_from_std(serde_json::to_string(&eliminated_packages)?)?,
-        )?;
-    }
-    if !use_cache_telemetry_tracker.is_empty() {
-        js_output.set_named_property(
-            "useCacheTelemetryTracker",
-            env.create_string_from_std(serde_json::to_string(
-                &use_cache_telemetry_tracker
-                    .iter()
-                    .map(|(k, v)| (k.clone(), *v))
-                    .collect::<Vec<_>>(),
-            )?)?,
-        )?;
-    }
-
-    Ok(js_output)
 }

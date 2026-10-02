@@ -37,6 +37,13 @@ const config: StorybookConfig = {
       },
     },
   }),
+  // The cold-cache badge is gated behind an experimental flag that is off by
+  // default in real apps, but its stories are where we iterate on the badge's
+  // UI, so force the flag on in Storybook.
+  env: (config) => ({
+    ...config,
+    __NEXT_EXPERIMENTAL_COLD_CACHE_BADGE: 'true',
+  }),
   webpackFinal: async (webpackConfig) => {
     // Find and override CSS rule to use the devtool style injection
     const cssRule = webpackConfig.module?.rules?.find((rule) => {

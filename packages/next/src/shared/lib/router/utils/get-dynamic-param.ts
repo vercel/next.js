@@ -28,8 +28,8 @@ function getParamValue(
   if (fallbackRouteParams?.has(segmentKey)) {
     // We know that the fallback route params has the segment key because we
     // checked that above.
-    const [searchValue] = fallbackRouteParams.get(segmentKey)!
-    value = searchValue
+    const placeholder = fallbackRouteParams.get(segmentKey)!
+    value = placeholder
   } else if (Array.isArray(value)) {
     value = value.map((i) => encodeURIComponent(i))
   } else if (typeof value === 'string') {

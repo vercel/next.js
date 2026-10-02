@@ -575,6 +575,8 @@ impl Issue for StaticMetadataFileSizeIssue {
     }
 
     fn documentation_link(&self) -> RcStr {
-        rcstr!("https://nextjs.org/docs/app/api-reference/file-conventions/metadata/opengraph-image#image-files-jpg-png-gif")
+        rcstr!(
+            "https://nextjs.org/docs/app/api-reference/file-conventions/metadata/opengraph-image#image-files-jpg-png-gif"
+        )
     }
 }

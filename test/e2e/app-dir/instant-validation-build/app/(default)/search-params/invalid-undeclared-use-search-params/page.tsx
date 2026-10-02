@@ -1,7 +1,7 @@
 import type { Instant } from 'next'
 import { SearchParamsReader } from './search-params-reader'
 
-export const unstable_instant: Instant = {
+export const instant: Instant = {
   level: 'experimental-error',
   unstable_samples: [
     {
@@ -11,7 +11,7 @@ export const unstable_instant: Instant = {
     },
   ],
 }
-export const unstable_prefetch = 'force-runtime'
+export const prefetch = 'partial'
 
 export default function Page() {
   return (

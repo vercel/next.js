@@ -52,10 +52,10 @@ export default function ExampleClientComponent() {
 ## Parameters
 
 ```tsx
-const segments = useSelectedLayoutSegments(parallelRoutesKey?: string)
+const segments = useSelectedLayoutSegments(parallelRouteKey?: string)
 ```
 
-`useSelectedLayoutSegments` _optionally_ accepts a [`parallelRoutesKey`](/docs/app/api-reference/file-conventions/parallel-routes#with-useselectedlayoutsegments), which allows you to read the active route segment within that slot.
+`useSelectedLayoutSegments` _optionally_ accepts a [`parallelRouteKey`](/docs/app/api-reference/file-conventions/parallel-routes#with-useselectedlayoutsegments), which allows you to read the active route segment within that slot.
 
 ## Returns
 
@@ -88,6 +88,8 @@ When [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComp
 - **Routes with dynamic params not covered by `generateStaticParams`**: the param is a [fallback param](/docs/app/api-reference/functions/generate-static-params#all-paths-at-build-time) that is not known until request time. The active segments cannot be resolved during prerendering, so `useSelectedLayoutSegments` suspends. Wrap the component (or a parent) in a `Suspense` boundary so its fallback can be rendered during prerendering; otherwise, the build fails.
 
 This applies even when the component that calls `useSelectedLayoutSegments` is itself static. For example, a breadcrumb component rendered in a parent layout suspends on any page below it that has an unknown dynamic param. To keep the rest of the layout prerendered, wrap the component that calls `useSelectedLayoutSegments` (or a parent) in a `Suspense` boundary with a fallback.
+
+See [Next.js encountered URL data in a Client Component outside of Suspense](/docs/messages/blocking-prerender-client-hook) for full fix options and trade-offs.
 
 ## Version History
 

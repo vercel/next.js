@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers'
 
-export const unstable_instant = false
+export const instant = false
 
 export default async function BlockingPage() {
   await cookies()

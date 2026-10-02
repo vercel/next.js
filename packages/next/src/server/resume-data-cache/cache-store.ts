@@ -3,7 +3,7 @@ import {
   stringToUint8Array,
 } from '../app-render/encryption-utils'
 import type { CachedFetchValue } from '../response-cache/types'
-import { DYNAMIC_EXPIRE } from '../use-cache/constants'
+import { MIN_PRERENDERABLE_EXPIRE } from '../use-cache/constants'
 import type { CollectedCacheResult } from '../use-cache/use-cache-wrapper'
 
 /**
@@ -31,6 +31,16 @@ export type EncryptedBoundArgsCacheStore = CacheStore<string>
 export type DecryptedBoundArgsCacheStore = CacheStore<string>
 
 /**
+ * An in-memory-only cache store for rendered `ImageResponse` array buffers,
+ * keyed by a serialization of the `ImageResponse` constructor args. This lets
+ * the prospective prerender render the image once and hand the array buffer to
+ * the final prerender within microtasks, so that metadata image routes can be
+ * statically prerendered under Cache Components. Never serialized into the
+ * resume store.
+ */
+export type ImageResponseCacheStore = CacheStore<Promise<ArrayBuffer>>
+
+/**
  * Serialized format for "use cache" entries
  */
 export interface UseCacheCacheStoreSerialized {
@@ -47,11 +57,27 @@ export interface UseCacheCacheStoreSerialized {
   readRootParamNames: string[] | undefined
 }
 
+// These markers carry holes from the prospective prerender to the final pass.
+// They are never serialized: a request resuming the shell must be able to fill
+// them. Symbol.for keeps their identity across separately bundled runtime code.
+export const FALLBACK_PARAMS = Symbol.for(
+  'next.resume-data-cache.fallback-params'
+)
+export const RUNTIME_DATA = Symbol.for('next.resume-data-cache.runtime-data')
+// Unlike params/searchParams, short-lived data also prevents a static shell.
+export const SESSION_DATA = Symbol.for('next.resume-data-cache.session-data')
+
+type UseCacheCacheStoreValue =
+  | Promise<CollectedCacheResult>
+  | typeof FALLBACK_PARAMS
+  | typeof RUNTIME_DATA
+  | typeof SESSION_DATA
+
 /**
- * A cache store specifically for "use cache" values that stores promises of
- * collected cache results (entry + metadata).
+ * A cache store for "use cache" results, or markers explaining why an entry
+ * could not be included in this prerender.
  */
-export type UseCacheCacheStore = CacheStore<Promise<CollectedCacheResult>>
+export type UseCacheCacheStore = CacheStore<UseCacheCacheStoreValue>
 
 /**
  * Parses serialized cache entries into a UseCacheCacheStore
@@ -110,11 +136,19 @@ export function parseUseCacheCacheStore(
  * @returns A promise that resolves to an array of key-value pairs with serialized values
  */
 export async function serializeUseCacheCacheStore(
-  entries: IterableIterator<[string, Promise<CollectedCacheResult>]>,
+  entries: IterableIterator<[string, UseCacheCacheStoreValue]>,
   isCacheComponentsEnabled: boolean
 ): Promise<Array<[string, UseCacheCacheStoreSerialized] | null>> {
   return Promise.all(
     Array.from(entries).map(([key, value]) => {
+      if (
+        value === FALLBACK_PARAMS ||
+        value === RUNTIME_DATA ||
+        value === SESSION_DATA
+      ) {
+        return null
+      }
+
       return value
         .then(
           async ({
@@ -125,7 +159,8 @@ export async function serializeUseCacheCacheStore(
           }) => {
             if (
               isCacheComponentsEnabled &&
-              (entry.revalidate === 0 || entry.expire < DYNAMIC_EXPIRE)
+              (entry.revalidate === 0 ||
+                entry.expire < MIN_PRERENDERABLE_EXPIRE)
             ) {
               // The entry was omitted from the prerender result, and subsequently
               // does not need to be included in the serialized RDC.

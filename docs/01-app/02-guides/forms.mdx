@@ -4,7 +4,7 @@ nav_title: Forms
 description: Learn how to create forms in Next.js with React Server Actions.
 ---
 
-React Server Actions are [Server Functions](https://react.dev/reference/rsc/server-functions) that execute on the server. They can be called in Server and Client Components to handle form submissions. This guide will walk you through how to create forms in Next.js with Server Actions.
+React Server Actions are [Server Functions](https://react.dev/reference/rsc/server-functions) that execute on the server. They can be called in Server and Client Components to handle form submissions. This guide will walk you through how to create forms in Next.js with Server Actions. For Server Action behaviors beyond forms (single-roundtrip response, sequential dispatch, security, deployment), see [Server Actions and Mutations](/docs/app/guides/server-actions).
 
 > [!WARNING]
 > Always verify [authentication and authorization](/docs/app/guides/authentication) inside each Server Action, even if the form is only rendered on an authenticated page. See the [Data Security guide](/docs/app/guides/data-security) for more details.
@@ -131,7 +131,7 @@ export async function updateUser(userId, formData) {}
 Forms can be validated on the client or server.
 
 - For **client-side validation**, you can use the HTML attributes like `required` and `type="email"` for basic validation.
-- For **server-side validation**, you can use a library like [zod](https://zod.dev/) to validate the form fields. For example:
+- For **server-side validation**, you can use a schema validation library like [Zod](https://zod.dev/) or [Valibot](https://valibot.dev/) to validate the form fields. For example:
 
 ```tsx filename="app/actions.ts" switcher
 'use server'
@@ -378,6 +378,8 @@ export function Signup() {
 ```
 
 > **Good to know:** In React 19, `useFormStatus` includes additional keys on the returned object, like data, method, and action. If you are not using React 19, only the `pending` key is available.
+
+> **Good to know**: With the **experimental** [`useOffline`](/docs/app/guides/offline-support) config enabled, a Server Action interrupted by a connectivity drop stays pending and completes when the network returns, so a user does not lose their submission.
 
 ## Optimistic updates
 

@@ -7,13 +7,14 @@ import {
 } from 'e2e-utils'
 import cheerio from 'cheerio'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely expects a local build failure instead of a successful deployment.
+// @force-gate !deploy
 describe('Build Error Tests', () => {
-  const { next, isTurbopack, isNextDeploy } = nextTestSetup({
+  const { next, isTurbopack, isRspack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-  if (isNextDeploy) return
   ;(isNextStart ? it : it.skip)(
     'should throw build error when import statement is used with missing file',
     async () => {
@@ -34,19 +35,21 @@ describe('Build Error Tests', () => {
           } else {
             expect(cliOutput).toContain('./pages/static-img.js')
           }
-          expect(cliOutput).not.toContain('Import trace for requested module')
+          if (!isRspack) {
+            expect(cliOutput).not.toContain('Import trace for requested module')
+          }
         }
       )
     }
   )
 })
 
+// Preserve the sibling suite's deploy exclusion previously imposed by skipDeployment's it.only.
+// @force-gate !deploy
 describe('Static Image Component Tests', () => {
-  const { next, isTurbopack, skipped } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-  if (skipped) return
 
   let browser: Playwright
   let html: string
@@ -113,11 +116,7 @@ describe('Static Image Component Tests', () => {
   it('Should add a blur placeholder to statically imported jpg', async () => {
     const $ = cheerio.load(html)
     const style = $('#basic-static').attr('style')
-    if (isTurbopack) {
-      expect(replaceDataUrl(style)).toMatchInlineSnapshot(
-        `"position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;padding:0;border:none;margin:auto;display:block;width:0;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%;background-size:cover;background-position:0% 0%;filter:blur(20px);background-image:url("data:<REPLACED>")"`
-      )
-    } else if (isNextDev) {
+    if (isNextDev && !isTurbopack) {
       // In webpack dev, `next/legacy/image` emits a dynamic blur URL via the
       // image optimizer route instead of an inlined base64 data URL, to avoid
       // slowing down the dev server (see

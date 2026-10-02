@@ -3,6 +3,22 @@ import { join } from 'path'
 import { readFile } from 'fs/promises'
 import { listClientChunks } from 'next-test-utils'
 
+// Normalize a sourcemap `sources` entry to a path relative to the Next.js
+// package root (e.g. `src/...`, `dist/...`), so the path filters below behave
+// consistently across bundlers and produce stable snapshots. Webpack emits
+// `webpack://_N_E/../../src/...`; Turbopack emits
+// `turbopack:///[project]/<...>/packages/next/src/...`.
+function normalizeSource(source: string): string {
+  return source
+    .replace(/\?.*$/, '')
+    .replace(/^webpack:\/\/_N_E\//, '')
+    .replace(/^turbopack:\/\/\//, '')
+    .replace(/^\[project\]\//, '')
+    .replace(/^(?:\.\.\/)+/, '')
+    .replace(/^.*?packages\/next\//, '')
+    .replace(/^.*?\/node_modules\/next\//, '')
+}
+
 describe('browser-chunks', () => {
   const { next } = nextTestSetup({
     files: __dirname,
@@ -30,67 +46,60 @@ describe('browser-chunks', () => {
   })
 
   it('must not bundle any server modules into browser chunks', () => {
-    const serverSources = sources.filter(
-      (source) =>
-        /webpack:\/\/_N_E\/(\.\.\/)*src\/server\//.test(source) ||
-        source.includes('next/dist/esm/server') ||
-        source.includes('next/dist/server') ||
-        source.includes('next-devtools/server')
-    )
-
-    if (serverSources.length > 0) {
-      console.error(
-        `Found the following server modules:\n  ${serverSources.join('\n  ')}\nIf any of these modules are allowed to be included in browser chunks, move them to src/shared or src/client.`
+    const serverSources = Array.from(
+      new Set(
+        sources
+          // normalizing in case we regress and want to keep track of the regression
+          .map(normalizeSource)
+          .filter(
+            (source) =>
+              source.startsWith('src/server/') ||
+              source.startsWith('dist/esm/server/') ||
+              source.startsWith('dist/server/') ||
+              source.includes('next-devtools/server')
+          )
       )
+    ).sort()
 
-      throw new Error('Did not expect any server modules in browser chunks.')
-    }
+    expect(serverSources).toEqual([])
   })
 
   it('must not bundle any dev overlay into browser chunks', () => {
-    const devOverlaySources = sources.filter((source) => {
-      return source.includes('next-devtools')
-    })
-
-    if (devOverlaySources.length > 0) {
-      const message = `Found the following dev overlay modules:\n  ${devOverlaySources.join('\n')}`
-      console.error(
-        `${message}\nIf any of these modules are allowed to be included in production chunks, check the import and render conditions.`
+    const devOverlaySources = Array.from(
+      new Set(
+        sources
+          .map(normalizeSource)
+          .filter((source) => source.includes('next-devtools'))
       )
+    ).sort()
 
-      throw new Error(
-        'Did not expect any dev overlay modules in browser chunks.\n' + message
-      )
-    }
+    expect(devOverlaySources).toMatchInlineSnapshot(`[]`)
   })
 
   it('must not bundle the HMR refresh reducer into browser chunks', () => {
-    const hmrReducerSources = sources.filter((source) => {
-      return source.includes('hmr-refresh-reducer')
-    })
-
-    if (hmrReducerSources.length > 0) {
-      const message = `Found the following HMR reducer modules:\n  ${hmrReducerSources.join('\n  ')}`
-
-      throw new Error(
-        'Did not expect the HMR refresh reducer in production browser chunks.\n' +
-          message
+    const hmrReducerSources = Array.from(
+      new Set(
+        sources
+          .map(normalizeSource)
+          .filter((source) => source.includes('hmr-refresh-reducer'))
       )
-    }
+    ).sort()
+
+    expect(hmrReducerSources).toMatchInlineSnapshot(`[]`)
   })
 
   it('must not include heavy dependencies into browser chunks', () => {
-    const heavyDependencies = sources.filter((source) => {
-      return source.includes('next/dist/compiled/safe-stable-stringify')
-    })
-
-    if (heavyDependencies.length > 0) {
-      const message = `Found the following heavy dependencies:\n  ${heavyDependencies.join('\n  ')}`
-
-      throw new Error(
-        'Did not expect any heavy dependencies in browser chunks.\n' + message
+    const heavyDependencies = Array.from(
+      new Set(
+        sources
+          .map(normalizeSource)
+          .filter((source) =>
+            source.includes('dist/compiled/safe-stable-stringify')
+          )
       )
-    }
+    ).sort()
+
+    expect(heavyDependencies).toMatchInlineSnapshot(`[]`)
   })
 
   it('must not pull server internals from next/cache into browser chunks', () => {
