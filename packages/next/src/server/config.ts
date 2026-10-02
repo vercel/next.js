@@ -645,6 +645,8 @@ function assignDefaultsAndValidate(
     )
   }
 
+  // TODO: Before Next.js 17, also warn when `partialPrefetching` is `false`
+  // so apps can migrate before both features are enabled together by default.
   if (
     result.cacheComponents &&
     result.partialPrefetching === undefined &&
