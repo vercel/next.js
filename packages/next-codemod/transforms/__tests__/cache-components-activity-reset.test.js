@@ -170,7 +170,7 @@ export default withPage(Page)
 
   it('uses createElement in TypeScript files without JSX support', () => {
     const source = `export default function Page() {
-  return null
+  return 'Hello'
 }
 `
 
@@ -179,7 +179,7 @@ export default withPage(Page)
       'import { createElement as createElementActivityReset } from "react";'
     )
     expect(output).toContain(
-      'return createElementActivityReset(CacheComponentsActivityReset, null, null);'
+      "return createElementActivityReset(CacheComponentsActivityReset, null, 'Hello');"
     )
   })
 
