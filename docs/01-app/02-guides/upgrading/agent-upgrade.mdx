@@ -29,7 +29,7 @@ From a workspace root, pass the app directory:
 npx next@canary upgrade apps/web --agent=latest
 ```
 
-Using `next@canary` runs the latest upgrade tooling, even when the app uses an older Next.js version. If the project's package manager sets a minimum release age, the CLI uses the newest canary that policy allows. The CLI reads the version installed in the app and selects a canary target only when the app already uses a canary version.
+Using `next@canary` runs the latest upgrade tooling, even when the app uses an older Next.js version. The CLI reads the version installed in the app and selects a canary target only when the app already uses a canary version. If the project's package manager sets a minimum release age, the CLI uses the newest canary that policy allows.
 
 ## Choose a policy
 
@@ -130,7 +130,7 @@ export default nextConfig
 
 Set the option to `false` to disable reminders.
 
-The option does not upgrade the app automatically. In an interactive terminal, `next dev` or `next build` continues while the reminder is open and buffers its output. **Skip** returns to the running command and replays that output. **Upgrade now** stops the command before starting the upgrade. You can also dismiss the reminder for the installed version.
+The option does not upgrade the app automatically. In an interactive terminal, `next dev` or `next build` continues while the reminder is open and buffers its output. **Upgrade now** stops the command before starting the upgrade. **Skip** returns to the running command and replays that output. **Skip until next version** dismisses the reminder for the installed version. See [Reminder behavior](/docs/app/api-reference/config/next-config-js/agentUpgrade#reminder-behavior) for details.
 
 When a coding agent encounters a reminder, it reports the available upgrade and can continue the original task after retrying the command.
 
