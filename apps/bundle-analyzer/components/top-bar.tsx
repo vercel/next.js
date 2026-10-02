@@ -1,6 +1,6 @@
 'use client'
 
-import { BaselinePicker } from '@/components/baseline-picker'
+import { BuildPicker } from '@/components/build-picker'
 import { FileSearch } from '@/components/file-search'
 import { RouteTypeahead } from '@/components/route-typeahead'
 import {
@@ -55,10 +55,6 @@ const typeFilterOptions = [
   },
 ]
 
-export function ControlDivider() {
-  return <span className="h-6 w-px bg-muted-foreground/30" />
-}
-
 export function TopBar({
   selectedRoute,
   routePickerOpen,
@@ -73,12 +69,17 @@ export function TopBar({
   setTypeFilter,
   searchQuery,
   setSearchQuery,
-  baselineSnapshot,
-  getBaselineHref,
-  onBaselineChange,
-  stopComparisonHref,
-  comparisonSnapshot,
+  isCompareMode,
+  historySnapshots,
+  historyLoading,
+  historyError,
+  latestSnapshot,
+  singleBuildId,
+  fromId,
+  toId,
+  onSingleBuildChange,
   onComparisonChange,
+  routesBaseDir,
   compareView,
   onCompareViewChange,
   routeDiff,
@@ -103,12 +104,17 @@ export function TopBar({
   setTypeFilter: (types: string[]) => void
   searchQuery: string
   setSearchQuery: (query: string) => void
-  baselineSnapshot: SnapshotMetadata | null
-  getBaselineHref?: (snapshot: SnapshotMetadata) => string
-  onBaselineChange: (snapshot: SnapshotMetadata) => void
-  stopComparisonHref: string
-  comparisonSnapshot: SnapshotMetadata | null
-  onComparisonChange: (snapshot: SnapshotMetadata | null) => void
+  isCompareMode: boolean
+  historySnapshots: SnapshotMetadata[]
+  historyLoading: boolean
+  historyError: boolean
+  latestSnapshot: SnapshotMetadata
+  singleBuildId: string | null
+  fromId: string | null
+  toId: string | null
+  onSingleBuildChange: (id: string | null) => void
+  onComparisonChange: (from: string | null, to: string | null) => void
+  routesBaseDir: string
   compareView: CompareView
   onCompareViewChange: (view: CompareView) => void
   routeDiff: ReturnType<typeof diffRoutesWithSizes> | null
@@ -116,7 +122,6 @@ export function TopBar({
   initialLoaded?: boolean
   onInitialLoadedChange?: (value: boolean) => void
 }) {
-  const isCompareMode = baselineSnapshot != null
   const routeSelection = getRouteHref
     ? ({ mode: 'link', getRouteHref } as const)
     : ({
@@ -127,23 +132,23 @@ export function TopBar({
           setFocusedSourceIndex(null)
         },
       } as const)
-  const baselineSelection = getBaselineHref
-    ? ({
-        mode: 'link',
-        getSnapshotHref: getBaselineHref,
-        clearHref: stopComparisonHref,
-      } as const)
-    : ({
-        mode: 'action',
-        onSelectionChange: (snapshot: SnapshotMetadata | null) => {
-          if (snapshot) onBaselineChange(snapshot)
-        },
-        clearHref: stopComparisonHref,
-      } as const)
   return (
     <div className="flex-none border-b border-border">
-      <div className="flex flex-wrap items-center gap-2 px-4 py-2 sm:flex-nowrap sm:gap-3">
-        <div className="flex min-w-0 flex-1 basis-full sm:basis-auto">
+      <div className="flex min-w-0 items-center gap-2 overflow-x-auto px-4 py-2">
+        <div className="flex min-w-48 flex-1">
+          <BuildPicker
+            compareMode={isCompareMode}
+            historySnapshots={historySnapshots}
+            historyLoading={historyLoading}
+            historyError={historyError}
+            latestSnapshot={latestSnapshot}
+            singleBuildId={singleBuildId}
+            fromId={fromId}
+            toId={toId}
+            onSingleBuildChange={onSingleBuildChange}
+            onComparisonChange={onComparisonChange}
+          />
+
           <RouteTypeahead
             selectedRoute={selectedRoute}
             open={routePickerOpen}
@@ -151,117 +156,100 @@ export function TopBar({
             {...routeSelection}
             routeDiff={isCompareMode ? routeDiff : null}
             routeTotals={routeTotals}
+            routesBaseDir={routesBaseDir}
             useCompressed
           />
         </div>
 
-        <div className="ml-auto flex min-w-0 items-center gap-2">
-          <BaselinePicker
-            selectedSnapshotId={baselineSnapshot?.id ?? null}
-            {...baselineSelection}
-            excludedSnapshotId={comparisonSnapshot?.id}
-            prefix="from"
-            placeholder="Compare from…"
-          />
-          {isCompareMode ? (
-            <BaselinePicker
-              mode="action"
-              selectedSnapshotId={comparisonSnapshot?.id ?? null}
-              onSelectionChange={onComparisonChange}
-              excludedSnapshotId={baselineSnapshot?.id}
-              prefix="to"
-              placeholder="to Latest"
-              clearLabel="Compare with latest"
+        {hasSourceData && (
+          <div className="flex shrink-0 items-center gap-2">
+            {showViewToggle && (
+              <ToggleGroup
+                type="single"
+                size="sm"
+                value={compareView}
+                onValueChange={(value) => {
+                  if (value) onCompareViewChange(value as CompareView)
+                }}
+                aria-label="View"
+                className="shrink-0"
+              >
+                <ToggleGroupItem
+                  value={CompareView.Table}
+                  aria-label="Table view"
+                  title="Table view"
+                  className="gap-1.5"
+                >
+                  <TableIcon className="h-3.5 w-3.5" />
+                  <span className="text-xs">Table</span>
+                </ToggleGroupItem>
+                <ToggleGroupItem
+                  value={CompareView.Treemap}
+                  aria-label="Treemap view"
+                  title="Treemap view"
+                  className="gap-1.5"
+                >
+                  <LayoutGrid className="h-3.5 w-3.5" />
+                  <span className="text-xs">Treemap</span>
+                </ToggleGroupItem>
+              </ToggleGroup>
+            )}
+
+            <Select
+              value={environmentFilter}
+              onValueChange={(value: Environment) =>
+                setEnvironmentFilter(value)
+              }
+            >
+              <SelectTrigger className="w-28">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={Environment.Client}>
+                  <div className="flex items-center gap-1.5">
+                    <Monitor className="h-3.5 w-3.5" />
+                    <span className="text-xs">Client</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value={Environment.Server}>
+                  <div className="flex items-center gap-1.5">
+                    <Server className="h-3.5 w-3.5" />
+                    <span className="text-xs">Server</span>
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+
+            <MultiSelect
+              options={typeFilterOptions}
+              value={typeFilter}
+              onValueChange={setTypeFilter}
+              selectionName={{ singular: 'file type', plural: 'file types' }}
+              triggerIcon={<FileCode className="h-3.5 w-3.5" />}
+              triggerClassName="w-36"
+              aria-label="Filter by file type"
             />
-          ) : null}
-          {hasSourceData ? (
-            <FileSearch value={searchQuery} onChange={setSearchQuery} />
-          ) : null}
-        </div>
+
+            {!isCompareMode && onInitialLoadedChange ? (
+              <label
+                className="flex h-8 cursor-pointer items-center gap-2 whitespace-nowrap px-1"
+                title="Show only modules with an initial synchronous path"
+              >
+                <span className="text-xs">Initial load only</span>
+                <Switch
+                  checked={initialLoaded}
+                  onCheckedChange={onInitialLoadedChange}
+                  aria-label="Show only modules with an initial synchronous path"
+                />
+              </label>
+            ) : null}
+
+            {hasSourceData ? (
+              <FileSearch value={searchQuery} onChange={setSearchQuery} />
+            ) : null}
+          </div>
+        )}
       </div>
-
-      {hasSourceData && (
-        <div className="flex items-center gap-2 overflow-x-auto border-t border-border bg-muted/20 px-4 py-1.5">
-          <Select
-            value={environmentFilter}
-            onValueChange={(value: Environment) => setEnvironmentFilter(value)}
-          >
-            <SelectTrigger className="w-28">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={Environment.Client}>
-                <div className="flex items-center gap-1.5">
-                  <Monitor className="h-3.5 w-3.5" />
-                  <span className="text-xs">Client</span>
-                </div>
-              </SelectItem>
-              <SelectItem value={Environment.Server}>
-                <div className="flex items-center gap-1.5">
-                  <Server className="h-3.5 w-3.5" />
-                  <span className="text-xs">Server</span>
-                </div>
-              </SelectItem>
-            </SelectContent>
-          </Select>
-
-          <MultiSelect
-            options={typeFilterOptions}
-            value={typeFilter}
-            onValueChange={setTypeFilter}
-            selectionName={{ singular: 'file type', plural: 'file types' }}
-            triggerIcon={<FileCode className="h-3.5 w-3.5" />}
-            triggerClassName="w-36"
-            aria-label="Filter by file type"
-          />
-
-          {!isCompareMode && onInitialLoadedChange ? (
-            <label
-              className="flex h-8 cursor-pointer items-center gap-2 whitespace-nowrap px-1"
-              title="Show only modules with an initial synchronous path"
-            >
-              <span className="text-xs">Initial load only</span>
-              <Switch
-                checked={initialLoaded}
-                onCheckedChange={onInitialLoadedChange}
-                aria-label="Show only modules with an initial synchronous path"
-              />
-            </label>
-          ) : null}
-
-          {showViewToggle && (
-            <ToggleGroup
-              type="single"
-              size="sm"
-              value={compareView}
-              onValueChange={(value) => {
-                if (value) onCompareViewChange(value as CompareView)
-              }}
-              aria-label="View"
-              className="ml-auto shrink-0 pl-4"
-            >
-              <ToggleGroupItem
-                value={CompareView.Table}
-                aria-label="Table view"
-                title="Table view"
-                className="gap-1.5"
-              >
-                <TableIcon className="h-3.5 w-3.5" />
-                <span className="text-xs">Table</span>
-              </ToggleGroupItem>
-              <ToggleGroupItem
-                value={CompareView.Treemap}
-                aria-label="Treemap view"
-                title="Treemap view"
-                className="gap-1.5"
-              >
-                <LayoutGrid className="h-3.5 w-3.5" />
-                <span className="text-xs">Treemap</span>
-              </ToggleGroupItem>
-            </ToggleGroup>
-          )}
-        </div>
-      )}
     </div>
   )
 }
