@@ -3662,20 +3662,23 @@ async fn handle_membership<'a>(
             {
                 match ty {
                     MembershipType::Member { .. } => {
-                        handle_free_var_reference(
-                            ast_path,
-                            // Import the `cache` proxy wrapper helper to satisfy require.cache
-                            // This re-exposes the `Map` the runtime uses as a object.
-                            &FreeVarReference::EcmaScriptModule {
-                                request: rcstr!("@turbopack/module-cache"),
-                                lookup_path: None,
-                                export: Some(rcstr!("cache")),
-                            },
-                            span,
-                            state,
-                            analysis,
-                        )
-                        .await?;
+                        // Only add references if we are performing codegen
+                        if analysis.analyze_mode.is_codegen {
+                            handle_free_var_reference(
+                                ast_path,
+                                // Import the `cache` proxy wrapper helper to satisfy require.cache
+                                // This re-exposes the `Map` the runtime uses as a object.
+                                &FreeVarReference::EcmaScriptModule {
+                                    request: rcstr!("@turbopack/module-cache"),
+                                    lookup_path: None,
+                                    export: Some(rcstr!("cache")),
+                                },
+                                span,
+                                state,
+                                analysis,
+                            )
+                            .await?;
+                        }
                     }
                     MembershipType::In => {
                         analysis.add_code_gen(ConstantValueCodeGen::new(
