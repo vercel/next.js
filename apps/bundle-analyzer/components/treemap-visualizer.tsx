@@ -1,6 +1,7 @@
 'use client'
 
 import { darken, lighten, readableColor } from 'polished'
+import { useTheme } from 'next-themes'
 import type React from 'react'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
@@ -806,16 +807,7 @@ export function TreemapVisualizer({
     canvasHeight: 800,
     devicePixelRatio: 1,
   })
-  const [themeVersion, setThemeVersion] = useState(0)
-
-  useEffect(() => {
-    const observer = new MutationObserver(() => setThemeVersion((v) => v + 1))
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['class'],
-    })
-    return () => observer.disconnect()
-  }, [])
+  const { resolvedTheme } = useTheme()
 
   // The focused chain needs a manual memo: without it the compiler misses
   // the expensive layout and redraws the canvas on unrelated renders.
@@ -941,7 +933,7 @@ export function TreemapVisualizer({
     dimensions.cssWidth,
     dimensions.cssHeight,
     dimensions.devicePixelRatio,
-    themeVersion,
+    resolvedTheme,
     isMouseInTreemap,
     focusedAncestorChain,
     searchQuery,
