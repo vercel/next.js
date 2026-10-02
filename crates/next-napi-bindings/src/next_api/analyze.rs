@@ -8,7 +8,7 @@ use next_api::{
         combine_traced_files,
     },
     project::ProjectContainer,
-    route::{Endpoint, EndpointGroup, EndpointGroupKey},
+    route::{AnalyzeChunkGroup, AnalyzeChunkGroups, Endpoint, EndpointGroup, EndpointGroupKey},
 };
 use turbo_tasks::{
     Effects, FxIndexSet, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, ValueToStringRef, Vc,
@@ -61,6 +61,14 @@ async fn write_analyze_data_with_issues_operation_inner(
 /// Preserve the endpoint roots used by the module graph, and annotate only
 /// client modules identified by the endpoint's actual build inputs. Client
 /// references are nested rather than becoming new graph roots.
+async fn route_chunk_groups(endpoint_group: &EndpointGroup) -> Result<Vec<AnalyzeChunkGroup>> {
+    let mut groups = vec![];
+    for entry in &endpoint_group.primary {
+        groups.extend(entry.endpoint.analyze_chunk_groups().await?.iter().cloned());
+    }
+    Ok(groups)
+}
+
 async fn route_entries(
     key: &EndpointGroupKey,
     endpoint_group: &EndpointGroup,
@@ -185,12 +193,14 @@ async fn get_analyze_data_operation(
     let combined_assets_vc = Vc::cell(combined_output_assets);
     let combined_traced_vc = Vc::cell(combined_traced_files);
     let mut shared_route_entries = vec![];
+    let mut shared_chunk_groups = vec![];
     for (key, endpoint_group) in endpoint_groups.iter() {
         if matches!(
             key,
             EndpointGroupKey::PagesApp | EndpointGroupKey::PagesDocument
         ) {
             shared_route_entries.extend(route_entries(key, endpoint_group, "shared").await?);
+            shared_chunk_groups.extend(route_chunk_groups(endpoint_group).await?);
         }
     }
 
@@ -241,6 +251,11 @@ async fn get_analyze_data_operation(
                 entries.sort_by(|a, b| a.route_entry_id.cmp(&b.route_entry_id));
                 entries.dedup_by(|a, b| a.route_entry_id == b.route_entry_id);
             }
+            let mut groups = route_chunk_groups(endpoint_group).await?;
+            if has_client_bootstrap && groups.iter().any(|group| group.pages_html) {
+                groups.extend(shared_chunk_groups.iter().cloned());
+            }
+            let chunk_groups: Vc<AnalyzeChunkGroups> = Vc::cell(groups);
             let route_entries: Vc<AnalyzeRouteEntries> = Vc::cell(entries);
             let analyze_data = AnalyzeDataOutputAsset::new(
                 analyze_output_root
@@ -249,6 +264,7 @@ async fn get_analyze_data_operation(
                 output_assets,
                 traced_files,
                 route_entries,
+                chunk_groups,
                 *whole_app_module_graphs.await?.full,
             )
             .to_resolved()

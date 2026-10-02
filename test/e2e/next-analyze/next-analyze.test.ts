@@ -25,6 +25,12 @@ type ChunkGraphHeader = {
   output_files: Array<{ filename: string }>
   output_file_modules: EdgesReference
   output_file_module_coverage: Array<'exact' | 'unsupported' | 'not_a_chunk'>
+  chunk_groups: Array<{
+    id: number
+    kind: 'bootstrap' | 'render_dependent'
+    trigger_module_index?: number
+    output_file_indices: number[]
+  }>
   unjoined_modules: Array<{
     output_file_index: number
     module_ident: string
@@ -436,6 +442,24 @@ describe('next analyze', () => {
     expect(outputRecords.map((record) => record.coverage)).toEqual(
       membershipHeader.output_file_module_coverage
     )
+    const grouped = replay.stdout
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line))
+      .filter((record) => record.type === 'group' && record.route === '/')
+    expect(
+      grouped.map((record) => ({ id: record.id, outputs: record.outputs }))
+    ).toEqual(
+      membershipHeader.chunk_groups.map((group) => ({
+        id: group.id,
+        outputs: group.output_file_indices
+          .map((index) => membershipHeader.output_files[index].filename)
+          .sort(),
+      }))
+    )
+    expect(
+      grouped.every((record) => record.output_file_indices === undefined)
+    ).toBe(true)
     const root = await next.runCommand([
       'analyze',
       'export',
@@ -862,12 +886,34 @@ describe('next analyze', () => {
               expect(moduleIdents.has(modules[index].ident)).toBe(true)
             }
           }
-          expect(header).not.toHaveProperty('chunk_groups')
-          expect(header).not.toHaveProperty('chunk_load_edges')
+          for (const group of header.chunk_groups) {
+            for (const index of group.output_file_indices) {
+              expect(index).toBeLessThan(header.output_files.length)
+            }
+          }
+          expect(header.chunk_groups.map((group) => group.id)).toEqual(
+            header.chunk_groups.map((_, index) => index)
+          )
           expect(header).not.toHaveProperty('initial')
           expect(header).not.toHaveProperty('prefetched')
         }
         const appGraph = routeGraphs[0].header
+        const pagesGraph = routeGraphs[1].header
+        const apiGraph = routeGraphs[2].header
+        expect(
+          appGraph.chunk_groups.some((group) => group.kind === 'bootstrap')
+        ).toBe(true)
+        expect(
+          appGraph.chunk_groups.some(
+            (group) => group.kind === 'render_dependent'
+          )
+        ).toBe(true)
+        expect(
+          pagesGraph.chunk_groups.some((group) => group.kind === 'bootstrap')
+        ).toBe(true)
+        expect(
+          apiGraph.chunk_groups.some((group) => group.kind === 'bootstrap')
+        ).toBe(false)
         const appRows = readRows(
           routeGraphs[0].binary,
           appGraph.output_file_modules
@@ -878,6 +924,12 @@ describe('next analyze', () => {
           )
         ).toBe(true)
         expect(appGraph.output_file_module_coverage).toContain('exact')
+        const groupedFileIndices = appGraph.chunk_groups.flatMap(
+          (group) => group.output_file_indices
+        )
+        expect(new Set(groupedFileIndices).size).toBeLessThan(
+          groupedFileIndices.length
+        )
         expect(
           appRows.some(
             (row, index) =>
@@ -885,6 +937,21 @@ describe('next analyze', () => {
               row.some((module) => modules[module].ident.includes('page.css'))
           )
         ).toBe(true)
+        expect(
+          appGraph.chunk_groups.some(
+            (group) =>
+              group.kind === 'render_dependent' &&
+              group.output_file_indices.some((index) =>
+                appRows[index].some((module) =>
+                  modules[module].ident.includes('client-entry')
+                )
+              )
+          )
+        ).toBe(true)
+        expect(
+          pagesGraph.chunk_groups.filter((group) => group.kind === 'bootstrap')
+            .length
+        ).toBeGreaterThanOrEqual(2)
       })
     })
   })

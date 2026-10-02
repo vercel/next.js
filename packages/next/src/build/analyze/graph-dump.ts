@@ -55,6 +55,13 @@ type RouteHeader = {
     module_ident: string
     reason: string
   }>
+  chunk_groups?: Array<{
+    id: number
+    kind: string
+    trigger_module_index?: number
+    unjoined_trigger_ident?: string
+    output_file_indices: number[]
+  }>
 }
 
 type Data<H> = { header: H; binary: Buffer }
@@ -318,7 +325,69 @@ function validateRoute(data: Data<RouteHeader>, modules: Data<ModuleHeader>) {
     entries: routeEntries(header.route_entries),
     membership,
     unjoined,
+    groups: groupRecords(header, modules.header),
   }
+}
+
+function groupRecords(header: RouteHeader, modules: ModuleHeader) {
+  if (header.chunk_groups === undefined) return null
+  if (!Array.isArray(header.chunk_groups))
+    throw new Error('Invalid analyzer chunk groups')
+  const seen = new Set<number>()
+  return header.chunk_groups
+    .map((group) => {
+      if (
+        !group ||
+        typeof group !== 'object' ||
+        !integer(group.id, UINT32_LIMIT) ||
+        seen.has(group.id) ||
+        typeof group.kind !== 'string' ||
+        !Array.isArray(group.output_file_indices)
+      ) {
+        throw new Error('Invalid analyzer chunk group')
+      }
+      seen.add(group.id)
+      let trigger_module_ident: string | null = null
+      let trigger_join = 'none'
+      if (
+        group.trigger_module_index !== undefined &&
+        group.unjoined_trigger_ident !== undefined
+      ) {
+        throw new Error('Conflicting analyzer group triggers')
+      }
+      if (group.trigger_module_index !== undefined) {
+        if (
+          !header.module_index_hash ||
+          header.module_index_hash !== modules.module_index_hash
+        )
+          throw new Error('Analyzer module-index fingerprint mismatch')
+        requireIndex(
+          group.trigger_module_index,
+          modules.modules.length,
+          'trigger module'
+        )
+        trigger_module_ident = modules.modules[group.trigger_module_index].ident
+        trigger_join = 'joined'
+      } else if (group.unjoined_trigger_ident !== undefined) {
+        if (typeof group.unjoined_trigger_ident !== 'string')
+          throw new Error('Invalid unjoined analyzer trigger')
+        trigger_module_ident = group.unjoined_trigger_ident
+        trigger_join = 'unjoined'
+      }
+      return {
+        id: group.id,
+        kind: group.kind,
+        trigger_module_ident,
+        trigger_join,
+        outputs: group.output_file_indices
+          .map((index) => {
+            requireIndex(index, header.output_files.length, 'group output')
+            return header.output_files[index].filename
+          })
+          .sort(),
+      }
+    })
+    .sort((a, b) => a.id - b.id)
 }
 
 function routeEntries(entries: RouteHeader['route_entries']) {
@@ -432,7 +501,7 @@ export async function dumpAnalyzeGraph(
   // partial output; callers must check the exit status before using it.
   for (const { route, index } of selected) {
     const routeData = readData<RouteHeader>(routeFile(directory, route))
-    const { paths, entries, membership, unjoined } = validateRoute(
+    const { paths, entries, membership, unjoined, groups } = validateRoute(
       routeData,
       modulesData
     )
@@ -442,7 +511,10 @@ export async function dumpAnalyzeGraph(
       type: 'route',
       ...prefix,
       entries,
-      coverage: { entries: entries ? 'exact' : 'unknown' },
+      coverage: {
+        entries: entries ? 'exact' : 'unknown',
+        groups: groups ? 'exact' : 'unknown',
+      },
     })
     for (let i = 0; i < header.output_files.length; i++) {
       await writeRecord(stream, {
@@ -470,6 +542,8 @@ export async function dumpAnalyzeGraph(
         compressed_size: part.compressed_size,
       })
     }
+    for (const group of groups ?? [])
+      await writeRecord(stream, { type: 'group', ...prefix, ...group })
     for (const module of unjoined ?? [])
       await writeRecord(stream, { type: 'unjoined', ...prefix, ...module })
   }

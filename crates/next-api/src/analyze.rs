@@ -32,6 +32,8 @@ use turbopack_core::{
     reference::all_assets_from_entries,
 };
 
+use crate::route::AnalyzeChunkGroups;
+
 const ANALYZE_SCHEMA_VERSION: u32 = 1;
 
 pub struct EdgesData {
@@ -200,30 +202,6 @@ struct EdgesDataReference {
 }
 
 #[derive(Serialize)]
-struct AnalyzeDataHeader {
-    /// The header and modules.data must use the same supported schema version.
-    pub schema_version: u32,
-    pub module_index_hash: RcStr,
-    pub sources: Vec<AnalyzeSource>,
-    pub chunk_parts: Vec<AnalyzeChunkPart>,
-    pub output_files: Vec<AnalyzeOutputFile>,
-    /// Exact indices into this snapshot's modules.data.modules, one row per output file.
-    pub output_file_modules: EdgesDataReference,
-    pub output_file_module_coverage: Vec<AnalyzeOutputFileCoverage>,
-    pub unjoined_modules: Vec<AnalyzeUnjoinedModule>,
-    /// Exact endpoint roots; nested client references do not become roots.
-    pub route_entries: Vec<AnalyzeRouteEntry>,
-    /// Edges from chunks to chunk parts
-    pub output_file_chunk_parts: EdgesDataReference,
-    /// Edges from sources to chunk parts
-    pub source_chunk_parts: EdgesDataReference,
-    /// Edges from sources to their children sources
-    pub source_children: EdgesDataReference,
-    /// Root level sources, walking their children will reach all sources
-    pub source_roots: Vec<u32>,
-}
-
-#[derive(Serialize)]
 struct ModulesDataHeader {
     /// The header and modules.data must use the same supported schema version.
     pub schema_version: u32,
@@ -258,6 +236,19 @@ struct AnalyzeUnjoinedModule {
     reason: &'static str,
 }
 
+#[derive(Serialize)]
+struct AnalyzeChunkGroupData {
+    id: u32,
+    kind: RcStr,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    trigger_module_index: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    unjoined_trigger_ident: Option<RcStr>,
+    /// Direct emitted output_file indices; group membership is not a claim that
+    /// an individual reference contributes every module in a cumulative group.
+    output_file_indices: Vec<u32>,
+}
+
 struct AnalyzeOutputFileBuilder {
     output_file: AnalyzeOutputFile,
     chunk_part_indices: Vec<u32>,
@@ -289,6 +280,7 @@ struct AnalyzeDataBuilder {
     route_entries: Vec<AnalyzeRouteEntry>,
     module_index_hash: RcStr,
     unjoined_modules: Vec<AnalyzeUnjoinedModule>,
+    chunk_groups: Vec<AnalyzeChunkGroupData>,
 }
 
 struct ModulesDataBuilder {
@@ -324,6 +316,7 @@ impl AnalyzeDataBuilder {
             output_files: vec![],
             route_entries,
             unjoined_modules: vec![],
+            chunk_groups: vec![],
         }
     }
 
@@ -505,6 +498,7 @@ pub async fn analyze_output_assets(
     output_assets: Vc<OutputAssets>,
     traced_files: Vc<FileSystemPathVec>,
     route_entries: Vc<AnalyzeRouteEntries>,
+    chunk_groups: Vc<AnalyzeChunkGroups>,
     module_graph: Vc<ModuleGraph>,
 ) -> Result<Vc<FileContent>> {
     let output_assets = all_assets_from_entries(output_assets);
@@ -513,6 +507,8 @@ pub async fn analyze_output_assets(
 
     let mut builder =
         AnalyzeDataBuilder::new(route_entries, module_index.module_index_hash.clone());
+    let mut asset_indices: FxHashMap<ResolvedVc<Box<dyn OutputAsset>>, Vec<u32>> =
+        FxHashMap::default();
     let prefix = format!("{SOURCE_URL_PROTOCOL}///");
 
     // Process the output assets and extract chunk parts.
@@ -546,6 +542,10 @@ pub async fn analyze_output_assets(
             filename: filename.clone(),
         });
         if let Either::Left(asset) = &asset {
+            asset_indices
+                .entry(*asset)
+                .or_default()
+                .push(output_file_index);
             let (indices, coverage, unjoined) =
                 output_chunk_modules(*asset, &filename, &module_index, output_file_index).await?;
             let file = &mut builder.output_files[output_file_index as usize];
@@ -580,6 +580,35 @@ pub async fn analyze_output_assets(
             builder.add_chunk_part_to_output_file(output_file_index, chunk_part_index);
             builder.add_chunk_part_to_source(source_index, chunk_part_index);
         }
+    }
+
+    for group in chunk_groups.await?.iter() {
+        let id = builder.chunk_groups.len() as u32;
+        let mut output_indices = FxIndexSet::default();
+        for &asset in group.assets.await?.iter() {
+            let Some(indices) = asset_indices.get(&asset) else {
+                let path = asset.path().await?.to_string_ref().await?;
+                anyhow::bail!("chunk-group asset {path} not present among emitted output files");
+            };
+            output_indices.extend(indices.iter().copied());
+        }
+        let (trigger_module_index, unjoined_trigger_ident) = if let Some(module) = group.trigger {
+            let ident = module.ident().to_string().owned().await?;
+            if let Some(&index) = module_index.by_ident.get(&ident) {
+                (Some(index), None)
+            } else {
+                (None, Some(ident))
+            }
+        } else {
+            (None, None)
+        };
+        builder.chunk_groups.push(AnalyzeChunkGroupData {
+            id,
+            kind: group.kind.clone(),
+            trigger_module_index,
+            unjoined_trigger_ident,
+            output_file_indices: output_indices.into_iter().collect(),
+        });
     }
 
     let mut seen_unjoined = FxHashSet::default();
@@ -746,6 +775,7 @@ pub struct AnalyzeDataOutputAsset {
     pub output_assets: ResolvedVc<OutputAssets>,
     pub traced_files: ResolvedVc<FileSystemPathVec>,
     pub route_entries: ResolvedVc<AnalyzeRouteEntries>,
+    pub chunk_groups: ResolvedVc<AnalyzeChunkGroups>,
     pub module_graph: ResolvedVc<ModuleGraph>,
 }
 
@@ -757,6 +787,7 @@ impl AnalyzeDataOutputAsset {
         output_assets: ResolvedVc<OutputAssets>,
         traced_files: ResolvedVc<FileSystemPathVec>,
         route_entries: ResolvedVc<AnalyzeRouteEntries>,
+        chunk_groups: ResolvedVc<AnalyzeChunkGroups>,
         module_graph: ResolvedVc<ModuleGraph>,
     ) -> Result<Vc<Self>> {
         Ok(Self {
@@ -764,6 +795,7 @@ impl AnalyzeDataOutputAsset {
             output_assets,
             traced_files,
             route_entries,
+            chunk_groups,
             module_graph,
         }
         .cell())
@@ -778,6 +810,7 @@ impl Asset for AnalyzeDataOutputAsset {
             *self.output_assets,
             *self.traced_files,
             *self.route_entries,
+            *self.chunk_groups,
             *self.module_graph,
         );
         AssetContent::file(file_content)
