@@ -636,12 +636,13 @@ export async function nudgeUpgrade(
       onShown
     )
 
-    if (shown && telemetry) {
-      if (!signal.aborted) {
-        telemetry.record(eventAgentUpgradeNudgeDecision({ nudgeId, action }))
-      }
-      await telemetry.flush()
+    if (shown && telemetry && !signal.aborted) {
+      telemetry.record(eventAgentUpgradeNudgeDecision({ nudgeId, action }))
     }
+
+    // Return the choice before any network flush. The foreground owner must
+    // commit Upgrade before a queued safeguard or fatal message can cancel it;
+    // that owner also flushes policy events when no menu was shown.
     return action
   }
 }

@@ -1,5 +1,5 @@
 import { Writable } from 'stream'
-import type { ChildProcess } from 'child_process'
+import { spawnSync, type ChildProcess } from 'child_process'
 import { updateInitialEnv } from '@next/env'
 import isError from './is-error'
 
@@ -17,13 +17,16 @@ let outputLimitCheck: ReturnType<typeof setInterval> | null = null
 let outputReleased: Promise<void> = Promise.resolve()
 let releaseOutput: (() => void) | null = null
 
+// Keep retired children from receiving more signals through stale callbacks.
+const killedWork = new WeakSet<ChildProcess>()
+
 // Skip can arrive more than once. Connecting a worker twice would duplicate
 // its input, so remember each connection without retaining retired workers.
 const forwardedInputs = new WeakSet<ChildProcess>()
 
 export function forwardUpgradeInput(child: ChildProcess) {
   const input = child.stdin
-  if (!input?.writable || forwardedInputs.has(child)) {
+  if (!input?.writable || killedWork.has(child) || forwardedInputs.has(child)) {
     return
   }
   forwardedInputs.add(child)
@@ -46,6 +49,82 @@ export function forwardUpgradeInput(child: ChildProcess) {
   // stdout/stderr still inherit the terminal. Only stdin is a pipe, including
   // after Skip: plugins cannot use stdin.isTTY or setRawMode() as before.
   process.stdin.pipe(input)
+}
+
+export function signalUpgradeWork(child: ChildProcess, signal: NodeJS.Signals) {
+  if (!child.pid || killedWork.has(child)) {
+    return
+  }
+
+  // The detached POSIX group no longer receives terminal interrupts. Give
+  // plugins and subprocesses the same cleanup opportunity as their owner.
+  // Preserve the signal so SIGHUP handlers and SIGQUIT diagnostics still run.
+  if (process.platform !== 'win32') {
+    try {
+      process.kill(-child.pid, signal)
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ESRCH') {
+        throw error
+      }
+    }
+  } else {
+    // Keep Windows on its existing interrupt/termination path. OS signals
+    // bypass JavaScript cleanup, so ask a connected owner to stop over IPC.
+    const stopSignal = signal === 'SIGINT' ? 'SIGINT' : 'SIGTERM'
+    if (child.connected) {
+      child.send({ nextUpgradeStop: stopSignal })
+    } else {
+      child.kill(stopSignal)
+    }
+  }
+}
+
+export function forwardUpgradeResize(child: ChildProcess) {
+  if (process.platform === 'win32' || !child.pid) {
+    return
+  }
+
+  // Detached workloads inherit the TTY but do not receive its foreground
+  // signals. Notify the whole group so workers also refresh their dimensions.
+  const onResize = () => {
+    signalUpgradeWork(child, 'SIGWINCH')
+  }
+  process.on('SIGWINCH', onResize)
+
+  // Each replacement owns its listener; closure removes it before handoff or
+  // restart, including when spawning the workload fails.
+  child.once('close', () => process.off('SIGWINCH', onResize))
+}
+
+export function killUpgradeWork(child: ChildProcess) {
+  if (!child.pid || killedWork.has(child)) {
+    return
+  }
+  // Managed workloads get their own process group; never signal the caller's
+  // shell. This also reaches descendants when their owner cannot run cleanup.
+  if (process.platform === 'win32') {
+    // TODO: On Windows, taskkill needs a live parent to find its children.
+    // If dev/build has already exited, its children may keep running during
+    // upgrade. Track them even after their parent exits.
+    if (child.exitCode === null && child.signalCode === null) {
+      const result = spawnSync(
+        'taskkill',
+        ['/pid', String(child.pid), '/T', '/F'],
+        { stdio: 'ignore' }
+      )
+      if (result.error) {
+        throw result.error
+      }
+      if (result.status !== 0) {
+        throw new Error(
+          `Could not stop workload tree (taskkill ${result.status}).`
+        )
+      }
+    }
+  } else {
+    signalUpgradeWork(child, 'SIGKILL')
+  }
+  killedWork.add(child)
 }
 
 export function isUpgradeOutputManaged() {
@@ -168,22 +247,42 @@ export async function corkUpgradeOutput() {
 }
 
 export function handleUpgradeOutputMessages() {
+  // Supervise config loading without holding its writes. Only the workload
+  // entry point calls this; descendants must keep producing their own output.
   managed = true
-  // Listen before config loads, but leave its output live. router-server corks
-  // only after config and custom routes finish, so their write callbacks work.
+
+  // Replacement dev workers keep supervision after Skip, but no longer have
+  // a pending choice. Build workers use their own entry marker instead.
+  released =
+    process.env.NEXT_PRIVATE_UPGRADE_PROMPT !== '1' &&
+    process.env.NEXT_PRIVATE_UPGRADE_BUILD_WORKER !== '1'
   process.on(
     'message',
-    (message: { nextUpgradeContinue: boolean | undefined }) => {
+    async (message: {
+      nextUpgradeContinue: boolean | undefined
+      nextUpgradeStop: 'SIGINT' | 'SIGTERM' | undefined
+    }) => {
       if (message?.nextUpgradeContinue) {
+        // Skip is permanent, whether chosen by the user or requested by a
+        // safeguard. Later callbacks keep the normal terminal behavior.
         released = true
         uncorkUpgradeOutput()
       }
+      if (message?.nextUpgradeStop) {
+        // Windows signals terminate Node without running JS cleanup. IPC
+        // invokes the same handlers on every platform, including before the
+        // workload has installed its own signal listeners.
+        const signal = message.nextUpgradeStop
+        if (!process.emit(signal, signal)) {
+          await uncork()
+          process.exit(signal === 'SIGINT' ? 130 : 143)
+        }
+      }
     }
   )
-
-  // A missing parent cannot grant permission to print. Release held logs before
-  // exiting rather than leave a worker running without its supervising CLI.
   process.once('disconnect', () => {
+    // Release even an exit already awaiting permission: the parent can no
+    // longer acknowledge, so buffered errors must use the normal terminal.
     released = true
     uncorkUpgradeOutput()
     process.exit(1)

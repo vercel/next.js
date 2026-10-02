@@ -33,7 +33,10 @@ import type { ChildProcess } from 'child_process'
 import type { UpgradeContext } from '../lib/upgrade/nudge'
 import {
   forwardUpgradeInput,
+  forwardUpgradeResize,
+  killUpgradeWork,
   restoreUpgradeEnvironment,
+  signalUpgradeWork,
 } from '../lib/upgrade-output'
 import {
   getReservedPortExplanation,
@@ -43,7 +46,6 @@ import { getCacheDirectory } from '../lib/helpers/get-cache-directory'
 import { getGitBranch } from '../lib/helpers/git'
 import os from 'os'
 import fs from 'node:fs'
-import { once } from 'node:events'
 import { clearTimeout } from 'timers'
 import { trace, initializeTraceState, exportTraceState } from '../trace'
 import { traceId } from '../trace/shared'
@@ -79,13 +81,17 @@ let isTurbopack: boolean
 let traceUploadUrl: string
 let sessionStopHandled = false
 let upgradeController: AbortController | null = null
-// Hold parent preflight output until the child supplies config and the menu
-// finishes. The server itself starts immediately and keeps serving throughout.
-let outputHeld = false
-let upgradeEnvironment: Record<string, string | null> | null = null
-let upgradeInProgress = false
-let workExitCode: number | null = null
+let upgradeSelected = false
 let interruption: NodeJS.Signals | null = null
+
+// Skip gives output back without giving up process ownership. Keep the menu
+// state separate so later restarts and signals still clean up managed workers.
+let outputHeld = false
+let managedDev = false
+let upgradeEnvironment: Record<string, string | null> | null = null
+
+// Retain the workload's result for session cleanup after its terminal closes.
+let workExitCode: number | null = null
 let devSpanAttrs: { 'rage-restart': boolean; 'missing-next-dir': boolean } = {
   'rage-restart': false,
   'missing-next-dir': false,
@@ -110,12 +116,6 @@ const DEV_STATE_FILE = path.join(
   'dev-state.json'
 )
 
-// How long should we wait for the child to cleanly exit after sending
-// SIGINT/SIGTERM to the child process before sending SIGKILL?
-const CHILD_EXIT_TIMEOUT_MS = parseInt(
-  process.env.NEXT_EXIT_TIMEOUT_MS ?? '100',
-  10
-)
 const shouldWaitForChildExit =
   process.env.__NEXT_DEV_WAIT_FOR_TURBOPACK_SHUTDOWN === '1'
 
@@ -123,22 +123,47 @@ const handleSessionStop = async (
   signal: NodeJS.Signals | number | null,
   exit = true
 ) => {
-  if (signal != null && child?.pid) {
+  // Ordinary dev keeps forwarding the original signal, including repeated
+  // SIGTERM from process-tree cleanup. Only managed runs own a force-kill path.
+  if (!managedDev && signal != null && child?.pid) {
     child.kill(signal)
   }
   if (sessionStopHandled) {
+    // A second interrupt is an explicit escape from slow or hung cleanup.
+    // Keep the first handler responsible for telemetry and terminal restoration.
+    if (managedDev && child && (signal === 'SIGINT' || signal === 'SIGTERM')) {
+      killUpgradeWork(child)
+    }
     return
   }
   sessionStopHandled = true
-  const interruptedUpgrade = upgradeInProgress
+  const interruptedUpgrade = upgradeSelected
   upgradeController?.abort()
-  const wasHeld = outputHeld
-  outputHeld = false
+
+  // Stop forwarding before shutdown or upgrade handoff. The next session
+  // must own terminal input, even while this worker is still closing.
   if (child?.stdin) {
     process.stdin.unpipe(child.stdin)
   }
-  if (wasHeld && child?.connected) {
-    child.send({ nextUpgradeContinue: true })
+
+  // Upgrade discards the workload and its held output. Normal shutdown still
+  // restores the menu before releasing logs and allowing graceful cleanup.
+  const forceKill = signal === 'SIGKILL'
+  const wasHeld = outputHeld
+  outputHeld = false
+  if (managedDev && !forceKill) {
+    // Abort has already restored the screen. The child can now release held
+    // logs into the normal terminal before its graceful shutdown starts.
+    if (child?.connected) {
+      child.send({ nextUpgradeContinue: true })
+    }
+  }
+  if (signal != null && child?.pid) {
+    if (managedDev && forceKill) {
+      killUpgradeWork(child)
+    } else if (managedDev && (signal === 'SIGINT' || signal === 'SIGTERM')) {
+      signalUpgradeWork(child, signal)
+    }
   }
 
   // Capture the child's exit code if it has already exited and caused the
@@ -152,20 +177,34 @@ const handleSessionStop = async (
     child.signalCode === null
   ) {
     let exitTimeout: NodeJS.Timeout | undefined
-    if (!shouldWaitForChildExit) {
-      exitTimeout = setTimeout(
-        () => {
-          child?.kill('SIGKILL')
-        },
-        wasHeld
-          ? parseInt(process.env.NEXT_EXIT_TIMEOUT_MS ?? '5000', 10)
-          : CHILD_EXIT_TIMEOUT_MS
+    if (!forceKill && !shouldWaitForChildExit) {
+      // A held worker needs time for the screen handoff before it exits. Keep
+      // the existing timeout override and the ordinary shutdown default.
+      const childExitTimeout = parseInt(
+        process.env.NEXT_EXIT_TIMEOUT_MS ?? (managedDev ? '5000' : '100'),
+        10
       )
+      exitTimeout = setTimeout(() => {
+        if (child) {
+          if (managedDev) {
+            killUpgradeWork(child)
+          } else {
+            child.kill('SIGKILL')
+          }
+        }
+      }, childExitTimeout)
     }
-    await once(child, 'exit').catch(() => {})
-    if (exitTimeout) clearTimeout(exitTimeout)
+    // An IPC error does not mean the process has exited. Keep waiting for
+    // closure so the fallback still owns any live descendants.
+    await new Promise<void>((resolve) => child!.once('close', () => resolve()))
+    if (exitTimeout) {
+      clearTimeout(exitTimeout)
+    }
   }
 
+  if (managedDev && child) {
+    killUpgradeWork(child)
+  }
   sessionSpan.stop()
 
   try {
@@ -229,7 +268,11 @@ const handleSessionStop = async (
   process.stdout.write('\n')
   if (exit) {
     process.exit(
-      interruption && (interruption === 'SIGHUP' || interruptedUpgrade)
+      interruption &&
+        (wasHeld ||
+          interruption === 'SIGHUP' ||
+          interruption === 'SIGQUIT' ||
+          interruptedUpgrade)
         ? 128 + os.constants.signals[interruption]
         : exitCode
     )
@@ -248,12 +291,23 @@ const onHangup = () => {
   interruption = 'SIGHUP'
   void handleSessionStop('SIGTERM')
 }
+
+// A catchable quit must retire the detached workload as well as the CLI. Let
+// the child flush via its normal termination handler, then retain status 131.
+const onQuit = () => {
+  interruption = 'SIGQUIT'
+  void handleSessionStop('SIGTERM')
+}
 process.on('SIGINT', onInterrupt)
 process.on('SIGTERM', onTerminate)
 
 // exit event must be synchronous
 process.on('exit', () => {
-  child?.kill('SIGKILL')
+  if (managedDev && child) {
+    killUpgradeWork(child)
+  } else {
+    child?.kill('SIGKILL')
+  }
   // Catch aggressive kills (e.g. OOM, unhandled exception) that bypass handleSessionStop.
   // SIGKILL of the parent cannot be caught; for all other exits this ensures state is written.
   if (!sessionStopHandled) {
@@ -278,22 +332,30 @@ const nextDev = async (
   )
   // The CLI inspect option only enables the debugger in the child, so it is
   // not part of the parent's Node options checked by the shared prompt gate.
-  const humanUpgrade = !options.inspect && (await shouldPromptForUpgrade())
-  outputHeld = humanUpgrade
+  managedDev = !options.inspect && (await shouldPromptForUpgrade())
+  outputHeld = managedDev
 
-  // One wait covers both context delivery and the user's choice. Ready can
-  // arrive first; preflight warnings wait while the child keeps serving pages.
+  // Parent warnings wait for the choice, not a cancelled network assessment.
+  // Resolve this directly on Skip so slow checks never delay normal startup.
   let finishUpgrade: (() => void) | null = null
-  const upgradeDone = humanUpgrade
+  const upgradeDone = managedDev
     ? new Promise<void>((resolve) => {
         finishUpgrade = resolve
       })
     : null
+
+  if (managedDev) {
+    // The isolated workload also needs cleanup if the terminal closes before
+    // config arrives or after Skip has returned ownership to the child.
+    process.on('SIGHUP', onHangup)
+    process.on('SIGQUIT', onQuit)
+  }
   const allowedUpgradeRetries = new Set<string>()
-  // Close the screen before permitting this worker to print. Fatal shutdown
-  // leaves input disconnected; a normal Skip returns it to the running server.
+
+  // Every Skip uses the same screen/output handoff, including time limits and
+  // restarts. Once Upgrade is selected, late workload messages cannot undo it.
   const skipUpgrade = (worker: ChildProcess, forwardInput: boolean) => {
-    if (sessionStopHandled) {
+    if (upgradeSelected || sessionStopHandled) {
       return
     }
     outputHeld = false
@@ -306,18 +368,16 @@ const nextDev = async (
     }
     finishUpgrade?.()
   }
+
   async function offerUpgrade(
-    worker: ChildProcess,
     context: UpgradeContext,
     initialAssessment: Parameters<typeof nudgeUpgrade>[4]
   ) {
-    // A buffer-limit release is permanent; a late assessment must not reopen
-    // the menu after the server has resumed writing to its terminal.
+    // Buffer pressure may have skipped the choice while assessment was pending.
+    // Do not reopen a menu after that permanent release.
     if (!outputHeld) {
       return
     }
-    process.on('SIGHUP', onHangup)
-    upgradeInProgress = true
     const controller = new AbortController()
     upgradeController = controller
 
@@ -328,10 +388,8 @@ const nextDev = async (
     })
 
     let nudgeId: string | null = null
-    let action
-
     try {
-      action = await nudgeUpgrade(
+      const action = await nudgeUpgrade(
         dir,
         context,
         'dev',
@@ -343,37 +401,44 @@ const nextDev = async (
             nudgeId = id
           },
         }
-      )
-    } catch (error) {
-      Log.warn(`Could not offer the upgrade: ${String(error)}`)
+      ).catch((error) => {
+        Log.warn(`Could not offer the upgrade: ${String(error)}`)
+      })
+      if (controller.signal.aborted || sessionStopHandled) {
+        return
+      }
+      if (action === 'interrupt') {
+        onInterrupt()
+        return
+      }
+
+      // Commit before waiting for shutdown or telemetry. Upgrade discards this
+      // server; late safeguards and fatal messages no longer own the choice.
+      if (action === 'update' && context.experimental.agentUpgrade) {
+        upgradeSelected = true
+        await handleSessionStop('SIGKILL', false)
+      } else if (child) {
+        skipUpgrade(child, true)
+      }
     } finally {
       upgradeController = null
+      // The foreground recorder owns one flush, including policy-only events.
+      await telemetry.flush()
     }
-    if (controller.signal.aborted || sessionStopHandled) {
-      upgradeInProgress = false
-      process.off('SIGHUP', onHangup)
-      return
-    }
-    if (action === 'interrupt') {
-      onInterrupt()
-      return
-    }
-    if (action === 'update' && context.experimental.agentUpgrade) {
-      await handleSessionStop('SIGTERM', false)
+
+    if (upgradeSelected && context.experimental.agentUpgrade) {
       if (interruption) {
         process.exit(128 + os.constants.signals[interruption])
       }
       process.off('SIGINT', onInterrupt)
       process.off('SIGTERM', onTerminate)
       process.off('SIGHUP', onHangup)
+      process.off('SIGQUIT', onQuit)
       restoreUpgradeEnvironment(upgradeEnvironment)
       process.exit(
         await runUpgrade(dir, context.experimental.agentUpgrade, nudgeId)
       )
     }
-    upgradeInProgress = false
-    process.off('SIGHUP', onHangup)
-    skipUpgrade(worker, true)
   }
 
   // Check if pages dir exists and warn if not
@@ -555,9 +620,15 @@ const nextDev = async (
       const { nodeOptions: formattedNodeOptions, execArgv } =
         formatNodeOptions(nodeOptions)
 
+      // Keep output on the real terminal, but isolate managed stdin so plugins
+      // cannot consume menu keys. Skip forwards input through this pipe; it
+      // stays non-TTY, so stdin raw-mode plugins cannot retain their old behavior.
+      // Ordinary dev runs keep all three inherited streams.
+      // A separate POSIX group lets Upgrade kill this server and its descendants
+      // without killing the CLI that must launch the upgrade next.
       child = fork(startServerPath, {
-        // Only the parent reads menu input. Keep output connected to the TTY.
-        stdio: humanUpgrade ? ['pipe', 'inherit', 'inherit', 'ipc'] : 'inherit',
+        stdio: managedDev ? ['pipe', 'inherit', 'inherit', 'ipc'] : 'inherit',
+        detached: managedDev && process.platform !== 'win32',
         execArgv,
         env: {
           ...defaultEnv,
@@ -569,6 +640,7 @@ const nextDev = async (
           NEXT_PRIVATE_ALLOWED_UPGRADE_RETRIES: Array.from(
             allowedUpgradeRetries
           ).join(','),
+          NEXT_PRIVATE_UPGRADE_PROCESS_GROUP: managedDev ? '1' : undefined,
           NEXT_PRIVATE_TRACE_ID: traceId,
           NEXT_PRIVATE_ENABLED_FEATURES: JSON.stringify(enabledFeatures),
           NEXT_PRIVATE_DEV_SPAN_ATTRS: JSON.stringify(devSpanAttrs),
@@ -594,24 +666,40 @@ const nextDev = async (
             : undefined),
         },
       })
-
-      // Restarts replace child; each IPC callback must keep its own worker.
+      // Capture this particular worker: a restart will replace the global child,
+      // but old IPC/close callbacks must still refer to the worker they belong to.
       const worker = child
-      if (humanUpgrade && !outputHeld) {
-        forwardUpgradeInput(worker)
+      if (managedDev) {
+        forwardUpgradeResize(worker)
+        // A restart after Skip has no menu to protect. Connect only this new
+        // worker; the old worker's close handler removes its own input pipe.
+        if (!outputHeld && !sessionStopHandled) {
+          forwardUpgradeInput(worker)
+        }
       }
       let workerError: Error | null = null
       let workerExitTimeout: NodeJS.Timeout | null = null
+
+      // End the choice immediately so this worker can print and exit. Its close
+      // handler owns cleanup; an IPC failure still needs a bounded fallback
+      // because the process may remain alive after the channel fails.
       const revealWorkerOutput = () => {
-        if (workerExitTimeout || sessionStopHandled) {
+        if (workerExitTimeout || upgradeSelected || sessionStopHandled) {
           return
         }
-        skipUpgrade(worker, false)
-        workerExitTimeout = setTimeout(() => worker.kill('SIGKILL'), 5_000)
+        try {
+          skipUpgrade(worker, false)
+          workerExitTimeout = setTimeout(() => killUpgradeWork(worker), 5_000)
+        } catch (error) {
+          console.error(error)
+          void handleSessionStop('SIGTERM')
+        }
       }
       worker.on('error', (error) => {
         workerError = error
-        if (!humanUpgrade) {
+        if (!managedDev) {
+          // IPC errors can arrive while the worker is still alive. Record
+          // failure before shutdown snapshots its not-yet-set exit code as 0.
           workExitCode = 1
           console.error(error)
           void handleSessionStop('SIGTERM')
@@ -619,6 +707,9 @@ const nextDev = async (
         }
         revealWorkerOutput()
       })
+
+      // Context starts the choice once. Skip or worker exit permanently ends
+      // it; Ready still lets normal startup proceed while the user decides.
       worker.on('message', (msg: any) => {
         if (msg && typeof msg === 'object') {
           if (
@@ -627,18 +718,19 @@ const nextDev = async (
           ) {
             allowedUpgradeRetries.add(msg.nextUpgradeRetryAllowed)
           } else if (msg.nextUpgradeContext) {
-            // Restore config and .env changes only if Upgrade is selected.
+            // A replacement has already skipped the menu. Keep its config for
+            // ordinary session bookkeeping, without reopening an old choice.
             upgradeEnvironment = msg.nextUpgradeEnvironment ?? null
             const context = msg.nextUpgradeContext as UpgradeContext
             distDir = context.distDir
-            if (!outputHeld || upgradeInProgress) {
+            if (!outputHeld || upgradeController !== null || upgradeSelected) {
               return
             }
             const initialAssessment =
               msg.nextUpgradeAssessment !== undefined
                 ? Promise.resolve(msg.nextUpgradeAssessment)
                 : null
-            void offerUpgrade(worker, context, initialAssessment).catch(
+            void offerUpgrade(context, initialAssessment).catch(
               async (error) => {
                 console.error(error)
                 await handleSessionStop('SIGTERM', false)
@@ -646,8 +738,11 @@ const nextDev = async (
               }
             )
           } else if (msg.nextUpgradeSkip) {
+            // Memory pressure or the hold time limit ends the choice,
+            // not dev. Replacement workers also start with output released.
             skipUpgrade(worker, true)
-          } else if (msg.nextUpgradeOutput) {
+          } else if (msg.nextUpgradeOutput && !upgradeSelected) {
+            // Fatal output and config restarts close the menu before flushing.
             revealWorkerOutput()
           } else if (msg.nextWorkerReady) {
             worker.send({ nextWorkerOptions: startServerOptions })
@@ -668,6 +763,8 @@ const nextDev = async (
         }
       })
 
+      // Restart continues with live logs. Every other close ends the session
+      // with the worker's result, after cancelling any unfinished menu.
       worker.on('close', async (code, signal) => {
         const revealOutput = outputHeld || workerExitTimeout !== null
         if (workerExitTimeout) {
@@ -678,12 +775,21 @@ const nextDev = async (
         }
         if (revealOutput) {
           skipUpgrade(worker, false)
+        }
+
+        // Skip releases output, not ownership. Retire descendants before a
+        // restart replaces this worker, or final session cleanup begins.
+        if (managedDev) {
+          killUpgradeWork(worker)
+        }
+        if (revealOutput) {
           if (workerError) {
             Log.error(workerError)
           } else if (signal || (code && code !== RESTART_EXIT_CODE)) {
             Log.error(`Dev server stopped (${signal ?? `exit ${code}`}).`)
           }
         }
+
         if (code === RESTART_EXIT_CODE) {
           // Starting the dev server will overwrite the `.next/trace` file, so we
           // must upload the existing contents before restarting the server to

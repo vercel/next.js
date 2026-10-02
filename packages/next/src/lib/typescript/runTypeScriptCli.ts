@@ -120,7 +120,11 @@ export function runTypeScriptCli({
       // TypeScript 7's Node wrapper starts the native compiler synchronously
       // on older Node.js releases. A separate process group lets termination
       // reach both processes instead of orphaning the native compiler.
-      detached: process.platform !== 'win32',
+      // A managed workload already owns a group that its surviving supervisor
+      // can stop, including this native compiler if our process is killed.
+      detached:
+        process.platform !== 'win32' &&
+        !process.env.NEXT_PRIVATE_UPGRADE_PROCESS_GROUP,
       shell: false,
       stdio: ['ignore', 'pipe', 'pipe'],
       env: {
@@ -181,7 +185,11 @@ export function runTypeScriptCli({
       } else {
         try {
           // https://www.youtube.com/watch?v=Fow7iUaKrq4
-          process.kill(-child.pid, 'SIGKILL')
+          if (process.env.NEXT_PRIVATE_UPGRADE_PROCESS_GROUP) {
+            child.kill('SIGKILL')
+          } else {
+            process.kill(-child.pid, 'SIGKILL')
+          }
         } catch {
           // The process may have exited between the lifecycle event and kill.
         }

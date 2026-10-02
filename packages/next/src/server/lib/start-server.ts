@@ -638,8 +638,14 @@ export async function startServer(
 }
 
 if (process.env.NEXT_PRIVATE_WORKER && process.send) {
-  // Install IPC before config loads; the router holds output only after config.
-  if (process.env.NEXT_PRIVATE_UPGRADE_PROMPT === '1') {
+  // Keep shutdown control across restarts after Skip as well. Config and its
+  // route callbacks stay live; router-server decides whether to hold output.
+  // Install IPC before loading config so even startup errors can ask the parent
+  // to close the menu and release their buffered diagnostics before exiting.
+  if (
+    process.env.NEXT_PRIVATE_UPGRADE_PROCESS_GROUP === '1' ||
+    process.env.NEXT_PRIVATE_UPGRADE_PROMPT === '1'
+  ) {
     handleUpgradeOutputMessages()
   }
 
