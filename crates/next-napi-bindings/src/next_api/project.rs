@@ -430,6 +430,7 @@ pub fn project_new<'env>(
     napi_callbacks: NapiNextTurbopackCallbacksJsObject,
 ) -> napi::Result<PromiseRaw<'env, TurbopackResult<NapiProject>>> {
     let napi_callbacks = NapiNextTurbopackCallbacks::from_js(env, napi_callbacks)?;
+    let output = napi_callbacks.terminal_output.clone();
     let (exit, exit_receiver) = ExitHandler::new_receiver();
 
     // The root path must be canonicalized before DiskFileSystem is constructed, but do it early,
@@ -580,19 +581,23 @@ pub fn project_new<'env>(
     env.spawn_future(
         async move {
             let dependency_tracking = turbo_engine_options.dependency_tracking.unwrap_or(true);
-            let turbo_tasks = create_turbo_tasks(
-                PathBuf::from(&options.dist_dir),
-                &options.next_version,
-                options.is_persistent_caching_enabled,
-                dependency_tracking,
-                BackingStorageOptions {
-                    is_ci: turbo_engine_options.is_ci.unwrap_or(false),
-                    is_short_session: turbo_engine_options.is_short_session.unwrap_or(false),
-                    skip_compaction: turbo_engine_options.skip_compaction.unwrap_or(false),
-                },
-                turbo_engine_options.turbopack_memory_eviction,
-                turbo_engine_options.gc,
-            )?;
+            // Loader output belongs to this engine's Node streams. Ordinary
+            // native diagnostics retain their existing direct terminal output.
+            let turbo_tasks = turbo_tasks::terminal_output::with_terminal_output(output, || {
+                create_turbo_tasks(
+                    PathBuf::from(&options.dist_dir),
+                    &options.next_version,
+                    options.is_persistent_caching_enabled,
+                    dependency_tracking,
+                    BackingStorageOptions {
+                        is_ci: turbo_engine_options.is_ci.unwrap_or(false),
+                        is_short_session: turbo_engine_options.is_short_session.unwrap_or(false),
+                        skip_compaction: turbo_engine_options.skip_compaction.unwrap_or(false),
+                    },
+                    turbo_engine_options.turbopack_memory_eviction,
+                    turbo_engine_options.gc,
+                )
+            })?;
             let turbopack_ctx = NextTurbopackContext::new(turbo_tasks.clone(), napi_callbacks);
 
             if let Some(stats_path) = std::env::var_os("NEXT_TURBOPACK_TASK_STATISTICS") {

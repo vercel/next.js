@@ -115,6 +115,7 @@ struct OutputStreamHandler<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> {
     root: FileSystemPath,
     project_dir: FileSystemPath,
     final_stream: W,
+    terminal_fd: u8,
     recent_lines: RecentLines,
 }
 
@@ -131,14 +132,19 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
             root,
             project_dir,
             final_stream,
+            terminal_fd,
             recent_lines,
         } = self;
 
         async fn write_final<W: AsyncWrite + Unpin>(
             mut bytes: &[u8],
             final_stream: &mut W,
+            terminal_fd: u8,
         ) -> Result<()> {
             let _lock = GLOBAL_OUTPUT_LOCK.lock().await;
+            if let Some(output) = turbo_tasks::terminal_output::current_terminal_output() {
+                return output(terminal_fd, bytes.to_vec());
+            }
             while !bytes.is_empty() {
                 let count = final_stream.write(bytes).await?;
                 if count == 0 {
@@ -155,6 +161,7 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
             root: FileSystemPath,
             project_dir: FileSystemPath,
             final_stream: &mut W,
+            terminal_fd: u8,
         ) -> Result<()> {
             if let Ok(text) = std::str::from_utf8(bytes) {
                 let text = unmangle_identifiers(text, |content| {
@@ -173,16 +180,17 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
                         write_final(
                             format!("Error applying source mapping: {e}\n").as_bytes(),
                             final_stream,
+                            terminal_fd,
                         )
                         .await?;
-                        write_final(text.as_bytes(), final_stream).await?;
+                        write_final(text.as_bytes(), final_stream, terminal_fd).await?;
                     }
                     Ok(text) => {
-                        write_final(text.as_bytes(), final_stream).await?;
+                        write_final(text.as_bytes(), final_stream, terminal_fd).await?;
                     }
                 }
             } else {
-                write_final(bytes, final_stream).await?;
+                write_final(bytes, final_stream, terminal_fd).await?;
             }
             Ok(())
         }
@@ -264,6 +272,7 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
                                 root.clone(),
                                 project_dir.clone(),
                                 final_stream,
+                                *terminal_fd,
                             )
                             .await?;
                         }
@@ -291,6 +300,7 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
                 root.clone(),
                 project_dir.clone(),
                 final_stream,
+                *terminal_fd,
             )
             .await?;
             buffer.clear();
@@ -412,6 +422,7 @@ impl NodeJsPoolProcess {
             root: assets_root.clone(),
             project_dir: project_dir.clone(),
             final_stream: stdout(),
+            terminal_fd: 1,
             recent_lines: recent_stdout.clone(),
         };
         let stderr_handler = OutputStreamHandler {
@@ -421,6 +432,7 @@ impl NodeJsPoolProcess {
             root: assets_root.clone(),
             project_dir: project_dir.clone(),
             final_stream: stderr(),
+            terminal_fd: 2,
             recent_lines: recent_stderr.clone(),
         };
 

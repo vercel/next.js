@@ -1307,6 +1307,19 @@ function bindingToApi(
           require('../../shared/lib/turbopack/internal-error') as typeof import('../../shared/lib/turbopack/internal-error')
         ).throwTurbopackInternalError,
         onBeforeDeferredEntries: callbacks?.onBeforeDeferredEntries,
+        // Accept loader bytes into this child's existing corked streams.
+        // This callback must not wait for the terminal to display them.
+        onOutput: (
+          require('../../lib/upgrade-output') as typeof import('../../lib/upgrade-output')
+        ).isUpgradeOutputManaged()
+          ? (error: Error | null, output: { fd: number; data: Buffer }) => {
+              if (error) {
+                throw error
+              }
+              const stream = output.fd === 1 ? process.stdout : process.stderr
+              stream.write(output.data)
+            }
+          : undefined,
       }
     )
     return {

@@ -57,6 +57,10 @@ use crate::{
 /// Common base trait for [`TurboTasksApi`] and [`TurboTasks`]. Provides APIs for creating tasks
 /// from function calls.
 pub trait TurboTasksCallApi: Sync + Send {
+    fn terminal_output(&self) -> Option<crate::terminal_output::TerminalOutput> {
+        None
+    }
+
     /// Calls a native function with arguments. Resolves arguments when needed
     /// with a wrapper task.
     ///
@@ -696,6 +700,7 @@ pub struct TurboTasks<B: Backend + 'static> {
     /// Event that is triggered when all background jobs are done
     event_background_done: Event,
     compilation_events: CompilationEventQueue,
+    terminal_output: Option<crate::terminal_output::TerminalOutput>,
 }
 
 /// Information about a non-local task. A non-local task can contain multiple "local" tasks, which
@@ -897,6 +902,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                 || "TurboTasks::event_background_done".to_string()
             }),
             compilation_events: CompilationEventQueue::default(),
+            terminal_output: crate::terminal_output::current_terminal_output(),
         });
         this.backend.startup(&*this);
         this
@@ -1704,6 +1710,10 @@ struct FinishedTaskState {
 }
 
 impl<B: Backend + 'static> TurboTasksCallApi for TurboTasks<B> {
+    fn terminal_output(&self) -> Option<crate::terminal_output::TerminalOutput> {
+        self.terminal_output.clone()
+    }
+
     fn dynamic_call(
         &self,
         native_fn: &'static NativeFunction,
