@@ -292,6 +292,9 @@ pub struct EcmascriptOptionsContext {
     /// is observable from user code — modules whose export names can escape keep their original
     /// names. Defaults to false.
     pub mangle_export_names: bool,
+    /// Whether to materialize public namespaces with a facade so local export keys can still be
+    /// mangled when the namespace escapes. Defaults to false and requires `mangle_export_names`.
+    pub mangle_via_materialized_namespace_object: bool,
     /// Whether to scope-hoist static CommonJS modules. Defaults to false.
     pub cjs_scope_hoisting: bool,
 
