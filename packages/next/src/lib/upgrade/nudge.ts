@@ -18,6 +18,7 @@ import type { UpgradeAction } from './prompt'
 import { getAgentName } from '../../telemetry/agent-name'
 import { getPendingFutureDefaults } from './future-defaults'
 import { isCI } from '../../server/ci-info'
+import { getNodeDebugType, getParsedNodeOptions } from '../../server/lib/utils'
 
 type NudgeOptions = {
   directory: string
@@ -408,10 +409,13 @@ async function getUpgradePreferences(directory: string) {
 }
 
 function canPromptForUpgrade(): boolean {
+  // Keep debugging in the ordinary dev/build process path. A build supervisor
+  // would inherit the inspector port, while either menu interrupts debugging.
   return (
     !isCI &&
     Boolean(process.stdin.isTTY && process.stdout.isTTY) &&
-    process.env.TERM !== 'dumb'
+    process.env.TERM !== 'dumb' &&
+    getNodeDebugType(getParsedNodeOptions()) === undefined
   )
 }
 

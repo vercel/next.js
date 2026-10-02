@@ -361,6 +361,7 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/lib/typescript/type-paths.js",
            "/node_modules/next/dist/lib/typescript/writeAppTypeDeclarations.js",
            "/node_modules/next/dist/lib/typescript/writeConfigurationDefaults.js",
+           "/node_modules/next/dist/lib/upgrade-output.js",
            "/node_modules/next/dist/lib/url.js",
            "/node_modules/next/dist/lib/verify-partytown-setup.js",
            "/node_modules/next/dist/lib/verify-root-layout.js",

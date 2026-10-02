@@ -1,3 +1,4 @@
+import { handleUpgradeOutputMessages } from '../../lib/upgrade-output'
 // Start CPU profile if it wasn't already started.
 import './cpu-profile'
 import { getNetworkHost } from '../../lib/get-network-host'
@@ -628,6 +629,11 @@ export async function startServer(
 }
 
 if (process.env.NEXT_PRIVATE_WORKER && process.send) {
+  // Install IPC before config loads; the router holds output only after config.
+  if (process.env.NEXT_PRIVATE_UPGRADE_PROMPT === '1') {
+    handleUpgradeOutputMessages()
+  }
+
   process.addListener('message', async (msg: any) => {
     if (
       msg &&
