@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/select'
 import { MultiSelect } from '@/components/ui/multi-select'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { diffRoutesWithSizes } from '@/lib/diff'
+import { diffRoutesWithSizes, type RouteSizeTotals } from '@/lib/diff'
 import { type SnapshotMetadata } from '@/lib/snapshot'
 import {
   Monitor,
@@ -61,6 +61,7 @@ export function ControlDivider() {
 export function TopBar({
   selectedRoute,
   setSelectedRoute,
+  getRouteHref,
   environmentFilter,
   setEnvironmentFilter,
   setSelectedSourceIndex,
@@ -70,12 +71,15 @@ export function TopBar({
   searchQuery,
   setSearchQuery,
   baselineSnapshot,
+  getBaselineHref,
   onBaselineChange,
+  stopComparisonHref,
   comparisonSnapshot,
   onComparisonChange,
   compareView,
   onCompareViewChange,
   routeDiff,
+  routeTotals,
   hasSourceData,
   showViewToggle,
 }: {
@@ -83,6 +87,7 @@ export function TopBar({
   showViewToggle: boolean
   selectedRoute: string | null
   setSelectedRoute: (route: string | null) => void
+  getRouteHref?: (route: string) => string
   environmentFilter: Environment
   setEnvironmentFilter: (env: Environment) => void
   setSelectedSourceIndex: (index: number | null) => void
@@ -92,25 +97,48 @@ export function TopBar({
   searchQuery: string
   setSearchQuery: (query: string) => void
   baselineSnapshot: SnapshotMetadata | null
-  onBaselineChange: (snapshot: SnapshotMetadata | null) => void
+  getBaselineHref?: (snapshot: SnapshotMetadata) => string
+  onBaselineChange: (snapshot: SnapshotMetadata) => void
+  stopComparisonHref: string
   comparisonSnapshot: SnapshotMetadata | null
   onComparisonChange: (snapshot: SnapshotMetadata | null) => void
   compareView: CompareView
   onCompareViewChange: (view: CompareView) => void
   routeDiff: ReturnType<typeof diffRoutesWithSizes> | null
+  routeTotals?: ReadonlyMap<string, RouteSizeTotals> | null
 }) {
   const isCompareMode = baselineSnapshot != null
+  const routeSelection = getRouteHref
+    ? ({ mode: 'link', getRouteHref } as const)
+    : ({
+        mode: 'action',
+        onRouteSelected: (route: string) => {
+          setSelectedRoute(route)
+          setSelectedSourceIndex(null)
+          setFocusedSourceIndex(null)
+        },
+      } as const)
+  const baselineSelection = getBaselineHref
+    ? ({
+        mode: 'link',
+        getSnapshotHref: getBaselineHref,
+        clearHref: stopComparisonHref,
+      } as const)
+    : ({
+        mode: 'action',
+        onSelectionChange: (snapshot: SnapshotMetadata | null) => {
+          if (snapshot) onBaselineChange(snapshot)
+        },
+        clearHref: stopComparisonHref,
+      } as const)
   return (
     <div className="flex-none px-4 py-2 border-b border-border flex items-center gap-3">
       <div className="flex min-w-0 flex-1">
         <RouteTypeahead
           selectedRoute={selectedRoute}
-          onRouteSelected={(route) => {
-            setSelectedRoute(route)
-            setSelectedSourceIndex(null)
-            setFocusedSourceIndex(null)
-          }}
+          {...routeSelection}
           routeDiff={isCompareMode ? routeDiff : null}
+          routeTotals={routeTotals}
           useCompressed
         />
       </div>
@@ -118,13 +146,14 @@ export function TopBar({
       <div className="flex items-center gap-2">
         <BaselinePicker
           selectedSnapshotId={baselineSnapshot?.id ?? null}
-          onSelectionChange={onBaselineChange}
+          {...baselineSelection}
           excludedSnapshotId={comparisonSnapshot?.id}
           prefix="from"
           placeholder="Compare from…"
         />
         {isCompareMode ? (
           <BaselinePicker
+            mode="action"
             selectedSnapshotId={comparisonSnapshot?.id ?? null}
             onSelectionChange={onComparisonChange}
             excludedSnapshotId={baselineSnapshot?.id}

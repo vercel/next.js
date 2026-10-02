@@ -34,8 +34,7 @@ import {
   useHistoryIndex,
   useSuspenseJsonData,
 } from '@/lib/analyzer-data'
-import { diffRoutesWithSizes, diffSources } from '@/lib/diff'
-import { useRouteTotals } from '@/lib/use-route-totals'
+import { diffRoutesWithSizes, diffSources, type RouteSummary } from '@/lib/diff'
 import { useSidebarResize } from '@/lib/use-sidebar-resize'
 import { useAnalyzerRoute } from '@/lib/use-analyzer-route'
 import { computeActiveEntries, computeModuleDepthMap } from '@/lib/module-graph'
@@ -72,12 +71,14 @@ function CompareAnalyzerController() {
 function AnalyzerBoundary({
   children,
   defaultView,
+  fallback,
 }: {
   children: ReactNode
   defaultView: CompareView
+  fallback?: ReactNode
 }) {
   return (
-    <Suspense fallback={<AnalyzerFallback view={defaultView} />}>
+    <Suspense fallback={fallback ?? <AnalyzerFallback view={defaultView} />}>
       {children}
     </Suspense>
   )
@@ -260,12 +261,30 @@ function useAnalyzerModel(compare: boolean) {
     })
   }, [analyzeData, baselineSnapshot, filterSource])
 
-  // Per-route totals for both sides, used to size the route-level diff so
-  // that routes whose modules changed can be reported as `changed` rather
-  // than `identical`. Only fetched in compare mode.
-  const { totals: currentRouteTotals } = useRouteTotals(
-    baselineSnapshot ? currentRoutes : null,
-    baselineSnapshot ? comparisonBaseDir : null
+  const routeSummaries = useSuspenseJsonData<RouteSummary[]>(
+    `${comparisonBaseDir}/route-summaries.json`,
+    { revalidateOnFocus: false, revalidateOnReconnect: false }
+  )
+  const clientRouteTotals = new Map(
+    routeSummaries.map(({ route, client }) => [
+      route,
+      { size: client.size, compressedSize: client.compressed_size },
+    ])
+  )
+  const serverRouteTotals = new Map(
+    routeSummaries.map(({ route, size, compressed_size, client }) => [
+      route,
+      {
+        size: size - client.size,
+        compressedSize: compressed_size - client.compressed_size,
+      },
+    ])
+  )
+  const currentRouteTotals = new Map(
+    routeSummaries.map(({ route, size, compressed_size }) => [
+      route,
+      { size, compressedSize: compressed_size },
+    ])
   )
   return {
     analyzeData,
@@ -284,6 +303,8 @@ function useAnalyzerModel(compare: boolean) {
     moduleDepthMap,
     modulesData,
     currentRouteTotals,
+    clientRouteTotals,
+    serverRouteTotals,
     searchQuery: searchInput,
     selectedRoute,
     selectedSourceIndex,
@@ -341,6 +362,7 @@ function AnalyzerTopBar({
       compareView={model.compareView}
       onCompareViewChange={model.setCompareView}
       selectedRoute={model.selectedRoute}
+      getRouteHref={model.routeState.getRouteHref}
       setSelectedRoute={model.routeState.setRoute}
       environmentFilter={model.environmentFilter}
       setEnvironmentFilter={model.setEnvironmentFilter}
@@ -351,13 +373,17 @@ function AnalyzerTopBar({
       searchQuery={model.searchQuery}
       setSearchQuery={model.setSearchQuery}
       baselineSnapshot={model.baselineSnapshot}
-      onBaselineChange={(snapshot) => {
-        if (snapshot) model.routeState.startComparison(snapshot)
-        else model.routeState.stopComparison()
-      }}
+      getBaselineHref={model.routeState.getBaselineHref}
+      onBaselineChange={model.routeState.setBaselineSnapshot}
+      stopComparisonHref={model.routeState.stopComparisonHref}
       comparisonSnapshot={model.comparisonSnapshot}
       onComparisonChange={model.routeState.setComparisonSnapshot}
       routeDiff={routeDiff}
+      routeTotals={
+        model.environmentFilter === Environment.Client
+          ? model.clientRouteTotals
+          : model.serverRouteTotals
+      }
     />
   )
 }
@@ -413,18 +439,22 @@ function ValidComparisonContent({
     `${baselineBaseDir}/routes.json`,
     { revalidateOnFocus: false, revalidateOnReconnect: false }
   )
-  const { totals: baselineRouteTotals } = useRouteTotals(
-    baselineRoutes,
-    baselineBaseDir
+  const baselineRouteSummaries = useSuspenseJsonData<RouteSummary[]>(
+    `${baselineBaseDir}/route-summaries.json`,
+    { revalidateOnFocus: false, revalidateOnReconnect: false }
   )
-  const routeDiff = model.currentRouteTotals
-    ? diffRoutesWithSizes(
-        baselineRoutes,
-        model.currentRoutes,
-        baselineRouteTotals,
-        model.currentRouteTotals
-      )
-    : null
+  const baselineRouteTotals = new Map(
+    baselineRouteSummaries.map(({ route, size, compressed_size }) => [
+      route,
+      { size, compressedSize: compressed_size },
+    ])
+  )
+  const routeDiff = diffRoutesWithSizes(
+    baselineRoutes,
+    model.currentRoutes,
+    baselineRouteTotals,
+    model.currentRouteTotals
+  )
   const layoutProps = {
     baselineSnapshot,
     comparisonSnapshot: model.comparisonSnapshot,
@@ -572,7 +602,11 @@ function SingleAnalyzerView({ model }: { model: AnalyzerModel }) {
   const analyzeData = model.analyzeData
   const content = analyzeData ? (
     <SingleAnalyzerContent model={model} analyzeData={analyzeData} />
-  ) : null
+  ) : (
+    <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+      Select a route to analyze.
+    </div>
+  )
 
   const footer =
     analyzeData && model.compareView === CompareView.Treemap ? (

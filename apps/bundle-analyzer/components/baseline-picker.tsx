@@ -1,6 +1,7 @@
 'use client'
 
 import useSWR from 'swr'
+import Link from 'next/link'
 import {
   Check,
   ChevronsUpDown,
@@ -16,6 +17,7 @@ import {
   CommandGroup,
   CommandInput,
   CommandItem,
+  CommandLinkItem,
   CommandList,
 } from '@/components/ui/command'
 import {
@@ -32,15 +34,30 @@ import {
   type SnapshotMetadata,
 } from '@/lib/snapshot'
 
-interface BaselinePickerProps {
+interface BaselinePickerOptions {
   /** Selected historical snapshot id, or null for the control's default. */
   selectedSnapshotId: string | null
-  onSelectionChange: (snapshot: SnapshotMetadata | null) => void
   excludedSnapshotId?: string | null
   prefix?: string
   placeholder?: string
   clearLabel?: string
 }
+
+type BaselinePickerProps = BaselinePickerOptions &
+  (
+    | {
+        mode: 'link'
+        getSnapshotHref: (snapshot: SnapshotMetadata) => string
+        clearHref: string
+        onSelectionChange?: never
+      }
+    | {
+        mode: 'action'
+        onSelectionChange: (snapshot: SnapshotMetadata | null) => void
+        clearHref?: string
+        getSnapshotHref?: never
+      }
+  )
 
 /**
  * Top-bar control that lets the user pick one historical analyze snapshot.
@@ -49,14 +66,15 @@ interface BaselinePickerProps {
  * Snapshots are loaded from `history/history.json` — written by
  * `writeAnalyzeSnapshot` after each `next build --analyze`.
  */
-export function BaselinePicker({
-  selectedSnapshotId,
-  onSelectionChange,
-  excludedSnapshotId,
-  prefix = 'vs',
-  placeholder = 'Compare with…',
-  clearLabel = 'Stop comparing',
-}: BaselinePickerProps) {
+export function BaselinePicker(props: BaselinePickerProps) {
+  const {
+    selectedSnapshotId,
+    clearHref,
+    excludedSnapshotId,
+    prefix = 'vs',
+    placeholder = 'Compare with…',
+    clearLabel = 'Stop comparing',
+  } = props
   const [open, setOpen] = useState(false)
 
   const { data: history, isLoading, error } = useHistoryIndex()
@@ -168,43 +186,66 @@ export function BaselinePicker({
                 <CommandEmpty>No snapshots found.</CommandEmpty>
               )}
               <CommandGroup>
-                {snapshots.map((snapshot) => (
-                  <CommandItem
-                    key={snapshot.id}
-                    value={`${snapshot.id} ${snapshot.gitBranch ?? ''} ${snapshot.gitShortSha ?? ''} ${snapshot.gitMessage ?? ''} ${snapshot.snapshotName ?? ''}`}
-                    onSelect={() => {
-                      onSelectionChange(snapshot)
-                      setOpen(false)
-                    }}
-                  >
-                    <Check
-                      className={cn(
-                        'mr-2 h-4 w-4',
-                        selectedSnapshotId === snapshot.id
-                          ? 'opacity-100'
-                          : 'opacity-0'
-                      )}
-                    />
-                    <SnapshotRow snapshot={snapshot} />
-                  </CommandItem>
-                ))}
+                {snapshots.map((snapshot) => {
+                  const value = `${snapshot.id} ${snapshot.gitBranch ?? ''} ${snapshot.gitShortSha ?? ''} ${snapshot.gitMessage ?? ''} ${snapshot.snapshotName ?? ''}`
+                  const content = (
+                    <>
+                      <Check
+                        className={cn(
+                          'mr-2 h-4 w-4',
+                          selectedSnapshotId === snapshot.id
+                            ? 'opacity-100'
+                            : 'opacity-0'
+                        )}
+                      />
+                      <SnapshotRow snapshot={snapshot} />
+                    </>
+                  )
+                  return props.mode === 'link' ? (
+                    <CommandLinkItem
+                      key={snapshot.id}
+                      value={value}
+                      href={props.getSnapshotHref(snapshot)}
+                    >
+                      {content}
+                    </CommandLinkItem>
+                  ) : (
+                    <CommandItem
+                      key={snapshot.id}
+                      value={value}
+                      onSelect={() => {
+                        props.onSelectionChange(snapshot)
+                        setOpen(false)
+                      }}
+                    >
+                      {content}
+                    </CommandItem>
+                  )
+                })}
               </CommandGroup>
             </CommandList>
           </Command>
         </PopoverContent>
       </Popover>
 
-      {selected != null && (
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label={clearLabel}
-          onClick={() => onSelectionChange(null)}
-          className="h-8 w-8"
-        >
-          <X className="h-3.5 w-3.5" />
-        </Button>
-      )}
+      {selected != null &&
+        (clearHref ? (
+          <Button asChild variant="ghost" size="icon" className="h-8 w-8">
+            <Link href={clearHref} aria-label={clearLabel}>
+              <X className="h-3.5 w-3.5" />
+            </Link>
+          </Button>
+        ) : props.mode === 'action' ? (
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={clearLabel}
+            onClick={() => props.onSelectionChange(null)}
+            className="h-8 w-8"
+          >
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        ) : null)}
     </div>
   )
 }
