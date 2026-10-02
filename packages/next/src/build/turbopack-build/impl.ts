@@ -131,6 +131,9 @@ export async function turbopackBuild(telemetry: Telemetry): Promise<{
     sharedTurboOptions,
     hasDeferredEntries && config.experimental.onBeforeDeferredEntries
       ? {
+          // Config and the user hook can await writes while logs are held.
+          // The common cork deadline releases them without a hook-specific
+          // timer, while this native callback keeps awaiting the same work.
           onBeforeDeferredEntries: async () => {
             const workerConfig = await loadConfig(PHASE_PRODUCTION_BUILD, dir, {
               debugPrerender: NextBuildContext.debugPrerender,

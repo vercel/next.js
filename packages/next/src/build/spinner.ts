@@ -1,3 +1,4 @@
+import { isUpgradeOutputPending } from '../lib/upgrade-output'
 import ora from 'next/dist/compiled/ora'
 import * as Log from './output/log'
 
@@ -15,7 +16,10 @@ export default function createSpinner(
 
   let prefixText = `${Log.prefixes.info} ${text} `
 
-  if (process.stdout.isTTY) {
+  // Buffer a single progress line while the menu is pending, instead of
+  // replaying animation frames after Skip. New spinners then use the real
+  // output TTY. Managed stdin stays a pipe, so ora skips discarding typed input.
+  if (process.stdout.isTTY && !isUpgradeOutputPending()) {
     spinner = ora({
       text: undefined,
       prefixText,
