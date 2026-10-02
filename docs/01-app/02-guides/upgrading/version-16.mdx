@@ -6,8 +6,6 @@ description: Upgrade your Next.js Application from Version 15 to 16.
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
 
-<span id="set-up-ai-agent-docs" />
-
 ## Use a coding agent (recommended)
 
 Run the latest upgrade CLI from your app's directory:
@@ -22,9 +20,20 @@ The CLI prepares the Next.js 16 migration guides and codemod command for the age
 
 Upgrading manually follows a few steps, in order:
 
-1. [Run the upgrade codemod](#using-the-codemod).
-2. If you prefer not to run the codemod, [install packages manually](#install-packages-manually).
-3. Continue through the breaking changes below, run the relevant checks, and fix any remaining issues.
+1. [Set up AI agent docs](#set-up-ai-agent-docs) if you use a coding agent now or want future agent work grounded in version-matched docs.
+2. [Run the upgrade codemod](#using-the-codemod).
+3. If you prefer not to run the codemod, [install packages manually](#install-packages-manually).
+4. Continue through the breaking changes below, run the relevant checks, and fix any remaining issues.
+
+## Set up AI agent docs
+
+Before upgrading, point `AGENTS.md` at version-matched Next.js docs so a coding agent can help with the remaining steps:
+
+```bash filename="Terminal"
+npx @next/codemod@canary agents-md
+```
+
+After upgrading, check that `AGENTS.md` points at the docs bundled with the installed version in `node_modules/next/dist/docs/`. On Next.js 16.2 and later, `next dev` keeps this block up to date when it detects a coding agent. If the setup downloaded docs into `.next-docs/`, remove that directory once nothing references it. See [Version-matched documentation](/docs/app/guides/ai-agents#version-matched-documentation) for the managed block and setup details.
 
 ## Using the codemod
 
