@@ -760,21 +760,21 @@ async function exportAppImpl(
   if (renderOpts.cacheComponents) {
     // Only run instant validation once per route, even if multiple param sets from generateStaticParams exist.
     const routesWithInstantValidation = new Set<string>()
-    const buildValidationCandidatesByPage = new Map<
+    const buildValidationMetadataByPage = new Map<
       string,
-      ExportPathEntry['_buildValidationCandidates']
+      ExportPathEntry['_buildValidationMetadata']
     >()
 
-    // The build adds candidates to one export entry per page so they do not
-    // get serialized with every generated path. Move them to the entry that
-    // owns validation before sending paths to the worker.
+    // The build adds validation metadata to one export entry per page so it
+    // does not get serialized with every generated path. Move it to the entry
+    // that owns validation before sending paths to the worker.
     for (const exportPath of allExportPaths) {
-      if (exportPath._buildValidationCandidates) {
-        buildValidationCandidatesByPage.set(
+      if (exportPath._buildValidationMetadata) {
+        buildValidationMetadataByPage.set(
           exportPath.page,
-          exportPath._buildValidationCandidates
+          exportPath._buildValidationMetadata
         )
-        delete exportPath._buildValidationCandidates
+        delete exportPath._buildValidationMetadata
       }
     }
 
@@ -792,10 +792,10 @@ async function exportAppImpl(
       const route = exportPath.page
       if (!routesWithInstantValidation.has(route)) {
         exportPath._runInstantValidation = true
-        const buildValidationCandidates =
-          buildValidationCandidatesByPage.get(route)
-        if (buildValidationCandidates) {
-          exportPath._buildValidationCandidates = buildValidationCandidates
+        const buildValidationMetadata =
+          buildValidationMetadataByPage.get(route)
+        if (buildValidationMetadata) {
+          exportPath._buildValidationMetadata = buildValidationMetadata
         }
         routesWithInstantValidation.add(route)
       }

@@ -229,6 +229,7 @@ import {
   parseRelativeUrl,
   type ParsedRelativeUrl,
 } from '../../shared/lib/router/utils/parse-relative-url'
+import { decodePathParams } from '../lib/router-utils/decode-path-params'
 import AppRouter from '../../client/components/app-router'
 import type { RequestErrorContext } from '../instrumentation/types'
 import { getIsPossibleServerAction } from '../lib/server-action-request-meta'
@@ -237,6 +238,7 @@ import { createMutableActionQueue } from '../../client/components/app-router-ins
 import { getRevalidateReason } from '../instrumentation/utils'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import {
+  createOpaqueFallbackRouteParams,
   getFallbackRouteParams,
   getStagedFallbackParams,
   selectPrerenderedRoute,
@@ -8611,13 +8613,23 @@ async function validateInstantConfigInBuildWithSample(
     sample.searchParams
   )
 
+  const buildValidationMetadata =
+    outerCtx.renderOpts.buildValidationMetadata
   const selectedPrerenderCandidate = selectPrerenderedRoute(
-    outerCtx.renderOpts.buildValidationCandidates ?? [],
-    sampleUrl.pathname
+    buildValidationMetadata?.candidates ?? [],
+    decodePathParams(sampleUrl.pathname)
   )
-  const stagedFallbackParams = selectedPrerenderCandidate
+  let stagedFallbackParams = selectedPrerenderCandidate
     ? getStagedFallbackParams(selectedPrerenderCandidate)
     : null
+  if (buildValidationMetadata?.explicitFallbackRouteParams) {
+    stagedFallbackParams = new Map([
+      ...(stagedFallbackParams ?? []),
+      ...(createOpaqueFallbackRouteParams(
+        buildValidationMetadata.explicitFallbackRouteParams
+      ) ?? []),
+    ])
+  }
   const stagedFallbackParamNames = stagedFallbackParams
     ? new Set(stagedFallbackParams.keys())
     : null

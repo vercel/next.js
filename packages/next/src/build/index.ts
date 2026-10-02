@@ -150,7 +150,7 @@ import {
 } from './utils'
 import type { DynamicManifestRoute, PageInfo, PageInfos } from './utils'
 import type {
-  BuildValidationCandidate,
+  BuildValidationMetadata,
   FallbackRouteParam,
   PrerenderRouteMatcher,
   PrerenderedRoute,
@@ -2292,6 +2292,10 @@ export default async function build(
       const staticPaths = new Map<string, PrerenderedRoute[]>()
       const prerenderRouteMatchers = new Map<string, PrerenderRouteMatcher[]>()
       const paramMatchingByRoute = new Map<string, ParamMatching | undefined>()
+      const explicitFallbackRouteParamsByRoute = new Map<
+        string,
+        readonly FallbackRouteParam[] | undefined
+      >()
       const appNormalizedPaths = new Map<string, string>()
       const fallbackModes = new Map<string, FallbackMode>()
       const appDefaultConfigs = new Map<string, AppSegmentConfig>()
@@ -2684,6 +2688,10 @@ export default async function build(
                           paramMatchingByRoute.set(
                             originalAppPath,
                             workerResult.paramMatching
+                          )
+                          explicitFallbackRouteParamsByRoute.set(
+                            originalAppPath,
+                            workerResult.explicitFallbackRouteParams
                           )
                         }
                         appNormalizedPaths.set(originalAppPath, page)
@@ -3318,6 +3326,8 @@ export default async function build(
                 // Legacy dynamicParams=false closes the entire route tuple.
                 // Explicit matching instead identifies the affected parameters.
                 const paramMatching = paramMatchingByRoute.get(originalAppPath)
+                const explicitFallbackRouteParams =
+                  explicitFallbackRouteParamsByRoute.get(originalAppPath)
                 let notFoundParams: readonly string[] | undefined
                 if (paramMatching) {
                   notFoundParams = Object.keys(paramMatching).filter(
@@ -3334,16 +3344,19 @@ export default async function build(
                   ? isAppCacheComponentsEnabled
                   : false
 
-                const buildValidationCandidates:
-                  | readonly BuildValidationCandidate[]
+                const buildValidationMetadata:
+                  | BuildValidationMetadata
                   | undefined = isRoutePPREnabled
-                  ? routes.map((route) => ({
-                      pathname: route.pathname,
-                      fallbackRouteParams: route.fallbackRouteParams,
-                      remainingPrerenderableParams:
-                        route.remainingPrerenderableParams,
-                      throwOnEmptyStaticShell: route.throwOnEmptyStaticShell,
-                    }))
+                  ? {
+                      candidates: routes.map((route) => ({
+                        pathname: route.pathname,
+                        fallbackRouteParams: route.fallbackRouteParams,
+                        remainingPrerenderableParams:
+                          route.remainingPrerenderableParams,
+                        throwOnEmptyStaticShell: route.throwOnEmptyStaticShell,
+                      })),
+                      explicitFallbackRouteParams,
+                    }
                   : undefined
 
                 routes.forEach((route) => {
@@ -3368,9 +3381,9 @@ export default async function build(
                     page: originalAppPath,
                     _ssgPath: route.encodedPathname,
                     _fallbackRouteParams: route.fallbackRouteParams,
-                    ...(route === routes[0] && buildValidationCandidates
+                    ...(route === routes[0] && buildValidationMetadata
                       ? {
-                          _buildValidationCandidates: buildValidationCandidates,
+                          _buildValidationMetadata: buildValidationMetadata,
                         }
                       : {}),
                     _notFoundParams: notFoundParams,

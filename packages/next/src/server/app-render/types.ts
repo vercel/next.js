@@ -7,7 +7,7 @@ import type {
   ValidationLevel,
 } from '../../server/config-shared'
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
-import type { BuildValidationCandidate } from '../../build/static-paths/types'
+import type { BuildValidationMetadata } from '../../build/static-paths/types'
 import type { ParsedUrlQuery } from 'querystring'
 import type { AppPageModule } from '../route-modules/app-page/module'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
@@ -246,10 +246,10 @@ export interface RenderOptsPartial {
   runInstantValidation?: boolean
 
   /**
-   * Compact prerender candidates used to select the shell for each
-   * build-time Instant Validation sample.
+   * Metadata used to reproduce staged fallback semantics for each build-time
+   * Instant Validation sample.
    */
-  buildValidationCandidates?: readonly BuildValidationCandidate[]
+  buildValidationMetadata?: BuildValidationMetadata
 
   /**
    * When true, a fallback shell produced for this render could later be

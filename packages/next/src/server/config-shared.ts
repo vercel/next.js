@@ -13,7 +13,7 @@ import type { SizeLimit } from '../types'
 import type { SupportedTestRunners } from '../cli/next-test'
 import { INFINITE_CACHE } from '../lib/constants'
 import type {
-  BuildValidationCandidate,
+  BuildValidationMetadata,
   FallbackRouteParam,
 } from '../build/static-paths/types'
 import type { MemoryEvictionMode, TurbopackGcOptions } from '../build/swc/types'
@@ -1666,11 +1666,12 @@ export type ExportPathMap = {
     _fallbackRouteParams?: readonly FallbackRouteParam[]
 
     /**
-     * The compact prerender candidates used by build-time Instant Validation.
+     * Metadata used to reproduce staged fallback semantics during build-time
+     * Instant Validation.
      *
      * @internal
      */
-    _buildValidationCandidates?: readonly BuildValidationCandidate[]
+    _buildValidationMetadata?: BuildValidationMetadata
 
     /** Parameters whose novel values are rejected by routing. @internal */
     _notFoundParams?: readonly string[]

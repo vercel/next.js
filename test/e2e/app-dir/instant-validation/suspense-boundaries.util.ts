@@ -459,6 +459,18 @@ export function registerSuspenseBoundariesTests(
     expectNoBuildValidationErrors(completablePartialShell)
   })
 
+  it('build preserves explicit fallback staging for generated samples', async () => {
+    if (isNextDev || partialPrefetching) return
+
+    const result = await prerender(
+      '/suspense-in-root/static/missing-suspense-around-explicit-fallback/[top]/[bottom]'
+    )
+    expect(extractBuildValidationError(result.cliOutput)).toContain(
+      'Build-time instant validation failed for route "/suspense-in-root/static/missing-suspense-around-explicit-fallback/[top]/[bottom]".'
+    )
+    expect(result.exitCode).toBe(1)
+  })
+
   it('invalid - runtime prefetch - missing suspense around params', async () => {
     if (isNextDev) {
       const browser = await navigateTo(
