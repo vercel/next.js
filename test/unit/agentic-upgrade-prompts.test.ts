@@ -197,10 +197,7 @@ describe('agentic upgrade prompts', () => {
     global.fetch = jest.fn()
     process.exitCode = undefined
 
-    jest.mocked(getReleaseAgePolicy).mockReturnValue({
-      publishedBefore: null,
-      isExcluded: () => false,
-    })
+    jest.mocked(getReleaseAgePolicy).mockReturnValue(null)
 
     jest.mocked(getProjectDir).mockReturnValue('/workspace/app')
     jest.mocked(findDir).mockReturnValue('/workspace/app/app')
@@ -481,7 +478,7 @@ describe('agentic upgrade prompts', () => {
 
     expect(Log.error).toHaveBeenCalledWith(
       'Could not prepare the upgrade:',
-      'No Next.js canary satisfies the minimum release age.'
+      'No Next.js canary satisfies the minimum release age. Wait for a release to become eligible, then retry.'
     )
     expect(process.exitCode).toBe(1)
     expect(crossSpawn).toHaveBeenCalledTimes(0)

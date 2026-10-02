@@ -1,166 +1,89 @@
-import { existsSync, readFileSync } from 'fs'
-import { homedir } from 'os'
-import { join } from 'path'
-import spawn from 'next/dist/compiled/cross-spawn'
+import { execSync } from 'child_process'
 import picomatch from 'next/dist/compiled/picomatch'
-import { coerce, lt, satisfies, validRange } from 'next/dist/compiled/semver'
-import { findRootDirAndLockFiles } from '../find-root'
+import { coerce, lt, satisfies } from 'next/dist/compiled/semver'
 import { getPkgManager } from './get-pkg-manager'
 
 export function getReleaseAgePolicy(directory: string) {
-  // Keep legacy package-manager detection unchanged, while recognizing Bun apps.
-  const userAgent = process.env.npm_config_user_agent
-  const rootDir =
-    userAgent?.startsWith('bun') || !userAgent
-      ? findRootDirAndLockFiles(directory).rootDir
-      : directory
-  const manager =
-    userAgent?.startsWith('bun') ||
-    (!userAgent &&
-      (existsSync(join(rootDir, 'bun.lock')) ||
-        existsSync(join(rootDir, 'bun.lockb'))))
-      ? 'bun'
-      : getPkgManager(directory)
+  // TODO: Support Bun release-age policies.
+  const manager = getPkgManager(directory)
 
   // Read effective settings in the app directory and propagate manager failures.
-  function run(args: string[], input: string | undefined) {
-    const result = spawn.sync(manager, args, {
+  function run(args: string) {
+    return execSync(`${manager} ${args}`, {
       cwd: directory,
       encoding: 'utf8',
-      input,
       timeout: 10_000,
-      stdio: ['pipe', 'pipe', 'pipe'],
-    })
-    if (result.error) {
-      throw result.error
-    }
-    if (result.status !== 0) {
-      throw new Error(
-        `Could not read ${manager}'s release-age policy (exit ${result.status}).`
-      )
-    }
-    return result.stdout.trim()
+    }).trim()
   }
 
   function readConfig(setting: string): unknown {
-    const output = run(['config', 'get', setting, '--json'], undefined)
+    const output = run(`config get ${setting} --json`)
     return output === '' || output === 'undefined' ? null : JSON.parse(output)
   }
 
   // npm normalizes min-release-age into before; preserve that absolute cutoff.
   if (manager === 'npm') {
-    const before = run(
-      ['config', 'get', 'before', '--no-workspaces'],
-      undefined
-    )
-    let publishedBefore: number | null = null
-    if (before !== 'null' && before !== 'undefined') {
-      const cutoff = Date.parse(before)
-      if (!Number.isFinite(cutoff)) {
-        throw new Error('Invalid npm minimum release age.')
-      }
-      if (cutoff < Date.now()) {
-        publishedBefore = cutoff
-      }
+    const before = run('config get before --no-workspaces')
+    if (before === 'null' || before === 'undefined') {
+      return null
+    }
+    const publishedBefore = Date.parse(before)
+    if (!Number.isFinite(publishedBefore)) {
+      throw new Error('Invalid npm minimum release age.')
+    }
+    if (publishedBefore >= Date.now()) {
+      return null
     }
     return { publishedBefore, isExcluded: () => false }
   }
 
-  let age: unknown = null
-  let exclusions: unknown = null
-  let unit = 60_000
-  let supportsPatterns = manager !== 'pnpm'
-  let supportsVersions = manager === 'yarn'
-
-  // Query supported managers in the app directory to include workspace and user config.
-  if (manager === 'bun') {
-    if (
-      run(['install', '--help'], undefined).includes('--minimum-release-age')
-    ) {
-      // Bun parses TOML; project install settings override the global settings.
-      const files = [
-        join(process.env.XDG_CONFIG_HOME || homedir(), '.bunfig.toml'),
-        join(rootDir, 'bunfig.toml'),
-      ]
-        .filter((file) => existsSync(file))
-        .map((file) => readFileSync(file, 'utf8'))
-      if (files.length > 0) {
-        const config = JSON.parse(
-          run(
-            [
-              '-e',
-              `const files = JSON.parse(await Bun.stdin.text());
-const configs = files.map(file => Bun.TOML.parse(file).install);
-console.log(JSON.stringify(Object.assign({}, ...configs)));`,
-            ],
-            JSON.stringify(files)
-          )
-        )
-        age = config.minimumReleaseAge ?? null
-        exclusions = config.minimumReleaseAgeExcludes ?? null
-      }
-    }
-    unit = 1_000
-  } else {
-    const version = coerce(run(['--version'], undefined))
-    if (!version) {
-      throw new Error(`Could not determine ${manager}'s version.`)
-    }
-    if (manager === 'pnpm') {
-      supportsPatterns = !lt(version, '10.17.0')
-      supportsVersions = !lt(version, '10.19.0')
-    }
-    const minimumVersion = { pnpm: '10.16.0', yarn: '4.10.0' }[manager]
-    if (!lt(version, minimumVersion)) {
-      age = readConfig(
-        manager === 'pnpm' ? 'minimumReleaseAge' : 'npmMinimalAgeGate'
-      )
-      if (age !== null && age !== 0) {
-        exclusions = readConfig(
-          manager === 'pnpm'
-            ? 'minimumReleaseAgeExclude'
-            : 'npmPreapprovedPackages'
-        )
-      }
-    }
+  // Older pnpm and Yarn versions do not enforce these settings.
+  const managerVersion = coerce(run('--version'))
+  if (!managerVersion) {
+    throw new Error(`Could not determine ${manager}'s version.`)
+  }
+  const minimumVersion = manager === 'pnpm' ? '10.16.0' : '4.10.0'
+  if (lt(managerVersion, minimumVersion)) {
+    return null
   }
 
   // Invalid policy values must stop the upgrade instead of disabling the age gate.
-  const minimumReleaseAge = age ?? 0
-  if (
-    typeof minimumReleaseAge !== 'number' ||
-    !Number.isFinite(minimumReleaseAge * unit) ||
-    minimumReleaseAge < 0
-  ) {
+  const age =
+    readConfig(
+      manager === 'pnpm' ? 'minimumReleaseAge' : 'npmMinimalAgeGate'
+    ) ?? 0
+  if (typeof age !== 'number' || !Number.isFinite(age * 60_000) || age < 0) {
     throw new Error(`Invalid ${manager} minimum release age.`)
   }
+  if (age === 0) {
+    return null
+  }
+
+  // Both managers use minutes, but their supported exemption syntax differs.
+  const exclusions =
+    readConfig(
+      manager === 'pnpm' ? 'minimumReleaseAgeExclude' : 'npmPreapprovedPackages'
+    ) ?? []
   if (
-    exclusions !== null &&
-    (!Array.isArray(exclusions) ||
-      !exclusions.every((entry) => typeof entry === 'string'))
+    !Array.isArray(exclusions) ||
+    !exclusions.every((entry) => typeof entry === 'string')
   ) {
     throw new Error(`Invalid ${manager} release-age exclusions.`)
   }
-  const patterns: string[] = exclusions ?? []
+  const supportsPatterns = manager === 'yarn' || !lt(managerVersion, '10.17.0')
+  const supportsVersions = manager === 'yarn' || !lt(managerVersion, '10.19.0')
 
   return {
-    publishedBefore:
-      minimumReleaseAge === 0 ? null : Date.now() - minimumReleaseAge * unit,
+    publishedBefore: Date.now() - age * 60_000,
     isExcluded(version: string) {
-      return patterns.some((pattern) => {
-        if (!supportsVersions) {
-          return (
-            pattern === 'next' ||
-            (manager !== 'bun' &&
-              supportsPatterns &&
-              picomatch.isMatch('next', pattern))
-          )
-        }
-
+      return exclusions.some((pattern) => {
         // pnpm supports exact version lists; Yarn also supports npm semver descriptors.
-        const separator = pattern.lastIndexOf('@')
+        const separator = supportsVersions ? pattern.lastIndexOf('@') : -1
         const name = separator > 0 ? pattern.slice(0, separator) : pattern
-        if (!picomatch.isMatch('next', name)) {
+        const matchesName = supportsPatterns
+          ? picomatch.isMatch('next', name)
+          : name === 'next'
+        if (!matchesName) {
           return false
         }
         if (separator <= 0) {
@@ -170,7 +93,7 @@ console.log(JSON.stringify(Object.assign({}, ...configs)));`,
         if (manager === 'pnpm') {
           return range.split('||').some((entry) => entry.trim() === version)
         }
-        return validRange(range) !== null && satisfies(version, range)
+        return satisfies(version, range)
       })
     },
   }

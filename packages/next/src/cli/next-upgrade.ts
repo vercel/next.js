@@ -152,12 +152,11 @@ async function loadAgentUpgradeConfig(directory: string) {
 }
 
 async function resolveCanaryVersion(directory: string): Promise<string> {
-  const { publishedBefore, isExcluded } = getReleaseAgePolicy(directory)
+  const policy = getReleaseAgePolicy(directory)
   try {
     // Full metadata includes the publication times needed to respect an age gate.
-    const ageGated = publishedBefore !== null
     const response = await fetch(
-      `https://registry.npmjs.org/next${ageGated ? '' : '/canary'}`,
+      `https://registry.npmjs.org/next${policy ? '' : '/canary'}`,
       {
         signal: AbortSignal.timeout(10_000),
         cache: 'no-store',
@@ -170,12 +169,12 @@ async function resolveCanaryVersion(directory: string): Promise<string> {
     }
 
     const metadata = await response.json()
-    const version = ageGated ? metadata['dist-tags']?.canary : metadata.version
+    const version = policy ? metadata['dist-tags']?.canary : metadata.version
     if (typeof version !== 'string' || valid(version) !== version) {
       throw new Error('Invalid canary version')
     }
 
-    if (publishedBefore === null || isExcluded(version)) {
+    if (!policy || policy.isExcluded(version)) {
       return version
     }
 
@@ -186,8 +185,8 @@ async function resolveCanaryVersion(directory: string): Promise<string> {
           valid(candidate) === candidate &&
           prerelease(candidate)?.[0] === 'canary' &&
           lte(candidate, version) &&
-          (isExcluded(candidate) ||
-            Date.parse(metadata.time?.[candidate]) <= publishedBefore)
+          (policy.isExcluded(candidate) ||
+            Date.parse(metadata.time?.[candidate]) <= policy.publishedBefore)
         )
       })
       .sort(rcompare)[0]
@@ -199,7 +198,9 @@ async function resolveCanaryVersion(directory: string): Promise<string> {
       cause: error,
     })
   }
-  throw new Error('No Next.js canary satisfies the minimum release age.')
+  throw new Error(
+    'No Next.js canary satisfies the minimum release age. Wait for a release to become eligible, then retry.'
+  )
 }
 
 export async function spawnNextUpgrade(
