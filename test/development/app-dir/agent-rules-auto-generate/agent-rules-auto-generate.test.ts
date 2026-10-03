@@ -221,7 +221,9 @@ describe('agent-feedback auto-generate on next dev (enabled)', () => {
     expect(content).toContain(
       '- Missing, unclear, or conflicting documentation'
     )
-    expect(content).toContain('- Unexpected CLI, codemod, agent workflow')
+    expect(content).toContain(
+      '- Unexpected CLI, codemod, Skill, agent workflow'
+    )
     expect(content).toContain(
       'Keep a qualifying candidate through the reporting pass even if you resolve or work around it.'
     )

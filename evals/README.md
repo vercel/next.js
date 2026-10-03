@@ -71,7 +71,7 @@ This runs the two default variants in parallel and prints pass/fail for each:
 
 ### Evaluating a bundled Future Default workflow
 
-Future Default workflows ship in the `next` package, so their migration evals remain ordinary `baseline` versus `agents-md` comparisons. Keep any fixture-specific timeout or publishing options in `evals/eval.config.json`, but do not add a `skills` entry:
+Future Default workflows ship in the `next` package, so their migration evals continue to run as ordinary `baseline` versus `agents-md` comparisons. Keep any fixture-specific timeout or publishing options in `evals/eval.config.json`, but do not add a `skills` entry:
 
 ```json filename="evals/eval.config.json"
 {

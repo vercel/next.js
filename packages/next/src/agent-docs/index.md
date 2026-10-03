@@ -13,7 +13,7 @@ be followed directly:
 - Cache Components: `upgrade/future/cache-components/guide.md`
 - Partial Prefetching: `upgrade/future/partial-prefetching/guide.md`
 
-Reusable runtime and optimization workflows remain Skills. They are not
+Reusable runtime and optimization workflows stay as Skills. They are not
 duplicated in this version-matched agent-docs bundle.
 
 ## Gated entry points
