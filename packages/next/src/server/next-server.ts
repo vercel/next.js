@@ -155,6 +155,7 @@ import {
 import { installGlobalBehaviors } from './node-environment-extensions/global-behaviors'
 import { installProcessErrorHandlers } from './node-environment-extensions/process-error-handlers'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
+import type { DevServerStateUpdate } from './dev/dev-server-state'
 
 export * from './base-server'
 
@@ -210,10 +211,7 @@ export default class NextNodeServer extends BaseServer<
     page: string
     re: RegExp
   }[]
-  private routerServerHandler?: (
-    req: IncomingMessage,
-    res: ServerResponse
-  ) => void
+  private routerServerHandler: Options['routerServerHandler']
 
   protected cleanupListeners = new AsyncCallbackSet()
   protected internalWaitUntil: WaitUntil | undefined
@@ -224,6 +222,7 @@ export default class NextNodeServer extends BaseServer<
     // Initialize super class
     super(options)
 
+    this.routerServerHandler = options.routerServerHandler
     installGlobalBehaviors(this.nextConfig)
 
     // Load prefetch hints from the build output. This must happen before
@@ -372,6 +371,16 @@ export default class NextNodeServer extends BaseServer<
         // Intentionally ignored because this is a preload step.
       }
     }
+  }
+
+  /** @internal */
+  public updateDevServerState(_update: DevServerStateUpdate): void {
+    throw new Error('Invariant: dev server state can only be updated in dev')
+  }
+
+  /** @internal */
+  public reloadEnv(): void {
+    this.loadEnvConfig({ dev: true, forceReload: true })
   }
 
   protected async handleUpgrade(): Promise<void> {

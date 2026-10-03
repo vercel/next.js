@@ -83,6 +83,7 @@ import type { PrerenderManifest } from '../../build'
 import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
 import { HMR_MESSAGE_SENT_TO_BROWSER } from './hot-reloader-types'
 import { registerLocalSpanRecorder } from '../lib/trace/local-span-recorder'
+import type { DevServerStateUpdate } from './dev-server-state'
 
 registerLocalSpanRecorder()
 
@@ -260,6 +261,27 @@ export default class DevServer extends Server {
 
   protected override getServerComponentsHmrRefreshHash(): string | undefined {
     return this.bundlerService.getServerComponentsHmrRefreshHash()
+  }
+
+  public override updateDevServerState(update: DevServerStateUpdate): void {
+    if ('actualMiddlewareFile' in update) {
+      this.actualMiddlewareFile = update.actualMiddlewareFile
+    }
+    if ('actualInstrumentationHookFile' in update) {
+      this.actualInstrumentationHookFile = update.actualInstrumentationHookFile
+    }
+    if ('middleware' in update) {
+      this.middleware = update.middleware
+        ? {
+            ...update.middleware,
+            match: getMiddlewareRouteMatcher(update.middleware.matchers || []),
+          }
+        : undefined
+    }
+    if ('appPathRoutes' in update) {
+      this.appPathRoutes = update.appPathRoutes
+      this.interceptionRoutePatterns = this.getinterceptionRoutePatterns()
+    }
   }
 
   protected getBuildId(): string {
@@ -629,13 +651,6 @@ export default class DevServer extends Server {
   }
 
   protected async getMiddleware() {
-    // We need to populate the match
-    // field as it isn't serializable
-    if (this.middleware?.match === null) {
-      this.middleware.match = getMiddlewareRouteMatcher(
-        this.middleware.matchers || []
-      )
-    }
     return this.middleware
   }
 
