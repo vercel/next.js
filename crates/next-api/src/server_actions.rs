@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::BTreeMap, io::Write, sync::LazyLock};
+use std::{borrow::Cow, collections::BTreeMap, fmt::Write, sync::LazyLock};
 
 use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
@@ -30,7 +30,7 @@ use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TryFlatJoinIterExt,
     TryJoinIterExt, ValueToString, Vc, turbofmt,
 };
-use turbo_tasks_fs::{self, File, FileContent, FileSystemPath, rope::RopeBuilder};
+use turbo_tasks_fs::{self, File, FileContent, FileSystemPath};
 use turbo_tasks_hash::{HashAlgorithm, deterministic_hash};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -83,8 +83,7 @@ pub(crate) async fn create_server_actions_manifest(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<Vc<ServerActionsManifest>> {
     let project_path = project.project_path().owned().await?;
-    let loader =
-        build_server_actions_loader(project_path, page_name.clone(), actions, rsc_asset_context);
+    let loader = build_server_actions_loader(project_path, actions, rsc_asset_context);
     let evaluable =
         ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(loader.to_resolved().await?)
             .context("loader module must be evaluatable")?;
@@ -117,10 +116,13 @@ pub(crate) async fn create_server_actions_manifest(
 /// The actions are reexported under a hashed name (comprised of the exporting
 /// file's name and the action name). This hash matches the id sent to the
 /// client and present inside the paired manifest.
+///
+/// Pages that reach the same set of actions share one loader module: the
+/// virtual source is named after its contents rather than the page, and it is
+/// created in [`server_actions_loader_module`], whose task is keyed by value.
 #[turbo_tasks::function]
 pub(crate) async fn build_server_actions_loader(
     project_path: FileSystemPath,
-    page_name: RcStr,
     actions: Vc<AllActions>,
     asset_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
@@ -130,29 +132,51 @@ pub(crate) async fn build_server_actions_loader(
     // our app page entry point) will be present. We generate a single loader
     // file which re-exports the respective module's action function using the
     // hashed ID as export name.
-    let mut contents = RopeBuilder::from("");
-    let mut import_map = FxIndexMap::default();
+    let mut contents = String::new();
+    let mut modules = FxIndexSet::default();
     for (hash_id, (_layer, meta, module)) in actions.iter() {
-        let index = import_map.len();
-        let module_name = import_map
-            .entry(*module)
-            .or_insert_with(|| format!("ACTIONS_MODULE{index}").into());
+        let (index, _) = modules.insert_full(*module);
         let name = &meta.name;
         writeln!(
             contents,
-            "export {{{name} as '{hash_id}'}} from '{module_name}'"
+            "export {{{name} as '{hash_id}'}} from 'ACTIONS_MODULE{index}'"
         )?;
     }
 
-    let path = project_path.join(&format!(".next-internal/server/app{page_name}/actions.js"))?;
-    let file = File::from(contents.build());
+    Ok(server_actions_loader_module(
+        project_path,
+        contents.into(),
+        modules.into_iter().map(|module| *module).collect(),
+        asset_context,
+    ))
+}
+
+/// Creates the loader module for one set of actions. Every argument is compared
+/// by value, so pages with an identical action set resolve to the same task and
+/// therefore the same module, which is parsed, analyzed and chunked only once.
+#[turbo_tasks::function]
+async fn server_actions_loader_module(
+    project_path: FileSystemPath,
+    contents: RcStr,
+    modules: Vec<ResolvedVc<Box<dyn Module>>>,
+    asset_context: Vc<Box<dyn AssetContext>>,
+) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
+    // `contents` references modules by index only; the action hashes in it are
+    // derived from each module's path, so equal contents imply equal modules.
+    let hash = deterministic_hash("", &contents, HashAlgorithm::Xxh3Hash64Hex);
+    let path = project_path.join(&format!(".next-internal/server/actions/{hash}.js"))?;
+    let file = File::from(contents);
     let source = VirtualSource::new_with_ident(
         AssetIdent::from_path(path)
             .with_modifier(rcstr!("server actions loader"))
             .into_vc(),
         AssetContent::file(FileContent::Content(file).cell()),
     );
-    let import_map = import_map.into_iter().map(|(k, v)| (v, k)).collect();
+    let import_map = modules
+        .into_iter()
+        .enumerate()
+        .map(|(index, module)| (format!("ACTIONS_MODULE{index}").into(), module))
+        .collect();
     let module = asset_context
         .process(
             Vc::upcast(source),
