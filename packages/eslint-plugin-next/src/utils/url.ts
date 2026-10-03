@@ -14,15 +14,13 @@ function parseUrlForPages(urlprefix: string, directory: string) {
   })
   const res = []
   fsReadDirSyncCache[directory].forEach((dirent) => {
-    // TODO: this should account for all page extensions
-    // not just js(x) and ts(x)
-    if (/(\.(j|t)sx?)$/.test(dirent.name)) {
-      if (/^index(\.(j|t)sx?)$/.test(dirent.name)) {
-        res.push(
-          `${urlprefix}${dirent.name.replace(/^index(\.(j|t)sx?)$/, '')}`
-        )
+    // Handle all page extensions (e.g. js, jsx, ts, tsx, mdx, page.tsx, etc.)
+    // pageExtensions can be like "page.tsx" which contains a dot, so we match any extension
+    if (/\..+$/.test(dirent.name)) {
+      if (/^index\..+$/.test(dirent.name)) {
+        res.push(`${urlprefix}${dirent.name.replace(/^index\..+$/, '')}`)
       }
-      res.push(`${urlprefix}${dirent.name.replace(/(\.(j|t)sx?)$/, '')}`)
+      res.push(`${urlprefix}${dirent.name.replace(/\..+$/, '')}`)
     } else {
       const dirPath = path.join(directory, dirent.name)
       if (dirent.isDirectory() && !dirent.isSymbolicLink()) {
@@ -42,13 +40,12 @@ function parseUrlForAppDir(urlprefix: string, directory: string) {
   })
   const res = []
   fsReadDirSyncCache[directory].forEach((dirent) => {
-    // TODO: this should account for all page extensions
-    // not just js(x) and ts(x)
-    if (/(\.(j|t)sx?)$/.test(dirent.name)) {
-      if (/^page(\.(j|t)sx?)$/.test(dirent.name)) {
-        res.push(`${urlprefix}${dirent.name.replace(/^page(\.(j|t)sx?)$/, '')}`)
-      } else if (!/^layout(\.(j|t)sx?)$/.test(dirent.name)) {
-        res.push(`${urlprefix}${dirent.name.replace(/(\.(j|t)sx?)$/, '')}`)
+    // Handle all page extensions (e.g. js, jsx, ts, tsx, mdx, page.tsx, etc.)
+    if (/\..+$/.test(dirent.name)) {
+      if (/^page\..+$/.test(dirent.name)) {
+        res.push(`${urlprefix}${dirent.name.replace(/^page\..+$/, '')}`)
+      } else if (!/^layout\..+$/.test(dirent.name)) {
+        res.push(`${urlprefix}${dirent.name.replace(/\..+$/, '')}`)
       }
     } else {
       const dirPath = path.join(directory, dirent.name)
