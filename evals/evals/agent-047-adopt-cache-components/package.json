@@ -1,6 +1,9 @@
 {
   "private": true,
   "type": "module",
+  "nextEval": {
+    "agentBrowser": true
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",

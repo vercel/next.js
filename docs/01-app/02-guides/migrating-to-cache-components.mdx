@@ -43,8 +43,9 @@ Adopt Cache Components in this project using the next-cache-components-adoption 
 Migrating an existing app by hand follows a few steps, in order:
 
 1. [Enable Cache Components](#enable-cache-components) in `next.config.ts`.
-2. Decide your approach: convert every route now, or [adopt incrementally](#adopting-incrementally) by [opting routes out of validation](#opting-out-of-validation) first and converting one at a time.
-3. [Follow the validation errors and insights](#following-validation) it surfaces, replacing each route segment config with its Cache Components equivalent and caching uncached data with [`use cache`](/docs/app/api-reference/directives/use-cache) or wrapping runtime data in [`<Suspense>`](https://react.dev/reference/react/Suspense). The per-key sections below cover each config and API.
+2. If you are not ready to resolve every validation error, [temporarily opt routes out of validation](#opting-out-of-validation) and [adopt incrementally](#adopting-incrementally).
+3. If the app relies on route unmounting to reset UI state, [temporarily preserve that reset behavior](/docs/app/guides/preserving-ui-state#keep-route-state-resetting-during-migration).
+4. [Follow the validation errors and insights](#following-validation) from Cache Components, replacing each route segment config with its Cache Components equivalent and caching uncached data with [`use cache`](/docs/app/api-reference/directives/use-cache) or wrapping runtime data in [`<Suspense>`](https://react.dev/reference/react/Suspense). The per-key sections below cover each config and API.
 
 Your existing `fetch` and `unstable_cache` caching keeps working. Migrating `unstable_cache` is optional and can happen later.
 
@@ -87,21 +88,30 @@ export const instant = false
 
 ## Adopting incrementally
 
-You don't have to migrate every route at once. `instant = false` lets you get the whole app building and running first, then convert routes one at a time:
+You don't have to migrate every route at once. Start with a buildable compatibility layer, then remove it route by route. Address validation opt-outs first because they allow routes to block. The Activity boundaries added by the codemod preserve the previous reset-on-navigation behavior, so you can review them separately after validation is complete.
 
-1. **Enable the flag and migrate each route segment config.** Follow the relevant sections below for [`dynamic = "force-dynamic"`](#dynamic--force-dynamic), [`dynamic = "force-static"`](#dynamic--force-static), [`dynamic = "error"`](#dynamic--error), [`revalidate`](#revalidate), and [`fetchCache`](#fetchcache). For routes with dynamic params, also follow the [`generateStaticParams`](#generatestaticparams-and-dynamicparams) guidance. Routes that still render instantly need no further work.
-2. **Opt out the routes that aren't ready.** Where an insight or error appears, set `instant = false` on the segment that raised it. To do this in one pass across the whole app, run the [`cache-components-instant-false`](/docs/app/guides/upgrading/codemods#cache-components-instant-false) codemod, which adds the opt-out to every `page`, `layout`, and `default` that doesn't already declare `instant`:
+1. **Enable the flag and migrate each route segment config.** Follow the relevant sections below for [`dynamic = "force-dynamic"`](#dynamic--force-dynamic), [`dynamic = "force-static"`](#dynamic--force-static), [`dynamic = "error"`](#dynamic--error), [`revalidate`](#revalidate), and [`fetchCache`](#fetchcache). For routes with dynamic params, also follow the [`generateStaticParams`](#generatestaticparams-and-dynamicparams) guidance. Routes that still render instantly need no further validation work.
+2. **Optionally defer validation work.** If you need to address validation route by route, run:
 
    ```bash filename="Terminal"
    npx @next/codemod@canary cache-components-instant-false ./app
    ```
 
-   > **Good to know**: Pass `./src/app` in a `src/` project. A wrong path reports `0 ok` instead of failing, so check the file count.
+   This adds `instant = false` to every `page`, `layout`, and `default` that does not already declare `instant`, deferring blocking validation while you migrate those routes. See the [`cache-components-instant-false`](/docs/app/guides/upgrading/codemods#cache-components-instant-false) codemod.
 
-   The app keeps building and serving, now with validation deferred for the opted-out routes.
+3. **Temporarily preserve route reset behavior.** Cache Components keeps route state and DOM state when users navigate away. If existing routes relied on unmounting to reset state, run the second codemod to preserve that behavior during migration:
 
-3. **Fix synchronous IO. It can't be deferred.** Calls like `new Date()`, `Date.now()`, `Math.random()`, and `crypto.randomUUID()` during prerender throw a build error that `instant = false` does not clear, so a route that uses them won't build until you address it, opt-out or not. Move the call out of the prerendered shell so it runs at request time: wrap the part that needs it in [`<Suspense>`](https://react.dev/reference/react/Suspense) and call [`connection()`](/docs/app/api-reference/functions/connection) before the call, or move it into a Client Component.
-4. **Convert one route at a time.** Remove `instant = false` from a route, then resolve its insights by caching data with [`use cache`](/docs/app/api-reference/directives/use-cache) or wrapping runtime data in [`<Suspense>`](https://react.dev/reference/react/Suspense). Repeat until no routes opt out.
+   ```bash filename="Terminal"
+   npx @next/codemod@canary cache-components-activity-reset ./app
+   ```
+
+   This wraps every `page`, `layout`, and `default` below the root layout in a temporary reset boundary. See the [`cache-components-activity-reset`](/docs/app/guides/upgrading/codemods#cache-components-activity-reset) codemod.
+
+   > **Good to know**: For either codemod, pass `./src/app` in a `src/` project. A wrong path reports `0 ok` instead of failing, so check the file count. Both codemods leave `TODO: Cache Components adoption` comments as route-by-route work queues.
+
+4. **Get the build passing.** Fix synchronous IO because it can't be deferred. Calls like `new Date()`, `Date.now()`, `Math.random()`, and `crypto.randomUUID()` during prerender throw a build error that `instant = false` does not clear. Move the call out of the prerendered shell so it runs at request time: wrap the part that needs it in [`<Suspense>`](https://react.dev/reference/react/Suspense) and call [`connection()`](/docs/app/api-reference/functions/connection) before the call, or move it into a Client Component.
+5. **Remove validation opt-outs.** Work from layouts down to their child routes so an ancestor does not hide the behavior you are testing. Remove `instant = false`, then resolve the route's errors and insights by caching data with [`use cache`](/docs/app/api-reference/directives/use-cache) or wrapping runtime data in [`<Suspense>`](https://react.dev/reference/react/Suspense).
+6. **Review Activity reset boundaries.** This work is independent of validation. Work from layouts down to their child routes because an ancestor boundary resets every route beneath it. Remove each boundary, then navigate away and back using both a new navigation and browser history. If the route relied on unmounting to reset state, replace the boundary with a targeted reset from [Preserving UI state](/docs/app/guides/preserving-ui-state#keep-route-state-resetting-during-migration). Keep a boundary only when the whole route should reset on every navigation, and replace its generated TODO with a comment that explains why. After removing the final boundary, delete the generated `_next-cache-components` directory.
 
 ## Following validation
 
@@ -948,15 +958,3 @@ export default function Page() {
   return <div>...</div>
 }
 ```
-
-## UI state preservation
-
-**Component state now persists across navigations.** With Cache Components, Next.js preserves routes using React's [`<Activity>`](https://react.dev/reference/react/Activity) component in [`"hidden"`](https://react.dev/reference/react/Activity#activity) mode instead of unmounting them. Effects clean up and re-run normally, but `useState` values, form inputs, and scroll position are no longer reset when navigating away and back.
-
-If your code relied on unmounting to clear state, you may need to add explicit reset logic:
-
-- **Dropdowns and popovers**: stay open when navigating back. Close them in a `useLayoutEffect` cleanup function.
-- **Dialogs with initialization logic**: Effects that depend on dialog state (like focusing an input) won't re-fire if the state was preserved. Derive dialog state from the URL instead.
-- **Forms after submission**: input values and `useActionState` results (success/error messages) persist when returning. Reset in the submit handler or user action when possible, otherwise use a cleanup effect.
-
-See [Preserving UI state across navigations](/docs/app/guides/preserving-ui-state) for detailed examples of each pattern.

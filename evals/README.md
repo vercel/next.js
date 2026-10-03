@@ -84,6 +84,8 @@ Docs can link to a canonical skill, but an unmerged skill revision isn't part of
 
 The runner then adds a third `skills` variant for that fixture. It installs the listed directories from the local `skills/` folder before the coding agent starts, while keeping the prompt, app, and assertions identical. It does not also inject the `agents-md` instruction: the skill treatment measures whether the skill itself leads the agent to the canonical bundled guide. The optional timeout lets end-to-end workflows run longer than the 12-minute default. Fixtures without an entry continue to run only `baseline` and `agents-md`.
 
+Set `"nextEval": { "agentBrowser": true }` in the fixture's `package.json` when runtime verification is part of the workflow. The runner installs and launches `agent-browser` during setup, before the scored agent run. This keeps browser provisioning out of the treatment's duration, token, and cost measurements. Add any skill used by that runtime workflow, such as `next-dev-loop`, to the fixture's `skills` list explicitly.
+
 A run takes ~2–5 min. To validate a fixture without executing:
 
 ```bash
