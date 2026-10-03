@@ -56,7 +56,7 @@ export function headers(): Promise<ReadonlyHeaders> {
       // When using forceStatic we override all other logic and always just return an empty
       // headers object without tracking
       const underlyingHeaders = HeadersAdapter.seal(new Headers({}))
-      return makeUntrackedHeaders(underlyingHeaders)
+      return makeUntrackedHeaders(underlyingHeaders, workStore)
     }
 
     if (workUnitStore) {
@@ -122,13 +122,13 @@ export function headers(): Promise<ReadonlyHeaders> {
               workUnitStore.headers
             )
           } else {
-            return makeUntrackedHeaders(workUnitStore.headers)
+            return makeUntrackedHeaders(workUnitStore.headers, workStore)
           }
         }
         case 'private-cache':
           // Private caches are delayed until the runtime stage in use-cache-wrapper,
           // so we don't need an additional delay here.
-          return makeUntrackedHeaders(workUnitStore.headers)
+          return makeUntrackedHeaders(workUnitStore.headers, workStore)
         case 'request':
           trackDynamicDataInDynamicRender(workUnitStore)
 
@@ -144,7 +144,7 @@ export function headers(): Promise<ReadonlyHeaders> {
           } else if (workUnitStore.asyncApiPromises) {
             return workUnitStore.asyncApiPromises.headers
           } else {
-            return makeUntrackedHeaders(workUnitStore.headers)
+            return makeUntrackedHeaders(workUnitStore.headers, workStore)
           }
           break
         default:
@@ -181,14 +181,20 @@ function makeHangingHeaders(
 }
 
 function makeUntrackedHeaders(
-  underlyingHeaders: ReadonlyHeaders
+  underlyingHeaders: ReadonlyHeaders,
+  workStore: WorkStore
 ): Promise<ReadonlyHeaders> {
   const cachedHeaders = CachedHeaders.get(underlyingHeaders)
   if (cachedHeaders) {
     return cachedHeaders
   }
 
-  const promise = Promise.resolve(underlyingHeaders)
+  // Create the promise in a clean async snapshot so the cached promise does
+  // not retain the request's async-local stores through its async-hooks
+  // resource store for as long as the WeakMap entry lives.
+  const promise = workStore.runInCleanSnapshot(() =>
+    Promise.resolve(underlyingHeaders)
+  )
   CachedHeaders.set(underlyingHeaders, promise)
 
   return promise
