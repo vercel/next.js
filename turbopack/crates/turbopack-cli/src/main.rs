@@ -10,7 +10,7 @@ use turbopack_trace_utils::{
     exit::ExitHandler,
     filter_layer::FilterLayer,
     raw_trace::RawTraceLayer,
-    tokio_workers::ActiveWorkerThreads,
+    tokio_workers,
     trace_writer::TraceWriter,
     tracing_presets::{
         TRACING_OVERVIEW_TARGETS, TRACING_TURBO_TASKS_TARGETS, TRACING_TURBOPACK_TARGETS,
@@ -43,11 +43,9 @@ fn main() {
         })
         .unwrap_or_else(|| available_parallelism().map(|n| n.get()).unwrap_or(1));
 
-    let active_workers = ActiveWorkerThreads::new(worker_threads);
-    let parked_workers = active_workers.clone();
-    let unparked_workers = active_workers.clone();
-    rt.on_thread_park(move || {
-        parked_workers.park();
+    tokio_workers::set_worker_threads(worker_threads);
+    rt.on_thread_park(|| {
+        tokio_workers::park();
         LAST_SWC_ATOM_GC_TIME.with_borrow_mut(|cell| {
             use std::time::Duration;
 
@@ -58,7 +56,7 @@ fn main() {
         });
         TurboMalloc::thread_park();
     })
-    .on_thread_unpark(move || unparked_workers.unpark());
+    .on_thread_unpark(tokio_workers::unpark);
     rt.worker_threads(worker_threads);
     rt.max_blocking_threads(usize::MAX - worker_threads);
 
