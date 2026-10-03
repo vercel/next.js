@@ -1,7 +1,7 @@
 use anyhow::{Context, Result, bail};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    NonLocalValue, OperationValue, ReadRef, ResolvedVc, State, TraitRef, Vc,
+    NonLocalValue, OperationValue, ReadRef, ResolvedVc, TraitRef, TransientState, Vc,
     debug::ValueDebugFormat,
 };
 use turbo_tasks_hash::HashAlgorithm;
@@ -256,7 +256,7 @@ struct VersionRef(
 
 #[turbo_tasks::value(serialization = "skip", evict = "never")]
 pub struct VersionState {
-    version: State<VersionRef>,
+    version: TransientState<VersionRef>,
 }
 
 #[turbo_tasks::value_impl]
@@ -270,7 +270,7 @@ impl VersionState {
 impl VersionState {
     pub async fn new(version: TraitRef<Box<dyn Version>>) -> Result<Vc<Self>> {
         Ok(Self::cell(VersionState {
-            version: State::new(VersionRef(version)),
+            version: TransientState::new(VersionRef(version)),
         }))
     }
 

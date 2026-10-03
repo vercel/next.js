@@ -68,7 +68,7 @@ async fn compute_operation(input: ResolvedVc<ChangingInput>) -> Result<Vc<u32>> 
 #[turbo_tasks::function]
 async fn inner_compute(input: Vc<ChangingInput>) -> Result<Vc<u32>> {
     println!("inner_compute()");
-    let state_value = *input.await?.state.get();
+    let state_value = input.await?.state.get();
     let mut last = None;
     for i in 0..=state_value {
         last = Some(compute2(Vc::cell(i)));

@@ -60,8 +60,8 @@ fn make_state_operation() -> Vc<ValueContainer> {
 async fn func2_operation(input: ResolvedVc<ValueContainer>) -> Result<Vc<Value>> {
     let state = input.await?;
     let value = state.state.get();
-    println!("func2 {}", *value);
-    Ok(func(*input, -*value))
+    println!("func2 {}", value);
+    Ok(func(*input, -value))
 }
 
 #[turbo_tasks::function(operation, root)]
@@ -73,12 +73,12 @@ async fn func_operation(input: ResolvedVc<ValueContainer>) -> Vc<Value> {
 async fn func(input: Vc<ValueContainer>, nesting: i32) -> Result<Vc<Value>> {
     let state = input.await?;
     let value = state.state.get();
-    if nesting < *value {
+    if nesting < value {
         return Ok(func(input, nesting + 1));
     }
-    if nesting == *value {
+    if nesting == value {
         println!("func {nesting}");
-        return Ok(Value { value: *value }.cell());
+        return Ok(Value { value }.cell());
     }
     bail!("func no longer valid {}", nesting)
 }

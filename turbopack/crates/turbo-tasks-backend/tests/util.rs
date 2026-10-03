@@ -87,6 +87,13 @@ pub fn reopen_tt_with_gc(dir: &tempfile::TempDir) -> Arc<TurboTasks<TurboTasksBa
     open_tt_at_with_gc(dir.path(), 2, Some(true), None, None)
 }
 
+/// Opens a new session over an existing persistence directory with the GC off, for tests that
+/// carry tasks across sessions without anchoring them: with the GC on, the shutdown snapshot could
+/// collect them. The previous backend must already be stopped.
+pub fn reopen_tt_without_gc(dir: &tempfile::TempDir) -> Arc<TurboTasks<TurboTasksBackend>> {
+    open_tt_at_with_gc(dir.path(), 2, Some(false), None, None)
+}
+
 /// [`reopen_tt_with_gc`] with the GC root TTL pinned, so a test can age a root out inside the test
 /// rather than days later. Set at construction, where the TTL is resolved.
 pub fn reopen_tt_with_gc_ttl(
@@ -109,6 +116,14 @@ pub fn create_tt_with_workers(
 /// A fresh persistent backend in its own temp directory, with the default worker count.
 pub fn create_tt(name: &str) -> (Arc<TurboTasks<TurboTasksBackend>>, tempfile::TempDir) {
     create_tt_with_workers(name, 2)
+}
+
+/// [`create_tt`] with the GC off, for tests of eviction alone. Between `run_once` scopes nothing
+/// anchors the roots, so with the GC on it could collect the very tasks under test.
+pub fn create_tt_without_gc(name: &str) -> (Arc<TurboTasks<TurboTasksBackend>>, tempfile::TempDir) {
+    let dir = create_persistence_dir(name);
+    let tt = open_tt_at_with_gc(dir.path(), 2, Some(false), None, None);
+    (tt, dir)
 }
 
 /// [`create_tt`] with a custom GC min-progress floor

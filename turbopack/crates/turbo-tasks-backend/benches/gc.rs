@@ -101,7 +101,7 @@ async fn subtree(generation: u32, index: u32, span: u32) -> Result<Vc<u32>> {
 /// under it.
 #[turbo_tasks::function]
 async fn live_parent(generation: ResolvedVc<Generation>, index: u32, span: u32) -> Result<Vc<u32>> {
-    let generation_value = *generation.await?.get();
+    let generation_value = generation.await?.get();
     Ok(Vc::cell(*subtree(generation_value, index, span).await?))
 }
 

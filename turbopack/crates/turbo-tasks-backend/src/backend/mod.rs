@@ -23,7 +23,7 @@ use std::{
 };
 
 use anyhow::{Context, Result, bail};
-use auto_hash_map::{AutoMap, AutoSet};
+use auto_hash_map::AutoMap;
 use gc::DEFAULT_GC_ROOT_TTL;
 pub use gc::{GcPassResult, GcStats, TtlCounter};
 use hashbrown::hash_table::Entry;
@@ -65,10 +65,10 @@ use crate::{
     backend::{
         operation::{
             AggregationUpdateJob, AggregationUpdateQueue, ChildExecuteContext, ExecuteContext,
-            ExecuteContextImpl, LeafDistanceUpdateQueue, OutdatedEdge, TaskGuard, TaskType,
-            TaskTypeRef, capture_all_edges, cleanup_old_edges, connect_child, connect_children,
-            get_aggregation_number, get_uppers, invalidate, make_task_dirty_internal,
-            prepare_new_children, update_cell,
+            ExecuteContextImpl, InteriorMutationScope, LeafDistanceUpdateQueue, OutdatedEdge,
+            TaskGuard, TaskType, TaskTypeRef, capture_all_edges, cleanup_old_edges, connect_child,
+            connect_children, get_aggregation_number, get_uppers, invalidate,
+            make_task_dirty_internal, prepare_new_children, update_cell,
         },
         snapshot_coordinator::{OperationGuard, SlowSettle, SnapshotCoordinator},
         storage::Storage,
@@ -1883,45 +1883,64 @@ impl TurboTasksBackend {
         );
     }
 
-    fn invalidate_tasks(&self, tasks: &[TaskId], turbo_tasks: &TurboTasks<TurboTasksBackend>) {
-        if !self.should_track_dependencies() {
-            panic!("Dependency tracking is disabled so invalidation is not allowed");
-        }
-        invalidate(
-            tasks.iter().copied().collect(),
-            #[cfg(feature = "task_dirty_cause")]
-            TaskDirtyCause::Unknown,
-            self.execute_context(turbo_tasks),
-        );
-    }
-
-    fn invalidate_tasks_set(
-        &self,
-        tasks: &AutoSet<TaskId, BuildHasherDefault<FxHasher>, 2>,
-        turbo_tasks: &TurboTasks<TurboTasksBackend>,
-    ) {
-        if !self.should_track_dependencies() {
-            panic!("Dependency tracking is disabled so invalidation is not allowed");
-        }
-        invalidate(
-            tasks.iter().copied().collect(),
-            #[cfg(feature = "task_dirty_cause")]
-            TaskDirtyCause::Unknown,
-            self.execute_context(turbo_tasks),
-        );
-    }
-
-    fn invalidate_serialization(
+    fn mutate_interior(
         &self,
         task_id: TaskId,
+        mutate: &mut dyn FnMut() -> SmallVec<[TaskId; 4]>,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
     ) {
         if task_id.is_transient() {
+            // Never persisted, so there is nothing to keep in sync.
+            let invalidated = mutate();
+            if !invalidated.is_empty() {
+                self.invalidate_tasks_from_interior_mutation(
+                    invalidated,
+                    self.execute_context(turbo_tasks),
+                );
+            }
             return;
         }
+        // Eviction may run at any moment and trusts the modified flags alone, so the task must be
+        // marked modified before `mutate` changes anything in memory.
         let mut ctx = self.execute_context(turbo_tasks);
-        let mut task = ctx.task(task_id, TaskDataCategory::Data);
-        task.invalidate_serialization();
+        {
+            let mut task = ctx.task(task_id, TaskDataCategory::Data);
+            let _ = task.track_modification(SpecificTaskDataCategory::Data, "mutate_interior");
+        }
+        let invalidated = {
+            let _scope = InteriorMutationScope::enter();
+            mutate()
+        };
+        // The context holds an operation open, and a snapshot waits for every open operation
+        // before it persists anything. Keeping it alive until the invalidations below are done is
+        // what makes the whole change atomic for persistence. A snapshot taken between marking the
+        // task modified and mutating it would clear the modified flag while persisting the old
+        // value, so the new value would never be persisted. One taken between mutating and
+        // invalidating would persist the new value without the readers' dirty flags, so a restore
+        // would reuse their stale outputs.
+        if invalidated.is_empty() {
+            drop(ctx);
+        } else {
+            self.invalidate_tasks_from_interior_mutation(invalidated, ctx);
+        }
+    }
+
+    /// Invalidates the readers that an interior mutation returned, consuming the context that the
+    /// mutation ran in.
+    fn invalidate_tasks_from_interior_mutation<'e>(
+        &self,
+        tasks: SmallVec<[TaskId; 4]>,
+        ctx: impl ExecuteContext<'e>,
+    ) {
+        if !self.should_track_dependencies() {
+            panic!("Dependency tracking is disabled so invalidation is not allowed");
+        }
+        invalidate(
+            tasks,
+            #[cfg(feature = "task_dirty_cause")]
+            TaskDirtyCause::Invalidator,
+            ctx,
+        );
     }
 
     fn debug_get_task_description(&self, task_id: TaskId) -> String {
@@ -2164,6 +2183,7 @@ impl TurboTasksBackend {
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
         #[cfg(feature = "verify_determinism")] stateful: bool,
         has_invalidator: bool,
+        session_dependent: bool,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
     ) -> Option<TaskPriority> {
         // Task completion is a 4 step process:
@@ -2227,6 +2247,7 @@ impl TurboTasksBackend {
             #[cfg(feature = "verify_determinism")]
             stateful,
             has_invalidator,
+            session_dependent,
         ) {
             Ok(r) => r,
             Err(stale_priority) => {
@@ -2305,13 +2326,15 @@ impl TurboTasksBackend {
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
         #[cfg(feature = "verify_determinism")] stateful: bool,
         has_invalidator: bool,
+        session_dependent: bool,
     ) -> Result<TaskExecutionCompletePrepareResult, TaskPriority> {
         let mut task = ctx.task(task_id, TaskDataCategory::All);
         let is_recomputation = task.is_dirty().is_none();
         // Without dependency tracking, the SessionDependent dirty state is never read (no session
         // restore), so skip the work
         let is_session_dependent = self.should_track_dependencies()
-            && matches!(task.get_task_type(), TaskTypeRef::Cached(tt) if tt.native_fn.is_session_dependent);
+            && (session_dependent
+                || matches!(task.get_task_type(), TaskTypeRef::Cached(tt) if tt.native_fn.is_session_dependent));
         let Some(in_progress) = task.get_in_progress_mut() else {
             panic!("Task execution completed, but task is not in progress: {task:#?}");
         };
@@ -3753,20 +3776,13 @@ impl Backend for TurboTasksBackend {
         self.invalidate_task(task_id, turbo_tasks);
     }
 
-    fn invalidate_tasks(&self, tasks: &[TaskId], turbo_tasks: &TurboTasks<Self>) {
-        self.invalidate_tasks(tasks, turbo_tasks);
-    }
-
-    fn invalidate_tasks_set(
+    fn mutate_interior(
         &self,
-        tasks: &AutoSet<TaskId, BuildHasherDefault<FxHasher>, 2>,
+        task_id: TaskId,
+        mutate: &mut dyn FnMut() -> SmallVec<[TaskId; 4]>,
         turbo_tasks: &TurboTasks<Self>,
     ) {
-        self.invalidate_tasks_set(tasks, turbo_tasks);
-    }
-
-    fn invalidate_serialization(&self, task_id: TaskId, turbo_tasks: &TurboTasks<Self>) {
-        self.invalidate_serialization(task_id, turbo_tasks);
+        self.mutate_interior(task_id, mutate, turbo_tasks);
     }
 
     fn task_execution_canceled(&self, task: TaskId, turbo_tasks: &TurboTasks<Self>) {
@@ -3789,6 +3805,7 @@ impl Backend for TurboTasksBackend {
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
         #[cfg(feature = "verify_determinism")] stateful: bool,
         has_invalidator: bool,
+        session_dependent: bool,
         turbo_tasks: &TurboTasks<Self>,
     ) -> Option<TaskPriority> {
         self.task_execution_completed(
@@ -3798,6 +3815,7 @@ impl Backend for TurboTasksBackend {
             #[cfg(feature = "verify_determinism")]
             stateful,
             has_invalidator,
+            session_dependent,
             turbo_tasks,
         )
     }

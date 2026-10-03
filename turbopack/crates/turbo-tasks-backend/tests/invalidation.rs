@@ -75,7 +75,7 @@ async fn create_map(step: ResolvedVc<Step>) -> Result<Vc<Map>> {
     let step = step.await?;
     let step_value = step.get();
 
-    Ok(Vc::cell(match *step_value {
+    Ok(Vc::cell(match step_value {
         1 => FxHashMap::from_iter([("a".to_string(), 1), ("b".to_string(), 2)]),
         2 => FxHashMap::from_iter([("a".to_string(), 1), ("b".to_string(), 22)]),
         3 => FxHashMap::from_iter([("c".to_string(), 3), ("b".to_string(), 22)]),
@@ -156,7 +156,7 @@ async fn create_set(step: ResolvedVc<Step>) -> Result<Vc<Set>> {
     let step = step.await?;
     let step_value = step.get();
 
-    Ok(Vc::cell(match *step_value {
+    Ok(Vc::cell(match step_value {
         1 => FxHashSet::from_iter(["a".to_string(), "b".to_string()]),
         2 => FxHashSet::from_iter(["e".to_string(), "a".to_string(), "b".to_string()]),
         3 => FxHashSet::from_iter(["c".to_string(), "b".to_string()]),

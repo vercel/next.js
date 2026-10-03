@@ -198,7 +198,7 @@ struct Output {
 
 #[turbo_tasks::function(operation, root)]
 async fn compute(input: ResolvedVc<Step>) -> Result<Vc<Output>> {
-    let value = *input.await?.get();
+    let value = input.await?.get();
     Ok(Output {
         value,
         random: rand::random(),
@@ -209,7 +209,7 @@ async fn compute(input: ResolvedVc<Step>) -> Result<Vc<Output>> {
 /// Inner function in the dependency chain
 #[turbo_tasks::function(operation)]
 async fn double(input: ResolvedVc<Step>) -> Result<Vc<u32>> {
-    let value = *input.await?.get();
+    let value = input.await?.get();
     Ok(Vc::cell(value * 2))
 }
 
@@ -231,7 +231,7 @@ async fn compute_chain(input: ResolvedVc<Step>) -> Result<Vc<Output>> {
 
 #[turbo_tasks::function(operation, root)]
 async fn add_one(input: ResolvedVc<Step>) -> Result<Vc<u32>> {
-    let value = *input.await?.get();
+    let value = input.await?.get();
     Ok(Vc::cell(value + 1))
 }
 
@@ -429,7 +429,7 @@ async fn eviction_transient_reader_invalidated() {
 /// memoized task, creating truly independent intermediate tasks for fan-out.
 #[turbo_tasks::function(operation, root)]
 async fn add_offset(input: ResolvedVc<Step>, offset: u32) -> Result<Vc<u32>> {
-    let value = *input.await?.get();
+    let value = input.await?.get();
     Ok(Vc::cell(value.wrapping_add(offset)))
 }
 
@@ -586,7 +586,7 @@ fn create_session_alive() -> Vc<SessionAlive> {
 /// writer's cell) without invalidating `create_session_alive` itself.
 #[turbo_tasks::function(operation, root)]
 async fn read_session_alive_id(state: ResolvedVc<Step>) -> Result<Vc<AlivePtr>> {
-    let _state = *state.await?.get();
+    let _state = state.await?.get();
     let v = create_session_alive().resolve().await?;
     let r = v.await?;
     let alive_now = r.alive.load(Ordering::Relaxed);

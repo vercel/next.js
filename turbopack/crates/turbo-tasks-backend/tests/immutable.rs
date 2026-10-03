@@ -82,7 +82,7 @@ async fn compute(input: ResolvedVc<ChangingInput>) -> Result<Vc<Value>> {
     println!("compute()");
     let input = input.await?;
     let value = input.state.get();
-    Ok(Value { value: *value }.cell())
+    Ok(Value { value }.cell())
 }
 
 #[turbo_tasks::function(operation, root)]

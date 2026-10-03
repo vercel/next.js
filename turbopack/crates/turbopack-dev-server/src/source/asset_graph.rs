@@ -4,8 +4,8 @@ use anyhow::Result;
 use rustc_hash::FxHashSet;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, FxIndexMap, FxIndexSet, ResolvedVc, State, TryJoinIterExt, ValueToStringRef, Vc,
-    fxindexset,
+    Completion, FxIndexMap, FxIndexSet, ResolvedVc, TransientState, TryJoinIterExt,
+    ValueToStringRef, Vc, fxindexset,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -26,7 +26,7 @@ struct OutputAssetsMap(
     FxIndexMap<RcStr, ResolvedVc<Box<dyn OutputAsset>>>,
 );
 
-type ExpandedState = State<FxHashSet<RcStr>>;
+type ExpandedState = TransientState<FxHashSet<RcStr>>;
 
 #[turbo_tasks::value(serialization = "skip", eq = "manual", cell = "new")]
 pub struct AssetGraphContentSource {
@@ -60,7 +60,7 @@ impl AssetGraphContentSource {
         Self::cell(AssetGraphContentSource {
             root_path,
             root_assets: ResolvedVc::cell(fxindexset! { root_asset }),
-            expanded: Some(State::new(FxHashSet::default())),
+            expanded: Some(TransientState::new(FxHashSet::default())),
         })
     }
 

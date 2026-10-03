@@ -151,7 +151,7 @@ where
     }
 
     // pick a different cell idx upon each invalidation/execution
-    let picked_vc = upcast_vcs[*input.cell_idx.get()];
+    let picked_vc = upcast_vcs[input.cell_idx.get()];
 
     // round-trip through `TraitRef::cell`
     Ok(TraitRef::cell(picked_vc.into_trait_ref().await?))

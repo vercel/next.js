@@ -28,7 +28,7 @@ pub fn get_invalidator() -> Option<Invalidator> {
 /// The caller must provide the `TurboTasksApi` when calling invalidation methods.
 #[derive(Clone, Copy, Hash, PartialEq, Eq, Encode, Decode, Debug)]
 pub struct Invalidator {
-    task: TaskId,
+    pub(crate) task: TaskId,
 }
 
 impl Invalidator {

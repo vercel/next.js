@@ -54,7 +54,7 @@ fn create_state_operation() -> Vc<Step> {
 /// but does not affect hash or equality.
 #[turbo_tasks::function(operation, root)]
 async fn produce_hashed(input: ResolvedVc<Step>) -> Result<Vc<HashedValue>> {
-    let value = *input.await?.get();
+    let value = input.await?.get();
     let noise = EXECUTION_COUNTER.fetch_add(1, Ordering::Relaxed) as u64;
     Ok(HashedValue { value, noise }.cell())
 }

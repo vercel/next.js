@@ -23,14 +23,14 @@ use crate::{
     utils::{StringifyJs, StringifyModuleId},
 };
 
-#[turbo_tasks::value(serialization = "skip", evict = "never")]
+#[turbo_tasks::value]
 pub struct LazyCompilationState {
     active: State<bool>,
 }
 
 impl LazyCompilationState {
     pub fn is_active(&self) -> bool {
-        *self.active.get()
+        self.active.get()
     }
 
     pub fn activate(&self) {
