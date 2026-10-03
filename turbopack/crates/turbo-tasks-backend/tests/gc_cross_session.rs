@@ -15,11 +15,14 @@ use std::{
 };
 
 use anyhow::Result;
-use turbo_tasks::{GcRoot, ResolvedVc, TurboTasks, Vc};
+use turbo_tasks::{GcRoot, OperationVc, ResolvedVc, TurboTasks, Vc};
 use turbo_tasks_backend::TurboTasksBackend;
 
 use crate::{
-    gc_fixture::{Constant, Selector, create_constant, create_selector, diamond_root_op},
+    gc_fixture::{
+        Constant, Selector, create_constant, create_other_constant, create_selector,
+        diamond_root_op,
+    },
     util::{create_persistence_dir, reopen_tt_with_gc, reopen_tt_with_gc_ttl},
 };
 
@@ -350,4 +353,223 @@ async fn shared_cell_target_collected_before_its_second_reader() {
         .unwrap();
         tt.stop_and_wait().await;
     }
+}
+
+/// A task holding a collected task's `Vc` in its arguments fails with an error when it
+/// re-executes, rather than panicking.
+///
+/// This is the stale-mapper shape: reader 2 receives the shared target as an argument and reads
+/// it, but only the owning side is the target's parent. Once the owning side is collected, reader 2
+/// can never re-execute successfully, and nothing guarantees its parent re-runs (and drops it)
+/// first. Here the teardown dirties reader 2, which re-executes right away against the collected
+/// target.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn reading_a_collected_task_is_an_error() {
+    let dir = create_persistence_dir("reading_a_collected_task_is_an_error");
+    let tt = reopen_tt_with_gc(&dir);
+    let borrowing_op = turbo_tasks::run_once(tt.clone(), async move {
+        let selector_op = create_selector(false);
+        let selector_vc = selector_op.resolve().strongly_consistent().await?;
+        let selector = selector_op.read_strongly_consistent().await?;
+
+        let constant_op = create_constant();
+        let constant_vc = constant_op.resolve().strongly_consistent().await?;
+
+        let owning = select_owning(selector_vc, constant_vc);
+        let target = owning.resolve().strongly_consistent().await?;
+        assert_eq!(*target.await?, 41);
+
+        let borrowing = borrowing_root(target);
+        assert_eq!(*borrowing.read_strongly_consistent().await?, 43);
+
+        selector.set(true);
+        assert_eq!(*owning.read_strongly_consistent().await?, 0);
+        anyhow::Ok(borrowing)
+    })
+    .await
+    .unwrap();
+
+    let borrowing_pin = GcRoot::pin(tt.clone(), borrowing_op);
+    let collected = gc_until_collected(&tt, 3).await;
+    assert!(
+        collected >= 3,
+        "the owning subtree, reader 1 and the shared target should be collected (got {collected})"
+    );
+
+    let result = turbo_tasks::run_once(tt.clone(), async move {
+        borrowing_op.read_strongly_consistent().await?;
+        anyhow::Ok(())
+    })
+    .await;
+    let err = result.expect_err("reader 2 reads a collected task, so the root must fail");
+    assert!(
+        format!("{err:?}").contains("garbage collected"),
+        "expected the collected-task read error, got: {err:?}"
+    );
+
+    drop(borrowing_pin);
+    tt.stop_and_wait().await;
+}
+
+/// The operation the connect tests hand out; [`select_owned_op`] is its only parent.
+#[turbo_tasks::function(operation)]
+async fn owned_op(constant: ResolvedVc<Constant>) -> Result<Vc<u32>> {
+    Ok(Vc::cell(*constant.await?.get() + 7))
+}
+
+#[turbo_tasks::value(transparent)]
+struct OptionOp(Option<OperationVc<u32>>);
+
+/// Calls [`owned_op`] (becoming its parent) and hands it out, until the selector drops it.
+#[turbo_tasks::function(operation, root)]
+async fn select_owned_op(
+    selector: ResolvedVc<Selector>,
+    constant: ResolvedVc<Constant>,
+) -> Result<Vc<OptionOp>> {
+    if !*selector.await?.get() {
+        let op = owned_op(constant);
+        op.connect().await?;
+        Ok(Vc::cell(Some(op)))
+    } else {
+        Ok(Vc::cell(None))
+    }
+}
+
+/// Holds an `OperationVc` in its arguments but only connects it once `other` is bumped, so it is
+/// not the operation's parent when the operation is collected.
+#[turbo_tasks::function(operation, root)]
+async fn lazy_connector_root(op: OperationVc<u32>, other: ResolvedVc<Constant>) -> Result<Vc<u32>> {
+    if *other.await?.get() == 0 {
+        return Ok(Vc::cell(0));
+    }
+    Ok(Vc::cell(*op.connect().await?))
+}
+
+/// A task that holds a collected operation in its arguments and connects it later. Whether the
+/// operation is still soft-deleted or already evicted, the connect must not panic and the read
+/// fails with the collected-task error.
+/// The error is formatted before the backend stops: formatting resolves task names through it.
+async fn connect_collected_operation(name: &str, evict: bool) -> Result<u32, String> {
+    let dir = create_persistence_dir(name);
+    let tt = reopen_tt_with_gc(&dir);
+    let (connector_op, selector) = turbo_tasks::run_once(tt.clone(), async move {
+        let selector_op = create_selector(false);
+        let selector_vc = selector_op.resolve().strongly_consistent().await?;
+        let selector = selector_op.read_strongly_consistent().await?;
+        let constant_op = create_constant();
+        let constant_vc = constant_op.resolve().strongly_consistent().await?;
+        let other_op = create_other_constant();
+        let other_vc = other_op.resolve().strongly_consistent().await?;
+
+        let owner = select_owned_op(selector_vc, constant_vc);
+        let op = owner.read_strongly_consistent().await?.unwrap();
+        let connector = lazy_connector_root(op, other_vc);
+        assert_eq!(*connector.read_strongly_consistent().await?, 0);
+        anyhow::Ok((connector, selector))
+    })
+    .await
+    .unwrap();
+    let pin = GcRoot::pin(tt.clone(), connector_op);
+
+    // Drop the operation from its only parent and collect it.
+    turbo_tasks::run_once(tt.clone(), async move {
+        selector.set(true);
+        anyhow::Ok(())
+    })
+    .await
+    .unwrap();
+    let collected = gc_until_collected(&tt, 1).await;
+    assert!(
+        collected >= 1,
+        "owned_op should be collected (got {collected})"
+    );
+    if evict {
+        tt.backend().snapshot_and_evict_for_testing(&tt);
+    }
+
+    let result = turbo_tasks::run_once(tt.clone(), async move {
+        // Re-read the state: after eviction a `ReadRef` from before would hold a stale copy.
+        let other = create_other_constant().read_strongly_consistent().await?;
+        other.set(1);
+        anyhow::Ok(*connector_op.read_strongly_consistent().await?)
+    })
+    .await;
+    let result = result.map_err(|e| format!("{e:?}"));
+    drop(pin);
+    tt.stop_and_wait().await;
+    result
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn connecting_a_soft_deleted_operation_is_an_error() {
+    let err = connect_collected_operation("connecting_a_soft_deleted_operation_is_an_error", false)
+        .await
+        .expect_err("the operation was collected, so connecting and reading it must fail");
+    assert!(
+        err.contains("garbage collected"),
+        "expected the collected-task read error, got: {err}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn connecting_an_evicted_collected_operation_is_an_error() {
+    let err = connect_collected_operation(
+        "connecting_an_evicted_collected_operation_is_an_error",
+        true,
+    )
+    .await
+    .expect_err("the operation is gone, so connecting and reading it must fail");
+    assert!(
+        err.contains("garbage collected"),
+        "expected the collected-task read error, got: {err}"
+    );
+}
+
+/// Connecting a collected operation from outside any task (a top-level `run`, as NAPI code holding
+/// an unpinned `OperationVc` would) used to materialize a blank entry for it and schedule it. Its
+/// execution then failed outside the per-task panic boundary and aborted the process.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn parentless_connect_of_an_evicted_operation_does_not_abort() {
+    let dir = create_persistence_dir("parentless_connect_of_an_evicted_operation_does_not_abort");
+    let tt = reopen_tt_with_gc(&dir);
+    let (op, selector) = turbo_tasks::run_once(tt.clone(), async move {
+        let selector_op = create_selector(false);
+        let selector_vc = selector_op.resolve().strongly_consistent().await?;
+        let selector = selector_op.read_strongly_consistent().await?;
+        let constant_op = create_constant();
+        let constant_vc = constant_op.resolve().strongly_consistent().await?;
+        let owner = select_owned_op(selector_vc, constant_vc);
+        let op = owner.read_strongly_consistent().await?.unwrap();
+        anyhow::Ok((op, selector))
+    })
+    .await
+    .unwrap();
+    turbo_tasks::run_once(tt.clone(), async move {
+        selector.set(true);
+        anyhow::Ok(())
+    })
+    .await
+    .unwrap();
+    let collected = gc_until_collected(&tt, 1).await;
+    assert!(
+        collected >= 1,
+        "owned_op should be collected (got {collected})"
+    );
+    tt.backend().snapshot_and_evict_for_testing(&tt);
+
+    let resident_before = tt.backend().resident_task_count_for_testing();
+    let err = tt
+        .run(async move { anyhow::Ok(*op.read_strongly_consistent().await?) })
+        .await
+        .expect_err("the operation is gone, so reading it must fail");
+    assert!(
+        format!("{err:?}").contains("garbage collected"),
+        "expected the collected-task read error, got: {err:?}"
+    );
+    assert_eq!(
+        tt.backend().resident_task_count_for_testing(),
+        resident_before,
+        "no entry may be materialized for the collected operation"
+    );
+    tt.stop_and_wait().await;
 }
