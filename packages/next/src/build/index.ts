@@ -1,4 +1,9 @@
-import type { NudgeKind } from '../lib/upgrade/nudge'
+import {
+  corkUpgradeOutput,
+  uncork,
+  getUpgradeEnvironment,
+  isUpgradeOutputManaged,
+} from '../lib/upgrade-output'
 import {
   getRouteCacheKey,
   ROUTE_CACHE_DIRECTORY,
@@ -1121,9 +1126,8 @@ export default async function build(
   experimentalBuildMode: 'default' | 'compile' | 'generate' | 'generate-env',
   traceUploadUrl: string | undefined,
   debugBuildPathsPatterns: string[] | undefined,
-  enabledFeatures: Record<string, unknown> = {},
-  allowHumanUpgrade = false
-): Promise<{ policy: NudgeKind; nudgeId: string | null } | 'interrupt' | void> {
+  enabledFeatures: Record<string, unknown> = {}
+): Promise<void> {
   const isCompileMode = experimentalBuildMode === 'compile'
   const isGenerateMode = experimentalBuildMode === 'generate'
   NextBuildContext.isCompileMode = isCompileMode
@@ -1164,6 +1168,10 @@ export default async function build(
     NextBuildContext.debugPrerender = debugPrerender
 
     return await nextBuildSpan.traceAsyncFn(async () => {
+      // Keep project env/config changes for handoff, without forwarding internal
+      // state added by the build before or after this loading step.
+      const environmentBeforeConfig = { ...process.env }
+
       // attempt to load global env values so they are available in next.config.js
       const { loadedEnvFiles } = nextBuildSpan
         .traceChild('load-dotenv')
@@ -1201,7 +1209,21 @@ export default async function build(
           )
         )
       loadedConfig = config
+      const upgradeEnvironment = getUpgradeEnvironment(environmentBeforeConfig)
 
+      // Config and initial route callbacks may await terminal writes. Drain
+      // them before offering the menu, including the generate-env early return.
+      async function corkBuildOutput() {
+        if (isUpgradeOutputManaged() && process.send) {
+          await corkUpgradeOutput()
+          const { getUpgradeContext } =
+            require('../lib/upgrade/nudge') as typeof import('../lib/upgrade/nudge')
+          process.send({
+            nextUpgradeContext: getUpgradeContext(config),
+            nextUpgradeEnvironment: upgradeEnvironment,
+          })
+        }
+      }
       // Resolve selective build paths now that the page extensions are known.
       const debugBuildPaths = debugBuildPathsPatterns
         ? await (async () => {
@@ -1252,56 +1274,26 @@ export default async function build(
       const telemetry = new Telemetry({ distDir })
       setGlobal('telemetry', telemetry)
 
-      // Reuse the loaded config; ordinary builds do not load upgrade tooling.
+      // The parent owns human menus. Keep agent/noninteractive checks at the
+      // existing telemetry initialization point and pass the same recorder.
       if (
-        config.experimental.agentUpgrade === 'security' ||
-        config.experimental.agentUpgrade === 'latest' ||
-        config.experimental.agentUpgrade === 'experimental-future' ||
-        process.env.__NEXT_AGENT_UPGRADE
+        !isUpgradeOutputManaged() &&
+        (config.experimental.agentUpgrade === 'security' ||
+          config.experimental.agentUpgrade === 'latest' ||
+          config.experimental.agentUpgrade === 'experimental-future' ||
+          process.env.__NEXT_AGENT_UPGRADE)
       ) {
         const { nudgeUpgrade, getUpgradeContext } =
           require('../lib/upgrade/nudge') as typeof import('../lib/upgrade/nudge')
-        const upgradeContext = getUpgradeContext(config)
-        if (allowHumanUpgrade) {
-          // TODO: Do not block the build while prompting for an upgrade.
-          // Preserve all logs for display after the prompt and stop the build before Update.
-          let nudgeId: string | null = null
-          const action = await nudgeUpgrade(
-            dir,
-            upgradeContext,
-            'build',
-            new AbortController().signal,
-            null,
-            {
-              telemetry,
-              onNudgeId(id) {
-                nudgeId = id
-              },
-            }
-          ).catch((error) => {
-            Log.warn(`Could not offer the upgrade: ${String(error)}`)
-          })
-          if (action === 'update' && upgradeContext.experimental.agentUpgrade) {
-            return {
-              policy: upgradeContext.experimental.agentUpgrade,
-              nudgeId,
-            }
-          }
-          if (action === 'interrupt') {
-            return 'interrupt' as const
-          }
-        } else {
-          // Agent checks retain their parallel behavior; humans decide before building.
-          pendingUpgradeNudge = nudgeUpgrade(
-            dir,
-            upgradeContext,
-            'build',
-            null,
-            null,
-            { telemetry, onNudgeId: null }
-          ).then(() => {})
-          void pendingUpgradeNudge.catch(() => {})
-        }
+        pendingUpgradeNudge = nudgeUpgrade(
+          dir,
+          getUpgradeContext(config),
+          'build',
+          null,
+          null,
+          { telemetry, onNudgeId: null }
+        ).then(() => {})
+        void pendingUpgradeNudge.catch(() => {})
       }
 
       // Install the native bindings early so we can have synchronous access later.
@@ -1315,15 +1307,23 @@ export default async function build(
       process.env.NEXT_DEPLOYMENT_ID = config.deploymentId || ''
       NextBuildContext.config = config
 
+      // generateBuildId is a user callback. Preserve its env changes separately
+      // so NEXT_DEPLOYMENT_ID and other build setup do not enter the handoff.
+      const environmentBeforeBuildId = { ...process.env }
       const buildId = await getBuildId(
         isGenerateMode,
         distDir,
         nextBuildSpan,
         config
       )
+      Object.assign(
+        upgradeEnvironment,
+        getUpgradeEnvironment(environmentBeforeBuildId)
+      )
       NextBuildContext.buildId = buildId
 
       if (experimentalBuildMode === 'generate-env') {
+        await corkBuildOutput()
         if (bundler === Bundler.Turbopack) {
           Log.warn('generate-env is not needed with turbopack')
           return
@@ -1348,9 +1348,18 @@ export default async function build(
         populateStaticEnv(config, config.deploymentId)
       }
 
+      // Preserve initial route-callback changes as well, but leave static env
+      // population and other framework setup outside the captured interval.
+      const environmentBeforeRoutes = { ...process.env }
       const customRoutes: CustomRoutes = await nextBuildSpan
         .traceChild('load-custom-routes')
         .traceAsyncFn(() => loadCustomRoutes(config))
+      Object.assign(
+        upgradeEnvironment,
+        getUpgradeEnvironment(environmentBeforeRoutes)
+      )
+
+      await corkBuildOutput()
 
       const { headers, onMatchHeaders, rewrites, redirects } = customRoutes
       const combinedRewrites: Rewrite[] = [
@@ -2578,7 +2587,7 @@ export default async function build(
                   : undefined
 
                 if (staticInfo?.hadUnsupportedValue) {
-                  errorFromUnsupportedSegmentConfig()
+                  await errorFromUnsupportedSegmentConfig()
                 }
 
                 // If there's any thing that would contribute to the functions
@@ -2991,7 +3000,7 @@ export default async function build(
         })
 
         if (staticInfo.hadUnsupportedValue) {
-          errorFromUnsupportedSegmentConfig()
+          await errorFromUnsupportedSegmentConfig()
         }
 
         if (staticInfo.runtime === 'nodejs' || isProxyFile(page)) {
@@ -3225,7 +3234,7 @@ export default async function build(
         const staticGenerationSpan =
           nextBuildSpan.traceChild('static-generation')
         await staticGenerationSpan.traceAsyncFn(async () => {
-          detectConflictingPaths(
+          await detectConflictingPaths(
             [
               ...combinedPages,
               ...pageKeys.pages.filter((page) => !combinedPages.includes(page)),
@@ -4967,10 +4976,11 @@ export default async function build(
   }
 }
 
-function errorFromUnsupportedSegmentConfig(): never {
+async function errorFromUnsupportedSegmentConfig(): Promise<never> {
   Log.error(
     `Invalid segment configuration export detected. This can cause unexpected behavior from the configs not being applied. You should see the relevant failures in the logs above. Please fix them to continue.`
   )
+  await uncork()
   process.exit(1)
 }
 
