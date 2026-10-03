@@ -399,6 +399,19 @@ impl Store {
             .collect()
     }
 
+    /// Returns worker counts from the same max-memory samples selected by
+    /// [`Self::memory_samples_for_range`], in the same order.
+    pub fn active_worker_threads_samples_for_range(
+        &self,
+        start: Timestamp,
+        end: Timestamp,
+    ) -> Vec<u64> {
+        self.memory_samples_for_range_with_ts(start, end)
+            .into_iter()
+            .map(|(_, _, _, workers)| workers)
+            .collect()
+    }
+
     /// Returns up to `MAX_MEMORY_SAMPLES` memory pressure values in the range
     /// `[start, end]`. The returned slice has the same length and group
     /// boundaries as [`Self::memory_samples_for_range`] so that the two
@@ -526,5 +539,27 @@ mod tests {
         assert!(samples.iter().any(|(_, mem, pressure, workers)| {
             *mem == 5000 && *pressure == 9 && *workers == 4
         }));
+
+        let start = Timestamp::from_micros(0);
+        let end = Timestamp::from_micros(201);
+        let memory = store.memory_samples_for_range(start, end);
+        let workers = store.active_worker_threads_samples_for_range(start, end);
+        assert_eq!(workers.len(), memory.len());
+        assert_eq!(
+            workers,
+            samples.iter().map(|sample| sample.3).collect::<Vec<_>>()
+        );
+        assert_eq!(
+            memory
+                .iter()
+                .position(|&value| value == 5000)
+                .map(|i| workers[i]),
+            Some(4)
+        );
+        assert!(
+            store
+                .active_worker_threads_samples_for_range(Timestamp::from_micros(202), end)
+                .is_empty()
+        );
     }
 }
