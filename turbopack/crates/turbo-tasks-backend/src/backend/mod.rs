@@ -584,21 +584,30 @@ struct TaskExecutionCompletePrepareResult {
     pub is_session_dependent: bool,
 }
 
+/// Locks the task being read, and the reader too when a dependency edge may need to be added.
+///
+/// Returns `None` if the task being read is gone (collected by GC, or missing from storage). This
+/// is expected rather than a bug: a stale task can still hold a `Vc` to a collected task in its
+/// arguments, because GC does not keep cell producers alive for their dependents, and it may
+/// re-execute before its own parent re-runs and drops it. The read becomes an ordinary error for
+/// that task, and no edge to the missing task is added.
 fn lock_task_and_optional_reader<'e, C: ExecuteContext<'e>>(
     ctx: &mut C,
     task_id: TaskId,
     reader_id: Option<TaskId>,
-) -> (C::TaskGuardImpl, Option<C::TaskGuardImpl>) {
+) -> Option<(C::TaskGuardImpl, Option<C::TaskGuardImpl>)> {
+    // `AllowMissing` treats a soft-deleted task as missing too. The context holds an operation
+    // guard, so GC cannot collect the task between this open and the `task_pair` below.
+    let task = ctx.try_task(task_id, TaskDataCategory::All)?;
     let Some(reader_id) = reader_id else {
-        return (ctx.task(task_id, TaskDataCategory::All), None);
+        return Some((task, None));
     };
 
     // Immutable tasks never need dependency edges and can never be invalidated. Avoid locking the
     // reader too in that common case. When the task is still mutable, drop the speculative lock
     // and reacquire both locks together to preserve the invalidation race guarantee.
-    let task = ctx.task(task_id, TaskDataCategory::All);
     if task.immutable() && !cfg!(feature = "verify_immutable") {
-        (task, None)
+        Some((task, None))
     } else {
         drop(task);
 
@@ -611,11 +620,19 @@ fn lock_task_and_optional_reader<'e, C: ExecuteContext<'e>>(
         // when dependency edges may still be added.
         if task.immutable() && !cfg!(feature = "verify_immutable") {
             drop(reader);
-            (task, None)
+            Some((task, None))
         } else {
-            (task, Some(reader))
+            Some((task, Some(reader)))
         }
     }
+}
+
+/// The error a read of a missing task (see [`lock_task_and_optional_reader`]) fails with.
+fn collected_task_read_error(task_id: TaskId, operation: &str) -> anyhow::Error {
+    anyhow::anyhow!(
+        "{operation}: task {task_id} no longer exists (it was garbage collected). The reading \
+         task holds a stale reference to it and is expected to be dropped by its parent."
+    )
 }
 
 // Operations
@@ -637,8 +654,8 @@ impl TurboTasksBackend {
                 .then_some(reader_id)
         });
         let (mut task, mut reader_task) =
-            lock_task_and_optional_reader(&mut ctx, task_id, need_reader_task);
-        task.assert_not_deleted("read_task_output");
+            lock_task_and_optional_reader(&mut ctx, task_id, need_reader_task)
+                .ok_or_else(|| collected_task_read_error(task_id, "read_task_output"))?;
 
         fn listen_to_done_event(
             reader_description: Option<EventDescription>,
@@ -1012,8 +1029,8 @@ impl TurboTasksBackend {
                 .then_some(reader_id)
         });
         let (mut task, reader_task) =
-            lock_task_and_optional_reader(&mut ctx, task_id, need_reader_task);
-        task.assert_not_deleted("read_task_cell");
+            lock_task_and_optional_reader(&mut ctx, task_id, need_reader_task)
+                .ok_or_else(|| collected_task_read_error(task_id, "read_task_cell"))?;
 
         let content = if final_read_hint {
             task.remove_cell_data(&cell, &get_value_type(cell.type_id()).persistence)

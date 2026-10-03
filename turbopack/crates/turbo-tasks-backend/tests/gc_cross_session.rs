@@ -351,3 +351,59 @@ async fn shared_cell_target_collected_before_its_second_reader() {
         tt.stop_and_wait().await;
     }
 }
+
+/// A task holding a collected task's `Vc` in its arguments fails with an error when it
+/// re-executes, rather than panicking.
+///
+/// This is the stale-mapper shape: reader 2 receives the shared target as an argument and reads
+/// it, but only the owning side is the target's parent. Once the owning side is collected, reader 2
+/// can never re-execute successfully, and nothing guarantees its parent re-runs (and drops it)
+/// first. Here the teardown dirties reader 2, which re-executes right away against the collected
+/// target.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn reading_a_collected_task_is_an_error() {
+    let dir = create_persistence_dir("reading_a_collected_task_is_an_error");
+    let tt = reopen_tt_with_gc(&dir);
+    let borrowing_op = turbo_tasks::run_once(tt.clone(), async move {
+        let selector_op = create_selector(false);
+        let selector_vc = selector_op.resolve().strongly_consistent().await?;
+        let selector = selector_op.read_strongly_consistent().await?;
+
+        let constant_op = create_constant();
+        let constant_vc = constant_op.resolve().strongly_consistent().await?;
+
+        let owning = select_owning(selector_vc, constant_vc);
+        let target = owning.resolve().strongly_consistent().await?;
+        assert_eq!(*target.await?, 41);
+
+        let borrowing = borrowing_root(target);
+        assert_eq!(*borrowing.read_strongly_consistent().await?, 43);
+
+        selector.set(true);
+        assert_eq!(*owning.read_strongly_consistent().await?, 0);
+        anyhow::Ok(borrowing)
+    })
+    .await
+    .unwrap();
+
+    let borrowing_pin = GcRoot::pin(tt.clone(), borrowing_op);
+    let collected = gc_until_collected(&tt, 3).await;
+    assert!(
+        collected >= 3,
+        "the owning subtree, reader 1 and the shared target should be collected (got {collected})"
+    );
+
+    let result = turbo_tasks::run_once(tt.clone(), async move {
+        borrowing_op.read_strongly_consistent().await?;
+        anyhow::Ok(())
+    })
+    .await;
+    let err = result.expect_err("reader 2 reads a collected task, so the root must fail");
+    assert!(
+        format!("{err:?}").contains("garbage collected"),
+        "expected the collected-task read error, got: {err:?}"
+    );
+
+    drop(borrowing_pin);
+    tt.stop_and_wait().await;
+}
