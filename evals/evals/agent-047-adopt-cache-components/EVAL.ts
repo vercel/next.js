@@ -110,7 +110,7 @@ test('keeps URL-specific product work below a Suspense boundary', async () => {
 
 test('makes the checkout state reset intentional', async () => {
   await expect(environment).toSatisfyCriterion(
-    `The checkout wizard no longer relies on the page being unmounted to return to step 1 after the user starts a fresh navigation. The final migration removes the broad generated bfcacheId route wrapper and replaces it with targeted state handling in the checkout feature, such as resetting from an event or cleanup, or deriving the active step from navigation state. It does not remove the compatibility wrapper without addressing the preserved step state.`
+    `The checkout wizard no longer relies on the whole route being remounted to return to step 1 after the user starts a fresh navigation. The final migration removes the broad generated bfcacheId route wrapper and replaces it with targeted state handling inside the checkout feature. A useLayoutEffect cleanup in the checkout wizard itself is a valid targeted reset because it resets only checkout state when Activity hides that component. Resetting from an event or deriving the active step from navigation state are also valid. The implementation does not use bfcacheId or a generated route-wide Activity reset wrapper, and it does not remove the compatibility wrapper without addressing the preserved step state.`
   )
 })
 
