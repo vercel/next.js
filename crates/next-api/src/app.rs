@@ -1447,6 +1447,10 @@ impl AppEndpoint {
             vec![]
         };
         client_assets.extend(page_hmr_chunks.iter().copied());
+        // Also listed in the client reference manifest, so that client-side navigations to this
+        // page subscribe to it too.
+        let page_hmr_chunk_lists: ResolvedVc<OutputAssets> =
+            ResolvedVc::cell(page_hmr_chunks.clone());
 
         let manifest_path_prefix = &app_entry.original_name;
 
@@ -1631,6 +1635,7 @@ impl AppEndpoint {
                     entry_name: app_entry.original_name.clone(),
                     client_references,
                     client_references_chunks,
+                    page_hmr_chunk_lists,
                     client_chunking_context,
                     ssr_chunking_context,
                     async_module_info: module_graphs.full.async_module_info().to_resolved().await?,
