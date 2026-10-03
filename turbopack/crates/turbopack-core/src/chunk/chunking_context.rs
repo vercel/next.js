@@ -13,7 +13,6 @@ use crate::{
         ChunkItem, ChunkType, ChunkableModule, availability_info::AvailabilityInfo,
         chunk_id_strategy::ModuleIdStrategy, worker_type::WorkerType,
     },
-    context::AssetContext,
     environment::{ChunkLoading, Environment},
     ident::AssetIdent,
     module::Module,
@@ -476,15 +475,13 @@ pub trait ChunkingContext {
 
     /// Creates a worker loader chunk item for the worker's entry module.
     ///
-    /// `asset_context` is the context the worker reference was resolved with; the loader needs
-    /// it to resolve the `createWorker` runtime helper to the *same* module the corresponding
-    /// `WorkerAssetReference` put into the module graph. The loader runs with the provided
-    /// availability info so self-referencing workers unroll like async imports.
+    /// The referring module references the `createWorker` helper and passes its exported
+    /// function to this loader at runtime. The loader only needs the worker entry and the
+    /// provided availability info so self-referencing workers unroll like async imports.
     #[turbo_tasks::function]
     async fn worker_loader_chunk_item(
         self: Vc<Self>,
         module: Vc<Box<dyn ChunkableModule>>,
-        asset_context: Vc<Box<dyn AssetContext>>,
         worker_type: WorkerType,
         module_graph: Vc<ModuleGraph>,
         availability_info: AvailabilityInfo,

@@ -15,7 +15,7 @@ var __TURBOPACK__import$2e$meta__ = {
 };
 console.log('index.js');
 const url = new __turbopack_context__.U(__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/basic/input/worker.js (static in ecmascript)"));
-__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/basic/input/worker.js [test] (ecmascript, worker loader)")(Worker);
+__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/basic/input/worker.js [test] (ecmascript, worker loader)")(__turbopack_context__.r("[turbopack-ecmascript]/worker/browser/createWorker.ts [test] (ecmascript)")["default"], Worker);
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/basic/input/worker.js (static in ecmascript)", ((__turbopack_context__) => {
 
@@ -24,7 +24,8 @@ __turbopack_context__.q("/static/worker.2-qnq-strt8dn.js");}),
 "use strict";
 
 // Embedded worker-runtime helper. This file is bundled as a regular module and
-// `__turbopack_require__`d by the generated web-worker loader code.
+// `__turbopack_require__`d by the module containing the worker call. That module
+// passes this helper's default export to its generated web-worker loader.
 //
 // The chunk-URL builder, the chunk base path and the asset suffix are read from
 // the shared `__turbopack_chunk_relative_url__` / `__turbopack_chunk_base_path__`
