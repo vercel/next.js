@@ -11,6 +11,56 @@ import {
 import { getStaleTimeMs } from '../../segment-cache/cache'
 import { FreshnessPolicy } from '../../render-tree'
 
+/**
+ * Check if any `__next-page-redirect` marker exists outside a hidden Activity
+ * subtree. When `cacheComponents` is enabled, React's `<Activity>` retains
+ * hidden routes in the DOM with `display: none`. A stale redirect marker from
+ * such a route must not trigger a hard (MPA) navigation from the active route.
+ *
+ * This replaces the previous document-global `getElementById` check.
+ */
+function hasActiveRedirectMarker(): boolean {
+  const markers = document.querySelectorAll('#__next-page-redirect')
+  for (let i = 0; i < markers.length; i++) {
+    if (isInVisibleSubtree(markers[i])) {
+      return true
+    }
+  }
+  return false
+}
+
+/**
+ * Walk up from an element's parent to determine whether it sits inside a
+ * hidden subtree. React's `<Activity mode="hidden">` applies
+ * `display: none` to its root; other mechanisms may use the `hidden`
+ * attribute.
+ *
+ * We start from `element.parentElement` (not `element` itself) because the
+ * marker is a `<meta>` element, which inherently has `display: none`.
+ */
+function isInVisibleSubtree(element: Element): boolean {
+  // A marker emitted into `<head>` (e.g. a redirect captured before the first
+  // flush) is always active. The browser's UA stylesheet applies
+  // `display: none` to `<head>`, so we must not treat it as a hidden Activity
+  // subtree. Scope the visibility walk to the rendered `<body>` subtree.
+  if (document.head.contains(element)) {
+    return true
+  }
+  let current: Element | null = element.parentElement
+  while (
+    current &&
+    current !== document.documentElement &&
+    current !== document.body
+  ) {
+    const style = window.getComputedStyle(current)
+    if (style.display === 'none' || current.hasAttribute('hidden')) {
+      return false
+    }
+    current = current.parentElement
+  }
+  return true
+}
+
 // These values are set by `define-env-plugin` (based on `nextConfig.experimental.staleTimes`)
 // and default to 5 minutes (static) / 0 seconds (dynamic)
 export const DYNAMIC_STALETIME_MS =
@@ -30,9 +80,12 @@ export function navigateReducer(
     return completeHardNavigation(state, url, navigateType)
   }
 
-  // Handles case where `<meta http-equiv="refresh">` tag is present,
-  // which will trigger an MPA navigation.
-  if (document.getElementById('__next-page-redirect')) {
+  // Handles case where a `<meta http-equiv="refresh">` tag is present,
+  // which will trigger an MPA navigation. The check is scoped to visible
+  // (non-hidden) subtrees so that stale markers left inside hidden
+  // Activity routes (cacheComponents) do not force a hard navigation
+  // from the active route.
+  if (hasActiveRedirectMarker()) {
     return completeHardNavigation(state, url, navigateType)
   }
 
