@@ -401,6 +401,10 @@ export const Image = forwardRef<HTMLImageElement | null, ImageProps>(
         {
           <ImageElement
             {...imgAttributes}
+            fetchPriority={
+              imgAttributes.fetchPriority ||
+              (imgMeta.preload ? 'high' : undefined)
+            }
             unoptimized={imgMeta.unoptimized}
             placeholder={imgMeta.placeholder}
             fill={imgMeta.fill}
@@ -415,7 +419,10 @@ export const Image = forwardRef<HTMLImageElement | null, ImageProps>(
         {imgMeta.preload ? (
           <ImagePreload
             isAppRouter={isAppRouter}
-            imgAttributes={imgAttributes}
+            imgAttributes={{
+              ...imgAttributes,
+              fetchPriority: imgAttributes.fetchPriority || 'high',
+            }}
           />
         ) : null}
       </>
