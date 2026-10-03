@@ -2649,11 +2649,17 @@ export default class Router implements BaseRouter {
       // cached entry of the current route directly. Non-shallow navigations
       // consult the client router filter themselves, so they do not depend
       // on the marker to hard navigate.
-      if (
-        appRouterMarkerKey !== null &&
-        this.components[appRouterMarkerKey] === undefined
-      ) {
-        this.components[appRouterMarkerKey] = { __appRouter: true } as any
+      if (appRouterMarkerKey !== null) {
+        if (this.components[appRouterMarkerKey] === undefined) {
+          this.components[appRouterMarkerKey] = { __appRouter: true } as any
+        }
+
+        // A Pages route already loaded at this key takes precedence over the
+        // filter. Otherwise, this is an App route: its Pages data and code
+        // would never be used after the hard navigation.
+        if ((this.components[appRouterMarkerKey] as any)?.__appRouter) {
+          return
+        }
       }
     }
 
