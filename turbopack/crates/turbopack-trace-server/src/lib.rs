@@ -500,7 +500,7 @@ fn memory_samples_for(store: &store::Store, span: &SpanRef<'_>) -> Vec<(i64, u64
     store
         .memory_samples_for_range_with_ts(span.start(), span.end())
         .into_iter()
-        .map(|(ts, mem, pressure)| ((*ts as i64) - span_start, mem, pressure))
+        .map(|(ts, mem, pressure, _)| ((*ts as i64) - span_start, mem, pressure))
         .collect()
 }
 
