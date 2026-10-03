@@ -262,7 +262,7 @@ Ask the user how they want to take it, in terms of PRs, the same way as in step 
 The [Preserving UI state guide](https://nextjs.org/docs/app/guides/preserving-ui-state#keep-route-state-resetting-during-migration) is the source of truth for the procedure and for the reset patterns that replace a wrapper. This skill only sequences it:
 
 - One feature at a time, top-down within it, following the guide's steps for each wrapper.
-- Before removing a wrapper, inventory the Client Component and DOM state beneath it. Follow the guide's [Choosing what to preserve](https://nextjs.org/docs/app/guides/preserving-ui-state#choosing-what-to-preserve) patterns for each item. Record whether the state should remain preserved, needs a targeted reset, or requires the whole subtree to reset.
+- Before removing a wrapper, inventory the Client Component and DOM state beneath it. Follow the guide's [Choosing what to preserve](https://nextjs.org/docs/app/guides/preserving-ui-state#choosing-what-to-preserve) patterns for each item. Record whether the state should stay preserved, needs a targeted reset, or requires the whole subtree to reset.
 - Treat `bfcacheId` wrappers and keys as migration scaffolding. Keep one only when the user wants the whole route or feature to reset on every new navigation, and replace the generated TODO with a comment that explains why. Otherwise, use the smallest reset pattern that matches the guide.
 - Verify in the browser as the guide describes, with `next-dev-loop`'s browser handoff where available. Build-only runs can't verify this step; flag it for a browser pass.
 - Ambiguous cases ("should this route reset on every navigation?") are user check-ins, not agent judgment, same as in the loop.
