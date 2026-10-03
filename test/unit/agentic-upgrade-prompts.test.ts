@@ -128,12 +128,6 @@ function normalizedCopiedSources(): string[] {
     .mock.calls.map(([source]) => String(source).replace(/\\+/g, '/'))
 }
 
-function normalizedWriteFileCalls() {
-  return normalizedFileWriteCalls().filter(([path]) =>
-    String(path).includes('/skills/')
-  )
-}
-
 function overrideTTY(
   target: NodeJS.ReadStream | NodeJS.WriteStream,
   value: boolean = true
@@ -1247,8 +1241,8 @@ describe('agentic upgrade prompts', () => {
     const copiedSources = normalizedCopiedSources()
     expect(copiedSources).toEqual(
       expect.arrayContaining([
-        expect.stringContaining('/lib/upgrade/shared.md'),
-        expect.stringContaining('/lib/upgrade/different-major.md'),
+        expect.stringContaining('/agent-docs/upgrade/shared.md'),
+        expect.stringContaining('/agent-docs/upgrade/different-major.md'),
         expect.stringContaining('/codemods.md'),
         expect.stringContaining('/version-15.md'),
         expect.stringContaining('/version-16.md'),
@@ -1256,7 +1250,7 @@ describe('agentic upgrade prompts', () => {
     )
     expect(
       copiedSources.some((source) =>
-        source.includes('/lib/upgrade/future-defaults.md')
+        source.includes('/agent-docs/upgrade/future-defaults.md')
       )
     ).toBe(false)
     expect(normalizedBootstrapCalls()).toMatchInlineSnapshot(`
@@ -1368,7 +1362,7 @@ describe('agentic upgrade prompts', () => {
     expect(writeFile).toHaveBeenCalledTimes(0)
     expect(
       normalizedCopiedSources().some((source) =>
-        source.includes('/lib/upgrade/future-defaults.md')
+        source.includes('/agent-docs/upgrade/future-defaults.md')
       )
     ).toBe(false)
     expect(
@@ -1422,8 +1416,8 @@ describe('agentic upgrade prompts', () => {
     expect(readFile).toHaveBeenCalledTimes(0)
     expect(writeFile).toHaveBeenCalledTimes(0)
     expect(normalizedCopiedSources()).toEqual([
-      expect.stringContaining('/lib/upgrade/shared.md'),
-      expect.stringContaining('/lib/upgrade/same-major.md'),
+      expect.stringContaining('/agent-docs/upgrade/shared.md'),
+      expect.stringContaining('/agent-docs/upgrade/same-major.md'),
     ])
   })
 
@@ -1451,7 +1445,7 @@ describe('agentic upgrade prompts', () => {
     )
     expect(
       normalizedCopiedSources().some((source) =>
-        source.includes('/lib/upgrade/future-defaults.md')
+        source.includes('/agent-docs/upgrade/future-defaults.md')
       )
     ).toBe(false)
   })
@@ -1480,7 +1474,7 @@ describe('agentic upgrade prompts', () => {
     expect(prompt).toContain('/upgrade/future-defaults.md')
     expect(normalizedCopiedSources()).toEqual(
       expect.arrayContaining([
-        expect.stringContaining('/lib/upgrade/future-defaults.md'),
+        expect.stringContaining('/agent-docs/upgrade/future-defaults.md'),
       ])
     )
   })
@@ -1560,30 +1554,14 @@ describe('agentic upgrade prompts', () => {
           isAdopted: jest.fn(() => false),
           adoptionDoc: [
             'docs/01-app/02-guides/migrating-to-cache-components.md',
-            'skills/next-cache-components-adoption/SKILL.md',
+            'agent-docs/workflows/next-cache-components-adoption/workflow.md',
           ],
-          optimizationDoc: ['skills/next-cache-components-optimizer/SKILL.md'],
+          optimizationDoc: [
+            'agent-docs/workflows/next-cache-components-optimizer/workflow.md',
+          ],
           isApplicable: jest.fn(() => true),
         },
       ],
-    })
-
-    crossSpawn.mockImplementation(() => {
-      const child = new EventEmitter() as EventEmitter & {
-        stdout: EventEmitter & { setEncoding: jest.Mock }
-        stderr: EventEmitter & { setEncoding: jest.Mock }
-      }
-      child.stdout = Object.assign(new EventEmitter(), {
-        setEncoding: jest.fn(),
-      })
-      child.stderr = Object.assign(new EventEmitter(), {
-        setEncoding: jest.fn(),
-      })
-      process.nextTick(() => {
-        child.stdout.emit('data', 'Adopt Cache Components safely.\n')
-        child.emit('close', 0)
-      })
-      return child
     })
 
     await spawnNextUpgrade(
@@ -1596,52 +1574,26 @@ describe('agentic upgrade prompts', () => {
       null
     )
 
-    expect(crossSpawn).toHaveBeenCalledTimes(1)
+    expect(crossSpawn).toHaveBeenCalledTimes(0)
     expect(readFile).toHaveBeenCalledTimes(0)
-    expect(normalizedFileWriteCalls()).toEqual(normalizedWriteFileCalls())
     expect(normalizedCopiedSources()).toEqual(
       expect.arrayContaining([
-        expect.stringContaining('/lib/upgrade/future-defaults.md'),
+        expect.stringContaining('/agent-docs/upgrade/future-defaults.md'),
+        expect.stringContaining('/agent-docs/workflows'),
       ])
     )
-
-    expect({
-      prompt: normalizedBootstrapCalls(),
-      savedInstructions: normalizedWriteFileCalls(),
-    }).toMatchInlineSnapshot(`
-     {
-       "prompt": [
-         [
-           "Read and follow "/tmp/next-upgrade-test/upgrade/shared.md" first. Attempt its applicable duplicate checks before changing files. If a check is unavailable, report it and continue. Stop only if you find equivalent work. Then read and follow every applicable instruction in "/tmp/next-upgrade-test/upgrade/same-major.md".
-
-     We're upgrading the app in "/workspace/app" from Next.js 16.2.0 to 16.4.0 because the Future policy applies the latest stable release and adopts its Future Defaults.
-
-     Follow the user's worktree choice. If they do not specify, use a separate Git worktree when the app is in a Git repository. Run upgrade commands from this app's corresponding directory in that worktree. If the app is not in a Git repository, upgrade it in place.
-
-     Set \`experimental.agentUpgrade\` to "experimental-future" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
-
-     After completing and verifying the version update, read and follow "/tmp/next-upgrade-test/upgrade/future-defaults.md".
-     Adopt these Future Defaults in order:
-     - Cache Components
-       - Read and follow "/tmp/next-upgrade-test/docs/01-app/02-guides/migrating-to-cache-components.md".
-       - Read and follow "/tmp/next-upgrade-test/skills/next-cache-components-adoption/PROMPT.md".
-     Complete each adoption. Temporary opt-outs and TODO markers are intermediate work only; do not stop until they are removed and the adoption is fully verified.
-
-     References:
-     - https://registry.npmjs.org/next/latest
-
-     When this task ends, report its result once. After completing the requested upgrade and all applicable verification, run \`npx next@<cli-version> internal report-agent-upgrade <run-id> success\`. If the attempted upgrade remains unsuccessful after repairs or verification fails, run \`npx next@<cli-version> internal report-agent-upgrade <run-id> failure\`. If you stop for duplicate work, user cancellation, or an unavailable prerequisite, do not report success or failure. Explain the result to the user separately; never include project details or error text in the telemetry command.",
-         ],
-       ],
-       "savedInstructions": [
-         [
-           "/tmp/next-upgrade-test/skills/next-cache-components-adoption/PROMPT.md",
-           "Adopt Cache Components safely.
-     ",
-         ],
-       ],
-     }
-    `)
+    const workflowCopy = jest
+      .mocked(cp)
+      .mock.calls.find(([source]) =>
+        String(source).replace(/\\+/g, '/').endsWith('/agent-docs/workflows')
+      )
+    expect(workflowCopy?.[2]).toEqual({ recursive: true })
+    expect(String(workflowCopy?.[1]).replace(/\\+/g, '/')).toBe(
+      '/tmp/next-upgrade-test/agent-docs/workflows'
+    )
+    expect(normalizedBootstrapCalls().flat().join('\n')).toContain(
+      'Read and follow "/tmp/next-upgrade-test/agent-docs/workflows/next-cache-components-adoption/workflow.md".'
+    )
   })
 
   it('uses only the Future Defaults guide when the version is unchanged', async () => {
@@ -1657,30 +1609,14 @@ describe('agentic upgrade prompts', () => {
           isAdopted: jest.fn(() => false),
           adoptionDoc: [
             'docs/01-app/02-guides/migrating-to-cache-components.md',
-            'skills/next-cache-components-adoption/SKILL.md',
+            'agent-docs/workflows/next-cache-components-adoption/workflow.md',
           ],
-          optimizationDoc: ['skills/next-cache-components-optimizer/SKILL.md'],
+          optimizationDoc: [
+            'agent-docs/workflows/next-cache-components-optimizer/workflow.md',
+          ],
           isApplicable: jest.fn(() => true),
         },
       ],
-    })
-
-    crossSpawn.mockImplementation(() => {
-      const child = new EventEmitter() as EventEmitter & {
-        stdout: EventEmitter & { setEncoding: jest.Mock }
-        stderr: EventEmitter & { setEncoding: jest.Mock }
-      }
-      child.stdout = Object.assign(new EventEmitter(), {
-        setEncoding: jest.fn(),
-      })
-      child.stderr = Object.assign(new EventEmitter(), {
-        setEncoding: jest.fn(),
-      })
-      process.nextTick(() => {
-        child.stdout.emit('data', 'Adopt Cache Components safely.\n')
-        child.emit('close', 0)
-      })
-      return child
     })
 
     await spawnNextUpgrade(
@@ -1704,7 +1640,7 @@ describe('agentic upgrade prompts', () => {
     ).toEqual(
       expect.arrayContaining([
         [
-          expect.stringContaining('/lib/upgrade/future-defaults.md'),
+          expect.stringContaining('/agent-docs/upgrade/future-defaults.md'),
           '/tmp/next-upgrade-test/upgrade/future-defaults.md',
         ],
       ])
@@ -1714,29 +1650,8 @@ describe('agentic upgrade prompts', () => {
       '/tmp/next-upgrade-test/upgrade/future-defaults.md',
       expect.anything(),
     ])
-    expect(normalizedBootstrapCalls()).toMatchInlineSnapshot(`
-     [
-       [
-         "Read and follow "/tmp/next-upgrade-test/upgrade/shared.md" first. Attempt its applicable duplicate checks before changing files. If a check is unavailable, report it and continue. Stop only if you find equivalent work. Then read and follow every applicable instruction in "/tmp/next-upgrade-test/upgrade/future-defaults.md".
-
-     We're adopting the Future Defaults available to the app in "/workspace/app", which already uses Next.js 16.4.0.
-
-     Follow the user's worktree choice. If they do not specify, use a separate Git worktree when the app is in a Git repository. Run upgrade commands from this app's corresponding directory in that worktree. If the app is not in a Git repository, upgrade it in place.
-
-     Set \`experimental.agentUpgrade\` to "experimental-future" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
-
-     Adopt these Future Defaults in order:
-     - Cache Components
-       - Read and follow "/tmp/next-upgrade-test/docs/01-app/02-guides/migrating-to-cache-components.md".
-       - Read and follow "/tmp/next-upgrade-test/skills/next-cache-components-adoption/PROMPT.md".
-     Complete each adoption. Temporary opt-outs and TODO markers are intermediate work only; do not stop until they are removed and the adoption is fully verified.
-
-     References:
-     - https://registry.npmjs.org/next/latest
-
-     When this task ends, report its result once. After completing the requested upgrade and all applicable verification, run \`npx next@<cli-version> internal report-agent-upgrade <run-id> success\`. If the attempted upgrade remains unsuccessful after repairs or verification fails, run \`npx next@<cli-version> internal report-agent-upgrade <run-id> failure\`. If you stop for duplicate work, user cancellation, or an unavailable prerequisite, do not report success or failure. Explain the result to the user separately; never include project details or error text in the telemetry command.",
-       ],
-     ]
-    `)
+    expect(normalizedBootstrapCalls().flat().join('\n')).toContain(
+      'Read and follow "/tmp/next-upgrade-test/agent-docs/workflows/next-cache-components-adoption/workflow.md".'
+    )
   })
 })

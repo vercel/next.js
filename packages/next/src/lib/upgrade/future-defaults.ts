@@ -2,7 +2,9 @@ import type { NextConfigComplete } from '../../server/config-shared'
 import semver from 'next/dist/compiled/semver'
 import { findDir } from '../find-pages-dir'
 
-export type UpgradeDocument = `docs/${string}.md` | `skills/${string}/SKILL.md`
+export type UpgradeDocument =
+  | `docs/${string}.md`
+  | `agent-docs/workflows/${string}/workflow.md`
 
 type FutureDefault = {
   name: string
@@ -22,9 +24,11 @@ export const futureDefaults = [
     isAdopted: (config) => config.cacheComponents === true,
     adoptionDoc: [
       'docs/01-app/02-guides/migrating-to-cache-components.md',
-      'skills/next-cache-components-adoption/SKILL.md',
+      'agent-docs/workflows/next-cache-components-adoption/workflow.md',
     ],
-    optimizationDoc: ['skills/next-cache-components-optimizer/SKILL.md'],
+    optimizationDoc: [
+      'agent-docs/workflows/next-cache-components-optimizer/workflow.md',
+    ],
     // TODO: Support Pages -> App migration before offering adoption to Pages-only apps.
     isApplicable: (directory) => findDir(directory, 'app') !== null,
   },

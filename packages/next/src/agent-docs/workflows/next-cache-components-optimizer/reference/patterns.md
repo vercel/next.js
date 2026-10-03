@@ -323,7 +323,7 @@ Prefer per-component boundaries inside the page (patterns #1–#5) over one big 
 
 Patterns 1–9 grow a **static shell** by moving dynamic reads behind boundaries. Session data from `cookies()` and `headers()` is handled by the earlier patterns. URL data is different: `params`, `searchParams`, and the full URL belong to one link, while the App Shell is shared by every link to the route.
 
-If the whole route depends on URL data, pushing the read lower may leave no meaningful shared shell to commit. That is the optimizer's stop point, not another shell refactor. Return to `SKILL.md` after the optimization loop for the optional per-link-prefetch follow-up.
+If the whole route depends on URL data, pushing the read lower may leave no meaningful shared shell to commit. That is the optimizer's stop point, not another shell refactor. Return to `workflow.md` after the optimization loop for the optional per-link-prefetch follow-up.
 
 Per-link prefetching is the only way for this soft navigation to commit the
 URL-specific content before the click. It has **three requirements**:

@@ -29,12 +29,12 @@ When the work changes what belongs in the App Shell, follow the
 [Caching](https://nextjs.org/docs/app/getting-started/caching) docs for cache
 placement, Suspense boundaries, loading UI, and authorization.
 
-The guides own framework behavior and implementation patterns. This skill owns
+The guides own framework behavior and implementation patterns. This workflow owns
 the navigation contract, production rig, trustworthy RED-to-GREEN loop, parity
 check, differential, and report.
 
-This is not an adoption skill. If Cache Components or Partial Prefetching are
-not adopted, use their adoption skills and return to this workflow. If the App
+This is not an adoption workflow. If Cache Components or Partial Prefetching are
+not adopted, use their adoption workflows and return to this workflow. If the App
 Shell itself cannot commit under `instant()`, use
 `next-cache-components-optimizer` first, then resume the selected navigation.
 

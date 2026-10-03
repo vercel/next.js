@@ -136,7 +136,7 @@ Two defenses; use both:
 
 1. **Confirm the API is exposed on the target.** Wire the flag to the platform's preview/staging
    condition or an explicit environment variable; the rig file records the project's spelling
-   (SKILL.md phases 0 and A). Do not trust a pass from a build where it is not set.
+   (`workflow.md` phases 0 and A). Do not trust a pass from a build where it is not set.
 2. **Make the test self-validating**: for any route with deferred content, also assert that the
    deferred content is gated under the lock, not only that the shell is present
    (`../test-template.md`, self-validating variant). If the lock did not engage, the content is
@@ -149,7 +149,7 @@ Two defenses; use both:
 
 ## Determinism and the rig
 
-- Always measure on a production build, never `next dev`; SKILL.md phase A owns this invariant and
+- Always measure on a production build, never `next dev`; `workflow.md` phase A owns this invariant and
   its rationale.
 - Run the RED several times; an intermittently red gate is not a gate. If it flakes, determine
   whether the cause is infrastructure (transient errors) or a real race before trusting either

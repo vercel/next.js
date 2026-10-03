@@ -179,8 +179,8 @@ export async function prepareFixture(sandbox: Sandbox): Promise<void> {
 }
 
 /**
- * Write AGENTS.md to the sandbox root, directing agents to read bundled docs
- * from node_modules/next/dist/docs/.
+ * Write AGENTS.md to the sandbox root, directing agents to read the bundled
+ * public and agent-only docs from the installed Next.js package.
  *
  * Skipped for a fixture that is not already a Next.js app: the path it points at
  * does not exist yet, and naming the framework would give away the answer to the
@@ -197,6 +197,8 @@ export async function writeAgentsMd(sandbox: Sandbox): Promise<void> {
 # Next.js: ALWAYS read docs before coding
 
 Before any Next.js work, find and read the relevant doc in \`node_modules/next/dist/docs/\`. Your training data is outdated — the docs are the source of truth.
+
+For multi-step Next.js work, read \`node_modules/next/dist/agent-docs/index.md\` first and follow only the workflow that matches the current task.
 
 <!-- END:nextjs-agent-rules -->
 `
@@ -292,11 +294,11 @@ export function analyzeAgentFeedbackRun({
 }
 
 /**
- * Install the current checkout's skill sources before the coding agent starts.
+ * Install the current checkout's bundled workflow sources as Skills before the
+ * coding agent starts.
  *
- * The docs variant intentionally follows links to the canonical skills. This
- * helper is for a separate treatment that evaluates unmerged skill changes
- * without changing the prompt or fixture.
+ * This adapter preserves the existing Skill treatment while the same workflow
+ * is evaluated through the bundled agent-docs discovery path.
  */
 export async function installLocalSkills(
   sandbox: Sandbox,
@@ -305,13 +307,19 @@ export async function installLocalSkills(
   const files: Record<string, string> = {}
 
   for (const skillName of skillNames) {
-    const skillDir = join(REPO_ROOT, 'skills', skillName)
-    if (!existsSync(join(skillDir, 'SKILL.md'))) {
-      throw new Error(`Next.js skill not found: ${skillName}`)
+    const workflowDir = join(
+      REPO_ROOT,
+      'packages/next/src/agent-docs/workflows',
+      skillName
+    )
+    if (!existsSync(join(workflowDir, 'workflow.md'))) {
+      throw new Error(`Next.js agent workflow not found: ${skillName}`)
     }
 
-    for (const file of listFiles(skillDir)) {
-      const skillPath = relative(skillDir, file).replaceAll('\\', '/')
+    for (const file of listFiles(workflowDir)) {
+      const workflowPath = relative(workflowDir, file).replaceAll('\\', '/')
+      const skillPath =
+        workflowPath === 'workflow.md' ? 'SKILL.md' : workflowPath
       const content = readFileSync(file, 'utf-8')
 
       // Claude Code reads .claude/skills. Keep the agent-neutral path in sync

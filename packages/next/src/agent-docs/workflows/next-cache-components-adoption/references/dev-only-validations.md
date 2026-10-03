@@ -12,7 +12,7 @@ After the Cache Components build is clean, not before. While the app is mid-adop
 
 ## the loop
 
-Reuse the [`next-dev-loop`](https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop) preflight (Turbopack), then add one job. On a webpack app, drive a browser directly with `agent-browser` or Playwright instead. You lose the `/_next/mcp` cross-checks, not the insights, which still show in the overlay and the dev log.
+Reuse the [`next-dev-loop`](../../next-dev-loop/workflow.md) preflight (Turbopack), then add one job. On a webpack app, drive a browser directly with `agent-browser` or Playwright instead. You lose the `/_next/mcp` cross-checks, not the insights, which still show in the overlay and the dev log.
 
 1. Build a route queue from the last build's route table or the app directory.
 2. Load each route in `next dev` with a browser. A refresh or a link click both work, and validation simulates both the page-load and client-navigation cases on that load, so you do not need to click through every link by hand. Dynamic params are checked against the real values you visit, so hit a concrete `[slug]`, not the pattern.

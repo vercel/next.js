@@ -53,19 +53,16 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-To help you automate this process with an agent, there's a Skill for each part, [next-cache-components-adoption](https://www.skills.sh/vercel/next.js/next-cache-components-adoption) and [next-partial-prefetching-adoption](https://www.skills.sh/vercel/next.js/next-partial-prefetching-adoption). If you'd like to enable everything, give your agent this prompt:
+Next.js includes a version-matched agent workflow for each part. If you'd like to enable everything, give your agent this prompt:
 
 ```prompt
-Adopt Cache Components and Partial Prefetching in this app so its navigations become instant. There is a Skill for each migration.
+Adopt Cache Components and Partial Prefetching in this app so its navigations become instant. Use the bundled agent workflow for each migration.
 
 1. Before you change anything, explain to me in plain terms what Instant Navigation is and what adopting it will change.
 
-2. Install the Skills you need, then verify your changes against a running dev server with next-dev-loop and agent-browser as you go:
-   - next-cache-components-adoption: https://www.skills.sh/vercel/next.js/next-cache-components-adoption
-   - next-partial-prefetching-adoption: https://www.skills.sh/vercel/next.js/next-partial-prefetching-adoption
-   - next-dev-loop: https://www.skills.sh/vercel/next.js/next-dev-loop
+2. Verify your changes against a running dev server with the bundled next-dev-loop workflow and agent-browser as you go.
 
-3. Each Skill leaves decisions to me, like how much of the work lands in each pull request. Put those questions to me and wait for my answers instead of deciding on my behalf. Adopt Cache Components first, then Partial Prefetching, following the workflow each Skill lays out. Don't rush to a passing build.
+3. Each workflow leaves decisions to me, like how much of the work lands in each pull request. Put those questions to me and wait for my answers instead of deciding on my behalf. Adopt Cache Components first, then Partial Prefetching. Don't rush to a passing build.
 
 4. When you finish a step, show me a table of the routes you touched and what changed on each, and talk me through what it means for the app. Keep it to the outcome, not the implementation details.
 ```
@@ -545,7 +542,7 @@ Each refactor should pair with a before/after capture to verify the change actua
 
 For agents to see what their changes actually render, pair this with [agent-browser](https://github.com/vercel-labs/agent-browser). With React DevTools enabled it reports the component tree and which `<Suspense>` boundaries are still pending, so an agent can make a change, snapshot the shell, check what landed, and adjust. See [Runtime visibility](/docs/app/guides/ai-agents#runtime-visibility) in the AI agents guide for the setup.
 
-The [`next-cache-components-optimizer`](/docs/app/guides/ai-agents#next-cache-components-optimizer) Skill packages this loop. It confirms the target UI renders normally, writes an `instant()` test that fails before the fix, then works it to green against a production-like build and ships it as a regression guard. Use it for the initial load (hard navigation), client-side navigation (soft navigation), or both.
+The bundled [`next-cache-components-optimizer`](/docs/app/guides/ai-agents#next-cache-components-optimizer) workflow packages this loop. It confirms the target UI renders normally, writes an `instant()` test that fails before the fix, then works it to green against a production-like build and ships it as a regression guard. Use it for the initial load (hard navigation), client-side navigation (soft navigation), or both.
 
 ## Opting out
 

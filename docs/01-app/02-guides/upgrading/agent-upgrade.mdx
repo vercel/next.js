@@ -11,7 +11,7 @@ related:
     - app/guides/ai-agents
 ---
 
-Use `next upgrade --agent` to have a coding agent upgrade and verify your app. The command determines the target version from the configured policy, prepares the relevant migration guides and Skills, and hands the task to the agent.
+Use `next upgrade --agent` to have a coding agent upgrade and verify your app. The command determines the target version from the configured policy, prepares the relevant migration guides and version-matched agent workflows, and hands the task to the agent.
 
 The command supports App Router and Pages Router projects. Without `--agent`, [`next upgrade`](/docs/app/api-reference/cli/next#next-upgrade-options) runs the interactive codemod workflow instead.
 
@@ -53,7 +53,7 @@ npx next@canary upgrade --agent
 
 Future Defaults are features Next.js plans to enable by default, such as Cache Components and Partial Prefetching. The `experimental-future` policy is an early version of how upgrades will help apps adopt them, even when the app already uses the latest Next.js version. Moving to a new default then becomes part of the upgrade instead of a separate migration.
 
-For App Router projects on Next.js 16.3 or later, the policy currently prepares the Cache Components guide and adoption Skill:
+For App Router projects on Next.js 16.3 or later, the policy currently prepares the Cache Components guide and bundled adoption workflow:
 
 ```bash filename="Terminal"
 npx next@canary upgrade --agent=experimental-future
@@ -61,13 +61,13 @@ npx next@canary upgrade --agent=experimental-future
 
 Pages Router projects can use it for version upgrades, but it does not offer Cache Components until the project uses the App Router.
 
-To adopt new features today, use their adoption Skills directly. See [Migrating to Cache Components](/docs/app/guides/migrating-to-cache-components#use-the-adoption-skill-recommended) and [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching#use-the-adoption-skill-recommended).
+To adopt new features today, ask an agent to use their bundled adoption workflows. See [Migrating to Cache Components](/docs/app/guides/migrating-to-cache-components#use-the-bundled-adoption-workflow-recommended) and [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching#use-the-bundled-adoption-workflow-recommended).
 
 ## What the command does
 
 Before starting an agent session, the CLI checks the installed version, release metadata, and any security data required by the selected policy. It stops with an explanation when no upgrade is needed or it cannot establish a target.
 
-For a ready upgrade, the CLI copies the relevant migration guides into a temporary directory, prepares the applicable Skills, and creates a task for the selected target. For a major upgrade, the task includes the guide for every major version crossed. It also asks the agent to check for duplicate work, use a separate Git worktree when available, run the relevant checks, and verify the result.
+For a ready upgrade, the CLI copies the relevant migration guides and bundled agent workflows into a temporary directory, then creates a task for the selected target. For a major upgrade, the task includes the guide for every major version crossed. It also asks the agent to check for duplicate work, use a separate Git worktree when available, run the relevant checks, and verify the result.
 
 The task also asks the agent to save the selected policy as `experimental.agentUpgrade` in `next.config` for future upgrade reminders. To disable reminders, set the option to `false`.
 

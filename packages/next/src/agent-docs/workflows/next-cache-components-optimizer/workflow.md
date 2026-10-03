@@ -37,15 +37,15 @@ command, platform, or env var below as a requirement.
   production-like build and must not be able to pass vacuously. Stand the loop
   up once; every later optimization is then verifiable by construction. The
   loop is the deliverable, not any one route.
-- **The mechanism: `@next/playwright` `instant()`.** This skill uses
+- **The mechanism: `@next/playwright` `instant()`.** This workflow uses
   [`instant()`](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests)
   as a ruler, not a stopwatch (phase A). It comes from
   `@next/playwright` (installed alongside `@playwright/test`, on the same
   release line as `next`), so it isn't tied to any host. Keep it. Timing a
-  navigation by hand is too flaky to trust, and is the failure mode this skill
+  navigation by hand is too flaky to trust, and is the failure mode this workflow
   exists to prevent.
 - **Yours: the rig.** How you build, deploy, authenticate, configure
-  Playwright, and loop belongs to your stack, not to this skill. A local
+  Playwright, and loop belongs to your stack, not to this workflow. A local
   `next build && next start`, a CI/staging container, and a per-push preview
   deploy are equally valid rigs; the verdict comes from the build, never the
   platform. Phase 0 maps the invariant onto your repo. Read every platform
@@ -153,16 +153,16 @@ export default { cacheComponents: true }
 ```
 
 Enabling the flag surfaces the blocking routes to resolve first; the
-[`next-cache-components-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-adoption)
-skill drives that adoption. Reach for this optimizer once the app builds under
+[`next-cache-components-adoption`](../next-cache-components-adoption/workflow.md)
+workflow drives that adoption. Reach for this optimizer once the app builds under
 Cache Components.
 
-This gate is deliberate: the skill targets current Next.js, and none of the
+This gate is deliberate: the workflow targets current Next.js, and none of the
 verdicts below are meaningful on older versions.
 
 ## 0. SETUP: discover this project's rig, once per repo
 
-The principles in this skill are fixed; the infrastructure they run on is
+The principles in this workflow are fixed; the infrastructure they run on is
 yours. On first use in a repository, discover how the project builds, deploys,
 authenticates, and tests (inspect the repository first, and ask the user only
 what it cannot answer), then write the answers to a committed
@@ -474,8 +474,8 @@ during an incremental rollout and keep checking any other target routes.
   work. Keep the default link behavior everywhere else so the shared App Shell
   remains the low-cost baseline.
 - **Not adopted yet:** recommend
-  [`next-partial-prefetching-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-partial-prefetching-adoption).
-  That skill moves the app onto the better prefetching model: shared App Shell
+  [`next-partial-prefetching-adoption`](../next-partial-prefetching-adoption/workflow.md).
+  That workflow moves the app onto the better prefetching model: shared App Shell
   prefetches by default, fewer duplicated full-prefetch requests for visible
   links, a link audit for existing `<Link prefetch={true}>` usage, and optional
   per-link prefetching only where URL-specific content is worth the
