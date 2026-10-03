@@ -158,6 +158,21 @@ Framework knowledge comes from the bundled docs, not from Skills. [Benchmark res
 
 You can [browse the source for these Skills](https://github.com/vercel/next.js/tree/canary/skills) in the Next.js repository and [find them on skills.sh](https://www.skills.sh/vercel/next.js).
 
+### Understand what a Skill adds
+
+Bundled docs give an agent current framework knowledge. A Skill adds a repeatable workflow around that knowledge, including the order of decisions, the tools to use, and the evidence that confirms the result.
+
+The same Skill can have different value depending on the task and model. The optimizer evaluations compare a bundled-guide run with a Skill run for the same prompt and checks:
+
+| Workflow                                                                           | Model      | Bundled guide | Skill         | Result                                      |
+| ---------------------------------------------------------------------------------- | ---------- | ------------- | ------------- | ------------------------------------------- |
+| [Partial Prefetching optimizer](https://github.com/vercel/next.js/pull/96471#eval) | Opus 4.8   | 9/10 · $2.84  | 10/10 · $2.54 | More checks passed at a lower run cost      |
+| [Partial Prefetching optimizer](https://github.com/vercel/next.js/pull/96471#eval) | Sonnet 4.5 | 5/10 · $1.11  | 8/10 · $0.77  | More checks passed at a lower run cost      |
+| [Cache Components optimizer](https://github.com/vercel/next.js/pull/97737#eval)    | Opus 4.8   | 8/11 · $5.29  | 11/11 · $5.24 | The Skill produced the only complete result |
+| [Cache Components optimizer](https://github.com/vercel/next.js/pull/97737#eval)    | Sonnet 4.5 | 8/11 · $1.18  | 4/11 · $2.53  | Fewer checks passed at a higher run cost    |
+
+Each result is one run, so the table is descriptive rather than a stable success-rate measurement. It shows why Skill value must be measured for a specific workflow and model instead of inferred from the Skill alone.
+
 The Skills serve three different workflow types:
 
 - **Runtime foundations** such as `next-dev-loop` give any coding task a repeatable inspect, edit, and verify cycle.
