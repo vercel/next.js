@@ -8,7 +8,11 @@
 module.exports = function (opts = {}) {
   const options = Object.assign(
     {},
-    { cssDeclarationSorter: { exclude: true }, calc: { exclude: true } },
+    {
+      cssDeclarationSorter: { exclude: true },
+      calc: { exclude: true },
+      mergeRules: { exclude: true },
+    },
     opts
   )
   // eslint-disable-next-line import/no-extraneous-dependencies
