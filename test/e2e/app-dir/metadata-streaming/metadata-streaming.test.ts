@@ -197,4 +197,95 @@ describe('app-dir - metadata-streaming', () => {
       expect($('head title').text()).toBe('partial static page')
     })
   })
+
+  describe('raw HTML response and monolithic head for bots', () => {
+    it('should split/stream metadata after </head> for standard browsers in raw HTML', async () => {
+      const res = await next.fetch('/seo', {
+        headers: {
+          'user-agent':
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        },
+      })
+      const html = await res.text()
+      const headEndIndex = html.indexOf('</head>')
+      expect(headEndIndex).toBeGreaterThan(-1)
+      const headHtml = html.slice(0, headEndIndex)
+      const afterHeadHtml = html.slice(headEndIndex)
+
+      // In streaming mode for regular browsers, metadata is streamed into body
+      expect(headHtml).not.toContain('SEO Title')
+      expect(afterHeadHtml).toContain('SEO Title')
+    })
+
+    const botUserAgents = [
+      ['TelegramBot', 'TelegramBot (like TwitterBot)'],
+      [
+        'ChatGPT-User',
+        'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; ChatGPT-User/1.0; +https://openai.com/bot',
+      ],
+      [
+        'GPTBot',
+        'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; GPTBot/1.0; +https://openai.com/gptbot',
+      ],
+      [
+        'PerplexityBot',
+        'Mozilla/5.0 (compatible; PerplexityBot/1.0; +https://perplexity.ai/perplexitybot)',
+      ],
+      [
+        'ClaudeBot',
+        'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; ClaudeBot/1.0; +claudebot@anthropic.com)',
+      ],
+      [
+        'Claude-Web',
+        'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Claude-Web/1.0; +claude-web@anthropic.com)',
+      ],
+      [
+        'Amazonbot',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/600.2.5 (KHTML, like Gecko) Version/8.0.2 Safari/600.2.5 (Amazonbot/0.1; +https://developer.amazon.com/support/amazonbot)',
+      ],
+      [
+        'Meta-ExternalAgent',
+        'Mozilla/5.0 (compatible; Meta-ExternalAgent/1.1; +https://developers.facebook.com/docs/sharing/webmasters/crawler)',
+      ],
+      [
+        'Meta-ExternalFetcher',
+        'Mozilla/5.0 (compatible; Meta-ExternalFetcher/1.0; +https://developers.facebook.com/docs/sharing/webmasters/crawler)',
+      ],
+      ['Twitterbot', 'Twitterbot/1.0'],
+      ['WhatsApp', 'WhatsApp/2.21.12.21 A'],
+      ['vkShare', 'vkShare; +http://vk.com/dev/Share'],
+    ]
+
+    for (const [name, ua] of botUserAgents) {
+      it(`should serve monolithic <head> with canonical and OpenGraph before </head> for ${name} in raw HTML`, async () => {
+        const res = await next.fetch('/seo', {
+          headers: {
+            'user-agent': ua,
+          },
+        })
+        const html = await res.text()
+        const headEndIndex = html.indexOf('</head>')
+        const bodyStartIndex = html.indexOf('<body')
+        expect(headEndIndex).toBeGreaterThan(-1)
+        expect(bodyStartIndex).toBeGreaterThan(headEndIndex)
+
+        const headHtml = html.slice(0, headEndIndex)
+        const afterHeadHtml = html.slice(headEndIndex)
+
+        // Monolithic head contains title, canonical, and OpenGraph inside <head>
+        expect(headHtml).toContain('<title>SEO Title</title>')
+        expect(headHtml).toContain('rel="canonical"')
+        expect(headHtml).toContain('href="https://example.com/seo"')
+        expect(headHtml).toContain('property="og:title"')
+        expect(headHtml).toContain('content="OG Title"')
+        expect(headHtml).toContain('property="og:description"')
+        expect(headHtml).toContain('content="OG Description"')
+
+        // Nothing deferred or sent into body
+        expect(afterHeadHtml).not.toContain('property="og:title"')
+        expect(afterHeadHtml).not.toContain('rel="canonical"')
+        expect(afterHeadHtml).not.toContain('<title>SEO Title</title>')
+      })
+    }
+  })
 })
