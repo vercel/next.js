@@ -613,6 +613,20 @@ function getRevalidationWaitUntil(
   return revalidatesPromise === false ? undefined : revalidatesPromise
 }
 
+/**
+ * Returns the host of an `Origin` header value. A malformed value (e.g.
+ * `http://`) must NOT fall through to undefined/null — that would skip CSRF
+ * validation entirely. Instead we return a sentinel that is guaranteed to fail
+ * the host comparison.
+ */
+function getOriginHost(origin: string): string {
+  try {
+    return new URL(origin).host
+  } catch {
+    return '__invalid_origin__'
+  }
+}
+
 export async function handleAction({
   req,
   res,
@@ -715,16 +729,7 @@ export async function handleAction({
         // so we need to check if they're allowed cross-origin requests.
         originHeader === 'null'
         ? 'null'
-        : (() => {
-            try {
-              return new URL(originHeader).host
-            } catch {
-              // A malformed Origin header (e.g. 'http://') must NOT fall through
-              // to undefined/null — that would skip CSRF validation entirely.
-              // Return a sentinel that is guaranteed to fail host comparison.
-              return '__invalid_origin__'
-            }
-          })()
+        : getOriginHost(originHeader)
       : undefined
   const host = parseHostHeader(req.headers)
 
