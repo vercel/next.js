@@ -1886,12 +1886,18 @@ impl TurboTasksBackend {
     fn mutate_interior(
         &self,
         task_id: TaskId,
-        mutate: &mut dyn FnMut(),
+        mutate: &mut dyn FnMut() -> SmallVec<[TaskId; 4]>,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
     ) {
         if task_id.is_transient() {
             // Never persisted, so there is nothing to keep in sync.
-            mutate();
+            let invalidated = mutate();
+            if !invalidated.is_empty() {
+                self.invalidate_tasks_from_interior_mutation(
+                    invalidated,
+                    self.execute_context(turbo_tasks),
+                );
+            }
             return;
         }
         // Eviction may run at any moment and trusts the modified flags alone, so the task must be
@@ -1901,16 +1907,40 @@ impl TurboTasksBackend {
             let mut task = ctx.task(task_id, TaskDataCategory::Data);
             let _ = task.track_modification(SpecificTaskDataCategory::Data, "mutate_interior");
         }
-        {
+        let invalidated = {
             let _scope = InteriorMutationScope::enter();
-            mutate();
-        }
+            mutate()
+        };
         // The context holds an operation open, and a snapshot waits for every open operation
-        // before it persists anything. Keeping it alive until `mutate` has returned is what stops
-        // a snapshot from persisting the task between marking it modified and mutating it: that
-        // snapshot would clear the modified flag while persisting the old value, and the new
-        // value would never be persisted.
-        drop(ctx);
+        // before it persists anything. Keeping it alive until the invalidations below are done is
+        // what makes the whole change atomic for persistence. A snapshot taken between marking the
+        // task modified and mutating it would clear the modified flag while persisting the old
+        // value, so the new value would never be persisted. One taken between mutating and
+        // invalidating would persist the new value without the readers' dirty flags, so a restore
+        // would reuse their stale outputs.
+        if invalidated.is_empty() {
+            drop(ctx);
+        } else {
+            self.invalidate_tasks_from_interior_mutation(invalidated, ctx);
+        }
+    }
+
+    /// Invalidates the readers that an interior mutation returned, consuming the context that the
+    /// mutation ran in.
+    fn invalidate_tasks_from_interior_mutation<'e>(
+        &self,
+        tasks: SmallVec<[TaskId; 4]>,
+        ctx: impl ExecuteContext<'e>,
+    ) {
+        if !self.should_track_dependencies() {
+            panic!("Dependency tracking is disabled so invalidation is not allowed");
+        }
+        invalidate(
+            tasks,
+            #[cfg(feature = "task_dirty_cause")]
+            TaskDirtyCause::Invalidator,
+            ctx,
+        );
     }
 
     fn debug_get_task_description(&self, task_id: TaskId) -> String {
@@ -3749,7 +3779,7 @@ impl Backend for TurboTasksBackend {
     fn mutate_interior(
         &self,
         task_id: TaskId,
-        mutate: &mut dyn FnMut(),
+        mutate: &mut dyn FnMut() -> SmallVec<[TaskId; 4]>,
         turbo_tasks: &TurboTasks<Self>,
     ) {
         self.mutate_interior(task_id, mutate, turbo_tasks);

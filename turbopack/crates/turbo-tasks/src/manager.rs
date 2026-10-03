@@ -126,9 +126,9 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
     fn invalidate(&self, task: TaskId);
     fn invalidate_with_reason(&self, task: TaskId, reason: StaticOrArc<dyn InvalidationReason>);
 
-    /// Runs `mutate` as a change to data owned by `task` that the backend must persist. See
-    /// [`Backend::mutate_interior`].
-    fn mutate_interior(&self, task: TaskId, mutate: &mut dyn FnMut());
+    /// Runs `mutate` as a change to data owned by `task` that the backend must persist, and
+    /// invalidates the tasks it returns. See [`Backend::mutate_interior`].
+    fn mutate_interior(&self, task: TaskId, mutate: &mut dyn FnMut() -> SmallVec<[TaskId; 4]>);
 
     fn try_read_task_output(
         &self,
@@ -1810,7 +1810,7 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         self.backend.invalidate_task(task, self);
     }
 
-    fn mutate_interior(&self, task: TaskId, mutate: &mut dyn FnMut()) {
+    fn mutate_interior(&self, task: TaskId, mutate: &mut dyn FnMut() -> SmallVec<[TaskId; 4]>) {
         self.backend.mutate_interior(task, mutate, self)
     }
 

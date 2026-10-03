@@ -34,10 +34,7 @@ impl<T> StateInner<T> {
         self.invalidators.insert(invalidator);
     }
 
-    /// Sets the value and returns the old value and the drained invalidators. The caller MUST
-    /// run them via [`run_invalidators`] (and drop the old value) *after* dropping the [`Mutex`]
-    /// guard — calling [`Invalidator::invalidate`] may grab locks in the backend which can lead to
-    /// cycles
+    /// Sets the value and returns the old value and the drained invalidators.
     #[must_use]
     fn set_unconditionally(&mut self, value: T) -> (T, AutoSet<Invalidator>) {
         (
@@ -80,8 +77,20 @@ thread_local! {
     static STATE_LOCKS_HELD: Cell<usize> = const { Cell::new(0) };
 }
 
+/// Asserts in debug builds that the current thread holds no state lock, before it invalidates a
+/// state's readers: invalidating reaches into the backend, which takes task locks (a snapshot takes
+/// a state's mutex while holding those).
+fn debug_assert_no_state_lock_held() {
+    #[cfg(debug_assertions)]
+    assert_eq!(
+        STATE_LOCKS_HELD.with(Cell::get),
+        0,
+        "a state's invalidators must not be run while a state lock is held"
+    );
+}
+
 /// A held [`StateInner`] mutex. Every state lock is taken through this, so that debug builds can
-/// count the locks each thread holds and [`run_invalidators`] can assert that it holds none.
+/// count the locks each thread holds and assert that it holds none before invalidating readers.
 struct StateLock<'a, T> {
     guard: MutexGuard<'a, StateInner<T>>,
 }
@@ -117,20 +126,13 @@ impl<T> Drop for StateLock<'_, T> {
     }
 }
 
-/// Invalidates every task that read the state before it changed.
+/// Invalidates every task that read a [`TransientState`] before it changed.
 ///
-/// Must be called *outside* the [`StateInner`] mutex guard and after [`InteriorMutator::mutate`]
-/// has returned: invalidating reaches into the backend, which takes task locks (a snapshot takes
-/// the mutex while holding those) and starts an operation of its own (which could wait on a
-/// snapshot that is waiting on `mutate`). Debug builds check both: this asserts that the thread
-/// holds no state lock, and the backend asserts that it isn't called from inside `mutate`.
+/// Must be called *outside* the [`StateInner`] mutex guard; see
+/// [`debug_assert_no_state_lock_held`]. A [`State`] doesn't use this: its readers are invalidated
+/// by the backend, in the same step as the change.
 fn run_invalidators(invalidators: AutoSet<Invalidator>) {
-    #[cfg(debug_assertions)]
-    assert_eq!(
-        STATE_LOCKS_HELD.with(Cell::get),
-        0,
-        "a state's invalidators must not be run while a state lock is held"
-    );
+    debug_assert_no_state_lock_held();
     if invalidators.is_empty() {
         return;
     }
@@ -267,6 +269,18 @@ impl<T> State<T> {
         self.interior_mutator.mutate(|| mutate(&mut self.lock()))
     }
 
+    /// Like [`Self::mutate`], but `mutate` also returns the readers that the change invalidates.
+    /// The backend invalidates them in the same step, after the state's lock is released; see
+    /// [`InteriorMutator::mutate_and_invalidate`].
+    fn mutate_and_invalidate<R>(
+        &self,
+        mutate: impl FnOnce(&mut StateInner<T>) -> (R, AutoSet<Invalidator>),
+    ) -> R {
+        debug_assert_no_state_lock_held();
+        self.interior_mutator
+            .mutate_and_invalidate(|| mutate(&mut self.lock()))
+    }
+
     /// Gets a copy of the current value of the state. The current task will be registered as
     /// dependency of the state and will be invalidated when the state changes.
     ///
@@ -306,9 +320,8 @@ impl<T> State<T> {
     /// Sets the current state without comparing it with the old value. This
     /// should only be used if one is sure that the value has changed.
     pub fn set_unconditionally(&self, value: T) {
-        let (old, invalidators) = self.mutate(|inner| inner.set_unconditionally(value));
+        let old = self.mutate_and_invalidate(|inner| inner.set_unconditionally(value));
         drop(old);
-        run_invalidators(invalidators);
     }
 }
 
@@ -321,11 +334,11 @@ impl<T: PartialEq> State<T> {
         if self.lock().value == value {
             return;
         }
-        let (unused, invalidators) = self.mutate(|inner| inner.set(value));
+        let unused = self.mutate_and_invalidate(|inner| {
+            let (unused, invalidators) = inner.set(value);
+            (unused, invalidators.unwrap_or_default())
+        });
         drop(unused);
-        if let Some(invalidators) = invalidators {
-            run_invalidators(invalidators);
-        }
     }
 }
 

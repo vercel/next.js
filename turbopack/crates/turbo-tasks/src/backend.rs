@@ -610,13 +610,14 @@ pub trait Backend: Sized + Sync + Send {
 
     /// Runs `mutate`, which changes data owned by `task` outside of the backend's view (such as
     /// the interior of a [`State`][crate::State] stored in one of its cells), and records that the
-    /// task's persisted form is out of date.
+    /// task's persisted form is out of date. Then invalidates the tasks that `mutate` returns,
+    /// which read the data before it changed.
     ///
     /// The `mutate` callback must not call into `turbo_tasks`.
     fn mutate_interior(
         &self,
         task: TaskId,
-        mutate: &mut dyn FnMut(),
+        mutate: &mut dyn FnMut() -> SmallVec<[TaskId; 4]>,
         turbo_tasks: &TurboTasks<Self>,
     );
 
