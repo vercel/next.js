@@ -10,6 +10,7 @@ use turbopack_trace_utils::{
     exit::ExitHandler,
     filter_layer::FilterLayer,
     raw_trace::RawTraceLayer,
+    tokio_workers::ActiveWorkerThreads,
     trace_writer::TraceWriter,
     tracing_presets::{
         TRACING_OVERVIEW_TARGETS, TRACING_TURBO_TASKS_TARGETS, TRACING_TURBOPACK_TARGETS,
@@ -25,21 +26,9 @@ fn main() {
     }
 
     let mut rt = tokio::runtime::Builder::new_multi_thread();
-    rt.enable_all()
-        .on_thread_stop(|| {
-            TurboMalloc::thread_stop();
-        })
-        .on_thread_park(|| {
-            LAST_SWC_ATOM_GC_TIME.with_borrow_mut(|cell| {
-                use std::time::Duration;
-
-                if cell.is_none_or(|t| t.elapsed() > Duration::from_secs(2)) {
-                    swc_core::ecma::atoms::hstr::global_atom_store_gc();
-                    *cell = Some(Instant::now());
-                }
-            });
-            TurboMalloc::thread_park();
-        });
+    rt.enable_all().on_thread_stop(|| {
+        TurboMalloc::thread_stop();
+    });
 
     let args = Arguments::parse();
 
@@ -54,6 +43,22 @@ fn main() {
         })
         .unwrap_or_else(|| available_parallelism().map(|n| n.get()).unwrap_or(1));
 
+    let active_workers = ActiveWorkerThreads::new(worker_threads);
+    let parked_workers = active_workers.clone();
+    let unparked_workers = active_workers.clone();
+    rt.on_thread_park(move || {
+        parked_workers.park();
+        LAST_SWC_ATOM_GC_TIME.with_borrow_mut(|cell| {
+            use std::time::Duration;
+
+            if cell.is_none_or(|t| t.elapsed() > Duration::from_secs(2)) {
+                swc_core::ecma::atoms::hstr::global_atom_store_gc();
+                *cell = Some(Instant::now());
+            }
+        });
+        TurboMalloc::thread_park();
+    })
+    .on_thread_unpark(move || unparked_workers.unpark());
     rt.worker_threads(worker_threads);
     rt.max_blocking_threads(usize::MAX - worker_threads);
 

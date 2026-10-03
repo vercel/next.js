@@ -17,7 +17,11 @@ use turbo_tasks::TurboTasks;
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_malloc::TurboMalloc;
 use turbopack_trace_utils::{
-    exit::ExitGuard, filter_layer::FilterLayer, raw_trace::RawTraceLayer, trace_writer::TraceWriter,
+    exit::ExitGuard,
+    filter_layer::FilterLayer,
+    raw_trace::RawTraceLayer,
+    tokio_workers::{ActiveWorkerThreads, default_worker_threads},
+    trace_writer::TraceWriter,
 };
 
 #[global_allocator]
@@ -79,13 +83,17 @@ fn main() {
             thread_local! {
                 static LAST_SWC_ATOM_GC_TIME: RefCell<Option<Instant>> = const { RefCell::new(None) };
             }
+            let active_workers = ActiveWorkerThreads::new(default_worker_threads());
+            let parked_workers = active_workers.clone();
+            let unparked_workers = active_workers.clone();
             tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
                 .on_thread_stop(|| {
                     TurboMalloc::thread_stop();
                     tracing::debug!("threads stopped");
                 })
-                .on_thread_park(|| {
+                .on_thread_park(move || {
+                    parked_workers.park();
                     LAST_SWC_ATOM_GC_TIME.with_borrow_mut(|cell| {
                         if cell.is_none_or(|t| t.elapsed() > Duration::from_secs(2)) {
                             swc_core::ecma::atoms::hstr::global_atom_store_gc();
@@ -94,6 +102,7 @@ fn main() {
                     });
                     TurboMalloc::thread_park();
                 })
+                .on_thread_unpark(move || unparked_workers.unpark())
                 .build()
                 .unwrap()
                 .block_on(async {
