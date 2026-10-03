@@ -86,16 +86,15 @@ pub fn calculate(content: &str) -> Result<(u32, u32)> {
     let width = WIDTH_REGEX.captures(root).map(|c| parse_length(&c[1]));
     let height = HEIGHT_REGEX.captures(root).map(|c| parse_length(&c[1]));
     let viewbox = VIEW_BOX_REGEX.captures(root).map(|c| parse_viewbox(&c[1]));
-    if let Some(width) = width {
-        if let Some(height) = height {
-            Ok((width?.round() as u32, height?.round() as u32))
-        } else {
-            bail!("SVG source code contains only a width attribute but not height attribute");
+    // Explicit dimensions win; otherwise derive a missing side from the viewBox.
+    match (width, height) {
+        (Some(width), Some(height)) => Ok((width?.round() as u32, height?.round() as u32)),
+        (width, height) => {
+            if let Some(viewbox) = viewbox {
+                return calculate_by_viewbox(viewbox?, width, height);
+            }
+            bail!("SVG source code does not contain width and height or viewBox attribute")
         }
-    } else if let Some(viewbox) = viewbox {
-        calculate_by_viewbox(viewbox?, width, height)
-    } else {
-        bail!("SVG source code does not contain width and height or viewBox attribute");
     }
 }
 
@@ -136,6 +135,18 @@ mod tests {
 
         let svg10 = r#"<svg width="100" height="invalid"></svg>"#;
         assert!(calculate(svg10).is_err());
+    }
+
+    #[test]
+    fn test_calculate_with_viewbox_and_single_dimension() {
+        let svg_width_only = r#"<svg width="100" viewBox="0 0 200 100"></svg>"#;
+        assert_eq!(calculate(svg_width_only).unwrap(), (100, 50));
+
+        let svg_height_only = r#"<svg height="50" viewBox="0 0 200 100"></svg>"#;
+        assert_eq!(calculate(svg_height_only).unwrap(), (100, 50));
+
+        let svg_width_units = r#"<svg width="150px" viewBox="0 0 333 62.85"></svg>"#;
+        assert_eq!(calculate(svg_width_units).unwrap(), (150, 28));
     }
 
     #[test]
