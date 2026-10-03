@@ -560,12 +560,15 @@ export default async function getBaseWebpackConfig(
           pnp: Boolean(process.versions.pnp),
           optimizeServerReact: Boolean(config.experimental.optimizeServerReact),
           modularizeImports: config.modularizeImports,
-          decorators: Boolean(
-            jsConfig?.compilerOptions?.experimentalDecorators
-          ),
+          // Always parse decorators in TypeScript; the transform layer handles
+          // legacy vs stage-3 selection. Without this, TS5 decorators fail at
+          // parse time (fixes #48360).
+          decorators: true,
           emitDecoratorMetadata: Boolean(
-            jsConfig?.compilerOptions?.emitDecoratorMetadata
-          ),
+            jsConfig?.compilerOptions?.experimentalDecorators
+          )
+            ? Boolean(jsConfig?.compilerOptions?.emitDecoratorMetadata)
+            : false,
           regeneratorRuntimePath: require.resolve(
             'next/dist/compiled/regenerator-runtime'
           ),
