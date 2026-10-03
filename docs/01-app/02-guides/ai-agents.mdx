@@ -169,31 +169,31 @@ The `Learn more` link resolves to a per-error page under [`/docs/messages`](http
 
 ## Agent docs and reusable Skills
 
-Framework knowledge comes from the bundled public docs. Broader, version-specific adoption work uses agent-only guides shipped inside the installed `next` package. Reusable procedures that apply across many tasks remain Skills.
+Framework knowledge comes from the bundled public docs. [Future Default](/docs/app/guides/upgrading/agent-upgrade#adopt-future-defaults) migrations use version-matched agent workflows shipped inside the installed `next` package. Reusable procedures that apply across many tasks remain Skills.
 
-The managed `AGENTS.md` block points agents at `node_modules/next/dist/agent-docs/index.md`. The index routes adoption tasks to the matching guide without loading unrelated instructions. You can [browse the agent-doc source](https://github.com/vercel/next.js/tree/canary/packages/next/src/agent-docs) in the Next.js repository.
+The managed `AGENTS.md` block points agents at `node_modules/next/dist/agent-docs/index.md`. The index routes Future Default tasks to the matching workflow without loading unrelated instructions. These are the same workflows used by `next upgrade --agent=experimental-future`. You can [browse the agent-doc source](https://github.com/vercel/next.js/tree/canary/packages/next/src/agent-docs) in the Next.js repository.
 
-### Adoption guides
+### Future Default workflows
 
 #### Cache Components
 
-The bundled Cache Components adoption guide migrates an app to [Cache Components](/docs/app/getting-started/caching):
+The bundled Cache Components Future Default workflow migrates an app to [Cache Components](/docs/app/getting-started/caching):
 
 1. Turns the flag on and finds the routes that can't prerender.
 2. Fixes them one feature at a time, checking in with you before moving on.
 3. Confirms a feature against `next dev` and `next build` before leaving it.
 
-The guide supports both a series of pull requests and a single-branch migration.
+The workflow supports both a series of pull requests and a single-branch migration.
 
 Then give the agent this prompt:
 
 ```prompt
-Adopt Cache Components in this project using the version-matched agent guide bundled with Next.js.
+Adopt Cache Components in this project using the bundled Future Default workflow.
 ```
 
 #### Partial Prefetching
 
-The bundled Partial Prefetching adoption guide moves an app onto [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching), where links share one App Shell:
+The bundled Partial Prefetching Future Default workflow moves an app onto [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching), where links share one App Shell:
 
 1. Audits existing `<Link prefetch={true}>` navigations and identifies the prefetched UI to preserve.
 2. Captures that UI in passing [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) tests before enabling Partial Prefetching, then migrates each destination until the same tests pass unchanged.
@@ -204,7 +204,7 @@ It needs [Cache Components](/docs/app/getting-started/caching) already adopted a
 Then give the agent this prompt:
 
 ```prompt
-Adopt Partial Prefetching in this project using the version-matched agent guide bundled with Next.js.
+Adopt Partial Prefetching in this project using the bundled Future Default workflow.
 ```
 
 ### Reusable Skills

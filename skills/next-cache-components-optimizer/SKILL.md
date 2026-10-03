@@ -153,7 +153,7 @@ export default { cacheComponents: true }
 ```
 
 Enabling the flag surfaces the blocking routes to resolve first. Follow the
-version-matched [Cache Components adoption guide](https://github.com/vercel/next.js/tree/canary/packages/next/src/agent-docs/adoption/cache-components/guide.md),
+version-matched [Cache Components Future Default workflow](https://github.com/vercel/next.js/tree/canary/packages/next/src/agent-docs/upgrade/future/cache-components/guide.md),
 then reach for this optimizer once the app builds under Cache Components.
 
 This gate is deliberate: the skill targets current Next.js, and none of the
@@ -473,7 +473,7 @@ during an incremental rollout and keep checking any other target routes.
   work. Keep the default link behavior everywhere else so the shared App Shell
   remains the low-cost baseline.
 - **Not adopted yet:** recommend the version-matched
-  [Partial Prefetching adoption guide](https://github.com/vercel/next.js/tree/canary/packages/next/src/agent-docs/adoption/partial-prefetching/guide.md).
+  [Partial Prefetching Future Default workflow](https://github.com/vercel/next.js/tree/canary/packages/next/src/agent-docs/upgrade/future/partial-prefetching/guide.md).
   That guide moves the app onto the better prefetching model: shared App Shell
   prefetches by default, fewer duplicated full-prefetch requests for visible
   links, a link audit for existing `<Link prefetch={true}>` usage, and optional

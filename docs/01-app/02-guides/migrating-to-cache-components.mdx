@@ -19,9 +19,9 @@ When [Cache Components](/docs/app/api-reference/config/next-config-js/cacheCompo
 
 The migration is driven by **instant navigation validation**. With Cache Components enabled, Next.js validates in development whether navigating into each route renders instantly, and surfaces the code that would block it as an error or insight.
 
-## Use the bundled agent guide (recommended)
+## Use the Future Default workflow (recommended)
 
-The version-matched Cache Components adoption guide bundled with Next.js drives this migration with a coding agent, one feature at a time, checking in at every feature boundary. It supports two modes:
+The version-matched Cache Components Future Default workflow bundled with Next.js drives this migration with a coding agent, one feature at a time, checking in at every feature boundary. It supports two modes:
 
 - **Incremental.** Opens a single mechanical PR that opts every route out of validation, then ships each feature as a follow-up PR. This automates the [Adopting incrementally](#adopting-incrementally) flow below.
 - **Direct.** Adopts every route in place on one branch.
@@ -29,7 +29,7 @@ The version-matched Cache Components adoption guide bundled with Next.js drives 
 Then give the agent this prompt:
 
 ```prompt
-Adopt Cache Components in this project using the version-matched agent guide bundled with Next.js.
+Adopt Cache Components in this project using the bundled Future Default workflow.
 ```
 
 ## Or migrate by hand

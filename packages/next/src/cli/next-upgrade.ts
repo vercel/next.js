@@ -12,7 +12,7 @@ import { warnMissingReactDependencies } from '../lib/warn-missing-react-dependen
 import { getNpxCommand } from '../lib/helpers/get-npx-command'
 import { interopDefault } from '../lib/interop-default'
 import { dim } from '../lib/picocolors'
-import type { UpgradeDocument } from '../lib/upgrade/future-defaults'
+import type { FutureDefaultDocument } from '../lib/upgrade/future-defaults'
 import { runChildProcess } from '../lib/upgrade/run-child-process'
 import { getAgentName } from '../telemetry/agent-name'
 import {
@@ -38,15 +38,15 @@ const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 const CODEMOD_COMMAND_PLACEHOLDER = '<codemod-command>'
-type PrepareUpgradeDocumentInput = {
+type PrepareFutureDefaultDocumentInput = {
   runDirectory: string
   bundledDocs: string
   bundledAgentDocs: string
-  document: UpgradeDocument
+  document: FutureDefaultDocument
 }
 
-async function prepareUpgradeDocument(
-  input: PrepareUpgradeDocumentInput
+async function prepareFutureDefaultDocument(
+  input: PrepareFutureDefaultDocumentInput
 ): Promise<string> {
   if (input.document.startsWith('docs/')) {
     const path = input.document.slice('docs/'.length)
@@ -446,10 +446,10 @@ export async function spawnNextUpgrade(
           for (const futureDefault of result.futureDefaults) {
             const documents: string[] = []
 
-            for (const document of futureDefault.adoptionDoc) {
+            for (const document of futureDefault.upgradeDocuments) {
               try {
                 documents.push(
-                  await prepareUpgradeDocument({
+                  await prepareFutureDefaultDocument({
                     runDirectory,
                     bundledDocs,
                     bundledAgentDocs,
@@ -463,7 +463,7 @@ export async function spawnNextUpgrade(
 
             if (documents.length === 0) {
               throw new Error(
-                `Could not prepare adoption documents for ${futureDefault.name}.`
+                `Could not prepare Future Default documents for ${futureDefault.name}.`
               )
             }
 

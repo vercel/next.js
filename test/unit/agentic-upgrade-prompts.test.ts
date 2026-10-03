@@ -1552,9 +1552,9 @@ describe('agentic upgrade prompts', () => {
           name: 'Cache Components',
           availableSince: '16.3.0',
           isAdopted: jest.fn(() => false),
-          adoptionDoc: [
+          upgradeDocuments: [
             'docs/01-app/02-guides/migrating-to-cache-components.md',
-            'agent-docs/adoption/cache-components/guide.md',
+            'agent-docs/upgrade/future/cache-components/guide.md',
           ],
           optimizationSkills: ['next-cache-components-optimizer'],
           isApplicable: jest.fn(() => true),
@@ -1577,22 +1577,22 @@ describe('agentic upgrade prompts', () => {
     expect(normalizedCopiedSources()).toEqual(
       expect.arrayContaining([
         expect.stringContaining('/agent-docs/upgrade/future-defaults.md'),
-        expect.stringContaining('/agent-docs/adoption/cache-components'),
+        expect.stringContaining('/agent-docs/upgrade/future/cache-components'),
       ])
     )
-    const adoptionGuideCopy = jest
+    const futureDefaultCopy = jest
       .mocked(cp)
       .mock.calls.find(([source]) =>
         String(source)
           .replace(/\\+/g, '/')
-          .endsWith('/agent-docs/adoption/cache-components')
+          .endsWith('/agent-docs/upgrade/future/cache-components')
       )
-    expect(adoptionGuideCopy?.[2]).toEqual({ recursive: true })
-    expect(String(adoptionGuideCopy?.[1]).replace(/\\+/g, '/')).toBe(
-      '/tmp/next-upgrade-test/agent-docs/adoption/cache-components'
+    expect(futureDefaultCopy?.[2]).toEqual({ recursive: true })
+    expect(String(futureDefaultCopy?.[1]).replace(/\\+/g, '/')).toBe(
+      '/tmp/next-upgrade-test/agent-docs/upgrade/future/cache-components'
     )
     expect(normalizedBootstrapCalls().flat().join('\n')).toContain(
-      'Read and follow "/tmp/next-upgrade-test/agent-docs/adoption/cache-components/guide.md".'
+      'Read and follow "/tmp/next-upgrade-test/agent-docs/upgrade/future/cache-components/guide.md".'
     )
   })
 
@@ -1607,9 +1607,9 @@ describe('agentic upgrade prompts', () => {
           name: 'Cache Components',
           availableSince: '16.3.0',
           isAdopted: jest.fn(() => false),
-          adoptionDoc: [
+          upgradeDocuments: [
             'docs/01-app/02-guides/migrating-to-cache-components.md',
-            'agent-docs/adoption/cache-components/guide.md',
+            'agent-docs/upgrade/future/cache-components/guide.md',
           ],
           optimizationSkills: ['next-cache-components-optimizer'],
           isApplicable: jest.fn(() => true),
@@ -1649,7 +1649,7 @@ describe('agentic upgrade prompts', () => {
       expect.anything(),
     ])
     expect(normalizedBootstrapCalls().flat().join('\n')).toContain(
-      'Read and follow "/tmp/next-upgrade-test/agent-docs/adoption/cache-components/guide.md".'
+      'Read and follow "/tmp/next-upgrade-test/agent-docs/upgrade/future/cache-components/guide.md".'
     )
   })
 })

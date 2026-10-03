@@ -33,7 +33,7 @@ export async function setupFuture(sandbox: Sandbox) {
         ? undefined
         : join(
             __dirname,
-            '../../../packages/next/src/agent-docs/adoption/cache-components/guide.md'
+            '../../../packages/next/src/agent-docs/upgrade/future/cache-components/guide.md'
           ),
   })
 }

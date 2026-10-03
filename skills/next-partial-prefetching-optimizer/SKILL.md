@@ -34,8 +34,8 @@ the navigation contract, production rig, trustworthy RED-to-GREEN loop, parity
 check, differential, and report.
 
 This is not an adoption workflow. If Cache Components or Partial Prefetching
-are not adopted, follow their version-matched agent adoption guides and return
-to this workflow. If the App
+are not adopted, follow their version-matched Future Default workflows and
+return to this workflow. If the App
 Shell itself cannot commit under `instant()`, use
 `next-cache-components-optimizer` first, then resume the selected navigation.
 
@@ -205,8 +205,8 @@ request.
 ## Handoff
 
 Finish every navigation named in the request. If Cache Components or Partial
-Prefetching are not adopted, follow the agent adoption guides under
-`node_modules/next/dist/agent-docs/adoption/`, then return to this workflow. If the App
+Prefetching are not adopted, follow the Future Default workflows under
+`node_modules/next/dist/agent-docs/upgrade/future/`, then return to this workflow. If the App
 Shell cannot commit under `instant()`, use `next-cache-components-optimizer`
 and resume the selected navigation afterward. Do not leave a build or test for
 the user to monitor.
