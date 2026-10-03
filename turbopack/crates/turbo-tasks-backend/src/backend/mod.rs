@@ -234,7 +234,7 @@ impl SnapshotReason {
 
 /// A compact snapshot of the (rare) independent state slots. Transient owners
 /// and transient reader ids must not cross a restart.
-type StateSnapshot = Vec<(StateKey, Vec<u8>, Vec<TaskId>, Option<u64>)>;
+pub(crate) type StateSnapshot = Vec<(StateKey, Vec<u8>, Vec<TaskId>, Option<u64>)>;
 
 struct StateEntry {
     value: Vec<u8>,

@@ -10,7 +10,7 @@ use smallvec::SmallVec;
 use turbo_bincode::{new_turbo_bincode_decoder, turbo_bincode_decode, turbo_bincode_encode};
 use turbo_persistence::CommitStats;
 use turbo_tasks::{
-    DynTaskInputs, RawVc, StateKey, TaskId,
+    DynTaskInputs, RawVc, TaskId,
     macro_helpers::NativeFunction,
     panic_hooks::{PanicHookGuard, register_panic_hook},
     parallel,
@@ -18,7 +18,7 @@ use turbo_tasks::{
 
 use crate::{
     GitVersionInfo,
-    backend::{SpecificTaskDataCategory, TtlCounter, storage_schema::TaskStorage},
+    backend::{SpecificTaskDataCategory, StateSnapshot, TtlCounter, storage_schema::TaskStorage},
     backing_storage::{SnapshotItem, SnapshotMeta, compute_task_type_hash_from_components},
     database::{
         db_invalidation::{StartupCacheState, check_db_invalidation_and_cleanup, invalidate_db},
@@ -250,7 +250,7 @@ impl TurboBackingStorage {
         get(&self.inner.database).context("Unable to read GC roots from database")
     }
 
-    pub(crate) fn load_states(&self) -> Result<Vec<(StateKey, Vec<u8>, Vec<TaskId>, Option<u64>)>> {
+    pub(crate) fn load_states(&self) -> Result<StateSnapshot> {
         let Some(bytes) = self
             .inner
             .database
