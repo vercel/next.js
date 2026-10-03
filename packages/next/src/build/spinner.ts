@@ -17,7 +17,7 @@ export default function createSpinner(
 
   if (process.stdout.isTTY) {
     spinner = ora({
-      text: undefined,
+      text: '',
       prefixText,
       spinner: dotsSpinner,
       stream: process.stdout,
