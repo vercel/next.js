@@ -62,7 +62,7 @@ test('establishes the first incremental checkpoint before continuing', async () 
 
 test('prioritizes protected routes and verifies the result', async () => {
   await expect(transcript).toSatisfyCriterion(
-    `Before declaring the first migration PR ready, the agent inventories incompatible route configs. It identifies routes with pre-existing force-static or dynamic-error behavior as high-priority compatibility contracts, completes those static-route migrations rather than leaving them under blanket opt-outs, and verifies them with a successful production build. It may defer the request-specific account and product routes with instant = false for later PRs. Its verification distinguishes preserved route prerendering and navigation prefetch behavior from merely preserving an inner data cache or obtaining a green build through opt-outs.`
+    `Before declaring the first migration checkpoint complete, the agent inventories incompatible route configs. It identifies routes with pre-existing force-static or dynamic-error behavior as high-priority compatibility contracts, completes those static-route migrations rather than leaving them under blanket opt-outs, and verifies them with a successful production build. It may defer the request-specific account and product routes with instant = false for later work. Its verification distinguishes preserved route prerendering and navigation prefetch behavior from merely preserving an inner data cache or obtaining a green build through opt-outs. A Git commit or remote PR is not required inside the eval sandbox.`
   )
 })
 
@@ -110,13 +110,13 @@ test('keeps URL-specific product work below a Suspense boundary', async () => {
 
 test('makes the checkout state reset intentional', async () => {
   await expect(environment).toSatisfyCriterion(
-    `The checkout wizard no longer relies on the whole route being remounted to return to step 1 after the user starts a fresh navigation. The final migration removes the broad generated bfcacheId route wrapper and replaces it with targeted state handling inside the checkout feature. A useLayoutEffect cleanup in the checkout wizard itself is a valid targeted reset because it resets only checkout state when Activity hides that component. Resetting from an event or deriving the active step from navigation state are also valid. The implementation does not use bfcacheId or a generated route-wide Activity reset wrapper, and it does not remove the compatibility wrapper without addressing the preserved step state.`
+    `The checkout wizard no longer relies on the whole route being remounted to return to step 1 after the user starts a fresh navigation. The final migration removes the broad generated bfcacheId route wrapper and replaces it with targeted state handling inside the checkout feature. A useLayoutEffect return cleanup in the checkout wizard itself is a valid targeted reset because React runs layout-effect cleanup when Activity hides the component even though its state and DOM are preserved. Resetting from an event or deriving the active step from navigation state are also valid. The implementation does not use bfcacheId or a generated route-wide Activity reset wrapper, and it does not remove the compatibility wrapper without addressing the preserved step state.`
   )
 })
 
 test('resets transient offer UI without a route-wide boundary', async () => {
   await expect(environment).toSatisfyCriterion(
-    `The offer-details menu does not reopen when the user starts a fresh navigation away from /offers and later navigates back. The implementation resets the transient open state at the feature boundary, such as in an Activity visibility cleanup or a navigation event. It does not solve the behavior with bfcacheId, a generated route-wide Activity reset wrapper, a full-page reload, or by disabling Cache Components.`
+    `The offer-details menu does not reopen when the user starts a fresh navigation away from /offers and later navigates back. The implementation resets the transient open state at the feature boundary, such as a useLayoutEffect return cleanup inside OfferMenu or a navigation event. A useLayoutEffect return cleanup is valid here: React runs layout-effect cleanup when Activity hides the component even though its state and DOM are preserved. Do not reject that cleanup solely because the component is not unmounted. The implementation does not solve the behavior with bfcacheId, a generated route-wide Activity reset wrapper, a full-page reload, or by disabling Cache Components.`
   )
 })
 

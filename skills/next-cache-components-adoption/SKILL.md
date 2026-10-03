@@ -27,7 +27,7 @@ Enable Cache Components on an app and walk it to a passing build. This skill seq
   - `npx @next/codemod@latest upgrade latest` to apply the version-to-version codemods.
   - Read the relevant [version upgrade guide](https://nextjs.org/docs/app/guides/upgrading) (e.g. [Version 16](https://nextjs.org/docs/app/guides/upgrading/version-16)) for what the codemod doesn't cover.
 
-- **No incompatible config keys.** `cacheComponents: true` errors on any file that still exports `dynamic`, `revalidate`, or `fetchCache`. Inventory these exports before running the codemod, then follow the [migration guide's per-key sections](https://nextjs.org/docs/app/guides/migrating-to-cache-components). The guide is the source of truth for translating each value. The `cache-components-instant-false` codemod does not remove these configs.
+- **No incompatible config keys.** `cacheComponents: true` errors on any file that still exports `dynamic`, `revalidate`, or `fetchCache`. Inventory these exports before running the codemod, then follow the [migration guide's per-key sections](https://nextjs.org/docs/app/guides/migrating-to-cache-components) to preserve their behavior. The `cache-components-instant-false` codemod does not remove these configs.
 
 - **`experimental.dynamicIO` is fatal.** It was renamed to top-level `cacheComponents` and the old key now aborts before any build can run — remove it (or replace with `cacheComponents: true`) first. `experimental.useCache` is still accepted as a deprecated alias; redundant once `cacheComponents: true` is set, so remove it for clarity.
 
@@ -144,7 +144,7 @@ If the opt-out codemod isn't available (older `@next/codemod`, sandboxed environ
 export const instant = false
 ```
 
-If the Activity reset codemod isn't available, add the boundaries by hand following the [preserving UI state guide's migration section](https://nextjs.org/docs/app/guides/preserving-ui-state#keep-route-state-resetting-during-migration).
+If the Activity reset codemod isn't available, add the boundaries by hand following the [preserving UI state guide's migration section](https://nextjs.org/docs/app/guides/preserving-ui-state#keep-route-state-resetting-during-migration). Treat `Invalid transform choice`, an offline command, and a zero-file result as a failed pre-step: add the boundaries manually before the checkpoint build. Do not record the failure and continue without the compatibility layer.
 
 The opt-out codemod opts every segment out, not only the root, on purpose. Resolution is top-down, first-explicit-config-wins: the highest `instant = false` decides the whole subtree. With an opt-out on every segment, removing one segment's opt-out validates only that segment; descendants keep their own opt-outs and stay passing. If only the root were opted out, removing it would re-arm validation for the entire app at once.
 
@@ -229,6 +229,7 @@ Keep a todo list of the feature's routes. When every route in the feature is cle
 Checklist before checking in with the user:
 
 - `next build` completes without blocking-route errors.
+- Compare the completed feature with the config inventory from step 1. Confirm that each replacement preserves the behavior described in the migration guide's [`revalidate`](https://nextjs.org/docs/app/guides/migrating-to-cache-components#revalidate) and [`fetch` and `unstable_cache`](https://nextjs.org/docs/app/guides/migrating-to-cache-components#fetch-cache-options) sections. Do not delete user-visible output to silence a prerender error.
 - No bare TODOs in the feature: `grep -rn "TODO: Cache Components adoption"` finds the codemods' opt-out and Activity reset comments and the sync-IO unblocks from the pre-step. Any `instant = false` left behind is a deliberate, documented Block — comment rewritten to a reason (see [references/per-page-decisions.md](./references/per-page-decisions.md) → "when to leave a Block in place"). Activity reset wrappers may stay for now; they come out in [step 4](#step-4-remove-the-activity-reset-boundaries). Any `await io()` or `await connection()` left behind has been reviewed and kept on purpose, not left over from the pre-step.
 - Each route visited in the browser: confirm the static shell renders first and every `<Suspense>` fallback resolves to its real content. Capture both states if you can — the fallback (mid-stream) and the final paint — so you have a streaming-experience demo to show the user. Throttle the network in the browser if streaming is too fast to observe.
 - After populating any new cache whose data can be updated, a mutation check confirms the next read returns the expected data.
@@ -261,12 +262,22 @@ Ask the user how they want to take it, in terms of PRs, the same way as in step 
 The [Preserving UI state guide](https://nextjs.org/docs/app/guides/preserving-ui-state#keep-route-state-resetting-during-migration) is the source of truth for the procedure and for the reset patterns that replace a wrapper. This skill only sequences it:
 
 - One feature at a time, top-down within it, following the guide's steps for each wrapper.
+- Before removing a wrapper, inventory the Client Component and DOM state beneath it. Follow the guide's [Choosing what to preserve](https://nextjs.org/docs/app/guides/preserving-ui-state#choosing-what-to-preserve) patterns for each item. Record whether the state should remain preserved, needs a targeted reset, or requires the whole subtree to reset.
+- Treat `bfcacheId` wrappers and keys as migration scaffolding. Keep one only when the user wants the whole route or feature to reset on every new navigation, and replace the generated TODO with a comment that explains why. Otherwise, use the smallest reset pattern that matches the guide.
 - Verify in the browser as the guide describes, with `next-dev-loop`'s browser handoff where available. Build-only runs can't verify this step; flag it for a browser pass.
 - Ambiguous cases ("should this route reset on every navigation?") are user check-ins, not agent judgment, same as in the loop.
 
 Check in the same way as after a feature: what the user will see, and which routes to click through. When every wrapper is gone or documented, point the user at [further reading](#further-reading) if they want to push the experience further, or stop and ship.
 
-In the direct flow, perform the same state audit without a generated wrapper to remove.
+In the direct flow, perform the same state audit without a generated wrapper to remove. A request to complete the migration includes this audit and a final production build after the last state-reset edit; do not stop at the first green build.
+
+Before reporting a completed migration, rerun the work-queue search against the final files:
+
+```bash
+rg -n "TODO: Cache Components adoption|export const instant = false|CacheComponentsActivityReset|bfcacheId" <app dir>
+```
+
+Do not rely on an earlier search or a successful build. Continue until each remaining result is removed or is a deliberate decision with a reason comment in place of the generated TODO, then run the final production build.
 
 ## further reading
 

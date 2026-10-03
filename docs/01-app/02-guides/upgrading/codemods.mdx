@@ -81,7 +81,7 @@ npx @next/codemod upgrade canary --yes
 npx @next/codemod@canary cache-components-activity-reset ./app
 ```
 
-This codemod adds a temporary state reset boundary to every existing `page`, `layout`, and parallel-route `default`, except the root layout, whose segment is never recreated by a navigation. It creates a shared Client Component at `app/_next-cache-components/activity-reset.tsx` (`.jsx` in JavaScript projects) that uses [`useRouter().bfcacheId`](/docs/app/api-reference/functions/use-router#bfcacheid) as a React key. Each route moves its original component below the reset boundary, including state declared by the route component itself. Files that already import the reset component and default exports the codemod cannot resolve to a component function are left unchanged.
+This codemod adds a temporary state reset boundary to every existing `page`, `layout`, and parallel-route `default`, except the root layout, whose segment is never recreated by a navigation. It creates a shared Client Component at `app/_next-cache-components/activity-reset.tsx` (`.jsx` in JavaScript projects) that uses [`useRouter().bfcacheId`](/docs/app/api-reference/functions/use-router#bfcacheid) as a React key. Each route moves its original component below the reset boundary, including state declared by the route component itself. The codemod leaves files unchanged when they already import the reset component or their default export cannot be resolved to a component function.
 
 The boundary resets the route subtree on push and replace navigations while preserving state during browser back and forward navigation. Generated `TODO: Cache Components adoption` comments mark each boundary for later removal.
 

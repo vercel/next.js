@@ -155,6 +155,69 @@ export async function installPlaywright(sandbox: Sandbox): Promise<void> {
 }
 
 /**
+ * Provision the browser CLI used by runtime-verification skills.
+ *
+ * This belongs in eval setup rather than the scored agent run. Otherwise a
+ * skill that asks the agent to verify the app in a browser pays an unrelated
+ * time and token penalty for installing the verification tool itself.
+ */
+export async function installAgentBrowser(sandbox: Sandbox): Promise<void> {
+  const pkg = JSON.parse(await sandbox.readFile('package.json'))
+  if (!pkg.nextEval?.agentBrowser) return
+
+  console.log('  Installing agent-browser...')
+
+  const cli = await sandbox.runCommand('npm', [
+    'install',
+    '--global',
+    'agent-browser@latest',
+  ])
+  if (cli.exitCode !== 0) {
+    throw new Error(
+      `agent-browser installation failed (exit ${cli.exitCode}):\n${cli.stderr}`
+    )
+  }
+
+  const browser = await sandbox.runCommand('agent-browser', [
+    'install',
+    '--with-deps',
+  ])
+  if (browser.exitCode !== 0) {
+    throw new Error(
+      `agent-browser browser installation failed (exit ${browser.exitCode}):\n${browser.stderr}`
+    )
+  }
+
+  const session = 'eval-browser-preflight'
+  const open = await sandbox.runCommand('agent-browser', [
+    '--session',
+    session,
+    '--args',
+    '--no-sandbox',
+    'open',
+    'about:blank',
+  ])
+  if (open.exitCode !== 0) {
+    throw new Error(
+      `agent-browser launch check failed (exit ${open.exitCode}):\n${open.stderr}`
+    )
+  }
+
+  const close = await sandbox.runCommand('agent-browser', [
+    '--session',
+    session,
+    'close',
+  ])
+  if (close.exitCode !== 0) {
+    throw new Error(
+      `agent-browser cleanup failed (exit ${close.exitCode}):\n${close.stderr}`
+    )
+  }
+
+  console.log('  Installed and verified agent-browser')
+}
+
+/**
  * Run optional fixture-specific setup after dependencies are installed but
  * before the coding agent starts.
  */
