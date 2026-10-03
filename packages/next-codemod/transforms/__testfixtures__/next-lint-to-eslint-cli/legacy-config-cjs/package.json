@@ -1,0 +1,14 @@
+{
+  "scripts": {
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "react": "^19",
+    "react-dom": "^19",
+    "next": "^16"
+  },
+  "devDependencies": {
+    "eslint": "^8",
+    "eslint-config-next": "^16"
+  }
+}
