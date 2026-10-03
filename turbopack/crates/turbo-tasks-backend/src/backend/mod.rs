@@ -8,7 +8,9 @@ mod storage;
 pub mod storage_schema;
 
 // `stopping` is an `RwLock<bool>` so that checking it and acting on it cannot be split
-// (see the field's docs). Backend-owned state uses an atomic dirty marker.
+// (see the field's docs). State entries and their dirty-ID set share one mutex.
+#[cfg(feature = "verify_aggregation_graph")]
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::{
     borrow::Cow,
     fmt::Write,
@@ -16,10 +18,7 @@ use std::{
     hash::BuildHasherDefault,
     mem::take,
     pin::Pin,
-    sync::{
-        Arc, LazyLock,
-        atomic::{AtomicBool, Ordering},
-    },
+    sync::{Arc, LazyLock},
     time::SystemTime,
 };
 
@@ -37,9 +36,10 @@ use turbo_bincode::{TurboBincodeBuffer, new_turbo_bincode_decoder, new_turbo_bin
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     CellId, DynTaskInputsStorage, RawVc, RawVcUnpacked, ReadCellOptions, ReadCellTracking,
-    ReadConsistency, ReadOutcome, ReadOutputOptions, ReadTracking, SharedReference, StateKey,
-    StateOwner, TRANSIENT_TASK_BIT, TaskExecutionReason, TaskId, TaskPersistence, TaskPriority,
-    TraitTypeId, TurboTasks, TurboTasksCallApi, TurboTasksPanic, ValueTypeId,
+    ReadConsistency, ReadOutcome, ReadOutputOptions, ReadTracking, SharedReference, StateId,
+    StateKey, StateLookupKey, StateOwner, TRANSIENT_TASK_BIT, TaskExecutionReason, TaskId,
+    TaskPersistence, TaskPriority, TraitTypeId, TurboTasks, TurboTasksCallApi, TurboTasksPanic,
+    ValueTypeId,
     backend::{
         Backend, CachedTaskType, CachedTaskTypeArc, CellContent, CellHash, TaskExecutionSpec,
         TransientTaskType, TurboTaskContextError, TurboTaskLocalContextError, TurboTasksError,
@@ -232,11 +232,89 @@ impl SnapshotReason {
     }
 }
 
-/// A compact snapshot of the (rare) independent state slots. Transient owners
-/// and transient reader ids must not cross a restart.
-pub(crate) type StateSnapshot = Vec<(StateKey, Vec<u8>, Vec<TaskId>, Option<u64>)>;
+#[cfg(test)]
+mod state_tests;
+
+/// An incremental state batch, captured under snapshot exclusion alongside task data.
+pub(crate) struct StateSnapshot {
+    pub next_id: u32,
+    pub updates: Vec<(StateKey, Option<Vec<u8>>)>,
+}
+
+#[derive(bincode::Encode, bincode::Decode)]
+pub(crate) struct PersistedState {
+    pub lookup: StateLookupKey,
+    pub value: Vec<u8>,
+    pub dependents: Vec<TaskId>,
+    pub unrooted_since: Option<u64>,
+}
+
+struct StateStore {
+    entries: FxHashMap<StateKey, StateEntry>,
+    lookup: FxHashMap<StateLookupKey, StateKey>,
+    dirty: FxHashSet<StateKey>,
+    next_id: u32,
+    next_transient_id: u32,
+}
+
+impl StateStore {
+    /// Called only under snapshot exclusion. Encode just dirty live rows and
+    /// carry tombstones for collected IDs; failures leave the dirty set intact.
+    fn snapshot(&mut self) -> Result<Option<StateSnapshot>> {
+        let updates = self
+            .dirty
+            .iter()
+            .filter(|key| !key.id.is_transient())
+            .map(|&key| {
+                let record = self
+                    .entries
+                    .get(&key)
+                    .map(|state| {
+                        turbo_bincode::turbo_bincode_encode(&PersistedState {
+                            lookup: state.lookup.clone(),
+                            value: state.value.clone(),
+                            dependents: state
+                                .dependents
+                                .iter()
+                                .copied()
+                                .filter(|id| !id.is_transient())
+                                .collect(),
+                            unrooted_since: state.unrooted_since,
+                        })
+                        .map(|bytes| bytes.into_vec())
+                    })
+                    .transpose()?;
+                Ok((key, record))
+            })
+            .collect::<Result<Vec<_>>>()?;
+        self.dirty.clear();
+        Ok(if updates.is_empty() {
+            None
+        } else {
+            Some(StateSnapshot {
+                next_id: self.next_id,
+                updates,
+            })
+        })
+    }
+
+    fn retain(&mut self, mut keep: impl FnMut(&StateKey, &mut StateEntry) -> bool) {
+        self.entries.retain(|key, entry| {
+            let before = entry.unrooted_since;
+            let retained = keep(key, entry);
+            if !retained {
+                self.lookup.remove(&entry.lookup);
+            }
+            if !retained || before != entry.unrooted_since {
+                self.dirty.insert(*key);
+            }
+            retained
+        });
+    }
+}
 
 struct StateEntry {
+    lookup: StateLookupKey,
     value: Vec<u8>,
     dependents: FxHashSet<TaskId>,
     /// Milliseconds since this named owner was first found unrooted. Task
@@ -256,8 +334,7 @@ pub struct TurboTasksBackend {
 
     /// Canonical values of manually updated state slots; their identity is not
     /// tied to the allocation of the creator's value cell.
-    states: Mutex<FxHashMap<StateKey, StateEntry>>,
-    state_dirty: AtomicBool,
+    states: Mutex<StateStore>,
     named_state_pins: Mutex<FxHashMap<RcStr, usize>>,
 
     /// Coordinates the operation/snapshot/GC interleaving protocol. See
@@ -358,22 +435,30 @@ impl TurboTasksBackend {
             gc_enabled = false;
         }
 
-        let restored_states = backing_storage
+        let (next_id, restored_states) = backing_storage
             .load_states()
             .expect("Failed to restore backend-owned states");
-        let states = restored_states
-            .into_iter()
-            .map(|(key, value, dependents, unrooted_since)| {
-                (
-                    key,
-                    StateEntry {
-                        value,
-                        dependents: dependents.into_iter().collect(),
-                        unrooted_since,
-                    },
-                )
-            })
-            .collect();
+        let mut states = StateStore {
+            entries: FxHashMap::default(),
+            lookup: FxHashMap::default(),
+            dirty: FxHashSet::default(),
+            next_id,
+            next_transient_id: 1 << 31,
+        };
+        for (key, record) in restored_states {
+            assert!(!key.id.is_transient() && key.id.to_primitive() < next_id);
+            assert_eq!(key.slot, record.lookup.slot);
+            assert!(states.lookup.insert(record.lookup.clone(), key).is_none());
+            states.entries.insert(
+                key,
+                StateEntry {
+                    lookup: record.lookup,
+                    value: record.value,
+                    dependents: record.dependents.into_iter().collect(),
+                    unrooted_since: record.unrooted_since,
+                },
+            );
+        }
 
         Self {
             options,
@@ -389,7 +474,6 @@ impl TurboTasksBackend {
             ),
             storage: Storage::new(shard_amount, small_preallocation),
             states: Mutex::new(states),
-            state_dirty: AtomicBool::new(false),
             named_state_pins: Mutex::new(FxHashMap::default()),
             snapshot_coord: SnapshotCoordinator::new(),
             snapshot_in_progress: Mutex::new(()),
@@ -421,10 +505,7 @@ impl TurboTasksBackend {
     fn state_context<'a>(
         &'a self,
         turbo_tasks: &'a TurboTasks<TurboTasksBackend>,
-    ) -> (
-        ExecuteContext<'a>,
-        MutexGuard<'a, FxHashMap<StateKey, StateEntry>>,
-    ) {
+    ) -> (ExecuteContext<'a>, MutexGuard<'a, StateStore>) {
         loop {
             let ctx = self.execute_context(turbo_tasks);
             if let Some(states) = self.states.try_lock() {
@@ -1263,31 +1344,7 @@ impl TurboTasksBackend {
         // No operation can change a state while the snapshot exclusion is held.
         // Capture state and task data under the same exclusion, then commit them
         // in a single database batch.
-        let state_snapshot = if self.state_dirty.load(Ordering::Acquire) {
-            let states = self.states.lock();
-            let snapshot: StateSnapshot = states
-                .iter()
-                .filter(|(key, _)| !matches!(key.owner, StateOwner::Task(id) if id.is_transient()))
-                .map(|(key, state)| {
-                    (
-                        key.clone(),
-                        state.value.clone(),
-                        state
-                            .dependents
-                            .iter()
-                            .copied()
-                            .filter(|id| !id.is_transient())
-                            .collect(),
-                        state.unrooted_since,
-                    )
-                })
-                .collect();
-            let encoded = turbo_bincode::turbo_bincode_encode(&snapshot)?.into_vec();
-            self.state_dirty.store(false, Ordering::Release);
-            Some(encoded)
-        } else {
-            None
-        };
+        let state_snapshot = self.states.lock().snapshot()?;
 
         let snapshot_time = Instant::now();
         drop(snapshot_phase);
@@ -2533,6 +2590,8 @@ impl TurboTasksBackend {
             && !is_session_dependent
             // Task has no invalidator
             && !task.invalidator()
+            && task.is_state_dependencies_empty()
+            && task.is_outdated_state_dependencies_empty()
             // Task has no dependencies on collectibles
             && task.is_collectibles_dependencies_empty()
         {
@@ -2587,7 +2646,7 @@ impl TurboTasksBackend {
             );
             old_edges.extend(
                 task.iter_outdated_state_dependencies()
-                    .map(|key| OutdatedEdge::StateDependency((*key).clone())),
+                    .map(OutdatedEdge::StateDependency),
             );
             old_edges.extend(
                 task.iter_outdated_output_dependencies()
@@ -3858,11 +3917,12 @@ impl Backend for TurboTasksBackend {
             .entry(name.clone())
             .or_default() += 1;
         let mut states = self.states.lock();
-        for (key, entry) in states.iter_mut() {
-            if matches!(&key.owner, StateOwner::Named(owner) if owner == name)
+        let StateStore { entries, dirty, .. } = &mut *states;
+        for (key, entry) in entries.iter_mut() {
+            if matches!(&entry.lookup.owner, StateOwner::Named(owner) if owner == name)
                 && entry.unrooted_since.take().is_some()
             {
-                self.state_dirty.store(true, Ordering::Release);
+                dirty.insert(*key);
             }
         }
     }
@@ -3883,27 +3943,50 @@ impl Backend for TurboTasksBackend {
 
     fn create_state(
         &self,
-        key: &StateKey,
+        lookup: &StateLookupKey,
         initial: &mut dyn FnMut() -> Vec<u8>,
         turbo_tasks: &TurboTasks<Self>,
-    ) {
+    ) -> StateKey {
         let (mut ctx, mut states) = self.state_context(turbo_tasks);
-        if let StateOwner::Task(owner) = key.owner {
+        if let StateOwner::Task(owner) = lookup.owner {
             let task = ctx.task(owner, TaskDataCategory::Data);
             task.assert_not_deleted("create_state");
         }
-        states.entry(key.clone()).or_insert_with(|| {
-            // The serializer must not call back into TurboTasks while this
-            // state map lock and snapshot operation guard are held.
-            let _scope = StateMutationScope::enter();
-            let value = initial();
-            self.state_dirty.store(true, Ordering::Release);
+        // HashMap compares the complete logical key, including named-owner
+        // strings, rather than treating a hash as a collision-free identity.
+        if let Some(&key) = states.lookup.get(lookup) {
+            return key;
+        }
+        let _scope = StateMutationScope::enter();
+        let value = initial();
+        let transient = matches!(lookup.owner, StateOwner::Task(owner) if owner.is_transient());
+        let next = if transient {
+            &mut states.next_transient_id
+        } else {
+            &mut states.next_id
+        };
+        assert!(
+            *next < if transient { u32::MAX } else { 1 << 31 },
+            "state IDs exhausted"
+        );
+        let id = StateId::new(*next).unwrap();
+        *next += 1;
+        let key = StateKey {
+            slot: lookup.slot,
+            id,
+        };
+        states.lookup.insert(lookup.clone(), key);
+        states.entries.insert(
+            key,
             StateEntry {
+                lookup: lookup.clone(),
                 value,
                 dependents: FxHashSet::default(),
                 unrooted_since: None,
-            }
-        });
+            },
+        );
+        states.dirty.insert(key);
+        key
     }
 
     fn read_state(
@@ -3912,26 +3995,25 @@ impl Backend for TurboTasksBackend {
         reader: Option<TaskId>,
         turbo_tasks: &TurboTasks<Self>,
     ) -> Result<Vec<u8>> {
-        if let StateOwner::Task(owner) = key.owner {
+        let (mut ctx, mut states) = self.state_context(turbo_tasks);
+        let StateStore { entries, dirty, .. } = &mut *states;
+        let entry = entries
+            .get_mut(key)
+            .context("state was not created or was collected (or factory mismatched)")?;
+        if let StateOwner::Task(owner) = entry.lookup.owner {
             self.assert_not_persistent_calling_transient(reader, owner);
         }
-        let (mut ctx, mut states) = self.state_context(turbo_tasks);
-        let entry = states
-            .get_mut(key)
-            .context("state was not created or was collected")?;
         if self.should_track_dependencies()
             && let Some(reader) = reader
         {
             let mut task = ctx.task(reader, TaskDataCategory::Data);
             task.assert_not_deleted("read_state");
             if entry.dependents.insert(reader) {
-                self.state_dirty.store(true, Ordering::Release);
+                dirty.insert(*key);
             }
-            let shared_key = Arc::new(key.clone());
-            if !task.remove_outdated_state_dependencies(&shared_key) {
-                let _ = task.add_state_dependencies(shared_key);
+            if !task.remove_outdated_state_dependencies(key) {
+                let _ = task.add_state_dependencies(*key);
             }
-            task.set_invalidator(true);
         }
         Ok(entry.value.clone())
     }
@@ -3943,9 +4025,10 @@ impl Backend for TurboTasksBackend {
         turbo_tasks: &TurboTasks<Self>,
     ) -> Result<bool> {
         let (mut ctx, mut states) = self.state_context(turbo_tasks);
-        let entry = states
+        let StateStore { entries, dirty, .. } = &mut *states;
+        let entry = entries
             .get_mut(key)
-            .context("state was not created or was collected")?;
+            .context("state was not created or was collected (or factory mismatched)")?;
         if entry.value == value {
             return Ok(false);
         }
@@ -3958,7 +4041,7 @@ impl Backend for TurboTasksBackend {
                 ctx.try_task(reader, TaskDataCategory::All)
                     .is_some_and(|task| {
                         task.iter_state_dependencies()
-                            .any(|dependency| dependency.as_ref() == key)
+                            .any(|dependency| dependency == *key)
                     });
             if is_current_reader {
                 try_make_task_dirty(
@@ -3972,7 +4055,7 @@ impl Backend for TurboTasksBackend {
         }
         while !queue.process(&mut ctx) {}
         entry.value = value;
-        self.state_dirty.store(true, Ordering::Release);
+        dirty.insert(*key);
         Ok(true)
     }
 

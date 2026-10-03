@@ -26,7 +26,7 @@ mod parallel_scheduler;
 pub(crate) use parallel_scheduler::TurboTasksParallelScheduler;
 
 /// Number of key families, see [`KeySpace`] enum for their numbers.
-pub const FAMILIES: usize = 4;
+pub const FAMILIES: usize = 6;
 
 const COMPACTION_MESSAGE: &str = "Finished filesystem cache database compaction";
 
@@ -233,7 +233,7 @@ impl<'a> TurboWriteBatch<'a> {
     }
 
     /// Writes a tombstone for a single `key` -> `value` mapping, leaving other values under `key`
-    /// intact. Only valid for `MultiValue` families (`TaskCache`).
+    /// intact. Only valid for `MultiValue` families (`TaskCache`, `StateIndex`).
     pub fn delete_value(
         &self,
         key_space: KeySpace,

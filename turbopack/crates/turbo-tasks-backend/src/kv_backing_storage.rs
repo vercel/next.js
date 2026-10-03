@@ -10,7 +10,7 @@ use smallvec::SmallVec;
 use turbo_bincode::{new_turbo_bincode_decoder, turbo_bincode_decode, turbo_bincode_encode};
 use turbo_persistence::CommitStats;
 use turbo_tasks::{
-    DynTaskInputs, RawVc, TaskId,
+    DynTaskInputs, RawVc, StateId, StateKey, TaskId,
     macro_helpers::NativeFunction,
     panic_hooks::{PanicHookGuard, register_panic_hook},
     parallel,
@@ -18,7 +18,10 @@ use turbo_tasks::{
 
 use crate::{
     GitVersionInfo,
-    backend::{SpecificTaskDataCategory, StateSnapshot, TtlCounter, storage_schema::TaskStorage},
+    backend::{
+        PersistedState, SpecificTaskDataCategory, StateSnapshot, TtlCounter,
+        storage_schema::TaskStorage,
+    },
     backing_storage::{SnapshotItem, SnapshotMeta, compute_task_type_hash_from_components},
     database::{
         db_invalidation::{StartupCacheState, check_db_invalidation_and_cleanup, invalidate_db},
@@ -36,7 +39,7 @@ use crate::{
 enum InfraKey {
     NextFreeTaskId = 0,
     GcRoots = 1,
-    States = 2,
+    NextFreeStateId = 2,
 }
 
 impl InfraKey {
@@ -250,22 +253,43 @@ impl TurboBackingStorage {
         get(&self.inner.database).context("Unable to read GC roots from database")
     }
 
-    pub(crate) fn load_states(&self) -> Result<StateSnapshot> {
-        let Some(bytes) = self
+    /// Enumerate live IDs through 256 fixed MultiValue buckets. Each membership
+    /// is independently written/deleted; no bucket or state-value blob is rewritten.
+    pub(crate) fn load_states(&self) -> Result<(u32, Vec<(StateKey, PersistedState)>)> {
+        let db = &self.inner.database;
+        let next_id = self
             .inner
-            .database
-            .get(KeySpace::Infra, InfraKey::States.key().as_ref())?
-        else {
-            return Ok(Vec::new());
-        };
-        turbo_bincode_decode(bytes.borrow()).context("Unable to restore backend-owned states")
+            .get_infra_u32(InfraKey::NextFreeStateId)?
+            .unwrap_or(1);
+        anyhow::ensure!(next_id > 0 && next_id <= 1 << 31, "invalid next state ID");
+        let mut states = Vec::new();
+        for bucket in 0..=u8::MAX {
+            for bytes in db.get_multiple(KeySpace::StateIndex, &[bucket])? {
+                let raw_id = as_u32(bytes)?;
+                let id = StateId::new(raw_id).context("invalid state ID")?;
+                anyhow::ensure!(
+                    !id.is_transient() && raw_id < next_id && raw_id as u8 == bucket,
+                    "invalid live state index"
+                );
+                let bytes = db
+                    .get(KeySpace::StateData, IntKey::new(raw_id).as_ref())?
+                    .context("live state record missing")?;
+                let record: PersistedState = turbo_bincode_decode(bytes.borrow())?;
+                let key = StateKey {
+                    slot: record.lookup.slot,
+                    id,
+                };
+                states.push((key, record));
+            }
+        }
+        Ok((next_id, states))
     }
 
     pub(crate) fn save_snapshot<I>(
         &self,
         roots: Option<Vec<(TaskId, TtlCounter)>>,
         snapshots: Vec<I>,
-        state_snapshot: Option<Vec<u8>>,
+        state_snapshot: Option<StateSnapshot>,
     ) -> Result<SnapshotMeta>
     where
         I: IntoIterator<Item = SnapshotItem> + Send + Sync,
@@ -494,7 +518,7 @@ fn save_infra(
     batch: &TurboWriteBatch<'_>,
     next_task_id: u32,
     roots: Option<Vec<(TaskId, TtlCounter)>>,
-    state_snapshot: Option<Vec<u8>>,
+    state_snapshot: Option<StateSnapshot>,
 ) -> Result<(), anyhow::Error> {
     batch
         .put(
@@ -515,13 +539,43 @@ fn save_infra(
             .context("Unable to write GC roots")?;
     }
     if let Some(states) = state_snapshot {
-        batch
-            .put(
-                KeySpace::Infra,
-                WriteBuffer::Borrowed(InfraKey::States.key().as_ref()),
-                WriteBuffer::Vec(states),
-            )
-            .context("Unable to write backend-owned states")?;
+        for (key, record) in states.updates {
+            let id = IntKey::new(key.id.to_primitive());
+            let bucket = ByteKey::new(key.id.to_primitive() as u8);
+            if let Some(record) = record {
+                // MultiValue preserves duplicate mappings. Only newly persisted
+                // IDs acquire membership; ordinary updates touch just the row.
+                if batch.get(KeySpace::StateData, id.as_ref())?.is_none() {
+                    batch.put(
+                        KeySpace::StateIndex,
+                        WriteBuffer::Borrowed(bucket.as_ref()),
+                        WriteBuffer::Borrowed(id.as_ref()),
+                    )?;
+                }
+                batch.put(
+                    KeySpace::StateData,
+                    WriteBuffer::Borrowed(id.as_ref()),
+                    WriteBuffer::Vec(record),
+                )?;
+            } else {
+                batch.delete(KeySpace::StateData, WriteBuffer::Borrowed(id.as_ref()))?;
+                batch.delete_value(
+                    KeySpace::StateIndex,
+                    WriteBuffer::Borrowed(bucket.as_ref()),
+                    WriteBuffer::Borrowed(id.as_ref()),
+                )?;
+            }
+        }
+        batch.put(
+            KeySpace::Infra,
+            WriteBuffer::Borrowed(InfraKey::NextFreeStateId.key().as_ref()),
+            WriteBuffer::Borrowed(&states.next_id.to_le_bytes()),
+        )?;
+        // All state writes are complete, and share this task snapshot's commit.
+        unsafe {
+            batch.flush(KeySpace::StateData)?;
+            batch.flush(KeySpace::StateIndex)?;
+        }
     }
     // Safety: save_infra is called after all concurrent writes to Infra are done.
     unsafe { batch.flush(KeySpace::Infra)? };
@@ -611,6 +665,107 @@ mod tests {
         );
 
         db.shutdown()?;
+        Ok(())
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn state_rows_and_live_index_update_incrementally_and_reopen() -> Result<()> {
+        use turbo_tasks::{StateFactoryId, StateLookupKey, StateOwner};
+        let dir = test_temp_dir()?;
+        let storage = TurboBackingStorage::new_in_memory(TurboKeyValueDatabase::new(
+            dir.path().to_path_buf(),
+            TEST_STORAGE_OPTIONS,
+        )?);
+        let a = StateKey {
+            slot: StateFactoryId::MIN,
+            id: StateId::new(1).unwrap(),
+        };
+        // Same index bucket, so deleting one must retain the other mapping.
+        let b = StateKey {
+            slot: a.slot,
+            id: StateId::new(257).unwrap(),
+        };
+        let encode = |name: &str, value: &str| -> Result<Vec<u8>> {
+            Ok(turbo_bincode_encode(&PersistedState {
+                lookup: StateLookupKey {
+                    owner: StateOwner::Named(name.into()),
+                    slot: a.slot,
+                },
+                value: turbo_bincode_encode(&turbo_rcstr::RcStr::from(value))?.into_vec(),
+                dependents: vec![TaskId::MIN],
+                unrooted_since: Some(42),
+            })?
+            .into_vec())
+        };
+        let original_b = encode("b", "unchanged")?;
+        storage.save_snapshot::<Vec<SnapshotItem>>(
+            None,
+            vec![],
+            Some(StateSnapshot {
+                next_id: 258,
+                updates: vec![
+                    (a, Some(encode("a", "first")?)),
+                    (b, Some(original_b.clone())),
+                ],
+            }),
+        )?;
+        assert_eq!(storage.load_states()?.1.len(), 2);
+        storage.save_snapshot::<Vec<SnapshotItem>>(
+            None,
+            vec![],
+            Some(StateSnapshot {
+                next_id: 258,
+                updates: vec![(a, Some(encode("a", "updated")?))],
+            }),
+        )?;
+        assert_eq!(
+            storage.load_states()?.1.len(),
+            2,
+            "updates duplicated live-ID membership"
+        );
+        assert_eq!(
+            storage
+                .inner
+                .database
+                .get(KeySpace::StateData, &257u32.to_le_bytes())?
+                .unwrap()
+                .as_ref(),
+            &original_b
+        );
+        storage.save_snapshot::<Vec<SnapshotItem>>(
+            None,
+            vec![],
+            Some(StateSnapshot {
+                next_id: 258,
+                updates: vec![(a, None)],
+            }),
+        )?;
+        assert!(
+            storage
+                .inner
+                .database
+                .get(KeySpace::StateData, &1u32.to_le_bytes())?
+                .is_none()
+        );
+        let (next, records) = storage.load_states()?;
+        assert_eq!(next, 258);
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].0, b);
+        storage.shutdown()?;
+        drop(storage);
+        let reopened = TurboBackingStorage::new_in_memory(TurboKeyValueDatabase::new(
+            dir.path().to_path_buf(),
+            TEST_STORAGE_OPTIONS,
+        )?);
+        let (next, records) = reopened.load_states()?;
+        assert_eq!(next, 258);
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].0, b);
+        assert_eq!(records[0].1.unrooted_since, Some(42));
+        assert_eq!(records[0].1.dependents, vec![TaskId::MIN]);
+        let value: turbo_rcstr::RcStr = turbo_bincode_decode(&records[0].1.value)?;
+        assert_eq!(value, "unchanged");
+        reopened.shutdown()?;
         Ok(())
     }
 

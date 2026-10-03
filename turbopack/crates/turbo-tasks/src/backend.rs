@@ -32,7 +32,7 @@ use crate::{
     CellId, RawVc, ReadCellOptions, ReadOutcome, ReadOutputOptions, ReadRef, SharedReference,
     TaskId, TaskIdSet, TaskPriority, TraitRef, TraitTypeId, TurboTasksCallApi, TurboTasksPanic,
     ValueTypeId, ValueTypePersistence, VcValueTrait, VcValueType,
-    backend_state::StateKey,
+    backend_state::{StateKey, StateLookupKey},
     dyn_task_inputs::{DynTaskInputs, DynTaskInputsStorage},
     macro_helpers::NativeFunction,
     manager::{TaskPersistence, TurboTasks},
@@ -614,10 +614,10 @@ pub trait Backend: Sized + Sync + Send {
     /// under the state-store lock and must not call back into turbo-tasks.
     fn create_state(
         &self,
-        key: &StateKey,
+        key: &StateLookupKey,
         initial: &mut dyn FnMut() -> Vec<u8>,
         turbo_tasks: &TurboTasks<Self>,
-    );
+    ) -> StateKey;
 
     /// Return a copy of the canonical state value, atomically registering a
     /// dependency if `reader` is supplied.

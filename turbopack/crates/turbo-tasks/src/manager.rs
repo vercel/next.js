@@ -134,7 +134,11 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
     fn unpin_named_state_owner(&self, name: &RcStr);
 
     /// Create a canonical state value if the slot is vacant.
-    fn create_state(&self, key: &crate::StateKey, initial: &mut dyn FnMut() -> Vec<u8>);
+    fn create_state(
+        &self,
+        key: &crate::StateLookupKey,
+        initial: &mut dyn FnMut() -> Vec<u8>,
+    ) -> crate::StateKey;
 
     /// Read the state value synchronously, optionally tracking the current task.
     fn read_state(&self, key: &crate::StateKey, tracked: bool) -> Result<Vec<u8>>;
@@ -1823,8 +1827,12 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         self.backend.unpin_named_state_owner(name, self);
     }
 
-    fn create_state(&self, key: &crate::StateKey, initial: &mut dyn FnMut() -> Vec<u8>) {
-        self.backend.create_state(key, initial, self);
+    fn create_state(
+        &self,
+        key: &crate::StateLookupKey,
+        initial: &mut dyn FnMut() -> Vec<u8>,
+    ) -> crate::StateKey {
+        self.backend.create_state(key, initial, self)
     }
 
     fn read_state(&self, key: &crate::StateKey, tracked: bool) -> Result<Vec<u8>> {

@@ -19,10 +19,7 @@
 use std::{
     fmt::Display,
     ops::ControlFlow,
-    sync::{
-        Arc,
-        atomic::{AtomicBool, Ordering},
-    },
+    sync::atomic::{AtomicBool, Ordering},
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
@@ -302,11 +299,10 @@ impl TurboTasksBackend {
                 {
                     let mut states = self.states.lock();
                     states.retain(|key, state| {
-                        if key.owner == StateOwner::Task(task_id) {
+                        if state.lookup.owner == StateOwner::Task(task_id) {
                             result
                                 .deleted_state_dependents
-                                .push((key.clone(), state.dependents.iter().copied().collect()));
-                            self.state_dirty.store(true, Ordering::Release);
+                                .push((*key, state.dependents.iter().copied().collect()));
                             false
                         } else {
                             true
@@ -358,13 +354,11 @@ impl TurboTasksBackend {
             let pins = self.named_state_pins.lock();
             let mut states = self.states.lock();
             states.retain(|key, state| {
-                let StateOwner::Named(name) = &key.owner else {
+                let StateOwner::Named(name) = &state.lookup.owner else {
                     return true;
                 };
                 if pins.contains_key(name) {
-                    if state.unrooted_since.take().is_some() {
-                        self.state_dirty.store(true, Ordering::Release);
-                    }
+                    state.unrooted_since = None;
                     return true;
                 }
                 if let Some(since) = state.unrooted_since
@@ -372,13 +366,11 @@ impl TurboTasksBackend {
                 {
                     result
                         .deleted_state_dependents
-                        .push((key.clone(), state.dependents.iter().copied().collect()));
-                    self.state_dirty.store(true, Ordering::Release);
+                        .push((*key, state.dependents.iter().copied().collect()));
                     return false;
                 }
                 if state.unrooted_since.is_none() {
                     state.unrooted_since = Some(now);
-                    self.state_dirty.store(true, Ordering::Release);
                 }
                 true
             });
@@ -392,7 +384,7 @@ impl TurboTasksBackend {
             let noop_collector = |_task_id| {};
             let mut ctx = ExecuteContext::new_for_gc(self, turbo_tasks, phase, &noop_collector);
             for (key, readers) in removed_states {
-                let shared_key = Arc::new(key);
+                let shared_key = key;
                 for reader in readers {
                     if let Some(mut task) = ctx.try_task(reader, TaskDataCategory::Data)
                         && task.remove_state_dependencies(&shared_key)

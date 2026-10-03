@@ -22,6 +22,34 @@ There are a few design patterns that are commonly used with Turbo Tasks:
 [cell id equality]: crate::ResolvedVc#equality--hashing
 [`Vc`]: crate::Vc
 
+## Backend-owned state
+
+`#[turbo_tasks::state] static SLOT: StateSlot<T> = StateSlot::new()` declares a
+registered codec and a distinct factory identity, even when another slot has the
+same Rust value type. Creating a slot for the current task, or for an explicitly
+pinned `StateOwnerRoot::named(...)`, resolves the backend's `(owner, slot)` lookup
+without resetting an existing value.
+
+`TurboTasksState<T>` is a **Copy** reference containing only a factory ID and an
+allocated instance ID. Owner names and mutable values stay in the backend, not in
+task-input keys. Collected IDs are never recycled; an old handle returns a missing
+state error even if the same logical owner/slot is created again. Named owners are
+persistent; transient task owners produce transient references.
+
+Reads are synchronous snapshots. `get` tracks a dependency and `get_untracked`
+does not. Changed writes dirty current readers before publishing the value;
+no-op writes do not invalidate them. State locks precede task locks. A contended
+getter releases its operation guard before waiting, then retries acquisition.
+Initializers/serialization under the state lock must not re-enter turbo-tasks.
+Values containing operations still require their usual call-graph connections.
+
+Persistence writes only dirty state rows and collected-ID tombstones, atomically
+with affected task data and allocator progress. A fixed-bucket multi-value index
+tracks live IDs through individual insertions/deletions, without rewriting an
+entire value store or scanning holes in the allocated ID range on restart. Task
+GC collects task-owned states; named roots pin their namespace, and normal GC
+aging applies after the last root drops.
+
 ## Functions and Tasks
 
 <figure style="display: flex; flex-direction: column; justify-content: center;">

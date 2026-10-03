@@ -54,7 +54,7 @@ pub fn capture_all_edges(task: &impl TaskStorageAccessors) -> Vec<OutdatedEdge> 
     );
     old_edges.extend(
         task.iter_state_dependencies()
-            .map(|key| OutdatedEdge::StateDependency((*key).clone())),
+            .map(OutdatedEdge::StateDependency),
     );
     old_edges.extend(
         task.iter_collectibles_dependencies()

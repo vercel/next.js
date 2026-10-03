@@ -80,7 +80,9 @@ pub use crate::manager::InlineExecutionStats;
 #[cfg(feature = "task_dirty_cause")]
 pub use crate::task_dirty_cause::TaskDirtyCause;
 pub use crate::{
-    backend_state::{StateKey, StateOwner, StateOwnerRoot, StateSlot, TurboTasksState},
+    backend_state::{
+        StateKey, StateLookupKey, StateOwner, StateOwnerRoot, StateSlot, TurboTasksState,
+    },
     capture_future::TurboTasksPanic,
     collectibles::CollectiblesSource,
     completion::{Completion, Completions},
@@ -95,7 +97,7 @@ pub use crate::{
     },
     error::PrettyPrintError,
     id::{
-        ExecutionId, FunctionId, LocalTaskId, StateFactoryId, TRANSIENT_TASK_BIT, TaskId,
+        ExecutionId, FunctionId, LocalTaskId, StateFactoryId, StateId, TRANSIENT_TASK_BIT, TaskId,
         TraitTypeId, ValueTypeId,
     },
     invalidation::{

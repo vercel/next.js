@@ -17,7 +17,7 @@ use turbo_rcstr::RcStr;
 
 use crate::{
     NonLocalValue, OperationValue, TaskId, TaskInput, TurboTasksApi,
-    id::StateFactoryId,
+    id::{StateFactoryId, StateId},
     manager::{current_task, with_turbo_tasks},
     registry::{self, RegistryType, impl_ptr_identity},
 };
@@ -69,12 +69,19 @@ impl Drop for StateOwnerRoot {
     }
 }
 
-/// Stable identity used in inputs and persistent storage. The mutable value is
-/// deliberately not included in the identity.
+/// Logical lookup key retained by the backend, not stored in handles.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Encode, Decode)]
-pub struct StateKey {
+pub struct StateLookupKey {
     pub owner: StateOwner,
     pub slot: StateFactoryId,
+}
+
+/// Allocated identity used in inputs and dependencies. Neither the owner's
+/// name nor the mutable value is copied with this reference.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Encode, Decode)]
+pub struct StateKey {
+    pub slot: StateFactoryId,
+    pub id: StateId,
 }
 
 /// Erased codec for values of a registered state slot.
@@ -176,12 +183,12 @@ impl<T> StateSlot<T> {
             TypeId::of::<T>(),
             "state slot value type mismatch"
         );
-        let key = StateKey {
+        let lookup = StateLookupKey {
             owner,
             slot: registry::get_state_factory_id(factory),
         };
-        with_turbo_tasks(|tt| {
-            tt.create_state(&key, &mut || {
+        let key = with_turbo_tasks(|tt| {
+            tt.create_state(&lookup, &mut || {
                 (factory.encode)(&initial).expect("state value could not be encoded")
             })
         });
@@ -204,12 +211,11 @@ pub struct TurboTasksState<T> {
     _marker: PhantomData<fn() -> T>,
 }
 
+impl<T> Copy for TurboTasksState<T> {}
+
 impl<T> Clone for TurboTasksState<T> {
     fn clone(&self) -> Self {
-        Self {
-            key: self.key.clone(),
-            _marker: PhantomData,
-        }
+        *self
     }
 }
 
@@ -319,7 +325,7 @@ impl<T> Hash for TurboTasksState<T> {
 
 impl<T: Send + Sync + 'static> TaskInput for TurboTasksState<T> {
     fn is_transient(&self) -> bool {
-        matches!(self.key.owner, StateOwner::Task(task) if task.is_transient())
+        self.key.id.is_transient()
     }
 }
 
@@ -357,10 +363,10 @@ mod tests {
 
     #[test]
     fn a_deserialized_handle_cannot_read_a_slot_of_another_type() {
-        use crate::backend_state::{StateKey, StateOwner, TurboTasksState};
+        use crate::backend_state::{StateKey, TurboTasksState};
 
         let handle = TurboTasksState::<i32>::new(StateKey {
-            owner: StateOwner::Named("type-check".into()),
+            id: crate::StateId::MIN,
             slot: get_state_factory_id(FIRST.factory()),
         });
         let encoded = turbo_bincode::turbo_bincode_encode(&handle).unwrap();
