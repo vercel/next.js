@@ -148,7 +148,20 @@ async function fetchServerAction(
 
   let res: Response
   try {
-    res = await fetch(state.canonicalUrl, { method: 'POST', headers, body })
+    // Resolve the relative `canonicalUrl` against the origin rather than
+    // letting the browser resolve it against the document's base URL. If the
+    // page was opened with credentials in the URL
+    // (`http://user:pass@host/...`), the base URL retains the userinfo, and
+    // constructing a Request from it throws:
+    // "Request cannot be constructed from a URL that includes credentials".
+    // `location.origin` never contains userinfo. Note that `location` is
+    // shadowed by a local binding later in this function, so `window` is
+    // referenced explicitly.
+    res = await fetch(new URL(state.canonicalUrl, window.location.origin), {
+      method: 'POST',
+      headers,
+      body,
+    })
     // If the fetch succeeds while we're in the offline state, notify the
     // offline module so it can short-circuit the polling loop.
     if (process.env.__NEXT_USE_OFFLINE) {
