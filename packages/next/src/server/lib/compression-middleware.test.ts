@@ -5,8 +5,6 @@ import http from 'node:http'
 import zlib from 'node:zlib'
 import setupCompression from 'next/dist/compiled/compression'
 
-import { releaseCompressionStream } from './release-compression-stream'
-
 type StreamRecord = { closed: boolean }
 
 /** Records every zlib stream the middleware creates, and whether it closed. */
@@ -50,20 +48,12 @@ function trackCompressionStreams(): {
   }
 }
 
-function createServer({ release }: { release: boolean }) {
+function createServer() {
   const compress = setupCompression()
 
   return http.createServer((req, res) => {
     // @ts-expect-error not express req/res
     compress(req, res, () => {})
-
-    if (release) {
-      res.once('close', () => {
-        if (res.writableFinished) return
-
-        releaseCompressionStream(res)
-      })
-    }
 
     if (req.url === '/complete') {
       res.setHeader('content-type', 'text/html')
@@ -95,7 +85,11 @@ async function requestThenDisconnect(url: string) {
   await reader.cancel()
 }
 
-describe('releaseCompressionStream', () => {
+// The vendored `compression` middleware (>= 1.8.2, GHSA-vc2v-76pw-4v95) must
+// destroy its zlib stream when the client disconnects before the response
+// finishes. An open zlib stream is pinned by its native handle and survives GC,
+// permanently retaining ~256 KiB of deflate state per aborted response.
+describe('vendored compression middleware', () => {
   let tracker: ReturnType<typeof trackCompressionStreams>
   let server: http.Server | undefined
 
@@ -112,7 +106,7 @@ describe('releaseCompressionStream', () => {
   })
 
   it('releases the zlib stream when the client disconnects mid-response', async () => {
-    server = createServer({ release: true })
+    server = createServer()
     const url = await listen(server)
 
     await requestThenDisconnect(url)
@@ -124,22 +118,8 @@ describe('releaseCompressionStream', () => {
     expect(tracker.records[0].closed).toBe(true)
   })
 
-  it('is still needed by the vendored compression middleware', async () => {
-    // If this starts failing, the vendored `compression` handles premature close
-    // itself and `releaseCompressionStream` can be removed.
-    server = createServer({ release: false })
-    const url = await listen(server)
-
-    await requestThenDisconnect(url)
-
-    await new Promise((resolve) => setTimeout(resolve, 100))
-
-    expect(tracker.records).toHaveLength(1)
-    expect(tracker.records[0].closed).toBe(false)
-  })
-
-  it('does not affect responses that complete normally', async () => {
-    server = createServer({ release: true })
+  it('still compresses and releases responses that complete normally', async () => {
+    server = createServer()
     const url = await listen(server)
 
     const res = await fetch(`${url}/complete`, {
@@ -157,42 +137,5 @@ describe('releaseCompressionStream', () => {
 
     expect(tracker.records).toHaveLength(1)
     expect(tracker.records[0].closed).toBe(true)
-  })
-
-  it('is a no-op when compression is not active for the response', async () => {
-    const compress = setupCompression()
-    // Asserted in the test body so a failure isn't swallowed by the callback.
-    const outcome: { threw: unknown; drainListeners: number } = {
-      threw: null,
-      drainListeners: -1,
-    }
-
-    server = http.createServer((req, res) => {
-      // @ts-expect-error not express req/res
-      compress(req, res, () => {})
-      // `application/octet-stream` is not compressible, so no zlib stream is
-      // created and there is nothing to release.
-      res.setHeader('content-type', 'application/octet-stream')
-      res.write('x'.repeat(4096))
-
-      res.once('close', () => {
-        try {
-          releaseCompressionStream(res)
-        } catch (err) {
-          outcome.threw = err
-        }
-        outcome.drainListeners = res.listenerCount('drain')
-      })
-    })
-    const url = await listen(server)
-
-    await requestThenDisconnect(url)
-
-    await new Promise((resolve) => setTimeout(resolve, 100))
-
-    expect(tracker.records).toHaveLength(0)
-    expect(outcome.threw).toBeNull()
-    // Cleanup must not leave a stray listener behind on the response.
-    expect(outcome.drainListeners).toBe(0)
   })
 })

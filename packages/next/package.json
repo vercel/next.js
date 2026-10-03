@@ -245,7 +245,7 @@
     "client-only": "0.0.1",
     "commander": "12.1.0",
     "comment-json": "3.0.3",
-    "compression": "1.7.4",
+    "compression": "1.8.2",
     "conf": "5.0.0",
     "constants-browserify": "1.0.0",
     "content-disposition": "0.5.3",
