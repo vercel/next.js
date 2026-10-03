@@ -1,12 +1,16 @@
-import type { Linter } from 'eslint'
+import type { ESLint, Linter } from 'eslint'
 
 // plugins
 import next from '@next/eslint-plugin-next'
 import react from 'eslint-plugin-react'
 import reactHooks from 'eslint-plugin-react-hooks'
 import tsEslint from 'typescript-eslint'
+// The npm alias keeps the resolver's optional eslint-plugin-import peer
+// satisfied with the compatible import-x implementation. Depending only on the
+// import-x package name lets strict npm resolution select the old import plugin
+// for that optional peer, and its ESLint-through-9 constraint rejects ESLint 10.
+import { importX as importPlugin } from 'eslint-plugin-import'
 // import * as ... for plugins without default export
-import * as importPlugin from 'eslint-plugin-import'
 import * as jsxA11yPlugin from 'eslint-plugin-jsx-a11y'
 
 // utils
@@ -20,7 +24,10 @@ const config: Linter.Config[] = [
     files: ['**/*.{js,jsx,mjs,ts,tsx,mts,cts}'],
     plugins: {
       react,
-      'react-hooks': reactHooks,
+      // The plugin's nested flat presets do not match ESLint's configs type,
+      // but its rule API is supported under both engines. Preserve the whole
+      // plugin, including those presets, rather than dropping runtime fields.
+      'react-hooks': reactHooks as unknown as ESLint.Plugin,
       import: importPlugin,
       'jsx-a11y': jsxA11yPlugin,
       '@next/next': next,
@@ -49,10 +56,10 @@ const config: Linter.Config[] = [
       react: {
         version: 'detect',
       },
-      'import/parsers': {
+      'import-x/parsers': {
         '@typescript-eslint/parser': ['.ts', '.mts', '.cts', '.tsx', '.d.ts'],
       },
-      'import/resolver': {
+      'import-x/resolver': {
         node: {
           extensions: ['.js', '.jsx', '.ts', '.tsx'],
         },
@@ -64,6 +71,10 @@ const config: Linter.Config[] = [
     rules: {
       ...react.configs.recommended.rules,
       ...reactHooks.configs.recommended.rules,
+      // Hooks 7.1 omits this previously enabled rule from its recommended
+      // preset. Keep the existing Next rule set, including users' disable
+      // directives, rather than changing it as a side effect of compatibility.
+      'react-hooks/component-hook-factories': 'error',
       ...next.configs.recommended.rules,
       'import/no-anonymous-default-export': 'warn',
       'react/no-unknown-property': 'off',

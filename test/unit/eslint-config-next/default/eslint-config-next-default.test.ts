@@ -25,8 +25,8 @@ describe('eslint-config-next', () => {
       // parser: require.resolve('eslint-config-next')
       parser: expect.stringContaining('eslint-config-next'),
       settings: {
-        'import/parsers': expect.any(Object),
-        'import/resolver': expect.any(Object),
+        'import-x/parsers': expect.any(Object),
+        'import-x/resolver': expect.any(Object),
         react: {
           version: 'detect',
         },
@@ -44,7 +44,7 @@ describe('eslint-config-next', () => {
          "@",
          "react",
          "react-hooks:eslint-plugin-react-hooks@7.0.0",
-         "import",
+         "import:eslint-plugin-import-x@4.17.1",
          "jsx-a11y:eslint-plugin-jsx-a11y@6.10.2",
          "@next/next:@next/eslint-plugin-next",
        ],
