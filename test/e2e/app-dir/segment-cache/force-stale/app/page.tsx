@@ -14,6 +14,20 @@ export default function Page() {
           Dynamic page (no prefetch)
         </Link>
       </li>
+      <li>
+        <LinkAccordion href="/partially-static" id="partially-static-default">
+          Partially static page (default prefetch)
+        </LinkAccordion>
+      </li>
+      <li>
+        <LinkAccordion
+          href="/partially-static"
+          prefetch={true}
+          id="partially-static-full"
+        >
+          Partially static page (prefetch=true)
+        </LinkAccordion>
+      </li>
     </ul>
   )
 }
