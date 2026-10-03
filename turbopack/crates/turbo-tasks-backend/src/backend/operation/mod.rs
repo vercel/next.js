@@ -1708,15 +1708,12 @@ impl TaskGuard for TaskGuardImpl<'_> {
     fn invalidate_serialization(&mut self) {
         // TODO this causes race conditions, since we never know when a value is changed. We can't
         // "snapshot" the value correctly.
-        if !self.task_id.is_transient() {
-            // Unconditional track (no mutation to detect a no-op against): always mark dirty.
-            let _ = self
-                .task
-                .track_modification(SpecificTaskDataCategory::Data, "invalidate_serialization");
-            let _ = self
-                .task
-                .track_modification(SpecificTaskDataCategory::Meta, "invalidate_serialization");
-        }
+        // Serialization invalidation is about cell data (e.g. a `State` mutated in place), so only
+        // the Data category is marked modified. Tracking Meta here would be wrong: callers only
+        // restore Data, and persisting an unrestored Meta would overwrite the stored Meta with an
+        // empty one. `track_modification` skips transient tasks and checks the access category.
+        // Unconditional track (no mutation to detect a no-op against): always mark dirty.
+        let _ = self.track_modification(SpecificTaskDataCategory::Data, "invalidate_serialization");
     }
 
     fn prefetch(&mut self) -> Option<FxIndexMap<TaskId, TaskDataCategory>> {
@@ -1778,6 +1775,9 @@ impl TaskStorageAccessors for TaskGuardImpl<'_> {
             // Transient tasks are never persisted, so there is nothing to track or undo.
             TrackOutcome::NoChange
         } else {
+            // Marking a category as modified persists it on the next snapshot, so the guard must
+            // have been acquired with (i.e. restored) that category.
+            self.check_access(category);
             self.task.track_modification(category, name)
         }
     }

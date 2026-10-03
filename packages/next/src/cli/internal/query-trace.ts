@@ -14,7 +14,10 @@ interface QueryTraceOptions {
   aggregated: boolean | undefined
   sort: string | undefined
   search: string | undefined
+  maxDepth: number | undefined
+  depth: number | undefined
   page: number | undefined
+  pageSize: number | undefined
   json: boolean | undefined
 }
 
@@ -27,7 +30,10 @@ export async function queryTraceCli(options: QueryTraceOptions): Promise<void> {
   if (options.aggregated !== undefined) args.aggregated = options.aggregated
   if (options.sort !== undefined) args.sort = options.sort
   if (options.search !== undefined) args.search = options.search
+  if (options.maxDepth !== undefined) args.maxDepth = options.maxDepth
+  if (options.depth !== undefined) args.depth = options.depth
   if (options.page !== undefined) args.page = options.page
+  if (options.pageSize !== undefined) args.pageSize = options.pageSize
   if (options.json) args.outputType = 'json'
 
   const requestBody = JSON.stringify({
