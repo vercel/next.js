@@ -65,6 +65,14 @@ export function renderCssResource(
 
       elements.push(
         createElement('link', {
+          key: `preload-${index}`,
+          rel: 'preload',
+          as: 'style',
+          href: fullHref,
+          crossOrigin: ctx.renderOpts.crossOrigin,
+          nonce: ctx.nonce,
+        }),
+        createElement('link', {
           key: index,
           rel: 'stylesheet',
           href: fullHref,
