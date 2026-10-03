@@ -12,7 +12,10 @@ import type { NextParsedUrlQuery } from './request-meta'
 import type { SizeLimit } from '../types'
 import type { SupportedTestRunners } from '../cli/next-test'
 import { INFINITE_CACHE } from '../lib/constants'
-import type { FallbackRouteParam } from '../build/static-paths/types'
+import type {
+  BuildValidationMetadata,
+  FallbackRouteParam,
+} from '../build/static-paths/types'
 import type { MemoryEvictionMode, TurbopackGcOptions } from '../build/swc/types'
 import type { CacheLife } from './use-cache/cache-life'
 
@@ -1680,6 +1683,14 @@ export type ExportPathMap = {
      * @internal
      */
     _fallbackRouteParams?: readonly FallbackRouteParam[]
+
+    /**
+     * Metadata used to reproduce staged fallback semantics during build-time
+     * Instant Validation.
+     *
+     * @internal
+     */
+    _buildValidationMetadata?: BuildValidationMetadata
 
     /** Parameters whose novel values are rejected by routing. @internal */
     _notFoundParams?: readonly string[]
