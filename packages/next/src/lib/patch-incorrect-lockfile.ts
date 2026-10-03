@@ -7,11 +7,15 @@ import type { UnwrapPromise } from './coalesced-function'
 import { isCI } from '../server/ci-info'
 import { getRegistry } from './helpers/get-registry'
 
-let registry: string | undefined
+let registryConfig: ReturnType<typeof getRegistry> | undefined
 
 async function fetchPkgInfo(pkg: string) {
-  if (!registry) registry = getRegistry()
-  const res = await fetch(`${registry}${pkg}`)
+  if (!registryConfig) registryConfig = getRegistry()
+  const { registry, authToken } = registryConfig
+  const headers: HeadersInit = authToken
+    ? { Authorization: `Bearer ${authToken}` }
+    : {}
+  const res = await fetch(`${registry}${pkg}`, { headers })
 
   if (!res.ok) {
     throw new Error(
