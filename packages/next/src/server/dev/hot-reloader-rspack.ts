@@ -80,6 +80,25 @@ export default class HotReloaderRspack extends HotReloaderWebpack {
             (await fs.readFile(this.builtEntriesCachePath, 'utf-8')) || '{}'
           )
 
+          // The cache is written with JSON.stringify, so a child entry's
+          // Rehydrate the child entries' parent sets: the cache stores them
+          // as arrays (older caches as empty objects from JSON-stringified
+          // Sets). Entries whose parents never got persisted are treated as
+          // having no parents; their parents repopulate the sets as they
+          // recompile.
+          for (const entryData of Object.values(builtEntries)) {
+            if (
+              entryData.type === EntryTypes.CHILD_ENTRY &&
+              !(entryData.parentEntries instanceof Set)
+            ) {
+              entryData.parentEntries = new Set(
+                Array.isArray(entryData.parentEntries)
+                  ? entryData.parentEntries
+                  : []
+              )
+            }
+          }
+
           await Promise.all(
             Object.keys(builtEntries).map(async (entryKey) => {
               const entryData = builtEntries[entryKey]
@@ -216,7 +235,14 @@ export default class HotReloaderRspack extends HotReloaderWebpack {
       }
       await fs.writeFile(
         this.builtEntriesCachePath!,
-        JSON.stringify(builtEntries, null, 2)
+        JSON.stringify(
+          builtEntries,
+          // Persist Sets (child entries' parentEntries) as arrays so the
+          // parent links survive a restart instead of coming back as empty
+          // objects.
+          (_key, value) => (value instanceof Set ? Array.from(value) : value),
+          2
+        )
       )
     } catch (error) {
       console.error('Rspack failed to write built entries cache: ', error)
