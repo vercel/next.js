@@ -599,6 +599,7 @@ impl<'e> ExecuteContextImpl<'e> {
                 wait_meta: false,
                 task_type: None,
                 self_restored: false,
+                failed: false,
             })
             .collect::<Vec<_>>();
         data_count += all_count;
@@ -731,6 +732,11 @@ impl<'e> ExecuteContextImpl<'e> {
         // as early as possible)
         // Errors are collected rather than panicking immediately so that all tasks' restoring
         // bits are cleared first. Otherwise other threads waiting on those bits would hang.
+        //
+        // A failed task releases its Phase 1a pin here and is skipped by the later phases; every
+        // other task is still handed off normally, and the failure is reported at the end. The
+        // panic is often caught (it can become a task's error output), so it must not leave pins
+        // or a blank entry behind.
         let mut any_self_restored = false;
         let mut restore_errors: Vec<(TaskId, &str, anyhow::Error)> = Vec::new();
         // Tasks that exist nowhere, reported once waiters are unblocked.
@@ -744,7 +750,7 @@ impl<'e> ExecuteContextImpl<'e> {
             let task_id = entry.task_id;
 
             self.task_lock_counter.acquire();
-            let mut task = self.backend.storage.access_mut(task_id);
+            let mut task = self.backend.storage.access_entry_mut(task_id);
 
             let has_error = matches!(entry.data_restore_result, Some(Err(_)))
                 || matches!(entry.meta_restore_result, Some(Err(_)));
@@ -763,7 +769,13 @@ impl<'e> ExecuteContextImpl<'e> {
                 }
                 task.flags.set_data_restored(false);
                 task.flags.set_meta_restored(false);
+                task.update_and_get_transient_ref_count(-1);
+                entry.failed = true;
                 missing_tasks.push(task_id);
+                // Discards the entry unless another thread still holds it.
+                handle_missing_task(task, task_id, TaskAccess::AllowMissing, reason);
+                self.task_lock_counter.release();
+                continue;
             } else {
                 let claimed_data = entry.data_restore_result.is_some();
                 let claimed_meta = entry.meta_restore_result.is_some();
@@ -791,6 +803,8 @@ impl<'e> ExecuteContextImpl<'e> {
                     if claimed_meta {
                         task.flags.set_meta_restored(false);
                     }
+                    task.update_and_get_transient_ref_count(-1);
+                    entry.failed = true;
                 }
             }
 
@@ -806,24 +820,10 @@ impl<'e> ExecuteContextImpl<'e> {
             self.backend.storage.restored.notify(usize::MAX);
         }
 
-        if !restore_errors.is_empty() || !missing_tasks.is_empty() {
-            // About to fail: the transient refs taken in Phase 1a leak, which is fine since a panic
-            // poisons the persistent cache. The restoring bits must be (and are) cleared by now, or
-            // threads waiting on them would hang.
-            if let Some(&task_id) = missing_tasks.first() {
-                panic_missing_task(task_id, reason);
-            }
-            let msgs: Vec<String> = restore_errors
-                .iter()
-                .map(|(id, cat, e)| format!("Failed to restore {cat} for task {id}: {e:?}"))
-                .collect();
-            panic!("Restore failures:\n{}", msgs.join("\n"));
-        }
-
         // --- Phase 2: Callbacks for tasks we restored ourselves ---
         // Separated from Phase 1c so that other threads are unblocked as early as possible.
         for entry in &tasks {
-            if !entry.self_restored {
+            if !entry.self_restored || entry.failed {
                 continue;
             }
             if let Some(task_type) = entry.task_type.clone() {
@@ -856,17 +856,20 @@ impl<'e> ExecuteContextImpl<'e> {
         // immediately call the callback with the already-acquired write guard.
         if any_waiting {
             for entry in &tasks {
-                if !entry.wait_data && !entry.wait_meta {
+                if (!entry.wait_data && !entry.wait_meta) || entry.failed {
                     continue;
                 }
                 self.task_lock_counter.acquire();
                 let (mut task, outcome) = self.restore_task_or_panic(entry.task_id, entry.category);
                 task.update_and_get_transient_ref_count(-1);
-                self.task_lock_counter.release();
                 if outcome.missing_on_disk {
-                    handle_missing_task(task, entry.task_id, TaskAccess::MustExist, reason);
-                    unreachable!("MustExist must panic after clearing a missing task");
+                    // Keep handing off the remaining tasks; report once all pins are released.
+                    missing_tasks.push(entry.task_id);
+                    handle_missing_task(task, entry.task_id, TaskAccess::AllowMissing, reason);
+                    self.task_lock_counter.release();
+                    continue;
                 }
+                self.task_lock_counter.release();
                 prepared_task_callback(
                     self,
                     entry.task_id,
@@ -874,6 +877,17 @@ impl<'e> ExecuteContextImpl<'e> {
                     task.into_write_guard(),
                 );
             }
+        }
+
+        if let Some(&task_id) = missing_tasks.first() {
+            panic_missing_task(task_id, reason);
+        }
+        if !restore_errors.is_empty() {
+            let msgs: Vec<String> = restore_errors
+                .iter()
+                .map(|(id, cat, e)| format!("Failed to restore {cat} for task {id}: {e:?}"))
+                .collect();
+            panic!("Restore failures:\n{}", msgs.join("\n"));
         }
     }
 }
@@ -896,6 +910,9 @@ struct TaskRestoreEntry {
     task_type: Option<CachedTaskTypeArc>,
     /// This thread performed the restore for at least one category (set in Phase 1c).
     self_restored: bool,
+    /// The task is missing or failed to restore (set in Phase 1c). Its Phase 1a pin is already
+    /// released, so the later phases skip it.
+    failed: bool,
 }
 
 /// Outcome of [`ExecuteContextImpl::restore_task`].
@@ -1099,11 +1116,24 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
                 if restored {
                     continue;
                 }
-                let (task, outcome) = self.restore_task_or_panic(task_id, category);
+                let (mut task, outcome) = self.restore_task_or_panic(task_id, category);
                 // Decide under the guard that may hold an empty read.
                 if outcome.missing_on_disk {
-                    handle_missing_task(task, task_id, TaskAccess::MustExist, "task_pair");
-                    unreachable!("MustExist must panic after clearing a missing task");
+                    // The panic is often caught (it can become a task's error output), so release
+                    // both pins first: otherwise the present endpoint stays pinned for the rest of
+                    // the session and the missing entry is never discarded.
+                    task.update_and_get_transient_ref_count(-1);
+                    handle_missing_task(task, task_id, TaskAccess::AllowMissing, "task_pair");
+                    let other_id = if task_id == task_id1 {
+                        task_id2
+                    } else {
+                        task_id1
+                    };
+                    self.backend
+                        .storage
+                        .access_mut(other_id)
+                        .update_and_get_transient_ref_count(-1);
+                    panic_missing_task(task_id, "task_pair");
                 }
                 drop(task);
             }
@@ -1896,6 +1926,64 @@ mod must_exist_tests {
             )],
             "prepare transient",
         );
+    }
+
+    /// Runs `f`, which must panic on a missing task, and returns the panic message. Task panics
+    /// are usually caught, so the tests below check what the panic leaves behind.
+    fn catch_missing_task_panic(f: impl FnOnce()) -> String {
+        let err = std::panic::catch_unwind(std::panic::AssertUnwindSafe(f))
+            .expect_err("opening a missing task must panic");
+        err.downcast_ref::<String>()
+            .cloned()
+            .or_else(|| err.downcast_ref::<&str>().map(|s| s.to_string()))
+            .unwrap_or_default()
+    }
+
+    /// No pin on the present task, and no entry left for the missing one.
+    fn assert_no_leftovers(tt: &TurboTasks<TurboTasksBackend>, present: TaskId, missing: TaskId) {
+        let storage = &tt.backend().storage;
+        assert_eq!(
+            storage.with_task(present, |t| t.gc_transient_ref_count()),
+            Some(0),
+            "the present task must not stay pinned"
+        );
+        assert!(
+            storage.with_task(missing, |_| ()).is_none(),
+            "the missing task must not leave an entry behind"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn task_pair_missing_endpoint_leaves_no_pins() {
+        let tt = backend(Some(StorageMode::ReadOnly));
+        let present = persistent(1);
+        let missing = persistent(2);
+        resident(&tt, present, TaskDataCategory::All);
+        let msg = catch_missing_task_panic(|| {
+            let mut ctx = ExecuteContextImpl::new(tt.backend(), &tt);
+            let _ = ctx.task_pair(present, missing, TaskDataCategory::Meta);
+        });
+        assert!(msg.contains("task_pair, MustExist"), "{msg}");
+        assert_no_leftovers(&tt, present, missing);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn prepare_tasks_missing_task_hands_off_the_rest_and_leaves_no_pins() {
+        let present = persistent(1);
+        let missing = persistent(2);
+        let (tt, _dir) = persisted_tasks(&[present]);
+        let mut seen = Vec::new();
+        let msg = catch_missing_task_panic(|| {
+            let mut ctx = ExecuteContextImpl::new(tt.backend(), &tt);
+            ctx.for_each_task(
+                [missing, present].map(|id| (id, TaskDataCategory::All)),
+                "prepare missing",
+                |guard, _| seen.push(guard.id()),
+            );
+        });
+        assert!(msg.contains("prepare missing, MustExist"), "{msg}");
+        assert_eq!(seen, [present], "the present task is still handed off");
+        assert_no_leftovers(&tt, present, missing);
     }
 
     fn persisted_tasks(ids: &[TaskId]) -> (Arc<TurboTasks<TurboTasksBackend>>, tempfile::TempDir) {
