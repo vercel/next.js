@@ -43,6 +43,20 @@ type ModuleId = string | number /*| null*/
 // double indexed chunkId, filename
 export type ManifestChunks = ReadonlyArray<string>
 
+const internedChunkPool = new Map<string, ManifestChunks>()
+const EMPTY_CHUNKS: ManifestChunks = Object.freeze([])
+
+export function internChunks(chunks: ManifestChunks): ManifestChunks {
+  if (!chunks || chunks.length === 0) return EMPTY_CHUNKS
+  const key = chunks.join('|')
+  let existing = internedChunkPool.get(key)
+  if (!existing) {
+    internedChunkPool.set(key, chunks)
+    existing = chunks
+  }
+  return existing
+}
+
 const pluginState = getProxiedPluginState({
   ssrModules: {} as { [ssrModuleId: string]: ModuleInfo },
   edgeSsrModules: {} as { [ssrModuleId: string]: ModuleInfo },
@@ -314,7 +328,9 @@ export class ClientReferenceManifestPlugin {
           }
         })
 
-      const requiredChunks = getAppPathRequiredChunks(entrypoint, rootMainFiles)
+      const requiredChunks = internChunks(
+        getAppPathRequiredChunks(entrypoint, rootMainFiles)
+      )
       const recordModule = (modId: ModuleId, mod: webpack.NormalModule) => {
         let resource =
           mod.type === 'css/mini-extract'
@@ -595,6 +611,13 @@ export class ClientReferenceManifestPlugin {
             mergeManifest(mergedManifest, manifest)
           }
           group += (group ? '/' : '') + segment
+        }
+      }
+
+      for (const key of Object.keys(mergedManifest.clientModules)) {
+        const mod = mergedManifest.clientModules[key]
+        if (mod && Array.isArray(mod.chunks)) {
+          mod.chunks = internChunks(mod.chunks)
         }
       }
 
