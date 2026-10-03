@@ -115,6 +115,19 @@ export function evalManifest<T extends object>(
   }
 
   if (content.length === 0) {
+    // A zero-length manifest is not a manifest that says nothing, it is a file
+    // whose contents have not landed yet. These files are emitted by the
+    // bundler, which truncates and rewrites them on every rebuild, so a reader
+    // in dev — where `shouldCache` is false and every request re-reads from
+    // disk — can observe the window between truncate and write. That is the
+    // same transient state `handleMissing` already tolerates for a file that is
+    // absent altogether, so give it the same answer rather than failing the
+    // request. Returning before the cache write keeps the empty read from being
+    // remembered, so the next read picks the contents up.
+    if (handleMissing) {
+      return undefined
+    }
+
     throw new Error('Manifest file is empty')
   }
 
