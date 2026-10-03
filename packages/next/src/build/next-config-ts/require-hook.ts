@@ -2,11 +2,28 @@ import type { Options as SWCOptions } from '@swc/core'
 import Module from 'node:module'
 import { readFileSync } from 'node:fs'
 import { dirname } from 'node:path'
+import { warnOnce } from '../output/log'
 
-const oldJSHook = require.extensions['.js']
+const oldJSHook = require.extensions?.['.js']
 const extensions = ['.ts', '.cts', '.mts', '.cjs', '.mjs']
 
 export function registerHook(swcOptions: SWCOptions) {
+  // require.extensions is undefined on Node 24.15+ under Yarn PnP, where the
+  // bridged require has no `.extensions` property. We can't install handlers
+  // in that case, so warn the user once so a silent failure to load
+  // TypeScript inside next.config.ts (e.g. `require('./helper.ts')`) is at
+  // least diagnosable, and bail.
+  if (!require.extensions || !oldJSHook) {
+    if (!require.extensions) {
+      warnOnce(
+        'next.config.ts: require.extensions is unavailable on this Node.js version under Yarn PnP. ' +
+          'TypeScript files imported via require() inside next.config.ts will fail to load. ' +
+          'Workaround: convert require() to import, or pin Node.js < 24.15.'
+      )
+    }
+    return
+  }
+
   // lazy require swc since it loads React before even setting NODE_ENV
   // resulting loading Development React on Production
   const { transformSync } = require('../swc') as typeof import('../swc')
@@ -43,6 +60,7 @@ export function registerHook(swcOptions: SWCOptions) {
 }
 
 export function deregisterHook() {
+  if (!require.extensions || !oldJSHook) return
   require.extensions['.js'] = oldJSHook
   extensions.forEach((ext) => delete require.extensions[ext])
 }
