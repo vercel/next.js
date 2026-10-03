@@ -22,7 +22,7 @@ use std::{
     time::SystemTime,
 };
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Result, bail};
 use auto_hash_map::{AutoMap, AutoSet};
 use gc::DEFAULT_GC_ROOT_TTL;
 pub use gc::{GcPassResult, GcStats, TtlCounter};
@@ -32,7 +32,7 @@ use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
 use smallvec::{SmallVec, smallvec};
 use tokio::time::{Duration, Instant};
 use tracing::{Span, field::display, trace_span};
-use turbo_bincode::{TurboBincodeBuffer, new_turbo_bincode_decoder, new_turbo_bincode_encoder};
+use turbo_bincode::TurboBincodeBuffer;
 use turbo_tasks::{
     CellId, DynTaskInputsStorage, RawVc, RawVcUnpacked, ReadCellOptions, ReadCellTracking,
     ReadConsistency, ReadOutcome, ReadOutputOptions, ReadTracking, SharedReference,
@@ -70,10 +70,9 @@ use crate::{
             make_task_dirty_internal, prepare_new_children, update_cell,
         },
         snapshot_coordinator::{OperationGuard, SlowSettle, SnapshotCoordinator},
-        storage::Storage,
+        storage::{Storage, encode_snapshot_item},
         storage_schema::{TaskStorage, TaskStorageAccessors},
     },
-    backing_storage::{SnapshotItem, compute_task_type_hash},
     data::{
         ActivenessState, CellRef, CollectibleRef, CollectiblesRef, Dirtyness, InProgressCellState,
         InProgressState, InProgressStateInner, OutputValue, TransientTask,
@@ -349,7 +348,7 @@ impl TurboTasksBackend {
                 TaskId::try_from(TRANSIENT_TASK_BIT).unwrap(),
                 TaskId::MAX,
             ),
-            storage: Storage::new(shard_amount, small_preallocation),
+            storage: Storage::new(shard_amount, small_preallocation, gc_enabled),
             snapshot_coord: SnapshotCoordinator::new(),
             snapshot_in_progress: Mutex::new(()),
             stopping: RwLock::new(false),
@@ -1373,115 +1372,35 @@ impl TurboTasksBackend {
         // Encode each task's modified categories. We only encode categories with `modified` set,
         // meaning the category was actually dirtied. Categories restored from disk but never
         // modified don't need re-persisting since the on-disk version is still valid.
-        // For tasks accessed during snapshot mode, a frozen copy was made and its `modified`
-        // flags were copied from the live task at snapshot creation time, reflecting which
-        // categories were dirtied before the snapshot was taken.
+        // Tasks that were modified again during snapshot mode were already encoded by
+        // `track_modification` (see `Storage::snapshots`), and are yielded without calling this.
+        // (Those rare items are not included in the `print_cache_item_size` statistics.)
         let process = |task_id: TaskId, inner: &TaskStorage, buffer: &mut TurboBincodeBuffer| {
-            let encode_category = |task_id: TaskId,
-                                   data: &TaskStorage,
-                                   category: SpecificTaskDataCategory,
-                                   buffer: &mut TurboBincodeBuffer|
-             -> Option<TurboBincodeBuffer> {
-                match encode_task_data(task_id, data, category, buffer) {
-                    Ok(encoded) => {
-                        #[cfg(feature = "print_cache_item_size")]
-                        {
-                            let mut stats = task_cache_stats.lock();
-                            let entry = stats.entry(TaskCacheStats::task_name(inner)).or_default();
-                            match category {
-                                SpecificTaskDataCategory::Meta => entry.add_meta(&encoded),
-                                SpecificTaskDataCategory::Data => entry.add_data(&encoded),
-                            }
-                        }
-                        Some(encoded)
-                    }
-                    Err(err) => {
-                        panic!(
-                            "Serializing task {} failed ({:?}): {:?}",
-                            self.debug_get_task_description(task_id),
-                            category,
-                            err
-                        );
-                    }
-                }
-            };
-            if task_id.is_transient() {
-                unreachable!("transient task_ids should never be enqueued to be persisted");
-            }
-
-            if self.gc_enabled {
-                if inner.flags.deleted() {
-                    debug_assert!(
-                        !inner.flags.new_task(),
-                        "a scanned GC-deleted task must be persisted; new tasks are discarded by \
-                         GC"
-                    );
-                    let task_type_hash = compute_task_type_hash(
-                        inner
-                            .get_persistent_task_type()
-                            .expect("a GC-deleted task must have a task type"),
-                    );
-                    return SnapshotItem::Delete {
-                        task_id,
-                        task_type_hash,
-                    };
-                } else {
-                    debug_assert!(
-                        !inner.gc_collectible(),
-                        "tasks scheduled for persistent must not be collectible, this implies a \
-                         missed task during GC"
-                    );
-                }
-            } else {
-                debug_assert!(
-                    !inner.flags.deleted(),
-                    "Deleted flags should only be set by GC and it is disabled"
-                )
-            }
-
-            let encode_meta = inner.flags.meta_modified();
-            let encode_data = inner.flags.data_modified();
+            let item = encode_snapshot_item(task_id, inner, self.gc_enabled, buffer)
+                .unwrap_or_else(|err| {
+                    panic!(
+                        "Serializing task {} failed: {:?}",
+                        self.debug_get_task_description(task_id),
+                        err
+                    )
+                });
 
             #[cfg(feature = "print_cache_item_size")]
-            if encode_data || encode_meta {
-                task_cache_stats
-                    .lock()
-                    .entry(TaskCacheStats::task_name(inner))
-                    .or_default()
-                    .add_counts(inner);
+            if let crate::backing_storage::SnapshotItem::Put { meta, data, .. } = &item
+                && (meta.is_some() || data.is_some())
+            {
+                let mut stats = task_cache_stats.lock();
+                let entry = stats.entry(TaskCacheStats::task_name(inner)).or_default();
+                entry.add_counts(inner);
+                if let Some(meta) = meta {
+                    entry.add_meta(meta);
+                }
+                if let Some(data) = data {
+                    entry.add_data(data);
+                }
             }
 
-            let meta = if encode_meta {
-                encode_category(task_id, inner, SpecificTaskDataCategory::Meta, buffer)
-            } else {
-                None
-            };
-
-            let data = if encode_data {
-                encode_category(task_id, inner, SpecificTaskDataCategory::Data, buffer)
-            } else {
-                None
-            };
-            let task_type_hash = if inner.flags.new_task() {
-                let task_type = inner.get_persistent_task_type().expect(
-                    "It is not possible for a new_task to not have a persistent_task_type.  Task \
-                     creation for persistent tasks uses a single ExecutionContextImpl for \
-                     creating the task (which sets new_task) and connect_child (which sets \
-                     persistent_task_type) and take_snapshot waits for all operations to complete \
-                     before we start snapshotting.  So task creation will always set the \
-                     task_type.",
-                );
-                Some(compute_task_type_hash(task_type))
-            } else {
-                None
-            };
-
-            SnapshotItem::Put {
-                task_id,
-                meta,
-                data,
-                task_type_hash,
-            }
+            item
         };
 
         let task_snapshots =
@@ -3946,41 +3865,4 @@ fn far_future() -> Instant {
     // or convert specific date in the future to instant.
     // 1000 years overflows on macOS, 100 years overflows on FreeBSD.
     Instant::now() + Duration::from_secs(86400 * 365 * 30)
-}
-
-/// Encodes task data, using the provided buffer as a scratch space.  Returns a new exactly sized
-/// buffer.
-/// This allows reusing the buffer across multiple encode calls to optimize allocations and
-/// resulting buffer sizes.
-///
-/// TODO: The `Result` return type is an artifact of the bincode `Encode` trait requiring
-/// fallible encoding. In practice, encoding to a `SmallVec` is infallible (no I/O), and the only
-/// real failure mode — a `TypedSharedReference` whose value type has no bincode impl — is a
-/// programmer error caught by the panic in the caller. Consider making the bincode encoding trait
-/// infallible (i.e. returning `()` instead of `Result<(), EncodeError>`) to eliminate the
-/// spurious `Result` threading throughout the encode path.
-fn encode_task_data(
-    task: TaskId,
-    data: &TaskStorage,
-    category: SpecificTaskDataCategory,
-    scratch_buffer: &mut TurboBincodeBuffer,
-) -> Result<TurboBincodeBuffer> {
-    scratch_buffer.clear();
-    let mut encoder = new_turbo_bincode_encoder(scratch_buffer);
-    data.encode(category, &mut encoder)?;
-
-    if cfg!(feature = "verify_serialization") {
-        TaskStorage::new()
-            .decode(
-                category,
-                &mut new_turbo_bincode_decoder(&scratch_buffer[..]),
-            )
-            .with_context(|| {
-                format!(
-                    "expected to be able to decode serialized data for '{category:?}' information \
-                     for {task}"
-                )
-            })?;
-    }
-    Ok(SmallVec::from_slice(scratch_buffer))
 }
