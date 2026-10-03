@@ -11,12 +11,24 @@ pub fn memory_footprint() -> Option<usize> {
 
 #[cfg(all(target_os = "linux", not(target_family = "wasm")))]
 mod platform {
+    use std::sync::LazyLock;
+
+    static PAGE_SIZE: LazyLock<Option<usize>> = LazyLock::new(|| {
+        // Safety: `sysconf` is thread-safe and never accesses memory through
+        // its argument.
+        let value = unsafe { libc::sysconf(libc::_SC_PAGESIZE) };
+        if value <= 0 {
+            return None;
+        }
+        usize::try_from(value).ok()
+    });
+
     /// Reads `/proc/self/statm` and returns the resident set size in bytes
     /// (the second whole number, multiplied by the system page size).
     pub fn memory_footprint() -> Option<usize> {
         let content = std::fs::read_to_string("/proc/self/statm").ok()?;
         let resident_pages = parse_resident_pages(&content)?;
-        let page_size = page_size()?;
+        let page_size = (*PAGE_SIZE)?;
         resident_pages.checked_mul(page_size)
     }
 
@@ -27,16 +39,6 @@ mod platform {
         let _size = iter.next()?;
         let resident = iter.next()?;
         resident.parse().ok()
-    }
-
-    fn page_size() -> Option<usize> {
-        // Safety: `sysconf` is thread-safe and never accesses memory through
-        // its argument.
-        let value = unsafe { libc::sysconf(libc::_SC_PAGESIZE) };
-        if value <= 0 {
-            return None;
-        }
-        usize::try_from(value).ok()
     }
 
     #[cfg(test)]
@@ -62,41 +64,29 @@ mod platform {
 
 #[cfg(target_os = "macos")]
 mod platform {
-    use std::mem::size_of;
-
-    /// Reads `task_vm_info_data_t::phys_footprint` for the current task. This
-    /// is what Apple calls the "memory footprint" of a process and is the
-    /// value reported in Activity Monitor's "Memory" column.
+    /// Reads `rusage_info_v0::ri_phys_footprint` for the current process via
+    /// `proc_pid_rusage`. This is what Apple calls the "memory footprint" of
+    /// a process and is the value reported in Activity Monitor's "Memory"
+    /// column.
     pub fn memory_footprint() -> Option<usize> {
-        let mut info = std::mem::MaybeUninit::<libc::task_vm_info_data_t>::zeroed();
-        let mut count: libc::mach_msg_type_number_t = libc::TASK_VM_INFO_COUNT;
-        // Safety: `mach_task_self` is a thread-safe accessor for the current
-        // task port. `task_info` writes up to `count` 32-bit words into our
-        // properly sized and zero-initialized `task_vm_info_data_t` buffer.
-        let kr = unsafe {
-            libc::task_info(
-                libc::mach_task_self(),
-                libc::TASK_VM_INFO,
-                info.as_mut_ptr() as libc::task_info_t,
-                &mut count,
+        let mut info = std::mem::MaybeUninit::<libc::rusage_info_v0>::zeroed();
+        // Safety: `proc_pid_rusage` writes a `rusage_info_v0` into the buffer
+        // when called with `RUSAGE_INFO_V0`. `getpid` is always safe and
+        // returns the current process id.
+        let rc = unsafe {
+            libc::proc_pid_rusage(
+                libc::getpid(),
+                libc::RUSAGE_INFO_V0,
+                info.as_mut_ptr() as *mut libc::rusage_info_t,
             )
         };
-        if kr != libc::KERN_SUCCESS {
+        if rc != 0 {
             return None;
         }
-        // `phys_footprint` is filled in only when at least
-        // `TASK_VM_INFO_REV1_COUNT` words are returned. Guard against older
-        // kernels that return a smaller struct.
-        if (count as usize) * size_of::<libc::integer_t>()
-            < std::mem::offset_of!(libc::task_vm_info_data_t, phys_footprint) + size_of::<u64>()
-        {
-            return None;
-        }
-        // Safety: `task_info` returned `KERN_SUCCESS` and wrote at least
-        // through `phys_footprint`, so the struct is initialized through that
-        // field.
+        // Safety: `proc_pid_rusage` returned success, so the buffer is
+        // initialized.
         let info = unsafe { info.assume_init() };
-        usize::try_from(info.phys_footprint).ok()
+        usize::try_from(info.ri_phys_footprint).ok()
     }
 }
 
