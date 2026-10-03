@@ -56,7 +56,7 @@ yarn create next-app --example cms-tina cms-tina-app
 pnpm create next-app --example cms-tina cms-tina-app
 ```
 
-### Setp 1. Run Next.js in development mode
+### Step 1. Run Next.js in development mode
 
 To get started, no configuration is needed for local development and editing.
 
@@ -80,7 +80,7 @@ You can then select the collection "Blog Posts" and then the content you would l
 
 Once you hit save, Tina will use our graphQL modify the content on your filesystem.
 
-### Step 4. Deploy on Vercel
+### Step 3. Deploy on Vercel
 
 You can deploy this app to the cloud with [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
