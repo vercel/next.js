@@ -26,6 +26,12 @@ import {
   TableSkeleton,
   TreemapSkeleton,
 } from '@/components/ui/skeleton'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { AnalyzeData, ModulesData } from '@/lib/analyze-data'
 import {
   analyzeDataUrl,
@@ -34,14 +40,18 @@ import {
   useHistoryIndex,
   useSuspenseJsonData,
 } from '@/lib/analyzer-data'
-import { diffRoutesWithSizes, diffSources } from '@/lib/diff'
-import { useRouteTotals } from '@/lib/use-route-totals'
+import { diffRoutesWithSizes, diffSources, type RouteSummary } from '@/lib/diff'
 import { useSidebarResize } from '@/lib/use-sidebar-resize'
 import { useAnalyzerRoute } from '@/lib/use-analyzer-route'
-import { computeActiveEntries, computeModuleDepthMap } from '@/lib/module-graph'
+import {
+  computeActiveEntries,
+  computeModuleDepthMap,
+  computeSourceLoadScopes,
+} from '@/lib/module-graph'
 import type { SnapshotMetadata } from '@/lib/snapshot'
+import { NetworkError } from '@/lib/errors'
 import { formatBytes } from '@/lib/utils'
-import { SizeMode } from '@/lib/treemap-layout'
+import { createAnalyzeTreemapSource, SizeMode } from '@/lib/treemap-layout'
 
 export function SingleAnalyzer() {
   return (
@@ -58,7 +68,7 @@ function SingleAnalyzerController() {
 
 export function CompareAnalyzer() {
   return (
-    <AnalyzerBoundary defaultView={CompareView.Table}>
+    <AnalyzerBoundary defaultView={CompareView.Treemap}>
       <CompareAnalyzerController />
     </AnalyzerBoundary>
   )
@@ -72,12 +82,14 @@ function CompareAnalyzerController() {
 function AnalyzerBoundary({
   children,
   defaultView,
+  fallback,
 }: {
   children: ReactNode
   defaultView: CompareView
+  fallback?: ReactNode
 }) {
   return (
-    <Suspense fallback={<AnalyzerFallback view={defaultView} />}>
+    <Suspense fallback={fallback ?? <AnalyzerFallback view={defaultView} />}>
       {children}
     </Suspense>
   )
@@ -88,6 +100,9 @@ function AnalyzerFallback({ view }: { view: CompareView }) {
 }
 
 function useAnalyzerModel(compare: boolean) {
+  // Read the URL before suspense data so static prerendering can bail out.
+  useSearchParams()
+  const [routePickerOpen, setRoutePickerOpen] = useState(false)
   const [selectedSourceIndex, setSelectedSourceIndex] = useState<number | null>(
     null
   )
@@ -95,8 +110,20 @@ function useAnalyzerModel(compare: boolean) {
     null
   )
 
-  const { data: history, isLoading: isHistoryLoading } = useHistoryIndex()
-  const routeState = useAnalyzerRoute(compare, history?.snapshots)
+  const {
+    data: history,
+    isLoading: isHistoryLoading,
+    error: historyError,
+  } = useHistoryIndex()
+  const latestSnapshot = useSuspenseJsonData<SnapshotMetadata>(
+    '/data/metadata.json',
+    { revalidateOnFocus: false, revalidateOnReconnect: false }
+  )
+  const routeState = useAnalyzerRoute(
+    compare,
+    history?.snapshots,
+    latestSnapshot
+  )
   const {
     baselineSnapshot,
     comparisonSnapshot,
@@ -130,17 +157,14 @@ function useAnalyzerModel(compare: boolean) {
 
   const activeView = pendingView ?? compareView
   const isViewPending = pendingView != null && pendingView !== compareView
-  const comparisonBaseDir = comparisonSnapshot
-    ? `/history/${comparisonSnapshot.id}`
-    : '/data'
+  const comparisonBaseDir = routeState.activeBaseDir
   const { data: modulesData } = useSWR(
     `${comparisonBaseDir}/modules.data`,
     fetchModulesData,
     { suspense: true }
   )
 
-  // Routes for comparison side B. This is the live build by default, or an
-  // independently selected historical snapshot.
+  // Routes for the active build, which is also comparison side B.
   const currentRoutes = useSuspenseJsonData<string[]>(
     `${comparisonBaseDir}/routes.json`,
     { revalidateOnFocus: false, revalidateOnReconnect: false }
@@ -184,12 +208,13 @@ function useAnalyzerModel(compare: boolean) {
   const [compareSelectedKey, setCompareSelectedKey] = useState<string | null>(
     null
   )
+  const [initialLoaded, setInitialLoaded] = useState(false)
 
   // Reset compare selection when the route or either side changes — the
   // previous selection is unlikely to exist in the new diff.
   useEffect(() => {
     setCompareSelectedKey(null)
-  }, [selectedRoute, baselineSnapshot, comparisonSnapshot])
+  }, [selectedRoute, routeState.fromId, routeState.toId])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -216,11 +241,20 @@ function useAnalyzerModel(compare: boolean) {
 
   // React Compiler currently skips this hook. Keep the graph traversal cached
   // across selection and filter updates until that bailout is resolved.
-  const moduleDepthMap = useMemo(() => {
-    if (!analyzeData) return new Map()
+  const { moduleDepthMap, sourceLoadScopes } = useMemo(() => {
+    if (!analyzeData) {
+      return { moduleDepthMap: new Map(), sourceLoadScopes: new Map() }
+    }
 
     const activeEntries = computeActiveEntries(modulesData, analyzeData)
-    return computeModuleDepthMap(modulesData, activeEntries)
+    return {
+      moduleDepthMap: computeModuleDepthMap(modulesData, activeEntries),
+      sourceLoadScopes: computeSourceLoadScopes(
+        modulesData,
+        analyzeData,
+        activeEntries
+      ),
+    }
   }, [modulesData, analyzeData])
 
   // This hook isn't compiled; stable predicate identity keeps the source diff
@@ -243,9 +277,20 @@ function useAnalyzerModel(compare: boolean) {
         (typeFilter.includes('json') && flags.json) ||
         (typeFilter.includes('asset') && flags.asset)
 
-      return hasEnvironment && hasType
+      const hasLoadScope =
+        !initialLoaded ||
+        sourceLoadScopes.get(sourceIndex) === 'initial' ||
+        sourceLoadScopes.get(sourceIndex) === 'mixed'
+
+      return hasEnvironment && hasType && hasLoadScope
     }
-  }, [analyzeData, environmentFilter, typeFilter])
+  }, [
+    analyzeData,
+    environmentFilter,
+    initialLoaded,
+    sourceLoadScopes,
+    typeFilter,
+  ])
 
   // In single-build (non-compare) mode the table view still wants a list
   // of every source for the current route. We synthesize this by diffing
@@ -260,30 +305,65 @@ function useAnalyzerModel(compare: boolean) {
     })
   }, [analyzeData, baselineSnapshot, filterSource])
 
-  // Per-route totals for both sides, used to size the route-level diff so
-  // that routes whose modules changed can be reported as `changed` rather
-  // than `identical`. Only fetched in compare mode.
-  const { totals: currentRouteTotals } = useRouteTotals(
-    baselineSnapshot ? currentRoutes : null,
-    baselineSnapshot ? comparisonBaseDir : null
+  const routeSummaries = useSuspenseJsonData<RouteSummary[]>(
+    `${comparisonBaseDir}/route-summaries.json`,
+    { revalidateOnFocus: false, revalidateOnReconnect: false }
+  )
+  const clientRouteTotals = new Map(
+    routeSummaries.map(({ route, client }) => [
+      route,
+      { size: client.size, compressedSize: client.compressed_size },
+    ])
+  )
+  const serverRouteTotals = new Map(
+    routeSummaries.map(({ route, size, compressed_size, client }) => [
+      route,
+      {
+        size: size - client.size,
+        compressedSize: compressed_size - client.compressed_size,
+      },
+    ])
+  )
+  const currentRouteTotals = new Map(
+    routeSummaries.map(({ route, size, compressed_size }) => [
+      route,
+      { size, compressedSize: compressed_size },
+    ])
   )
   return {
     analyzeData,
     baselineSnapshot,
+    baselineIsLatest: compare && routeState.fromId === 'latest',
     compareSelectedKey,
     compareView: activeView,
     comparisonSnapshot,
+    historySnapshots: history?.snapshots ?? [],
+    historyError: historyError instanceof NetworkError,
+    invalidComparison: routeState.invalidComparison,
+    latestSnapshot,
+    isCompareMode: compare,
+    singleBuildId: routeState.singleBuildId,
+    singleSnapshot: routeState.singleSnapshot,
+    fromId: routeState.fromId,
+    toId: routeState.toId,
+    activeBaseDir: routeState.activeBaseDir,
     currentRoutes,
+    routePickerOpen,
+    setRoutePickerOpen,
     environmentFilter,
     filterSource,
     focusedSourceIndex,
     hoveredNodeInfo,
+    initialLoaded,
     isHistoryLoading,
     isMouseInTreemap,
     isViewPending,
     moduleDepthMap,
+    sourceLoadScopes,
     modulesData,
     currentRouteTotals,
+    clientRouteTotals,
+    serverRouteTotals,
     searchQuery: searchInput,
     selectedRoute,
     selectedSourceIndex,
@@ -295,6 +375,7 @@ function useAnalyzerModel(compare: boolean) {
     setEnvironmentFilter: routeState.setEnvironmentFilter,
     setFocusedSourceIndex,
     setHoveredNodeInfo,
+    setInitialLoaded,
     setIsMouseInTreemap,
     setSearchQuery: setSearchInput,
     setSelectedSourceIndex,
@@ -341,6 +422,9 @@ function AnalyzerTopBar({
       compareView={model.compareView}
       onCompareViewChange={model.setCompareView}
       selectedRoute={model.selectedRoute}
+      routePickerOpen={model.routePickerOpen}
+      onRoutePickerOpenChange={model.setRoutePickerOpen}
+      getRouteHref={model.routeState.getRouteHref}
       setSelectedRoute={model.routeState.setRoute}
       environmentFilter={model.environmentFilter}
       setEnvironmentFilter={model.setEnvironmentFilter}
@@ -350,14 +434,25 @@ function AnalyzerTopBar({
       setTypeFilter={model.setTypeFilter}
       searchQuery={model.searchQuery}
       setSearchQuery={model.setSearchQuery}
-      baselineSnapshot={model.baselineSnapshot}
-      onBaselineChange={(snapshot) => {
-        if (snapshot) model.routeState.startComparison(snapshot)
-        else model.routeState.stopComparison()
-      }}
-      comparisonSnapshot={model.comparisonSnapshot}
-      onComparisonChange={model.routeState.setComparisonSnapshot}
+      isCompareMode={model.isCompareMode}
+      historySnapshots={model.historySnapshots}
+      historyLoading={model.isHistoryLoading}
+      historyError={model.historyError}
+      latestSnapshot={model.latestSnapshot}
+      singleBuildId={model.singleBuildId}
+      fromId={model.fromId}
+      toId={model.toId}
+      onSingleBuildChange={model.routeState.setSingleBuild}
+      onComparisonChange={model.routeState.setComparison}
+      routesBaseDir={model.activeBaseDir}
       routeDiff={routeDiff}
+      routeTotals={
+        model.environmentFilter === Environment.Client
+          ? model.clientRouteTotals
+          : model.serverRouteTotals
+      }
+      initialLoaded={model.initialLoaded}
+      onInitialLoadedChange={model.setInitialLoaded}
     />
   )
 }
@@ -372,12 +467,17 @@ function CompareAnalyzerView({ model }: { model: AnalyzerModel }) {
       </AnalyzerFrame>
     )
   }
-  if (model.baselineSnapshot) return <ValidComparison model={model} />
+  if (
+    model.baselineSnapshot &&
+    !model.invalidComparison &&
+    model.fromId !== (model.toId ?? 'latest')
+  )
+    return <ValidComparison model={model} />
 
   return (
     <AnalyzerFrame topBar={<AnalyzerTopBar model={model} />}>
       <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-        The baseline snapshot in this URL is unavailable.
+        The builds in this URL are unavailable or identical.
       </div>
     </AnalyzerFrame>
   )
@@ -399,7 +499,9 @@ function ValidComparisonContent({
   model: AnalyzerModel
   baselineSnapshot: SnapshotMetadata
 }) {
-  const baselineBaseDir = `/history/${baselineSnapshot.id}`
+  const baselineBaseDir = model.baselineIsLatest
+    ? '/data'
+    : `/history/${baselineSnapshot.id}`
   const { data: baselineModulesData } = useSWR(
     `${baselineBaseDir}/modules.data`,
     fetchModulesData,
@@ -413,20 +515,25 @@ function ValidComparisonContent({
     `${baselineBaseDir}/routes.json`,
     { revalidateOnFocus: false, revalidateOnReconnect: false }
   )
-  const { totals: baselineRouteTotals } = useRouteTotals(
-    baselineRoutes,
-    baselineBaseDir
+  const baselineRouteSummaries = useSuspenseJsonData<RouteSummary[]>(
+    `${baselineBaseDir}/route-summaries.json`,
+    { revalidateOnFocus: false, revalidateOnReconnect: false }
   )
-  const routeDiff = model.currentRouteTotals
-    ? diffRoutesWithSizes(
-        baselineRoutes,
-        model.currentRoutes,
-        baselineRouteTotals,
-        model.currentRouteTotals
-      )
-    : null
+  const baselineRouteTotals = new Map(
+    baselineRouteSummaries.map(({ route, size, compressed_size }) => [
+      route,
+      { size, compressedSize: compressed_size },
+    ])
+  )
+  const routeDiff = diffRoutesWithSizes(
+    baselineRoutes,
+    model.currentRoutes,
+    baselineRouteTotals,
+    model.currentRouteTotals
+  )
   const layoutProps = {
     baselineSnapshot,
+    baselineIsLatest: model.baselineIsLatest,
     comparisonSnapshot: model.comparisonSnapshot,
     comparisonRouteCount: model.currentRoutes.length,
     routeDiff,
@@ -491,6 +598,7 @@ function BaselineRouteComparison({
 type ComparisonLayoutProps = Pick<
   CompareLayoutModel,
   | 'baselineSnapshot'
+  | 'baselineIsLatest'
   | 'comparisonSnapshot'
   | 'comparisonRouteCount'
   | 'routeDiff'
@@ -561,6 +669,7 @@ function ComparisonContent({
     isViewPending: model.isViewPending,
     selectedKey: model.compareSelectedKey,
     onSelectedKeyChange: model.setCompareSelectedKey,
+    onOpenRoutePicker: () => model.setRoutePickerOpen(true),
   }
 
   return (
@@ -569,10 +678,32 @@ function ComparisonContent({
 }
 
 function SingleAnalyzerView({ model }: { model: AnalyzerModel }) {
+  if (model.singleBuildId && model.isHistoryLoading) {
+    return (
+      <AnalyzerFrame topBar={<AnalyzerTopBar model={model} />}>
+        <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+          Loading build…
+        </div>
+      </AnalyzerFrame>
+    )
+  }
+  if (model.singleBuildId && !model.singleSnapshot && !model.isHistoryLoading) {
+    return (
+      <AnalyzerFrame topBar={<AnalyzerTopBar model={model} />}>
+        <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+          The build in this URL is unavailable.
+        </div>
+      </AnalyzerFrame>
+    )
+  }
   const analyzeData = model.analyzeData
   const content = analyzeData ? (
     <SingleAnalyzerContent model={model} analyzeData={analyzeData} />
-  ) : null
+  ) : (
+    <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+      Select a route to analyze.
+    </div>
+  )
 
   const footer =
     analyzeData && model.compareView === CompareView.Treemap ? (
@@ -593,7 +724,8 @@ function SingleAnalyzerContent({
   model: AnalyzerModel
   analyzeData: AnalyzeData
 }) {
-  const rootSourceIndex = getRootSourceIndex(analyzeData)
+  const source = createAnalyzeTreemapSource(analyzeData)
+  const rootSourceIndex = source.rootIndex
   const hasAlternateEnvironmentSources = hasEnvironmentSources(
     analyzeData,
     getAlternateEnvironment(model.environmentFilter),
@@ -615,6 +747,11 @@ function SingleAnalyzerContent({
             useCompressed
             nameHeading="Source"
             mode="single"
+            getLoadScope={(row) =>
+              row.sourceIndexB == null
+                ? 'unknown'
+                : (model.sourceLoadScopes.get(row.sourceIndexB) ?? 'unknown')
+            }
             searchQuery={model.searchQuery}
             emptyState={alternateEnvironmentEmptyState}
             onRowSelect={(row) => {
@@ -631,8 +768,7 @@ function SingleAnalyzerContent({
           </div>
         ) : (
           <TreemapVisualizer
-            analyzeData={analyzeData}
-            sourceIndex={rootSourceIndex}
+            source={source}
             selectedSourceIndex={model.selectedSourceIndex ?? rootSourceIndex}
             onSelectSourceIndex={model.setSelectedSourceIndex}
             focusedSourceIndex={model.focusedSourceIndex ?? rootSourceIndex}
@@ -643,6 +779,10 @@ function SingleAnalyzerContent({
             searchQuery={model.searchQuery}
             filterSource={model.filterSource}
             sizeMode={SizeMode.Compressed}
+            getFileLoadScope={(sourceIndex) =>
+              model.sourceLoadScopes.get(sourceIndex) ?? 'unknown'
+            }
+            overlay={<AsyncScopeLegend />}
           />
         )}
       </div>
@@ -662,6 +802,34 @@ function SingleAnalyzerContent({
         filterSource={model.filterSource}
       />
     </>
+  )
+}
+
+function AsyncScopeLegend() {
+  return (
+    <TooltipProvider>
+      <div className="absolute bottom-3 left-3 flex items-center gap-3 rounded border border-border bg-background/95 px-2.5 py-1.5 text-xs shadow-sm">
+        <span className="flex items-center gap-1.5">
+          <span className="h-3 w-3 border border-foreground/40 bg-[repeating-linear-gradient(135deg,transparent_0,transparent_3px,currentColor_3px,currentColor_4px)] text-foreground/45" />
+          Behind async boundary
+        </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              className="flex items-center gap-1.5 rounded-sm text-left focus-visible:outline-2 focus-visible:outline-offset-2"
+            >
+              <span className="relative h-3 w-3 border border-foreground/40 after:absolute after:right-0 after:top-0 after:h-0 after:w-0 after:border-l-[5px] after:border-t-[5px] after:border-l-transparent after:border-t-foreground/60" />
+              Initial + async paths
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="top">
+            This file is reachable both during the initial load and behind an
+            async boundary.
+          </TooltipContent>
+        </Tooltip>
+      </div>
+    </TooltipProvider>
   )
 }
 

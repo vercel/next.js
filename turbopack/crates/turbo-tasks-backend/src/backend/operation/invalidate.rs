@@ -35,24 +35,6 @@ pub fn invalidate(
     queue.execute(&mut ctx);
 }
 
-/// Marks a task dirty. The task must exist.
-pub fn make_task_dirty(
-    task_id: TaskId,
-    #[cfg(feature = "task_dirty_cause")] cause: TaskDirtyCause,
-    queue: &mut AggregationUpdateQueue,
-    ctx: &mut impl ExecuteContext<'_>,
-) {
-    let mut task = ctx.task(task_id, TaskDataCategory::All);
-    make_task_dirty_internal(
-        &mut task,
-        true,
-        #[cfg(feature = "task_dirty_cause")]
-        cause,
-        queue,
-        ctx,
-    );
-}
-
 /// Marks a task dirty, doing nothing if it no longer exists.
 ///
 /// Intended for invalidation usecases.

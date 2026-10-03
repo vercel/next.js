@@ -458,6 +458,7 @@ export const experimentalSchema = {
   turbopackInferModuleSideEffects: z.boolean().optional(),
   turbopackCjsTreeShaking: z.boolean().optional(),
   turbopackMangleExportNames: z.boolean().optional(),
+  turbopackMangleViaMaterializedNamespaceObject: z.boolean().optional(),
   turbopackCjsScopeHoisting: z.boolean().optional(),
   turbopackCrossModuleConstants: z.boolean().optional(),
   turbopackServerFastRefresh: z.boolean().optional(),
@@ -858,6 +859,13 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       z
         .object({
           compilationMode: z.enum(['infer', 'annotation', 'all']).optional(),
+          environment: z
+            .object({
+              enablePreserveExistingMemoizationGuarantees: z
+                .boolean()
+                .optional(),
+            })
+            .optional(),
           panicThreshold: z
             .enum(['none', 'critical_errors', 'all_errors'])
             .optional(),

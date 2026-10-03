@@ -359,6 +359,15 @@ export interface ReactCompilerOptions {
    * @see https://react.dev/reference/react-compiler/compilationMode
    */
   compilationMode?: 'infer' | 'annotation' | 'all'
+  environment?: {
+    /**
+     * Controls whether the React Compiler preserves existing memoization
+     * guarantees from `useMemo`, `useCallback`, and `React.memo`.
+     *
+     * When omitted, the installed React Compiler's default is used.
+     */
+    enablePreserveExistingMemoizationGuarantees?: boolean
+  }
   /**
    * Controls how the React Compiler handles errors during compilation.
    *
@@ -1092,6 +1101,16 @@ export interface ExperimentalConfig {
    * Defaults to `true` for production builds and `false` in development.
    */
   turbopackMangleExportNames?: boolean
+
+  /**
+   * Materialize namespace objects behind a facade so their local export keys can still be
+   * mangled. This can interfere with code that patches modules, since a module might be split
+   * into multiple parts.
+   *
+   * Defaults to `true` only when `turbopackMangleExportNames` is explicitly `true`; otherwise
+   * defaults to `false`, including when export mangling is enabled by default.
+   */
+  turbopackMangleViaMaterializedNamespaceObject?: boolean
 
   /**
    * Enable scope hoisting of static CommonJS modules.

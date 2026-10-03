@@ -33,16 +33,22 @@ if (__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
 
 __turbopack_context__.s([
     "INFINITY",
+    0,
     ()=>INFINITY,
     "LONG_BIG_NUMBER",
+    0,
     ()=>LONG_BIG_NUMBER,
     "LONG_NUMBER",
+    0,
     ()=>LONG_NUMBER,
     "LONG_STRING",
+    0,
     ()=>LONG_STRING,
     "NAN",
+    0,
     ()=>NAN,
     "REGEX",
+    0,
     ()=>REGEX
 ]);
 const LONG_STRING = 'abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789';

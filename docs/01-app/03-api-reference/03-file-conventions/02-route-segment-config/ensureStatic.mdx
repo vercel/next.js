@@ -58,6 +58,8 @@ The shell can include static or cached content and `<Suspense>` fallbacks. Reque
 
 For an individual subtree, [`await prefetch()`](/docs/app/api-reference/functions/prefetch) provides similar behavior by deferring code below the call to a per-link prefetch or navigation. Setting `'shell'` enforces that stage boundary across the route without adding `await prefetch()` to each request-specific subtree.
 
+> **Good to know**: `'shell'` only covers the App Shell. If the route reads `cookies()`, `headers()`, or URL data anywhere that is not below [`await navigation()`](/docs/app/api-reference/functions/navigation), each visible [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch) into it still renders its prefetch on the server, and the prefetched UI gives no sign of that work. Use [`'prefetch'`](#prefetch) when per-link prefetches must also come from static output.
+
 ### `'prefetch'`
 
 Requires both the App Shell and per-link prefetches to be static. This only works with [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching).
@@ -96,6 +98,8 @@ Data cached with `use cache` can be prerendered. [`prefetch()`](/docs/app/api-re
 With `'navigation'`, a dynamic route must export [`generateStaticParams()`](/docs/app/api-reference/functions/generate-static-params) and return at least one complete parameter set. Each result must include every dynamic parameter in the route, even if the parameter is unused or only read in a Client Component.
 
 Values returned by `generateStaticParams()` are available during prerendering. When a request uses a value that was not prerendered at build time, Next.js waits for the static result to be generated before serving it.
+
+With `'shell'` or `'prefetch'`, a value that was not prerendered serves the route's fallback shell instead, with `<Suspense>` fallbacks in place of its content, while Next.js generates the page in the background. See [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components#at-runtime).
 
 The build fails when `generateStaticParams()` is missing or returns an incomplete parameter set. See the [`generateStaticParams` error guide](/docs/messages/generate-static-params#with-ensurestatic).
 

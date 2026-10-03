@@ -4,6 +4,7 @@ import { existsSync, promises as fs, rmSync, readFileSync } from 'fs'
 import treeKill from 'tree-kill'
 import type { NextConfig } from 'next'
 import { FileRef, isNextDeploy, PatchedFileRef } from '../e2e-utils'
+import { getDeploymentTestEnvAssignments } from '../e2e-utils/deployment-test-env'
 import { ChildProcess } from 'child_process'
 import spawn from 'cross-spawn'
 import { quote as shellQuote } from 'shell-quote'
@@ -538,24 +539,12 @@ export class NextInstance {
           await fs.writeFile(
             fileName,
             `${content}\n` +
-              // Capture the test flag in the config so it does not need a
-              // deployment-compatible environment variable alias.
-              (process.env.__NEXT_CACHE_COMPONENTS
-                ? `process.env.__NEXT_CACHE_COMPONENTS = ${JSON.stringify(process.env.__NEXT_CACHE_COMPONENTS)}\n`
-                : '') +
+              getDeploymentTestEnvAssignments() +
               `
           // alias __NEXT_TEST_MODE for next-deploy as "_" is not a valid
           // env variable during deploy
           if (process.env.NEXT_PRIVATE_TEST_MODE) {
             process.env.__NEXT_TEST_MODE = process.env.NEXT_PRIVATE_TEST_MODE
-          }
-
-          // alias experimental feature flags for deployment compatibility
-          if (process.env.NEXT_PRIVATE_EXPERIMENTAL_PARTIAL_PREFETCHING) {
-            process.env.__NEXT_PARTIAL_PREFETCHING = process.env.NEXT_PRIVATE_EXPERIMENTAL_PARTIAL_PREFETCHING
-          }
-          if (process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHED_NAVIGATIONS) {
-            process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS = process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHED_NAVIGATIONS
           }
         `
           )

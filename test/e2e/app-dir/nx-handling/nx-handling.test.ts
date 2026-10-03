@@ -1,11 +1,21 @@
-import { nextTestSetup, isNextDev } from 'e2e-utils'
+import {
+  nextTestSetup,
+  isNextDev,
+  patchFileWithDeployEnvAssignments,
+} from 'e2e-utils'
+import path from 'path'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely controls the local Next.js build or server lifecycle.
-// @force-gate !deploy
 describe('nx-handling', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    overrideFiles: {
+      'apps/next-nx-test/next.config.js': patchFileWithDeployEnvAssignments(
+        path.join(__dirname, 'apps/next-nx-test/next.config.js')
+      ),
+    },
+    env: {
+      ENABLE_EXPERIMENTAL_COREPACK: '1',
+    },
     buildCommand: 'pnpm run build',
     startCommand: isNextDev ? 'pnpm run dev' : 'pnpm run start',
     packageJson: {

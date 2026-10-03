@@ -645,6 +645,23 @@ function assignDefaultsAndValidate(
     )
   }
 
+  // TODO: Before Next.js 17, also warn when `partialPrefetching` is `false`
+  // so apps can migrate before both features are enabled together by default.
+  if (
+    result.cacheComponents &&
+    result.partialPrefetching === undefined &&
+    !silent
+  ) {
+    Log.warnOnce(
+      [
+        '`cacheComponents` is enabled without a corresponding `partialPrefetching` option. Set `partialPrefetching` to either `true` or `false`.',
+        "The only reason to set `partialPrefetching` to `false` is if you're migrating an older Cache Components app. The initial release of Cache Components did not include Partial Prefetching. New projects should enable both Cache Components and Partial Prefetching.",
+        'Both Cache Components and Partial Prefetching will be enabled everywhere in the next major release, and the old configurations will be removed.',
+        'Learn more: https://nextjs.org/docs/app/guides/adopting-partial-prefetching',
+      ].join('\n\n')
+    )
+  }
+
   if (result.experimental.ppr) {
     throw new HardDeprecatedConfigError(
       `\`experimental.ppr\` has been merged into \`cacheComponents\`. The Partial Prerendering feature is still available, but is now enabled via \`cacheComponents\`. Please update your ${configFileName} accordingly.`
