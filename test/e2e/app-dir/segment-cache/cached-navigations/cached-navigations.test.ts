@@ -1177,6 +1177,114 @@ describe('cached navigations', () => {
     )
   })
 
+  it('reuses the shell of a complete prerender after navigation', async () => {
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      async beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page)
+
+    // Navigate to /complete-prerender-shell/foo, which is served as a complete
+    // prerender. The response is itself a prefetch response, so its shell is
+    // written into the cache, and the shell doesn't depend on the slug.
+    await act(
+      async () => {
+        await browser
+          .elementByCss('a[href="/complete-prerender-shell/foo"]')
+          .click()
+      },
+      { includes: 'Param: foo' }
+    )
+    expect(await browser.elementById('params-boundary').text()).toContain(
+      'Param: foo'
+    )
+
+    // Click the bar link. The page segment's shell should be reused from
+    // cache, so the Suspense fallback for params should appear instantly.
+    await act(async () => {
+      await act(
+        async () => {
+          await browser
+            .elementByCss('a[href="/complete-prerender-shell/bar"]')
+            .click()
+        },
+        {
+          includes: 'Param: bar',
+          block: true,
+        }
+      )
+
+      expect(await browser.elementById('cached-content').text()).toContain(
+        'Cached content'
+      )
+      expect(await browser.elementById('params-boundary').text()).toBe(
+        'Loading params...'
+      )
+    })
+
+    // After unblocking, the new param should be visible
+    expect(await browser.elementById('params-boundary').text()).toContain(
+      'Param: bar'
+    )
+  })
+
+  it('reuses the shell of a complete prerender after initial HTML load', async () => {
+    let page: Playwright.Page
+    // Start directly at /complete-prerender-shell/foo — full HTML load of a
+    // complete prerender. Its shell is cut from the initial Flight stream and
+    // written into the cache.
+    const browser = await next.browser('/complete-prerender-shell/foo', {
+      async beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page)
+
+    expect(await browser.elementById('params-boundary').text()).toContain(
+      'Param: foo'
+    )
+
+    // Wait for a real request first, so the hydration-time write has finished.
+    await act(
+      async () => {
+        await browser
+          .elementByCss('a[href="/complete-prerender-shell"]')
+          .click()
+      },
+      { includes: 'Complete prerender shell hub' }
+    )
+
+    // Click the bar link. The page segment's shell should be reused from the
+    // cache seeded by the initial HTML load.
+    await act(async () => {
+      await act(
+        async () => {
+          await browser
+            .elementByCss('a[href="/complete-prerender-shell/bar"]')
+            .click()
+        },
+        {
+          includes: 'Param: bar',
+          block: true,
+        }
+      )
+
+      expect(await browser.elementById('cached-content').text()).toContain(
+        'Cached content'
+      )
+      expect(await browser.elementById('params-boundary').text()).toBe(
+        'Loading params...'
+      )
+    })
+
+    // After unblocking, the new param should be visible
+    expect(await browser.elementById('params-boundary').text()).toContain(
+      'Param: bar'
+    )
+  })
+
   it('does not reuse anything from a draft mode HTML load', async () => {
     let page: Playwright.Page
     const browser = await next.browser(

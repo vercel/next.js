@@ -19,12 +19,16 @@ import type { NormalizedSearch } from '../segment-cache/cache-key'
 export interface InitialRouterStateParameters {
   navigatedAt: number
   initialRSCPayload: InitialRSCPayload
+  // The initial Flight stream's bytes, when they were kept, so a shell can be
+  // cut from them. Null otherwise.
+  initialRSCPayloadChunks: Array<Uint8Array> | null
   location: Location | null
 }
 
 export function createInitialRouterState({
   navigatedAt,
   initialRSCPayload,
+  initialRSCPayloadChunks,
   location,
 }: InitialRouterStateParameters): AppRouterState {
   const {
@@ -36,6 +40,7 @@ export function createInitialRouterState({
     s: initialStaleTime,
     u: initialRuntimeDataAccessed,
     r: initialRootVaryParams,
+    a: initialShellByteLength,
     p: initialRuntimePrefetchStream,
     d: initialDynamicStaleTimeSeconds,
   } = initialRSCPayload
@@ -119,10 +124,6 @@ export function createInitialRouterState({
       false // hasDynamicRewrite
     )
 
-    // TODO: Implement Shell extraction as part of Cached Navigations.
-    // Intentionally holding off on doing this until we decide how the Cached
-    // Navigations behavior should work in combination with App Shells.
-
     // Write the prefetch response the initial payload carries into the
     // segment cache, so later navigations to the initial page can be served
     // from the cache. It reuses the payload hydration already decoded, rather
@@ -141,10 +142,12 @@ export function createInitialRouterState({
         t: initialTransportData,
         r: initialRootVaryParams,
         s: initialStaleTime,
+        a: initialShellByteLength,
         p: initialRuntimePrefetchStream,
       },
       initialStaleTime === undefined ||
         initialRuntimeDataAccessed === undefined,
+      initialRSCPayloadChunks,
       initialTree,
       initialRenderedSearch,
       segmentCacheMap // hydration writes are bound to the shared map

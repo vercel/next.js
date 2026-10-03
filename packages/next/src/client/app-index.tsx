@@ -55,6 +55,21 @@ let initialServerDataWriter: ReadableStreamDefaultController | undefined =
 let initialServerDataLoaded = false
 let initialServerDataFlushed = false
 
+// With Cached Navigations, the initial Flight stream's bytes are kept as
+// they're handed to React, so hydration can cut a shell from them. Only when
+// hydration decodes this stream, not a fetched payload.
+// Chunks are recorded until the stream is flushed; hydration takes its own
+// reference. Each drops its reference when it's done.
+let initialServerDataChunks: Array<Uint8Array> | null =
+  process.env.__NEXT_CACHE_COMPONENTS &&
+  process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS &&
+  !instantTestStaticFetch &&
+  // @ts-expect-error
+  !window.__NEXT_CLIENT_RESUME
+    ? []
+    : null
+let initialServerDataChunksForHydration = initialServerDataChunks
+
 let initialFormStateData: null | any = null
 
 type FlightSegment =
@@ -85,10 +100,14 @@ function nextServerDataCallback(seg: FlightSegment): void {
     if (!initialServerDataBuffer)
       throw new Error('Unexpected server data: missing bootstrap script.')
 
+    const chunk = encoder.encode(seg[1])
+    if (initialServerDataChunks !== null) {
+      initialServerDataChunks.push(chunk)
+    }
     if (initialServerDataWriter) {
-      initialServerDataWriter.enqueue(encoder.encode(seg[1]))
+      initialServerDataWriter.enqueue(chunk)
     } else {
-      initialServerDataBuffer.push(seg[1])
+      initialServerDataBuffer.push(chunk)
     }
   } else if (seg[0] === 2) {
     initialFormStateData = seg[1]
@@ -101,6 +120,9 @@ function nextServerDataCallback(seg: FlightSegment): void {
     const decodedChunk = new Uint8Array(binaryString.length)
     for (var i = 0; i < binaryString.length; i++) {
       decodedChunk[i] = binaryString.charCodeAt(i)
+    }
+    if (initialServerDataChunks !== null) {
+      initialServerDataChunks.push(decodedChunk)
     }
 
     if (initialServerDataWriter) {
@@ -149,6 +171,7 @@ function nextServerDataRegisterWriter(ctr: ReadableStreamDefaultController) {
       }
       initialServerDataFlushed = true
       initialServerDataBuffer = undefined
+      initialServerDataChunks = null
     }
   }
 
@@ -161,6 +184,7 @@ const DOMContentLoaded = function () {
     initialServerDataWriter.close()
     initialServerDataFlushed = true
     initialServerDataBuffer = undefined
+    initialServerDataChunks = null
   }
   initialServerDataLoaded = true
 }
@@ -362,10 +386,13 @@ export async function hydrate(
   initializeRouterTransitionModules(instrumentationModules)
 
   const initialTimestamp = Date.now()
+  const initialRSCPayloadChunks = initialServerDataChunksForHydration
+  initialServerDataChunksForHydration = null
   const actionQueue: AppRouterActionQueue = createMutableActionQueue(
     createInitialRouterState({
       navigatedAt: initialTimestamp,
       initialRSCPayload,
+      initialRSCPayloadChunks,
       location: window.location,
     })
   )

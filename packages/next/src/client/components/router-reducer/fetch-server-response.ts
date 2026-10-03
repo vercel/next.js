@@ -76,6 +76,11 @@ type SpaFetchServerResponseResult = {
    * segment cache by `writeNavigationResponseIntoCache`.
    */
   flightResponse: NavigationFlightResponse
+  /**
+   * The response's bytes, when they were kept, so a shell can be cut from
+   * them. Null otherwise.
+   */
+  responseChunks: Array<Uint8Array> | null
   debugInfo: Array<any> | null
   /**
    * Dev only: resolves once the server has flushed the shell-stage content to
@@ -177,6 +182,13 @@ export async function fetchServerResponse(
     }
 
     const responsePromise = createFetch(url, headers, 'auto', options.signal)
+    // With Cached Navigations, the response's bytes are kept as they're
+    // decoded, so a shell can be cut from them.
+    const responseChunks: Array<Uint8Array> | null =
+      process.env.__NEXT_CACHE_COMPONENTS &&
+      process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS
+        ? []
+        : null
     // Start decoding before the response arrives, so React DevTools can show
     // the latency from the client to the server. Navigations only ever receive
     // live-render responses (per-segment prefetch responses, which omit some
@@ -192,7 +204,8 @@ export async function fetchServerResponse(
         process.env.__NEXT_DEV_SERVER &&
           process.env.__NEXT_SERVER_COMPONENTS_HMR_CANCELLATION
           ? options.signal
-          : undefined
+          : undefined,
+        responseChunks
       )
     const res = await responsePromise
 
@@ -281,6 +294,7 @@ export async function fetchServerResponse(
       dynamicStaleTime: flightResponse.d ?? UnknownDynamicStaleTime,
       isResponsePartial: res.isPartial,
       flightResponse,
+      responseChunks: res.isPartial ? null : responseChunks,
       debugInfo: flightResponsePromise._debugInfo ?? null,
       revealAfter: flightResponse._revealAfter ?? null,
     }
@@ -429,10 +443,16 @@ export function decodeBufferedResponse<T>(
 function decodeNavigationResponse<T>(
   responsePromise: Promise<RSCResponse>,
   headers: RequestHeaders,
-  signal: AbortSignal | undefined
+  signal: AbortSignal | undefined,
+  // When not null, each chunk is also kept here as it's decoded, unless the
+  // response is partial: only a complete prerender's shell is cut from them.
+  // TODO: Temporary. Decide from the response itself once it says whether
+  // it's a complete prerender.
+  responseChunks: Array<Uint8Array> | null
 ): Promise<T> & { _debugInfo?: Array<any> } {
   let closed = false
   let reader: ReadableStreamDefaultReader<Uint8Array> | null = null
+  let chunks: Array<Uint8Array> | null = null
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
       if (signal === undefined) {
@@ -489,6 +509,7 @@ function decodeNavigationResponse<T>(
           return
         }
         reader = body.getReader()
+        chunks = response.isPartial ? null : responseChunks
       }
       try {
         const { done, value } = await reader.read()
@@ -498,6 +519,9 @@ function decodeNavigationResponse<T>(
         if (done) {
           controller.close()
         } else {
+          if (chunks !== null) {
+            chunks.push(value)
+          }
           controller.enqueue(value)
         }
       } catch (err) {
