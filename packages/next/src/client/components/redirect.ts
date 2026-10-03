@@ -76,9 +76,22 @@ export function getURLFromRedirectError(error: unknown): string | null {
   return error.digest.split(';').slice(2, -2).join(';')
 }
 
+function notARedirectError(error: unknown): Error {
+  const received =
+    error instanceof Error
+      ? `an error with digest ${JSON.stringify(
+          (error as { digest?: unknown }).digest
+        )}`
+      : `a value of type "${typeof error}"`
+
+  return new Error(
+    `Expected a redirect error from \`redirect()\` or \`permanentRedirect()\`, but got ${received}.`
+  )
+}
+
 export function getRedirectTypeFromError(error: RedirectError): RedirectType {
   if (!isRedirectError(error)) {
-    throw new Error('Not a redirect error')
+    throw notARedirectError(error)
   }
 
   return error.digest.split(';', 2)[1] as RedirectType
@@ -86,7 +99,7 @@ export function getRedirectTypeFromError(error: RedirectError): RedirectType {
 
 export function getRedirectStatusCodeFromError(error: RedirectError): number {
   if (!isRedirectError(error)) {
-    throw new Error('Not a redirect error')
+    throw notARedirectError(error)
   }
 
   return Number(error.digest.split(';').at(-2))
