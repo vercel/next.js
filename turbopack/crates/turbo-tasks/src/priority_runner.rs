@@ -17,6 +17,8 @@ use parking_lot::Mutex;
 use pin_project_lite::pin_project;
 use rustc_hash::FxHashMap;
 
+use crate::spawn_tracker::{SpawnGuard, SpawnTracker};
+
 pub trait Executor<C, T, P>: Send + Sync {
     type Future: Future<Output = ()> + Send;
 
@@ -205,6 +207,8 @@ pub struct PriorityRunner<
     /// The number of active workers currently polling tasks.
     /// Workers that responded with Poll::Pending are not counted until they are polled again.
     active_workers: AtomicUsize,
+    /// Tracks spawned workers until they are dropped, including the `execute_context` they hold.
+    live_workers: Arc<SpawnTracker>,
     phantom: std::marker::PhantomData<C>,
 }
 
@@ -228,8 +232,18 @@ impl<
             target_workers,
             queue: Mutex::new(Queue::new()),
             active_workers: AtomicUsize::new(0),
+            live_workers: SpawnTracker::new(),
             phantom: std::marker::PhantomData,
         }
+    }
+
+    /// Waits until all spawned workers have exited and were dropped, so they no longer hold a
+    /// reference to their `execute_context`.
+    ///
+    /// Workers exit once there is no more work in the queue, so this should only be awaited when no
+    /// more work is scheduled.
+    pub async fn wait_for_workers_dropped(&self) {
+        self.live_workers.wait_for_all_dropped().await;
     }
 
     /// How many tasks were ever put into the queue, as opposed to being executed without ever being
@@ -366,6 +380,8 @@ pin_project! {
         execute_context: Arc<C>,
         runner: Arc<PriorityRunner<C, T, P, E>>,
         state: WorkerState,
+        // Declared last, so it's dropped after all other fields.
+        live_guard: SpawnGuard,
     }
 }
 
@@ -377,11 +393,13 @@ impl<
 > WorkerFuture<C, T, P, E>
 {
     fn spawn(future: E::Future, execute_context: Arc<C>, runner: Arc<PriorityRunner<C, T, P, E>>) {
+        let live_guard = runner.live_workers.guard();
         tokio::task::spawn(Self {
             future,
             execute_context,
             runner,
             state: WorkerState::UnfinishedFuture,
+            live_guard,
         });
     }
 }
