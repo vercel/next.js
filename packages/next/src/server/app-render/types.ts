@@ -129,7 +129,11 @@ export interface RenderOptsPartial {
   ) => void
   isBuildTimePrerendering?: boolean
   nextConfigOutput?: 'standalone' | 'export'
-  onInstrumentationRequestError?: ServerOnInstrumentationRequestError
+  onInstrumentationRequestError?: (
+    error: unknown,
+    errorContext: Parameters<InstrumentationOnRequestError>[2],
+    silenceLog: boolean
+  ) => void | Promise<void>
   isDraftMode?: boolean
   onUpdateCookies?: (cookies: string[]) => void
   loadConfig?: (

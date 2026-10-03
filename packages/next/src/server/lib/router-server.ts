@@ -68,6 +68,7 @@ import {
   isChromeDevtoolsWorkspaceUrl,
 } from './chrome-devtools-workspace'
 import { getNextConfigRuntime, type NextConfigComplete } from '../config-shared'
+import { isCI } from '../ci-info'
 import {
   getRequestInsightsSnapshot,
   isRequestInsightsEnabled,
@@ -191,6 +192,7 @@ export async function initialize(opts: {
     | undefined = undefined
 
   let originalFetch = globalThis.fetch
+  let hasVulnerabilityInsight: Promise<boolean> = Promise.resolve(false)
 
   if (opts.dev) {
     const { Telemetry } =
@@ -220,14 +222,40 @@ export async function initialize(opts: {
 
     // Check only development; production startup does not query advisories.
     if (
-      developmentConfig.experimental.agenticAutoUpgrade === 'security' ||
-      developmentConfig.experimental.agenticAutoUpgrade === 'latest' ||
-      developmentConfig.experimental.agenticAutoUpgrade === 'future' ||
-      process.env.__NEXT_AGENTIC_AUTO_UPGRADE
+      developmentConfig.experimental.agentUpgrade === 'security' ||
+      developmentConfig.experimental.agentUpgrade === 'latest' ||
+      developmentConfig.experimental.agentUpgrade === 'experimental-future' ||
+      process.env.__NEXT_AGENT_UPGRADE ||
+      process.env.__NEXT_AGENT_UPGRADE_FORCE_DEVTOOLS_FOR_TESTING === '1'
     ) {
-      const { nudgeUpgrade, getUpgradeContext } =
+      const { nudgeUpgrade, getUpgradeContext, assessUpgrade } =
         require('../../lib/upgrade/nudge') as typeof import('../../lib/upgrade/nudge')
+      const upgradeContext = getUpgradeContext(developmentConfig)
+      const installedVersion = process.env.__NEXT_VERSION || 'unknown'
+      const policy = upgradeContext.experimental.agentUpgrade
+      const forced = process.env.__NEXT_AGENT_UPGRADE === policy
+      const forceDevToolsForTesting =
+        process.env.__NEXT_AGENT_UPGRADE_FORCE_DEVTOOLS_FOR_TESTING === '1'
+      const assessment: ReturnType<typeof assessUpgrade> =
+        isCI || forceDevToolsForTesting
+          ? Promise.resolve(null)
+          : assessUpgrade(
+              opts.dir,
+              upgradeContext,
+              installedVersion,
+              null,
+              forced
+            )
+      hasVulnerabilityInsight = assessment.then(
+        (result) => result?.kind === 'security' || forceDevToolsForTesting,
+        (error) => {
+          Log.warn(`Could not check the DevTools security insight: ${error}`)
+          return false
+        }
+      )
       if (process.env.NEXT_PRIVATE_UPGRADE_PROMPT === '1' && process.send) {
+        // The parent retries if the worker assessment rejects.
+        const [promptAssessment] = await Promise.allSettled([assessment])
         // TODO: Do not block dev startup while prompting for an upgrade.
         // Preserve all logs for display after the prompt and stop dev before Update.
         // The existing dev worker pauses here while its parent owns the menu.
@@ -242,11 +270,25 @@ export async function initialize(opts: {
           }
           process.on('message', resume)
           process.send!({
-            nextUpgradeContext: getUpgradeContext(developmentConfig),
+            nextUpgradeContext: upgradeContext,
+            ...(promptAssessment.status === 'fulfilled'
+              ? { nextUpgradeAssessment: promptAssessment.value }
+              : {}),
           })
         })
       } else {
-        void nudgeUpgrade(opts.dir, developmentConfig, 'dev').catch((error) => {
+        // CI skips the DevTools assessment, but agents still need the nudge.
+        void nudgeUpgrade(
+          opts.dir,
+          upgradeContext,
+          'dev',
+          null,
+          isCI || forceDevToolsForTesting ? null : assessment,
+          {
+            telemetry,
+            onNudgeId: null,
+          }
+        ).catch((error) => {
           const { printAndExit } =
             require('./utils') as typeof import('./utils')
           const exitCode =
@@ -298,6 +340,7 @@ export async function initialize(opts: {
         onDevServerCleanup: opts.onDevServerCleanup,
         resetFetch,
         serverFastRefresh: effectiveServerFastRefresh,
+        hasVulnerabilityInsight,
       })
     )
 

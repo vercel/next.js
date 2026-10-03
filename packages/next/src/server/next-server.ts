@@ -25,7 +25,11 @@ import type {
 import type { Params } from './request/params'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { RouteMatch } from './route-matches/route-match'
-import type { RouteMatch as AppRenderRouteMatch } from './route-modules/app-page/module'
+import type {
+  DevRenderContext,
+  RouteMatch as AppRenderRouteMatch,
+} from './route-modules/app-page/module'
+import { createDevRenderContext } from './route-modules/app-page/dev-render-context'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
 import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
@@ -116,6 +120,10 @@ import {
   lazyPrerenderAppPage,
   lazyRenderAppPage,
 } from './route-modules/app-page/module.render'
+import {
+  parseRequestHeaders,
+  type ParsedRequestHeaders,
+} from './route-modules/app-page/parse-request-headers'
 import { lazyRenderPagesPage } from './route-modules/pages/module.render'
 import { interopDefault } from '../lib/interop-default'
 import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
@@ -127,7 +135,11 @@ import { RouteKind } from './route-kind'
 import { InvariantError } from '../shared/lib/invariant-error'
 import { AwaiterOnce } from './after/awaiter'
 import { AsyncCallbackSet } from './lib/async-callback-set'
-import { initializeCacheHandlers, setCacheHandler } from './use-cache/handlers'
+import {
+  initializeCacheHandlers,
+  registerCustomCacheHandlers,
+  setCacheHandler,
+} from './use-cache/handlers'
 import type { UnwrapPromise } from '../lib/coalesced-function'
 import { populateStaticEnv } from '../lib/static-env'
 import { NodeModuleLoader } from './lib/module-loader/node-module-loader'
@@ -243,7 +255,10 @@ export default class NextNodeServer extends BaseServer<
     }
 
     if (!this.minimalMode) {
-      this.imageResponseCache = new ResponseCache(this.minimalMode)
+      this.imageResponseCache = new ResponseCache({
+        minimalMode: this.minimalMode,
+        route: 'image',
+      })
     }
 
     if (
@@ -251,7 +266,10 @@ export default class NextNodeServer extends BaseServer<
       !this.minimalMode &&
       this.nextConfig.experimental.preloadEntriesOnStart
     ) {
-      this.unstable_preloadEntries()
+      // Preloading may join a failing registration started by a request.
+      void this.unstable_preloadEntries().catch((err) => {
+        Log.error('Failed to preload entries:', err)
+      })
     }
 
     if (!options.dev) {
@@ -413,22 +431,21 @@ export default class NextNodeServer extends BaseServer<
     const { cacheMaxMemorySize, cacheHandlers } = this.nextConfig
     if (!cacheHandlers) return
 
-    // If we've already initialized the cache handlers interface, don't do it
-    // again.
-    if (!initializeCacheHandlers(cacheMaxMemorySize)) return
+    initializeCacheHandlers(cacheMaxMemorySize)
+    await registerCustomCacheHandlers(async () => {
+      for (const [kind, handler] of Object.entries(cacheHandlers)) {
+        if (!handler) continue
 
-    for (const [kind, handler] of Object.entries(cacheHandlers)) {
-      if (!handler) continue
-
-      setCacheHandler(
-        kind,
-        interopDefault(
-          await dynamicImportEsmDefault(
-            formatDynamicImportPath(this.distDir, handler)
+        setCacheHandler(
+          kind,
+          interopDefault(
+            await dynamicImportEsmDefault(
+              formatDynamicImportPath(this.distDir, handler)
+            )
           )
         )
-      )
-    }
+      }
+    })
   }
 
   protected async getIncrementalCache({
@@ -467,6 +484,7 @@ export default class NextNodeServer extends BaseServer<
         !this.minimalMode && this.nextConfig.experimental.isrFlushToDisk,
       previewProps: this.getPreviewProps(),
       prerenderManifest: this.getPrerenderManifest(),
+      locales: this.nextConfig.i18n?.locales,
       CurCacheHandler: CacheHandler,
     })
   }
@@ -668,6 +686,20 @@ export default class NextNodeServer extends BaseServer<
           !renderOpts.isPossibleServerAction
             ? lazyPrerenderAppPage
             : lazyRenderAppPage
+        const dev: DevRenderContext | undefined = createDevRenderContext(
+          req,
+          process.env.__NEXT_DEV_SERVER
+            ? this.getServerComponentsHmrCache()
+            : undefined
+        )
+        const parsedRequestHeaders: ParsedRequestHeaders = parseRequestHeaders(
+          req.headers,
+          {
+            isRoutePPREnabled:
+              renderOpts.experimental.isRoutePPREnabled === true,
+            previewModeId: renderOpts.previewProps?.previewModeId,
+          }
+        )
 
         const result = await renderAppPage(
           req,
@@ -678,7 +710,7 @@ export default class NextNodeServer extends BaseServer<
           // shells. As a result, we don't need to pass in the unknown params.
           null,
           renderOpts as LoadedRenderOpts<AppPageModule>,
-          this.getServerComponentsHmrCache(),
+          dev,
           {
             buildId: this.buildId,
             deploymentId: this.deploymentId,
@@ -686,7 +718,8 @@ export default class NextNodeServer extends BaseServer<
               ? ''
               : this.deploymentId,
           },
-          routeMatch
+          routeMatch,
+          parsedRequestHeaders
         )
         if ('error' in result) {
           throw result.error

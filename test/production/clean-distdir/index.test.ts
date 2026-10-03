@@ -3,12 +3,10 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('Cleaning distDir', () => {
-  const { next, isTurbopack, skipped } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
   })
-
-  if (skipped) return
 
   beforeEach(async () => {
     await next.stop()

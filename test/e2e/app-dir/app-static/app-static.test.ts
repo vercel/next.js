@@ -4643,6 +4643,29 @@ describe('app-dir static/dynamic handling', () => {
         expect(firstTime).toBe($2('#now').text())
       }
     })
+
+    // A new static fallback is rendered with Flight headers stripped. Parsing
+    // its malformed router state before that point would fail the render.
+    // @force-gate prod
+    it('should serve Flight and HTML for a static fallback first requested via RSC', async () => {
+      const path = '/force-static/rsc-first'
+      const rscResponse = await next.fetch(path, {
+        headers: {
+          rsc: '1',
+          'next-router-state-tree': JSON.stringify(['', '']),
+        },
+      })
+      expect(rscResponse.status).toBe(200)
+      expect(rscResponse.headers.get('content-type')).toContain(
+        'text/x-component'
+      )
+      expect(await rscResponse.text()).toContain('rsc-first')
+
+      const htmlResponse = await next.fetch(path)
+      expect(htmlResponse.status).toBe(200)
+      const $ = cheerio.load(await htmlResponse.text())
+      expect(JSON.parse($('#params').text())).toEqual({ slug: 'rsc-first' })
+    })
   }
 
   // since we aren't leveraging fs cache with custom handler

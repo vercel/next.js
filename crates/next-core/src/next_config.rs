@@ -32,7 +32,8 @@ use turbopack_core::{
     resolve::ResolveAliasMap,
 };
 use turbopack_ecmascript::transform::{
-    OptionReactCompilerCompilationMode, ReactCompilerCompilationMode, ReactCompilerTarget,
+    OptionReactCompilerTransformOptions, ReactCompilerCompilationMode, ReactCompilerTarget,
+    ReactCompilerTransformOptions,
 };
 use turbopack_ecmascript_plugins::transform::{
     emotion::EmotionTransformConfig, relay::RelayConfig,
@@ -766,10 +767,20 @@ pub enum ReactCompilerPanicThreshold {
 pub struct ReactCompilerOptions {
     #[serde(default)]
     pub compilation_mode: ReactCompilerCompilationMode,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub environment: Option<ReactCompilerEnvironmentOptions>,
     #[serde(default)]
     pub panic_threshold: ReactCompilerPanicThreshold,
     #[serde(default, skip_deserializing, skip_serializing_if = "Option::is_none")]
     pub target: Option<ReactCompilerTarget>,
+}
+
+#[turbo_tasks::value(shared, operation)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReactCompilerEnvironmentOptions {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub enable_preserve_existing_memoization_guarantees: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode)]
@@ -1190,6 +1201,10 @@ pub struct ExperimentalConfig {
     /// Compile client dynamic import targets when their runtime proxy is first activated.
     /// Development only.
     turbopack_lazy_dynamic_imports: Option<bool>,
+    /// Compile dynamic import targets when they are first reached during SSR.
+    /// Development only.
+    #[serde(rename = "turbopackLazyDynamicImportsSSR")]
+    turbopack_lazy_dynamic_imports_ssr: Option<bool>,
     turbopack_import_type_bytes: Option<bool>,
     /// Disable automatic configuration of the sass loader.
     #[serde(default)]
@@ -1220,8 +1235,11 @@ pub struct ExperimentalConfig {
     turbopack_infer_module_side_effects: Option<bool>,
     /// Enable tree shaking of unused exports from static CommonJS modules. Defaults to false.
     turbopack_cjs_tree_shaking: Option<bool>,
-    /// Shorten ("mangle") the export names modules expose to each other. Defaults to false.
+    /// Shorten ("mangle") the export names modules expose to each other. Defaults to false in
+    /// development mode, true in production mode.
     turbopack_mangle_export_names: Option<bool>,
+    /// Use a materialized namespace facade to mangle otherwise observable export names.
+    turbopack_mangle_via_materialized_namespace_object: Option<bool>,
     /// Enable scope hoisting of static CommonJS modules. Defaults to false.
     turbopack_cjs_scope_hoisting: Option<bool>,
     /// Enable cross-module constant inlining. Defaults to false.
@@ -1234,6 +1252,13 @@ pub struct ExperimentalConfig {
     // turbopack_file_system_cache_for_dev: Option<bool>,
     // turbopack_file_system_cache_for_build: Option<bool>,
     lightning_css_features: Option<LightningCssFeatures>,
+}
+
+impl ExperimentalConfig {
+    fn mangle_via_materialized_namespace_object(&self) -> bool {
+        self.turbopack_mangle_via_materialized_namespace_object
+            .unwrap_or(self.turbopack_mangle_export_names == Some(true))
+    }
 }
 
 #[derive(
@@ -2068,17 +2093,25 @@ impl NextConfig {
     /// Returns compilation mode when both `reactCompiler` and `turbopackRustReactCompiler` are set;
     /// `None` otherwise.
     #[turbo_tasks::function]
-    pub fn rust_react_compiler(&self) -> Vc<OptionReactCompilerCompilationMode> {
+    pub fn rust_react_compiler(&self) -> Vc<OptionReactCompilerTransformOptions> {
         let use_rust = self
             .experimental
             .turbopack_rust_react_compiler
             .unwrap_or(false);
         let mode = match (use_rust, &self.react_compiler) {
             (true, Some(ReactCompilerOptionsOrBoolean::Boolean(true))) => {
-                Some(ReactCompilerCompilationMode::Infer)
+                Some(ReactCompilerTransformOptions::default())
             }
             (true, Some(ReactCompilerOptionsOrBoolean::Option(opts))) => {
-                Some(opts.compilation_mode)
+                Some(ReactCompilerTransformOptions {
+                    compilation_mode: opts.compilation_mode,
+                    enable_preserve_existing_memoization_guarantees: opts
+                        .environment
+                        .as_ref()
+                        .and_then(|environment| {
+                            environment.enable_preserve_existing_memoization_guarantees
+                        }),
+                })
             }
             _ => None,
         };
@@ -2326,6 +2359,13 @@ impl NextConfig {
         ))
     }
 
+    /// Opt into splitting local-only modules behind a namespace facade for export mangling.
+    /// Inferred from the explicitly configured mangling option, not its mode-dependent default.
+    #[turbo_tasks::function]
+    pub fn turbopack_mangle_via_materialized_namespace_object(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.mangle_via_materialized_namespace_object())
+    }
+
     #[turbo_tasks::function]
     pub fn turbopack_cjs_scope_hoisting(&self) -> Vc<bool> {
         Vc::cell(
@@ -2474,6 +2514,17 @@ impl NextConfig {
                 && self
                     .experimental
                     .turbopack_lazy_dynamic_imports
+                    .unwrap_or(false),
+        )
+    }
+
+    #[turbo_tasks::function]
+    pub async fn turbopack_lazy_dynamic_imports_ssr(&self, next_mode: NextMode) -> Vc<bool> {
+        Vc::cell(
+            next_mode.is_development()
+                && self
+                    .experimental
+                    .turbopack_lazy_dynamic_imports_ssr
                     .unwrap_or(false),
         )
     }

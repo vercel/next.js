@@ -141,6 +141,7 @@ export type SetupOpts = {
   onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
   resetFetch: () => void
   serverFastRefresh?: boolean
+  hasVulnerabilityInsight: Promise<boolean>
 }
 
 export interface DevRoutesManifest {
@@ -294,6 +295,7 @@ async function startWatcher(
           resetFetch,
           lockfile,
           onDevServerCleanup: opts.onDevServerCleanup,
+          hasVulnerabilityInsight: opts.hasVulnerabilityInsight,
         })
       })()
 

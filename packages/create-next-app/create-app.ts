@@ -45,6 +45,7 @@ export async function createApp({
   reactCompiler,
   cacheComponents,
   agentsMd,
+  agentFeedback,
 }: {
   appPath: string
   packageManager: PackageManager
@@ -65,6 +66,7 @@ export async function createApp({
   reactCompiler: boolean
   cacheComponents: boolean
   agentsMd: boolean
+  agentFeedback: boolean
 }): Promise<void> {
   let repoInfo: RepoInfo | undefined
   const mode: TemplateMode = typescript ? 'ts' : 'js'
@@ -258,6 +260,7 @@ export async function createApp({
       bundler,
       reactCompiler,
       cacheComponents,
+      agentFeedback,
     })
   }
 

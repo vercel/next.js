@@ -12,6 +12,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
 
 __turbopack_context__.s([
     "foo",
+    0,
     ()=>foo
 ]);
 function foo(value) {

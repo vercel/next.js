@@ -44,6 +44,42 @@ export enum SizeMode {
   Uncompressed = 'uncompressed',
 }
 
+/** One tree source for the canvas, whether it represents a build or a diff. */
+export interface TreemapSource {
+  rootIndex: SourceIndex
+  getParentSourceIndex(sourceIndex: SourceIndex): SourceIndex | null
+  getSourceName(sourceIndex: SourceIndex): string
+  computeLayout(
+    sourceIndex: SourceIndex,
+    rect: LayoutRect,
+    filterSource: ((sourceIndex: SourceIndex) => boolean) | undefined,
+    sizeMode: SizeMode
+  ): LayoutNode
+}
+
+export function createAnalyzeTreemapSource(
+  analyzeData: AnalyzeData
+): TreemapSource {
+  return {
+    rootIndex: analyzeData.sourceRoots()[0] ?? 0,
+    getParentSourceIndex(sourceIndex) {
+      return analyzeData.source(sourceIndex)?.parent_source_index ?? null
+    },
+    getSourceName(sourceIndex) {
+      return analyzeData.source(sourceIndex)?.path ?? ''
+    },
+    computeLayout(sourceIndex, rect, filterSource, sizeMode) {
+      return computeTreemapLayoutFromAnalyze(
+        analyzeData,
+        sourceIndex,
+        rect,
+        filterSource,
+        sizeMode
+      )
+    },
+  }
+}
+
 function precomputeSourceMetadata(
   analyzeData: AnalyzeData,
   filterSource?: (sourceIndex: SourceIndex) => boolean

@@ -814,8 +814,7 @@ jobs:
         node scripts/test-new-tests.mjs \
           --flake-detection \
           --mode dev \
-          --group ${{ matrix.group }} \
-          --preview-builds-base-url "${{ vars.PREVIEW_BUILDS_BASE_URL }}"
+          --group ${{ matrix.group }}
       stepName: 'test-new-tests-dev-${{matrix.group}}'
       timeout_minutes: 120 # Increase the default timeout as tests are intentionally run multiple times to detect flakes
 
@@ -841,8 +840,7 @@ jobs:
         node scripts/test-new-tests.mjs \
           --flake-detection \
           --mode start \
-          --group ${{ matrix.group }} \
-          --preview-builds-base-url "${{ vars.PREVIEW_BUILDS_BASE_URL }}"
+          --group ${{ matrix.group }}
       stepName: 'test-new-tests-start-${{matrix.group}}'
       timeout_minutes: 120 # Increase the default timeout as tests are intentionally run multiple times to detect flakes
     secrets: inherit
@@ -883,12 +881,11 @@ jobs:
 
       - name: Wait for preview tarball
         env:
-          PREVIEW_BUILDS_BASE_URL: ${{ vars.PREVIEW_BUILDS_BASE_URL }}
+          NEXT_TEST_PREVIEW_BUILDS_BASE_URL: ${{ vars.PREVIEW_BUILDS_BASE_URL }}
           PREVIEW_BUILDS_ACCESS: ${{ vars.PREVIEW_BUILDS_ACCESS }}
         run: |
           set -euo pipefail
           node scripts/wait-for-preview-tarball.mjs \
-            --preview-builds-base-url "$PREVIEW_BUILDS_BASE_URL" \
             --timeout-minutes 30
 
   test-new-tests-deploy:
@@ -916,8 +913,7 @@ jobs:
         export IS_TURBOPACK_TEST=1
         node scripts/test-new-tests.mjs \
           --mode deploy \
-          --group ${{ matrix.group }} \
-          --preview-builds-base-url "${{ vars.PREVIEW_BUILDS_BASE_URL }}"
+          --group ${{ matrix.group }}
       stepName: 'test-new-tests-deploy-${{matrix.group}}'
 
     secrets: inherit
@@ -948,8 +944,7 @@ jobs:
         export IS_TURBOPACK_TEST=1
         node scripts/test-new-tests.mjs \
           --mode deploy \
-          --group ${{ matrix.group }} \
-          --preview-builds-base-url "${{ vars.PREVIEW_BUILDS_BASE_URL }}"
+          --group ${{ matrix.group }}
       stepName: 'test-new-tests-deploy-cache-components-${{matrix.group}}'
 
     secrets: inherit

@@ -117,7 +117,7 @@ export interface RequestStore extends CommonWorkUnitStore {
   validationSamples?: InstantValidationSamples
   validationSampleTracking?: InstantValidationSampleTracking | null
 
-  // DEV-only
+  // DEV-only. Whether a dynamic API was used during this render.
   usedDynamic?: boolean
 }
 
@@ -413,7 +413,9 @@ export interface UnstableCacheStore extends CommonCacheStore {
  */
 export type CacheStore = UseCacheStore | UnstableCacheStore
 
-export type BuildTimeGeneratorName = 'generateStaticParams'
+export type BuildTimeGeneratorName =
+  | 'generateStaticParams'
+  | 'unstable_generateParamMatching'
 
 export interface BuildTimeGeneratorStore extends CommonWorkUnitStore {
   readonly type: 'build-time-generator'
