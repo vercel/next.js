@@ -3443,11 +3443,18 @@ impl TurboTasksBackend {
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
     ) {
         self.assert_not_persistent_calling_transient(parent_task, task);
+        let mut ctx = self.execute_context(turbo_tasks);
+        // An `OperationVc` held without a pin can name a collected task (soft-deleted or already
+        // gone). `connect_child` would materialize and schedule an entry for it, so skip the
+        // connect; the output read that follows fails with an ordinary error instead.
+        if ctx.try_task(task, TaskDataCategory::Meta).is_none() {
+            return;
+        }
         connect_child(
             parent_task,
             task,
             /* release_construction_ref */ false,
-            self.execute_context(turbo_tasks),
+            ctx,
         );
     }
 
