@@ -103,6 +103,8 @@ struct SnapshotOptions {
     #[serde(default)]
     cross_module_constants: bool,
     #[serde(default)]
+    inline_constant_exports: bool,
+    #[serde(default)]
     scope_hoisting: bool,
     #[serde(default)]
     shared_runtime: bool,
@@ -151,6 +153,7 @@ impl Default for SnapshotOptions {
             mangle_export_names: false,
             cjs_scope_hoisting: false,
             cross_module_constants: false,
+            inline_constant_exports: false,
             scope_hoisting: false,
             shared_runtime: false,
             production_chunking: false,
@@ -429,6 +432,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 mangle_export_names: options.mangle_export_names,
                 cjs_scope_hoisting: options.cjs_scope_hoisting,
                 cross_module_constants: options.cross_module_constants,
+                inline_constant_exports: options.inline_constant_exports,
                 enable_exports_info_inlining: true,
                 enable_rust_react_compiler: options.enable_rust_react_compiler.then_some(
                     ReactCompilerTransformOptions {
