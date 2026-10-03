@@ -1371,6 +1371,17 @@ Session and user data often appear in shell UI (header, nav) that repeats across
 
 If only part of the shell needs session data (for example, a user menu), move the `await` into a nested Server Component and wrap it in `<Suspense>` so the rest of the page streams first. See [Push dynamic access down](/docs/app/guides/streaming#push-dynamic-access-down) for the pattern.
 
+##### Redirects during streaming
+
+If a session check calls [`redirect()`](/docs/app/api-reference/functions/redirect) after streaming begins, Next.js adds a redirect instruction to the streamed response. The static shell or Suspense fallback may stay visible until the browser navigates.
+
+To redirect before any route UI renders, check the request earlier:
+
+- Use [`redirects` in `next.config.js`](/docs/app/api-reference/config/next-config-js/redirects) when you can make the decision from the pathname, headers, query parameters, or cookies. These redirects run before Proxy and route rendering.
+- Use [Proxy](/docs/app/api-reference/file-conventions/proxy) when the redirect requires application logic, such as decrypting a cookie or including the request URL in the destination. See [Optimistic checks with Proxy](#optimistic-checks-with-proxy-optional).
+
+These early checks prevent the route from appearing before the redirect. Continue to verify authorization in your [Data Access Layer](#creating-a-data-access-layer-dal), Server Actions, and Route Handlers.
+
 Client Components can't import the DAL. Run `verifySession()`, `getUser()`, or similar in a parent Server Component, then pass data to client children as props or through a context provider. For that pattern, see [Using React's `use` within a Context Provider](/docs/app/guides/single-page-applications#using-reacts-use-within-a-context-provider), and use React's [`taintUniqueValue`](https://react.dev/reference/react/experimental_taintUniqueValue) API to keep sensitive session fields from reaching the client.
 
 #### Auth checks in page components
