@@ -1,0 +1,38 @@
+0 -> 4 call = url.fileURLToPath*0*(import.meta*1*["url"])
+- *0* url.fileURLToPath: The Node.js url.fileURLToPath method: https://nodejs.org/api/url.html#urlfileurltopathurl-options
+- *1* import.meta: The import.meta object
+
+0 -> 9 member call = url*0*["fileURLToPath"](import.meta*1*["url"])
+- *0* url: The Node.js url module: https://nodejs.org/api/url.html
+- *1* import.meta: The import.meta object
+
+0 -> 10 free var = FreeVar(__filename)
+
+0 -> 16 call = url.fileURLToPath*0*(import.meta*1*["url"])
+- *0* url.fileURLToPath: The Node.js url.fileURLToPath method: https://nodejs.org/api/url.html#urlfileurltopathurl-options
+- *1* import.meta: The import.meta object
+
+0 -> 17 call = path.dirname*0*("__filename")
+- *0* path.dirname: The Node.js path.dirname method: https://nodejs.org/api/path.html#pathdirnamepath
+
+0 -> 18 call = path.join*0*("", "worker.cjs")
+- *0* path.join: The Node.js path.join method: https://nodejs.org/api/path.html#pathjoinpaths
+
+0 -> 21 free var = FreeVar(__filename)
+
+0 -> 22 call = path.dirname*0*("__filename")
+- *0* path.dirname: The Node.js path.dirname method: https://nodejs.org/api/path.html#pathdirnamepath
+
+0 -> 23 call = path.join*0*("", "worker.cjs")
+- *0* path.join: The Node.js path.join method: https://nodejs.org/api/path.html#pathjoinpaths
+
+0 -> 26 free var = FreeVar(globalThis)
+
+0 -> 27 call = url.fileURLToPath*0*(???*1*)
+- *0* url.fileURLToPath: The Node.js url.fileURLToPath method: https://nodejs.org/api/url.html#urlfileurltopathurl-options
+- *1* ???*2*["foo"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *2* FreeVar(globalThis)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects

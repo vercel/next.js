@@ -4274,6 +4274,25 @@ async fn value_visitor_inner<'a>(
                 v.into_unknown(true, rcstr!("createRequire() non constant"))
             }
         }
+        JsValue::Call(_, ref call)
+            if matches!(
+                call.callee(),
+                JsValue::WellKnownFunction(WellKnownFunctionKind::FileUrlToPath)
+            ) =>
+        {
+            if let [JsValue::Member(_, member_obj, member_prop)] = call.args()
+                && let JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta) = &**member_obj
+                && let JsValue::Constant(super::analyzer::ConstantValue::Str(prop)) = &**member_prop
+                && prop.as_str() == "url"
+            {
+                // `fileURLToPath(import.meta.url)` is the ESM equivalent of `__filename`, so it
+                // gets the same value. Patterns built from either one then agree with each other
+                // and with the request keys of the resolved modules.
+                as_abs_path(origin_path.clone()).into()
+            } else {
+                v.into_unknown(true, rcstr!("fileURLToPath() non constant"))
+            }
+        }
         JsValue::New(_, ref call)
             if matches!(
                 call.callee(),
