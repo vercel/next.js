@@ -72,4 +72,40 @@ describe('next-dynamic-css', () => {
       await browser.elementByCss('body').getComputedCss('background-color')
     ).toBe('rgb(255, 255, 255)')
   })
+
+  // Regression test for https://github.com/vercel/next.js/issues/98804
+  // Nested next/dynamic: level-2 CSS must appear in SSR HTML
+  it('should include nested next/dynamic CSS stylesheet links in SSR HTML', async () => {
+    const html = await next.render('/nested')
+
+    // Both level-1 (widget) and level-2 (variant) CSS should have
+    // <link rel="stylesheet"> tags in the initial server-rendered HTML.
+    // Count all stylesheet links with data-precedence="dynamic"
+    const stylesheetLinks = html.match(
+      /<link[^>]*rel="stylesheet"[^>]*data-precedence="dynamic"[^>]*>/g
+    )
+
+    // There should be at least 2 dynamic stylesheet links:
+    // one for widget.module.css and one for variant.module.css
+    expect(stylesheetLinks).toBeTruthy()
+    expect(stylesheetLinks!.length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('should apply nested next/dynamic CSS styles without FOUC', async () => {
+    const browser = await next.browser('/nested')
+
+    // Level-1 dynamic component (Widget) should have its CSS applied
+    expect(
+      await browser
+        .waitForElementByCss('#widget')
+        .getComputedCss('background-color')
+    ).toBe('rgb(0, 128, 0)')
+
+    // Level-2 dynamic component (Variant) should have its CSS applied
+    expect(
+      await browser
+        .waitForElementByCss('#variant')
+        .getComputedCss('background-color')
+    ).toBe('rgb(0, 0, 255)')
+  })
 })
