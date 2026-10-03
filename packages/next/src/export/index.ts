@@ -1034,8 +1034,13 @@ async function exportAppImpl(
           const segmentPaths = await collectSegmentPaths(segmentsDir)
           await Promise.all(
             segmentPaths.map(async (segmentFileSrc) => {
+              // Ensure POSIX-style segment path even on Windows where
+              // path.relative produces backslashes.
               const segmentPath =
-                '/' + segmentFileSrc.slice(0, -RSC_SEGMENT_SUFFIX.length)
+                '/' +
+                segmentFileSrc
+                  .slice(0, -RSC_SEGMENT_SUFFIX.length)
+                  .replace(/\\/g, '/')
               const segmentFilename =
                 convertSegmentPathToStaticExportFilename(segmentPath)
               const segmentFileDest = join(segmentsDirDest, segmentFilename)
