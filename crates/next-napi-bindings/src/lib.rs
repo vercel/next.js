@@ -63,9 +63,30 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 #[global_allocator]
 static ALLOC: dhat::Alloc = dhat::Alloc;
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(target_arch = "wasm32")]
+static WASM_MODULE_INIT_STARTED: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
 #[napi_derive::module_init]
 fn init() {
+    // Every WASI thread has its own module instance, and `WASI.initialize()` runs this constructor
+    // in each instance. The instances share linear memory, so this atomic lets the main
+    // instance create the process-wide Tokio runtime while worker instances skip recursive
+    // runtime construction. Workers must not wait for initialization to finish: the runtime
+    // builder is itself waiting for those workers to start.
+    #[cfg(target_arch = "wasm32")]
+    if WASM_MODULE_INIT_STARTED
+        .compare_exchange(
+            false,
+            true,
+            std::sync::atomic::Ordering::Relaxed,
+            std::sync::atomic::Ordering::Relaxed,
+        )
+        .is_err()
+    {
+        return;
+    }
+
     use std::{
         cell::RefCell,
         panic::{set_hook, take_hook},

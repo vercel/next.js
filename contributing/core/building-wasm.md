@@ -19,14 +19,14 @@ The setup script supports Linux systems directly. Source it, then build as usual
 
 ```sh
 source scripts/setup-wasi-env.sh
-cargo check -p next-napi-bindings --target wasm32-wasip1-threads
+cargo build -p next-napi-bindings --target wasm32-wasip1-threads
 ```
 
 It must be sourced from **Bash** because it uses `BASH_SOURCE`; alternative shells such as zsh should
 invoke Bash explicitly:
 
 ```sh
-bash -c 'source scripts/setup-wasi-env.sh && cargo check -p next-napi-bindings --target wasm32-wasip1-threads'
+bash -c 'source scripts/setup-wasi-env.sh && cargo build -p next-napi-bindings --target wasm32-wasip1-threads'
 ```
 
 The script exports environment variables into the calling shell, which a subprocess cannot do.
@@ -38,7 +38,9 @@ sha256, installs emnapi, and exports the cross-compilation variables (`WASI_SDK_
 `~/.cache/next-wasi-toolchain`, so re-sourcing in a new shell is fast. Set `WASI_SETUP_CACHE_DIR` to
 move the cache.
 
-CI sources the same script, so local and CI builds cannot drift apart.
+CI sources the same script, so local and CI builds cannot drift apart. The Node host passes its
+effective CPU allowance into WASI, which sizes the bindings' multi-threaded Tokio runtime; set
+`TURBO_TASKS_AVAILABLE_PARALLELISM` before invoking the host to override it.
 
 ## Building with Docker
 
@@ -57,7 +59,7 @@ Inside the container, use the same commands as CI:
 
 ```sh
 source scripts/setup-wasi-env.sh
-cargo check -p next-napi-bindings --target wasm32-wasip1-threads
+cargo build -p next-napi-bindings --target wasm32-wasip1-threads
 ```
 
 The named volume preserves the wasi-sdk and emnapi downloads between runs. Mount a second volume at
@@ -94,9 +96,9 @@ cargo clippy -p turbo-tasks --lib --tests --target wasm32-wasip1-threads -- -D w
 - **emnapi v2 is a prerelease.** `napi-build` needs the `emnapi_create_env` / `emnapi_delete_env`
   exports, which exist only in v2, so the script pins `emnapi@2.0.0-alpha.4`. Move to the stable
   release once it ships.
-- **A full `napi build` is not wired up yet**, for the same reason — CI currently compiles and runs
-  tests rather than producing a publishable artifact.
-- **The JS side cannot load the artifact yet.** It needs a loader that supplies
-  `env.read_custom_section` and runs the module's initialization, which does not exist.
+- **A publishable N-API wasm package is not wired up yet.** CI links the raw wasm artifact, but does
+  not produce an `@next/swc-wasm-wasi` package.
+- **The JS loader is not connected to the SWC fallback yet.** The loader hooks and module
+  initialization exist, but no published package consumes them.
 - Some features are unavailable on wasm and report an error when configured: SWC wasm plugins, and
   anything requiring the child-process pool.
