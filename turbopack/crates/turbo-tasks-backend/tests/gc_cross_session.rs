@@ -19,7 +19,10 @@ use turbo_tasks::{GcRoot, ResolvedVc, TurboTasks, Vc};
 use turbo_tasks_backend::TurboTasksBackend;
 
 use crate::{
-    gc_fixture::{Constant, Selector, create_constant, create_selector, diamond_root_op},
+    gc_fixture::{
+        Constant, Selector, create_constant, create_other_constant, create_selector,
+        diamond_root_op,
+    },
     util::{create_persistence_dir, reopen_tt_with_gc, reopen_tt_with_gc_ttl},
 };
 
@@ -350,4 +353,127 @@ async fn shared_cell_target_collected_before_its_second_reader() {
         .unwrap();
         tt.stop_and_wait().await;
     }
+}
+
+/// Counts executions of [`stale_reader`], keyed by its `key` so tests running in one process don't
+/// see each other's executions.
+static STALE_READER_EXECUTIONS: [AtomicU32; 2] = [AtomicU32::new(0), AtomicU32::new(0)];
+
+/// The stale-mapper shape: the target arrives as an argument (so this task is not its parent), and
+/// `other` is a second, unrelated dependency that can invalidate it.
+#[turbo_tasks::function]
+async fn stale_reader(
+    target: ResolvedVc<u32>,
+    other: ResolvedVc<Constant>,
+    key: u32,
+) -> Result<Vc<u32>> {
+    STALE_READER_EXECUTIONS[key as usize].fetch_add(1, Ordering::Relaxed);
+    let other = *other.await?.get();
+    Ok(Vc::cell(other + *target.await?))
+}
+
+#[turbo_tasks::function(operation, root)]
+async fn stale_reader_root(
+    target: ResolvedVc<u32>,
+    other: ResolvedVc<Constant>,
+    key: u32,
+) -> Result<Vc<u32>> {
+    Ok(Vc::cell(*stale_reader(*target, *other, key).await?))
+}
+
+/// Builds the owning side and a pinned [`stale_reader_root`] over its target, then drops the
+/// owning side and collects it, leaving the reader holding the collected target in its arguments.
+/// Returns the reader root, its pin, and the `other` dependency.
+async fn collect_target_under_stale_reader(
+    tt: &Arc<TurboTasks<TurboTasksBackend>>,
+    key: u32,
+) -> (
+    turbo_tasks::OperationVc<u32>,
+    GcRoot<u32>,
+    turbo_tasks::ReadRef<Constant>,
+) {
+    let (reader_op, other) = turbo_tasks::run_once(tt.clone(), async move {
+        let selector_op = create_selector(false);
+        let selector_vc = selector_op.resolve().strongly_consistent().await?;
+        let selector = selector_op.read_strongly_consistent().await?;
+
+        let constant_op = create_constant();
+        let constant_vc = constant_op.resolve().strongly_consistent().await?;
+
+        // A second `Constant` cell, distinct from the owning side's, as the unrelated dependency.
+        let other_op = create_other_constant();
+        let other_vc = other_op.resolve().strongly_consistent().await?;
+        let other = other_op.read_strongly_consistent().await?;
+
+        let owning = select_owning(selector_vc, constant_vc);
+        let target = owning.resolve().strongly_consistent().await?;
+        assert_eq!(*target.await?, 41);
+
+        let reader = stale_reader_root(target, other_vc, key);
+        assert_eq!(*reader.read_strongly_consistent().await?, 41);
+
+        // Drop the owning subtree cleanly: no invalidation, so the target keeps its edges.
+        selector.set(true);
+        assert_eq!(*owning.read_strongly_consistent().await?, 0);
+        anyhow::Ok((reader, other))
+    })
+    .await
+    .unwrap();
+
+    let pin = GcRoot::pin(tt.clone(), reader_op);
+    let collected = gc_until_collected(tt, 3).await;
+    assert!(
+        collected >= 3,
+        "the owning subtree, reader 1 and the shared target should be collected (got {collected})"
+    );
+    (reader_op, pin, other)
+}
+
+/// Collecting a producer does not re-execute a dependent that holds it in its arguments: that
+/// execution could only fail. The dependent waits for its parent to re-run and drop it.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn collecting_a_producer_does_not_reexecute_its_dependents() {
+    let dir = create_persistence_dir("collecting_a_producer_does_not_reexecute_its_dependents");
+    let tt = reopen_tt_with_gc(&dir);
+    let (reader_op, pin, _other) = collect_target_under_stale_reader(&tt, 0).await;
+    let executions = STALE_READER_EXECUTIONS[0].load(Ordering::Relaxed);
+
+    let value = turbo_tasks::run_once(tt.clone(), async move {
+        anyhow::Ok(*reader_op.read_strongly_consistent().await?)
+    })
+    .await
+    .unwrap();
+    assert_eq!(value, 41, "the reader keeps its last result");
+    assert_eq!(
+        STALE_READER_EXECUTIONS[0].load(Ordering::Relaxed),
+        executions,
+        "the reader must not re-execute"
+    );
+
+    drop(pin);
+    tt.stop_and_wait().await;
+}
+
+/// A dependent holding a collected task's `Vc` in its arguments fails with an error, rather than a
+/// panic, when an unrelated dependency invalidates it before its parent drops it.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn reading_a_collected_task_is_an_error() {
+    let dir = create_persistence_dir("reading_a_collected_task_is_an_error");
+    let tt = reopen_tt_with_gc(&dir);
+    let (reader_op, pin, other) = collect_target_under_stale_reader(&tt, 1).await;
+
+    let result = turbo_tasks::run_once(tt.clone(), async move {
+        other.set(1);
+        reader_op.read_strongly_consistent().await?;
+        anyhow::Ok(())
+    })
+    .await;
+    let err = result.expect_err("the reader reads a collected task, so the root must fail");
+    assert!(
+        format!("{err:?}").contains("garbage collected"),
+        "expected the collected-task read error, got: {err:?}"
+    );
+
+    drop(pin);
+    tt.stop_and_wait().await;
 }
