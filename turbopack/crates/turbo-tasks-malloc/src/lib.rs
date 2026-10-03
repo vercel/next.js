@@ -1,4 +1,5 @@
 mod counter;
+mod memory_footprint;
 mod memory_pressure;
 
 use std::{
@@ -172,6 +173,19 @@ impl TurboMalloc {
     /// - On other platforms this returns `None`.
     pub fn memory_pressure() -> Option<u8> {
         memory_pressure::memory_pressure()
+    }
+
+    /// Returns the resident memory size of the current process in bytes, or
+    /// `None` when the current platform does not expose a memory footprint
+    /// signal or a query for it failed.
+    ///
+    /// - On Linux this is the resident set size from `/proc/self/statm`.
+    /// - On macOS this is `rusage_info_v0::ri_phys_footprint` from `proc_pid_rusage` (what Apple
+    ///   calls "memory footprint" / Activity Monitor's "Memory" column).
+    /// - On Windows this is `PROCESS_MEMORY_COUNTERS::WorkingSetSize`.
+    /// - On other platforms this returns `None`.
+    pub fn memory_footprint() -> Option<usize> {
+        memory_footprint::memory_footprint()
     }
 }
 

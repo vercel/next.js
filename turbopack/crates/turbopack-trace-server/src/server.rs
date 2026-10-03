@@ -45,6 +45,7 @@ pub enum ServerToClientMessage {
         path: Vec<String>,
         memory_samples: Vec<u64>,
         memory_pressure_samples: Vec<u8>,
+        memory_footprint_samples: Vec<u64>,
     },
 }
 
@@ -297,6 +298,8 @@ fn handle_connection(
                                     store.memory_samples_for_range(span.start(), span.end());
                                 let memory_pressure_samples = store
                                     .memory_pressure_samples_for_range(span.start(), span.end());
+                                let memory_footprint_samples = store
+                                    .memory_footprint_samples_for_range(span.start(), span.end());
                                 ServerToClientMessage::QueryResult {
                                     id,
                                     is_graph,
@@ -312,6 +315,7 @@ fn handle_connection(
                                     path,
                                     memory_samples,
                                     memory_pressure_samples,
+                                    memory_footprint_samples,
                                 }
                             } else {
                                 ServerToClientMessage::QueryResult {
@@ -329,6 +333,7 @@ fn handle_connection(
                                     path: Vec::new(),
                                     memory_samples: Vec::new(),
                                     memory_pressure_samples: Vec::new(),
+                                    memory_footprint_samples: Vec::new(),
                                 }
                             }
                         };

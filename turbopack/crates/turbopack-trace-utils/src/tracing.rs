@@ -110,6 +110,12 @@ pub enum TraceRow<'a> {
         /// `TurboMalloc::memory_pressure()`). `0` is used when the current
         /// platform does not report a pressure value.
         memory_pressure: u8,
+        /// Process memory footprint in bytes (from
+        /// `TurboMalloc::memory_footprint()`). `0` is used when the current
+        /// platform does not report a value. The footprint is refreshed at
+        /// most about once per second; samples in between repeat the last
+        /// reading.
+        memory_footprint: u64,
     },
 }
 
