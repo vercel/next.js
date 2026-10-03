@@ -148,7 +148,7 @@ impl ImportMappingReplacement for NextFontLocalReplacer {
                 .weight
                 .await?
                 .as_ref()
-                .map(|w| format!("fontWeight: {w},\n"))
+                .and_then(font_weight_js_property)
                 .unwrap_or_else(|| "".to_owned()),
             properties
                 .style
@@ -323,6 +323,22 @@ impl ImportMappingReplacement for NextFontLocalFontFileReplacer {
     }
 }
 
+/// Formats the `fontWeight` entry for the generated JS module, mirroring the
+/// webpack implementation (postcss-next-font.ts): only numeric weights are
+/// included. A CSS keyword like `normal` would otherwise be emitted as a bare
+/// (unbound) identifier and throw a `ReferenceError` when the module is
+/// evaluated. The parsed number is emitted rather than the raw string so the
+/// output is always a valid JS numeric literal.
+fn font_weight_js_property(weight: &RcStr) -> Option<String> {
+    weight
+        .parse::<f64>()
+        .ok()
+        // Rust's float parser also accepts `inf`/`Infinity`/`NaN`, which would
+        // be emitted as bare identifiers (`fontWeight: inf`) — guard them out.
+        .filter(|n| n.is_finite())
+        .map(|n| format!("fontWeight: {n},\n"))
+}
+
 #[turbo_tasks::function]
 async fn get_font_css_properties(
     options_vc: Vc<NextFontLocalOptions>,
@@ -382,5 +398,38 @@ impl Issue for FontResolvingIssue {
             StyledString::Code(self.font_path.owned().await?),
             StyledString::Text(rcstr!("'")),
         ]))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn font_weight_js_property_emits_numeric_weights() {
+        assert_eq!(
+            font_weight_js_property(&"400".into()),
+            Some("fontWeight: 400,\n".to_owned())
+        );
+        // Emitted as a canonical numeric literal, not verbatim.
+        assert_eq!(
+            font_weight_js_property(&"0400".into()),
+            Some("fontWeight: 400,\n".to_owned())
+        );
+    }
+
+    #[test]
+    fn font_weight_js_property_omits_non_numeric_weights() {
+        // CSS keywords would be emitted as bare (unbound) identifiers in the
+        // generated module, throwing a ReferenceError on evaluation.
+        for keyword in ["normal", "bold", "bolder", "lighter", "inherit"] {
+            assert_eq!(font_weight_js_property(&keyword.into()), None);
+        }
+        // Rust's float parser accepts these, but emitting them would produce
+        // `fontWeight: inf` / `fontWeight: NaN` — bare identifier output in
+        // the `inf` case, and neither is a valid CSS font weight.
+        for special in ["inf", "Infinity", "-inf", "NaN", "nan"] {
+            assert_eq!(font_weight_js_property(&special.into()), None);
+        }
     }
 }
