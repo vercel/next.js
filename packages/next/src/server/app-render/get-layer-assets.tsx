@@ -34,6 +34,10 @@ export function getLayerAssets({
       )
     : { styles: EMPTY_SET, scripts: EMPTY_SET }
 
+  for (const styleTag of styleTags) {
+    ctx.inlinedCSSPaths.add(styleTag.path)
+  }
+
   const preloadedFontFiles = layoutOrPagePath
     ? getPreloadableFonts(
         ctx.renderOpts.nextFontManifest,

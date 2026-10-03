@@ -1,3 +1,7 @@
+:root {
+  --inline-css-dedupe-marker: 1;
+}
+
 p {
   color: yellow;
 }
