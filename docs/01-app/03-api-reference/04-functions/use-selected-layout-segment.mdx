@@ -1,11 +1,20 @@
 ---
 title: useSelectedLayoutSegment
 description: API Reference for the useSelectedLayoutSegment hook.
+related:
+  title: Next Steps
+  description: Learn more about the features mentioned in this page by reading the API Reference.
+  links:
+    - app/api-reference/components/nav-link
+    - app/api-reference/functions/use-selected-layout-segments
+    - app/api-reference/functions/use-pathname
 ---
 
 `useSelectedLayoutSegment` is a **Client Component** hook that lets you read the active route segment **one level below** the Layout it is called from.
 
 It is useful for navigation UI, such as tabs inside a parent layout that change style depending on the active child segment.
+
+> **Good to know:** For a single link that styles itself based on the active route, use [`NavLink`](/docs/app/api-reference/components/nav-link). Use `useSelectedLayoutSegment` when you need segment-based active state, such as tabs that stay active across nested routes or under rewrites.
 
 ```tsx filename="app/example-client-component.tsx" switcher
 'use client'
