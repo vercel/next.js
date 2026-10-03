@@ -246,7 +246,7 @@ export default function Page() {
 `
 
     const output = transform('/project/app/page.tsx', source)
-    expect(output).toMatch(/^'use client';\n/)
+    expect(output).toMatch(/^'use client';\r?\n/)
     expect(output).not.toContain("'use client';;")
     expect(output).toContain('createElementActivityReset(Page, ...args)')
   })
