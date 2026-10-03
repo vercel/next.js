@@ -1562,9 +1562,16 @@ export function createAppPageEntrypoint({
                 )
               : null
 
-          const fallbackRouteParamsForRender =
-            placeholderFallbackRouteParams &&
-            placeholderFallbackRouteParams.length > 0
+          const isProductionFallbackShell =
+            isProduction && getRequestMeta(req, 'renderFallbackShell')
+
+          const fallbackRouteParamsForRender = isProductionFallbackShell
+            ? // The deployment requested the route's generic fallback shell,
+              // so every dynamic param must remain opaque. Placeholder values
+              // only describe params encoded in this particular pathname.
+              prerenderInfo?.fallbackRouteParams
+            : placeholderFallbackRouteParams &&
+                placeholderFallbackRouteParams.length > 0
               ? placeholderFallbackRouteParams
               : prerenderInfo?.fallbackRouteParams
 
@@ -1594,7 +1601,7 @@ export function createAppPageEntrypoint({
             // In production or when debugging the static shell for a
             // non-prerendered URL, use the prerender manifest's fallback route
             // params which correctly identifies which params are unknown.
-            ((isProduction && getRequestMeta(req, 'renderFallbackShell')) ||
+            (isProductionFallbackShell ||
               hasPlaceholderFallbackRouteParams ||
               (isDebugStaticShell && !isPrerendered)) &&
             fallbackRouteParamsForRender
