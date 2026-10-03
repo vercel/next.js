@@ -123,6 +123,52 @@ fn untracked_reader(counter: TurboTasksState<u32>) -> Vc<Number> {
     Number(counter.get_untracked()).cell()
 }
 
+#[cfg(debug_assertions)]
+#[turbo_tasks::state]
+static REENTRANT_INITIALIZER: StateSlot<ReentrantInitializer> = StateSlot::new();
+
+#[cfg(debug_assertions)]
+#[derive(bincode::Decode)]
+struct ReentrantInitializer(bool);
+
+#[cfg(debug_assertions)]
+impl bincode::Encode for ReentrantInitializer {
+    fn encode<E: bincode::enc::Encoder>(
+        &self,
+        encoder: &mut E,
+    ) -> Result<(), bincode::error::EncodeError> {
+        if self.0 {
+            let _root = StateOwnerRoot::named("reentrant-state-codec".into());
+        }
+        bincode::Encode::encode(&self.0, encoder)
+    }
+}
+
+#[cfg(debug_assertions)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn state_initializer_reentrancy_is_rejected_and_store_recovers() {
+    run_without_cache_check(&REGISTRATION, async {
+        let root = StateOwnerRoot::named("initializer-reentrancy".into());
+        let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            REENTRANT_INITIALIZER.for_named_owner(&root, ReentrantInitializer(true));
+        }))
+        .expect_err("reentrant serializer was not rejected");
+        let message = panic
+            .downcast_ref::<String>()
+            .map(String::as_str)
+            .or_else(|| panic.downcast_ref::<&str>().copied())
+            .expect("panic did not contain a message");
+        assert!(message.contains("must not call back into turbo-tasks"));
+        // The vacant entry and mutation scope must unwind without poisoning
+        // the canonical store or leaving the snapshot operation active.
+        let state = REENTRANT_INITIALIZER.for_named_owner(&root, ReentrantInitializer(false));
+        assert!(!state.get_untracked().0);
+        anyhow::Ok(())
+    })
+    .await
+    .unwrap();
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn existing_state_does_not_serialize_unused_initializer() {
     run_without_cache_check(&REGISTRATION, async {

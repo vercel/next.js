@@ -1888,7 +1888,7 @@ mod must_exist_tests {
                 task_type_hash: None,
             })
             .collect::<Vec<_>>();
-        backing.save_snapshot(None, vec![items]).unwrap();
+        backing.save_snapshot(None, vec![items], None).unwrap();
         let tt = TurboTasks::new(TurboTasksBackend::new(
             BackendOptions {
                 storage_mode: Some(StorageMode::ReadOnly),

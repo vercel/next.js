@@ -3949,8 +3949,8 @@ impl Backend for TurboTasksBackend {
         if entry.value == value {
             return Ok(false);
         }
-        // Dirtying and publication share one operation guard. Canary snapshots
-        // wait for graph operations to settle before closing admission.
+        // Dirtying and publication share one operation guard. Snapshots wait
+        // for active operations to settle before closing admission.
         let _scope = StateMutationScope::enter();
         let mut queue = AggregationUpdateQueue::new();
         for &reader in &entry.dependents {

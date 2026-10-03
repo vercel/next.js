@@ -386,7 +386,7 @@ impl TurboTasksBackend {
 
         // State slots owned by collected tasks disappeared from the state map.
         // Drop surviving readers' forward edges before dirtying, just like
-        // reverse cell edges in CleanupOldEdgesOperation.
+        // reverse cell edges in cleanup_old_edges.
         let removed_states = std::mem::take(&mut result.deleted_state_dependents);
         if !removed_states.is_empty() {
             let noop_collector = |_task_id| {};
