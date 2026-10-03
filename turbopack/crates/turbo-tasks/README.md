@@ -46,7 +46,7 @@ Values containing operations still require their usual call-graph connections.
 Persistence writes only dirty state rows and collected-ID tombstones, atomically
 with affected task data and allocator progress. A fixed-bucket multi-value index
 tracks live IDs through individual insertions/deletions, without rewriting an
-entire value store or scanning holes in the allocated ID range on restart. Task
+entire value store or scanning unused IDs in the allocated range on restart. Task
 GC collects task-owned states; named roots pin their namespace, and normal GC
 aging applies after the last root drops.
 
