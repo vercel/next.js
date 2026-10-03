@@ -1,6 +1,6 @@
 import useSWR from "swr";
 
-const fetcher = (url: string) => fetch(url).then((res) => res.text());
+const fetcher = (url: string) => fetch(url).then((res) => res.text()); // const fetcher ...
 
 export default function Index() {
   const { data, error, isLoading } = useSWR<string>("/api/cookies", fetcher);
