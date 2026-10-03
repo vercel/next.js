@@ -2,7 +2,7 @@
 name: next-dev-loop
 description: >
   Verify Next.js runtime behavior after editing app code. Use this
-  workflow to confirm a change actually works in a running app — not
+  skill to confirm a change actually works in a running app — not
   just that it compiles or type-checks. Combines /_next/mcp
   (Next.js's view) with agent-browser (the browser's view).
   Requires a running `next dev`.
@@ -37,7 +37,7 @@ The two views cross-check each other.
 
 These are hard floors, not soft preferences. If anything is missing,
 tell the user how to upgrade and stop. Don't fall back to grepping
-source or to a weaker probe — this workflow assumes both views are live
+source or to a weaker probe — this skill assumes both views are live
 at the versions above.
 
 - Upgrade Next.js: `pnpm next upgrade` (or `npx next upgrade`).
@@ -201,7 +201,7 @@ enabled; their absence means it is disabled.
 When enabled, add qualifying feedback candidates found during verification to
 the feedback candidate queue for the current user request, then continue
 verification. Do not run the feedback command or open review forms during the
-loop or at this workflow's teardown.
+loop or at this Skill's teardown.
 
 The managed instructions own the single reporting pass immediately before the
 final response. If they are absent, do not queue or report feedback.

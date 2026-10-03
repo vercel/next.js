@@ -64,11 +64,9 @@ async function prepareUpgradeDocument(
   const destination = join(input.runDirectory, input.document)
   const source = join(input.bundledAgentDocs, path)
 
-  if (path.endsWith('/workflow.md')) {
-    const workflowSource = join(input.bundledAgentDocs, 'workflows')
-    const workflowDestination = join(input.runDirectory, 'agent-docs/workflows')
-    await mkdir(workflowDestination, { recursive: true })
-    await cp(workflowSource, workflowDestination, { recursive: true })
+  if (path.endsWith('/guide.md')) {
+    await mkdir(dirname(destination), { recursive: true })
+    await cp(dirname(source), dirname(destination), { recursive: true })
   } else {
     await mkdir(dirname(destination), { recursive: true })
     await cp(source, destination)

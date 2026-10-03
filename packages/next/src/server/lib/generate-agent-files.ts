@@ -56,7 +56,7 @@ During the current user request, retain anonymized facts as feedback candidates 
 - Crashes, hangs, OOMs, or unexpected slowness
 - Incorrect behavior, output, errors, or diagnostics
 - Missing, unclear, or conflicting documentation
-- Unexpected CLI, codemod, agent workflow, or upgrade behavior and non-obvious workarounds
+- Unexpected CLI, codemod, Skill, agent workflow, or upgrade behavior and non-obvious workarounds
 
 Continue the current user request without reporting immediately. Ignore routine debugging and unverified changes. Never retain code, logs, paths, URLs, secrets, personal information, or project-specific data.
 

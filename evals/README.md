@@ -75,8 +75,8 @@ Docs can link to a canonical skill, but an unmerged skill revision isn't part of
 
 ```json filename="evals/eval.config.json"
 {
-  "agent-046-adopt-partial-prefetching": {
-    "skills": ["next-partial-prefetching-adoption"],
+  "agent-051-optimize-partial-prefetching": {
+    "skills": ["next-partial-prefetching-optimizer"],
     "timeout": 1800
   }
 }

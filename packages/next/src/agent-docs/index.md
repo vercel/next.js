@@ -1,16 +1,17 @@
 # Next.js agent documentation
 
-These version-matched documents help coding agents carry out Next.js workflows.
+These version-matched documents help coding agents carry out Next.js adoption
+workflows.
 Read only the pages that match the current task, along with the public framework
 documentation under `../docs/`.
 
-## Workflows
+## Adoption guides
 
-- Runtime verification: `workflows/next-dev-loop/workflow.md`
-- Adopt Cache Components: `workflows/next-cache-components-adoption/workflow.md`
-- Optimize a Cache Components route: `workflows/next-cache-components-optimizer/workflow.md`
-- Adopt Partial Prefetching: `workflows/next-partial-prefetching-adoption/workflow.md`
-- Optimize Partial Prefetching: `workflows/next-partial-prefetching-optimizer/workflow.md`
+- Adopt Cache Components: `adoption/cache-components/guide.md`
+- Adopt Partial Prefetching: `adoption/partial-prefetching/guide.md`
+
+Reusable runtime and optimization workflows remain Skills. They are not
+duplicated in this version-matched agent-docs bundle.
 
 ## Gated entry points
 

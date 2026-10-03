@@ -1,16 +1,4 @@
----
-name: next-partial-prefetching-adoption
-description: >
-  Turn on Partial Prefetching in a Next.js app and work through the
-  insights it surfaces. Use when the user wants to enable or adopt
-  Partial Prefetching, flip the `partialPrefetching` flag, opt routes
-  in with `export const prefetch = 'partial'`, audit
-  `Link prefetch={true}` behavior, preserve existing prefetched UI
-  with `instant()` tests, or resolve the
-  instant-link-prefetch-partial and instant-shell-url-data insights.
----
-
-# next-partial-prefetching-adoption
+# Adopt Partial Prefetching
 
 Enable Partial Prefetching and walk the app until every link reuses a shared App Shell. This workflow sequences the work; per-insight recipes live in the dev overlay fix cards and their docs pages. The [Adopting Partial Prefetching guide](https://nextjs.org/docs/app/guides/adopting-partial-prefetching) is the canonical reference for the concepts this workflow applies.
 
@@ -24,11 +12,11 @@ Talk to the user in terms of what they'll see — PRs, features, and how the app
 
 ## requires
 
-- **Cache Components adopted (`cacheComponents: true`) with a passing build.** Both `partialPrefetching` and the route-level `prefetch` export require Cache Components. If it is off, use [`next-cache-components-adoption`](../next-cache-components-adoption/workflow.md) first and return after its build-blocking prerender errors are resolved. Those errors can fail `next build`; only the Partial Prefetching insights handled by this workflow are non-blocking development signals.
+- **Cache Components adopted (`cacheComponents: true`) with a passing build.** Both `partialPrefetching` and the route-level `prefetch` export require Cache Components. If it is off, follow [Adopt Cache Components](../cache-components/guide.md) first and return after its build-blocking prerender errors are resolved. Those errors can fail `next build`; only the Partial Prefetching insights handled by this workflow are non-blocking development signals.
 
 - **Next.js 16.3 or later.** `partialPrefetching`, the `prefetch` route segment config, and the prefetch insights all land there.
 
-- **A browser you can drive.** Test-backed preservation uses an existing or minimal production-mode Playwright suite; manual preservation and the final demonstration use the running production app. The development insight path and the post-flag URL-data sweep use [`next-dev-loop`](../next-dev-loop/workflow.md); read it before either development pass. If the app is webpack-pinned, drive a browser directly (`agent-browser`, Playwright) — you lose the framework cross-checks, not the insights; they're still in the overlay and the dev log.
+- **A browser you can drive.** Test-backed preservation uses an existing or minimal production-mode Playwright suite; manual preservation and the final demonstration use the running production app. The development insight path and the post-flag URL-data sweep use the [`next-dev-loop`](https://www.skills.sh/vercel/next.js/next-dev-loop) Skill; read it before either development pass. If the app is webpack-pinned, drive a browser directly (`agent-browser`, Playwright) — you lose the framework cross-checks, not the insights; they're still in the overlay and the dev log.
 
 - **A runnable app.** Preservation and the final demonstration need a production-like build because automatic prefetching runs only in production. The development server is required only when using the insight path or running the post-flag URL-data sweep; do not start it merely to confirm a test-backed preservation case. If the app reads a database or required environment at import, confirm the environment used by the chosen path can start before step 1.
 
@@ -181,4 +169,4 @@ Finally, show any effective `prefetch={false}` links in a concise `Navigation | 
 
 - [Instant navigation](https://nextjs.org/docs/app/guides/instant-navigation) — the broader validation model and loading-state tooling.
 - [Prevent regressions with e2e tests](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) — use the `@next/playwright` `instant()` helper to build the flag-off baseline suite, then keep it as the CI regression guard.
-- [`next-cache-components-optimizer`](../next-cache-components-optimizer/workflow.md) — grows each route's static shell so the App Shell carries more.
+- The [`next-cache-components-optimizer`](https://www.skills.sh/vercel/next.js/next-cache-components-optimizer) Skill — grows each route's static shell so the App Shell carries more.

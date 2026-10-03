@@ -1554,11 +1554,9 @@ describe('agentic upgrade prompts', () => {
           isAdopted: jest.fn(() => false),
           adoptionDoc: [
             'docs/01-app/02-guides/migrating-to-cache-components.md',
-            'agent-docs/workflows/next-cache-components-adoption/workflow.md',
+            'agent-docs/adoption/cache-components/guide.md',
           ],
-          optimizationDoc: [
-            'agent-docs/workflows/next-cache-components-optimizer/workflow.md',
-          ],
+          optimizationSkills: ['next-cache-components-optimizer'],
           isApplicable: jest.fn(() => true),
         },
       ],
@@ -1579,20 +1577,22 @@ describe('agentic upgrade prompts', () => {
     expect(normalizedCopiedSources()).toEqual(
       expect.arrayContaining([
         expect.stringContaining('/agent-docs/upgrade/future-defaults.md'),
-        expect.stringContaining('/agent-docs/workflows'),
+        expect.stringContaining('/agent-docs/adoption/cache-components'),
       ])
     )
-    const workflowCopy = jest
+    const adoptionGuideCopy = jest
       .mocked(cp)
       .mock.calls.find(([source]) =>
-        String(source).replace(/\\+/g, '/').endsWith('/agent-docs/workflows')
+        String(source)
+          .replace(/\\+/g, '/')
+          .endsWith('/agent-docs/adoption/cache-components')
       )
-    expect(workflowCopy?.[2]).toEqual({ recursive: true })
-    expect(String(workflowCopy?.[1]).replace(/\\+/g, '/')).toBe(
-      '/tmp/next-upgrade-test/agent-docs/workflows'
+    expect(adoptionGuideCopy?.[2]).toEqual({ recursive: true })
+    expect(String(adoptionGuideCopy?.[1]).replace(/\\+/g, '/')).toBe(
+      '/tmp/next-upgrade-test/agent-docs/adoption/cache-components'
     )
     expect(normalizedBootstrapCalls().flat().join('\n')).toContain(
-      'Read and follow "/tmp/next-upgrade-test/agent-docs/workflows/next-cache-components-adoption/workflow.md".'
+      'Read and follow "/tmp/next-upgrade-test/agent-docs/adoption/cache-components/guide.md".'
     )
   })
 
@@ -1609,11 +1609,9 @@ describe('agentic upgrade prompts', () => {
           isAdopted: jest.fn(() => false),
           adoptionDoc: [
             'docs/01-app/02-guides/migrating-to-cache-components.md',
-            'agent-docs/workflows/next-cache-components-adoption/workflow.md',
+            'agent-docs/adoption/cache-components/guide.md',
           ],
-          optimizationDoc: [
-            'agent-docs/workflows/next-cache-components-optimizer/workflow.md',
-          ],
+          optimizationSkills: ['next-cache-components-optimizer'],
           isApplicable: jest.fn(() => true),
         },
       ],
@@ -1651,7 +1649,7 @@ describe('agentic upgrade prompts', () => {
       expect.anything(),
     ])
     expect(normalizedBootstrapCalls().flat().join('\n')).toContain(
-      'Read and follow "/tmp/next-upgrade-test/agent-docs/workflows/next-cache-components-adoption/workflow.md".'
+      'Read and follow "/tmp/next-upgrade-test/agent-docs/adoption/cache-components/guide.md".'
     )
   })
 })

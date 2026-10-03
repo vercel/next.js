@@ -4,14 +4,14 @@ import { findDir } from '../find-pages-dir'
 
 export type UpgradeDocument =
   | `docs/${string}.md`
-  | `agent-docs/workflows/${string}/workflow.md`
+  | `agent-docs/adoption/${string}/guide.md`
 
 type FutureDefault = {
   name: string
   availableSince: string
   isAdopted(config: Pick<NextConfigComplete, 'cacheComponents'>): boolean
   adoptionDoc: readonly UpgradeDocument[]
-  optimizationDoc: readonly UpgradeDocument[]
+  optimizationSkills: readonly string[]
   isApplicable(directory: string): boolean
 }
 
@@ -24,11 +24,9 @@ export const futureDefaults = [
     isAdopted: (config) => config.cacheComponents === true,
     adoptionDoc: [
       'docs/01-app/02-guides/migrating-to-cache-components.md',
-      'agent-docs/workflows/next-cache-components-adoption/workflow.md',
+      'agent-docs/adoption/cache-components/guide.md',
     ],
-    optimizationDoc: [
-      'agent-docs/workflows/next-cache-components-optimizer/workflow.md',
-    ],
+    optimizationSkills: ['next-cache-components-optimizer'],
     // TODO: Support Pages -> App migration before offering adoption to Pages-only apps.
     isApplicable: (directory) => findDir(directory, 'app') !== null,
   },

@@ -293,13 +293,7 @@ export function analyzeAgentFeedbackRun({
   }
 }
 
-/**
- * Install the current checkout's bundled workflow sources as Skills before the
- * coding agent starts.
- *
- * This adapter preserves the existing Skill treatment while the same workflow
- * is evaluated through the bundled agent-docs discovery path.
- */
+/** Install the current checkout's Skill sources before the coding agent starts. */
 export async function installLocalSkills(
   sandbox: Sandbox,
   skillNames: string[]
@@ -307,19 +301,13 @@ export async function installLocalSkills(
   const files: Record<string, string> = {}
 
   for (const skillName of skillNames) {
-    const workflowDir = join(
-      REPO_ROOT,
-      'packages/next/src/agent-docs/workflows',
-      skillName
-    )
-    if (!existsSync(join(workflowDir, 'workflow.md'))) {
-      throw new Error(`Next.js agent workflow not found: ${skillName}`)
+    const skillDir = join(REPO_ROOT, 'skills', skillName)
+    if (!existsSync(join(skillDir, 'SKILL.md'))) {
+      throw new Error(`Next.js Skill not found: ${skillName}`)
     }
 
-    for (const file of listFiles(workflowDir)) {
-      const workflowPath = relative(workflowDir, file).replaceAll('\\', '/')
-      const skillPath =
-        workflowPath === 'workflow.md' ? 'SKILL.md' : workflowPath
+    for (const file of listFiles(skillDir)) {
+      const skillPath = relative(skillDir, file).replaceAll('\\', '/')
       const content = readFileSync(file, 'utf-8')
 
       // Claude Code reads .claude/skills. Keep the agent-neutral path in sync
