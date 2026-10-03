@@ -102,6 +102,8 @@ mod platform {
     /// Reads `PROCESS_MEMORY_COUNTERS::WorkingSetSize`, which is the amount
     /// of memory currently resident for the calling process in bytes.
     pub fn memory_footprint() -> Option<usize> {
+        // Safety: `PROCESS_MEMORY_COUNTERS` is a plain C struct consisting
+        // only of integer fields, so the all-zero bit pattern is a valid value.
         let mut counters: PROCESS_MEMORY_COUNTERS = unsafe { std::mem::zeroed() };
         // Safety: `counters` is a properly sized and zero-initialized
         // `PROCESS_MEMORY_COUNTERS`. `GetCurrentProcess` returns a
