@@ -281,8 +281,9 @@ impl<'e> ExecuteContext<'e> {
     /// requested categories, using empty storage for absent keys. This is distinct from normal
     /// task creation, which initializes both categories before publishing the task id.
     ///
-    /// While waiting, the task is pinned against GC; the pin is released under the returned guard.
-    /// On an I/O error the restoring bits are cleared and waiters are notified.
+    /// The task is pinned for the duration of the restore; the pin is released under the returned
+    /// guard, or before returning an error. On an I/O error the restoring bits are cleared and
+    /// waiters are notified.
     fn restore_task(
         &self,
         task_id: TaskId,
@@ -300,6 +301,14 @@ impl<'e> ExecuteContext<'e> {
             // A missing read instead leaves its category unrestored until the caller handles it.
             if task.flags.is_restored(category) {
                 break;
+            }
+            // The id is held outside the lock for the rest of this restore, both while doing our
+            // own I/O and while waiting on a peer, so pin it. That keeps the entry from being
+            // discarded (by a peer that finds the task missing) or collected under us. Eviction is
+            // still allowed while waiting; a later pass restores the category again if needed.
+            if !pinned {
+                task.update_and_get_transient_ref_count(1);
+                pinned = true;
             }
             let needs_data = category.includes_data() && !task.flags.data_restored();
             let needs_meta = category.includes_meta() && !task.flags.meta_restored();
@@ -374,13 +383,7 @@ impl<'e> ExecuteContext<'e> {
                 continue;
             }
 
-            // Every missing category is being restored by another thread. The caller holds the
-            // task id outside the graph while waiting, so pin it against GC. Eviction is still
-            // allowed; a later pass restores the category again if needed.
-            if !pinned {
-                task.update_and_get_transient_ref_count(1);
-                pinned = true;
-            }
+            // Every missing category is being restored by another thread.
             // Register before dropping the lock: the restorer notifies only after re-acquiring it
             // to apply its result, so no wakeup can be lost.
             let listener = self.backend.storage.restored.listen();
@@ -397,15 +400,22 @@ impl<'e> ExecuteContext<'e> {
         Ok((task, outcome))
     }
 
-    /// [`Self::restore_task`] on a freshly acquired guard, panicking on an I/O error.
-    fn restore_task_or_panic(
+    /// [`Self::restore_task`] on a freshly acquired guard, for a task the caller has already
+    /// pinned. On an I/O error the caller's pin is released before the error is returned: the
+    /// caller panics, and that panic is often caught, so the pin must not leak.
+    fn restore_pinned_task(
         &self,
         task_id: TaskId,
         category: TaskDataCategory,
-    ) -> (TaskEntryGuard<'e>, RestoreOutcome) {
+    ) -> Result<(TaskEntryGuard<'e>, RestoreOutcome)> {
         let task = self.backend.storage.access_entry_mut(task_id);
         self.restore_task(task_id, category, task, TaskAccess::MustExist)
-            .unwrap_or_else(|e| panic!("Failed to restore {category:?} for task {task_id}: {e:?}"))
+            .inspect_err(|_| {
+                self.backend
+                    .storage
+                    .access_mut(task_id)
+                    .update_and_get_transient_ref_count(-1);
+            })
     }
 
     /// Restores a batch of tasks, then hands each to `prepared_task_callback`. Like
@@ -611,7 +621,7 @@ impl<'e> ExecuteContext<'e> {
         // A failed task releases its Phase 1a pin here and is skipped by the later phases; every
         // other task is still handed off normally, and the failure is reported at the end. The
         // panic is often caught (it can become a task's error output), so it must not leave pins
-        // or a blank entry behind.
+        // behind, or an entry for a task that does not exist.
         let mut any_self_restored = false;
         let mut restore_errors: Vec<(TaskId, &str, anyhow::Error)> = Vec::new();
         // Tasks that exist nowhere, reported once waiters are unblocked.
@@ -715,7 +725,13 @@ impl<'e> ExecuteContext<'e> {
                 // Phase 1c already checked existence. The classification-time transient ref
                 // prevents GC until this callback acquires the task; this restores the category
                 // again if eviction won the handoff.
-                let (mut task, _) = self.restore_task_or_panic(entry.task_id, entry.category);
+                let mut task = match self.restore_pinned_task(entry.task_id, entry.category) {
+                    Ok((task, _)) => task,
+                    Err(e) => {
+                        restore_errors.push((entry.task_id, category_name(entry.category), e));
+                        continue;
+                    }
+                };
                 task.update_and_get_transient_ref_count(-1);
                 prepared_task_callback(
                     self,
@@ -735,7 +751,15 @@ impl<'e> ExecuteContext<'e> {
                     continue;
                 }
                 self.task_lock_counter.acquire();
-                let (mut task, outcome) = self.restore_task_or_panic(entry.task_id, entry.category);
+                let (mut task, outcome) =
+                    match self.restore_pinned_task(entry.task_id, entry.category) {
+                        Ok(restored) => restored,
+                        Err(e) => {
+                            restore_errors.push((entry.task_id, category_name(entry.category), e));
+                            self.task_lock_counter.release();
+                            continue;
+                        }
+                    };
                 task.update_and_get_transient_ref_count(-1);
                 if outcome.missing_on_disk {
                     // Keep handing off the remaining tasks; report once all pins are released.
@@ -764,6 +788,15 @@ impl<'e> ExecuteContext<'e> {
                 .collect();
             panic!("Restore failures:\n{}", msgs.join("\n"));
         }
+    }
+}
+
+/// A label for `category` in restore error messages.
+fn category_name(category: TaskDataCategory) -> &'static str {
+    match category {
+        TaskDataCategory::Meta => "meta",
+        TaskDataCategory::Data => "data",
+        TaskDataCategory::All => "data and meta",
     }
 }
 
@@ -1040,7 +1073,22 @@ impl<'e> ExecuteContext<'e> {
                 if restored {
                     continue;
                 }
-                let (mut task, outcome) = self.restore_task_or_panic(task_id, category);
+                let other_id = if task_id == task_id1 {
+                    task_id2
+                } else {
+                    task_id1
+                };
+                let (mut task, outcome) = match self.restore_pinned_task(task_id, category) {
+                    Ok(restored) => restored,
+                    Err(e) => {
+                        // This task's pin is already released; release the other endpoint's too.
+                        self.backend
+                            .storage
+                            .access_mut(other_id)
+                            .update_and_get_transient_ref_count(-1);
+                        panic!("Failed to restore {category:?} for task {task_id}: {e:?}");
+                    }
+                };
                 // Decide under the guard that may hold an empty read.
                 if outcome.missing_on_disk {
                     // The panic is often caught (it can become a task's error output), so release
@@ -1048,11 +1096,6 @@ impl<'e> ExecuteContext<'e> {
                     // the session and the missing entry is never discarded.
                     task.update_and_get_transient_ref_count(-1);
                     handle_missing_task(task, task_id, TaskAccess::AllowMissing, "task_pair");
-                    let other_id = if task_id == task_id1 {
-                        task_id2
-                    } else {
-                        task_id1
-                    };
                     self.backend
                         .storage
                         .access_mut(other_id)
