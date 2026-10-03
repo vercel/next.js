@@ -10,6 +10,10 @@ const {
   getGitHubToken,
   getGitHubTokenMissingMessage,
 } = require('./release-github-auth')
+const {
+  publishWorkspacePackages,
+  readWorkspacePackages,
+} = require('./npm-release-readiness')
 
 const cwd = process.cwd()
 const dryRun = process.argv.includes('--dry-run')
@@ -248,14 +252,14 @@ const publishRetryDelaySeconds = 15
       '-1',
       '--json',
     ])
-    const workspacePackages = JSON.parse(pnpmListJson.stdout)
+    const workspacePackageList = JSON.parse(pnpmListJson.stdout)
     const publishedPackageNames = new Set(
-      workspacePackages
+      workspacePackageList
         .filter((workspacePackage) => !workspacePackage.private)
         .map((workspacePackage) => workspacePackage.name)
     )
 
-    for (const workspacePackage of workspacePackages) {
+    for (const workspacePackage of workspacePackageList) {
       if (workspacePackage.private) {
         continue
       }
@@ -282,20 +286,21 @@ const publishRetryDelaySeconds = 15
     }
   }
 
-  await publish('workspace', [
-    '--filter',
-    './packages/**',
-    'publish',
-    '--recursive',
-    '--access',
-    'public',
-    '--no-git-checks',
-    '--ignore-scripts',
-    '--report-summary',
-    '--tag',
+  const workspacePackages = await readWorkspacePackages(
+    path.join(cwd, 'packages')
+  )
+
+  // pnpm's recursive publish can finish publishing a dependent before npm's
+  // registry serves the exact workspace package it requires. Publish those
+  // prerequisites separately, then wait for exact-version metadata before
+  // exposing dependent package metadata.
+  await publishWorkspacePackages({
+    packages: workspacePackages,
+    version,
     npmDistTag,
-    ...(dryRun ? ['--dry-run'] : []),
-  ])
+    dryRun,
+    publish,
+  })
 
   if (dryRun) {
     console.log('Dry run: skipping GitHub release un-draft')
