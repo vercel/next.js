@@ -1,3 +1,4 @@
+import { uncork } from '../../lib/upgrade-output'
 import type { Socket } from 'net'
 import { mkdir, writeFile } from 'fs/promises'
 import { realpathSync } from 'fs'
@@ -2211,8 +2212,11 @@ export async function createHotReloaderTurbopack(
     },
   }
 
-  handleEntrypointsSubscription().catch((err) => {
+  handleEntrypointsSubscription().catch(async (err) => {
     console.error(err)
+    // A fatal subscription error may be buffered behind the upgrade choice.
+    // Restore output before terminating the dev process.
+    await uncork()
     process.exit(1)
   })
 
@@ -2328,8 +2332,11 @@ export async function createHotReloaderTurbopack(
     }
   }
 
-  handleProjectUpdates().catch((err) => {
+  handleProjectUpdates().catch(async (err) => {
     console.error(err)
+    // Use the same controlled exit so this subscription's error is not lost
+    // when the menu has corked the dev process's streams.
+    await uncork()
     process.exit(1)
   })
 

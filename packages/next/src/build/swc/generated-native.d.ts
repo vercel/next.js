@@ -353,6 +353,8 @@ export interface NapiNextTurbopackCallbacksJsObject {
   ) => never
   /** Called before deferred entries are processed in a production build. */
   onBeforeDeferredEntries?: () => Promise<void>
+  /** Receives loader terminal bytes on the owning JavaScript thread. */
+  onOutput?: (error: Error | null, output: NapiTerminalOutput) => void
 }
 
 export interface NapiOptionEnvVar {
@@ -501,6 +503,11 @@ export interface NapiSourceDiagnostic {
 export interface NapiSourcePos {
   line: number
   column: number
+}
+
+export interface NapiTerminalOutput {
+  fd: number
+  data: Buffer
 }
 
 export interface NapiTurboEngineOptions {

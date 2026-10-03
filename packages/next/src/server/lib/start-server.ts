@@ -1,3 +1,4 @@
+import { uncork, handleUpgradeOutputMessages } from '../../lib/upgrade-output'
 // Start CPU profile if it wasn't already started.
 import './cpu-profile'
 import { getNetworkHost } from '../../lib/get-network-host'
@@ -268,6 +269,7 @@ export async function startServer(
           'memory.heapUsed': String(memoryRestartStats.used_heap_size),
         }).stop()
         flushAllTraces()
+        await uncork()
         process.exit(RESTART_EXIT_CODE)
       }
     }
@@ -299,7 +301,7 @@ export async function startServer(
   let portRetryCount = 0
   const originalPort = port
 
-  server.on('error', (err: NodeJS.ErrnoException) => {
+  server.on('error', async (err: NodeJS.ErrnoException) => {
     if (
       allowRetry &&
       port &&
@@ -313,6 +315,7 @@ export async function startServer(
     } else {
       Log.error(`Failed to start server`)
       console.error(err)
+      await uncork()
       process.exit(1)
     }
   })
@@ -461,6 +464,10 @@ export async function startServer(
 
             debug('start-server process cleanup finished')
 
+            // Close the menu and release held logs without waiting for final
+            // writes. Keep each existing signal's exit status below.
+            await uncork()
+
             // Exit with signal-based exit code (128 + signal number) so that
             // Node.js treats this as a signal termination, not a normal exit.
             // This avoids waiting for the debugger to disconnect.
@@ -562,6 +569,7 @@ export async function startServer(
         // fatal error if we can't setup
         handlersError()
         console.error(err)
+        await uncork()
         process.exit(1)
       }
     })
@@ -608,9 +616,10 @@ export async function startServer(
           filename
         )}. Restarting the server to apply the changes...`
       )
+      await uncork()
       process.exit(RESTART_EXIT_CODE)
     })
-    wp.on('remove', (removedPath: string) => {
+    wp.on('remove', async (removedPath: string) => {
       if (dirWatchPaths.includes(removedPath)) {
         Log.error(
           `The directory at "${removedPath}" was deleted.\n\n` +
@@ -619,6 +628,7 @@ export async function startServer(
             'Deleting this directory while Next.js is running can lead to ' +
             'undefined behavior. Restarting the server to recover...'
         )
+        await uncork()
         process.exit(RESTART_EXIT_CODE)
       }
     })
@@ -628,6 +638,17 @@ export async function startServer(
 }
 
 if (process.env.NEXT_PRIVATE_WORKER && process.send) {
+  // Keep shutdown control across restarts after Skip as well. Config and its
+  // route callbacks stay live; router-server decides whether to hold output.
+  // Install IPC before loading config so even startup errors can ask the parent
+  // to close the menu and release their buffered diagnostics before exiting.
+  if (
+    process.env.NEXT_PRIVATE_UPGRADE_PROCESS_GROUP === '1' ||
+    process.env.NEXT_PRIVATE_UPGRADE_PROMPT === '1'
+  ) {
+    handleUpgradeOutputMessages()
+  }
+
   process.addListener('message', async (msg: any) => {
     if (
       msg &&

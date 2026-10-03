@@ -58,6 +58,10 @@ export async function promptUpgrade({
   const cancel = () => {
     cancelled = true
     keys.emit('keypress', '', { name: 'escape' })
+
+    // Fatal output and restarts end this menu permanently. Restore the screen
+    // synchronously so the caller can release child logs as soon as abort returns.
+    restore()
   }
   const onKey = (text: string, key: Key) => {
     if (key?.ctrl && key.name === 'c') {
@@ -79,6 +83,9 @@ export async function promptUpgrade({
     })
   }
   let restored = false
+
+  // Return terminal input, cursor and the original screen once, including
+  // cancellation and synchronous CLI exits. A cancelled menu never reopens.
   const restore = () => {
     if (restored) {
       return

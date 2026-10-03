@@ -9,6 +9,7 @@ import type { OnCacheEntryHandler } from '../request-meta'
 import { interopDefault } from '../../lib/interop-default'
 import { formatDynamicImportPath } from '../../lib/format-dynamic-import-path'
 import type { ConfiguredExperimentalFeature } from '../config'
+import { isUpgradeFatal, uncork } from '../../lib/upgrade-output'
 
 export type ServerInitResult = {
   requestHandler: RequestHandler
@@ -177,7 +178,19 @@ async function initializeImpl(opts: {
     upgradeHandler = server.getUpgradeHandler()
   }
 
-  await server.prepare(opts.serverFields)
+  // Server construction and preparation can hit synchronous fatal validators.
+  // Keep the constructor synchronous and finish their already-reported errors
+  // here, while startup can still await terminal restoration and log delivery.
+  try {
+    await server.prepare(opts.serverFields)
+  } catch (error) {
+    if (!isUpgradeFatal(error)) {
+      throw error
+    }
+
+    await uncork()
+    process.exit(1)
+  }
 
   return {
     requestHandler,

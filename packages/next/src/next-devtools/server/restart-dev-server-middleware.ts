@@ -64,6 +64,8 @@ export function getRestartDevServerMiddleware({
     // do this async to try to give the response a chance to send
     // it's not really important if it doesn't though
     setTimeout(() => {
+      // TODO: Clicking Restart in DevTools exits without releasing held logs.
+      // If the upgrade menu is open, those logs are lost. Release them first.
       process.exit(RESTART_EXIT_CODE)
     }, 0)
 

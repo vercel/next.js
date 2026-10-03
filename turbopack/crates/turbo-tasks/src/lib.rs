@@ -59,6 +59,7 @@ pub mod task;
 mod task_dirty_cause;
 mod task_execution_reason;
 pub mod task_statistics;
+pub mod terminal_output;
 mod trait_ref;
 mod triomphe_utils;
 pub mod util;

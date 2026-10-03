@@ -12,8 +12,8 @@ use std::{
 use anyhow::Result;
 use napi::{
     Env, Status, Unknown,
-    bindgen_prelude::{FunctionRef, Promise},
-    threadsafe_function::ThreadsafeFunction,
+    bindgen_prelude::{Buffer, FunctionRef, Promise},
+    threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode},
 };
 use napi_derive::napi;
 use owo_colors::OwoColorize;
@@ -23,6 +23,7 @@ use turbo_tasks::{
     PrettyPrintError, TurboTasks, TurboTasksCallApi,
     backend::TurboTasksExecutionError,
     message_queue::{CompilationEvent, Severity},
+    terminal_output::TerminalOutput,
 };
 use turbo_tasks_backend::{
     BackendOptions, BackingStorageOptions, EvictionMode, GitVersionInfo, StartupCacheState,
@@ -153,6 +154,16 @@ pub struct NapiNextTurbopackCallbacksJsObject {
     /// Called before deferred entries are processed in a production build.
     #[napi(ts_type = "() => Promise<void>")]
     pub on_before_deferred_entries: Option<FunctionRef<(), Promise<()>>>,
+
+    /// Receives loader terminal bytes on the owning JavaScript thread.
+    #[napi(ts_type = "(error: Error | null, output: NapiTerminalOutput) => void")]
+    pub on_output: Option<FunctionRef<NapiTerminalOutput, ()>>,
+}
+
+#[napi(object)]
+pub struct NapiTerminalOutput {
+    pub fd: u8,
+    pub data: Buffer,
 }
 
 /// A collection of helper JavaScript functions passed into
@@ -160,6 +171,10 @@ pub struct NapiNextTurbopackCallbacksJsObject {
 ///
 /// This type is [`Send`] and [`Sync`]. Callbacks are wrapped in [`ThreadsafeFunction`].
 pub struct NapiNextTurbopackCallbacks {
+    // TODO: Some Rust logs still print directly to the terminal. They can cover
+    // the upgrade menu and disappear when it closes. Send them through Node's
+    // output streams, as we do for loader logs.
+    pub terminal_output: Option<TerminalOutput>,
     // It's a little nasty to use a `ThreadsafeFunction` for this, but we don't expect exceptions
     // to be a hot codepath.
     //
@@ -226,7 +241,44 @@ impl NapiNextTurbopackCallbacks {
             })
             .transpose()?;
 
+        // Queue bytes without waiting for JavaScript or corked write callbacks,
+        // so loader work can continue while the upgrade menu is open.
+        // TODO: A fatal exit can happen before Node receives these logs, so the
+        // last queued logs may never reach the terminal.
+        let terminal_output = obj
+            .on_output
+            .map(|callback| {
+                let callback: ThreadsafeFunction<
+                    (u8, Vec<u8>),
+                    (),
+                    NapiTerminalOutput,
+                    Status,
+                    true,
+                    true,
+                > = callback
+                    .borrow_back(env)?
+                    .build_threadsafe_function::<(u8, Vec<u8>)>()
+                    .callee_handled::<true>()
+                    .weak::<true>()
+                    .build_callback(|ctx| {
+                        Ok(NapiTerminalOutput {
+                            fd: ctx.value.0,
+                            data: ctx.value.1.into(),
+                        })
+                    })?;
+                Ok::<TerminalOutput, napi::Error>(Arc::new(move |fd, bytes| {
+                    let status =
+                        callback.call(Ok((fd, bytes)), ThreadsafeFunctionCallMode::NonBlocking);
+                    if status != Status::Ok {
+                        anyhow::bail!("Failed to queue terminal output: {status}");
+                    }
+                    Ok(())
+                }))
+            })
+            .transpose()?;
+
         Ok(NapiNextTurbopackCallbacks {
+            terminal_output,
             throw_turbopack_internal_error,
             on_before_deferred_entries,
         })

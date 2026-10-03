@@ -1,3 +1,4 @@
+import { uncork } from './upgrade-output'
 import type { NextConfigComplete } from '../server/config-shared'
 import loadConfig from '../server/config'
 import * as Log from '../build/output/log'
@@ -68,7 +69,9 @@ export async function validateTurboNextConfig({
     )
 
     if (typeof rawNextConfig === 'function') {
-      rawNextConfig = (rawNextConfig as any)(configPhase, {
+      // Validation can evaluate config while logs are held. The common cork
+      // deadline releases write callbacks, so config needs no separate guard.
+      rawNextConfig = await (rawNextConfig as any)(configPhase, {
         defaultConfig,
       })
     }
@@ -161,6 +164,8 @@ export async function validateTurboNextConfig({
    \`--turbopack\` or \`--webpack\` flag explicitly or simply setting an 
    empty turbopack config in ${configFile} (e.g. \`turbopack: {}\`).`
     )
+
+    await uncork()
 
     process.exit(1)
   }

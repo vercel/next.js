@@ -1,3 +1,8 @@
+import {
+  throwUpgradeError,
+  isUpgradeFatal,
+  uncork,
+} from '../../lib/upgrade-output'
 import type { NextConfig } from '../../server/config-shared'
 import type { RouteHas } from '../../lib/load-custom-routes'
 
@@ -522,7 +527,7 @@ export function getMiddlewareMatchers(
       // We need to exit here because middleware being built occurs before we
       // finish setting up the server. Exiting here is the only way to ensure
       // that we don't hang.
-      process.exit(1)
+      throwUpgradeError('Failed to parse middleware source')
     }
 
     return {
@@ -535,13 +540,18 @@ export function getMiddlewareMatchers(
   })
 }
 
-function parseMiddlewareConfig(
+// Only async page analysis calls this private parser. Keep the public matcher
+// API synchronous, and finish fatal handling here before a dev watcher can
+// turn it into a recoverable reload warning.
+async function parseMiddlewareConfig(
   page: string,
   rawConfig: unknown,
   nextConfig: NextConfig
-): ProxyConfig {
+): Promise<ProxyConfig> {
   // If there's no config to parse, then return nothing.
-  if (typeof rawConfig !== 'object' || !rawConfig) return {}
+  if (typeof rawConfig !== 'object' || !rawConfig) {
+    return {}
+  }
 
   const input = MiddlewareConfigInputSchema.safeParse(rawConfig)
   if (!input.success) {
@@ -550,13 +560,25 @@ function parseMiddlewareConfig(
     // We need to exit here because middleware being built occurs before we
     // finish setting up the server. Exiting here is the only way to ensure
     // that we don't hang.
+    await uncork()
     process.exit(1)
   }
 
   const config: ProxyConfig = {}
 
   if (input.data.matcher) {
-    config.matchers = getMiddlewareMatchers(input.data.matcher, nextConfig)
+    // Expanded matchers can fail even after the raw config passed validation.
+    // Their diagnostic is already printed; other errors still propagate.
+    try {
+      config.matchers = getMiddlewareMatchers(input.data.matcher, nextConfig)
+    } catch (error) {
+      if (!isUpgradeFatal(error)) {
+        throw error
+      }
+
+      await uncork()
+      process.exit(1)
+    }
   }
 
   if (input.data.unstable_allowDynamic) {
@@ -792,7 +814,11 @@ export async function getAppPageStaticInfo({
     generateImageMetadata,
     generateSitemaps,
     config,
-    middleware: parseMiddlewareConfig(page, exportedConfig.config, nextConfig),
+    middleware: await parseMiddlewareConfig(
+      page,
+      exportedConfig.config,
+      nextConfig
+    ),
     runtime: config.runtime,
     preferredRegion: config.preferredRegion,
     maxDuration: config.maxDuration,
@@ -903,7 +929,11 @@ export async function getPagesPageStaticInfo({
     type: PAGE_TYPES.PAGES,
     rsc,
     config,
-    middleware: parseMiddlewareConfig(page, exportedConfig.config, nextConfig),
+    middleware: await parseMiddlewareConfig(
+      page,
+      exportedConfig.config,
+      nextConfig
+    ),
     runtime: resolvedRuntime,
     preferredRegion: config.config?.regions,
     maxDuration: config.maxDuration ?? config.config?.maxDuration,

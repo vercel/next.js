@@ -1,3 +1,4 @@
+import { uncork, pipeWorkerOutput } from './upgrade-output'
 import type { ChildProcess } from 'child_process'
 import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
 import { Transform } from 'stream'
@@ -81,7 +82,6 @@ export class Worker {
     let activeTasks = 0
 
     this._worker = undefined
-
     // ensure we end workers if they weren't before exit
     process.on('exit', () => {
       this.close()
@@ -174,13 +174,14 @@ export class Worker {
           []) as {
           _child?: ChildProcess
         }[]) {
-          worker._child?.on('exit', (code, signal) => {
+          worker._child?.on('exit', async (code, signal) => {
             if ((code || (signal && signal !== 'SIGINT')) && this._worker) {
               logger.error(
                 `Next.js build worker exited with code: ${code} and signal: ${signal}`
               )
 
               // if a child process doesn't exit gracefully, we want to bubble up the exit code to the parent process
+              await uncork()
               process.exit(code ?? 1)
             }
           })
@@ -220,8 +221,10 @@ export class Worker {
       this._worker.getStderr().pipe(abortActivityStreamOnLog)
 
       // Pipe the worker's stdout and stderr to the parent process
-      this._worker.getStdout().pipe(process.stdout)
-      this._worker.getStderr().pipe(process.stderr)
+      // Worker logs join this process's corked streams. Keep reading them so
+      // the workers do not stall just because the menu owns terminal output.
+      pipeWorkerOutput(this._worker.getStdout(), process.stdout)
+      pipeWorkerOutput(this._worker.getStderr(), process.stderr)
     }
     createWorker()
 
