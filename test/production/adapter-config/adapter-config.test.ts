@@ -452,6 +452,7 @@ describe('adapter-config', () => {
     }
 
     expect(routing).toEqual({
+      version: 2,
       beforeMiddleware: expect.toBeArray(),
       middlewareMatchers: expect.toBeArray(),
       beforeFiles: expect.toBeArray(),
