@@ -685,6 +685,7 @@ jobs:
         # runtime provides it. See scripts/wasi-test-host/README.md, which also lists the platform
         # limitations behind the tests that are `ignore`d on wasm.
         export CARGO_TARGET_WASM32_WASIP1_THREADS_RUNNER="node $PWD/scripts/wasi-test-host/run.mjs"
+        node --test packages/next/src/build/swc/wasi-loader.test.mjs
         cargo test \
           -p turbo-rcstr \
           -p turbo-tasks \
