@@ -133,12 +133,13 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
             .try_join()
             .await?;
 
+        // Expose comments to plugins whenever the source has any. swc/core enables
+        // the proxy whenever a comments store exists at all; only skip it here when
+        // there is nothing to expose, so a file with only leading comments (the
+        // common case: JSDoc and full-line `//` comments) still gets its comments.
         let should_enable_comments_proxy =
-            !ctx.comments.leading.is_empty() && !ctx.comments.trailing.is_empty();
+            !ctx.comments.leading.is_empty() || !ctx.comments.trailing.is_empty();
 
-        //[TODO]: as same as swc/core does, we should set should_enable_comments_proxy
-        // depends on the src's comments availability. For now, check naively if leading
-        // / trailing comments are empty.
         let comments = if should_enable_comments_proxy {
             Some(turbopack_ecmascript::swc_comments_to_single_threaded(
                 ctx.comments,
