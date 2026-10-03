@@ -50,9 +50,12 @@ use swc_core::{
 use turbopack_core::module::ModuleSideEffects;
 
 use crate::{
-    analyzer::cjs_ast::{
-        as_exports_define_property, is_cjs_export_member, is_global, is_module_dot_exports,
-        is_module_exports_chain,
+    analyzer::{
+        cjs_ast::{
+            as_exports_define_property, is_cjs_export_member, is_global, is_module_dot_exports,
+            is_module_exports_chain,
+        },
+        no_side_effects::{NoSideEffectsInfo, collect_no_side_effects},
     },
     utils::unparen,
 };
@@ -507,12 +510,14 @@ pub fn compute_module_evaluation_side_effects(
     let module_exports_tainted = module_exports_is_tainted(program, unresolved_mark);
     let module_exports_has_accessor = module_exports_has_accessor(program, unresolved_mark);
     let safe_assignment_constant_ids = collect_safe_assignment_constant_ids(program);
+    let no_side_effects = collect_no_side_effects(program, Some(comments));
     let mut visitor = SideEffectVisitor::new(
         comments,
         unresolved_mark,
         module_exports_tainted,
         module_exports_has_accessor,
         safe_assignment_constant_ids,
+        no_side_effects,
     );
     program.visit_with(&mut visitor);
     if visitor.has_side_effects {
@@ -536,6 +541,8 @@ struct SideEffectVisitor<'a> {
     /// local `const` bindings initialized with a fresh object/array literal.
     /// Member mutations rooted at these are not module-evaluation side effects.
     safe_assignment_constant_ids: HashSet<Id>,
+    /// Local bindings whose calls are covered by `NO_SIDE_EFFECTS`.
+    no_side_effects: NoSideEffectsInfo,
     has_side_effects: bool,
     will_invoke_fn_exprs: bool,
     has_imports: bool,
@@ -548,6 +555,7 @@ impl<'a> SideEffectVisitor<'a> {
         module_exports_tainted: bool,
         module_exports_has_accessor: bool,
         safe_assignment_constant_ids: HashSet<Id>,
+        no_side_effects: NoSideEffectsInfo,
     ) -> Self {
         Self {
             comments,
@@ -555,6 +563,7 @@ impl<'a> SideEffectVisitor<'a> {
             module_exports_tainted,
             module_exports_has_accessor,
             safe_assignment_constant_ids,
+            no_side_effects,
             has_side_effects: false,
             will_invoke_fn_exprs: false,
             has_imports: false,
@@ -584,6 +593,16 @@ impl<'a> SideEffectVisitor<'a> {
     /// Check if a span has a `/*#__PURE__*/` or `/*@__PURE__*/` annotation.
     fn is_pure_annotated(&self, span: swc_core::common::Span) -> bool {
         self.comments.has_flag(span.lo, "PURE")
+    }
+
+    fn is_no_side_effects_callee(&self, callee: &Callee) -> bool {
+        let Callee::Expr(callee) = callee else {
+            return false;
+        };
+        let Expr::Ident(ident) = unparen(callee) else {
+            return false;
+        };
+        self.no_side_effects.contains(&ident.to_id())
     }
 
     /// Check if a callee expression is a known pure built-in function.
@@ -1017,8 +1036,12 @@ impl<'a> Visit for SideEffectVisitor<'a> {
 
             // Impure expressions (conservative)
             Expr::Call(call) => {
-                // Check for /*#__PURE__*/ annotation or for a well known function
-                if self.is_pure_annotated(call.span) || self.is_known_pure_builtin(&call.callee) {
+                // Check for a call-level PURE annotation, a binding-level NO_SIDE_EFFECTS
+                // annotation, or a well-known function.
+                if self.is_pure_annotated(call.span)
+                    || self.is_no_side_effects_callee(&call.callee)
+                    || self.is_known_pure_builtin(&call.callee)
+                {
                     // For known pure builtins, we need to check both:
                     // 1. The receiver (e.g., the array in [foo(), 2, 3].map(...))
                     // 2. The arguments
@@ -1565,6 +1588,38 @@ mod tests {
         no_side_effects!(test_pure_annotation_with_at, "/*@__PURE__*/ foo();");
 
         no_side_effects!(test_pure_annotation_constructor, "/*#__PURE__*/ new Foo();");
+
+        no_side_effects!(
+            test_no_side_effects_annotation_variable,
+            "const fn = /*#__NO_SIDE_EFFECTS__*/ other; fn();"
+        );
+
+        no_side_effects!(
+            test_no_side_effects_annotation_function,
+            "/*@__NO_SIDE_EFFECTS__*/ function fn() {} fn();"
+        );
+
+        no_side_effects!(
+            test_no_side_effects_annotation_variable_declaration,
+            "/*#__NO_SIDE_EFFECTS__*/ const fn = other; fn();"
+        );
+
+        side_effects!(
+            test_no_side_effects_annotation_ignores_destructuring,
+            "const { fn } = /*#__NO_SIDE_EFFECTS__*/ other; fn();"
+        );
+
+        side_effects!(
+            test_no_side_effects_annotation_still_checks_arguments,
+            "const fn = /*#__NO_SIDE_EFFECTS__*/ other; fn(sideEffect());"
+        );
+
+        side_effects!(
+            test_no_side_effects_annotation_does_not_purify_initializer,
+            "const fn = /*#__NO_SIDE_EFFECTS__*/ getFn();"
+        );
+
+        side_effects!(test_unannotated_binding_call, "const fn = other; fn();");
 
         no_side_effects!(
             test_pure_annotation_in_variable,
