@@ -1,0 +1,9 @@
+{
+  "name": "@test/shared",
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./dist/index.js",
+    "./serialization": "./dist/serialization.js"
+  }
+}
