@@ -33,28 +33,6 @@ describe.each(['9.37.0', '10.11.0'])(
         throw new Error(`ESLint failed:\n${stderr}`)
       }
 
-      // TEMP CI DEBUG
-      require('console').log(
-        'DEBUG eslint',
-        directory,
-        JSON.stringify({
-          stderr,
-          unresolved: results.flatMap(({ filePath, messages }) =>
-            messages
-              .filter(({ ruleId }) => ruleId === 'import/no-unresolved')
-              .map(({ line, message }) => `${filePath}:${line} ${message}`)
-          ),
-          probe: spawnSync(
-            process.execPath,
-            [
-              '-e',
-              `const {createRequire}=require('module');const req=createRequire(require.resolve('eslint-config-next'));const p=req.resolve('eslint-import-resolver-typescript');console.log('resolver at',p);const r=req(p);console.log(JSON.stringify(r.resolve('@/page',require('path').resolve('imports.ts'),{alwaysTryTypes:true})));console.log('cwd',process.cwd());console.log('env',JSON.stringify(Object.fromEntries(Object.entries(process.env).filter(([k])=>/NODE|TS_|TSC|PNPM|npm_config/i.test(k)))))`,
-            ],
-            { cwd, encoding: 'utf8' }
-          ),
-        })
-      )
-
       return results
         .flatMap(({ filePath, messages }) =>
           messages.map(
