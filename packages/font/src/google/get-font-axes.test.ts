@@ -25,3 +25,13 @@ describe('getFontAxes errors', () => {
     `)
   })
 })
+
+describe('getFontAxes', () => {
+  test('Keeps selected variable axes for fixed weights on variable fonts', () => {
+    expect(getFontAxes('Newsreader', ['700'], ['normal'], ['opsz'])).toEqual({
+      ital: undefined,
+      variableAxes: [['opsz', '6..72']],
+      wght: ['700'],
+    })
+  })
+})
