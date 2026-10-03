@@ -87,3 +87,4 @@ evals/.tarballs/
 evals/experiments/
 evals/results/
 evals/agent-results.json
+config.bat
