@@ -21,8 +21,11 @@ When Draft Mode is enabled for a request:
 - Components and functions inside [`'use cache'`](/docs/app/api-reference/directives/use-cache) re-execute on every request, and their results are not saved to the cache.
 - [`unstable_cache`](/docs/app/api-reference/functions/unstable_cache) reads and writes are bypassed in the same way.
 - The page is excluded from the ISR response cache and is served with `Cache-Control: private, no-cache, no-store, max-age=0, must-revalidate`.
+- The App Router disables prefetching through [`<Link>`](/docs/app/api-reference/components/link) and [`router.prefetch()`](/docs/app/api-reference/functions/use-router). Client-side navigation still works and fetches missing data when needed.
 
 The effect applies whether the page is statically generated, served from cache, or revalidated through ISR.
+
+> **Good to know:** The router learns the Draft Mode state from the initial page load and from Server Actions that call `enable()` or `disable()`. A Route Handler that toggles Draft Mode should redirect, as in the examples below, so that the browser loads a new document. Toggling the cookie with a client-side `fetch()` and calling `router.refresh()` does not update the router's prefetching behavior until the next page load.
 
 ## What this guide covers
 
