@@ -482,7 +482,16 @@ export async function adapter(
    */
   const redirect = response?.headers.get('Location')
   if (response && redirect && !isEdgeRendering) {
-    const redirectURL = new NextURL(redirect, {
+    // Resolve the Location header against the request URL. A relative
+    // Location (valid per RFC 9110) reaches this point when the response is
+    // constructed manually (e.g. `new NextResponse(null, { status: 307,
+    // headers: { location: '/login' } })`) — without a base, parsing it
+    // throws an unhandled `TypeError [ERR_INVALID_URL]` and every request
+    // matched by the proxy turns into a 500. Same-origin results are
+    // relativized again below, so the emitted header is unchanged for
+    // absolute URLs and becomes a correctly-resolved one for relative
+    // values. (#73989)
+    const redirectURL = new NextURL(redirect, requestURL, {
       forceLocale: false,
       headers: params.request.headers,
       nextConfig: params.request.nextConfig,
