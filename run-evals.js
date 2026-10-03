@@ -59,7 +59,7 @@ function pack() {
 }
 
 /** @param {string | null} evalName  null means all evals */
-function writeExperiments(evalName, variants, timeout, runs) {
+function writeExperiments(evalName, variants, timeout, runs, model) {
   fs.rmSync(EXPERIMENTS_DIR, { recursive: true, force: true })
   fs.mkdirSync(EXPERIMENTS_DIR, { recursive: true })
 
@@ -75,7 +75,7 @@ const config: ExperimentConfig = {
   // Via the Vercel AI Gateway, so the OIDC token from \`vc env pull\` is the only
   // credential needed (it auths the sandbox, the codegen model, and the judge).
   agent: 'vercel-ai-gateway/claude-code',
-  model: 'claude-opus-4-8',${evalsField}
+  model: ${JSON.stringify(model)},${evalsField}
   // Cheap fixed grader for the agentic judge clauses in EVAL.ts files — every
   // run is graded by the same model regardless of the model under test.
   judge: { model: 'claude-haiku-4-5' },
@@ -217,6 +217,9 @@ function main() {
     .number('runs')
     .default('runs', 1)
     .describe('runs', 'Run each selected eval this many times')
+    .string('model')
+    .default('model', 'claude-opus-4-8')
+    .describe('model', 'Coding model to test (the judge model stays fixed)')
     .array('variant')
     .string('variant')
     .describe('variant', 'Run only the named generated variant (repeatable)')
@@ -292,7 +295,7 @@ function main() {
   // writes to the repo root, so symlink them into evals/ for agent-eval to find.
   linkEnvironment(ROOT, EVALS_DIR)
 
-  writeExperiments(evalName, variants, timeout, argv.runs)
+  writeExperiments(evalName, variants, timeout, argv.runs, argv.model)
   console.log(
     evalName
       ? `> Running ${evalName} (${variants.map((v) => v.suffix).join(' + ')})`

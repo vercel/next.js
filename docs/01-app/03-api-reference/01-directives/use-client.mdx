@@ -11,6 +11,8 @@ The `'use client'` directive declares an entry point for the components to be re
 
 ## Usage
 
+When adding a Client Component, keep database and session code in modules marked with `import 'server-only'`. Next.js handles this import internally without requiring a separate package installation. Import shared values and validators from modules that do not depend on server code. See [Adding interactivity to an existing component](/docs/app/guides/server-and-client-boundary#adding-interactivity-to-an-existing-component).
+
 To declare an entry point for the Client Components, add the `'use client'` directive **at the top of the file**, before any imports:
 
 ```tsx filename="app/components/counter.tsx" highlight={1} switcher
@@ -47,7 +49,7 @@ export default function Counter() {
 }
 ```
 
-When using the `'use client'` directive, the props of the Client Components must be [serializable](https://react.dev/reference/rsc/use-client#serializable-types). This means the props need to be in a format that React can serialize when sending data from the server to the client.
+When using the `'use client'` directive, the props of the Client Components must be [serializable](https://react.dev/reference/rsc/use-client#serializable-types). This means the props need to be in a format that React can serialize when sending data from the server to the client. All fields passed in props become available to the browser, even if the component never renders them. Select only authorized fields on the server before passing a record to a Client Component.
 
 ```tsx filename="app/components/counter.tsx" highlight={4} switcher
 'use client'

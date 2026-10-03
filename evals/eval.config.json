@@ -37,5 +37,8 @@
     "agentFeedback": true,
     "publish": false,
     "timeout": 900
+  },
+  "agent-059-server-client-account-boundary": {
+    "timeout": 1200
   }
 }
