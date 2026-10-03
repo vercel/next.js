@@ -16,8 +16,12 @@ interface Payload {
 }
 
 export function postNextTelemetryPayload(payload: Payload, signal?: any) {
-  if (!signal && 'timeout' in AbortSignal) {
-    signal = AbortSignal.timeout(5000)
+  if ('timeout' in AbortSignal) {
+    const timeoutSignal = AbortSignal.timeout(5000)
+    signal =
+      signal && 'any' in AbortSignal
+        ? AbortSignal.any([signal, timeoutSignal])
+        : signal || timeoutSignal
   }
   return (
     retry(

@@ -9,6 +9,7 @@ describe('postNextTelemetryPayload', () => {
 
   afterEach(() => {
     global.fetch = originalFetch
+    jest.restoreAllMocks()
   })
 
   it('sends telemetry payload successfully', async () => {
@@ -85,5 +86,32 @@ describe('postNextTelemetryPayload', () => {
     await postNextTelemetryPayload(payload)
 
     expect(mockFetch).toHaveBeenCalledTimes(2) // Initial try + 1 retry
+  })
+
+  it('combines a provided signal with the telemetry timeout', async () => {
+    const mockFetch = jest.fn().mockResolvedValue({ ok: true })
+    global.fetch = mockFetch
+    const timeout = jest.spyOn(AbortSignal, 'timeout')
+    const controller = new AbortController()
+
+    const payload = {
+      meta: {},
+      context: {
+        anonymousId: 'test-id',
+        projectId: 'test-project',
+        sessionId: 'test-session',
+      },
+      events: [],
+    }
+
+    await postNextTelemetryPayload(payload, controller.signal)
+
+    expect(timeout).toHaveBeenCalledWith(5000)
+    const signal = mockFetch.mock.calls[0][1].signal as AbortSignal
+    expect(signal).not.toBe(controller.signal)
+    expect(signal.aborted).toBe(false)
+
+    controller.abort()
+    expect(signal.aborted).toBe(true)
   })
 })
