@@ -22,14 +22,14 @@ Along the way, Next.js surfaces [instant navigation](/docs/app/guides/instant-na
 
 > **Good to know**: Partial Prefetching only works when [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled.
 
-## Use the Future Default workflow (recommended)
+## Use an agent (recommended)
 
-The version-matched Partial Prefetching Future Default workflow bundled with Next.js drives this migration with a coding agent. It reviews your `<Link prefetch={true}>` calls, captures the prefetched UI to preserve with [`instant()` tests](#verify-prefetched-ui-with-tests) when a production test rig is available, then enables the flag and checks each route for the insights this guide covers.
+A coding agent can drive this migration. It reviews your `<Link prefetch={true}>` calls, captures the prefetched UI to preserve with [`instant()` tests](#verify-prefetched-ui-with-tests) when a production test rig is available, then enables the flag and checks each route for the insights this guide covers.
 
 Then give the agent this prompt:
 
 ```prompt
-Adopt Partial Prefetching in this project using the bundled Future Default workflow.
+Adopt Partial Prefetching in this project.
 ```
 
 ## Or adopt by hand
