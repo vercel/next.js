@@ -209,18 +209,19 @@ pub async fn make_chunk_group(
     // The referring module references the `createWorker` helper and passes it to the loader
     // at runtime. No origin or helper lookup is needed here — worker entry modules need only be
     // chunkable (and evaluatable for Node worker threads), even when wrapped in a facade.
-    let web_worker_availability_info = if availability_info.is_in_web_worker() {
-        new_availability_info
-    } else {
-        AvailabilityInfo::root()
-    }
-    .in_web_worker();
     let worker_loaders = worker_modules
         .iter()
         .copied()
         .map(async |(module, worker_type)| {
             let availability_info = match worker_type {
-                WorkerType::WebWorker | WorkerType::SharedWebWorker => web_worker_availability_info,
+                WorkerType::WebWorker | WorkerType::SharedWebWorker => {
+                    if availability_info.is_in_web_worker() {
+                        new_availability_info
+                    } else {
+                        AvailabilityInfo::root()
+                    }
+                    .in_web_worker()
+                }
                 WorkerType::NodeWorkerThread => AvailabilityInfo::root(),
             };
             chunking_context
