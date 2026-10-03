@@ -559,6 +559,7 @@ impl PostCssTransformedAsset {
             context_source_for_issue: self.source,
             chunking_context: *chunking_context,
             evaluate_context: self.evaluate_context,
+            build_dependency_context: self.config_tracing_context,
             module_graph,
             resolve_options_context: None,
             asset_context: self.asset_context,
