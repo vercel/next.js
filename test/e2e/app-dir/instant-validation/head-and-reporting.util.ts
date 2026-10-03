@@ -12,6 +12,7 @@ const partialPrefetching = !!process.env.__NEXT_PARTIAL_PREFETCHING
 
 const INSTANT_INSIGHT_PATTERNS = {
   urlData: /Next\.js encountered URL data/,
+  prefetch: /Next\.js encountered `?prefetch\(\)`?/,
   navigation: /Next\.js encountered `?navigation\(\)`?/,
   runtimeData: /Next\.js encountered runtime data/,
   uncachedData: /Next\.js encountered uncached data/,
@@ -1113,10 +1114,10 @@ export function registerHeadAndReportingTests(
            \`navigation()\` called outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the component that calls \`navigation()\`
              - [block] Set \`export const instant = false\` to allow a blocking route
 
-           Learn more: https://nextjs.org/docs/messages/instant-shell-url-data
+           Learn more: https://nextjs.org/docs/messages/instant-navigation-stage
                at main (<anonymous>)
                at body (<anonymous>)
                at html (<anonymous>)
@@ -1163,7 +1164,7 @@ export function registerHeadAndReportingTests(
                  ],
                },
              ],
-             "description": "Next.js encountered URL data outside of Suspense.",
+             "description": "Next.js encountered prefetch() outside of Suspense.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/shells/(default)/invalid-prefetch-without-suspense/page.tsx (23:22) @ PrefetchContent
@@ -1181,15 +1182,15 @@ export function registerHeadAndReportingTests(
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/shells/invalid-prefetch-without-suspense": Next.js encountered URL data during prerendering or a navigation.
+           "Error: Route "/shells/invalid-prefetch-without-suspense": Next.js encountered \`prefetch()\` during prerendering or a navigation.
 
-           \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
+           \`prefetch()\` called outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the component that calls \`prefetch()\`
              - [block] Set \`export const instant = false\` to allow a blocking route
 
-           Learn more: https://nextjs.org/docs/messages/instant-shell-url-data
+           Learn more: https://nextjs.org/docs/messages/instant-navigation-stage
                at main (<anonymous>)
                at body (<anonymous>)
                at html (<anonymous>)
@@ -1708,19 +1709,24 @@ export function registerHeadAndReportingTests(
         })
 
         describe('prefetch() without suspense', () => {
-          const errorPattern = INSTANT_INSIGHT_PATTERNS.urlData
-
           const getUrlInDev = (ensureStaticConfig: string | false) =>
             `/shells/ensure-static/${ensureStaticConfig}/prefetch-without-suspense`
           const getRouteInBuild = (ensureStaticConfig: string | false) =>
             `/shells/(default)/ensure-static/${ensureStaticConfig}/prefetch-without-suspense`
+
+          // A static app shell resolves both prefetch() and URL data in the
+          // PrefetchStatic stage, so those ensureStatic variants cannot
+          // distinguish between them.
 
           it('invalid with `ensureStatic = false`', async () => {
             const ensureStaticConfig = false
             if (isNextDev) {
               const browser = await navigateTo(getUrlInDev(ensureStaticConfig))
               const insights = await getInstantInsight(browser)
-              expectInsightsToMatchPattern(insights, errorPattern)
+              expectInsightsToMatchPattern(
+                insights,
+                INSTANT_INSIGHT_PATTERNS.prefetch
+              )
               expect(insights).toMatchInlineSnapshot(`
                {
                  "cause": [
@@ -1735,7 +1741,7 @@ export function registerHeadAndReportingTests(
                      ],
                    },
                  ],
-                 "description": "Next.js encountered URL data outside of Suspense.",
+                 "description": "Next.js encountered prefetch() outside of Suspense.",
                  "environmentLabel": "Server",
                  "label": "Instant",
                  "source": "app/shells/(default)/ensure-static/_base/prefetch-without-suspense/page.base.tsx (26:17) @ Prefetch
@@ -1752,17 +1758,17 @@ export function registerHeadAndReportingTests(
                 getRouteInBuild(ensureStaticConfig)
               )
               const error = extractBuildValidationError(result.cliOutput)
-              expect(error).toMatch(errorPattern)
+              expect(error).toMatch(INSTANT_INSIGHT_PATTERNS.prefetch)
               expect(error).toMatchInlineSnapshot(`
-               "Error: Route "/shells/ensure-static/false/prefetch-without-suspense": Next.js encountered URL data during prerendering or a navigation.
+               "Error: Route "/shells/ensure-static/false/prefetch-without-suspense": Next.js encountered \`prefetch()\` during prerendering or a navigation.
 
-               \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
+               \`prefetch()\` called outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
 
                Ways to fix this:
-                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the component that calls \`prefetch()\`
                  - [block] Set \`export const instant = false\` to allow a blocking route
 
-               Learn more: https://nextjs.org/docs/messages/instant-shell-url-data
+               Learn more: https://nextjs.org/docs/messages/instant-navigation-stage
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
@@ -1781,7 +1787,10 @@ export function registerHeadAndReportingTests(
             if (isNextDev) {
               const browser = await navigateTo(getUrlInDev(ensureStaticConfig))
               const insights = await getInstantInsight(browser)
-              expectInsightsToMatchPattern(insights, errorPattern)
+              expectInsightsToMatchPattern(
+                insights,
+                INSTANT_INSIGHT_PATTERNS.prefetch
+              )
               expect(insights).toMatchInlineSnapshot(`
                {
                  "cause": [
@@ -1796,7 +1805,7 @@ export function registerHeadAndReportingTests(
                      ],
                    },
                  ],
-                 "description": "Next.js encountered URL data outside of Suspense.",
+                 "description": "Next.js encountered prefetch() outside of Suspense.",
                  "environmentLabel": "Server",
                  "label": "Instant",
                  "source": "app/shells/(default)/ensure-static/_base/prefetch-without-suspense/page.base.tsx (26:17) @ Prefetch
@@ -1813,17 +1822,17 @@ export function registerHeadAndReportingTests(
                 getRouteInBuild(ensureStaticConfig)
               )
               const error = extractBuildValidationError(result.cliOutput)
-              expect(error).toMatch(errorPattern)
+              expect(error).toMatch(INSTANT_INSIGHT_PATTERNS.prefetch)
               expect(error).toMatchInlineSnapshot(`
-               "Error: Route "/shells/ensure-static/shell/prefetch-without-suspense": Next.js encountered URL data during prerendering or a navigation.
+               "Error: Route "/shells/ensure-static/shell/prefetch-without-suspense": Next.js encountered \`prefetch()\` during prerendering or a navigation.
 
-               \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
+               \`prefetch()\` called outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
 
                Ways to fix this:
-                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the component that calls \`prefetch()\`
                  - [block] Set \`export const instant = false\` to allow a blocking route
 
-               Learn more: https://nextjs.org/docs/messages/instant-shell-url-data
+               Learn more: https://nextjs.org/docs/messages/instant-navigation-stage
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
@@ -1842,7 +1851,10 @@ export function registerHeadAndReportingTests(
             if (isNextDev) {
               const browser = await navigateTo(getUrlInDev(ensureStaticConfig))
               const insights = await getInstantInsight(browser)
-              expectInsightsToMatchPattern(insights, errorPattern)
+              expectInsightsToMatchPattern(
+                insights,
+                INSTANT_INSIGHT_PATTERNS.prefetch
+              )
               expect(insights).toMatchInlineSnapshot(`
                {
                  "cause": [
@@ -1857,7 +1869,7 @@ export function registerHeadAndReportingTests(
                      ],
                    },
                  ],
-                 "description": "Next.js encountered URL data outside of Suspense.",
+                 "description": "Next.js encountered prefetch() outside of Suspense.",
                  "environmentLabel": "Server",
                  "label": "Instant",
                  "source": "app/shells/(default)/ensure-static/_base/prefetch-without-suspense/page.base.tsx (26:17) @ Prefetch
@@ -1874,17 +1886,17 @@ export function registerHeadAndReportingTests(
                 getRouteInBuild(ensureStaticConfig)
               )
               const error = extractBuildValidationError(result.cliOutput)
-              expect(error).toMatch(errorPattern)
+              expect(error).toMatch(INSTANT_INSIGHT_PATTERNS.prefetch)
               expect(error).toMatchInlineSnapshot(`
-               "Error: Route "/shells/ensure-static/prefetch/prefetch-without-suspense": Next.js encountered URL data during prerendering or a navigation.
+               "Error: Route "/shells/ensure-static/prefetch/prefetch-without-suspense": Next.js encountered \`prefetch()\` during prerendering or a navigation.
 
-               \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
+               \`prefetch()\` called outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
 
                Ways to fix this:
-                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the component that calls \`prefetch()\`
                  - [block] Set \`export const instant = false\` to allow a blocking route
 
-               Learn more: https://nextjs.org/docs/messages/instant-shell-url-data
+               Learn more: https://nextjs.org/docs/messages/instant-navigation-stage
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
@@ -1903,7 +1915,10 @@ export function registerHeadAndReportingTests(
             if (isNextDev) {
               const browser = await navigateTo(getUrlInDev(ensureStaticConfig))
               const insights = await getInstantInsight(browser)
-              expectInsightsToMatchPattern(insights, errorPattern)
+              expectInsightsToMatchPattern(
+                insights,
+                INSTANT_INSIGHT_PATTERNS.prefetch
+              )
               expect(insights).toMatchInlineSnapshot(`
                {
                  "cause": [
@@ -1918,7 +1933,7 @@ export function registerHeadAndReportingTests(
                      ],
                    },
                  ],
-                 "description": "Next.js encountered URL data outside of Suspense.",
+                 "description": "Next.js encountered prefetch() outside of Suspense.",
                  "environmentLabel": "Server",
                  "label": "Instant",
                  "source": "app/shells/(default)/ensure-static/_base/prefetch-without-suspense/page.base.tsx (26:17) @ Prefetch
@@ -1935,17 +1950,17 @@ export function registerHeadAndReportingTests(
                 getRouteInBuild(ensureStaticConfig)
               )
               const error = extractBuildValidationError(result.cliOutput)
-              expect(error).toMatch(errorPattern)
+              expect(error).toMatch(INSTANT_INSIGHT_PATTERNS.prefetch)
               expect(error).toMatchInlineSnapshot(`
-               "Error: Route "/shells/ensure-static/navigation/prefetch-without-suspense": Next.js encountered URL data during prerendering or a navigation.
+               "Error: Route "/shells/ensure-static/navigation/prefetch-without-suspense": Next.js encountered \`prefetch()\` during prerendering or a navigation.
 
-               \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
+               \`prefetch()\` called outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
 
                Ways to fix this:
-                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the component that calls \`prefetch()\`
                  - [block] Set \`export const instant = false\` to allow a blocking route
 
-               Learn more: https://nextjs.org/docs/messages/instant-shell-url-data
+               Learn more: https://nextjs.org/docs/messages/instant-navigation-stage
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
@@ -2012,10 +2027,10 @@ export function registerHeadAndReportingTests(
                \`navigation()\` called outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
 
                Ways to fix this:
-                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the component that calls \`navigation()\`
                  - [block] Set \`export const instant = false\` to allow a blocking route
 
-               Learn more: https://nextjs.org/docs/messages/instant-shell-url-data
+               Learn more: https://nextjs.org/docs/messages/instant-navigation-stage
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
@@ -2073,10 +2088,10 @@ export function registerHeadAndReportingTests(
                \`navigation()\` called outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
 
                Ways to fix this:
-                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the component that calls \`navigation()\`
                  - [block] Set \`export const instant = false\` to allow a blocking route
 
-               Learn more: https://nextjs.org/docs/messages/instant-shell-url-data
+               Learn more: https://nextjs.org/docs/messages/instant-navigation-stage
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
@@ -2134,10 +2149,10 @@ export function registerHeadAndReportingTests(
                \`navigation()\` called outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
 
                Ways to fix this:
-                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the component that calls \`navigation()\`
                  - [block] Set \`export const instant = false\` to allow a blocking route
 
-               Learn more: https://nextjs.org/docs/messages/instant-shell-url-data
+               Learn more: https://nextjs.org/docs/messages/instant-navigation-stage
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
@@ -2195,10 +2210,10 @@ export function registerHeadAndReportingTests(
                \`navigation()\` called outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
 
                Ways to fix this:
-                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the component that calls \`navigation()\`
                  - [block] Set \`export const instant = false\` to allow a blocking route
 
-               Learn more: https://nextjs.org/docs/messages/instant-shell-url-data
+               Learn more: https://nextjs.org/docs/messages/instant-navigation-stage
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)

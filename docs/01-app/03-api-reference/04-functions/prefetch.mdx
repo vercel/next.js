@@ -147,11 +147,9 @@ When every read of [`cookies()`](/docs/app/api-reference/functions/cookies) and 
 ## Good to know
 
 - The function has no effect on the initial load of a page.
-- A call outside a `<Suspense>` boundary surfaces a validation insight in development. It is reported even on a page that is currently prerendered in full, because the same page starts deferring content as soon as it switches to a runtime shell.
+- A call outside a `<Suspense>` boundary surfaces an [Instant Insight](/docs/messages/instant-navigation-stage) in development. It is reported even on a page that is currently prerendered in full, because the same page starts deferring content as soon as it switches to a runtime shell.
 - Calling it inside `use cache`, `use cache: private`, [`unstable_cache()`](/docs/app/api-reference/functions/unstable_cache), [`after()`](/docs/app/api-reference/functions/after), [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params), or a Client Component throws.
 - In a `page` or `layout` that sets the [`prefetch` route segment config](/docs/app/api-reference/file-conventions/route-segment-config/prefetch), import the function under another name, for example `import { prefetch as prefetchStage } from 'next/cache'`, since both are named `prefetch`.
-
-{/* TODO: link the validation insight error page from the bullet above once it merges. */}
 
 ## Reference
 

@@ -5,13 +5,24 @@ export enum RenderStage {
   Before = 1,
   //
   ShellStatic = 10,
-  PrefetchStatic = 11,
-  NavigationStatic = 12,
-  Static = 13,
+  /**
+   * Discrimination-only stage: `prefetch()` resolves here in static renders so
+   * validation can tell it apart from URL data, which resolves in `PrefetchStatic`.
+   * Nothing else is gated on it.
+   *
+   * Renders must advance to it in its own task (not implicitly via
+   * `advanceStage(PrefetchStatic)`), so that React flushes the content it
+   * unblocks into a separate chunk accumulator than URL data.
+   */
+  PrefetchStatic_prefetch = 11,
+  PrefetchStatic = 12,
+  NavigationStatic = 13,
+  Static = 14,
   //
   ShellRuntime = 20,
-  Runtime = 21,
-  NavigationRuntime = 22,
+  PrefetchRuntime = 21,
+  Runtime = 22,
+  NavigationRuntime = 23,
   //
   Dynamic = 30,
   Abandoned = 40,
@@ -24,11 +35,13 @@ export type AdvanceableRenderStage = Exclude<
 
 export const RENDER_STAGE_ADVANCE_ORDER: AdvanceableRenderStage[] = [
   RenderStage.ShellStatic,
+  RenderStage.PrefetchStatic_prefetch,
   RenderStage.PrefetchStatic,
   RenderStage.NavigationStatic,
   RenderStage.Static,
   //
   RenderStage.ShellRuntime,
+  RenderStage.PrefetchRuntime,
   RenderStage.Runtime,
   RenderStage.NavigationRuntime,
   //

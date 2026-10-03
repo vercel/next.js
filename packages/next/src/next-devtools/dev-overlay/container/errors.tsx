@@ -38,6 +38,8 @@ import {
 import {
   BLOCKING_ROUTE_IN_NAVIGATION_EXPLANATION,
   BLOCKING_ROUTE_BLOCKED_SHELL_EXPLANATION,
+  CACHE_STAGE_METADATA_EXPLANATION,
+  CACHE_STAGE_VIEWPORT_EXPLANATION,
 } from '../components/instant/instant-guidance-data'
 import { UnrenderedSegmentInfo } from '../components/instant/unrendered-segment-info'
 import { CodeFrame } from '../components/code-frame/code-frame'
@@ -105,10 +107,16 @@ export function getErrorTypeLabel(
   if (errorDetails.type === 'client-hook') {
     return `Blocking Route`
   }
-  if (errorDetails.type === 'dynamic-metadata') {
-    return `Blocking Route`
-  }
-  if (errorDetails.type === 'dynamic-viewport') {
+  if (
+    errorDetails.type === 'dynamic-metadata' ||
+    errorDetails.type === 'dynamic-viewport'
+  ) {
+    if (
+      errorDetails.variant === 'prefetch' ||
+      errorDetails.variant === 'navigation'
+    ) {
+      return `Instant`
+    }
     return `Blocking Route`
   }
   if (errorDetails.type === 'sync-io') {
@@ -177,11 +185,13 @@ type ClientHookErrorDetails = {
 type DynamicMetadataErrorDetails = {
   type: 'dynamic-metadata'
   variant: GuidanceVariant
+  explanation?: string
 }
 
 type DynamicViewportErrorDetails = {
   type: 'dynamic-viewport'
   variant: GuidanceVariant
+  explanation?: string
 }
 
 type SyncIOErrorDetails = {
@@ -370,6 +380,9 @@ export function getGuidanceVariant(message: string): GuidanceVariant {
   if (message.includes('encountered `navigation()`')) {
     return 'navigation'
   }
+  if (message.includes('encountered `prefetch()`')) {
+    return 'prefetch'
+  }
   if (
     message.includes('encountered URL data') &&
     !message.includes('encountered uncached data')
@@ -422,14 +435,16 @@ export function isSyncIOClientError(message: string): boolean {
   return match !== null && match[2] === '-client'
 }
 
-// Detects errors emitted during navigation-phase instant validation: body
-// errors from `createRuntimeBodyErrorInNavigation` /
-// `createDynamicBodyErrorInNavigation` (SSR factories instead say "during
-// prerendering"), and validation errors from
-// `trackDynamicHoleInNavigation` / `getNavigationDisallowedDynamicReasons`.
+// Detects Instant Insights emitted during navigation validation. Body errors
+// identify the navigation in their message. `prefetch()` and
+// `navigation()` in metadata and viewport use dedicated docs URLs
+// because their messages describe the affected API instead of the validation
+// phase.
 export function isBlockingRouteInNavError(message: string): boolean {
   return (
     message.includes('or a navigation') ||
+    message.includes('/instant-navigation-stage-metadata') ||
+    message.includes('/instant-navigation-stage-viewport') ||
     message.includes('Could not validate `instant`') ||
     message.includes(
       'Could not validate that a segment in your UI has instant navigation'
@@ -470,7 +485,10 @@ export function getBlockingRouteErrorDetails(
   const isBlockingPageLoadError =
     message.includes('/blocking-prerender-runtime') ||
     message.includes('/blocking-prerender-dynamic') ||
-    message.includes('/instant-shell-url-data')
+    message.includes('/instant-shell-url-data') ||
+    (message.includes('/instant-navigation-stage') &&
+      !message.includes('/instant-navigation-stage-metadata') &&
+      !message.includes('/instant-navigation-stage-viewport'))
   if (isBlockingPageLoadError) {
     return {
       type: 'blocking-route',
@@ -481,21 +499,33 @@ export function getBlockingRouteErrorDetails(
 
   const isDynamicMetadataError =
     message.includes('/blocking-prerender-metadata-dynamic') ||
-    message.includes('/blocking-prerender-metadata-runtime')
+    message.includes('/blocking-prerender-metadata-runtime') ||
+    message.includes('/instant-navigation-stage-metadata')
   if (isDynamicMetadataError) {
+    const variant = getGuidanceVariant(message)
     return {
       type: 'dynamic-metadata',
-      variant: getGuidanceVariant(message),
+      variant,
+      explanation:
+        variant === 'prefetch' || variant === 'navigation'
+          ? CACHE_STAGE_METADATA_EXPLANATION
+          : undefined,
     }
   }
 
   const isBlockingViewportError =
     message.includes('/blocking-prerender-viewport-dynamic') ||
-    message.includes('/blocking-prerender-viewport-runtime')
+    message.includes('/blocking-prerender-viewport-runtime') ||
+    message.includes('/instant-navigation-stage-viewport')
   if (isBlockingViewportError) {
+    const variant = getGuidanceVariant(message)
     return {
       type: 'dynamic-viewport',
-      variant: getGuidanceVariant(message),
+      variant,
+      explanation:
+        variant === 'prefetch' || variant === 'navigation'
+          ? CACHE_STAGE_VIEWPORT_EXPLANATION
+          : undefined,
     }
   }
 
@@ -571,7 +601,14 @@ export function isInstantNavigationError(error: Error): boolean {
   if (getUnrenderedSegmentErrorDetails(error)) return true
   if (getLinkPrefetchPartialErrorDetails(error)) return true
   const details = getBlockingRouteErrorDetails(error)
-  return details?.type === 'blocking-route' && details.inNavigation
+  if (details?.type === 'blocking-route') return details.inNavigation
+  if (
+    details?.type === 'dynamic-metadata' ||
+    details?.type === 'dynamic-viewport'
+  ) {
+    return details.variant === 'prefetch' || details.variant === 'navigation'
+  }
+  return false
 }
 
 export type ErrorTab = 'errors' | 'instant'
@@ -926,6 +963,13 @@ export function Errors({
             </>
           )
           break
+        case 'prefetch':
+          errorMessage = (
+            <>
+              Next.js encountered <code>prefetch()</code> outside of Suspense.
+            </>
+          )
+          break
         case 'dynamic':
           errorMessage = errorDetails.inNavigation
             ? 'Next.js encountered uncached data during a navigation.'
@@ -944,6 +988,7 @@ export function Errors({
               variant={errorDetails.variant}
               explanation={
                 errorDetails.variant === 'link' ||
+                errorDetails.variant === 'prefetch' ||
                 errorDetails.variant === 'navigation'
                   ? BLOCKING_ROUTE_BLOCKED_SHELL_EXPLANATION
                   : errorDetails.inNavigation
@@ -1091,6 +1136,14 @@ export function Errors({
             </>
           )
           break
+        case 'prefetch':
+          errorMessage = (
+            <>
+              Next.js encountered <code>prefetch()</code> in{' '}
+              <code>generateMetadata()</code>.
+            </>
+          )
+          break
         case 'dynamic':
           errorMessage = (
             <>
@@ -1110,6 +1163,7 @@ export function Errors({
             <InstantHeaderExplanation
               kind="metadata"
               variant={errorDetails.variant}
+              explanation={errorDetails.explanation}
             />
           }
           renderTabBar={renderTabBar}
@@ -1166,6 +1220,14 @@ export function Errors({
             </>
           )
           break
+        case 'prefetch':
+          errorMessage = (
+            <>
+              Next.js encountered <code>prefetch()</code> in{' '}
+              <code>generateViewport()</code>.
+            </>
+          )
+          break
         case 'dynamic':
           errorMessage = (
             <>
@@ -1186,6 +1248,7 @@ export function Errors({
             <InstantHeaderExplanation
               kind="viewport"
               variant={errorDetails.variant}
+              explanation={errorDetails.explanation}
             />
           }
           renderTabBar={renderTabBar}
