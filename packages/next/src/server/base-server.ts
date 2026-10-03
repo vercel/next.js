@@ -2485,7 +2485,19 @@ export default abstract class Server<
     // Compute the iSSG cache key. We use the rewritten pathname since
     // pages with fallback: false are allowed to be rewritten to
     // and we need to look up the path by the rewritten path
-    let urlPathname = parseUrl(req.url || '').pathname || '/'
+    let urlPathname: string
+    try {
+      urlPathname = parseUrl(req.url || '').pathname || '/'
+    } catch (err) {
+      if (!(err instanceof DecodeError)) {
+        throw err
+      }
+      // The original request target failed to parse (e.g. OPTIONS *)
+      // and the router already mapped it to an error page render
+      // (e.g. /400), so fall back to the invoked pathname when
+      // computing the iSSG cache key.
+      urlPathname = pathname
+    }
 
     let resolvedUrlPathname =
       getRequestMeta(req, 'rewrittenPathname') || urlPathname
