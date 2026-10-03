@@ -1,6 +1,6 @@
 import { execSync } from 'child_process'
 
-export type PackageManager = 'npm' | 'pnpm' | 'yarn' | 'bun'
+export type PackageManager = 'npm' | 'pnpm' | 'yarn' | 'bun' | 'nub'
 
 export function getPkgManager(): PackageManager {
   const userAgent = process.env.npm_config_user_agent || ''
@@ -15,6 +15,10 @@ export function getPkgManager(): PackageManager {
 
   if (userAgent.startsWith('bun')) {
     return 'bun'
+  }
+
+  if (userAgent.startsWith('nub')) {
+    return 'nub'
   }
 
   return 'npm'
