@@ -14,11 +14,9 @@
   "dependencies": {
     "@next/eslint-plugin-next": "16.4.0-canary.58",
     "eslint-import-resolver-node": "^0.3.6",
-    "eslint-import-resolver-typescript": "^3.5.2",
-    "eslint-plugin-import": "^2.32.0",
-    "eslint-plugin-jsx-a11y": "^6.10.0",
-    "eslint-plugin-react": "7.37.5",
-    "eslint-plugin-react-hooks": "^7.0.0",
+    "eslint-import-resolver-typescript": "^4.4.5",
+    "eslint-plugin-import": "npm:eslint-plugin-import-x@^4.17.1",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "16.4.0",
     "typescript-eslint": "^8.71.0"
   },
@@ -34,12 +32,15 @@
   "devDependencies": {
     "@types/eslint": "9.6.1",
     "@types/eslint-plugin-jsx-a11y": "6.10.1",
+    "@vercel/ncc": "0.38.4",
     "eslint-10": "npm:eslint@10.11.0",
+    "eslint-plugin-jsx-a11y": "6.10.2",
+    "eslint-plugin-react": "7.37.5",
     "typescript": "6.0.2"
   },
   "scripts": {
     "dev": "pnpm build",
-    "build": "swc -d dist src && pnpm types",
+    "build": "swc -d dist src && node build-plugins.mjs && pnpm types",
     "types": "tsc --skipLibCheck --declaration --emitDeclarationOnly --esModuleInterop --declarationDir dist --rootDir src",
     "pack-for-isolated-tests": "pnpm pack --out ./packed.tgz"
   },

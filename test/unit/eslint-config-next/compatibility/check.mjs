@@ -19,8 +19,15 @@ const rawParser = require('next/dist/compiled/babel/eslint-parser')
 const { fixupBabelScope } = requireFromConfig('./babel-scope.js')
 const configPackage = requireFromConfig('../package.json')
 const nextPackage = require('next/package.json')
-const reactVersion = requireFromConfig(
-  'eslint-plugin-react/lib/util/version.js'
+// Build-time bundles must not leak the upstream incompatible peer declarations
+// back into the published dependency graph. The clean-consumer script verifies
+// installation and execution; this assertion catches manifest regressions in CI.
+for (const name of ['eslint-plugin-react', 'eslint-plugin-jsx-a11y']) {
+  assert(!Object.hasOwn(configPackage.dependencies, name))
+}
+assert.equal(
+  configPackage.dependencies['eslint-plugin-import'],
+  'npm:eslint-plugin-import-x@^4.17.1'
 )
 // Isolate lint-parser behavior from application Babel configuration and build
 // transforms. JSX/Flow parsing is selected explicitly, while the configurations'
@@ -134,8 +141,11 @@ const results = {
   // Next's manifest records the build inputs for the bundled Babel parser; the
   // React check also verifies which plugin consumers actually load here.
   dependencyVersions: {
-    react: configPackage.dependencies['eslint-plugin-react'],
+    react: configPackage.devDependencies['eslint-plugin-react'],
     installedReact: requireFromConfig('eslint-plugin-react/package.json')
+      .version,
+    jsxA11y: configPackage.devDependencies['eslint-plugin-jsx-a11y'],
+    installedJsxA11y: requireFromConfig('eslint-plugin-jsx-a11y/package.json')
       .version,
     babelParser: nextPackage.devDependencies['@babel/eslint-parser'],
     babelCore: nextPackage.devDependencies['@babel/core'],
@@ -215,14 +225,61 @@ const configs = [
     filename: 'anonymous.jsx',
     expectedRules: ['react/display-name'],
   },
+  {
+    name: 'React Hooks',
+    config: require('eslint-config-next'),
+    filename: 'hooks.jsx',
+    expectedRules: [
+      'react-hooks/rules-of-hooks',
+      'react-hooks/exhaustive-deps',
+    ],
+  },
+  {
+    name: 'accessibility rules',
+    config: require('eslint-config-next'),
+    filename: 'accessibility.jsx',
+    expectedRules: [
+      'jsx-a11y/alt-text',
+      'jsx-a11y/aria-props',
+      'jsx-a11y/aria-proptypes',
+      'jsx-a11y/aria-unsupported-elements',
+      'jsx-a11y/role-has-required-aria-props',
+      'jsx-a11y/role-supports-aria-props',
+    ],
+  },
+  {
+    name: 'anonymous import export',
+    config: require('eslint-config-next'),
+    filename: 'import.js',
+    expectedRules: ['import/no-anonymous-default-export'],
+  },
+  {
+    name: 'TypeScript import resolution',
+    config: require('eslint-config-next'),
+    filename: 'imports.ts',
+    expectedRules: ['import/no-unresolved'],
+    extraConfig: [
+      {
+        settings: {
+          'import-x/resolver': {
+            typescript: { project: join(fixtures, 'tsconfig.json') },
+          },
+        },
+        // This rule is a consumer extension, not a new Next default. Verify
+        // import-x actually uses the configured TypeScript resolver and reports
+        // only the deliberately missing module, not the valid tsconfig alias.
+        rules: { 'import/no-unresolved': 'error' },
+      },
+    ],
+  },
 ]
 
-for (const Linter of [Linter9, Linter10]) {
+// React's bundled version detector has a process-global cache. Run ESLint 10
+// first, while that bundle is cold: an ESLint 9 detection must not hide a
+// removed getFilename() call. The unbundled build-time package has a separate
+// cache, so resetting that dependency would not reset the consumer-facing code.
+for (const Linter of [Linter10, Linter9]) {
   for (const fixture of configs) {
-    // The plugin caches detected React versions globally. Without resetting it,
-    // an ESLint 9 run could populate that cache and conceal the removed
-    // getFilename() call when ESLint 10 runs later in the same process.
-    reactVersion.resetDetectedVersion()
     const filename = join(fixtures, fixture.filename)
     const diagnostics = new Linter({ cwd: directory }).verify(
       readFileSync(filename, 'utf8'),
@@ -232,9 +289,17 @@ for (const Linter of [Linter9, Linter10]) {
           files: ['**/*.{js,jsx}'],
           languageOptions: { parserOptions: { babelOptions } },
         },
+        ...(fixture.extraConfig || []),
       ],
       { filename }
     )
+    if (fixture.name === 'TypeScript import resolution') {
+      const unresolved = diagnostics.filter(
+        ({ ruleId }) => ruleId === 'import/no-unresolved'
+      )
+      assert.equal(unresolved.length, 1)
+      assert.match(unresolved[0].message, /\.\/missing/)
+    }
     results.configCases.push({
       name: fixture.name,
       engine: Linter.version,

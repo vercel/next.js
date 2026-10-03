@@ -14,7 +14,9 @@ import type { ESLint, Rule } from 'eslint'
  * It is not a general replacement for @eslint/compat's legacy-rule support, and
  * it does not change the plugin's declared ESLint peer dependency range.
  *
- * eslint-config-next intentionally pins eslint-plugin-react to exactly 7.37.5.
+ * eslint-config-next intentionally pins its build-time eslint-plugin-react
+ * dependency to exactly 7.37.5 and ships a bundle (see build-plugins.mjs), so
+ * consumers do not inherit the upstream package's incompatible ESLint peers.
  * Do not replace that pin with a version range: this patch covers this version's
  * deprecated API usage, not arbitrary future versions. Every intentional plugin
  * upgrade, including a patch release, requires reviewing this file and running

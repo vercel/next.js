@@ -25,6 +25,8 @@ describe('eslint-config-next compatibility', () => {
     dependencyVersions: {
       react: string
       installedReact: string
+      jsxA11y: string
+      installedJsxA11y: string
       babelParser: string
       babelCore: string
     }
@@ -48,6 +50,8 @@ describe('eslint-config-next compatibility', () => {
     expect(results.dependencyVersions).toEqual({
       react: '7.37.5',
       installedReact: '7.37.5',
+      jsxA11y: '6.10.2',
+      installedJsxA11y: '6.10.2',
       babelParser: '7.24.6',
       babelCore: '7.26.10',
     })
