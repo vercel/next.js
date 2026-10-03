@@ -417,7 +417,7 @@ export abstract class RouteModule<
         loadManifestFromRelativePath<any>({
           projectDir,
           distDir: this.distDir,
-          manifest: DYNAMIC_CSS_MANIFEST,
+          manifest: `${DYNAMIC_CSS_MANIFEST}.json`,
           shouldCache: !this.isDev,
           handleMissing: true,
         }),
