@@ -22,6 +22,32 @@ function createRequest(
 }
 
 describe('request insights trace viewer', () => {
+  it('shows Server Action spans by default without rewriting their names', () => {
+    const request = createRequest({
+      spans: [
+        {
+          name: 'AppRender.executeServerAction',
+          startTime: 100,
+          durationMs: 10,
+          attributes: {
+            'next.span_type': 'AppRender.executeServerAction',
+            'next.span_name': 'run Server Action actions.updateCounter',
+            'next.span_category': 'application',
+          },
+        },
+      ],
+    })
+
+    for (const verbose of [false, true]) {
+      expect(getTraceItems(request, verbose)).toEqual([
+        expect.objectContaining({
+          label: 'run Server Action actions.updateCounter',
+          category: 'application',
+        }),
+      ])
+    }
+  })
+
   it('keeps the active request selected when newer requests arrive', () => {
     const selectedRequest = createRequest({ requestId: 'selected' })
     const newerRequest = createRequest({ requestId: 'newer' })

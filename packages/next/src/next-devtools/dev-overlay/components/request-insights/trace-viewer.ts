@@ -36,6 +36,7 @@ const DEFAULT_VISIBLE_SPAN_TYPES = new Set([
   'AppRender.prepareAppPageResponse',
   'AppRender.initializeRender',
   'AppRender.getBodyResult',
+  'AppRender.executeServerAction',
   'NextNodeServer.createComponentTree',
   'AppRender.startRSCStream',
   'AppRender.renderRSCResponse',
@@ -346,6 +347,9 @@ function getSpanLabel(span: RequestInsightSpan): string {
     typeof explicitName === 'string' && explicitName.trim().length > 0
       ? explicitName
       : span.name
+  if (span.attributes?.['next.span_type'] === 'AppRender.executeServerAction') {
+    return name
+  }
   const displayName = name
     .replace(FIZZ_WORD, 'HTML')
     .replace(FLIGHT_WORD, 'RSC')

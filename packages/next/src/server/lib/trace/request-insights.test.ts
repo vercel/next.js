@@ -401,4 +401,31 @@ describe('request insights', () => {
       })
     )
   })
+
+  it('retains Server Action trace metadata without action inputs', () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+
+    recordSpan({
+      name: 'run Server Action updateCounter',
+      requestId: 'action-request',
+      startTime: 100,
+      durationMs: 10,
+      status: 'ok',
+      attributes: {
+        'next.span_type': 'AppRender.executeServerAction',
+        'next.server_action.name': 'updateCounter',
+        'next.server_action.file': 'app/actions.ts',
+        'next.server_action.id': 'private-reference',
+        'next.server_action.arguments': 'private-input',
+      },
+    })
+
+    expect(
+      getRequestInsightsSnapshot().requests[0].spans[0].attributes
+    ).toEqual({
+      'next.span_type': 'AppRender.executeServerAction',
+      'next.server_action.name': 'updateCounter',
+      'next.server_action.file': 'app/actions.ts',
+    })
+  })
 })
