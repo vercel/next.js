@@ -217,12 +217,11 @@ describe.each([
 
         try {
           // WASM fetch URLs must contain dpl= exactly once and not be double-encoded
-          expect(wasmRequests).toSatisfyAll(
-            (url) =>
-              url.includes('dpl=' + tokenForRequest(url)) &&
-              !url.includes('%3F') &&
-              !url.includes('%3f')
-          )
+          for (const url of wasmRequests) {
+            validateTokenForRequest(url)
+            expect(url.split('dpl=').length - 1).toBeLessThanOrEqual(1)
+            expect(url).not.toMatch(/%3f/i)
+          }
         } finally {
           require('console').error('wasmRequests', wasmRequests)
         }

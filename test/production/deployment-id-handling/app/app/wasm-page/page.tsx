@@ -8,8 +8,8 @@ export default function WasmPage() {
         onClick={async () => {
           // @ts-ignore
           const mod = await import('../add.wasm')
-          const instance = await WebAssembly.instantiate(mod.default)
-          const result = (instance.exports as any).add_one(1)
+          const instance: any = await WebAssembly.instantiate(mod.default)
+          const result = instance.exports.add_one(1)
           document.getElementById('wasm-result')!.textContent = String(result)
         }}
         id="load-wasm"
