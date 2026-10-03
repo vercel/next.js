@@ -1,0 +1,13 @@
+{
+  "applications": {
+    "singleton-host-pkg": {
+      "development": {
+        "fallback": "localhost"
+      }
+    },
+    "singleton-remote-pkg": {
+      "routing": [{ "paths": ["/rc-component/:path+", "/rc-assets/:path*"] }],
+      "assetPrefix": "rc-assets"
+    }
+  }
+}

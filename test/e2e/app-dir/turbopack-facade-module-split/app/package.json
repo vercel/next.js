@@ -1,0 +1,12 @@
+{
+  "name": "facade-module-split-fixture",
+  "private": true,
+  "scripts": {
+    "build": "cd apps/host && next build && cd ../remote && next build",
+    "start": "NODE_ENV=production node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "demo-pkg": "file:./packages/demo-pkg"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "remote-components-facade-module-split-fixture",
+  "private": true,
+  "scripts": {
+    "build": "cd apps/host-pkg && next build && cd ../remote-pkg && next build",
+    "start": "NODE_ENV=production node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "remote-components": "0.4.15",
+    "@vercel/microfrontends": "2.4.0",
+    "demo-pkg-rc": "file:./packages/demo-pkg-rc"
+  }
+}
