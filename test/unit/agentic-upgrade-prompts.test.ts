@@ -15,6 +15,7 @@ import cliSelect from 'next/dist/compiled/cli-select'
 import { spawnNextUpgrade } from 'next/dist/cli/next-upgrade'
 import { findDir } from 'next/dist/lib/find-pages-dir'
 import { getProjectDir } from 'next/dist/lib/get-project-dir'
+import { getReleaseAgePolicy } from 'next/dist/lib/helpers/get-release-age-policy'
 import { handoffUpgrade } from 'next/dist/lib/upgrade/harness'
 import { prepareUpgrade } from 'next/dist/lib/upgrade/prepare-upgrade'
 import loadConfig from 'next/dist/server/config'
@@ -58,6 +59,9 @@ jest.mock('next/dist/lib/get-project-dir', () => ({
 }))
 jest.mock('next/dist/lib/helpers/get-npx-command', () => ({
   getNpxCommand: () => 'npx',
+}))
+jest.mock('next/dist/lib/helpers/get-release-age-policy', () => ({
+  getReleaseAgePolicy: jest.fn(),
 }))
 jest.mock('next/dist/lib/picocolors', () => ({
   bold: (text: string) => text,
@@ -192,6 +196,8 @@ describe('agentic upgrade prompts', () => {
     process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION = cliVersion
     global.fetch = jest.fn()
     process.exitCode = undefined
+
+    jest.mocked(getReleaseAgePolicy).mockReturnValue(null)
 
     jest.mocked(getProjectDir).mockReturnValue('/workspace/app')
     jest.mocked(findDir).mockReturnValue('/workspace/app/app')
@@ -384,6 +390,100 @@ describe('agentic upgrade prompts', () => {
       expect(prepareUpgrade).toHaveBeenCalledTimes(0)
     }
   )
+
+  it.each([
+    ['age boundary', 0, '99.0.0-canary.3', []],
+    ['excluded release', 0, '99.0.0-canary.4', ['99.0.0-canary.4']],
+    ['excluded current tag', 0, '99.0.0-canary.5', ['99.0.0-canary.5']],
+    ['fixed npm cutoff', 1000, '99.0.0-canary.2', []],
+  ])(
+    'pins the newest eligible canary for %s',
+    async (_name, offset, expected, exclusions) => {
+      delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
+      const cutoff = Date.UTC(2026, 8, 30)
+      jest.mocked(getReleaseAgePolicy).mockReturnValue({
+        publishedBefore: cutoff - offset,
+        isExcluded: (version) => exclusions.includes(version),
+      })
+      const time = {
+        '99.0.0-canary.2': new Date(cutoff - 1000).toISOString(),
+        '99.0.0-canary.3': new Date(cutoff).toISOString(),
+        '99.0.0-canary.4': new Date(cutoff + 1).toISOString(),
+        '99.0.0-canary.5': new Date(cutoff + 86_400_000).toISOString(),
+        '99.0.0-canary.7': new Date(cutoff).toISOString(),
+        '99.0.0': new Date(cutoff).toISOString(),
+        '99.0.0-beta.9': new Date(cutoff).toISOString(),
+        invalid: new Date(cutoff).toISOString(),
+      }
+      jest.mocked(global.fetch).mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            'dist-tags': { canary: '99.0.0-canary.5' },
+            versions: Object.fromEntries(
+              Object.keys(time).map((version) => [version, {}])
+            ),
+            time,
+          })
+        )
+      )
+      crossSpawn.mockImplementation(() => {
+        const child = new EventEmitter()
+        process.nextTick(() => child.emit('close', 0, null))
+        return child
+      })
+
+      await spawnNextUpgrade(
+        '/workspace/app',
+        { revision: 'latest', verbose: false, agent: 'latest' },
+        null
+      )
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://registry.npmjs.org/next',
+        expect.objectContaining({ signal: expect.any(AbortSignal) })
+      )
+      expect(getReleaseAgePolicy).toHaveBeenCalledWith('/workspace/app')
+      expect(crossSpawn).toHaveBeenCalledWith(
+        'npx',
+        [`next@${expected}`, 'upgrade', '/workspace/app', '--agent=latest'],
+        expect.objectContaining({
+          env: expect.objectContaining({
+            __NEXT_UPGRADE_EXPECTED_CLI_VERSION: expected,
+          }),
+        })
+      )
+    }
+  )
+
+  it('stops when no canary satisfies the release-age policy', async () => {
+    delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
+    jest.mocked(getReleaseAgePolicy).mockReturnValue({
+      publishedBefore: 0,
+      isExcluded: () => false,
+    })
+    jest.mocked(global.fetch).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          'dist-tags': { canary: '99.0.0-canary.5' },
+          versions: { '99.0.0-canary.5': {} },
+          time: { '99.0.0-canary.5': '2026-09-30T00:00:00.000Z' },
+        })
+      )
+    )
+
+    await spawnNextUpgrade(
+      '/workspace/app',
+      { revision: 'latest', verbose: false, agent: true },
+      null
+    )
+
+    expect(Log.error).toHaveBeenCalledWith(
+      'Could not prepare the upgrade:',
+      'No Next.js canary satisfies the minimum release age. Wait for a release to become eligible, then retry.'
+    )
+    expect(process.exitCode).toBe(1)
+    expect(crossSpawn).toHaveBeenCalledTimes(0)
+    expect(prepareUpgrade).toHaveBeenCalledTimes(0)
+  })
 
   it.each([
     ['HTTP error', () => Promise.resolve(new Response('', { status: 503 }))],
