@@ -9,7 +9,6 @@ use turbo_dyn_eq_hash::{
 use crate::{
     FxIndexMap, FxIndexSet, NonLocalValue, OperationValue, TaskId, TurboTasksApi,
     manager::{current_task_if_available, mark_invalidator},
-    trace::TraceRawVcs,
     util::StaticOrArc,
 };
 
@@ -46,12 +45,6 @@ impl Invalidator {
             self.task,
             (Arc::new(reason) as Arc<dyn InvalidationReason>).into(),
         );
-    }
-}
-
-impl TraceRawVcs for Invalidator {
-    fn trace_raw_vcs(&self, _context: &mut crate::trace::TraceRawVcsContext) {
-        // nothing here
     }
 }
 

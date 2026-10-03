@@ -4,7 +4,7 @@ import type {
   ReducerState,
 } from '../router-reducer-types'
 import { refreshDynamicData } from './refresh-reducer'
-import { FreshnessPolicy } from '../ppr-navigations'
+import { FreshnessPolicy } from '../../render-tree'
 
 export function hmrRefreshReducer(
   state: ReadonlyReducerState,

@@ -2,26 +2,33 @@ import { join } from 'path'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
+// This test checks automatic workspace-root inference from multiple lockfiles.
+// Vercel's builder sets NEXT_PRIVATE_OUTPUT_TRACE_ROOT, bypassing that inference
+// and the warning asserted here.
+// @force-gate !deploy
 describe('multiple-lockfiles', () => {
-  const { next, skipped, isTurbopack } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: {
       app: new FileRef(join(__dirname, 'app')),
       // Write a package-lock.json file to the parent directory to simulate
       // multiple lockfiles.
+      '../package.json': JSON.stringify({
+        name: 'parent-workspace',
+        version: '1.0.0',
+      }),
       '../package-lock.json': JSON.stringify({
         name: 'parent-workspace',
         version: '1.0.0',
         lockfileVersion: 3,
+        packages: { '': { name: 'parent-workspace', version: '1.0.0' } },
       }),
     },
     // So that ../package-lock.json doesn't leave the isolated testDir
     subDir: 'test',
-    skipDeployment: true,
+    // The workspace file would be treated as the root and suppress the
+    // warning.
+    deleteWorkspaceFile: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should have multiple lockfiles warnings', async () => {
     await retry(async () => {

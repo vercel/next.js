@@ -15,8 +15,8 @@ import {
   pullDocs,
   collectDocFiles,
   buildDocTree,
-  generateClaudeMdIndex,
-  injectIntoClaudeMd,
+  generateAgentsMdIndex,
+  injectIntoAgentsMd,
   ensureGitignoreEntry,
 } from '../lib/agents-md'
 import { onCancel } from '../lib/utils'
@@ -52,7 +52,7 @@ export async function runAgentsMd(options: AgentsMdOptions): Promise<void> {
     if (!options.output) {
       throw new BadInput(
         'When using --version, --output is also required.\n' +
-          'Example: npx @next/codemod agents-md --version 15.1.3 --output CLAUDE.md'
+          'Example: npx @next/codemod agents-md --version 15.1.3 --output AGENTS.md'
       )
     }
     nextjsVersion = options.version
@@ -75,7 +75,7 @@ export async function runAgentsMd(options: AgentsMdOptions): Promise<void> {
     targetFile = promptedOptions.targetFile
   }
 
-  const claudeMdPath = path.join(cwd, targetFile)
+  const agentsMdPath = path.join(cwd, targetFile)
 
   // Next.js >= 16.2.0 ships its docs inside the published package. When the
   // installed version matches the requested one, index the bundled docs
@@ -95,8 +95,8 @@ export async function runAgentsMd(options: AgentsMdOptions): Promise<void> {
   let isNewFile = true
   let existingContent = ''
 
-  if (fs.existsSync(claudeMdPath)) {
-    existingContent = fs.readFileSync(claudeMdPath, 'utf-8')
+  if (fs.existsSync(agentsMdPath)) {
+    existingContent = fs.readFileSync(agentsMdPath, 'utf-8')
     sizeBefore = Buffer.byteLength(existingContent, 'utf-8')
     isNewFile = false
   }
@@ -124,14 +124,14 @@ export async function runAgentsMd(options: AgentsMdOptions): Promise<void> {
   const docFiles = collectDocFiles(docsPath)
   const sections = buildDocTree(docFiles)
 
-  const indexContent = generateClaudeMdIndex({
+  const indexContent = generateAgentsMdIndex({
     docsPath: docsLinkPath,
     sections,
     outputFile: targetFile,
   })
 
-  const newContent = injectIntoClaudeMd(existingContent, indexContent)
-  fs.writeFileSync(claudeMdPath, newContent, 'utf-8')
+  const newContent = injectIntoAgentsMd(existingContent, indexContent)
+  fs.writeFileSync(agentsMdPath, newContent, 'utf-8')
 
   const sizeAfter = Buffer.byteLength(newContent, 'utf-8')
 
@@ -183,7 +183,6 @@ async function promptForOptions(
         name: 'targetFile',
         message: 'Target markdown file',
         choices: [
-          { title: 'CLAUDE.md', value: 'CLAUDE.md' },
           { title: 'AGENTS.md', value: 'AGENTS.md' },
           { title: 'Custom...', value: '__custom__' },
         ],
@@ -207,7 +206,7 @@ async function promptForOptions(
         type: 'text',
         name: 'customFile',
         message: 'Enter custom file path',
-        initial: 'CLAUDE.md',
+        initial: 'AGENTS.md',
         validate: (value: string) =>
           value.trim() ? true : 'Please enter a file path',
       },

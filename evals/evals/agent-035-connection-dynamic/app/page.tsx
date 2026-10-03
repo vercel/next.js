@@ -1,8 +1,8 @@
-export default function Home() {
+export default function HomePage() {
   return (
     <main>
-      <h1>Random Number Generator</h1>
-      <p>Please implement a random number that changes on each request.</p>
+      <h1>Deployment health</h1>
+      <p>All systems operational</p>
     </main>
   )
 }

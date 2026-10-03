@@ -16,7 +16,7 @@ export const instant: {
     { params: { category: 'clothing', itemId: 'shirt' } },
   ],
 }
-export const prefetch = 'allow-runtime'
+export const prefetch = 'partial'
 
 type Params = { category: string; itemId: string }
 

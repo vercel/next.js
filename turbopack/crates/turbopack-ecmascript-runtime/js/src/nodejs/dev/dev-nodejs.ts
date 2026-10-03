@@ -18,19 +18,14 @@ function ensureHmrClientInitialized() {
   initializeServerHmr(moduleFactories, devModuleCache)
 }
 
-function __turbopack_server_hmr_apply__(update: NodeJsHmrPayload): boolean {
-  try {
-    ensureHmrClientInitialized()
-
-    // emitMessage returns false if any listener failed to apply the update
-    return emitMessage({
-      type: 'turbopack-message',
-      data: update,
-    })
-  } catch (err) {
-    console.error('[Server HMR] Failed to apply update:', err)
-    return false
-  }
+function __turbopack_server_hmr_apply__(update: NodeJsHmrPayload): void {
+  ensureHmrClientInitialized()
+  // Throws if the update can't be applied in-process; the consumer catches it
+  // and falls back to evicting require.cache.
+  emitMessage({
+    type: 'turbopack-message',
+    data: update,
+  })
 }
 
 // Turbopack produces one server runtime per chunking context (e.g.
@@ -41,7 +36,7 @@ function __turbopack_server_hmr_apply__(update: NodeJsHmrPayload): boolean {
 // stale entries when a runtime file is re-evaluated after require.cache eviction.
 
 type HmrHandlerEntry = {
-  handler: (update: NodeJsHmrPayload) => boolean
+  handler: (update: NodeJsHmrPayload) => void
   /** Output directory relative to RUNTIME_ROOT, e.g. "server/chunks/ssr". */
   chunkPrefix: string
 }
@@ -49,19 +44,33 @@ type HmrHandlerEntry = {
 const handlers: Map<string, HmrHandlerEntry> =
   globalThis.__turbopack_server_hmr_handlers__ ?? new Map()
 
-const chunkPrefix = path.relative(RUNTIME_ROOT, path.dirname(__filename))
+// Normalize to forward slashes so it matches the virtual chunk paths in
+// `update.instruction.chunks`, which always use `/` regardless of OS.
+const chunkPrefix = path
+  .relative(RUNTIME_ROOT, path.dirname(__filename))
+  .replaceAll(path.sep, '/')
 
 if (handlers.size === 0) {
   // First registration in this generation: install the routing dispatcher.
   globalThis.__turbopack_server_hmr_apply__ = (
     update: NodeJsHmrPayload
-  ): boolean => {
+  ): void => {
     const registry: Map<string, HmrHandlerEntry> =
       globalThis.__turbopack_server_hmr_handlers__ ?? new Map()
-    const updateChunkPaths = Object.keys(update.instruction?.chunks ?? {})
+
+    // Chunk paths can appear either directly on the instruction (single-chunk
+    // updates) or nested inside `merged` entries (chunks covered by a
+    // merger). Collect both so routing isn't skipped just because a mergeable
+    // chunk's update only reports its paths inside `merged`.
+    const updateChunkPaths = new Set<string>([
+      ...Object.keys(update.instruction?.chunks ?? {}),
+      ...(update.instruction?.merged ?? []).flatMap((merged) =>
+        Object.keys(merged.chunks ?? {})
+      ),
+    ])
 
     const toCall: HmrHandlerEntry[] = []
-    if (updateChunkPaths.length === 0) {
+    if (updateChunkPaths.size === 0) {
       for (const entry of registry.values()) toCall.push(entry)
     } else {
       const seen = new Set<string>()
@@ -76,16 +85,12 @@ if (handlers.size === 0) {
       }
     }
 
-    let applied = false
+    // No matching runtime loaded (e.g. editing a route not required yet this
+    // session): nothing live to patch, so this is a no-op. A handler that
+    // throws propagates to the consumer, which evicts require.cache.
     for (const { handler } of toCall) {
-      try {
-        if (handler(update)) applied = true
-      } catch (err) {
-        console.error('[Server HMR] Handler error:', err)
-      }
+      handler(update)
     }
-
-    return applied
   }
 }
 

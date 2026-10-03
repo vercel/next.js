@@ -2,8 +2,7 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use rustc_hash::FxHashMap;
 use turbo_tasks::{
-    NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
-    turbobail,
+    NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, turbobail,
 };
 use turbo_tasks_hash::hash_xxh3_hash64;
 
@@ -13,9 +12,7 @@ use crate::{chunk::ChunkItem, ident::AssetIdent, module::Module};
 #[turbo_tasks::value(transparent, cell = "keyed")]
 pub struct ModuleIds(FxHashMap<ResolvedVc<AssetIdent>, ModuleId>);
 
-#[derive(
-    Default, Clone, PartialEq, Eq, ValueDebugFormat, TraceRawVcs, NonLocalValue, Encode, Decode,
-)]
+#[derive(Default, Clone, PartialEq, Eq, ValueDebugFormat, NonLocalValue, Encode, Decode)]
 pub enum ModuleIdFallback {
     Error,
     #[default]

@@ -7,15 +7,11 @@ import {
 } from 'e2e-utils/instant-validation'
 
 describe('instant-validation-build', () => {
-  const { next, skipped, isNextStart, isTurbopack } = nextTestSetup({
+  const { next, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
 
-  if (skipped) {
-    return
-  }
   if (!isNextStart) {
     it.skip('Build-time only test', () => {})
     return
@@ -42,7 +38,14 @@ describe('instant-validation-build', () => {
   }
 
   beforeAll(async () => {
-    await next.build({ args: ['--experimental-build-mode', 'compile'] })
+    const result = await next.build({
+      args: ['--experimental-build-mode', 'compile'],
+    })
+    if (result.exitCode !== 0) {
+      throw new Error(
+        `Build exited with exit code ${result.exitCode}. CLI Output:\n\n${result.cliOutput}`
+      )
+    }
   })
 
   describe('basic dynamic hole detection', () => {
@@ -70,11 +73,10 @@ describe('instant-validation-build', () => {
 
          Ways to fix this:
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-             https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
            - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)
-             https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
            - [block] Set \`export const instant = false\` to allow a blocking route
-             https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
+
+         Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
              at main (<anonymous>)
              at body (<anonymous>)
              at html (<anonymous>)

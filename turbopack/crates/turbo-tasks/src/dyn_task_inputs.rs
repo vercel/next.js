@@ -8,16 +8,14 @@ use turbo_dyn_eq_hash::{
     DynEq, DynHash, impl_eq_for_dyn, impl_hash_for_dyn, impl_partial_eq_for_dyn,
 };
 
-use crate::trace::TraceRawVcs;
-
-pub trait DynTaskInputs: Debug + DynEq + DynHash + TraceRawVcs + Send + Sync + 'static {
+pub trait DynTaskInputs: Debug + DynEq + DynHash + Send + Sync + 'static {
     #[cfg(debug_assertions)]
     fn dyn_type_name(&self) -> &'static str;
 }
 
 impl<T> DynTaskInputs for T
 where
-    T: Debug + Eq + Hash + Send + Sync + TraceRawVcs + 'static,
+    T: Debug + Eq + Hash + Send + Sync + 'static,
 {
     #[cfg(debug_assertions)]
     fn dyn_type_name(&self) -> &'static str {

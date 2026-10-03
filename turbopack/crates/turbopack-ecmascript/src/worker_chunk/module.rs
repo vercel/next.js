@@ -27,6 +27,7 @@ use crate::{
         EcmascriptExports, data::EcmascriptChunkData, ecmascript_chunk_item,
     },
     embed_js::embed_fs,
+    references::esm::generated_export_key,
     runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_REQUIRE},
     utils::{StringifyJs, StringifyModuleId},
 };
@@ -261,6 +262,10 @@ impl EcmascriptChunkPlaceable for WorkerLoaderModule {
             // otherwise we will induce a turbo tasks cycle. But we only need an
             // approximate solution. We'll use the same estimate for both web
             // and Node.js workers.
+            //
+            // That includes the export key: resolving the real one needs the chunking context, so
+            // the estimate uses the source name even when the helper's exports are mangled. It can
+            // only be off by a few characters.
             let fake_id = ModuleId::String(rcstr!("a_fake_module"));
             return Ok(EcmascriptChunkItemContent {
                 inner_code: formatdoc! {
@@ -277,10 +282,19 @@ impl EcmascriptChunkPlaceable for WorkerLoaderModule {
             .cell());
         }
 
-        let create_worker_id = self
-            .create_worker_module()
-            .chunk_item_id(chunking_context)
-            .await?;
+        let create_worker_module = self.create_worker_module();
+        let create_worker_id = create_worker_module.chunk_item_id(chunking_context).await?;
+        // The helper's `default` export is read here as a string, so it has to go through the same
+        // mapping the helper itself emits — a hard-coded `["default"]` misses once its exports are
+        // mangled.
+        let create_worker_export = match ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(
+            create_worker_module.to_resolved().await?,
+        ) {
+            Some(placeable) => {
+                generated_export_key(placeable, chunking_context, &rcstr!("default")).await?
+            }
+            None => rcstr!("default"),
+        };
 
         let code = match this.worker_type {
             WorkerType::WebWorker | WorkerType::SharedWebWorker => {
@@ -306,11 +320,12 @@ impl EcmascriptChunkPlaceable for WorkerLoaderModule {
 
                 formatdoc! {
                     r#"
-                        {TURBOPACK_EXPORT_VALUE}({TURBOPACK_REQUIRE}({workers_module})["default"]({entrypoint}, {chunks}));
+                        {TURBOPACK_EXPORT_VALUE}({TURBOPACK_REQUIRE}({workers_module})[{export:#}]({entrypoint}, {chunks}));
                     "#,
                     entrypoint = StringifyJs(&entrypoint_path),
                     chunks = StringifyJs(&chunks_data),
                     workers_module = StringifyModuleId(&create_worker_id),
+                    export = StringifyJs(&create_worker_export),
                 }
             }
             WorkerType::NodeWorkerThread => {
@@ -338,10 +353,11 @@ impl EcmascriptChunkPlaceable for WorkerLoaderModule {
                 // directory
                 formatdoc! {
                     r#"
-                        {TURBOPACK_EXPORT_VALUE}({TURBOPACK_REQUIRE}({workers_module})["default"](__dirname + "/" + {worker_path:#}));
+                        {TURBOPACK_EXPORT_VALUE}({TURBOPACK_REQUIRE}({workers_module})[{export:#}](__dirname + "/" + {worker_path:#}));
                     "#,
                     worker_path = StringifyJs(entry_path.file_name()),
                     workers_module = StringifyModuleId(&create_worker_id),
+                    export = StringifyJs(&create_worker_export),
                 }
             }
         };

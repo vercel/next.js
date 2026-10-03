@@ -3,7 +3,6 @@ import { nextTestSetup } from 'e2e-utils'
 describe('Root Suspense Dynamic Rendering', () => {
   const { next, isNextStart } = nextTestSetup({
     files: __dirname + '/fixtures/default',
-    skipDeployment: true,
   })
 
   // TODO: remove when there is a test for isNextDev === false

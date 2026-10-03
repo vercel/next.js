@@ -8,6 +8,7 @@ import analyze from '../build/analyze'
 import { warn } from '../build/output/log'
 import { printAndExit } from '../server/lib/utils'
 import { getProjectDir } from '../lib/get-project-dir'
+import { warnMissingReactDependencies } from '../lib/warn-missing-react-dependencies'
 
 export type NextAnalyzeOptions = {
   experimentalAnalyze?: boolean
@@ -16,6 +17,7 @@ export type NextAnalyzeOptions = {
   port: number
   output: boolean
   experimentalAppOnly?: boolean
+  snapshotName?: string
 }
 
 const nextAnalyze = async (options: NextAnalyzeOptions, directory?: string) => {
@@ -28,7 +30,8 @@ const nextAnalyze = async (options: NextAnalyzeOptions, directory?: string) => {
     process.exit(130)
   })
 
-  const { profile, mangling, experimentalAppOnly, output, port } = options
+  const { profile, mangling, experimentalAppOnly, output, port, snapshotName } =
+    options
 
   if (!mangling) {
     warn(
@@ -43,6 +46,7 @@ const nextAnalyze = async (options: NextAnalyzeOptions, directory?: string) => {
   }
 
   const dir = getProjectDir(directory)
+  warnMissingReactDependencies(dir)
 
   if (!existsSync(dir)) {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
@@ -55,6 +59,7 @@ const nextAnalyze = async (options: NextAnalyzeOptions, directory?: string) => {
     appDirOnly: experimentalAppOnly,
     output,
     port,
+    snapshotName,
   })
 }
 

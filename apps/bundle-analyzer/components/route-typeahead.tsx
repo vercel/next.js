@@ -1,15 +1,16 @@
 'use client'
 
-import useSWR from 'swr'
-import { Check, ChevronsUpDown, Loader, Route } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { Check, ChevronsUpDown, Route } from 'lucide-react'
+import { useEffect, useState, type Ref } from 'react'
 import { Button } from '@/components/ui/button'
+import { useSuspenseJsonData } from '@/lib/analyzer-data'
 import {
   Command,
   CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
+  CommandLinkItem,
   CommandList,
 } from '@/components/ui/command'
 import {
@@ -17,23 +18,62 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import { cn, jsonFetcher } from '@/lib/utils'
-import { NetworkError } from '@/lib/errors'
+import { cn } from '@/lib/utils'
 import { Kbd } from '@/components/ui/kbd'
+import {
+  delta,
+  formatDelta,
+  sortByImpact,
+  type DiffRow,
+  type DiffSummary,
+  type RouteSizeTotals,
+} from '@/lib/diff'
+import { formatBytes } from '@/lib/utils'
 
-interface RouteTypeaheadProps {
+type RouteSelection =
+  | {
+      mode: 'link'
+      getRouteHref: (routeName: string) => string
+      onRouteSelected?: never
+    }
+  | {
+      mode: 'action'
+      onRouteSelected: (routeName: string) => void
+      getRouteHref?: never
+    }
+
+type PickerOpenState =
+  | { open: boolean; onOpenChange: (open: boolean) => void }
+  | { open?: never; onOpenChange?: never }
+
+interface RouteTypeaheadOptions {
   selectedRoute: string | null
-  onRouteSelected: (routeName: string) => void
+  routesBaseDir?: string
+  /**
+   * When provided, the picker renders per-route size deltas next to each
+   * route, sorts by largest impact, and uses the diff's route list as its
+   * source of truth (so added/removed routes appear with appropriate
+   * styling).
+   */
+  routeDiff?: DiffSummary | null
+  /** Whether to use compressed sizes when computing the delta column. */
+  useCompressed?: boolean
+  routeTotals?: ReadonlyMap<string, RouteSizeTotals> | null
 }
 
-export function RouteTypeahead({
-  selectedRoute,
-  onRouteSelected,
-}: RouteTypeaheadProps) {
-  const [open, setOpen] = useState(false)
+type RouteTypeaheadProps = RouteTypeaheadOptions &
+  RouteSelection &
+  PickerOpenState
+
+export function RouteTypeahead(props: RouteTypeaheadProps) {
+  const { selectedRoute, routeDiff, useCompressed = true, routeTotals } = props
+  const [localOpen, setLocalOpen] = useState(false)
+  const open = props.open ?? localOpen
+  const setOpen = props.onOpenChange ?? setLocalOpen
   const [shortcutLabel, setShortcutLabel] = useState<string | null>(null)
 
   useEffect(() => {
+    // Match the platform shortcut: ⌘K on Apple devices, Ctrl+K elsewhere.
     const isAppleDevice = /Mac|iPhone|iPad|iPod/.test(navigator.userAgent)
     setShortcutLabel(isAppleDevice ? '⌘K' : 'Ctrl+K')
 
@@ -56,101 +96,237 @@ export function RouteTypeahead({
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [])
+  }, [setOpen])
 
-  const {
-    data: routes,
-    isLoading,
-    error,
-  } = useSWR<string[]>('data/routes.json', jsonFetcher, {
-    onSuccess: (routeNames) => {
-      // Auto-select first route if none is selected
-      if (routeNames.length > 0 && selectedRoute == null) {
-        onRouteSelected(routeNames[0])
-      }
-    },
-  })
+  // Find the currently selected route's diff row, used to render a delta
+  // badge in the trigger button.
+  const selectedRow =
+    routeDiff && selectedRoute
+      ? (routeDiff.rows.find((row) => row.key === selectedRoute) ?? null)
+      : null
 
-  if (error) {
-    return (
-      <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-destructive/10 border border-destructive/20 text-destructive text-sm max-w-full">
-        <span className="font-medium">⚠</span>
-        <span className="truncate">
-          {error instanceof NetworkError
-            ? 'Unable to connect to server'
-            : error.message}
-        </span>
-      </div>
-    )
-  }
+  const selectedSize = selectedRoute
+    ? (routeTotals?.get(selectedRoute)?.compressedSize ??
+      selectedRow?.compressedB)
+    : undefined
 
-  let ctaText
-  if (isLoading) {
-    ctaText = 'Loading routes...'
-  } else if (selectedRoute != null) {
-    ctaText = selectedRoute
-  } else {
-    ctaText = 'Select route...'
-  }
+  const ctaText = selectedRoute ?? 'Select route...'
 
   return (
-    <div className="flex items-center gap-2 min-w-64 max-w-full">
+    <div className="flex min-w-0 items-center gap-2 sm:min-w-64">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            disabled={isLoading}
-            className="flex-grow-1 w-full justify-between font-mono text-sm"
+            aria-label={
+              selectedRoute
+                ? `Select route. Current route: ${selectedRoute}`
+                : 'Select route'
+            }
+            className="w-full min-w-0 justify-between font-mono text-sm"
           >
-            <div className="flex items-center">
-              {isLoading ? (
-                <Loader className="mr-2 inline animate-spin" />
-              ) : (
-                <Route className="inline mr-2" />
-              )}
+            <div className="flex min-w-0 flex-1 items-center">
+              <Route className="inline mr-2 shrink-0" />
 
-              {ctaText}
+              <span className="min-w-0 flex-1 truncate" title={ctaText}>
+                {truncateMiddle(ctaText, 32)}
+              </span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="ml-2 flex shrink-0 items-center gap-2">
+              {selectedSize != null ? (
+                <span className="font-sans text-xs tabular-nums text-muted-foreground">
+                  {formatBytes(selectedSize)}
+                </span>
+              ) : null}
+              {selectedRow ? (
+                <DeltaBadge
+                  row={selectedRow}
+                  useCompressed={useCompressed}
+                  className="ml-0"
+                />
+              ) : null}
               {shortcutLabel && <Kbd>{shortcutLabel}</Kbd>}
               <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
             </div>
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-96 p-0">
-          <Command>
-            <CommandInput placeholder="Search routes..." className="h-9" />
-            <CommandList>
-              <CommandEmpty>No route found.</CommandEmpty>
-              <CommandGroup>
-                {(routes || []).map((route) => {
-                  return (
-                    <CommandItem
-                      key={route}
-                      value={route}
-                      onSelect={() => {
-                        onRouteSelected(route)
-                        setOpen(false)
-                      }}
-                      className="font-mono"
-                    >
-                      <Check
-                        className={cn(
-                          'mr-2 h-4 w-4',
-                          selectedRoute === route ? 'opacity-100' : 'opacity-0'
-                        )}
-                      />
-                      {route}
-                    </CommandItem>
-                  )
-                })}
-              </CommandGroup>
-            </CommandList>
-          </Command>
+        <PopoverContent
+          align="start"
+          className="w-[40rem] max-w-[calc(100vw-1rem)] overflow-hidden p-0"
+        >
+          <RouteTypeaheadContent {...props} onSelect={() => setOpen(false)} />
         </PopoverContent>
       </Popover>
     </div>
+  )
+}
+
+export function RouteTypeaheadContent(
+  props: RouteTypeaheadOptions &
+    RouteSelection & {
+      onSelect?: () => void
+      searchInputRef?: Ref<HTMLInputElement>
+    }
+) {
+  const { selectedRoute, routeDiff, useCompressed = true, routeTotals } = props
+  const routes = useSuspenseJsonData<string[]>(
+    `${props.routesBaseDir ?? '/data'}/routes.json`
+  )
+
+  // When a route diff is provided, sort routes by largest absolute impact so
+  // the most-changed route bubbles to the top — matching the rest of the
+  // compare UI. Without a diff, sort by compressed route size.
+  const orderedItems: RouteItem[] = routeDiff
+    ? uniqueRouteItems(
+        sortByImpact(routeDiff.rows, useCompressed).map((row) => ({
+          name: row.key,
+          row,
+        }))
+      )
+    : uniqueRouteItems(
+        routes
+          .map((name) => ({ name, row: null, totals: routeTotals?.get(name) }))
+          .sort(
+            (left, right) =>
+              (right.totals?.compressedSize ?? 0) -
+              (left.totals?.compressedSize ?? 0)
+          )
+      )
+
+  return (
+    <Command className="min-w-0">
+      <CommandInput
+        ref={props.searchInputRef}
+        placeholder="Search routes..."
+        className="h-9"
+      />
+      <CommandList className="min-w-0">
+        <CommandEmpty>No route found.</CommandEmpty>
+        <CommandGroup className="min-w-0 [&_[cmdk-group-items]]:min-w-0">
+          {orderedItems.map(({ name, row, totals }) => {
+            const content = (
+              <>
+                <Check
+                  className={cn(
+                    'mr-2 h-4 w-4 shrink-0',
+                    selectedRoute === name ? 'opacity-100' : 'opacity-0'
+                  )}
+                />
+                <span className="sr-only">{name}</span>
+                <span
+                  aria-hidden="true"
+                  className="min-w-0 flex-1 truncate"
+                  title={name}
+                >
+                  {truncateMiddle(name, 64)}
+                </span>
+                {row ? (
+                  <DeltaBadge
+                    row={row}
+                    useCompressed={useCompressed}
+                    className="ml-auto"
+                  />
+                ) : totals ? (
+                  <span className="ml-auto shrink-0 font-sans text-xs tabular-nums text-muted-foreground">
+                    {formatBytes(totals.compressedSize)}
+                  </span>
+                ) : null}
+              </>
+            )
+            const className = 'w-full min-w-0 overflow-hidden font-mono'
+            return props.mode === 'link' ? (
+              <CommandLinkItem
+                key={name}
+                value={name}
+                href={props.getRouteHref(name)}
+                className={className}
+              >
+                {content}
+              </CommandLinkItem>
+            ) : (
+              <CommandItem
+                key={name}
+                value={name}
+                onSelect={() => {
+                  props.onRouteSelected(name)
+                  props.onSelect?.()
+                }}
+                className={className}
+              >
+                {content}
+              </CommandItem>
+            )
+          })}
+        </CommandGroup>
+      </CommandList>
+    </Command>
+  )
+}
+
+interface RouteItem {
+  name: string
+  row: DiffRow | null
+  totals?: RouteSizeTotals
+}
+
+function truncateMiddle(value: string, maxLength: number): string {
+  if (value.length <= maxLength) return value
+
+  const startLength = Math.ceil((maxLength - 1) / 2)
+  const endLength = Math.floor((maxLength - 1) / 2)
+  return `${value.slice(0, startLength)}…${value.slice(-endLength)}`
+}
+
+function uniqueRouteItems(items: RouteItem[]): RouteItem[] {
+  const names = new Set<string>()
+  return items.filter(({ name }) => {
+    if (names.has(name)) return false
+    names.add(name)
+    return true
+  })
+}
+
+/**
+ * Compact, color-coded badge showing a route's size delta. Hidden when the
+ * row has no meaningful change.
+ */
+function DeltaBadge({
+  row,
+  useCompressed,
+  className,
+}: {
+  row: DiffRow
+  useCompressed: boolean
+  className?: string
+}) {
+  if (row.status === 'identical') return null
+  const d = delta(row, useCompressed)
+  // For added/removed routes the delta carries the only signal, so always
+  // render. For changed routes, suppress sub-byte noise.
+  if (row.status === 'changed' && d === 0) return null
+
+  const tone =
+    row.status === 'added' || d > 0
+      ? 'text-red-600 dark:text-red-400'
+      : row.status === 'removed' || d < 0
+        ? 'text-green-600 dark:text-green-400'
+        : 'text-muted-foreground'
+
+  return (
+    <span
+      className={cn(
+        'ml-2 shrink-0 text-xs tabular-nums font-sans',
+        tone,
+        className
+      )}
+    >
+      {row.status === 'added'
+        ? '+ new'
+        : row.status === 'removed'
+          ? '− removed'
+          : formatDelta(d)}
+    </span>
   )
 }

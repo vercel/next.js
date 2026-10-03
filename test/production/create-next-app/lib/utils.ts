@@ -5,7 +5,7 @@
  */
 
 import { execSync, spawn, SpawnOptions } from 'child_process'
-import { existsSync } from 'fs'
+import { existsSync, readFileSync } from 'fs'
 import { join, resolve } from 'path'
 import glob from 'glob'
 import Conf from 'next/dist/compiled/conf'
@@ -143,18 +143,21 @@ export const shouldBeTemplateProject = ({
   mode,
   srcDir,
 }: CustomTemplateOptions) => {
+  const isTailwindTemplate = [
+    'app-tw',
+    'app-tw-empty',
+    'default-tw',
+    'default-tw-empty',
+  ].includes(template)
+
   projectFilesShouldExist({
     cwd,
     projectName,
     files: getProjectSetting({ template, mode, setting: 'files', srcDir }),
   })
 
-  // Tailwind templates share the same files (tailwind.config.mjs, postcss.config.mjs)
-  if (
-    !['app-tw', 'app-tw-empty', 'default-tw', 'default-tw-empty'].includes(
-      template
-    )
-  ) {
+  // Tailwind templates share the same files across JavaScript and TypeScript.
+  if (!isTailwindTemplate) {
     projectFilesShouldNotExist({
       cwd,
       projectName,
@@ -163,6 +166,23 @@ export const shouldBeTemplateProject = ({
         srcDir
       ),
     })
+  }
+
+  const projectRoot = resolve(cwd, projectName)
+  const nextConfig = readFileSync(
+    resolve(projectRoot, mode === 'js' ? 'next.config.mjs' : 'next.config.ts'),
+    'utf8'
+  )
+
+  if (isTailwindTemplate && !process.env.NEXT_RSPACK) {
+    expect(nextConfig).toContain('loaders: ["@tailwindcss/turbopack"]')
+    projectFilesShouldNotExist({
+      cwd,
+      projectName,
+      files: ['postcss.config.mjs'],
+    })
+  } else {
+    expect(nextConfig).not.toContain('@tailwindcss/turbopack')
   }
 
   projectDepsShouldBe({

@@ -1,4 +1,13 @@
 import {
+  createRuntimeBodyErrorInStaticRoute,
+  createDynamicBodyErrorInStaticRoute,
+  createNonPrerenderableBodyErrorInStaticRoute,
+  createRuntimeMetadataErrorInStaticRoute,
+  createDynamicMetadataErrorInStaticRoute,
+  createNonPrerenderableMetadataErrorInStaticRoute,
+  createRuntimeViewportErrorInStaticRoute,
+  createDynamicViewportErrorInStaticRoute,
+  createNonPrerenderableViewportErrorInStaticRoute,
   createDynamicBodyError,
   createDynamicBodyErrorInNavigation,
   createDynamicMetadataError,
@@ -13,6 +22,9 @@ import {
   createLinkBodyErrorInNavigation,
   createLinkMetadataError,
   createLinkViewportError,
+  createNavigationBodyErrorInNavigation,
+  createNavigationMetadataError,
+  createNavigationViewportError,
 } from '../../../server/app-render/blocking-route-messages'
 import {
   createSyncIOClientError,
@@ -21,7 +33,10 @@ import {
   type SyncIOApiType,
 } from '../../../server/app-render/sync-io-messages'
 import { ClientHookDynamicError } from '../../../server/dynamic-rendering-utils'
-import { getCards } from '../components/instant/instant-guidance-data'
+import {
+  getCards,
+  getStaticRouteDocsUrl,
+} from '../components/instant/instant-guidance-data'
 import {
   deriveCauseFromCodeFrame,
   getBlockingRouteErrorDetails,
@@ -37,25 +52,6 @@ const ROUTE = '/example'
 
 describe('getGuidanceVariant', () => {
   describe('classifies runtime messages as runtime', () => {
-    describe('classifies link messages as link', () => {
-      it.each([
-        {
-          description: 'body',
-          error: () => createLinkBodyErrorInNavigation(ROUTE),
-        },
-        {
-          description: 'metadata',
-          error: () => createLinkMetadataError(ROUTE),
-        },
-        {
-          description: 'viewport',
-          error: () => createLinkViewportError(ROUTE),
-        },
-      ])('$description', ({ error }) => {
-        expect(getGuidanceVariant(error().message)).toBe('link')
-      })
-    })
-
     it.each([
       { description: 'body', error: () => createRuntimeBodyError(ROUTE) },
       {
@@ -72,6 +68,44 @@ describe('getGuidanceVariant', () => {
       },
     ])('$description', ({ error }) => {
       expect(getGuidanceVariant(error().message)).toBe('runtime')
+    })
+  })
+
+  describe('classifies link messages as link', () => {
+    it.each([
+      {
+        description: 'body',
+        error: () => createLinkBodyErrorInNavigation(ROUTE),
+      },
+      {
+        description: 'metadata',
+        error: () => createLinkMetadataError(ROUTE),
+      },
+      {
+        description: 'viewport',
+        error: () => createLinkViewportError(ROUTE),
+      },
+    ])('$description', ({ error }) => {
+      expect(getGuidanceVariant(error().message)).toBe('link')
+    })
+  })
+
+  describe('classifies navigation messages as navigation', () => {
+    it.each([
+      {
+        description: 'body',
+        error: () => createNavigationBodyErrorInNavigation(ROUTE),
+      },
+      {
+        description: 'metadata',
+        error: () => createNavigationMetadataError(ROUTE),
+      },
+      {
+        description: 'viewport',
+        error: () => createNavigationViewportError(ROUTE),
+      },
+    ])('$description', ({ error }) => {
+      expect(getGuidanceVariant(error().message)).toBe('navigation')
     })
   })
 
@@ -212,6 +246,26 @@ describe('getBlockingRouteErrorDetails', () => {
     })
   })
 
+  it('classifies createLinkBodyErrorInNavigation as blocking-route + link + inNavigation', () => {
+    expect(
+      getBlockingRouteErrorDetails(createLinkBodyErrorInNavigation(ROUTE))
+    ).toEqual({
+      type: 'blocking-route',
+      variant: 'link',
+      inNavigation: true,
+    })
+  })
+
+  it('classifies createNavigationBodyErrorInNavigation as blocking-route + navigation + inNavigation', () => {
+    expect(
+      getBlockingRouteErrorDetails(createNavigationBodyErrorInNavigation(ROUTE))
+    ).toEqual({
+      type: 'blocking-route',
+      variant: 'navigation',
+      inNavigation: true,
+    })
+  })
+
   it('classifies createDynamicOrRuntimeBodyError as blocking-route + dynamic (SSR-only)', () => {
     // The "either" factory has no clear runtime signal — falls into the
     // dynamic branch by `isRuntimeVariant`. Documents current behavior.
@@ -230,6 +284,18 @@ describe('getBlockingRouteErrorDetails', () => {
     ).toEqual({ type: 'dynamic-metadata', variant: 'runtime' })
   })
 
+  it('classifies createLinkMetadataError as dynamic-metadata + link', () => {
+    expect(
+      getBlockingRouteErrorDetails(createLinkMetadataError(ROUTE))
+    ).toEqual({ type: 'dynamic-metadata', variant: 'link' })
+  })
+
+  it('classifies createNavigationMetadataError as dynamic-metadata + navigation', () => {
+    expect(
+      getBlockingRouteErrorDetails(createNavigationMetadataError(ROUTE))
+    ).toEqual({ type: 'dynamic-metadata', variant: 'navigation' })
+  })
+
   it('classifies createDynamicMetadataError as dynamic-metadata + dynamic', () => {
     expect(
       getBlockingRouteErrorDetails(createDynamicMetadataError(ROUTE))
@@ -246,6 +312,18 @@ describe('getBlockingRouteErrorDetails', () => {
     expect(
       getBlockingRouteErrorDetails(createRuntimeViewportError(ROUTE))
     ).toEqual({ type: 'dynamic-viewport', variant: 'runtime' })
+  })
+
+  it('classifies createLinkViewportError as dynamic-viewport + link', () => {
+    expect(
+      getBlockingRouteErrorDetails(createLinkViewportError(ROUTE))
+    ).toEqual({ type: 'dynamic-viewport', variant: 'link' })
+  })
+
+  it('classifies createNavigationViewportError as dynamic-viewport + navigation', () => {
+    expect(
+      getBlockingRouteErrorDetails(createNavigationViewportError(ROUTE))
+    ).toEqual({ type: 'dynamic-viewport', variant: 'navigation' })
   })
 
   it('classifies createDynamicViewportError as dynamic-viewport + dynamic', () => {
@@ -610,6 +688,9 @@ describe('isInstantNavigationError', () => {
     expect(
       isInstantNavigationError(createDynamicBodyErrorInNavigation(ROUTE))
     ).toBe(true)
+    expect(
+      isInstantNavigationError(createLinkBodyErrorInNavigation(ROUTE))
+    ).toBe(true)
   })
 
   it('returns true for unrendered-segment errors', () => {
@@ -701,4 +782,66 @@ describe('deriveCauseFromCodeFrame', () => {
       deriveCauseFromCodeFrame('blocking-route', 'dynamic', frame)
     ).toBeUndefined()
   })
+})
+
+describe('fully static route errors', () => {
+  it.each([
+    [createRuntimeBodyErrorInStaticRoute, 'static-route', 'runtime'],
+    [createDynamicBodyErrorInStaticRoute, 'static-route', 'dynamic'],
+    [createNonPrerenderableBodyErrorInStaticRoute, 'static-route', 'dynamic'],
+    [createRuntimeMetadataErrorInStaticRoute, 'static-metadata', 'runtime'],
+    [createDynamicMetadataErrorInStaticRoute, 'static-metadata', 'dynamic'],
+    [
+      createNonPrerenderableMetadataErrorInStaticRoute,
+      'static-metadata',
+      'dynamic',
+    ],
+    [createRuntimeViewportErrorInStaticRoute, 'static-viewport', 'runtime'],
+    [createDynamicViewportErrorInStaticRoute, 'static-viewport', 'dynamic'],
+    [
+      createNonPrerenderableViewportErrorInStaticRoute,
+      'static-viewport',
+      'dynamic',
+    ],
+  ] as const)('classifies %p as %s (%s)', (createError, kind, variant) => {
+    const error = createError(ROUTE)
+    expect(getBlockingRouteErrorDetails(error)).toEqual({
+      type: 'static-route',
+      kind,
+      variant,
+      headline: error.message.split('\n')[0].replace(`Route "${ROUTE}": `, ''),
+    })
+    // This is a build constraint, not optional instant-navigation validation.
+    expect(isInstantNavigationError(error)).toBe(false)
+    const cards = getCards(kind, variant)
+    expect(cards.length).toBeGreaterThan(0)
+    expect(cards.map((card) => card.group)).not.toContain('stream')
+    expect(cards.map((card) => card.group)).not.toContain('block')
+    expect(cards.map((card) => card.group)).toEqual(
+      Array.from(
+        error.message.matchAll(/^\s*-\s*\[([a-z-]+)\]/gm),
+        (match) => match[1]
+      )
+    )
+    for (const card of cards) {
+      expect(card.link?.split('#')[0]).toBe(
+        getStaticRouteDocsUrl(kind, variant)
+      )
+    }
+  })
+
+  it.each(['static-route', 'static-metadata', 'static-viewport'] as const)(
+    'does not infer card filtering from the code frame for %s',
+    (kind) => {
+      const cause = deriveCauseFromCodeFrame(
+        kind,
+        'dynamic',
+        '> 4 | await connection()'
+      )
+      expect(cause).toBeUndefined()
+      expect(getCards(kind, 'dynamic', cause)).toEqual(
+        getCards(kind, 'dynamic')
+      )
+    }
+  )
 })

@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry, waitFor } from 'next-test-utils'
 
 // Partial prefetching is enabled here (and Cache Components), so a client
-// navigation to a route with `export const prefetch = 'allow-runtime'` reveals
+// navigation to a route with `export const prefetch = 'partial'` reveals
 // the runtime shell. Caches that resolve in the runtime stage (a `'use cache'`
 // read after `await params`, or a private cache) are therefore part of the
 // shell for that navigation, so a cold cache must show the Cold cache badge,
@@ -10,13 +10,9 @@ import { retry, waitFor } from 'next-test-utils'
 // the shell. (The static-shell behavior is covered in the `cache-indicator`
 // suite.)
 describe('cache-indicator-partial-prefetching', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('cache after session data triggers cold cache indicator', async () => {
     const browser = await next.browser('/')

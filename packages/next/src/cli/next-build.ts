@@ -8,15 +8,14 @@ import { warn } from '../build/output/log'
 import { printAndExit } from '../server/lib/utils'
 import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
+import { warnMissingReactDependencies } from '../lib/warn-missing-react-dependencies'
 import { enableMemoryDebuggingMode } from '../lib/memory/startup'
 import { disableMemoryDebuggingMode } from '../lib/memory/shutdown'
 import { Bundler, parseBundlerArgs } from '../lib/bundler'
-import {
-  resolveBuildPaths,
-  parseBuildPathsInput,
-} from '../lib/resolve-build-paths'
+import { parseBuildPathsInput } from '../lib/resolve-build-paths'
 
 export type NextBuildOptions = {
+  analyze?: boolean
   experimentalAnalyze?: boolean
   debug?: boolean
   debugPrerender?: boolean
@@ -38,16 +37,23 @@ export type NextBuildOptions = {
 
 const nextBuild = async (options: NextBuildOptions, directory?: string) => {
   process.title = `next-build (v${process.env.__NEXT_VERSION})`
-  process.on('SIGTERM', () => {
+  const onTerminate = () => {
     saveCpuProfile()
     process.exit(143)
-  })
-  process.on('SIGINT', () => {
+  }
+  const onInterrupt = () => {
     saveCpuProfile()
     process.exit(130)
-  })
+  }
+  const onHangup = () => {
+    saveCpuProfile()
+    process.exit(129)
+  }
+  process.on('SIGTERM', onTerminate)
+  process.on('SIGINT', onInterrupt)
 
   const {
+    analyze,
     experimentalAnalyze,
     debug,
     debugPrerender,
@@ -67,10 +73,8 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
 
   const bundler = parseBundlerArgs(options)
 
-  if (experimentalAnalyze && bundler !== Bundler.Turbopack) {
-    printAndExit(
-      '--experimental-analyze is only compatible with the Turbopack bundler.'
-    )
+  if ((analyze || experimentalAnalyze) && bundler !== Bundler.Turbopack) {
+    printAndExit('--analyze is only compatible with the Turbopack bundler.')
   }
 
   if (!mangling) {
@@ -99,29 +103,19 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
   }
 
   const dir = getProjectDir(directory)
+  warnMissingReactDependencies(dir)
 
   if (!existsSync(dir)) {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
-  // Resolve selective build paths
-  let resolvedBuildPaths: { app: string[]; pages: string[] } | undefined
+  let debugBuildPathsPatterns: string[] | undefined
 
   if (debugBuildPaths) {
-    try {
-      const patterns = parseBuildPathsInput(debugBuildPaths)
+    const patterns = parseBuildPathsInput(debugBuildPaths)
 
-      if (patterns.length > 0) {
-        const resolved = await resolveBuildPaths(patterns, dir)
-        resolvedBuildPaths = {
-          app: resolved.appPaths,
-          pages: resolved.pagePaths,
-        }
-      }
-    } catch (err) {
-      printAndExit(
-        `Failed to resolve build paths: ${isError(err) ? err.message : String(err)}`
-      )
+    if (patterns.length > 0) {
+      debugBuildPathsPatterns = patterns
     }
   }
 
@@ -134,9 +128,17 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
     }).filter(([_, value]) => value !== undefined && value !== false)
   )
 
+  const { shouldPromptForUpgrade, runUpgrade } = await import(
+    '../lib/upgrade/nudge.js'
+  )
+  const humanUpgrade = await shouldPromptForUpgrade()
+  if (humanUpgrade) {
+    process.on('SIGHUP', onHangup)
+  }
+
   return build(
     dir,
-    experimentalAnalyze,
+    analyze || experimentalAnalyze,
     profile,
     debug || Boolean(process.env.NEXT_DEBUG_BUILD),
     debugPrerender,
@@ -145,9 +147,21 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
     bundler,
     experimentalBuildMode,
     traceUploadUrl,
-    resolvedBuildPaths,
-    enabledFeatures
+    debugBuildPathsPatterns,
+    enabledFeatures,
+    humanUpgrade
   )
+    .then(async (action) => {
+      if (action === 'interrupt') {
+        process.exit(130)
+      }
+      if (action) {
+        process.off('SIGTERM', onTerminate)
+        process.off('SIGINT', onInterrupt)
+        process.off('SIGHUP', onHangup)
+        process.exit(await runUpgrade(dir, action.policy, action.nudgeId))
+      }
+    })
     .catch((err) => {
       if (experimentalDebugMemoryUsage) {
         disableMemoryDebuggingMode()

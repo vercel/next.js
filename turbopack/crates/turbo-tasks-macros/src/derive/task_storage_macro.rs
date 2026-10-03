@@ -66,6 +66,9 @@ struct FieldInfo {
     /// If true, shrink this collection after task execution completes.
     /// Empty collections are removed entirely from the lazy vec.
     shrink_on_completion: bool,
+    /// If true, drop this collection after task execution completes. For transient bookkeeping
+    /// that is only meaningful while an execution is in progress.
+    drop_on_completion: bool,
     /// If true, drop this field entirely after execution completes if the task is immutable.
     /// Immutable tasks don't re-execute, so dependency tracking fields are not needed.
     drop_on_completion_if_immutable: bool,
@@ -451,6 +454,7 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
     let mut filter_transient = false;
     let mut use_default = false;
     let mut shrink_on_completion = false;
+    let mut drop_on_completion = false;
     let mut drop_on_completion_if_immutable = false;
     let mut custom_drop_partial = false;
     let mut custom_mutators = false;
@@ -573,6 +577,8 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
                         use_default = true;
                     } else if ident == "shrink_on_completion" {
                         shrink_on_completion = true;
+                    } else if ident == "drop_on_completion" {
+                        drop_on_completion = true;
                     } else if ident == "drop_on_completion_if_immutable" {
                         drop_on_completion_if_immutable = true;
                     } else if ident == "custom_drop_partial" {
@@ -585,8 +591,8 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
                             .error(format!(
                                 "unknown modifier `{ident}`, expected `inline`, \
                                  `filter_transient`, `default`, `shrink_on_completion`, \
-                                 `drop_on_completion_if_immutable`, `custom_drop_partial`, or \
-                                 `custom_mutators`"
+                                 `drop_on_completion`, `drop_on_completion_if_immutable`, \
+                                 `custom_drop_partial`, or `custom_mutators`"
                             ))
                             .emit();
                     }
@@ -670,6 +676,16 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
                 ))
                 .emit();
         }
+        if drop_on_completion {
+            field_name
+                .span()
+                .unwrap()
+                .error(format!(
+                    "`drop_on_completion` on field `{field_name}` has no effect: only collection \
+                     types (auto_set, auto_map, counter_map) support clearing"
+                ))
+                .emit();
+        }
         if inline && drop_on_completion_if_immutable {
             field_name
                 .span()
@@ -681,6 +697,17 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
                 ))
                 .emit();
         }
+    }
+
+    if drop_on_completion && (shrink_on_completion || drop_on_completion_if_immutable) {
+        field_name
+            .span()
+            .unwrap()
+            .error(format!(
+                "`drop_on_completion` on field `{field_name}` already empties it; remove \
+                 `shrink_on_completion` / `drop_on_completion_if_immutable`"
+            ))
+            .emit();
     }
 
     if custom_drop_partial {
@@ -738,6 +765,7 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
         filter_transient,
         use_default,
         shrink_on_completion,
+        drop_on_completion,
         drop_on_completion_if_immutable,
         custom_drop_partial,
         as_type,
@@ -1381,12 +1409,7 @@ fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> TokenStream 
     };
 
     let lazy_field = if has_lazy {
-        let max_lazy: u8 = grouped_fields
-            .all_lazy()
-            .count()
-            .try_into()
-            .expect("cannot have more than 255 lazy fields");
-
+        let max_lazy: usize = grouped_fields.all_lazy().count();
         quote! {
             #[doc = "Lazily-allocated fields stored in a compact TinyVec for memory efficiency"]
             lazy: TinyVec<LazyField, #max_lazy>,
@@ -1681,6 +1704,7 @@ fn generate_task_storage_accessors_trait(grouped_fields: &GroupedFields) -> Toke
             #[doc = "- `Data` or `Meta`: Checks that the task was accessed with that category"]
             #[doc = ""]
             #[doc = "Implementors should check that the provided category matches how the task was accessed."]
+            #[track_caller]
             fn check_access(&self, category: crate::backend::storage::SpecificTaskDataCategory);
 
             #[doc = "Shrink all collection fields to fit their current contents."]
@@ -2924,10 +2948,12 @@ fn generate_automap_ops(field: &FieldInfo) -> TokenStream {
 ///
 /// This method:
 /// 1. Queries `self.typed().flags.immutable()` once
-/// 2. Shrinks any inline collection fields with `shrink_on_completion`
+/// 2. Shrinks any inline collection fields with `shrink_on_completion` and drops any with
+///    `drop_on_completion`
 /// 3. Uses swap_retain pattern to process all lazy fields in one pass
 /// 4. For fields with `shrink_on_completion`: shrink or remove if empty
-/// 5. For fields with `drop_on_completion_if_immutable` when task is immutable: remove
+/// 5. For fields with `drop_on_completion`: remove
+/// 6. For fields with `drop_on_completion_if_immutable` when task is immutable: remove
 fn generate_cleanup_after_execution(grouped_fields: &GroupedFields) -> TokenStream {
     // Generate cleanup calls for inline collection fields.
     // Invalid attribute combinations (e.g. shrink/drop on non-collection fields) are rejected
@@ -2938,7 +2964,11 @@ fn generate_cleanup_after_execution(grouped_fields: &GroupedFields) -> TokenStre
             continue;
         }
         let field_name = &field.field_name;
-        if field.drop_on_completion_if_immutable {
+        if field.drop_on_completion {
+            inline_cleanups.push(quote! {
+                typed.#field_name = Default::default();
+            });
+        } else if field.drop_on_completion_if_immutable {
             inline_cleanups.push(quote! {
                 if is_immutable {
                     typed.#field_name = Default::default();
@@ -2967,6 +2997,12 @@ fn generate_cleanup_after_execution(grouped_fields: &GroupedFields) -> TokenStre
         let shrink = field.shrink_on_completion;
         let drop_if_immutable = field.drop_on_completion_if_immutable;
 
+        if field.drop_on_completion {
+            match_arms.push(quote! {
+                LazyField::#variant_name(_) => false,
+            });
+            continue;
+        }
         if !shrink && !drop_if_immutable {
             continue;
         }
@@ -3018,6 +3054,7 @@ fn generate_cleanup_after_execution(grouped_fields: &GroupedFields) -> TokenStre
         #[doc = ""]
         #[doc = "This method performs a single pass over lazy fields to:"]
         #[doc = "- Shrink collections marked with `shrink_on_completion`"]
+        #[doc = "- Remove collections marked with `drop_on_completion`"]
         #[doc = "- Remove empty collections"]
         #[doc = "- Drop fields marked with `drop_on_completion_if_immutable` for immutable tasks"]
         #[doc = ""]
@@ -3092,9 +3129,13 @@ fn generate_drop_method(grouped_fields: &GroupedFields) -> TokenStream {
             StorageType::AutoMap | StorageType::AutoSet | StorageType::CounterMap => quote! {
                 self.#field_name.is_empty()
             },
-            StorageType::Direct => quote! {
-                self.#field_name == Default::default()
-            },
+            StorageType::Direct => {
+                // Fully-qualified `Default` so we don't have type-inference ambiguity.
+                let field_type = &field.field_type;
+                quote! {
+                    self.#field_name == <#field_type as Default>::default()
+                }
+            }
             StorageType::Flag => unreachable!(),
         }
     }
@@ -3205,26 +3246,34 @@ fn generate_drop_method(grouped_fields: &GroupedFields) -> TokenStream {
                 // Walk lazy variants: non-persistent are preserved; persistent ones
                 // are either fully removed (non-filter_transient) or scanned for
                 // transient residue (filter_transient), dropping the variant only if
-                // it becomes empty.
-                self.lazy.retain_mut(|f| {
-                    if !f.is_persistent() {
+                // it becomes empty. `swap_remove` doesn't advance the index on a
+                // removal (the swapped-in element still needs to be checked) and
+                // doesn't preserve order, which lazy fields don't rely on.
+                let mut __i = 0;
+                while __i < self.lazy.len() {
+                    let f = &mut self.lazy[__i];
+                    let keep = if !f.is_persistent() {
                         // Transient variants normally stay put, but drop
                         // empty ones. They accumulate as zombies when cells
                         // get consumed without the task re-running (so
                         // `shrink_on_completion` never fires), and the empty
                         // `LazyField` variant blocks `is_empty()` from
                         // accepting the task for full eviction.
-                        return !f.is_empty();
+                        !f.is_empty()
+                    } else if !(if f.is_data() { data } else { meta }) {
+                        true
+                    } else {
+                        match f {
+                            #(#drop_lazy_arms)*
+                            _ => false,
+                        }
+                    };
+                    if keep {
+                        __i += 1;
+                    } else {
+                        self.lazy.swap_remove(__i);
                     }
-                    let drop_this_category = if f.is_data() { data } else { meta };
-                    if !drop_this_category {
-                        return true;
-                    }
-                    match f {
-                        #(#drop_lazy_arms)*
-                        _ => false,
-                    }
-                });
+                }
                 self.lazy.shrink_to_fit();
                 if __has_residue {
                     // Some `filter_transient` field kept transient entries;

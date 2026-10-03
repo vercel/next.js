@@ -1,19 +1,40 @@
-import { formatIssue, isRelevantWarning } from '../shared/lib/turbopack/utils'
+import {
+  formatIssue,
+  isRelevantWarning,
+  renderStyledStringToErrorAnsi,
+} from '../shared/lib/turbopack/utils'
 import type { TurbopackResult } from './swc/types'
+import * as Log from './output/log'
+
+const STRICT_ROUTE_MATCHING_ISSUE_TITLES = new Set([
+  'Interception routes must have a canonical route',
+  'Parallel route slots cannot render the same URLs',
+  'Unmatched app pages',
+])
+
+export function formatWarningsHeader(count: number): string {
+  return `Turbopack build encountered ${count} ${count === 1 ? 'warning' : 'warnings'}:`
+}
 
 /**
- * Processes and reports build issues from Turbopack entrypoints.
+ * Processes and reports build issues from Turbopack's N-API functions.
  *
- * @param entrypoints - The result object containing build issues to process.
+ * @param result - The result object containing build issues to process.
  * @param isDev - A flag indicating if the build is running in development mode.
- * @return This function does not return a value but logs or throws errors based on the issues.
+ * @param opts.deferWarnings - When true, warnings are returned instead of
+ *                             printed so the caller can print them later.
+ * @return The formatted warnings when `deferWarnings` is set and nothing threw.
  * @throws {Error} If a fatal issue is encountered, this function throws an error. In development mode, we only throw on
  *                 'fatal' and 'bug' issues. In production mode, we also throw on 'error' issues.
  */
-export function printBuildErrors(
-  entrypoints: TurbopackResult,
-  isDev: boolean
-): void {
+export function printBuildErrors<T>(
+  result: TurbopackResult<T>,
+  isDev: boolean,
+  opts?: {
+    deferWarnings?: boolean
+    strictRouteMatchingDefaultWarning?: string
+  }
+): { warnings: string[] } {
   // Issues that we want to stop the server from executing
   const topLevelFatalIssues = []
   // Issues that are true errors, but we believe we can keep running and allow the user to address the issue
@@ -25,8 +46,18 @@ export function printBuildErrors(
   const seenFatalIssues = new Set<string>()
   const seenErrors = new Set<string>()
   const seenWarnings = new Set<string>()
+  let hasStrictRouteMatchingIssue = false
 
-  for (const issue of entrypoints.issues) {
+  for (const issue of result.issues) {
+    if (
+      issue.severity === 'error' &&
+      STRICT_ROUTE_MATCHING_ISSUE_TITLES.has(
+        renderStyledStringToErrorAnsi(issue.title)
+      )
+    ) {
+      hasStrictRouteMatchingIssue = true
+    }
+
     // We only want to completely shut down the server
     if (issue.severity === 'fatal' || issue.severity === 'bug') {
       const formatted = formatIssue(issue)
@@ -60,11 +91,11 @@ export function printBuildErrors(
     }
   }
   // TODO: print in order by source location so issues from the same file are displayed together and then add a summary at the end about the number of warnings/errors
-  if (topLevelWarnings.length > 0) {
+  const deferWarnings =
+    (opts?.deferWarnings ?? false) && topLevelFatalIssues.length === 0
+  if (topLevelWarnings.length > 0 && !deferWarnings) {
     console.warn(
-      `Turbopack build encountered ${
-        topLevelWarnings.length
-      } ${topLevelWarnings.length === 1 ? 'warning' : 'warnings'}:\n${topLevelWarnings.join('\n')}`
+      `${formatWarningsHeader(topLevelWarnings.length)}\n${topLevelWarnings.join('\n')}`
     )
   }
 
@@ -76,6 +107,10 @@ export function printBuildErrors(
     )
   }
 
+  if (hasStrictRouteMatchingIssue && opts?.strictRouteMatchingDefaultWarning) {
+    Log.warnOnce(opts.strictRouteMatchingDefaultWarning)
+  }
+
   if (topLevelFatalIssues.length > 0) {
     throw new Error(
       `Turbopack build failed with ${
@@ -83,4 +118,6 @@ export function printBuildErrors(
       } ${topLevelFatalIssues.length === 1 ? 'error' : 'errors'}:\n${topLevelFatalIssues.join('\n')}`
     )
   }
+
+  return { warnings: deferWarnings ? topLevelWarnings : [] }
 }

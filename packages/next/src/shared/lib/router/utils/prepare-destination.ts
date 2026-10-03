@@ -264,7 +264,10 @@ export function prepareDestination(args: {
 
   let destHostnameCompiler
   if (destHostname) {
-    destHostnameCompiler = safeCompile(destHostname, { validate: false })
+    destHostnameCompiler = safeCompile(destHostname, {
+      validate: false,
+      encode: encodeURIComponent,
+    })
   }
 
   // update any params in query values
