@@ -138,6 +138,7 @@ export async function createThreadRuntime(options: {
   workerPath?: string
   wasiThreadsModuleSpecifier?: string
   onError: (error: Error, threadId: number | undefined) => void
+  beforeLoad?: (worker: EmnapiWorkerLike) => void
   WorkerClass?: WorkerConstructor
   ThreadManagerClass?: ThreadManagerConstructor
 }): Promise<{
@@ -152,6 +153,7 @@ export async function createThreadRuntime(options: {
     workerPath = path.join(__dirname, 'wasi-loader-worker.js'),
     wasiThreadsModuleSpecifier = '@emnapi/wasi-threads',
     onError,
+    beforeLoad,
     WorkerClass = Worker as unknown as WorkerConstructor,
   } = options
   const ThreadManagerClass =
@@ -171,8 +173,8 @@ export async function createThreadRuntime(options: {
 
   const manager = new SharedIdThreadManager({
     reuseWorker: false,
-    onCreateWorker: () =>
-      new WorkerClass(workerPath, {
+    onCreateWorker: () => {
+      const worker = new WorkerClass(workerPath, {
         workerData: {
           ...workerData,
           threadIds,
@@ -180,7 +182,13 @@ export async function createThreadRuntime(options: {
         },
         stdout: false,
         stderr: false,
-      }),
+      })
+      // emnapi delivers async-work and thread-safe-function completions through messages from the
+      // pthread Worker. The listener must exist before ThreadManager sends its `load` message or a
+      // fast completion can be lost and the JavaScript Promise will never settle.
+      beforeLoad?.(worker)
+      return worker
+    },
     printErr: (message) => onError(new Error(String(message)), undefined),
   })
   manager.init()

@@ -73,18 +73,26 @@ setup_wasi_env() {
   # The archive must define emnapi_create_env / emnapi_delete_env, which only exist in emnapi v2.
   # That is still a prerelease, hence the exact alpha pin; move to the stable release once it ships.
   # The archives are wasm objects, so they are arch-independent.
-  local emnapi_version=2.0.0-alpha.4
+  local emnapi_version=2.0.0-alpha.4 wasi_threads_version=2.1.0
   local emnapi_dir="$cache_dir/emnapi"
-  if [ ! -d "$emnapi_dir/node_modules/emnapi/lib/wasm32-wasip1-threads" ]; then
+  if [ ! -d "$emnapi_dir/node_modules/emnapi/lib/wasm32-wasip1-threads" ] || \
+    [ ! -d "$emnapi_dir/node_modules/@emnapi/core" ] || \
+    [ ! -d "$emnapi_dir/node_modules/@emnapi/runtime" ] || \
+    [ ! -d "$emnapi_dir/node_modules/@emnapi/wasi-threads" ]; then
     mkdir -p "$emnapi_dir" || return 1
     printf '{\n  "name": "emnapi-scratch",\n  "private": true\n}\n' > "$emnapi_dir/package.json" || return 1
     # pnpm is invoked from the repository root with --dir rather than by cd'ing into the scratch
     # directory: corepack resolves the pnpm version from the nearest package.json, and outside the
     # repo there is none, so it would pick the latest pnpm (11.x), which cannot run on the pinned
     # Node 20 (ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING).
-    (cd "$repo_root" && pnpm --dir "$emnapi_dir" add "emnapi@${emnapi_version}") || return 1
+    (cd "$repo_root" && pnpm --dir "$emnapi_dir" add \
+      "emnapi@${emnapi_version}" \
+      "@emnapi/core@${emnapi_version}" \
+      "@emnapi/runtime@${emnapi_version}" \
+      "@emnapi/wasi-threads@${wasi_threads_version}") || return 1
   fi
-  export EMNAPI_LINK_DIR="$emnapi_dir/node_modules/emnapi/lib/wasm32-wasip1-threads"
+  export EMNAPI_NODE_MODULES="$emnapi_dir/node_modules"
+  export EMNAPI_LINK_DIR="$EMNAPI_NODE_MODULES/emnapi/lib/wasm32-wasip1-threads"
 
   # Runs wasm test binaries under the Node WASI host, which supplies the `env.read_custom_section`
   # import that turbo-tasks' link-time registries need.
