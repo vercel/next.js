@@ -60,8 +60,10 @@ pub(crate) async fn collect_next_dynamic_chunks(
         .map(async |(dynamic_entry, parent_client_reference)| {
             let module = ResolvedVc::upcast::<Box<dyn ChunkableModule>>(*dynamic_entry);
 
-            // This is the availability info for the parent chunk group, i.e. the client reference
-            // containing the next/dynamic imports
+            // The parent chunk group, i.e. the client reference containing the next/dynamic
+            // imports, creates its async loaders with its availability info marked as in an async
+            // module (see `make_chunk_group`). Use the same one, otherwise the chunks of async
+            // loaders nested in the dynamic chunk group get names that are never emitted.
             let availability_info = match chunking_availability {
                 NextDynamicChunkAvailability::ClientReferences(client_reference_chunks) => {
                     client_reference_chunks
@@ -78,7 +80,8 @@ pub(crate) async fn collect_next_dynamic_chunks(
                 NextDynamicChunkAvailability::AvailabilityInfo(availability_info) => {
                     *availability_info
                 }
-            };
+            }
+            .in_async_module();
 
             // The react-loadable manifest needs the final CSS and JavaScript files so
             // next/dynamic can preload them during SSR. Do not use a lazy manifest loader here.
