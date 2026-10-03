@@ -23,6 +23,11 @@ You create one by adding the [`'use server'`](/docs/app/api-reference/directives
 
 This page covers the parts of Server Actions that are specific to Next.js: how they commonly map to mutations, how the response carries both returned data and re-rendered UI, how the client dispatches them, the security boundary the framework enforces, and the configuration available.
 
+> **Next.js server actions are only meant for mutations.**
+>
+> While they can be convenient for data fetching, they are only meant to be used for mutations. They do not support caching, and client dispatch is sequential, which can affect performance if used for fetching data.
+
+
 ## Sequential dispatch on the client
 
 Next.js dispatches Server Actions one at a time per client. If a user triggers three actions in quick succession, the second waits for the first to finish, then the third waits for the second. This keeps the re-rendered server tree consistent with the action result that produced it.
