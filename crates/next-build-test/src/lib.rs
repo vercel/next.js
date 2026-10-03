@@ -253,9 +253,13 @@ async fn endpoint_write_to_disk_with_apply(
     endpoint: ResolvedVc<Box<dyn Endpoint>>,
 ) -> Result<ReadRef<EndpointOutputPaths>> {
     #[turbo_tasks::function(operation, root)]
-    fn inner_operation(endpoint: ResolvedVc<Box<dyn Endpoint>>) -> Vc<EndpointOutputPaths> {
+    async fn inner_operation(
+        endpoint: ResolvedVc<Box<dyn Endpoint>>,
+    ) -> Result<Vc<EndpointOutputPaths>> {
         // we must wrap this in an operation so we can get the Effects collectibles
-        endpoint_write_to_disk(*endpoint)
+        Ok((*endpoint_write_to_disk(*endpoint).await?.output_paths)
+            .clone()
+            .cell())
     }
 
     #[turbo_tasks::value(serialization = "skip")]
