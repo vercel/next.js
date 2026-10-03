@@ -207,7 +207,7 @@ export async function writeConfigurationDefaults(
   tsConfigPath: string,
   isFirstTimeSetup: boolean,
   hasAppDir: boolean,
-  distDir: string,
+  distDirRoot: string,
   hasPagesDir: boolean,
   strictRouteTypes: boolean
 ): Promise<void> {
@@ -288,7 +288,7 @@ export async function writeConfigurationDefaults(
 
   // Get type definition glob patterns using shared utility to ensure consistency
   // with other TypeScript infrastructure (e.g., runTypeCheck.ts)
-  const nextTypes = getTypeDefinitionGlobPatterns(distDir)
+  const nextTypes = getTypeDefinitionGlobPatterns(distDirRoot)
 
   if (!('include' in userTsConfig)) {
     const defaultInclude =

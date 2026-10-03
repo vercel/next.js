@@ -2,31 +2,22 @@ import path from 'path'
 
 /**
  * Gets the glob patterns for type definition directories in tsconfig.
- * Next.js uses different distDir paths in development vs production:
- * - Development: "{distDir}/dev"
- * - Production: "{distDir}"
+ *
+ * Takes `distDirRoot`: the configured `distDir` as written, before the
+ * development phase appends "/dev" to it. Both patterns are derived from it
+ * directly, so this does not need to know which phase it is running in.
+ *
+ * Both are always included, so switching between dev and build does not churn
+ * tsconfig.
  */
-export function getTypeDefinitionGlobPatterns(distDir: string): string[] {
-  const distDirPosix =
+export function getTypeDefinitionGlobPatterns(distDirRoot: string): string[] {
+  const rootPosix =
     path.win32.sep === path.sep
-      ? distDir.replaceAll(path.win32.sep, path.posix.sep)
-      : distDir
+      ? distDirRoot.replaceAll(path.win32.sep, path.posix.sep)
+      : distDirRoot
 
-  const typeGlobPatterns: string[] = [`${distDirPosix}/types/**/*.ts`]
-
-  // Include both .next/types and .next/dev/types to avoid tsconfig churn when switching
-  // between dev/build modes
-  typeGlobPatterns.push(
-    process.env.NODE_ENV === 'development'
-      ? // In dev, distDir is "{distDir}/dev", so also include "{distDir}/types"
-        `${distDirPosix.replace(/\/dev$/, '')}/types/**/*.ts`
-      : // In build, distDir is "{distDir}", so also include "{distDir}/dev/types"
-        `${distDirPosix}/dev/types/**/*.ts`
-  )
-  // Sort for consistent order
-  typeGlobPatterns.sort((a, b) => a.length - b.length)
-
-  return typeGlobPatterns
+  // Ordered shortest first, as they were when this sorted them.
+  return [`${rootPosix}/types/**/*.ts`, `${rootPosix}/dev/types/**/*.ts`]
 }
 
 /**
