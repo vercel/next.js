@@ -908,8 +908,8 @@ async function startWatcher(
         clientRouterFilters = createClientRouterFilter(
           Object.keys(appPaths),
           nextConfig.experimental.clientRouterFilterRedirects
-            ? ((nextConfig as any)._originalRedirects || []).filter(
-                (r: any) => !r.internal
+            ? (opts.fsChecker.originalRedirects || []).filter(
+                (r) => !r.internal
               )
             : [],
           nextConfig.experimental.clientRouterFilterAllowedRate
