@@ -12,6 +12,7 @@ import * as jsxA11yPlugin from 'eslint-plugin-jsx-a11y'
 // utils
 import globals from 'globals'
 import eslintParser from './parser'
+import { fixupReactPlugin } from './react-plugin'
 
 const config: Linter.Config[] = [
   {
@@ -19,7 +20,9 @@ const config: Linter.Config[] = [
     // Default files, users can overwrite this.
     files: ['**/*.{js,jsx,mjs,ts,tsx,mts,cts}'],
     plugins: {
-      react,
+      // This adapter ships with eslint-config-next, so consumers receive the
+      // workaround without patching node_modules or changing their own config.
+      react: fixupReactPlugin(react),
       'react-hooks': reactHooks,
       import: importPlugin,
       'jsx-a11y': jsxA11yPlugin,
