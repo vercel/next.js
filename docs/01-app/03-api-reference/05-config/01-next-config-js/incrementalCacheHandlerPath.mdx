@@ -15,6 +15,8 @@ module.exports = {
 }
 ```
 
+> **Good to know**: Next.js constructs your cache handler class once per request. Anything that should outlive a request, such as a client for Redis or another external store, belongs at module scope rather than in the constructor. Creating it in the constructor opens a new connection on every request and never closes it. The [Redis example](https://github.com/vercel/next.js/tree/canary/examples/cache-handler-redis) shares one client this way.
+
 View an example of a [custom cache handler](/docs/app/guides/self-hosting#configuring-caching) and learn more about the implementation.
 
 ## API Reference
