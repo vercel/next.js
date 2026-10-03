@@ -34,8 +34,7 @@ import {
   readSegmentCacheEntryForNavigation,
   waitForSegmentCacheEntry,
   invalidateRouteCacheEntries,
-  spawnStaticStageCacheWrite,
-  writeRuntimePrefetchStreamIntoCache,
+  writeNavigationResponseIntoCache,
   EntryStatus,
   MetadataOnlyRequestTree,
 } from './segment-cache/cache'
@@ -1783,28 +1782,17 @@ async function fetchMissingDynamicData(
       await navigationLock
     }
 
-    if (routeCacheEntry !== null && result.staticStageResponse !== null) {
-      spawnStaticStageCacheWrite(
+    if (routeCacheEntry !== null) {
+      writeNavigationResponseIntoCache(
         now,
-        result.staticStageResponse,
+        result.flightResponse,
         result.isResponsePartial,
-        result.responseHeaders,
-        dynamicRequestTree,
-        result.renderedSearch,
-        map
-      )
-    }
-
-    if (routeCacheEntry !== null && result.runtimePrefetchStream !== null) {
-      writeRuntimePrefetchStreamIntoCache(
-        now,
-        result.runtimePrefetchStream,
         dynamicRequestTree,
         result.renderedSearch,
         map
       ).catch(() => {
-        // The runtime prefetch cache write failed. Not fatal — the
-        // navigation completed normally, we just won't cache runtime data.
+        // The cache write failed. Not fatal — the navigation completed
+        // normally, we just won't write into the cache.
       })
     }
 

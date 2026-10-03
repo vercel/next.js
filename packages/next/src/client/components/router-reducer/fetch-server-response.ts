@@ -78,14 +78,14 @@ type SpaFetchServerResponseResult = {
   /**
    * Whether the response body was marked partial (contains unresolved
    * dynamic holes), read from the leading isPartial byte. Always false when
-   * Cache Components is disabled. When `staticStageResponse` is non-null,
-   * this is also its partiality: a complete response is cached whole, a
-   * partial response is cached as its truncated static-stage prefix.
+   * Cache Components is disabled.
    */
   isResponsePartial: boolean
-  staticStageResponse: NavigationFlightResponse | null
-  runtimePrefetchStream: ReadableStream<Uint8Array> | null
-  responseHeaders: Headers
+  /**
+   * The decoded response. It can carry a prefetch response, written into the
+   * segment cache by `writeNavigationResponseIntoCache`.
+   */
+  flightResponse: NavigationFlightResponse
   debugInfo: Array<any> | null
   /**
    * Dev only: resolves once the server has flushed the shell-stage content to
@@ -270,11 +270,6 @@ export async function fetchServerResponse(
       return doMpaNavigation(flightResponse.n)
     }
 
-    const staticStageResponse =
-      cacheData !== null
-        ? await resolveStaticStageResponse(cacheData, flightResponse, headers)
-        : null
-
     return {
       transportData: flightResponse.t ?? null,
       canonicalUrl: canonicalUrl,
@@ -296,9 +291,7 @@ export async function fetchServerResponse(
       dynamicStaleTime: flightResponse.d ?? UnknownDynamicStaleTime,
       isResponsePartial:
         cacheData !== null ? cacheData.isResponsePartial : false,
-      staticStageResponse,
-      runtimePrefetchStream: flightResponse.p ?? null,
-      responseHeaders: res.headers,
+      flightResponse,
       debugInfo: flightResponsePromise._debugInfo ?? null,
       revealAfter: flightResponse._revealAfter ?? null,
     }
@@ -364,11 +357,8 @@ export type RSCResponse<T> = {
 
 type FetchResponseCacheData = {
   isResponsePartial: boolean
-  // Separate clones of the response body for stage extraction. The static
-  // stage and shell stage are extracted from independent reads, so each
-  // needs its own ReadableStream. Both are derived from a chain of `tee()`
-  // calls in `processFetch`.
-  staticBodyClone?: ReadableStream<Uint8Array>
+  // A clone of the response body for shell extraction, derived from a `tee()`
+  // in `processFetch`.
   shellBodyClone?: ReadableStream<Uint8Array>
 }
 
@@ -401,14 +391,14 @@ export async function processFetch(response: Response): Promise<{
     let cacheData: FetchResponseCacheData
 
     if (process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS) {
-      // Three readers needed: the main Flight decoder, the static-stage
-      // extractor, and the shell-stage extractor. Tee twice.
-      const [stream1, rest] = stream.tee()
-      const [staticBodyClone, shellBodyClone] = rest.tee()
+      // Two readers needed: the main Flight decoder and the shell-stage
+      // extractor.
+      // TODO: Tee only in the callers that read the clone. Navigations only
+      // need it for a complete prerender.
+      const [stream1, shellBodyClone] = stream.tee()
       responseStream = stream1
       cacheData = {
         isResponsePartial: isPartial,
-        staticBodyClone,
         shellBodyClone,
       }
     } else {
@@ -434,57 +424,6 @@ export async function processFetch(response: Response): Promise<{
   }
 
   return { response, cacheData: null }
-}
-
-/**
- * Resolves the static stage response from the raw `processFetch` outputs and
- * the decoded flight response, for writing into the segment cache. The
- * resolved response's partiality is the whole response's partiality
- * (`cacheData.isResponsePartial`): a complete response is resolved whole, a
- * partial one as its truncated static-stage prefix.
- *
- * - Fully static: use the decoded flight response as-is, no truncation needed.
- * - Not fully static + `l` field: truncate the body clone at the static stage
- *   byte boundary and decode.
- * - Otherwise: no cache-worthy data.
- */
-async function resolveStaticStageResponse<
-  T extends NavigationFlightResponse | InitialRSCPayload,
->(
-  cacheData: FetchResponseCacheData,
-  flightResponse: T,
-  headers: RequestHeaders | undefined
-): Promise<T | null> {
-  const { isResponsePartial, staticBodyClone } = cacheData
-
-  if (staticBodyClone) {
-    if (!isResponsePartial) {
-      // Fully static — cache the entire decoded response as-is.
-      staticBodyClone.cancel()
-
-      return flightResponse
-    }
-
-    if (flightResponse.l !== undefined) {
-      // Partially static — truncate the body clone at the byte boundary and
-      // decode it.
-      const staticStageByteLength = await flightResponse.l
-      if (staticStageByteLength === 0) {
-        staticBodyClone.cancel()
-        return null
-      }
-      return decodeStageUntilBoundary<T>(
-        staticBodyClone,
-        staticStageByteLength,
-        headers
-      )
-    }
-
-    // No caching — cancel the unused clone.
-    staticBodyClone.cancel()
-  }
-
-  return null
 }
 
 /**
@@ -540,7 +479,7 @@ export async function resolveShellStageResponse<
  * fails or the root does not resolve before the next task. The caller can still
  * use the full response.
  */
-export async function decodeStageUntilBoundary<T>(
+async function decodeStageUntilBoundary<T>(
   responseBodyClone: ReadableStream<Uint8Array>,
   byteLength: number,
   headers: RequestHeaders | undefined

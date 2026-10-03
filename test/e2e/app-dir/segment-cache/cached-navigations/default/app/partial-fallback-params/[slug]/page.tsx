@@ -1,6 +1,8 @@
-import { cacheLife } from 'next/cache'
 import { connection } from 'next/server'
 import { Suspense } from 'react'
+
+// Partial Prefetching embeds a runtime prefetch in navigations to this route.
+export const prefetch = 'partial'
 
 export default function Page({
   params,
@@ -26,8 +28,8 @@ export default function Page({
 
 async function CachedContent() {
   'use cache'
-  cacheLife({ stale: 120 })
-  return <p id="cached-content">Cached content ({new Date().toISOString()})</p>
+  // Default cache life, since shells leave out entries under 5 minutes stale.
+  return <p id="cached-content">Cached content</p>
 }
 
 async function ParamsContent({
@@ -41,5 +43,5 @@ async function ParamsContent({
 
 async function ConnectionContent() {
   await connection()
-  return <p>Dynamic content ({new Date().toISOString()})</p>
+  return <p>Dynamic content</p>
 }

@@ -30,6 +30,11 @@ export default function Home() {
           </Link>
         </li>
         <li>
+          <Link href="/partial-fallback-params/foo" prefetch={false}>
+            Go to Partial Prefetching page with fallback params
+          </Link>
+        </li>
+        <li>
           <Link href="/runtime-prefetchable" prefetch={false}>
             Go to runtime-prefetchable page
           </Link>
