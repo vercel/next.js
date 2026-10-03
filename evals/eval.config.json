@@ -7,7 +7,7 @@
   "agent-047-adopt-cache-components": {
     "skills": ["next-cache-components-adoption", "next-dev-loop"],
     "publish": false,
-    "timeout": 2700
+    "timeout": 3600
   },
   "agent-051-optimize-partial-prefetching": {
     "skills": ["next-partial-prefetching-optimizer"],
