@@ -49,6 +49,7 @@ use crate::{
     priority_runner::{Claimable, Executor, PriorityRunner},
     registry,
     serialization_invalidation::SerializationInvalidator,
+    spawn_tracker::SpawnTracker,
     task::local_task::{LocalTask, LocalTaskSpec, LocalTaskType},
     task_statistics::TaskStatisticsApi,
     util::{IdFactory, StaticOrArc},
@@ -637,8 +638,11 @@ impl Drop for InlineExecutionDepthGuard {
 }
 
 /// Polls `future` once inline and then spawns it if it doesn't complete so tokio drives it. Returns
-/// whether it completed.
-fn poll_once_or_spawn(future: impl Future<Output = ()> + Send + 'static) -> bool {
+/// whether it completed. A spawned future is tracked by `spawned_futures` until it's dropped.
+fn poll_once_or_spawn(
+    future: impl Future<Output = ()> + Send + 'static,
+    spawned_futures: &Arc<SpawnTracker>,
+) -> bool {
     let _depth_guard = InlineExecutionDepthGuard::enter();
     let span_slot = InlineExecutionSpanSlot::default();
     let mut future = Box::pin(INLINE_EXECUTION_SPAN.scope(span_slot.clone(), future));
@@ -655,7 +659,7 @@ fn poll_once_or_spawn(future: impl Future<Output = ()> + Send + 'static) -> bool
         }
         Poll::Pending => {
             span_slot.record("partial");
-            tokio::task::spawn(future);
+            tokio::task::spawn(spawned_futures.track(future));
             false
         }
     }
@@ -695,6 +699,10 @@ pub struct TurboTasks<B: Backend + 'static> {
     event_foreground_done: Event,
     /// Event that is triggered when all background jobs are done
     event_background_done: Event,
+    /// Tracks futures spawned for jobs (apart from priority runner workers) until they are
+    /// dropped. The job counters are decremented from within those futures, so they can still
+    /// hold a reference to this instance after the job is reported as done.
+    spawned_futures: Arc<SpawnTracker>,
     compilation_events: CompilationEventQueue,
 }
 
@@ -896,6 +904,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
             event_background_done: Event::new(|| {
                 || "TurboTasks::event_background_done".to_string()
             }),
+            spawned_futures: SpawnTracker::new(),
             compilation_events: CompilationEventQueue::default(),
         });
         this.backend.startup(&*this);
@@ -1195,7 +1204,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
         let this = self.pin();
         self.inline_counters.claim_attempted();
         if let Some(future) = self.priority_runner.claim(&this, &key) {
-            let completed = poll_once_or_spawn(future);
+            let completed = poll_once_or_spawn(future, &self.spawned_futures);
             if completed {
                 self.inline_counters.claim_completed();
             } else {
@@ -1449,6 +1458,10 @@ impl<B: Backend + 'static> TurboTasks<B> {
             // to subscribers before returning, then close the queue so subscriptions end after
             // draining.
             self.compilation_events.flush_and_close().await;
+            // All jobs are done, but the futures that ran them might not have been dropped yet.
+            // Wait for that, so they no longer reference this instance once we return.
+            self.priority_runner.wait_for_workers_dropped().await;
+            self.spawned_futures.wait_for_all_dropped().await;
         })
         .await;
     }
@@ -1462,14 +1475,16 @@ impl<B: Backend + 'static> TurboTasks<B> {
         let mut this = self.pin();
         self.begin_background_job();
         tokio::spawn(
-            TURBO_TASKS
-                .scope(this.clone(), async move {
-                    if !this.stopped.load(Ordering::Acquire) {
-                        this = func(this).await;
-                    }
-                    this.finish_background_job();
-                })
-                .in_current_span(),
+            self.spawned_futures.track(
+                TURBO_TASKS
+                    .scope(this.clone(), async move {
+                        if !this.stopped.load(Ordering::Acquire) {
+                            this = func(this).await;
+                        }
+                        this.finish_background_job();
+                    })
+                    .in_current_span(),
+            ),
         );
     }
 
@@ -1979,10 +1994,10 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
             let _guard = DropGuard;
             fut.await;
         };
-        tokio::spawn(TURBO_TASKS.scope(
+        tokio::spawn(self.spawned_futures.track(TURBO_TASKS.scope(
             turbo_tasks(),
             CURRENT_TASK_STATE.scope(global_task_state, wrapped),
-        ));
+        )));
     }
 
     fn task_statistics(&self) -> &TaskStatisticsApi {
@@ -2810,7 +2825,7 @@ mod tests {
     #[tokio::test]
     async fn test_poll_once_or_spawn_completed_execution() {
         assert!(
-            poll_once_or_spawn(async {}),
+            poll_once_or_spawn(async {}, &SpawnTracker::new()),
             "a future that completes on the first poll is executed inline"
         );
         assert_eq!(INLINE_EXECUTION_DEPTH.get(), 0);
@@ -2822,12 +2837,15 @@ mod tests {
         let done = Arc::new(AtomicBool::new(false));
         let done_in_task = done.clone();
         assert!(
-            !poll_once_or_spawn(async move {
-                // Yields on the first poll, so it cannot be executed inline.
-                tokio::task::yield_now().await;
-                done_in_task.store(true, Ordering::SeqCst);
-                let _ = tx.send(());
-            }),
+            !poll_once_or_spawn(
+                async move {
+                    // Yields on the first poll, so it cannot be executed inline.
+                    tokio::task::yield_now().await;
+                    done_in_task.store(true, Ordering::SeqCst);
+                    let _ = tx.send(());
+                },
+                &SpawnTracker::new()
+            ),
             "a future that yields is not completed inline"
         );
         assert_eq!(INLINE_EXECUTION_DEPTH.get(), 0);
