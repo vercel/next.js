@@ -66,7 +66,8 @@ The following options are available when running `next dev`:
 | `-h, --help`                             | Show all available options.                                                                                                                          |
 | `[directory]`                            | A directory in which to build the application. If not provided, current directory is used.                                                           |
 | `--turbopack`                            | Force enable [Turbopack](/docs/app/api-reference/turbopack) (enabled by default). Also available as `--turbo`.                                       |
-| `--webpack`                              | Use Webpack instead of the default [Turbopack](/docs/app/api-reference/turbopack) bundler for development.                                           |
+| `--webpack`                              | Use the bundled Webpack instead of the default [Turbopack](/docs/app/api-reference/turbopack) bundler for development.                               |
+| `--custom-webpack`                       | Use [project-installed webpack](#using-a-custom-webpack-version) (`^5.98.0`) for development.                                                        |
 | `-p` or `--port <port>`                  | Specify a port number on which to start the application. Default: 3000, env: PORT                                                                    |
 | `-H` or `--hostname <hostname>`          | Specify a hostname on which to start the application. Useful for making the application available for other devices on the network. Default: 0.0.0.0 |
 | `--experimental-https`                   | Starts the server with HTTPS and generates a self-signed certificate.                                                                                |
@@ -99,6 +100,7 @@ The following options are available for the `next build` command:
 | `[directory]`                      | A directory on which to build the application. If not provided, the current directory will be used.                                           |
 | `--turbopack`                      | Force enable [Turbopack](/docs/app/api-reference/turbopack) (enabled by default). Also available as `--turbo`.                                |
 | `--webpack`                        | Build using the bundled Webpack.                                                                                                              |
+| `--custom-webpack`                 | Build using [project-installed webpack](#using-a-custom-webpack-version) (`^5.98.0`).                                                         |
 | `--analyze`                        | Generate bundle analysis data for the interactive analyzer during a Turbopack build.                                                          |
 | `-d` or `--debug`                  | Enables a more verbose build output. With this flag enabled additional build output like rewrites, redirects, and headers will be shown.      |
 | `--profile`                        | Enables production [profiling for React](https://react.dev/reference/react/Profiler).                                                         |
@@ -108,6 +110,46 @@ The following options are available for the `next build` command:
 | `--debug-prerender`                | Debug prerender errors in development.                                                                                                        |
 | `--debug-build-paths=<patterns>`   | Build only specific routes for debugging.                                                                                                     |
 | `--experimental-cpu-prof`          | Enables CPU profiling using V8's inspector. Profiles are saved to `.next-profiles/` on exit.                                                  |
+
+### Using a custom webpack version
+
+By default, `--webpack` uses the webpack version bundled with Next.js. To use webpack installed in your application instead, install a compatible webpack 5 version (`^5.98.0`) and pass `--custom-webpack` to `next dev` or `next build`. Run the development and production commands separately; `next dev` keeps running until stopped:
+
+```bash package="pnpm"
+pnpm add -D webpack@^5.98.0
+pnpm next dev --custom-webpack
+pnpm next build --custom-webpack
+```
+
+```bash package="npm"
+npm install -D webpack@^5.98.0
+npx next dev --custom-webpack
+npx next build --custom-webpack
+```
+
+```bash package="yarn"
+yarn add -D webpack@^5.98.0
+yarn next dev --custom-webpack
+yarn next build --custom-webpack
+```
+
+```bash package="bun"
+bun add -D webpack@^5.98.0
+bunx next dev --custom-webpack
+bunx next build --custom-webpack
+```
+
+Run the install command from your application's directory. The custom version is available when Next.js evaluates `next.config.js`, so your webpack configuration and plugins can import it. If webpack is not installed in the application, `--custom-webpack` reports how to install it.
+
+**Using pnpm with restricted hoisting:** Next.js resolves webpack directly from your application, even when pnpm does not hoist it. However, custom webpack plugins or other workspace tooling may resolve webpack from their own package locations. If they cannot find it because you have restricted pnpm's [hoisting](https://pnpm.io/settings/node-modules#hoistpattern), add `webpack` to your existing `hoistPattern` in the workspace root's `pnpm-workspace.yaml`:
+
+```yaml filename="pnpm-workspace.yaml"
+hoistPattern:
+  - '*eslint*' # Example existing pattern; keep your own patterns.
+  - webpack
+```
+
+Keep any other patterns your project already uses. If you use pnpm's default `hoistPattern` (`['*']`), you do not need this setting. If you have disabled hoisting entirely with `hoist: false`, enable it before using `hoistPattern`. See [pnpm's node-modules settings](https://pnpm.io/settings/node-modules) for details.
 
 ### `next start` options
 
