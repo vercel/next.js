@@ -32,6 +32,7 @@ use crate::{
     CellId, RawVc, ReadCellOptions, ReadOutcome, ReadOutputOptions, ReadRef, SharedReference,
     TaskId, TaskIdSet, TaskPriority, TraitRef, TraitTypeId, TurboTasksCallApi, TurboTasksPanic,
     ValueTypeId, ValueTypePersistence, VcValueTrait, VcValueType,
+    backend_state::StateKey,
     dyn_task_inputs::{DynTaskInputs, DynTaskInputsStorage},
     macro_helpers::NativeFunction,
     manager::{TaskPersistence, TurboTasks},
@@ -605,6 +606,35 @@ pub trait Backend: Sized + Sync + Send {
     fn idle_start(&self, turbo_tasks: &TurboTasks<Self>) {}
     #[allow(unused_variables)]
     fn idle_end(&self, turbo_tasks: &TurboTasks<Self>) {}
+
+    fn pin_named_state_owner(&self, name: &RcStr, turbo_tasks: &TurboTasks<Self>);
+    fn unpin_named_state_owner(&self, name: &RcStr, turbo_tasks: &TurboTasks<Self>);
+
+    /// Initialize only if this slot has no value yet. The initializer runs
+    /// under the state-store lock and must not call back into turbo-tasks.
+    fn create_state(
+        &self,
+        key: &StateKey,
+        initial: &mut dyn FnMut() -> Vec<u8>,
+        turbo_tasks: &TurboTasks<Self>,
+    );
+
+    /// Return a copy of the canonical state value, atomically registering a
+    /// dependency if `reader` is supplied.
+    fn read_state(
+        &self,
+        key: &StateKey,
+        reader: Option<TaskId>,
+        turbo_tasks: &TurboTasks<Self>,
+    ) -> Result<Vec<u8>>;
+
+    /// Return whether the value changed, after dirtying its current readers.
+    fn set_state(
+        &self,
+        key: &StateKey,
+        value: Vec<u8>,
+        turbo_tasks: &TurboTasks<Self>,
+    ) -> Result<bool>;
 
     fn invalidate_task(&self, task: TaskId, turbo_tasks: &TurboTasks<Self>);
 

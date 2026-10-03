@@ -149,6 +149,7 @@ define_id!(
 );
 define_id!(FunctionId: u16);
 define_id!(TraitTypeId: u16);
+define_id!(StateFactoryId: u16);
 define_id!(
     LocalTaskId: u32,
     derive(Debug, Serialize, Deserialize, Encode, Decode),
@@ -305,4 +306,10 @@ make_registered_serializable!(
     u16,
     registry::get_native_function,
     registry::validate_function_id,
+);
+make_registered_serializable!(
+    StateFactoryId,
+    u16,
+    registry::get_state_factory,
+    registry::validate_state_factory_id,
 );

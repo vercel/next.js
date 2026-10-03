@@ -101,6 +101,38 @@ impl TaskLockCounter {
     }
 }
 
+#[cfg(debug_assertions)]
+thread_local! {
+    static IN_STATE_MUTATION: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// User serialization under the state lock must never re-enter the task graph.
+pub(crate) struct StateMutationScope;
+
+impl StateMutationScope {
+    pub(crate) fn enter() -> Self {
+        #[cfg(debug_assertions)]
+        IN_STATE_MUTATION.with(|flag| {
+            assert!(!flag.replace(true), "state mutation must not call back into turbo-tasks");
+        });
+        Self
+    }
+
+    fn assert_not_inside() {
+        #[cfg(debug_assertions)]
+        IN_STATE_MUTATION.with(|flag| {
+            assert!(!flag.get(), "state mutation must not call back into turbo-tasks");
+        });
+    }
+}
+
+impl Drop for StateMutationScope {
+    fn drop(&mut self) {
+        #[cfg(debug_assertions)]
+        IN_STATE_MUTATION.with(|flag| flag.set(false));
+    }
+}
+
 pub struct ExecuteContext<'e> {
     backend: &'e TurboTasksBackend,
     turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
@@ -118,6 +150,7 @@ impl<'e> ExecuteContext<'e> {
         backend: &'e TurboTasksBackend,
         turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
     ) -> Self {
+        StateMutationScope::assert_not_inside();
         Self {
             backend,
             turbo_tasks,
@@ -136,6 +169,7 @@ impl<'e> ExecuteContext<'e> {
         turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
         shutdown_guard: RwLockReadGuard<'e, bool>,
     ) -> Self {
+        StateMutationScope::assert_not_inside();
         Self {
             backend,
             turbo_tasks,
@@ -912,6 +946,28 @@ impl<'e> ExecuteContext<'e> {
     /// This creates *storage for* an already-minted `TaskId`; it does not mint one. Compare
     /// `TurboTasksBackend::get_or_create_task`, which takes a function and arguments and returns a
     /// `TaskId` (reusing one if the task is already cached).
+    pub fn remove_state_dependency(&mut self, reader: TaskId, key: &turbo_tasks::StateKey) {
+        // State before reader, as for registration. The caller has released its
+        // task guard, so a re-read either revives the edge or observes removal.
+        let backend = self.backend;
+        let mut states = backend.states.lock();
+        let Some(mut task) = self.try_task(reader, TaskDataCategory::Data) else {
+            if let Some(state) = states.get_mut(key) {
+                state.dependents.remove(&reader);
+                backend.state_dirty.store(true, std::sync::atomic::Ordering::Release);
+            }
+            return;
+        };
+        let shared_key = Arc::new(key.clone());
+        if task.remove_outdated_state_dependencies(&shared_key) {
+            task.remove_state_dependencies(&shared_key);
+            if let Some(state) = states.get_mut(key) {
+                state.dependents.remove(&reader);
+                backend.state_dirty.store(true, std::sync::atomic::Ordering::Release);
+            }
+        }
+    }
+
     pub fn task_or_create(&mut self, task_id: TaskId, category: TaskDataCategory) -> TaskGuard<'e> {
         self.open_task(task_id, category, TaskAccess::MaybeCreate)
             .expect("a MaybeCreate open always yields a task")
@@ -1720,7 +1776,7 @@ pub use self::{
     },
     connect_child::connect_child,
     connect_children::connect_children,
-    invalidate::{invalidate, make_task_dirty_internal},
+    invalidate::{invalidate, make_task_dirty_internal, try_make_task_dirty},
     leaf_distance_update::LeafDistanceUpdateQueue,
     prepare_new_children::prepare_new_children,
     update_cell::update_cell,

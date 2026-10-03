@@ -194,7 +194,8 @@ pub mod parking_lot_mutex_bincode {
 
 /// **This API violates core assumption of turbo-tasks, is believed to be unsound, and there's no
 /// plan fix it.** You should prefer to use [collectibles][crate::CollectiblesSource] instead of
-/// state where at all possible. This API may be removed in the future.
+/// state where at all possible. This API may be removed in the future. For backend-owned mutable
+/// sources, use [`TurboTasksState`][crate::TurboTasksState] instead.
 ///
 /// An [internally-mutable] type, similar to [`RefCell`][std::cell::RefCell] or [`Mutex`] that can
 /// be stored inside a [`VcValueType`].

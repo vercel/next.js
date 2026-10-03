@@ -13,6 +13,7 @@ Turbo Tasks defines 4 primitives:
 It defines some derived elements from that:
 - **Tasks:** An instance of a function together with its arguments.
 - **[`Vc`s ("Value Cells")][`Vc`]:** References to locations associated with tasks where values are stored. The contents of a cell can change after the reexecution of a function due to invalidation. A [`Vc`] can be read to get [a read-only reference][crate::ReadRef] to the stored data, representing a snapshot of that cell at that point in time.
+- **[`StateSlot`]s and [`TurboTasksState`]s:** Registered, typed mutable sources whose canonical values live in the backend, independently of any task's value cell. One slot produces one state per task owner or explicitly rooted named owner; tracked synchronous reads invalidate their consumers on updates.
 
 There are a few design patterns that are commonly used with Turbo Tasks:
 - **[Singleton Pattern][crate::_singleton_pattern]:** Use a private constructor function to ensure a 1:1 mapping between values and value cells.

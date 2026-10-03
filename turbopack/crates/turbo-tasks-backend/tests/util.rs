@@ -111,6 +111,24 @@ pub fn create_tt(name: &str) -> (Arc<TurboTasks<TurboTasksBackend>>, tempfile::T
     create_tt_with_workers(name, 2)
 }
 
+/// [`create_tt`] with the GC off, for tests of eviction alone. Between `run_once` scopes nothing
+/// anchors the roots, so with the GC on it could collect the very tasks under test.
+pub fn create_tt_without_gc(name: &str) -> (Arc<TurboTasks<TurboTasksBackend>>, tempfile::TempDir) {
+    let dir = create_persistence_dir(name);
+    let tt = open_tt_at_with_gc(dir.path(), 2, Some(false), None, None);
+    (tt, dir)
+}
+
+/// A fresh GC-enabled backend with a controlled named-owner/root TTL.
+pub fn create_tt_with_gc_ttl(
+    name: &str,
+    ttl: Duration,
+) -> (Arc<TurboTasks<TurboTasksBackend>>, tempfile::TempDir) {
+    let dir = create_persistence_dir(name);
+    let tt = open_tt_at_with_gc(dir.path(), 2, Some(true), Some(ttl), None);
+    (tt, dir)
+}
+
 /// [`create_tt`] with a custom GC min-progress floor
 pub fn create_tt_with_gc_min_progress(
     name: &str,

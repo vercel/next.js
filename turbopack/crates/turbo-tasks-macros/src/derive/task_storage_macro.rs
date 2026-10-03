@@ -2135,10 +2135,11 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
         quote! { #ref_expr.contains(item) }
     };
 
+    // State keys may own a named namespace, so set iteration only requires Clone.
     let iter_body = if is_option {
-        quote! { #ref_expr.into_iter().flat_map(|set| set.iter().copied()) }
+        quote! { #ref_expr.into_iter().flat_map(|set| set.iter().cloned()) }
     } else {
-        quote! { #ref_expr.iter().copied() }
+        quote! { #ref_expr.iter().cloned() }
     };
 
     let len_body = if is_option {

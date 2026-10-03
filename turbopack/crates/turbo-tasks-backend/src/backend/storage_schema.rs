@@ -25,7 +25,8 @@ use std::{
 use parking_lot::Mutex;
 use rustc_hash::FxHasher;
 use turbo_tasks::{
-    CellId, SharedReference, TaskExecutionReason, TaskId, TraitTypeId, ValueTypeId,
+    CellId, SharedReference, StateKey, StateOwner, TaskExecutionReason, TaskId, TraitTypeId,
+    ValueTypeId,
     backend::{CachedTaskTypeArc, CellHash, TransientTaskType},
     event::Event,
     task_storage,
@@ -284,6 +285,16 @@ struct TaskStorageSchema {
     )]
     cell_dependencies_hashed: AutoSet<(CellRef, u64), 1>,
 
+    /// Backend-owned state slots this task has read.
+    #[field(
+        storage = "auto_set",
+        category = "data",
+        filter_transient,
+        shrink_on_completion,
+        drop_on_completion_if_immutable
+    )]
+    state_dependencies: AutoSet<Arc<StateKey>, 2>,
+
     /// Collectibles this task depends on.
     #[field(
         storage = "auto_set",
@@ -305,6 +316,10 @@ struct TaskStorageSchema {
     /// Outdated hashed cell dependencies to be cleaned up (transient).
     #[field(storage = "auto_set", category = "transient", drop_on_completion)]
     outdated_cell_dependencies_hashed: AutoSet<(CellRef, u64), 1>,
+
+    /// State dependencies not yet re-read in this execution.
+    #[field(storage = "auto_set", category = "transient", shrink_on_completion)]
+    outdated_state_dependencies: AutoSet<Arc<StateKey>, 2>,
 
     /// Outdated collectibles dependencies to be cleaned up (transient).
     #[field(storage = "auto_set", category = "transient", drop_on_completion)]
@@ -968,6 +983,12 @@ pub struct MetaCounts {
 
 trait IsTransient {
     fn is_transient(&self) -> bool;
+}
+
+impl IsTransient for Arc<StateKey> {
+    fn is_transient(&self) -> bool {
+        matches!(&self.owner, StateOwner::Task(id) if id.is_transient())
+    }
 }
 
 impl IsTransient for TaskId {

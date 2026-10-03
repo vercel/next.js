@@ -28,6 +28,7 @@ use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use tokio::{select, sync::mpsc::Receiver, task_local};
 use tracing::{Instrument, Span, instrument};
+use turbo_rcstr::RcStr;
 use turbo_tasks_hash::{DeterministicHash, hash_xxh3_hash128};
 
 use crate::{
@@ -127,6 +128,19 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
     fn invalidate_with_reason(&self, task: TaskId, reason: StaticOrArc<dyn InvalidationReason>);
 
     fn invalidate_serialization(&self, task: TaskId);
+
+    /// Keep a named state owner alive until all its roots are dropped.
+    fn pin_named_state_owner(&self, name: &RcStr);
+    fn unpin_named_state_owner(&self, name: &RcStr);
+
+    /// Create a canonical state value if the slot is vacant.
+    fn create_state(&self, key: &crate::StateKey, initial: &mut dyn FnMut() -> Vec<u8>);
+
+    /// Read the state value synchronously, optionally tracking the current task.
+    fn read_state(&self, key: &crate::StateKey, tracked: bool) -> Result<Vec<u8>>;
+
+    /// Replace a state value, dirtying readers if it has changed.
+    fn set_state(&self, key: &crate::StateKey, value: Vec<u8>) -> Result<bool>;
 
     fn try_read_task_output(
         &self,
@@ -1799,6 +1813,32 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
 
     fn invalidate_serialization(&self, task: TaskId) {
         self.backend.invalidate_serialization(task, self);
+    }
+
+    fn pin_named_state_owner(&self, name: &RcStr) {
+        self.backend.pin_named_state_owner(name, self);
+    }
+
+    fn unpin_named_state_owner(&self, name: &RcStr) {
+        self.backend.unpin_named_state_owner(name, self);
+    }
+
+    fn create_state(&self, key: &crate::StateKey, initial: &mut dyn FnMut() -> Vec<u8>) {
+        self.backend.create_state(key, initial, self);
+    }
+
+    fn read_state(&self, key: &crate::StateKey, tracked: bool) -> Result<Vec<u8>> {
+        self.backend.read_state(
+            key,
+            tracked
+                .then(|| current_task_if_available("reading backend state"))
+                .flatten(),
+            self,
+        )
+    }
+
+    fn set_state(&self, key: &crate::StateKey, value: Vec<u8>) -> Result<bool> {
+        self.backend.set_state(key, value, self)
     }
 
     #[track_caller]

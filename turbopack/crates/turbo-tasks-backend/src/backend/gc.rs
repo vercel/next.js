@@ -19,13 +19,18 @@
 use std::{
     fmt::Display,
     ops::ControlFlow,
-    sync::atomic::{AtomicBool, Ordering},
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
 use bincode::{Decode, Encode};
 use rustc_hash::{FxHashMap, FxHashSet};
-use turbo_tasks::{TaskId, TurboTasks, scope_unbounded::scope_unbounded_with};
+use turbo_tasks::{
+    StateKey, StateOwner, TaskId, TurboTasks, scope_unbounded::scope_unbounded_with,
+};
 
 use crate::{
     backend::{
@@ -132,6 +137,9 @@ pub struct GcPassResult {
     /// Dependents of collected tasks whose forward edge was scrubbed, deferred from the main GC
     /// loop. Dirtying propagates through the aggregation graph, so it must not race the cascade.
     deferred_dirty_dependents: FxHashSet<TaskId>,
+    /// State slots removed along with their creator. Clear surviving readers
+    /// only after parallel task collection is quiescent.
+    deleted_state_dependents: Vec<(StateKey, Vec<TaskId>)>,
     /// The gc loop was interrupted by competing work.
     pub interrupted: bool,
 }
@@ -188,6 +196,8 @@ impl GcPassResult {
         }
         self.deferred_dirty_dependents
             .extend(other.deferred_dirty_dependents);
+        self.deleted_state_dependents
+            .extend(other.deleted_state_dependents);
         self.interrupted |= other.interrupted;
         self
     }
@@ -289,6 +299,20 @@ impl TurboTasksBackend {
                     let _ = task.track_modification(SpecificTaskDataCategory::Meta, "gc_deleted");
                 }
                 drop(task); // drop the lock so edge cleanup can run
+                {
+                    let mut states = self.states.lock();
+                    states.retain(|key, state| {
+                        if key.owner == StateOwner::Task(task_id) {
+                            result
+                                .deleted_state_dependents
+                                .push((key.clone(), state.dependents.iter().copied().collect()));
+                            self.state_dirty.store(true, Ordering::Release);
+                            false
+                        } else {
+                            true
+                        }
+                    });
+                }
                 stats.collected += 1;
                 stats.edges_deleted += old_edges.len();
                 // If we happened to delete a known root at this point record it so we can reconcile
@@ -325,6 +349,59 @@ impl TurboTasksBackend {
             let mut queue = AggregationUpdateQueue::new();
             queue.extend_balance_edges(deferred, &mut ctx);
             while !queue.process(&mut ctx) {}
+        }
+
+        // Named states age out like task roots, but their owner is independent
+        // of a task. The timestamp is persisted with each state so a restart
+        // does not reset the GC grace period.
+        {
+            let pins = self.named_state_pins.lock();
+            let mut states = self.states.lock();
+            states.retain(|key, state| {
+                let StateOwner::Named(name) = &key.owner else {
+                    return true;
+                };
+                if pins.contains_key(name) {
+                    if state.unrooted_since.take().is_some() {
+                        self.state_dirty.store(true, Ordering::Release);
+                    }
+                    return true;
+                }
+                if let Some(since) = state.unrooted_since
+                    && now.saturating_sub(since) > self.gc_root_ttl.as_millis() as u64
+                {
+                    result
+                        .deleted_state_dependents
+                        .push((key.clone(), state.dependents.iter().copied().collect()));
+                    self.state_dirty.store(true, Ordering::Release);
+                    return false;
+                }
+                if state.unrooted_since.is_none() {
+                    state.unrooted_since = Some(now);
+                    self.state_dirty.store(true, Ordering::Release);
+                }
+                true
+            });
+        }
+
+        // State slots owned by collected tasks disappeared from the state map.
+        // Drop surviving readers' forward edges before dirtying, just like
+        // reverse cell edges in CleanupOldEdgesOperation.
+        let removed_states = std::mem::take(&mut result.deleted_state_dependents);
+        if !removed_states.is_empty() {
+            let noop_collector = |_task_id| {};
+            let mut ctx = ExecuteContext::new_for_gc(self, turbo_tasks, phase, &noop_collector);
+            for (key, readers) in removed_states {
+                let shared_key = Arc::new(key);
+                for reader in readers {
+                    if let Some(mut task) = ctx.try_task(reader, TaskDataCategory::Data)
+                        && task.remove_state_dependencies(&shared_key)
+                    {
+                        task.remove_outdated_state_dependencies(&shared_key);
+                        result.deferred_dirty_dependents.insert(reader);
+                    }
+                }
+            }
         }
 
         // Dirty the dependents whose edges were scrubbed. After the rebalance above so the
@@ -459,9 +536,11 @@ impl TurboTasksBackend {
         // Persist the roots map this pass produced. Some tests query the roots set and GC itself
         // does as well, this ensures it is available to the next cycle.
         if let Some(roots) = roots
-            && let Err(err) = self
-                .backing_storage
-                .save_snapshot(Some(roots), Vec::<Vec<SnapshotItem>>::new())
+            && let Err(err) = self.backing_storage.save_snapshot(
+                Some(roots),
+                Vec::<Vec<SnapshotItem>>::new(),
+                None,
+            )
         {
             panic!("gc_for_testing: failed to persist GC roots: {err:?}");
         }
