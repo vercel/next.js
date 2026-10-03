@@ -945,18 +945,19 @@ export interface TraceSpanInfo {
    */
   selfAllocationCount: number
   /**
-   * TurboMalloc memory-usage samples recorded while this span
-   * (or its example span, for aggregated groups) was live.
+   * Process samples recorded while this span (or its example span, for
+   * aggregated groups) was live.
    *
    * **Process-wide, not per-span.** One global series is sliced by the
    * span's time range, so spans that overlap in time report identical values
    * no matter what each allocated. Rank concurrent work by the allocation
    * fields instead.
    *
-   * Each entry is `[ts_offset_from_span_start_in_ticks, bytes, pressure]`,
-   * where `pressure` is the memory-pressure byte (0 = no pressure, higher
-   * = more pressure). `100 ticks = 1 µs`. The offset is always `>= 0` and
-   * `<= span_duration`. Capped and downsampled by the store.
+   * Each entry is `[ts_offset_from_span_start_in_ticks, bytes, pressure,
+   * active_worker_threads]`: `bytes` is TurboMalloc memory usage,
+   * `pressure` is the memory-pressure byte (0 = no pressure, higher = more
+   * pressure), and `active_worker_threads` counts non-parked Tokio scheduler
+   * workers. `100 ticks = 1 µs`. Capped and downsampled by the store.
    */
   memorySamples: Array<Array<number>>
   /**

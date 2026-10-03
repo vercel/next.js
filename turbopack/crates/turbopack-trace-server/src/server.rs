@@ -45,6 +45,7 @@ pub enum ServerToClientMessage {
         path: Vec<String>,
         memory_samples: Vec<u64>,
         memory_pressure_samples: Vec<u8>,
+        active_worker_threads_samples: Vec<u64>,
     },
 }
 
@@ -297,6 +298,11 @@ fn handle_connection(
                                     store.memory_samples_for_range(span.start(), span.end());
                                 let memory_pressure_samples = store
                                     .memory_pressure_samples_for_range(span.start(), span.end());
+                                let active_worker_threads_samples = store
+                                    .active_worker_threads_samples_for_range(
+                                        span.start(),
+                                        span.end(),
+                                    );
                                 ServerToClientMessage::QueryResult {
                                     id,
                                     is_graph,
@@ -312,6 +318,7 @@ fn handle_connection(
                                     path,
                                     memory_samples,
                                     memory_pressure_samples,
+                                    active_worker_threads_samples,
                                 }
                             } else {
                                 ServerToClientMessage::QueryResult {
@@ -329,6 +336,7 @@ fn handle_connection(
                                     path: Vec::new(),
                                     memory_samples: Vec::new(),
                                     memory_pressure_samples: Vec::new(),
+                                    active_worker_threads_samples: Vec::new(),
                                 }
                             }
                         };
@@ -372,5 +380,35 @@ fn handle_connection(
                 // thanks for the fish
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn query_result_serializes_worker_samples_in_camel_case() {
+        let message = ServerToClientMessage::QueryResult {
+            id: SpanId::new(1).unwrap(),
+            is_graph: false,
+            start: Timestamp::ZERO,
+            end: Timestamp::ZERO,
+            duration: Timestamp::ZERO,
+            cpu: Timestamp::ZERO,
+            allocations: 0,
+            deallocations: 0,
+            allocation_count: 0,
+            persistent_allocations: 0,
+            args: Vec::new(),
+            path: Vec::new(),
+            memory_samples: vec![1024],
+            memory_pressure_samples: vec![2],
+            active_worker_threads_samples: vec![3],
+        };
+        let json = serde_json::to_value(message).unwrap();
+        assert_eq!(json["type"], "query-result");
+        assert_eq!(json["memorySamples"], serde_json::json!([1024]));
+        assert_eq!(json["activeWorkerThreadsSamples"], serde_json::json!([3]));
     }
 }
