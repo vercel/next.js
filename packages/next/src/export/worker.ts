@@ -148,7 +148,7 @@ async function exportPageImpl(
   let updatedPath = exportPath._ssgPath || path
   let locale = exportPath._locale || commonRenderOpts.locale
 
-  if (commonRenderOpts.locale) {
+  if (commonRenderOpts.locale && !isAppDir) {
     const localePathResult = normalizeLocalePath(path, commonRenderOpts.locales)
 
     if (localePathResult.detectedLocale) {
@@ -172,7 +172,7 @@ async function exportPageImpl(
   if (isDynamic && page !== nonLocalizedPath) {
     const normalizedPage = isAppDir ? normalizeAppPath(page) : page
 
-    params = getParams(normalizedPage, updatedPath)
+    params = getParams(normalizedPage, isAppDir ? path : updatedPath)
   }
 
   const { req, res } = createRequestResponseMocks({ url: updatedPath })
