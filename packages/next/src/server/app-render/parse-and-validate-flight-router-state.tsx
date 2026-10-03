@@ -1,4 +1,5 @@
 import type { FlightRouterState } from '../../shared/lib/app-router-types'
+import { DecodeError } from '../../shared/lib/utils'
 import { flightRouterStateSchema } from './types'
 import { assert } from 'next/dist/compiled/superstruct'
 
@@ -18,7 +19,7 @@ export function parseAndValidateFlightRouterState(
     return undefined
   }
   if (Array.isArray(stateHeader)) {
-    throw new Error(
+    throw new DecodeError(
       'Multiple router state headers were sent. This is not allowed.'
     )
   }
@@ -29,14 +30,17 @@ export function parseAndValidateFlightRouterState(
   // This is around 2,000 nested or parallel route segment states:
   // '{"children":["",{}]}'.length === 20.
   if (stateHeader.length > 20 * 2000) {
-    throw new Error('The router state header was too large.')
+    throw new DecodeError('The router state header was too large.')
   }
 
   try {
     const state = JSON.parse(decodeURIComponent(stateHeader))
     assert(state, flightRouterStateSchema)
     return state
-  } catch {
-    throw new Error('The router state header was sent but could not be parsed.')
+  } catch (cause) {
+    throw new DecodeError(
+      'The router state header was sent but could not be parsed.',
+      { cause }
+    )
   }
 }
