@@ -67,7 +67,26 @@ This runs the two default variants in parallel and prints pass/fail for each:
 ✓ agents-md/agent-042-your-thing  (200s)
 ```
 
-`agents-md` drops an AGENTS.md into the sandbox telling the agent to check `node_modules/next/dist/docs/` first. `baseline` doesn't. That's the whole difference — same prompt, same model, one extra file. If `agents-md` passes and `baseline` doesn't, the bundled docs are doing their job.
+`agents-md` drops an AGENTS.md into the sandbox telling the agent to check `node_modules/next/dist/docs/` and the agent-only index at `node_modules/next/dist/agent-docs/index.md`. `baseline` doesn't. That's the whole difference — same prompt, same model, one extra file. If `agents-md` passes and `baseline` doesn't, the bundled docs are doing their job.
+
+### Evaluating a bundled Future Default workflow
+
+Future Default workflows ship in the `next` package, so their migration evals remain ordinary `baseline` versus `agents-md` comparisons. Keep any fixture-specific timeout or publishing options in `evals/eval.config.json`, but do not add a `skills` entry:
+
+```json filename="evals/eval.config.json"
+{
+  "agent-046-adopt-partial-prefetching": {
+    "publish": false,
+    "timeout": 1800
+  },
+  "agent-047-adopt-cache-components": {
+    "publish": false,
+    "timeout": 1800
+  }
+}
+```
+
+Removing the adoption Skills removes only the third local-Skill treatment. It does not remove the migration fixtures or their bundled-doc evaluation.
 
 ### Evaluating a local skill
 
@@ -135,7 +154,7 @@ Full transcripts land in `evals/results/<variant>/<timestamp>/<eval>/run-1/`. Gr
 
 ```
 evals/
-├── eval.config.json # optional skill and timeout settings by fixture
+├── eval.config.json # optional treatments and timeout settings by fixture
 ├── evals/agent-*/   # fixtures
 ├── lib/setup.ts     # uploads tarball, writes AGENTS.md (shared by all evals)
 ├── experiments/     # generated per-run, gitignored

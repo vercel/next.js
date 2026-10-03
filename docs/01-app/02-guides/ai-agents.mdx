@@ -165,53 +165,15 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
 
 The `Learn more` link resolves to a per-error page under [`/docs/messages`](https://nextjs.org/docs/messages/blocking-prerender-dynamic) written for agents to read. Each page follows the same shape, with the canonical patterns for every fix, the trade-offs against the other fixes, and the gotchas an agent is likely to miss on a first attempt. The [Instant navigation guide](/docs/app/guides/instant-navigation#ai-workflow) walks through the full loop an agent runs on these errors, from reading the insight to writing an `instant()` test that fails before the fix and passes once it's in place.
 
-<span id="step-4-use-agent-docs-and-skills" />
+<span id="step-4-hand-multi-step-workflows-to-skills" />
 
-## Agent docs and reusable Skills
+## Skills for multi-step workflows
 
-Framework knowledge comes from the bundled public docs. [Future Default](/docs/app/guides/upgrading/agent-upgrade#adopt-future-defaults) migrations use version-matched agent workflows shipped inside the installed `next` package. Reusable procedures that apply across many tasks remain Skills.
+Framework knowledge comes from the bundled docs, not from Skills. [Benchmark results](https://nextjs.org/evals) show that always-available context outperforms on-demand retrieval. Next.js also bundles version-matched migration workflows for version upgrades and [Future Defaults](/docs/app/guides/upgrading/agent-upgrade#adopt-future-defaults); [`next upgrade --agent`](/docs/app/guides/upgrading/agent-upgrade) loads the applicable workflow automatically.
 
-The managed `AGENTS.md` block points agents at `node_modules/next/dist/agent-docs/index.md`. The index routes Future Default tasks to the matching workflow without loading unrelated instructions. These are the same workflows used by `next upgrade --agent=experimental-future`. You can [browse the agent-doc source](https://github.com/vercel/next.js/tree/canary/packages/next/src/agent-docs) in the Next.js repository.
+Reusable runtime and optimization workflows remain Skills. You can [browse their source](https://github.com/vercel/next.js/tree/canary/skills) and [find them on skills.sh](https://www.skills.sh/vercel/next.js).
 
-### Future Default workflows
-
-#### Cache Components
-
-The bundled Cache Components Future Default workflow migrates an app to [Cache Components](/docs/app/getting-started/caching):
-
-1. Turns the flag on and finds the routes that can't prerender.
-2. Fixes them one feature at a time, checking in with you before moving on.
-3. Confirms a feature against `next dev` and `next build` before leaving it.
-
-The workflow supports both a series of pull requests and a single-branch migration.
-
-Then give the agent this prompt:
-
-```prompt
-Adopt Cache Components in this project using the bundled Future Default workflow.
-```
-
-#### Partial Prefetching
-
-The bundled Partial Prefetching Future Default workflow moves an app onto [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching), where links share one App Shell:
-
-1. Audits existing `<Link prefetch={true}>` navigations and identifies the prefetched UI to preserve.
-2. Captures that UI in passing [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) tests before enabling Partial Prefetching, then migrates each destination until the same tests pass unchanged.
-3. Enables the flag, resolves the URL-data insights it surfaces, and marks optional per-link prefetching candidates for later.
-
-It needs [Cache Components](/docs/app/getting-started/caching) already adopted and a production-like build it can run for prefetch verification.
-
-Then give the agent this prompt:
-
-```prompt
-Adopt Partial Prefetching in this project using the bundled Future Default workflow.
-```
-
-### Reusable Skills
-
-Next.js keeps repeatable runtime and optimization loops as Skills so you can invoke them in many kinds of work. You can [browse their source](https://github.com/vercel/next.js/tree/canary/skills) and [find them on skills.sh](https://www.skills.sh/vercel/next.js).
-
-#### `next-dev-loop`
+### `next-dev-loop`
 
 The [`next-dev-loop`](https://www.skills.sh/vercel/next.js/next-dev-loop) Skill verifies changes against a running dev server using the [MCP server](/docs/app/guides/mcp) and browser.
 
@@ -225,7 +187,7 @@ Then give the agent this prompt:
 After every edit, verify the page still works at runtime using the next-dev-loop Skill.
 ```
 
-#### `next-cache-components-optimizer`
+### `next-cache-components-optimizer`
 
 The [`next-cache-components-optimizer`](https://www.skills.sh/vercel/next.js/next-cache-components-optimizer) Skill takes a target route or set of routes and works toward the UI you want on screen at click time:
 
@@ -245,7 +207,7 @@ Then give the agent a prompt like:
 Make the navigation from /settings to /dashboard instant using the next-cache-components-optimizer Skill. The header and the project list should be part of the instant UI.
 ```
 
-#### `next-partial-prefetching-optimizer`
+### `next-partial-prefetching-optimizer`
 
 The [`next-partial-prefetching-optimizer`](https://www.skills.sh/vercel/next.js/next-partial-prefetching-optimizer) Skill takes a target navigation or set of navigations and works toward the UI you want ready before each click:
 
