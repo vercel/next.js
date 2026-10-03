@@ -3,8 +3,9 @@ title: ensureStatic
 description: API reference for the ensureStatic route segment config, which requires selected route output to be static instead of rendered per request.
 related:
   title: Next Steps
-  description: Learn how to control which route output must be static.
+  description: Learn how to choose a level and what each navigation stage can render.
   links:
+    - app/guides/keeping-pages-static
     - app/guides/optimizing-prefetching
     - app/api-reference/functions/prefetch
     - app/api-reference/functions/navigation
@@ -13,6 +14,8 @@ related:
 ---
 
 The `ensureStatic` route segment config requires selected route output to be static instead of rendered per request. Export it from a [page](/docs/app/api-reference/file-conventions/page) or [layout](/docs/app/api-reference/file-conventions/layout) to enforce this requirement for the [App Shell](/docs/app/glossary#app-shell), per-link prefetches, or the complete server-rendered route.
+
+Use it so later changes cannot add request-time server rendering to a navigation stage that must stay static. See [Keeping pages static](/docs/app/guides/keeping-pages-static) for a worked example of each level.
 
 > **Good to know**:
 >
@@ -52,23 +55,23 @@ The export accepts `'auto'`, `'shell'`, `'prefetch'`, `'navigation'`, or `false`
 
 ### `'shell'`
 
-Requires the [App Shell](/docs/app/glossary#app-shell) loaded by a default `<Link>` to be static. This only works with [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching).
+Requires the [App Shell](/docs/app/glossary#app-shell) loaded by a default `<Link>` to be static. Without [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching) there is no App Shell, so the value has no effect and Next.js logs a warning.
 
 The shell can include static or cached content and `<Suspense>` fallbacks. Request-specific content behind `<Suspense>` can render during a later per-link prefetch with [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch), or during navigation.
 
-For an individual subtree, [`await prefetch()`](/docs/app/api-reference/functions/prefetch) provides similar behavior by deferring code below the call to a per-link prefetch or navigation. Setting `'shell'` enforces that stage boundary across the route without adding `await prefetch()` to each request-specific subtree.
+For an individual subtree, [`await prefetch()`](/docs/app/api-reference/functions/prefetch) provides similar behavior by deferring code below the call to a per-link prefetch or navigation. Setting `'shell'` enforces that stage boundary across the route without adding `await prefetch()` to each request-specific subtree. See [Defer work to a later stage](/docs/app/guides/optimizing-prefetching#defer-work-to-a-later-stage) for the per-subtree controls.
 
 > **Good to know**: `'shell'` only covers the App Shell. If the route reads `cookies()`, `headers()`, or URL data anywhere that is not below [`await navigation()`](/docs/app/api-reference/functions/navigation), each visible [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch) into it still renders its prefetch on the server, and the prefetched UI gives no sign of that work. Use [`'prefetch'`](#prefetch) when per-link prefetches must also come from static output.
 
 ### `'prefetch'`
 
-Requires both the App Shell and per-link prefetches to be static. This only works with [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching).
+Requires both the App Shell and per-link prefetches to be static. Without [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), prefetches are already static, so the value adds no requirement.
 
 A per-link prefetch from [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch) can load static or cached [URL-specific content](/docs/app/guides/optimizing-prefetching#resolve-url-data-at-prefetch-time) before the user follows the link. Request-specific content behind `<Suspense>` renders when the navigation completes the route.
 
 The [static HTML shell](/docs/app/glossary#static-shell) can also include this static or cached per-link content. Unlike a per-link prefetch, it cannot include request-specific data because the HTML shell is prerendered.
 
-For an individual subtree, [`await navigation()`](/docs/app/api-reference/functions/navigation) provides similar behavior by deferring code below the call until navigation. Setting `'prefetch'` enforces that stage boundary across the route without adding `await navigation()` to each request-specific subtree.
+For an individual subtree, [`await navigation()`](/docs/app/api-reference/functions/navigation) provides similar behavior by deferring code below the call until navigation. Setting `'prefetch'` enforces that stage boundary across the route without adding `await navigation()` to each request-specific subtree. See [Keep the prefetch static](/docs/app/guides/optimizing-prefetching#keep-the-prefetch-static) for shaping one route this way.
 
 ### `'navigation'`
 
@@ -78,7 +81,7 @@ To require static server output for the entire app, set `'navigation'` on the ro
 
 #### Validation
 
-`'shell'` and `'prefetch'` allow request-specific work to be deferred to a later navigation stage. `'navigation'` is the final server-rendering stage, so no later stage remains. Next.js therefore validates that all server output is static.
+With `'shell'` and `'prefetch'`, request-specific work inside `<Suspense>` moves to a later navigation stage. Outside `<Suspense>`, no stage can render it without blocking the navigation, so [Instant Navigation validation](/docs/messages/instant-navigation-validation) reports it. `'navigation'` is the final server-rendering stage, so no later stage remains. Next.js therefore validates that all server output is static.
 
 Next.js validates this requirement during both `next dev` and `next build`. In development, errors include source-mapped stack traces that update as you edit. Build output is more abbreviated, so you may need to run [`next build --debug-prerender`](/docs/app/guides/building#debug-prerender-errors) for detailed stack traces and code frames. See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the development workflow.
 
