@@ -538,15 +538,7 @@ export class NextInstance {
 
           await fs.writeFile(
             fileName,
-            `${content}\n` +
-              getDeploymentTestEnvAssignments() +
-              `
-          // alias __NEXT_TEST_MODE for next-deploy as "_" is not a valid
-          // env variable during deploy
-          if (process.env.NEXT_PRIVATE_TEST_MODE) {
-            process.env.__NEXT_TEST_MODE = process.env.NEXT_PRIVATE_TEST_MODE
-          }
-        `
+            `${content}\n` + getDeploymentTestEnvAssignments()
           )
 
           if (
