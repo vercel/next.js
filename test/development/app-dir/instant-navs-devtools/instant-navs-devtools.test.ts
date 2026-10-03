@@ -1,10 +1,16 @@
 import { nextTestSetup, type Playwright } from 'e2e-utils'
 import { retry, toggleDevToolsIndicatorPopover } from 'next-test-utils'
+import { createRouterAct } from 'router-act'
+import type { Page } from 'playwright'
 
 describe('instant-nav-panel', () => {
   const { isNextDev, isTurbopack, next } = nextTestSetup({
     files: __dirname,
   })
+  const routerActs = new WeakMap<
+    Playwright,
+    ReturnType<typeof createRouterAct>
+  >()
 
   async function waitForPanelRouterTransition() {
     // Run all the necessary CSS transitions
@@ -71,6 +77,42 @@ describe('instant-nav-panel', () => {
 
   async function clickLink(browser: Playwright, href: string, id?: string) {
     const selector = id ? `#${id}` : `[href="${href}"]`
+    const accordionSelector = `input[data-link-accordion="${id ?? href}"]`
+    const act = routerActs.get(browser)
+
+    if (act && (await browser.locator(accordionSelector).count()) > 0) {
+      const navigate = () =>
+        browser.eval((selector) => {
+          document.querySelector<HTMLAnchorElement>(selector)!.click()
+        }, selector)
+      const expectedResponse =
+        href === '/target-page/my-post?search=foo'
+          ? { includes: 'dynamic-skeleton' }
+          : undefined
+
+      if ((await browser.locator(selector).count()) > 0) {
+        await act(navigate, expectedResponse)
+      } else {
+        // Mount the link and navigate in one controlled scope so its viewport
+        // prefetch cannot race ahead of the capture lock.
+        await act(async () => {
+          await browser.eval((accordionSelector) => {
+            document.querySelector<HTMLInputElement>(accordionSelector)!.click()
+          }, accordionSelector)
+          // Let React commit the Link and IntersectionObserver schedule its
+          // prefetch before the click starts the navigation.
+          await browser.eval(
+            () =>
+              new Promise<void>((resolve) =>
+                requestIdleCallback(() => resolve(), { timeout: 100 })
+              )
+          )
+          await navigate()
+        }, expectedResponse)
+      }
+      return
+    }
+
     await browser.eval((selector) => {
       document.querySelector<HTMLAnchorElement>(selector)!.click()
     }, selector)
@@ -362,14 +404,20 @@ describe('instant-nav-panel', () => {
     ).toBe(0)
   }
 
-  async function openHomeWithTargetPageWarmup() {
+  async function openHomeWithTargetPageWarmup(pathname = '/') {
+    let page!: Page
     const [browser] = await Promise.all([
-      next.browser('/'),
+      next.browser(pathname, {
+        beforePageLoad(browserPage: Page) {
+          page = browserPage
+        },
+      }),
       isNextDev && !isTurbopack
         ? // warmup target page compilation before clicking Start, to avoid extra flakiness.
           next.render('/target-page/my-post?search=foo').catch(() => {})
         : null,
     ])
+    routerActs.set(browser, createRouterAct(page))
     await clearInstantModeCookie(browser)
     await browser.waitForElementByCss('[data-testid="home-title"]')
     await waitForAppHydration(browser)
@@ -695,7 +743,7 @@ describe('instant-nav-panel', () => {
     })
 
     it('should include runtime param and searchParam values in the captured SPA shell for a prefetch={true} link', async () => {
-      const browser = await openHomeWithTargetPageWarmup()
+      const browser = await openHomeWithTargetPageWarmup('/prefetch')
 
       await openInstantNavPanel(browser)
       await clickStartCapturing(browser)
@@ -710,7 +758,7 @@ describe('instant-nav-panel', () => {
     })
 
     it('works for repeat clicks to links with prefetch={true} (regression)', async () => {
-      const browser = await openHomeWithTargetPageWarmup()
+      const browser = await openHomeWithTargetPageWarmup('/prefetch')
 
       // 1. Enable the Nav Inspector and click the link
       await openInstantNavPanel(browser)
@@ -726,7 +774,7 @@ describe('instant-nav-panel', () => {
       await closePanelViaHeader(browser)
       await waitForPanelRouterTransition()
       await waitForInstantModeCookieAbsent(browser)
-      await clickLink(browser, '/')
+      await clickLink(browser, '/prefetch')
       await browser.waitForElementByCss('[data-testid="home-title"]')
       await waitForAppHydration(browser)
 
