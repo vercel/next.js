@@ -229,7 +229,6 @@ describe.each([
       })
     }
 
-
     if (usesImmutableAssets) {
       it('should emit hashes to adapter', async () => {
         const { outputs }: Parameters<NextAdapter['onBuildComplete']>[0] =
