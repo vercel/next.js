@@ -8,6 +8,96 @@ import { getCompilationSpan } from '../utils'
 // https://github.com/NMFR/optimize-css-assets-webpack-plugin/blob/0a410a9bf28c7b0e81a3470a13748e68ca2f50aa/src/index.js#L20
 const CSS_REGEX = /\.css(\?.*)?$/i
 
+// When postcss-scss (or mini-css-extract-plugin) concatenates adjacent
+// `@layer` statements, the separating `;` is lost and postcss-scss
+// produces a single AtRule whose `params` contains the full merged text,
+// e.g. `"reset, tokens, base, components, utilities\n@layer reset"`.
+// lightningcss cannot parse this and crashes. The fix detects these
+// merged nodes by looking for an embedded `@layer` keyword inside
+// `params`, splits them into individual `@layer` nodes, and inserts
+// them as siblings so each node has well-formed params.
+const SPLIT_LAYER_RE = /\n\s*@layer\b/
+
+export const splitMergedLayerNodesPlugin: postcss.Plugin = {
+  postcssPlugin: 'split-merged-layer-nodes',
+  AtRule: {
+    layer(atRule) {
+      if (!atRule.params) return
+      if (!SPLIT_LAYER_RE.test(atRule.params)) return
+
+      // Split on embedded @layer keywords (with optional surrounding whitespace).
+      // Pattern: "\n @layer " or "\n@layer " — the newline + @layer is the separator.
+      const parts = atRule.params.split(/\n\s*@layer\s*/)
+
+      // Build individual @layer nodes. The first part inherits the
+      // original node's position so source maps stay reasonable.
+      const parent = atRule.parent!
+      const originalNodes = atRule.nodes
+      const newNodes: postcss.AtRule[] = []
+
+      for (const part of parts) {
+        const name = part.trim()
+        if (!name) continue
+        const node = atRule.clone({
+          params: name,
+          nodes: undefined,
+          raws: { between: '' },
+        })
+        newNodes.push(node)
+      }
+
+      // If the original merged node had children (e.g. postcss-scss merged
+      // `@layer reset, tokens, base;\n@layer reset { ... }` into one node),
+      // attach those children to the LAST split node.
+      if (originalNodes && originalNodes.length > 0 && newNodes.length > 0) {
+        const lastNode = newNodes[newNodes.length - 1]
+        for (const child of originalNodes) {
+          lastNode.append(child)
+        }
+      }
+
+      // Replace the original merged node with the split nodes.
+      for (let i = 0; i < newNodes.length; i++) {
+        parent.insertBefore(atRule, newNodes[i])
+      }
+      atRule.remove()
+    },
+  },
+}
+
+// Ensure @layer statement at-rules (e.g. `@layer reset, tokens, base;`)
+// always keep their trailing semicolon. PostCSS's Stringifier (line 52)
+// outputs `;` only when the `semicolon` param is true — for the last
+// child in a root this depends on `root.raws.semicolon`, which can be
+// lost when the CSS is re-parsed by cssnano's internal pipeline. This
+// causes `@layer` ordering statements to merge with the following
+// `@layer` block, producing invalid CSS. The fix embeds the semicolon
+// into `node.raws.between` which the Stringifier reads directly for
+// childless at-rules (line 52: `node.raws.between || ''`).
+export const preserveLayerSemicolonPlugin: postcss.Plugin = {
+  postcssPlugin: 'preserve-atrule-statement-semicolon',
+  AtRule: {
+    layer(atRule) {
+      if (atRule.nodes || !atRule.params) return
+      // Only fix the last child. For non-last children the Stringifier
+      // already passes `semicolon=true` from `body()`, so `;` is emitted
+      // via the `semicolon` parameter. For the last child, `semicolon`
+      // depends on `root.raws.semicolon` which may be `false`, so we
+      // embed the `;` into `between` which is always emitted for
+      // childless at-rules (stringifier.js line 52).
+      if (atRule.next()) return
+      // If the parent root already tracks a trailing semicolon
+      // (root.raws.semicolon = true), the Stringifier will emit `;`
+      // via the `semicolon` param — don't double it.
+      if (atRule.parent?.raws?.semicolon) return
+      const between = atRule.raws.between || ''
+      if (!between.endsWith(';')) {
+        atRule.raws.between = between + ';'
+      }
+    },
+  },
+}
+
 type CssMinimizerPluginOptions = {
   postcssOptions: {
     map: false | { prev?: string | false; inline: boolean; annotation: boolean }
@@ -44,7 +134,11 @@ export class CssMinimizerPlugin {
       input = asset.source()
     }
 
-    return postcss([cssnanoSimple({ colormin: false }, postcss)])
+    return postcss([
+      splitMergedLayerNodesPlugin,
+      preserveLayerSemicolonPlugin,
+      cssnanoSimple({ colormin: false }, postcss),
+    ])
       .process(input, postcssOptions)
       .then((res) => {
         if (res.map) {
