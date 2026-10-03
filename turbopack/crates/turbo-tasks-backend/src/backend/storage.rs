@@ -177,7 +177,7 @@ pub enum TrackOutcome {
 /// programmer error caught by the panic in the caller. Consider making the bincode encoding trait
 /// infallible (i.e. returning `()` instead of `Result<(), EncodeError>`) to eliminate the
 /// spurious `Result` threading throughout the encode path.
-pub(crate) fn encode_task_data(
+pub(crate) fn encode_task_contents(
     task: TaskId,
     data: &TaskStorage,
     category: SpecificTaskDataCategory,
@@ -253,7 +253,7 @@ pub(crate) fn encode_snapshot_item(
 
     let meta = if inner.flags.meta_modified() {
         Some(
-            encode_task_data(task_id, inner, SpecificTaskDataCategory::Meta, buffer)
+            encode_task_contents(task_id, inner, SpecificTaskDataCategory::Meta, buffer)
                 .context("failed to encode task meta data")?,
         )
     } else {
@@ -262,7 +262,7 @@ pub(crate) fn encode_snapshot_item(
 
     let data = if inner.flags.data_modified() {
         Some(
-            encode_task_data(task_id, inner, SpecificTaskDataCategory::Data, buffer)
+            encode_task_contents(task_id, inner, SpecificTaskDataCategory::Data, buffer)
                 .context("failed to encode task data")?,
         )
     } else {
@@ -1317,7 +1317,9 @@ mod tests {
     use turbo_bincode::TurboBincodeBuffer;
     use turbo_tasks::TaskId;
 
-    use super::{SpecificTaskDataCategory, Storage, TaskStorage, TrackOutcome, encode_task_data};
+    use super::{
+        SpecificTaskDataCategory, Storage, TaskStorage, TrackOutcome, encode_task_contents,
+    };
     use crate::{backing_storage::SnapshotItem, data::OutputValue};
 
     fn non_transient_task(id: u32) -> TaskId {
@@ -1792,7 +1794,7 @@ mod tests {
         let expected = {
             let mut pre = TaskStorage::new();
             pre.set_output(output(2));
-            encode_task_data(
+            encode_task_contents(
                 task_id,
                 &pre,
                 SpecificTaskDataCategory::Meta,
@@ -1848,7 +1850,7 @@ mod tests {
         // Sanity check: the live state really diverged from what was persisted.
         let live = {
             let guard = storage.access_mut(task_id);
-            encode_task_data(
+            encode_task_contents(
                 task_id,
                 &guard,
                 SpecificTaskDataCategory::Meta,

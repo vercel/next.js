@@ -2281,7 +2281,7 @@ mod cell_data_tracking_tests {
     use crate::{
         backend::{
             TaskDataCategory,
-            storage::{Storage, encode_task_data},
+            storage::{Storage, encode_task_contents},
             storage_schema::TaskStorageAccessors,
         },
         backing_storage::SnapshotItem,
@@ -2462,7 +2462,7 @@ mod cell_data_tracking_tests {
 
         let expected = {
             let task = storage.access_mut(task_id);
-            encode_task_data(
+            encode_task_contents(
                 task_id,
                 &task,
                 SpecificTaskDataCategory::Data,
@@ -2493,7 +2493,7 @@ mod cell_data_tracking_tests {
 
         let live = {
             let task = storage.access_mut(task_id);
-            encode_task_data(
+            encode_task_contents(
                 task_id,
                 &task,
                 SpecificTaskDataCategory::Data,
