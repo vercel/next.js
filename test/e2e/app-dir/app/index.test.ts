@@ -1778,7 +1778,7 @@ describe('app dir - basic', () => {
       })
 
       if (!isNextDev) {
-        // Fails in dev due to CSP header
+        // Test scripts (test1.js, test2.js) need to exist for this part
         const browser = await next.browser('/script-nonce')
         await retry(async () => {
           await browser.elementByCss('#get-order').click()
@@ -1842,6 +1842,27 @@ describe('app dir - basic', () => {
       scripts.each((_, element) => {
         expect(element.attribs.nonce).toBeTruthy()
       })
+    })
+
+    it('should not have hydration errors with nonce and afterInteractive/lazyOnload strategies', async () => {
+      const browser = await next.browser('/script-nonce', {
+        pushErrorAsConsoleLog: true,
+      })
+
+      // Wait for the page to load
+      await browser.waitForElementByCss('#get-order')
+
+      // Check for hydration errors
+      const logs = await browser.log()
+      const hydrationErrors = logs.filter(
+        (log) =>
+          log.message.includes('Hydration') ||
+          log.message.includes('hydration') ||
+          log.message.includes('Extra attributes from the server') ||
+          log.message.includes("didn't match")
+      )
+
+      expect(hydrationErrors).toEqual([])
     })
   })
 
