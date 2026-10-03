@@ -123,3 +123,23 @@ describe.each([
     expect(fs.readFileSync(path.join(dir, 'AGENTS.md'), 'utf-8')).toBe(content)
   })
 })
+
+describe('agent-only documentation discovery', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-files-'))
+  })
+
+  afterEach(() => {
+    fs.rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('points multi-step work at the version-matched agent docs index', () => {
+    writeAgentFiles(dir)
+
+    expect(fs.readFileSync(path.join(dir, 'AGENTS.md'), 'utf-8')).toContain(
+      'node_modules/next/dist/agent-docs/index.md'
+    )
+  })
+})

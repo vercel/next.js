@@ -1,4 +1,4 @@
-Follow the Future Default adoption documents listed in the prompt. If the
+Follow the Future Default documents listed in the prompt. If the
 installed and target Next.js versions differ, complete the version guide first.
 
 ## Adopt and verify
@@ -6,7 +6,7 @@ installed and target Next.js versions differ, complete the version guide first.
 - [ ] Set `experimental.agentUpgrade` to the policy specified in the
       prompt, preserving unrelated configuration. If the installed Next.js
       version does not support this option, skip the setting and report why.
-- [ ] Read and follow each adoption document in the prompt, in order. If none
+- [ ] Read and follow each Future Default document in the prompt, in order. If none
       are listed, continue to delivery. Complete each adoption; remove temporary
       opt-outs and TODO markers after repair.
 - [ ] Run the repository's checks, build when supported, and test affected

@@ -1,18 +1,6 @@
----
-name: next-partial-prefetching-adoption
-description: >
-  Turn on Partial Prefetching in a Next.js app and work through the
-  insights it surfaces. Use when the user wants to enable or adopt
-  Partial Prefetching, flip the `partialPrefetching` flag, opt routes
-  in with `export const prefetch = 'partial'`, audit
-  `Link prefetch={true}` behavior, preserve existing prefetched UI
-  with `instant()` tests, or resolve the
-  instant-link-prefetch-partial and instant-shell-url-data insights.
----
+# Adopt Partial Prefetching
 
-# next-partial-prefetching-adoption
-
-Enable Partial Prefetching and walk the app until every link reuses a shared App Shell. This skill sequences the work; per-insight recipes live in the dev overlay fix cards and their docs pages. The [Adopting Partial Prefetching guide](https://nextjs.org/docs/app/guides/adopting-partial-prefetching) is the canonical reference for the concepts this skill applies.
+Enable Partial Prefetching and walk the app until every link reuses a shared App Shell. This workflow sequences the work; per-insight recipes live in the dev overlay fix cards and their docs pages. The [Adopting Partial Prefetching guide](https://nextjs.org/docs/app/guides/adopting-partial-prefetching) is the canonical reference for the concepts this workflow applies.
 
 The development insights and the preservation tests are two different paths. Insights surface only in `next dev`, in the dev overlay's Insights tab. Test-backed preservation runs against a production-like build with `instant()` and does not need a development server. After the flag is enabled, the separate URL-data insight sweep still uses `next dev`.
 
@@ -24,11 +12,11 @@ Talk to the user in terms of what they'll see — PRs, features, and how the app
 
 ## requires
 
-- **Cache Components adopted (`cacheComponents: true`) with a passing build.** Both `partialPrefetching` and the route-level `prefetch` export require Cache Components. If it is off, use [`next-cache-components-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-adoption) first and return after its build-blocking prerender errors are resolved. Those errors can fail `next build`; only the Partial Prefetching insights handled by this skill are non-blocking development signals.
+- **Cache Components adopted (`cacheComponents: true`) with a passing build.** Both `partialPrefetching` and the route-level `prefetch` export require Cache Components. If it is off, follow [Adopt Cache Components](../cache-components/guide.md) first and return after its build-blocking prerender errors are resolved. Those errors can fail `next build`; only the Partial Prefetching insights handled by this workflow are non-blocking development signals.
 
 - **Next.js 16.3 or later.** `partialPrefetching`, the `prefetch` route segment config, and the prefetch insights all land there.
 
-- **A browser you can drive.** Test-backed preservation uses an existing or minimal production-mode Playwright suite; manual preservation and the final demonstration use the running production app. The development insight path and the post-flag URL-data sweep use [`next-dev-loop`](https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop); install it before either development pass unless it is already available (`npx skills add https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop`). If the app is webpack-pinned, drive a browser directly (`agent-browser`, Playwright) — you lose the framework cross-checks, not the insights; they're still in the overlay and the dev log.
+- **A browser you can drive.** Test-backed preservation uses an existing or minimal production-mode Playwright suite; manual preservation and the final demonstration use the running production app. The development insight path and the post-flag URL-data sweep use the [`next-dev-loop`](https://www.skills.sh/vercel/next.js/next-dev-loop) Skill; read it before either development pass. If the app is webpack-pinned, drive a browser directly (`agent-browser`, Playwright) — you lose the framework cross-checks, not the insights; they're still in the overlay and the dev log.
 
 - **A runnable app.** Preservation and the final demonstration need a production-like build because automatic prefetching runs only in production. The development server is required only when using the insight path or running the post-flag URL-data sweep; do not start it merely to confirm a test-backed preservation case. If the app reads a database or required environment at import, confirm the environment used by the chosen path can start before step 1.
 
@@ -40,7 +28,7 @@ Talk to the user in terms of what they'll see — PRs, features, and how the app
 
 ## background
 
-Adopting Partial Prefetching means every route preserves the prefetched UI that matters, now split between the shared App Shell and any extra per-link data a link explicitly asks for. The [guide](https://nextjs.org/docs/app/guides/adopting-partial-prefetching) is the canonical reference for what a prefetch contains and how to decide each case; this skill sequences that work against a running app.
+Adopting Partial Prefetching means every route preserves the prefetched UI that matters, now split between the shared App Shell and any extra per-link data a link explicitly asks for. The [guide](https://nextjs.org/docs/app/guides/adopting-partial-prefetching) is the canonical reference for what a prefetch contains and how to decide each case; this workflow sequences that work against a running app.
 
 The catch that decides most of the sweep: a default link warms only the shared App Shell. A route keyed by `params` or `searchParams` can prefetch more only after it has adopted Partial Prefetching and a specific link uses [`<Link prefetch={true}>`](https://nextjs.org/docs/app/api-reference/components/link#prefetch); then Next.js resolves the URL data and any cached content behind it before the click (the guide's [URL data](https://nextjs.org/docs/app/guides/adopting-partial-prefetching#url-data) section).
 
@@ -49,7 +37,7 @@ The catch that decides most of the sweep: a default link warms only the shared A
 - **The production-mode `instant()` suite — the primary record for test-backed preservation.** Reuse the app's production build, test context, and Playwright setup. Read an existing `instant-nav.rig.md` first; if the project has no rig, create it from **`rig-template.md`**. The same tests define the legacy target before adoption and become the work queue after each destination opts into Partial Prefetching. Development can help investigate a failure, but only this suite decides whether the prefetched UI was preserved.
 - **The dev server terminal — the primary record for the insight path.** Each validated route's insights are logged as `Error: Route "...": Next.js encountered ...` lines with the `https://nextjs.org/docs/messages/<slug>` link. Tail the dev log during the sweep; it's the greppable record of what fired where, and it works the same on Turbopack and webpack.
 - **The dev overlay Insights tab.** Insights are the amber, non-blocking tab. It appears only once an insight has fired, so a route that surfaces nothing shows no tab at all — that's the clean state, not a missing feature. Don't hunt for the tab on a quiet route; confirm clean from the dev log above, which is the reliable signal. The precondition is no blocking-prerender errors — those replace the insight on their route (see requires). An unrelated Issue (a hydration error, a console error) doesn't block the sweep; don't stall on it. When the tab is present, the overlay pill shows the count and each insight has fix cards linking its docs page. The overlay renders inside a shadow root (`nextjs-portal`), so accessibility-tree snapshots don't see it — evaluate into `shadowRoot` when you need to read or click it programmatically.
-- **`next-dev-loop`** to drive navigations and read the overlay. Prefer it over hand-rolled browser automation for the same reasons as in the Cache Components skill (webpack apps: see requires). When browsing its `/_next/mcp` tools, the prefetch insights surface through `get_errors` and the overlay, not the similarly-named `get_request_insights`. That one is the span and performance recorder (gated behind `experimental.requestInsights`) and reports nothing about prefetching.
+- **`next-dev-loop`** to drive navigations and read the overlay. Prefer it over hand-rolled browser automation for the same reasons as in the Cache Components workflow (webpack apps: see requires). When browsing its `/_next/mcp` tools, the prefetch insights surface through `get_errors` and the overlay, not the similarly-named `get_request_insights`. That one is the span and performance recorder (gated behind `experimental.requestInsights`) and reports nothing about prefetching.
 
 Every insight has a docs page — open it. Fetch the linked page for every distinct insight you encounter; the inline message is a summary, the page is the recipe.
 
@@ -181,4 +169,4 @@ Finally, show any effective `prefetch={false}` links in a concise `Navigation | 
 
 - [Instant navigation](https://nextjs.org/docs/app/guides/instant-navigation) — the broader validation model and loading-state tooling.
 - [Prevent regressions with e2e tests](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) — use the `@next/playwright` `instant()` helper to build the flag-off baseline suite, then keep it as the CI regression guard.
-- [`next-cache-components-optimizer`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-optimizer) — grows each route's static shell so the App Shell carries more.
+- The [`next-cache-components-optimizer`](https://www.skills.sh/vercel/next.js/next-cache-components-optimizer) Skill — grows each route's static shell so the App Shell carries more.

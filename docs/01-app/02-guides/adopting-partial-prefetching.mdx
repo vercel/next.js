@@ -22,20 +22,14 @@ Along the way, Next.js surfaces [instant navigation](/docs/app/guides/instant-na
 
 > **Good to know**: Partial Prefetching only works when [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled.
 
-## Use the adoption skill (recommended)
+## Use an agent (recommended)
 
-The [`next-partial-prefetching-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-partial-prefetching-adoption) skill drives this adoption with a coding agent. It reviews your `<Link prefetch={true}>` calls, captures the prefetched UI to preserve with [`instant()` tests](#verify-prefetched-ui-with-tests) when a production test rig is available, then enables the flag and checks each route for the insights this guide covers.
-
-Install the skill:
-
-```bash filename="Terminal"
-npx skills add vercel/next.js --skill next-partial-prefetching-adoption
-```
+A coding agent can drive this migration. It reviews your `<Link prefetch={true}>` calls, captures the prefetched UI to preserve with [`instant()` tests](#verify-prefetched-ui-with-tests) when a production test rig is available, then enables the flag and checks each route for the insights this guide covers.
 
 Then give the agent this prompt:
 
 ```prompt
-Adopt Partial Prefetching in this project using the next-partial-prefetching-adoption skill.
+Adopt Partial Prefetching in this project.
 ```
 
 ## Or adopt by hand

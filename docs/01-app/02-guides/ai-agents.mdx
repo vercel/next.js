@@ -13,7 +13,7 @@ related:
     - app/api-reference/config/next-config-js/agentUpgrade
 ---
 
-AI coding agents may rely on training data that predates the Next.js version installed in a project. To help agents use current APIs and verify their work, Next.js provides and evaluates version-matched documentation, managed project instructions, agent-guided upgrades, runtime tools, structured errors, reusable Skills, and optional agent feedback. See the results in the [Next.js agent evaluations](https://nextjs.org/evals).
+AI coding agents may rely on training data that predates the Next.js version installed in a project. To help agents use current APIs and verify their work, Next.js provides and evaluates version-matched public and agent-only documentation, managed project instructions, agent-guided upgrades, runtime tools, structured errors, and optional agent feedback. See the results in the [Next.js agent evaluations](https://nextjs.org/evals).
 
 For more background, read about the AI tooling introduced in [Next.js 16.2](/blog/next-16-2-ai) and [Next.js 16.3](/blog/next-16-3-ai-improvements).
 
@@ -48,6 +48,8 @@ Next.js makes the bundled documentation discoverable through managed instruction
 ## This is NOT the Next.js you know
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+For multi-step Next.js work, read `node_modules/next/dist/agent-docs/index.md` first and follow only the workflow that matches the current task.
 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
@@ -96,7 +98,7 @@ During the current user request, retain anonymized facts as feedback candidates 
 - Crashes, hangs, OOMs, or unexpected slowness
 - Incorrect behavior, output, errors, or diagnostics
 - Missing, unclear, or conflicting documentation
-- Unexpected CLI, codemod, Skill, or upgrade behavior and non-obvious workarounds
+- Unexpected CLI, codemod, Skill, agent workflow, or upgrade behavior and non-obvious workarounds
 
 Continue the current user request without reporting immediately. Ignore routine debugging and unverified changes. Never retain code, logs, paths, URLs, secrets, personal information, or project-specific data.
 
@@ -131,7 +133,7 @@ First, `next dev` forwards browser console errors and warnings to the terminal (
 
 The **framework's view** comes from the [Next.js MCP server](/docs/app/guides/mcp) at `/_next/mcp`, which exposes the running dev server's routes, server logs, and compilation issues. Its `get_compilation_issues` and `compile_route` tools report whether the code compiles straight from the dev server, so an agent doesn't have to run a full `next build` to find out.
 
-The [`next-dev-loop` skill](#next-dev-loop) adds the **browser's view** through [`agent-browser`](https://github.com/vercel-labs/agent-browser), a CLI that exposes the DOM, console, network, and Web Vitals as structured text. The Skill opens `agent-browser` with React DevTools enabled, which also exposes the component tree and pending Suspense boundaries. An agent can run a command such as `react tree` and use the structured output to decide what to inspect next.
+The [`next-dev-loop` Skill](#next-dev-loop) adds the **browser's view** through [`agent-browser`](https://github.com/vercel-labs/agent-browser), a CLI that exposes the DOM, console, network, and Web Vitals as structured text. The Skill opens `agent-browser` with React DevTools enabled, which also exposes the component tree and pending Suspense boundaries. An agent can run a command such as `react tree` and use the structured output to decide what to inspect next.
 
 Together with the Next.js MCP server, `next-dev-loop` combines the framework's and the browser's perspectives into one edit-and-verify loop.
 
@@ -167,19 +169,13 @@ The `Learn more` link resolves to a per-error page under [`/docs/messages`](http
 
 ## Skills for multi-step workflows
 
-Framework knowledge comes from the bundled docs, not from Skills. [Benchmark results](https://nextjs.org/evals) show that always-available context outperforms on-demand retrieval. Skills cover the tasks that are workflows rather than lookups, such as adopting Cache Components or Partial Prefetching across an app. Next.js Skills package these as structured instructions an agent installs and follows, sequencing the work and pointing at the relevant docs and [runtime tooling](#runtime-visibility) along the way.
+Framework knowledge comes from the bundled docs, not from Skills. [Benchmark results](https://nextjs.org/evals) show that always-available context outperforms on-demand retrieval. Next.js also bundles version-matched migration workflows for version upgrades and [Future Defaults](/docs/app/guides/upgrading/agent-upgrade#adopt-future-defaults); [`next upgrade --agent`](/docs/app/guides/upgrading/agent-upgrade) loads the applicable workflow automatically.
 
-You can [browse the source for these Skills](https://github.com/vercel/next.js/tree/canary/skills) in the Next.js repository and [find them on skills.sh](https://www.skills.sh/vercel/next.js).
-
-The Skills serve three different workflow types:
-
-- **Runtime foundations** such as `next-dev-loop` give any coding task a repeatable inspect, edit, and verify cycle.
-- **Interactive workflows** make broader changes with user checkpoints, such as adopting Cache Components or Partial Prefetching across an app.
-- **Unattended loops** work toward a verifiable goal and stop only for genuine decisions.
+Reusable runtime and optimization workflows remain Skills. You can [browse their source](https://github.com/vercel/next.js/tree/canary/skills) and [find them on skills.sh](https://www.skills.sh/vercel/next.js).
 
 ### `next-dev-loop`
 
-The [`next-dev-loop`](https://www.skills.sh/vercel/next.js/next-dev-loop) runtime foundation verifies changes against a running dev server using the [MCP server](/docs/app/guides/mcp) and browser.
+The [`next-dev-loop`](https://www.skills.sh/vercel/next.js/next-dev-loop) Skill verifies changes against a running dev server using the [MCP server](/docs/app/guides/mcp) and browser.
 
 ```bash filename="Terminal"
 npx skills add vercel/next.js --skill next-dev-loop
@@ -189,26 +185,6 @@ Then give the agent this prompt:
 
 ```prompt
 After every edit, verify the page still works at runtime using the next-dev-loop Skill.
-```
-
-### `next-cache-components-adoption`
-
-The [`next-cache-components-adoption`](https://www.skills.sh/vercel/next.js/next-cache-components-adoption) Skill migrates an app to [Cache Components](/docs/app/getting-started/caching):
-
-1. Turns the flag on and finds the routes that can't prerender.
-2. Fixes them one feature at a time, checking in with you before moving on.
-3. Confirms a feature against `next dev` and `next build` before leaving it.
-
-The Skill supports both a series of pull requests and a single-branch migration.
-
-```bash filename="Terminal"
-npx skills add vercel/next.js --skill next-cache-components-adoption
-```
-
-Then give the agent this prompt:
-
-```prompt
-Adopt Cache Components in this project using the next-cache-components-adoption Skill.
 ```
 
 ### `next-cache-components-optimizer`
@@ -229,26 +205,6 @@ Then give the agent a prompt like:
 
 ```prompt
 Make the navigation from /settings to /dashboard instant using the next-cache-components-optimizer Skill. The header and the project list should be part of the instant UI.
-```
-
-### `next-partial-prefetching-adoption`
-
-The [`next-partial-prefetching-adoption`](https://www.skills.sh/vercel/next.js/next-partial-prefetching-adoption) Skill moves an app onto [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching), where links share one App Shell:
-
-1. Audits existing `<Link prefetch={true}>` navigations and identifies the prefetched UI to preserve.
-2. Captures that UI in passing [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) tests before enabling Partial Prefetching, then migrates each destination until the same tests pass unchanged.
-3. Enables the flag, resolves the URL-data insights it surfaces, and marks optional per-link prefetching candidates for later.
-
-It needs [Cache Components](/docs/app/getting-started/caching) already adopted and a production-like build it can run for prefetch verification.
-
-```bash filename="Terminal"
-npx skills add vercel/next.js --skill next-partial-prefetching-adoption
-```
-
-Then give the agent this prompt:
-
-```prompt
-Adopt Partial Prefetching in this project using the next-partial-prefetching-adoption Skill.
 ```
 
 ### `next-partial-prefetching-optimizer`

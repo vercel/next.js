@@ -152,10 +152,9 @@ automates most of it), then enable Cache Components in `next.config.ts`:
 export default { cacheComponents: true }
 ```
 
-Enabling the flag surfaces the blocking routes to resolve first; the
-[`next-cache-components-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-adoption)
-skill drives that adoption. Reach for this optimizer once the app builds under
-Cache Components.
+Enabling the flag surfaces the blocking routes to resolve first. Follow the
+version-matched [Cache Components Future Default workflow](https://github.com/vercel/next.js/tree/canary/packages/next/src/agent-docs/upgrade/future/cache-components/guide.md),
+then reach for this optimizer once the app builds under Cache Components.
 
 This gate is deliberate: the skill targets current Next.js, and none of the
 verdicts below are meaningful on older versions.
@@ -473,9 +472,9 @@ during an incremental rollout and keep checking any other target routes.
   that URL-specific content ready before the click is worth the per-link server
   work. Keep the default link behavior everywhere else so the shared App Shell
   remains the low-cost baseline.
-- **Not adopted yet:** recommend
-  [`next-partial-prefetching-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-partial-prefetching-adoption).
-  That skill moves the app onto the better prefetching model: shared App Shell
+- **Not adopted yet:** recommend the version-matched
+  [Partial Prefetching Future Default workflow](https://github.com/vercel/next.js/tree/canary/packages/next/src/agent-docs/upgrade/future/partial-prefetching/guide.md).
+  That guide moves the app onto the better prefetching model: shared App Shell
   prefetches by default, fewer duplicated full-prefetch requests for visible
   links, a link audit for existing `<Link prefetch={true}>` usage, and optional
   per-link prefetching only where URL-specific content is worth the

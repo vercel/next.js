@@ -76,6 +76,9 @@ describe('agent-rules auto-generate on next dev (agent detected)', () => {
     expect(agentsContent).toContain(AGENT_RULES_MARKER)
     expect(agentsContent).toContain('\n## This is NOT the Next.js you know\n')
     expect(agentsContent).toContain('node_modules/next/dist/docs/')
+    expect(agentsContent).toContain(
+      'node_modules/next/dist/agent-docs/index.md'
+    )
   })
 })
 
@@ -218,7 +221,9 @@ describe('agent-feedback auto-generate on next dev (enabled)', () => {
     expect(content).toContain(
       '- Missing, unclear, or conflicting documentation'
     )
-    expect(content).toContain('- Unexpected CLI, codemod, Skill')
+    expect(content).toContain(
+      '- Unexpected CLI, codemod, Skill, agent workflow'
+    )
     expect(content).toContain(
       'Keep a qualifying candidate through the reporting pass even if you resolve or work around it.'
     )
