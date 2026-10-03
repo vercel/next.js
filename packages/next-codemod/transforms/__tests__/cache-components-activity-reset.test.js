@@ -24,15 +24,21 @@ describe('cache-components-activity-reset', () => {
 `
 
     expect(transform('/project/app/page.tsx', source)).toMatchInlineSnapshot(`
-"// TODO: Cache Components adoption. Remove this wrapper after verifying this route no longer relies on unmounting to reset state.
-// See: https://nextjs.org/docs/app/guides/preserving-ui-state
-import { CacheComponentsActivityReset } from \"./_next-cache-components/activity-reset\";
+     "import { createElement as createElementActivityReset } from "react";
 
-export default function Page() {
-  return <CacheComponentsActivityReset><p>Hello</p></CacheComponentsActivityReset>;
-}
-"
-`)
+     // TODO: Cache Components adoption. Remove this wrapper after verifying this route no longer relies on unmounting to reset state.
+     // See: https://nextjs.org/docs/app/guides/preserving-ui-state
+     import { CacheComponentsActivityReset } from "./_next-cache-components/activity-reset";
+
+     function Page() {
+       return <p>Hello</p>
+     }
+
+     export default function CacheComponentsActivityResetRoute(...args: Parameters<typeof Page>) {
+       return <CacheComponentsActivityReset>{createElementActivityReset(Page, ...args)}</CacheComponentsActivityReset>;
+     }
+     "
+    `)
   })
 
   it('uses a relative import for a nested layout', () => {
@@ -45,17 +51,23 @@ export default function Layout({ children }: { children: ReactNode }) {
 
     expect(transform('/project/app/dashboard/settings/layout.tsx', source))
       .toMatchInlineSnapshot(`
-"import type { ReactNode } from 'react'
+     "import type { ReactNode } from 'react'
 
-// TODO: Cache Components adoption. Remove this wrapper after verifying this route no longer relies on unmounting to reset state.
-// See: https://nextjs.org/docs/app/guides/preserving-ui-state
-import { CacheComponentsActivityReset } from \"../../_next-cache-components/activity-reset\";
+     import { createElement as createElementActivityReset } from "react";
 
-export default function Layout({ children }: { children: ReactNode }) {
-  return <CacheComponentsActivityReset><section>{children}</section></CacheComponentsActivityReset>;
-}
-"
-`)
+     // TODO: Cache Components adoption. Remove this wrapper after verifying this route no longer relies on unmounting to reset state.
+     // See: https://nextjs.org/docs/app/guides/preserving-ui-state
+     import { CacheComponentsActivityReset } from "../../_next-cache-components/activity-reset";
+
+     function Layout({ children }: { children: ReactNode }) {
+       return <section>{children}</section>
+     }
+
+     export default function CacheComponentsActivityResetRoute(...args: Parameters<typeof Layout>) {
+       return <CacheComponentsActivityReset>{createElementActivityReset(Layout, ...args)}</CacheComponentsActivityReset>;
+     }
+     "
+    `)
   })
 
   it('wraps a parenthesized multi-line return without stray parentheses', () => {
@@ -73,20 +85,26 @@ export default function Layout({ children }: { children: ReactNode }) {
     expect(output).not.toMatch(/>\(</)
     expect(output).not.toMatch(/>\)</)
     expect(output).toMatchInlineSnapshot(`
-"// TODO: Cache Components adoption. Remove this wrapper after verifying this route no longer relies on unmounting to reset state.
-// See: https://nextjs.org/docs/app/guides/preserving-ui-state
-import { CacheComponentsActivityReset } from \"../_next-cache-components/activity-reset\";
+     "import { createElement as createElementActivityReset } from "react";
 
-export default function Layout({ children }) {
-  return (
-    <CacheComponentsActivityReset><section>
-        <nav>Dashboard</nav>
-        {children}
-      </section></CacheComponentsActivityReset>
-  );
-}
-"
-`)
+     // TODO: Cache Components adoption. Remove this wrapper after verifying this route no longer relies on unmounting to reset state.
+     // See: https://nextjs.org/docs/app/guides/preserving-ui-state
+     import { CacheComponentsActivityReset } from "../_next-cache-components/activity-reset";
+
+     function Layout({ children }) {
+       return (
+         <section>
+           <nav>Dashboard</nav>
+           {children}
+         </section>
+       )
+     }
+
+     export default function CacheComponentsActivityResetRoute(...args: Parameters<typeof Layout>) {
+       return <CacheComponentsActivityReset>{createElementActivityReset(Layout, ...args)}</CacheComponentsActivityReset>;
+     }
+     "
+    `)
   })
 
   it('leaves the root layout unchanged', () => {
@@ -103,7 +121,7 @@ export default function Layout({ children }) {
     expect(transform('/project/src/app/layout.tsx', source)).toBe(source)
   })
 
-  it('does not wrap returns that render nothing', () => {
+  it('wraps the route component instead of its individual returns', () => {
     const source = `export default function Page({ ready }) {
   if (!ready) return null
   return <p>Ready</p>
@@ -113,14 +131,17 @@ export default function Layout({ children }) {
     const output = transform('/project/app/page.tsx', source)
     expect(output).toContain('if (!ready) return null')
     expect(output).toContain(
-      'return <CacheComponentsActivityReset><p>Ready</p></CacheComponentsActivityReset>;'
+      'export default function CacheComponentsActivityResetRoute(...args: Parameters<typeof Page>)'
     )
+    expect(output).toContain('createElementActivityReset(Page, ...args)')
 
     const onlyNull = `export default function Page() {
   return null
 }
 `
-    expect(transform('/project/app/page.tsx', onlyNull)).toBe(onlyNull)
+    expect(transform('/project/app/page.tsx', onlyNull)).toContain(
+      'createElementActivityReset(Page, ...args)'
+    )
   })
 
   it('wraps each top-level return without touching nested functions', () => {
@@ -135,13 +156,10 @@ export default function Layout({ children }) {
 `
 
     const output = transform('/project/app/page.tsx', source)
-    expect(output).toContain(
-      'if (!ready) return null'
-    )
-    expect(output).toContain(
-      'return <CacheComponentsActivityReset><p>{getLabel()}</p></CacheComponentsActivityReset>;'
-    )
+    expect(output).toContain('if (!ready) return null')
+    expect(output).toContain('return <p>{getLabel()}</p>')
     expect(output).toContain("return 'ready'")
+    expect(output).toContain('createElementActivityReset(Page, ...args)')
   })
 
   it('wraps an identifier default export', () => {
@@ -150,9 +168,9 @@ export default function Layout({ children }) {
 export default Page
 `
 
-    expect(transform('/project/app/page.tsx', source)).toContain(
-      'const Page = () => <CacheComponentsActivityReset><p>Hello</p></CacheComponentsActivityReset>'
-    )
+    const output = transform('/project/app/page.tsx', source)
+    expect(output).toContain('const Page = () => <p>Hello</p>')
+    expect(output).toContain('createElementActivityReset(Page, ...args)')
   })
 
   it('wraps a component passed to a higher-order component', () => {
@@ -163,8 +181,12 @@ export default Page
 export default withPage(Page)
 `
 
-    expect(transform('/project/app/page.tsx', source)).toContain(
-      'return <CacheComponentsActivityReset><p>Hello</p></CacheComponentsActivityReset>;'
+    const output = transform('/project/app/page.tsx', source)
+    expect(output).toContain(
+      'const CacheComponentsActivityResetOriginal = withPage(Page);'
+    )
+    expect(output).toContain(
+      'createElementActivityReset(CacheComponentsActivityResetOriginal, ...args)'
     )
   })
 
@@ -178,8 +200,67 @@ export default withPage(Page)
     expect(output).toContain(
       'import { createElement as createElementActivityReset } from "react";'
     )
+    expect(output).toContain('createElementActivityReset(Page, ...args)')
+  })
+
+  it('wraps a parenthesized implicit arrow component', () => {
+    const source = `const Page = () => (
+  <main>Hello</main>
+)
+
+export default Page
+`
+
+    const output = transform('/project/app/page.tsx', source)
+    expect(output).toContain('const Page = () => (')
+    expect(output).toContain('createElementActivityReset(Page, ...args)')
+    expect(output).not.toMatch(/>\(</)
+  })
+
+  it('wraps a component that returns a fragment', () => {
+    const source = `export default function Page() {
+  return (
+    <>
+      <header>Header</header>
+      <main>Content</main>
+    </>
+  )
+}
+`
+
+    const output = transform('/project/app/page.tsx', source)
+    expect(output).toContain('<>')
+    expect(output).toContain('createElementActivityReset(Page, ...args)')
+    expect(output).not.toMatch(/>\(</)
+  })
+
+  it('preserves a client directive without adding another semicolon', () => {
+    const source = `'use client'
+
+import { useState } from 'react'
+
+export default function Page() {
+  const [value] = useState('draft')
+  return <p>{value}</p>
+}
+`
+
+    const output = transform('/project/app/page.tsx', source)
+    expect(output).toMatch(/^'use client';\n/)
+    expect(output).not.toContain("'use client';;")
+    expect(output).toContain('createElementActivityReset(Page, ...args)')
+  })
+
+  it('names and wraps an anonymous default component', () => {
+    const source = `export default function () {
+  return <p>Hello</p>
+}
+`
+
+    const output = transform('/project/app/page.tsx', source)
+    expect(output).toContain('function CacheComponentsActivityResetOriginal()')
     expect(output).toContain(
-      "return createElementActivityReset(CacheComponentsActivityReset, null, 'Hello');"
+      'createElementActivityReset(CacheComponentsActivityResetOriginal, ...args)'
     )
   })
 

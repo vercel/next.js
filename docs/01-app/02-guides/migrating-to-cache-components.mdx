@@ -88,7 +88,7 @@ export const instant = false
 
 ## Adopting incrementally
 
-You don't have to migrate every route at once. The validation opt-out and UI-state reset below solve different migration problems. Use either or both, then remove them route by route:
+You don't have to migrate every route at once. Start with a buildable compatibility layer, then remove it in two passes: validation opt-outs first and Activity reset boundaries last.
 
 1. **Enable the flag and migrate each route segment config.** Follow the relevant sections below for [`dynamic = "force-dynamic"`](#dynamic--force-dynamic), [`dynamic = "force-static"`](#dynamic--force-static), [`dynamic = "error"`](#dynamic--error), [`revalidate`](#revalidate), and [`fetchCache`](#fetchcache). For routes with dynamic params, also follow the [`generateStaticParams`](#generatestaticparams-and-dynamicparams) guidance. Routes that still render instantly need no further work.
 2. **Optionally defer validation work.** If you need to address validation route by route, run:
@@ -99,18 +99,19 @@ You don't have to migrate every route at once. The validation opt-out and UI-sta
 
    This adds `instant = false` to every `page`, `layout`, and `default` that does not already declare `instant`. The app keeps building and serving, with validation deferred for those routes. See the [`cache-components-instant-false`](/docs/app/guides/upgrading/codemods#cache-components-instant-false) codemod.
 
-3. **Optionally preserve route reset behavior.** Cache Components keeps route state and DOM state when users navigate away. If the app relied on route unmounting to clear that state, run:
+3. **Temporarily preserve route reset behavior.** Cache Components keeps route state and DOM state when users navigate away. Run the second codemod to preserve the previous unmount behavior during migration:
 
    ```bash filename="Terminal"
    npx @next/codemod@canary cache-components-activity-reset ./app
    ```
 
-   This wraps every `page`, `layout`, and `default` below the root layout in a temporary reset boundary. See the [`cache-components-activity-reset`](/docs/app/guides/upgrading/codemods#cache-components-activity-reset) codemod. The [Preserving UI state](/docs/app/guides/preserving-ui-state#keep-route-state-resetting-during-migration) guide explains how to remove the boundaries and replace broad resets with targeted ones.
+   This wraps every `page`, `layout`, and `default` below the root layout in a temporary reset boundary. See the [`cache-components-activity-reset`](/docs/app/guides/upgrading/codemods#cache-components-activity-reset) codemod.
 
    > **Good to know**: For either codemod, pass `./src/app` in a `src/` project. A wrong path reports `0 ok` instead of failing, so check the file count. Both codemods leave `TODO: Cache Components adoption` comments as route-by-route work queues.
 
-4. **Fix synchronous IO. It can't be deferred.** Calls like `new Date()`, `Date.now()`, `Math.random()`, and `crypto.randomUUID()` during prerender throw a build error that `instant = false` does not clear, so a route that uses them won't build until you address it, opt-out or not. Move the call out of the prerendered shell so it runs at request time: wrap the part that needs it in [`<Suspense>`](https://react.dev/reference/react/Suspense) and call [`connection()`](/docs/app/api-reference/functions/connection) before the call, or move it into a Client Component.
-5. **Convert one route at a time.** Remove `instant = false`, then resolve the route's insights by caching data with [`use cache`](/docs/app/api-reference/directives/use-cache) or wrapping runtime data in [`<Suspense>`](https://react.dev/reference/react/Suspense). Remove its Activity reset wrapper after checking that the route no longer depends on unmounting to reset state. Work from layouts down to their child routes so an ancestor does not hide the behavior you are testing.
+4. **Get the build passing.** Fix synchronous IO because it can't be deferred. Calls like `new Date()`, `Date.now()`, `Math.random()`, and `crypto.randomUUID()` during prerender throw a build error that `instant = false` does not clear. Move the call out of the prerendered shell so it runs at request time: wrap the part that needs it in [`<Suspense>`](https://react.dev/reference/react/Suspense) and call [`connection()`](/docs/app/api-reference/functions/connection) before the call, or move it into a Client Component.
+5. **Remove validation opt-outs.** Work from layouts down to their child routes so an ancestor does not hide the behavior you are testing. Remove `instant = false`, then resolve the route's insights by caching data with [`use cache`](/docs/app/api-reference/directives/use-cache) or wrapping runtime data in [`<Suspense>`](https://react.dev/reference/react/Suspense).
+6. **Remove Activity reset boundaries.** Do this after validation is clean. Remove each generated boundary and check whether navigation should preserve or reset the route's UI state. Keep a broad boundary only when it is a deliberate product decision, and replace the generated TODO with a comment that explains why. The [Preserving UI state](/docs/app/guides/preserving-ui-state#keep-route-state-resetting-during-migration) guide covers targeted alternatives.
 
 ## Following validation
 

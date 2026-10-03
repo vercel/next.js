@@ -250,86 +250,74 @@ export default function transformer(
     localCreateElementName += 'Boundary'
   }
 
-  const usesJsx = extname(file.path) !== '.ts'
+  const uniqueName = (base: string) => {
+    let name = base
+    while (usedNames.has(name)) name += 'Boundary'
+    usedNames.add(name)
+    return name
+  }
 
-  const isResetElement = (expression: any) =>
-    expression?.type === 'JSXElement' &&
-    expression.openingElement?.name?.type === 'JSXIdentifier' &&
-    expression.openingElement.name.name === localResetName
+  const declaration = exportPath.node.declaration
+  const replacementStatements: any[] = []
+  let originalComponentName: string
 
-  const wrapExpression = (expression: any) => {
-    if (isResetElement(expression)) return expression
-
-    // A `return (...)` keeps its parentheses on the node. Inside the wrapper
-    // element they would print as JSX text, so drop them.
-    if (expression.extra?.parenthesized) {
-      expression.extra.parenthesized = false
-    }
-
-    if (!usesJsx) {
-      return j.callExpression(j.identifier(localCreateElementName), [
-        j.identifier(localResetName),
-        j.nullLiteral(),
-        expression,
+  if (declaration.type === 'FunctionDeclaration') {
+    originalComponentName =
+      declaration.id?.name ?? uniqueName('CacheComponentsActivityResetOriginal')
+    declaration.id ??= j.identifier(originalComponentName)
+    replacementStatements.push(declaration)
+  } else if (declaration.type === 'Identifier') {
+    originalComponentName = declaration.name
+  } else {
+    originalComponentName = uniqueName('CacheComponentsActivityResetOriginal')
+    replacementStatements.push(
+      j.variableDeclaration('const', [
+        j.variableDeclarator(
+          j.identifier(originalComponentName),
+          declaration as any
+        ),
       ])
-    }
-
-    const child =
-      expression.type === 'JSXElement' || expression.type === 'JSXFragment'
-        ? expression
-        : j.jsxExpressionContainer(expression)
-
-    return j.jsxElement(
-      j.jsxOpeningElement(j.jsxIdentifier(localResetName), []),
-      j.jsxClosingElement(j.jsxIdentifier(localResetName)),
-      [child]
     )
   }
 
-  // Returning nothing renders nothing, so there is no state to reset.
-  const rendersNothing = (expression: any) =>
-    expression.type === 'NullLiteral' ||
-    (expression.type === 'Literal' && expression.value === null) ||
-    (expression.type === 'Identifier' && expression.name === 'undefined')
+  const wrapperName = uniqueName('CacheComponentsActivityResetRoute')
+  const args = j.restElement(j.identifier('args'))
 
-  const component = componentPath.node
-  let wrappedReturn = false
-
-  if (
-    component.type === 'ArrowFunctionExpression' &&
-    component.body.type !== 'BlockStatement'
-  ) {
-    if (!rendersNothing(component.body)) {
-      component.body = wrapExpression(component.body)
-      wrappedReturn = true
-    }
-  } else {
-    root.find(j.ReturnStatement).forEach((returnPath) => {
-      if (!returnPath.node.argument) return
-      if (rendersNothing(returnPath.node.argument)) return
-
-      let parentPath = returnPath.parentPath
-      while (parentPath && parentPath.node !== component) {
-        if (
-          parentPath.node.type === 'FunctionDeclaration' ||
-          parentPath.node.type === 'FunctionExpression' ||
-          parentPath.node.type === 'ArrowFunctionExpression'
-        ) {
-          return
-        }
-        parentPath = parentPath.parentPath
-      }
-
-      if (parentPath?.node !== component) return
-
-      returnPath.node.argument = wrapExpression(returnPath.node.argument)
-      wrappedReturn = true
-    })
+  if (/\.(ts|tsx)$/.test(file.path)) {
+    args.typeAnnotation = j.tsTypeAnnotation(
+      j.tsTypeReference(
+        j.identifier('Parameters'),
+        j.tsTypeParameterInstantiation([
+          j.tsTypeQuery(j.identifier(originalComponentName)),
+        ])
+      )
+    )
   }
 
-  if (!wrappedReturn) {
-    return file.source
-  }
+  const originalElement = j.callExpression(
+    j.identifier(localCreateElementName),
+    [j.identifier(originalComponentName), j.spreadElement(j.identifier('args'))]
+  )
+  const resetElement =
+    extname(file.path) === '.ts'
+      ? j.callExpression(j.identifier(localCreateElementName), [
+          j.identifier(localResetName),
+          j.nullLiteral(),
+          originalElement,
+        ])
+      : j.jsxElement(
+          j.jsxOpeningElement(j.jsxIdentifier(localResetName), []),
+          j.jsxClosingElement(j.jsxIdentifier(localResetName)),
+          [j.jsxExpressionContainer(originalElement)]
+        )
+  const wrapper = j.functionDeclaration(
+    j.identifier(wrapperName),
+    [args],
+    j.blockStatement([j.returnStatement(resetElement)])
+  )
+
+  replacementStatements.push(j.exportDefaultDeclaration(wrapper))
+  exportPath.replace(...replacementStatements)
 
   const resetImport = j.importDeclaration(
     [
@@ -363,21 +351,19 @@ export default function transformer(
   }
   body.splice(lastImportIndex + 1, 0, resetImport)
 
-  if (!usesJsx) {
-    body.splice(
-      lastImportIndex + 1,
-      0,
-      j.importDeclaration(
-        [
-          j.importSpecifier(
-            j.identifier('createElement'),
-            j.identifier(localCreateElementName)
-          ),
-        ],
-        j.stringLiteral('react')
-      )
+  body.splice(
+    lastImportIndex + 1,
+    0,
+    j.importDeclaration(
+      [
+        j.importSpecifier(
+          j.identifier('createElement'),
+          j.identifier(localCreateElementName)
+        ),
+      ],
+      j.stringLiteral('react')
     )
-  }
+  )
 
   if (process.env.NODE_ENV !== 'test' && options.dry !== true) {
     writeResetComponent(appDirectory)

@@ -47,17 +47,25 @@ export function CacheComponentsActivityReset({
 }
 ```
 
-It then wraps each existing `page`, `layout`, and parallel-route `default`, except the root layout:
+It then places each existing `page`, `layout`, and parallel-route `default` below a reset boundary, except the root layout. The boundary wraps the route component itself, so it also resets state declared by that component:
 
-```tsx filename="app/dashboard/page.tsx" highlight={1-3,7,9}
+```tsx filename="app/dashboard/page.tsx" highlight={1,3-5,11-19}
+import { createElement as createElementActivityReset } from 'react'
+
 // TODO: Cache Components adoption. Remove this wrapper after verifying this route no longer relies on unmounting to reset state.
 // See: https://nextjs.org/docs/app/guides/preserving-ui-state
 import { CacheComponentsActivityReset } from '../_next-cache-components/activity-reset'
 
-export default function Page() {
+function Page() {
+  return <Dashboard />
+}
+
+export default function CacheComponentsActivityResetRoute(
+  ...args: Parameters<typeof Page>
+) {
   return (
     <CacheComponentsActivityReset>
-      <Dashboard />
+      {createElementActivityReset(Page, ...args)}
     </CacheComponentsActivityReset>
   )
 }
@@ -153,13 +161,13 @@ If the user navigated away while the dialog was open, returning and opening the 
 
 To fix this, derive the dialog state from something outside the preserved component state like a search param:
 
-```tsx highlight={3,7-9,20,25}
+```tsx filename="app/products/product-tab.tsx" highlight={3,7-9,20,25}
 'use client'
 
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useEffect, useRef } from 'react'
 
-function ProductTab() {
+export function ProductTab() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const isDialogOpen = searchParams.get('edit') === 'true'
@@ -184,6 +192,21 @@ function ProductTab() {
         </dialog>
       )}
     </div>
+  )
+}
+```
+
+With Cache Components, render a component that calls `useSearchParams` within a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary:
+
+```tsx filename="app/products/page.tsx"
+import { Suspense } from 'react'
+import { ProductTab } from './product-tab'
+
+export default function Page() {
+  return (
+    <Suspense fallback={null}>
+      <ProductTab />
+    </Suspense>
   )
 }
 ```
@@ -357,7 +380,7 @@ function UserScopedForm({ userId }: { userId: string | null }) {
 }
 ```
 
-Alternatively, key components by user ID to let React handle the reset: `<Form key={userId} />`.
+Alternatively, key components by user ID to let React handle the reset: `<Form key={userId} />`. Changing the key creates a new form state. React does not retain a separate draft for each previous key, so store drafts elsewhere if users need to return to them.
 
 ## Global styles
 

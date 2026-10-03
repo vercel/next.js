@@ -111,7 +111,7 @@ If the request does not specify a strategy and the user is available, ask in ter
 
 In a non-interactive run with no strategy in the prompt, default to **Incremental** and document the choice.
 
-- **Incremental** — quiet pre-step + the loop. Add temporary validation opt-outs, Activity reset boundaries, or both, depending on which behaviors the app needs to preserve. Get the build passing, stop and check in with the user (see [end of the pre-step](#end-of-the-pre-step-check-in)), then enter [step 2's loop](#step-2-the-inner-loop-remove-opt-outs-one-feature-at-a-time) and ship each feature as a follow-up PR.
+- **Incremental** — quiet pre-step + the loop. Add temporary validation opt-outs and Activity reset boundaries across the app, get the build passing, then stop and check in with the user (see [end of the pre-step](#end-of-the-pre-step-check-in)). Remove validation opt-outs first. Remove the lower-priority Activity reset boundaries last, unless a boundary is a deliberate and documented product decision. Ship each feature as a follow-up PR.
 - **Direct** — skip the pre-step. Enable `cacheComponents` and go straight to [step 2's loop](#step-2-the-inner-loop-remove-opt-outs-one-feature-at-a-time); the build's blocking routes are the work queue.
 
 ### incremental
@@ -126,7 +126,7 @@ Run the validation opt-out codemod if validation needs to be addressed route by 
 npx @next/codemod@canary cache-components-instant-false ./app
 ```
 
-Independently, inventory Client Components that use `useState`, `useReducer`, or `useActionState`. Run the Activity reset codemod when that state includes multi-step flows, drafts, open/closed UI, or other values that a navigation used to clear. Also run it when the user asks to keep current behavior. Skip it for apps whose client state is derived from the URL or server data, and audit each route in the loop instead:
+Run the Activity reset codemod as the second compatibility layer. This preserves the route-unmount behavior from before Cache Components while the app is migrated:
 
 ```bash
 npx @next/codemod@canary cache-components-activity-reset ./app
@@ -134,7 +134,7 @@ npx @next/codemod@canary cache-components-activity-reset ./app
 
 Pass the app directory you resolved in [requires](#requires). A wrong path is not an error: it reports `0 ok` and exits `0`, so read the file count and treat zero as a failed run, not an adopted app.
 
-Confirm that each command you chose changed files, then set `cacheComponents: true`. The resulting `// TODO: Cache Components adoption` comments are the work queues for the loop. The two queues are independent: removing `instant = false` re-enables validation, while removing an Activity reset boundary changes route-state behavior. Follow the [migration guide](https://nextjs.org/docs/app/guides/migrating-to-cache-components#adopting-incrementally) for the codemod behavior and removal steps.
+Confirm that both commands changed files, then set `cacheComponents: true`. The resulting `// TODO: Cache Components adoption` comments create two work queues. Address validation opt-outs first. Activity reset boundaries are the final, lower-priority queue. A route can appear in both: removing `instant = false` re-enables validation, while removing an Activity reset boundary changes route-state behavior. Follow the [migration guide](https://nextjs.org/docs/app/guides/migrating-to-cache-components#adopting-incrementally) for the codemod behavior and removal steps.
 
 If the validation opt-out codemod isn't available (older `@next/codemod`, sandboxed environment, offline run), reproduce it by hand: for every `{page,layout,default}.{js,jsx,ts,tsx}` in the app directory that isn't `"use client"` or `"use server"` and doesn't already declare `instant`, insert this after the imports:
 
@@ -175,7 +175,7 @@ Incremental only. The pre-step is the shippable PR. Record the passing checkpoin
 - What you did: turned on Cache Components, ran the codemod, migrated the previously static routes, fixed the remaining blockers, and confirmed the build passes.
 - What changed: the previously static routes still prerender. Other pages and layouts keep `// TODO: Cache Components adoption` markers for validation opt-outs and temporary Activity reset boundaries.
 - What to sanity-check: the previously static routes stay fully prerendered and prefetchable, and request-specific data on the deferred routes remains request-specific.
-- The question: "Want to open this as its own PR before we start adopting Cache Components route by route? Or keep going on this branch?" Wait for the answer.
+- The question: "The app now builds with Cache Components. Want to open this checkpoint as its own PR, continue by removing the validation opt-outs, or complete the final Activity cleanup too?" Wait for the answer.
 
 If the user already asked you to complete the migration, continue after recording this checkpoint instead of asking the same question again.
 
@@ -187,7 +187,7 @@ Set `cacheComponents: true` and move to [step 2](#step-2-the-inner-loop-remove-o
 
 A "feature" is a single product surface — `app/settings/profile/**`, `app/posts/[slug]/**` — not a whole top-level app like `app/dashboard/**`. Finish one end-to-end before starting the next.
 
-Within a feature, walk top-down (layouts before pages, root layout first). Removing a layout's opt-out before its descendants exposes the layout's own blocking reads. Removing its Activity reset wrapper exposes state preservation for that subtree. (Direct: there are no generated compatibility layers to remove — fix each failing route and audit its preserved state in place.)
+Within a feature, walk top-down (layouts before pages, root layout first). Removing a layout's opt-out before its descendants exposes the layout's own blocking reads. Leave Activity reset wrappers in place during this step. (Direct: there are no generated compatibility layers to remove — fix each failing route, then audit its preserved state in step 3.)
 
 A passing build mid-walk doesn't mean the layout is clean. Removing a layout's opt-out while its descendant pages still have theirs keeps the build passing — each page shadows the inherited validation. The layout's actual blocking reads only surface once nothing below it shadows them. Don't call a feature done at the layout boundary.
 
@@ -200,7 +200,6 @@ Per route:
 - Remove the opt-out (Incremental) or target the failing route (Direct).
 - Reload in dev. Overlay clean? Skip to verify. Overlay still red? Fix.
 - Fix — fetch the docs page linked from the error (`https://nextjs.org/docs/messages/<slug>`), apply the recipe from there. The inline overlay text is a summary; the docs page is the source of truth.
-- Remove the route's Activity reset wrapper (Incremental), navigate away, then return with both a new navigation and browser back/forward. Replace accidental reliance on unmounting with the patterns in the [preserving UI state guide](https://nextjs.org/docs/app/guides/preserving-ui-state). In Direct mode, perform the same audit without a wrapper to remove.
 - Verify in the browser. Confirm the visible content on first paint is what you intended in the shell — not stuck on a fallback, not silently streaming everything out of an empty shell.
 - Re-check siblings if the fix touched shared code (a layout, a sidebar component). A shared-shell change can fix the route you're on and break a sibling.
 
@@ -213,7 +212,6 @@ Per route:
 - Remove the opt-out (Incremental) or target the failing route (Direct).
 - Rebuild with `--debug-build-paths app/<route>/**` (only that route) or `--debug-prerender` (full build, but past the first failure). Route passing? Move on. Still blocking? Fix.
 - Fix — fetch the docs page linked from the error (`https://nextjs.org/docs/messages/<slug>`), apply the recipe from there.
-- Inspect Client Components in the route for state that previously reset because the route unmounted. Remove any generated Activity reset wrapper, replace accidental reset behavior at the feature boundary using the [preserving UI state guide](https://nextjs.org/docs/app/guides/preserving-ui-state), and flag the behavior for browser verification.
 - Re-check siblings if the fix touched shared code.
 - Flag the route as build-only-verified when you hand the feature off. Each `◐` route still needs a browser pass before the feature is done.
 
@@ -224,9 +222,20 @@ Per route:
 - Don't narrate the refactor with comments. The only comment the codemod (or you) should leave is `// TODO: Cache Components adoption` on opt-outs, and the user's existing comments. Don't annotate every `<Suspense>` boundary or `"use cache"` call with what it does — the code says that. Drop a comment only when the _why_ isn't clear from the code (e.g. a deliberate Block with a reason).
 - For many routes with the same mechanical fix, verify one representative route first. Then batch disjoint route groups using the same recipe, and run the shared build and browser checks together.
 
-Keep a todo list of the feature's routes. When every route in the feature is clean, move to step 3.
+Keep a todo list of the feature's routes. When validation is clean across the feature, move to step 3.
 
-## step 3: verify the feature
+## step 3: remove Activity reset boundaries
+
+This is the final and lowest-priority migration pass. Do not add generated Activity reset boundaries to new routes. For each existing wrapper:
+
+- Remove the wrapper and navigate away from the route, then return with both a new navigation and browser back/forward.
+- If preserved state changes the intended behavior, replace the broad route reset with a targeted pattern from the [preserving UI state guide](https://nextjs.org/docs/app/guides/preserving-ui-state).
+- If the product deliberately requires the broad reset, keep the boundary and replace the generated TODO with a comment that explains the decision.
+- If a browser is unavailable, inspect the Client Components for state that previously reset because the route unmounted and flag the behavior for browser verification. Do not claim this pass is complete from a build alone.
+
+When every generated Activity reset boundary is removed or documented, move to step 4.
+
+## step 4: verify the feature
 
 Checklist before checking in with the user:
 
