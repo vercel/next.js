@@ -92,6 +92,7 @@ import {
   NEXT_PROJECT_ROOT_DIST_CLIENT,
 } from './next-dir-paths'
 import { getRspackCore } from '../shared/lib/get-rspack'
+import { findConfigFile } from '../lib/find-config'
 import { RspackProfilingPlugin } from './webpack/plugins/rspack-profiling-plugin'
 import getWebpackBundler from '../shared/lib/get-webpack-bundler'
 import type { NextBuildContext } from './build-context'
@@ -2380,7 +2381,13 @@ export default async function getBaseWebpackConfig(
     webpack5Config.optimization.usedExports = false
   }
 
+  // PostCSS plugins are loaded outside of the loader, so webpack doesn't see the
+  // PostCSS config. Track its location in the cache version and its contents as
+  // a build dependency so cached CSS is invalidated when the config changes.
+  const postcssConfigFile = await findConfigFile(dir, 'postcss')
+
   const configVars = JSON.stringify({
+    postcssConfigFile,
     optimizePackageImports: config?.experimental?.optimizePackageImports,
     crossOrigin: config.crossOrigin,
     pageExtensions: pageExtensions,
@@ -2436,11 +2443,13 @@ export default async function getBaseWebpackConfig(
   if (config.webpack && config.configFile) {
     cache.buildDependencies = {
       config: [config.configFile],
+      ...(postcssConfigFile && { postcss: [postcssConfigFile] }),
       // We don't want to use the webpack default buildDependencies as we already include the next.js version
       defaultWebpack: [],
     }
   } else {
     cache.buildDependencies = {
+      ...(postcssConfigFile && { postcss: [postcssConfigFile] }),
       // We don't want to use the webpack default buildDependencies as we already include the next.js version
       defaultWebpack: [],
     }
@@ -2471,6 +2480,9 @@ export default async function getBaseWebpackConfig(
     }
     if (jsConfigPath) {
       buildDependencies.push(jsConfigPath)
+    }
+    if (postcssConfigFile) {
+      buildDependencies.push(postcssConfigFile)
     }
 
     const rspackCacheKey = `${compilerType}${isDevFallback ? '-fallback' : ''}`
