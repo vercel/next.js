@@ -3,7 +3,7 @@ use std::mem::take;
 use auto_hash_map::AutoSet;
 use rustc_hash::{FxBuildHasher, FxHashSet};
 use smallvec::SmallVec;
-use turbo_tasks::TaskId;
+use turbo_tasks::{StateKey, TaskId};
 
 use crate::{
     backend::{
@@ -26,6 +26,7 @@ pub enum OutdatedEdge {
     CellDependency(CellRef),
     HashedCellDependency(CellRef, u64),
     OutputDependency(TaskId),
+    StateDependency(StateKey),
     CollectiblesDependency(CollectiblesRef),
     /// Reverse cell and output edges: some other task reads a cell of the task being deleted by GC.
     /// Not modeled as a reversed `CellDependency` since the cleanup is assymetric, one side is
@@ -50,6 +51,10 @@ pub fn capture_all_edges(task: &impl TaskStorageAccessors) -> Vec<OutdatedEdge> 
     old_edges.extend(
         task.iter_cell_dependencies_hashed()
             .map(|(r, k)| OutdatedEdge::HashedCellDependency(r, k)),
+    );
+    old_edges.extend(
+        task.iter_state_dependencies()
+            .map(OutdatedEdge::StateDependency),
     );
     old_edges.extend(
         task.iter_collectibles_dependencies()
@@ -288,6 +293,9 @@ fn cleanup_old_edges_inner(
                     let mut task = ctx.task(task_id, TaskDataCategory::Data);
                     task.remove_output_dependencies(&output_task_id);
                 }
+            }
+            OutdatedEdge::StateDependency(ref key) => {
+                ctx.remove_state_dependency(task_id, key);
             }
             OutdatedEdge::CollectiblesDependency(CollectiblesRef {
                 collectible_type,
