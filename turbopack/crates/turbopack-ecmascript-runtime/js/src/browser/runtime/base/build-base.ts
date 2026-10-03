@@ -106,6 +106,8 @@ function registerChunk(registration: ChunkRegistration | RuntimeParams) {
       /* offset= */ 1,
       moduleFactories
     )
+    // Module factories are available as soon as their chunk registers.
+    registerLoadedChunk(chunk)
   }
 
   return BACKEND.registerChunk(chunk, runtimeParams)

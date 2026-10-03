@@ -15,6 +15,7 @@ bitfield! {
     pub struct AvailabilityFlags(u8);
     impl Debug;
     pub is_in_async_module, set_is_in_async_module: 0;
+    pub is_in_web_worker, set_is_in_web_worker: 1;
 }
 
 #[turbo_tasks::task_input]
@@ -73,6 +74,20 @@ impl AvailabilityInfo {
 
     pub fn is_in_async_module(&self) -> bool {
         self.flags.is_in_async_module()
+    }
+
+    pub fn in_web_worker(self) -> Self {
+        let mut flags = self.flags;
+        flags.set_is_in_web_worker(true);
+        Self {
+            flags,
+            available_modules: self.available_modules,
+            entry_group: self.entry_group,
+        }
+    }
+
+    pub fn is_in_web_worker(&self) -> bool {
+        self.flags.is_in_web_worker()
     }
 
     pub fn with_entry_group(self, entry_group: ResolvedVc<Modules>) -> Self {

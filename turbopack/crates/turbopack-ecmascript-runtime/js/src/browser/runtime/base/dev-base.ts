@@ -566,6 +566,8 @@ function registerChunk(registration: ChunkRegistration | RuntimeParams) {
       moduleFactories,
       (id: ModuleId) => addModuleToChunk(id, chunkPath)
     )
+    // Module factories are available as soon as their chunk registers.
+    registerLoadedChunk(chunk)
   }
   return BACKEND.registerChunk(chunk, runtimeParams)
 }
