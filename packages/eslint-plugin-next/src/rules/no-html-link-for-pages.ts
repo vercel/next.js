@@ -37,6 +37,38 @@ const cachedGetUrlFromAppDirectory = memoize(getUrlFromAppDirectory)
 
 const url = 'https://nextjs.org/docs/messages/no-html-link-for-pages'
 
+function getPageExtensionsFromNextConfig(rootDirs: string[]): string[] | undefined {
+  const configFiles = [
+    'next.config.js',
+    'next.config.mjs',
+    'next.config.cjs',
+    'next.config.ts',
+    'next.config.mts',
+    'next.config.cts',
+  ]
+  for (const dir of rootDirs) {
+    for (const file of configFiles) {
+      const fullPath = path.join(dir, file)
+      if (!fs.existsSync(fullPath)) continue
+      try {
+        const content = fs.readFileSync(fullPath, 'utf8')
+        const match = content.match(/pageExtensions\s*:\s*\[([^\]]+)\]/)
+        if (match) {
+          const inside = match[1]
+          const exts: string[] = []
+          const re = /['"]([^'"]+)['"]/g
+          let m: RegExpExecArray | null
+          while ((m = re.exec(inside)) !== null) {
+            exts.push(m[1])
+          }
+          if (exts.length > 0) return exts
+        }
+      } catch {}
+    }
+  }
+  return undefined
+}
+
 export default defineRule({
   meta: {
     docs: {
@@ -60,7 +92,39 @@ export default defineRule({
               type: 'string',
             },
           },
+          {
+            type: 'object',
+            properties: {
+              pageExtensions: {
+                type: 'array',
+                items: { type: 'string' },
+                uniqueItems: true,
+              },
+              pagesDir: {
+                oneOf: [
+                  { type: 'string' },
+                  {
+                    type: 'array',
+                    uniqueItems: true,
+                    items: { type: 'string' },
+                  },
+                ],
+              },
+            },
+            additionalProperties: false,
+          },
         ],
+      },
+      {
+        type: 'object',
+        properties: {
+          pageExtensions: {
+            type: 'array',
+            items: { type: 'string' },
+            uniqueItems: true,
+          },
+        },
+        additionalProperties: false,
       },
     ],
   },
@@ -69,10 +133,61 @@ export default defineRule({
    * Creates an ESLint rule listener.
    */
   create(context) {
-    const ruleOptions: (string | string[])[] = context.options
-    const [customPagesDirectory] = ruleOptions
+    let customPagesDirectory: string | string[] | undefined
+    let pageExtensions: string[] | undefined
+
+    const firstOpt: any = context.options[0]
+    const secondOpt: any = context.options[1]
+
+    if (
+      firstOpt &&
+      typeof firstOpt === 'object' &&
+      !Array.isArray(firstOpt)
+    ) {
+      if (firstOpt.pagesDir) customPagesDirectory = firstOpt.pagesDir
+      if (Array.isArray(firstOpt.pageExtensions))
+        pageExtensions = firstOpt.pageExtensions
+    } else if (typeof firstOpt === 'string' || Array.isArray(firstOpt)) {
+      customPagesDirectory = firstOpt
+      if (secondOpt) {
+        if (
+          Array.isArray(secondOpt) &&
+          secondOpt.every((v: any) => typeof v === 'string')
+        ) {
+          pageExtensions = secondOpt
+        } else if (
+          secondOpt &&
+          typeof secondOpt === 'object' &&
+          Array.isArray(secondOpt.pageExtensions)
+        ) {
+          pageExtensions = secondOpt.pageExtensions
+          if (!customPagesDirectory && secondOpt.pagesDir)
+            customPagesDirectory = secondOpt.pagesDir
+        }
+      }
+    } else if (
+      secondOpt &&
+      typeof secondOpt === 'object' &&
+      Array.isArray(secondOpt.pageExtensions)
+    ) {
+      pageExtensions = secondOpt.pageExtensions
+    }
+
+    // check settings.next.pageExtensions
+    if (!pageExtensions) {
+      const nextSettings: any = (context.settings as any).next || {}
+      if (Array.isArray(nextSettings.pageExtensions)) {
+        pageExtensions = nextSettings.pageExtensions
+      }
+    }
 
     const rootDirs = getRootDirs(context)
+
+    if (!pageExtensions) {
+      pageExtensions = getPageExtensionsFromNextConfig(rootDirs)
+    }
+
+    pageExtensions = pageExtensions || ['tsx', 'ts', 'jsx', 'js']
 
     const pagesDirs = (
       customPagesDirectory
@@ -107,8 +222,16 @@ export default defineRule({
       return {}
     }
 
-    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs)
-    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs)
+    const pageUrls = cachedGetUrlFromPagesDirectories(
+      '/',
+      foundPagesDirs,
+      pageExtensions
+    )
+    const appDirUrls = cachedGetUrlFromAppDirectory(
+      '/',
+      foundAppDirs,
+      pageExtensions
+    )
     const allUrlRegex = [...pageUrls, ...appDirUrls]
 
     return {
