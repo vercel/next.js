@@ -183,9 +183,11 @@ pub async fn make_chunk_group(
 
     // Insert worker loaders for every worker module.
     //
-    // Web workers get this chunk group's `new_availability_info`, which is what unrolls a
-    // self-referencing worker: the nested loader sees the worker entry as already available, so
-    // its chunk group comes out empty and the recursion bottoms out.
+    // A worker started by a page needs a self-contained chunk group: page module factories
+    // cannot be transferred to the worker runtime. Only a worker started *inside* another
+    // worker inherits the enclosing worker's available modules. Its already-loaded chunks can
+    // then be re-imported by the child worker; the self-reference is available and bottoms out.
+    // Set the flag on either path so subsequent worker references can distinguish that case.
     //
     // Node worker threads get `AvailabilityInfo::root()` instead, for two reasons:
     //
@@ -207,12 +209,18 @@ pub async fn make_chunk_group(
     // The referring module references the `createWorker` helper and passes it to the loader
     // at runtime. No origin or helper lookup is needed here — worker entry modules need only be
     // chunkable (and evaluatable for Node worker threads), even when wrapped in a facade.
+    let web_worker_availability_info = if availability_info.is_in_web_worker() {
+        new_availability_info
+    } else {
+        AvailabilityInfo::root()
+    }
+    .in_web_worker();
     let worker_loaders = worker_modules
         .iter()
         .copied()
         .map(async |(module, worker_type)| {
             let availability_info = match worker_type {
-                WorkerType::WebWorker | WorkerType::SharedWebWorker => new_availability_info,
+                WorkerType::WebWorker | WorkerType::SharedWebWorker => web_worker_availability_info,
                 WorkerType::NodeWorkerThread => AvailabilityInfo::root(),
             };
             chunking_context
