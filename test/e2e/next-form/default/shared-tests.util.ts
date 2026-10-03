@@ -43,6 +43,20 @@ export function runSharedTests(type: 'app' | 'pages') {
       }
     )
 
+    it('should normalize textarea newlines to CRLF, like a native GET form', async () => {
+      const session = await next.browser(pathPrefix + '/forms/with-textarea')
+
+      const submitButton = await session.elementByCss('[type="submit"]')
+      await submitButton.click()
+
+      const result = await session.waitForElementByCss('#search-results').text()
+      // `JSON.stringify` on the server renders the escapes literally, so a lone LF
+      // would show up as `line1\nline2` here.
+      expect(result).toBe('query: "line1\\r\\nline2"')
+
+      expect(await session.url()).toContain('query=line1%0D%0Aline2')
+    })
+
     it('should soft-navigate to the formAction url of the submitter', async () => {
       const session = await next.browser(
         pathPrefix + '/forms/button-formaction'
