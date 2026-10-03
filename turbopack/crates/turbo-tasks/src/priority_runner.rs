@@ -2,12 +2,12 @@ use std::{
     collections::BinaryHeap,
     fmt::Debug,
     future::Future,
-    hash::Hash,
+    hash::{BuildHasher, Hash},
     pin::Pin,
     ptr::drop_in_place,
     sync::{
         Arc,
-        atomic::{AtomicUsize, Ordering},
+        atomic::{AtomicU64, AtomicUsize, Ordering},
     },
     task::{Context, Poll},
     time::{Duration, Instant},
@@ -15,7 +15,16 @@ use std::{
 
 use parking_lot::Mutex;
 use pin_project_lite::pin_project;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxBuildHasher, FxHashMap};
+
+/// An order-preserving projection of a priority into `u64`, used to publish a shard's top
+/// priority in an atomic so that a pop can pick a shard without locking every one of them.
+///
+/// `a < b` must imply `a.priority_bits() < b.priority_bits()`, and the result must be less than
+/// `u64::MAX`: the sharded queue stores `priority_bits + 1` so that `0` can mean "shard empty".
+pub trait PriorityBits {
+    fn priority_bits(&self) -> u64;
+}
 
 pub trait Executor<C, T, P>: Send + Sync {
     type Future: Future<Output = ()> + Send;
@@ -114,18 +123,11 @@ impl<P: Clone + Ord, T: Claimable> Queue<P, T> {
         }
     }
 
-    /// Whether there is any heap entry left. This can be `true` while all remaining entries are
-    /// tombstones of claimed items; popping is what cleans those up.
-    fn is_empty(&self) -> bool {
-        self.heap.is_empty()
-    }
-
-    fn push(&mut self, priority: P, task: T) {
+    fn push(&mut self, priority: P, task: T, key: Option<T::Key>) {
         #[cfg(feature = "inline_execution_stats")]
         {
             self.pushes += 1;
         }
-        let key = task.claim_key();
         let heap_priority = priority.clone();
         let slot = if let Some(slot) = self.free_slots.pop() {
             self.slots[slot] = Some((priority, task));
@@ -174,6 +176,37 @@ impl<P: Clone + Ord, T: Claimable> Queue<P, T> {
         self.slots.get_mut(slot).and_then(|slot| slot.take())
     }
 
+    /// Priority bits of the best heap entry. Call [`Queue::drop_leading_tombstones`] first: a
+    /// tombstone still carries its claimed item's priority, so peeking past one reports a
+    /// priority that no live item in this queue has.
+    fn peek_bits(&self) -> Option<u64>
+    where
+        P: PriorityBits,
+    {
+        self.heap.peek().map(|item| item.priority.priority_bits())
+    }
+
+    /// Number of heap entries, including tombstones. `pop` consumes tombstones silently, so the
+    /// sharded queue tracks its global count by the change in this value rather than by whether
+    /// an item came back.
+    fn heap_len(&self) -> usize {
+        self.heap.len()
+    }
+
+    /// Retires tombstones sitting at the top of the heap, returning how many were removed.
+    fn drop_leading_tombstones(&mut self) -> usize {
+        let mut removed = 0;
+        while let Some(HeapItem { slot, .. }) = self.heap.peek() {
+            if self.slots[*slot].is_some() {
+                break;
+            }
+            let slot = self.heap.pop().expect("just peeked").slot;
+            self.free_slots.push(slot);
+            removed += 1;
+        }
+        removed
+    }
+
     /// Amortized shrinking of the queue, but with a lower threshold to avoid
     /// frequent reallocations when the queue is small.
     fn shrink_amortized(&mut self) {
@@ -191,17 +224,229 @@ impl<P: Clone + Ord, T: Claimable> Queue<P, T> {
     }
 }
 
+/// Number of queue shards.
+///
+/// A pop scans every shard's cached top, so choosing a shard costs O(QUEUE_SHARDS) on every call.
+/// That is why this is a small constant rather than something derived from
+/// `available_parallelism` the way `compute_shard_amount` sizes its maps: widening it to the
+/// machine would make the common path more expensive on exactly the wide machines sharding is
+/// meant to help. 16 was chosen as a fixed value and has not been swept.
+const QUEUE_SHARDS: usize = 16;
+
+/// Stale hints tolerated on the fast path before [`ShardedQueue::pop`] takes the blocking path.
+const MAX_POP_RESCANS: usize = 16;
+
+/// Yields tolerated when the entry count and the cached tops disagree, before falling back to the
+/// blocking path instead of continuing to spin.
+const EMPTY_SCAN_YIELDS: usize = 4;
+
+/// A shard's published top: `priority_bits + 1`, reserving `0` for "empty".
+#[inline]
+fn top_of(bits: u64) -> u64 {
+    bits.checked_add(1)
+        .expect("PriorityBits::priority_bits must be < u64::MAX; 0 is reserved for `empty`")
+}
+
+/// A [`Queue`] split into independently locked shards.
+///
+/// Invariants:
+/// * a keyed item always lives in `hash(key) % QUEUE_SHARDS`, so `claim` is a direct lookup;
+/// * `tops[i]` is `0` when shard `i` is known-empty, otherwise `top_of` a priority at least as good
+///   as that shard's true best. It may be stale-HIGH (a claim leaves a tombstone carrying the
+///   claimed priority; a popper may already have taken the item) and is never stale-low. Stale-high
+///   is safe for liveness but NOT for ordering, which is why `pop` re-checks the shard under its
+///   lock instead of trusting this value;
+/// * `heap_entries` counts live heap entries across all shards, including tombstones, so that
+///   `is_empty` matches the unsharded `heap.is_empty()`.
+struct ShardedQueue<P, T: Claimable> {
+    shards: Box<[Mutex<Queue<P, T>>]>,
+    tops: Box<[AtomicU64]>,
+    heap_entries: AtomicUsize,
+    round_robin: AtomicUsize,
+}
+
+impl<P: Clone + Ord + PriorityBits, T: Claimable> ShardedQueue<P, T> {
+    fn new() -> Self {
+        Self {
+            shards: (0..QUEUE_SHARDS)
+                .map(|_| Mutex::new(Queue::new()))
+                .collect(),
+            tops: (0..QUEUE_SHARDS).map(|_| AtomicU64::new(0)).collect(),
+            heap_entries: AtomicUsize::new(0),
+            round_robin: AtomicUsize::new(0),
+        }
+    }
+
+    fn shard_for_key(key: &T::Key) -> usize {
+        (FxBuildHasher.hash_one(key) as usize) % QUEUE_SHARDS
+    }
+
+    fn is_empty(&self) -> bool {
+        self.heap_entries.load(Ordering::Acquire) == 0
+    }
+
+    fn push(&self, priority: P, task: T) {
+        // Computed once: the shard a keyed item lands in and the key `Queue::push` indexes it
+        // under must agree, or `claim` would look in the wrong shard.
+        let key = task.claim_key();
+        let shard = match key {
+            Some(key) => Self::shard_for_key(&key),
+            None => self.round_robin.fetch_add(1, Ordering::Relaxed) % QUEUE_SHARDS,
+        };
+        let bits = top_of(priority.priority_bits());
+        self.heap_entries.fetch_add(1, Ordering::AcqRel);
+        // If the push unwinds, the count must not stay high forever: an over-count makes
+        // `is_empty` permanently false and leaves workers looking for work that is not there.
+        let counted = EntryCount(&self.heap_entries);
+        self.shards[shard].lock().push(priority, task, key);
+        std::mem::forget(counted);
+        // Only ever raise the cached top: a stale-high value costs a re-check in `pop`, a
+        // stale-low one would hide this item from it.
+        self.tops[shard].fetch_max(bits, Ordering::AcqRel);
+    }
+
+    fn pop(&self) -> Option<(P, T)> {
+        // The scan of `tops` is a hint, never a promise. Between the scan and the lock another
+        // popper can take the item it named, and a claimed item leaves a tombstone that still
+        // carries the claimed priority. Popping on the strength of the hint returns whatever the
+        // shard happens to hold, which can be far below the maximum waiting in another shard, so
+        // the shard is re-checked under its own lock before anything is taken from it.
+        let mut rescans = 0usize;
+        let mut empty_scans = 0usize;
+        loop {
+            if self.is_empty() {
+                return None;
+            }
+            let mut best = 0u64;
+            let mut best_shard = usize::MAX;
+            for (i, top) in self.tops.iter().enumerate() {
+                let v = top.load(Ordering::Acquire);
+                if v > best {
+                    best = v;
+                    best_shard = i;
+                }
+            }
+            if best_shard == usize::MAX {
+                // `heap_entries` says there is work but no shard advertises any: a pusher is
+                // between its counter increment and its top publish, or a popper between its top
+                // store and its decrement. Yield briefly, then take the blocking path rather than
+                // spinning -- an idle worker burning a core here starves the very thread that has
+                // to run for the count to become true again.
+                empty_scans += 1;
+                if empty_scans > EMPTY_SCAN_YIELDS {
+                    return self.pop_verified_under_all_locks();
+                }
+                std::thread::yield_now();
+                if self.is_empty() {
+                    return None;
+                }
+                continue;
+            }
+            if rescans >= MAX_POP_RESCANS {
+                // Repeatedly beaten to the item by other threads; take the blocking path so this
+                // caller cannot be starved indefinitely.
+                return self.pop_verified_under_all_locks();
+            }
+            let mut shard = self.shards[best_shard].lock();
+            // Retire tombstones first, so the priority read below belongs to a live item.
+            let retired = shard.drop_leading_tombstones();
+            if retired > 0 {
+                self.heap_entries.fetch_sub(retired, Ordering::AcqRel);
+            }
+            let actual = shard.peek_bits().map_or(0, top_of);
+            if actual < best {
+                // Stale hint: this shard no longer holds what the scan promised. Publish the
+                // truth and scan again rather than popping a lower-priority item.
+                self.tops[best_shard].store(actual, Ordering::Release);
+                drop(shard);
+                rescans += 1;
+                continue;
+            }
+            let before = shard.heap_len();
+            let popped = shard.pop();
+            let consumed = before - shard.heap_len();
+            self.tops[best_shard].store(shard.peek_bits().map_or(0, top_of), Ordering::Release);
+            drop(shard);
+            if consumed > 0 {
+                self.heap_entries.fetch_sub(consumed, Ordering::AcqRel);
+            }
+            if let Some(item) = popped {
+                return Some(item);
+            }
+        }
+    }
+
+    /// Blocking slow path. Locks every shard in index order (so two of these cannot deadlock),
+    /// refreshes every cached top, and takes the true global maximum. Reached only when the fast
+    /// path has been beaten repeatedly or when the entry count and the cached tops disagree, so it
+    /// trades throughput for a guarantee that a caller makes progress, and sleeps on a mutex
+    /// rather than spinning while it waits.
+    fn pop_verified_under_all_locks(&self) -> Option<(P, T)> {
+        let mut guards: Vec<_> = self.shards.iter().map(|s| s.lock()).collect();
+        let mut best_shard = usize::MAX;
+        let mut best = 0u64;
+        for (i, guard) in guards.iter_mut().enumerate() {
+            let retired = guard.drop_leading_tombstones();
+            if retired > 0 {
+                self.heap_entries.fetch_sub(retired, Ordering::AcqRel);
+            }
+            let bits = guard.peek_bits().map_or(0, top_of);
+            self.tops[i].store(bits, Ordering::Release);
+            if bits > best {
+                best = bits;
+                best_shard = i;
+            }
+        }
+        if best_shard == usize::MAX {
+            return None;
+        }
+        let before = guards[best_shard].heap_len();
+        let popped = guards[best_shard].pop();
+        let consumed = before - guards[best_shard].heap_len();
+        let refreshed = guards[best_shard].peek_bits().map_or(0, top_of);
+        self.tops[best_shard].store(refreshed, Ordering::Release);
+        drop(guards);
+        if consumed > 0 {
+            self.heap_entries.fetch_sub(consumed, Ordering::AcqRel);
+        }
+        popped
+    }
+
+    fn claim(&self, key: &T::Key) -> Option<(P, T)> {
+        // The tombstone stays in the heap, so neither `heap_entries` nor the cached top changes
+        // here. Both are left stale-high, which keeps `is_empty` honest about there being a heap
+        // entry still to retire; `pop` is responsible for not mistaking the advertised priority
+        // for a live one.
+        self.shards[Self::shard_for_key(key)].lock().claim(key)
+    }
+
+    #[cfg(feature = "inline_execution_stats")]
+    fn pushes(&self) -> u64 {
+        self.shards.iter().map(|s| s.lock().pushes).sum()
+    }
+}
+
+/// Decrements the shared entry count unless forgotten, so a panicking push cannot leave the count
+/// permanently high.
+struct EntryCount<'a>(&'a AtomicUsize);
+
+impl Drop for EntryCount<'_> {
+    fn drop(&mut self) {
+        self.0.fetch_sub(1, Ordering::AcqRel);
+    }
+}
+
 pub struct PriorityRunner<
     C: Send + Sync + 'static,
     T: Claimable + Send + 'static,
-    P: Clone + Ord + Send + 'static,
+    P: Clone + Ord + PriorityBits + Send + 'static,
     E: Executor<C, T, P> + 'static,
 > {
     executor: E,
     /// The target number of workers to spawn.
     target_workers: usize,
     /// The queue of tasks to execute. These tasks are not scheduled yet.
-    queue: Mutex<Queue<P, T>>,
+    queue: ShardedQueue<P, T>,
     /// The number of active workers currently polling tasks.
     /// Workers that responded with Poll::Pending are not counted until they are polled again.
     active_workers: AtomicUsize,
@@ -211,7 +456,7 @@ pub struct PriorityRunner<
 impl<
     C: Send + Sync + 'static,
     T: Claimable + Send + 'static,
-    P: Clone + Debug + Ord + Send + 'static,
+    P: Clone + Debug + Ord + PriorityBits + Send + 'static,
     E: Executor<C, T, P> + 'static,
 > PriorityRunner<C, T, P, E>
 {
@@ -226,7 +471,7 @@ impl<
         Self {
             executor,
             target_workers,
-            queue: Mutex::new(Queue::new()),
+            queue: ShardedQueue::new(),
             active_workers: AtomicUsize::new(0),
             phantom: std::marker::PhantomData,
         }
@@ -237,34 +482,43 @@ impl<
     /// the queue.
     #[cfg(feature = "inline_execution_stats")]
     pub fn total_queued(&self) -> u64 {
-        self.queue.lock().pushes
+        self.queue.pushes()
     }
 
     pub fn schedule(self: &Arc<Self>, execute_context: &Arc<C>, task: T, priority: P) {
-        let mut queue = self.queue.lock();
+        let queue = &self.queue;
         if !queue.is_empty() {
             // If there is already work in the queue, we don't have any
             // free capacity so we can just push the task to the queue.
             // It will be picked up by existing workers.
             //
-            // A worker only stops when it finds the queue empty, so a non-empty queue always has a
-            // worker that will drain it. [`claim`](Self::claim) does take work out of the queue
-            // without being a worker, but that only ever makes the queue shorter.
+            // Across shards this observation is not serialized with a worker's decision to
+            // stop: a worker can retire the last entry and exit between the check above and the
+            // push below, which would leave this task queued with nobody to drain it. So after
+            // pushing, make sure a worker actually exists.
             queue.push(priority, task);
+            if self.active_workers.load(Ordering::Acquire) == 0 {
+                // Claim a worker slot the same way the empty-queue path does, so a runner
+                // configured with no workers (or already at its target) still spawns nothing.
+                let active_workers = self.active_workers.fetch_add(1, Ordering::Relaxed);
+                if active_workers >= self.target_workers
+                    || !self.spawn_worker_if_work_available(execute_context, true)
+                {
+                    self.decrease_active_workers(execute_context);
+                }
+            }
             return;
         }
         // The queue is empty, so we might have free capacity to spawn a new worker.
         let active_workers = self.active_workers.fetch_add(1, Ordering::Relaxed);
         if active_workers < self.target_workers {
             // We have free capacity, spawn a new worker to execute this task immediately.
-            drop(queue);
 
             let future = self.executor.execute(execute_context, task, priority);
             WorkerFuture::spawn(future, execute_context.clone(), self.clone());
         } else {
             // No free capacity, push the task to the queue.
             queue.push(priority, task);
-            drop(queue);
 
             // Undo the added active worker since we didn't spawn a new worker.
             self.decrease_active_workers(execute_context);
@@ -278,7 +532,7 @@ impl<
     /// The caller takes over the responsibility to drive the returned future to completion; the
     /// task left the queue, so no worker will do it.
     pub fn claim(&self, execute_context: &Arc<C>, key: &T::Key) -> Option<E::Future> {
-        let (priority, task) = self.queue.lock().claim(key)?;
+        let (priority, task) = self.queue.claim(key)?;
         Some(self.executor.execute(execute_context, task, priority))
     }
 
@@ -311,7 +565,7 @@ impl<
     }
 
     fn pop_future_from_worker(&self, execute_context: &Arc<C>) -> Option<E::Future> {
-        let popped = self.queue.lock().pop();
+        let popped = self.queue.pop();
         popped.map(|(priority, task)| self.executor.execute(execute_context, task, priority))
     }
 
@@ -320,7 +574,7 @@ impl<
         execute_context: &Arc<C>,
         unused_active_count: bool,
     ) -> bool {
-        let popped = self.queue.lock().pop();
+        let popped = self.queue.pop();
         if let Some((priority, task)) = popped {
             let new_future = self.executor.execute(execute_context, task, priority);
 
@@ -355,6 +609,7 @@ pin_project! {
         T: 'static,
         P: Clone,
         P: Ord,
+        P: PriorityBits,
         P: Send,
         P: 'static,
         E: Executor<C, T, P>,
@@ -372,7 +627,7 @@ pin_project! {
 impl<
     C: Send + Sync + 'static,
     T: Claimable + Send + 'static,
-    P: Clone + Debug + Ord + Send + 'static,
+    P: Clone + Debug + Ord + PriorityBits + Send + 'static,
     E: Executor<C, T, P> + 'static,
 > WorkerFuture<C, T, P, E>
 {
@@ -389,7 +644,7 @@ impl<
 impl<
     C: Send + Sync + 'static,
     T: Claimable + Send + 'static,
-    P: Clone + Debug + Ord + Send + 'static,
+    P: Clone + Debug + Ord + PriorityBits + Send + 'static,
     E: Executor<C, T, P> + 'static,
 > Future for WorkerFuture<C, T, P, E>
 {
@@ -656,6 +911,97 @@ mod tests {
         );
     }
 
+    /// `impl PriorityBits for u32` is test-only scaffolding: the production instantiation uses
+    /// `TaskPriority`, whose impl lives next to the type in `manager.rs`.
+    impl PriorityBits for u32 {
+        fn priority_bits(&self) -> u64 {
+            *self as u64
+        }
+    }
+
+    /// Sharding must not change *which* item pops next.
+    ///
+    /// A claimed item leaves a tombstone in its shard, and that shard's cached top goes on
+    /// advertising the claimed priority. A `pop` that trusts the advertisement locks the shard and
+    /// takes whatever is left in it, which can be far below the maximum waiting elsewhere. This is
+    /// the production shape, not a contrived one: `read_task_output` claims by key, and every
+    /// `ScheduledTask` is claimable.
+    ///
+    /// The keys are pinned rather than searched for. The shard layout is a function of the hasher
+    /// and `QUEUE_SHARDS`, so bumping rustc-hash or changing the shard count silently re-rolls it
+    /// and could quietly stop this test from exercising the collision it is about; the asserts
+    /// below fail loudly instead. (The pre-existing tests use keys 0..9, which land in ten
+    /// distinct shards, which is why none of them could ever see this.)
+    #[test]
+    fn test_claim_tombstone_does_not_break_global_order() {
+        let (runner, executed) = queueing_runner::<u32>();
+        let (co_a, co_b, other) = (3u32, 29u32, 5u32);
+        assert_eq!(
+            ShardedQueue::<u32, u32>::shard_for_key(&co_a),
+            ShardedQueue::<u32, u32>::shard_for_key(&co_b),
+            "test assumes keys {co_a} and {co_b} share a shard; the hasher or QUEUE_SHARDS changed"
+        );
+        assert_ne!(
+            ShardedQueue::<u32, u32>::shard_for_key(&co_a),
+            ShardedQueue::<u32, u32>::shard_for_key(&other),
+            "test assumes key {other} is in a different shard; the hasher or QUEUE_SHARDS changed"
+        );
+
+        runner.schedule(&executed, co_a, 100);
+        runner.schedule(&executed, co_b, 1);
+        runner.schedule(&executed, other, 50);
+
+        // Taking the maximum out by key leaves the tombstone that misleads the cached top.
+        assert!(runner.claim(&executed, &co_a).is_some());
+
+        // `RecordingExecutor` records at `execute()` time and `claim` calls it, so the claimed
+        // item is recorded first; what this test is about is the order of the two that remain.
+        assert_eq!(
+            drain(&runner, &executed),
+            vec![co_a, other, co_b],
+            "after the maximum was claimed, the next pop must be the next-highest priority (50, \
+             in another shard), not the priority-1 item sharing the claimed item's shard"
+        );
+    }
+
+    /// Concurrent poppers must not both act on one scan: two threads can choose the same shard,
+    /// the first takes its maximum, and the second then takes that shard's next item while a
+    /// higher priority waits elsewhere. Racy by nature, so this only checks the conservation
+    /// property over many rounds; the tombstone test above pins the ordering defect exactly.
+    #[test]
+    fn test_concurrent_pops_conserve_every_item() {
+        for _round in 0..200 {
+            let (runner, executed) = queueing_runner::<u32>();
+            for id in 0..64u32 {
+                runner.schedule(&executed, id, id);
+            }
+            let threads: Vec<_> = (0..4)
+                .map(|_| {
+                    let runner = runner.clone();
+                    std::thread::spawn(move || {
+                        let mut seen = Vec::new();
+                        while let Some((priority, _)) = runner.queue.pop() {
+                            seen.push(priority);
+                        }
+                        seen
+                    })
+                })
+                .collect();
+            let mut all: Vec<u32> = threads
+                .into_iter()
+                .flat_map(|t| t.join().unwrap())
+                .collect();
+            all.sort_unstable();
+            all.dedup();
+            assert_eq!(
+                all.len(),
+                64,
+                "every queued item must be popped exactly once"
+            );
+            let _ = &executed;
+        }
+    }
+
     #[test]
     fn test_slots_are_recycled() {
         let (runner, executed) = queueing_runner::<u32>();
@@ -666,16 +1012,25 @@ mod tests {
             // Claim one of them each round, so tombstones are part of the cycle.
             assert!(runner.claim(&executed, &3).is_some());
             drain(&runner, &executed);
-            let queue = runner.queue.lock();
-            assert!(queue.is_empty());
+            // Sharded: the unsharded invariants hold over the sum across shards.
+            assert!(runner.queue.is_empty());
+            let total_slots: usize = runner
+                .queue
+                .shards
+                .iter()
+                .map(|s| s.lock().slots.len())
+                .sum();
             assert!(
-                queue.slots.len() <= 8,
-                "slots should be recycled, got {}",
-                queue.slots.len()
+                total_slots <= 8,
+                "slots should be recycled, got {total_slots} across shards"
             );
             assert!(
-                queue.claimable.is_empty(),
-                "claimable index should be empty when the queue is empty"
+                runner
+                    .queue
+                    .shards
+                    .iter()
+                    .all(|s| s.lock().claimable.is_empty()),
+                "claimable index should be empty in every shard when the queue is empty"
             );
         }
     }
