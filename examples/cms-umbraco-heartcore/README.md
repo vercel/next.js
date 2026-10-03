@@ -88,7 +88,7 @@ Then set each variable in `.env.local`:
 
 - `UMBRACO_PROJECT_ALIAS`: Set it to the project alias, which can be found under **Settings** -> **Headless**.
 - `UMBRACO_API_KEY`: Create a new API Key under **Users > "Your Username" > API Keys**.
-- `UMBRACO_PREVIEW_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode).
+- `UMBRACO_PREVIEW_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [Preview Mode](https://nextjs.org/docs/pages/guides/preview-mode).
 
 Your `.env.local` file should look like this:
 
@@ -119,7 +119,7 @@ Then click save and go back to the **Content** section, click on _Posts_ and the
 - **Update the title**. For example, you can add `[Draft]` in front of the title.
 - Click **Save**, but **DO NOT** click **Publish**. By doing this, the post will be in the draft state.
 
-Now, if you go to the post page on localhost, you won't see the updated title. However, if you use **Preview Mode**, you'll be able to see the change ([Documentation](/docs/advanced-features/preview-mode.md)).
+Now, if you go to the post page on localhost, you won't see the updated title. However, if you use **Preview Mode**, you'll be able to see the change ([Documentation](https://nextjs.org/docs/pages/guides/preview-mode)).
 
 To enable the Preview Mode, go to this URL:
 
