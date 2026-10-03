@@ -58,3 +58,11 @@ export function generateInterceptionRoutesRewrites(
 
   return rewrites
 }
+
+export function isInterceptionRouteRewrite(rewrite: Rewrite): boolean {
+  return Boolean(
+    rewrite.has?.some(
+      (has) => has.type === 'header' && has.key === NEXT_URL
+    )
+  )
+}
