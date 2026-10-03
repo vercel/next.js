@@ -75,9 +75,9 @@ export function printNonFatalIssue(issue: Issue) {
   }
 }
 
-export function processTopLevelIssues(
+export function processTopLevelIssues<T>(
   currentTopLevelIssues: TopLevelIssuesMap,
-  result: TurbopackResult
+  result: TurbopackResult<T>
 ) {
   currentTopLevelIssues.clear()
 
@@ -91,7 +91,7 @@ export { msToNs } from '../../shared/lib/turbopack/compilation-events'
 
 export type ChangeSubscriptions = Map<
   EntryKey,
-  Promise<AsyncIterableIterator<TurbopackResult>>
+  Promise<AsyncIterableIterator<TurbopackResult<void>>>
 >
 
 export type HandleWrittenEndpoint = (
@@ -105,7 +105,7 @@ export type StartChangeSubscription = (
   includeIssues: boolean,
   endpoint: Endpoint,
   createMessage: (
-    change: TurbopackResult,
+    change: TurbopackResult<void>,
     hash: string
   ) => Promise<HmrMessageSentToBrowser> | HmrMessageSentToBrowser | void,
   onError?: (
@@ -228,7 +228,7 @@ export async function handleRouteType({
           documentOrAppChanged
         )
 
-        const type = writtenEndpoint?.type
+        const type = writtenEndpoint.value.type
 
         await manifestLoader.loadClientBuildManifest(page)
         await manifestLoader.loadBuildManifest(page)
@@ -324,7 +324,7 @@ export async function handleRouteType({
       const writtenEndpoint = await route.endpoint.writeToDisk()
       hooks?.handleWrittenEndpoint(key, writtenEndpoint, false)
 
-      const type = writtenEndpoint.type
+      const type = writtenEndpoint.value.type
 
       await manifestLoader.loadPagesManifest(page)
       if (type === 'edge') {
@@ -376,7 +376,7 @@ export async function handleRouteType({
         )
       }
 
-      const type = writtenEndpoint.type
+      const type = writtenEndpoint.value.type
 
       if (type === 'edge') {
         warnAboutEdgeRuntime()
@@ -434,7 +434,7 @@ export async function handleRouteType({
         )
       }
 
-      const type = writtenEndpoint.type
+      const type = writtenEndpoint.value.type
 
       manifestLoader.loadAppPathsManifest(page)
       if (route.hasActionManifest) {
@@ -620,16 +620,17 @@ export async function handleEntrypoints({
 
   dev: HandleEntrypointsDevOpts
 }) {
-  currentEntrypoints.global.app = entrypoints.pagesAppEndpoint
-  currentEntrypoints.global.document = entrypoints.pagesDocumentEndpoint
-  currentEntrypoints.global.error = entrypoints.pagesErrorEndpoint
+  const value = entrypoints.value
+  currentEntrypoints.global.app = value.pagesAppEndpoint
+  currentEntrypoints.global.document = value.pagesDocumentEndpoint
+  currentEntrypoints.global.error = value.pagesErrorEndpoint
 
-  currentEntrypoints.global.instrumentation = entrypoints.instrumentation
+  currentEntrypoints.global.instrumentation = value.instrumentation
 
   currentEntrypoints.page.clear()
   currentEntrypoints.app.clear()
 
-  for (const [pathname, route] of entrypoints.routes) {
+  for (const [pathname, route] of value.routes) {
     switch (route.type) {
       case 'page':
       case 'page-api':
@@ -666,7 +667,7 @@ export async function handleEntrypoints({
     })
   }
 
-  const { middleware, instrumentation } = entrypoints
+  const { middleware, instrumentation } = value
 
   // We check for explicit true/false, since it's initialized to
   // undefined during the first loop (middlewareChanges event is

@@ -1,4 +1,4 @@
-(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1do3_crates_turbopack-tests_tests_snapshot_node_spawn_dynamic_input_0ow1swaxdiv8b._.js",
+(()=>{"use strict";(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1do3_crates_turbopack-tests_tests_snapshot_node_spawn_dynamic_input_0ow1swaxdiv8b._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/node/spawn_dynamic/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
@@ -17,12 +17,13 @@ const proc = (0, __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$cr
 
 __turbopack_context__.s([
     "spawn",
+    0,
     ()=>spawn
 ]);
 function spawn(cmd, args) {
 //
 }
 }),
-]);
+]);})()
 
 //# sourceMappingURL=1do3_crates_turbopack-tests_tests_snapshot_node_spawn_dynamic_input_0ow1swaxdiv8b._.js.map

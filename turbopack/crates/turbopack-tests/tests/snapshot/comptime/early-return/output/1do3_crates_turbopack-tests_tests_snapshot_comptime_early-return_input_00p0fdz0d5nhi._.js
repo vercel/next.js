@@ -1,4 +1,4 @@
-(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1do3_crates_turbopack-tests_tests_snapshot_comptime_early-return_input_00p0fdz0d5nhi._.js",
+(()=>{"use strict";(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1do3_crates_turbopack-tests_tests_snapshot_comptime_early-return_input_00p0fdz0d5nhi._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/early-return/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
@@ -12,24 +12,34 @@ console.log(__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$
 
 __turbopack_context__.s([
     "a",
+    0,
     ()=>a,
     "b",
+    0,
     ()=>b,
     "c",
+    0,
     ()=>c,
     "d",
+    0,
     ()=>d,
     "e",
+    0,
     ()=>e,
     "f",
+    0,
     ()=>f,
     "g",
+    0,
     ()=>g,
     "h",
+    0,
     ()=>h,
     "i",
+    0,
     ()=>i,
     "j",
+    0,
     ()=>j
 ]);
 function a() {
@@ -226,6 +236,6 @@ z1();
 return;
 z2();
 }),
-]);
+]);})()
 
 //# sourceMappingURL=1do3_crates_turbopack-tests_tests_snapshot_comptime_early-return_input_00p0fdz0d5nhi._.js.map

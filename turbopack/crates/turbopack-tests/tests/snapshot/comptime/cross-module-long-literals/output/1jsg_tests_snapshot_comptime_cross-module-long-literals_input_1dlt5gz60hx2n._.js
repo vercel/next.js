@@ -1,4 +1,4 @@
-(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1jsg_tests_snapshot_comptime_cross-module-long-literals_input_1dlt5gz60hx2n._.js",
+(()=>{"use strict";(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1jsg_tests_snapshot_comptime_cross-module-long-literals_input_1dlt5gz60hx2n._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-long-literals/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
@@ -33,16 +33,22 @@ if (__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
 
 __turbopack_context__.s([
     "INFINITY",
+    0,
     ()=>INFINITY,
     "LONG_BIG_NUMBER",
+    0,
     ()=>LONG_BIG_NUMBER,
     "LONG_NUMBER",
+    0,
     ()=>LONG_NUMBER,
     "LONG_STRING",
+    0,
     ()=>LONG_STRING,
     "NAN",
+    0,
     ()=>NAN,
     "REGEX",
+    0,
     ()=>REGEX
 ]);
 const LONG_STRING = 'abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789';
@@ -52,6 +58,6 @@ const REGEX = /ab/i;
 const NAN = NaN;
 const INFINITY = Infinity;
 }),
-]);
+]);})()
 
 //# sourceMappingURL=1jsg_tests_snapshot_comptime_cross-module-long-literals_input_1dlt5gz60hx2n._.js.map

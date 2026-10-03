@@ -4,6 +4,8 @@ import {
   type McpServerOptions,
 } from './get-or-create-mcp-server'
 import { parseBody } from '../api-utils/node/parse-body'
+import { parsePath } from '../../shared/lib/router/utils/parse-path'
+import { removeTrailingSlash } from '../../shared/lib/router/utils/remove-trailing-slash'
 import { StreamableHTTPServerTransport } from 'next/dist/compiled/@modelcontextprotocol/sdk/server/streamableHttp'
 
 export function getMcpMiddleware(options: McpServerOptions) {
@@ -12,8 +14,8 @@ export function getMcpMiddleware(options: McpServerOptions) {
     res: ServerResponse,
     next: () => void
   ): Promise<void> {
-    const { pathname } = new URL(req.url || '', 'http://n')
-    if (!pathname.startsWith('/_next/mcp')) {
+    const { pathname } = parsePath(req.url || '')
+    if (removeTrailingSlash(pathname) !== '/_next/mcp') {
       return next()
     }
     const mcpServer = getOrCreateMcpServer(options)

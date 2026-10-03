@@ -75,7 +75,7 @@ async function readNormalizedNFT(next, name) {
   'next-server-nft',
   () => {
     describe('with output:standalone', () => {
-      const { next, skipped } = nextTestSetup({
+      const { next } = nextTestSetup({
         files: __dirname,
         dependencies: {
           typescript: '5.9.2',
@@ -84,10 +84,6 @@ async function readNormalizedNFT(next, name) {
           output: 'standalone',
         },
       })
-
-      if (skipped) {
-        return
-      }
 
       it('should not trace too many files in next-server.js.nft.json', async () => {
         const trace = await readNormalizedNFT(
@@ -145,6 +141,7 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/build/get-supported-browsers.js",
            "/node_modules/next/dist/build/next-config-ts/require-hook.js",
            "/node_modules/next/dist/build/next-config-ts/transpile-config.js",
+           "/node_modules/next/dist/build/nft.js",
            "/node_modules/next/dist/build/output/format.js",
            "/node_modules/next/dist/build/output/log.js",
            "/node_modules/next/dist/build/segment-config/app/app-segment-config.js",
@@ -153,6 +150,7 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/build/static-paths/app.js",
            "/node_modules/next/dist/build/static-paths/app/extract-pathname-route-param-segments-from-loader-tree.js",
            "/node_modules/next/dist/build/static-paths/pages.js",
+           "/node_modules/next/dist/build/static-paths/param-matching.js",
            "/node_modules/next/dist/build/static-paths/utils.js",
            "/node_modules/next/dist/build/swc/helpers.js",
            "/node_modules/next/dist/build/swc/index.js",
@@ -195,6 +193,7 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/compiled/edge-runtime/index.js",
            "/node_modules/next/dist/compiled/find-up/index.js",
            "/node_modules/next/dist/compiled/fresh/index.js",
+           "/node_modules/next/dist/compiled/hash.js/sha256/256.js",
            "/node_modules/next/dist/compiled/httpxy/index.js",
            "/node_modules/next/dist/compiled/image-detector/detector.js",
            "/node_modules/next/dist/compiled/image-size/index.js",
@@ -246,6 +245,7 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/lib/create-client-router-filter.js",
            "/node_modules/next/dist/lib/default-transpiled-packages.json",
            "/node_modules/next/dist/lib/detect-typo.js",
+           "/node_modules/next/dist/lib/dist-dir.js",
            "/node_modules/next/dist/lib/download-swc.js",
            "/node_modules/next/dist/lib/fallback.js",
            "/node_modules/next/dist/lib/file-exists.js",
@@ -366,6 +366,7 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/lib/verify-root-layout.js",
            "/node_modules/next/dist/lib/verify-typescript-setup.js",
            "/node_modules/next/dist/lib/wait.js",
+           "/node_modules/next/dist/lib/warn-missing-react-dependencies.js",
            "/node_modules/next/dist/lib/with-promise-cache.js",
            "/node_modules/next/dist/lib/worker.js",
            "/node_modules/next/dist/server/*",
@@ -417,16 +418,12 @@ async function readNormalizedNFT(next, name) {
     })
 
     describe('default mode', () => {
-      const { next, skipped } = nextTestSetup({
+      const { next } = nextTestSetup({
         files: __dirname,
         dependencies: {
           typescript: '5.9.2',
         },
       })
-
-      if (skipped) {
-        return
-      }
 
       it('should not include .next directory in traces despite dynamic fs operations', async () => {
         // This test verifies that the denied_path feature prevents the .next directory
@@ -463,6 +460,7 @@ async function readNormalizedNFT(next, name) {
          [
            "/node_modules/client-only/index.js",
            "/node_modules/next/dist/compiled/@opentelemetry/api/index.js",
+           "/node_modules/next/dist/compiled/hash.js/sha256/256.js",
            "/node_modules/next/dist/compiled/next-server/server.runtime.prod.js",
            "/node_modules/next/dist/compiled/source-map/source-map.js",
            "/node_modules/next/dist/compiled/stacktrace-parser/stack-trace-parser.cjs.js",
@@ -488,6 +486,7 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/server/lib/incremental-cache/shared-cache-controls.external.js",
            "/node_modules/next/dist/server/lib/incremental-cache/tags-manifest.external.js",
            "/node_modules/next/dist/server/lib/lru-cache.js",
+           "/node_modules/next/dist/server/lib/route-cache-key.js",
            "/node_modules/next/dist/server/lib/router-utils/instrumentation-globals.external.js",
            "/node_modules/next/dist/server/lib/router-utils/instrumentation-node-extensions.js",
            "/node_modules/next/dist/server/lib/trace/constants.js",
@@ -496,7 +495,12 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/server/node-environment-extensions/console-dim.external.js",
            "/node_modules/next/dist/server/node-environment-extensions/fast-set-immediate.external.js",
            "/node_modules/next/dist/server/node-environment-extensions/unhandled-rejection.external.js",
+           "/node_modules/next/dist/server/normalizers/built/app/app-pathname-normalizer.js",
+           "/node_modules/next/dist/server/normalizers/normalizers.js",
+           "/node_modules/next/dist/server/normalizers/underscore-normalizer.js",
+           "/node_modules/next/dist/server/normalizers/wrap-normalizer-fn.js",
            "/node_modules/next/dist/server/response-cache/types.js",
+           "/node_modules/next/dist/server/route-kind.js",
            "/node_modules/next/dist/server/route-modules/app-page/module.compiled.js",
            "/node_modules/next/dist/server/route-modules/app-page/vendored/contexts/app-router-context.js",
            "/node_modules/next/dist/server/route-modules/app-page/vendored/contexts/entrypoints.js",
@@ -518,11 +522,21 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/server/route-modules/pages/vendored/contexts/server-inserted-html.js",
            "/node_modules/next/dist/server/runtime-reacts.external.js",
            "/node_modules/next/dist/shared/lib/deep-freeze.js",
+           "/node_modules/next/dist/shared/lib/i18n/normalize-locale-path.js",
            "/node_modules/next/dist/shared/lib/invariant-error.js",
            "/node_modules/next/dist/shared/lib/is-plain-object.js",
            "/node_modules/next/dist/shared/lib/is-thenable.js",
            "/node_modules/next/dist/shared/lib/no-fallback-error.external.js",
+           "/node_modules/next/dist/shared/lib/page-path/ensure-leading-slash.js",
+           "/node_modules/next/dist/shared/lib/page-path/normalize-page-path.js",
+           "/node_modules/next/dist/shared/lib/router/utils/app-paths.js",
+           "/node_modules/next/dist/shared/lib/router/utils/index.js",
+           "/node_modules/next/dist/shared/lib/router/utils/interception-routes.js",
+           "/node_modules/next/dist/shared/lib/router/utils/is-dynamic.js",
+           "/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js",
+           "/node_modules/next/dist/shared/lib/segment.js",
            "/node_modules/next/dist/shared/lib/server-reference-info.js",
+           "/node_modules/next/dist/shared/lib/utils.js",
            "/node_modules/react/cjs/react.production.js",
            "/node_modules/react/index.js",
            "/node_modules/styled-jsx/dist/index/index.js",
@@ -534,7 +548,7 @@ async function readNormalizedNFT(next, name) {
     })
 
     describe('with adapters', () => {
-      const { next, skipped } = nextTestSetup({
+      const { next } = nextTestSetup({
         files: __dirname,
         dependencies: {
           typescript: '5.9.2',
@@ -543,10 +557,6 @@ async function readNormalizedNFT(next, name) {
           adapterPath: path.join(__dirname, './my-adapter.mjs'),
         },
       })
-
-      if (skipped) {
-        return
-      }
 
       it('should not include .next directory in traces despite dynamic fs operations', async () => {
         // This test verifies that the denied_path feature prevents the .next directory
@@ -637,6 +647,7 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/client/components/static-generation-bailout.js",
            "/node_modules/next/dist/client/lib/console.js",
            "/node_modules/next/dist/compiled/@opentelemetry/api/index.js",
+           "/node_modules/next/dist/compiled/hash.js/sha256/256.js",
            "/node_modules/next/dist/compiled/jsonwebtoken/index.js",
            "/node_modules/next/dist/compiled/next-server/app-page-turbo.runtime.prod.js",
            "/node_modules/next/dist/compiled/source-map/source-map.js",
@@ -666,6 +677,7 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/server/app-render/instant-validation/boundary-tracking.js",
            "/node_modules/next/dist/server/app-render/module-loading/track-module-loading.external.js",
            "/node_modules/next/dist/server/app-render/module-loading/track-module-loading.instance.js",
+           "/node_modules/next/dist/server/app-render/segment-config/ensure-static.js",
            "/node_modules/next/dist/server/app-render/staged-rendering.js",
            "/node_modules/next/dist/server/app-render/sync-io-messages.js",
            "/node_modules/next/dist/server/app-render/work-async-storage-instance.js",
@@ -674,11 +686,13 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/server/app-render/work-unit-async-storage.external.js",
            "/node_modules/next/dist/server/dev/browser-logs/file-logger.js",
            "/node_modules/next/dist/server/dynamic-rendering-utils.js",
+           "/node_modules/next/dist/server/lib/app-dir-module.js",
            "/node_modules/next/dist/server/lib/incremental-cache/memory-cache.external.js",
            "/node_modules/next/dist/server/lib/incremental-cache/shared-cache-controls.external.js",
            "/node_modules/next/dist/server/lib/incremental-cache/tags-manifest.external.js",
            "/node_modules/next/dist/server/lib/lru-cache.js",
            "/node_modules/next/dist/server/lib/parse-stack.js",
+           "/node_modules/next/dist/server/lib/route-cache-key.js",
            "/node_modules/next/dist/server/lib/router-utils/instrumentation-globals.external.js",
            "/node_modules/next/dist/server/lib/router-utils/instrumentation-node-extensions.js",
            "/node_modules/next/dist/server/lib/source-maps.js",
@@ -699,9 +713,14 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/server/node-environment-extensions/web-crypto.js",
            "/node_modules/next/dist/server/node-environment.js",
            "/node_modules/next/dist/server/node-polyfill-crypto.js",
+           "/node_modules/next/dist/server/normalizers/built/app/app-pathname-normalizer.js",
+           "/node_modules/next/dist/server/normalizers/normalizers.js",
+           "/node_modules/next/dist/server/normalizers/underscore-normalizer.js",
+           "/node_modules/next/dist/server/normalizers/wrap-normalizer-fn.js",
            "/node_modules/next/dist/server/patch-error-inspect.js",
            "/node_modules/next/dist/server/require-hook.js",
            "/node_modules/next/dist/server/response-cache/types.js",
+           "/node_modules/next/dist/server/route-kind.js",
            "/node_modules/next/dist/server/route-modules/app-page/module.compiled.js",
            "/node_modules/next/dist/server/route-modules/app-page/vendored/contexts/app-router-context.js",
            "/node_modules/next/dist/server/route-modules/app-page/vendored/contexts/entrypoints.js",
@@ -712,14 +731,25 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/server/route-modules/app-page/vendored/contexts/server-inserted-html.js",
            "/node_modules/next/dist/server/runtime-reacts.external.js",
            "/node_modules/next/dist/shared/lib/deep-freeze.js",
+           "/node_modules/next/dist/shared/lib/i18n/normalize-locale-path.js",
            "/node_modules/next/dist/shared/lib/instant-messages.js",
            "/node_modules/next/dist/shared/lib/invariant-error.js",
            "/node_modules/next/dist/shared/lib/is-plain-object.js",
            "/node_modules/next/dist/shared/lib/is-thenable.js",
            "/node_modules/next/dist/shared/lib/lazy-dynamic/react-browser-bailout.js",
            "/node_modules/next/dist/shared/lib/no-fallback-error.external.js",
+           "/node_modules/next/dist/shared/lib/page-path/ensure-leading-slash.js",
+           "/node_modules/next/dist/shared/lib/page-path/normalize-page-path.js",
            "/node_modules/next/dist/shared/lib/promise-with-resolvers.js",
+           "/node_modules/next/dist/shared/lib/router/utils/app-paths.js",
+           "/node_modules/next/dist/shared/lib/router/utils/index.js",
+           "/node_modules/next/dist/shared/lib/router/utils/interception-routes.js",
+           "/node_modules/next/dist/shared/lib/router/utils/is-dynamic.js",
+           "/node_modules/next/dist/shared/lib/router/utils/parse-loader-tree.js",
+           "/node_modules/next/dist/shared/lib/router/utils/sorted-routes.js",
+           "/node_modules/next/dist/shared/lib/segment.js",
            "/node_modules/next/dist/shared/lib/server-reference-info.js",
+           "/node_modules/next/dist/shared/lib/utils.js",
            "/node_modules/react/cjs/react.development.js",
            "/node_modules/react/cjs/react.production.js",
            "/node_modules/react/index.js",
@@ -729,7 +759,7 @@ async function readNormalizedNFT(next, name) {
     })
 
     describe('with adapters and output:standalone', () => {
-      const { next, skipped } = nextTestSetup({
+      const { next } = nextTestSetup({
         files: __dirname,
         dependencies: {
           typescript: '5.9.2',
@@ -739,10 +769,6 @@ async function readNormalizedNFT(next, name) {
           adapterPath: path.join(__dirname, './my-adapter.mjs'),
         },
       })
-
-      if (skipped) {
-        return
-      }
 
       // Regression test for #96646: with an adapter configured, the whole-app server NFTs were
       // suppressed while `copyTracedFiles` (which runs for `output: 'standalone'`, adapter or

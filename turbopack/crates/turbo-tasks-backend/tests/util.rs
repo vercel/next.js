@@ -26,10 +26,10 @@ fn open_tt_at(path: &Path, num_workers: usize) -> Arc<TurboTasks<TurboTasksBacke
     open_tt_at_with_gc(path, num_workers, Some(true), None, None)
 }
 
-/// Like [`open_tt_at`], but forces the GC on or off for this backend instead of deriving it from
-/// the `TURBO_ENGINE_GC` env var, which every test in the binary would share.
+/// Like [`open_tt_at`], but sets the GC on or off for this backend explicitly, and optionally
+/// pins the GC timings. A `None` timing leaves the backend default in place.
 ///
-/// A test that depends on the persisted GC roots map must force it on: the map is only written by
+/// A test that depends on the persisted GC roots map must turn it on: the map is only written by
 /// the GC branch of `snapshot_and_persist`, so with GC off a session persists an empty root set and
 /// the cross-session behaviour under test silently never engages.
 fn open_tt_at_with_gc(

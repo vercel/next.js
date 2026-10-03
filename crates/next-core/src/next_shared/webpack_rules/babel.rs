@@ -19,7 +19,7 @@ use turbopack_ecmascript::transform::{ReactCompilerCompilationMode, ReactCompile
 use turbopack_node::transforms::webpack::WebpackLoaderItem;
 
 use crate::{
-    next_config::{NextConfig, ReactCompilerOptions},
+    next_config::{NextConfig, ReactCompilerOptions, ReactCompilerPanicThreshold},
     next_import_map::try_get_next_package,
     next_shared::webpack_rules::{
         ManuallyConfiguredBuiltinLoaderIssue, WebpackLoaderBuiltinCondition,
@@ -171,20 +171,47 @@ pub async fn get_babel_loader_rules(
         #[serde(rename_all = "camelCase")]
         struct EnvironmentOptions {
             enable_name_anonymous_functions: bool,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            enable_preserve_existing_memoization_guarantees: Option<bool>,
         }
 
         #[derive(Serialize)]
         struct ResolvedOptions<'a> {
             #[serde(flatten)]
-            base: &'a ReactCompilerOptions,
+            base: ReactCompilerOptionsWithoutEnvironment<'a>,
             environment: EnvironmentOptions,
         }
 
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct ReactCompilerOptionsWithoutEnvironment<'a> {
+            compilation_mode: ReactCompilerCompilationMode,
+            panic_threshold: &'a ReactCompilerPanicThreshold,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            target: Option<ReactCompilerTarget>,
+        }
+
+        impl<'a> From<&'a ReactCompilerOptions> for ReactCompilerOptionsWithoutEnvironment<'a> {
+            fn from(options: &'a ReactCompilerOptions) -> Self {
+                Self {
+                    compilation_mode: options.compilation_mode,
+                    panic_threshold: &options.panic_threshold,
+                    target: options.target,
+                }
+            }
+        }
+
         let resolved_options = ResolvedOptions {
-            base: &react_compiler_options_with_target,
+            base: (&react_compiler_options_with_target).into(),
             environment: EnvironmentOptions {
                 enable_name_anonymous_functions: builtin_conditions
                     .contains(&WebpackLoaderBuiltinCondition::Development),
+                enable_preserve_existing_memoization_guarantees: react_compiler_options_with_target
+                    .environment
+                    .as_ref()
+                    .and_then(|environment| {
+                        environment.enable_preserve_existing_memoization_guarantees
+                    }),
             },
         };
         let react_compiler_plugins =
@@ -260,7 +287,7 @@ pub async fn detect_react_compiler_target(
         project_path.clone(),
         ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
         Request::parse(Pattern::Constant(rcstr!("react/package.json"))),
-        node_cjs_resolve_options(project_path.root().owned().await?),
+        node_cjs_resolve_options(),
     );
 
     let Some(source) = react_pkg_result.await?.first_source() else {
@@ -336,7 +363,7 @@ pub async fn resolve_babel_plugin_react_compiler(
         next_package.clone(),
         ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
         Request::parse(Pattern::Constant(BABEL_PLUGIN_REACT_COMPILER_PACKAGE_JSON)),
-        node_cjs_resolve_options(project_path.root().owned().await?),
+        node_cjs_resolve_options(),
     );
     let Some(source) = babel_plugin_result.await?.first_source() else {
         BabelPluginReactCompilerResolutionIssue {

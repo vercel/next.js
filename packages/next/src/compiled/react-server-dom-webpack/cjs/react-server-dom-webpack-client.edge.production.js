@@ -9,8 +9,14 @@
  */
 
 "use strict";
-var ReactDOM = require("react-dom"),
-  decoderOptions = { stream: !0 },
+var ReactDOM = require("react-dom");
+function createStringDecoder() {
+  return new TextDecoder("utf-8", {
+    ignoreBOM:
+      0 < arguments.length && void 0 !== arguments[0] ? arguments[0] : !1
+  });
+}
+var decoderOptions = { stream: !0 },
   hasOwnProperty = Object.prototype.hasOwnProperty;
 function resolveClientReference(bundlerConfig, metadata) {
   if (bundlerConfig) {
@@ -1531,6 +1537,8 @@ function parseModelString(response, parentObject, key, value) {
             loadServerReference
           )
         );
+      case "H":
+        return;
       case "T":
         parentObject = "$" + value.slice(2);
         response = response._tempRefs;
@@ -1610,7 +1618,7 @@ function ResponseInstance(
   this._encodeFormAction = encodeFormAction;
   this._nonce = nonce;
   this._chunks = chunks;
-  this._stringDecoder = new TextDecoder();
+  this._stringDecoder = createStringDecoder(!0);
   this._closed = !1;
   this._closedReason = null;
   this._allowPartialStream = allowPartialStream;

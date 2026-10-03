@@ -1,4 +1,5 @@
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/turbopack_crates_turbopack-tests_tests_snapshot_1xzb8pohmqk06._.js",
+(()=>{"use strict";return[
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/emotion/emotion/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
@@ -31,6 +32,7 @@ console.log(StyledButton, ClassNameButton);
 
 __turbopack_context__.s([
     "jsx",
+    0,
     ()=>jsx
 ]);
 function jsx() {
@@ -42,12 +44,14 @@ function jsx() {
 
 __turbopack_context__.s([
     "jsxDEV",
+    0,
     ()=>jsxDEV
 ]);
 function jsxDEV() {
     return 'purposefully empty stub for @emotion/react/jsx-dev-runtime.js';
 }
 }),
+]})(),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/node_modules/@emotion/styled/index.js [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
 
 "purposefully empty stub";

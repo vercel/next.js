@@ -169,6 +169,7 @@
             ),
         ],
         span: 2725..2739,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "__filename",
@@ -447,6 +448,7 @@
             ),
         ],
         span: 2775..2789,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "__dirname",
@@ -977,50 +979,9 @@
                     },
                 ],
                 range: Exact(
-                    [
-                        Program(
-                            Script,
-                        ),
-                        Script(
-                            Body(
-                                7,
-                            ),
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Var,
-                        ),
-                        VarDecl(
-                            Decls(
-                                0,
-                            ),
-                        ),
-                        VarDeclarator(
-                            Init,
-                        ),
-                        Expr(
-                            Arrow,
-                        ),
-                        ArrowExpr(
-                            Body,
-                        ),
-                        ArrowFunctionBody(
-                            FunctionBody,
-                        ),
-                        FunctionBody(
-                            Stmts(
-                                0,
-                            ),
-                        ),
-                        Stmt(
-                            If,
-                        ),
-                        IfStmt(
-                            Cons,
-                        ),
-                    ],
+                    AstPathId(
+                        46,
+                    ),
                 ),
             },
         },
@@ -1184,6 +1145,7 @@
                             ),
                         ],
                         span: 3526..3536,
+                        in_truthiness_context: false,
                     },
                     FreeVar {
                         var: "__dirname",
@@ -1477,50 +1439,9 @@
                     },
                 ],
                 range: Exact(
-                    [
-                        Program(
-                            Script,
-                        ),
-                        Script(
-                            Body(
-                                7,
-                            ),
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Var,
-                        ),
-                        VarDecl(
-                            Decls(
-                                0,
-                            ),
-                        ),
-                        VarDeclarator(
-                            Init,
-                        ),
-                        Expr(
-                            Arrow,
-                        ),
-                        ArrowExpr(
-                            Body,
-                        ),
-                        ArrowFunctionBody(
-                            FunctionBody,
-                        ),
-                        FunctionBody(
-                            Stmts(
-                                1,
-                            ),
-                        ),
-                        Stmt(
-                            If,
-                        ),
-                        IfStmt(
-                            Cons,
-                        ),
-                    ],
+                    AstPathId(
+                        49,
+                    ),
                 ),
             },
             else: EffectsBlock {
@@ -1640,47 +1561,9 @@
                     },
                 ],
                 range: StartAfter(
-                    [
-                        Program(
-                            Script,
-                        ),
-                        Script(
-                            Body(
-                                7,
-                            ),
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Var,
-                        ),
-                        VarDecl(
-                            Decls(
-                                0,
-                            ),
-                        ),
-                        VarDeclarator(
-                            Init,
-                        ),
-                        Expr(
-                            Arrow,
-                        ),
-                        ArrowExpr(
-                            Body,
-                        ),
-                        ArrowFunctionBody(
-                            FunctionBody,
-                        ),
-                        FunctionBody(
-                            Stmts(
-                                1,
-                            ),
-                        ),
-                        Stmt(
-                            If,
-                        ),
-                    ],
+                    AstPathId(
+                        48,
+                    ),
                 ),
             },
         },
@@ -1820,6 +1703,7 @@
             ),
         ],
         span: 3671..3682,
+        in_truthiness_context: false,
     },
     MemberCall {
         obj: Variable(
@@ -2208,6 +2092,7 @@
             ),
         ],
         span: 1005..1021,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "process",
@@ -2347,6 +2232,7 @@
             ),
         ],
         span: 1025..1032,
+        in_truthiness_context: false,
     },
     MemberCall {
         obj: Variable(
@@ -2495,6 +2381,7 @@
             ),
         ],
         span: 1038..1051,
+        in_truthiness_context: false,
     },
     MemberCall {
         obj: Variable(
@@ -2707,42 +2594,13 @@
                             ),
                         ],
                         span: 1112..1145,
+                        in_truthiness_context: false,
                     },
                 ],
                 range: Exact(
-                    [
-                        Program(
-                            Script,
-                        ),
-                        Script(
-                            Body(
-                                5,
-                            ),
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Fn,
-                        ),
-                        FnDecl(
-                            Function,
-                        ),
-                        Function(
-                            Body,
-                        ),
-                        FunctionBody(
-                            Stmts(
-                                3,
-                            ),
-                        ),
-                        Stmt(
-                            If,
-                        ),
-                        IfStmt(
-                            Cons,
-                        ),
-                    ],
+                    AstPathId(
+                        9,
+                    ),
                 ),
             },
             else: EffectsBlock {
@@ -2899,48 +2757,13 @@
                                             ),
                                         ],
                                         span: 1239..1273,
+                                        in_truthiness_context: false,
                                     },
                                 ],
                                 range: Exact(
-                                    [
-                                        Program(
-                                            Script,
-                                        ),
-                                        Script(
-                                            Body(
-                                                5,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            Decl,
-                                        ),
-                                        Decl(
-                                            Fn,
-                                        ),
-                                        FnDecl(
-                                            Function,
-                                        ),
-                                        Function(
-                                            Body,
-                                        ),
-                                        FunctionBody(
-                                            Stmts(
-                                                3,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            If,
-                                        ),
-                                        IfStmt(
-                                            Alt,
-                                        ),
-                                        Stmt(
-                                            If,
-                                        ),
-                                        IfStmt(
-                                            Cons,
-                                        ),
-                                    ],
+                                    AstPathId(
+                                        12,
+                                    ),
                                 ),
                             },
                             else: EffectsBlock {
@@ -3099,45 +2922,9 @@
                                     },
                                 ],
                                 range: Exact(
-                                    [
-                                        Program(
-                                            Script,
-                                        ),
-                                        Script(
-                                            Body(
-                                                5,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            Decl,
-                                        ),
-                                        Decl(
-                                            Fn,
-                                        ),
-                                        FnDecl(
-                                            Function,
-                                        ),
-                                        Function(
-                                            Body,
-                                        ),
-                                        FunctionBody(
-                                            Stmts(
-                                                3,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            If,
-                                        ),
-                                        IfStmt(
-                                            Alt,
-                                        ),
-                                        Stmt(
-                                            If,
-                                        ),
-                                        IfStmt(
-                                            Alt,
-                                        ),
-                                    ],
+                                    AstPathId(
+                                        13,
+                                    ),
                                 ),
                             },
                         },
@@ -3184,39 +2971,9 @@
                     },
                 ],
                 range: Exact(
-                    [
-                        Program(
-                            Script,
-                        ),
-                        Script(
-                            Body(
-                                5,
-                            ),
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Fn,
-                        ),
-                        FnDecl(
-                            Function,
-                        ),
-                        Function(
-                            Body,
-                        ),
-                        FunctionBody(
-                            Stmts(
-                                3,
-                            ),
-                        ),
-                        Stmt(
-                            If,
-                        ),
-                        IfStmt(
-                            Alt,
-                        ),
-                    ],
+                    AstPathId(
+                        10,
+                    ),
                 ),
             },
         },
@@ -3436,39 +3193,9 @@
                     },
                 ],
                 range: Exact(
-                    [
-                        Program(
-                            Script,
-                        ),
-                        Script(
-                            Body(
-                                6,
-                            ),
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Fn,
-                        ),
-                        FnDecl(
-                            Function,
-                        ),
-                        Function(
-                            Body,
-                        ),
-                        FunctionBody(
-                            Stmts(
-                                0,
-                            ),
-                        ),
-                        Stmt(
-                            If,
-                        ),
-                        IfStmt(
-                            Cons,
-                        ),
-                    ],
+                    AstPathId(
+                        21,
+                    ),
                 ),
             },
             else: EffectsBlock {
@@ -3643,6 +3370,7 @@
                             ),
                         ],
                         span: 1602..1617,
+                        in_truthiness_context: false,
                     },
                     FreeVar {
                         var: "require",
@@ -4040,6 +3768,7 @@
                             ),
                         ],
                         span: 1712..1725,
+                        in_truthiness_context: false,
                     },
                     FreeVar {
                         var: "fs",
@@ -4321,6 +4050,7 @@
                                             ),
                                         ],
                                         span: 1758..1773,
+                                        in_truthiness_context: false,
                                     },
                                     FreeVar {
                                         var: "require",
@@ -4721,53 +4451,9 @@
                                     },
                                 ],
                                 range: Exact(
-                                    [
-                                        Program(
-                                            Script,
-                                        ),
-                                        Script(
-                                            Body(
-                                                6,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            Decl,
-                                        ),
-                                        Decl(
-                                            Fn,
-                                        ),
-                                        FnDecl(
-                                            Function,
-                                        ),
-                                        Function(
-                                            Body,
-                                        ),
-                                        FunctionBody(
-                                            Stmts(
-                                                3,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            Try,
-                                        ),
-                                        TryStmt(
-                                            Handler,
-                                        ),
-                                        CatchClause(
-                                            Body,
-                                        ),
-                                        BlockStmt(
-                                            Stmts(
-                                                1,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            If,
-                                        ),
-                                        IfStmt(
-                                            Cons,
-                                        ),
-                                    ],
+                                    AstPathId(
+                                        28,
+                                    ),
                                 ),
                             },
                         },
@@ -5038,6 +4724,7 @@
                                             ),
                                         ],
                                         span: 2299..2311,
+                                        in_truthiness_context: false,
                                     },
                                     Member {
                                         obj: FreeVar(
@@ -5129,6 +4816,7 @@
                                             ),
                                         ],
                                         span: 2312..2327,
+                                        in_truthiness_context: false,
                                     },
                                     FreeVar {
                                         var: "require",
@@ -5497,6 +5185,7 @@
                                             ),
                                         ],
                                         span: 2367..2376,
+                                        in_truthiness_context: false,
                                     },
                                     Member {
                                         obj: Variable(
@@ -5599,6 +5288,7 @@
                                             ),
                                         ],
                                         span: 2422..2435,
+                                        in_truthiness_context: false,
                                     },
                                     MemberCall {
                                         obj: Variable(
@@ -5919,6 +5609,7 @@
                                             ),
                                         ],
                                         span: 2463..2476,
+                                        in_truthiness_context: false,
                                     },
                                     FreeVar {
                                         var: "fs",
@@ -6189,6 +5880,7 @@
                                                             ),
                                                         ],
                                                         span: 2501..2516,
+                                                        in_truthiness_context: false,
                                                     },
                                                     FreeVar {
                                                         var: "fs",
@@ -6455,6 +6147,7 @@
                                                             ),
                                                         ],
                                                         span: 2548..2560,
+                                                        in_truthiness_context: false,
                                                     },
                                                     FreeVar {
                                                         var: "fs",
@@ -6639,53 +6332,9 @@
                                                     },
                                                 ],
                                                 range: Exact(
-                                                    [
-                                                        Program(
-                                                            Script,
-                                                        ),
-                                                        Script(
-                                                            Body(
-                                                                6,
-                                                            ),
-                                                        ),
-                                                        Stmt(
-                                                            Decl,
-                                                        ),
-                                                        Decl(
-                                                            Fn,
-                                                        ),
-                                                        FnDecl(
-                                                            Function,
-                                                        ),
-                                                        Function(
-                                                            Body,
-                                                        ),
-                                                        FunctionBody(
-                                                            Stmts(
-                                                                6,
-                                                            ),
-                                                        ),
-                                                        Stmt(
-                                                            If,
-                                                        ),
-                                                        IfStmt(
-                                                            Cons,
-                                                        ),
-                                                        Stmt(
-                                                            Block,
-                                                        ),
-                                                        BlockStmt(
-                                                            Stmts(
-                                                                2,
-                                                            ),
-                                                        ),
-                                                        Stmt(
-                                                            If,
-                                                        ),
-                                                        IfStmt(
-                                                            Cons,
-                                                        ),
-                                                    ],
+                                                    AstPathId(
+                                                        35,
+                                                    ),
                                                 ),
                                             },
                                         },
@@ -6786,39 +6435,9 @@
                                     },
                                 ],
                                 range: Exact(
-                                    [
-                                        Program(
-                                            Script,
-                                        ),
-                                        Script(
-                                            Body(
-                                                6,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            Decl,
-                                        ),
-                                        Decl(
-                                            Fn,
-                                        ),
-                                        FnDecl(
-                                            Function,
-                                        ),
-                                        Function(
-                                            Body,
-                                        ),
-                                        FunctionBody(
-                                            Stmts(
-                                                6,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            If,
-                                        ),
-                                        IfStmt(
-                                            Cons,
-                                        ),
-                                    ],
+                                    AstPathId(
+                                        31,
+                                    ),
                                 ),
                             },
                             else: EffectsBlock {
@@ -6857,36 +6476,9 @@
                                     },
                                 ],
                                 range: StartAfter(
-                                    [
-                                        Program(
-                                            Script,
-                                        ),
-                                        Script(
-                                            Body(
-                                                6,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            Decl,
-                                        ),
-                                        Decl(
-                                            Fn,
-                                        ),
-                                        FnDecl(
-                                            Function,
-                                        ),
-                                        Function(
-                                            Body,
-                                        ),
-                                        FunctionBody(
-                                            Stmts(
-                                                6,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            If,
-                                        ),
-                                    ],
+                                    AstPathId(
+                                        30,
+                                    ),
                                 ),
                             },
                         },
@@ -6927,36 +6519,9 @@
                     },
                 ],
                 range: StartAfter(
-                    [
-                        Program(
-                            Script,
-                        ),
-                        Script(
-                            Body(
-                                6,
-                            ),
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Fn,
-                        ),
-                        FnDecl(
-                            Function,
-                        ),
-                        Function(
-                            Body,
-                        ),
-                        FunctionBody(
-                            Stmts(
-                                0,
-                            ),
-                        ),
-                        Stmt(
-                            If,
-                        ),
-                    ],
+                    AstPathId(
+                        20,
+                    ),
                 ),
             },
         },

@@ -79,13 +79,13 @@ export declare function codeFrameColumns(
 
 export declare function endpointClientChangedSubscribe(
   endpoint: { __napiType: 'Endpoint' },
-  func: (err: Error, value: TurbopackResult) => void
+  func: (err: Error, value: TurbopackResult<undefined>) => void
 ): { __napiType: 'RootTask' }
 
 export declare function endpointServerChangedSubscribe(
   endpoint: { __napiType: 'Endpoint' },
   issues: boolean,
-  func: (err: Error, value: TurbopackResult) => void
+  func: (err: Error, value: TurbopackResult<undefined>) => void
 ): { __napiType: 'RootTask' }
 
 export declare function endpointWriteToDisk(endpoint: {
@@ -201,6 +201,12 @@ export interface NapiAdditionalIssueSource {
   source: NapiIssueSource
   /** Pre-rendered code frame for this additional source location, if available. */
   codeFrame?: string
+}
+
+export interface NapiAdditionalRoot {
+  key: RcStr
+  path: RcStr
+  ignoreIfMissing?: boolean
 }
 
 export interface NapiAssetPath {
@@ -361,9 +367,6 @@ export interface NapiOptionEnvVar {
  * Refer to [`NapiProjectOptions`] for documentation on this struct's fields.
  */
 export interface NapiPartialProjectOptions {
-  rootPath?: RcStr
-  projectPath?: RcStr
-  watch?: NapiWatchOptions
   nextConfig?: RcStr
   env?: Array<NapiEnvVar>
   defineEnv?: NapiDefineEnv
@@ -374,6 +377,10 @@ export interface NapiPartialProjectOptions {
   browserslistQuery?: RcStr
   writeRoutesHashesManifest?: boolean
   noMangling?: boolean
+}
+
+export interface NapiProject {
+  project: { __napiType: 'Project' }
 }
 
 export interface NapiProjectOptions {
@@ -398,6 +405,8 @@ export interface NapiProjectOptions {
   watch: NapiWatchOptions
   /** The contents of next.config.js, serialized to JSON. */
   nextConfig: RcStr
+  /** Additional filesystem roots from next.config.js. */
+  additionalRoots: Array<NapiAdditionalRoot>
   /** A map of environment variables to use when compiling code. */
   env: Array<NapiEnvVar>
   /**
@@ -505,6 +514,19 @@ export interface NapiTurboEngineOptions {
   skipCompaction?: boolean
   /** Turbopack memory eviction mode for the persistent cache. */
   turbopackMemoryEviction: MemoryEvictionMode
+  /** Tuning for Turbopack's reference-counting GC. `None` disables the GC. */
+  gc?: NapiTurbopackGcOptions
+}
+
+/**
+ * Tuning for Turbopack's reference-counting GC, mirroring the
+ * `experimental.turbopackGc` config option.
+ */
+export interface NapiTurbopackGcOptions {
+  /** How long a GC pass runs before it will honour an interrupt, in milliseconds. */
+  minProgressMs?: number
+  /** How long a GC root may go un-anchored before it ages out, in milliseconds. */
+  rootTtlMs?: number
 }
 
 export interface NapiUpdateInfo {
@@ -567,6 +589,11 @@ export declare function parse(
   signal?: AbortSignal | undefined | null
 ): Promise<string>
 
+export declare function projectActivateLazyChunk(
+  project: { __napiType: 'Project' },
+  chunkPath: RcStr
+): Promise<boolean>
+
 export declare function projectClientHmrChunkNamesSubscribe(
   project: { __napiType: 'Project' },
   func: (err: Error, value: TurbopackResult<HmrChunkNames>) => void
@@ -581,17 +608,20 @@ export declare function projectClientHmrEvents(
 /** Subscribes to all compilation events that are not cached like timing and progress information. */
 export declare function projectCompilationEventsSubscribe(
   project: { __napiType: 'Project' },
-  func: (err: Error, value: TurbopackResult<CompilationEvent>) => void,
+  func: (err: Error, value: CompilationEvent) => void,
   eventTypes?: Array<string> | undefined | null
 ): void
 
 export declare function projectEntrypoints(project: {
   __napiType: 'Project'
-}): Promise<TurbopackResult<Partial<NapiEntrypoints>>>
+}): Promise<TurbopackResult<Partial<NapiEntrypoints> | null>>
 
 export declare function projectEntrypointsSubscribe(
   project: { __napiType: 'Project' },
-  func: (err: Error, value: TurbopackResult<Partial<NapiEntrypoints>>) => void
+  func: (
+    err: Error,
+    value: TurbopackResult<Partial<NapiEntrypoints> | null>
+  ) => void
 ): { __napiType: 'RootTask' }
 
 /**
@@ -643,7 +673,7 @@ export declare function projectNew(
   options: NapiProjectOptions,
   turboEngineOptions: NapiTurboEngineOptions,
   napiCallbacks: NapiNextTurbopackCallbacksJsObject
-): Promise<{ __napiType: 'Project' }>
+): Promise<TurbopackResult<{ project: { __napiType: 'Project' } }>>
 
 /**
  * Runs exit handlers for the project registered using the [`ExitHandler`] API.
@@ -693,13 +723,13 @@ export declare function projectUpdate(
 export declare function projectUpdateInfoSubscribe(
   project: { __napiType: 'Project' },
   aggregationMs: number,
-  func: (err: Error, value: TurbopackResult<UpdateMessage>) => void
+  func: (err: Error, value: UpdateMessage) => void
 ): void
 
 export declare function projectWriteAllEntrypointsToDisk(
   project: { __napiType: 'Project' },
   appDirOnly: boolean
-): Promise<TurbopackResult<Partial<NapiEntrypoints>>>
+): Promise<TurbopackResult<Partial<NapiEntrypoints> | null>>
 
 export declare function projectWriteAnalyzeData(
   project: { __napiType: 'Project' },
@@ -747,6 +777,22 @@ export declare function teardownTraceSubscriber(
   guardExternal: ExternalObject<RefCell<FlushGuard | undefined | null>>
 ): void
 
+/** Aggregate view of a span's TurboMalloc memory samples. */
+export interface TraceMemorySummary {
+  /** Number of samples in the span's range, after downsampling. */
+  count: number
+  /** Live bytes at the first sample in the range. */
+  start: number
+  /** Live bytes at the last sample in the range. */
+  end: number
+  /** Smallest live-bytes reading in the range. */
+  min: number
+  /** Largest live-bytes reading in the range — the span's peak memory. */
+  peak: number
+  /** Highest memory-pressure byte in the range (0 = no pressure). */
+  maxPressure: number
+}
+
 /** Options for `query_trace_spans`. */
 export interface TraceQueryOptions {
   /**
@@ -757,14 +803,36 @@ export interface TraceQueryOptions {
   /** When `true` (default), aggregate child spans with the same name. */
   aggregated?: boolean
   /**
-   * Sort mode: `"value"` for duration descending, `"name"` for alphabetical.
+   * Sort mode: `"value"` for duration descending, `"name"` for alphabetical,
+   * `"allocations"` for total allocated bytes descending,
+   * `"persistent-allocations"` for `persistentAllocations` descending.
    * Omit for execution order (no sorting).
    */
   sort?: string
-  /** Optional substring search query applied to span name/category. */
+  /**
+   * Optional substring search query applied to span name/category.
+   *
+   * Matches anywhere in the parent's subtree. Each result's `id` is the full
+   * path from `parent` to the match, so it can be passed back as `parent`.
+   *
+   * Cost scales with subtree size, so a root search on a large trace walks
+   * everything. Setting `parent`, or lowering `maxDepth`, bounds it.
+   */
   search?: string
+  /**
+   * Maximum depth to descend below `parent` for `search` and `depth`.
+   * Default `32`, which is also the cap.
+   */
+  maxDepth?: number
+  /**
+   * When greater than `1`, each returned span carries this many levels of
+   * descendants inline in `children`. Default `1` (no nesting).
+   */
+  depth?: number
   /** 1-based page number. Default `1`. */
   page?: number
+  /** Spans per page. Default `20`, capped at `500`. */
+  pageSize?: number
 }
 
 /** The result of a `query_trace_spans` call. */
@@ -806,11 +874,84 @@ export interface TraceSpanInfo {
   totalCorrectedDuration?: number
   /** Average corrected duration across spans in the group. */
   avgCorrectedDuration?: number
-  /** Raw span ID for aggregated groups (the index of the first span). */
+  /**
+   * Raw span ID of the group's example span, whose `cpuDuration`,
+   * `correctedDuration` and `memorySamples` are the ones reported here.
+   * First in execution order — *not* the largest, so it can badly understate
+   * a group's allocations. Use `heaviestSpanId` for those.
+   */
   firstSpanId?: string
+  /**
+   * Raw span ID of the group member with the largest persistent
+   * allocations.
+   */
+  heaviestSpanId?: string
+  /**
+   * Total bytes allocated by this span and all its children.
+   *
+   * For aggregated groups this is the group total, unlike `cpuDuration`,
+   * `correctedDuration` and `memorySamples`, which describe the example span
+   * only. Every allocation field below follows this field, not those.
+   */
+  allocations: number
+  /**
+   * Total bytes deallocated by this span and all its children.
+   * Group total for aggregated spans.
+   */
+  deallocations: number
+  /**
+   * Sum over each span of `max(0, selfAllocations - selfDeallocations)`,
+   * for this span and its children. Group total for aggregated spans.
+   *
+   * **A ranking signal, not retained memory.** TurboMalloc's per-span
+   * counters never observe turbo-tasks cell and cache drops, so a
+   * whole-trace total far above real peak RSS is expected, not a leak. Use
+   * `memorySummary.peak` for absolute memory.
+   *
+   * The per-span floor at zero is also why this is not
+   * `allocations - deallocations`.
+   */
+  persistentAllocations: number
+  /**
+   * Number of allocation operations by this span and all its children.
+   * Group total for aggregated spans.
+   */
+  allocationCount: number
+  /**
+   * Bytes allocated by this span itself, excluding children.
+   * Group total for aggregated spans.
+   */
+  selfAllocations: number
+  /**
+   * Bytes deallocated by this span itself, excluding children.
+   * Group total for aggregated spans.
+   *
+   * Frees are charged to whichever span was on top of the thread's stack at
+   * free time, which is often not the span that allocated. So small
+   * `selfAllocations` with large `selfDeallocations` means this span is
+   * where a child's arena gets dropped — that arena is bounded, not leaking.
+   * The shape to suspect is a large `selfPersistentAllocations` with no such
+   * counterpart above it.
+   */
+  selfDeallocations: number
+  /**
+   * `max(0, selfAllocations - selfDeallocations)` for this span alone.
+   * Group total for aggregated spans.
+   */
+  selfPersistentAllocations: number
+  /**
+   * Number of allocation operations by this span itself, excluding children.
+   * Group total for aggregated spans.
+   */
+  selfAllocationCount: number
   /**
    * TurboMalloc memory-usage samples recorded while this span
    * (or its example span, for aggregated groups) was live.
+   *
+   * **Process-wide, not per-span.** One global series is sliced by the
+   * span's time range, so spans that overlap in time report identical values
+   * no matter what each allocated. Rank concurrent work by the allocation
+   * fields instead.
    *
    * Each entry is `[ts_offset_from_span_start_in_ticks, bytes, pressure]`,
    * where `pressure` is the memory-pressure byte (0 = no pressure, higher
@@ -818,6 +959,14 @@ export interface TraceSpanInfo {
    * `<= span_duration`. Capped and downsampled by the store.
    */
   memorySamples: Array<Array<number>>
+  /**
+   * Summary of `memorySamples`; absent when the span's range holds none.
+   * Unlike the allocation counters these are absolute live-heap readings, so
+   * `peak` is the figure to quote for memory actually in use.
+   */
+  memorySummary?: TraceMemorySummary
+  /** Descendants of this span, populated only when `depth > 1`. */
+  children: Array<TraceSpanInfo>
 }
 
 export declare function transform(

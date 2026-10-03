@@ -108,7 +108,7 @@ An instance of an [`Error`](https://developer.mozilla.org/docs/Web/JavaScript/Re
 #### `error.message`
 
 - Errors forwarded from Client Components show the original `Error` message.
-- Errors forwarded from Server Components show a generic message with an identifier. This is to prevent leaking sensitive details. You can use the identifier, under `errors.digest`, to match the corresponding server-side logs.
+- Errors forwarded from Server Components show a generic message with an identifier. This is to prevent leaking sensitive details. You can use the identifier, under `error.digest`, to match the corresponding server-side logs.
 
 #### `error.digest`
 

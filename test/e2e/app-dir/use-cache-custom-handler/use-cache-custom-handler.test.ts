@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
+import type { CacheWrite } from './cache-writes'
 
 const isoDateRegExp = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/
 
@@ -15,6 +16,22 @@ describe('use-cache-custom-handler', () => {
 
   beforeEach(() => {
     outputIndex = next.cliOutput.length
+  })
+
+  it('uses the custom handler for the first request during startup', async () => {
+    const $ = await next.render$('/registration')
+    expect($('#data').text()).toBe('registration')
+
+    await retry(async () => {
+      const writes: CacheWrite[] = await next
+        .fetch('/cache-writes')
+        .then((response) => response.json())
+      expect(writes).toContainEqual(
+        expect.objectContaining({
+          tags: expect.arrayContaining(['registration']),
+        })
+      )
+    }, 3000)
   })
 
   it('should use a modern custom cache handler if provided', async () => {
@@ -120,6 +137,24 @@ describe('use-cache-custom-handler', () => {
     })
   })
 
+  it('should call updateTags once per profile group', async () => {
+    const browser = await next.browser(`/`)
+
+    outputIndex = next.cliOutput.length
+
+    await browser.elementById('revalidate-multiple-profiles').click()
+
+    await retry(async () => {
+      const cliOutput = next.cliOutput.slice(outputIndex)
+      expect(cliOutput).toInclude(
+        'ModernCustomCacheHandler::updateTags ["modern"]'
+      )
+      expect(cliOutput).toInclude(
+        'ModernCustomCacheHandler::updateTags ["other"]'
+      )
+    })
+  })
+
   if (isNextStart) {
     it('should save a short-lived cache during prerendering at buildtime', async () => {
       expect(next.cliOutput).toMatch(
@@ -129,25 +164,39 @@ describe('use-cache-custom-handler', () => {
   }
 
   it('should dedupe nested caches across different outer cache scopes, and still propagate cache life/tags correctly', async () => {
-    await next.fetch('/nested')
+    const $ = await next.render$('/nested')
+    const values = $('p#inner')
+      .map((_, element) => $(element).text())
+      .get()
+    expect(values).toHaveLength(2)
+    expect(values[0]).toBeTruthy()
+    expect(values[0]).toBe(values[1])
 
     await retry(async () => {
-      const cliOutput = next.cliOutput.slice(outputIndex)
-
-      expect(cliOutput).toIncludeRepeated(
-        `ModernCustomCacheHandler::set-resolved-entry revalidate: 180, expire: 300, tags: inner`,
-        1
+      const writes: CacheWrite[] = await next
+        .fetch('/cache-writes')
+        .then((response) => response.json())
+      const nestedWrites = writes.filter(({ tags }) =>
+        tags.some((tag) => ['inner', 'outer1', 'outer2'].includes(tag))
       )
-
-      expect(cliOutput).toIncludeRepeated(
-        `ModernCustomCacheHandler::set-resolved-entry revalidate: 180, expire: 300, tags: outer1,inner`,
-        1
-      )
-
-      expect(cliOutput).toIncludeRepeated(
-        `ModernCustomCacheHandler::set-resolved-entry revalidate: 180, expire: 300, tags: outer2,inner`,
-        1
-      )
+      expect(new Set(nestedWrites.map(({ cacheKey }) => cacheKey)).size).toBe(3)
+      expect(nestedWrites).toEqual([
+        expect.objectContaining({
+          revalidate: 180,
+          expire: 300,
+          tags: ['inner'],
+        }),
+        expect.objectContaining({
+          revalidate: 180,
+          expire: 300,
+          tags: ['outer1', 'inner'],
+        }),
+        expect.objectContaining({
+          revalidate: 180,
+          expire: 300,
+          tags: ['outer2', 'inner'],
+        }),
+      ])
     })
   })
 
@@ -173,4 +222,25 @@ describe('use-cache-custom-handler', () => {
       )
     })
   })
+
+  if (isNextStart) {
+    it('handles a failed handler preload without an unhandled rejection', async () => {
+      await next.stop()
+      await next.start({
+        skipBuild: true,
+        env: { NEXT_TEST_FAIL_CUSTOM_CACHE_HANDLER: '1' },
+      })
+
+      await retry(() => {
+        expect(next.cliOutput).toContain('Failed to preload entries:')
+        expect(next.cliOutput).toContain(
+          'test custom cache handler failed to load'
+        )
+      })
+
+      const response = await next.fetch('/registration')
+      expect(response.status).toBe(500)
+      expect(next.cliOutput).not.toContain('unhandledRejection:')
+    })
+  }
 })

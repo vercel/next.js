@@ -27,7 +27,7 @@ use swc_core::{
     ecma::{
         ast::*,
         codegen::{self, Emitter, text_writer::JsWriter},
-        utils::{ExprFactory, private_ident, quote_ident},
+        utils::{ExprFactory, prepend_stmts, private_ident, quote_ident},
         visit::{VisitMut, VisitMutWith, noop_visit_mut_type, visit_mut_pass},
     },
     quote,
@@ -556,7 +556,8 @@ impl<C: Comments> ServerActions<C> {
 
             match &mut new_body {
                 ArrowFunctionBody::FunctionBody(body) => {
-                    body.stmts.insert(0, decryption_decl.into());
+                    // Insert after the body's leading directives, never before them.
+                    prepend_stmts(&mut body.stmts, std::iter::once(decryption_decl.into()));
                 }
                 ArrowFunctionBody::Expr(body_expr) => {
                     new_body = ArrowFunctionBody::FunctionBody(FunctionBody {
@@ -716,7 +717,8 @@ impl<C: Comments> ServerActions<C> {
             };
 
             if let Some(body) = &mut new_body {
-                body.stmts.insert(0, decryption_decl.into());
+                // Insert after the body's leading directives, never before them.
+                prepend_stmts(&mut body.stmts, std::iter::once(decryption_decl.into()));
             } else {
                 new_body = Some(FunctionBody {
                     span: DUMMY_SP,
@@ -2584,103 +2586,104 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         // import { cache as $$cache__ } from "private-next-rsc-cache-wrapper";
         // import { cache as $$reactCache__ } from "react";
         if self.has_cache && self.config.is_react_server_layer {
-            new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-                span: DUMMY_SP,
-                specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
+            let cache_imports = vec![
+                ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                     span: DUMMY_SP,
-                    local: quote_ident!("$$cache__").into(),
-                    imported: Some(quote_ident!("cache").into()),
-                    is_type_only: false,
-                })],
-                src: Box::new(Str {
-                    span: DUMMY_SP,
-                    value: atom!("private-next-rsc-cache-wrapper").into(),
-                    raw: None,
-                }),
-                type_only: false,
-                with: None,
-                phase: Default::default(),
-            })));
-
-            new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-                span: DUMMY_SP,
-                specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
-                    span: DUMMY_SP,
-                    local: quote_ident!("$$reactCache__").into(),
-                    imported: Some(quote_ident!("cache").into()),
-                    is_type_only: false,
-                })],
-                src: Box::new(Str {
-                    span: DUMMY_SP,
-                    value: atom!("react").into(),
-                    raw: None,
-                }),
-                type_only: false,
-                with: None,
-                phase: Default::default(),
-            })));
-
-            // Make them the first items
-            new.rotate_right(2);
-        }
-
-        if (self.has_action || self.has_cache) && self.config.is_react_server_layer {
-            // Inlined actions are only allowed on the server layer.
-            // import { registerServerReference } from 'private-next-rsc-server-reference'
-            new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-                span: DUMMY_SP,
-                specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
-                    span: DUMMY_SP,
-                    local: quote_ident!("registerServerReference").into(),
-                    imported: None,
-                    is_type_only: false,
-                })],
-                src: Box::new(Str {
-                    span: DUMMY_SP,
-                    value: atom!("private-next-rsc-server-reference").into(),
-                    raw: None,
-                }),
-                type_only: false,
-                with: None,
-                phase: Default::default(),
-            })));
-
-            let mut import_count = 1;
-
-            // Encryption and decryption only happens when there are bound arguments.
-            if self.has_server_reference_with_bound_args {
-                // import { encryptActionBoundArgs, decryptActionBoundArgs } from
-                // 'private-next-rsc-action-encryption'
-                new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-                    span: DUMMY_SP,
-                    specifiers: vec![
-                        ImportSpecifier::Named(ImportNamedSpecifier {
-                            span: DUMMY_SP,
-                            local: quote_ident!("encryptActionBoundArgs").into(),
-                            imported: None,
-                            is_type_only: false,
-                        }),
-                        ImportSpecifier::Named(ImportNamedSpecifier {
-                            span: DUMMY_SP,
-                            local: quote_ident!("decryptActionBoundArgs").into(),
-                            imported: None,
-                            is_type_only: false,
-                        }),
-                    ],
+                    specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
+                        span: DUMMY_SP,
+                        local: quote_ident!("$$cache__").into(),
+                        imported: Some(quote_ident!("cache").into()),
+                        is_type_only: false,
+                    })],
                     src: Box::new(Str {
                         span: DUMMY_SP,
-                        value: atom!("private-next-rsc-action-encryption").into(),
+                        value: atom!("private-next-rsc-cache-wrapper").into(),
                         raw: None,
                     }),
                     type_only: false,
                     with: None,
                     phase: Default::default(),
-                })));
-                import_count += 1;
+                })),
+                ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                    span: DUMMY_SP,
+                    specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
+                        span: DUMMY_SP,
+                        local: quote_ident!("$$reactCache__").into(),
+                        imported: Some(quote_ident!("cache").into()),
+                        is_type_only: false,
+                    })],
+                    src: Box::new(Str {
+                        span: DUMMY_SP,
+                        value: atom!("react").into(),
+                        raw: None,
+                    }),
+                    type_only: false,
+                    with: None,
+                    phase: Default::default(),
+                })),
+            ];
+
+            // Insert after the leading directives, never before them.
+            prepend_stmts(&mut new, cache_imports.into_iter());
+        }
+
+        if (self.has_action || self.has_cache) && self.config.is_react_server_layer {
+            // Inlined actions are only allowed on the server layer.
+            // import { registerServerReference } from 'private-next-rsc-server-reference'
+            let mut server_reference_imports =
+                vec![ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                    span: DUMMY_SP,
+                    specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
+                        span: DUMMY_SP,
+                        local: quote_ident!("registerServerReference").into(),
+                        imported: None,
+                        is_type_only: false,
+                    })],
+                    src: Box::new(Str {
+                        span: DUMMY_SP,
+                        value: atom!("private-next-rsc-server-reference").into(),
+                        raw: None,
+                    }),
+                    type_only: false,
+                    with: None,
+                    phase: Default::default(),
+                }))];
+
+            // Encryption and decryption only happens when there are bound arguments.
+            if self.has_server_reference_with_bound_args {
+                // import { encryptActionBoundArgs, decryptActionBoundArgs } from
+                // 'private-next-rsc-action-encryption'
+                server_reference_imports.push(ModuleItem::ModuleDecl(ModuleDecl::Import(
+                    ImportDecl {
+                        span: DUMMY_SP,
+                        specifiers: vec![
+                            ImportSpecifier::Named(ImportNamedSpecifier {
+                                span: DUMMY_SP,
+                                local: quote_ident!("encryptActionBoundArgs").into(),
+                                imported: None,
+                                is_type_only: false,
+                            }),
+                            ImportSpecifier::Named(ImportNamedSpecifier {
+                                span: DUMMY_SP,
+                                local: quote_ident!("decryptActionBoundArgs").into(),
+                                imported: None,
+                                is_type_only: false,
+                            }),
+                        ],
+                        src: Box::new(Str {
+                            span: DUMMY_SP,
+                            value: atom!("private-next-rsc-action-encryption").into(),
+                            raw: None,
+                        }),
+                        type_only: false,
+                        with: None,
+                        phase: Default::default(),
+                    },
+                )));
             }
 
-            // Make them the first items
-            new.rotate_right(import_count);
+            // Insert after the leading directives, never before them.
+            prepend_stmts(&mut new, server_reference_imports.into_iter());
         }
 
         if self.has_action || self.has_cache {
@@ -2729,8 +2732,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 .into(),
                             },
                         );
-                        new.push(client_layer_import.unwrap());
-                        new.rotate_right(1);
+                        // Insert after the leading directives, never before them.
+                        prepend_stmts(&mut new, std::iter::once(client_layer_import.unwrap()));
                         new.extend(
                             client_layer_exports
                                 .into_iter()

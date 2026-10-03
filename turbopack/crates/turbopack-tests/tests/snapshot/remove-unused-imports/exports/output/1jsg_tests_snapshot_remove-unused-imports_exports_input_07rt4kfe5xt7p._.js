@@ -1,4 +1,4 @@
-(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1jsg_tests_snapshot_remove-unused-imports_exports_input_07rt4kfe5xt7p._.js",
+(()=>{"use strict";(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1jsg_tests_snapshot_remove-unused-imports_exports_input_07rt4kfe5xt7p._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/remove-unused-imports/exports/input/a.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
@@ -17,7 +17,6 @@ function used() {
 }
 __turbopack_context__.s([
     "used",
-    0,
     used
 ]);
 }),
@@ -36,7 +35,6 @@ function leafX() {}
 function leafY() {}
 __turbopack_context__.s([
     "leafY",
-    0,
     leafY
 ]);
 }),
@@ -53,7 +51,6 @@ function sharedY() {
 }
 __turbopack_context__.s([
     "sharedY",
-    0,
     sharedY
 ]);
 }),
@@ -68,10 +65,9 @@ function y() {
 }
 __turbopack_context__.s([
     "y",
-    0,
     y
 ]);
 }),
-]);
+]);})()
 
 //# sourceMappingURL=1jsg_tests_snapshot_remove-unused-imports_exports_input_07rt4kfe5xt7p._.js.map

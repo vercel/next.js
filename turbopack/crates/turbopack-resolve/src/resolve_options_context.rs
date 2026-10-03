@@ -1,7 +1,7 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{NonLocalValue, ResolvedVc, ValueDefault, Vc, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, ResolvedVc, ValueDefault, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     condition::ContextCondition,
@@ -12,7 +12,7 @@ use turbopack_core::{
     },
 };
 
-#[derive(Default, Debug, Clone, TraceRawVcs, PartialEq, Eq, NonLocalValue, Encode, Decode)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub enum TsConfigHandling {
     /// Ignore tsconfig and jsconfig files.
     Disabled,

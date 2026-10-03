@@ -1,4 +1,4 @@
-(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1do3_crates_turbopack-tests_tests_snapshot_basic_shebang_input_02e38zhtmusm6._.js",
+(()=>{"use strict";(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1do3_crates_turbopack-tests_tests_snapshot_basic_shebang_input_02e38zhtmusm6._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/shebang/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
@@ -12,12 +12,13 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
 
 __turbopack_context__.s([
     "foo",
+    0,
     ()=>foo
 ]);
 function foo(value) {
     console.assert(value);
 }
 }),
-]);
+]);})()
 
 //# sourceMappingURL=1do3_crates_turbopack-tests_tests_snapshot_basic_shebang_input_02e38zhtmusm6._.js.map

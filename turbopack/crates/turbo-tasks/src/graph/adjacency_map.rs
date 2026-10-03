@@ -4,12 +4,12 @@ use std::{
 };
 
 use rustc_hash::{FxHashMap, FxHashSet};
-use turbo_tasks_macros::{TraceRawVcs, ValueDebugFormat};
+use turbo_tasks_macros::ValueDebugFormat;
 
 use crate::{self as turbo_tasks, NonLocalValue, graph::graph_store::GraphStore};
 
 /// A graph traversal that builds an adjacency map
-#[derive(Debug, Clone, TraceRawVcs, ValueDebugFormat)]
+#[derive(Debug, Clone, ValueDebugFormat)]
 pub struct AdjacencyMap<T, E> {
     adjacency_map: FxHashMap<T, Vec<(T, E)>>,
     roots: Vec<T>,

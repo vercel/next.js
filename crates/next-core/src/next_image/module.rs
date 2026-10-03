@@ -1,7 +1,7 @@
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use turbo_rcstr::rcstr;
-use turbo_tasks::{ResolvedVc, Vc, fxindexmap, trace::TraceRawVcs};
+use turbo_tasks::{ResolvedVc, Vc, fxindexmap};
 use turbopack::{ModuleAssetContext, module_options::CustomModuleType};
 use turbopack_core::{
     context::AssetContext, module::Module, reference_type::ReferenceType, source::Source,
@@ -12,7 +12,7 @@ use turbopack_static::ecma::StaticUrlJsModule;
 use super::source_asset::StructuredImageFileSource;
 
 #[turbo_tasks::task_input]
-#[derive(Eq, PartialEq, Clone, Copy, Debug, PartialOrd, Ord, Hash, TraceRawVcs, Encode, Decode)]
+#[derive(Eq, PartialEq, Clone, Copy, Debug, PartialOrd, Ord, Hash, Encode, Decode)]
 pub enum BlurPlaceholderMode {
     /// Do not generate a blur placeholder at all.
     None,

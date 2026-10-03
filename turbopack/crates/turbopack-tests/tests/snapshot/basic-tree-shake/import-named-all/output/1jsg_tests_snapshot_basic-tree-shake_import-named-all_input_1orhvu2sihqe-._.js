@@ -1,4 +1,4 @@
-(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1jsg_tests_snapshot_basic-tree-shake_import-named-all_input_1orhvu2sihqe-._.js",
+(()=>{"use strict";(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1jsg_tests_snapshot_basic-tree-shake_import-named-all_input_1orhvu2sihqe-._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/import-named-all/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
@@ -13,6 +13,7 @@ console.log(__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$
 
 __turbopack_context__.s([
     "a",
+    0,
     ()=>dog,
     (new_dog)=>dog = new_dog
 ]);
@@ -58,6 +59,7 @@ __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack
 
 __turbopack_context__.s([
     "e",
+    0,
     ()=>cat,
     (new_cat)=>cat = new_cat
 ]);
@@ -69,12 +71,13 @@ let cat = 'cat';
 
 __turbopack_context__.s([
     "cat",
+    0,
     ()=>__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$import$2d$named$2d$all$2f$input$2f$lib$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__5$3e$__["e"]
 ]);
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$import$2d$named$2d$all$2f$input$2f$lib$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__5$3e$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/import-named-all/input/lib.js [test] (ecmascript) <internal part 5>");
 ;
 ;
 }),
-]);
+]);})()
 
 //# sourceMappingURL=1jsg_tests_snapshot_basic-tree-shake_import-named-all_input_1orhvu2sihqe-._.js.map

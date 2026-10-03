@@ -2,13 +2,10 @@ import { nextTestSetup } from 'e2e-utils'
 import stripAnsi from 'strip-ansi'
 
 describe('unmatched-app-pages', () => {
-  const { next, isNextDev, isTurbopack, skipped } = nextTestSetup({
+  const { next, isNextDev, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-
-  if (skipped) return
 
   it('reports every page excluded from all complete routes', async () => {
     if (isNextDev) {
@@ -47,9 +44,11 @@ describe('unmatched-app-pages', () => {
          }
         `)
       }
+
+      expectDefaultStrictRouteMatchingWarning(next.cliOutput)
     } else {
-      const { exitCode, cliOutput } = await next.build()
-      expect(exitCode).toBe(1)
+      await expect(next.start()).rejects.toThrow()
+      const cliOutput = next.cliOutput
 
       expect(extractUnmatchedPagesError(cliOutput)).toMatchInlineSnapshot(`
        "The following page files do not match any complete route:
@@ -64,9 +63,16 @@ describe('unmatched-app-pages', () => {
 
        Every page must be part of at least one complete route. Add matching pages or default files for the sibling parallel route slots, or remove the unreachable pages."
       `)
+      expectDefaultStrictRouteMatchingWarning(cliOutput)
     }
-  })
+  }, 240_000)
 })
+
+function expectDefaultStrictRouteMatchingWarning(output: string): void {
+  expect(stripAnsi(output)).toContain(
+    'you can temporarily restore loose route matching by setting `deprecated.looseRouteMatching` to `true`'
+  )
+}
 
 function extractUnmatchedPagesError(output: string): string {
   const normalizedOutput = stripAnsi(output)

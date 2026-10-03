@@ -36,7 +36,7 @@ ignoredBuiltDependencies:
 blockExoticSubdeps: true
 minimumReleaseAge: 2880 # 48 hrs
 minimumReleaseAgeExclude:
-  - '@mswjs/interceptors@0.42.0'
+  - '@mswjs/interceptors@0.42.5'
   - '@next/*'
   - '@turbo/*'
   - '@types/react@19.2.18'
@@ -50,5 +50,6 @@ minimumReleaseAgeExclude:
   - react-dom
   - react-is
   - react-server-dom-*
+  - satori@0.33.5
   - scheduler
   - turbo

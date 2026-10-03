@@ -400,6 +400,7 @@
             ),
         ],
         span: 171..183,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "process",
@@ -1136,6 +1137,7 @@
             ),
         ],
         span: 345..361,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "process",
@@ -1447,6 +1449,7 @@
             ),
         ],
         span: 419..431,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "process",
@@ -1562,6 +1565,7 @@
             ),
         ],
         span: 438..454,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "process",
@@ -1879,6 +1883,7 @@
             ),
         ],
         span: 512..518,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -1941,6 +1946,7 @@
             ),
         ],
         span: 522..532,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -2208,6 +2214,7 @@
             ),
         ],
         span: 592..598,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(

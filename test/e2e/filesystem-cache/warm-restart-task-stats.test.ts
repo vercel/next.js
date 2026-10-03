@@ -1,4 +1,5 @@
 import { nextTestSetup, isNextDev } from 'e2e-utils'
+import { getPnpmRealpathWorkaround } from '../../lib/pnpm-realpath-workaround'
 import { waitFor } from 'next-test-utils'
 import fs from 'fs/promises'
 import path from 'path'
@@ -30,35 +31,22 @@ const STATS_RELATIVE_PATH = '.next/warm-restart-task-stats.json'
 // @force-gate !deploy
 // @force-gate turbopack
 describe('warm-restart task statistics', () => {
-  const env = [
-    'ENABLE_CACHING=1',
-    'TURBO_ENGINE_IGNORE_DIRTY=1',
-    'TURBO_ENGINE_SNAPSHOT_IDLE_TIMEOUT_MILLIS=1000',
+  const env = {
+    ENABLE_CACHING: '1',
+    TURBO_ENGINE_IGNORE_DIRTY: '1',
+    TURBO_ENGINE_SNAPSHOT_IDLE_TIMEOUT_MILLIS: '1000',
     // Persist even tiny snapshots so the test doesn't depend on the
     // minimum-compilation-time threshold.
-    'TURBO_ENGINE_SNAPSHOT_MIN_ACTIVE_TIME_MILLIS=0',
-    `NEXT_TURBOPACK_TASK_STATISTICS=${STATS_RELATIVE_PATH}`,
-    // The task-statistics file is written by an `on_exit` handler in the
-    // napi binding. In dev that handler only runs if the child process
-    // gets a chance to clean up (i.e. SIGTERM, not SIGKILL). The parent
-    // `next dev` process gives the child 100ms by default before
-    // escalating to SIGKILL — bump that so the on-exit handler can flush.
-    'NEXT_EXIT_TIMEOUT_MS=30000',
-  ].join(' ')
+    TURBO_ENGINE_SNAPSHOT_MIN_ACTIVE_TIME_MILLIS: '0',
+    NEXT_TURBOPACK_TASK_STATISTICS: STATS_RELATIVE_PATH,
+    // Wait for turbo-tasks to persist the cache before the dev process exits.
+    __NEXT_DEV_WAIT_FOR_TURBOPACK_SHUTDOWN: '1',
+  }
 
   const { next } = nextTestSetup({
     files: __dirname,
-    packageJson: {
-      packageManager: 'npm@10.9.2',
-      scripts: {
-        build: `${env} next build`,
-        dev: `${env} next dev`,
-        start: 'next start',
-      },
-    },
-    installCommand: 'npm i',
-    buildCommand: 'npm run build',
-    startCommand: isNextDev ? 'npm run dev' : 'npm run start',
+    overrideFiles: getPnpmRealpathWorkaround(),
+    env,
   })
 
   beforeAll(() => {
@@ -69,10 +57,8 @@ describe('warm-restart task statistics', () => {
 
   async function stop() {
     if (isNextDev) {
-      // Persistent cache snapshot is on a 1s idle timer; give it room.
-      await waitFor(3000)
       // SIGTERM (not the harness default SIGKILL) so the dev server gets
-      // to run its cleanup, which is what flushes the task-stats file.
+      // to run its cleanup and settle the Turbopack cache.
       await next.stop('SIGTERM')
     } else {
       await next.stop()

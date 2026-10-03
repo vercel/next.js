@@ -1,4 +1,4 @@
-(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1jsg_tests_snapshot_comptime_cross-module-attribute_input_0scutbfo13k0p._.js",
+(()=>{"use strict";(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1jsg_tests_snapshot_comptime_cross-module-attribute_input_0scutbfo13k0p._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-attribute/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
@@ -39,6 +39,7 @@ console.log(__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$
 
 __turbopack_context__.s([
     "nonConstant",
+    0,
     ()=>nonConstant
 ]);
 const nonConstant = {
@@ -50,13 +51,15 @@ const nonConstant = {
 
 __turbopack_context__.s([
     "UPPER",
+    0,
     ()=>UPPER,
     "lower",
+    0,
     ()=>lower
 ]);
 const lower = 'lowercase';
 const UPPER = 'UPPER';
 }),
-]);
+]);})()
 
 //# sourceMappingURL=1jsg_tests_snapshot_comptime_cross-module-attribute_input_0scutbfo13k0p._.js.map

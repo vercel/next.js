@@ -17,22 +17,26 @@ use anyhow::{Context, Result, bail};
 use auto_hash_map::AutoSet;
 use byteorder::{BE, ReadBytesExt, WriteBytesExt};
 use dashmap::DashSet;
+#[cfg(feature = "mmap")]
 use either::Either;
 use fs_err::{self as fs, File, OpenOptions, ReadDir};
 use jiff::Timestamp;
+#[cfg(feature = "mmap")]
 use memmap2::Mmap;
 use nohash_hasher::BuildNoHashHasher;
 use parking_lot::{Mutex, RwLock};
-use rustc_hash::FxHasher;
+use rustc_hash::{FxHashSet, FxHasher};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use tracing::span::EnteredSpan;
 
 pub use crate::compaction::selector::CompactConfig;
+#[cfg(feature = "mmap")]
+use crate::{AccessMode, mmap_helper::advise_mmap_for_persistence};
 use crate::{
-    AccessMode, DbConfig, FamilyKind, QueryKey,
+    DbConfig, FamilyKind, QueryKey,
     arc_bytes::ArcBytes,
-    compaction::selector::{Compactable, get_merge_segments},
+    compaction::selector::{Compactable, MergeJob, plan_compaction},
     compression::{Compression, checksum_block, decompress_into_arc},
     constants::{
         DATA_THRESHOLD_PER_COMPACTED_FILE, KEY_BLOCK_AVG_SIZE, KEY_BLOCK_CACHE_SIZE,
@@ -43,9 +47,9 @@ use crate::{
     merge_iter::MergeIter,
     meta_file::{MetaEntryFlags, MetaFile, MetaLookupResult, StaticSortedFileRange},
     meta_file_builder::MetaFileBuilder,
-    mmap_helper::advise_mmap_for_persistence,
     parallel_scheduler::ParallelScheduler,
     rc_bytes::RcBytes,
+    shard::{MetaEntryIndex, ShardBits, ShardIndex},
     sst_filter::SstFilter,
     static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFileIter},
     static_sorted_file_builder::{StaticSortedFileBuilderMeta, StreamingSstWriter},
@@ -96,7 +100,6 @@ pub struct Statistics {
     pub value_block_cache: CacheStatistics,
     pub hits: u64,
     pub misses: u64,
-    pub miss_family: u64,
     pub miss_range: u64,
     pub miss_amqf: u64,
     pub miss_key: u64,
@@ -108,7 +111,6 @@ struct TrackedStats {
     hits_deleted: std::sync::atomic::AtomicU64,
     hits_small: std::sync::atomic::AtomicU64,
     hits_blob: std::sync::atomic::AtomicU64,
-    miss_family: std::sync::atomic::AtomicU64,
     miss_range: std::sync::atomic::AtomicU64,
     miss_amqf: std::sync::atomic::AtomicU64,
     miss_key: std::sync::atomic::AtomicU64,
@@ -309,7 +311,7 @@ pub struct TurboPersistence<S: ParallelScheduler, const FAMILIES: usize> {
     /// The inner state of the database. Writing will update that.
     inner: RwLock<Inner<FAMILIES>>,
     /// A flag to indicate if the database is empty (no meta files). This is an atomic mirror of
-    /// `inner.meta_files.is_empty()` to avoid taking a lock on the hot path.
+    /// `inner.is_empty()` to avoid taking a lock on the hot path.
     is_empty: AtomicBool,
     /// Tracks whether a write operation is in progress or has permanently failed.
     /// `None` = idle, `Some(Active)` = in progress, `Some(Error)` = permanently disabled.
@@ -334,14 +336,56 @@ pub struct TurboPersistence<S: ParallelScheduler, const FAMILIES: usize> {
 
 /// The inner state of the database.
 struct Inner<const FAMILIES: usize> {
-    /// The list of meta files in the database. This is used to derive the SST files.
-    meta_files: Vec<MetaFile>,
-    /// The current sequence number for the database.
-    current_sequence_number: u32,
+    /// The list of meta files in the database sharded by family. This is used to derive the SST
+    /// files. Each family's files are in ascending sequence order; there are no ordering
+    /// constraints across families.
+    meta_files_by_family: [Vec<MetaFile>; FAMILIES],
+    /// For each family, the SST files that can contain the keys of each shard. Must be rebuilt
+    /// whenever `meta_files_by_family` changes.
+    shard_indices: [ShardIndex; FAMILIES],
     /// The in progress set of hashes of keys that have been accessed.
     /// It will be flushed onto disk (into a meta file) on next commit.
     /// It's a dashset to allow modification while only tracking a read lock on Inner.
     accessed_key_hashes: [DashSet<u64, BuildNoHashHasher<u64>>; FAMILIES],
+    /// The current sequence number for the database.
+    current_sequence_number: u32,
+}
+
+impl<const FAMILIES: usize> Inner<FAMILIES> {
+    fn is_empty(&self) -> bool {
+        self.meta_files_by_family.iter().all(Vec::is_empty)
+    }
+
+    fn push_meta_file(&mut self, meta_file: MetaFile) {
+        let family = meta_file.family() as usize;
+        debug_assert!(family < FAMILIES, "meta file family is out of bounds");
+        let shard = &mut self.meta_files_by_family[family];
+        debug_assert!(
+            shard.last().is_none_or(|previous| {
+                previous.sequence_number() < meta_file.sequence_number()
+            }),
+            "meta file appended out of sequence order for family {family}"
+        );
+        shard.push(meta_file);
+    }
+
+    #[cfg(debug_assertions)]
+    fn debug_assert_meta_invariants(&self) {
+        for (family, meta_files) in self.meta_files_by_family.iter().enumerate() {
+            debug_assert!(
+                meta_files
+                    .iter()
+                    .all(|meta| meta.family() as usize == family),
+                "meta file stored in the wrong family shard"
+            );
+            debug_assert!(
+                meta_files
+                    .windows(2)
+                    .all(|pair| pair[0].sequence_number() < pair[1].sequence_number()),
+                "meta files in family {family} are not in ascending sequence order"
+            );
+        }
+    }
 }
 
 pub struct CommitOptions {
@@ -442,10 +486,11 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             path,
             read_only,
             inner: RwLock::new(Inner {
-                meta_files: Vec::new(),
-                current_sequence_number: 0,
+                meta_files_by_family: [(); FAMILIES].map(|_| Vec::new()),
+                shard_indices: [(); FAMILIES].map(|_| ShardIndex::default()),
                 accessed_key_hashes: [(); FAMILIES]
                     .map(|_| DashSet::with_hasher(BuildNoHashHasher::default())),
+                current_sequence_number: 0,
             }),
             is_empty: AtomicBool::new(true),
             active_write_operation: Mutex::new(None),
@@ -650,10 +695,14 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         }
 
         let inner = self.inner.get_mut();
-        self.is_empty
-            .store(meta_files.is_empty(), Ordering::Relaxed);
-        inner.meta_files = meta_files;
+        for meta_file in meta_files {
+            inner.push_meta_file(meta_file);
+        }
+        #[cfg(debug_assertions)]
+        inner.debug_assert_meta_invariants();
+        rebuild_shard_index(&self.config, inner);
         inner.current_sequence_number = current;
+        self.is_empty.store(inner.is_empty(), Ordering::Relaxed);
         Ok(true)
     }
 
@@ -661,7 +710,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     #[tracing::instrument(level = "info", name = "reading database blob", skip_all)]
     fn read_blob(&self, seq: u32, compression: Compression) -> Result<ArcBytes> {
         let path = self.path.join(format!("{seq:08}.blob"));
+        #[cfg(feature = "mmap")]
         let file = File::open(&path)?;
+        #[cfg(feature = "mmap")]
         let data: Either<Mmap, Vec<u8>> = match self.config.access_mode {
             AccessMode::Mmap => {
                 let mmap = unsafe { Mmap::map(file.file()) }.with_context(|| {
@@ -680,10 +731,16 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             }
             AccessMode::File => Either::Right(fs::read(&path)?),
         };
+        #[cfg(feature = "mmap")]
         let mut reader: &[u8] = match &data {
             Either::Left(mmap) => mmap,
             Either::Right(bytes) => bytes,
         };
+        // Without mmap support, read the whole blob into memory.
+        #[cfg(not(feature = "mmap"))]
+        let data = fs::read(&path)?;
+        #[cfg(not(feature = "mmap"))]
+        let mut reader: &[u8] = &data;
         let uncompressed_length = reader
             .read_u32::<BE>()
             .context("Failed to read uncompressed length from blob file")?;
@@ -761,12 +818,14 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         let guard = self.acquire_write_operation("write batch")?;
         // seq_before is already the current sequence number, no second read needed.
         let current = guard.seq_before;
+        let shard_bits = shard_bits(&self.config, &self.inner.read().meta_files_by_family);
         Ok(WriteBatch::new(
             guard,
             self.path.clone(),
             current,
             self.parallel_scheduler.clone(),
             self.config.family_configs,
+            shard_bits,
         ))
     }
 
@@ -797,7 +856,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     /// Clears all caches of the database.
     pub fn clear_cache(&self) {
         self.clear_block_caches();
-        for meta in self.inner.write().meta_files.iter_mut() {
+        for meta in self.inner.write().meta_files_by_family.iter_mut().flatten() {
             meta.clear_cache();
         }
     }
@@ -816,7 +875,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     /// Prefetches all SST files which are usually lazy loaded. This can be used to reduce latency
     /// for the first queries after opening the database.
     pub fn prepare_all_sst_caches(&self) {
-        for meta in self.inner.write().meta_files.iter_mut() {
+        for meta in self.inner.write().meta_files_by_family.iter_mut().flatten() {
             meta.prepare_sst_cache();
         }
     }
@@ -849,19 +908,18 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             new_blob_files,
             keys_written,
         } = write_batch.finish(|family| {
+            // Only called for families this commit writes to: like before, reads of a family are
+            // not recorded by a commit without writes to it, and stay in the set for the next one.
             let inner = self.inner.read();
             let set = &inner.accessed_key_hashes[family as usize];
             // len is only a snapshot at that time and it can change while we create the filter.
             // So we give it 5% more space to make resizes less likely.
             let initial_capacity = set.len() * 20 / 19;
-            // TODO: Using u64::BITS as fingerprint size is wasteful for a
-            // probabilistic membership filter. A smaller fingerprint (e.g. via
-            // Filter::new with a target fp_rate) would significantly reduce size,
-            // but would make merging slower since mismatched fingerprint sizes
-            // fall back to one-by-one insertion instead of sorted merge.
-            let mut amqf =
-                qfilter::Filter::with_fingerprint_size(initial_capacity as u64, u64::BITS as u8)
-                    .unwrap();
+            let mut amqf = qfilter::Filter::with_fingerprint_size(
+                initial_capacity as u64,
+                USED_KEYS_FINGERPRINT_BITS,
+            )
+            .unwrap();
             // This drains items from the set. But due to concurrency it might not be empty
             // afterwards, but that's fine. It will be part of the next commit.
             set.retain(|hash| {
@@ -986,12 +1044,13 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 let ssts = meta
                     .entries()
                     .iter()
-                    .map(|entry| {
+                    .zip(meta.hash_ranges())
+                    .map(|(entry, range)| {
                         let seq = entry.sequence_number();
-                        let range = entry.range();
                         let size = entry.size();
                         let flags = entry.flags();
-                        (seq, range.min_hash, range.max_hash, size, flags)
+                        let counts = (entry.entry_count(), entry.tombstone_count());
+                        (seq, range.min_hash, range.max_hash, size, flags, counts)
                     })
                     .collect::<Vec<_>>();
                 (
@@ -1012,8 +1071,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         // in-memory mutations. The MetaFile in-memory optimization
         // (retain_entries) is deferred to Phase C.
         let has_delete_file;
-        let mut meta_seq_numbers_to_delete = Vec::new();
-        let entries_to_remove;
+        let mut meta_seq_numbers_to_delete = [(); FAMILIES].map(|_| Vec::new());
+        let mut entries_to_remove = [(); FAMILIES].map(|_| Vec::new());
         // Deleted SST bytes: the caller knows each deleted SST's size when it decides to delete it,
         // so it's carried on `DeletedFile` and summed here (no scan, no stat).
         stats.bytes_deleted += sst_files_to_delete.iter().map(|f| f.size).sum::<u64>();
@@ -1026,17 +1085,17 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         {
             let inner = self.inner.read();
 
-            // (A1) Run the SST filter on existing meta files. This only
-            // updates the SstFilter state — the MetaFile in-memory layout is
-            // not modified yet (that happens in Phase C via retain_entries).
-            // Collects the set of SST entry sequence numbers to remove from
-            // each meta file, keyed by position in `inner.meta_files`.
-            entries_to_remove = inner
-                .meta_files
-                .iter()
-                .rev()
-                .map(|meta_file| sst_filter.apply_filter_collect(meta_file))
-                .collect::<Vec<_>>();
+            // (A1) Run the SST filter on existing meta files. This only updates filter state; the
+            // MetaFile mutation is deferred to Phase C. Each family's removal list is newest-first,
+            // matching the filter's required recency order.
+            for (family, meta_files) in inner.meta_files_by_family.iter().enumerate() {
+                entries_to_remove[family].extend(
+                    meta_files
+                        .iter()
+                        .rev()
+                        .map(|meta_file| sst_filter.apply_filter_collect(meta_file)),
+                );
+            }
 
             // (A2) Determine which meta files are fully obsolete by running
             // `apply_and_get_remove` in newest-first order. Process new metas
@@ -1051,11 +1110,15 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     "newly created meta file should never be a candidate for removal"
                 );
             }
-            for i in (0..inner.meta_files.len()).rev() {
-                if sst_filter.apply_and_get_remove(&inner.meta_files[i]) {
-                    meta_seq_numbers_to_delete.push(inner.meta_files[i].sequence_number());
-                    // Deleted meta bytes, read from the `MetaFile`'s mmap length (no stat).
-                    stats.bytes_deleted += inner.meta_files[i].byte_size();
+            for (family, meta_files) in inner.meta_files_by_family.iter().enumerate() {
+                for i in (0..meta_files.len()).rev() {
+                    // Removal lists are newest-first while each shard is oldest-first.
+                    let to_remove = &entries_to_remove[family][meta_files.len() - 1 - i];
+                    if sst_filter.apply_and_get_remove_after_removing(&meta_files[i], to_remove) {
+                        meta_seq_numbers_to_delete[family].push(meta_files[i].sequence_number());
+                        // Deleted meta bytes, read from the `MetaFile`'s mmap length (no stat).
+                        stats.bytes_deleted += meta_files[i].byte_size();
+                    }
                 }
             }
 
@@ -1064,7 +1127,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             // delete, which consumes one extra sequence number.
             has_delete_file = !sst_files_to_delete.is_empty()
                 || !blob_seq_numbers_to_delete.is_empty()
-                || !meta_seq_numbers_to_delete.is_empty();
+                || meta_seq_numbers_to_delete
+                    .iter()
+                    .any(|seqs| !seqs.is_empty());
         }
 
         // Deleted blob bytes. Unlike SST/meta sizes (both already in memory), blob sizes aren't
@@ -1088,19 +1153,24 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         self.parallel_scheduler.block_in_place(|| {
             if has_delete_file {
                 sst_seq_numbers_to_delete.sort_unstable();
-                meta_seq_numbers_to_delete.sort_unstable();
+                for seqs in &mut meta_seq_numbers_to_delete {
+                    seqs.sort_unstable();
+                }
                 blob_seq_numbers_to_delete.sort_unstable();
                 // Write *.del file, marking the selected files as to delete
                 let mut buf = Vec::with_capacity(
                     (sst_seq_numbers_to_delete.len()
-                        + meta_seq_numbers_to_delete.len()
+                        + meta_seq_numbers_to_delete
+                            .iter()
+                            .map(Vec::len)
+                            .sum::<usize>()
                         + blob_seq_numbers_to_delete.len())
                         * size_of::<u32>(),
                 );
                 for seq in sst_seq_numbers_to_delete.iter() {
                     buf.write_u32::<BE>(*seq)?;
                 }
-                for seq in meta_seq_numbers_to_delete.iter() {
+                for seq in meta_seq_numbers_to_delete.iter().flatten() {
                     buf.write_u32::<BE>(*seq)?;
                 }
                 for seq in blob_seq_numbers_to_delete.iter() {
@@ -1138,10 +1208,11 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 writeln!(log, "Commit {seq:08} {keys_written} keys in {span:#}")?;
                 writeln!(log, "FAM | META SEQ | SST SEQ         | RANGE")?;
                 for (meta_seq, family, ssts, obsolete) in new_meta_info {
-                    for (seq, min, max, size, flags) in ssts {
+                    for (seq, min, max, size, flags, (entries, tombstones)) in ssts {
                         writeln!(
                             log,
-                            "{family:3} | {meta_seq:08} | {seq:08} SST    | {} ({} MiB, {})",
+                            "{family:3} | {meta_seq:08} | {seq:08} SST    | {} ({} MiB, {}, \
+                             {size} bytes, {entries} entries, {tombstones} tombstones)",
                             range_to_str(min, max),
                             size / 1024 / 1024,
                             flags
@@ -1186,12 +1257,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     "SST DELETED",
                     |&seq| seq,
                 )?;
-                write_seq_numbers(
-                    &mut log,
-                    &meta_seq_numbers_to_delete,
-                    "META DELETED",
-                    |&seq| seq,
-                )?;
+                for seqs in &meta_seq_numbers_to_delete {
+                    write_seq_numbers(&mut log, seqs, "META DELETED", |&seq| seq)?;
+                }
                 anyhow::Ok(())
             })() {
                 eprintln!("turbo-persistence: failed to write LOG after commit {seq:08}: {e:#}");
@@ -1208,31 +1276,39 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         {
             let mut inner = self.inner.write();
 
-            // Apply the deferred MetaFile mutations from Phase A1. apply_filter
-            // was called read-only earlier; now we actually move superseded
-            // entries from active to obsolete inside each MetaFile.
-            // entries_to_remove was collected in reverse order, so iterate it
-            // in reverse to match the forward order of inner.meta_files.
-            for (meta_file, to_remove) in inner
-                .meta_files
-                .iter_mut()
-                .zip(entries_to_remove.into_iter().rev())
+            // Apply the deferred removals oldest-first within each family.
+            for (meta_files, family_removals) in
+                inner.meta_files_by_family.iter_mut().zip(entries_to_remove)
             {
-                if !to_remove.is_empty() {
-                    meta_file.retain_entries(|seq| !to_remove.contains(&seq));
+                for (meta_file, to_remove) in
+                    meta_files.iter_mut().zip(family_removals.into_iter().rev())
+                {
+                    if !to_remove.is_empty() {
+                        meta_file.retain_entries(|seq| !to_remove.contains(&seq));
+                    }
                 }
             }
 
-            inner.meta_files.append(&mut new_meta_files);
-            if !meta_seq_numbers_to_delete.is_empty() {
-                let to_delete: HashSet<u32> = meta_seq_numbers_to_delete.iter().copied().collect();
-                inner
-                    .meta_files
-                    .retain(|meta| !to_delete.contains(&meta.sequence_number()));
+            for meta_file in new_meta_files.drain(..) {
+                inner.push_meta_file(meta_file);
             }
+            for (meta_files, seqs_to_delete) in inner
+                .meta_files_by_family
+                .iter_mut()
+                .zip(&meta_seq_numbers_to_delete)
+            {
+                if !seqs_to_delete.is_empty() {
+                    let to_delete: HashSet<u32> = seqs_to_delete.iter().copied().collect();
+                    meta_files.retain(|meta| !to_delete.contains(&meta.sequence_number()));
+                }
+            }
+            #[cfg(debug_assertions)]
+            inner.debug_assert_meta_invariants();
+            rebuild_shard_index(&self.config, &mut inner);
             inner.current_sequence_number = seq;
-            self.is_empty
-                .store(inner.meta_files.is_empty(), Ordering::Relaxed);
+            self.is_empty.store(inner.is_empty(), Ordering::Relaxed);
+            // The write guard must be released after publishing the matching empty state.
+            drop(inner);
         }
 
         // Try to delete superseded files immediately. On Linux/macOS this always
@@ -1243,7 +1319,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             Self::try_delete_files(&self.path, &sst_seq_numbers_to_delete, "sst")
                 .map(DeferredDeletion::Sst)
                 .chain(
-                    Self::try_delete_files(&self.path, &meta_seq_numbers_to_delete, "meta")
+                    meta_seq_numbers_to_delete
+                        .iter()
+                        .flat_map(|seqs| Self::try_delete_files(&self.path, seqs, "meta"))
                         .map(DeferredDeletion::Meta),
                 )
                 .chain(
@@ -1263,19 +1341,11 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 writeln!(log, "New database state:")?;
                 writeln!(log, "FAM | META SEQ | SST SEQ  FLAGS | RANGE")?;
                 let inner = self.inner.read();
-                let families = inner.meta_files.iter().map(|meta| meta.family()).filter({
-                    let mut set = HashSet::new();
-                    move |family| set.insert(*family)
-                });
-                for family in families {
-                    for meta in inner.meta_files.iter() {
-                        if meta.family() != family {
-                            continue;
-                        }
+                for (family, meta_files) in inner.meta_files_by_family.iter().enumerate() {
+                    for meta in meta_files {
                         let meta_seq = meta.sequence_number();
-                        for entry in meta.entries().iter() {
+                        for (entry, range) in meta.entries().iter().zip(meta.hash_ranges()) {
                             let seq = entry.sequence_number();
-                            let range = entry.range();
                             writeln!(
                                 log,
                                 "{family:3} | {meta_seq:08} | {seq:08} {:>6} | {}",
@@ -1295,15 +1365,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     /// Runs a full compaction on the database. This will rewrite all SST files, removing all
     /// duplicate keys and separating all key ranges into unique files.
     pub fn full_compact(&self) -> Result<()> {
-        self.compact(&CompactConfig {
-            min_merge_count: 2,
-            optimal_merge_count: usize::MAX,
-            max_merge_count: usize::MAX,
-            max_merge_bytes: u64::MAX,
-            min_merge_duplication_bytes: 0,
-            optimal_merge_duplication_bytes: u64::MAX,
-            max_merge_segment_count: usize::MAX,
-        })?;
+        self.compact(&CompactConfig::full())?;
         Ok(())
     }
 
@@ -1334,7 +1396,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             let inner = self.inner.read();
             sequence_number = AtomicU32::new(inner.current_sequence_number);
             self.compact_internal(
-                &inner.meta_files,
+                &inner.meta_files_by_family,
                 &sequence_number,
                 &mut new_meta_files,
                 &mut new_sst_files,
@@ -1371,7 +1433,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     /// Internal function to perform a compaction.
     fn compact_internal(
         &self,
-        meta_files: &[MetaFile],
+        meta_files_by_family: &[Vec<MetaFile>; FAMILIES],
         sequence_number: &AtomicU32,
         new_meta_files: &mut Vec<NewFile>,
         new_sst_files: &mut Vec<NewFile>,
@@ -1380,17 +1442,20 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         keys_written: &mut u64,
         compact_config: &CompactConfig,
     ) -> Result<()> {
-        if meta_files.is_empty() {
+        if meta_files_by_family.iter().all(Vec::is_empty) {
             return Ok(());
         }
 
         struct SstWithRange {
+            /// Index in the current family's `meta_files_by_family` shard.
             meta_index: usize,
             index_in_meta: u32,
             seq: u32,
             range: StaticSortedFileRange,
             size: u64,
             flags: MetaEntryFlags,
+            entry_count: u32,
+            tombstone_count: u32,
         }
 
         impl Compactable for SstWithRange {
@@ -1402,36 +1467,53 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 self.size
             }
 
-            fn category(&self) -> u8 {
-                // Cold and non-cold files are placed separately so we pass different category
-                // values to ensure they are not merged together.
-                if self.flags.cold() { 1 } else { 0 }
+            fn is_bottom(&self) -> bool {
+                self.flags.bottom()
+            }
+
+            fn is_fresh(&self) -> bool {
+                self.flags.fresh()
+            }
+
+            fn entry_count(&self) -> u64 {
+                self.entry_count.into()
+            }
+
+            fn tombstone_count(&self) -> u64 {
+                self.tombstone_count.into()
             }
         }
 
-        let ssts_with_ranges = meta_files
+        let sst_by_family = meta_files_by_family
             .iter()
             .enumerate()
-            .flat_map(|(meta_index, meta)| {
-                meta.entries()
+            .map(|(family, meta_files)| {
+                meta_files
                     .iter()
                     .enumerate()
-                    .map(move |(index_in_meta, entry)| SstWithRange {
-                        meta_index,
-                        index_in_meta: index_in_meta as u32,
-                        seq: entry.sequence_number(),
-                        range: entry.range(),
-                        size: entry.size(),
-                        flags: entry.flags(),
+                    .flat_map(|(meta_index, meta)| {
+                        debug_assert_eq!(
+                            meta.family() as usize,
+                            family,
+                            "meta file stored in the wrong family shard during compaction"
+                        );
+                        meta.entries()
+                            .iter()
+                            .enumerate()
+                            .map(move |(index_in_meta, entry)| SstWithRange {
+                                meta_index,
+                                index_in_meta: index_in_meta as u32,
+                                seq: entry.sequence_number(),
+                                range: meta.range(index_in_meta as u32),
+                                size: entry.size(),
+                                flags: entry.flags(),
+                                entry_count: entry.entry_count(),
+                                tombstone_count: entry.tombstone_count(),
+                            })
                     })
+                    .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
-
-        let mut sst_by_family = [(); FAMILIES].map(|_| Vec::new());
-
-        for sst in ssts_with_ranges {
-            sst_by_family[sst.range.family as usize].push(sst);
-        }
 
         let path = &self.path;
 
@@ -1445,18 +1527,22 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             keys_written: u64,
         }
 
-        let mut compact_config = compact_config.clone();
+        let shard_bits = shard_bits(&self.config, meta_files_by_family);
+        let planned = plan_compaction(
+            &sst_by_family
+                .iter()
+                .zip(shard_bits)
+                .map(|(ssts, shard_bits)| (&ssts[..], shard_bits))
+                .collect::<Vec<_>>(),
+            compact_config,
+        );
         let merge_jobs = sst_by_family
             .into_iter()
+            .zip(planned)
+            .zip(shard_bits)
             .enumerate()
-            .filter_map(|(family, ssts_with_ranges)| {
-                if compact_config.max_merge_segment_count == 0 {
-                    return None;
-                }
-                let (merge_jobs, real_merge_job_size) =
-                    get_merge_segments(&ssts_with_ranges, &compact_config);
-                compact_config.max_merge_segment_count -= real_merge_job_size;
-                Some((family, ssts_with_ranges, merge_jobs))
+            .map(|(family, ((ssts_with_ranges, merge_jobs), shard_bits))| {
+                (family, ssts_with_ranges, merge_jobs, shard_bits)
             })
             .collect::<Vec<_>>();
 
@@ -1464,8 +1550,13 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             .parallel_scheduler
             .parallel_map_collect_owned::<_, _, Result<Vec<_>>>(
                 merge_jobs,
-                |(family, ssts_with_ranges, merge_jobs)| {
+                |(family, ssts_with_ranges, merge_jobs, shard_bits)| {
+                    let meta_files = &meta_files_by_family[family];
                     let family = family as u32;
+                    debug_assert!(
+                        meta_files.iter().all(|meta| meta.family() == family),
+                        "compaction received a meta file from the wrong family shard"
+                    );
 
                     if merge_jobs.is_empty() {
                         return Ok(PartialResultPerFamily {
@@ -1476,50 +1567,30 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                             keys_written: 0,
                         });
                     }
+                    let sst_strictly_in_shard = |index: usize| {
+                        let sst = &ssts_with_ranges[index];
+                        let range = meta_files[sst.meta_index].hash_range(sst.index_in_meta);
+                        shard_bits.shard_of(range.min_hash) == shard_bits.shard_of(range.max_hash)
+                    };
 
-                    // Deserialize and merge used key hash filters per-family into
-                    // a single filter. This avoids O(entries × N) filter probes
-                    // during the merge loop. Empty filters (from commits with no
-                    // reads) are discarded.
-                    let used_key_hashes: Option<qfilter::Filter> = {
-                        let filters: Vec<qfilter::FilterRef<'_>> = meta_files
-                            .iter()
-                            .filter(|m| m.family() == family)
-                            .filter_map(|meta_file| {
-                                meta_file.deserialize_used_key_hashes_amqf().transpose()
-                            })
-                            .collect::<Result<Vec<_>>>()?
-                            .into_iter()
-                            .filter(|amqf| !amqf.is_empty())
-                            .collect();
-                        if filters.is_empty() {
-                            None
-                        } else if filters.len() == 1 {
-                            // Just directly use the single item
-                            Some(filters[0].to_owned())
-                        } else {
-                            let total_len: u64 = filters.iter().map(|f| f.len()).sum();
-                            // Fingerprint size must match the source filters to
-                            // enable the efficient sorted merge path in qfilter.
-                            let mut merged =
-                                qfilter::Filter::with_fingerprint_size(total_len, u64::BITS as u8)
-                                    .expect("Failed to create merged AMQF filter");
-                            for filter in &filters {
-                                merged
-                                    .merge(false, filter)
-                                    .expect("Failed to merge AMQF filters");
-                            }
-                            merged.shrink_to_fit();
-                            Some(merged)
-                        }
+                    // The keys read recently: the used keys of the meta files written by commits
+                    // that are still alive, i.e. whose SST files were not all merged yet. We only
+                    // capture this for bottom compactions.
+                    let used_key_hashes = if merge_jobs.iter().any(|job| {
+                        job.bottom
+                            && (job.members.len() > 1 || !sst_strictly_in_shard(job.members[0]))
+                    }) {
+                        union_used_key_hashes(meta_files)?
+                    } else {
+                        None
                     };
 
                     // Later we will remove the merged files. Capture each one's size now (we know
                     // exactly which SST it is) so `commit` can report deleted bytes without a scan.
                     let sst_files_to_delete = merge_jobs
                         .iter()
-                        .filter(|l| l.len() > 1)
-                        .flat_map(|l| l.iter().copied())
+                        .filter(|job| job.members.len() > 1)
+                        .flat_map(|job| job.members.iter().copied())
                         .map(|index| DeletedFile {
                             seq: ssts_with_ranges[index].seq,
                             size: ssts_with_ranges[index].size,
@@ -1536,7 +1607,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                             new_sst_files: Vec<(u32, File, StaticSortedFileBuilderMeta<'static>)>,
                             blob_seq_numbers_to_delete: Vec<u32>,
                             keys_written: u64,
-                            indices: SmallVec<[usize; 1]>,
+                            indices: Vec<usize>,
                         },
                         Move {
                             seq: u32,
@@ -1545,25 +1616,40 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     }
                     let merge_result = self
                         .parallel_scheduler
-                        .parallel_map_collect_owned::<_, _, Result<Vec<_>>>(merge_jobs, |indices| {
+                        .parallel_map_collect_owned::<_, _, Result<Vec<_>>>(merge_jobs, |job| {
                             let _span = span.clone().entered();
+                            let MergeJob {
+                                members: indices,
+                                bottom,
+                            } = job;
+                            let output_flags = if bottom {
+                                MetaEntryFlags::COLD_BOTTOM
+                            } else {
+                                MetaEntryFlags::COMPACTED
+                            };
 
-                            if indices.len() == 1 {
-                                // If we only have one file, we can just move it
+                            // Only a shard's first bottom merge has a single file (an intermediate
+                            // merge takes at least two). If the file doesn't span a shard boundary,
+                            // it can become the bottom run as is. One that does (written before
+                            // the shard count grew) is rewritten, which splits it.
+                            if indices.len() == 1 && sst_strictly_in_shard(indices[0]) {
+                                debug_assert!(bottom, "a single file merge must be a bottom merge");
                                 let index = indices[0];
                                 let meta_index = ssts_with_ranges[index].meta_index;
                                 let index_in_meta = ssts_with_ranges[index].index_in_meta;
                                 let meta_file = &meta_files[meta_index];
                                 let entry = meta_file.entry(index_in_meta);
                                 let amqf = Cow::Borrowed(entry.raw_amqf(meta_file.amqf_data()));
+                                let hash_range = meta_file.hash_range(index_in_meta);
                                 let meta = StaticSortedFileBuilderMeta {
-                                    min_hash: entry.min_hash(),
-                                    max_hash: entry.max_hash(),
+                                    min_hash: hash_range.min_hash,
+                                    max_hash: hash_range.max_hash,
                                     amqf,
                                     block_count: entry.block_count(),
                                     size: entry.size(),
-                                    flags: entry.flags(),
-                                    entries: 0,
+                                    flags: output_flags,
+                                    entries: entry.entry_count().into(),
+                                    tombstones: entry.tombstone_count().into(),
                                 };
                                 return Ok(PartialMergeResult::Move {
                                     seq: entry.sequence_number(),
@@ -1591,9 +1677,10 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                 let older_filters = ssts_with_ranges[..oldest_index_in_job]
                                     .iter()
                                     .map(|sst| {
-                                        let entry =
-                                            meta_files[sst.meta_index].entry(sst.index_in_meta);
-                                        (entry.min_hash(), entry.max_hash(), entry.amqf())
+                                        let meta_file = &meta_files[sst.meta_index];
+                                        let entry = meta_file.entry(sst.index_in_meta);
+                                        let range = meta_file.hash_range(sst.index_in_meta);
+                                        (range.min_hash, range.max_hash, entry.amqf())
                                     })
                                     .collect::<Vec<_>>();
                                 move |hash: u64| {
@@ -1630,10 +1717,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                             struct Collector {
                                 /// The active writer and its sequence number. `None` if no
                                 /// entries have been added since the last flush. We defer
-                                /// allocation to avoid creating empty SST files for collectors
-                                /// that receive no entries (e.g., the unused_collector when
-                                /// all keys are in the
-                                /// used set).
+                                /// allocation to avoid creating empty SST files when a merge
+                                /// produces no entries (e.g. when everything was deleted).
                                 writer: Option<(u32, StreamingSstWriter<LookupEntry>)>,
                                 flags: MetaEntryFlags,
                                 compression: Compression,
@@ -1642,15 +1727,23 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                 /// Hash of the last key added. Used to ensure we only split
                                 /// SST files at key boundaries (not mid-key-group for MultiValue).
                                 last_hash: Option<u64>,
+                                /// The shards of the family. SST files are split at shard
+                                /// boundaries.
+                                shard_bits: ShardBits,
                             }
                             impl Collector {
-                                fn new(flags: MetaEntryFlags, compression: Compression) -> Self {
+                                fn new(
+                                    flags: MetaEntryFlags,
+                                    compression: Compression,
+                                    shard_bits: ShardBits,
+                                ) -> Self {
                                     Self {
                                         writer: None,
                                         flags,
                                         compression,
                                         new_sst_files: Vec::new(),
                                         last_hash: None,
+                                        shard_bits,
                                     }
                                 }
 
@@ -1690,6 +1783,13 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     Ok(())
                                 }
 
+                                /// Cancels an active writer without finalizing its partial SST.
+                                fn cancel(&mut self) {
+                                    if let Some((_, writer)) = self.writer.take() {
+                                        writer.cancel();
+                                    }
+                                }
+
                                 /// Adds an entry to the collector. Only splits the SST file at
                                 /// key boundaries to avoid breaking key groups for MultiValue
                                 /// families.
@@ -1700,21 +1800,39 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     sequence_number: &AtomicU32,
                                     keys_written: &mut u64,
                                 ) -> Result<()> {
-                                    let key_changed = self.last_hash != Some(entry.hash);
+                                    let (key_changed, shard_changed) =
+                                        if let Some(last) = self.last_hash {
+                                            if last == entry.hash {
+                                                (false, false)
+                                            } else {
+                                                (
+                                                    true,
+                                                    self.shard_bits.shard_of(last)
+                                                        != self.shard_bits.shard_of(entry.hash),
+                                                )
+                                            }
+                                        } else {
+                                            (false, false)
+                                        };
+
                                     // Only check fullness at key boundaries to avoid splitting
                                     // a key group across two SST files.
                                     if key_changed
                                         && let Some((_, ref writer)) = self.writer
-                                        && writer.is_full(
-                                            MAX_ENTRIES_PER_COMPACTED_FILE,
-                                            DATA_THRESHOLD_PER_COMPACTED_FILE,
-                                        )
+                                        && (shard_changed
+                                            || writer.is_full(
+                                                MAX_ENTRIES_PER_COMPACTED_FILE,
+                                                DATA_THRESHOLD_PER_COMPACTED_FILE,
+                                            ))
                                     {
                                         self.close_sst_file(keys_written)?;
                                     }
                                     self.last_hash = Some(entry.hash);
                                     let writer = self.ensure_writer(path, sequence_number)?;
-                                    writer.add(entry)?;
+                                    if let Err(err) = writer.add(entry) {
+                                        self.cancel();
+                                        return Err(err);
+                                    }
                                     Ok(())
                                 }
                             }
@@ -1731,10 +1849,18 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                             }
                             let compression =
                                 self.config.family_configs[family as usize].compression;
-                            let mut used_collector =
-                                Collector::new(MetaEntryFlags::WARM, compression);
-                            let mut unused_collector =
-                                Collector::new(MetaEntryFlags::COLD, compression);
+                            let mut collector =
+                                Collector::new(output_flags, compression, shard_bits);
+                            // A bottom merge writes the entries of recently read keys into separate
+                            // hot files, so that reading them again touches fewer blocks.
+                            let mut hot_collector =
+                                (bottom && used_key_hashes.is_some()).then(|| {
+                                    Collector::new(
+                                        MetaEntryFlags::HOT_BOTTOM,
+                                        compression,
+                                        shard_bits,
+                                    )
+                                });
                             let mut current_key: Option<RcBytes> = None;
                             let mut keys_written = 0;
 
@@ -1754,90 +1880,109 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                             > = AutoSet::default();
                             let family_config = &self.config.family_configs[family as usize];
 
-                            for entry in iter {
-                                let entry = entry?;
-                                if current_key.as_ref() != Some(&entry.key) {
-                                    // we changed keys so undo this flag
-                                    skip_remaining_for_this_key = false;
-                                    deleted_values_for_this_key.clear();
-                                    current_key = Some(entry.key.clone());
-                                }
-                                // Key-value tombstones sort first within a group, so each is
-                                // recorded before the values it might delete.
-                                // See: `crate::collector_entry::sort_rank`
-                                if let IterValue::KeyValueDeleted { value } = &entry.value {
-                                    deleted_values_for_this_key.insert(value.clone());
-                                    // Applied to this job's values above; keep it only if an SST
-                                    // outside the job could still hold a matching key.
-                                    if tombstone_is_dead(entry.hash) {
-                                        continue;
+                            let result: Result<_> = (|| {
+                                for entry in iter {
+                                    let entry = entry?;
+                                    if current_key.as_ref() != Some(&entry.key) {
+                                        // we changed keys so undo this flag
+                                        skip_remaining_for_this_key = false;
+                                        deleted_values_for_this_key.clear();
+                                        current_key = Some(entry.key.clone());
                                     }
-                                } else if !deleted_values_for_this_key.is_empty()
+                                    // Key-value tombstones sort first within a group, so each is
+                                    // recorded before the values it might delete.
+                                    // See: `crate::collector_entry::sort_rank`
+                                    if let IterValue::KeyValueDeleted { value } = &entry.value {
+                                        deleted_values_for_this_key.insert(value.clone());
+                                        // Applied to this job's values above; keep it only
+                                        // if an SST outside the job could still hold a
+                                        // matching key.
+                                        if tombstone_is_dead(entry.hash) {
+                                            continue;
+                                        }
+                                    } else if !deleted_values_for_this_key.is_empty()
                                     // Deleted values cannot match blobs, just normal payloads.
                                     && let IterValue::Slice { value } = &entry.value
                                     && deleted_values_for_this_key.contains(value)
-                                {
-                                    // Deleted by a key-value tombstone seen earlier in this group.
-                                    continue;
-                                }
-                                if !skip_remaining_for_this_key {
-                                    let is_used = used_key_hashes
-                                        .as_ref()
-                                        .is_some_and(|amqf| amqf.contains_fingerprint(entry.hash));
-                                    let collector = if is_used {
-                                        &mut used_collector
-                                    } else {
-                                        &mut unused_collector
-                                    };
-                                    match family_config.kind {
-                                        FamilyKind::MultiValue => {
-                                            // For MultiValue families we only skip remaining if we
-                                            // see a key tombstone. Key-value tombstones are
-                                            // handled above and never reach here.
-                                            if matches!(entry.value, IterValue::KeyDeleted) {
+                                    {
+                                        // Deleted by a key-value tombstone seen earlier in this
+                                        // key group.
+                                        continue;
+                                    }
+                                    if !skip_remaining_for_this_key {
+                                        match family_config.kind {
+                                            FamilyKind::MultiValue => {
+                                                // For MultiValue families we only skip remaining
+                                                // if we see a key tombstone. Key-value tombstones
+                                                // are handled above and never reach here.
+                                                if matches!(entry.value, IterValue::KeyDeleted) {
+                                                    skip_remaining_for_this_key = true;
+                                                }
+                                            }
+                                            FamilyKind::SingleValue => {
+                                                // Since MergeItr is in newest to oldest order
+                                                // anything else that comes out must be skipped
                                                 skip_remaining_for_this_key = true;
                                             }
                                         }
-                                        FamilyKind::SingleValue => {
-                                            // Since MergeItr is in newest to oldest order anything
-                                            // else that comes out must be skipped
-                                            skip_remaining_for_this_key = true;
+                                        // If this is a tombstone, see if we need to retain it
+                                        // or not.
+                                        if matches!(entry.value, IterValue::KeyDeleted)
+                                            && tombstone_is_dead(entry.hash)
+                                        {
+                                            continue;
+                                        }
+                                        let collector = if let Some(hot_collector) =
+                                            &mut hot_collector
+                                            && used_key_hashes
+                                                .as_ref()
+                                                .expect(
+                                                    "if we have a hot collector used key hashes \
+                                                     must be computed",
+                                                )
+                                                .contains_fingerprint(entry.hash)
+                                        {
+                                            hot_collector
+                                        } else {
+                                            &mut collector
+                                        };
+                                        collector.add_entry(
+                                            entry,
+                                            path,
+                                            sequence_number,
+                                            &mut keys_written,
+                                        )?;
+                                    } else {
+                                        // Entry is being dropped (superseded by newer entry or
+                                        // pruned by tombstone). If it references a blob file,
+                                        // mark that blob for deletion.
+                                        if let IterValue::Blob { sequence_number } = &entry.value {
+                                            blob_seq_numbers_to_delete.push(*sequence_number);
                                         }
                                     }
-                                    // If this is a tombstone, see if we need to retain it or not.
-                                    if matches!(entry.value, IterValue::KeyDeleted)
-                                        && tombstone_is_dead(entry.hash)
-                                    {
-                                        continue;
-                                    }
-                                    collector.add_entry(
-                                        entry,
-                                        path,
-                                        sequence_number,
-                                        &mut keys_written,
-                                    )?;
-                                } else {
-                                    // Entry is being dropped (superseded by newer entry or
-                                    // pruned by tombstone). If it references a blob file,
-                                    // mark that blob for deletion.
-                                    if let IterValue::Blob { sequence_number } = &entry.value {
-                                        blob_seq_numbers_to_delete.push(*sequence_number);
-                                    }
+                                }
+
+                                // Close the remaining writers
+                                collector.close_sst_file(&mut keys_written)?;
+                                let mut new_sst_files = take(&mut collector.new_sst_files);
+                                if let Some(hot_collector) = &mut hot_collector {
+                                    hot_collector.close_sst_file(&mut keys_written)?;
+                                    new_sst_files.append(&mut hot_collector.new_sst_files);
+                                }
+                                Ok(PartialMergeResult::Merged {
+                                    new_sst_files,
+                                    blob_seq_numbers_to_delete,
+                                    keys_written,
+                                    indices,
+                                })
+                            })();
+                            if result.is_err() {
+                                collector.cancel();
+                                if let Some(hot_collector) = &mut hot_collector {
+                                    hot_collector.cancel();
                                 }
                             }
-
-                            // Close remaining writers
-                            used_collector.close_sst_file(&mut keys_written)?;
-                            unused_collector.close_sst_file(&mut keys_written)?;
-
-                            let mut new_sst_files = take(&mut unused_collector.new_sst_files);
-                            new_sst_files.append(&mut used_collector.new_sst_files);
-                            Ok(PartialMergeResult::Merged {
-                                new_sst_files,
-                                blob_seq_numbers_to_delete,
-                                keys_written,
-                                indices,
-                            })
+                            result
                         })
                         .with_context(|| {
                             format!("Failed to merge database files for family {family}")
@@ -1870,6 +2015,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     let mut meta_file_builder = MetaFileBuilder::new(
                         family,
                         self.config.family_configs[family as usize].compression,
+                        shard_bits,
                     );
 
                     let mut keys_written = 0;
@@ -1877,6 +2023,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                         let guard = log_mutex.lock();
                         let mut log = self.open_log()?;
                         writeln!(log, "{family:3} | {meta_seq:08} | Compaction:",)?;
+
                         for result in merge_result {
                             match result {
                                 PartialMergeResult::Merged {
@@ -2058,18 +2205,37 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 
         let mut size = 0;
 
-        for meta in inner.meta_files.iter().rev() {
-            match meta.lookup::<K, FIND_ALL>(
-                family as u32,
-                hash,
-                key,
-                self.key_block_cache(),
-                self.value_block_cache(),
-            )? {
-                MetaLookupResult::FamilyMiss => {
-                    #[cfg(feature = "stats")]
-                    self.stats.miss_family.fetch_add(1, Ordering::Relaxed);
-                }
+        let key_block_cache = self.key_block_cache();
+        let value_block_cache = self.value_block_cache();
+        debug_assert!(
+            inner.meta_files_by_family[family]
+                .iter()
+                .all(|meta| meta.family() as usize == family),
+            "meta file stored in the wrong family shard while querying family {family}"
+        );
+        // Only the SST files of the key's shard can contain it, newest first.
+        let meta_files = &inner.meta_files_by_family[family];
+        let shard_files = inner.shard_indices[family].candidates(hash);
+        for (
+            range,
+            &MetaEntryIndex {
+                meta_index,
+                entry_index,
+            },
+        ) in shard_files.ranges.iter().zip(&shard_files.locations)
+        {
+            let result = if range.contains(hash) {
+                meta_files[meta_index as usize].lookup_entry::<K, FIND_ALL>(
+                    entry_index,
+                    hash,
+                    key,
+                    key_block_cache,
+                    value_block_cache,
+                )?
+            } else {
+                MetaLookupResult::RangeMiss
+            };
+            match result {
                 MetaLookupResult::RangeMiss => {
                     #[cfg(feature = "stats")]
                     self.stats.miss_range.fetch_add(1, Ordering::Relaxed);
@@ -2188,54 +2354,55 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         )
         .entered();
         let mut cells: Vec<(u64, usize, Option<LookupValue>)> = Vec::with_capacity(keys.len());
-        let mut empty_cells = keys.len();
         for (index, key) in keys.iter().enumerate() {
             let hash = hash_key(key);
             cells.push((hash, index, None));
         }
         cells.sort_by_key(|(hash, _, _)| *hash);
         let inner = self.inner.read();
-        for meta in inner.meta_files.iter().rev() {
-            let _result = meta.batch_lookup(
-                family as u32,
-                keys,
-                &mut cells,
-                &mut empty_cells,
-                self.key_block_cache(),
-                self.value_block_cache(),
-            )?;
-
-            #[cfg(feature = "stats")]
+        let key_block_cache = self.key_block_cache();
+        let value_block_cache = self.value_block_cache();
+        debug_assert!(
+            inner.meta_files_by_family[family]
+                .iter()
+                .all(|meta| meta.family() as usize == family),
+            "meta file stored in the wrong family shard while querying family {family}"
+        );
+        // Cells are sorted by hash, so the keys of each shard are contiguous. Each run of cells is
+        // only looked up in the SST files of its shard.
+        let shard_index = &inner.shard_indices[family];
+        let mut run_start = 0;
+        while run_start < cells.len() {
+            let shard = shard_index.bits().shard_of(cells[run_start].0);
+            let run_len = cells[run_start..]
+                .partition_point(|(hash, _, _)| shard_index.bits().shard_of(*hash) == shard);
+            let run = &mut cells[run_start..run_start + run_len];
+            run_start += run_len;
+            let mut empty_run_cells = run_len;
+            let shard_files = shard_index.shard(shard);
+            for (
+                range,
+                &MetaEntryIndex {
+                    meta_index,
+                    entry_index,
+                },
+            ) in shard_files.ranges.iter().zip(&shard_files.locations)
             {
-                let crate::meta_file::MetaBatchLookupResult {
-                    family_miss,
-                    range_misses,
-                    quick_filter_misses,
-                    sst_misses,
-                    hits: _,
-                } = _result;
-                if family_miss {
-                    self.stats.miss_family.fetch_add(1, Ordering::Relaxed);
+                let _result = inner.meta_files_by_family[family][meta_index as usize]
+                    .batch_lookup_entry(
+                        entry_index,
+                        range,
+                        keys,
+                        run,
+                        &mut empty_run_cells,
+                        key_block_cache,
+                        value_block_cache,
+                    )?;
+                #[cfg(feature = "stats")]
+                self.record_batch_lookup_stats(_result);
+                if empty_run_cells == 0 {
+                    break;
                 }
-                if range_misses > 0 {
-                    self.stats
-                        .miss_range
-                        .fetch_add(range_misses as u64, Ordering::Relaxed);
-                }
-                if quick_filter_misses > 0 {
-                    self.stats
-                        .miss_amqf
-                        .fetch_add(quick_filter_misses as u64, Ordering::Relaxed);
-                }
-                if sst_misses > 0 {
-                    self.stats
-                        .miss_key
-                        .fetch_add(sst_misses as u64, Ordering::Relaxed);
-                }
-            }
-
-            if empty_cells == 0 {
-                break;
             }
         }
         let mut deleted = 0;
@@ -2290,20 +2457,49 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         Ok(results)
     }
 
+    #[cfg(feature = "stats")]
+    fn record_batch_lookup_stats(&self, result: crate::meta_file::MetaBatchLookupResult) {
+        let crate::meta_file::MetaBatchLookupResult {
+            range_misses,
+            quick_filter_misses,
+            sst_misses,
+            hits: _,
+        } = result;
+        if range_misses > 0 {
+            self.stats
+                .miss_range
+                .fetch_add(range_misses as u64, Ordering::Relaxed);
+        }
+        if quick_filter_misses > 0 {
+            self.stats
+                .miss_amqf
+                .fetch_add(quick_filter_misses as u64, Ordering::Relaxed);
+        }
+        if sst_misses > 0 {
+            self.stats
+                .miss_key
+                .fetch_add(sst_misses as u64, Ordering::Relaxed);
+        }
+    }
+
     /// Returns database statistics.
     #[cfg(feature = "stats")]
     pub fn statistics(&self) -> Statistics {
         let inner = self.inner.read();
         Statistics {
-            meta_files: inner.meta_files.len(),
-            sst_files: inner.meta_files.iter().map(|m| m.entries().len()).sum(),
+            meta_files: inner.meta_files_by_family.iter().map(Vec::len).sum(),
+            sst_files: inner
+                .meta_files_by_family
+                .iter()
+                .flatten()
+                .map(|meta| meta.entries().len())
+                .sum(),
             key_block_cache: CacheStatistics::new(self.key_block_cache()),
             value_block_cache: CacheStatistics::new(self.value_block_cache()),
             hits: self.stats.hits_deleted.load(Ordering::Relaxed)
                 + self.stats.hits_small.load(Ordering::Relaxed)
                 + self.stats.hits_blob.load(Ordering::Relaxed),
             misses: self.stats.miss_global.load(Ordering::Relaxed),
-            miss_family: self.stats.miss_family.load(Ordering::Relaxed),
             miss_range: self.stats.miss_range.load(Ordering::Relaxed),
             miss_amqf: self.stats.miss_amqf.load(Ordering::Relaxed),
             miss_key: self.stats.miss_key.load(Ordering::Relaxed),
@@ -2314,29 +2510,32 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         Ok(self
             .inner
             .read()
-            .meta_files
+            .meta_files_by_family
             .iter()
-            .rev()
+            .flat_map(|meta_files| meta_files.iter().rev())
             .map(|meta_file| {
                 let entries = meta_file
                     .entries()
                     .iter()
-                    .map(|entry| {
+                    .zip(meta_file.hash_ranges())
+                    .map(|(entry, range)| {
                         let amqf = entry.raw_amqf(meta_file.amqf_data());
                         MetaFileEntryInfo {
                             sequence_number: entry.sequence_number(),
-                            min_hash: entry.min_hash(),
-                            max_hash: entry.max_hash(),
+                            min_hash: range.min_hash,
+                            max_hash: range.max_hash,
                             sst_size: entry.size(),
                             flags: entry.flags(),
                             amqf_size: entry.amqf_size(),
                             amqf_entries: amqf.len(),
                             block_count: entry.block_count(),
+                            entry_count: entry.entry_count(),
                         }
                     })
                     .collect();
                 MetaFileInfo {
                     sequence_number: meta_file.sequence_number(),
+                    shard_bits: meta_file.shard_bits().get(),
                     family: meta_file.family(),
                     obsolete_sst_files: meta_file.obsolete_sst_files().to_vec(),
                     entries,
@@ -2384,6 +2583,100 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     }
 }
 
+/// The fingerprint size of the used keys AMQFs, in bits. The size sets the false positive rate:
+/// about `keys / 2^32`, i.e. 0.06% for 2.5M used keys, for which a few cold keys are written into
+/// hot files. This costs about 1.7 bytes per key, compared to about 6 bytes per key with full 64
+/// bit hashes.
+const USED_KEYS_FINGERPRINT_BITS: u8 = 32;
+
+/// The union of the used keys recorded in the meta files, or `None` if there are none.
+fn union_used_key_hashes(meta_files: &[MetaFile]) -> Result<Option<qfilter::Filter>> {
+    let filters = meta_files
+        .iter()
+        .filter_map(|meta_file| meta_file.deserialize_used_key_hashes_amqf().transpose())
+        .collect::<Result<Vec<_>>>()?
+        .into_iter()
+        .filter(|amqf| !amqf.is_empty())
+        .collect::<Vec<_>>();
+    Ok(match &filters[..] {
+        [] => None,
+        [single] => Some(single.to_owned()),
+        _ => {
+            let total_len = filters.iter().map(|f| f.len()).sum::<u64>();
+            // The fingerprint size must match the source filters to use qfilter's sorted merge.
+            let mut merged =
+                qfilter::Filter::with_fingerprint_size(total_len, USED_KEYS_FINGERPRINT_BITS)
+                    .context("Failed to create the merged used keys AMQF")?;
+            for filter in &filters {
+                merged
+                    .merge(false, filter)
+                    .context("Failed to merge used keys AMQFs")?;
+            }
+            merged.shrink_to_fit();
+            Some(merged)
+        }
+    })
+}
+
+/// Rebuilds the shard index of every family after the meta files changed.
+fn rebuild_shard_index<const FAMILIES: usize>(
+    config: &DbConfig<FAMILIES>,
+    inner: &mut Inner<FAMILIES>,
+) {
+    let shard_bits = shard_bits(config, &inner.meta_files_by_family);
+    for ((index, meta_files), shard_bits) in inner
+        .shard_indices
+        .iter_mut()
+        .zip(&inner.meta_files_by_family)
+        .zip(shard_bits)
+    {
+        *index = ShardIndex::build(shard_bits, meta_files.iter().map(MetaFile::hash_ranges));
+    }
+}
+
+/// The number of key hash shards of each family (see [`crate::shard`]). It starts at
+/// `FamilyConfig::initial_shard_bits`, is recorded in every meta file, and follows the size of the
+/// bottom runs, which is about the size of the live data after compaction (see
+/// [`ShardBits::maybe_reshard`]). Before the first bottom merge, it follows the size of all files,
+/// so that the first bottom merges already split at a fitting shard count.
+fn shard_bits<const FAMILIES: usize>(
+    config: &DbConfig<FAMILIES>,
+    meta_files_by_family: &[Vec<MetaFile>; FAMILIES],
+) -> [ShardBits; FAMILIES] {
+    std::array::from_fn(|family| {
+        let meta_files = &meta_files_by_family[family];
+        let Some(newest) = meta_files.last() else {
+            return config.family_configs[family].initial_shard_bits;
+        };
+        let current = newest.shard_bits();
+        // Estimate the size of the family from the shards that have a bottom run: while the rewrite
+        // quota spreads the bottom merges over multiple compactions, other shards don't have one
+        // yet.
+        let mut bottom_bytes = 0u64;
+        let mut all_bytes = 0u64;
+        let mut covered_shards = FxHashSet::default();
+        for (entry, range) in meta_files
+            .iter()
+            .flat_map(|meta| meta.entries().iter().zip(meta.hash_ranges()))
+        {
+            all_bytes = all_bytes.saturating_add(entry.size());
+            if entry.flags().bottom() {
+                bottom_bytes = bottom_bytes.saturating_add(entry.size());
+                covered_shards
+                    .extend(current.shard_of(range.min_hash)..=current.shard_of(range.max_hash));
+            }
+        }
+        // Before the first bottom merge there is no bottom run, so use the size of all files. They
+        // are only the first commits, so they hold little garbage.
+        let estimated_bytes = if covered_shards.is_empty() {
+            all_bytes
+        } else {
+            bottom_bytes.saturating_mul(u64::from(current.count())) / covered_shards.len() as u64
+        };
+        current.maybe_reshard(estimated_bytes, config.target_shard_size)
+    })
+}
+
 fn range_to_str(min: u64, max: u64) -> String {
     use std::fmt::Write;
     const DISPLAY_SIZE: usize = 100;
@@ -2410,6 +2703,8 @@ fn range_to_str(min: u64, max: u64) -> String {
 
 pub struct MetaFileInfo {
     pub sequence_number: u32,
+    /// The shard bits the SST files of this meta file were split with.
+    pub shard_bits: u8,
     pub family: u32,
     pub obsolete_sst_files: Vec<u32>,
     pub entries: Vec<MetaFileEntryInfo>,
@@ -2424,4 +2719,6 @@ pub struct MetaFileEntryInfo {
     pub sst_size: u64,
     pub flags: MetaEntryFlags,
     pub block_count: u16,
+    /// The number of entries in the SST file.
+    pub entry_count: u32,
 }

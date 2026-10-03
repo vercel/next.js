@@ -8,9 +8,7 @@ use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{
-    FxIndexMap, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc, trace::TraceRawVcs,
-};
+use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -296,18 +294,7 @@ impl Default for MiddlewaresManifest {
 
 #[turbo_tasks::task_input]
 #[derive(
-    Debug,
-    Clone,
-    Hash,
-    Eq,
-    PartialEq,
-    Ord,
-    PartialOrd,
-    TraceRawVcs,
-    Serialize,
-    Deserialize,
-    Encode,
-    Decode,
+    Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize, Encode, Decode,
 )]
 #[serde(rename_all = "camelCase", default)]
 pub struct ProxyMatcher {
@@ -472,7 +459,8 @@ pub struct ActionManifestWorkerEntry<'a> {
 #[serde(rename_all = "camelCase")]
 pub struct ActionManifestWorkerEntryDurability<'a> {
     pub code_hash: &'a str,
-    pub runtime_env_vars: &'a [RcStr],
+    pub runtime_env_vars_read: &'a [RcStr],
+    pub runtime_env_vars_existence: &'a [RcStr],
 }
 
 #[derive(Serialize, Debug, Clone)]
@@ -484,19 +472,7 @@ pub enum ActionManifestModuleId<'a> {
 
 #[turbo_tasks::task_input]
 #[derive(
-    Debug,
-    Copy,
-    Clone,
-    Hash,
-    Eq,
-    PartialEq,
-    Ord,
-    PartialOrd,
-    TraceRawVcs,
-    Serialize,
-    Deserialize,
-    Encode,
-    Decode,
+    Debug, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize, Encode, Decode,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum ActionLayer {

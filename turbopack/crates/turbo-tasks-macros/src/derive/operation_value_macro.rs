@@ -2,7 +2,7 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{DeriveInput, parse_macro_input, parse_quote};
 
-use crate::{assert_fields::assert_fields_impl_trait, derive::trace_raw_vcs_macro::filter_field};
+use crate::{assert_fields::assert_fields_impl_trait, derive::filter_field};
 
 pub fn derive_operation_value(input: TokenStream) -> TokenStream {
     let derive_input = parse_macro_input!(input as DeriveInput);

@@ -14,7 +14,7 @@ workspace = true
 
 [features]
 default = []
-print_cache_item_size_with_compressed = ["print_cache_item_size", "dep:lzzzz"]
+print_cache_item_size_with_compressed = ["print_cache_item_size", "dep:lz4_flex"]
 print_cache_item_size = []
 no_fast_stale = []
 aggregation_update_no_batch = []
@@ -47,7 +47,7 @@ fs-err = { workspace = true }
 hashbrown = { workspace = true }
 indexmap = { workspace = true }
 jiff = "0.2.10"
-lzzzz = { workspace = true, optional = true }
+lz4_flex = { workspace = true, optional = true }
 parking_lot = { workspace = true }
 rand = { workspace = true }
 ringmap = { workspace = true, features = ["serde"] }
@@ -59,16 +59,20 @@ smallvec = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 turbo-bincode = { workspace = true }
-turbo-persistence = { workspace = true }
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-hash = { workspace = true }
 turbo-tasks-malloc = { workspace = true, default-features = false }
 thread_local = { workspace = true }
 
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+turbo-persistence = { workspace = true }
+
+[target.'cfg(target_family = "wasm")'.dependencies]
+turbo-persistence = { workspace = true, default-features = false }
+
 [dev-dependencies]
 async-trait = { workspace = true }
-criterion = { workspace = true, features = ["async_tokio"] }
 futures = { workspace = true }
 indoc = { workspace = true }
 regex = { workspace = true }
@@ -81,6 +85,12 @@ turbo-tasks-testing = { workspace = true }
 # The read-outcome tests assert on the counters, so they need them compiled in. Only for tests —
 # normal builds of this crate get the default (disabled) turbo-tasks.
 turbo-tasks = { workspace = true, features = ["inline_execution_stats"] }
+
+# Only used by the benchmarks, which don't run on wasm. Gated by target so that
+# `cargo test -p turbo-tasks-backend --lib --target wasm32-wasip1-threads` can build: criterion pulls
+# in rayon, which refuses to compile for wasi, and cargo resolves dev-dependencies even for `--lib`.
+[target.'cfg(not(target_family = "wasm"))'.dev-dependencies]
+criterion = { workspace = true, features = ["async_tokio"] }
 
 
 [[bench]]

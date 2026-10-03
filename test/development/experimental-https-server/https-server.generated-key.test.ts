@@ -2,12 +2,11 @@ import { nextTestSetup } from 'e2e-utils'
 import { renderViaRawHTTP } from 'next-test-utils'
 
 describe('experimental-https-server (generated certificate)', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     startCommand: 'pnpm next dev --experimental-https',
     skipStart: !process.env.NEXT_TEST_CI,
   })
-  if (skipped) return
 
   if (!process.env.NEXT_TEST_CI) {
     console.warn('only runs on CI as it requires administrator privileges')
