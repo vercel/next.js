@@ -791,6 +791,11 @@ export interface TraceMemorySummary {
   peak: number
   /** Highest memory-pressure byte in the range (0 = no pressure). */
   maxPressure: number
+  /**
+   * Largest process memory footprint (RSS) in bytes in the range (0 = not
+   * reported by the platform).
+   */
+  maxFootprint: number
 }
 
 /** Options for `query_trace_spans`. */
@@ -953,9 +958,11 @@ export interface TraceSpanInfo {
    * no matter what each allocated. Rank concurrent work by the allocation
    * fields instead.
    *
-   * Each entry is `[ts_offset_from_span_start_in_ticks, bytes, pressure]`,
-   * where `pressure` is the memory-pressure byte (0 = no pressure, higher
-   * = more pressure). `100 ticks = 1 µs`. The offset is always `>= 0` and
+   * Each entry is `[ts_offset_from_span_start_in_ticks, bytes, pressure,
+   * footprint]`, where `pressure` is the memory-pressure byte (0 = no
+   * pressure, higher = more pressure) and `footprint` is the process
+   * memory footprint (RSS) in bytes (0 = not reported by the platform).
+   * `100 ticks = 1 µs`. The offset is always `>= 0` and
    * `<= span_duration`. Capped and downsampled by the store.
    */
   memorySamples: Array<Array<number>>
