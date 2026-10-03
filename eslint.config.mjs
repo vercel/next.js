@@ -122,7 +122,7 @@ export default defineConfig([
 
       'no-lone-blocks': 'error',
       'no-loop-func': 'error',
-
+// hello
       'no-mixed-operators': [
         'error',
         {
