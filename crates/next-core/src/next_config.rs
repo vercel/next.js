@@ -130,6 +130,10 @@ pub struct NextConfig {
     output: Option<OutputType>,
     turbopack: Option<TurbopackConfig>,
     production_browser_source_maps: bool,
+    /// Compute mappings for build analysis without publishing them. Set by the
+    /// build's NAPI option rather than a user next.config.js field.
+    #[serde(skip)]
+    build_analyze: bool,
     #[bincode(with = "turbo_bincode::serde_self_describing")]
     output_file_tracing_includes: Option<serde_json::Value>,
     #[bincode(with = "turbo_bincode::serde_self_describing")]
@@ -197,6 +201,18 @@ impl NextConfig {
         new.experimental.turbopack_source_maps = Some(true);
         new.experimental.turbopack_input_source_maps = Some(false);
         new.cell()
+    }
+
+    #[turbo_tasks::function]
+    pub fn with_build_analyze(&self) -> Vc<Self> {
+        let mut new = self.clone();
+        new.build_analyze = true;
+        new.cell()
+    }
+
+    #[turbo_tasks::function]
+    pub fn build_analyze(&self) -> Vc<bool> {
+        Vc::cell(self.build_analyze)
     }
 }
 
@@ -2571,6 +2587,7 @@ impl NextConfig {
         Ok(match (source_maps, input_source_maps) {
             (true, true) => SourceMapsType::Full,
             (true, false) => SourceMapsType::Partial,
+            (false, _) if self.build_analyze => SourceMapsType::ComputeOnly,
             (false, _) => SourceMapsType::None,
         }
         .cell())
@@ -2590,6 +2607,7 @@ impl NextConfig {
         Ok(match (source_maps, input_source_maps) {
             (true, true) => SourceMapsType::Full,
             (true, false) => SourceMapsType::Partial,
+            (false, _) if self.build_analyze => SourceMapsType::ComputeOnly,
             (false, _) => SourceMapsType::None,
         }
         .cell())

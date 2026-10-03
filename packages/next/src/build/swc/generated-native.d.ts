@@ -432,6 +432,8 @@ export interface NapiProjectOptions {
   noMangling: boolean
   /** Whether to write the route hashes manifest. */
   writeRoutesHashesManifest: boolean
+  /** Keep source mappings in memory for a build with bundle analysis. */
+  analyze?: boolean
   /** The version of Node.js that is available/currently running. */
   currentNodeJsVersion: RcStr
   /**

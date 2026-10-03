@@ -342,6 +342,9 @@ pub struct ProjectOptions {
     /// Whether to write the route hashes manifest.
     pub write_routes_hashes_manifest: bool,
 
+    /// Keep source mappings in the build graph for bundle analysis.
+    pub analyze: bool,
+
     /// The version of Node.js that is available/currently running.
     pub current_node_js_version: RcStr,
 
@@ -931,7 +934,12 @@ impl ProjectContainer {
                 nodejs: ResolvedVc::cell(options.define_env.nodejs.iter().cloned().collect()),
             }
             .cell();
-            next_config = NextConfig::from_string(Vc::cell(options.next_config.clone()));
+            let config = NextConfig::from_string(Vc::cell(options.next_config.clone()));
+            next_config = if options.analyze {
+                config.with_build_analyze()
+            } else {
+                config
+            };
             root_path_str = options.root_path.clone();
             project_path = options.project_path.clone();
             watch = options.watch;
