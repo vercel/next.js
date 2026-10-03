@@ -3,7 +3,7 @@
   text-align: center;
 }
 
-a.chip {
+.chip {
   display: inline-block;
   background: #e0e0e0;
   color: #333;
@@ -14,7 +14,7 @@ a.chip {
   margin: 0 5px 3px 0;
 }
 
-a.chip:hover {
+.chip:hover {
   background: #ccc;
 }
 
