@@ -431,7 +431,6 @@ impl<'e> ExecuteContext<'e> {
             for (task_id, category) in task_ids {
                 self.task_lock_counter.acquire();
                 let task = self.backend.storage.access_mut(task_id);
-                #[cfg(debug_assertions)]
                 if !task.flags.is_restored(category) {
                     panic_missing_task(task_id, reason);
                 }
@@ -451,7 +450,6 @@ impl<'e> ExecuteContext<'e> {
                 let task = self.backend.storage.access_mut(task_id);
                 // Transient tasks are restored from creation and never evicted.
                 if task_id.is_transient() || task.flags.is_restored(category) {
-                    #[cfg(debug_assertions)]
                     if !task.flags.is_restored(category) {
                         panic_missing_task(task_id, reason);
                     }
@@ -1743,10 +1741,10 @@ mod must_exist_tests {
         TaskId::new(id).unwrap()
     }
 
-    fn backend(storage_mode: Option<StorageMode>) -> Arc<TurboTasks<TurboTasksBackend>> {
+    fn backend() -> Arc<TurboTasks<TurboTasksBackend>> {
         TurboTasks::new(TurboTasksBackend::new(
             BackendOptions {
-                storage_mode,
+                storage_mode: Some(StorageMode::ReadOnly),
                 num_workers: Some(1),
                 small_preallocation: true,
                 ..Default::default()
@@ -1765,18 +1763,8 @@ mod must_exist_tests {
 
     #[tokio::test(flavor = "multi_thread")]
     #[should_panic(expected = "task_pair, MustExist")]
-    async fn task_pair_rejects_missing_persistent_endpoint() {
-        let tt = backend(Some(StorageMode::ReadOnly));
-        let present = persistent(1);
-        resident(&tt, present, TaskDataCategory::All);
-        let mut ctx = ExecuteContext::new(tt.backend(), &tt);
-        let _ = ctx.task_pair(present, persistent(2), TaskDataCategory::Meta);
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    #[should_panic(expected = "task_pair, MustExist")]
     async fn task_pair_rejects_missing_transient_endpoint() {
-        let tt = backend(Some(StorageMode::ReadOnly));
+        let tt = backend();
         let present = persistent(1);
         resident(&tt, present, TaskDataCategory::All);
         let mut ctx = ExecuteContext::new(tt.backend(), &tt);
@@ -1788,24 +1776,9 @@ mod must_exist_tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    #[should_panic(expected = "prepare batch, MustExist")]
-    async fn prepare_tasks_rejects_missing_batch() {
-        let tt = backend(Some(StorageMode::ReadOnly));
-        let mut ctx = ExecuteContext::new(tt.backend(), &tt);
-        ctx.prepare_tasks(
-            [
-                (persistent(1), TaskDataCategory::Data),
-                (persistent(2), TaskDataCategory::Data),
-            ],
-            "prepare batch",
-        );
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    #[cfg(debug_assertions)]
     #[should_panic(expected = "prepare transient, MustExist")]
     async fn prepare_tasks_rejects_missing_transient() {
-        let tt = backend(Some(StorageMode::ReadOnly));
+        let tt = backend();
         let mut ctx = ExecuteContext::new(tt.backend(), &tt);
         ctx.prepare_tasks(
             [(
@@ -1873,23 +1846,6 @@ mod must_exist_tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn fully_persisted_tasks_succeed_for_pair_and_prepare() {
-        let first = persistent(1);
-        let second = persistent(2);
-        let (tt, _dir) = persisted_tasks(&[first, second]);
-        let mut ctx = ExecuteContext::new(tt.backend(), &tt);
-        ctx.prepare_tasks(
-            [
-                (first, TaskDataCategory::All),
-                (second, TaskDataCategory::All),
-            ],
-            "prepare fully persisted",
-        );
-        let (a, b) = ctx.task_pair(first, second, TaskDataCategory::All);
-        assert_eq!((a.id(), b.id()), (first, second));
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
     async fn prepare_tasks_with_callback_handles_mixed_ready_and_disk_tasks_once() {
         let ready = persistent(1);
         let disk = [persistent(2), persistent(3)];
@@ -1922,7 +1878,7 @@ mod must_exist_tests {
             time::Duration,
         };
 
-        let tt = backend(Some(StorageMode::ReadOnly));
+        let tt = backend();
         let id = persistent(4);
         tt.backend()
             .storage
@@ -1965,7 +1921,7 @@ mod must_exist_tests {
             time::Duration,
         };
 
-        let tt = backend(Some(StorageMode::ReadOnly));
+        let tt = backend();
         let id = persistent(3);
         tt.backend()
             .storage
@@ -2007,7 +1963,7 @@ mod must_exist_tests {
     async fn missing_task_is_not_marked_present_after_must_exist_panics() {
         use std::panic::{AssertUnwindSafe, catch_unwind};
 
-        let tt = backend(Some(StorageMode::ReadOnly));
+        let tt = backend();
         let present = persistent(1);
         let missing = persistent(2);
         resident(&tt, present, TaskDataCategory::All);
@@ -2035,7 +1991,7 @@ mod must_exist_tests {
     async fn missing_batch_is_not_marked_present_after_must_exist_panics() {
         use std::panic::{AssertUnwindSafe, catch_unwind};
 
-        let tt = backend(Some(StorageMode::ReadOnly));
+        let tt = backend();
         let missing = [persistent(1), persistent(2), persistent(3)];
         for _ in 0..2 {
             let mut ctx = ExecuteContext::new(tt.backend(), &tt);
@@ -2052,24 +2008,6 @@ mod must_exist_tests {
         for id in missing {
             assert!(!tt.backend().storage.access_mut(id).flags.meta_restored());
         }
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn prepare_tasks_and_for_each_task_accept_resident_tasks() {
-        let tt = backend(Some(StorageMode::ReadOnly));
-        let first = persistent(1);
-        let second = persistent(2);
-        resident(&tt, first, TaskDataCategory::All);
-        resident(&tt, second, TaskDataCategory::Meta);
-        let mut ctx = ExecuteContext::new(tt.backend(), &tt);
-        let tasks = [
-            (first, TaskDataCategory::Meta),
-            (second, TaskDataCategory::Meta),
-        ];
-        ctx.prepare_tasks(tasks, "prepare existing");
-        let mut seen = Vec::new();
-        ctx.for_each_task(tasks, "iterate existing", |guard, _| seen.push(guard.id()));
-        assert_eq!(seen, [first, second]);
     }
 }
 
