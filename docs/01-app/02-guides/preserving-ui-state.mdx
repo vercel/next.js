@@ -75,7 +75,7 @@ export default function CacheComponentsActivityResetRoute(
 
 It also stays stable when only the URL's search parameters change. If a search parameter should reset part of the UI, derive that state from the URL or key that specific subtree by the parameter instead.
 
-The generated TODO comments form a migration checklist. An ancestor wrapper resets every route beneath it, so remove wrappers from layouts before their child routes. As you remove each one, use the patterns below to reset only the state that should not persist. After removing the final wrapper, delete the generated `_next-cache-components` directory.
+The generated TODO comments form a migration checklist that is separate from validation opt-outs. An ancestor wrapper resets every route beneath it, so remove wrappers from layouts before their child routes. After removing each one, navigate away and back using both a new navigation and browser history. Use the patterns below to reset only the state that should not persist. After removing the final wrapper, delete the generated `_next-cache-components` directory.
 
 ## Choosing what to preserve
 

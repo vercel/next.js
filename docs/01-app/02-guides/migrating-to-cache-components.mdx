@@ -88,7 +88,7 @@ export const instant = false
 
 ## Adopting incrementally
 
-You don't have to migrate every route at once. Start with a buildable compatibility layer, then remove it in two passes: validation opt-outs first and Activity reset boundaries last.
+You don't have to migrate every route at once. Start with a buildable compatibility layer, then remove it route by route. Address validation opt-outs first because they allow routes to block. The Activity boundaries added by the codemod preserve the previous reset-on-navigation behavior, so you can review them separately after validation is complete.
 
 1. **Enable the flag and migrate each route segment config.** Follow the relevant sections below for [`dynamic = "force-dynamic"`](#dynamic--force-dynamic), [`dynamic = "force-static"`](#dynamic--force-static), [`dynamic = "error"`](#dynamic--error), [`revalidate`](#revalidate), and [`fetchCache`](#fetchcache). For routes with dynamic params, also follow the [`generateStaticParams`](#generatestaticparams-and-dynamicparams) guidance. Routes that still render instantly need no further work.
 2. **Optionally defer validation work.** If you need to address validation route by route, run:
@@ -111,7 +111,7 @@ You don't have to migrate every route at once. Start with a buildable compatibil
 
 4. **Get the build passing.** Fix synchronous IO because it can't be deferred. Calls like `new Date()`, `Date.now()`, `Math.random()`, and `crypto.randomUUID()` during prerender throw a build error that `instant = false` does not clear. Move the call out of the prerendered shell so it runs at request time: wrap the part that needs it in [`<Suspense>`](https://react.dev/reference/react/Suspense) and call [`connection()`](/docs/app/api-reference/functions/connection) before the call, or move it into a Client Component.
 5. **Remove validation opt-outs.** Work from layouts down to their child routes so an ancestor does not hide the behavior you are testing. Remove `instant = false`, then resolve the route's insights by caching data with [`use cache`](/docs/app/api-reference/directives/use-cache) or wrapping runtime data in [`<Suspense>`](https://react.dev/reference/react/Suspense).
-6. **Remove Activity reset boundaries.** Do this after validation is clean. Remove each generated boundary and check whether navigation should preserve or reset the route's UI state. Keep a broad boundary only when it is a deliberate product decision, and replace the generated TODO with a comment that explains why. The [Preserving UI state](/docs/app/guides/preserving-ui-state#keep-route-state-resetting-during-migration) guide covers targeted alternatives.
+6. **Review Activity reset boundaries.** This work is independent of validation. Work from layouts down to their child routes because an ancestor boundary resets every route beneath it. Remove each boundary, then navigate away and back using both a new navigation and browser history. If the route relied on unmounting to reset state, replace the boundary with a targeted reset from [Preserving UI state](/docs/app/guides/preserving-ui-state#keep-route-state-resetting-during-migration). Keep a boundary only when the whole route should reset on every navigation, and replace its generated TODO with a comment that explains why. After removing the final boundary, delete the generated `_next-cache-components` directory.
 
 ## Following validation
 
