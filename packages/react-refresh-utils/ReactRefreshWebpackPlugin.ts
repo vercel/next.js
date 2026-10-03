@@ -130,7 +130,17 @@ function webpack5(this: ReactFreshWebpackPlugin, compiler: WebpackCompiler) {
                 'originalFactory.call(this, moduleObject, moduleExports, webpackRequire);'
               ),
               '} finally {',
-              Template.indent(`cleanup();`),
+              Template.indent([
+                // For async modules (top-level await), module.exports is a Promise.
+                // The $RefreshReg$ calls happen inside the async body, AFTER the
+                // factory returns. Defer cleanup until the Promise resolves so the
+                // module-scoped $RefreshReg$ is still active during the async body.
+                `if (hasRefresh && moduleObject.exports && typeof moduleObject.exports.then === 'function') {`,
+                Template.indent('moduleObject.exports.then(cleanup, cleanup);'),
+                '} else {',
+                Template.indent('cleanup();'),
+                '}',
+              ].join('\n')),
               '}',
             ]
           )}`,
