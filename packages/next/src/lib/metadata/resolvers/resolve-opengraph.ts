@@ -151,6 +151,8 @@ const ogTypeToFields: Record<string, readonly string[]> = {
   'music.radio_station': OgTypeFields.radio,
   'video.movie': OgTypeFields.video,
   'video.episode': OgTypeFields.video,
+  'video.tv_show': OgTypeFields.video,
+  'video.other': OgTypeFields.video,
 }
 
 function getFieldsByOgType(ogType: OpenGraphType | undefined) {
