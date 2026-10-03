@@ -2450,6 +2450,12 @@ impl VisitAstPath for Analyzer<'_, '_> {
 
         // Attempt to add import effects.
         if let Some((esm_reference_index, export)) = self.eval_context.imports.get_binding(&id) {
+            let static_member = member_access_parent(ast_path).and_then(|member| {
+                self.eval_context
+                    .eval_member_prop(self.arena, &member.prop)
+                    .and_then(|prop| prop.as_str().map(|prop| (member, RcStr::from(prop))))
+            });
+
             // Optimization: Look for a MemberExpr to see if we only access a few members from the
             // module, add those specific effects instead of depending on the entire module.
             //
@@ -2459,15 +2465,13 @@ impl VisitAstPath for Analyzer<'_, '_> {
                     .eval_context
                     .imports
                     .should_import_all(esm_reference_index)
-                && let Some(member) = member_access_parent(ast_path)
-                && let Some(prop) = self.eval_context.eval_member_prop(self.arena, &member.prop)
-                && let Some(prop_str) = prop.as_str()
+                && let Some((member, prop)) = &static_member
             {
                 // a namespace member access like
                 // `import * as ns from "..."; ns.exportName`
                 self.add_effect(Effect::ImportedBinding {
                     esm_reference_index,
-                    export: Some(prop_str.into()),
+                    export: Some(prop.clone()),
                     member: None,
                     // point to the MemberExpression instead
                     ast_path: as_parent_path_skip_in(self.arena, ast_path, 1),
