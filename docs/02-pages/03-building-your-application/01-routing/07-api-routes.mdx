@@ -239,11 +239,11 @@ export default async function handler(req, res) {
 }
 ```
 
-### Sending a HTTP response
+### Sending an HTTP response
 
 Sending an HTTP response works the same way as when sending a JSON response. The only difference is that the response body can be a `string`, an `object` or a `Buffer`.
 
-The following example sends a HTTP response with the status code `200` (`OK`) and the result of the async operation.
+The following example sends an HTTP response with the status code `200` (`OK`) and the result of the async operation.
 
 ```ts filename="pages/api/hello.ts" switcher
 import type { NextApiRequest, NextApiResponse } from 'next'
