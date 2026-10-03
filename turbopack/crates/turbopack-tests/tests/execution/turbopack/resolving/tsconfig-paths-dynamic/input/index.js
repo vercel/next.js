@@ -1,11 +1,19 @@
-import { loadSub, loadSubNested, loadSubFallback } from './src/foo'
+import {
+  load,
+  loadComplex,
+  loadSub,
+  loadSubNested,
+  loadSubFallback,
+} from './src/foo'
 
 it('should support dynamic requests with tsconfig.paths', () => {
-  expect(loadSub('file2.js').default).toBe('file2')
+  expect(load('sub/file2.js').default).toBe('file2')
+  expect(loadSub('file2.js').default).toBe('file2-override')
+  expect(loadComplex('sub', 'file2', 'js').default).toBe('file2')
 })
 
 it('should support dynamic requests with tsconfig.paths and without extension', () => {
-  expect(loadSub('file2').default).toBe('file2')
+  expect(loadSub('file2').default).toBe('file2-override')
 })
 
 it('should support dynamic requests with tsconfig.paths and multiple dynamic parts', () => {
