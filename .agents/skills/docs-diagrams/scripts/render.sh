@@ -8,7 +8,7 @@ set -euo pipefail
 CHROME="${CHROME:-/Applications/Google Chrome.app/Contents/MacOS/Google Chrome}"
 cd "$(dirname "$0")"
 
-rm -f ./*.html light/*.png dark/*.png
+rm -f ./*.html light/*.png dark/*.png light/*.svg dark/*.svg
 node gen.mjs
 
 for svg in light/*.svg; do

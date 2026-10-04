@@ -167,11 +167,15 @@ async function getProduct(slug: string) {
 }
 ```
 
-The page places each component in its own `<Suspense>` boundary, so inventory can render later without holding back the product details:
+The page prerenders the catalog's product URL with [`generateStaticParams()`](/docs/app/api-reference/functions/generate-static-params) and places each component in its own `<Suspense>` boundary, so inventory can render later without holding back the product details:
 
 ```tsx filename="app/store/products/[slug]/page.tsx"
 import { Suspense } from 'react'
 import { Inventory, ProductDetails } from '@/app/ui/product'
+
+export function generateStaticParams() {
+  return [{ slug: 'coffee-grinder' }]
+}
 
 export default function ProductPage({
   params,
@@ -253,7 +257,9 @@ Before adding another static requirement, run `next build` to see how the store 
 Route (app)
 ├ ◐ /store
 ├ ◐ /store/guides/[id]
-└ ◐ /store/products/[slug]
+└   /store/products/[slug]
+  ├ ◐ /store/products/[slug]
+  └ ◐ /store/products/coffee-grinder
 
 ◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
 ```
@@ -282,6 +288,15 @@ Error: Failed to collect page data for /store/guides/[id]
 ```
 
 Export `generateStaticParams()` and return at least one buying guide ID. Next.js prerenders the returned IDs during the build. It can generate other allowed IDs on their first request and store the result in the ISR cache. With `'navigation'`, that first request waits for the complete static page instead of receiving a fallback shell. See [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components#at-runtime).
+
+Add a helper that returns the guide IDs to prerender:
+
+```ts filename="lib/guides.ts"
+export async function getGuideIds() {
+  const guides = await db.guide.findMany({ select: { id: true } })
+  return guides.map(({ id }) => id)
+}
+```
 
 ```tsx filename="app/store/guides/[id]/page.tsx" highlight={3,7-10}
 import { Suspense } from 'react'
@@ -377,8 +392,13 @@ The overlay shows these fixes:
 
 Because every visitor can receive the same buying-guide content, the **Cache** fix is appropriate. Add the [`'use cache'` directive](/docs/app/api-reference/directives/use-cache) to `getGuide()` so Next.js can reuse the query result across requests:
 
-```ts filename="lib/guides.ts" highlight={4}
+```ts filename="lib/guides.ts" highlight={9}
 import { db } from '@/lib/db'
+
+export async function getGuideIds() {
+  const guides = await db.guide.findMany({ select: { id: true } })
+  return guides.map(({ id }) => id)
+}
 
 export async function getGuide(id: string) {
   'use cache'
@@ -470,7 +490,9 @@ Route (app)
 ├   /store/guides/[id]
 │ ├ ◐ /store/guides/[id]
 │ └ ○ /store/guides/coffee
-└ ◐ /store/products/[slug]
+└   /store/products/[slug]
+  ├ ◐ /store/products/[slug]
+  └ ◐ /store/products/coffee-grinder
 
 ○  (Static)             prerendered as static content
 ◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content

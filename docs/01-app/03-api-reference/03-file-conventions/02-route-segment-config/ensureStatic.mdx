@@ -65,7 +65,7 @@ For an individual subtree, [`await prefetch()`](/docs/app/api-reference/function
 
 ### `'prefetch'`
 
-Requires both the App Shell and per-link prefetches to be static. Without [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), prefetches are already static, so the value adds no requirement.
+Requires both the App Shell and per-link prefetches to be static. Without [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), the value adds no requirement and links keep their normal full-prefetch behavior. A full prefetch can include request-specific data and is not guaranteed to be static.
 
 A per-link prefetch from [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch) can load static or cached [URL-specific content](/docs/app/guides/optimizing-prefetching#resolve-url-data-at-prefetch-time) before the user follows the link. Request-specific content behind `<Suspense>` renders when the navigation completes the route.
 

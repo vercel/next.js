@@ -316,7 +316,7 @@ async function Stories() {
 }
 ```
 
-Reading the cookie below `navigation()` does not make the prefetch render per request, because that read would not have resolved in a prefetch anyway. The same holds for `prefetch()` and the App Shell. When every `cookies()` and `headers()` read sits below `prefetch()`, the shell is served from static output. A route that resolves `params` or `searchParams` still renders its shell at runtime.
+Reading the cookie below `navigation()` does not make the per-link prefetch render per request, because that read would not have resolved during the prefetch anyway. The same holds for `prefetch()` and the App Shell. When every `cookies()` and `headers()` read sits below `prefetch()`, the shell is served from static output. Reading `params` or `searchParams` does not require a runtime shell. URL data is excluded from the shared shell, but it can make a per-link prefetch render at runtime unless it sits below `navigation()`.
 
 Each call defers one subtree. To require static output for the whole route, so a later change cannot reintroduce request-time rendering, set [`ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic). The [Keeping pages static](/docs/app/guides/keeping-pages-static) guide walks through each level.
 
