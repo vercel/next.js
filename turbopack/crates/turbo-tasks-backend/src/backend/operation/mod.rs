@@ -291,7 +291,6 @@ impl<'e> ExecuteContext<'e> {
         let mut outcome = RestoreOutcome {
             missing_on_disk: false,
         };
-        let mut pinned = false;
         loop {
             // A peer that finished restoring may have provided the requested category.
             // A missing read instead leaves its category unrestored until the caller handles it.
@@ -336,9 +335,6 @@ impl<'e> ExecuteContext<'e> {
                         task.flags.set_meta_restoring(false);
                     }
                     self.backend.storage.restored.notify(usize::MAX);
-                    if pinned {
-                        task.update_and_get_transient_ref_count(-1);
-                    }
                     outcome.missing_on_disk = true;
                     return Ok((task, outcome));
                 }
@@ -363,9 +359,6 @@ impl<'e> ExecuteContext<'e> {
                     if do_meta {
                         task.flags.set_meta_restored(false);
                     }
-                    if pinned {
-                        task.update_and_get_transient_ref_count(-1);
-                    }
                     return Err(e);
                 }
                 continue;
@@ -374,10 +367,7 @@ impl<'e> ExecuteContext<'e> {
             // Every missing category is being restored by another thread. While waiting we hold
             // neither the lock nor a restoring claim, so pin the task to keep GC from considering
             // it. Eviction is still allowed; a later pass restores the category again if needed.
-            if !pinned {
-                task.update_and_get_transient_ref_count(1);
-                pinned = true;
-            }
+            task.update_and_get_transient_ref_count(1);
             // Register before dropping the lock: the restorer notifies only after re-acquiring it
             // to apply its result, so no wakeup can be lost.
             let listener = self.backend.storage.restored.listen();
@@ -387,16 +377,13 @@ impl<'e> ExecuteContext<'e> {
                 listener.wait();
             }
             task = self.backend.storage.access_entry_mut(task_id);
-        }
-        if pinned {
             task.update_and_get_transient_ref_count(-1);
         }
         Ok((task, outcome))
     }
 
     /// [`Self::restore_task`] on a freshly acquired guard, for a task the caller has already
-    /// pinned. On an I/O error the caller's pin is released before the error is returned: the
-    /// caller panics, and that panic is often caught, so the pin must not leak.
+    /// pinned. On an I/O error the caller's pin is released before the error is returned.
     fn restore_pinned_task(
         &self,
         task_id: TaskId,
@@ -611,11 +598,6 @@ impl<'e> ExecuteContext<'e> {
         // as early as possible)
         // Errors are collected rather than panicking immediately so that all tasks' restoring
         // bits are cleared first. Otherwise other threads waiting on those bits would hang.
-        //
-        // A failed task releases its Phase 1a pin here and is skipped by the later phases; every
-        // other task is still handed off normally, and the failure is reported at the end. The
-        // panic is often caught (it can become a task's error output), so it must not leave pins
-        // behind, or an entry for a task that does not exist.
         let mut any_self_restored = false;
         let mut restore_errors: Vec<(TaskId, &str, anyhow::Error)> = Vec::new();
         // Tasks that exist nowhere, reported once waiters are unblocked.
@@ -646,12 +628,11 @@ impl<'e> ExecuteContext<'e> {
                 if entry.meta_restore_result.take().is_some() {
                     task.flags.set_meta_restoring(false);
                 }
-                task.flags.set_data_restored(false);
-                task.flags.set_meta_restored(false);
                 task.update_and_get_transient_ref_count(-1);
                 entry.failed = true;
                 missing_tasks.push(task_id);
-                // Discards the entry unless another thread still holds it.
+                // Discards the entry, or clears its restored flags if another thread still holds
+                // it.
                 handle_missing_task(task, task_id, TaskAccess::AllowMissing, reason);
                 self.task_lock_counter.release();
                 continue;
@@ -1085,9 +1066,7 @@ impl<'e> ExecuteContext<'e> {
                 };
                 // Decide under the guard that may hold an empty read.
                 if outcome.missing_on_disk {
-                    // The panic is often caught (it can become a task's error output), so release
-                    // both pins first: otherwise the present endpoint stays pinned for the rest of
-                    // the session and the missing entry is never discarded.
+                    // Release both pins resetting state
                     task.update_and_get_transient_ref_count(-1);
                     handle_missing_task(task, task_id, TaskAccess::AllowMissing, "task_pair");
                     self.backend
