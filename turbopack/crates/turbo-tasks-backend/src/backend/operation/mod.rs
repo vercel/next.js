@@ -280,10 +280,6 @@ impl<'e> ExecuteContext<'e> {
     /// returned for the caller to handle missing under the lock. `MaybeCreate` restores only the
     /// requested categories, using empty storage for absent keys. This is distinct from normal
     /// task creation, which initializes both categories before publishing the task id.
-    ///
-    /// The task is pinned for the duration of the restore; the pin is released under the returned
-    /// guard, or before returning an error. On an I/O error the restoring bits are cleared and
-    /// waiters are notified.
     fn restore_task(
         &self,
         task_id: TaskId,
@@ -301,14 +297,6 @@ impl<'e> ExecuteContext<'e> {
             // A missing read instead leaves its category unrestored until the caller handles it.
             if task.flags.is_restored(category) {
                 break;
-            }
-            // The id is held outside the lock for the rest of this restore, both while doing our
-            // own I/O and while waiting on a peer, so pin it. That keeps the entry from being
-            // discarded (by a peer that finds the task missing) or collected under us. Eviction is
-            // still allowed while waiting; a later pass restores the category again if needed.
-            if !pinned {
-                task.update_and_get_transient_ref_count(1);
-                pinned = true;
             }
             let needs_data = category.includes_data() && !task.flags.data_restored();
             let needs_meta = category.includes_meta() && !task.flags.meta_restored();
@@ -383,7 +371,13 @@ impl<'e> ExecuteContext<'e> {
                 continue;
             }
 
-            // Every missing category is being restored by another thread.
+            // Every missing category is being restored by another thread. While waiting we hold
+            // neither the lock nor a restoring claim, so pin the task to keep GC from considering
+            // it. Eviction is still allowed; a later pass restores the category again if needed.
+            if !pinned {
+                task.update_and_get_transient_ref_count(1);
+                pinned = true;
+            }
             // Register before dropping the lock: the restorer notifies only after re-acquiring it
             // to apply its result, so no wakeup can be lost.
             let listener = self.backend.storage.restored.listen();
