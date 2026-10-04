@@ -297,7 +297,30 @@ If the route has multiple dynamic segments, the returned objects must include al
 
 The product page can export `generateStaticParams()` too, for example to prerender featured products so their first prefetch includes the heading. Under `'prefetch'` it is optional.
 
-Next.js [validates the `'navigation'` requirement during both `next dev` and `next build`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#validation). The build stops at the first route that fails, and its errors carry less detail. The development overlay shows each error with a source-mapped stack trace that updates as you edit, so switch to development for the rest of this step. See [Building your application](/docs/app/guides/building#debug-prerender-errors) to debug errors in `next build`.
+Run `next build` again. The route now has `id` values to prerender, and prerendering fails on the cookie reads:
+
+```bash filename="Terminal"
+Error: Route "/store/guides/[id]": Next.js encountered uncached or runtime data on a route that must be fully static.
+
+This route is configured to be fully static, but uncached or runtime data prevents it from being fully prerendered.
+
+Ways to fix this:
+  - [cache] For uncached data (`fetch`, database calls): cache the access with `"use cache"` (does not apply to `connection()`)
+  - [remove] Remove the data access
+  - Only applies to `searchParams`: read them on the client with `useSearchParams()`
+
+Learn more: https://nextjs.org/docs/messages/static-route-dynamic
+    at Suspense (<anonymous>)
+    at nav (<anonymous>)
+    at body (<anonymous>)
+    at html (<anonymous>)
+To get a more detailed stack trace and pinpoint the issue, try one of the following:
+  - Start the app in development mode by running `next dev`, then open "/store/guides/[id]" in your browser to investigate the error.
+  - Rerun the production build with `next build --debug-prerender` to generate better stack traces.
+Error occurred prerendering page "/store/guides/coffee". Read more: https://nextjs.org/docs/messages/prerender-error
+```
+
+The build reports this error twice, once inside `nav` and once inside `main`. It uses one message for runtime and uncached data, and the stack trace does not name the components. Next.js [validates the `'navigation'` requirement](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#validation) in `next dev` too, where the overlay identifies each error with a source-mapped stack trace. Switch to development for the rest of this step. See [Building your application](/docs/app/guides/building#debug-prerender-errors) to debug errors in `next build`.
 
 Start the development server and open a guide URL. `cookies()` is only available for a request, so the development overlay shows the [runtime data error](/docs/messages/static-route-runtime) twice: once for the theme cookie in `Guide`, and once for `CartButton` in the store layout.
 
