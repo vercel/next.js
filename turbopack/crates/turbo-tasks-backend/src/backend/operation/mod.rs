@@ -2446,17 +2446,13 @@ mod cell_data_tracking_tests {
         let storage = Storage::new(2, true, false);
         let task_id = persistent_task(1);
         let cell = cell_of::<InteriorMutableV>(0);
-        let value = triomphe::Arc::new(InteriorMutableV {
+        let value = SharedReference::new(triomphe::Arc::new(InteriorMutableV {
             value: parking_lot::Mutex::new(1),
-        });
+        }));
 
         {
             let mut g = guard_for(&storage, task_id);
-            g.insert_cell_data(
-                cell,
-                SharedReference::new(value.clone()),
-                persistence_of(&cell),
-            );
+            g.insert_cell_data(cell, value.clone(), persistence_of(&cell));
             assert!(g.data_modified());
         }
 
@@ -2481,7 +2477,11 @@ mod cell_data_tracking_tests {
         {
             let mut g = guard_for(&storage, task_id);
             let _ = g.track_modification(SpecificTaskDataCategory::Data, "test");
-            *value.value.lock() = 2;
+            *value
+                .downcast_ref::<InteriorMutableV>()
+                .unwrap()
+                .value
+                .lock() = 2;
         }
 
         let items: Vec<_> = shards.into_iter().flatten().collect();
