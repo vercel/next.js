@@ -3,6 +3,8 @@ import { Suspense } from 'react'
 import { getProduct } from '@/lib/products'
 
 async function ProductData({ id }: { id: string }) {
+  'use cache'
+
   const product = await getProduct(id)
 
   return (
