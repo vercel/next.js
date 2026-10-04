@@ -701,8 +701,10 @@ const staticRouteRuntimeCards: FixCard[] = [
     group: 'client',
     snippets: [
       { text: "'use client'" },
-      { text: "use(browser('Read browser data'))", highlight: true },
-      { text: 'const value = readFromBrowser()' },
+      { text: "use(browser('Read the cart cookie'))", highlight: true },
+      {
+        text: 'const count = document.cookie.match(/cart-count=(\\d+)/)?.[1]',
+      },
     ],
     copyable: true,
     link: 'https://nextjs.org/docs/messages/static-route-runtime#read-the-data-on-the-client',
@@ -741,10 +743,6 @@ const staticRouteDynamicCards: FixCard[] = [
     copyable: true,
     link: 'https://nextjs.org/docs/messages/static-route-dynamic#remove-the-data-access',
   },
-]
-
-const staticRouteCombinedCards: FixCard[] = [
-  ...staticRouteDynamicCards,
   {
     id: 'read-the-data-on-the-client',
     title: 'Read the data on the client',
@@ -1069,9 +1067,8 @@ export function getCards(
         : staticMetadataDynamicCards
 
     case 'static-route':
-      if (variant === 'runtime') return staticRouteRuntimeCards
-      return cause === 'combined'
-        ? staticRouteCombinedCards
+      return variant === 'runtime'
+        ? staticRouteRuntimeCards
         : staticRouteDynamicCards
 
     case 'blocking-route': {

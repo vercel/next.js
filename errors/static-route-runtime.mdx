@@ -47,8 +47,10 @@ Uncached [`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Window/fet
     href="#read-the-data-on-the-client"
     snippets={[
       { text: "'use client'" },
-      { text: "use(browser('Read browser data'))", highlight: true },
-      { text: 'const value = readFromBrowser()' },
+      { text: "use(browser('Read the cart cookie'))", highlight: true },
+      {
+        text: 'const count = document.cookie.match(/cart-count=(\\d+)/)?.[1]',
+      },
     ]}
   />
 </FixCardGrid>
@@ -104,7 +106,7 @@ Learn more: [`useSearchParams`](/docs/app/api-reference/functions/use-search-par
 
 #### Read browser data
 
-For browser APIs or a non-`HttpOnly` cookie, call [`use(browser())`](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser) before reading the value. During prerendering, the component suspends and its nearest `<Suspense>` boundary renders a fallback.
+For data available through browser APIs, such as a non-`HttpOnly` cookie, call [`use(browser())`](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser) before reading the value. During prerendering, the component suspends and its nearest `<Suspense>` boundary renders a fallback.
 
 ```jsx filename="app/cart-count.jsx"
 'use client'

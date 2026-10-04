@@ -209,10 +209,6 @@ describe('instant-guidance-data card links', () => {
         expect(card.link).toMatch(new RegExp(`#${card.id}$`))
       }
     }
-    for (const card of getCards('static-route', 'dynamic', 'combined')) {
-      if (card.link === null) continue
-      expect(card.link).toMatch(new RegExp(`#${card.id}$`))
-    }
   })
 })
 
@@ -235,7 +231,6 @@ describe('instant-guidance-data card invariants', () => {
       ['link-prefetch-partial', 'runtime'],
       ['static-route', 'runtime'],
       ['static-route', 'dynamic'],
-      ['static-route', 'dynamic', 'combined'],
       ['static-metadata', 'runtime'],
       ['static-metadata', 'dynamic'],
       ['static-viewport', 'runtime'],

@@ -128,7 +128,13 @@ Every visitor receives the same output because the removed operation no longer r
 
 ## Read the data on the client
 
-If the data does not need to be included in the static output, move the request to a Client Component and fetch it after hydration. A client data-fetching library can provide loading states, caching, and revalidation in the browser:
+Choose this fix when the data can load in the browser after the static output renders.
+
+### Patterns
+
+#### Fetch in a Client Component
+
+Move the request to a Client Component. A client data-fetching library can provide loading states, caching, and revalidation in the browser:
 
 ```tsx filename="app/recommendations.tsx"
 'use client'
@@ -147,11 +153,16 @@ export default function Recommendations() {
 }
 ```
 
-The prerender does not include this data, and the browser makes an additional request after hydration. Use this fix when that loading behavior is acceptable.
-
 Learn more: [Client-side data fetching](/docs/app/guides/client-side-data-fetching).
 
-If the build cannot distinguish uncached data from runtime data, the same card may refer to a request-specific value instead. See [Read the data on the client](/docs/messages/static-route-runtime#read-the-data-on-the-client) for URL data and browser API patterns. This fix does not apply when the browser cannot access the value, such as an `HttpOnly` cookie or arbitrary request header.
+### Trade-off
+
+The prerender does not include this data, and the browser makes an additional request after hydration.
+
+### Gotchas
+
+- Protect the API endpoint with the same authorization checks as the original server-side data access.
+- This pattern adds a client-side request. Prefer [caching the server data](#cache-the-data) when visitors can share the result.
 
 ## Verifying the fix
 

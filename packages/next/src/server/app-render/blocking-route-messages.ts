@@ -229,7 +229,8 @@ export function createDynamicBodyErrorInStaticRoute(route: string): Error {
       `This route is configured to be fully static, but an uncached \`fetch(...)\`, database call, or \`connection()\` prevents it from being fully prerendered.\n\n` +
       `Ways to fix this:\n` +
       `  - [cache] Cache the data access with \`"use cache"\` (does not apply to \`connection()\`)\n` +
-      `  - [remove] Remove the data access\n\n` +
+      `  - [remove] Remove the data access\n` +
+      `  - [client] Read the data on the client\n\n` +
       `Learn more: https://nextjs.org/docs/messages/static-route-dynamic`
   )
 }
