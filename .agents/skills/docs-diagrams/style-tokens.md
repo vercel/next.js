@@ -88,9 +88,9 @@ Inter comes from Google Fonts in the HTML wrapper (`display=block` so Chrome wai
 
 **Badges**: letter badge 32px square, radius 8, 2px accent stroke, `badgeFill`. Status pill 34 tall, radius 6, 1.5px stroke, mono text.
 
-**Grid**: column headers 20px/600 `textSubtle` with optional 15px subtitles, a right-aligned mono label column, dashed `divider` lines between columns, rows 56 tall with 20px gaps, cells inset 10px from the dividers. Cells are `card` / `hole` spans; a `swatchLegend` explains fill styles when the cells carry no text.
+**Grid**: column headers 20px/600 `textSubtle` with optional 15px subtitles (header 70 tall with subtitles, 48 without), a right-aligned mono label column, dashed `divider` lines between columns, rows 56 tall with 20px gaps, cells inset 10px from the dividers. All defaults scale with `k`. Cells are `card` / `hole` spans; a `swatchLegend` explains fill styles when the cells carry no text. Under a row of windows, the grid starts 16px below them.
 
-**Text metrics**: there are no font metrics at generation time. `textWidth(str, size, { mono })` is the heuristic (0.52 × size per character for Inter, 0.6 for Geist Mono); size blocks with it rather than a new constant.
+**Text metrics**: there are no font metrics at generation time. `textWidth(str, size, { mono })` is the heuristic (0.52 × size per character for Inter, 0.58 for Geist Mono); size blocks with it rather than a new constant, then measure.
 
 **Code panel**: 54px title bar with the React logo and a file name, 28px padding, 36px lines.
 

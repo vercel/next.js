@@ -30,7 +30,13 @@ for (const file of fs
   for (const d of diagrams) {
     if (only && d.name !== only) continue
     for (const [theme, t] of Object.entries(lib.themes)) {
-      const svg = lib.canvas(t, d.width ?? 1600, d.height, d.draw(t, lib))
+      const width = d.width ?? 1600
+      const svg = lib.canvas(
+        t,
+        width,
+        d.height,
+        d.draw(t, lib, { width, height: d.height })
+      )
       fs.mkdirSync(path.join(out, theme), { recursive: true })
       fs.writeFileSync(
         path.join(out, `${d.name}-${theme}.html`),

@@ -213,7 +213,7 @@ export function code(t, x, y, str, opts = {}) {
 // generation time, so this is the heuristic the primitives use; use it in
 // modules too when a block's width depends on a label.
 export function textWidth(str, size, { mono: isMono = false } = {}) {
-  return String(str).length * size * (isMono ? 0.6 : 0.52)
+  return String(str).length * size * (isMono ? 0.58 : 0.52)
 }
 
 export const esc = (s) =>
@@ -509,7 +509,19 @@ export function pageLayout(t, win, { sidebar = true } = {}) {
   }
   const cx = x + pad + sbW + (sidebar ? 24 * k : 0)
   const content = { x: cx, y: top, w: x + w - pad - cx, h: bottom - top }
-  return { svg: s.join('\n'), content, k }
+  // the usual split of the content column: post on top, comments below
+  const gap = 12 * k
+  const postH = Math.round((content.h - gap) * 0.56)
+  const regions = {
+    post: { x: cx, y: top, w: content.w, h: postH },
+    comments: {
+      x: cx,
+      y: top + postH + gap,
+      w: content.w,
+      h: content.h - postH - gap,
+    },
+  }
+  return { svg: s.join('\n'), content, regions, k }
 }
 
 // A post card: outlined card with a title bar and body lines. `color` 'skel'
@@ -521,7 +533,7 @@ export function postCard(t, x, y, w, h, k = 1, color = 'skel') {
   const pad = 16 * k
   const frame = accent
     ? card(t, x, y, w, h, { color, radius: 8 * k, strokeWidth: 1.5 * k })
-    : `<rect x="${half(x)}" y="${half(y)}" width="${w - 1}" height="${h - 1}" rx="${8 * k}" fill="none" stroke="${t.panelStroke}"/>`
+    : `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${8 * k}" fill="none" stroke="${t.panelStroke}" stroke-width="${1.5 * k}"/>`
   // title bar plus at most three body lines; the card's height is the caller's
   const lines = Math.max(
     1,
@@ -551,12 +563,30 @@ export function postCard(t, x, y, w, h, k = 1, color = 'skel') {
 }
 
 // Comment rows: small avatar + one line each, spread evenly over the height.
-export function commentRows(t, x, y, w, h, k = 1, color = 'skel', rows = 3) {
+export function commentRows(
+  t,
+  x,
+  y,
+  w,
+  h,
+  k = 1,
+  color = 'skel',
+  rows = 3,
+  { frame = color !== 'skel' } = {}
+) {
   const c = color !== 'skel' ? t[color].skelOn : t.skel
+  let out = ''
+  if (frame) {
+    out += card(t, x, y, w, h, { color, radius: 8 * k, strokeWidth: 1.5 * k })
+    const pad = 12 * k
+    x += pad
+    y += pad
+    w -= pad * 2
+    h -= pad * 2
+  }
   const r = 7 * k
   const step = rows > 1 ? Math.min(34 * k, (h - r * 2) / (rows - 1)) : 0
   const widths = [0.7, 0.45, 0.6]
-  let out = ''
   for (let i = 0; i < rows; i++) {
     const cy = y + r + i * step
     out += skel.avatar(t, x + r, cy, r, c)
@@ -592,7 +622,7 @@ export function hole(
   const c = style === 'gray' ? null : t[style]
   const rect = c
     ? `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${radius}" fill="${c.fill}" stroke="${c.stroke}" stroke-width="${strokeWidth}" stroke-dasharray="${dash}"/>`
-    : `<rect x="${half(x)}" y="${half(y)}" width="${w - 1}" height="${h - 1}" rx="${radius}" fill="none" stroke="${t.panelStroke}" stroke-dasharray="${dash}"/>`
+    : `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${radius}" fill="none" stroke="${t.panelStroke}" stroke-width="${strokeWidth}" stroke-dasharray="${dash}"/>`
   return (
     rect +
     (text
@@ -774,8 +804,10 @@ export function swatchLegend(t, x, y, kind, text, { k = 1 } = {}) {
 // Draw the cells yourself with `card` / `hole` from the returned geometry:
 //   const g = grid(t, x, y, { columns, rows }); g.span(row, fromCol, toCol) -> { x, y, w, h }
 // To line the columns up with a row of windows above: colW = windowW + gap,
-// inset = gap / 2, and x = first window's x - labelW - gap - gap / 2. The
-// column headers then sit under the windows and double as their captions.
+// inset = gap / 2, x = first window's x - labelW - gap - gap / 2, and
+// y = window bottom + 16 * k. The column headers then sit under the windows
+// and double as their captions. The dividers extend `inset` beyond the first
+// and last window on each side; include that when centering the block.
 //
 // columns: [{ title, subtitle, subtitleMono }]   rows: [{ label, mono = true, muted }]
 
@@ -786,16 +818,16 @@ export function grid(
   {
     columns,
     rows,
-    labelW = 200,
+    k = 1, // scales every default below and the text (k = width / 1600)
+    labelW = 200 * k,
     labelHeader,
     labelHeaderMono = true,
-    colW = 260,
-    rowH = 56,
-    rowGap = 20,
-    headerH = 70,
-    gap = 40, // between the label column and the first column
-    inset = 10, // cell inset from the column dividers
-    k = 1, // scales text sizes and header offsets (k = width / 1600)
+    colW = 260 * k,
+    rowH = 56 * k,
+    rowGap = 20 * k,
+    headerH = (columns.some((c) => c.subtitle) ? 70 : 48) * k,
+    gap = 40 * k, // between the label column and the first column
+    inset = 10 * k, // cell inset from the column dividers
   }
 ) {
   const s = []

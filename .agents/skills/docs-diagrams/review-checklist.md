@@ -19,7 +19,7 @@ Open both PNGs at full size next to the reference images for the family and go t
 ## Composition
 
 - [ ] Left and right margins are equal. Measure from the leftmost glyph or bracket to the canvas edge, and from the rightmost badge or pill to the canvas edge.
-- [ ] Top and bottom margins are equal (within 4px). Measure from the ink: a quick way is to scan the PNG for the first and last non-background row and column (PIL or any image library) rather than trusting the `y` you passed to a text label.
+- [ ] Top and bottom margins are equal (within 4px). Measure from the ink with `python3 scripts/measure.py light/<name>.png` rather than trusting the `y` you passed to a text label. It ignores the grid; panel shadows still count, so the bottom reads a few px smaller than it is.
 - [ ] On a canvas narrower than 1600, element sizes were scaled by `width / 1600`, so the picture will not render larger than its neighbours.
 - [ ] The whole block is centered as one unit, not each column separately.
 - [ ] Arrow heads, bar splits and leader lines line up with what they point at.

@@ -44,7 +44,8 @@ The reference is the set of diagrams already published in the docs. They share o
      name: 'my-diagram', // must equal the mdx srcLight basename
      width: 1600, // what the mdx declares
      height: 700,
-     draw(t, lib) {
+     draw(t, lib, { width, height }) {
+       const k = width / 1600
        const s = []
        // compose lib primitives here, laid out from a few named constants
        return s.join('\n')
@@ -52,7 +53,7 @@ The reference is the set of diagrams already published in the docs. They share o
    }
    ```
 
-   `lib.mjs` has the shapes the docs are built from: `panel`, `treePanel`, `urlPill`, `urlStack`, `arrow`, `bracketArrow`, `bracketCaption`, `browserWindow` with `pageLayout`, `postCard` and `commentRows` for the page inside it, `skel.*` atoms, `hole`, `card`, `grid`, `badge`, `statusBadge`, `legendRow`, `swatchLegend`, `callout`, `codePanel`, plus `label`/`code` for text, `textWidth` for sizing a block around a label, and the `icons`. Build a window's page with `pageLayout` rather than placing skeleton atoms by hand; it carries the spacing that makes placeholders read as a page. Lay the block out from named constants and center it on the canvas. When a diagram needs a shape `lib` does not have, add it to `lib.mjs` using the existing tokens, in the same style, so the next diagram gets it too. Never hard-code a color or a one-off offset inside a shape.
+   `lib.mjs` has the shapes the docs are built from: `panel`, `treePanel`, `urlPill`, `urlStack`, `arrow`, `bracketArrow`, `bracketCaption`, `browserWindow` with `pageLayout`, `postCard` and `commentRows` for the page inside it, `skel.*` atoms, `hole`, `card`, `grid`, `badge`, `statusBadge`, `legendRow`, `swatchLegend`, `callout`, `codePanel`, plus `label`/`code` for text, `textWidth` for sizing a block around a label, and the `icons`. Build a window's page with `pageLayout` rather than placing skeleton atoms by hand; it carries the spacing that makes placeholders read as a page, and returns `regions.post` and `regions.comments` for the usual split of the content column. Content that has rendered at one moment stays rendered, in the same style, in every later moment. Lay the block out from named constants and center it on the canvas. When a diagram needs a shape `lib` does not have, add it to `lib.mjs` using the existing tokens, in the same style, so the next diagram gets it too. Never hard-code a color or a one-off offset inside a shape.
 
    When the brief describes moments or stages (before/after, Shell → Prefetch → Navigation), the docs show them as a row of browser windows with arrows between them, each window showing the page at that moment, and, when values or APIs need comparing across the moments, bar rows underneath split at the gaps between windows. `grid` gives the columns-and-spans layout for the bars; its column headers sit under the windows and double as their captions (see the comment on `grid` for lining the two up). Use `grid` on its own when the windows add nothing.
 
@@ -78,11 +79,11 @@ Some docs images are product screenshots (DevTools panels, the bundle analyzer, 
 
 ## Conventions
 
-- The docs canvas is 1600 CSS px wide and the page scales it to the column, so sizes in the tokens are sizes at 1600. For a new diagram, declare 1600 and let the height follow the content. If a page already declares a narrower width, match it, and scale element sizes by `k = width / 1600` so the picture reads the same size as its neighbours once the page scales it; a 1200 canvas drawn with 1600 sizes renders a third larger than everything around it. `grid`, `swatchLegend`, `arrow` and `browserWindow` take or derive `k`; pass `× k` sizes to `skel.*`, `hole` and `card` yourself.
+- The docs canvas is 1600 CSS px wide and the page scales it to the column, so sizes in the tokens are sizes at 1600. For a new diagram, declare 1600 and let the height follow the content. If a page already declares a narrower width, match it, and scale element sizes by `k = width / 1600` so the picture reads the same size as its neighbours once the page scales it; a 1200 canvas drawn with 1600 sizes renders a third larger than everything around it. `grid`, `swatchLegend`, `arrow`, `pageLayout`, `postCard` and `commentRows` take or derive `k` and scale all their defaults by it; pass `× k` sizes to `skel.*`, `hole` and `card` yourself.
 - The mdx `height` wins over the "margins 60" rule: fit the content to the declared box. Top must equal bottom and left must equal right (within 4px); the two pairs need not match each other.
 - Within one picture a color means exactly one thing in the bars and the legend. In the windows, rendered UI is always gray skeleton, whatever the bars say gray means; that is the docs' convention and readers expect it. Blue in a window marks the one state the picture is about (not yet rendered, or just rendered), the same state blue marks in the bars.
 - If the legend says blue is "renders later", nothing else may be blue. See "What the colors mean" in [style-tokens.md](style-tokens.md).
-- Alignment is the review bar: equal margins, shared edges, text centered in its box, arrows and splits lined up vertically through the whole diagram. Measure margins from the ink, not from the coordinates you passed: text drawn with `dominant-baseline="central"` has its visual top about `0.35 × size` above its `y`.
+- Alignment is the review bar: equal margins, shared edges, text centered in its box, arrows and splits lined up vertically through the whole diagram. Measure margins from the ink with `scripts/measure.py`, not from the coordinates you passed: text drawn with `dominant-baseline="central"` has its visual top about `0.35 × size` above its `y`, and `textWidth` is a heuristic, so expect to nudge by a few px after measuring.
 - Draw what the brief names, nothing more: the alt text and the surrounding paragraph decide which values, rows and labels appear. The `alt` text's names win for labels in the picture; use `docs/01-app/04-glossary.mdx` for terminology the brief leaves open.
 - Code and routes in Geist Mono, everything else in Inter. Geist Mono must be installed locally; the fallback is `ui-monospace`.
 
