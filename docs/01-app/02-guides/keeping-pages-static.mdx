@@ -370,7 +370,7 @@ The build error covers both uncached and runtime data, so it includes three fix 
     snippets={[
       { text: "'use client'" },
       { text: "use(browser('Read cookie'))", highlight: true },
-      { text: 'const cart = document.cookie.match(/cart=(\\d+)/)' },
+      { text: 'document.cookie.match(/cart=/)' },
     ]}
   />
 </FixCardGrid>
@@ -454,10 +454,7 @@ The overlay shows these fixes:
     href="/docs/messages/static-route-dynamic#read-the-data-on-the-client"
     snippets={[
       { text: "'use client'" },
-      {
-        text: "const { data } = useSWR('/api', fetcher)",
-        highlight: true,
-      },
+      { text: "const data = useSWR('/api')", highlight: true },
       { text: 'return <Content data={data} />' },
     ]}
   />
