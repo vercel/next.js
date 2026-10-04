@@ -23,7 +23,7 @@ Static output does not depend on request-specific data. Next.js can generate it 
 
 With [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), Next.js loads a route's server-rendered output in stages, before and during a client navigation. These are the route's [navigation stages](/docs/app/glossary#navigation-stages):
 
-1. A default `<Link>` loads the route's [App Shell](/docs/app/glossary#app-shell), which the links to that route share.
+1. A default `<Link>` loads the route's [App Shell](/docs/app/glossary#app-shell), which is the same for all links to that route.
 2. A `<Link prefetch={true}>` also loads static or cached content that depends on the link's [URL data](/docs/app/glossary#url-data), such as `params`. This is the per-link prefetch.
 3. When the user follows the link, the navigation returns the rest of the route.
 
@@ -119,7 +119,7 @@ export default function StoreLayout({ children }: LayoutProps<'/store'>) {
 }
 ```
 
-Without `ensureStatic`, the App Shell that a default `<Link>` loads is rendered for each request, so it can include the cart count. Add `ensureStatic = 'shell'` so the App Shell comes from static output instead:
+Because the layout reads a cookie, Next.js renders the store's App Shell on the server for each visitor, so the shell can include their cart count. Add `ensureStatic = 'shell'` so the App Shell comes from static output instead:
 
 ```tsx filename="app/store/layout.tsx" highlight={5}
 import Link from 'next/link'
@@ -133,11 +133,11 @@ export default function StoreLayout({ children }: LayoutProps<'/store'>) {
 }
 ```
 
-A default `<Link>` into the store now loads the App Shell from static output, with the `<Suspense>` fallback in place of the cart. The cart renders later, during a per-link prefetch or the navigation.
+A default `<Link>` into the store now loads an App Shell that Next.js generated once, with the `Cart (0)` fallback in place of the cart. The cart count renders later, during a per-link prefetch or the navigation.
 
 ### Step 2: Prefetch product details
 
-Product pages show product details, which rarely change, and live inventory, which changes with every order. `ProductDetails` caches its query with [`use cache`](/docs/app/api-reference/directives/use-cache), while `Inventory` reads the stock level for each request:
+Product pages show product details, which rarely change, and live inventory, which changes as orders come in. `ProductDetails` caches its query with [`use cache`](/docs/app/api-reference/directives/use-cache), while `Inventory` reads the stock level for each request:
 
 ```tsx filename="app/ui/product.tsx"
 import { db } from '@/lib/db'
@@ -184,7 +184,7 @@ export default function ProductPage({
 }
 ```
 
-A default `<Link>` loads only the App Shell. To include the product details in the prefetch, the catalog page links to each product with `prefetch={true}`. Its `getProducts()` query is cached like `getProduct()`:
+A default `<Link>` loads only the App Shell. To also load the product heading before the user clicks, the catalog page links to each product with `prefetch={true}`. Its `getProducts()` query is cached like `getProduct()`:
 
 ```tsx filename="app/store/page.tsx" highlight={10}
 import Link from 'next/link'
@@ -206,9 +206,9 @@ export default async function StorePage() {
 }
 ```
 
-That per-link prefetch includes the product heading and the **Checking availability...** fallback. The uncached inventory query runs after the user follows the link.
+The layout's `'shell'` level does not cover these per-link prefetches. The store layout reads the cart cookie, so Next.js renders each per-link prefetch on the server for the current visitor. The prefetch can include their cart count. A catalog page with many product links causes a server render for each visible link on each visit, and the prefetched UI gives no sign of that work.
 
-The layout's `'shell'` level only covers the App Shell. A product link resolves `params` in its per-link prefetch, so each of those prefetches renders on the server, and nothing in the UI shows that cost. Add `ensureStatic = 'prefetch'` to the product page so its per-link prefetches come from static output too:
+Add `ensureStatic = 'prefetch'` to the product page:
 
 ```tsx filename="app/store/products/[slug]/page.tsx" highlight={4}
 import { Suspense } from 'react'
@@ -223,13 +223,15 @@ export default function ProductPage({
 }
 ```
 
-A level applies to the whole route, including the layouts above the segment that sets it. On product routes, the cart now renders during the navigation, and the per-link prefetch includes its fallback next to the product heading.
+A per-link prefetch of a product now comes from static output that Next.js generates once per product and reuses for all visitors. It contains the product heading, the `Cart (0)` fallback, and the **Checking availability...** fallback. The cart count and the inventory render when the user follows the link.
 
-No product page is generated at build time, so the first prefetch of a product on a new deployment serves the route's fallback shell, without the product heading. Next.js generates the page in the background, and later prefetches include the heading. See [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components#at-runtime).
+A level applies to the whole route, including the layouts above the segment that sets it. On product routes, `'prefetch'` also covers the store layout, so the cart count moves to the navigation. The catalog keeps the layout's `'shell'` level.
+
+The product pages are not generated at build time. On a new deployment, the first prefetch of a product serves the route's fallback shell, without the product heading. Next.js generates the page in the background, and later prefetches include the heading. See [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components#at-runtime).
 
 ### Step 3: Prerender the buying guides
 
-Buying guides are editorial pages whose complete server output should remain static. Add `ensureStatic = 'navigation'` to the guide page. Start with a page that reads a theme preference from `cookies()`. Like the product page, it reads `params` inside `<Suspense>`, so the route's shell does not wait for URL data:
+Buying guides are editorial pages, so the complete page should be prerendered. The guide page reads a theme preference from `cookies()`, and like the product page, it reads `params` inside `<Suspense>`. Add `ensureStatic = 'navigation'` to it:
 
 ```tsx filename="app/store/guides/[id]/page.tsx" highlight={4}
 import { Suspense } from 'react'
