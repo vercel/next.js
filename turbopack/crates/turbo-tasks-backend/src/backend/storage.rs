@@ -28,6 +28,7 @@ use crate::{
         dash_map_drop_contents::drop_contents,
         dash_map_entry::{TryLockAndRemove, try_lock_and_remove},
         dash_map_multi::{RefMut, get_disjoint_mut},
+        shard_amount::compute_shard_amount,
     },
 };
 
@@ -352,8 +353,47 @@ pub struct Storage {
     pub task_cache: FxDashMap<CachedTaskTypeArc, TaskId>,
 }
 
+/// Options for [`Storage::new`].
+#[derive(Debug, Clone, Copy)]
+pub struct StorageOptions {
+    /// Number of shards of the task map (and of the per-shard modified counters).
+    pub shard_amount: usize,
+    /// Preallocate a small task map instead of a large one (e.g. for tests or short-lived
+    /// instances).
+    pub small_preallocation: bool,
+    /// Whether task GC is enabled. Affects how GC-deleted tasks are persisted.
+    pub gc_enabled: bool,
+}
+
+impl Default for StorageOptions {
+    fn default() -> Self {
+        Self {
+            shard_amount: compute_shard_amount(None, false),
+            small_preallocation: false,
+            gc_enabled: false,
+        }
+    }
+}
+
+#[cfg(test)]
+impl StorageOptions {
+    /// Small, GC-disabled storage for unit tests.
+    pub(crate) fn for_tests() -> Self {
+        Self {
+            shard_amount: 2,
+            small_preallocation: true,
+            gc_enabled: false,
+        }
+    }
+}
+
 impl Storage {
-    pub fn new(shard_amount: usize, small_preallocation: bool, gc_enabled: bool) -> Self {
+    pub fn new(options: StorageOptions) -> Self {
+        let StorageOptions {
+            shard_amount,
+            small_preallocation,
+            gc_enabled,
+        } = options;
         let map_capacity: usize = if small_preallocation {
             1024
         } else {
@@ -1318,7 +1358,8 @@ mod tests {
     use turbo_tasks::TaskId;
 
     use super::{
-        SpecificTaskDataCategory, Storage, TaskStorage, TrackOutcome, encode_task_contents,
+        SpecificTaskDataCategory, Storage, StorageOptions, TaskStorage, TrackOutcome,
+        encode_task_contents,
     };
     use crate::{backing_storage::SnapshotItem, data::OutputValue};
 
@@ -1329,7 +1370,7 @@ mod tests {
 
     #[test]
     fn new_task_is_pinned_during_construction() {
-        let storage = Storage::new(2, true, false);
+        let storage = Storage::new(StorageOptions::for_tests());
         let task_id = non_transient_task(1);
 
         storage.initialize_new_task(task_id, None);
@@ -1375,7 +1416,7 @@ mod tests {
     // requiring a multi-threaded Tokio runtime.
     #[tokio::test(flavor = "multi_thread")]
     async fn modify_during_snapshot_clears_live_modified_flags() {
-        let storage = Storage::new(2, true, false);
+        let storage = Storage::new(StorageOptions::for_tests());
         let task_id = non_transient_task(1);
 
         // Step 1: modify the task outside snapshot mode (data_modified = true).
@@ -1447,7 +1488,7 @@ mod tests {
     ///    flags, and promotes `data_modified_during_snapshot → data_modified`.
     #[tokio::test(flavor = "multi_thread")]
     async fn modify_different_category_during_snapshot() {
-        let storage = Storage::new(2, true, false);
+        let storage = Storage::new(StorageOptions::for_tests());
         let task_id = non_transient_task(1);
 
         // Step 1: modify meta only, outside snapshot mode.
@@ -1506,7 +1547,7 @@ mod tests {
     /// entry must be gone from the map by the time the snapshot is consumed.
     #[tokio::test(flavor = "multi_thread")]
     async fn drain_entries_removes_entry_from_map() {
-        let storage = Storage::new(2, true, false);
+        let storage = Storage::new(StorageOptions::for_tests());
         let task_id = non_transient_task(1);
 
         // Modify the task outside snapshot mode so it lands in the modified list.
@@ -1543,7 +1584,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn drain_entries_releases_drained_shards() {
         // dashmap requires at least 2 shards.
-        let storage = Storage::new(2, true, false);
+        let storage = Storage::new(StorageOptions::for_tests());
 
         // Insert and modify enough tasks to grow the shards' tables beyond their minimum.
         let task_ids: Vec<_> = (1..=256).map(non_transient_task).collect();
@@ -1589,7 +1630,7 @@ mod tests {
     /// yielded.
     #[tokio::test(flavor = "multi_thread")]
     async fn drain_entries_removes_unmodified_during_take_snapshot() {
-        let storage = Storage::new(2, true, false);
+        let storage = Storage::new(StorageOptions::for_tests());
         let modified_id = non_transient_task(1);
         let unmodified_id = non_transient_task(2);
 
@@ -1631,7 +1672,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn undo_non_snapshot_reverses_flag_and_counter() {
-        let storage = Storage::new(2, true, false);
+        let storage = Storage::new(StorageOptions::for_tests());
         let task_id = non_transient_task(1);
 
         {
@@ -1655,7 +1696,7 @@ mod tests {
     /// must NOT clear the real modification recorded by the first track.
     #[tokio::test(flavor = "multi_thread")]
     async fn undo_nochange_preserves_prior_modification() {
-        let storage = Storage::new(2, true, false);
+        let storage = Storage::new(StorageOptions::for_tests());
         let task_id = non_transient_task(1);
 
         let mut guard = storage.access_mut(task_id);
@@ -1676,7 +1717,7 @@ mod tests {
     /// outcome must leave Data modified and the shard counter still non-zero.
     #[tokio::test(flavor = "multi_thread")]
     async fn undo_only_reverses_its_own_category() {
-        let storage = Storage::new(2, true, false);
+        let storage = Storage::new(StorageOptions::for_tests());
         let task_id = non_transient_task(1);
 
         {
@@ -1699,7 +1740,7 @@ mod tests {
     /// Undo must remove the marker and clear the bit.
     #[tokio::test(flavor = "multi_thread")]
     async fn undo_during_snapshot_true_false_removes_marker() {
-        let storage = Storage::new(2, true, false);
+        let storage = Storage::new(StorageOptions::for_tests());
         let task_id = non_transient_task(1);
         // Insert the task (unmodified) so it exists in the map.
         let _ = storage.access_mut(task_id);
@@ -1732,7 +1773,7 @@ mod tests {
     /// belongs to the snapshot, not to this call).
     #[tokio::test(flavor = "multi_thread")]
     async fn undo_during_snapshot_true_true_removes_item_preserves_modified() {
-        let storage = Storage::new(2, true, false);
+        let storage = Storage::new(StorageOptions::for_tests());
         let task_id = non_transient_task(1);
 
         // Modify before snapshot so the category is part of the snapshot.
@@ -1780,7 +1821,7 @@ mod tests {
             OutputValue::Output(non_transient_task(id))
         }
 
-        let storage = Storage::new(2, true, false);
+        let storage = Storage::new(StorageOptions::for_tests());
         let task_id = non_transient_task(1);
 
         // Modify the task's meta data outside snapshot mode.

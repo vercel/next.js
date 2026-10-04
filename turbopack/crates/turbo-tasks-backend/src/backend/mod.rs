@@ -70,7 +70,7 @@ use crate::{
             make_task_dirty_internal, prepare_new_children, update_cell,
         },
         snapshot_coordinator::{OperationGuard, SlowSettle, SnapshotCoordinator},
-        storage::{Storage, encode_snapshot_item},
+        storage::{Storage, StorageOptions, encode_snapshot_item},
         storage_schema::{TaskStorage, TaskStorageAccessors},
     },
     data::{
@@ -348,7 +348,11 @@ impl TurboTasksBackend {
                 TaskId::try_from(TRANSIENT_TASK_BIT).unwrap(),
                 TaskId::MAX,
             ),
-            storage: Storage::new(shard_amount, small_preallocation, gc_enabled),
+            storage: Storage::new(StorageOptions {
+                shard_amount,
+                small_preallocation,
+                gc_enabled,
+            }),
             snapshot_coord: SnapshotCoordinator::new(),
             snapshot_in_progress: Mutex::new(()),
             stopping: RwLock::new(false),

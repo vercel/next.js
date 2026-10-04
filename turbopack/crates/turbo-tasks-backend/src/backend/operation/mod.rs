@@ -2023,7 +2023,10 @@ mod filter_transient_tracking_tests {
 
     use super::*;
     use crate::{
-        backend::{TaskDataCategory, storage::Storage},
+        backend::{
+            TaskDataCategory,
+            storage::{Storage, StorageOptions},
+        },
         data::{CellRef, OutputValue},
     };
 
@@ -2059,7 +2062,7 @@ mod filter_transient_tracking_tests {
 
     #[test]
     fn autoset_add_remove_only_tracks_persistent_keys() {
-        let storage = Storage::new(2, true, false);
+        let storage = Storage::new(StorageOptions::for_tests());
         let task_id = persistent_task(1);
 
         // `children` is an AutoSet<TaskId> meta field with filter_transient.
@@ -2109,7 +2112,7 @@ mod filter_transient_tracking_tests {
 
     #[test]
     fn autoset_extend_tracks_iff_any_persistent() {
-        let storage = Storage::new(2, true, false);
+        let storage = Storage::new(StorageOptions::for_tests());
 
         // Extend with only transient children: no meta modification.
         let task_id = persistent_task(1);
@@ -2137,7 +2140,7 @@ mod filter_transient_tracking_tests {
 
     #[test]
     fn countermap_update_count_only_tracks_persistent_keys() {
-        let storage = Storage::new(2, true, false);
+        let storage = Storage::new(StorageOptions::for_tests());
         let task_id = persistent_task(1);
 
         // `upper` is a CounterMap<TaskId> meta field with filter_transient.
@@ -2160,7 +2163,7 @@ mod filter_transient_tracking_tests {
 
     #[test]
     fn countermap_update_counts_batch_tracks_iff_any_persistent() {
-        let storage = Storage::new(2, true, false);
+        let storage = Storage::new(StorageOptions::for_tests());
 
         // followers: CounterMap<TaskId>, filter_transient, has update_counts.
         let task_id = persistent_task(1);
@@ -2186,7 +2189,7 @@ mod filter_transient_tracking_tests {
 
     #[test]
     fn direct_option_set_take_tracks_by_value_transience() {
-        let storage = Storage::new(2, true, false);
+        let storage = Storage::new(StorageOptions::for_tests());
 
         // `output` is a direct Option<OutputValue> meta field with filter_transient.
         // Setting a transient output: no meta modification.
@@ -2281,7 +2284,7 @@ mod cell_data_tracking_tests {
     use crate::{
         backend::{
             TaskDataCategory,
-            storage::{Storage, encode_task_contents},
+            storage::{Storage, StorageOptions, encode_task_contents},
             storage_schema::TaskStorageAccessors,
         },
         backing_storage::SnapshotItem,
@@ -2349,7 +2352,7 @@ mod cell_data_tracking_tests {
         // (HashOnly persists via the separate `cell_data_hash` field) — but both
         // are still stored in memory. Tracking is monotonic: a later persistable
         // write flips the flag even after skipped writes left it clean.
-        let storage = Storage::new(2, true, false);
+        let storage = Storage::new(StorageOptions::for_tests());
         let mut g = guard_for(&storage, persistent_task(1));
 
         let skip = cell_of::<SkipCheapV>(0);
@@ -2372,7 +2375,7 @@ mod cell_data_tracking_tests {
 
     #[test]
     fn remove_tracks_only_for_persistable() {
-        let storage = Storage::new(2, true, false);
+        let storage = Storage::new(StorageOptions::for_tests());
         let skip = cell_of::<SkipCheapV>(0);
         let persistable = cell_of::<PersistableV>(0);
 
@@ -2411,7 +2414,7 @@ mod cell_data_tracking_tests {
         // `drop_partial` (which keys on Evictability, not the modified flag), so
         // a task that only wrote such a cell is both evictable-clean AND keeps the
         // value. This is the core safety property of not tracking Skip writes.
-        let storage = Storage::new(2, true, false);
+        let storage = Storage::new(StorageOptions::for_tests());
         let task_id = persistent_task(1);
         let cell = cell_of::<SkipNeverV>(0);
 
@@ -2443,7 +2446,7 @@ mod cell_data_tracking_tests {
     /// pre-mutation state must instead be encoded when the task is modified during a snapshot.
     #[tokio::test(flavor = "multi_thread")]
     async fn modify_during_snapshot_encodes_interior_mutable_cell_contents() {
-        let storage = Storage::new(2, true, false);
+        let storage = Storage::new(StorageOptions::for_tests());
         let task_id = persistent_task(1);
         let cell = cell_of::<InteriorMutableV>(0);
         let value = SharedReference::new(triomphe::Arc::new(InteriorMutableV {
