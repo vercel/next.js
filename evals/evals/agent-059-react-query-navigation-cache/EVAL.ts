@@ -59,11 +59,11 @@ test('preserves one browser QueryClient across navigations', async () => {
   )
 })
 
-test('makes the server seed reusable by the Next.js client cache', async () => {
+test('caches the server hydration boundary for client reuse', async () => {
   await expect(environment).toSatisfyCriterion(
-    `The server work that reads a product and produces the React Query hydration state must include a public "use cache" dependency so the Next.js client router can reuse the RSC payload after a navigation or prefetch retrieves it.
+    `A public "use cache" boundary must cover the server work that creates the QueryClient, prefetches the product, and produces the React Query hydration state so the Next.js client router can reuse the complete RSC payload after a navigation or prefetch retrieves it.
 
-Accept "use cache" on the getProduct server read, on the ProductData component that creates the hydration state, or on another public cache scope covering that work. A nested cached read contributes its stale lifetime to the route. Accept the default cache profile, an explicit reusable server profile, or an inline client-only profile such as cacheLife({ expire: 0 }). The exact cache duration is not important. Reject experimental staleTimes, native history APIs, and solutions that rely only on TanStack Query staleTime. Preserve the initial server hydration.`
+Accept "use cache" on ProductData or another public cache scope that covers both the server prefetch and HydrationBoundary. Accept the default cache profile, an explicit reusable server profile, or an inline client-only profile such as cacheLife({ expire: 0 }). The exact cache duration is not important. Reject caching only getProduct while dehydrate() and HydrationBoundary remain outside the cache scope. Also reject experimental staleTimes, native history APIs, and solutions that rely only on TanStack Query staleTime. Preserve the initial server hydration.`
   )
 })
 
