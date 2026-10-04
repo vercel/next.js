@@ -252,7 +252,8 @@ Before adding another static requirement, run `next build` to see how the store 
 ```text filename="Terminal"
 Route (app)
 ├ ◐ /store
-├ ◐ /store/guides/[id]
+├   /store/guides/[id]
+│ └ ◐ /store/guides/[id]
 └   /store/products/[slug]
   ├ ◐ /store/products/[slug]
   └ ◐ /store/products/coffee-grinder
@@ -343,7 +344,7 @@ Learn more: https://nextjs.org/docs/messages/static-route-dynamic
     at html (<anonymous>)
 ```
 
-The build identifies the affected route, but not the source of each data access. Start `next dev` and open `/store/guides/coffee` to get source-mapped errors as you edit. If you can only run `next build`, follow [Find blocking work](/docs/app/guides/building#find-blocking-work) to get the same detail from a build.
+The build identifies the affected route, but not the source of each data access. Start `next dev` and open `/store/guides/coffee` to get source-mapped errors as you edit. If you can only run a build, use [`next build --debug-prerender`](/docs/app/guides/building#debug-prerender-errors) for detailed stack traces and code frames.
 
 The development overlay first reports one [uncached data error](/docs/messages/static-route-dynamic). Its code frame points to the existing database query:
 
