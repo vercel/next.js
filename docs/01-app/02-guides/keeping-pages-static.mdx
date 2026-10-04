@@ -121,7 +121,7 @@ export default function ProductPage({
 
 A default `<Link>` loads only the App Shell. To include the product details in the prefetch, a link needs `prefetch={true}`. A grid of products should not request that for every card, so upgrade each link when the user shows intent:
 
-```tsx filename="app/ui/product-link.tsx" highlight={11}
+```tsx filename="app/ui/product-link.tsx" highlight={13,17-19}
 'use client'
 
 import Link from 'next/link'
