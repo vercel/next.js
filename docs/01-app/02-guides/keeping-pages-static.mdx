@@ -87,21 +87,15 @@ export default function StoreLayout({ children }: LayoutProps<'/store'>) {
 }
 ```
 
-A default `<Link>` into the store loads the shell from static output, and a `<Link prefetch={true}>` loads its per-link prefetch from static output too. `CartButton` reads the cart cookie, so it renders on navigation behind its `<Suspense>` boundary, and the prefetched UI shows the empty button until then. Request-specific content outside `<Suspense>` is reported by [Instant Navigation validation](/docs/messages/instant-navigation-validation).
+A default `<Link>` into the store loads the shell from static output, and a `<Link prefetch={true}>` loads its per-link prefetch from static output too. `CartButton` reads the cart cookie, so it renders on navigation behind its `<Suspense>` boundary, and the prefetched UI shows the empty button until then.
 
 ### Step 2: Prefetch product details, not live inventory
 
-The layout's `'prefetch'` level already covers the product page. What the page controls is how much of it a static prefetch can include. Separate the cached product details from live inventory with `<Suspense>`, and return the products to prerender from [`generateStaticParams()`](/docs/app/api-reference/functions/generate-static-params):
+The layout's `'prefetch'` level already covers the product page. What the page controls is how much of it a static prefetch can include. Separate the cached product details from live inventory with `<Suspense>`:
 
-```tsx filename="app/store/products/[slug]/page.tsx" highlight={5-8}
+```tsx filename="app/store/products/[slug]/page.tsx"
 import { Suspense } from 'react'
 import { Inventory, ProductDetails } from '@/app/ui/product'
-import { getFeaturedProductSlugs } from '@/lib/products'
-
-export async function generateStaticParams() {
-  const slugs = await getFeaturedProductSlugs()
-  return slugs.map((slug) => ({ slug }))
-}
 
 export default function ProductPage({
   params,
@@ -156,7 +150,28 @@ That prefetch includes the product heading and the **Checking availability...** 
 
 This per-link prefetch is why the layout uses `'prefetch'` rather than `'shell'`. A product link resolves `params` in its prefetch. Under `'shell'`, only the App Shell has to be static, so each product prefetch would render on the server, and nothing in the UI would show that cost. Under `'prefetch'`, Next.js serves those prefetches from prerendered output instead.
 
-Products returned from `generateStaticParams()` are prerendered at build time. For any other product, the first prefetch on a new deployment serves the route's fallback shell instead, because no page has been generated yet. Next.js generates it in the background, and later prefetches include the product heading. See [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components#at-runtime).
+So far, no product page is generated at build time. The first prefetch of a product on a new deployment serves the route's fallback shell, without the product heading. Next.js generates the page in the background, and later prefetches include the heading. See [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components#at-runtime).
+
+`'prefetch'` does not require a list of products, but you can prerender the ones most visitors open. Return them from [`generateStaticParams()`](/docs/app/api-reference/functions/generate-static-params), so their first prefetch already includes the heading:
+
+```tsx filename="app/store/products/[slug]/page.tsx" highlight={3,5-8}
+import { Suspense } from 'react'
+import { Inventory, ProductDetails } from '@/app/ui/product'
+import { getFeaturedProductSlugs } from '@/lib/products'
+
+export async function generateStaticParams() {
+  const slugs = await getFeaturedProductSlugs()
+  return slugs.map((slug) => ({ slug }))
+}
+
+export default function ProductPage({
+  params,
+}: PageProps<'/store/products/[slug]'>) {
+  // ...
+}
+```
+
+Any other product still serves the fallback shell on its first prefetch.
 
 ### Step 3: Prerender the buying guides
 
