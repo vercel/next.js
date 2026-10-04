@@ -11,13 +11,37 @@ related:
     - app/api-reference/functions/navigation
 ---
 
-[Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) lets a single route combine a static shell, cached content, and request-specific content that streams in later. Before Cache Components, static and dynamic rendering were a route-level choice, made with [route segment configs](/docs/app/guides/caching-without-cache-components#dynamic) such as `dynamic = 'force-static'`.
+Before Cache Components, static and dynamic rendering were a route-level choice. [Route segment configs](/docs/app/guides/caching-without-cache-components#dynamic) such as `dynamic = 'force-static'`, `dynamic = 'force-dynamic'`, and `dynamic = 'error'` controlled whether the entire route was prerendered, rendered on demand, or failed when it could not be prerendered.
+
+[Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) moves this boundary to the component and function level. A single route can have a static shell, cached content, and request-specific content that streams in later. Shared UI can render first without requiring the entire route to be static.
 
 Some routes must still avoid request-time server work, either to control compute costs or to stay fully prerendered as the code changes. [`ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic) makes that requirement explicit, so a later change that adds request-time rendering is reported instead of going unnoticed.
 
+## Decide what should stay static
+
+Static output does not depend on request-specific data. Next.js can generate it before a request and reuse it across requests.
+
+With [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), Next.js loads a route in [navigation stages](/docs/app/glossary#navigation-stages), before and during a client navigation. Each `ensureStatic` level requires one more stage to be static. In the following diagram, gray marks output that must stay static, while blue marks work that can render later:
+
+<Image
+  alt="The Shell, Prefetch, and Navigation stages, with bars showing how each ensureStatic value extends the static requirement through those stages"
+  srcLight="/docs/light/ensure-static-stage-visual.png"
+  srcDark="/docs/dark/ensure-static-stage-visual.png"
+  width="1200"
+  height="530"
+/>
+
+Choose a level by how much of the route must be static:
+
+- `'shell'`: the [App Shell](/docs/app/glossary#app-shell), which a default `<Link>` loads and all links to the route share.
+- `'prefetch'`: the App Shell and the per-link prefetch from `<Link prefetch={true}>`, which can include content for the link's [URL data](/docs/app/glossary#url-data), such as `params`.
+- `'navigation'`: the complete route, including what the navigation returns.
+
+A page can set a stricter level than its layout. The following example uses each level for a different part of a store.
+
 ## Example
 
-As an example, this guide keeps parts of an online store static. The store has the following files:
+The example is an online store with the following files:
 
 ```txt
 app/
@@ -39,16 +63,6 @@ lib/
 ├── guides.ts
 └── products.ts
 ```
-
-With [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), Next.js loads a route in [navigation stages](/docs/app/glossary#navigation-stages): the App Shell, an optional per-link prefetch, and the navigation. Each `ensureStatic` level keeps one more stage static, and each step applies one level to a different part of the store. In the following diagram, gray marks output that must stay static, while blue marks work that can render later:
-
-<Image
-  alt="The Shell, Prefetch, and Navigation stages, with bars showing how each ensureStatic value extends the static requirement through those stages"
-  srcLight="/docs/light/ensure-static-stage-visual.png"
-  srcDark="/docs/dark/ensure-static-stage-visual.png"
-  width="1200"
-  height="530"
-/>
 
 Enable [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) and [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching):
 
@@ -99,7 +113,7 @@ export default function StoreLayout({ children }: LayoutProps<'/store'>) {
 }
 ```
 
-A default `<Link>` into the store loads the route's [App Shell](/docs/app/glossary#app-shell), which is the same for all links to that route. Because the layout reads a cookie, Next.js renders the App Shell on the server for each visitor, so the shell can include their cart count. Add `ensureStatic = 'shell'` so the App Shell comes from static output instead:
+Because the layout reads a cookie, Next.js renders the store's App Shell on the server for each visitor, so the shell can include their cart count. Add `ensureStatic = 'shell'` so the App Shell comes from static output instead:
 
 ```tsx filename="app/store/layout.tsx" highlight={5}
 import Link from 'next/link'
@@ -164,7 +178,7 @@ export default function ProductPage({
 }
 ```
 
-A default `<Link>` loads only the App Shell. A `<Link prefetch={true}>` also loads a per-link prefetch, which can include static or cached content that depends on the link's [URL data](/docs/app/glossary#url-data), such as `params`. To load the product heading before the user clicks, the catalog page links to each product with `prefetch={true}`. Its `getProducts()` query is cached like `getProduct()`:
+A default `<Link>` loads only the App Shell. To also load the product heading before the user clicks, the catalog page links to each product with `prefetch={true}`. Its `getProducts()` query is cached like `getProduct()`:
 
 ```tsx filename="app/store/page.tsx" highlight={10}
 import Link from 'next/link'
@@ -211,7 +225,7 @@ The product pages are not generated at build time. On a new deployment, the firs
 
 ### Step 3: Prerender the buying guides
 
-Buying guides are editorial pages, so the complete page should be prerendered. The `'navigation'` level covers the last stage, so it requires the complete route to be static. The guide page reads a theme preference from `cookies()`, and like the product page, it reads `params` inside `<Suspense>`. Add `ensureStatic = 'navigation'` to it:
+Buying guides are editorial pages, so the complete page should be prerendered. The guide page reads a theme preference from `cookies()`, and like the product page, it reads `params` inside `<Suspense>`. Add `ensureStatic = 'navigation'` to it:
 
 ```tsx filename="app/store/guides/[id]/page.tsx" highlight={4}
 import { Suspense } from 'react'
