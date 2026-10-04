@@ -48,4 +48,4 @@ Open both PNGs at full size next to the reference images for the family and go t
 
 - [ ] Output names equal the mdx `srcLight` / `srcDark` basenames, including singular vs plural.
 - [ ] You handed off `light/<name>.png` and `dark/<name>.png` with their pixel dimensions and the mdx each belongs to.
-- [ ] The diagram module and its SVGs are committed under this skill so the next diagram starts from them.
+- [ ] Any primitive you added to `lib.mjs` is committed back into this skill so the next diagram gets it.

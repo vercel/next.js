@@ -14,6 +14,12 @@ const out = process.cwd()
 const only = process.argv[2] // optional: render a single diagram by name
 
 const dir = path.join(here, 'diagrams')
+if (!fs.existsSync(dir)) {
+  console.error(
+    `No diagrams/ folder next to gen.mjs. Add diagrams/<name>.mjs (see SKILL.md).`
+  )
+  process.exit(1)
+}
 for (const file of fs
   .readdirSync(dir)
   .filter((f) => f.endsWith('.mjs'))
