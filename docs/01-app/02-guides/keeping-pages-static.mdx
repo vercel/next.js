@@ -237,7 +237,7 @@ async function Guide({ params }: { params: Promise<{ id: string }> }) {
 }
 ```
 
-The app already loads the guide from its database:
+The page calls an existing database helper to load the guide:
 
 ```ts filename="lib/guides.ts"
 import { db } from '@/lib/db'
