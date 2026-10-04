@@ -116,7 +116,32 @@ A default `<Link>` into the store now loads the App Shell from static output, wi
 
 ### Step 2: Prefetch product details
 
-Product pages show cached product details and live inventory. Separate the two with `<Suspense>`:
+Product pages show product details, which rarely change, and live inventory, which changes with every order. `ProductDetails` caches its query with [`use cache`](/docs/app/api-reference/directives/use-cache), while `Inventory` reads the stock level for each request:
+
+```tsx filename="app/ui/product.tsx"
+import { db } from '@/lib/db'
+
+type Params = Promise<{ slug: string }>
+
+export async function ProductDetails({ params }: { params: Params }) {
+  const { slug } = await params
+  const product = await getProduct(slug)
+  return <h1>{product.name}</h1>
+}
+
+export async function Inventory({ params }: { params: Params }) {
+  const { slug } = await params
+  const { stock } = await db.inventory.findUniqueOrThrow({ where: { slug } })
+  return <p>{stock} in stock</p>
+}
+
+async function getProduct(slug: string) {
+  'use cache'
+  return db.product.findUniqueOrThrow({ where: { slug } })
+}
+```
+
+The product page renders each part in its own `<Suspense>` boundary, so the inventory query does not hold back the product details:
 
 ```tsx filename="app/store/products/[slug]/page.tsx"
 import { Suspense } from 'react'
@@ -138,40 +163,29 @@ export default function ProductPage({
 }
 ```
 
-`ProductDetails` uses [`use cache`](/docs/app/api-reference/directives/use-cache), while `Inventory` reads uncached data.
+A default `<Link>` loads only the App Shell. To include the product details in the prefetch, the catalog page links to each product with `prefetch={true}`. Its `getProducts()` query is cached like `getProduct()`:
 
-A default `<Link>` loads only the App Shell. To include the product details in the prefetch, a link needs `prefetch={true}`. A grid of products should not request that for every card, so upgrade each link when the user shows intent:
-
-```tsx filename="app/ui/product-link.tsx" highlight={13,17-19}
-'use client'
-
+```tsx filename="app/store/page.tsx" highlight={10}
 import Link from 'next/link'
-import { useState } from 'react'
+import { getProducts } from '@/lib/products'
 
-export function ProductLink({
-  slug,
-  children,
-}: {
-  slug: string
-  children: React.ReactNode
-}) {
-  const [active, setActive] = useState(false)
+export default async function StorePage() {
+  const products = await getProducts()
   return (
-    <Link
-      href={`/store/products/${slug}`}
-      prefetch={active ? true : 'auto'}
-      onMouseEnter={() => setActive(true)}
-      onFocus={() => setActive(true)}
-    >
-      {children}
-    </Link>
+    <ul>
+      {products.map((product) => (
+        <li key={product.slug}>
+          <Link href={`/store/products/${product.slug}`} prefetch={true}>
+            {product.name}
+          </Link>
+        </li>
+      ))}
+    </ul>
   )
 }
 ```
 
-The link starts with the default App Shell prefetch and switches to a per-link prefetch on hover or focus. See [Hover-triggered prefetch](/docs/app/guides/prefetching#hover-triggered-prefetch) for the trade-offs of extending `<Link>`.
-
-That prefetch includes the product heading and the **Checking availability...** fallback. The uncached inventory query runs after the user follows the link.
+That per-link prefetch includes the product heading and the **Checking availability...** fallback. The uncached inventory query runs after the user follows the link.
 
 The layout's `'shell'` level only covers the App Shell. A product link resolves `params` in its per-link prefetch, so each of those prefetches renders on the server, and nothing in the UI shows that cost. Add `ensureStatic = 'prefetch'` to the product page so its per-link prefetches come from static output too:
 
@@ -438,7 +452,7 @@ If request-time rendering is intentional, first confirm that the route no longer
 ## Next steps
 
 - [Optimize prefetching](/docs/app/guides/optimizing-prefetching#defer-work-to-a-later-stage) to defer one subtree with `prefetch()` or `navigation()` instead of setting a level for the whole route.
-- [Prefetching](/docs/app/guides/prefetching#hover-triggered-prefetch) for the trade-offs of the hover-triggered prefetch used on the product links.
+- [Prefetching](/docs/app/guides/prefetching) for how `<Link>` prefetches routes and when to use `prefetch={true}`.
 - [Ensure instant navigations](/docs/app/guides/instant-navigation) to validate that client navigations into the store show UI immediately.
 - [Building your application](/docs/app/guides/building#debug-prerender-errors) for debugging prerender errors in `next build`.
 - [Migrate to Cache Components](/docs/app/guides/migrating-to-cache-components) to replace route-level configs such as `dynamic = 'force-static'` in an existing app.
