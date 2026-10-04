@@ -15,7 +15,7 @@ Before Cache Components, static and dynamic rendering were a route-level choice.
 
 [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) moves this boundary to the component and function level. A single route can have a static shell, cached content, and request-specific content that streams in later. Shared UI can render first without requiring the entire route to be static.
 
-Some routes must still avoid request-time server work, to control compute costs or to stay fully prerendered as the codebase changes. [`ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic) makes that requirement explicit, so a later change that adds request-time rendering is reported instead of going unnoticed.
+Some routes must still avoid request-time server work, either to control compute costs or to stay fully prerendered as the code changes. [`ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic) makes that requirement explicit, so a later change that adds request-time rendering is reported instead of going unnoticed.
 
 ## Decide what should stay static
 
@@ -27,7 +27,7 @@ With [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partial
 2. A `<Link prefetch={true}>` also loads static or cached content that depends on the link's [URL data](/docs/app/glossary#url-data), such as `params`. This is the per-link prefetch.
 3. When the user follows the link, the navigation returns the rest of the route.
 
-Each `ensureStatic` value extends the static requirement through one more stage. In the following diagram, gray marks output that must remain static, while blue marks work that can render later:
+Each `ensureStatic` value extends the static requirement through one more stage. In the following diagram, gray marks output that must stay static, while blue marks work that can render later:
 
 <Image
   alt="The Shell, Prefetch, and Navigation stages, with bars showing how each ensureStatic value extends the static requirement through those stages"
@@ -133,7 +133,7 @@ export default function StoreLayout({ children }: LayoutProps<'/store'>) {
 }
 ```
 
-A default `<Link>` into the store now loads an App Shell that Next.js generated once, with the `Cart (0)` fallback in place of the cart. The cart count renders later, during a per-link prefetch or the navigation.
+A default `<Link>` into the store now loads an App Shell that Next.js generates once, with the `Cart (0)` fallback in place of the cart. The cart count renders later, during a per-link prefetch or the navigation.
 
 ### Step 2: Prefetch product details
 
@@ -254,7 +254,7 @@ async function Guide({ params }: { params: Promise<{ id: string }> }) {
 }
 ```
 
-Run `next build`. A fully static route is prerendered at build time, but a dynamic route without `generateStaticParams()` has no `id` values to prerender, so the build stops before it renders the route:
+Run `next build`. A fully static route is prerendered at build time. Without `generateStaticParams()`, the build has no `id` values to prerender, so it stops before rendering the route:
 
 ```bash filename="Terminal"
 Error: Page "/store/guides/[id]": `ensureStatic = "navigation"` requires an exported `generateStaticParams()` function.
@@ -264,7 +264,7 @@ Learn more: https://nextjs.org/docs/messages/generate-static-params#with-ensures
 Error: Failed to collect page data for /store/guides/[id]
 ```
 
-Export `generateStaticParams()` and return all buying guide IDs. The product pages rely on the fallback shell until a page is generated, but `'navigation'` has no later stage to fall back to, so this list must be complete:
+Export `generateStaticParams()` and return the buying guide IDs. Unlike a product page, a guide that was not prerendered has no fallback shell to serve, so Next.js waits for the page to be generated. Return all IDs so that the guides are ready at build time:
 
 ```tsx filename="app/store/guides/[id]/page.tsx" highlight={3,7-10}
 import { Suspense } from 'react'
