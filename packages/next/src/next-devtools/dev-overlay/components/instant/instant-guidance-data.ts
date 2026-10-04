@@ -701,10 +701,8 @@ const staticRouteRuntimeCards: FixCard[] = [
     group: 'client',
     snippets: [
       { text: "'use client'" },
-      { text: "use(browser('Read the cart cookie'))", highlight: true },
-      {
-        text: 'const count = document.cookie.match(/cart-count=(\\d+)/)?.[1]',
-      },
+      { text: "use(browser('Read cookie'))", highlight: true },
+      { text: 'const cart = document.cookie.match(/cart=(\\d+)/)' },
     ],
     copyable: true,
     link: 'https://nextjs.org/docs/messages/static-route-runtime#read-the-data-on-the-client',
@@ -750,7 +748,7 @@ const staticRouteDynamicCards: FixCard[] = [
     snippets: [
       { text: "'use client'" },
       {
-        text: "const { data } = useSWR('/api/data', fetcher)",
+        text: "const { data } = useSWR('/api', fetcher)",
         highlight: true,
       },
       { text: 'return <Content data={data} />' },
