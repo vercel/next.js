@@ -299,8 +299,17 @@ describe('turbopack-trace-server', () => {
       // rather than an exact count that varies between test runs.
       spanCountOrderOfMagnitude: Object.fromEntries(
         [...spanCounts]
-          .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-          .map(([name, count]) => [name, 10 ** Math.floor(Math.log10(count))])
+          .map(
+            ([name, count]) =>
+              [name, 10 ** Math.floor(Math.log10(count))] as const
+          )
+          .sort(([aName, aCount], [bName, bCount]) =>
+            aCount < bCount
+              ? -1
+              : aCount > bCount
+                ? 1
+                : aName.localeCompare(bName)
+          )
       ),
     }
     if (isNextDev) {
@@ -311,8 +320,10 @@ describe('turbopack-trace-server', () => {
            "app endpoint HTML (next_api::app)": 1,
            "apply effects (turbo_tasks::effect)": 1,
            "async reference (turbopack_core::module_graph)": 1,
+           "background snapshot (turbo_tasks_backend::backend)": 1,
            "benchmark file I/O (next_napi_bindings::next_api::project)": 1,
            "benchmark file IO (measurement) (next_napi_bindings::next_api::project)": 1,
+           "blocking (turbo_tasks::scope_bounded)": 1,
            "build client reference manifest (next_core::next_manifests::client_reference_manifest)": 1,
            "build layout trees (next_core::app_structure)": 1,
            "build module graph (turbopack_core::module_graph)": 1,
@@ -328,6 +339,7 @@ describe('turbopack-trace-server', () => {
            "collect client references for endpoint (next_api::module_graph)": 1,
            "collect next/dynamic imports for endpoint (next_api::module_graph)": 1,
            "collect server actions for endpoint (next_api::module_graph)": 1,
+           "compact database (turbo_tasks_backend::backend)": 1,
            "compute async chunks (turbopack_ecmascript::async_chunk::module)": 1,
            "compute async module info (turbopack_core::module_graph)": 1,
            "compute chunk group info (turbopack_core::module_graph::chunk_group_info)": 1,
@@ -341,7 +353,6 @@ describe('turbopack-trace-server', () => {
            "file change (turbo_tasks_fs::watcher)": 1,
            "find server entries (next_core::next_client_reference::visit_client_reference)": 1,
            "flattening index source map in RawEcmascriptModule (next_core::raw_ecmascript_module)": 1,
-           "generate source map (turbopack_ecmascript::parse)": 100,
            "generating client references graphs (next_api::module_graph)": 1,
            "generating next/dynamic graphs (next_api::module_graph)": 1,
            "generating server actions graphs (next_api::module_graph)": 1,
@@ -354,10 +365,7 @@ describe('turbopack-trace-server', () => {
            "module (next_core::next_client_reference::visit_client_reference)": 1,
            "module (turbopack_core::module_graph)": 100,
            "module graph for endpoint (next_api::app)": 1,
-           "parse ecmascript (turbopack_ecmascript::parse)": 100,
-           "precompute code generation (turbopack_ecmascript)": 100,
            "process client references (next_core::next_app::app_client_references_chunks)": 1,
-           "process module (turbopack)": 1000,
            "read app directory tree (next_core::app_structure)": 1,
            "read directory (turbo_tasks_fs::disk)": 100,
            "read file (turbo_tasks_fs::disk)": 100,
@@ -365,6 +373,7 @@ describe('turbopack-trace-server', () => {
            "read metadata (turbo_tasks_fs::disk)": 1,
            "read symlink (turbo_tasks_fs::disk)": 1,
            "resolving (turbopack_core::resolve)": 1000,
+           "save snapshot (turbo_tasks_backend::kv_backing_storage)": 1,
            "server changes subscription (next_napi_bindings::next_api::endpoint)": 1,
            "server hmr snapshot (next_napi_bindings::next_api::project)": 1,
            "server side rendering (next_core::next_app::app_client_references_chunks)": 1,
@@ -387,7 +396,8 @@ describe('turbopack-trace-server', () => {
            "app endpoint HTML (next_api::app)": 1,
            "apply effects (turbo_tasks::effect)": 1,
            "async reference (turbopack_core::module_graph)": 1,
-           "blocking (turbo_tasks::scope_bounded)": 1,
+           "await operations settle (turbo_tasks_backend::backend::snapshot_coordinator)": 1,
+           "blocking (turbo_tasks::scope_bounded)": 10,
            "build client reference manifest (next_core::next_manifests::client_reference_manifest)": 1,
            "build layout trees (next_core::app_structure)": 1,
            "build module graph (turbopack_core::module_graph)": 1,
@@ -417,8 +427,6 @@ describe('turbopack-trace-server', () => {
            "emitting (next_api::project)": 1,
            "exposed computation (turbopack_core::module_graph::merged_modules)": 1,
            "fixed point traversal (turbopack_core::module_graph::merged_modules)": 1,
-           "generate merged code (turbopack_ecmascript)": 10,
-           "generate source map (turbopack_ecmascript::parse)": 100,
            "generating client references graphs (next_api::module_graph)": 1,
            "generating next/dynamic graphs (next_api::module_graph)": 1,
            "generating server actions graphs (next_api::module_graph)": 1,
@@ -433,12 +441,9 @@ describe('turbopack-trace-server', () => {
            "minify ecmascript code (turbopack_ecmascript::minify)": 10,
            "module (turbopack_core::module_graph)": 1000,
            "output file tracing (next_api::nft_json)": 1,
-           "parse ecmascript (turbopack_ecmascript::parse)": 1000,
            "persist (turbo_tasks_backend::backend)": 1,
            "pre-fetch async module status (turbopack_core::module_graph::merged_modules)": 1,
-           "precompute code generation (turbopack_ecmascript)": 100,
            "process client references (next_core::next_app::app_client_references_chunks)": 1,
-           "process module (turbopack)": 1000,
            "read app directory tree (next_core::app_structure)": 1,
            "read directory (turbo_tasks_fs::disk)": 100,
            "read file (turbo_tasks_fs::disk)": 1000,

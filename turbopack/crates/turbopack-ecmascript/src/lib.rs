@@ -1215,7 +1215,7 @@ impl EcmascriptModuleContentOptions {
                 code_generation,
             ))
         }
-        .instrument(tracing::info_span!("precompute code generation"))
+        .instrument(tracing::trace_span!("precompute code generation"))
         .await
     }
 }
@@ -1395,7 +1395,7 @@ impl EcmascriptModuleContent {
                 .instrument(tracing::info_span!("emit code"))
                 .await
         }
-        .instrument(tracing::info_span!(
+        .instrument(tracing::trace_span!(
             "generate merged code",
             modules = module_options.len()
         ))
