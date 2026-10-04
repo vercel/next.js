@@ -132,6 +132,34 @@ Maximum time before the server must regenerate cached content.
 cacheLife({ expire: 3600 }) // 1 hour
 ```
 
+Use `cacheLife({ expire: 0 })` when the Next.js client router can reuse an RSC payload in the browser, but the server must not reuse the cached output across production requests:
+
+```tsx filename="app/products/[id]/product-data.tsx" switcher
+import { cacheLife } from 'next/cache'
+
+export async function ProductData() {
+  'use cache'
+  cacheLife({ expire: 0 })
+
+  return <p>Product details</p>
+}
+```
+
+```jsx filename="app/products/[id]/product-data.js" switcher
+import { cacheLife } from 'next/cache'
+
+export async function ProductData() {
+  'use cache'
+  cacheLife({ expire: 0 })
+
+  return <p>Product details</p>
+}
+```
+
+When `stale` is omitted, the client router inherits the [`default` profile's](#preset-cache-profiles) five-minute stale time. During that window, the browser can reuse the RSC payload without a request. A new server request waits for fresh output instead of reading the previous cache entry.
+
+`cacheLife({ revalidate: 0 })` does not provide the same guarantee. A request can receive the previous server-cached output while Next.js regenerates it in the background. Use `expire: 0` when cached server output must never be shared across requests. See the browser-only caching examples for [TanStack Query](/docs/app/guides/client-side-data-fetching/tanstack-query#browser-only-caching-with-cache-components) and [SWR](/docs/app/guides/client-side-data-fetching/swr#browser-only-caching-with-cache-components).
+
 ### Preset cache profiles
 
 If you don't specify a profile, Next.js uses the `default` profile. We recommend explicitly setting a profile to make caching behavior clear.
