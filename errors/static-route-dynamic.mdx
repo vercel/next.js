@@ -51,6 +51,19 @@ Request-specific reads from [`cookies()`](/docs/app/api-reference/functions/cook
       { text: '  return <Content />' },
     ]}
   />
+  <FixCard
+    group="client"
+    title="Read the data on the client"
+    href="#read-the-data-on-the-client"
+    snippets={[
+      { text: "'use client'" },
+      {
+        text: "const { data } = useSWR('/api/data', fetcher)",
+        highlight: true,
+      },
+      { text: 'return <Content data={data} />' },
+    ]}
+  />
 </FixCardGrid>
 
 ## Cache the data
@@ -112,6 +125,33 @@ Every visitor receives the same output because the removed operation no longer r
 
 - Other uncached or runtime data in the route, including layouts and metadata, must also be resolved.
 - If the operation must run for each request, first confirm that request-time rendering is intended for the entire route. See [Remove the static requirement](#remove-the-static-requirement).
+
+## Read the data on the client
+
+If the data does not need to be included in the static output, move the request to a Client Component and fetch it after hydration. A client data-fetching library can provide loading states, caching, and revalidation in the browser:
+
+```tsx filename="app/recommendations.tsx"
+'use client'
+
+import useSWR from 'swr'
+
+const fetcher = (url: string) => fetch(url).then((response) => response.json())
+
+export default function Recommendations() {
+  const { data, error, isLoading } = useSWR('/api/recommendations', fetcher)
+
+  if (error) return <p>Failed to load recommendations.</p>
+  if (isLoading) return <p>Loading recommendations...</p>
+
+  return <p>{data.summary}</p>
+}
+```
+
+The prerender does not include this data, and the browser makes an additional request after hydration. Use this fix when that loading behavior is acceptable.
+
+Learn more: [Client-side data fetching](/docs/app/guides/client-side-data-fetching).
+
+If the build cannot distinguish uncached data from runtime data, the same card may refer to a request-specific value instead. See [Read the data on the client](/docs/messages/static-route-runtime#read-the-data-on-the-client) for URL data and browser API patterns. This fix does not apply when the browser cannot access the value, such as an `HttpOnly` cookie or arbitrary request header.
 
 ## Verifying the fix
 

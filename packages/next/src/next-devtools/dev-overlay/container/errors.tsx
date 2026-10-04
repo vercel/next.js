@@ -167,6 +167,7 @@ type StaticRouteErrorDetails = {
   kind: 'static-route' | 'static-metadata' | 'static-viewport'
   variant: GuidanceVariant
   headline: string
+  combined?: true
 }
 
 type ClientHookErrorDetails = {
@@ -448,11 +449,18 @@ export function getBlockingRouteErrorDetails(
       message
     )
   if (staticRouteMatch) {
+    const kind = `static-${
+      staticRouteMatch[1]
+    }` as StaticRouteErrorDetails['kind']
     return {
       type: 'static-route',
-      kind: `static-${staticRouteMatch[1]}` as StaticRouteErrorDetails['kind'],
+      kind,
       variant: getGuidanceVariant(message),
       headline: message.split('\n')[0].replace(/^Route "[^"]*": /, ''),
+      ...(kind === 'static-route' &&
+      message.includes('encountered uncached or runtime data')
+        ? { combined: true as const }
+        : {}),
     }
   }
 
@@ -1058,6 +1066,7 @@ export function Errors({
               error={activeError}
               variant={errorDetails.variant}
               kind={errorDetails.kind}
+              cause={errorDetails.combined ? 'combined' : undefined}
               showExplanation={false}
               dialogResizerRef={dialogResizerRef}
               generateErrorInfo={generateErrorInfo}

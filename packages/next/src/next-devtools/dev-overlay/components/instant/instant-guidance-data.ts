@@ -696,16 +696,16 @@ const staticRouteRuntimeCards: FixCard[] = [
     link: 'https://nextjs.org/docs/messages/static-route-runtime#remove-the-data-access',
   },
   {
-    id: 'read-search-parameters-on-the-client',
-    title: 'Read search parameters on the client',
+    id: 'read-the-data-on-the-client',
+    title: 'Read the data on the client',
     group: 'client',
     snippets: [
       { text: "'use client'" },
-      { text: 'const params = useSearchParams()', highlight: true },
-      { text: "return <p>{params.get('q')}</p>" },
+      { text: "use(browser('Read browser data'))", highlight: true },
+      { text: 'const value = readFromBrowser()' },
     ],
     copyable: true,
-    link: 'https://nextjs.org/docs/messages/static-route-runtime#read-search-parameters-on-the-client',
+    link: 'https://nextjs.org/docs/messages/static-route-runtime#read-the-data-on-the-client',
   },
 ]
 
@@ -740,6 +740,25 @@ const staticRouteDynamicCards: FixCard[] = [
     ],
     copyable: true,
     link: 'https://nextjs.org/docs/messages/static-route-dynamic#remove-the-data-access',
+  },
+]
+
+const staticRouteCombinedCards: FixCard[] = [
+  ...staticRouteDynamicCards,
+  {
+    id: 'read-the-data-on-the-client',
+    title: 'Read the data on the client',
+    group: 'client',
+    snippets: [
+      { text: "'use client'" },
+      {
+        text: "const { data } = useSWR('/api/data', fetcher)",
+        highlight: true,
+      },
+      { text: 'return <Content data={data} />' },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/static-route-dynamic#read-the-data-on-the-client',
   },
 ]
 const staticMetadataRuntimeCards: FixCard[] = [
@@ -1050,8 +1069,9 @@ export function getCards(
         : staticMetadataDynamicCards
 
     case 'static-route':
-      return variant === 'runtime'
-        ? staticRouteRuntimeCards
+      if (variant === 'runtime') return staticRouteRuntimeCards
+      return cause === 'combined'
+        ? staticRouteCombinedCards
         : staticRouteDynamicCards
 
     case 'blocking-route': {

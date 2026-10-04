@@ -804,16 +804,19 @@ describe('fully static route errors', () => {
       'dynamic',
     ],
   ] as const)('classifies %p as %s (%s)', (createError, kind, variant) => {
+    const combined =
+      createError === createNonPrerenderableBodyErrorInStaticRoute
     const error = createError(ROUTE)
     expect(getBlockingRouteErrorDetails(error)).toEqual({
       type: 'static-route',
       kind,
       variant,
       headline: error.message.split('\n')[0].replace(`Route "${ROUTE}": `, ''),
+      ...(combined ? { combined: true } : {}),
     })
     // This is a build constraint, not optional instant-navigation validation.
     expect(isInstantNavigationError(error)).toBe(false)
-    const cards = getCards(kind, variant)
+    const cards = getCards(kind, variant, combined ? 'combined' : undefined)
     expect(cards.length).toBeGreaterThan(0)
     expect(cards.map((card) => card.group)).not.toContain('stream')
     expect(cards.map((card) => card.group)).not.toContain('block')
