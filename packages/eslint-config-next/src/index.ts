@@ -54,11 +54,14 @@ const config: Linter.Config[] = [
       'import/parsers': {
         '@typescript-eslint/parser': ['.ts', '.mts', '.cts', '.tsx', '.d.ts'],
       },
+      // eslint-plugin-import loads resolvers by name from the linted file,
+      // which fails when the package manager doesn't hoist them (e.g. npm
+      // nests them here when a plugin's ESLint peer range isn't satisfied).
       'import/resolver': {
-        node: {
+        [require.resolve('eslint-import-resolver-node')]: {
           extensions: ['.js', '.jsx', '.ts', '.tsx'],
         },
-        typescript: {
+        [require.resolve('eslint-import-resolver-typescript')]: {
           alwaysTryTypes: true,
         },
       },

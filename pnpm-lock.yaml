@@ -1069,6 +1069,9 @@ importers:
       '@types/eslint-plugin-jsx-a11y':
         specifier: 6.10.1
         version: 6.10.1(jiti@2.6.1)
+      '@types/node':
+        specifier: 20.17.7
+        version: 20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab)
       typescript:
         specifier: 6.0.2
         version: 6.0.2
@@ -28423,7 +28426,7 @@ snapshots:
 
   eslint-plugin-import-x@4.3.1(eslint@9.37.0(jiti@2.6.1))(typescript@6.0.2):
     dependencies:
-      '@typescript-eslint/utils': 8.46.0(eslint@9.37.0(jiti@2.6.1))(typescript@6.0.2)
+      '@typescript-eslint/utils': 8.71.0(eslint@9.37.0(jiti@2.6.1))(typescript@6.0.2)
       debug: 4.4.3
       doctrine: 3.0.0
       eslint: 9.37.0(jiti@2.6.1)
