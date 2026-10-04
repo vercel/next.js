@@ -294,177 +294,159 @@ describe('turbopack-trace-server', () => {
     expect(
       [...spanCounts.values()].reduce((sum, count) => sum + count, 0)
     ).toBe(totalCount)
-    const baseline = {
-      // Snapshot each displayed span name with a readable power-of-ten count,
-      // rather than an exact count that varies between test runs.
-      spanCountOrderOfMagnitude: Object.fromEntries(
-        [...spanCounts]
-          .map(
-            ([name, count]) =>
-              [name, 10 ** Math.floor(Math.log10(count))] as const
-          )
-          .sort(([aName, aCount], [bName, bCount]) =>
-            aCount < bCount
-              ? -1
-              : aCount > bCount
-                ? 1
-                : aName.localeCompare(bName)
-          )
-      ),
-    }
+    // Snapshot each displayed span name with a readable power-of-ten count,
+    // rather than an exact count that varies between test runs.
+    const baseline = [...spanCounts]
+      .map(
+        ([name, count]) => [name, 10 ** Math.floor(Math.log10(count))] as const
+      )
+      .sort(([aName, aCount], [bName, bCount]) =>
+        aCount > bCount ? -1 : aCount < bCount ? 1 : aName.localeCompare(bName)
+      )
+      .map(([name, count]) => `${name}: ${count}`)
+      .join('\n')
+
     if (isNextDev) {
       expect(baseline).toMatchInlineSnapshot(`
-       {
-         "spanCountOrderOfMagnitude": {
-           "analyze ecmascript module (turbopack_ecmascript::references)": 100,
-           "app endpoint HTML (next_api::app)": 1,
-           "apply effects (turbo_tasks::effect)": 1,
-           "async reference (turbopack_core::module_graph)": 1,
-           "background snapshot (turbo_tasks_backend::backend)": 1,
-           "benchmark file I/O (next_napi_bindings::next_api::project)": 1,
-           "benchmark file IO (measurement) (next_napi_bindings::next_api::project)": 1,
-           "blocking (turbo_tasks::scope_bounded)": 1,
-           "build client reference manifest (next_core::next_manifests::client_reference_manifest)": 1,
-           "build layout trees (next_core::app_structure)": 1,
-           "build module graph (turbopack_core::module_graph)": 1,
-           "chunking (turbopack_browser::chunking_context)": 1,
-           "chunking (turbopack_nodejs::chunking_context)": 10,
-           "client side rendering (next_core::next_app::app_client_references_chunks)": 1,
-           "code generation (turbopack_ecmascript)": 100,
-           "code generation raw module (next_core::raw_ecmascript_module)": 1,
-           "collect all asset paths (next_api::paths)": 1,
-           "collect all client references for endpoint (next_api::module_graph)": 1,
-           "collect all next/dynamic imports for endpoint (next_api::module_graph)": 1,
-           "collect all server actions for endpoint (next_api::module_graph)": 1,
-           "collect client references for endpoint (next_api::module_graph)": 1,
-           "collect next/dynamic imports for endpoint (next_api::module_graph)": 1,
-           "collect server actions for endpoint (next_api::module_graph)": 1,
-           "compact database (turbo_tasks_backend::backend)": 1,
-           "compute async chunks (turbopack_ecmascript::async_chunk::module)": 1,
-           "compute async module info (turbopack_core::module_graph)": 1,
-           "compute chunk group info (turbopack_core::module_graph::chunk_group_info)": 1,
-           "compute emit-collect (turbopack_core::module_graph::collect)": 1,
-           "compute module batches (turbopack_core::module_graph::module_batches)": 1,
-           "create project (next_napi_bindings::next_api::project)": 1,
-           "emit asset (next_core::emit)": 10,
-           "emitting (next_api::project)": 1,
-           "entrypoints subscription (next_napi_bindings::next_api::project)": 1,
-           "event (event)": 1,
-           "file change (turbo_tasks_fs::watcher)": 1,
-           "find server entries (next_core::next_client_reference::visit_client_reference)": 1,
-           "flattening index source map in RawEcmascriptModule (next_core::raw_ecmascript_module)": 1,
-           "generating client references graphs (next_api::module_graph)": 1,
-           "generating next/dynamic graphs (next_api::module_graph)": 1,
-           "generating server actions graphs (next_api::module_graph)": 1,
-           "get server HMR update (next_napi_bindings::next_api::project)": 1,
-           "get server-side endpoint changes (next_napi_bindings::next_api::endpoint)": 1,
-           "initialize project (next_api::project)": 1,
-           "invalidate (turbo_tasks::manager)": 1,
-           "invalidate filesystem (turbo_tasks_fs::disk)": 1,
-           "isolated reference (turbopack_core::module_graph)": 10,
-           "module (next_core::next_client_reference::visit_client_reference)": 1,
-           "module (turbopack_core::module_graph)": 100,
-           "module graph for endpoint (next_api::app)": 1,
-           "process client references (next_core::next_app::app_client_references_chunks)": 1,
-           "read app directory tree (next_core::app_structure)": 1,
-           "read directory (turbo_tasks_fs::disk)": 100,
-           "read file (turbo_tasks_fs::disk)": 100,
-           "read file before write (turbo_tasks_fs::disk)": 10,
-           "read metadata (turbo_tasks_fs::disk)": 1,
-           "read symlink (turbo_tasks_fs::disk)": 1,
-           "resolving (turbopack_core::resolve)": 1000,
-           "save snapshot (turbo_tasks_backend::kv_backing_storage)": 1,
-           "server changes subscription (next_napi_bindings::next_api::endpoint)": 1,
-           "server hmr snapshot (next_napi_bindings::next_api::project)": 1,
-           "server side rendering (next_core::next_app::app_client_references_chunks)": 1,
-           "shared reference (turbopack_core::module_graph)": 1,
-           "subscribe to entrypoints (next_napi_bindings::next_api::project)": 1,
-           "thread (turbo_tasks::spawn)": 1,
-           "thread (turbo_tasks_backend::backend)": 1,
-           "update project (next_napi_bindings::next_api::project)": 1,
-           "update project options (next_api::project)": 1,
-           "write endpoint to disk (next_napi_bindings::next_api::endpoint)": 1,
-           "write file (turbo_tasks_fs::disk)": 10,
-         },
-       }
+       "resolving (turbopack_core::resolve): 1000
+       analyze ecmascript module (turbopack_ecmascript::references): 100
+       code generation (turbopack_ecmascript): 100
+       module (turbopack_core::module_graph): 100
+       read directory (turbo_tasks_fs::disk): 100
+       read file (turbo_tasks_fs::disk): 100
+       chunking (turbopack_nodejs::chunking_context): 10
+       emit asset (next_core::emit): 10
+       isolated reference (turbopack_core::module_graph): 10
+       read file before write (turbo_tasks_fs::disk): 10
+       write file (turbo_tasks_fs::disk): 10
+       app endpoint HTML (next_api::app): 1
+       apply effects (turbo_tasks::effect): 1
+       async reference (turbopack_core::module_graph): 1
+       benchmark file I/O (next_napi_bindings::next_api::project): 1
+       benchmark file IO (measurement) (next_napi_bindings::next_api::project): 1
+       build client reference manifest (next_core::next_manifests::client_reference_manifest): 1
+       build layout trees (next_core::app_structure): 1
+       build module graph (turbopack_core::module_graph): 1
+       chunking (turbopack_browser::chunking_context): 1
+       client side rendering (next_core::next_app::app_client_references_chunks): 1
+       code generation raw module (next_core::raw_ecmascript_module): 1
+       collect all asset paths (next_api::paths): 1
+       collect all client references for endpoint (next_api::module_graph): 1
+       collect all next/dynamic imports for endpoint (next_api::module_graph): 1
+       collect all server actions for endpoint (next_api::module_graph): 1
+       collect client references for endpoint (next_api::module_graph): 1
+       collect next/dynamic imports for endpoint (next_api::module_graph): 1
+       collect server actions for endpoint (next_api::module_graph): 1
+       compute async chunks (turbopack_ecmascript::async_chunk::module): 1
+       compute async module info (turbopack_core::module_graph): 1
+       compute chunk group info (turbopack_core::module_graph::chunk_group_info): 1
+       compute emit-collect (turbopack_core::module_graph::collect): 1
+       compute module batches (turbopack_core::module_graph::module_batches): 1
+       create project (next_napi_bindings::next_api::project): 1
+       emitting (next_api::project): 1
+       entrypoints subscription (next_napi_bindings::next_api::project): 1
+       event (event): 1
+       file change (turbo_tasks_fs::watcher): 1
+       find server entries (next_core::next_client_reference::visit_client_reference): 1
+       flattening index source map in RawEcmascriptModule (next_core::raw_ecmascript_module): 1
+       generating client references graphs (next_api::module_graph): 1
+       generating next/dynamic graphs (next_api::module_graph): 1
+       generating server actions graphs (next_api::module_graph): 1
+       get server HMR update (next_napi_bindings::next_api::project): 1
+       get server-side endpoint changes (next_napi_bindings::next_api::endpoint): 1
+       initialize project (next_api::project): 1
+       invalidate (turbo_tasks::manager): 1
+       invalidate filesystem (turbo_tasks_fs::disk): 1
+       module (next_core::next_client_reference::visit_client_reference): 1
+       module graph for endpoint (next_api::app): 1
+       process client references (next_core::next_app::app_client_references_chunks): 1
+       read app directory tree (next_core::app_structure): 1
+       read metadata (turbo_tasks_fs::disk): 1
+       read symlink (turbo_tasks_fs::disk): 1
+       server changes subscription (next_napi_bindings::next_api::endpoint): 1
+       server hmr snapshot (next_napi_bindings::next_api::project): 1
+       server side rendering (next_core::next_app::app_client_references_chunks): 1
+       shared reference (turbopack_core::module_graph): 1
+       subscribe to entrypoints (next_napi_bindings::next_api::project): 1
+       thread (turbo_tasks_backend::backend): 1
+       thread (turbo_tasks::spawn): 1
+       update project (next_napi_bindings::next_api::project): 1
+       update project options (next_api::project): 1
+       write endpoint to disk (next_napi_bindings::next_api::endpoint): 1"
       `)
     } else {
       expect(baseline).toMatchInlineSnapshot(`
-       {
-         "spanCountOrderOfMagnitude": {
-           "analyze ecmascript module (turbopack_ecmascript::references)": 1000,
-           "app endpoint HTML (next_api::app)": 1,
-           "apply effects (turbo_tasks::effect)": 1,
-           "async reference (turbopack_core::module_graph)": 1,
-           "await operations settle (turbo_tasks_backend::backend::snapshot_coordinator)": 1,
-           "blocking (turbo_tasks::scope_bounded)": 10,
-           "build client reference manifest (next_core::next_manifests::client_reference_manifest)": 1,
-           "build layout trees (next_core::app_structure)": 1,
-           "build module graph (turbopack_core::module_graph)": 1,
-           "chunk group collection (turbopack_core::module_graph::merged_modules)": 1,
-           "chunking (turbopack_browser::chunking_context)": 1,
-           "chunking (turbopack_nodejs::chunking_context)": 10,
-           "client side rendering (next_core::next_app::app_client_references_chunks)": 1,
-           "code generation (turbopack_ecmascript)": 100,
-           "collect all client references for endpoint (next_api::module_graph)": 1,
-           "collect all next/dynamic imports for endpoint (next_api::module_graph)": 1,
-           "collect all server actions for endpoint (next_api::module_graph)": 1,
-           "collect client references for endpoint (next_api::module_graph)": 1,
-           "collect mergeable modules (turbopack_core::module_graph::merged_modules)": 1,
-           "collect next/dynamic imports for endpoint (next_api::module_graph)": 1,
-           "collect server actions for endpoint (next_api::module_graph)": 1,
-           "compute async module info (turbopack_core::module_graph)": 1,
-           "compute binding usage info (turbopack_core::module_graph::binding_usage_info)": 1,
-           "compute chunk group info (turbopack_core::module_graph::chunk_group_info)": 1,
-           "compute depth (turbopack_core::module_graph::merged_modules)": 1,
-           "compute emit-collect (turbopack_core::module_graph::collect)": 1,
-           "compute merged modules (turbopack_core::module_graph::merged_modules)": 1,
-           "compute module batches (turbopack_core::module_graph::module_batches)": 1,
-           "compute module id map (turbopack::global_module_ids)": 1,
-           "create project (next_napi_bindings::next_api::project)": 1,
-           "emit asset (next_core::emit)": 10,
-           "emit code (turbopack_ecmascript)": 10,
-           "emitting (next_api::project)": 1,
-           "exposed computation (turbopack_core::module_graph::merged_modules)": 1,
-           "fixed point traversal (turbopack_core::module_graph::merged_modules)": 1,
-           "generating client references graphs (next_api::module_graph)": 1,
-           "generating next/dynamic graphs (next_api::module_graph)": 1,
-           "generating server actions graphs (next_api::module_graph)": 1,
-           "get project feature usage (next_napi_bindings::next_api::project)": 1,
-           "initialize project (next_api::project)": 1,
-           "invalidate filesystem (turbo_tasks_fs::disk)": 1,
-           "isolated reference (turbopack_core::module_graph)": 10,
-           "make production chunks (turbopack_core::chunk::chunking::production)": 10,
-           "map chunk groups (turbopack_core::module_graph::merged_modules)": 1,
-           "merging (turbopack_core::module_graph::merged_modules)": 1,
-           "merging chunk group lists (turbopack_core::module_graph::merged_modules)": 1,
-           "minify ecmascript code (turbopack_ecmascript::minify)": 10,
-           "module (turbopack_core::module_graph)": 1000,
-           "output file tracing (next_api::nft_json)": 1,
-           "persist (turbo_tasks_backend::backend)": 1,
-           "pre-fetch async module status (turbopack_core::module_graph::merged_modules)": 1,
-           "process client references (next_core::next_app::app_client_references_chunks)": 1,
-           "read app directory tree (next_core::app_structure)": 1,
-           "read directory (turbo_tasks_fs::disk)": 100,
-           "read file (turbo_tasks_fs::disk)": 1000,
-           "read file before write (turbo_tasks_fs::disk)": 10,
-           "read metadata (turbo_tasks_fs::disk)": 1,
-           "read symlink (turbo_tasks_fs::disk)": 10,
-           "reconciliation (turbopack_core::module_graph::merged_modules)": 1,
-           "resolving (turbopack_core::resolve)": 1000,
-           "save snapshot (turbo_tasks_backend::kv_backing_storage)": 1,
-           "server side rendering (next_core::next_app::app_client_references_chunks)": 1,
-           "shared reference (turbopack_core::module_graph)": 10,
-           "shutdown project (next_napi_bindings::next_api::project)": 1,
-           "trace directory (turbopack_ecmascript::references::raw)": 1,
-           "trace endpoint (next_api::nft)": 1,
-           "trace file (turbopack_ecmascript::references::raw)": 10,
-           "traced reference (turbopack_core::module_graph)": 100,
-           "whole app module graph (next_api::project)": 1,
-           "write all entrypoints to disk (next_napi_bindings::next_api::project)": 1,
-           "write file (turbo_tasks_fs::disk)": 10,
-         },
-       }
+       "analyze ecmascript module (turbopack_ecmascript::references): 1000
+       module (turbopack_core::module_graph): 1000
+       read file (turbo_tasks_fs::disk): 1000
+       resolving (turbopack_core::resolve): 1000
+       code generation (turbopack_ecmascript): 100
+       read directory (turbo_tasks_fs::disk): 100
+       traced reference (turbopack_core::module_graph): 100
+       blocking (turbo_tasks::scope_bounded): 10
+       chunking (turbopack_nodejs::chunking_context): 10
+       emit asset (next_core::emit): 10
+       emit code (turbopack_ecmascript): 10
+       isolated reference (turbopack_core::module_graph): 10
+       make production chunks (turbopack_core::chunk::chunking::production): 10
+       minify ecmascript code (turbopack_ecmascript::minify): 10
+       read file before write (turbo_tasks_fs::disk): 10
+       read symlink (turbo_tasks_fs::disk): 10
+       shared reference (turbopack_core::module_graph): 10
+       trace file (turbopack_ecmascript::references::raw): 10
+       write file (turbo_tasks_fs::disk): 10
+       app endpoint HTML (next_api::app): 1
+       apply effects (turbo_tasks::effect): 1
+       async reference (turbopack_core::module_graph): 1
+       await operations settle (turbo_tasks_backend::backend::snapshot_coordinator): 1
+       build client reference manifest (next_core::next_manifests::client_reference_manifest): 1
+       build layout trees (next_core::app_structure): 1
+       build module graph (turbopack_core::module_graph): 1
+       chunk group collection (turbopack_core::module_graph::merged_modules): 1
+       chunking (turbopack_browser::chunking_context): 1
+       client side rendering (next_core::next_app::app_client_references_chunks): 1
+       collect all client references for endpoint (next_api::module_graph): 1
+       collect all next/dynamic imports for endpoint (next_api::module_graph): 1
+       collect all server actions for endpoint (next_api::module_graph): 1
+       collect client references for endpoint (next_api::module_graph): 1
+       collect mergeable modules (turbopack_core::module_graph::merged_modules): 1
+       collect next/dynamic imports for endpoint (next_api::module_graph): 1
+       collect server actions for endpoint (next_api::module_graph): 1
+       compute async module info (turbopack_core::module_graph): 1
+       compute binding usage info (turbopack_core::module_graph::binding_usage_info): 1
+       compute chunk group info (turbopack_core::module_graph::chunk_group_info): 1
+       compute depth (turbopack_core::module_graph::merged_modules): 1
+       compute emit-collect (turbopack_core::module_graph::collect): 1
+       compute merged modules (turbopack_core::module_graph::merged_modules): 1
+       compute module batches (turbopack_core::module_graph::module_batches): 1
+       compute module id map (turbopack::global_module_ids): 1
+       create project (next_napi_bindings::next_api::project): 1
+       emitting (next_api::project): 1
+       exposed computation (turbopack_core::module_graph::merged_modules): 1
+       fixed point traversal (turbopack_core::module_graph::merged_modules): 1
+       generating client references graphs (next_api::module_graph): 1
+       generating next/dynamic graphs (next_api::module_graph): 1
+       generating server actions graphs (next_api::module_graph): 1
+       get project feature usage (next_napi_bindings::next_api::project): 1
+       initialize project (next_api::project): 1
+       invalidate filesystem (turbo_tasks_fs::disk): 1
+       map chunk groups (turbopack_core::module_graph::merged_modules): 1
+       merging (turbopack_core::module_graph::merged_modules): 1
+       merging chunk group lists (turbopack_core::module_graph::merged_modules): 1
+       output file tracing (next_api::nft_json): 1
+       persist (turbo_tasks_backend::backend): 1
+       pre-fetch async module status (turbopack_core::module_graph::merged_modules): 1
+       process client references (next_core::next_app::app_client_references_chunks): 1
+       read app directory tree (next_core::app_structure): 1
+       read metadata (turbo_tasks_fs::disk): 1
+       reconciliation (turbopack_core::module_graph::merged_modules): 1
+       save snapshot (turbo_tasks_backend::kv_backing_storage): 1
+       server side rendering (next_core::next_app::app_client_references_chunks): 1
+       shutdown project (next_napi_bindings::next_api::project): 1
+       trace directory (turbopack_ecmascript::references::raw): 1
+       trace endpoint (next_api::nft): 1
+       whole app module graph (next_api::project): 1
+       write all entrypoints to disk (next_napi_bindings::next_api::project): 1"
       `)
     }
   }, 120_000)
