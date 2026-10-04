@@ -1,6 +1,6 @@
 # Review checklist
 
-Open both PNGs at full size next to the reference images you fetched and go through this before handing anything off. Each item is a miss a real draft had.
+Open both PNGs at full size next to the reference images, then complete this checklist before handing anything off. Each item comes from a problem found in a real draft.
 
 ## Against the references
 

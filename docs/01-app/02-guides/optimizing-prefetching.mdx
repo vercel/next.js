@@ -123,9 +123,9 @@ async function search(q: string) {
 
 Without `prefetch={true}`, the App Shell renders `<h1>` and shows the `<Results>` fallback. The query resolves after the click and streams the results in.
 
-With `prefetch={true}` on the link, the router prefetches a prerender that resolves `<Results>` before the click. The `q` value comes from the link's URL, known at prefetch time, and the cached `search(q)` provides the result. On the click, the results render immediately, with no fallback.
+With `prefetch={true}` on the link, the router requests a per-link prefetch that resolves `<Results>` before the click. The `q` value comes from the link's URL, which is known at prefetch time, and the cached `search(q)` call provides the result. When the user clicks, the results render immediately without showing the fallback.
 
-The prerender advances through anything static or cached, then stops at uncached reads and falls back to the surrounding `<Suspense>` boundary. That boundary is already in place from [structuring the route for instant navigation](/docs/app/guides/instant-navigation).
+Next.js includes static and cached content in the prefetch until it reaches an uncached read. It then includes the fallback from the surrounding `<Suspense>` boundary. That boundary is already in place from [structuring the route for instant navigation](/docs/app/guides/instant-navigation).
 
 Generating the per-link prefetch costs **a server invocation per prefetchable link**, so it is opt-in per link. On pages where all the content is statically renderable, Next.js serves the prefetch from the static cache instead. A page that accesses non-static data is generated per prefetch, unless that access is [deferred to the navigation](#keep-the-prefetch-static).
 
@@ -156,7 +156,7 @@ export default function DashboardLayout({
 }
 ```
 
-The cookie itself is session data the App Shell already knows. But `"use cache"` can't read `cookies()` inside the cached function, so two patterns bridge it:
+The App Shell render can read session data. However, `"use cache"` cannot call `cookies()` inside the cached function, so use one of these patterns:
 
 - **Extract and pass** when the lookup result is shared across many sessions.
 - **`"use cache: private"`** when it is tied to one.
@@ -211,7 +211,7 @@ async function getUser() {
 }
 ```
 
-Here `cookies()` lives inside the cached function, which only works under `"use cache: private"`. This is also the pattern when you can't extract the runtime data from the outside: auth helpers that check `Date.now()` against a token's expiry, or session helpers that read cookies deep inside their own code, can't be wrapped at the call site.
+Here `cookies()` lives inside the cached function, which only works under `"use cache: private"`. Use the same pattern when runtime data cannot be extracted at the call site. For example, an authentication helper may compare `Date.now()` with a token's expiration, or a session helper may read cookies within its own code.
 
 Everything inside the scope shares the same lifetime. Colocate `"use cache: private"` as close to the runtime data access as possible.
 
@@ -219,10 +219,10 @@ Everything inside the scope shares the same lifetime. Colocate `"use cache: priv
 
 The App Shell is shared by the links into a route. A per-link prefetch runs for a visible `<Link prefetch={true}>`, and the navigation runs when the user clicks. Expensive work may not be worth generating for links the user never follows.
 
-Uncached work is already left out of prefetches. For cacheable work, `next/cache` exports functions that move the code below them to a later stage:
+Uncached work is already left out of prefetches. For cacheable work, `next/cache` exports functions that defer the code below each call:
 
-- [`prefetch()`](/docs/app/api-reference/functions/prefetch) keeps the work out of the App Shell. It runs during a per-link prefetch or the navigation.
-- [`navigation()`](/docs/app/api-reference/functions/navigation) keeps the work out of the App Shell and per-link prefetches. It runs during the navigation.
+- [`prefetch()`](/docs/app/api-reference/functions/prefetch) defers the code until a per-link prefetch or navigation.
+- [`navigation()`](/docs/app/api-reference/functions/navigation) defers the code until navigation.
 
 In the following diagram, a gray dashed outline marks the Suspense fallback, while blue marks the deferred work once it renders:
 
@@ -234,7 +234,7 @@ In the following diagram, a gray dashed outline marks the Suspense fallback, whi
   height="480"
 />
 
-Both apply during runtime rendering only, so a fully static route is unchanged. Deferral covers the component that awaits the call and the tree below it, and the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) fallback stands in until the content renders. Unlike [`connection()`](/docs/app/api-reference/functions/connection), neither call makes the work request-dependent, so a function below it can still use `use cache`. See [How `navigation()` differs from `connection()`](/docs/app/api-reference/functions/navigation#how-navigation-differs-from-connection).
+Both functions apply only during runtime rendering, so they do not change a fully static route. Each call defers the component that awaits it and that component's descendants. Earlier stages render the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) fallback, which the deferred subtree replaces when its stage runs. Unlike [`connection()`](/docs/app/api-reference/functions/connection), neither function makes the subtree request-dependent, so functions within it can still use `use cache`. See [How `navigation()` differs from `connection()`](/docs/app/api-reference/functions/navigation#how-navigation-differs-from-connection).
 
 ### Keep expensive session data out of the App Shell
 
@@ -257,7 +257,7 @@ async function rank(session?: string) {
 }
 ```
 
-The session is read above `prefetch()`, so it still resolves in the shell. The ranking is left out. A default `<Link>` shows the `<Suspense>` fallback until the navigation renders it, and a `<Link prefetch={true}>` resolves it before the click. `rank` keeps its cache lifetime either way.
+The session is read above `prefetch()`, so it still resolves in the shell. The App Shell does not generate the ranking. A default `<Link>` includes the `<Suspense>` fallback, which the ranking replaces during navigation. A `<Link prefetch={true}>` resolves the ranking before the click. `rank` keeps its cache lifetime in both cases.
 
 Neither function can be awaited inside a cached scope, so the directive goes on a function called below it, as `rank` does here.
 
@@ -281,7 +281,7 @@ If no prefetch should generate the ranking, await `navigation()` instead:
   }
 ```
 
-Now no prefetch generates the ranking. It renders during the navigation, behind the `<Suspense>` fallback, and the shell still includes the session as before.
+Now no prefetch generates the ranking. Prefetched output contains the `<Suspense>` fallback, and the ranking replaces it during navigation. The shell still includes the session as before.
 
 {/* TODO: once `<Link prefetch="navigation">` ships, document it here as the opt-in for a link that also prefetches cacheable work deferred with `navigation()`. */}
 
@@ -289,7 +289,7 @@ Leaving the subtree uncached would also keep it out of prefetches, but it would 
 
 ### Keep the prefetch static
 
-When every read of `cookies()`, `headers()`, `params`, and `searchParams` sits below `navigation()`, a prefetch cannot produce more than the build already did, so Next.js serves it from static output. A CDN can cache that output, and a link into the route costs no server CPU.
+When every read of `cookies()`, `headers()`, `params`, and `searchParams` sits below `navigation()`, a runtime prefetch would produce the same output as the build. Next.js can therefore serve the prefetch from static output. A CDN can cache that output, so a link into the route requires no server compute.
 
 The dashboard cannot take this shape, because `<UserNav>` reads the team cookie in the shell. A feed with a static header can:
 
@@ -381,7 +381,7 @@ When many links to a route are visible at once, such as a grid of cards, each `<
 | Cost    | Bounded by route count                                                  | Bounded by visible-link count            | Bounded by navigations                               |
 | Role    | Default prefetch                                                        | More rendered before click               | Completes the route                                  |
 
-[Deferring work](#defer-work-to-a-later-stage) trades generating content for a prefetch that may never be used against showing a `<Suspense>` fallback while it streams in. Pick the control by what the content depends on and what it costs:
+[Deferring work](#defer-work-to-a-later-stage) avoids generating content for prefetches that may never be used. The tradeoff is that a navigation may show the nearest `<Suspense>` fallback while the deferred content renders. Choose a control based on the content's dependencies and cost:
 
 - Set `prefetch={true}` when cached content depends on URL data.
 - Leave cheap session-dependent content in the App Shell.

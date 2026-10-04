@@ -3,7 +3,7 @@ title: ensureStatic
 description: API reference for the ensureStatic route segment config, which requires selected route output to be static instead of rendered per request.
 related:
   title: Next Steps
-  description: Learn how to choose a level and what each navigation stage can render.
+  description: Choose a static level or defer selected subtrees to a later navigation stage.
   links:
     - app/guides/keeping-pages-static
     - app/guides/optimizing-prefetching
@@ -42,7 +42,7 @@ export default function Layout({ children }) {
 
 The export accepts `'auto'`, `'shell'`, `'prefetch'`, `'navigation'`, or `false`. The default is `'auto'`, which is equivalent to omitting the export.
 
-`ensureStatic` controls which server-rendered output must be static. With Partial Prefetching, that output can be the App Shell, an optional per-link prefetch, or the complete route rendered during navigation. These outputs are called [navigation stages](/docs/app/glossary#navigation-stages). Each level includes the requirements above it.
+`ensureStatic` controls which server-rendered output must be static. With Partial Prefetching, that output can be the App Shell, an optional per-link prefetch, or the complete route rendered during navigation. These outputs are called [navigation stages](/docs/app/glossary#navigation-stages). Each stricter level also includes the earlier stages.
 
 | Value              | Output that must be static       |
 | ------------------ | -------------------------------- |
@@ -61,7 +61,7 @@ The shell can include static or cached content and `<Suspense>` fallbacks. Reque
 
 For an individual subtree, [`await prefetch()`](/docs/app/api-reference/functions/prefetch) provides similar behavior by deferring code below the call to a per-link prefetch or navigation. Setting `'shell'` enforces that stage boundary across the route without adding `await prefetch()` to each request-specific subtree. See [Defer work to a later stage](/docs/app/guides/optimizing-prefetching#defer-work-to-a-later-stage) for the per-subtree controls.
 
-> **Good to know**: `'shell'` only covers the App Shell. If the route reads `cookies()`, `headers()`, or URL data anywhere that is not below [`await navigation()`](/docs/app/api-reference/functions/navigation), each visible [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch) into it still renders its prefetch on the server, and the prefetched UI gives no sign of that work. Use [`'prefetch'`](#prefetch) when per-link prefetches must also come from static output.
+> **Good to know**: `'shell'` does not require per-link prefetches to be static. If the route reads `cookies()`, `headers()`, or URL data before [`await navigation()`](/docs/app/api-reference/functions/navigation), each visible [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch) can still trigger a server render. Use [`'prefetch'`](#prefetch) when per-link prefetches must also come from static output.
 
 ### `'prefetch'`
 
@@ -81,7 +81,7 @@ To require static server output for the entire app, set `'navigation'` on the ro
 
 #### Validation
 
-With `'shell'` and `'prefetch'`, request-specific work inside `<Suspense>` moves to a later navigation stage. Outside `<Suspense>`, no stage can render it without blocking the navigation, so [Instant Navigation validation](/docs/messages/instant-navigation-validation) reports it. `'navigation'` is the final server-rendering stage, so no later stage remains. Next.js therefore validates that all server output is static.
+With `'shell'` and `'prefetch'`, request-specific work inside `<Suspense>` moves to a later navigation stage. Request-specific work outside `<Suspense>` blocks the navigation, so [Instant Navigation validation](/docs/messages/instant-navigation-validation) reports it. `'navigation'` is the final server-rendering stage, so no later stage remains. Next.js therefore validates that all server output is static.
 
 Next.js validates this requirement during both `next dev` and `next build`. In development, errors include source-mapped stack traces that update as you edit. Build output is more abbreviated, so you may need to run [`next build --debug-prerender`](/docs/app/guides/building#debug-prerender-errors) for detailed stack traces and code frames. See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the development workflow.
 
@@ -94,7 +94,7 @@ The following server content fails validation, even when it is wrapped in `<Susp
 
 These constraints also apply to [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata) and [`generateViewport`](/docs/app/api-reference/functions/generate-viewport).
 
-Data cached with `use cache` can be prerendered. [`prefetch()`](/docs/app/api-reference/functions/prefetch) and [`navigation()`](/docs/app/api-reference/functions/navigation) are also allowed because their work completes during the static prerender.
+Data cached with `use cache` can be prerendered. [`prefetch()`](/docs/app/api-reference/functions/prefetch) and [`navigation()`](/docs/app/api-reference/functions/navigation) are also allowed because a static prerender continues through their stage boundaries.
 
 #### Dynamic route parameters
 

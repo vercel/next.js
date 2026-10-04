@@ -176,7 +176,7 @@ export async function getPopularProducts(category: string) {
 }
 ```
 
-If your components access runtime APIs like `cookies` or `headers`, wrap them in `<Suspense>`. Their fallback UI is included in the static shell instead. To keep that work out of a `<Link prefetch={true}>` as well, await [`navigation()`](/docs/app/api-reference/functions/navigation) above it. See [Keep the prefetch static](/docs/app/guides/optimizing-prefetching#keep-the-prefetch-static).
+If a component accesses runtime APIs such as `cookies()` or `headers()`, wrap it in `<Suspense>`. During prerendering, Next.js includes the nearest fallback in the static shell. To keep the component out of a `<Link prefetch={true}>` as well, await [`navigation()`](/docs/app/api-reference/functions/navigation) before the runtime access. See [Keep the prefetch static](/docs/app/guides/optimizing-prefetching#keep-the-prefetch-static).
 
 ### At build time
 
