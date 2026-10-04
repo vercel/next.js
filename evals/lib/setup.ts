@@ -70,6 +70,50 @@ export async function installNextJs(sandbox: Sandbox): Promise<void> {
 }
 
 /**
+ * Install the locally-built @next/codemod when a fixture exercises an
+ * unpublished transform.
+ */
+export async function installLocalCodemod(sandbox: Sandbox): Promise<void> {
+  const pkg = JSON.parse(await sandbox.readFile('package.json'))
+  if (!pkg.nextEval?.localCodemod) return
+
+  const tarball = process.env.NEXT_EVAL_CODEMOD_TARBALL
+  if (!tarball) {
+    throw new Error(
+      'NEXT_EVAL_CODEMOD_TARBALL not set. Run evals via `pnpm eval` from the repo root.'
+    )
+  }
+
+  console.log('  Uploading local @next/codemod tarball...')
+  await sandbox.writeFiles({
+    // @ts-expect-error — upstream types only accept strings, but the runtime
+    // accepts Buffer. Tarballs are binary and cannot be sent as strings.
+    'next-codemod.tgz': readFileSync(tarball),
+  })
+  const install = await sandbox.runCommand('npm', [
+    'install',
+    '--no-save',
+    './next-codemod.tgz',
+  ])
+  if (install.exitCode !== 0) {
+    throw new Error(
+      `npm install --no-save ./next-codemod.tgz failed (exit ${install.exitCode}):\n${install.stderr}`
+    )
+  }
+
+  const verify = await sandbox.runCommand('node', [
+    '--eval',
+    "const fs = require('node:fs'); if (!fs.existsSync('node_modules/@next/codemod/transforms/cache-components-activity-reset.js')) process.exit(1)",
+  ])
+  if (verify.exitCode !== 0) {
+    throw new Error(
+      `Local @next/codemod verification failed (exit ${verify.exitCode}):\n${verify.stdout}\n${verify.stderr}`
+    )
+  }
+  console.log('  Installed and verified local @next/codemod tarball')
+}
+
+/**
  * Install Chromium and its Linux dependencies for fixtures that exercise
  * Playwright. The fixture declares @playwright/test so unrelated evals do not
  * pay this setup cost.
