@@ -64,7 +64,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-### Step 1: Keep the App Shell static
+### Step 1: Load the store layout without the cart
 
 The store layout is shared by the catalog, product pages, and buying guides. Its `CartButton` reads the cart cookie. Without `ensureStatic`, the App Shell that a default `<Link>` loads is rendered for each request, so it can include the cart count. Add `ensureStatic = 'shell'` so the App Shell comes from static output instead:
 
@@ -93,7 +93,7 @@ export default function StoreLayout({ children }: LayoutProps<'/store'>) {
 
 A default `<Link>` into the store now loads the App Shell from static output, with the `<Suspense>` fallback in place of the cart. The cart renders later, during a per-link prefetch or the navigation.
 
-### Step 2: Keep product prefetches static
+### Step 2: Prefetch product details
 
 Product pages show cached product details and live inventory. Separate the two with `<Suspense>`:
 
