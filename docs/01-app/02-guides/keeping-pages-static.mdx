@@ -222,12 +222,9 @@ A level applies to the whole route, including the layouts above the segment that
     title="Remove the data access"
     href="/docs/messages/static-route-runtime#remove-the-data-access"
     snippets={[
-      { text: 'async function Guide() {' },
-      {
-        text: '- const theme = (await cookies()).get("theme")',
-        highlight: true,
-      },
-      { text: '  return <article />' },
+      { text: 'async function Page() {' },
+      { text: '- const store = await cookies()', highlight: true },
+      { text: '  return <Content />' },
     ]}
   />
   <FixCard
@@ -317,9 +314,9 @@ Reload the page. The query requires request-time server work, so the development
     title="Cache the data"
     href="/docs/messages/static-route-dynamic#cache-the-data"
     snippets={[
-      { text: 'async function getGuide(id) {' },
+      { text: 'async function getData() {' },
       { text: '  "use cache"', highlight: true },
-      { text: '  return db.guide.findUnique(…)' },
+      { text: '  return await db.query(…)' },
     ]}
   />
   <FixCard
