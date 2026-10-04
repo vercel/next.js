@@ -542,7 +542,7 @@ async fn compute_subtree_content_hash(
         }
 
         let hash = deterministic_hash("", hashes, HashAlgorithm::Xxh3Hash128Hex).into();
-        let (runtime_read, runtime_existence): (Vec<_>, Vec<_>) =
+        let (mut runtime_read, mut runtime_existence): (Vec<_>, Vec<_>) =
             runtime_env_vars.into_iter().partition_map(|(name, mode)| {
                 if mode == EnvVarAccessMode::Read {
                     Either::Left(name)
@@ -551,6 +551,9 @@ async fn compute_subtree_content_hash(
                 }
             });
 
+        // Sort for more stable return values (less invalidation)
+        runtime_read.sort_unstable();
+        runtime_existence.sort_unstable();
         anyhow::Ok(
             ModulesInformation {
                 ident_code_hash: hash,
