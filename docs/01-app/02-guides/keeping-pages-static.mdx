@@ -154,29 +154,37 @@ That prefetch includes the product heading and the **Checking availability...** 
 
 Products returned from `generateStaticParams()` are prerendered at build time. For any other product, the first prefetch on a new deployment serves the route's fallback shell instead, because no page has been generated yet. Next.js generates it in the background, and later prefetches include the product heading. See [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components#at-runtime).
 
-### Step 3: Prerender every buying guide
+### Step 3: Prerender the buying guides
 
-Buying guides are editorial pages whose complete server output should remain static. The page can require a stricter level than the layout's `'prefetch'`. Start with a page that displays the guide ID and reads a theme preference from `cookies()`. Add `ensureStatic = 'navigation'`:
+Buying guides are editorial pages whose complete server output should remain static. A page can set a stricter level than its layout, so add `ensureStatic = 'navigation'` to the guide page. Start with a page that reads a theme preference from `cookies()`. Like the product page, it reads `params` inside `<Suspense>`, so the route's shell does not wait for URL data:
 
-```tsx filename="app/store/guides/[id]/page.tsx" highlight={3}
+```tsx filename="app/store/guides/[id]/page.tsx" highlight={4}
+import { Suspense } from 'react'
 import { cookies } from 'next/headers'
 
 export const ensureStatic = 'navigation'
 
-export default async function GuidePage({
-  params,
-}: PageProps<'/store/guides/[id]'>) {
+export default function GuidePage({ params }: PageProps<'/store/guides/[id]'>) {
+  return (
+    <Suspense fallback={<p>Loading guide...</p>}>
+      <Guide params={params} />
+    </Suspense>
+  )
+}
+
+async function Guide({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const theme = (await cookies()).get('theme')?.value
   return <article data-theme={theme}>Buying guide: {id}</article>
 }
 ```
 
-The `'navigation'` requirement is [validated during both `next dev` and `next build`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#validation). Start the development server and open a guide URL. Because Next.js does not know which `id` values to prerender, the development overlay reports that the route requires an exported `generateStaticParams()` function and links to the [`generateStaticParams` error guide](/docs/messages/generate-static-params#with-ensurestatic).
+Next.js [validates the `'navigation'` requirement during both `next dev` and `next build`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#validation). Start the development server and open a guide URL. Next.js does not know which `id` values to prerender, so the development overlay reports that the route requires an exported `generateStaticParams()` function and links to the [`generateStaticParams` error guide](/docs/messages/generate-static-params#with-ensurestatic).
 
-Export `generateStaticParams()` and return every buying guide ID. Unlike the product page, which lists only featured products and leaves the rest to the fallback shell, `'navigation'` has no later stage to fall back to, so the list must be complete:
+Export `generateStaticParams()` and return all buying guide IDs. The product page lists only featured products and leaves the rest to the fallback shell. `'navigation'` has no later stage to fall back to, so this list must be complete:
 
-```tsx filename="app/store/guides/[id]/page.tsx" highlight={4,6-9}
+```tsx filename="app/store/guides/[id]/page.tsx" highlight={3,7-10}
+import { Suspense } from 'react'
 import { cookies } from 'next/headers'
 import { getGuideIds } from '@/lib/guides'
 
@@ -187,20 +195,26 @@ export async function generateStaticParams() {
   return ids.map((id) => ({ id }))
 }
 
-export default async function GuidePage({
-  params,
-}: PageProps<'/store/guides/[id]'>) {
+export default function GuidePage({ params }: PageProps<'/store/guides/[id]'>) {
+  return (
+    <Suspense fallback={<p>Loading guide...</p>}>
+      <Guide params={params} />
+    </Suspense>
+  )
+}
+
+async function Guide({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const theme = (await cookies()).get('theme')?.value
   return <article data-theme={theme}>Buying guide: {id}</article>
 }
 ```
 
-If the route has multiple dynamic segments, every result must include all of them.
+If the route has multiple dynamic segments, the returned objects must include all of them.
 
-Reload the guide URL. Because `cookies()` is only available for a request, the development overlay shows the [runtime data error](/docs/messages/static-route-runtime) twice: once for the page's theme cookie, and once for `CartButton` in the store layout.
+Reload the guide URL. `cookies()` is only available for a request, so the development overlay shows the [runtime data error](/docs/messages/static-route-runtime) twice: once for the theme cookie in `Guide`, and once for `CartButton` in the store layout.
 
-A level covers every segment in the route, including the layouts above the segment that sets it, so `'navigation'` on the guide page also applies to the store layout. `CartButton` is behind `<Suspense>`, but `'navigation'` is the final stage, so there is no later stage to defer it to, and awaiting `navigation()` does not help either. The overlay suggests these fixes:
+A level applies to the whole route, including the layouts above the segment that sets it, so `'navigation'` on the guide page also applies to the store layout. `CartButton` is inside `<Suspense>`, but `'navigation'` is the final stage, and no later stage can render it. Awaiting `navigation()` does not help for the same reason. The overlay suggests these fixes:
 
 <FixCardGrid>
   <FixCard
@@ -208,12 +222,12 @@ A level covers every segment in the route, including the layouts above the segme
     title="Remove the data access"
     href="/docs/messages/static-route-runtime#remove-the-data-access"
     snippets={[
-      { text: 'async function GuidePage() {' },
+      { text: 'async function Guide() {' },
       {
         text: '- const theme = (await cookies()).get("theme")',
         highlight: true,
       },
-      { text: '  return <Guide />' },
+      { text: '  return <article />' },
     ]}
   />
   <FixCard
@@ -228,13 +242,16 @@ A level covers every segment in the route, including the layouts above the segme
   />
 </FixCardGrid>
 
-The client fix only applies to `searchParams`. Buying guides do not need a per-user theme, so remove the cookie access from the page:
+The client fix only applies to `searchParams`. Buying guides do not need a per-user theme, so remove the cookie access from `Guide`:
 
 ```diff filename="app/store/guides/[id]/page.tsx"
+  import { Suspense } from 'react'
 - import { cookies } from 'next/headers'
   import { getGuideIds } from '@/lib/guides'
 
-  export default async function GuidePage({ params }) {
+  // ...
+
+  async function Guide({ params }) {
     const { id } = await params
 -   const theme = (await cookies()).get('theme')?.value
 -   return <article data-theme={theme}>Buying guide: {id}</article>
@@ -242,7 +259,7 @@ The client fix only applies to `searchParams`. Buying guides do not need a per-u
   }
 ```
 
-The cart is per-user, so it has to stay. Read its cookie in the browser instead, which works because the cart count is not an `HttpOnly` cookie. Make `CartButton` a Client Component that suspends with [`use(browser())`](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser) when it has no `count`:
+The cart is per-user, so it has to stay. The cart count is not an `HttpOnly` cookie, so the browser can read it instead. Make `CartButton` a Client Component that suspends with [`use(browser())`](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser) when it has no `count`:
 
 ```tsx filename="app/ui/cart.tsx" highlight={1,7-9}
 'use client'
@@ -263,7 +280,7 @@ function readCartCount() {
 }
 ```
 
-During prerendering, `use(browser())` suspends, so the static output of every store route includes the `<Suspense>` fallback, `Cart (0)`. The browser renders the real count after the page loads. The layout code does not change, and the product pages keep their `'prefetch'` behavior.
+During prerendering, `use(browser())` suspends, so the static output of the store routes includes the `<Suspense>` fallback, `Cart (0)`. The browser renders the real count after the page loads. The layout code stays the same, and the product pages keep their `'prefetch'` behavior.
 
 Reload the page to confirm that both runtime data errors clear. Next, load the guide content from the database. Add a query alongside `getGuideIds()` in `lib/guides.ts`:
 
@@ -275,13 +292,16 @@ export async function getGuide(id: string) {
 }
 ```
 
-Call `getGuide()` from the page, keeping the `ensureStatic` and `generateStaticParams()` exports:
+Call `getGuide()` from `Guide`, keeping the `ensureStatic` and `generateStaticParams()` exports:
 
 ```diff filename="app/store/guides/[id]/page.tsx"
+  import { Suspense } from 'react'
 - import { getGuideIds } from '@/lib/guides'
 + import { getGuide, getGuideIds } from '@/lib/guides'
 
-  export default async function GuidePage({ params }) {
+  // ...
+
+  async function Guide({ params }) {
     const { id } = await params
 -   return <article>Buying guide: {id}</article>
 +   const guide = await getGuide(id)
@@ -325,9 +345,11 @@ export async function getGuide(id: string) {
 }
 ```
 
-Reload the page in development. The static-route error clears. Run `next build` to confirm that the returned guide IDs and their content are fully prerendered. Build errors are less specific than the development overlay: runtime data and uncached data share one message, and the default stack trace may not name the component. Run [`next build --debug-prerender`](/docs/app/guides/building#debug-prerender-errors) to get the component and its code frame.
+Reload the page in development to confirm that the uncached data error clears. Then run `next build` to confirm that the guide pages and their content are fully prerendered.
 
-If request-time rendering is intentional, first confirm that the route no longer needs to be fully static. Then [remove the static requirement](/docs/messages/static-route-runtime#remove-the-static-requirement) and [wrap the component that reads the data in `<Suspense>`](/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense), so the route can show a fallback while the data loads.
+The build reports errors with less detail than the development overlay. It uses one message for runtime and uncached data, and its default stack trace may not name the component. Run [`next build --debug-prerender`](/docs/app/guides/building#debug-prerender-errors) to see the component and its code frame.
+
+If request-time rendering is intentional, first confirm that the route no longer needs to be fully static, then [remove the static requirement](/docs/messages/static-route-runtime#remove-the-static-requirement). `Guide` already renders inside `<Suspense>`, so the route shows the fallback while the data loads.
 
 ## Next steps
 
