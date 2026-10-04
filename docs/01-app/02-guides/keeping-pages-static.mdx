@@ -15,7 +15,7 @@ Before Cache Components, route segment configs such as [`dynamic = 'force-static
 
 [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) changes this model. A route can combine prerendered UI, cached content, and request-specific content that streams later. This is useful for routes that mix shared and personalized content, but sometimes an App Shell, a per-link prefetch, or a complete route must avoid request-time server rendering.
 
-Use [`ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic) to require that output to remain static as the app changes. Next.js moves request-specific content to a later stage when possible. If it cannot preserve the selected static output, `next dev` and `next build` identify the work that prevents it.
+Use [`ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic) to require that output to remain static as the app changes. Place request-specific content behind `<Suspense>` so it can render later. `next dev` and `next build` identify any work that still prevents the selected output from being static.
 
 ## Decide what should stay static
 
@@ -334,83 +334,7 @@ Learn more: https://nextjs.org/docs/messages/static-route-dynamic
 
 The build identifies the affected route, but not the source of each data access. Start `next dev` and open `/store/guides/coffee` to get source-mapped errors as you edit. If you can only run `next build`, follow [Find blocking work](/docs/app/guides/building#find-blocking-work) to get the same detail from a build.
 
-The development overlay separates the build error into two [runtime data errors](/docs/messages/static-route-runtime) and points to each `cookies()` call:
-
-```tsx filename="app/store/guides/[id]/page.tsx" highlight={1}
-const theme = (await cookies()).get('theme')?.value
-```
-
-```tsx filename="app/ui/cart.tsx" highlight={1}
-const value = Number((await cookies()).get('cart-count')?.value ?? 0)
-```
-
-The first error comes from the guide page. Because the page sets `ensureStatic = 'navigation'`, its static requirement also covers the store layout, where `CartButton` causes the second error. `<Suspense>` cannot defer this server work because no later server-rendering stage remains.
-
-The overlay shows two ways to resolve runtime data:
-
-<FixCardGrid>
-  <FixCard
-    group="remove"
-    title="Remove the data access"
-    href="/docs/messages/static-route-runtime#remove-the-data-access"
-    snippets={[
-      { text: 'async function Page() {' },
-      { text: '- const store = await cookies()', highlight: true },
-      { text: '  return <Content />' },
-    ]}
-  />
-  <FixCard
-    group="client"
-    title="Read the data on the client"
-    href="/docs/messages/static-route-runtime#read-the-data-on-the-client"
-    snippets={[
-      { text: "'use client'" },
-      { text: "use(browser('Read cookie'))", highlight: true },
-      { text: 'document.cookie.match(/cart=/)' },
-    ]}
-  />
-</FixCardGrid>
-
-Buying guides do not need a per-user theme, so remove the cookie access from `Guide`:
-
-```diff filename="app/store/guides/[id]/page.tsx"
-  import { Suspense } from 'react'
-- import { cookies } from 'next/headers'
-  import { getGuide, getGuideIds } from '@/lib/guides'
-
-  // ...
-
-  async function Guide({ params }) {
-    const { id } = await params
-    const guide = await getGuide(id)
--   const theme = (await cookies()).get('theme')?.value
--   return <article data-theme={theme}>{guide.content}</article>
-+   return <article>{guide.content}</article>
-  }
-```
-
-The cart count is different because it must stay personalized. Since the app stores it in a non-`HttpOnly` cookie, the browser can read it without server rendering. Convert `CartButton` to a Client Component and use [`use(browser())`](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser) to suspend during prerendering:
-
-```tsx filename="app/ui/cart.tsx" highlight={1,7-8}
-'use client'
-
-import { use } from 'react'
-import { browser } from 'react-dom'
-
-export function CartButton() {
-  use(browser('The cart count is stored in a cookie.'))
-  return <button>Cart ({readCartCount()})</button>
-}
-
-function readCartCount() {
-  const match = document.cookie.match(/(?:^|; )cart-count=(\d+)/)
-  return Number(match?.[1] ?? 0)
-}
-```
-
-During prerendering, `use(browser())` suspends, so the static output includes the `<Suspense>` fallback, `Cart (0)`. After the page loads, the browser replaces the fallback with the current count. The layout does not change, and the product pages keep their `'prefetch'` behavior.
-
-Reload the guide page. The runtime data errors clear, and the development overlay now reports [uncached data](/docs/messages/static-route-dynamic). Its code frame points to the existing database query:
+The development overlay first reports one [uncached data error](/docs/messages/static-route-dynamic). Its code frame points to the existing database query:
 
 ```ts filename="lib/guides.ts" highlight={1}
 return db.guide.findUniqueOrThrow({ where: { id } })
@@ -462,11 +386,87 @@ export async function getGuide(id: string) {
 }
 ```
 
-After this change, reloading the page clears the uncached data error. Running `next build` now produces:
+After caching the query, reload the guide page. The uncached data error clears, and the overlay now reports two [runtime data errors](/docs/messages/static-route-runtime). The first points to `CartButton` in the store layout, and the second points to the guide's theme cookie:
+
+```tsx filename="app/ui/cart.tsx" highlight={1}
+const value = Number((await cookies()).get('cart-count')?.value ?? 0)
+```
+
+```tsx filename="app/store/guides/[id]/page.tsx" highlight={1}
+const theme = (await cookies()).get('theme')?.value
+```
+
+The `'navigation'` requirement on the guide page covers the entire route, including the store layout. `<Suspense>` cannot defer these server reads because no later server-rendering stage remains.
+
+The overlay shows two ways to resolve runtime data:
+
+<FixCardGrid>
+  <FixCard
+    group="remove"
+    title="Remove the data access"
+    href="/docs/messages/static-route-runtime#remove-the-data-access"
+    snippets={[
+      { text: 'async function Page() {' },
+      { text: '- const store = await cookies()', highlight: true },
+      { text: '  return <Content />' },
+    ]}
+  />
+  <FixCard
+    group="client"
+    title="Read the data on the client"
+    href="/docs/messages/static-route-runtime#read-the-data-on-the-client"
+    snippets={[
+      { text: "'use client'" },
+      { text: "use(browser('Read cookie'))", highlight: true },
+      { text: 'const cart = document.cookie.match(/cart=(\\d+)/)' },
+    ]}
+  />
+</FixCardGrid>
+
+Buying guides do not need a per-user theme, so remove the cookie access from `Guide`:
+
+```diff filename="app/store/guides/[id]/page.tsx"
+  import { Suspense } from 'react'
+- import { cookies } from 'next/headers'
+  import { getGuide, getGuideIds } from '@/lib/guides'
+
+  // ...
+
+  async function Guide({ params }) {
+    const { id } = await params
+    const guide = await getGuide(id)
+-   const theme = (await cookies()).get('theme')?.value
+-   return <article data-theme={theme}>{guide.content}</article>
++   return <article>{guide.content}</article>
+  }
+```
+
+The cart count must stay personalized. Since the app stores it in a non-`HttpOnly` cookie, the browser can read it without server rendering. Convert `CartButton` to a Client Component and use [`use(browser())`](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser) to suspend during prerendering:
+
+```tsx filename="app/ui/cart.tsx" highlight={1,3-4,7-8}
+'use client'
+
+import { use } from 'react'
+import { browser } from 'react-dom'
+
+export function CartButton() {
+  use(browser('The cart count is stored in a cookie.'))
+  return <button>Cart ({readCartCount()})</button>
+}
+
+function readCartCount() {
+  const match = document.cookie.match(/(?:^|; )cart-count=(\d+)/)
+  return Number(match?.[1] ?? 0)
+}
+```
+
+During prerendering, `use(browser())` suspends, so the static output includes the `<Suspense>` fallback, `Cart (0)`. After the page loads, the browser replaces the fallback with the current count.
+
+With the uncached and runtime data removed from the server render, `next build` now produces:
 
 ```text filename="Terminal"
 Route (app)
-├ ◐ /store
+├ ○ /store
 ├   /store/guides/[id]
 │ ├ ◐ /store/guides/[id]
 │ └ ○ /store/guides/coffee

@@ -85,7 +85,7 @@ With `'shell'` and `'prefetch'`, request-specific work inside `<Suspense>` moves
 
 Next.js validates this requirement during both `next dev` and `next build`. In development, errors include source-mapped stack traces that update as you edit. Build output is more abbreviated, so you may need to run [`next build --debug-prerender`](/docs/app/guides/building#debug-prerender-errors) for detailed stack traces and code frames. See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the development workflow.
 
-The following server content fails validation, even when it is wrapped in `<Suspense>` or the segment sets [`instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant#disabling-instant):
+With `ensureStatic = 'navigation'`, the following server content fails validation, even when it is wrapped in `<Suspense>` or the segment sets [`instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant#disabling-instant):
 
 - [Uncached data](/docs/messages/static-route-dynamic), including a `fetch` or database call without [`use cache`](/docs/app/api-reference/directives/use-cache), and [`connection()`](/docs/app/api-reference/functions/connection).
 - [Runtime data](/docs/messages/static-route-runtime), such as `cookies()`, `headers()`, and server-side `searchParams`.
@@ -122,7 +122,7 @@ With Partial Prefetching, `false` keeps the route's normal rendering behavior an
 
 [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) validates whether a navigation can update the UI immediately. Cached or prerendered UI can satisfy this requirement while request-specific content streams later behind `<Suspense>`.
 
-Setting `instant = false` disables instant-navigation validation. It does not relax an `ensureStatic` requirement.
+Setting `instant = false` opts the route out of Instant Navigation validation. As a result, Next.js does not validate `ensureStatic = 'shell'` or `'prefetch'` for that route. The `'navigation'` value uses separate complete static-output validation, which `instant = false` does not relax.
 
 ## Combining levels across layouts and pages
 

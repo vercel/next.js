@@ -23,7 +23,7 @@ Prefetching downloads a route's JavaScript, CSS, and RSC payload before the user
 With [Cache Components](/docs/app/getting-started/caching) and [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), Next.js loads server-rendered output in stages, before and during a client navigation. These are the route's [navigation stages](/docs/app/glossary#navigation-stages):
 
 1. A default [`<Link>`](/docs/app/api-reference/components/link) loads the route's [**App Shell**](/docs/app/glossary#app-shell). It holds the route's static output and, for routes that read [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers), its session-specific UI. Links to the same route share it.
-2. A [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch) also loads cached content that depends on the link's [URL data](/docs/app/glossary#url-data), such as [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) and [`params`](/docs/app/api-reference/file-conventions/page#params-optional), which the shared shell cannot include.
+2. A [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch) also loads static or cached content that depends on the link's [URL data](/docs/app/glossary#url-data), such as [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) and [`params`](/docs/app/api-reference/file-conventions/page#params-optional), which the shared shell cannot include.
 3. When the user follows the link, the navigation renders the rest of the route.
 
 The sections below work through the stages in that order, then show how to defer expensive work to a later stage with [`prefetch()`](/docs/app/api-reference/functions/prefetch) and [`navigation()`](/docs/app/api-reference/functions/navigation). To require that a stage stays static for a whole route, see [Keeping pages static](/docs/app/guides/keeping-pages-static).
@@ -352,7 +352,7 @@ test('prefetches the product summary but not reviews', async ({ page }) => {
 
 While the `instant()` callback is running, dynamic content is paused. In this example, the product summary is part of the prefetched UI, while reviews wait for navigation. The final assertion confirms that the reviews render after the pause is released.
 
-In development, a `prefetch()` or `navigation()` call outside `<Suspense>` surfaces an [Instant Insight](/docs/messages/instant-navigation-stage), since the deferred subtree has no fallback to show in the earlier stage. It is reported even on a page that is prerendered in full, because the page starts deferring content as soon as it needs a runtime shell. Calls in [`generateMetadata()`](/docs/messages/instant-navigation-stage-metadata) and [`generateViewport()`](/docs/messages/instant-navigation-stage-viewport) get their own insights.
+In development, a `prefetch()` or `navigation()` call outside `<Suspense>` surfaces an [Instant Insight](/docs/messages/instant-navigation-stage), since the deferred subtree has no fallback to show in the earlier stage. On a fully prerendered page, the call has no effect until the route needs runtime rendering. Next.js reports the insight when that happens and no `<Suspense>` boundary can provide the earlier-stage fallback. Calls in [`generateMetadata()`](/docs/messages/instant-navigation-stage-metadata) and [`generateViewport()`](/docs/messages/instant-navigation-stage-viewport) get their own insights.
 
 ## Trade-offs
 
@@ -374,12 +374,12 @@ A per-link prefetch is best-effort. It only helps the navigations where it compl
 
 When many links to a route are visible at once, such as a grid of cards, each `<Link prefetch={true}>` prefetches that link's content as it enters the viewport, so the grid makes one such server request per card. Prefetch on intent instead. A [hover-triggered prefetch](/docs/app/guides/prefetching#hover-triggered-prefetch) fetches only the links the user is likely to click. The default `<Link>` (without `prefetch={true}`) loads only the App Shell, so it doesn't carry this cost.
 
-|         | App Shell                                                               | Per-link prefetch with `prefetch={true}` | Navigation                                           |
-| ------- | ----------------------------------------------------------------------- | ---------------------------------------- | ---------------------------------------------------- |
-| Scope   | One per route                                                           | One per visible `<Link prefetch={true}>` | One per click                                        |
-| Content | Route's rendered output minus per-link data and work below `prefetch()` | Same, plus per-link URL data resolved    | Everything left, including work below `navigation()` |
-| Cost    | Bounded by route count                                                  | Bounded by visible-link count            | Bounded by navigations                               |
-| Role    | Default prefetch                                                        | More rendered before click               | Completes the route                                  |
+|         | App Shell                                                               | Per-link prefetch with `prefetch={true}`                 | Navigation                                           |
+| ------- | ----------------------------------------------------------------------- | -------------------------------------------------------- | ---------------------------------------------------- |
+| Scope   | One per route                                                           | One per visible `<Link prefetch={true}>`                 | One per click                                        |
+| Content | Route's rendered output minus per-link data and work below `prefetch()` | Same, plus per-link URL data and work below `prefetch()` | Everything left, including work below `navigation()` |
+| Cost    | Bounded by route count                                                  | Bounded by visible-link count                            | Bounded by navigations                               |
+| Role    | Default prefetch                                                        | More rendered before click                               | Completes the route                                  |
 
 [Deferring work](#defer-work-to-a-later-stage) avoids generating content for prefetches that may never be used. The tradeoff is that a navigation may show the nearest `<Suspense>` fallback while the deferred content renders. Choose a control based on the content's dependencies and cost:
 
