@@ -19,7 +19,13 @@ Some routes must still avoid request-time server work, to control compute costs 
 
 ## Decide what should stay static
 
-Static output does not depend on request-specific data. Next.js can generate it before a request and reuse it across requests. With [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), a default `<Link>` loads the destination's [App Shell](/docs/app/glossary#app-shell). Setting `prefetch={true}` can also load static or cached [URL-specific content](/docs/app/guides/optimizing-prefetching#resolve-url-data-at-prefetch-time). The navigation request returns the remaining server-rendered content after the user follows the link. These are the route's [navigation stages](/docs/app/glossary#navigation-stages).
+Static output does not depend on request-specific data. Next.js can generate it before a request and reuse it across requests.
+
+With [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), Next.js loads a route's server-rendered output in stages, before and during a client navigation. These are the route's [navigation stages](/docs/app/glossary#navigation-stages):
+
+1. A default `<Link>` loads the route's [App Shell](/docs/app/glossary#app-shell), which the links to that route share.
+2. A `<Link prefetch={true}>` also loads static or cached content that depends on the link's [URL data](/docs/app/glossary#url-data), such as `params`. This is the per-link prefetch.
+3. When the user follows the link, the navigation returns the rest of the route.
 
 Each `ensureStatic` value extends the static requirement through one more stage. In the following diagram, gray marks output that must remain static, while blue marks work that can render later:
 
@@ -82,10 +88,6 @@ export default function StoreLayout({ children }: LayoutProps<'/store'>) {
 ```
 
 A default `<Link>` into the store loads the shell from static output, and a `<Link prefetch={true}>` loads its per-link prefetch from static output too. `CartButton` reads the cart cookie, so it renders on navigation behind its `<Suspense>` boundary, and the prefetched UI shows the empty button until then. Request-specific content outside `<Suspense>` is reported by [Instant Navigation validation](/docs/messages/instant-navigation-validation).
-
-`'shell'` would not be enough here. Product links will resolve `params` in their per-link prefetch, and under `'shell'` each of those prefetches would render on the server, with nothing in the UI to show that cost. `'prefetch'` serves them from prerendered output instead.
-
-Awaiting [`navigation()`](/docs/app/api-reference/functions/navigation) from `next/cache` inside `<Suspense>` defers one subtree's work until navigation. With `ensureStatic = 'prefetch'` on the layout, request-specific work inside `<Suspense>` is deferred that way across every route under it, so the subtrees need no call of their own. See [Defer work to a later stage](/docs/app/guides/optimizing-prefetching#defer-work-to-a-later-stage) for the per-subtree controls.
 
 ### Step 2: Prefetch product details, not live inventory
 
@@ -152,6 +154,8 @@ The link starts with the default App Shell prefetch and switches to a per-link p
 
 That prefetch includes the product heading and the **Checking availability...** fallback. The uncached inventory query runs after the user follows the link.
 
+This per-link prefetch is why the layout uses `'prefetch'` rather than `'shell'`. A product link resolves `params` in its prefetch. Under `'shell'`, only the App Shell has to be static, so each product prefetch would render on the server, and nothing in the UI would show that cost. Under `'prefetch'`, Next.js serves those prefetches from prerendered output instead.
+
 Products returned from `generateStaticParams()` are prerendered at build time. For any other product, the first prefetch on a new deployment serves the route's fallback shell instead, because no page has been generated yet. Next.js generates it in the background, and later prefetches include the product heading. See [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components#at-runtime).
 
 ### Step 3: Prerender the buying guides
@@ -179,7 +183,15 @@ async function Guide({ params }: { params: Promise<{ id: string }> }) {
 }
 ```
 
-Next.js [validates the `'navigation'` requirement during both `next dev` and `next build`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#validation). Start the development server and open a guide URL. Next.js does not know which `id` values to prerender, so the development overlay reports that the route requires an exported `generateStaticParams()` function and links to the [`generateStaticParams` error guide](/docs/messages/generate-static-params#with-ensurestatic).
+Run `next build`. A fully static route is prerendered at build time, but a dynamic route without `generateStaticParams()` has no `id` values to prerender, so the build stops before it renders the route:
+
+```bash filename="Terminal"
+Error: Page "/store/guides/[id]": `ensureStatic = "navigation"` requires an exported `generateStaticParams()` function.
+Learn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic
+    at ignore-listed frames
+> Build error occurred
+Error: Failed to collect page data for /store/guides/[id]
+```
 
 Export `generateStaticParams()` and return all buying guide IDs. The product page lists only featured products and leaves the rest to the fallback shell. `'navigation'` has no later stage to fall back to, so this list must be complete:
 
@@ -210,11 +222,13 @@ async function Guide({ params }: { params: Promise<{ id: string }> }) {
 }
 ```
 
-If the route has multiple dynamic segments, the returned objects must include all of them.
+If the route has multiple dynamic segments, the returned objects must include all of them. See the [`generateStaticParams` error guide](/docs/messages/generate-static-params#with-ensurestatic) for the full requirement.
 
-Reload the guide URL. `cookies()` is only available for a request, so the development overlay shows the [runtime data error](/docs/messages/static-route-runtime) twice: once for the theme cookie in `Guide`, and once for `CartButton` in the store layout.
+From here, work in development. Next.js [validates the `'navigation'` requirement during both `next dev` and `next build`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#validation). In development, errors include source-mapped stack traces that update as you edit. Build output is more abbreviated, and the build stops at the first route that fails.
 
-A level applies to the whole route, including the layouts above the segment that sets it, so `'navigation'` on the guide page also applies to the store layout. `CartButton` is inside `<Suspense>`, but `'navigation'` is the final stage, and no later stage can render it. Awaiting `navigation()` does not help for the same reason. The overlay suggests these fixes:
+Start the development server and open a guide URL. `cookies()` is only available for a request, so the development overlay shows the [runtime data error](/docs/messages/static-route-runtime) twice: once for the theme cookie in `Guide`, and once for `CartButton` in the store layout.
+
+A level applies to the whole route, including the layouts above the segment that sets it, so `'navigation'` on the guide page also applies to the store layout. `CartButton` is inside `<Suspense>`, but `'navigation'` is the final stage, and no later stage can render it. Deferring it with [`navigation()`](/docs/app/api-reference/functions/navigation) from `next/cache` does not help for the same reason. The overlay suggests these fixes:
 
 <FixCardGrid>
   <FixCard
@@ -344,7 +358,7 @@ export async function getGuide(id: string) {
 
 Reload the page in development to confirm that the uncached data error clears. Then run `next build` to confirm that the guide pages and their content are fully prerendered.
 
-Running `next build` at any earlier point in this step would have failed with the same errors, in a less detailed form. For example, before `getGuide()` was cached, the build reports:
+Had you run `next build` before caching `getGuide()`, it would have failed with:
 
 ```bash filename="Terminal"
 Error: Route "/store/guides/[id]": Next.js encountered uncached or runtime data on a route that must be fully static.
@@ -382,8 +396,6 @@ Error: Route "/store/guides/[id]": Next.js encountered uncached or runtime data 
   21 |   const guide = await getGuide(id)
   22 |   return <article>{guide.content}</article>
 ```
-
-The development overlay names the same component and tells runtime data and uncached data apart, so use it while you work and the build as the final check.
 
 If request-time rendering is intentional, first confirm that the route no longer needs to be fully static, then [remove the static requirement](/docs/messages/static-route-runtime#remove-the-static-requirement). `Guide` already renders inside `<Suspense>`, so the route shows the fallback while the data loads.
 
