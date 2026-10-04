@@ -80,7 +80,7 @@ export default nextConfig
 
 ### Step 1: Serve a static App Shell
 
-The starting app already places request-specific UI behind `<Suspense>`. The shared store layout includes a `CartButton` that reads the cart count from a cookie:
+The starting app already places request-specific UI behind `<Suspense>`. It stores the cart count in a non-`HttpOnly` cookie so both the server and browser can read it. The shared store layout includes a `CartButton` that reads the cookie on the server:
 
 ```tsx filename="app/ui/cart.tsx"
 import { cookies } from 'next/headers'
@@ -214,11 +214,12 @@ If only one subtree needed to stay out of per-link prefetches, you could call [`
 
 ### Step 3: Prerender the buying guides
 
-The guide page reads a theme preference from `cookies()` and reads `params` inside `<Suspense>`:
+Start with the buying guide page:
 
 ```tsx filename="app/store/guides/[id]/page.tsx"
 import { Suspense } from 'react'
 import { cookies } from 'next/headers'
+import { getGuide } from '@/lib/guides'
 
 export default function GuidePage({ params }: PageProps<'/store/guides/[id]'>) {
   return (
@@ -230,16 +231,29 @@ export default function GuidePage({ params }: PageProps<'/store/guides/[id]'>) {
 
 async function Guide({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
+  const guide = await getGuide(id)
   const theme = (await cookies()).get('theme')?.value
-  return <article data-theme={theme}>Buying guide: {id}</article>
+  return <article data-theme={theme}>{guide.content}</article>
 }
 ```
 
-Run `next build`. The build produces a partial prerender for the route:
+The app already loads the guide from its database:
+
+```ts filename="lib/guides.ts"
+import { db } from '@/lib/db'
+
+export async function getGuide(id: string) {
+  return db.guide.findUniqueOrThrow({ where: { id } })
+}
+```
+
+Run `next build`. The build output shows that all three store routes are partial prerenders:
 
 ```text filename="Terminal"
 Route (app)
-└ ◐ /store/guides/[id]
+├ ◐ /store
+├ ◐ /store/guides/[id]
+└ ◐ /store/products/[slug]
 
 ◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
 ```
@@ -272,7 +286,7 @@ Export `generateStaticParams()` and return at least one buying guide ID. Next.js
 ```tsx filename="app/store/guides/[id]/page.tsx" highlight={3,7-10}
 import { Suspense } from 'react'
 import { cookies } from 'next/headers'
-import { getGuideIds } from '@/lib/guides'
+import { getGuide, getGuideIds } from '@/lib/guides'
 
 export const ensureStatic = 'navigation'
 
@@ -291,8 +305,9 @@ export default function GuidePage({ params }: PageProps<'/store/guides/[id]'>) {
 
 async function Guide({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
+  const guide = await getGuide(id)
   const theme = (await cookies()).get('theme')?.value
-  return <article data-theme={theme}>Buying guide: {id}</article>
+  return <article data-theme={theme}>{guide.content}</article>
 }
 ```
 
@@ -308,7 +323,7 @@ This route is configured to be fully static, but uncached or runtime data preven
 Ways to fix this:
   - [cache] For uncached data (`fetch`, database calls): cache the access with `"use cache"` (does not apply to `connection()`)
   - [remove] Remove the data access
-  - [client] Read search params on the client with `useSearchParams()` (only applies to `searchParams`)
+  - [client] Read the data on the client
 
 Learn more: https://nextjs.org/docs/messages/static-route-dynamic
     at Suspense (<anonymous>)
@@ -317,13 +332,25 @@ Learn more: https://nextjs.org/docs/messages/static-route-dynamic
     at html (<anonymous>)
 ```
 
-The build identifies the affected route, but it is difficult to use for locating each data access. Use `next dev` while fixing the route. Open `/store/guides/coffee` to rerun the same validation with source-mapped locations that update as you edit. For the equivalent build workflow, see [Find blocking work](/docs/app/guides/building#find-blocking-work).
+The build identifies the affected route, but it is difficult to use for locating each data access. Start `next dev` and open `/store/guides/coffee`. If you can only run `next build`, follow [Find blocking work](/docs/app/guides/building#find-blocking-work) to get source-mapped stack traces instead.
 
-`cookies()` is only available for a request, so the development overlay shows the [runtime data error](/docs/messages/static-route-runtime) twice: once for the theme cookie in `Guide`, and once for `CartButton` in the store layout.
+The development overlay reports two [runtime data errors](/docs/messages/static-route-runtime). The top frame of each error points to a `cookies()` call:
 
-The `'navigation'` setting on the guide page also applies to the store layout. Although `CartButton` is inside `<Suspense>`, no later server-rendering stage remains for the cart count. Deferring it with [`navigation()`](/docs/app/api-reference/functions/navigation) therefore does not satisfy the static requirement.
+```text filename="Development overlay: Guide"
+app/store/guides/[id]/page.tsx @ Guide
 
-The build error covers both uncached and runtime data, so it includes three fix categories. In development, Next.js identifies these two accesses as runtime data and removes the cache option. The overlay shows the runtime-data fix set:
+const theme = (await cookies()).get('theme')?.value
+                     ^
+```
+
+```text filename="Development overlay: CartButton"
+app/ui/cart.tsx @ CartButton
+
+const value = Number((await cookies()).get('cart-count')?.value ?? 0)
+                            ^
+```
+
+The build error covers both uncached and runtime data, so it includes three fix categories. In development, Next.js identifies each `cookies()` call as runtime data and shows the two relevant fix cards:
 
 <FixCardGrid>
   <FixCard
@@ -338,34 +365,37 @@ The build error covers both uncached and runtime data, so it includes three fix 
   />
   <FixCard
     group="client"
-    title="Read search parameters on the client"
-    href="/docs/messages/static-route-runtime#read-search-parameters-on-the-client"
+    title="Read the data on the client"
+    href="/docs/messages/static-route-runtime#read-the-data-on-the-client"
     snippets={[
       { text: "'use client'" },
-      { text: 'const params = useSearchParams()', highlight: true },
-      { text: "return <p>{params.get('q')}</p>" },
+      { text: "use(browser('Read browser data'))", highlight: true },
+      { text: 'const value = readFromBrowser()' },
     ]}
   />
 </FixCardGrid>
 
-The client fix card applies only to `searchParams`, not `cookies()`. Buying guides do not need a per-user theme, so remove the cookie access from `Guide`:
+The guide page produces the first error. The `'navigation'` setting on that page also applies to the store layout, which produces the second error. Although `CartButton` is inside `<Suspense>`, no later server-rendering stage remains for the cart count. Deferring it with [`navigation()`](/docs/app/api-reference/functions/navigation) therefore does not satisfy the static requirement.
+
+Buying guides do not need a per-user theme, so choose **Remove** and delete the cookie access from `Guide`:
 
 ```diff filename="app/store/guides/[id]/page.tsx"
   import { Suspense } from 'react'
 - import { cookies } from 'next/headers'
-  import { getGuideIds } from '@/lib/guides'
+  import { getGuide, getGuideIds } from '@/lib/guides'
 
   // ...
 
   async function Guide({ params }) {
     const { id } = await params
+    const guide = await getGuide(id)
 -   const theme = (await cookies()).get('theme')?.value
--   return <article data-theme={theme}>Buying guide: {id}</article>
-+   return <article>Buying guide: {id}</article>
+-   return <article data-theme={theme}>{guide.content}</article>
++   return <article>{guide.content}</article>
   }
 ```
 
-The cart must still show the current visitor's count. Because the cookie is not `HttpOnly`, the browser can read it. Make `CartButton` a Client Component that suspends with [`use(browser())`](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser) during prerendering:
+The cart must still show the current visitor's count, and its cookie is available in the browser. Choose **Client**. Make `CartButton` a Client Component that reads the cookie in the browser and suspends with [`use(browser())`](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser) during prerendering:
 
 ```tsx filename="app/ui/cart.tsx" highlight={1,7-8}
 'use client'
@@ -386,34 +416,16 @@ function readCartCount() {
 
 During prerendering, `use(browser())` suspends, so the static output includes the `<Suspense>` fallback, `Cart (0)`. After the page loads, the browser replaces the fallback with the current count. The layout does not change, and the product pages keep their `'prefetch'` behavior.
 
-Reload the page to confirm that both runtime data errors clear. Next, load the guide content from the database. Add a query alongside `getGuideIds()` in `lib/guides.ts`:
+Reload the guide page. The runtime data errors clear, and the development overlay now reports [uncached data](/docs/messages/static-route-dynamic). Its code frame points to the existing database query:
 
-```ts filename="lib/guides.ts"
-import { db } from '@/lib/db'
+```text filename="Development overlay: getGuide"
+lib/guides.ts @ getGuide
 
-export async function getGuide(id: string) {
-  return db.guide.findUniqueOrThrow({ where: { id } })
-}
+return db.guide.findUniqueOrThrow({ where: { id } })
+          ^
 ```
 
-Call `getGuide()` from `Guide`, keeping the `ensureStatic` and `generateStaticParams()` exports:
-
-```diff filename="app/store/guides/[id]/page.tsx"
-  import { Suspense } from 'react'
-- import { getGuideIds } from '@/lib/guides'
-+ import { getGuide, getGuideIds } from '@/lib/guides'
-
-  // ...
-
-  async function Guide({ params }) {
-    const { id } = await params
--   return <article>Buying guide: {id}</article>
-+   const guide = await getGuide(id)
-+   return <article>{guide.content}</article>
-  }
-```
-
-Reload the page. Without caching, the database query would run for each request, which violates the static requirement. The development overlay shows the [uncached data error](/docs/messages/static-route-dynamic) with these fixes:
+The overlay shows these fixes:
 
 <FixCardGrid>
   <FixCard
@@ -449,9 +461,21 @@ export async function getGuide(id: string) {
 }
 ```
 
-Reload the page in development to confirm that the uncached data error clears. Then run `next build` to confirm that the guide pages and their content are fully prerendered.
+Reload the page in development to confirm that the uncached data error clears. Then run `next build`:
 
-If the guide data must load on every request, first confirm that the route no longer needs to be fully static. Then [remove the static requirement](/docs/messages/static-route-runtime#remove-the-static-requirement). Because `Guide` already renders inside `<Suspense>`, the route can show its fallback while the data loads.
+```text filename="Terminal"
+Route (app)
+├ ◐ /store
+├   /store/guides/[id]
+│ ├ ◐ /store/guides/[id]
+│ └ ○ /store/guides/coffee
+└ ◐ /store/products/[slug]
+
+○  (Static)             prerendered as static content
+◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
+```
+
+The listed guide is now fully prerendered, while unlisted guide IDs use the blocking ISR behavior required by `ensureStatic = 'navigation'`.
 
 ## Next steps
 
