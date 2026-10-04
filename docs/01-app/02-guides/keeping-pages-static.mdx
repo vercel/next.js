@@ -344,13 +344,53 @@ export async function getGuide(id: string) {
 
 Reload the page in development to confirm that the uncached data error clears. Then run `next build` to confirm that the guide pages and their content are fully prerendered.
 
-The build reports errors with less detail than the development overlay. It uses one message for runtime and uncached data, and its default stack trace may not name the component. Run [`next build --debug-prerender`](/docs/app/guides/building#debug-prerender-errors) to see the component and its code frame.
+Running `next build` at any earlier point in this step would have failed with the same errors, in a less detailed form. For example, before `getGuide()` was cached, the build reports:
+
+```bash filename="Terminal"
+Error: Route "/store/guides/[id]": Next.js encountered uncached or runtime data on a route that must be fully static.
+
+This route is configured to be fully static, but uncached or runtime data prevents it from being fully prerendered.
+
+Ways to fix this:
+  - [cache] For uncached data (`fetch`, database calls): cache the access with `"use cache"` (does not apply to `connection()`)
+  - [remove] Remove the data access
+  - Only applies to `searchParams`: read them on the client with `useSearchParams()`
+
+Learn more: https://nextjs.org/docs/messages/static-route-dynamic
+    at Suspense (<anonymous>)
+    at main (<anonymous>)
+    at body (<anonymous>)
+    at html (<anonymous>)
+To get a more detailed stack trace and pinpoint the issue, try one of the following:
+  - Start the app in development mode by running `next dev`, then open "/store/guides/[id]" in your browser to investigate the error.
+  - Rerun the production build with `next build --debug-prerender` to generate better stack traces.
+Error occurred prerendering page "/store/guides/coffee". Read more: https://nextjs.org/docs/messages/prerender-error
+```
+
+The build uses one message for runtime and uncached data, and the stack stops at `Suspense` without naming the component. Run [`next build --debug-prerender`](/docs/app/guides/building#debug-prerender-errors) for detailed stack traces and code frames. The stack then points to `Guide`:
+
+```bash filename="Terminal"
+Error: Route "/store/guides/[id]": Next.js encountered uncached or runtime data on a route that must be fully static.
+  ...
+    at Guide (app/store/guides/[id]/page.tsx:19:16)
+    at GuidePage (app/store/guides/[id]/page.tsx:14:7)
+  17 | }
+  18 |
+> 19 | async function Guide({ params }: { params: Promise<{ id: string }> }) {
+     |                ^
+  20 |   const { id } = await params
+  21 |   const guide = await getGuide(id)
+  22 |   return <article>{guide.content}</article>
+```
+
+The development overlay names the same component and tells runtime data and uncached data apart, so use it while you work and the build as the final check.
 
 If request-time rendering is intentional, first confirm that the route no longer needs to be fully static, then [remove the static requirement](/docs/messages/static-route-runtime#remove-the-static-requirement). `Guide` already renders inside `<Suspense>`, so the route shows the fallback while the data loads.
 
 ## Next steps
 
-- [Ensure instant navigations](/docs/app/guides/instant-navigation) by structuring cached content and `<Suspense>` boundaries around client navigations.
-- [Optimize prefetching](/docs/app/guides/optimizing-prefetching) to choose which cached content loads before navigation and which subtrees wait.
-- [Prefetching](/docs/app/guides/prefetching#hover-triggered-prefetch) for the trade-offs of hover-triggered and manual prefetching.
-- [Migrate to Cache Components](/docs/app/guides/migrating-to-cache-components) when replacing route-level configs such as `dynamic = 'force-static'` in an existing app.
+- [Optimize prefetching](/docs/app/guides/optimizing-prefetching#defer-work-to-a-later-stage) to defer one subtree with `prefetch()` or `navigation()` instead of setting a level for the whole route.
+- [Prefetching](/docs/app/guides/prefetching#hover-triggered-prefetch) for the trade-offs of the hover-triggered prefetch used on the product links.
+- [Ensure instant navigations](/docs/app/guides/instant-navigation) to validate that client navigations into the store show UI immediately.
+- [Building your application](/docs/app/guides/building#debug-prerender-errors) for debugging prerender errors in `next build`.
+- [Migrate to Cache Components](/docs/app/guides/migrating-to-cache-components) to replace route-level configs such as `dynamic = 'force-static'` in an existing app.
