@@ -47,7 +47,28 @@ A page can set a stricter level than its layout. The following example uses each
 
 ## Example
 
-An online store has a shared layout with a cart, product pages with live inventory, and editorial buying guides.
+The example is an online store with the following files:
+
+```txt
+app/
+├── layout.tsx
+├── store/
+│   ├── layout.tsx         # Shared layout with the cart
+│   ├── page.tsx           # Product catalog
+│   ├── products/
+│   │   └── [slug]/
+│   │       └── page.tsx   # Product details and live inventory
+│   └── guides/
+│       └── [id]/
+│           └── page.tsx   # Editorial buying guides
+└── ui/
+    ├── cart.tsx
+    └── product.tsx
+lib/
+├── db.ts
+├── guides.ts
+└── products.ts
+```
 
 Enable [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) and [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching):
 
