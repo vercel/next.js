@@ -1054,17 +1054,17 @@ export function getCards(
     case 'static-viewport':
       return variant === 'runtime'
         ? staticViewportRuntimeCards
-        : staticViewportDynamicCards
+        : filterCacheForConnection(staticViewportDynamicCards, variant, cause)
 
     case 'static-metadata':
       return variant === 'runtime'
         ? staticMetadataRuntimeCards
-        : staticMetadataDynamicCards
+        : filterCacheForConnection(staticMetadataDynamicCards, variant, cause)
 
     case 'static-route':
       return variant === 'runtime'
         ? staticRouteRuntimeCards
-        : staticRouteDynamicCards
+        : filterCacheForConnection(staticRouteDynamicCards, variant, cause)
 
     case 'blocking-route': {
       switch (variant) {

@@ -831,17 +831,17 @@ describe('fully static route errors', () => {
   })
 
   it.each(['static-route', 'static-metadata', 'static-viewport'] as const)(
-    'does not infer card filtering from the code frame for %s',
+    'filters the cache card for connection() in %s',
     (kind) => {
       const cause = deriveCauseFromCodeFrame(
         kind,
         'dynamic',
         '> 4 | await connection()'
       )
-      expect(cause).toBeUndefined()
-      expect(getCards(kind, 'dynamic', cause)).toEqual(
-        getCards(kind, 'dynamic')
-      )
+      expect(cause).toBe('connection')
+      expect(
+        getCards(kind, 'dynamic', cause).map((card) => card.group)
+      ).not.toContain('cache')
     }
   )
 })
