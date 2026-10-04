@@ -305,12 +305,10 @@ fn cleanup_old_edges_inner(
             // removing cell_dependents from `task_id` since that task is being
             // deleted.
             //
-            // The dependents are deliberately not dirtied. One that read this task's
-            // `Vc` from a tracked cell was already dirtied when that cell stopped
-            // producing it (that is what made this task collectible). One that holds
-            // the `Vc` in its arguments can never re-execute successfully, so dirtying
-            // it would only force a doomed execution; it waits for its parent to
-            // re-run and drop it instead.
+            // These dependents are 'stale' and will likely be deleted soon, so they
+            // are not dirtied. Removing their forward edge ensures that when they are deleted they
+            // don't panic trying to remove their dependencies (since they have already been
+            // deleted).
             OutdatedEdge::CellDependentOfDeleted(CellRef {
                 task: dependent_task_id,
                 cell,
