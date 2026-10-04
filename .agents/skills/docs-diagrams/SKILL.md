@@ -35,7 +35,7 @@ The reference is the set of diagrams already published in the docs. They share o
    curl -sL -o ref.png "https://h8DxKfmAPhn8O0p3.public.blob.vercel-storage.com/docs/light/nested-layouts.png"
    ```
 
-   Swap `light` for `dark` and the file name for any `srcLight` path. If the page you are drawing for already has images, those are the first references. Look at two or three, not one: the anatomy is consistent and you want the shared parts, not one image's quirks.
+   Use the full `srcLight` path: most images live under `/docs/`, some under `/learn/`. Swap `light` for `dark` for the dark variant. If the page you are drawing for already has images, those are the first references. Look at two or three, not one: the anatomy is consistent and you want the shared parts, not one image's quirks. Published files are a mix of 1x and 2x; that is history, not a target. Always produce 2x.
 
 3. **Write a diagram module.** Copy `scripts/` into a scratch folder outside the repo and add `diagrams/<name>.mjs`:
 
@@ -52,13 +52,15 @@ The reference is the set of diagrams already published in the docs. They share o
    }
    ```
 
-   `lib.mjs` has the shapes the docs are built from: `panel`, `treePanel`, `urlPill`, `arrow`, `bracketArrow`, `bracketCaption`, `browserWindow`, `skel.*`, `hole`, `card`, `badge`, `statusBadge`, `legendRow`, `callout`, `codePanel`, plus `label`/`code` for text and the `icons`. Lay the block out from named constants and center it on the canvas. When a diagram needs a shape `lib` does not have, add it to `lib.mjs` using the existing tokens, in the same style, so the next diagram gets it too. Never hard-code a color or a one-off offset inside a shape.
+   `lib.mjs` has the shapes the docs are built from: `panel`, `treePanel`, `urlPill`, `urlStack`, `arrow`, `bracketArrow`, `bracketCaption`, `browserWindow`, `skel.*`, `hole`, `card`, `grid`, `badge`, `statusBadge`, `legendRow`, `swatchLegend`, `callout`, `codePanel`, plus `label`/`code` for text, `textWidth` for sizing a block around a label, and the `icons`. Lay the block out from named constants and center it on the canvas. When a diagram needs a shape `lib` does not have, add it to `lib.mjs` using the existing tokens, in the same style, so the next diagram gets it too. Never hard-code a color or a one-off offset inside a shape.
+
+   When the brief describes moments or stages (before/after, Shell → Prefetch → Navigation), the docs show them as a row of browser windows with arrows between them, each window showing the page at that moment, and, when values or APIs need comparing across the moments, bar rows underneath split at the gaps between windows. `grid` gives the columns-and-spans layout for the bars on its own when the windows add nothing.
 
 4. **Render.** `./render.sh` runs `node gen.mjs` and screenshots each `<name>-<theme>.html` with headless Chrome at `--force-device-scale-factor=2`. Output lands in `light/<name>.png` and `dark/<name>.png`, the names the mdx expects. `node gen.mjs <name>` regenerates one diagram while iterating.
 
 5. **Review both PNGs at full size** against [review-checklist.md](review-checklist.md) and against the references from step 2. Fix in constants and re-render. Do not hand off a PNG you have not looked at.
 
-6. **Hand off** the PNGs with their pixel dimensions and the mdx path each one matches. Uploading to the blob store is a manual step by the docs maintainer, so the PNGs are the deliverable, not a commit. Check that the mdx `srcLight` basename and the PNG name agree, including singular vs plural. If you added a primitive to `lib.mjs`, commit that back into this skill.
+6. **Hand off** the PNGs with their pixel dimensions and the mdx path each one matches. Uploading to the blob store is a manual step by the docs maintainer, so the PNGs are the deliverable, not a commit. Check that the mdx `srcLight` basename and the PNG name agree, including singular vs plural. If you added a primitive to `lib.mjs`, commit it back into this skill, or hand off the diff if you cannot commit.
 
 ## What the docs typically draw
 
@@ -74,10 +76,11 @@ Some docs images are product screenshots (DevTools panels, the bundle analyzer, 
 
 ## Conventions
 
-- The docs canvas is 1600 CSS px wide; the page scales it down. Declare that width in the mdx and let the height follow the content. If a page already declares another width, match it.
+- The docs canvas is 1600 CSS px wide and the page scales it to the column, so sizes in the tokens are sizes at 1600. For a new diagram, declare 1600 and let the height follow the content. If a page already declares a narrower width, match it, and scale element sizes by `width / 1600` so the picture reads the same size as its neighbours once the page scales it; a 1200 canvas drawn with 1600 sizes renders a third larger than everything around it.
+- The mdx `height` wins over the "margins equal 60" rule: fit the content to the declared box with equal top and bottom margins, and change the mdx only if the content genuinely needs a different box.
 - Within one picture a color means exactly one thing, and the same thing in every part of the picture (the windows, the bars, the legend). If the legend says blue is "renders later", nothing else may be blue. See "What the colors mean" in [style-tokens.md](style-tokens.md).
-- Alignment is the review bar: equal margins, shared edges, text centered in its box, arrows and splits lined up vertically through the whole diagram.
-- Labels use the docs' vocabulary. Check `docs/01-app/04-glossary.mdx` when unsure.
+- Alignment is the review bar: equal margins, shared edges, text centered in its box, arrows and splits lined up vertically through the whole diagram. Measure margins from the ink, not from the coordinates you passed: text drawn with `dominant-baseline="central"` has its visual top about `0.35 × size` above its `y`.
+- Draw what the brief names, nothing more: the alt text and the surrounding paragraph decide which values, rows and labels appear. The `alt` text's names win for labels in the picture; use `docs/01-app/04-glossary.mdx` for terminology the brief leaves open.
 - Code and routes in Geist Mono, everything else in Inter. Geist Mono must be installed locally; the fallback is `ui-monospace`.
 
 ## Related skills

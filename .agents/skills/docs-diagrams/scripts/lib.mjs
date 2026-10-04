@@ -64,6 +64,13 @@ export const themes = {
       text: '#666666',
       badgeFill: '#DEDEDE',
     },
+    // A static / prerendered region in a bar or grid cell: lighter than `gray`
+    static: {
+      stroke: '#C9C9C9',
+      fill: '#F1F1F1',
+      text: '#666666',
+      badgeFill: '#F1F1F1',
+    },
     // Code (GitHub Light, as used in the component hierarchy panels)
     code: {
       tag: '#005CC5',
@@ -128,6 +135,12 @@ export const themes = {
       fill: '#2A2A2A',
       text: '#B0B0B0',
       badgeFill: '#2A2A2A',
+    },
+    static: {
+      stroke: '#4A4A4A',
+      fill: '#1F1F1F',
+      text: '#B0B0B0',
+      badgeFill: '#1F1F1F',
     },
     code: {
       tag: '#79B8FF',
@@ -194,6 +207,13 @@ export function label(
 
 export function code(t, x, y, str, opts = {}) {
   return label(t, x, y, str, { font: mono, ...opts })
+}
+
+// Approximate rendered width of a string. There are no font metrics at
+// generation time, so this is the heuristic the primitives use; use it in
+// modules too when a block's width depends on a label.
+export function textWidth(str, size, { mono: isMono = false } = {}) {
+  return String(str).length * size * (isMono ? 0.6 : 0.52)
 }
 
 export const esc = (s) =>
@@ -329,7 +349,7 @@ export function urlStack(t, x, y, w, paths) {
     const ry = y + i * TREE_ROW
     if (p.muted)
       s.push(
-        `<rect x="${x + 1}" y="${ry + 1}" width="${w - 2}" height="${TREE_ROW - 2}" rx="${i === paths.length - 1 ? 10 : 0}" fill="${t.panelMuted}"/>`
+        `<rect x="${x + 1}" y="${ry + 1}" width="${w - 2}" height="${TREE_ROW - 2}" rx="${i === 0 || i === paths.length - 1 ? 10 : 0}" fill="${t.panelMuted}"/>`
       )
     if (i > 0)
       s.push(
@@ -494,10 +514,22 @@ export function card(
     dashed = false,
     strokeWidth = 2,
     dash = '8 5',
+    label: text,
+    labelSize = Math.min(18, h / 3),
   } = {}
 ) {
   const c = t[color]
-  return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${radius}" fill="${c.fill}" stroke="${c.stroke}" stroke-width="${strokeWidth}"${dashed ? ` stroke-dasharray="${dash}"` : ''}/>`
+  return (
+    `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${radius}" fill="${c.fill}" stroke="${c.stroke}" stroke-width="${strokeWidth}"${dashed ? ` stroke-dasharray="${dash}"` : ''}/>` +
+    (text
+      ? label(t, x + w / 2, y + h / 2, text, {
+          size: labelSize,
+          weight: 500,
+          color: c.text,
+          anchor: 'middle',
+        })
+      : '')
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -527,7 +559,7 @@ export function statusBadge(
   { size = 18, padX = 14, h = 34 } = {}
 ) {
   const c = t[color]
-  const w = Math.round(text.length * size * 0.62 + padX * 2)
+  const w = Math.round(textWidth(text, size, { mono: true }) + padX * 2)
   return (
     `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6" fill="${c.badgeFill}" stroke="${c.stroke}" stroke-width="1.5"/>` +
     code(t, x + w / 2, y + h / 2, text, {
@@ -599,8 +631,113 @@ export function codePanel(
     let cx = x + pad
     tokens.forEach(([text, kind = 'plain']) => {
       s.push(code(t, cx, ly, text, { size, color: t.code[kind] }))
-      cx += text.length * size * 0.6
+      cx += textWidth(text, size, { mono: true })
     })
   })
   return { svg: s.join('\n'), h }
+}
+
+// Legend row whose key is a fill style rather than a letter: a small card or
+// hole drawn the way the thing it explains is drawn.
+// kind: { color, dashed } for a card, or { hole: 'blue' | 'gray' } for a hole.
+export function swatchLegend(t, x, y, kind, text) {
+  const sw = kind.hole
+    ? hole(t, x, y, 44, 24, { style: kind.hole, radius: 6 })
+    : card(t, x, y, 44, 24, {
+        color: kind.color ?? 'blue',
+        dashed: !!kind.dashed,
+        radius: 6,
+      })
+  return sw + label(t, x + 60, y + 12, text, { size: 20, color: t.textMuted })
+}
+
+// ---------------------------------------------------------------------------
+// Grid: column headers across the top (stages, moments, variants), a label
+// column on the left (one per row), faint dashed dividers between columns.
+// Draw the cells yourself with `card` / `hole` from the returned geometry:
+//   const g = grid(t, x, y, { columns, rows }); g.span(row, fromCol, toCol) -> { x, y, w, h }
+//
+// columns: [{ title, subtitle, subtitleMono }]   rows: [{ label, mono = true, muted }]
+
+export function grid(
+  t,
+  x,
+  y,
+  {
+    columns,
+    rows,
+    labelW = 200,
+    labelHeader,
+    labelHeaderMono = true,
+    colW = 260,
+    rowH = 56,
+    rowGap = 20,
+    headerH = 70,
+    gap = 40, // between the label column and the first column
+    inset = 10, // cell inset from the column dividers
+  }
+) {
+  const s = []
+  const colX = (i) => x + labelW + gap + i * colW
+  const rowY = (r) => y + headerH + r * (rowH + rowGap)
+  const h = headerH + rows.length * rowH + (rows.length - 1) * rowGap
+  const w = labelW + gap + columns.length * colW
+  // Header text is centered 12px below `y` so its cap height starts at `y`;
+  // the dividers end at the last row, so [y, y + h] is the visual box.
+  if (labelHeader)
+    s.push(
+      (labelHeaderMono ? code : label)(t, x + labelW, y + 12, labelHeader, {
+        size: 18,
+        color: t.textMuted,
+        anchor: 'end',
+      })
+    )
+  columns.forEach((c, i) => {
+    const cx = colX(i) + colW / 2
+    s.push(
+      label(t, cx, y + 12, c.title, {
+        size: 20,
+        weight: 600,
+        color: t.textSubtle,
+        anchor: 'middle',
+      })
+    )
+    if (c.subtitle)
+      s.push(
+        (c.subtitleMono ? code : label)(t, cx, y + 42, c.subtitle, {
+          size: 15,
+          color: t.textMuted,
+          anchor: 'middle',
+        })
+      )
+  })
+  for (let i = 0; i <= columns.length; i++) {
+    const dx = half(colX(i))
+    s.push(
+      `<line x1="${dx}" x2="${dx}" y1="${y + headerH - 10}" y2="${y + h}" stroke="${t.divider}" stroke-dasharray="4 4"/>`
+    )
+  }
+  rows.forEach((r, i) => {
+    const cy = rowY(i) + rowH / 2
+    s.push(
+      (r.mono === false ? label : code)(t, x + labelW, cy, r.label, {
+        size: 20,
+        color: r.muted ? t.textMuted : t.text,
+        anchor: 'end',
+      })
+    )
+  })
+  return {
+    svg: s.join('\n'),
+    w,
+    h,
+    colX,
+    rowY,
+    span: (r, from, to = from) => ({
+      x: colX(from) + inset,
+      y: rowY(r),
+      w: (to - from + 1) * colW - inset * 2,
+      h: rowH,
+    }),
+  }
 }

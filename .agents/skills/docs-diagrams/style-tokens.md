@@ -35,6 +35,7 @@ Measured from the published docs diagrams (`page-special-file`, `nested-layouts`
 | `red.stroke` / `.fill` / `.text`    | `#E5484D` / `#F7DFE0` / `#CA2A30`                                                                | same stroke / `#3A1D1F` / `#F08A8E` | negative badges, zone B                             |
 | `green.stroke` / `.fill` / `.text`  | `#46A758` / `#DCEBDF` / `#46A758`                                                                | same stroke / `#1B2E1F` / `#6FCB80` | positive badges                                     |
 | `gray.stroke` / `.fill` / `.text`   | `#8F8F8F` / `#DEDEDE` / `#666666`                                                                | `#6F6F6F` / `#2A2A2A` / `#B0B0B0`   | neutral mono pills (`SOFT NAV`)                     |
+| `static.stroke` / `.fill` / `.text` | `#C9C9C9` / `#F1F1F1` / `#666666`                                                                | `#4A4A4A` / `#1F1F1F` / `#B0B0B0`   | a static / prerendered region in a bar or grid cell |
 | `code.*`                            | GitHub Light: tag `#005CC5`, attr `#6F42C1`, keyword `#D73A49`, ident `#E36209`, punct `#909295` | GitHub Dark equivalents             | code panels                                         |
 | `code.react`                        | `#61DAFB`                                                                                        | same                                | React logo in code panel titles                     |
 | `trafficLights`                     | `#FF6059` `#FFBD2E` `#28CA42`                                                                    | same                                | the three window dots                               |
@@ -43,7 +44,7 @@ Measured from the published docs diagrams (`page-special-file`, `nested-layouts`
 
 The docs use color as a legend, so keep the meaning stable across a diagram and consistent with its neighbours:
 
-- **Gray**: static, prerendered, already there, or simply not the point. Skeleton UI is always gray unless it sits inside an accent region.
+- **Gray**: static, prerendered, already there, or simply not the point. Skeleton UI is always gray unless it sits inside an accent region. A static _region_ in a bar or grid cell is a stroked `static` card (`panelMuted` fill, `skel` stroke), so it has the same weight as the accent cards beside it; the darker `gray` accent is for mono pills.
 - **Blue, dashed stroke + fill**: not rendered yet at this moment; will render later (a Suspense hole, "can render later").
 - **Blue, solid stroke + fill**: content that has rendered, arrived, or is highlighted as the subject (streamed card, selected `<Link>`, slot A).
 - **Gray, dashed stroke, no fill**: a Suspense fallback standing in for content.
@@ -84,6 +85,10 @@ Inter comes from Google Fonts in the HTML wrapper (`display=block` so Chrome wai
 **Hole**: 2px dashed stroke `8 5`, radius 10, fill from the accent. Optional centered label at `min(18, h/3)`. Scale `strokeWidth`, `dash` and `labelSize` down inside small windows.
 
 **Badges**: letter badge 32px square, radius 8, 2px accent stroke, `badgeFill`. Status pill 34 tall, radius 6, 1.5px stroke, mono text.
+
+**Grid**: column headers 20px/600 `textSubtle` with optional 15px subtitles, a right-aligned mono label column, dashed `divider` lines between columns, rows 56 tall with 20px gaps, cells inset 10px from the dividers. Cells are `card` / `hole` spans; a `swatchLegend` explains fill styles when the cells carry no text.
+
+**Text metrics**: there are no font metrics at generation time. `textWidth(str, size, { mono })` is the heuristic (0.52 × size per character for Inter, 0.6 for Geist Mono); size blocks with it rather than a new constant.
 
 **Code panel**: 54px title bar with the React logo and a file name, 28px padding, 36px lines.
 

@@ -18,7 +18,8 @@ Open both PNGs at full size next to the reference images for the family and go t
 ## Composition
 
 - [ ] Left and right margins are equal. Measure from the leftmost glyph or bracket to the canvas edge, and from the rightmost badge or pill to the canvas edge.
-- [ ] Top and bottom margins are equal (within 4px).
+- [ ] Top and bottom margins are equal (within 4px). Measure from the ink: a quick way is to scan the PNG for the first and last non-background row and column (PIL or any image library) rather than trusting the `y` you passed to a text label.
+- [ ] On a canvas narrower than 1600, element sizes were scaled by `width / 1600`, so the picture will not render larger than its neighbours.
 - [ ] The whole block is centered as one unit, not each column separately.
 - [ ] Arrow heads, bar splits and leader lines line up with what they point at.
 - [ ] Captions are centered under their windows or brackets.
@@ -34,6 +35,7 @@ Open both PNGs at full size next to the reference images for the family and go t
 ## Meaning
 
 - [ ] The colors match the legend sentence in the mdx paragraph before the `<Image>`.
+- [ ] Only what the brief names is in the picture: no extra rows, values or labels pulled in from elsewhere.
 - [ ] Each frame of a sequence shows the right amount of content for its moment.
 - [ ] The alt text in the mdx still describes this picture.
 - [ ] Width and height in the mdx match the SVG (the PNG is exactly 2× each).
