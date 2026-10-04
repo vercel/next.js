@@ -224,6 +224,10 @@ Uncached work is already left out of prefetches. For cacheable work, `next/cache
 - [`prefetch()`](/docs/app/api-reference/functions/prefetch) keeps the work out of the App Shell. It runs during a per-link prefetch or the navigation.
 - [`navigation()`](/docs/app/api-reference/functions/navigation) keeps the work out of the App Shell and per-link prefetches. It runs during the navigation.
 
+In the following diagram, a gray dashed outline marks the Suspense fallback, while blue marks the deferred work once it renders:
+
+{/* TODO: upload the regenerated light and dark PNGs for this image before merging. */}
+
 <Image
   alt="The Shell, Prefetch, and Navigation stages, with bars showing that work below prefetch() renders from the per-link prefetch onward and work below navigation() renders only during navigation, while earlier stages show the Suspense fallback"
   srcLight="/docs/light/navigation-stage.png"
