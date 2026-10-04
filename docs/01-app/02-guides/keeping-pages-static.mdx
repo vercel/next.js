@@ -25,7 +25,7 @@ With [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partial
 2. `<Link prefetch={true}>` can also load content for that link's URL.
 3. The navigation renders anything that remains after the click.
 
-Each `ensureStatic` level requires one more stage to be static. In the following diagram, gray marks static output and blue marks content that can render later:
+Each `ensureStatic` level requires one more stage to be static. In the following diagram, gray marks static output and blue marks content that can render at request time:
 
 <Image
   alt="The Shell, Prefetch, and Navigation stages, with bars showing how each ensureStatic value extends the static requirement through those stages"
