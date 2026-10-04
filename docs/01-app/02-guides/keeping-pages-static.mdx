@@ -85,7 +85,7 @@ A default `<Link>` into the store loads the shell from static output, and a `<Li
 
 `'shell'` would not be enough here. Product links will resolve `params` in their per-link prefetch, and under `'shell'` each of those prefetches would render on the server, with nothing in the UI to show that cost. `'prefetch'` serves them from prerendered output instead.
 
-Awaiting [`navigation()`](/docs/app/api-reference/functions/navigation) inside `<Suspense>` defers one subtree's work until navigation. With `ensureStatic = 'prefetch'` on the layout, request-specific work inside `<Suspense>` is deferred that way across every route under it, so the subtrees need no call of their own. See [Defer work to a later stage](/docs/app/guides/optimizing-prefetching#defer-work-to-a-later-stage) for the per-subtree controls.
+Awaiting [`navigation()`](/docs/app/api-reference/functions/navigation) from `next/cache` inside `<Suspense>` defers one subtree's work until navigation. With `ensureStatic = 'prefetch'` on the layout, request-specific work inside `<Suspense>` is deferred that way across every route under it, so the subtrees need no call of their own. See [Defer work to a later stage](/docs/app/guides/optimizing-prefetching#defer-work-to-a-later-stage) for the per-subtree controls.
 
 ### Step 2: Prefetch product details, not live inventory
 
@@ -198,7 +198,9 @@ export default async function GuidePage({
 
 If the route has multiple dynamic segments, every result must include all of them.
 
-Reload the guide URL. Because `cookies()` is only available for a request, the development overlay shows the [runtime data error](/docs/messages/static-route-runtime) with these fixes:
+Reload the guide URL. Because `cookies()` is only available for a request, the development overlay shows the [runtime data error](/docs/messages/static-route-runtime) twice: once for the page's theme cookie, and once for `CartButton` in the store layout.
+
+A level covers every segment in the route, including the layouts above the segment that sets it, so `'navigation'` on the guide page also applies to the store layout. `CartButton` is behind `<Suspense>`, but `'navigation'` is the final stage, so there is no later stage to defer it to, and awaiting `navigation()` does not help either. The overlay suggests these fixes:
 
 <FixCardGrid>
   <FixCard
@@ -226,7 +228,7 @@ Reload the guide URL. Because `cookies()` is only available for a request, the d
   />
 </FixCardGrid>
 
-The client fix only applies to `searchParams`. Buying guides do not need a per-user theme, so remove the cookie access:
+The client fix only applies to `searchParams`. Buying guides do not need a per-user theme, so remove the cookie access from the page:
 
 ```diff filename="app/store/guides/[id]/page.tsx"
 - import { cookies } from 'next/headers'
@@ -240,7 +242,30 @@ The client fix only applies to `searchParams`. Buying guides do not need a per-u
   }
 ```
 
-Reload the page to confirm that the runtime data error clears. Next, load the guide content from the database. Add a query alongside `getGuideIds()` in `lib/guides.ts`:
+The cart is per-user, so it has to stay. Read its cookie in the browser instead, which works because the cart count is not an `HttpOnly` cookie. Make `CartButton` a Client Component that suspends with [`use(browser())`](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser) when it has no `count`:
+
+```tsx filename="app/ui/cart.tsx" highlight={1,7-9}
+'use client'
+
+import { use } from 'react'
+import { browser } from 'react-dom'
+
+export function CartButton({ count }: { count?: number }) {
+  if (count === undefined) {
+    use(browser('The cart count is stored in a cookie.'))
+  }
+  return <button>Cart ({count ?? readCartCount()})</button>
+}
+
+function readCartCount() {
+  const match = document.cookie.match(/(?:^|; )cart-count=(\d+)/)
+  return Number(match?.[1] ?? 0)
+}
+```
+
+During prerendering, `use(browser())` suspends, so the static output of every store route includes the `<Suspense>` fallback, `Cart (0)`. The browser renders the real count after the page loads. The layout code does not change, and the product pages keep their `'prefetch'` behavior.
+
+Reload the page to confirm that both runtime data errors clear. Next, load the guide content from the database. Add a query alongside `getGuideIds()` in `lib/guides.ts`:
 
 ```ts filename="lib/guides.ts"
 import { db } from '@/lib/db'
@@ -300,7 +325,7 @@ export async function getGuide(id: string) {
 }
 ```
 
-Reload the page in development. The static-route error clears. Run `next build` to confirm that the returned guide IDs and their content are fully prerendered.
+Reload the page in development. The static-route error clears. Run `next build` to confirm that the returned guide IDs and their content are fully prerendered. Build errors are less specific than the development overlay: runtime data and uncached data share one message, and the default stack trace may not name the component. Run [`next build --debug-prerender`](/docs/app/guides/building#debug-prerender-errors) to get the component and its code frame.
 
 If request-time rendering is intentional, first confirm that the route no longer needs to be fully static. Then [remove the static requirement](/docs/messages/static-route-runtime#remove-the-static-requirement) and [wrap the component that reads the data in `<Suspense>`](/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense), so the route can show a fallback while the data loads.
 
