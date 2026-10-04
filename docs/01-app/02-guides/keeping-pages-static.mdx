@@ -150,28 +150,7 @@ That prefetch includes the product heading and the **Checking availability...** 
 
 This per-link prefetch is why the layout uses `'prefetch'` rather than `'shell'`. A product link resolves `params` in its prefetch. Under `'shell'`, only the App Shell has to be static, so each product prefetch would render on the server, and nothing in the UI would show that cost. Under `'prefetch'`, Next.js serves those prefetches from prerendered output instead.
 
-So far, no product page is generated at build time. The first prefetch of a product on a new deployment serves the route's fallback shell, without the product heading. Next.js generates the page in the background, and later prefetches include the heading. See [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components#at-runtime).
-
-`'prefetch'` does not require a list of products, but you can prerender the ones most visitors open. Return them from [`generateStaticParams()`](/docs/app/api-reference/functions/generate-static-params), so their first prefetch already includes the heading:
-
-```tsx filename="app/store/products/[slug]/page.tsx" highlight={3,5-8}
-import { Suspense } from 'react'
-import { Inventory, ProductDetails } from '@/app/ui/product'
-import { getFeaturedProductSlugs } from '@/lib/products'
-
-export async function generateStaticParams() {
-  const slugs = await getFeaturedProductSlugs()
-  return slugs.map((slug) => ({ slug }))
-}
-
-export default function ProductPage({
-  params,
-}: PageProps<'/store/products/[slug]'>) {
-  // ...
-}
-```
-
-Any other product still serves the fallback shell on its first prefetch.
+No product page is generated at build time, so the first prefetch of a product on a new deployment serves the route's fallback shell, without the product heading. Next.js generates the page in the background, and later prefetches include the heading. See [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components#at-runtime).
 
 ### Step 3: Prerender the buying guides
 
@@ -208,7 +187,7 @@ Learn more: https://nextjs.org/docs/messages/generate-static-params#with-ensures
 Error: Failed to collect page data for /store/guides/[id]
 ```
 
-Export `generateStaticParams()` and return all buying guide IDs. The product page lists only featured products and leaves the rest to the fallback shell. `'navigation'` has no later stage to fall back to, so this list must be complete:
+Export `generateStaticParams()` and return all buying guide IDs. The product pages rely on the fallback shell until a page is generated, but `'navigation'` has no later stage to fall back to, so this list must be complete:
 
 ```tsx filename="app/store/guides/[id]/page.tsx" highlight={3,7-10}
 import { Suspense } from 'react'
@@ -238,6 +217,8 @@ async function Guide({ params }: { params: Promise<{ id: string }> }) {
 ```
 
 If the route has multiple dynamic segments, the returned objects must include all of them. See the [`generateStaticParams` error guide](/docs/messages/generate-static-params#with-ensurestatic) for the full requirement.
+
+The product page can export `generateStaticParams()` too, for example to prerender featured products so their first prefetch includes the heading. Under `'prefetch'` it is optional.
 
 From here, work in development. Next.js [validates the `'navigation'` requirement during both `next dev` and `next build`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#validation). In development, errors include source-mapped stack traces that update as you edit. Build output is more abbreviated, and the build stops at the first route that fails.
 
