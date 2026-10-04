@@ -1,1 +1,1 @@
-This Cache Components app repeats server work when I navigate back to a product. Fix its caching setup.
+This product output is public. Navigating back should reuse its RSC payload in the browser, but a new or reloading browser must wait for fresh output. It must never receive the previous server-cached value while that value revalidates in the background. Cache Components is enabled. Fix the caching setup without making the route request-private or moving the product read to the client.
