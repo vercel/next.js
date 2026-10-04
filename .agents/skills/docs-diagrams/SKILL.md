@@ -1,67 +1,59 @@
 ---
 name: docs-diagrams
 description: >
-  Draw the light/dark PNG diagrams used in the Next.js docs, the kind an mdx
-  references with `<Image srcLight="/docs/light/<name>.png" srcDark="/docs/dark/<name>.png">`.
-  Use when a guide or API reference needs a diagram, when an mdx references an
-  image that does not exist in the docs blob store yet, or when asked for a
-  diagram "in the style of the Next.js docs". Hand-written SVG from
-  `scripts/gen.mjs`, rendered by headless Chrome at 2x with `scripts/render.sh`.
-  No AI image generation.
+  Draw diagrams for the Next.js docs in the style of the ones already
+  published there: the light/dark PNGs an mdx references with
+  `<Image srcLight="/docs/light/<name>.png" srcDark="/docs/dark/<name>.png">`.
+  Use when a guide or API reference needs a new diagram or an existing one
+  needs a change. Hand-written SVG from a primitives library, rendered by
+  headless Chrome at 2x. No AI image generation.
+disable-model-invocation: true
 ---
 
 # Docs diagrams
 
-The docs diagrams are flat, grid-backed illustrations: mock browser windows, gray skeleton bars, and blue regions for content that renders later. They are drawn as SVG from a small Node script and screenshotted with headless Chrome in light and dark, at 2x. The script owns every coordinate, so alignment problems are fixed once in a constant, not nudged per shape.
-
-Do not route this through an AI image tool. Edits stay in code so the next diagram starts from the same tokens.
+The reference is the set of diagrams already in the docs. They share one visual language: a faint grid background, white panels with a 1px border and a soft shadow, gray skeleton UI, gray arrows, and a small accent palette where each color carries a meaning. This skill reproduces that language from code so a new diagram sits next to the existing ones without looking like a different hand drew it.
 
 ## Files
 
-| Task                                                 | Read                                       |
-| ---------------------------------------------------- | ------------------------------------------ |
-| Colors, sizes, fonts, what each color means          | [style-tokens.md](style-tokens.md)         |
-| Reviewing a render before handing it off             | [review-checklist.md](review-checklist.md) |
-| Generator (edit the `diagrams` map, keep the tokens) | [scripts/gen.mjs](scripts/gen.mjs)         |
-| Render light + dark PNGs at 2x                       | [scripts/render.sh](scripts/render.sh)     |
-| Finished examples as SVG, light and dark             | [examples/](examples/)                     |
+| Task                                                           | Read                                       |
+| -------------------------------------------------------------- | ------------------------------------------ |
+| Which kind of diagram the docs use for which concept           | [families.md](families.md)                 |
+| Colors, sizes, fonts, what each color means                    | [style-tokens.md](style-tokens.md)         |
+| Reviewing a render before handing it off                       | [review-checklist.md](review-checklist.md) |
+| Primitives: canvas, panels, tree rows, windows, holes, badges  | [scripts/lib.mjs](scripts/lib.mjs)         |
+| One module per diagram, each a few dozen lines on top of `lib` | [scripts/diagrams/](scripts/diagrams/)     |
+| Generate SVG + HTML for every module                           | [scripts/gen.mjs](scripts/gen.mjs)         |
+| Screenshot light + dark PNGs at 2x                             | [scripts/render.sh](scripts/render.sh)     |
+| Finished SVGs, light and dark                                  | [examples/](examples/)                     |
 
 ## Workflow
 
-1. **Read the mdx first.** The `<Image>` block gives you the file names (`srcLight="/docs/light/<name>.png"`), the `width`/`height` the page reserves, and the `alt` text, which is the diagram's brief. The paragraph before the image usually states the color legend in words ("gray marks output that must remain static, while blue marks work that can render later"). The drawing has to match that sentence exactly.
+1. **Read the mdx first.** The `<Image>` block gives you the file names (`srcLight="/docs/light/<name>.png"`), the `width`/`height` the page reserves, and the `alt` text, which is the brief. The surrounding paragraph usually states the color legend in words ("gray marks output that must remain static, while blue marks work that can render later"). The drawing has to match that sentence exactly.
 
-2. **Pull one real docs diagram to calibrate.** The images are not in this repo. They are served from the docs blob store, so fetch a sibling from the same section and look at it before drawing:
+2. **Find the family and pull its reference images.** Look up the concept in [families.md](families.md) to see which existing diagrams explain something similar, then fetch two or three of them from the blob store and look at them before drawing:
 
    ```bash
-   curl -sL -o ref-light.png "https://h8DxKfmAPhn8O0p3.public.blob.vercel-storage.com/docs/light/server-rendering-with-streaming.png"
+   curl -sL -o ref.png "https://h8DxKfmAPhn8O0p3.public.blob.vercel-storage.com/docs/light/nested-layouts.png"
    ```
 
-   Swap `light` for `dark` and the file name for any `srcLight` path you find in `docs/**/*.mdx`. Good calibration references: `docs/light/server-rendering-with-streaming.png` (browser window, skeleton bars, blue dashed holes, bracket captions) and `learn/light/thinking-in-ppr.png` (region map with S/D badges and a legend).
+   Swap `light` for `dark` and the file name for any `srcLight` path in `docs/**/*.mdx`. The images are not in this repo. If a page you are drawing for already has images, those are the first references.
 
-3. **Define the diagram in `scripts/gen.mjs`.** Copy `scripts/gen.mjs` and `scripts/render.sh` into a scratch folder outside the repo. The `diagrams` map at the top holds one entry per image: its canvas height, its bar rows, and how the windows mark deferred content (`holeLabel`, `holeStyle`, `highlightRendered`). The shared constants below it (window size, padding, label widths, bar height) are the layout. Add a new row kind or a new drawing function when the picture needs one, and keep using the token names from [style-tokens.md](style-tokens.md). Never hard-code a color or an offset inside a shape.
+3. **Write a diagram module.** Copy `scripts/` into a scratch folder outside the repo and add `diagrams/<name>.mjs`. A module exports `{ name, width, height, draw(t, lib) }` and composes primitives from `lib.mjs`: `treePanel`, `urlPill`, `arrow`, `bracketArrow`, `browserWindow`, `skel.*`, `hole`, `card`, `badge`, `statusBadge`, `legendRow`, `callout`, `codePanel`, `bracketCaption`. Lay the block out from a few named constants and center it on the canvas. When a family needs a shape `lib` does not have, add it to `lib.mjs` using the existing tokens, in the same style, so the next diagram gets it too. Never hard-code a color or a one-off offset inside a shape.
 
-4. **Render.** `./render.sh` runs `node gen.mjs` and screenshots each `<name>-<theme>.html` with headless Chrome at `--force-device-scale-factor=2`. Output lands in `light/<name>.png` and `dark/<name>.png`, which is the naming the mdx expects. The HTML wrapper loads Inter from Google Fonts with `display=block` and the render waits with `--virtual-time-budget=4000`, so text is never screenshotted in a fallback font.
+4. **Render.** `./render.sh` runs `node gen.mjs` and screenshots each `<name>-<theme>.html` with headless Chrome at `--force-device-scale-factor=2`. Output lands in `light/<name>.png` and `dark/<name>.png`, the names the mdx expects. Pass a name to `node gen.mjs <name>` to regenerate one diagram while iterating.
 
-5. **Review both PNGs at full size** against [review-checklist.md](review-checklist.md) before handing off. Dashed boxes touching the window edge and an off-center composition are the two most common misses. Fix in the constants and re-render. Do not hand off a PNG you have not looked at.
+5. **Review both PNGs at full size** against [review-checklist.md](review-checklist.md) and against the reference images from step 2. Fix in constants and re-render. Do not hand off a PNG you have not looked at.
 
-6. **Hand off** the PNGs (two per diagram, light and dark) with their pixel dimensions and the mdx path each one matches. Uploading to the blob store is a manual step by the docs maintainer, so the PNGs are the deliverable, not a commit. Check that the mdx file name and the PNG name agree, including singular vs plural (`ensure-static-stage` vs `ensure-static-stages` is an easy slip). Commit the updated `gen.mjs` and example SVGs back into this skill so the next diagram starts from them.
-
-## Diagram families this script already draws
-
-- **Navigation stages strip**: three browser windows labelled Shell → Prefetch → Navigation, each showing more of the page filled in, with an arrow between them. Below, one bar row per concept, split at the gap between windows. Two variants, see [examples/](examples/):
-  - `ensure-static-stage` (used by `docs/01-app/02-guides/keeping-pages-static.mdx`): gray "Static" bars vs blue dashed "Can render later" bars; the windows mark not-yet-rendered content with a blue dashed box labelled "Renders later".
-  - `navigation-stage` (used by `docs/01-app/02-guides/optimizing-prefetching.mdx`): gray dashed "Suspense fallback" bars vs blue solid "Renders" bars; the windows mark the fallback with a gray dashed box and color the content that has rendered so far blue (`holeStyle: 'gray'`, `highlightRendered: true`).
-
-  Within one picture, blue means exactly one thing. Match the window styling to whichever bar carries the same meaning, so a reader can't mistake the highlighted hole for the stage itself.
-
-For a different picture (a component tree, a request sequence, a region map with badges), keep the canvas, grid, window anatomy, type scale, and color semantics from the tokens file, and write a new drawing function in the same style as `win()` and `bar()`.
+6. **Hand off** the PNGs with their pixel dimensions and the mdx path each one matches. Uploading to the blob store is a manual step by the docs maintainer, so the PNGs are the deliverable, not a commit. Check that the mdx `srcLight` basename and the PNG name agree, including singular vs plural. Commit the new module and its SVGs under `examples/` back into this skill.
 
 ## Conventions
 
-- Alignment is the review bar. Equal margins, shared edges, and text centered in its box matter more than ornament.
-- Canvas width is 1200 CSS px because the docs render at that width. Height is whatever the content needs, declared in the mdx.
-- Match the docs' vocabulary in labels (App Shell, per-link prefetch, navigation, Suspense fallback). Check `docs/01-app/04-glossary.mdx` when unsure.
-- Code labels in Geist Mono, everything else in Inter. Those are the docs fonts.
+- The docs canvas is 1600 CSS px wide; the page scales it down. Declare that width in the mdx and let the height follow the content. Older pages declare other widths; match what the page declares.
+- Within one picture, a color means exactly one thing, and it means the same thing in every part of the picture (the windows, the bars, the legend). If the legend says blue is "renders later", nothing else may be blue.
+- Alignment is the review bar: equal margins, shared edges, text centered in its box, arrows and splits lined up vertically through the whole diagram.
+- Labels use the docs' vocabulary. Check `docs/01-app/04-glossary.mdx` when unsure.
+- Code and routes in Geist Mono, everything else in Inter. Geist Mono must be installed locally; the fallback is `ui-monospace`.
 
 ## Related skills
 

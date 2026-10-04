@@ -1,81 +1,85 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="530" viewBox="0 0 1200 530">
 <defs>
-      <pattern id="g" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="#1F1F1F" stroke-width="1"/></pattern>
-      <filter id="blur" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="9"/></filter>
-    </defs>
-<rect width="1200" height="530" fill="#111111"/><rect width="1200" height="530" fill="url(#g)"/>
-<rect x="300" y="54" width="256" height="208" rx="10" fill="rgba(0,0,0,0.45)" filter="url(#blur)"/>
-<rect x="300.5" y="48.5" width="255" height="207" rx="10" fill="#1A1A1A" stroke="#3A3A3A"/>
-<path d="M300.5 78.5 V58.5 a9.5 9.5 0 0 1 9.5 -9.5 H545.5 a9.5 9.5 0 0 1 9.5 9.5 V78.5 Z" fill="#232323"/>
-<line x1="300.5" x2="555.5" y1="78.5" y2="78.5" stroke="#3A3A3A"/>
-<circle cx="318.5" cy="63.5" r="4.5" fill="#FF5F57"/>
-<circle cx="331.5" cy="63.5" r="4.5" fill="#FEBC2E"/>
-<circle cx="344.5" cy="63.5" r="4.5" fill="#28C840"/>
-<rect x="362.5" y="54.5" width="179" height="18" rx="5" fill="#1A1A1A" stroke="#454545"/>
-<rect x="371" y="62.5" width="6" height="4.5" rx="1" fill="#8F8F8F"/><path d="M372.2 62.5 V61.3 a1.8 1.8 0 0 1 3.6 0 V62.5" fill="none" stroke="#8F8F8F" stroke-width="0.9"/>
-<text x="382" y="63.5" dominant-baseline="central" font-size="9.5" fill="#8F8F8F" font-family="Inter, system-ui, sans-serif">acme.com/blog/my-post</text>
-<rect x="314" y="92" width="48" height="10" rx="3" fill="#4A4A4A"/>
-<rect x="470" y="92" width="44" height="10" rx="3" fill="#4A4A4A"/>
-<circle cx="533" cy="97" r="9" fill="#4A4A4A"/>
-<rect x="314" y="116" width="22" height="22" rx="4" fill="#4A4A4A"/>
-<rect x="314" y="150.66666666666666" width="22" height="22" rx="4" fill="#4A4A4A"/>
-<rect x="314" y="185.33333333333331" width="22" height="22" rx="4" fill="#4A4A4A"/>
-<rect x="314" y="220" width="22" height="22" rx="4" fill="#4A4A4A"/>
-<rect x="350" y="116" width="192" height="126" rx="6" fill="#10233D" stroke="#0A72EF" stroke-width="1.5" stroke-dasharray="4 3"/><text x="446" y="179" text-anchor="middle" dominant-baseline="central" font-size="11" font-weight="500" fill="#52A8FF" font-family="Inter, system-ui, sans-serif">Renders later</text>
-<text x="428" y="286" text-anchor="middle" font-size="16" font-weight="500" fill="#A1A1A1" font-family="Inter, system-ui, sans-serif">Shell</text>
-<rect x="600" y="54" width="256" height="208" rx="10" fill="rgba(0,0,0,0.45)" filter="url(#blur)"/>
-<rect x="600.5" y="48.5" width="255" height="207" rx="10" fill="#1A1A1A" stroke="#3A3A3A"/>
-<path d="M600.5 78.5 V58.5 a9.5 9.5 0 0 1 9.5 -9.5 H845.5 a9.5 9.5 0 0 1 9.5 9.5 V78.5 Z" fill="#232323"/>
-<line x1="600.5" x2="855.5" y1="78.5" y2="78.5" stroke="#3A3A3A"/>
-<circle cx="618.5" cy="63.5" r="4.5" fill="#FF5F57"/>
-<circle cx="631.5" cy="63.5" r="4.5" fill="#FEBC2E"/>
-<circle cx="644.5" cy="63.5" r="4.5" fill="#28C840"/>
-<rect x="662.5" y="54.5" width="179" height="18" rx="5" fill="#1A1A1A" stroke="#454545"/>
-<rect x="671" y="62.5" width="6" height="4.5" rx="1" fill="#8F8F8F"/><path d="M672.2 62.5 V61.3 a1.8 1.8 0 0 1 3.6 0 V62.5" fill="none" stroke="#8F8F8F" stroke-width="0.9"/>
-<text x="682" y="63.5" dominant-baseline="central" font-size="9.5" fill="#8F8F8F" font-family="Inter, system-ui, sans-serif">acme.com/blog/my-post</text>
-<rect x="614" y="92" width="48" height="10" rx="3" fill="#4A4A4A"/>
-<rect x="770" y="92" width="44" height="10" rx="3" fill="#4A4A4A"/>
-<circle cx="833" cy="97" r="9" fill="#4A4A4A"/>
-<rect x="614" y="116" width="22" height="22" rx="4" fill="#4A4A4A"/>
-<rect x="614" y="150.66666666666666" width="22" height="22" rx="4" fill="#4A4A4A"/>
-<rect x="614" y="185.33333333333331" width="22" height="22" rx="4" fill="#4A4A4A"/>
-<rect x="614" y="220" width="22" height="22" rx="4" fill="#4A4A4A"/>
-<rect x="650.5" y="116.5" width="191" height="61" rx="6" fill="none" stroke="#3A3A3A"/><rect x="662" y="128" width="84" height="10" rx="3" fill="#4A4A4A"/><rect x="662" y="148" width="168" height="6" rx="3" fill="#4A4A4A"/><rect x="662" y="160" width="128" height="6" rx="3" fill="#4A4A4A"/>
-<rect x="650" y="186" width="192" height="56" rx="6" fill="#10233D" stroke="#0A72EF" stroke-width="1.5" stroke-dasharray="4 3"/><text x="746" y="214" text-anchor="middle" dominant-baseline="central" font-size="11" font-weight="500" fill="#52A8FF" font-family="Inter, system-ui, sans-serif">Renders later</text>
-<text x="728" y="286" text-anchor="middle" font-size="16" font-weight="500" fill="#A1A1A1" font-family="Inter, system-ui, sans-serif">Prefetch</text>
-<rect x="900" y="54" width="256" height="208" rx="10" fill="rgba(0,0,0,0.45)" filter="url(#blur)"/>
-<rect x="900.5" y="48.5" width="255" height="207" rx="10" fill="#1A1A1A" stroke="#3A3A3A"/>
-<path d="M900.5 78.5 V58.5 a9.5 9.5 0 0 1 9.5 -9.5 H1145.5 a9.5 9.5 0 0 1 9.5 9.5 V78.5 Z" fill="#232323"/>
-<line x1="900.5" x2="1155.5" y1="78.5" y2="78.5" stroke="#3A3A3A"/>
-<circle cx="918.5" cy="63.5" r="4.5" fill="#FF5F57"/>
-<circle cx="931.5" cy="63.5" r="4.5" fill="#FEBC2E"/>
-<circle cx="944.5" cy="63.5" r="4.5" fill="#28C840"/>
-<rect x="962.5" y="54.5" width="179" height="18" rx="5" fill="#1A1A1A" stroke="#454545"/>
-<rect x="971" y="62.5" width="6" height="4.5" rx="1" fill="#8F8F8F"/><path d="M972.2 62.5 V61.3 a1.8 1.8 0 0 1 3.6 0 V62.5" fill="none" stroke="#8F8F8F" stroke-width="0.9"/>
-<text x="982" y="63.5" dominant-baseline="central" font-size="9.5" fill="#8F8F8F" font-family="Inter, system-ui, sans-serif">acme.com/blog/my-post</text>
-<rect x="914" y="92" width="48" height="10" rx="3" fill="#4A4A4A"/>
-<rect x="1070" y="92" width="44" height="10" rx="3" fill="#4A4A4A"/>
-<circle cx="1133" cy="97" r="9" fill="#4A4A4A"/>
-<rect x="914" y="116" width="22" height="22" rx="4" fill="#4A4A4A"/>
-<rect x="914" y="150.66666666666666" width="22" height="22" rx="4" fill="#4A4A4A"/>
-<rect x="914" y="185.33333333333331" width="22" height="22" rx="4" fill="#4A4A4A"/>
-<rect x="914" y="220" width="22" height="22" rx="4" fill="#4A4A4A"/>
-<rect x="950.5" y="116.5" width="191" height="61" rx="6" fill="none" stroke="#3A3A3A"/><rect x="962" y="128" width="84" height="10" rx="3" fill="#4A4A4A"/><rect x="962" y="148" width="168" height="6" rx="3" fill="#4A4A4A"/><rect x="962" y="160" width="128" height="6" rx="3" fill="#4A4A4A"/>
-<circle cx="955" cy="191" r="5" fill="#4A4A4A"/>
-<rect x="966" y="188" width="96" height="6" rx="3" fill="#4A4A4A"/>
-<circle cx="955" cy="214" r="5" fill="#4A4A4A"/>
-<rect x="966" y="211" width="60" height="6" rx="3" fill="#4A4A4A"/>
+<pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="#161616" stroke-width="1"/></pattern>
+<filter id="shadow" x="-20%" y="-20%" width="140%" height="160%"><feGaussianBlur stdDeviation="8"/></filter>
+<linearGradient id="panel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#313131"/><stop offset="1" stop-color="#282828"/></linearGradient>
+</defs>
+<rect width="1200" height="530" fill="#0D0D0D"/><rect width="1200" height="530" fill="url(#grid)"/>
+<rect x="300" y="54" width="256" height="208" rx="6" fill="rgba(0,0,0,0.5)" filter="url(#shadow)"/>
+<rect x="300.5" y="48.5" width="255" height="207" rx="6" fill="url(#panel)" stroke="#484848"/>
+<path d="M300.5 82.5 V54.5 a6 6 0 0 1 6 -6 H549.5 a6 6 0 0 1 6 6 V82.5 Z" fill="#232323"/>
+<line x1="301" x2="555" y1="82.5" y2="82.5" stroke="#3A3A3A"/>
+<circle cx="317.9734345351044" cy="65" r="4.3719165085389" fill="#FF6059"/>
+<circle cx="331.5749525616699" cy="65" r="4.3719165085389" fill="#FFBD2E"/>
+<circle cx="345.1764705882353" cy="65" r="4.3719165085389" fill="#28CA42"/>
+<rect x="375.5" y="54.5" width="154.4459203036053" height="20.37381404174573" rx="3.886148007590133" fill="#313131" stroke="#484848"/>
+<g transform="translate(381.123339658444 60.6280834914611) scale(0.4857685009487666)"><rect x="4" y="8" width="10" height="8" rx="1.5" fill="#888888"/><path d="M6 8 V6 a3 3 0 0 1 6 0 V8" fill="none" stroke="#888888" stroke-width="1.5"/></g>
+<text x="392.78178368121445" y="65" text-anchor="start" dominant-baseline="central" font-size="9.715370018975332" font-weight="400" fill="#8F8F8F" font-family="Inter, system-ui, sans-serif">acme.com/blog/my-post</text>
+
+<rect x="314" y="96" width="48" height="10" rx="5" fill="#4A4A4A"/>
+<rect x="470" y="96" width="44" height="10" rx="5" fill="#4A4A4A"/>
+<circle cx="533" cy="101" r="9" fill="#4A4A4A"/>
+<rect x="314" y="120" width="22" height="22" rx="4.4" fill="#4A4A4A"/>
+<rect x="314" y="153.33333333333334" width="22" height="22" rx="4.4" fill="#4A4A4A"/>
+<rect x="314" y="186.66666666666669" width="22" height="22" rx="4.4" fill="#4A4A4A"/>
+<rect x="314" y="220" width="22" height="22" rx="4.4" fill="#4A4A4A"/>
+<rect x="350" y="120" width="192" height="122" rx="6" fill="#10233D" stroke="#0A72EF" stroke-width="1.5" stroke-dasharray="4 3"/><text x="446" y="181" text-anchor="middle" dominant-baseline="central" font-size="11" font-weight="500" fill="#52A8FF" font-family="Inter, system-ui, sans-serif">Renders later</text>
+<text x="428" y="286" text-anchor="middle" dominant-baseline="central" font-size="16" font-weight="500" fill="#A1A1A1" font-family="Inter, system-ui, sans-serif">Shell</text>
+<rect x="600" y="54" width="256" height="208" rx="6" fill="rgba(0,0,0,0.5)" filter="url(#shadow)"/>
+<rect x="600.5" y="48.5" width="255" height="207" rx="6" fill="url(#panel)" stroke="#484848"/>
+<path d="M600.5 82.5 V54.5 a6 6 0 0 1 6 -6 H849.5 a6 6 0 0 1 6 6 V82.5 Z" fill="#232323"/>
+<line x1="601" x2="855" y1="82.5" y2="82.5" stroke="#3A3A3A"/>
+<circle cx="617.9734345351044" cy="65" r="4.3719165085389" fill="#FF6059"/>
+<circle cx="631.5749525616699" cy="65" r="4.3719165085389" fill="#FFBD2E"/>
+<circle cx="645.1764705882354" cy="65" r="4.3719165085389" fill="#28CA42"/>
+<rect x="675.5" y="54.5" width="154.4459203036053" height="20.37381404174573" rx="3.886148007590133" fill="#313131" stroke="#484848"/>
+<g transform="translate(681.123339658444 60.6280834914611) scale(0.4857685009487666)"><rect x="4" y="8" width="10" height="8" rx="1.5" fill="#888888"/><path d="M6 8 V6 a3 3 0 0 1 6 0 V8" fill="none" stroke="#888888" stroke-width="1.5"/></g>
+<text x="692.7817836812144" y="65" text-anchor="start" dominant-baseline="central" font-size="9.715370018975332" font-weight="400" fill="#8F8F8F" font-family="Inter, system-ui, sans-serif">acme.com/blog/my-post</text>
+
+<rect x="614" y="96" width="48" height="10" rx="5" fill="#4A4A4A"/>
+<rect x="770" y="96" width="44" height="10" rx="5" fill="#4A4A4A"/>
+<circle cx="833" cy="101" r="9" fill="#4A4A4A"/>
+<rect x="614" y="120" width="22" height="22" rx="4.4" fill="#4A4A4A"/>
+<rect x="614" y="153.33333333333334" width="22" height="22" rx="4.4" fill="#4A4A4A"/>
+<rect x="614" y="186.66666666666669" width="22" height="22" rx="4.4" fill="#4A4A4A"/>
+<rect x="614" y="220" width="22" height="22" rx="4.4" fill="#4A4A4A"/>
+<rect x="650.5" y="120.5" width="191" height="61" rx="6" fill="none" stroke="#484848"/><rect x="662" y="132" width="84" height="10" rx="5" fill="#4A4A4A"/><rect x="662" y="152" width="168" height="6" rx="3" fill="#4A4A4A"/><rect x="662" y="164" width="128" height="6" rx="3" fill="#4A4A4A"/>
+<rect x="650" y="190" width="192" height="52" rx="6" fill="#10233D" stroke="#0A72EF" stroke-width="1.5" stroke-dasharray="4 3"/><text x="746" y="216" text-anchor="middle" dominant-baseline="central" font-size="11" font-weight="500" fill="#52A8FF" font-family="Inter, system-ui, sans-serif">Renders later</text>
+<text x="728" y="286" text-anchor="middle" dominant-baseline="central" font-size="16" font-weight="500" fill="#A1A1A1" font-family="Inter, system-ui, sans-serif">Prefetch</text>
+<rect x="900" y="54" width="256" height="208" rx="6" fill="rgba(0,0,0,0.5)" filter="url(#shadow)"/>
+<rect x="900.5" y="48.5" width="255" height="207" rx="6" fill="url(#panel)" stroke="#484848"/>
+<path d="M900.5 82.5 V54.5 a6 6 0 0 1 6 -6 H1149.5 a6 6 0 0 1 6 6 V82.5 Z" fill="#232323"/>
+<line x1="901" x2="1155" y1="82.5" y2="82.5" stroke="#3A3A3A"/>
+<circle cx="917.9734345351044" cy="65" r="4.3719165085389" fill="#FF6059"/>
+<circle cx="931.5749525616699" cy="65" r="4.3719165085389" fill="#FFBD2E"/>
+<circle cx="945.1764705882354" cy="65" r="4.3719165085389" fill="#28CA42"/>
+<rect x="975.5" y="54.5" width="154.4459203036053" height="20.37381404174573" rx="3.886148007590133" fill="#313131" stroke="#484848"/>
+<g transform="translate(981.123339658444 60.6280834914611) scale(0.4857685009487666)"><rect x="4" y="8" width="10" height="8" rx="1.5" fill="#888888"/><path d="M6 8 V6 a3 3 0 0 1 6 0 V8" fill="none" stroke="#888888" stroke-width="1.5"/></g>
+<text x="992.7817836812144" y="65" text-anchor="start" dominant-baseline="central" font-size="9.715370018975332" font-weight="400" fill="#8F8F8F" font-family="Inter, system-ui, sans-serif">acme.com/blog/my-post</text>
+
+<rect x="914" y="96" width="48" height="10" rx="5" fill="#4A4A4A"/>
+<rect x="1070" y="96" width="44" height="10" rx="5" fill="#4A4A4A"/>
+<circle cx="1133" cy="101" r="9" fill="#4A4A4A"/>
+<rect x="914" y="120" width="22" height="22" rx="4.4" fill="#4A4A4A"/>
+<rect x="914" y="153.33333333333334" width="22" height="22" rx="4.4" fill="#4A4A4A"/>
+<rect x="914" y="186.66666666666669" width="22" height="22" rx="4.4" fill="#4A4A4A"/>
+<rect x="914" y="220" width="22" height="22" rx="4.4" fill="#4A4A4A"/>
+<rect x="950.5" y="120.5" width="191" height="61" rx="6" fill="none" stroke="#484848"/><rect x="962" y="132" width="84" height="10" rx="5" fill="#4A4A4A"/><rect x="962" y="152" width="168" height="6" rx="3" fill="#4A4A4A"/><rect x="962" y="164" width="128" height="6" rx="3" fill="#4A4A4A"/>
+<circle cx="955" cy="195" r="5" fill="#4A4A4A"/>
+<rect x="966" y="192" width="96" height="6" rx="3" fill="#4A4A4A"/>
+<circle cx="955" cy="216" r="5" fill="#4A4A4A"/>
+<rect x="966" y="213" width="60" height="6" rx="3" fill="#4A4A4A"/>
 <circle cx="955" cy="237" r="5" fill="#4A4A4A"/>
 <rect x="966" y="234" width="76" height="6" rx="3" fill="#4A4A4A"/>
-<text x="1028" y="286" text-anchor="middle" font-size="16" font-weight="500" fill="#A1A1A1" font-family="Inter, system-ui, sans-serif">Navigation</text>
-<line x1="564" x2="591" y1="152" y2="152" stroke="#5E5E5E" stroke-width="1.5" stroke-linecap="round"/><path d="M585 147.5 L592 152 L585 156.5" fill="none" stroke="#5E5E5E" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-<line x1="864" x2="891" y1="152" y2="152" stroke="#5E5E5E" stroke-width="1.5" stroke-linecap="round"/><path d="M885 147.5 L892 152 L885 156.5" fill="none" stroke="#5E5E5E" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-<text x="272" y="349" text-anchor="end" dominant-baseline="central" font-size="14" fill="#D4D4D4" font-family="'Geist Mono', ui-monospace, monospace">ensureStatic = 'shell'</text>
-<rect x="300.5" y="332.5" width="273" height="33" rx="8" fill="#262626" stroke="#555555"/><text x="314" y="349" dominant-baseline="central" font-size="12.5" font-weight="500" fill="#A1A1A1" font-family="Inter, system-ui, sans-serif">Static</text>
-<rect x="582" y="332" width="574" height="34" rx="8" fill="#10233D" stroke="#0A72EF" stroke-width="1.5" stroke-dasharray="5 4"/><text x="596" y="349" dominant-baseline="central" font-size="12.5" font-weight="500" fill="#52A8FF" font-family="Inter, system-ui, sans-serif">Can render later</text>
-<text x="272" y="407" text-anchor="end" dominant-baseline="central" font-size="14" fill="#D4D4D4" font-family="'Geist Mono', ui-monospace, monospace">ensureStatic = 'prefetch'</text>
-<rect x="300.5" y="390.5" width="573" height="33" rx="8" fill="#262626" stroke="#555555"/><text x="314" y="407" dominant-baseline="central" font-size="12.5" font-weight="500" fill="#A1A1A1" font-family="Inter, system-ui, sans-serif">Static</text>
-<rect x="882" y="390" width="274" height="34" rx="8" fill="#10233D" stroke="#0A72EF" stroke-width="1.5" stroke-dasharray="5 4"/><text x="896" y="407" dominant-baseline="central" font-size="12.5" font-weight="500" fill="#52A8FF" font-family="Inter, system-ui, sans-serif">Can render later</text>
-<text x="272" y="465" text-anchor="end" dominant-baseline="central" font-size="14" fill="#D4D4D4" font-family="'Geist Mono', ui-monospace, monospace">ensureStatic = 'navigation'</text>
-<rect x="300.5" y="448.5" width="855" height="33" rx="8" fill="#262626" stroke="#555555"/><text x="314" y="465" dominant-baseline="central" font-size="12.5" font-weight="500" fill="#A1A1A1" font-family="Inter, system-ui, sans-serif">Static</text>
+<text x="1028" y="286" text-anchor="middle" dominant-baseline="central" font-size="16" font-weight="500" fill="#A1A1A1" font-family="Inter, system-ui, sans-serif">Navigation</text>
+<line x1="564" x2="591" y1="152" y2="152" stroke="#878787" stroke-width="1.5" stroke-linecap="round"/><path d="M582 145 L592 152 L582 159" fill="none" stroke="#878787" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="864" x2="891" y1="152" y2="152" stroke="#878787" stroke-width="1.5" stroke-linecap="round"/><path d="M882 145 L892 152 L882 159" fill="none" stroke="#878787" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="272" y="349" text-anchor="end" dominant-baseline="central" font-size="14" font-weight="400" fill="#D4D4D4" font-family="'Geist Mono', ui-monospace, monospace">ensureStatic = 'shell'</text>
+<rect x="300.5" y="332.5" width="273" height="33" rx="8" fill="#1F1F1F" stroke="#4A4A4A"/><text x="314" y="349" text-anchor="start" dominant-baseline="central" font-size="12.5" font-weight="500" fill="#B0B0B0" font-family="Inter, system-ui, sans-serif">Static</text>
+<rect x="582" y="332" width="574" height="34" rx="8" fill="#10233D" stroke="#0A72EF" stroke-width="1.5" stroke-dasharray="5 4"/><text x="596" y="349" text-anchor="start" dominant-baseline="central" font-size="12.5" font-weight="500" fill="#52A8FF" font-family="Inter, system-ui, sans-serif">Can render later</text>
+<text x="272" y="407" text-anchor="end" dominant-baseline="central" font-size="14" font-weight="400" fill="#D4D4D4" font-family="'Geist Mono', ui-monospace, monospace">ensureStatic = 'prefetch'</text>
+<rect x="300.5" y="390.5" width="573" height="33" rx="8" fill="#1F1F1F" stroke="#4A4A4A"/><text x="314" y="407" text-anchor="start" dominant-baseline="central" font-size="12.5" font-weight="500" fill="#B0B0B0" font-family="Inter, system-ui, sans-serif">Static</text>
+<rect x="882" y="390" width="274" height="34" rx="8" fill="#10233D" stroke="#0A72EF" stroke-width="1.5" stroke-dasharray="5 4"/><text x="896" y="407" text-anchor="start" dominant-baseline="central" font-size="12.5" font-weight="500" fill="#52A8FF" font-family="Inter, system-ui, sans-serif">Can render later</text>
+<text x="272" y="465" text-anchor="end" dominant-baseline="central" font-size="14" font-weight="400" fill="#D4D4D4" font-family="'Geist Mono', ui-monospace, monospace">ensureStatic = 'navigation'</text>
+<rect x="300.5" y="448.5" width="855" height="33" rx="8" fill="#1F1F1F" stroke="#4A4A4A"/><text x="314" y="465" text-anchor="start" dominant-baseline="central" font-size="12.5" font-weight="500" fill="#B0B0B0" font-family="Inter, system-ui, sans-serif">Static</text>
 </svg>

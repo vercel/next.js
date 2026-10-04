@@ -1,75 +1,92 @@
 # Style tokens
 
-Every value here was taken from the real docs diagrams or from approved renders. Use the token, not a new hex.
+Measured from the published docs diagrams (`page-special-file`, `nested-layouts`, `server-rendering-with-streaming`, `project-organization-colocation`, `thinking-in-ppr`, `multi-zones`, `parallel-routes`, `file-conventions-component-hierarchy`). All values are CSS px on a 1600-wide canvas; `lib.mjs` holds the same values as the `themes` object. Use the token, not a new hex.
 
 ## Canvas
 
-| Property   | Value                                                                                                     |
-| ---------- | --------------------------------------------------------------------------------------------------------- |
-| Width      | 1200 (CSS px; render at 2x → 2400)                                                                        |
-| Height     | per diagram, declared in the mdx (`530` for three bar rows, `480` for two)                                |
-| Background | `light #FAFAFA`, `dark #111111`                                                                           |
-| Grid       | 40px squares, 1px lines, `light #EDEDED`, `dark #1F1F1F`, drawn as an SVG `<pattern>` over the background |
-| Margins    | equal on all four sides, 44 to 48px. Center the content block, never left-align it                        |
+| Property   | Value                                                                                    |
+| ---------- | ---------------------------------------------------------------------------------------- |
+| Width      | 1600 (render at 2x → 3200). Match the width the mdx declares if a page uses another.     |
+| Height     | per diagram, declared in the mdx                                                         |
+| Background | light `#FBFBFB`, dark `#0D0D0D`                                                          |
+| Grid       | 40px squares, 1px lines, light `#F7F7F7`, dark `#161616`, an SVG `<pattern>` over the bg |
+| Margins    | 60 on top and bottom, equal left and right. Center the whole block, never left-align it  |
 
 ## Colors
 
-| Token                                       | Light                                         | Dark                              | Used for                                        |
-| ------------------------------------------- | --------------------------------------------- | --------------------------------- | ----------------------------------------------- |
-| `winFill`                                   | `#FFFFFF`                                     | `#1A1A1A`                         | browser window body                             |
-| `winHead`                                   | `#F7F7F7`                                     | `#232323`                         | browser title bar                               |
-| `winStroke`                                 | `#D9D9D9`                                     | `#3A3A3A`                         | window border, title bar divider, card outlines |
-| `shadow`                                    | `rgba(0,0,0,0.07)`                            | `rgba(0,0,0,0.45)`                | window drop shadow (blurred rect, offset 6px)   |
-| `skel`                                      | `#D1D1D1`                                     | `#4A4A4A`                         | skeleton bars, avatars, sidebar squares         |
-| `url` / `urlStroke` / `urlText`             | `#FFFFFF` / `#D4D4D4` / `#8A8A8A`             | `#1A1A1A` / `#454545` / `#8F8F8F` | URL pill                                        |
-| `blue`                                      | `#0070F3`                                     | `#0A72EF`                         | blue strokes (dashed holes, "renders" bars)     |
-| `blueFill`                                  | `#DCEBFE`                                     | `#10233D`                         | blue region fill                                |
-| `barGray` / `barGrayStroke` / `barGrayText` | `#EBEBEB` / `#BDBDBD` / `#666666`             | `#262626` / `#555555` / `#A1A1A1` | gray bars                                       |
-| `barBlueText`                               | `#0060D1`                                     | `#52A8FF`                         | text inside blue bars                           |
-| `label`                                     | `#6F6F6F`                                     | `#A1A1A1`                         | stage captions under windows                    |
-| `code`                                      | `#4D4D4D`                                     | `#D4D4D4`                         | monospace row labels                            |
-| `arrow`                                     | `#A8A8A8`                                     | `#5E5E5E`                         | arrows between windows                          |
-| Traffic lights                              | `#FF5F57`, `#FEBC2E`, `#28C840` (both themes) |                                   | the three window dots                           |
+| Token                               | Light                                                                                            | Dark                                | Used for                                            |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------ | ----------------------------------- | --------------------------------------------------- |
+| `panelTop` → `panelBottom`          | `#FFFFFF` → `#F9F9F9`                                                                            | `#313131` → `#282828`               | vertical gradient on every panel and window         |
+| `panelStroke`                       | `#D9D9D9`                                                                                        | `#484848`                           | 1px panel, pill and card borders                    |
+| `panelMuted`                        | `#F1F1F1`                                                                                        | `#1F1F1F`                           | gray-filled rows and pills (elided, not routable)   |
+| `divider`                           | `#E8E8E8`                                                                                        | `#434343`                           | 1px lines between rows                              |
+| `shadow`                            | `rgba(0,0,0,0.08)`                                                                               | `rgba(0,0,0,0.5)`                   | blurred rect under panels, offset 6px               |
+| `titleBar` / `titleBarDivider`      | `#F7F7F7` / `#E3E3E3`                                                                            | `#232323` / `#3A3A3A`               | browser and code panel title bars                   |
+| `text`                              | `#2E2E2E`                                                                                        | `#D4D4D4`                           | labels in trees and pills                           |
+| `textSubtle`                        | `#616161`                                                                                        | `#8F8F8F`                           | URL in the window bar, code panel title, callouts   |
+| `textMuted`                         | `#8F8F8F`                                                                                        | `#A1A1A1`                           | captions, legend text, muted rows                   |
+| `icon` / `iconMuted`                | `#9A9A9A` / `#CECECE`                                                                            | `#888888` / `#555555`               | folder, file, globe, lock glyphs                    |
+| `arrow`                             | `#A8A8A8`                                                                                        | `#878787`                           | arrows, brackets, bracket captions                  |
+| `skel`                              | `#C9C9C9`                                                                                        | `#4A4A4A`                           | skeleton bars, avatars, squares, image placeholders |
+| `blue.stroke` / `.fill` / `.text`   | `#0070F3` / `#D5E6FA` / `#0067D6`                                                                | `#0A72EF` / `#10233D` / `#52A8FF`   | the primary accent                                  |
+| `blue.dot`                          | `#197DF3`                                                                                        | `#0761C9`                           | the "this file" marker in trees                     |
+| `blue.skelOn` / `.thumbOn`          | `#A8B9CD` / `#C1D2E5`                                                                            | `#2F4A6E` / `#1E3657`               | skeleton inside a blue region                       |
+| `purple.stroke` / `.fill` / `.text` | `#8E4EC6` / `#EAE0F2` / `#793AAF`                                                                | `#9A5CD0` / `#2A1F38` / `#C4A1E6`   | second accent (static regions, zone C, slot B)      |
+| `red.stroke` / `.fill` / `.text`    | `#E5484D` / `#F7DFE0` / `#CA2A30`                                                                | same stroke / `#3A1D1F` / `#F08A8E` | negative badges, zone B                             |
+| `green.stroke` / `.fill` / `.text`  | `#46A758` / `#DCEBDF` / `#46A758`                                                                | same stroke / `#1B2E1F` / `#6FCB80` | positive badges                                     |
+| `gray.stroke` / `.fill` / `.text`   | `#8F8F8F` / `#DEDEDE` / `#666666`                                                                | `#6F6F6F` / `#2A2A2A` / `#B0B0B0`   | neutral mono pills (`SOFT NAV`)                     |
+| `code.*`                            | GitHub Light: tag `#005CC5`, attr `#6F42C1`, keyword `#D73A49`, ident `#E36209`, punct `#909295` | GitHub Dark equivalents             | code panels                                         |
+| `code.react`                        | `#61DAFB`                                                                                        | same                                | React logo in code panel titles                     |
+| `trafficLights`                     | `#FF6059` `#FFBD2E` `#28CA42`                                                                    | same                                | the three window dots                               |
 
 ## What the colors mean
 
-The docs use color as a legend, so keep the meaning stable across diagrams:
+The docs use color as a legend, so keep the meaning stable across a diagram and consistent with its neighbours:
 
-- **Gray, solid fill**: static output, prerendered, served from the build. Also the neutral skeleton color for any UI that is not the point.
-- **Blue, dashed stroke + blue fill**: a region that is not rendered yet at this stage and will render later (a Suspense hole, "can render later").
-- **Blue, solid stroke + blue fill**: the stage where deferred work actually renders.
+- **Gray**: static, prerendered, already there, or simply not the point. Skeleton UI is always gray unless it sits inside an accent region.
+- **Blue, dashed stroke + fill**: not rendered yet at this moment; will render later (a Suspense hole, "can render later").
+- **Blue, solid stroke + fill**: content that has rendered, arrived, or is highlighted as the subject (streamed card, selected `<Link>`, slot A).
 - **Gray, dashed stroke, no fill**: a Suspense fallback standing in for content.
-- Purple appears in some official diagrams for cached / `use cache` content and amber for session data. Only reach for them when the diagram is about caching or cookies, and say so in the legend.
+- **Purple**: a second category next to blue (static vs dynamic regions, slot B, zone C), never a second shade of "later".
+- **Red / green**: judgments (not routable / routable). Only in badges and zone boxes.
 
-Never color a box to fill the palette. If a region's role is not the story, it stays gray.
+Within one picture every accent means exactly one thing, and the same thing in every part of the picture.
 
 ## Typography
 
-| Text                    | Font       | Size | Weight | Notes                                                  |
-| ----------------------- | ---------- | ---- | ------ | ------------------------------------------------------ |
-| Stage captions (Shell…) | Inter      | 16   | 500    | centered under each window, 30px below it              |
-| Bar labels (Static…)    | Inter      | 12.5 | 500    | 14px left padding, `dominant-baseline="central"`       |
-| URL pill                | Inter      | 9.5  | 400    | after a 6×4.5 lock glyph                               |
-| Code row labels         | Geist Mono | 14   | 400    | right-aligned to the label column, centered on the bar |
+| Text                      | Font       | Size | Weight | Notes                                                      |
+| ------------------------- | ---------- | ---- | ------ | ---------------------------------------------------------- |
+| Tree rows, URL pills      | Inter      | 20   | 400    | 600 for the highlighted row; `dominant-baseline="central"` |
+| Captions, legend text     | Inter      | 20   | 400    | `textMuted`                                                |
+| Callout labels            | Inter      | 22   | 600    | `textSubtle`, leader line in the region's accent           |
+| Window URL                | Inter      | 20   | 400    | `textSubtle`, after a lock glyph; scales with the window   |
+| Stage / column captions   | Inter      | 16   | 500    | `textMuted`, centered under the thing they name            |
+| Code panel body           | Geist Mono | 20   | 400    | 36px line height                                           |
+| Mono pills, status badges | Geist Mono | 18   | 400    | centered                                                   |
+| Letter badges             | Inter      | 19   | 500    | in a 32px rounded square                                   |
 
-Inter comes from Google Fonts in the HTML wrapper (`display=block` so Chrome waits for it). Geist Mono must be installed locally (for example `~/Library/Fonts/GeistMono-*.otf`); if it is missing, the fallback `ui-monospace` is acceptable but say so when you hand off.
+Inter comes from Google Fonts in the HTML wrapper (`display=block` so Chrome waits for it). Geist Mono must be installed locally (`~/Library/Fonts/GeistMono-*.otf`); if it is missing the fallback `ui-monospace` is acceptable but say so when you hand off.
 
-## Browser window anatomy
+## Anatomy
 
-Window 256 × 208, radius 10, 1px `winStroke`. Title bar 30px with the three dots at 13px spacing starting 14px in, and a URL pill (height 18, radius 5) filling the rest minus 14px padding. Below the bar, 14px padding everywhere:
+**Panel**: radius 10, 1px `panelStroke` snapped to the half pixel, `panelTop→panelBottom` gradient, shadow rect offset 6px blurred 8px.
 
-- Navbar row: a 48×10 skeleton pill left, a 44×10 pill and a 9px-radius avatar right.
-- Sidebar: four 22×22 squares (radius 4) spread evenly over the full content height.
-- Main content box: from the sidebar's right edge + 14 to the window's right padding, from below the navbar + 14 to the bottom padding. Every post card, dashed hole, or comment row lives inside this box and shares its top and bottom edges with the sidebar.
+**Tree row**: 80 tall, 32px side padding, 18px icon, text 32px after the icon, 40px indent per depth, 1px `divider` between rows. Blue dot: 10px radius with a 16px radius `blue.fill` glow, 42px from the right edge. Muted row: `panelMuted` fill, muted icon and text.
 
-Post card: 62 tall, 1px `winStroke` outline, radius 6, with a 84×10 title bar and two 6px body lines. Comment row: 5px-radius avatar plus a 6px line, rows spread evenly to the content bottom.
+**URL pill**: a one-row panel, globe at 32px, path at 64px. Stack several in one panel with dividers when they belong to one tree.
 
-## Bars and arrows
+**Arrow**: 2px, round caps, open chevron head 10px long and 14px tall. Gray by default; blue when it carries streamed content. Bracket arrows beside a tree have a 10px corner radius and the same head.
 
-Bars are 34 tall, radius 8, with 58px between row tops. Gray bars use a 1px stroke snapped to the half pixel; blue bars use a 1.5px stroke (`stroke-dasharray="5 4"` when dashed). A split between two bars is 8px wide and centered exactly on the arrow between the corresponding windows, so the stage boundary reads vertically through the whole diagram.
+**Browser window**: reference size 527×476. Title bar 70 tall, traffic lights radius 9 at 37/65/93px, URL pill 320×44 radius 8 starting at 155px. All of it scales with the width you pass (`k = w / 527`).
 
-Arrows are 28px long, 1.5px, round caps, with a 7px open chevron head, vertically centered on the windows.
+**Skeleton**: bars 24 tall radius 6, avatar radius 28, image placeholder is a tile with a sun and a mountain in `textMuted` at 60% opacity.
+
+**Hole**: 2px dashed stroke `8 5`, radius 10, fill from the accent. Optional centered label at `min(18, h/3)`. Scale `strokeWidth`, `dash` and `labelSize` down inside small windows.
+
+**Badges**: letter badge 32px square, radius 8, 2px accent stroke, `badgeFill`. Status pill 34 tall, radius 6, 1.5px stroke, mono text.
+
+**Code panel**: 54px title bar with the React logo and a file name, 28px padding, 36px lines.
 
 ## Crispness
 
-Snap every 1px stroke to a `.5` coordinate (`x + 0.5`, `width - 1`). Leave 1.5px strokes on integers. Render with `--force-device-scale-factor=2` and `--hide-scrollbars`.
+Snap every 1px stroke to a `.5` coordinate (`x + 0.5`, `width - 1`). Leave 1.5px and 2px strokes on integers. Render with `--force-device-scale-factor=2` and `--hide-scrollbars`.

@@ -407,7 +407,6 @@ Use skills for conditional, deep workflows. Keep baseline iteration/build/test p
 - `$next-rspack` - @next/rspack-core and @next/rspack-binding maintenance (rspack/ directory)
 - `$gate-tests` - `@gate`/`@force-gate` test directives: replacing `it.skip`/fake-green skips, conditions, variant-shard fixtures
 - `$authoring-skills` - how to create and maintain skills in `.agents/skills/`
-- `$docs-diagrams` - draw the light/dark docs diagrams (`<Image srcLight/srcDark>`) from the SVG generator in `.agents/skills/docs-diagrams/scripts/`
 
 ## Context-Efficient Workflows
 

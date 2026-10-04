@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="760" viewBox="0 0 1600 760">
+<defs>
+<pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="#161616" stroke-width="1"/></pattern>
+<filter id="shadow" x="-20%" y="-20%" width="140%" height="160%"><feGaussianBlur stdDeviation="8"/></filter>
+<linearGradient id="panel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#313131"/><stop offset="1" stop-color="#282828"/></linearGradient>
+</defs>
+<rect width="1600" height="760" fill="#0D0D0D"/><rect width="1600" height="760" fill="url(#grid)"/>
+<rect x="269" y="66" width="400" height="640" rx="10" fill="rgba(0,0,0,0.5)" filter="url(#shadow)"/>
+<rect x="269.5" y="60.5" width="399" height="639" rx="10" fill="url(#panel)" stroke="#484848"/>
+<path d="M302.5 96 a1.5 1.5 0 0 1 1.5 -1.5 h4.2 l2 2 h6.3 a1.5 1.5 0 0 1 1.5 1.5 v7.5 a1.5 1.5 0 0 1 -1.5 1.5 h-12.5 a1.5 1.5 0 0 1 -1.5 -1.5 z" fill="none" stroke="#888888" stroke-width="1.5" stroke-linejoin="round"/>
+<text x="333" y="100" text-anchor="start" dominant-baseline="central" font-size="20" font-weight="400" fill="#D4D4D4" font-family="Inter, system-ui, sans-serif">app</text>
+<line x1="270" x2="668" y1="140.5" y2="140.5" stroke="#434343"/>
+<rect x="343" y="173.5" width="14" height="13" rx="1.5" fill="none" stroke="#888888" stroke-width="1.5"/><path d="M343 178 H357 M348 178 V186.5" stroke="#888888" stroke-width="1.5"/>
+<text x="373" y="180" text-anchor="start" dominant-baseline="central" font-size="20" font-weight="400" fill="#D4D4D4" font-family="Inter, system-ui, sans-serif">layout.js</text>
+<line x1="270" x2="668" y1="220.5" y2="220.5" stroke="#434343"/>
+<path d="M345 252.5 h6 l4 4 v9.5 a1.5 1.5 0 0 1 -1.5 1.5 h-8.5 a1.5 1.5 0 0 1 -1.5 -1.5 v-12 a1.5 1.5 0 0 1 1.5 -1.5 z M351 252.5 v4 h4" fill="none" stroke="#888888" stroke-width="1.5" stroke-linejoin="round"/>
+<text x="373" y="260" text-anchor="start" dominant-baseline="central" font-size="20" font-weight="400" fill="#D4D4D4" font-family="Inter, system-ui, sans-serif">page.js</text>
+<line x1="270" x2="668" y1="300.5" y2="300.5" stroke="#434343"/>
+<path d="M342.5 336 a1.5 1.5 0 0 1 1.5 -1.5 h4.2 l2 2 h6.3 a1.5 1.5 0 0 1 1.5 1.5 v7.5 a1.5 1.5 0 0 1 -1.5 1.5 h-12.5 a1.5 1.5 0 0 1 -1.5 -1.5 z" fill="none" stroke="#888888" stroke-width="1.5" stroke-linejoin="round"/>
+<text x="373" y="340" text-anchor="start" dominant-baseline="central" font-size="20" font-weight="400" fill="#D4D4D4" font-family="Inter, system-ui, sans-serif">blog</text>
+<line x1="270" x2="668" y1="380.5" y2="380.5" stroke="#434343"/>
+<rect x="383" y="413.5" width="14" height="13" rx="1.5" fill="none" stroke="#888888" stroke-width="1.5"/><path d="M383 418 H397 M388 418 V426.5" stroke="#888888" stroke-width="1.5"/>
+<text x="413" y="420" text-anchor="start" dominant-baseline="central" font-size="20" font-weight="600" fill="#D4D4D4" font-family="Inter, system-ui, sans-serif">layout.js</text>
+<circle cx="627" cy="420" r="16" fill="#10233D" opacity="0.8"/><circle cx="627" cy="420" r="10" fill="#0761C9"/>
+<line x1="270" x2="668" y1="460.5" y2="460.5" stroke="#434343"/>
+<path d="M385 492.5 h6 l4 4 v9.5 a1.5 1.5 0 0 1 -1.5 1.5 h-8.5 a1.5 1.5 0 0 1 -1.5 -1.5 v-12 a1.5 1.5 0 0 1 1.5 -1.5 z M391 492.5 v4 h4" fill="none" stroke="#888888" stroke-width="1.5" stroke-linejoin="round"/>
+<text x="413" y="500" text-anchor="start" dominant-baseline="central" font-size="20" font-weight="400" fill="#D4D4D4" font-family="Inter, system-ui, sans-serif">page.js</text>
+<line x1="270" x2="668" y1="540.5" y2="540.5" stroke="#434343"/>
+<path d="M385 572.5 h6 l4 4 v9.5 a1.5 1.5 0 0 1 -1.5 1.5 h-8.5 a1.5 1.5 0 0 1 -1.5 -1.5 v-12 a1.5 1.5 0 0 1 1.5 -1.5 z M391 572.5 v4 h4" fill="none" stroke="#888888" stroke-width="1.5" stroke-linejoin="round"/>
+<text x="413" y="580" text-anchor="start" dominant-baseline="central" font-size="20" font-weight="600" fill="#D4D4D4" font-family="Inter, system-ui, sans-serif">nav.js</text>
+<circle cx="627" cy="580" r="16" fill="#10233D" opacity="0.8"/><circle cx="627" cy="580" r="10" fill="#0761C9"/>
+<path d="M269.5 620.5 H668.5 V689.5 a10 10 0 0 1 -10 10 H279.5 a10 10 0 0 1 -10 -10 Z" fill="#1F1F1F"/>
+<line x1="270" x2="668" y1="620.5" y2="620.5" stroke="#434343"/>
+<path d="M382.5 656 a1.5 1.5 0 0 1 1.5 -1.5 h4.2 l2 2 h6.3 a1.5 1.5 0 0 1 1.5 1.5 v7.5 a1.5 1.5 0 0 1 -1.5 1.5 h-12.5 a1.5 1.5 0 0 1 -1.5 -1.5 z" fill="none" stroke="#555555" stroke-width="1.5" stroke-linejoin="round"/>
+<text x="413" y="660" text-anchor="start" dominant-baseline="central" font-size="20" font-weight="400" fill="#A1A1A1" font-family="Inter, system-ui, sans-serif">...</text>
+<path d="M269 180 H169 a10 10 0 0 0 -10 10 V410 a10 10 0 0 0 10 10 H267" fill="none" stroke="#878787" stroke-width="2" stroke-linecap="round"/><path d="M259 413 L269 420 L259 427" fill="none" stroke="#878787" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M269 420 H219 a10 10 0 0 0 -10 10 V490 a10 10 0 0 0 10 10 H267" fill="none" stroke="#878787" stroke-width="2" stroke-linecap="round"/><path d="M259 493 L269 500 L259 507" fill="none" stroke="#878787" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M269 420 H219 a10 10 0 0 0 -10 10 V570 a10 10 0 0 0 10 10 H267" fill="none" stroke="#878787" stroke-width="2" stroke-linecap="round"/><path d="M259 573 L269 580 L259 587" fill="none" stroke="#878787" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="719" x2="798" y1="260" y2="260" stroke="#878787" stroke-width="2" stroke-linecap="round"/><path d="M789 253 L799 260 L789 267" fill="none" stroke="#878787" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="849" y="226" width="400" height="80" rx="10" fill="rgba(0,0,0,0.5)" filter="url(#shadow)"/>
+<rect x="849.5" y="220.5" width="399" height="79" rx="10" fill="url(#panel)" stroke="#484848"/>
+<circle cx="890" cy="260" r="7" fill="none" stroke="#888888" stroke-width="1.5"/><path d="M883 260 H897 M890 253 c-3 2.5 -3 11.5 0 14 M890 253 c3 2.5 3 11.5 0 14" fill="none" stroke="#888888" stroke-width="1.5"/>
+<text x="913" y="260" text-anchor="start" dominant-baseline="central" font-size="20" font-weight="400" fill="#D4D4D4" font-family="Inter, system-ui, sans-serif">/</text>
+<rect x="1279" y="243" width="117" height="34" rx="6" fill="#1B2E1F" stroke="#46A758" stroke-width="1.5"/><text x="1337.5" y="260" text-anchor="middle" dominant-baseline="central" font-size="18" font-weight="400" fill="#6FCB80" font-family="'Geist Mono', ui-monospace, monospace">Routable</text>
+<line x1="719" x2="798" y1="500" y2="500" stroke="#878787" stroke-width="2" stroke-linecap="round"/><path d="M789 493 L799 500 L789 507" fill="none" stroke="#878787" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="849" y="466" width="400" height="80" rx="10" fill="rgba(0,0,0,0.5)" filter="url(#shadow)"/>
+<rect x="849.5" y="460.5" width="399" height="79" rx="10" fill="url(#panel)" stroke="#484848"/>
+<circle cx="890" cy="500" r="7" fill="none" stroke="#888888" stroke-width="1.5"/><path d="M883 500 H897 M890 493 c-3 2.5 -3 11.5 0 14 M890 493 c3 2.5 3 11.5 0 14" fill="none" stroke="#888888" stroke-width="1.5"/>
+<text x="913" y="500" text-anchor="start" dominant-baseline="central" font-size="20" font-weight="400" fill="#D4D4D4" font-family="Inter, system-ui, sans-serif">/blog</text>
+<rect x="1279" y="483" width="117" height="34" rx="6" fill="#1B2E1F" stroke="#46A758" stroke-width="1.5"/><text x="1337.5" y="500" text-anchor="middle" dominant-baseline="central" font-size="18" font-weight="400" fill="#6FCB80" font-family="'Geist Mono', ui-monospace, monospace">Routable</text>
+<line x1="719" x2="798" y1="580" y2="580" stroke="#878787" stroke-width="2" stroke-linecap="round"/><path d="M789 573 L799 580 L789 587" fill="none" stroke="#878787" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="849" y="546" width="400" height="80" rx="10" fill="rgba(0,0,0,0.5)" filter="url(#shadow)"/>
+<rect x="849.5" y="540.5" width="399" height="79" rx="10" fill="#1F1F1F" stroke="#484848"/>
+<circle cx="890" cy="580" r="7" fill="none" stroke="#555555" stroke-width="1.5"/><path d="M883 580 H897 M890 573 c-3 2.5 -3 11.5 0 14 M890 573 c3 2.5 3 11.5 0 14" fill="none" stroke="#555555" stroke-width="1.5"/>
+<text x="913" y="580" text-anchor="start" dominant-baseline="central" font-size="20" font-weight="400" fill="#A1A1A1" font-family="Inter, system-ui, sans-serif">/blog/nav</text>
+<rect x="1279" y="563" width="162" height="34" rx="6" fill="#3A1D1F" stroke="#E5484D" stroke-width="1.5"/><text x="1360" y="580" text-anchor="middle" dominant-baseline="central" font-size="18" font-weight="400" fill="#F08A8E" font-family="'Geist Mono', ui-monospace, monospace">Not Routable</text>
+</svg>

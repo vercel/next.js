@@ -1,43 +1,51 @@
 # Review checklist
 
-Open both PNGs at full size and go through this before sending anything. Each item below is a problem a real draft had.
+Open both PNGs at full size next to the reference images for the family and go through this before handing anything off. Each item is a miss a real draft had.
+
+## Against the references
+
+- [ ] Same family, same anatomy: a reader could not tell this image was drawn by someone else.
+- [ ] Colors mean what they mean in the neighbouring diagrams (see "What the colors mean" in [style-tokens.md](style-tokens.md)). No accent used only to fill the palette.
+- [ ] Within this picture every accent means one thing, in every part of the picture (windows, bars, legend).
 
 ## Edges and padding
 
-- [ ] Nothing inside a window touches the window border. Dashed holes, cards, and comment rows sit inside the 14px padding.
-- [ ] The sidebar squares and the main content box share the same top edge and the same bottom edge.
-- [ ] Every card or hole in the content box spans its full width.
-- [ ] Bars start at the left edge of the first window and end at the right edge of the last window, to the pixel.
+- [ ] Nothing inside a panel touches its border. Holes, cards and rows sit inside the padding.
+- [ ] Sibling elements share top and bottom edges (sidebar squares vs content box, tree rows vs their URL pills).
+- [ ] Every card or hole spans the full width of its content box.
+- [ ] Bars and brackets start and end on the edges of the things they describe, to the pixel.
 
 ## Composition
 
-- [ ] Left and right margins are equal. Measure from the leftmost label glyph to the canvas edge and from the rightmost bar to the canvas edge.
+- [ ] Left and right margins are equal. Measure from the leftmost glyph or bracket to the canvas edge, and from the rightmost badge or pill to the canvas edge.
 - [ ] Top and bottom margins are equal (within 4px).
-- [ ] The label column, windows, and bars are centered as one block, not centered separately.
-- [ ] Bar splits sit exactly under the arrow centers.
-- [ ] Captions are centered under their windows.
+- [ ] The whole block is centered as one unit, not each column separately.
+- [ ] Arrow heads, bar splits and leader lines line up with what they point at.
+- [ ] Captions are centered under their windows or brackets.
 
 ## Text
 
-- [ ] Bar labels and row labels are vertically centered in their bars (use `dominant-baseline="central"`, not a hand-tuned `y`).
-- [ ] Inter actually loaded (compare the "a" and "g" shapes with a real docs diagram). If Chrome screenshotted a fallback font, raise `--virtual-time-budget`.
-- [ ] Code labels are in Geist Mono and read as code (`ensureStatic = 'shell'`, `await prefetch()`).
-- [ ] Labels use the docs' terms (App Shell, per-link prefetch, navigation, Suspense fallback).
+- [ ] Labels are vertically centered (`dominant-baseline="central"`, not a hand-tuned `y`).
+- [ ] Inter actually loaded: compare the "a" and "g" with a reference image. If Chrome screenshotted a fallback font, raise `--virtual-time-budget`.
+- [ ] Code, routes and mono pills are in Geist Mono.
+- [ ] Labels use the docs' terms (App Shell, Suspense fallback, per-link prefetch, Route Group). Check the glossary when unsure.
+- [ ] Nothing is clipped at the canvas edge.
 
 ## Meaning
 
 - [ ] The colors match the legend sentence in the mdx paragraph before the `<Image>`.
-- [ ] The windows show the right amount of content for each stage. Shell: layout plus one big hole. Prefetch: post filled, comments still a hole. Navigation: everything filled.
+- [ ] Each frame of a sequence shows the right amount of content for its moment.
 - [ ] The alt text in the mdx still describes this picture.
-- [ ] Width and height in the mdx match the SVG viewBox (PNG is exactly 2× each).
+- [ ] Width and height in the mdx match the SVG (the PNG is exactly 2× each).
 
 ## Both themes
 
-- [ ] Dark background is `#111111`, not pure black. Grid lines are visible but faint.
-- [ ] Blue fill in dark mode is the navy `#10233D`, not the light-mode `#DCEBFE`.
+- [ ] Dark background is `#0D0D0D`, not pure black. Grid lines are visible but faint.
+- [ ] Accent fills in dark mode are the navy / plum / wine tokens, not the light-mode pastels.
 - [ ] Shadows are stronger in dark mode and barely visible in light mode.
 
 ## Files
 
-- [ ] Output names equal the mdx `srcLight`/`srcDark` basenames, including singular vs plural.
-- [ ] You handed off `light/<name>.png` and `dark/<name>.png` with their pixel dimensions and which mdx each belongs to.
+- [ ] Output names equal the mdx `srcLight` / `srcDark` basenames, including singular vs plural.
+- [ ] You handed off `light/<name>.png` and `dark/<name>.png` with their pixel dimensions and the mdx each belongs to.
+- [ ] The diagram module and its SVGs are committed under this skill so the next diagram starts from them.
