@@ -45,7 +45,7 @@ A page can set a stricter level than its layout. The following example uses each
 
 ## Example
 
-The example is an online store with the following files:
+The example builds an online store with these App Router routes and supporting modules:
 
 ```txt
 app/
@@ -93,13 +93,13 @@ The store layout is shared by the catalog, product pages, and buying guides. Its
 ```tsx filename="app/ui/cart.tsx"
 import { cookies } from 'next/headers'
 
-export async function CartButton({ count }: { count?: number }) {
-  const value = count ?? Number((await cookies()).get('cart-count')?.value ?? 0)
+export async function CartButton() {
+  const value = Number((await cookies()).get('cart-count')?.value ?? 0)
   return <button>Cart ({value})</button>
 }
 ```
 
-When `count` is passed, `CartButton` skips the cookie read. The layout passes `count={0}` to the `<Suspense>` fallback, which renders `Cart (0)` without request data:
+Wrap `CartButton` in `<Suspense>` with a static fallback:
 
 ```tsx filename="app/store/layout.tsx"
 import Link from 'next/link'
@@ -112,7 +112,7 @@ export default function StoreLayout({ children }: LayoutProps<'/store'>) {
       <nav>
         <Link href="/store">Products</Link>
         <Link href="/store/guides">Buying guides</Link>
-        <Suspense fallback={<CartButton count={0} />}>
+        <Suspense fallback={<button>Cart (0)</button>}>
           <CartButton />
         </Suspense>
       </nav>
@@ -181,7 +181,7 @@ export default function ProductPage({
       <Suspense fallback={<p>Loading product...</p>}>
         <ProductDetails params={params} />
       </Suspense>
-      <Suspense fallback={<p>Checking availability...</p>}>
+      <Suspense fallback={<p>Loading...</p>}>
         <Inventory params={params} />
       </Suspense>
     </>
@@ -191,7 +191,18 @@ export default function ProductPage({
 
 A default `<Link>` loads only the App Shell. The catalog's `prefetch={true}` links also load the cached product heading before the user clicks.
 
-The layout's `'shell'` level does not require per-link prefetches to be static. Each product prefetch can still read the cart cookie and render on the server for the current visitor. On a catalog with many product links, each visible link can trigger a server render before the user clicks it.
+Run `next build`. The product route does not export `generateStaticParams()`, so the build produces only its fallback shell:
+
+```text filename="Terminal"
+Route (app)
+└ ◐ /store/products/[slug]
+
+◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
+```
+
+On a new deployment, the first product prefetch returns this fallback without the product heading. Next.js generates the page in the background, and later prefetches include the heading. See [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components#at-runtime).
+
+Our goal is to serve those completed product prefetches from static output that Next.js can reuse across visitors. The layout's `'shell'` level does not require per-link prefetches to be static. Each product prefetch can still read the cart cookie and render on the server for the current visitor. On a catalog with many product links, each visible link can trigger a server render before the user clicks it.
 
 Add `ensureStatic = 'prefetch'` to the product page:
 
@@ -208,13 +219,11 @@ export default function ProductPage({
 }
 ```
 
-Each product prefetch now comes from static output that Next.js can reuse across visitors. It contains the product heading, the `Cart (0)` fallback, and the **Checking availability...** fallback. The cart count and inventory render after the user follows the link.
+Each product prefetch now comes from static output that Next.js can reuse across visitors. It includes the product heading. Inventory renders after the user follows the link.
 
 A level applies to the whole route, including the layouts above the segment that sets it. On product routes, `'prefetch'` also covers the store layout. The per-link prefetch contains the cart fallback, and the current count renders during navigation. The catalog keeps the layout's `'shell'` level.
 
 If only one subtree needed to stay out of per-link prefetches, you could call [`await navigation()`](/docs/app/api-reference/functions/navigation) inside that subtree. Here, every per-link prefetch for a product route must remain static, so the page sets `ensureStatic = 'prefetch'`.
-
-The product route does not export `generateStaticParams()`, so its pages are not generated during the build. On a new deployment, the first prefetch returns the fallback shell without the product heading. Next.js generates the page in the background, and later prefetches include the heading. See [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components#at-runtime).
 
 ### Step 3: Prerender the buying guides
 
@@ -353,19 +362,17 @@ The client fix card applies only to `searchParams`, not `cookies()`. Buying guid
   }
 ```
 
-The cart must still show the current visitor's count. Because the cookie is not `HttpOnly`, the browser can read it. Make `CartButton` a Client Component that suspends with [`use(browser())`](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser) when it has no `count`:
+The cart must still show the current visitor's count. Because the cookie is not `HttpOnly`, the browser can read it. Make `CartButton` a Client Component that suspends with [`use(browser())`](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser) during prerendering:
 
-```tsx filename="app/ui/cart.tsx" highlight={1,7-9}
+```tsx filename="app/ui/cart.tsx" highlight={1,7-8}
 'use client'
 
 import { use } from 'react'
 import { browser } from 'react-dom'
 
-export function CartButton({ count }: { count?: number }) {
-  if (count === undefined) {
-    use(browser('The cart count is stored in a cookie.'))
-  }
-  return <button>Cart ({count ?? readCartCount()})</button>
+export function CartButton() {
+  use(browser('The cart count is stored in a cookie.'))
+  return <button>Cart ({readCartCount()})</button>
 }
 
 function readCartCount() {
