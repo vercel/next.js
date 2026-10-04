@@ -369,8 +369,10 @@ The build error covers both uncached and runtime data, so it includes three fix 
     href="/docs/messages/static-route-runtime#read-the-data-on-the-client"
     snippets={[
       { text: "'use client'" },
-      { text: "use(browser('Read browser data'))", highlight: true },
-      { text: 'const value = readFromBrowser()' },
+      { text: "use(browser('Read the cart cookie'))", highlight: true },
+      {
+        text: 'const count = document.cookie.match(/cart-count=(\\d+)/)?.[1]',
+      },
     ]}
   />
 </FixCardGrid>
@@ -446,6 +448,19 @@ The overlay shows these fixes:
       { text: 'async function Page() {' },
       { text: '- await connection()', highlight: true },
       { text: '  return <Content />' },
+    ]}
+  />
+  <FixCard
+    group="client"
+    title="Read the data on the client"
+    href="/docs/messages/static-route-dynamic#read-the-data-on-the-client"
+    snippets={[
+      { text: "'use client'" },
+      {
+        text: "const { data } = useSWR('/api/data', fetcher)",
+        highlight: true,
+      },
+      { text: 'return <Content data={data} />' },
     ]}
   />
 </FixCardGrid>
