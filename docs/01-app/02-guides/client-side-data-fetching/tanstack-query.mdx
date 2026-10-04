@@ -365,35 +365,42 @@ Use this profile when the RSC payload must not be shared across requests. If the
 
 ### Cache server data across requests
 
-When the server can reuse the product across requests, replace the browser-only profile with a reusable profile and add a cache tag. Keep the query prefetch and `<HydrationBoundary>` inside `ProductData` so the data, timestamps, and hydration state use the same cache lifecycle:
+Cache the data function when other routes or Server Components need the same product. This keeps the shared cache in the data layer instead of tying it to one RSC payload. Resolve request-specific identity before calling the cached function, then pass the identity as an argument.
 
-```diff filename="app/products/[id]/page.tsx" switcher
--import { cacheLife } from 'next/cache'
-+import { cacheLife, cacheTag } from 'next/cache'
+```ts filename="app/products/[id]/data.ts" switcher
+import { cacheLife, cacheTag } from 'next/cache'
+import { notFound } from 'next/navigation'
+import type { Product } from './product-cache'
 
- async function ProductData({ id }: { id: string }) {
+export async function getProduct(id: string): Promise<Product> {
   'use cache'
--  cacheLife({ expire: 0 })
-+  cacheLife('max')
-+  cacheTag(`product:${id}`)
+  cacheLife('max')
+  cacheTag(`product:${id}`)
 
-   const queryClient = new QueryClient()
+  const product = await db.product.findUnique({ where: { id } })
+  if (!product) notFound()
+  return product
+}
 ```
 
-```diff filename="app/products/[id]/page.js" switcher
--import { cacheLife } from 'next/cache'
-+import { cacheLife, cacheTag } from 'next/cache'
+```js filename="app/products/[id]/data.js" switcher
+import { cacheLife, cacheTag } from 'next/cache'
+import { notFound } from 'next/navigation'
 
- async function ProductData({ id }) {
+export async function getProduct(id) {
   'use cache'
--  cacheLife({ expire: 0 })
-+  cacheLife('max')
-+  cacheTag(`product:${id}`)
+  cacheLife('max')
+  cacheTag(`product:${id}`)
 
-   const queryClient = new QueryClient()
+  const product = await db.product.findUnique({ where: { id } })
+  if (!product) notFound()
+  return product
+}
 ```
 
-This example uses `cacheLife('max')` because writes invalidate the product tag. Choose a profile with positive `revalidate` and `expire` values when the server should refresh the value on a schedule. If another route needs the product without the hydration state, you can also cache the underlying data function separately.
+This example uses `cacheLife('max')` because writes invalidate the product tag. Choose a profile with positive `revalidate` and `expire` values when the server should refresh the value on a schedule.
+
+Caching the data function does not cache the `<HydrationBoundary>` output. Use the [prerenderable hydration helper](#build-a-prerenderable-hydration-state) to give separately cached data and its hydration timestamp the same invalidation lifecycle.
 
 ### Coordinate Next.js and TanStack Query cache lifetimes
 
@@ -421,9 +428,9 @@ When the same mutation updates the browser cache and invalidates cached server d
  }
 ```
 
-`ProductData` can then call `cacheTag(productCache.tag(id))`. Keep this contract free of server-only and client-only imports so both cache layers can reuse it.
+The server function can then call `cacheTag(productCache.tag(id))`. Keep this contract free of server-only and client-only imports so both cache layers can reuse it.
 
-> **Good to know:** Prefer caching the component that owns `<HydrationBoundary>`. If your application must cache the data and hydration state separately, use the [separately cached hydration helper](#build-hydration-state-for-separately-cached-data).
+> **Good to know:** A component cache reuses the complete RSC payload, including the `<HydrationBoundary>`. A data cache can be reused by other server callers. Keep `dehydrate()` inside the component cache for the first pattern. Use the [prerenderable hydration helper](#build-a-prerenderable-hydration-state) for the second.
 
 ## Coordinate server and client caches after mutations
 
@@ -541,11 +548,11 @@ The optimistic query value updates the current screen. `updateTag` ensures the n
 
 > **Good to know:** Call `updateTag` when a Server Action changes a cached read that must reflect the write immediately. An uncached read does not have a server tag to update. See [Client-side data fetching](/docs/app/guides/client-side-data-fetching#coordinate-mutations) for other invalidation behaviors.
 
-## Build hydration state for separately cached data
+## Build a prerenderable hydration state
 
-Prefer caching the `ProductData` component so the initial data and `<HydrationBoundary>` share one cache lifecycle. If your application caches the data separately and cannot cache that component, the `dehydrate()` call remains outside the data's cache scope. During Cache Components prerendering, `dehydrate()` then reads the current time (`Date.now()`) and causes a [current-time prerender error](/docs/messages/blocking-prerender-current-time).
+When reusable server data has its own cache boundary, `dehydrate()` runs outside that boundary. With Cache Components, `dehydrate()` reads the current time (`Date.now()`) during prerendering and causes a [current-time prerender error](/docs/messages/blocking-prerender-current-time).
 
-For already-resolved query data, cache the timestamp and build the dehydrated state by hand. Wrap the time read in [`use cache`](/docs/app/api-reference/directives/use-cache) with the same tags as the data reads. When a mutation invalidates those tags, the data and its timestamp advance together, so `<HydrationBoundary>` overwrites the client query on the next navigation:
+For already-resolved query data, cache the timestamp and build the dehydrated state by hand. Wrap the time read in [`use cache`](/docs/app/api-reference/directives/use-cache) with the same tags as the data reads. When a mutation invalidates those tags, the data and its timestamp advance together. The next `<HydrationBoundary>` can then replace an older client query:
 
 ```tsx filename="app/lib/hydrate.ts" switcher
 import 'server-only'
@@ -642,7 +649,9 @@ export async function dehydrate(queries, options) {
 }
 ```
 
-This helper supports successfully resolved queries. Keep TanStack Query's `dehydrate()` inside the component cache boundary when you need pending queries, failed queries, custom serialization, or other dehydration behavior.
+This helper is a compatibility path for current TanStack Query releases. The [upstream discussion](https://github.com/TanStack/query/pull/11395) explores carrying the source `updatedAt` timestamp through hydration.
+
+The helper supports successfully resolved queries. Keep TanStack Query's `dehydrate()` inside a component cache when you need pending queries, failed queries, custom serialization, or other dehydration behavior.
 
 The following example assumes `getProduct` is cached separately with `cacheTag(productCache.tag(id))`. Await the helper in the segment that owns the data, passing the data and the same tag. Hand the result to `<HydrationBoundary>` inside `ProductData`:
 
