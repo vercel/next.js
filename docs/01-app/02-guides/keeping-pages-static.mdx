@@ -11,15 +11,21 @@ related:
     - app/api-reference/functions/navigation
 ---
 
-Before Cache Components, static and dynamic rendering were a route-level choice. [Route segment configs](/docs/app/guides/caching-without-cache-components#dynamic) such as `dynamic = 'force-static'`, `dynamic = 'force-dynamic'`, and `dynamic = 'error'` controlled whether the entire route was prerendered, rendered on demand, or failed when prerendering was not possible.
+Before Cache Components, you chose a rendering mode for an entire route. [Route segment configs](/docs/app/guides/caching-without-cache-components#dynamic) such as `dynamic = 'force-static'`, `dynamic = 'force-dynamic'`, and `dynamic = 'error'` controlled whether Next.js prerendered the route, rendered it on demand, or failed when it could not be prerendered.
 
-[Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) moves this boundary to individual components and functions. A route can prerender shared UI, reuse cached content, and stream request-specific content. When selected output must remain static, [`ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic) reports later changes that introduce request-time server rendering.
+[Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) lets a route combine prerendered UI, cached content, and request-specific content. Use [`ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic) when part or all of the route must remain static. Next.js then reports changes that introduce request-time server rendering.
 
 ## Decide what should stay static
 
 Static output does not depend on request-specific data. Next.js can generate it before a request and reuse it across requests.
 
-With [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), a client navigation can receive server-rendered output in three [navigation stages](/docs/app/glossary#navigation-stages): the App Shell, an optional per-link prefetch, and the navigation. Each `ensureStatic` level extends the static requirement through one more stage. In the following diagram, gray marks output that must stay static, while blue marks work that can render later:
+With [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), Next.js can prepare a route in three [navigation stages](/docs/app/glossary#navigation-stages):
+
+1. A default `<Link>` loads the App Shell.
+2. `<Link prefetch={true}>` can also load content for that link's URL.
+3. The navigation renders anything that remains after the click.
+
+Each `ensureStatic` level requires one more stage to be static. In the following diagram, gray marks static output and blue marks content that can render later:
 
 <Image
   alt="The Shell, Prefetch, and Navigation stages, with bars showing how each ensureStatic value extends the static requirement through those stages"
@@ -108,7 +114,7 @@ export default function StoreLayout({ children }: LayoutProps<'/store'>) {
 }
 ```
 
-Because the layout reads a cookie, Next.js renders the store's App Shell on the server for each visitor, so the shell can include their cart count. Add `ensureStatic = 'shell'` so the App Shell comes from static output instead:
+The cookie makes the App Shell specific to each visitor, so Next.js renders it on the server. Add `ensureStatic = 'shell'` to require a static App Shell instead:
 
 ```tsx filename="app/store/layout.tsx" highlight={5}
 import Link from 'next/link'
@@ -122,11 +128,11 @@ export default function StoreLayout({ children }: LayoutProps<'/store'>) {
 }
 ```
 
-A default `<Link>` into the store now loads an App Shell that Next.js generates once. The shell shows the `Cart (0)` fallback, and a per-link prefetch or navigation replaces it with the current cart count.
+A default `<Link>` into the store now loads a static App Shell. It shows the `Cart (0)` fallback. A per-link prefetch or navigation replaces the fallback with the current cart count.
 
 ### Step 2: Prefetch product details
 
-Product pages show product details, which rarely change, and live inventory, which changes as orders come in. `ProductDetails` caches its query with [`use cache`](/docs/app/api-reference/directives/use-cache), while `Inventory` reads the stock level for each request:
+Product pages combine product details, which rarely change, with inventory that changes as orders come in. `ProductDetails` caches its query with [`use cache`](/docs/app/api-reference/directives/use-cache). `Inventory` reads the current stock level for each request:
 
 ```tsx filename="app/ui/product.tsx"
 import { db } from '@/lib/db'
@@ -173,7 +179,7 @@ export default function ProductPage({
 }
 ```
 
-A default `<Link>` loads only the App Shell. To also load the product heading before the user clicks, the catalog page links to each product with `prefetch={true}`. Its `getProducts()` query is cached like `getProduct()`:
+A default `<Link>` loads only the App Shell. Add `prefetch={true}` to load the product heading before the user clicks. The catalog's `getProducts()` query is cached like `getProduct()`:
 
 ```tsx filename="app/store/page.tsx" highlight={10}
 import Link from 'next/link'
@@ -195,7 +201,7 @@ export default async function StorePage() {
 }
 ```
 
-The layout's `'shell'` level does not cover these per-link prefetches. Because the store layout reads the cart cookie, Next.js renders each per-link prefetch on the server for the current visitor and can include their cart count. On a catalog page with many product links, each visible link can trigger a server render before the user clicks it.
+The layout's `'shell'` level does not require per-link prefetches to be static. Each product prefetch can still read the cart cookie and render on the server for the current visitor. On a catalog with many product links, each visible link can trigger a server render before the user clicks it.
 
 Add `ensureStatic = 'prefetch'` to the product page:
 
@@ -212,15 +218,15 @@ export default function ProductPage({
 }
 ```
 
-A per-link prefetch of a product now comes from static output that Next.js generates once per product and reuses for all visitors. It contains the product heading, the `Cart (0)` fallback, and the **Checking availability...** fallback. The cart count and the inventory render when the user follows the link.
+Each product prefetch now comes from static output that Next.js can reuse across visitors. It contains the product heading, the `Cart (0)` fallback, and the **Checking availability...** fallback. The cart count and inventory render after the user follows the link.
 
 A level applies to the whole route, including the layouts above the segment that sets it. On product routes, `'prefetch'` also covers the store layout, so the cart count moves to the navigation. The catalog keeps the layout's `'shell'` level.
 
-The product pages are not generated at build time. On a new deployment, the first prefetch returns only the route's fallback shell, so it does not include the product heading. Next.js generates the page in the background, and later prefetches include the heading. See [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components#at-runtime).
+The product route does not export `generateStaticParams()`, so its pages are not generated during the build. On a new deployment, the first prefetch returns the fallback shell without the product heading. Next.js generates the page in the background, and later prefetches include the heading. See [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components#at-runtime).
 
 ### Step 3: Prerender the buying guides
 
-Buying guides are editorial pages, so the complete page should be prerendered. The guide page reads a theme preference from `cookies()`, and like the product page, it reads `params` inside `<Suspense>`. Add `ensureStatic = 'navigation'` to it:
+Buying guides are editorial pages, so the complete page should be static. The guide page reads a theme preference from `cookies()` and reads `params` inside `<Suspense>`. Add `ensureStatic = 'navigation'`:
 
 ```tsx filename="app/store/guides/[id]/page.tsx" highlight={4}
 import { Suspense } from 'react'
@@ -253,7 +259,7 @@ Learn more: https://nextjs.org/docs/messages/generate-static-params#with-ensures
 Error: Failed to collect page data for /store/guides/[id]
 ```
 
-Export `generateStaticParams()` and return the buying guide IDs. Because `'navigation'` requires the complete route to be static, Next.js cannot serve only a fallback shell for an unlisted guide. It waits for the static page to be generated. Return every guide ID that should be ready at build time:
+Export `generateStaticParams()` and return the buying guide IDs. The `'navigation'` level requires a complete static page, so Next.js cannot serve only the fallback shell for an unlisted guide. It generates the complete static page before serving it. Return every guide ID that should be ready during the build:
 
 ```tsx filename="app/store/guides/[id]/page.tsx" highlight={3,7-10}
 import { Suspense } from 'react'
@@ -284,7 +290,7 @@ async function Guide({ params }: { params: Promise<{ id: string }> }) {
 
 If the route has multiple dynamic segments, the returned objects must include all of them. See the [`generateStaticParams` error guide](/docs/messages/generate-static-params#with-ensurestatic) for the full requirement.
 
-The product page can export `generateStaticParams()` too, for example to prerender featured products so their first prefetch includes the heading. Under `'prefetch'` it is optional.
+The product route can also export `generateStaticParams()` to prerender featured products, so their first prefetch includes the heading. It is optional with `'prefetch'`.
 
 Run `next build` again. The route now has `id` values to prerender, and prerendering fails on the cookie reads:
 
@@ -309,13 +315,11 @@ To get a more detailed stack trace and pinpoint the issue, try one of the follow
 Error occurred prerendering page "/store/guides/coffee". Read more: https://nextjs.org/docs/messages/prerender-error
 ```
 
-The build reports this error twice, once inside `nav` and once inside `main`. Build output uses one message for runtime and uncached data, and its stack trace does not name the components.
-
-Next.js also [validates the `'navigation'` requirement](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#validation) in `next dev`. The development overlay identifies each error with a source-mapped stack trace, so switch to development for the rest of this step. To investigate an error that only appears during a build, see [Debug prerender errors](/docs/app/guides/building#debug-prerender-errors).
+Next.js also [validates the `'navigation'` requirement](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#validation) in `next dev`. The development overlay includes a source-mapped stack trace for each error, so use development while fixing the route. For errors that only appear during a build, see [Debug prerender errors](/docs/app/guides/building#debug-prerender-errors).
 
 Start the development server and open a guide URL. `cookies()` is only available for a request, so the development overlay shows the [runtime data error](/docs/messages/static-route-runtime) twice: once for the theme cookie in `Guide`, and once for `CartButton` in the store layout.
 
-As with the product pages, `'navigation'` on the guide page also applies to the store layout. `CartButton` is inside `<Suspense>`, but `'navigation'` is the final server-rendering stage. No later stage remains for the cart count. Deferring it with [`navigation()`](/docs/app/api-reference/functions/navigation) from `next/cache` therefore does not satisfy the static requirement. The overlay suggests these fixes:
+The `'navigation'` setting on the guide page also applies to the store layout. Although `CartButton` is inside `<Suspense>`, no later server-rendering stage remains for the cart count. Deferring it with [`navigation()`](/docs/app/api-reference/functions/navigation) therefore does not satisfy the static requirement. The overlay suggests these fixes:
 
 <FixCardGrid>
   <FixCard
@@ -357,7 +361,7 @@ The client fix card applies only to `searchParams`, not `cookies()`. Buying guid
   }
 ```
 
-The cart must still show per-user state. Because the cart count is not stored in an `HttpOnly` cookie, the browser can read it instead. Make `CartButton` a Client Component that suspends with [`use(browser())`](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser) when it has no `count`:
+The cart must still show the current visitor's count. Because the cookie is not `HttpOnly`, the browser can read it. Make `CartButton` a Client Component that suspends with [`use(browser())`](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser) when it has no `count`:
 
 ```tsx filename="app/ui/cart.tsx" highlight={1,7-9}
 'use client'
@@ -407,7 +411,7 @@ Call `getGuide()` from `Guide`, keeping the `ensureStatic` and `generateStaticPa
   }
 ```
 
-Reload the page. Because the database query is uncached, Next.js would run it for each request. The development overlay shows the [uncached data error](/docs/messages/static-route-dynamic) with these fixes:
+Reload the page. Without caching, the database query would run for each request, which violates the static requirement. The development overlay shows the [uncached data error](/docs/messages/static-route-dynamic) with these fixes:
 
 <FixCardGrid>
   <FixCard
@@ -445,7 +449,7 @@ export async function getGuide(id: string) {
 
 Reload the page in development to confirm that the uncached data error clears. Then run `next build` to confirm that the guide pages and their content are fully prerendered.
 
-If the guide should render per request, first confirm that the route no longer needs to be fully static. Then [remove the static requirement](/docs/messages/static-route-runtime#remove-the-static-requirement). Because `Guide` already renders inside `<Suspense>`, the route can show its fallback while the guide data loads.
+If the guide data must load on every request, first confirm that the route no longer needs to be fully static. Then [remove the static requirement](/docs/messages/static-route-runtime#remove-the-static-requirement). Because `Guide` already renders inside `<Suspense>`, the route can show its fallback while the data loads.
 
 ## Next steps
 
