@@ -206,26 +206,9 @@ Links to these pages need `prefetch={true}`. A default `<Link>` prefetches only 
 
 > **Good to know**: The App Shell for unlisted params is served from Next.js 16.3. Earlier versions wait for a full server render before sending the response.
 
-### Wait for complete static output
+### Use blocking generation
 
-By default, Partial Prefetching lets Next.js serve the App Shell for an unlisted URL while it generates the URL-specific content. If the route must return only complete static output, export [`ensureStatic = 'navigation'`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#navigation):
-
-```tsx filename="app/[category]/[product]/page.tsx" highlight={1}
-export const ensureStatic = 'navigation'
-
-export async function generateStaticParams({
-  params,
-}: {
-  params: { category: string }
-}) {
-  const products = await getPopularProducts(params.category)
-  return products.map((p) => ({ product: p.slug }))
-}
-```
-
-This static requirement does not decide which parameter values the route accepts. For an accepted product not returned by `generateStaticParams`, the first request waits while Next.js generates and stores the complete static page. Next.js does not serve the App Shell and stream the product afterward. Partial Prefetching does not change this requirement, although a [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch) can start generating the page before the user clicks.
-
-After the page is generated, later requests use the stored result.
+[`ensureStatic = 'navigation'`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#navigation) changes the first-visit behavior for an unlisted parameter. Instead of returning a fallback while the ISR entry is generated in the background, the first request waits for the complete static page. Next.js stores the result so later requests can reuse it.
 
 ### What the upgrade produces
 
