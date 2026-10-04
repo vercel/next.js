@@ -22,9 +22,9 @@ function createChainFiles() {
 // Documents the current (incorrect) behavior: a deep import chain overflows the
 // stack during module evaluation and the whole document is replaced by the
 // Pages Router 500 shell instead of an isolated, app-shell-preserving error.
-// Only reproducible against `next dev`; `@force-gate dev` keeps start/deploy
-// from building this intentionally oversized fixture.
-// @force-gate dev
+// Only reproducible with Turbopack in `next dev`. Webpack does not reach module
+// evaluation before this intentionally oversized fixture times out in CI.
+// @force-gate dev && turbopack
 describe('cache-components - deep import chain - dev module evaluation', () => {
   const { next } = nextTestSetup({
     files: {
