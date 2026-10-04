@@ -112,6 +112,41 @@ Generating the per-link prefetch costs **a server invocation per prefetchable li
 
 Like `searchParams`, `params` needs a `<Suspense>` boundary, even when the values are predefined by [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params). A statically known param still belongs to one URL. A per-link prefetch with `prefetch={true}` resolves the values `generateStaticParams` does not cover.
 
+### Prefetch URL data on intent
+
+For a long list or grid, keep the default App Shell prefetch and wait for user intent before resolving URL-specific content. Set `prefetch` to `'auto'` initially, then change it to `true` when the user hovers, focuses, or touches the link:
+
+```tsx filename="app/ui/intent-prefetch-link.tsx"
+'use client'
+
+import Link from 'next/link'
+import { useState } from 'react'
+
+export function IntentPrefetchLink({
+  href,
+  children,
+}: {
+  href: string
+  children: React.ReactNode
+}) {
+  const [hasIntent, setHasIntent] = useState(false)
+
+  return (
+    <Link
+      href={href}
+      prefetch={hasIntent ? true : 'auto'}
+      onMouseEnter={() => setHasIntent(true)}
+      onFocus={() => setHasIntent(true)}
+      onTouchStart={() => setHasIntent(true)}
+    >
+      {children}
+    </Link>
+  )
+}
+```
+
+`'auto'` preserves the default shared App Shell prefetch. After the user shows intent, `true` starts the per-link prefetch that resolves cached content based on `params` or `searchParams`. Unlike a [hover-triggered prefetch](/docs/app/guides/prefetching#hover-triggered-prefetch) that starts with `prefetch={false}`, this pattern does not disable the App Shell while waiting for intent.
+
 ## Include session data in the shell
 
 `prefetch={true}` resolves URL data. Session data is handled separately. A route that reads `cookies()` or `headers()`, including through `"use cache: private"`, gets an App Shell that includes its session data, cached per session on the client and ready on navigation without a per-link prefetch.
@@ -275,7 +310,7 @@ Skip it when the prefetch can't produce a better UI than the App Shell. Each vis
 
 A per-link prefetch is best-effort. It only helps the navigations where it completes before the click. On a slow connection, on a feed of many links, or on a direct visit, it may not be ready when the user navigates, and the navigation falls back to the App Shell.
 
-When many links to a route are visible at once, such as a grid of cards, each `<Link prefetch={true}>` prefetches that link's content as it enters the viewport, so the grid makes one such server request per card. Prefetch on intent instead. A [hover-triggered prefetch](/docs/app/guides/prefetching#hover-triggered-prefetch) fetches only the links the user is likely to click. The default `<Link>` (without `prefetch={true}`) prefetches only the App Shell, so it doesn't carry this cost.
+When many links to a route are visible at once, such as a grid of cards, each `<Link prefetch={true}>` prefetches that link's content as it enters the viewport, so the grid makes one such server request per card. [Prefetch URL data on intent](#prefetch-url-data-on-intent) to fetch the per-link content only for links the user is likely to click. The default `<Link>` (without `prefetch={true}`) prefetches only the App Shell, so it doesn't carry this cost.
 
 |         | App Shell                                   | Per-link prefetch with `prefetch={true}` |
 | ------- | ------------------------------------------- | ---------------------------------------- |
