@@ -141,7 +141,7 @@ const enum NavigationTaskExitStatus {
 }
 
 export type NavigationRequestAccumulation = {
-  separateRefreshUrls: Set<string> | null
+  separateRefreshUrls: Array<RefreshState> | null
   /**
    * Set when a navigation creates new leaf segments that should be
    * scrolled to. Stays null when no new segments are created (e.g.
@@ -236,6 +236,7 @@ export function startPPRNavigation(
   navigatedAt: number,
   oldUrl: URL,
   oldRenderedSearch: string,
+  oldNextUrl: string | null,
   oldRoot: RootRouteTree<CacheNode>,
   newRoot: RootRouteTree<RSCSegmentData | null>,
   freshness: FreshnessPolicy,
@@ -254,6 +255,7 @@ export function startPPRNavigation(
   const oldRootRefreshState: RefreshState = {
     canonicalUrl: createHrefFromUrl(oldUrl),
     renderedSearch: oldRenderedSearch as NormalizedSearch,
+    nextUrl: oldNextUrl,
   }
   const tree = updateRenderTreeOnNavigation(
     navigatedAt,
@@ -840,7 +842,11 @@ function createRouterStateForSegment(
     routeTree.segment,
     children,
     refreshState !== null
-      ? [refreshState.canonicalUrl, refreshState.renderedSearch]
+      ? [
+          refreshState.canonicalUrl,
+          refreshState.renderedSearch,
+          refreshState.nextUrl ?? null,
+        ]
       : null,
     null,
     routeTree.prefetchHints,
@@ -927,12 +933,20 @@ function accumulateRefreshUrl(
   // we don't do it immediately here is so we can deduplicate multiple
   // instances of the same URL into a single request. See
   // listenForDynamicRequest for more details.
-  const refreshUrl = refreshState.canonicalUrl
   const separateRefreshUrls = accumulation.separateRefreshUrls
   if (separateRefreshUrls === null) {
-    accumulation.separateRefreshUrls = new Set([refreshUrl])
-  } else {
-    separateRefreshUrls.add(refreshUrl)
+    accumulation.separateRefreshUrls = [refreshState]
+    return
+  }
+  const nextUrl = refreshState.nextUrl ?? null
+  if (
+    !separateRefreshUrls.some(
+      (existing) =>
+        existing.canonicalUrl === refreshState.canonicalUrl &&
+        (existing.nextUrl ?? null) === nextUrl
+    )
+  ) {
+    separateRefreshUrls.push(refreshState)
   }
 }
 
@@ -948,24 +962,31 @@ function reuseActiveSegmentInDefaultSlot(
 
   let reusedUrl: string
   let reusedRenderedSearch: NormalizedSearch
+  let reusedNextUrl: string | null
   const oldRefreshState = oldRenderTree.refreshState
   if (oldRefreshState !== null) {
     // This segment was already reused from an even older route. Keep its
     // existing URL and refresh state.
     reusedUrl = oldRefreshState.canonicalUrl
     reusedRenderedSearch = oldRefreshState.renderedSearch
+    reusedNextUrl =
+      oldRefreshState.nextUrl !== undefined
+        ? oldRefreshState.nextUrl
+        : (oldRootRefreshState.nextUrl ?? null)
   } else {
     // Since this route didn't already have a refresh state, it must have been
     // reachable from the root of the old route. So we use the refresh state
     // that represents the old route.
     reusedUrl = oldRootRefreshState.canonicalUrl
     reusedRenderedSearch = oldRootRefreshState.renderedSearch
+    reusedNextUrl = oldRootRefreshState.nextUrl ?? null
   }
 
   const reusedRouteTree = rebaseInactiveRouteTree(oldRenderTree)
   reusedRouteTree.refreshState = {
     canonicalUrl: reusedUrl,
     renderedSearch: reusedRenderedSearch,
+    nextUrl: reusedNextUrl,
   }
   return reusedRouteTree
 }
@@ -1402,8 +1423,12 @@ export function spawnDynamicRequests(
     // given refresh URL.
     refreshRequestPromises = []
     const canonicalUrl = createHrefFromUrl(primaryUrl)
-    for (const refreshUrl of separateRefreshUrls) {
-      if (refreshUrl === canonicalUrl) {
+    for (const refreshState of separateRefreshUrls) {
+      const refreshUrl = refreshState.canonicalUrl
+      if (
+        refreshUrl === canonicalUrl &&
+        (refreshState.nextUrl ?? null) === (nextUrl ?? null)
+      ) {
         // We already initiated a request for the this URL, above. Skip it.
         // TODO: This only happens because the main URL is not tracked as
         // part of the separateRefreshURLs set. There's probably a better way
@@ -1425,12 +1450,7 @@ export function spawnDynamicRequests(
             null,
             scopedDynamicRequestTree,
             new URL(refreshUrl, location.origin),
-            // TODO: Just noticed that this should actually the Next-Url at the
-            // time the refresh URL was set, not the current Next-Url. Need to
-            // start tracking this alongside the refresh URL. In the meantime,
-            // if a refresh fails due to a mismatch, it will trigger a
-            // hard refresh.
-            nextUrl,
+            refreshState.nextUrl !== undefined ? refreshState.nextUrl : nextUrl,
             freshnessPolicy,
             routeCacheEntry,
             navigationLock,
