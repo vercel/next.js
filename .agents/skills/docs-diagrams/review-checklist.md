@@ -1,10 +1,10 @@
 # Review checklist
 
-Open both PNGs at full size next to the reference images for the family and go through this before handing anything off. Each item is a miss a real draft had.
+Open both PNGs at full size next to the reference images you fetched and go through this before handing anything off. Each item is a miss a real draft had.
 
 ## Against the references
 
-- [ ] Same family, same anatomy: a reader could not tell this image was drawn by someone else.
+- [ ] Same kind, same anatomy: a reader could not tell this image was drawn by someone else.
 - [ ] Colors mean what they mean in the neighbouring diagrams (see "What the colors mean" in [style-tokens.md](style-tokens.md)). No accent used only to fill the palette.
 - [ ] Within this picture every accent means one thing, in every part of the picture (windows, bars, legend).
 
@@ -18,8 +18,7 @@ Open both PNGs at full size next to the reference images for the family and go t
 
 ## Composition
 
-- [ ] Left and right margins are equal. Measure from the leftmost glyph or bracket to the canvas edge, and from the rightmost badge or pill to the canvas edge.
-- [ ] Top and bottom margins are equal (within 4px). Measure from the ink with `python3 scripts/measure.py light/<name>.png` rather than trusting the `y` you passed to a text label. It ignores the grid; panel shadows still count, so the bottom reads a few px smaller than it is.
+- [ ] Left equals right and top equals bottom, within 4px. Measure from the ink with `python3 scripts/measure.py light/<name>.png` rather than trusting the coordinates you passed. The script ignores the grid; panel shadows still count, so the bottom reads a few px smaller than it is.
 - [ ] On a canvas narrower than 1600, element sizes were scaled by `width / 1600`, so the picture will not render larger than its neighbours.
 - [ ] The whole block is centered as one unit, not each column separately.
 - [ ] Arrow heads, bar splits and leader lines line up with what they point at.

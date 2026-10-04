@@ -1,16 +1,16 @@
 # Style tokens
 
-Measured from the published docs diagrams (`page-special-file`, `nested-layouts`, `server-rendering-with-streaming`, `project-organization-colocation`, `thinking-in-ppr`, `multi-zones`, `parallel-routes`, `file-conventions-component-hierarchy`). All values are CSS px on a 1600-wide canvas; `lib.mjs` holds the same values as the `themes` object. Use the token, not a new hex.
+Measured from published docs diagrams of every kind listed in SKILL.md. All values are CSS px on a 1600-wide canvas; `lib.mjs` holds the same values in its `themes` object. Use the token, not a new hex.
 
 ## Canvas
 
-| Property   | Value                                                                                    |
-| ---------- | ---------------------------------------------------------------------------------------- |
-| Width      | 1600 (render at 2x → 3200). Match the width the mdx declares if a page uses another.     |
-| Height     | per diagram, declared in the mdx                                                         |
-| Background | light `#FBFBFB`, dark `#0D0D0D`                                                          |
-| Grid       | 40px squares, 1px lines, light `#F7F7F7`, dark `#161616`, an SVG `<pattern>` over the bg |
-| Margins    | 60 on top and bottom, equal left and right. Center the whole block, never left-align it  |
+| Property   | Value                                                                                                                                  |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Width      | 1600 (render at 2x → 3200). Match the width the mdx declares if a page uses another.                                                   |
+| Height     | per diagram, declared in the mdx                                                                                                       |
+| Background | light `#FBFBFB`, dark `#0D0D0D`                                                                                                        |
+| Grid       | 40px squares, 1px lines, light `#F7F7F7`, dark `#161616`, an SVG `<pattern>` over the bg                                               |
+| Margins    | about 60 when the height is yours to choose; equal top/bottom and equal left/right always. Center the whole block, never left-align it |
 
 ## Colors
 
@@ -51,7 +51,7 @@ The docs use color as a legend, so keep the meaning stable across a diagram and 
 - **Purple**: a second category next to blue (static vs dynamic regions, slot B, zone C), never a second shade of "later".
 - **Red / green**: judgments (not routable / routable). Only in badges and zone boxes.
 
-Within one picture every accent means exactly one thing, and the same thing in every part of the picture.
+Within one picture every accent means exactly one thing, and the same thing in every part of the picture. Rendered UI inside a window stays gray skeleton regardless; only the state the picture is about gets the accent.
 
 ## Typography
 
