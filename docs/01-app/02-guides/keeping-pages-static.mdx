@@ -11,11 +11,11 @@ related:
     - app/api-reference/functions/navigation
 ---
 
-Before Cache Components, static and dynamic rendering were primarily a route-level choice. [Route segment configs](/docs/app/guides/caching-without-cache-components#dynamic) such as `dynamic = 'force-static'`, `dynamic = 'force-dynamic'`, and `dynamic = 'error'` controlled whether the entire route was prerendered, rendered on demand, or failed when it could not be prerendered.
+Before Cache Components, static and dynamic rendering were a route-level choice. [Route segment configs](/docs/app/guides/caching-without-cache-components#dynamic) such as `dynamic = 'force-static'`, `dynamic = 'force-dynamic'`, and `dynamic = 'error'` controlled whether the entire route was prerendered, rendered on demand, or failed when it could not be prerendered.
 
 [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) moves this boundary to the component and function level. A single route can have a static shell, cached content, and request-specific content that streams in later. Shared UI can render first without requiring the entire route to be static.
 
-Some routes must still avoid request-time server work to control compute costs or remain fully prerendered as the codebase changes. [`ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic) makes that requirement explicit, so later changes cannot silently introduce request-time rendering.
+Some routes must still avoid request-time server work, to control compute costs or to stay fully prerendered as the codebase changes. [`ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic) makes that requirement explicit, so a later change that adds request-time rendering is reported instead of going unnoticed.
 
 ## Decide what should stay static
 
@@ -85,7 +85,7 @@ A default `<Link>` into the store loads the shell from static output, and a `<Li
 
 `'shell'` would not be enough here. Product links will resolve `params` in their per-link prefetch, and under `'shell'` each of those prefetches would render on the server, with nothing in the UI to show that cost. `'prefetch'` serves them from prerendered output instead.
 
-For one subtree, awaiting [`navigation()`](/docs/app/api-reference/functions/navigation) inside `<Suspense>` defers the work below it until navigation. Setting `ensureStatic = 'prefetch'` on the layout applies that requirement to every route under it, so the subtrees need no call of their own. See [Defer work to a later stage](/docs/app/guides/optimizing-prefetching#defer-work-to-a-later-stage) for the per-subtree controls.
+Awaiting [`navigation()`](/docs/app/api-reference/functions/navigation) inside `<Suspense>` defers one subtree's work until navigation. With `ensureStatic = 'prefetch'` on the layout, request-specific work inside `<Suspense>` is deferred that way across every route under it, so the subtrees need no call of their own. See [Defer work to a later stage](/docs/app/guides/optimizing-prefetching#defer-work-to-a-later-stage) for the per-subtree controls.
 
 ### Step 2: Prefetch product details, not live inventory
 
