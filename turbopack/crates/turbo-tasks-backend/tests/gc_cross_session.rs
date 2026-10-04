@@ -446,8 +446,8 @@ async fn lazy_connector_root(op: OperationVc<u32>, other: ResolvedVc<Constant>) 
 }
 
 /// A task that holds a collected operation in its arguments and connects it later. Whether the
-/// operation is still soft-deleted or already evicted, the connect must not panic and the read
-/// fails with the collected-task error.
+/// operation is still soft-deleted or already evicted, the connect fails the connecting task with
+/// the missing-pin panic, and nothing is materialized for the collected operation.
 /// The error is formatted before the backend stops: formatting resolves task names through it.
 async fn connect_collected_operation(name: &str, evict: bool) -> Result<u32, String> {
     let dir = create_persistence_dir(name);
@@ -504,10 +504,10 @@ async fn connect_collected_operation(name: &str, evict: bool) -> Result<u32, Str
 async fn connecting_a_soft_deleted_operation_is_an_error() {
     let err = connect_collected_operation("connecting_a_soft_deleted_operation_is_an_error", false)
         .await
-        .expect_err("the operation was collected, so connecting and reading it must fail");
+        .expect_err("the operation was collected, so connecting it must fail");
     assert!(
-        err.contains("garbage collected"),
-        "expected the collected-task read error, got: {err}"
+        err.contains("was held without a pin"),
+        "expected the missing-pin panic, got: {err}"
     );
 }
 
@@ -518,10 +518,10 @@ async fn connecting_an_evicted_collected_operation_is_an_error() {
         true,
     )
     .await
-    .expect_err("the operation is gone, so connecting and reading it must fail");
+    .expect_err("the operation is gone, so connecting it must fail");
     assert!(
-        err.contains("garbage collected"),
-        "expected the collected-task read error, got: {err}"
+        err.contains("was held without a pin"),
+        "expected the missing-pin panic, got: {err}"
     );
 }
 
@@ -561,10 +561,10 @@ async fn parentless_connect_of_an_evicted_operation_does_not_abort() {
     let err = tt
         .run(async move { anyhow::Ok(*op.read_strongly_consistent().await?) })
         .await
-        .expect_err("the operation is gone, so reading it must fail");
+        .expect_err("the operation is gone, so connecting it must fail");
     assert!(
-        format!("{err:?}").contains("garbage collected"),
-        "expected the collected-task read error, got: {err:?}"
+        format!("{err:?}").contains("was held without a pin"),
+        "expected the missing-pin panic, got: {err:?}"
     );
     assert_eq!(
         tt.backend().resident_task_count_for_testing(),

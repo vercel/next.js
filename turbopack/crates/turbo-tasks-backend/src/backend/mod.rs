@@ -3445,10 +3445,16 @@ impl TurboTasksBackend {
         self.assert_not_persistent_calling_transient(parent_task, task);
         let mut ctx = self.execute_context(turbo_tasks);
         // An `OperationVc` held without a pin can name a collected task (soft-deleted or already
-        // gone). `connect_child` would materialize and schedule an entry for it, so skip the
-        // connect; the output read that follows fails with an ordinary error instead.
+        // gone). That is a bug in whoever held it, so fail loudly here, in the connecting task,
+        // rather than letting the dead id spread into this task's output or another task's
+        // arguments. Panic before `connect_child`, which would materialize and schedule an entry
+        // for the missing task.
         if ctx.try_task(task, TaskDataCategory::Meta).is_none() {
-            return;
+            panic!(
+                "connect_task: task {task} no longer exists (it was garbage collected). An \
+                 `OperationVc` to it was held without a pin; hold it in a `GcRoot` or connect it \
+                 from its parent task."
+            );
         }
         connect_child(
             parent_task,
