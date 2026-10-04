@@ -64,14 +64,23 @@ export default nextConfig
 
 ### Step 1: Load the store layout without the cart
 
-The store layout is shared by the catalog, product pages, and buying guides. Its `CartButton` reads the cart cookie. Without `ensureStatic`, the App Shell that a default `<Link>` loads is rendered for each request, so it can include the cart count. Add `ensureStatic = 'shell'` so the App Shell comes from static output instead:
+The store layout is shared by the catalog, product pages, and buying guides. Its navigation includes a `CartButton` that reads the cart count from a cookie:
 
-```tsx filename="app/store/layout.tsx" highlight={5}
+```tsx filename="app/ui/cart.tsx"
+import { cookies } from 'next/headers'
+
+export async function CartButton({ count }: { count?: number }) {
+  const value = count ?? Number((await cookies()).get('cart-count')?.value ?? 0)
+  return <button>Cart ({value})</button>
+}
+```
+
+When `count` is passed, `CartButton` skips the cookie read. The layout uses this for the `<Suspense>` fallback, so the fallback renders `Cart (0)` without request data:
+
+```tsx filename="app/store/layout.tsx"
 import Link from 'next/link'
 import { Suspense } from 'react'
 import { CartButton } from '@/app/ui/cart'
-
-export const ensureStatic = 'shell'
 
 export default function StoreLayout({ children }: LayoutProps<'/store'>) {
   return (
@@ -86,6 +95,20 @@ export default function StoreLayout({ children }: LayoutProps<'/store'>) {
       <main>{children}</main>
     </>
   )
+}
+```
+
+Without `ensureStatic`, the App Shell that a default `<Link>` loads is rendered for each request, so it can include the cart count. Add `ensureStatic = 'shell'` so the App Shell comes from static output instead:
+
+```tsx filename="app/store/layout.tsx" highlight={5}
+import Link from 'next/link'
+import { Suspense } from 'react'
+import { CartButton } from '@/app/ui/cart'
+
+export const ensureStatic = 'shell'
+
+export default function StoreLayout({ children }: LayoutProps<'/store'>) {
+  // ...
 }
 ```
 
