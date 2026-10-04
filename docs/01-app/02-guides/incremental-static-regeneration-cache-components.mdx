@@ -206,9 +206,9 @@ Links to these pages need `prefetch={true}`. A default `<Link>` prefetches only 
 
 > **Good to know**: The App Shell for unlisted params is served from Next.js 16.3. Earlier versions wait for a full server render before sending the response.
 
-### Use blocking generation
+### Wait for complete static output
 
-[`ensureStatic = 'navigation'`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#navigation) changes the first-visit behavior for an unlisted parameter. Instead of returning a fallback while the ISR entry is generated in the background, the first request waits for the complete static page. Next.js stores the result so later requests can reuse it.
+For an unlisted parameter, [`ensureStatic = 'navigation'`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#navigation) makes the first request wait for the complete static page. Without this requirement, Next.js can return a prerendered fallback while it generates the page in the background. Next.js stores the completed page for later requests.
 
 ### What the upgrade produces
 

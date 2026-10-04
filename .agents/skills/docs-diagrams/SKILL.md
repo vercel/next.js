@@ -12,7 +12,7 @@ disable-model-invocation: true
 
 # Docs diagrams
 
-The reference is the set of diagrams already published in the docs. They share one visual language: a faint grid background, white panels with a 1px border and a soft shadow, gray skeleton UI, gray arrows, and a small accent palette where each color carries a meaning. This skill reproduces that language from code, so a new diagram sits next to the existing ones without looking like a different hand drew it.
+Use the diagrams already published in the docs as references. They share a faint grid background, bordered panels with soft shadows, gray skeleton UI, gray arrows, and a small accent palette in which each color has a consistent meaning. This skill reproduces that visual language from code.
 
 ## Files
 
@@ -33,7 +33,7 @@ The `<Image>` block gives you the file names (`srcLight="/docs/light/<name>.png"
 
 The paragraph before the image often states the color legend in words ("gray marks output that must remain static, while blue marks work that can render later"). When it does, the drawing has to match that sentence exactly. When it does not, take the states the alt text names (a Suspense fallback, content that renders later), map them with "What the colors mean" in [style-tokens.md](style-tokens.md), and suggest adding the legend sentence to the mdx in your hand-off.
 
-Draw what the brief names, nothing more. The alt text and the surrounding paragraph decide which values, rows and labels appear. The alt text's names win for labels in the picture; use `docs/01-app/04-glossary.mdx` for terminology the brief leaves open.
+Draw only what the brief names. The alt text and surrounding paragraph determine which values, rows, and labels appear. Use the labels from the alt text and `docs/01-app/04-glossary.mdx` for terminology the brief leaves open.
 
 ### 2. Pull references from the docs
 

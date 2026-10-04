@@ -136,7 +136,7 @@ Use `connection()` when the work must run for a real request. Use `prefetch()` w
 
 ## When to use it
 
-Reach for it when the content below `prefetch()` is expensive to produce, in compute, in upstream requests, or in latency, and you do not want it generated in the App Shell that every `<Link>` into the route loads.
+Use `prefetch()` when the content below it is expensive to produce and should not be generated in the App Shell that every `<Link>` into the route loads.
 
 Producing the App Shell does not run that code, so its upstream requests are not issued until a per-link prefetch or the navigation.
 
@@ -152,7 +152,7 @@ When every read of [`cookies()`](/docs/app/api-reference/functions/cookies) and 
 
 - The function has no effect on the initial load of a page.
 - Unlike [`connection()`](/docs/app/api-reference/functions/connection), it does not mark the subtree as request-dependent. Content below `await prefetch()` stays fully cacheable and can be wrapped in [`use cache`](/docs/app/api-reference/directives/use-cache).
-- A call outside a `<Suspense>` boundary surfaces an [Instant Insight](/docs/messages/instant-navigation-stage) in development. It is reported even on a page that is currently prerendered in full, because the same page starts deferring content as soon as it switches to a runtime shell.
+- A call outside a `<Suspense>` boundary surfaces an [Instant Insight](/docs/messages/instant-navigation-stage) in development. A fully prerendered route is unaffected, but the insight identifies that the call would defer content without a fallback if the route later requires runtime rendering.
 - Calling it inside `use cache`, `use cache: private`, [`unstable_cache()`](/docs/app/api-reference/functions/unstable_cache), [`after()`](/docs/app/api-reference/functions/after), [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params), or a Client Component throws.
 - In a `page` or `layout` that sets the [`prefetch` route segment config](/docs/app/api-reference/file-conventions/route-segment-config/prefetch), import the function under another name, for example `import { prefetch as prefetchStage } from 'next/cache'`, since both are named `prefetch`.
 

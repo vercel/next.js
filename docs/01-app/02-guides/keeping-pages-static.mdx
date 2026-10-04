@@ -11,11 +11,9 @@ related:
     - app/api-reference/functions/navigation
 ---
 
-Before Cache Components, route segment configs such as [`dynamic = 'force-static'`](/docs/app/guides/caching-without-cache-components#dynamic), `dynamic = 'force-dynamic'`, and `dynamic = 'error'` selected a rendering mode for an entire route.
+Before Cache Components, route segment configs such as [`dynamic = 'force-static'`](/docs/app/guides/caching-without-cache-components#dynamic), `dynamic = 'force-dynamic'`, and `dynamic = 'error'` selected a rendering mode for an entire route. [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) lets one route combine prerendered UI, cached content, and request-specific content that streams later.
 
-[Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) changes this model. A route can combine prerendered UI, cached content, and request-specific content that streams later. This is useful for routes that mix shared and personalized content, but sometimes an App Shell, a per-link prefetch, or a complete route must avoid request-time server rendering.
-
-Use [`ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic) to require that output to remain static as the app changes. Place request-specific content behind `<Suspense>` so it can render later. `next dev` and `next build` identify any work that still prevents the selected output from being static.
+Use [`ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic) when an App Shell, a per-link prefetch, or a complete route must avoid request-time server rendering. With the App Shell and per-link prefetch levels, request-specific content can render later behind `<Suspense>`. `next dev` and `next build` identify work that prevents the selected output from remaining static.
 
 ## Decide what should stay static
 
@@ -193,9 +191,7 @@ export default function ProductPage({
 }
 ```
 
-The cached product details can be reused across visitors. Inventory remains request-specific and can render after the user follows the link.
-
-However, `ensureStatic = 'shell'` on the layout only requires the App Shell to be static. Because the catalog sets `prefetch={true}` on every product link, each visible link can still trigger a server render before the click. To use static output for the product details and defer inventory until navigation, set `ensureStatic = 'prefetch'` on the product page:
+The layout's `'shell'` requirement does not cover per-link prefetches. Because the catalog sets `prefetch={true}` on every product link, each visible link can still trigger a server render before the click. To use static output for the product details and defer inventory until navigation, set `ensureStatic = 'prefetch'` on the product page:
 
 ```tsx filename="app/store/products/[slug]/page.tsx" highlight={4}
 import { Suspense } from 'react'
@@ -210,11 +206,9 @@ export default function ProductPage({
 }
 ```
 
-Next.js now uses only static output for each product prefetch instead of rendering it for the current visitor. Inventory renders after the user follows the link.
+The product prefetch now contains static product details and the cart fallback. Inventory and the current cart count render during navigation.
 
-An `ensureStatic` value applies to the whole route, including layouts above the segment that exports it. On product routes, `'prefetch'` also covers the store layout. The per-link prefetch contains the cart fallback, and the current count renders during navigation. The catalog keeps the layout's `'shell'` value.
-
-If only one subtree needed to stay out of per-link prefetches, you could call [`await navigation()`](/docs/app/api-reference/functions/navigation) inside that subtree. Here, every per-link prefetch for a product route must remain static, so the page sets `ensureStatic = 'prefetch'`.
+An `ensureStatic` value covers the whole route, including layouts above the segment that exports it, so `'prefetch'` also applies to the store layout on product routes. If only one subtree needed to stay out of per-link prefetches, you could call [`await navigation()`](/docs/app/api-reference/functions/navigation) inside that subtree instead. Here, every product prefetch must remain static.
 
 ### Step 3: Prerender the buying guides
 
@@ -408,7 +402,7 @@ export async function getGuide(id: string) {
 }
 ```
 
-After caching the query, reload the guide page. The uncached data error clears, and the overlay now reports two [runtime data errors](/docs/messages/static-route-runtime). The first points to `CartButton` in the store layout, and the second points to the guide's theme cookie:
+After caching the query, reload the guide page. The overlay now reports two [runtime data errors](/docs/messages/static-route-runtime), one for `CartButton` in the store layout and one for the guide's theme cookie:
 
 ```tsx filename="app/ui/cart.tsx" highlight={1}
 const value = Number((await cookies()).get('cart-count')?.value ?? 0)
@@ -445,7 +439,7 @@ The overlay shows two ways to resolve runtime data:
   />
 </FixCardGrid>
 
-Buying guides do not need a per-user theme, so remove the cookie access from `Guide`:
+The buying guides do not need a per-user theme, so remove that cookie access:
 
 ```diff filename="app/store/guides/[id]/page.tsx"
   import { Suspense } from 'react'
@@ -463,7 +457,7 @@ Buying guides do not need a per-user theme, so remove the cookie access from `Gu
   }
 ```
 
-The cart count must stay personalized. Since the app stores it in a non-`HttpOnly` cookie, the browser can read it without server rendering. Convert `CartButton` to a Client Component and use [`use(browser())`](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser) to suspend during prerendering:
+The cart count must stay personalized. The app stores it in a non-`HttpOnly` cookie, so the browser can read it without server rendering. Convert `CartButton` to a Client Component and use [`use(browser())`](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser) to suspend during prerendering:
 
 ```tsx filename="app/ui/cart.tsx" highlight={1,3-4,7-8}
 'use client'
@@ -508,5 +502,4 @@ The store now keeps shared navigation in its static App Shell, includes cached p
 
 - [Optimize prefetching](/docs/app/guides/optimizing-prefetching#defer-work-to-a-later-stage) to defer one subtree with `prefetch()` or `navigation()` instead of setting a level for the whole route.
 - [Ensure instant navigations](/docs/app/guides/instant-navigation) to validate that client navigations into the store show UI immediately.
-- [Building your application](/docs/app/guides/building#debug-prerender-errors) for debugging prerender errors in `next build`.
 - [Migrate to Cache Components](/docs/app/guides/migrating-to-cache-components) to replace route-level configs such as `dynamic = 'force-static'` in an existing app.

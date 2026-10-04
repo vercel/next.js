@@ -1,6 +1,6 @@
 ---
 title: Optimizing prefetching
-description: Resolve per-link URL data with the prefetch prop, include session data in the App Shell, or exclude expensive content from a prefetch.
+description: Resolve per-link URL data, include session data in the App Shell, or defer expensive work to a later navigation stage.
 nav_title: Optimizing prefetching
 related:
   title: Learn more
@@ -26,7 +26,7 @@ With [Cache Components](/docs/app/getting-started/caching) and [Partial Prefetch
 2. A [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch) also loads static or cached content that depends on the link's [URL data](/docs/app/glossary#url-data), such as [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) and [`params`](/docs/app/api-reference/file-conventions/page#params-optional), which the shared shell cannot include.
 3. When the user follows the link, the navigation renders the rest of the route.
 
-The sections below work through the stages in that order, then show how to defer expensive work to a later stage with [`prefetch()`](/docs/app/api-reference/functions/prefetch) and [`navigation()`](/docs/app/api-reference/functions/navigation). To require that a stage stays static for a whole route, see [Keeping pages static](/docs/app/guides/keeping-pages-static).
+Use [`prefetch()`](/docs/app/api-reference/functions/prefetch) and [`navigation()`](/docs/app/api-reference/functions/navigation) to move expensive work to a later stage. To require that a stage stays static across a route, see [Keeping pages static](/docs/app/guides/keeping-pages-static).
 
 ## Use the optimizer skill (recommended)
 
@@ -261,8 +261,6 @@ The session is read above `prefetch()`, so it still resolves in the shell. The A
 
 Neither function can be awaited inside a cached scope, so the directive goes on a function called below it, as `rank` does here.
 
-> **Good to know:** This function shares its name with the [`prefetch` route segment config](/docs/app/api-reference/file-conventions/route-segment-config/prefetch). In a file that exports that config, import it as `import { prefetch as prefetchStage } from 'next/cache'`.
-
 ### Wait for the navigation
 
 If no prefetch should generate the ranking, await `navigation()` instead:
@@ -352,7 +350,7 @@ test('prefetches the product summary but not reviews', async ({ page }) => {
 
 While the `instant()` callback is running, dynamic content is paused. In this example, the product summary is part of the prefetched UI, while reviews wait for navigation. The final assertion confirms that the reviews render after the pause is released.
 
-In development, a `prefetch()` or `navigation()` call outside `<Suspense>` surfaces an [Instant Insight](/docs/messages/instant-navigation-stage), since the deferred subtree has no fallback to show in the earlier stage. On a fully prerendered page, the call has no effect until the route needs runtime rendering. Next.js reports the insight when that happens and no `<Suspense>` boundary can provide the earlier-stage fallback. Calls in [`generateMetadata()`](/docs/messages/instant-navigation-stage-metadata) and [`generateViewport()`](/docs/messages/instant-navigation-stage-viewport) get their own insights.
+In development, a `prefetch()` or `navigation()` call outside `<Suspense>` surfaces an [Instant Insight](/docs/messages/instant-navigation-stage). A fully prerendered route is unaffected, but the insight identifies that the call would defer content without a fallback if the route later requires runtime rendering. Calls in [`generateMetadata()`](/docs/messages/instant-navigation-stage-metadata) and [`generateViewport()`](/docs/messages/instant-navigation-stage-viewport) have separate insights.
 
 ## Trade-offs
 
@@ -381,21 +379,11 @@ When many links to a route are visible at once, such as a grid of cards, each `<
 | Cost    | Bounded by route count                                                  | Bounded by visible-link count                            | Bounded by navigations                               |
 | Role    | Default prefetch                                                        | More rendered before click                               | Completes the route                                  |
 
-[Deferring work](#defer-work-to-a-later-stage) avoids generating content for prefetches that may never be used. The tradeoff is that a navigation may show the nearest `<Suspense>` fallback while the deferred content renders. Choose a control based on the content's dependencies and cost:
-
-- Set `prefetch={true}` when cached content depends on URL data.
-- Leave cheap session-dependent content in the App Shell.
-- Await `prefetch()` when session-dependent content is expensive, so only `prefetch={true}` links generate it.
-- Await `navigation()` when no prefetch should generate it.
-- Await [`connection()`](/docs/app/api-reference/functions/connection) when the work must run for a real request.
-- Set [`ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic) to keep a stage static as the route changes.
+[Deferring work](#defer-work-to-a-later-stage) avoids generating content for prefetches that may never be used. The tradeoff is that a navigation may show the nearest `<Suspense>` fallback while the deferred content renders.
 
 ## Next steps
 
 - [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) for how `<Link>` behaves under the new model and how to migrate existing apps.
-- [`prefetch` API reference](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) for all prefetch modes.
-- [`use cache: private` reference](/docs/app/api-reference/directives/use-cache-private) for per-user caching specifics.
 - [`prefetch()`](/docs/app/api-reference/functions/prefetch) and [`navigation()`](/docs/app/api-reference/functions/navigation) for the full behavior of each navigation stage API.
 - [Keeping pages static](/docs/app/guides/keeping-pages-static) for requiring a static App Shell, prefetch, or complete route with `ensureStatic`.
 - [Instant navigation guide](/docs/app/guides/instant-navigation) for validating the route's caching structure.
-- [Caching](/docs/app/getting-started/caching) for background on `use cache`, Suspense, and Partial Prerendering.

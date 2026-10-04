@@ -44,7 +44,7 @@ Measured from published docs diagrams of every kind listed in SKILL.md. All valu
 
 The docs use color as a legend, so keep the meaning stable across a diagram and consistent with its neighbours:
 
-- **Gray**: static, prerendered, already there, or simply not the point. Skeleton UI is always gray unless it sits inside an accent region. A static _region_ in a bar or grid cell is a stroked `static` card (`panelMuted` fill, `skel` stroke), so it has the same weight as the accent cards beside it; the darker `gray` accent is for mono pills.
+- **Gray**: static, prerendered, already there, or not the focus. Skeleton UI is always gray unless it sits inside an accent region. A static _region_ in a bar or grid cell is a stroked `static` card (`panelMuted` fill, `skel` stroke), so it has the same weight as the accent cards beside it; the darker `gray` accent is for mono pills.
 - **Blue, dashed stroke + fill**: not rendered yet at this moment; will render later (a Suspense hole, "can render later").
 - **Blue, solid stroke + fill**: content that has rendered, arrived, or is highlighted as the subject (streamed card, selected `<Link>`, slot A).
 - **Gray, dashed stroke, no fill**: a Suspense fallback standing in for content.
