@@ -12,6 +12,7 @@ Open both PNGs at full size next to the reference images for the family and go t
 
 - [ ] Nothing inside a panel touches its border. Holes, cards and rows sit inside the padding.
 - [ ] Sibling elements share top and bottom edges (sidebar squares vs content box, tree rows vs their URL pills).
+- [ ] Skeleton UI reads as a page: avatars are round and sit in their row, bars have breathing room, the post is a card and the comments are rows, the sidebar is clearly separate from the content. If a window's page was laid out by hand instead of `pageLayout`, check these especially.
 - [ ] Every card or hole spans the full width of its content box.
 - [ ] Bars and brackets start and end on the edges of the things they describe, to the pixel.
 

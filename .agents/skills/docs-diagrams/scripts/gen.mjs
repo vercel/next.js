@@ -25,6 +25,7 @@ for (const file of fs
   .filter((f) => f.endsWith('.mjs'))
   .sort()) {
   const mod = await import(pathToFileURL(path.join(dir, file)).href)
+  if (!mod.default) continue // a helper module shared between diagrams
   const diagrams = [].concat(mod.default)
   for (const d of diagrams) {
     if (only && d.name !== only) continue

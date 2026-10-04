@@ -371,12 +371,18 @@ export function urlStack(t, x, y, w, paths) {
 // Arrows
 
 // Straight horizontal arrow with an open chevron head.
-export function arrow(t, x1, x2, y, { color = t.arrow, width = 2 } = {}) {
+export function arrow(
+  t,
+  x1,
+  x2,
+  y,
+  { color = t.arrow, width = 2, k = 1 } = {}
+) {
   const dir = x2 > x1 ? 1 : -1
-  const hx = x2 - dir * 10
+  const hx = x2 - dir * 10 * k
   return (
-    `<line x1="${x1}" x2="${x2 - dir}" y1="${y}" y2="${y}" stroke="${color}" stroke-width="${width}" stroke-linecap="round"/>` +
-    `<path d="M${hx} ${y - 7} L${x2} ${y} L${hx} ${y + 7}" fill="none" stroke="${color}" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round"/>`
+    `<line x1="${x1}" x2="${x2 - dir}" y1="${y}" y2="${y}" stroke="${color}" stroke-width="${width * k}" stroke-linecap="round"/>` +
+    `<path d="M${hx} ${y - 7 * k} L${x2} ${y} L${hx} ${y + 7 * k}" fill="none" stroke="${color}" stroke-width="${width * k}" stroke-linecap="round" stroke-linejoin="round"/>`
   )
 }
 
@@ -445,7 +451,7 @@ export function browserWindow(t, x, y, w, h, url, body = '') {
     })
   )
   s.push(body)
-  return { svg: s.join('\n'), contentY: y + bar, k }
+  return { svg: s.join('\n'), x, y, w, h, contentY: y + bar, k }
 }
 
 // Skeleton pieces
@@ -465,6 +471,105 @@ export const skel = {
       `<path d="M${x + w * 0.12} ${y + h * 0.82} L${x + w * 0.42} ${y + h * 0.5} L${x + w * 0.6} ${y + h * 0.66} L${x + w * 0.72} ${y + h * 0.56} L${x + w * 0.9} ${y + h * 0.82} Z" fill="${detail}" opacity="0.6"/>`
     )
   },
+}
+
+// The page inside a browser window, laid out the way the docs draw it: a
+// header row (avatar + title bar), a sidebar of short bars, and a content
+// column that shares its top and bottom edges with the sidebar. Everything is
+// scaled by the window's `k`. Returns the content rect; fill it per moment
+// with `postCard`, `commentRows`, `hole` and `card`.
+export function pageLayout(t, win, { sidebar = true } = {}) {
+  const { x, y, w, h, contentY, k } = win
+  const pad = 28 * k
+  const s = []
+  // header: avatar and a title bar, vertically centered on each other
+  const r = 14 * k
+  const hy = contentY + pad + r
+  s.push(skel.avatar(t, x + pad + r, hy, r))
+  s.push(
+    skel.bar(
+      t,
+      x + pad + r * 2 + 16 * k,
+      hy - 8 * k,
+      w - pad * 2 - r * 2 - 16 * k,
+      16 * k
+    )
+  )
+  // sidebar and content column
+  const top = hy + r + 24 * k
+  const bottom = y + h - pad
+  const sbW = sidebar ? 110 * k : 0
+  if (sidebar) {
+    // a stack of short bars from the top, like a nav list
+    const widths = [1, 0.75, 0.9, 0.6]
+    const bh = 14 * k
+    widths.forEach((f, i) =>
+      s.push(skel.bar(t, x + pad, top + i * 40 * k, sbW * f, bh))
+    )
+  }
+  const cx = x + pad + sbW + (sidebar ? 24 * k : 0)
+  const content = { x: cx, y: top, w: x + w - pad - cx, h: bottom - top }
+  return { svg: s.join('\n'), content, k }
+}
+
+// A post card: outlined card with a title bar and body lines. `color` 'skel'
+// draws it as plain rendered UI; an accent name draws it as an accent card
+// with the skeleton tinted to match.
+export function postCard(t, x, y, w, h, k = 1, color = 'skel') {
+  const accent = color !== 'skel' ? t[color] : null
+  const c = accent ? accent.skelOn : t.skel
+  const pad = 16 * k
+  const frame = accent
+    ? card(t, x, y, w, h, { color, radius: 8 * k, strokeWidth: 1.5 * k })
+    : `<rect x="${half(x)}" y="${half(y)}" width="${w - 1}" height="${h - 1}" rx="${8 * k}" fill="none" stroke="${t.panelStroke}"/>`
+  // title bar plus at most three body lines; the card's height is the caller's
+  const lines = Math.max(
+    1,
+    Math.min(3, Math.floor((h - pad * 2 - 14 * k) / (18 * k)))
+  )
+  let body = skel.bar(
+    t,
+    x + pad,
+    y + pad,
+    Math.min(120 * k, w * 0.45),
+    14 * k,
+    c
+  )
+  for (let i = 0; i < lines; i++) {
+    const ly = y + pad + 14 * k + 10 * k + i * 18 * k
+    if (ly + 8 * k > y + h - pad) break
+    body += skel.bar(
+      t,
+      x + pad,
+      ly,
+      (w - pad * 2) * (i === lines - 1 ? 0.6 : 1),
+      8 * k,
+      c
+    )
+  }
+  return frame + body
+}
+
+// Comment rows: small avatar + one line each, spread evenly over the height.
+export function commentRows(t, x, y, w, h, k = 1, color = 'skel', rows = 3) {
+  const c = color !== 'skel' ? t[color].skelOn : t.skel
+  const r = 7 * k
+  const step = rows > 1 ? Math.min(34 * k, (h - r * 2) / (rows - 1)) : 0
+  const widths = [0.7, 0.45, 0.6]
+  let out = ''
+  for (let i = 0; i < rows; i++) {
+    const cy = y + r + i * step
+    out += skel.avatar(t, x + r, cy, r, c)
+    out += skel.bar(
+      t,
+      x + r * 2 + 10 * k,
+      cy - 4 * k,
+      (w - r * 2 - 10 * k) * widths[i % widths.length],
+      8 * k,
+      c
+    )
+  }
+  return out
 }
 
 // A region that has not rendered yet. Blue dashed by default; `style: 'gray'`
@@ -640,15 +745,27 @@ export function codePanel(
 // Legend row whose key is a fill style rather than a letter: a small card or
 // hole drawn the way the thing it explains is drawn.
 // kind: { color, dashed } for a card, or { hole: 'blue' | 'gray' } for a hole.
-export function swatchLegend(t, x, y, kind, text) {
+// `k` scales every size for canvases narrower than 1600 (k = width / 1600).
+// Its width is 60k + textWidth(text, 20k) when several sit in one row.
+export function swatchLegend(t, x, y, kind, text, { k = 1 } = {}) {
   const sw = kind.hole
-    ? hole(t, x, y, 44, 24, { style: kind.hole, radius: 6 })
-    : card(t, x, y, 44, 24, {
+    ? hole(t, x, y, 44 * k, 24 * k, {
+        style: kind.hole,
+        radius: 6 * k,
+        strokeWidth: 2 * k,
+        dash: `${8 * k} ${5 * k}`,
+      })
+    : card(t, x, y, 44 * k, 24 * k, {
         color: kind.color ?? 'blue',
         dashed: !!kind.dashed,
-        radius: 6,
+        radius: 6 * k,
+        strokeWidth: 2 * k,
+        dash: `${8 * k} ${5 * k}`,
       })
-  return sw + label(t, x + 60, y + 12, text, { size: 20, color: t.textMuted })
+  return (
+    sw +
+    label(t, x + 60 * k, y + 12 * k, text, { size: 20 * k, color: t.textMuted })
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -656,6 +773,9 @@ export function swatchLegend(t, x, y, kind, text) {
 // column on the left (one per row), faint dashed dividers between columns.
 // Draw the cells yourself with `card` / `hole` from the returned geometry:
 //   const g = grid(t, x, y, { columns, rows }); g.span(row, fromCol, toCol) -> { x, y, w, h }
+// To line the columns up with a row of windows above: colW = windowW + gap,
+// inset = gap / 2, and x = first window's x - labelW - gap - gap / 2. The
+// column headers then sit under the windows and double as their captions.
 //
 // columns: [{ title, subtitle, subtitleMono }]   rows: [{ label, mono = true, muted }]
 
@@ -675,6 +795,7 @@ export function grid(
     headerH = 70,
     gap = 40, // between the label column and the first column
     inset = 10, // cell inset from the column dividers
+    k = 1, // scales text sizes and header offsets (k = width / 1600)
   }
 ) {
   const s = []
@@ -686,8 +807,8 @@ export function grid(
   // the dividers end at the last row, so [y, y + h] is the visual box.
   if (labelHeader)
     s.push(
-      (labelHeaderMono ? code : label)(t, x + labelW, y + 12, labelHeader, {
-        size: 18,
+      (labelHeaderMono ? code : label)(t, x + labelW, y + 12 * k, labelHeader, {
+        size: 18 * k,
         color: t.textMuted,
         anchor: 'end',
       })
@@ -695,8 +816,8 @@ export function grid(
   columns.forEach((c, i) => {
     const cx = colX(i) + colW / 2
     s.push(
-      label(t, cx, y + 12, c.title, {
-        size: 20,
+      label(t, cx, y + 12 * k, c.title, {
+        size: 20 * k,
         weight: 600,
         color: t.textSubtle,
         anchor: 'middle',
@@ -704,8 +825,8 @@ export function grid(
     )
     if (c.subtitle)
       s.push(
-        (c.subtitleMono ? code : label)(t, cx, y + 42, c.subtitle, {
-          size: 15,
+        (c.subtitleMono ? code : label)(t, cx, y + 42 * k, c.subtitle, {
+          size: 15 * k,
           color: t.textMuted,
           anchor: 'middle',
         })
@@ -714,14 +835,14 @@ export function grid(
   for (let i = 0; i <= columns.length; i++) {
     const dx = half(colX(i))
     s.push(
-      `<line x1="${dx}" x2="${dx}" y1="${y + headerH - 10}" y2="${y + h}" stroke="${t.divider}" stroke-dasharray="4 4"/>`
+      `<line x1="${dx}" x2="${dx}" y1="${y + headerH - 10 * k}" y2="${y + h}" stroke="${t.divider}" stroke-dasharray="${4 * k} ${4 * k}"/>`
     )
   }
   rows.forEach((r, i) => {
     const cy = rowY(i) + rowH / 2
     s.push(
       (r.mono === false ? label : code)(t, x + labelW, cy, r.label, {
-        size: 20,
+        size: 20 * k,
         color: r.muted ? t.textMuted : t.text,
         anchor: 'end',
       })

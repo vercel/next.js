@@ -80,7 +80,9 @@ Inter comes from Google Fonts in the HTML wrapper (`display=block` so Chrome wai
 
 **Browser window**: reference size 527×476. Title bar 70 tall, traffic lights radius 9 at 37/65/93px, URL pill 320×44 radius 8 starting at 155px. All of it scales with the width you pass (`k = w / 527`).
 
-**Skeleton**: bars 24 tall radius 6, avatar radius 28, image placeholder is a tile with a sun and a mountain in `textMuted` at 60% opacity.
+**Skeleton**: bars 24 tall radius 6, avatar radius 28, image placeholder is a tile with a sun and a mountain in `textMuted` at 60% opacity. Placeholders stand for real UI, so they keep real proportions: an avatar is a circle no taller than the row it sits in, bars have at least their own height of space between them, nothing touches a neighbour or the window edge.
+
+**Page inside a window** (`pageLayout`): 28px padding at `k = 1`. Header row: avatar radius 14 and a 16px title bar centered on it, 16px apart. 24px below, a 110px-wide sidebar of four 14px bars (widths 1 / 0.75 / 0.9 / 0.6) spread evenly from the content's top edge to its bottom edge, then 24px, then the content column to the right padding. Content is a `postCard` (outlined card, 16px padding, 14px title bar, 8px body lines 18px apart) and `commentRows` (7px avatars with one 8px line each), or a `hole` / `card` spanning the same rect when that content is not there yet. Everything scales with the window's `k`.
 
 **Hole**: 2px dashed stroke `8 5`, radius 10, fill from the accent. Optional centered label at `min(18, h/3)`. Scale `strokeWidth`, `dash` and `labelSize` down inside small windows.
 
