@@ -585,18 +585,12 @@ struct TaskExecutionCompletePrepareResult {
 
 /// Locks the task being read, and the reader too when a dependency edge may need to be added.
 ///
-/// Returns `None` if the task being read is gone (collected by GC, or missing from storage). This
-/// is expected rather than a bug: a stale task can still hold a `Vc` to a collected task in its
-/// arguments, because GC does not keep cell producers alive for their dependents, and it may
-/// re-execute before its own parent re-runs and drops it. The read becomes an ordinary error for
-/// that task, and no edge to the missing task is added.
+/// Returns `None` if the task being read is gone (collected by GC, or missing from storage).
 fn lock_task_and_optional_reader<'e>(
     ctx: &mut ExecuteContext<'e>,
     task_id: TaskId,
     reader_id: Option<TaskId>,
 ) -> Option<(TaskGuard<'e>, Option<TaskGuard<'e>>)> {
-    // `AllowMissing` treats a soft-deleted task as missing too. The context holds an operation
-    // guard, so GC cannot collect the task between this open and the `task_pair` below.
     let task = ctx.try_task(task_id, TaskDataCategory::All)?;
     let Some(reader_id) = reader_id else {
         return Some((task, None));
@@ -652,9 +646,11 @@ impl TurboTasksBackend {
                 && reader_id != task_id)
                 .then_some(reader_id)
         });
-        let (mut task, mut reader_task) =
+        let Some((mut task, mut reader_task)) =
             lock_task_and_optional_reader(&mut ctx, task_id, need_reader_task)
-                .ok_or_else(|| collected_task_read_error(task_id, "read_task_output"))?;
+        else {
+            return Err(collected_task_read_error(task_id, "read_task_output"));
+        };
 
         fn listen_to_done_event(
             reader_description: Option<EventDescription>,
@@ -1027,9 +1023,11 @@ impl TurboTasksBackend {
                 && reader_id != task_id)
                 .then_some(reader_id)
         });
-        let (mut task, reader_task) =
+        let Some((mut task, reader_task)) =
             lock_task_and_optional_reader(&mut ctx, task_id, need_reader_task)
-                .ok_or_else(|| collected_task_read_error(task_id, "read_task_cell"))?;
+        else {
+            return Err(collected_task_read_error(task_id, "read_task_cell"));
+        };
 
         let content = if final_read_hint {
             task.remove_cell_data(&cell, &get_value_type(cell.type_id()).persistence)
