@@ -251,6 +251,8 @@ export async function getGuide(id: string) {
 }
 ```
 
+`db` represents a real database adapter. An in-memory object does not perform uncached I/O, so it will not produce the validation errors used later in this step.
+
 Before adding another static requirement, run `next build` to see how the store routes currently render. The output marks all three as partial prerenders because they still contain request-specific or uncached work:
 
 ```text filename="Terminal"
