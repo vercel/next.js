@@ -145,7 +145,7 @@ export type UpgradeContext = Pick<
   experimental: { agentUpgrade: NudgeKind | false }
 }
 
-type UpgradeReminder = {
+export type UpgradeReminder = {
   policy: NudgeKind
   installedVersion: string
 } & (
@@ -632,11 +632,9 @@ export async function nudgeUpgrade(
       onShown
     )
 
-    if (shown && telemetry) {
-      if (!signal.aborted) {
-        telemetry.record(eventAgentUpgradeNudgeDecision({ nudgeId, action }))
-      }
-      await telemetry.flush()
+    // The caller flushes after it gives the terminal back.
+    if (shown && telemetry && !signal.aborted) {
+      telemetry.record(eventAgentUpgradeNudgeDecision({ nudgeId, action }))
     }
     return action
   }
