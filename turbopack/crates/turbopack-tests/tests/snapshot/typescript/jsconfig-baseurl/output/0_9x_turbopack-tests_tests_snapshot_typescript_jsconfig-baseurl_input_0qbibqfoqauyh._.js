@@ -14,7 +14,6 @@ console.log(__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$
 
 __turbopack_context__.s([
     "prop",
-    0,
     ()=>prop
 ]);
 const prop = 1;
