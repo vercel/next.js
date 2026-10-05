@@ -63,23 +63,29 @@ impl DiskFileSystemMap {
     }
 
     /// Finds the containing root; the suffix is empty only when `path` is that root.
-    pub(crate) fn lookup_root_prefix<'a>(
+    pub(crate) fn lookup_sys_path_suffix<'a>(
         &self,
         path: &'a Path,
-    ) -> Option<(&'a Path, ResolvedVc<DiskFileSystem>)> {
+    ) -> Option<LookupSysPathSuffix<'a>> {
         let (root, fs) = self
             .roots
             .range::<Path, _>((Bound::Unbounded, Bound::Included(path)))
             .next_back()?;
-        Some((path.strip_prefix(root).ok()?, *fs))
+        Some(LookupSysPathSuffix {
+            fs: *fs,
+            remaining: path.strip_prefix(root).ok()?,
+        })
     }
 
     /// Converts an absolute system path into a path owned by one of the installed filesystems.
     ///
     /// Returns `None` if the file path does not exist inside any other root, or if the relative
     /// path would not be valid unicode.
-    pub fn lookup(&self, path: &Path) -> Option<FileSystemPath> {
-        let (relative, fs) = self.lookup_root_prefix(path)?;
+    pub fn lookup_fs_path(&self, path: &Path) -> Option<FileSystemPath> {
+        let LookupSysPathSuffix {
+            fs,
+            remaining: relative,
+        } = self.lookup_sys_path_suffix(path)?;
         let relative = relative.to_str()?;
         Some(FileSystemPath::new_normalized_unchecked(
             ResolvedVc::upcast(fs),
@@ -102,6 +108,11 @@ impl DiskFileSystemMap {
     }
 }
 
+pub struct LookupSysPathSuffix<'a> {
+    pub fs: ResolvedVc<DiskFileSystem>,
+    pub remaining: &'a Path,
+}
+
 #[cfg(test)]
 mod tests {
     use turbo_rcstr::rcstr;
@@ -120,10 +131,15 @@ mod tests {
             assert_eq!(map.len(), 1);
             assert!(map.contains(Path::new("/tmp/root"), fs));
             assert_eq!(
-                map.lookup(Path::new("/tmp/root/file")).unwrap().path,
+                map.lookup_fs_path(Path::new("/tmp/root/file"))
+                    .unwrap()
+                    .path,
                 "file"
             );
-            assert!(map.lookup(Path::new("/tmp/root-other/file")).is_none());
+            assert!(
+                map.lookup_fs_path(Path::new("/tmp/root-other/file"))
+                    .is_none()
+            );
             Ok(())
         }
 

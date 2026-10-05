@@ -637,9 +637,9 @@ impl DiskFileSystem {
         let Some(absolute_path) = absolute_path.to_str() else {
             return Ok(None);
         };
-        Ok(slow_non_lexical(*vc_self, RcStr::from(absolute_path))
+        slow_non_lexical(*vc_self, RcStr::from(absolute_path))
             .owned()
-            .await?)
+            .await
     }
 
     /// Returns the path as a system [`PathBuf`]. Similar to [`DiskFileSystem::to_sys_path`], but
@@ -678,8 +678,10 @@ impl DiskFileSystem {
         return sys_path;
     }
 
-    /// Resolves an absolute path into this filesystem or another configured filesystem, using
-    /// lexical prefix stripping first and canonicalizing successive prefixes if needed.
+    /// Resolves an absolute path into this filesystem or another configured filesystem by
+    /// canonicalizing successive prefixes as needed. For performance reasons, the caller should
+    /// attempt to perform lexical prefix stripping against the current root before calling this
+    /// method.
     ///
     /// Returns [`None`] if the path never reaches a filesystem root, an ancestor can't be
     /// canonicalized, or the first matching prefix lands inside the root.
@@ -696,19 +698,30 @@ impl DiskFileSystem {
         vc_self: ResolvedVc<Self>,
         target_sys_path: &Path,
     ) -> Result<Option<FileSystemPath>> {
+        // Assumption: The map only changes across process restarts, and the map is updated upon
+        // process start (e.g. when processing the Turbopack config) before any root tasks depending
+        // on this (e.g. building bundled outputs) are alive, so in-memory caches that depend on
+        // this value are okay.
         let map = self.inner.map.connect().await?;
+
+        // The fs map could be empty (i.e. this DiskFileSystem doesn't use additional roots), or
+        // (less likely) it may not contain the current root (e.g. paths are allowed to navigate out
+        // of this root, but not back in).
+        //
+        // For these cases, try to match against the current root before looking at the map. Use the
+        // cache stored on the `DiskFileSystem` instead of the one on the `DiskFileSystemMap`.
         if !map.contains(self.inner.root_path(), vc_self) {
-            if let Some(found) = self.try_from_sys_path(vc_self, target_sys_path, None) {
-                return Ok(Some(found));
-            }
             if let Some(found) = self
                 .inner
                 .root_prefixes
-                .walk_canonicalized_ancestry(target_sys_path, |canonical| {
+                .walk_canonicalized_ancestry(&*target_sys_path, |canonical| {
                     let root_path = self.inner.root_path();
                     if canonical == root_path {
                         ControlFlow::Break(Some(vc_self))
                     } else if canonical.starts_with(root_path) {
+                        // Unlikely: We unexpectedly ended up deep *inside* of `root_path`, which
+                        // means we did some untracked reads inside of the filesystem root, just
+                        // bail out and treat this path as invalid.
                         ControlFlow::Break(None)
                     } else {
                         ControlFlow::Continue(())
@@ -719,24 +732,30 @@ impl DiskFileSystem {
                 return Ok(Some(found));
             }
             if map.is_empty() {
+                // don't bother canonicalizing paths again and checking the map if there's no map
                 return Ok(None);
             }
         }
+
+        // Less slow path: Lexically compare against the map. The caller of this function should
+        // already tried to lexically compare with the current root, but not the full map.
         if let Some(found) = target_sys_path
             .normalize_lexically()
             .ok()
-            .and_then(|path| map.lookup(&path))
+            .and_then(|path| map.lookup_fs_path(&path))
         {
             return Ok(Some(found));
         }
+
+        // Slow path: Try to canonicalize and compare each ancestor against the map.
         Ok(map
             .canonicalized_paths
-            .walk_canonicalized_ancestry(target_sys_path, |canonical| {
-                let Some((rest, fs)) = map.lookup_root_prefix(canonical) else {
+            .walk_canonicalized_ancestry(&*target_sys_path, |canonical| {
+                let Some(found) = map.lookup_sys_path_suffix(canonical) else {
                     return ControlFlow::Continue(());
                 };
-                if rest.as_os_str().is_empty() {
-                    ControlFlow::Break(Some(fs))
+                if found.remaining.as_os_str().is_empty() {
+                    ControlFlow::Break(Some(found.fs))
                 } else {
                     ControlFlow::Break(None)
                 }
