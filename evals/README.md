@@ -110,16 +110,21 @@ Fixtures opt into before/after JavaScript measurements with `"browserJs": true`
 in `eval.config.json`. The runner adds measurement hooks only to experiments
 containing those fixtures.
 
-The dynamic-editor and Markdown bundle-optimizer fixtures measure cold Turbopack
-production loads in headless Chromium before and after the agent runs. Each uses
-plain `next build`, disabled browser caching, and fresh browser contexts. Passing
+The dynamic-editor, Markdown, and Lodash bundle-optimizer fixtures measure cold
+Turbopack production loads in headless Chromium before and after the agent runs.
+Each uses plain `next build`, disabled browser caching, and fresh browser contexts.
+Passing
 requires fewer compressed JavaScript response-body bytes than the baseline and a
-rounded byte budget: 200,000 bytes for the editor and 150,000 bytes for Markdown.
+rounded byte budget: 200,000 bytes for the editor, 150,000 bytes for Markdown,
+and 170,000 bytes for Lodash.
 
 The editor must stay unloaded until interaction, preload on pointer hover, and
 remain editable. CodeMirror responses are identified by its
 `cm-content` runtime class. Markdown must preserve the rendered headings, bulleted
-list, and highlighted JavaScript code block.
+list, and highlighted JavaScript code block. Lodash must preserve both transformed
+status labels and consolidate the lockfile to one Lodash version. Both the app
+and legacy widget start with full Lodash imports so consolidating their versions
+removes a substantial duplicated runtime.
 
 `lib/next-test-utils.mjs` owns production builds and server cleanup.
 Shared utilities in `lib/bundle-optimizer/browser-js.ts` handle browser cleanup,

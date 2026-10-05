@@ -53,5 +53,11 @@
     "browserJs": true,
     "publish": false,
     "timeout": 1800
+  },
+  "agent-061-bundle-optimizer-dedupe-packages": {
+    "skills": ["next-bundle-optimizer"],
+    "browserJs": true,
+    "publish": false,
+    "timeout": 1800
   }
 }
