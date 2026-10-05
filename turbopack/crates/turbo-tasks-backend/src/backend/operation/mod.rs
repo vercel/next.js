@@ -364,10 +364,9 @@ impl<'e> ExecuteContext<'e> {
                 continue;
             }
 
-            // Every missing category is being restored by another thread. While waiting we hold
-            // neither the lock nor a restoring claim, so pin the task to keep GC from considering
-            // it. Eviction is still allowed; a later pass restores the category again if needed.
-            task.update_and_get_transient_ref_count(1);
+            // Every missing category is being restored by another thread. If eviction or a
+            // missing-task discard removes the category or the entry while we wait, the loop
+            // restores again (and finds the task missing itself).
             // Register before dropping the lock: the restorer notifies only after re-acquiring it
             // to apply its result, so no wakeup can be lost.
             let listener = self.backend.storage.restored.listen();
@@ -377,26 +376,18 @@ impl<'e> ExecuteContext<'e> {
                 listener.wait();
             }
             task = self.backend.storage.access_entry_mut(task_id);
-            task.update_and_get_transient_ref_count(-1);
         }
         Ok((task, outcome))
     }
 
-    /// [`Self::restore_task`] on a freshly acquired guard, for a task the caller has already
-    /// pinned. On an I/O error the caller's pin is released before the error is returned.
-    fn restore_pinned_task(
+    /// [`Self::restore_task`] on a freshly acquired guard, as a `MustExist` open.
+    fn restore_existing_task(
         &self,
         task_id: TaskId,
         category: TaskDataCategory,
     ) -> Result<(TaskEntryGuard<'e>, RestoreOutcome)> {
         let task = self.backend.storage.access_entry_mut(task_id);
         self.restore_task(task_id, category, task, TaskAccess::MustExist)
-            .inspect_err(|_| {
-                self.backend
-                    .storage
-                    .access_mut(task_id)
-                    .update_and_get_transient_ref_count(-1);
-            })
     }
 
     /// Restores a batch of tasks, then hands each to `prepared_task_callback`. Like
@@ -465,6 +456,7 @@ impl<'e> ExecuteContext<'e> {
                 wait_meta: false,
                 task_type: None,
                 self_restored: false,
+                ready: false,
                 failed: false,
             })
             .collect::<Vec<_>>();
@@ -480,6 +472,7 @@ impl<'e> ExecuteContext<'e> {
         // Only claim reads after the ready-task callbacks above have finished, so callbacks
         // cannot block on a restore this batch has claimed but not yet started.
         let mut any_waiting = false;
+        let mut any_ready = false;
         for (i, entry) in tasks.iter_mut().enumerate() {
             let task_id = entry.task_id;
             let category = entry.category;
@@ -509,21 +502,20 @@ impl<'e> ExecuteContext<'e> {
                     tasks_to_restore_for_meta_indices.push(i);
                 }
             }
-            if !ready {
-                // Keep the task alive until its callback acquires a guard. Eviction may still
-                // clear the category; the callback path restores it again before use.
-                task.update_and_get_transient_ref_count(1);
-            }
             self.task_lock_counter.release();
-            // A peer may have completed the restore since filtering.
+            // A peer may have completed the restore since filtering. Its callback is deferred to
+            // Phase 2: this loop may already have claimed restores for earlier entries, and a
+            // callback that panicked here would strand those claims, hanging their waiters.
             if ready {
-                prepared_task_callback(self, task_id, category, task);
+                entry.ready = true;
+                any_ready = true;
             }
         }
 
         if tasks_to_restore_for_data.is_empty()
             && tasks_to_restore_for_meta.is_empty()
             && !any_waiting
+            && !any_ready
         {
             return;
         }
@@ -628,7 +620,6 @@ impl<'e> ExecuteContext<'e> {
                 if entry.meta_restore_result.take().is_some() {
                     task.flags.set_meta_restoring(false);
                 }
-                task.update_and_get_transient_ref_count(-1);
                 entry.failed = true;
                 missing_tasks.push(task_id);
                 // Discards the entry, or clears its restored flags if another thread still holds
@@ -663,7 +654,6 @@ impl<'e> ExecuteContext<'e> {
                     if claimed_meta {
                         task.flags.set_meta_restored(false);
                     }
-                    task.update_and_get_transient_ref_count(-1);
                     entry.failed = true;
                 }
             }
@@ -680,10 +670,10 @@ impl<'e> ExecuteContext<'e> {
             self.backend.storage.restored.notify(usize::MAX);
         }
 
-        // --- Phase 2: Callbacks for tasks we restored ourselves ---
+        // --- Phase 2: Callbacks for tasks we restored ourselves, or found ready in Phase 1a ---
         // Separated from Phase 1c so that other threads are unblocked as early as possible.
         for entry in &tasks {
-            if !entry.self_restored || entry.failed {
+            if !(entry.self_restored || entry.ready) || entry.failed {
                 continue;
             }
             if let Some(task_type) = entry.task_type.clone() {
@@ -697,17 +687,15 @@ impl<'e> ExecuteContext<'e> {
             // Only call the callback if no category is still being restored by another thread.
             // If so, Phase 3 calls the callback after all categories are fully restored.
             if !entry.wait_data && !entry.wait_meta {
-                // Phase 1c already checked existence. The classification-time transient ref
-                // prevents GC until this callback acquires the task; this restores the category
-                // again if eviction won the handoff.
-                let mut task = match self.restore_pinned_task(entry.task_id, entry.category) {
+                // Phase 1c already checked existence. This restores the category again if
+                // eviction won the handoff.
+                let task = match self.restore_existing_task(entry.task_id, entry.category) {
                     Ok((task, _)) => task,
                     Err(e) => {
                         restore_errors.push((entry.task_id, category_name(entry.category), e));
                         continue;
                     }
                 };
-                task.update_and_get_transient_ref_count(-1);
                 prepared_task_callback(
                     self,
                     entry.task_id,
@@ -726,8 +714,8 @@ impl<'e> ExecuteContext<'e> {
                     continue;
                 }
                 self.task_lock_counter.acquire();
-                let (mut task, outcome) =
-                    match self.restore_pinned_task(entry.task_id, entry.category) {
+                let (task, outcome) =
+                    match self.restore_existing_task(entry.task_id, entry.category) {
                         Ok(restored) => restored,
                         Err(e) => {
                             restore_errors.push((entry.task_id, category_name(entry.category), e));
@@ -735,9 +723,8 @@ impl<'e> ExecuteContext<'e> {
                             continue;
                         }
                     };
-                task.update_and_get_transient_ref_count(-1);
                 if outcome.missing_on_disk {
-                    // Keep handing off the remaining tasks; report once all pins are released.
+                    // Keep handing off the remaining tasks; report the failure at the end.
                     missing_tasks.push(entry.task_id);
                     handle_missing_task(task, entry.task_id, TaskAccess::AllowMissing, reason);
                     self.task_lock_counter.release();
@@ -793,8 +780,10 @@ struct TaskRestoreEntry {
     task_type: Option<CachedTaskTypeArc>,
     /// This thread performed the restore for at least one category (set in Phase 1c).
     self_restored: bool,
-    /// The task is missing or failed to restore (set in Phase 1c). Its Phase 1a pin is already
-    /// released, so the later phases skip it.
+    /// Another thread finished restoring the task between filtering and Phase 1a. Its callback is
+    /// deferred to Phase 2.
+    ready: bool,
+    /// The task is missing or failed to restore (set in Phase 1c), so the later phases skip it.
     failed: bool,
 }
 
@@ -806,11 +795,12 @@ struct RestoreOutcome {
 
 /// Panics if a required task is missing from memory and disk; otherwise reports it as missing.
 ///
-/// Under `AllowMissing` and `MustExist` the invalid entry is removed if possible. If another
-/// opener pins it, clear both restored flags so neither category looks valid after a missing read.
-/// `MustExist` then panics instead of returning a fabricated task.
+/// Under `AllowMissing` and `MustExist` the invalid entry is removed. No transient reference can be
+/// held on it: those are only taken on tasks that exist, and a task that exists is never missing.
+/// A thread still using the id re-creates an entry, finds the task missing itself, and discards it
+/// in turn. `MustExist` then panics instead of returning a fabricated task.
 fn handle_missing_task(
-    mut task: TaskEntryGuard<'_>,
+    task: TaskEntryGuard<'_>,
     task_id: TaskId,
     access: TaskAccess,
     reason: &str,
@@ -819,12 +809,12 @@ fn handle_missing_task(
         TaskAccess::AllowMissing | TaskAccess::MustExist => {
             // A missing requested category invalidates the whole task, including one that had
             // its other category resident in memory.
-            if task.gc_transient_ref_count() == 0 {
-                task.discard();
-            } else {
-                task.flags.set_data_restored(false);
-                task.flags.set_meta_restored(false);
-            }
+            debug_assert_eq!(
+                task.gc_transient_ref_count(),
+                0,
+                "task {task_id} is missing on disk but holds a transient reference"
+            );
+            task.discard();
             if access == TaskAccess::MustExist {
                 panic_missing_task(task_id, reason);
             }
@@ -1015,63 +1005,37 @@ impl<'e> ExecuteContext<'e> {
         // is restored on its own with the pair lock dropped, then the pair is re-locked; if
         // eviction cleared a category in between, the loop restores it again.
         let ids = [task_id1, task_id2];
-        let mut pinned = false;
         let (task1, task2) = loop {
-            let (mut task1, mut task2) = self.backend.storage.access_pair_mut(task_id1, task_id2);
+            let (task1, task2) = self.backend.storage.access_pair_mut(task_id1, task_id2);
             let restored = [
                 task1.flags.is_restored(category),
                 task2.flags.is_restored(category),
             ];
             if restored == [true, true] {
-                if pinned {
-                    task1.update_and_get_transient_ref_count(-1);
-                    task2.update_and_get_transient_ref_count(-1);
-                }
                 break (task1, task2);
-            }
-            for (task_id, restored) in ids.into_iter().zip(restored) {
-                if !restored && !self.can_restore(task_id) {
-                    panic_missing_task(task_id, "task_pair");
-                }
-            }
-            // The ids are held outside the graph while the pair lock is dropped, so pin both
-            // against GC.
-            if !pinned {
-                task1.update_and_get_transient_ref_count(1);
-                task2.update_and_get_transient_ref_count(1);
-                pinned = true;
             }
             drop(task1);
             drop(task2);
 
-            // Pair each id with the other endpoint, whose pin must be released too on failure.
-            for ((task_id, other_id), restored) in
-                ids.into_iter().zip(ids.into_iter().rev()).zip(restored)
-            {
+            for (task_id, restored) in ids.into_iter().zip(restored) {
                 if restored {
                     continue;
                 }
-                let (mut task, outcome) = match self.restore_pinned_task(task_id, category) {
-                    Ok(restored) => restored,
-                    Err(e) => {
-                        // This task's pin is already released; release the other endpoint's too.
-                        self.backend
-                            .storage
-                            .access_mut(other_id)
-                            .update_and_get_transient_ref_count(-1);
-                        panic!("Failed to restore {category:?} for task {task_id}: {e:?}");
-                    }
-                };
+                let task = self.backend.storage.access_entry_mut(task_id);
+                if !self.can_restore(task_id) {
+                    // Discard the entry the pair lookup created for it before panicking.
+                    handle_missing_task(task, task_id, TaskAccess::MustExist, "task_pair");
+                    unreachable!("MustExist must panic after discarding a missing task");
+                }
+                let (task, outcome) = self
+                    .restore_task(task_id, category, task, TaskAccess::MustExist)
+                    .unwrap_or_else(|e| {
+                        panic!("Failed to restore {category:?} for task {task_id}: {e:?}")
+                    });
                 // Decide under the guard that may hold an empty read.
                 if outcome.missing_on_disk {
-                    // Release both pins resetting state
-                    task.update_and_get_transient_ref_count(-1);
-                    handle_missing_task(task, task_id, TaskAccess::AllowMissing, "task_pair");
-                    self.backend
-                        .storage
-                        .access_mut(other_id)
-                        .update_and_get_transient_ref_count(-1);
-                    panic_missing_task(task_id, "task_pair");
+                    handle_missing_task(task, task_id, TaskAccess::MustExist, "task_pair");
+                    unreachable!("MustExist must panic after discarding a missing task");
                 }
                 drop(task);
             }
@@ -1867,6 +1831,20 @@ mod must_exist_tests {
         let msg = catch_missing_task_panic(|| {
             let mut ctx = ExecuteContext::new(tt.backend(), &tt);
             let _ = ctx.task_pair(present, missing, TaskDataCategory::Meta);
+        });
+        assert!(msg.contains("task_pair, MustExist"), "{msg}");
+        assert_no_leftovers(&tt, present, missing);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn task_pair_missing_transient_endpoint_leaves_no_entry() {
+        let tt = backend();
+        let present = persistent(1);
+        let missing = TaskId::new(TRANSIENT_TASK_BIT | 2).unwrap();
+        resident(&tt, present, TaskDataCategory::All);
+        let msg = catch_missing_task_panic(|| {
+            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            let _ = ctx.task_pair(missing, present, TaskDataCategory::All);
         });
         assert!(msg.contains("task_pair, MustExist"), "{msg}");
         assert_no_leftovers(&tt, present, missing);
