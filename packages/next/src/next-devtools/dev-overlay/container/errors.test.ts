@@ -159,7 +159,7 @@ describe('isSyncIOError', () => {
     'suggests a Client Component for createSyncIOError(%s) without prescribing an I/O API',
     (type) => {
       expect(createSyncIOError(ROUTE, 'expr', type).message).toContain(
-        'Render the value on the client with the `"use client"` directive'
+        'Render on the client with `"use client"`'
       )
       expect(createSyncIOError(ROUTE, 'expr', type).message).not.toContain(
         'use(io())'
