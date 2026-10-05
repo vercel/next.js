@@ -185,6 +185,16 @@ export async function assessUpgrade(
   ) {
     return null
   }
+  if (isTerminalForcedForTesting()) {
+    // Offer a fixed reminder without querying advisories or past dismissals.
+    return {
+      policy,
+      installedVersion,
+      kind: 'security',
+      reference: null,
+      targetVersion: installedVersion,
+    }
+  }
   if (stopBefore === 'security') {
     return null
   }
@@ -407,9 +417,14 @@ async function getUpgradePreferences(directory: string) {
   return { key, preferences: new Conf({ projectName: 'nextjs' }) }
 }
 
+// The terminal test needs a menu in CI and under agents, without the network.
+function isTerminalForcedForTesting(): boolean {
+  return process.env.__NEXT_AGENT_UPGRADE_FORCE_TERMINAL_FOR_TESTING === '1'
+}
+
 function canPromptForUpgrade(): boolean {
   return (
-    !isCI &&
+    (!isCI || isTerminalForcedForTesting()) &&
     Boolean(process.stdin.isTTY && process.stdout.isTTY) &&
     process.env.TERM !== 'dumb'
   )
@@ -510,7 +525,10 @@ export async function runUpgrade(
 }
 
 export async function shouldPromptForUpgrade(): Promise<boolean> {
-  return canPromptForUpgrade() && !(await getAgentName())
+  return (
+    canPromptForUpgrade() &&
+    (isTerminalForcedForTesting() || !(await getAgentName()))
+  )
 }
 
 export async function nudgeUpgrade(
@@ -547,7 +565,7 @@ export async function nudgeUpgrade(
   }
 
   // An agent's stopped command sends policy and nudge together before synchronous exit.
-  const agent = await getAgentName()
+  const agent = isTerminalForcedForTesting() ? null : await getAgentName()
   if (!agent) {
     telemetry?.record(policyEvent)
   }
@@ -572,7 +590,7 @@ export async function nudgeUpgrade(
     }
   }
   const reminder = await (
-    stopBefore === null && initialAssessment
+    stopBefore === null && initialAssessment && !isTerminalForcedForTesting()
       ? initialAssessment
       : assessUpgrade(
           directory,
