@@ -309,6 +309,77 @@ describe('@gate runtime', () => {
       }
     })
 
+    it('tells a Vercel deployment apart from other hosts', async () => {
+      const keys = [
+        'NEXT_TEST_DEPLOY_URL',
+        'NEXT_TEST_DEPLOY_SCRIPT_PATH',
+        'NEXT_TEST_DEPLOY_LOGS_SCRIPT_PATH',
+      ] as const
+      const original = keys.map((key) => process.env[key])
+      const vercelOnly = parseGate('vercel', true)
+      const notOtherHosts = parseGate('!deploy || vercel', true)
+
+      const url = { NEXT_TEST_DEPLOY_URL: 'https://example.com' }
+      const logs = { NEXT_TEST_DEPLOY_LOGS_SCRIPT_PATH: '/logs.sh' }
+      const deployScript = { NEXT_TEST_DEPLOY_SCRIPT_PATH: '/deploy.sh' }
+
+      const results: [string, string, string][] = []
+      try {
+        for (const [label, mode, env] of [
+          ['Vercel CLI', 'deploy', {}],
+          ['existing URL, `vercel inspect` logs', 'deploy', url],
+          ['existing URL, custom logs', 'deploy', { ...url, ...logs }],
+          ['custom deploy script', 'deploy', { ...deployScript, ...logs }],
+          [
+            'blank deploy script',
+            'deploy',
+            { NEXT_TEST_DEPLOY_SCRIPT_PATH: ' ' },
+          ],
+          ['start', 'start', {}],
+          [
+            'start, custom deploy script',
+            'start',
+            { ...deployScript, ...logs },
+          ],
+        ] as const) {
+          for (const key of keys) {
+            delete process.env[key]
+          }
+          Object.assign(process.env, env)
+          setGateTestContext({
+            mode,
+            bundler: 'turbopack',
+            react18: false,
+            wasm: false,
+          })
+          results.push([
+            label,
+            (await __testing.decideGates([vercelOnly])).type,
+            (await __testing.decideGates([notOtherHosts])).type,
+          ])
+        }
+      } finally {
+        keys.forEach((key, i) => {
+          if (original[i] === undefined) {
+            delete process.env[key]
+          } else {
+            process.env[key] = original[i]
+          }
+        })
+      }
+
+      // [scenario, `@force-gate vercel`, `@force-gate !deploy || vercel`]
+      expect(results).toEqual([
+        ['Vercel CLI', 'run', 'run'],
+        ['existing URL, `vercel inspect` logs', 'run', 'run'],
+        ['existing URL, custom logs', 'force-pass', 'force-pass'],
+        ['custom deploy script', 'force-pass', 'force-pass'],
+        ['blank deploy script', 'run', 'run'],
+        ['start', 'force-pass', 'run'],
+        ['start, custom deploy script', 'force-pass', 'run'],
+      ])
+    })
+
     it('skips the test for real when the condition is false', () => {
       const body = () => {}
       const fakes = withFakeTestGlobals(() => {

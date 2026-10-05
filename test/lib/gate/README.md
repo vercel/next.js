@@ -85,9 +85,17 @@ There are two tiers:
 - **static** — the run's own shape (`dev`, `start`, `deploy`, `mode`,
   `turbopack`, `rspack`, `webpack`, `bundler`, `react18`, `wasm`, `linux`,
   `macos`, `windows`, `ci`), semantic aliases for `!dev` that state the reason
-  rather than the mode (`prod`, `prefetching`), specialized CI variants
+  rather than the mode (`prod`, `prefetching`), the deploy host (`vercel`: a
+  Vercel deployment, as opposed to another host that deploys through
+  `NEXT_TEST_DEPLOY_SCRIPT_PATH` to test its adapter), specialized CI variants
   (`adapter`, `nodeMiddleware`, `standaloneOutput`, `turbopackDev`,
   `turbopackBuild`), plus `FIXME` / `TODO`, which are always false.
+
+  Gate on `vercel` rather than `deploy` when the reason is specific to Vercel
+  (its payload limit, image CDN, `x-vercel-*` headers), so other hosts still
+  run the suite: `@force-gate vercel` for a Vercel-only suite,
+  `@force-gate !deploy || vercel` to skip only other hosts, `!vercel` to skip
+  only Vercel.
 - **lazy** — a predicate over the fixture's *resolved* `next.config`
   (`cacheComponents`, `ppr`, `prefetchInlining`, `output`, …), read the first
   time a gate asks for it.

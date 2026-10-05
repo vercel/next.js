@@ -43,6 +43,7 @@
  * `// @gate mode === 'deploy'` works.
  */
 
+import { getDeployTarget } from '../next-modes/deploy-target'
 import type { ResolvedNextConfig } from './resolved-config'
 import { getGateTestContext } from './test-context'
 
@@ -94,6 +95,17 @@ export const conditions: Record<string, Condition> = {
   deploy: staticCondition(
     'running against a real deployment',
     () => getGateTestContext().mode === 'deploy'
+  ),
+  // Other hosts run the deploy suites through custom scripts to validate their
+  // adapters, so gate on `vercel` rather than `deploy` when the reason is
+  // specific to Vercel: `@force-gate vercel` for a Vercel-only suite,
+  // `@force-gate !deploy || vercel` to skip only other hosts, `!vercel` to
+  // skip only Vercel.
+  vercel: staticCondition(
+    'running against a Vercel deployment, not another host deployed via ' +
+      '`NEXT_TEST_DEPLOY_SCRIPT_PATH`; false outside deploy mode',
+    () =>
+      getGateTestContext().mode === 'deploy' && getDeployTarget() === 'vercel'
   ),
 
   // Semantic aliases for `!dev`. A gate is a claim about *why* a suite cannot
