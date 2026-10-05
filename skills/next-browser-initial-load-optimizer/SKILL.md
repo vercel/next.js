@@ -16,7 +16,7 @@ Choose a route and **audit** or **fix** mode. Audit is the default: generate ana
 
 ## 2. Capture and export a baseline
 
-Run from the app directory with its package manager. Read `next analyze --help` for capture options and `next analyze export --help` for replay options in the installed CLI. Reuse a selected saved snapshot, or capture with a distinctive name first; then export it through gzip at its default compression level. Keep before/after `.ndjson.gz` files separate.
+Run from the app directory with its package manager. Read `next analyze --help` for capture options and `next analyze export --help` for replay options in the installed CLI. Reuse a selected saved snapshot, or capture with a distinctive name first; then export it through gzip at its default compression level. Keep before/after `.jsonl.gz` files separate.
 
 **Sandbox requirement:** If the agent’s sandbox blocks TCP port binding (as Codex’s does), it MUST run the `next analyze --output` capture outside the sandbox. Do not attempt the capture inside that sandbox, even though `--output` does not serve the analyzer UI.
 
@@ -26,7 +26,7 @@ Run the pipeline in Bash:
 set -o pipefail
 # Capture only when a new baseline is needed
 pnpm exec next analyze --output --snapshot 'audit-before-unique-1'
-pnpm exec next analyze export --snapshot 'audit-before-unique-1' --route '/dashboard' | gzip > /tmp/analyze-dashboard-before.ndjson.gz
+pnpm exec next analyze export --snapshot 'audit-before-unique-1' --route '/dashboard' | gzip > /tmp/analyze-dashboard-before.jsonl.gz
 ```
 
 `--output` builds and saves binary/UI artifacts without serving. `next analyze export` reads a saved snapshot without building; stdout is one typed JSON record per line, with errors on stderr. The route filter keeps the whole-app module graph, so scope it in the next step.
@@ -43,7 +43,7 @@ Resolve the schema from the app's **installed Next.js**, using its Node launcher
 pnpm exec node -p "require.resolve('next/analyze/graph-v1.schema.json')"
 ```
 
-Read its descriptions for record meanings, joins, attribution and coverage. Stream decompression with `gzip -dc /tmp/analyze-dashboard-before.ndjson.gz` into a line-oriented analysis script rather than loading the whole dump into context. Use the schema to interpret the selected route's client/server contributions and choose the metric.
+Read its descriptions for record meanings, joins, attribution and coverage. Stream decompression with `gzip -dc /tmp/analyze-dashboard-before.jsonl.gz` into a line-oriented analysis script rather than loading the whole dump into context. Use the schema to interpret the selected route's client/server contributions and choose the metric.
 
 **Done:** the baseline's route-attributed client/server contributions and the metric are identified. Treat this as **build evidence**: claims about observed browser requests, timing or transfer savings need separate evidence.
 
