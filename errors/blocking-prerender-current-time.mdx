@@ -54,9 +54,9 @@ Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/
     title="Render on the client"
     href="#render-on-the-client"
     snippets={[
-      { text: '"use client"', highlight: true },
-      { text: '// runs in the browser' },
-      { text: 'const t = Date.now()' },
+      { text: '"use client"' },
+      { text: 'use(browser())', highlight: true },
+      { text: 'return <Clock time={Date.now()} />' },
     ]}
   />
   <FixCard
@@ -228,11 +228,44 @@ To keep the page prerendered, use a profile with a longer revalidate window such
 
 ## Render on the client
 
-Choose this fix when the timestamp belongs to the user's local clock or needs to update while they're on the page. A relative time label that ticks ("3 seconds ago"), a localized time display, a stopwatch. Move the component into a [Client Component](/docs/app/getting-started/server-and-client-components) so the value is produced after hydration.
+Choose this fix when the timestamp belongs to the user's local clock or needs to update while they're on the page, such as a relative time label, localized time display, or stopwatch. Move the value into a [Client Component](/docs/app/getting-started/server-and-client-components), then skip prerendering or compute it after hydration.
 
 ### Patterns
 
-#### Move the component to the client
+#### Skip prerendering with `use(browser())`
+
+Call [`use(browser())`](https://react.dev/reference/react-dom/browser) when the component should render only in the browser. During prerendering, the component suspends and its nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary renders a fallback.
+
+```jsx filename="app/current-time.js"
+'use client'
+
+import { use } from 'react'
+import { browser } from 'react-dom'
+
+export function CurrentTime() {
+  use(browser('Read the current time in the browser.'))
+  return <time>{new Date().toLocaleString()}</time>
+}
+```
+
+Wrap the Client Component from its parent:
+
+```jsx filename="app/page.js"
+import { Suspense } from 'react'
+import { CurrentTime } from './current-time'
+
+export default function Page() {
+  return (
+    <Suspense fallback={<time>Loading time…</time>}>
+      <CurrentTime />
+    </Suspense>
+  )
+}
+```
+
+Learn more: [Rendering components only in the browser](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser).
+
+#### Compute the timestamp after hydration
 
 Add [`use client`](/docs/app/api-reference/directives/use-client) and compute the timestamp inside the component.
 

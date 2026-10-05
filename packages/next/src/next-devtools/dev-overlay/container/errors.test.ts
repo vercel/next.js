@@ -155,6 +155,15 @@ describe('isSyncIOError', () => {
     }
   )
 
+  it.each<[SyncIOApiType]>([['time'], ['random'], ['crypto']])(
+    'suggests use(browser()) for createSyncIOError(%s)',
+    (type) => {
+      expect(createSyncIOError(ROUTE, 'expr', type).message).toContain(
+        'Render the value in the browser with `"use client"` and `use(browser())`'
+      )
+    }
+  )
+
   it('returns false for non sync-IO factory output', () => {
     expect(isSyncIOError(createRuntimeBodyError(ROUTE).message)).toBe(false)
     expect(isSyncIOError(createDynamicMetadataError(ROUTE).message)).toBe(false)
@@ -538,6 +547,25 @@ describe('card sets for all error families', () => {
       'render-on-the-client',
     ])
   })
+
+  it.each([
+    ['Math.random()', 'return <Confetti seed={Math.random()} />'],
+    ['Date.now()', 'return <Clock time={Date.now()} />'],
+    ['crypto.randomUUID()', 'return <Draft id={crypto.randomUUID()} />'],
+  ])(
+    'sync-io %s suggests use(browser()) with a rendered value',
+    (cause, renderSnippet) => {
+      const clientCard = getCards('sync-io', 'runtime', cause).find(
+        (card) => card.id === 'render-on-the-client'
+      )
+
+      expect(clientCard?.snippets).toContainEqual({
+        text: 'use(browser())',
+        highlight: true,
+      })
+      expect(clientCard?.snippets).toContainEqual({ text: renderSnippet })
+    }
+  )
 
   it('sync-io-client math', () => {
     expect(

@@ -54,9 +54,9 @@ Other unpredictable APIs ([`Date.now()`](https://developer.mozilla.org/en-US/doc
     title="Render on the client"
     href="#render-on-the-client"
     snippets={[
-      { text: '"use client"', highlight: true },
-      { text: '// runs in the browser' },
-      { text: 'const id = Math.random()' },
+      { text: '"use client"' },
+      { text: 'use(browser())', highlight: true },
+      { text: 'return <Confetti seed={Math.random()} />' },
     ]}
   />
 </FixCardGrid>
@@ -183,9 +183,42 @@ To keep the page prerendered, use a profile with a longer revalidate window such
 
 ## Render on the client
 
-Choose this fix when the random value belongs to the client experience. A canvas seed for a confetti animation, a random color for an avatar placeholder, a UI nonce that only matters in the browser. Move the component into a [Client Component](/docs/app/getting-started/server-and-client-components) so the value is produced after hydration, not during prerender.
+Choose this fix when the random value belongs to the client experience, such as a canvas seed, random placeholder color, or browser-only UI nonce. Move the value into a [Client Component](/docs/app/getting-started/server-and-client-components), then skip prerendering or compute it after hydration.
 
 ### Patterns
+
+#### Skip prerendering with `use(browser())`
+
+Call [`use(browser())`](https://react.dev/reference/react-dom/browser) when the component should render only in the browser. During prerendering, the component suspends and its nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary renders a fallback.
+
+```jsx filename="app/confetti.js"
+'use client'
+
+import { use } from 'react'
+import { browser } from 'react-dom'
+
+export function Confetti() {
+  use(browser('Generate the confetti seed in the browser.'))
+  return <Canvas seed={Math.random()} />
+}
+```
+
+Wrap the Client Component from its parent:
+
+```jsx filename="app/page.js"
+import { Suspense } from 'react'
+import { Confetti } from './confetti'
+
+export default function Page() {
+  return (
+    <Suspense fallback={null}>
+      <Confetti />
+    </Suspense>
+  )
+}
+```
+
+Learn more: [Rendering components only in the browser](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser).
 
 #### Compute the value inside `useEffect`
 

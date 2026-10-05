@@ -57,7 +57,7 @@ export function registerSyncIoTimeAndRandomTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] Render the value in the browser with \`"use client"\` and \`use(browser())\`
                - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
@@ -84,7 +84,7 @@ export function registerSyncIoTimeAndRandomTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] Render the value in the browser with \`"use client"\` and \`use(browser())\`
                - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
@@ -113,7 +113,7 @@ export function registerSyncIoTimeAndRandomTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] Render the value in the browser with \`"use client"\` and \`use(browser())\`
                - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
@@ -139,7 +139,7 @@ export function registerSyncIoTimeAndRandomTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] Render the value in the browser with \`"use client"\` and \`use(browser())\`
                - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
@@ -201,7 +201,7 @@ export function registerSyncIoTimeAndRandomTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] Render the value in the browser with \`"use client"\` and \`use(browser())\`
                - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
@@ -228,7 +228,7 @@ export function registerSyncIoTimeAndRandomTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] Render the value in the browser with \`"use client"\` and \`use(browser())\`
                - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
@@ -257,7 +257,7 @@ export function registerSyncIoTimeAndRandomTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] Render the value in the browser with \`"use client"\` and \`use(browser())\`
                - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
@@ -283,7 +283,7 @@ export function registerSyncIoTimeAndRandomTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] Render the value in the browser with \`"use client"\` and \`use(browser())\`
                - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
@@ -345,7 +345,7 @@ export function registerSyncIoTimeAndRandomTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] Render the value in the browser with \`"use client"\` and \`use(browser())\`
                - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
@@ -372,7 +372,7 @@ export function registerSyncIoTimeAndRandomTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] Render the value in the browser with \`"use client"\` and \`use(browser())\`
                - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
@@ -401,7 +401,7 @@ export function registerSyncIoTimeAndRandomTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] Render the value in the browser with \`"use client"\` and \`use(browser())\`
                - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
@@ -427,7 +427,7 @@ export function registerSyncIoTimeAndRandomTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] Render the value in the browser with \`"use client"\` and \`use(browser())\`
                - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
@@ -489,7 +489,7 @@ export function registerSyncIoTimeAndRandomTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] Render the value in the browser with \`"use client"\` and \`use(browser())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                  at SyncIOComponent (app/sync-io-random/math-random/page.tsx:19:21)
@@ -515,7 +515,7 @@ export function registerSyncIoTimeAndRandomTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] Render the value in the browser with \`"use client"\` and \`use(browser())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                  at SyncIOComponent (webpack:///app/sync-io-random/math-random/page.tsx:19:21)
@@ -543,7 +543,7 @@ export function registerSyncIoTimeAndRandomTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] Render the value in the browser with \`"use client"\` and \`use(browser())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                  at a (app/sync-io-random/math-random/page.tsx:19:21)
@@ -568,7 +568,7 @@ export function registerSyncIoTimeAndRandomTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] Render the value in the browser with \`"use client"\` and \`use(browser())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                  at a (<next-dist-dir>)
@@ -629,7 +629,7 @@ export function registerSyncIoTimeAndRandomTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] Render the value in the browser with \`"use client"\` and \`use(browser())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at SyncIOComponent (app/sync-io-web-crypto/get-random-value/page.tsx:20:10)
@@ -656,7 +656,7 @@ export function registerSyncIoTimeAndRandomTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] Render the value in the browser with \`"use client"\` and \`use(browser())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at SyncIOComponent (webpack:///app/sync-io-web-crypto/get-random-value/page.tsx:20:10)
@@ -685,7 +685,7 @@ export function registerSyncIoTimeAndRandomTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] Render the value in the browser with \`"use client"\` and \`use(browser())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at a (app/sync-io-web-crypto/get-random-value/page.tsx:20:10)
@@ -711,7 +711,7 @@ export function registerSyncIoTimeAndRandomTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] Render the value in the browser with \`"use client"\` and \`use(browser())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at a (<next-dist-dir>)
@@ -772,7 +772,7 @@ export function registerSyncIoTimeAndRandomTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] Render the value in the browser with \`"use client"\` and \`use(browser())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at SyncIOComponent (app/sync-io-web-crypto/random-uuid/page.tsx:19:23)
@@ -798,7 +798,7 @@ export function registerSyncIoTimeAndRandomTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] Render the value in the browser with \`"use client"\` and \`use(browser())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at SyncIOComponent (webpack:///app/sync-io-web-crypto/random-uuid/page.tsx:19:23)
@@ -826,7 +826,7 @@ export function registerSyncIoTimeAndRandomTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] Render the value in the browser with \`"use client"\` and \`use(browser())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at a (app/sync-io-web-crypto/random-uuid/page.tsx:19:23)
@@ -851,7 +851,7 @@ export function registerSyncIoTimeAndRandomTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value on the client with \`"use client"\`
+               - [client] Render the value in the browser with \`"use client"\` and \`use(browser())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at a (<next-dist-dir>)

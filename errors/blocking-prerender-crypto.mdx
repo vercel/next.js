@@ -54,9 +54,9 @@ Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/
     title="Render on the client"
     href="#render-on-the-client"
     snippets={[
-      { text: '"use client"', highlight: true },
-      { text: '// runs in the browser' },
-      { text: 'const id = crypto.randomUUID()' },
+      { text: '"use client"' },
+      { text: 'use(browser())', highlight: true },
+      { text: 'return <Draft id={crypto.randomUUID()} />' },
     ]}
   />
 </FixCardGrid>
@@ -208,11 +208,44 @@ To keep the page prerendered, use a profile with a longer revalidate window such
 
 ## Render on the client
 
-Choose this fix when the generated value belongs to the client experience. A client-only correlation ID for telemetry, a draft-state key in [`localStorage`](https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage), a UI nonce for a confirmation modal. Move the component into a [Client Component](/docs/app/getting-started/server-and-client-components) so the value is produced after hydration.
+Choose this fix when the generated value belongs to the client experience, such as a telemetry ID, draft-state key in [`localStorage`](https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage), or browser-only UI nonce. Move the value into a [Client Component](/docs/app/getting-started/server-and-client-components), then skip prerendering or compute it after hydration.
 
 ### Patterns
 
-#### Move the component to the client
+#### Skip prerendering with `use(browser())`
+
+Call [`use(browser())`](https://react.dev/reference/react-dom/browser) when the component should render only in the browser. During prerendering, the component suspends and its nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary renders a fallback.
+
+```jsx filename="app/draft-key.js"
+'use client'
+
+import { use } from 'react'
+import { browser } from 'react-dom'
+
+export function DraftKey() {
+  use(browser('Generate the draft key in the browser.'))
+  return <input type="hidden" value={crypto.randomUUID()} />
+}
+```
+
+Wrap the Client Component from its parent:
+
+```jsx filename="app/page.js"
+import { Suspense } from 'react'
+import { DraftKey } from './draft-key'
+
+export default function Page() {
+  return (
+    <Suspense fallback={null}>
+      <DraftKey />
+    </Suspense>
+  )
+}
+```
+
+Learn more: [Rendering components only in the browser](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser).
+
+#### Compute the value after hydration
 
 Add [`use client`](/docs/app/api-reference/directives/use-client) and call the crypto API inside the component.
 
