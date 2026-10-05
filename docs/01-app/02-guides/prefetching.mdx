@@ -151,7 +151,9 @@ export function HoverPrefetchLink({
 }
 ```
 
-`prefetch={null}` restores default (static) prefetching once the user shows intent.
+`prefetch={null}` restores default prefetching once the user shows intent.
+
+With [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching), use `prefetch={active ? true : 'auto'}` instead. The `'auto'` value keeps the shared App Shell prefetched before the user shows intent, while `true` resolves cached URL-specific content before navigation after they do. Using `false` before intent disables the App Shell prefetch.
 
 ### Extending or ejecting link
 
