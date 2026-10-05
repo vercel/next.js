@@ -1795,7 +1795,8 @@ mod must_exist_tests {
     }
 
     /// Runs `f`, which must panic on a missing task, and returns the panic message. Task panics
-    /// are usually caught, so the tests below check what the panic leaves behind.
+    /// are usually caught, so the tests below check what the panic leaves behind. Tests using this
+    /// are ignored on wasm, whose std is built `panic=abort`.
     fn catch_missing_task_panic(f: impl FnOnce()) -> String {
         let err = std::panic::catch_unwind(std::panic::AssertUnwindSafe(f))
             .expect_err("opening a missing task must panic");
@@ -1820,6 +1821,7 @@ mod must_exist_tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
+    #[cfg_attr(target_family = "wasm", ignore = "no unwinding on wasm")]
     async fn task_pair_missing_endpoint_leaves_no_pins() {
         let tt = backend();
         let present = persistent(1);
@@ -1834,6 +1836,7 @@ mod must_exist_tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
+    #[cfg_attr(target_family = "wasm", ignore = "no unwinding on wasm")]
     async fn task_pair_missing_transient_endpoint_leaves_no_entry() {
         let tt = backend();
         let present = persistent(1);
@@ -1848,6 +1851,7 @@ mod must_exist_tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
+    #[cfg_attr(target_family = "wasm", ignore = "no unwinding on wasm")]
     async fn prepare_tasks_missing_task_hands_off_the_rest_and_leaves_no_pins() {
         let present = persistent(1);
         let missing = persistent(2);
