@@ -1,6 +1,6 @@
 # Next.js agent feedback protocol
 
-Use this protocol only when the managed Next.js feedback block in `AGENTS.md` instructs you to prepare agent feedback. Next.js Skills and upgrade workflows may add feedback candidates only while that managed block is present. Prepare report drafts for the user to review, but never submit them for the user.
+Use this protocol only when the managed Next.js feedback block in `AGENTS.md` instructs you to prepare agent feedback. Next.js Skills, agent workflows, and upgrade workflows may add feedback candidates only while that managed block is present. Prepare report drafts for the user to review, but never submit them for the user.
 
 ## Terms
 
@@ -20,9 +20,9 @@ Do not report routine first-pass debugging, vague task scope, problems caused by
 
 Do not interrupt the current user request when friction first qualifies. Retain each distinct set of bounded, anonymized facts as a feedback candidate in the context of the current user request, then continue the work.
 
-Skills and upgrade workflows can add feedback candidates while completing the current user request. Immediately before the final response, after completing all implementation work and tool calls, run one reporting pass. For example, verification performed while preparing a pull request should wait until the pull request work is complete.
+Skills, agent workflows, and upgrade workflows can add feedback candidates while completing the current user request. Immediately before the final response, after completing all implementation work and tool calls, run one reporting pass. For example, verification performed while preparing a pull request should wait until the pull request work is complete.
 
-The managed feedback block owns the reporting pass. Evaluate every feedback candidate once, including candidates added by Skills or upgrade workflows. Do not create duplicate report drafts or reopen a review form already presented to the user.
+The managed feedback block owns the reporting pass. Evaluate every feedback candidate once, including candidates added by workflows or upgrade workflows. Do not create duplicate report drafts or reopen a review form already presented to the user.
 
 Each review form accepts one report draft. For every qualifying feedback candidate, prepare one report draft and attempt to open it in a separate review form. After evaluating every feedback candidate and attempting to open each qualifying report draft, clear the feedback candidate queue from the context of the current user request. The user owns the open forms; do not close or recreate them. Nothing is transmitted before the user explicitly sends a report.
 

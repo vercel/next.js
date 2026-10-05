@@ -91,7 +91,7 @@ function CopyPromptButton({
     '',
     'Steps:',
     '',
-    `1. Make sure you can drive a browser before you start. The fix isn't verified until you've reloaded the route and looked at what renders. If you don't already have browser tooling set up, install the next-dev-loop skill (https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop) first.`,
+    `1. Make sure you can drive a browser before you start. The fix isn't verified until you've reloaded the route and looked at what renders. If you don't already have browser tooling set up, install the next-dev-loop Skill (https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop) first.`,
     '',
     "2. Identify the failing code in the error block below. It may be a data-access call, a hook call, a metadata or viewport export, or a component. Keep the fix focused on that code. If you think a related refactor (a sibling component, a shared layout, a wrapping boundary) would make the result meaningfully better, name it and check with the user before doing it — don't expand the scope silently.",
     '',

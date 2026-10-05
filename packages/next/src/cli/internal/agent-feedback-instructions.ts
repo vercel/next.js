@@ -6,7 +6,7 @@ import { Telemetry } from '../../telemetry/storage'
 
 const AGENT_FEEDBACK_PROTOCOL_PATH = path.join(
   __dirname,
-  '../../agent-feedback/protocol.md'
+  '../../agent-docs/feedback/protocol.md'
 )
 
 type IsEnabled = () => Promise<boolean>

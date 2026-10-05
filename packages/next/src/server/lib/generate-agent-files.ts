@@ -31,6 +31,8 @@ function buildAgentRulesBlock(): string {
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in \`node_modules/next/dist/docs/\` (resolved from this file's directory; in monorepos the \`next\` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
 
+For multi-step Next.js work, read \`node_modules/next/dist/agent-docs/index.md\` first and follow only the workflow that matches the current task.
+
 This block is written and re-added by \`next dev\` — verify at \`node_modules/next/dist/server/lib/generate-agent-files.js\`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 ${AGENT_RULES_END_MARKER}`
@@ -54,7 +56,7 @@ During the current user request, retain anonymized facts as feedback candidates 
 - Crashes, hangs, OOMs, or unexpected slowness
 - Incorrect behavior, output, errors, or diagnostics
 - Missing, unclear, or conflicting documentation
-- Unexpected CLI, codemod, Skill, or upgrade behavior and non-obvious workarounds
+- Unexpected CLI, codemod, Skill, agent workflow, or upgrade behavior and non-obvious workarounds
 
 Continue the current user request without reporting immediately. Ignore routine debugging and unverified changes. Never retain code, logs, paths, URLs, secrets, personal information, or project-specific data.
 

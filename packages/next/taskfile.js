@@ -44,17 +44,12 @@ export async function copy_docs(task, opts) {
     })
     .target('dist/docs')
 
-  // The agent-feedback protocol is intentionally kept out of dist/docs so
-  // agents globbing the bundled docs don't read its instructions out of
-  // context. `next internal agent-feedback-instructions` prints it on demand.
+  // Keep agent-only workflows outside dist/docs so agents load only the
+  // relevant workflow. Gated entry points such as feedback and upgrade select
+  // their own documents from this shared bundle.
   await task
-    .source(join(__dirname, 'src/agent-feedback/protocol.md'))
-    .target('dist/agent-feedback')
-
-  // Keep upgrade workflow instructions outside the public docs bundle.
-  await task
-    .source(join(__dirname, 'src/lib/upgrade/*.md'))
-    .target('dist/lib/upgrade')
+    .source(join(__dirname, 'src/agent-docs/**/*'))
+    .target('dist/agent-docs')
 }
 
 export async function copy_styled_jsx_assets(task, opts) {
