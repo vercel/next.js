@@ -43,7 +43,7 @@ const getServerImpl = async () => {
 export type NextServerOptions = Omit<
   ServerOptions | DevServerOptions,
   // This is assigned in this server abstraction.
-  'conf'
+  'conf' | 'compileMode'
 > &
   Partial<Pick<ServerOptions | DevServerOptions, 'conf'>>
 
@@ -365,8 +365,13 @@ export class NextServer implements NextWrapperServer {
           )
         ).config
 
-        config.experimental.isExperimentalCompile =
-          serializedConfig.experimental.isExperimentalCompile
+        return {
+          config,
+          compileMode: {
+            isExperimentalCompile:
+              serializedConfig.experimental.isExperimentalCompile,
+          },
+        }
       } catch (_) {
         // if distDir is customized we don't know until we
         // load the config so fallback to loading the config
@@ -374,12 +379,13 @@ export class NextServer implements NextWrapperServer {
       }
     }
 
-    return config
+    return { config, compileMode: undefined }
   }
 
   private async getServer() {
     if (!this.serverPromise) {
-      this.serverPromise = this[SYMBOL_LOAD_CONFIG]().then(async (conf) => {
+      this.serverPromise = this[SYMBOL_LOAD_CONFIG]().then(async (result) => {
+        const { config: conf, compileMode } = result
         if (!this.options.dev) {
           if (conf.output === 'standalone') {
             if (!process.env.__NEXT_PRIVATE_STANDALONE_CONFIG) {
@@ -397,6 +403,7 @@ export class NextServer implements NextWrapperServer {
         this.server = await this.createServer({
           ...this.options,
           conf,
+          compileMode,
         })
         if (this.preparedAssetPrefix) {
           this.server.setAssetPrefix(this.preparedAssetPrefix)
