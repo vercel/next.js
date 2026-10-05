@@ -67,7 +67,7 @@ For a narrow audit of a named dependency or feature, use direct importer reasoni
 Before proposing an edit, record these items for each candidate. Mark an inapplicable item with its reason; give missing evidence an explicit gap.
 
 - **Scope:** name the affected routes, snapshot, render conditions, client/server output class, exact target identities and metric. For reachability claims, identify every selected client root, including applicable client references.
-- **Coverage:** summarize relevant unsupported outputs, unjoined modules and unresolved references, with available reasons and their effect on the claim. Scope conclusions to the known subgraph when completeness is uncertain.
+- **Coverage:** summarize relevant unsupported outputs, unjoined modules and group trigger coverage, with available reasons and their effect on the claim. Scope conclusions to the known subgraph when completeness is uncertain.
 - **Attribution:** count each selected output contribution once. Record repeated-record handling and distinguish source paths from module identities; explain any mapping used for solver weights and preserve unknown weights as gaps.
 - **Reachability:** for a lazy boundary, check **all** synchronous root-to-target paths, alternate importers and cycles, including a target that is itself a root. Record which paths the proposed boundary severs and which stay reachable. Verify async and erased type-only imports against source.
 - **Source checks:** inspect import triggers, mount-time preloading, module side effects and shared routes. Record the conditions under which an async import executes. The graph establishes indexed reachability; an after snapshot verifies emitted outputs and attribution changes.

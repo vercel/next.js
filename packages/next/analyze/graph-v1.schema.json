@@ -9,9 +9,7 @@
     { "$ref": "#/$defs/route" },
     { "$ref": "#/$defs/output" },
     { "$ref": "#/$defs/part" },
-    { "$ref": "#/$defs/group" },
-    { "$ref": "#/$defs/load_edge" },
-    { "$ref": "#/$defs/unresolved" }
+    { "$ref": "#/$defs/group" }
   ],
   "$defs": {
     "index": { "type": "integer", "minimum": 0 },
@@ -168,7 +166,7 @@
         },
         "coverage": {
           "type": "object",
-          "required": ["entries", "groups", "load_edges"],
+          "required": ["entries", "groups"],
           "properties": {
             "entries": {
               "enum": ["exact", "unknown"],
@@ -177,10 +175,6 @@
             "groups": {
               "enum": ["exact", "unknown"],
               "description": "Whether typed build-time groups were supplied; even exact group metadata does not identify observed initial requests."
-            },
-            "load_edges": {
-              "enum": ["exact", "unknown"],
-              "description": "Whether typed and unresolved output load relationships were supplied. Even exact build-time coverage does not prove requests; absent or unresolved edges cannot establish that no other load is possible."
             }
           },
           "additionalProperties": true,
@@ -198,8 +192,7 @@
         "filename",
         "modules",
         "async_loaders",
-        "coverage",
-        "unresolved_references"
+        "coverage"
       ],
       "properties": {
         "type": { "const": "output" },
@@ -219,10 +212,6 @@
         "coverage": {
           "description": "Membership evidence: exact enumerates and joins every real chunk member and async loader target; unsupported means the output type cannot enumerate its members; not_a_chunk identifies non-chunk outputs, including runtime, precompiled polyfill and separately compiled worker outputs by concrete type. Attribution part records remain available.",
           "enum": ["exact", "unsupported", "not_a_chunk"]
-        },
-        "unresolved_references": {
-          "description": "Count of references whose runtime load type is not explicit. A positive count prevents claiming exhaustive known load edges; null means unknown, not zero.",
-          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/index" }]
         }
       },
       "additionalProperties": true,
@@ -258,6 +247,30 @@
       "additionalProperties": true,
       "description": "Source attribution within an emitted output."
     },
+    "unjoined": {
+      "type": "object",
+      "required": ["type", "route", "filename", "module_ident", "reason"],
+      "properties": {
+        "type": {
+          "const": "unjoined",
+          "description": "Identifies an output member that could not join the global snapshot module table."
+        },
+        "route": { "type": "string", "description": "Owning route key." },
+        "filename": {
+          "type": "string",
+          "description": "Emitted output filename containing the unjoined module, scoped by route."
+        },
+        "module_ident": {
+          "$ref": "#/$defs/identity",
+          "description": "Exact module identity reported for this output but not joined to the snapshot's global module table; separately compiled worker payloads can be unjoined."
+        },
+        "reason": {
+          "type": "string",
+          "description": "Reason a reported output member cannot join the global snapshot module table. async_loader_target_missing means a typed async loader's target was absent from that table, so the stub remains unjoined. outside_whole_app_module_graph means the member itself is outside the graph; worker_compiled_in_separate_graph identifies a separately compiled worker payload."
+        }
+      },
+      "additionalProperties": true
+    },
     "group": {
       "type": "object",
       "required": [
@@ -285,7 +298,7 @@
         },
         "trigger_module_ident": {
           "type": ["string", "null"],
-          "description": "Exact trigger identity when joined or explicitly unjoined. For async groups, this is the dynamically imported target module's ident, not the synthetic loader ident. Other kinds retain their bootstrap, render-dependent or worker trigger semantics."
+          "description": "Exact trigger identity when joined or explicitly unjoined. For async groups, this is the joined dynamically imported target module's ident. Outputs in the same route whose async_loaders contain this trigger can load the group outputs. For worker groups, this is the joined registering module or its emitted synchronous ancestor. Outputs whose modules contain this trigger can load the worker group outputs. Other kinds retain their bootstrap or render-dependent trigger semantics."
         },
         "trigger_join": {
           "enum": ["joined", "unjoined", "none"],
@@ -299,88 +312,6 @@
       },
       "additionalProperties": true,
       "description": "Build-time output grouping for a route occurrence; a file can belong to several groups and layout groups may be cumulative. Not the exact contribution or request set of one client reference."
-    },
-    "load_edge": {
-      "type": "object",
-      "required": [
-        "type",
-        "route",
-        "source_output",
-        "target_output",
-        "kind",
-        "trigger_module_ident",
-        "trigger_join"
-      ],
-      "properties": {
-        "type": {
-          "const": "load_edge",
-          "description": "Identifies a conditional build-time load relationship between emitted outputs."
-        },
-        "route": { "type": "string", "description": "Owning route key." },
-        "source_output": {
-          "type": "string",
-          "description": "Emitted source output path in this route occurrence."
-        },
-        "target_output": {
-          "type": "string",
-          "description": "Emitted target output path; the edge does not prove an observed request."
-        },
-        "kind": {
-          "type": "string",
-          "description": "Build-time relation: async/async_manifest from loaders or manifests, worker_registration from an importer linked to a worker output, and asset_reference is a generic reference rather than proof of a request."
-        },
-        "trigger_module_ident": {
-          "type": ["string", "null"],
-          "description": "Exact trigger identity when known. For async/async_manifest edges, this is the dynamically imported target module's ident, not the synthetic loader ident; worker_registration uses the registering importer. null means no trigger; trigger_join distinguishes joined and explicitly unjoined identities."
-        },
-        "trigger_join": {
-          "enum": ["joined", "unjoined", "none"],
-          "description": "Whether the trigger identity joined the indexed snapshot modules, is unjoined, or absent."
-        }
-      },
-      "additionalProperties": true,
-      "description": "Conditional build-time relation between outputs, not observed request timing. A missing edge does not establish that no load is possible, especially where unresolved references remain."
-    },
-    "unresolved": {
-      "type": "object",
-      "required": [
-        "type",
-        "route",
-        "source_output",
-        "target_path",
-        "kind",
-        "reason",
-        "trigger_module_ident"
-      ],
-      "properties": {
-        "type": {
-          "const": "unresolved",
-          "description": "Identifies a load relationship that could not be joined or classified exactly."
-        },
-        "route": { "type": "string", "description": "Owning route key." },
-        "source_output": {
-          "type": ["string", "null"],
-          "description": "Source output path when associated with this route, or null if unknown."
-        },
-        "target_path": {
-          "type": "string",
-          "description": "Unresolved or out-of-route output target path, not an indexed output join or proof that this file was requested."
-        },
-        "kind": {
-          "type": "string",
-          "description": "Producer-reported build-time relationship kind for this unresolved reference; it does not establish an observed browser request."
-        },
-        "reason": {
-          "type": "string",
-          "description": "Why this load relationship could not be joined or classified exactly."
-        },
-        "trigger_module_ident": {
-          "type": ["string", "null"],
-          "description": "Exact trigger module identity when supplied for this unresolved relationship, not proof of a join to the global module table; null means no identity was supplied."
-        }
-      },
-      "additionalProperties": true,
-      "description": "A load relationship whose target or trigger could not be joined exactly (including out-of-route targets). Preserve it rather than treating missing exact edges as proof of no load."
     }
   }
 }

@@ -1,4 +1,4 @@
-mod load_edges;
+mod groups;
 mod membership;
 
 use std::{borrow::Cow, io::Write};
@@ -108,7 +108,7 @@ pub struct AnalyzeRouteEntries(Vec<AnalyzeRouteEntry>);
 
 pub type AnalyzeGraphModule = ResolvedVc<Box<dyn Module>>;
 pub type AnalyzeSyncDependents = FxHashMap<AnalyzeGraphModule, Vec<AnalyzeGraphModule>>;
-pub type AnalyzeWorkerRegistration = (AnalyzeGraphModule, ResolvedVc<ServiceWorkerEntryModule>);
+pub type AnalyzeWorkerEntry = (AnalyzeGraphModule, ResolvedVc<ServiceWorkerEntryModule>);
 
 /// Snapshot-scoped module order shared by both artifact writers. Never regenerate
 /// indices independently from a route graph or use them across analyzer snapshots.
@@ -120,7 +120,7 @@ pub struct AnalyzeModuleIndex {
     pub module_index_hash: RcStr,
     /// Cached once for the whole application, not rebuilt for each route.
     pub sync_dependents: AnalyzeSyncDependents,
-    pub worker_registrations: Vec<AnalyzeWorkerRegistration>,
+    pub worker_entries: Vec<AnalyzeWorkerEntry>,
 }
 
 #[turbo_tasks::function]
@@ -188,7 +188,7 @@ pub async fn analyze_module_index(module_graph: Vc<ModuleGraph>) -> Result<Vc<An
         by_ident,
         module_index_hash,
         sync_dependents,
-        worker_registrations: registrations.into_iter().collect(),
+        worker_entries: registrations.into_iter().collect(),
     }
     .cell())
 }
@@ -220,11 +220,7 @@ struct AnalyzeDataHeader {
     pub output_file_modules: EdgesDataReference,
     pub output_file_async_loaders: EdgesDataReference,
     pub output_file_module_coverage: Vec<AnalyzeOutputFileCoverage>,
-    /// Non-asset reference wrappers whose direct runtime load type is unknown.
-    pub unresolved_output_references: Vec<u32>,
     pub chunk_groups: Vec<AnalyzeChunkGroupData>,
-    pub chunk_load_edges: Vec<AnalyzeChunkLoadEdge>,
-    pub unjoined_chunk_load_edges: Vec<AnalyzeUnjoinedChunkLoadEdge>,
     /// Exact endpoint roots; nested client references do not become roots.
     pub route_entries: Vec<AnalyzeRouteEntry>,
     /// Edges from chunks to chunk parts
@@ -280,33 +276,10 @@ struct AnalyzeChunkGroupData {
     output_file_indices: Vec<u32>,
 }
 
-#[derive(Serialize)]
-struct AnalyzeChunkLoadEdge {
-    source_output_file_index: u32,
-    target_output_file_index: u32,
-    kind: RcStr,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    trigger_module_index: Option<u32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    unjoined_trigger_ident: Option<RcStr>,
-}
-
-#[derive(Serialize)]
-struct AnalyzeUnjoinedChunkLoadEdge {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    source_output_file_index: Option<u32>,
-    target_path: RcStr,
-    kind: RcStr,
-    reason: &'static str,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    trigger_module_ident: Option<RcStr>,
-}
-
 struct ChunkLoadCandidate {
     source: u32,
     target: ResolvedVc<Box<dyn OutputAsset>>,
-    kind: RcStr,
-    /// For async/async_manifest, this is the dynamically imported target.
+    /// The dynamically imported target, shared by loaders and manifests.
     trigger_module_index: Option<u32>,
     unjoined_trigger_ident: Option<RcStr>,
 }
@@ -317,7 +290,6 @@ struct AnalyzeOutputFileBuilder {
     module_indices: Vec<u32>,
     async_loader_indices: Vec<u32>,
     module_coverage: AnalyzeOutputFileCoverage,
-    unresolved_references: u32,
 }
 
 struct AnalyzeSourceBuilder {
@@ -345,8 +317,6 @@ struct AnalyzeDataBuilder {
     route_entries: Vec<AnalyzeRouteEntry>,
     module_index_hash: RcStr,
     chunk_groups: Vec<AnalyzeChunkGroupData>,
-    chunk_load_edges: Vec<AnalyzeChunkLoadEdge>,
-    unjoined_chunk_load_edges: Vec<AnalyzeUnjoinedChunkLoadEdge>,
 }
 
 struct ModulesDataBuilder {
@@ -417,8 +387,6 @@ impl AnalyzeDataBuilder {
             output_file_index_map: FxHashMap::default(),
             route_entries,
             chunk_groups: vec![],
-            chunk_load_edges: vec![],
-            unjoined_chunk_load_edges: vec![],
         }
     }
 
@@ -459,7 +427,6 @@ impl AnalyzeDataBuilder {
             module_indices: vec![],
             async_loader_indices: vec![],
             module_coverage: AnalyzeOutputFileCoverage::NotAChunk,
-            unresolved_references: 0,
         });
         i
     }
@@ -540,11 +507,6 @@ impl AnalyzeDataBuilder {
                 .map(|of| of.module_coverage)
                 .collect(),
             output_file_modules: binary_section.add_edges(&output_file_modules),
-            unresolved_output_references: self
-                .output_files
-                .iter()
-                .map(|of| of.unresolved_references)
-                .collect(),
             output_file_async_loaders: binary_section.add_edges(&output_file_async_loaders),
             output_files: self
                 .output_files
@@ -552,8 +514,6 @@ impl AnalyzeDataBuilder {
                 .map(|of| of.output_file)
                 .collect(),
             chunk_groups: self.chunk_groups,
-            chunk_load_edges: self.chunk_load_edges,
-            unjoined_chunk_load_edges: self.unjoined_chunk_load_edges,
             route_entries: self.route_entries,
             output_file_chunk_parts: binary_section.add_edges(&output_file_chunk_parts),
             source_chunk_parts: binary_section.add_edges(&source_chunk_parts),
@@ -779,9 +739,9 @@ pub async fn analyze_output_assets(
             if ResolvedVc::try_downcast_type::<EcmascriptBrowserChunk>(*asset).is_some() {
                 browser_chunks.insert(output_file_index);
             }
-            let (indices, coverage, edges, unresolved, async_loaders) =
+            let (indices, coverage, loads, async_loaders) =
                 output_chunk_modules(*asset, &filename, &module_index, output_file_index).await?;
-            candidates.extend(edges);
+            candidates.extend(loads);
             let file = &mut builder.output_files[output_file_index as usize];
             file.module_indices.extend(indices);
             file.module_indices.sort_unstable();
@@ -790,7 +750,6 @@ pub async fn analyze_output_assets(
             file.async_loader_indices.sort_unstable();
             file.async_loader_indices.dedup();
             file.module_coverage = coverage;
-            file.unresolved_references = unresolved;
         }
         let chunk_parts = match asset {
             Either::Left(asset) => split_output_asset_into_parts(*asset).await?,
@@ -828,7 +787,7 @@ pub async fn analyze_output_assets(
         }
     }
 
-    load_edges::collect_load_edges(
+    groups::collect_groups(
         &mut builder,
         candidates,
         &asset_indices,

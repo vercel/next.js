@@ -81,14 +81,12 @@ async fn chunk_item_load_candidates(
     source: u32,
 ) -> Result<Vec<ChunkLoadCandidate>> {
     let module = item.module().to_resolved().await?;
-    let (kind, trigger) = if let Some(loader) =
-        ResolvedVc::try_downcast_type::<AsyncLoaderModule>(module)
-    {
-        ("async", loader.await?.inner)
+    let trigger = if let Some(loader) = ResolvedVc::try_downcast_type::<AsyncLoaderModule>(module) {
+        loader.await?.inner
     } else if let Some(manifest) = ResolvedVc::try_downcast_type::<ManifestAsyncModule>(module) {
-        ("async", manifest.await?.inner)
+        manifest.await?.inner
     } else if let Some(loader) = ResolvedVc::try_downcast_type::<ManifestLoaderModule>(module) {
-        ("async_manifest", loader.await?.manifest.await?.inner)
+        loader.await?.manifest.await?.inner
     } else {
         return Ok(vec![]);
     };
@@ -107,15 +105,13 @@ async fn chunk_item_load_candidates(
         .map(|target| ChunkLoadCandidate {
             source,
             target,
-            kind: kind.into(),
             trigger_module_index,
             unjoined_trigger_ident: unjoined_trigger_ident.clone(),
         })
         .collect())
 }
 
-/// Enumerate known browser/Node.js JS and CSS chunk items. Preserve unknown wrappers,
-/// unresolved references instead of claiming empty chunks.
+/// Enumerate known browser/Node.js JS and CSS chunk items; unknown wrappers remain unsupported.
 pub(super) async fn output_chunk_modules(
     asset: ResolvedVc<Box<dyn OutputAsset>>,
     filename: &str,
@@ -125,7 +121,6 @@ pub(super) async fn output_chunk_modules(
     Vec<u32>,
     AnalyzeOutputFileCoverage,
     Vec<ChunkLoadCandidate>,
-    u32,
     Vec<u32>,
 )> {
     if ResolvedVc::try_downcast_type::<EcmascriptBrowserRuntimeChunk>(asset).is_some()
@@ -134,13 +129,7 @@ pub(super) async fn output_chunk_modules(
         || ResolvedVc::try_downcast_type::<EcmascriptBrowserSingleEntryChunk>(asset).is_some()
         || ResolvedVc::try_downcast_type::<EcmascriptBrowserWorkerEntrypoint>(asset).is_some()
     {
-        return Ok((
-            vec![],
-            AnalyzeOutputFileCoverage::NotAChunk,
-            vec![],
-            0,
-            vec![],
-        ));
+        return Ok((vec![], AnalyzeOutputFileCoverage::NotAChunk, vec![], vec![]));
     }
     let mut indices = FxIndexSet::default();
     let mut async_loaders = FxIndexSet::default();
@@ -214,35 +203,10 @@ pub(super) async fn output_chunk_modules(
             .with_context(|| format!("Analyzing output {filename}"))?;
         }
     } else if filename.ends_with(".js") || filename.ends_with(".css") {
-        // Other emitted JS/CSS wrappers (evaluate/runtime entries, workers) still
-        // record their generic references below, but their members are unknown.
+        // Other emitted JS/CSS wrappers cannot enumerate their module members.
         enumerated = false;
     } else {
-        return Ok((
-            vec![],
-            AnalyzeOutputFileCoverage::NotAChunk,
-            vec![],
-            0,
-            vec![],
-        ));
-    }
-    let references = asset.references().await?;
-    let unresolved_references = references.references.await?.len() as u32;
-    for &target in references
-        .assets
-        .await?
-        .iter()
-        .chain(references.referenced_assets.await?.iter())
-    {
-        if target != asset {
-            candidates.push(ChunkLoadCandidate {
-                source: output_file_index,
-                target,
-                kind: "asset_reference".into(),
-                trigger_module_index: None,
-                unjoined_trigger_ident: None,
-            });
-        }
+        return Ok((vec![], AnalyzeOutputFileCoverage::NotAChunk, vec![], vec![]));
     }
     let coverage = if enumerated {
         AnalyzeOutputFileCoverage::Exact
@@ -253,7 +217,6 @@ pub(super) async fn output_chunk_modules(
         indices.into_iter().collect(),
         coverage,
         candidates,
-        unresolved_references,
         async_loaders.into_iter().collect(),
     ))
 }

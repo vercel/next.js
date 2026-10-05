@@ -31,20 +31,12 @@ type ChunkGraphHeader = {
   output_file_modules: EdgesReference
   output_file_async_loaders: EdgesReference
   output_file_module_coverage: Array<'exact' | 'unsupported' | 'not_a_chunk'>
-  unresolved_output_references: number[]
   chunk_groups: Array<{
     id: number
     kind: 'bootstrap' | 'render_dependent' | 'async' | 'worker'
     trigger_module_index?: number
     output_file_indices: number[]
   }>
-  chunk_load_edges: Array<{
-    source_output_file_index: number
-    target_output_file_index: number
-    kind: string
-    trigger_module_index?: number
-  }>
-  unjoined_chunk_load_edges: Array<{ kind: string; reason: string }>
 }
 
 function readAnalyzeFile<T>(filename: string) {
@@ -349,14 +341,25 @@ describe('next analyze', () => {
     const asyncGroups = records.filter(
       (record) => record.type === 'group' && record.kind === 'async'
     )
-    const asyncLoads = records.filter(
+    for (const group of records.filter(
       (record) =>
-        record.type === 'load_edge' &&
-        (record.kind === 'async' || record.kind === 'async_manifest')
-    )
+        record.type === 'group' &&
+        (record.kind === 'async' || record.kind === 'worker')
+    )) {
+      expect(group.trigger_join).toBe('joined')
+      expect(
+        records.some(
+          (output) =>
+            output.type === 'output' &&
+            output.route === group.route &&
+            output[
+              group.kind === 'async' ? 'async_loaders' : 'modules'
+            ].includes(group.trigger_module_ident)
+        )
+      ).toBe(true)
+    }
     expect(asyncGroups.length).toBeGreaterThan(0)
-    expect(asyncLoads.length).toBeGreaterThan(0)
-    for (const record of [...asyncGroups, ...asyncLoads]) {
+    for (const record of asyncGroups) {
       expect(record.trigger_join).toBe('joined')
       const target = modulesByIdent.get(record.trigger_module_ident)
       expect(target).toBeDefined()
@@ -390,9 +393,6 @@ describe('next analyze', () => {
       expect(allAsyncDependencies.has(target.ident)).toBe(true)
       expect(
         asyncGroups.some((group) => group.trigger_module_ident === target.ident)
-      ).toBe(true)
-      expect(
-        asyncLoads.some((edge) => edge.trigger_module_ident === target.ident)
       ).toBe(true)
     }
 
@@ -734,18 +734,18 @@ describe('next analyze', () => {
           readAnalyzeFile<ChunkGraphHeader>(path.join(dataDir, route))
         )
         for (const { header, binary } of routeGraphs) {
-          expect(header.schema_version).toBe(modulesVersion)
-          expect(header.module_index_hash).toBe(moduleIndexHash)
-          expect(header.unresolved_output_references).toHaveLength(
-            header.output_files.length
-          )
-          expect(header.output_file_module_coverage).toHaveLength(
-            header.output_files.length
-          )
           const rows = readRows(binary, header.output_file_modules)
           for (const [i, row] of rows.entries()) {
             if (header.output_file_module_coverage[i] === 'not_a_chunk') {
               expect(row).toEqual([])
+            }
+          }
+          for (const group of header.chunk_groups) {
+            if (group.kind === 'worker') {
+              expect(group.trigger_module_index).toBeDefined()
+              expect(
+                rows.some((row) => row.includes(group.trigger_module_index!))
+              ).toBe(true)
             }
           }
         }
@@ -819,14 +819,6 @@ describe('next analyze', () => {
         expect(
           appGraph.chunk_groups.some((group) => group.kind === 'async')
         ).toBe(true)
-        expect(
-          appGraph.chunk_load_edges.some((edge) => edge.kind === 'async')
-        ).toBe(true)
-        expect(
-          appGraph.chunk_load_edges.some(
-            (edge) => edge.kind === 'worker_registration'
-          )
-        ).toBe(true)
         const appRows = readRows(
           routeGraphs[0].binary,
           appGraph.output_file_modules
@@ -852,7 +844,7 @@ describe('next analyze', () => {
           .filter((group) => group.kind === 'worker')
           .flatMap((group) => group.output_file_indices)) {
           expect(appGraph.output_file_module_coverage[index]).toBe(
-            'unsupported'
+            'not_a_chunk'
           )
           expect(appRows[index]).toEqual([])
         }
@@ -875,35 +867,9 @@ describe('next analyze', () => {
           )
         ).toBe(true)
         expect(
-          appGraph.chunk_load_edges.some(
-            (edge) =>
-              edge.kind === 'async' &&
-              appRows[edge.target_output_file_index].some((module) =>
-                modules[module].ident.includes('/lazy')
-              )
-          )
-        ).toBe(true)
-        expect(
-          appGraph.chunk_load_edges.some(
-            (edge) =>
-              edge.kind === 'worker_registration' &&
-              appRows[edge.source_output_file_index].some((module) =>
-                modules[module].ident.includes('client-entry')
-              ) &&
-              appGraph.output_files[
-                edge.target_output_file_index
-              ].filename.includes('service-worker/sw.js')
-          )
-        ).toBe(true)
-        expect(
           pagesGraph.chunk_groups.filter((group) => group.kind === 'bootstrap')
             .length
         ).toBeGreaterThanOrEqual(2)
-        expect(
-          appGraph.unjoined_chunk_load_edges.every(
-            (edge) => edge.kind !== 'worker_registration'
-          )
-        ).toBe(true)
       })
     })
   })

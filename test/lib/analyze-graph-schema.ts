@@ -36,8 +36,6 @@ export function validateGraphDump(output: string): void {
       route: string
       filename: string
       outputs: string[]
-      source_output: string | null
-      target_output: string
     }
     if (record.type === 'meta') {
       if (index !== 0) throw new Error('Duplicate analyzer graph meta')
@@ -69,22 +67,6 @@ export function validateGraphDump(output: string): void {
             throw new Error(`Unknown group output for graph record ${index}`)
           }
         }
-      } else if (record.type === 'load_edge') {
-        for (const filename of [record.source_output, record.target_output]) {
-          if (!outputs.has(JSON.stringify([key, filename]))) {
-            throw new Error(
-              `Unknown load edge output for graph record ${index}`
-            )
-          }
-        }
-      } else if (
-        record.type === 'unresolved' &&
-        record.source_output !== null &&
-        !outputs.has(JSON.stringify([key, record.source_output]))
-      ) {
-        throw new Error(
-          `Unknown unresolved source output for graph record ${index}`
-        )
       }
     }
   }
