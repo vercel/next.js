@@ -433,7 +433,7 @@ function createRuntimePrerenderParams(
   }
 
   // Non-root params are URL data, and we need to recover a param-less session shell,
-  // so we delay all params until the runtime stage (even if they're static)
+  // so we delay all params until the PrefetchRuntime stage (even if they're static)
   const paramsStage = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
 
   const { stagedRendering } = workUnitStore

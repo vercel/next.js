@@ -54,7 +54,7 @@ export function createServerPathnameForMetadata(
         // should depend on whether this route has params.
         // if there's no params, it can be included.
         // for now, we defensively exclude it to match the earlier pessimistic
-        // behavior of always resolving in the runtime stage
+        // behavior of always resolving in the PrefetchRuntime stage
         // (i.e. assuming that we have non-static params in the pathname)
         const { stagedRendering } = workUnitStore
         const pathnameStage = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData

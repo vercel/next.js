@@ -747,7 +747,7 @@ class TrackedPromise<T> extends Promise<T> {
 export const RENDER_STAGES_BY_DATA_KIND = {
   sessionData: RenderStage.ShellRuntime as const,
   staticLinkData: RenderStage.PrefetchStatic as const,
-  runtimeLinkData: RenderStage.Runtime as const,
+  runtimeLinkData: RenderStage.PrefetchRuntime as const,
 }
 
 export function applyOwnerStack(error: Error): Error {
