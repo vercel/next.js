@@ -15,7 +15,7 @@ Before [Cache Components](/docs/app/api-reference/config/next-config-js/cacheCom
 
 This flexibility is useful for routes that need personalization. However, you may still want some or all of a route to avoid request-time server rendering for predictable performance and compute costs.
 
-Use [`ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic) to declare how much route output must remain static. `next dev` and `next build` then identify changes that would introduce request-time server rendering. This guide explains how to choose a level and resolve the validation errors it surfaces.
+Use [`ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic) to declare how much route output must remain static. `next dev` and `next build` then identify changes that would introduce request-time server rendering.
 
 ## Decide what should stay static
 

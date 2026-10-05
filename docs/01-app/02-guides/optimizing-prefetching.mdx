@@ -44,7 +44,7 @@ Then give the agent the source, destination, and UI that should be available imm
 Make the search results instant when navigating from / to /search?q=react. Use the next-partial-prefetching-optimizer Skill.
 ```
 
-This guide assumes [Cache Components](/docs/app/getting-started/caching) with [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) enabled:
+Enable [Cache Components](/docs/app/getting-started/caching) and [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) before applying these optimizations:
 
 ```ts filename="next.config.ts" highlight={4,5}
 import type { NextConfig } from 'next'
