@@ -244,6 +244,52 @@ export default async function AdminPage() {
 }
 ```
 
+Add `unauthorized.tsx` and `forbidden.tsx` to the route segment to customize each fallback:
+
+```tsx filename="app/admin/unauthorized.tsx" switcher
+export default function Unauthorized() {
+  return (
+    <main>
+      <h1>Unauthorized</h1>
+      <p>You must sign in to access this page.</p>
+    </main>
+  )
+}
+```
+
+```jsx filename="app/admin/unauthorized.js" switcher
+export default function Unauthorized() {
+  return (
+    <main>
+      <h1>Unauthorized</h1>
+      <p>You must sign in to access this page.</p>
+    </main>
+  )
+}
+```
+
+```tsx filename="app/admin/forbidden.tsx" switcher
+export default function Forbidden() {
+  return (
+    <main>
+      <h1>Forbidden</h1>
+      <p>You do not have permission to access this page.</p>
+    </main>
+  )
+}
+```
+
+```jsx filename="app/admin/forbidden.js" switcher
+export default function Forbidden() {
+  return (
+    <main>
+      <h1>Forbidden</h1>
+      <p>You do not have permission to access this page.</p>
+    </main>
+  )
+}
+```
+
 Use [`redirect()`](/docs/app/api-reference/functions/redirect) instead when you want to send an unauthenticated user to a sign-in flow.
 
 ## Handling uncaught exceptions
