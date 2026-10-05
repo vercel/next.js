@@ -13,8 +13,8 @@ export function codeFrameColumns(
   location: NapiCodeFrameLocation,
   options: NapiCodeFrameOptions = {}
 ): string | undefined {
-  // Default to the terminal width
-  if (options.maxWidth === undefined) {
+  // Default to the terminal width when available
+  if (options.maxWidth === undefined && process.stdout?.columns !== undefined) {
     options.maxWidth = process.stdout.columns
   }
   return getBindingsSync().codeFrameColumns(file, location, options)
