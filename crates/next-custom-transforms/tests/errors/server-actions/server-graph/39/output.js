@@ -7,7 +7,6 @@ export async function foo() {
             'use cache';
     }
     label: {
-        ;
         'use client';
     }
 }

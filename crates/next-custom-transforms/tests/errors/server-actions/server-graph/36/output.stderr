@@ -14,12 +14,12 @@
     :     ^^^^^^^^^^^
  10 |   } catch (e) {
     `----
-  x The "use cache" directive must be at the top of the function body, and cannot be wrapped in parentheses.
+  x The "use server" directive must be at the top of the function body.
   | 
     ,-[input.js:11:1]
  10 |   } catch (e) {
- 11 |     ;('use cache')
-    :      ^^^^^^^^^^^^^
+ 11 |     'use server'
+    :     ^^^^^^^^^^^^
  12 |   } finally {
     `----
   x The "use client" directive must be placed at the top of the file, before any other statements. It cannot be used inside a function.

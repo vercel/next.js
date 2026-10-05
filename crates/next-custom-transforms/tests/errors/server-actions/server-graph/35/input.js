@@ -1,13 +1,13 @@
 export async function foo() {}
 
 if (true) {
-  ;('use cache')
+  'use cache'
 }
 
 {
-  ;('use server')
+  'use server'
 }
 
 try {
-  ;('use client')
+  'use client'
 } catch {}

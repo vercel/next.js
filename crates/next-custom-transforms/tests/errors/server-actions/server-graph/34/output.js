@@ -1,7 +1,3 @@
-export async function fn() {
-    ;
-    'use client';
-}
 export class Foo {
     method() {
         'use client';

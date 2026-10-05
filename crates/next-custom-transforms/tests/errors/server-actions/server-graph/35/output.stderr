@@ -14,11 +14,11 @@
    :   ^^^^^^^^^^^^
  9 | }
    `----
-  x The "use client" directive must be at the top of the file, and cannot be wrapped in parentheses.
+  x The "use client" directive must be at the top of the file.
   | 
     ,-[input.js:12:1]
  11 | try {
- 12 |   ;('use client')
-    :    ^^^^^^^^^^^^^^
+ 12 |   'use client'
+    :   ^^^^^^^^^^^^
  13 | } catch {}
     `----

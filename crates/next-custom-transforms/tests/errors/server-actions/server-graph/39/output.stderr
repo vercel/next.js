@@ -1,3 +1,17 @@
+  x The "use server" directive must be at the top of the file.
+  | 
+    ,-[input.js:16:1]
+ 15 | 
+ 16 | if (true) 'use server'
+    :           ^^^^^^^^^^^^
+    `----
+  x The "use cache" directive must be at the top of the file.
+  | 
+    ,-[input.js:18:1]
+ 17 | 
+ 18 | while (false) 'use cache'
+    :               ^^^^^^^^^^^
+    `----
   x The "use server" directive must be at the top of the function body.
   | 
    ,-[input.js:3:1]
@@ -20,21 +34,7 @@
   | 
     ,-[input.js:12:1]
  11 |   label: {
- 12 |     ;(('use client'))
-    :      ^^^^^^^^^^^^^^^^
+ 12 |     'use client'
+    :     ^^^^^^^^^^^^
  13 |   }
-    `----
-  x The "use server" directive must be at the top of the file.
-  | 
-    ,-[input.js:16:1]
- 15 | 
- 16 | if (true) 'use server'
-    :           ^^^^^^^^^^^^
-    `----
-  x The "use cache" directive must be at the top of the file.
-  | 
-    ,-[input.js:18:1]
- 17 | 
- 18 | while (false) 'use cache'
-    :               ^^^^^^^^^^^
     `----

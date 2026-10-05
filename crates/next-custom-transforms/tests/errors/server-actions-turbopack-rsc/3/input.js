@@ -4,5 +4,5 @@ export default function Page() {
 }
 
 if (true) {
-  ;('use cache')
+  'use cache'
 }
