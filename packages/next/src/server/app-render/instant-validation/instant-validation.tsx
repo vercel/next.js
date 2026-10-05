@@ -206,20 +206,20 @@ export async function collectStagedSegmentData(
         RenderStage.ShellStatic,
         RenderStage.PrefetchStatic,
         RenderStage.NavigationStatic, // TODO(cache-stages): only if needed
-        RenderStage.Runtime,
+        RenderStage.PrefetchRuntime,
       ]
       break
     }
     case ValidationPrefetchKind.RuntimeAppShell: {
       partialStages = [
         RenderStage.ShellRuntime,
-        RenderStage.Runtime,
+        RenderStage.PrefetchRuntime,
         RenderStage.NavigationRuntime, // TODO(cache-stages): only if needed
       ]
       break
     }
     case ValidationPrefetchKind.LegacySpeculative: {
-      partialStages = [RenderStage.Static, RenderStage.Runtime]
+      partialStages = [RenderStage.Static, RenderStage.PrefetchRuntime]
       break
     }
   }
@@ -293,7 +293,7 @@ async function collectSegmentDataForStage(
       case RenderStage.NavigationStatic:
         return 'Prerender'
       case RenderStage.ShellRuntime: // TODO(app-shells) - proper environmentName
-      case RenderStage.Runtime:
+      case RenderStage.PrefetchRuntime:
       case RenderStage.NavigationRuntime:
         return 'Prefetch'
       case RenderStage.Dynamic:
@@ -479,7 +479,7 @@ function onFlightRenderError(error: unknown): string | undefined {
 function createStagedStreamFromChunks(stageChunks: StageChunks) {
   // The successive stages are supersets of one another,
   // so we can index into the dynamic chunks everywhere
-  // and just look at the lengths of the Static/Runtime arrays
+  // and just look at the lengths of the partial stage arrays
   const allChunks = stageChunks[RenderStage.Dynamic]
 
   let chunkIx = 0
@@ -986,7 +986,7 @@ export function discoverValidationDepths(loaderTree: LoaderTree): number[] {
  * Walks the LoaderTree directly, loading modules and counting
  * URL-contributing layouts. When `depth` URL segments have been
  * consumed, the boundary flips from shared (dynamic stage) to new
- * (static/runtime stage). As the new subtree is built, we check for
+ * (the prefetched stage). As the new subtree is built, we check for
  * instant configs. If none are found, returns null — no validation
  * needed at this depth or deeper.
  *
@@ -1024,7 +1024,7 @@ export async function createCombinedPayloadAtDepth(
   clientReferenceManifest: ClientReferenceManifest,
   overrideStageForPartialSegments:
     | null
-    | RenderStage.Runtime
+    | RenderStage.PrefetchRuntime
     | RenderStage.NavigationRuntime
 ): Promise<ValidationPayloadResult | null> {
   const workStore = workAsyncStorage.getStore()

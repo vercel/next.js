@@ -604,7 +604,7 @@ function makeUntrackedSearchParamsWithDevWarningsImpl(
       promiseInitialized.current = true
     },
     // If we're in staged rendering, this promise will reject if the render
-    // is aborted before it can reach the runtime stage.
+    // is aborted before it can reach the PrefetchRuntime stage.
     // In that case, we have to prevent an unhandled rejection from the promise
     // created by this `.then()` call.
     // This does not affect the `promiseInitialized` logic above,
