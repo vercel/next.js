@@ -35,6 +35,7 @@ interface EdgesDataReference {
 }
 
 interface AnalyzeDataHeader {
+  module_index_hash: string
   sources: AnalyzeSource[]
   chunk_parts: AnalyzeChunkPart[]
   output_files: AnalyzeOutputFile[]
@@ -45,6 +46,7 @@ interface AnalyzeDataHeader {
 }
 
 interface ModulesDataHeader {
+  module_index_hash: string
   modules: AnalyzeModule[]
   module_dependents: EdgesDataReference
   async_module_dependents: EdgesDataReference
@@ -90,6 +92,10 @@ export class ModulesData {
         this.pathToModuleIndex.set(module.path, [i])
       }
     }
+  }
+
+  moduleIndexHash(): string {
+    return this.modulesHeader.module_index_hash
   }
 
   module(index: ModuleIndex): AnalyzeModule | undefined {
@@ -202,6 +208,27 @@ export class ModulesData {
   }
 }
 
+/** Only join a route to the module table from the same snapshot. */
+export function assertMatchingModuleIndex(
+  modules: ModulesData,
+  route: AnalyzeData,
+  side: string
+): void {
+  const moduleHash = modules.moduleIndexHash()
+  const routeHash = route.moduleIndexHash()
+  if (
+    typeof moduleHash !== 'string' ||
+    !moduleHash ||
+    typeof routeHash !== 'string' ||
+    !routeHash
+  ) {
+    throw new Error(`${side}: missing analyzer module-index fingerprint`)
+  }
+  if (moduleHash !== routeHash) {
+    throw new Error(`${side}: analyzer module-index fingerprint mismatch`)
+  }
+}
+
 /**
  * Represents route-specific analyze data
  */
@@ -236,6 +263,10 @@ export class AnalyzeData {
   }
 
   // Accessor methods for header data
+
+  moduleIndexHash(): string {
+    return this.analyzeHeader.module_index_hash
+  }
 
   source(index: SourceIndex): AnalyzeSource | undefined {
     return this.analyzeHeader.sources[index]
