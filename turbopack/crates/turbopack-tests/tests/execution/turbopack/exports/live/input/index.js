@@ -78,20 +78,17 @@ it('exported bindings that are free vars are live', () => {
 })
 
 it('a constant 0 directly before an accessor binding is bound as a value', () => {
-  // Bindings are emitted in original name order, which puts `zero` immediately before
-  // `zeroLive`. Enumerating the namespace keeps the original names on the public facade, but the
-  // `<locals>` module behind it may still emit mangled keys.
+  // Enumerating the namespace means its keys cannot be mangled, so it is emitted under the
+  // original names and in name order, which puts `zero` immediately before `zeroLive`.
   expect(Object.keys(zeroBeforeAccessor)).toEqual([
-    'exportsInfo',
     'setZeroLive',
     'zero',
     'zeroLive',
   ])
 
   const ns = moduleNamespaceOf('zero_before_accessor.js')
-  const info = zeroBeforeAccessor.exportsInfo
-  expectValue(ns, info.zero.mangledName, 0)
-  expectGetter(ns, info.zeroLive.mangledName)
+  expectValue(ns, 'zero', 0)
+  expectGetter(ns, 'zeroLive')
 
   expect(zeroBeforeAccessor.zeroLive).toBe('zeroLive')
   zeroBeforeAccessor.setZeroLive('patched')

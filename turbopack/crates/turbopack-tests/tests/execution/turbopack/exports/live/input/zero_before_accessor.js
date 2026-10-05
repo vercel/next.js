@@ -7,7 +7,3 @@ export let zeroLive = 'zeroLive'
 export function setZeroLive(v) {
   zeroLive = v
 }
-
-// Test-only. `index.js` inspects this module's namespace descriptors directly, and the keys there
-// may be mangled; `__webpack_exports_info__` reports the emitted key for each original name.
-export const exportsInfo = __webpack_exports_info__
