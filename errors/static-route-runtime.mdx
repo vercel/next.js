@@ -43,12 +43,12 @@ Uncached [`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Window/fet
   />
   <FixCard
     group="client"
-    title="Read search parameters on the client"
-    href="#read-search-parameters-on-the-client"
+    title="Read the data on the client"
+    href="#read-the-data-on-the-client"
     snippets={[
       { text: "'use client'" },
-      { text: 'const params = useSearchParams()', highlight: true },
-      { text: "return <p>{params.get('q')}</p>" },
+      { text: "use(browser('Read cookie'))", highlight: true },
+      { text: 'const cart = document.cookie.match(/cart=(\\d+)/)' },
     ]}
   />
 </FixCardGrid>
@@ -79,15 +79,15 @@ Every visitor receives the same value because the route no longer reads request-
 
 - This fix applies to `cookies()`, `headers()`, and other removable reads. It does not provide replacement values when the content must vary by request.
 
-## Read search parameters on the client
+## Read the data on the client
 
-Choose this fix when only browser UI needs the query string.
+Choose this fix when the browser can read the value and the server does not need it to produce static output.
 
 ### Patterns
 
-#### Read the query string in a Client Component
+#### Read URL data in a Client Component
 
-Use [`useSearchParams()`](/docs/app/api-reference/functions/use-search-params) instead of the page's server-side `searchParams` prop:
+Use [`useSearchParams()`](/docs/app/api-reference/functions/use-search-params) for the query string or [`useParams()`](/docs/app/api-reference/functions/use-params) for route parameters. If the hook suspends during prerendering, render the Client Component inside [`Suspense`](https://react.dev/reference/react/Suspense) so the prerender can include its fallback.
 
 ```jsx filename="app/search/query.jsx"
 'use client'
@@ -100,19 +100,36 @@ export default function Query() {
 }
 ```
 
-Learn more: [`useSearchParams()`](/docs/app/api-reference/functions/use-search-params).
+Learn more: [`useSearchParams`](/docs/app/api-reference/functions/use-search-params).
 
-Render the Client Component inside [`Suspense`](https://react.dev/reference/react/Suspense). Do not pass the server's `searchParams` promise to it.
+#### Read browser data
+
+For data available through browser APIs, such as a non-`HttpOnly` cookie, call [`use(browser())`](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser) before reading the value. During prerendering, the component suspends and its nearest `<Suspense>` boundary renders a fallback.
+
+```jsx filename="app/cart-count.jsx"
+'use client'
+
+import { use } from 'react'
+import { browser } from 'react-dom'
+
+export default function CartCount() {
+  use(browser('The cart count is stored in a cookie.'))
+  const match = document.cookie.match(/(?:^|; )cart-count=(\d+)/)
+  return <p>Cart ({Number(match?.[1] ?? 0)})</p>
+}
+```
+
+Learn more: [Rendering components only in the browser](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser).
 
 ### Trade-off
 
-The prerender includes the fallback, and the query-dependent UI renders in the browser.
+The prerender includes the nearest fallback. The request-specific UI appears after the browser loads and renders the Client Component.
 
 ### Gotchas
 
-- Adding `'use client'` alone does not fix this error. Remove the server-side read and use the client hook.
-- Do not pass the server's `searchParams` promise to the Client Component.
-- This fix applies only to `searchParams`. It does not replace cookies, headers, or route parameters.
+- Adding `'use client'` alone does not fix this error because Client Components are also prerendered. Use a client hook that suspends or call `use(browser())` before reading a browser API.
+- Do not pass the server's `params` or `searchParams` promise to the Client Component. Read URL data with the client hooks instead.
+- The browser cannot read `HttpOnly` cookies or arbitrary request headers. Keep sensitive data in `HttpOnly` cookies and choose another fix when the browser cannot access the value safely.
 
 ## Other options
 
