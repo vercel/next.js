@@ -3,7 +3,6 @@
  */
 const nextConfig = {
   experimental: {
-    authInterrupts: true,
     globalNotFound: true,
   },
 }

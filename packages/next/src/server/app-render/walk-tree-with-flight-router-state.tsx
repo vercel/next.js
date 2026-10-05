@@ -266,7 +266,6 @@ export async function walkTreeWithFlightRouterState({
         // This is intentionally not "rootLayoutIncludedAtThisLevelOrAbove" as createComponentTree starts at the current level and does a check for "rootLayoutAtThisLevel" too.
         rootLayoutIncluded,
         preloadCallbacks,
-        authInterrupts: experimental.authInterrupts,
         MetadataOutlet,
         isPrerendering: false,
         hintTree,
@@ -397,10 +396,7 @@ export async function createFullTreeForNavigation({
   preloadCallbacks: PreloadCallbacks
   MetadataOutlet: React.ComponentType<{ tree: LoaderTree }>
 }): Promise<NavigationResponseTree> {
-  const {
-    renderOpts: { experimental },
-    pagePath,
-  } = ctx
+  const { pagePath } = ctx
 
   const hintTreeForInitialRender =
     ctx.renderOpts.prefetchHints?.[pagePath] ?? null
@@ -416,7 +412,6 @@ export async function createFullTreeForNavigation({
     injectedFontPreloadTags,
     rootLayoutIncluded: false,
     preloadCallbacks,
-    authInterrupts: experimental.authInterrupts,
     MetadataOutlet,
     isPrerendering: false,
     hintTree: hintTreeForInitialRender,

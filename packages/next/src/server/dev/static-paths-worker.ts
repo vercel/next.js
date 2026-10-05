@@ -53,7 +53,6 @@ export async function loadStaticPaths({
   nextConfigOutput,
   buildId,
   deploymentId,
-  authInterrupts,
   useCacheTimeout,
   durableUseCacheEntries,
   staticPageGenerationTimeout,
@@ -78,7 +77,6 @@ export async function loadStaticPaths({
   nextConfigOutput: 'standalone' | 'export' | undefined
   buildId: string
   deploymentId: string
-  authInterrupts: boolean
   useCacheTimeout: number
   durableUseCacheEntries: boolean
   staticPageGenerationTimeout: number
@@ -161,7 +159,6 @@ export async function loadStaticPaths({
       isEnsureStaticPage,
       buildId,
       deploymentId,
-      authInterrupts,
       useCacheTimeout,
       durableUseCacheEntries,
       staticPageGenerationTimeout,

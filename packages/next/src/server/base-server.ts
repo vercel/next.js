@@ -620,7 +620,6 @@ export default abstract class Server<
         inlineCss: this.nextConfig.experimental.inlineCss ?? false,
         prefetchInlining:
           this.nextConfig.experimental.prefetchInlining ?? false,
-        authInterrupts: !!this.nextConfig.experimental.authInterrupts,
         reactBrowserBailout:
           this.nextConfig.experimental.reactBrowserBailout ?? false,
         serverComponentsHmrCancellation:
