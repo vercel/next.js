@@ -1586,7 +1586,7 @@ if (globalThis.__turbopack_ensure_chunk__ !== undefined) {
         return new Context(module1, exports);
     };
     // Node.js: no hooks wrapper, just execute directly
-    const runWithHooks = (module1, exec)=>{
+    const runWithHooks = (_module, exec)=>{
         exec(undefined); // no refresh context
     };
     // Use shared instantiation logic (includes hot API setup)
@@ -1775,9 +1775,10 @@ if (handlers.size === 0) {
         // updates) or nested inside `merged` entries (chunks covered by a
         // merger). Collect both so routing isn't skipped just because a mergeable
         // chunk's update only reports its paths inside `merged`.
+        const instruction = update.instruction;
         const updateChunkPaths = new Set([
-            ...Object.keys(update.instruction?.chunks ?? {}),
-            ...(update.instruction?.merged ?? []).flatMap((merged)=>Object.keys(merged.chunks ?? {}))
+            ...Object.keys(instruction?.chunks ?? {}),
+            ...(instruction?.type === 'ChunkListUpdate' && instruction.merged || []).flatMap((merged)=>Object.keys(merged.chunks ?? {}))
         ]);
         const toCall = [];
         if (updateChunkPaths.size === 0) {
