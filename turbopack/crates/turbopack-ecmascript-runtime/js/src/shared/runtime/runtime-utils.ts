@@ -652,7 +652,7 @@ function asyncLoader(
   this: TurbopackBaseContext<Module>,
   moduleId: ModuleId
 ): Promise<Exports> {
-  const loader = this.r(moduleId) as (
+  const loader = getOrInstantiateModuleFromParent(moduleId, this.m).exports as (
     importFunction: EsmImport
   ) => Promise<Exports>
   return loader(esmImport.bind(this))
