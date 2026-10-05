@@ -79,6 +79,16 @@ const toStringTag = typeof Symbol !== 'undefined' && Symbol.toStringTag;
 function defineProp(obj, name, options) {
     if (!hasOwnProperty.call(obj, name)) Object.defineProperty(obj, name, options);
 }
+/**
+ * Returns the cached module for `id`, or `undefined` if it has not been
+ * instantiated yet. Rethrows the error if the module's factory threw.
+ */ function getCachedModule(moduleCache, id) {
+    const module = moduleCache.get(id);
+    if (module?.error) {
+        throw module.error;
+    }
+    return module;
+}
 function getOverwrittenModule(moduleCache, id) {
     let module = moduleCache.get(id);
     if (module === undefined) {
@@ -1891,15 +1901,7 @@ createModuleWithDirectionFlag = true;
  * Gets or instantiates a runtime module.
  */ // @ts-ignore
 function getOrInstantiateRuntimeModule(chunkPath, moduleId) {
-    const module = devModuleCache.get(moduleId);
-    if (module) {
-        if (module.error) {
-            throw module.error;
-        }
-        return module;
-    }
-    // @ts-ignore
-    return instantiateModule(moduleId, SourceType.Runtime, chunkPath);
+    return getCachedModule(devModuleCache, moduleId) ?? instantiateModule(moduleId, SourceType.Runtime, chunkPath);
 }
 /**
  * Retrieves a module from the cache, or instantiate it if it is not cached.
@@ -1908,14 +1910,11 @@ const getOrInstantiateModuleFromParent = (id, sourceModule)=>{
     if (!sourceModule.hot.active) {
         console.warn(`Unexpected import of module ${id} from module ${sourceModule.id}, which was deleted by an HMR update`);
     }
-    const module = devModuleCache.get(id);
     if (sourceModule.children.indexOf(id) === -1) {
         sourceModule.children.push(id);
     }
+    const module = getCachedModule(devModuleCache, id);
     if (module) {
-        if (module.error) {
-            throw module.error;
-        }
         if (module.parents.indexOf(sourceModule.id) === -1) {
             module.parents.push(sourceModule.id);
         }

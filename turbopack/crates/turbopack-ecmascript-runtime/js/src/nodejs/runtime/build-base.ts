@@ -20,12 +20,15 @@ interface TurbopackNodeBuildContext
   C: typeof clearChunkCache
 }
 
+// moduleCache only holds ModuleWithDirection objects in this runtime, see
+// createModuleWithDirectionFlag above
+const moduleCacheWithDirection = moduleCache as ModuleCache<ModuleWithDirection>
+
 const nodeContextPrototype = Context.prototype as TurbopackNodeBuildContext
 
 nodeContextPrototype.q = exportUrl
 nodeContextPrototype.M = moduleFactories
-// Cast moduleCache to ModuleWithDirection for production mode
-nodeContextPrototype.c = moduleCache as ModuleCache<ModuleWithDirection>
+nodeContextPrototype.c = moduleCacheWithDirection
 nodeContextPrototype.R = resolvePathFromModule
 nodeContextPrototype.C = clearChunkCache
 
@@ -76,17 +79,10 @@ function getOrInstantiateModuleFromParent(
   id: ModuleId,
   sourceModule: ModuleWithDirection
 ): ModuleWithDirection {
-  const module = moduleCache.get(id) as ModuleWithDirection | undefined
-
-  if (module) {
-    if (module.error) {
-      throw module.error
-    }
-
-    return module
-  }
-
-  return instantiateModule(id, SourceType.Parent, sourceModule.id)
+  return (
+    getCachedModule(moduleCacheWithDirection, id) ??
+    instantiateModule(id, SourceType.Parent, sourceModule.id)
+  )
 }
 
 /**
@@ -107,16 +103,10 @@ function getOrInstantiateRuntimeModule(
   chunkPath: ChunkPath,
   moduleId: ModuleId
 ): ModuleWithDirection {
-  const module = moduleCache.get(moduleId) as ModuleWithDirection | undefined
-
-  if (module) {
-    if (module.error) {
-      throw module.error
-    }
-    return module
-  }
-
-  return instantiateRuntimeModule(chunkPath, moduleId)
+  return (
+    getCachedModule(moduleCacheWithDirection, moduleId) ??
+    instantiateRuntimeModule(chunkPath, moduleId)
+  )
 }
 
 module.exports = (sourcePath: ChunkPath) => ({

@@ -13,15 +13,10 @@ function getOrInstantiateRuntimeModule(
   chunkPath: ChunkPath | undefined,
   moduleId: ModuleId
 ): Module {
-  const module = moduleCache.get(moduleId)
-  if (module) {
-    if (module.error) {
-      throw module.error
-    }
-    return module
-  }
-
-  return instantiateModule(moduleId, SourceType.Runtime, chunkPath)
+  return (
+    getCachedModule(moduleCache, moduleId) ??
+    instantiateModule(moduleId, SourceType.Runtime, chunkPath)
+  )
 }
 
 /**
@@ -33,16 +28,10 @@ function getOrInstantiateRuntimeModule(
 const getOrInstantiateModuleFromParent: GetOrInstantiateModuleFromParent<
   Module
 > = (id, sourceModule) => {
-  const module = moduleCache.get(id)
-
-  if (module) {
-    if (module.error) {
-      throw module.error
-    }
-    return module
-  }
-
-  return instantiateModule(id, SourceType.Parent, sourceModule.id)
+  return (
+    getCachedModule(moduleCache, id) ??
+    instantiateModule(id, SourceType.Parent, sourceModule.id)
+  )
 }
 
 function instantiateModule(

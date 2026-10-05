@@ -119,6 +119,21 @@ function defineProp(
   if (!hasOwnProperty.call(obj, name)) Object.defineProperty(obj, name, options)
 }
 
+/**
+ * Returns the cached module for `id`, or `undefined` if it has not been
+ * instantiated yet. Rethrows the error if the module's factory threw.
+ */
+function getCachedModule<M extends Module>(
+  moduleCache: ModuleCache<M>,
+  id: ModuleId
+): M | undefined {
+  const module = moduleCache.get(id)
+  if (module?.error) {
+    throw module.error
+  }
+  return module
+}
+
 function getOverwrittenModule(
   moduleCache: ModuleCache<Module>,
   id: ModuleId

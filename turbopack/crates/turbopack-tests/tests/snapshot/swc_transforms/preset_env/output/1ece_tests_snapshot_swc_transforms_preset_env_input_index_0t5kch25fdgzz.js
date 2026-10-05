@@ -204,6 +204,16 @@ var toStringTag = typeof Symbol !== 'undefined' && Symbol.toStringTag;
 function defineProp(obj, name, options) {
     if (!hasOwnProperty.call(obj, name)) Object.defineProperty(obj, name, options);
 }
+/**
+ * Returns the cached module for `id`, or `undefined` if it has not been
+ * instantiated yet. Rethrows the error if the module's factory threw.
+ */ function getCachedModule(moduleCache, id) {
+    var module = moduleCache.get(id);
+    if (module === null || module === void 0 ? void 0 : module.error) {
+        throw module.error;
+    }
+    return module;
+}
 function getOverwrittenModule(moduleCache, id) {
     var module = moduleCache.get(id);
     if (module === undefined) {
@@ -1551,14 +1561,8 @@ contextPrototype.c = moduleCache;
  */ // @ts-ignore
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function getOrInstantiateRuntimeModule(chunkPath, moduleId) {
-    var module = moduleCache.get(moduleId);
-    if (module) {
-        if (module.error) {
-            throw module.error;
-        }
-        return module;
-    }
-    return instantiateModule(moduleId, SourceType.Runtime, chunkPath);
+    var _getCachedModule;
+    return (_getCachedModule = getCachedModule(moduleCache, moduleId)) !== null && _getCachedModule !== void 0 ? _getCachedModule : instantiateModule(moduleId, SourceType.Runtime, chunkPath);
 }
 /**
  * Retrieves a module from the cache, or instantiate it if it is not cached.
@@ -1566,14 +1570,8 @@ function getOrInstantiateRuntimeModule(chunkPath, moduleId) {
 // @ts-ignore
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 var getOrInstantiateModuleFromParent = function getOrInstantiateModuleFromParent(id, sourceModule) {
-    var module = moduleCache.get(id);
-    if (module) {
-        if (module.error) {
-            throw module.error;
-        }
-        return module;
-    }
-    return instantiateModule(id, SourceType.Parent, sourceModule.id);
+    var _getCachedModule;
+    return (_getCachedModule = getCachedModule(moduleCache, id)) !== null && _getCachedModule !== void 0 ? _getCachedModule : instantiateModule(id, SourceType.Parent, sourceModule.id);
 };
 function instantiateModule(id, sourceType, sourceData) {
     var moduleFactory = moduleFactories.get(id);

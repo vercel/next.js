@@ -118,16 +118,10 @@ function getOrInstantiateRuntimeModule(
   chunkPath: ChunkPath,
   moduleId: ModuleId
 ): HotModule {
-  const module = devModuleCache.get(moduleId)
-
-  if (module) {
-    if (module.error) {
-      throw module.error
-    }
-    return module
-  }
-
-  return instantiateRuntimeModule(chunkPath, moduleId)
+  return (
+    getCachedModule(devModuleCache, moduleId) ??
+    instantiateRuntimeModule(chunkPath, moduleId)
+  )
 }
 
 /**
@@ -139,15 +133,11 @@ function getOrInstantiateModuleFromParent(
   id: ModuleId,
   sourceModule: HotModule
 ): HotModule {
-  // Track parent-child relationship
-  const module = devModuleCache.get(id)
-  trackModuleImport(sourceModule, id, module)
+  // Track parent-child relationship, even when the cached module errored
+  trackModuleImport(sourceModule, id, devModuleCache.get(id))
 
+  const module = getCachedModule(devModuleCache, id)
   if (module) {
-    if (module.error) {
-      throw module.error
-    }
-
     return module
   }
 

@@ -90,16 +90,10 @@ function getOrInstantiateRuntimeModule(
   chunkPath: ChunkPath | undefined,
   moduleId: ModuleId
 ): HotModule {
-  const module = devModuleCache.get(moduleId)
-  if (module) {
-    if (module.error) {
-      throw module.error
-    }
-    return module
-  }
-
-  // @ts-ignore
-  return instantiateModule(moduleId, SourceType.Runtime, chunkPath)
+  return (
+    getCachedModule(devModuleCache, moduleId) ??
+    instantiateModule(moduleId, SourceType.Runtime, chunkPath)
+  )
 }
 
 /**
@@ -115,17 +109,12 @@ const getOrInstantiateModuleFromParent: GetOrInstantiateModuleFromParent<
     )
   }
 
-  const module = devModuleCache.get(id)
-
   if (sourceModule.children.indexOf(id) === -1) {
     sourceModule.children.push(id)
   }
 
+  const module = getCachedModule(devModuleCache, id)
   if (module) {
-    if (module.error) {
-      throw module.error
-    }
-
     if (module.parents.indexOf(sourceModule.id) === -1) {
       module.parents.push(sourceModule.id)
     }

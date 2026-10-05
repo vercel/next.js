@@ -57,6 +57,16 @@ const toStringTag = typeof Symbol !== 'undefined' && Symbol.toStringTag;
 function defineProp(obj, name, options) {
     if (!hasOwnProperty.call(obj, name)) Object.defineProperty(obj, name, options);
 }
+/**
+ * Returns the cached module for `id`, or `undefined` if it has not been
+ * instantiated yet. Rethrows the error if the module's factory threw.
+ */ function getCachedModule(moduleCache, id) {
+    const module = moduleCache.get(id);
+    if (module?.error) {
+        throw module.error;
+    }
+    return module;
+}
 function getOverwrittenModule(moduleCache, id) {
     let module = moduleCache.get(id);
     if (module === undefined) {
@@ -1597,27 +1607,17 @@ const runWithHooks = (module1, exports, factory)=>{
  * Retrieves a module from the cache, or instantiate it as a runtime module if it is not cached.
  */ // @ts-ignore TypeScript doesn't separate this module space from the browser runtime
 function getOrInstantiateRuntimeModule(chunkPath, moduleId) {
-    const module1 = devModuleCache.get(moduleId);
-    if (module1) {
-        if (module1.error) {
-            throw module1.error;
-        }
-        return module1;
-    }
-    return instantiateRuntimeModule(chunkPath, moduleId);
+    return getCachedModule(devModuleCache, moduleId) ?? instantiateRuntimeModule(chunkPath, moduleId);
 }
 /**
  * Retrieves a module from the cache, or instantiate it if it is not cached.
  * Also tracks parent-child relationships for HMR dependency tracking.
  */ // @ts-ignore
 function getOrInstantiateModuleFromParent(id, sourceModule) {
-    // Track parent-child relationship
-    const module1 = devModuleCache.get(id);
-    trackModuleImport(sourceModule, id, module1);
+    // Track parent-child relationship, even when the cached module errored
+    trackModuleImport(sourceModule, id, devModuleCache.get(id));
+    const module1 = getCachedModule(devModuleCache, id);
     if (module1) {
-        if (module1.error) {
-            throw module1.error;
-        }
         return module1;
     }
     const newModule = instantiateModule(id, SourceType.Parent, sourceModule.id);

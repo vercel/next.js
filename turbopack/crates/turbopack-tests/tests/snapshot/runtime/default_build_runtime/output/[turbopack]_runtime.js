@@ -57,6 +57,16 @@ const toStringTag = typeof Symbol !== 'undefined' && Symbol.toStringTag;
 function defineProp(obj, name, options) {
     if (!hasOwnProperty.call(obj, name)) Object.defineProperty(obj, name, options);
 }
+/**
+ * Returns the cached module for `id`, or `undefined` if it has not been
+ * instantiated yet. Rethrows the error if the module's factory threw.
+ */ function getCachedModule(moduleCache, id) {
+    const module = moduleCache.get(id);
+    if (module?.error) {
+        throw module.error;
+    }
+    return module;
+}
 function getOverwrittenModule(moduleCache, id) {
     let module = moduleCache.get(id);
     if (module === undefined) {
@@ -851,11 +861,13 @@ const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/;
  */ // moduleCache is declared in runtime-base.ts and moduleFactories in runtime-utils.ts
 // this is read in runtime-utils.ts so it creates a module with direction for hmr
 createModuleWithDirectionFlag = true;
+// moduleCache only holds ModuleWithDirection objects in this runtime, see
+// createModuleWithDirectionFlag above
+const moduleCacheWithDirection = moduleCache;
 const nodeContextPrototype = Context.prototype;
 nodeContextPrototype.q = exportUrl;
 nodeContextPrototype.M = moduleFactories;
-// Cast moduleCache to ModuleWithDirection for production mode
-nodeContextPrototype.c = moduleCache;
+nodeContextPrototype.c = moduleCacheWithDirection;
 nodeContextPrototype.R = resolvePathFromModule;
 nodeContextPrototype.C = clearChunkCache;
 function instantiateModule(id, sourceType, sourceData) {
@@ -889,14 +901,7 @@ function instantiateModule(id, sourceType, sourceData) {
  * Retrieves a module from the cache, or instantiate it if it is not cached.
  */ // @ts-ignore
 function getOrInstantiateModuleFromParent(id, sourceModule) {
-    const module1 = moduleCache.get(id);
-    if (module1) {
-        if (module1.error) {
-            throw module1.error;
-        }
-        return module1;
-    }
-    return instantiateModule(id, SourceType.Parent, sourceModule.id);
+    return getCachedModule(moduleCacheWithDirection, id) ?? instantiateModule(id, SourceType.Parent, sourceModule.id);
 }
 /**
  * Instantiates a runtime module.
@@ -907,14 +912,7 @@ function getOrInstantiateModuleFromParent(id, sourceModule) {
  * Retrieves a module from the cache, or instantiate it as a runtime module if it is not cached.
  */ // @ts-ignore TypeScript doesn't separate this module space from the browser runtime
 function getOrInstantiateRuntimeModule(chunkPath, moduleId) {
-    const module1 = moduleCache.get(moduleId);
-    if (module1) {
-        if (module1.error) {
-            throw module1.error;
-        }
-        return module1;
-    }
-    return instantiateRuntimeModule(chunkPath, moduleId);
+    return getCachedModule(moduleCacheWithDirection, moduleId) ?? instantiateRuntimeModule(chunkPath, moduleId);
 }
 module.exports = (sourcePath)=>({
         m: (id)=>getOrInstantiateRuntimeModule(sourcePath, id),
