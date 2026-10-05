@@ -36,7 +36,7 @@ function createSyncIOErrorImpl(
       `Ways to fix this:\n` +
       `  - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call\n` +
       `  - [cache] Prerender and cache the value with \`"use cache"\`\n` +
-      `  - [client] Move the value to a Client Component and suspend prerendering with \`use(io())\`` +
+      `  - [client] Render the value on the client` +
       elapsedTimeBullet(type) +
       `\n\nLearn more: ${docsUrl}`
   )

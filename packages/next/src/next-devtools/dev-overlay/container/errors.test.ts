@@ -156,10 +156,13 @@ describe('isSyncIOError', () => {
   )
 
   it.each<[SyncIOApiType]>([['time'], ['random'], ['crypto']])(
-    'suggests moving createSyncIOError(%s) to a Client Component with io()',
+    'suggests client rendering for createSyncIOError(%s) without prescribing an API',
     (type) => {
       expect(createSyncIOError(ROUTE, 'expr', type).message).toContain(
-        'Move the value to a Client Component and suspend prerendering with `use(io())`'
+        'Render the value on the client'
+      )
+      expect(createSyncIOError(ROUTE, 'expr', type).message).not.toContain(
+        'use(io())'
       )
       expect(createSyncIOError(ROUTE, 'expr', type).message).not.toContain(
         'use(browser())'
