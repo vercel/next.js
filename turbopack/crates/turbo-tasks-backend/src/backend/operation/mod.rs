@@ -2475,7 +2475,7 @@ mod cell_data_tracking_tests {
         let process = |_: TaskId, _: &TaskStorage, _: &mut TurboBincodeBuffer| -> SnapshotItem {
             panic!("the pre-encoded snapshot item must be used")
         };
-        let shards = storage.take_snapshot(snapshot_guard, &process, false);
+        let shards = storage.take_snapshot(snapshot_guard, &process, &|_, _| {}, false);
 
         {
             let mut g = guard_for(&storage, task_id);

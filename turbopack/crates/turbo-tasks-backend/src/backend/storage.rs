@@ -479,11 +479,14 @@ impl Storage {
     /// the results. Ends snapshot mode when the returned `SnapshotGuard` (held by each shard) is
     /// dropped.
     ///
-    /// `process` is called while holding a read lock on the task storage, so it can access
-    /// the TaskStorage directly without cloning.
+    /// `process` is called while the task storage is borrowed, so it can access the TaskStorage
+    /// directly without cloning. It receives a mutable scratch buffer that can be reused across
+    /// iterations to avoid repeated allocations.
     ///
-    /// Both callbacks receive a mutable scratch buffer that can be reused across iterations
-    /// to avoid repeated allocations.
+    /// `inspect_snapshot_item` is called with every item the iterators yield, including items
+    /// that were encoded ahead of time by `track_modification` (see `Storage::snapshots`) and so
+    /// never went through `process`. It receives the live task storage, borrowed the same way as
+    /// for `process`.
     ///
     /// The returned shards implement `IntoIterator`. Empty shards (no modified or snapshot
     /// entries) are filtered out, but shards may still yield no items if all entries produce
@@ -496,12 +499,14 @@ impl Storage {
     pub fn take_snapshot<
         'l,
         P: for<'a> Fn(TaskId, &'a TaskStorage, &mut TurboBincodeBuffer) -> SnapshotItem + Sync,
+        I: Fn(&TaskStorage, &SnapshotItem) + Sync,
     >(
         &'l self,
         guard: SnapshotGuard<'l>,
         process: &'l P,
+        inspect_snapshot_item: &'l I,
         drain_entries: bool,
-    ) -> Vec<SnapshotShard<'l, P>> {
+    ) -> Vec<SnapshotShard<'l, P, I>> {
         let guard = Arc::new(guard);
 
         let shards: Vec<_> = self.map.shards().iter().enumerate().collect();
@@ -575,6 +580,7 @@ impl Storage {
                 work,
                 storage: self,
                 process,
+                inspect_snapshot_item,
                 _guard: guard.clone(),
             })
         })
@@ -1256,21 +1262,23 @@ enum ShardWork {
     Drain(hash_table::IntoIter<(TaskId, Box<TaskStorage>)>),
 }
 
-pub struct SnapshotShard<'l, P> {
+pub struct SnapshotShard<'l, P, I> {
     shard_idx: usize,
     work: ShardWork,
     storage: &'l Storage,
     process: &'l P,
+    inspect_snapshot_item: &'l I,
     /// Held for its `Drop` impl — ensures snapshot mode ends when all shards are done.
     _guard: Arc<SnapshotGuard<'l>>,
 }
 
-impl<'l, P> IntoIterator for SnapshotShard<'l, P>
+impl<'l, P, I> IntoIterator for SnapshotShard<'l, P, I>
 where
     P: Fn(TaskId, &TaskStorage, &mut TurboBincodeBuffer) -> SnapshotItem + Sync,
+    I: Fn(&TaskStorage, &SnapshotItem) + Sync,
 {
     type Item = SnapshotItem;
-    type IntoIter = SnapshotShardIter<'l, P>;
+    type IntoIter = SnapshotShardIter<'l, P, I>;
 
     fn into_iter(self) -> Self::IntoIter {
         let buffer = self._guard.take_scratch_buffer();
@@ -1283,19 +1291,21 @@ where
 
 /// Iterator over a single shard's snapshot items. Holds a thread-local scratch
 /// buffer for the duration of iteration and returns it on drop.
-pub struct SnapshotShardIter<'l, P> {
-    shard: SnapshotShard<'l, P>,
+pub struct SnapshotShardIter<'l, P, I> {
+    shard: SnapshotShard<'l, P, I>,
     buffer: TurboBincodeBuffer,
 }
 
-impl<'l, P> Iterator for SnapshotShardIter<'l, P>
+impl<'l, P, I> Iterator for SnapshotShardIter<'l, P, I>
 where
     P: Fn(TaskId, &TaskStorage, &mut TurboBincodeBuffer) -> SnapshotItem + Sync,
+    I: Fn(&TaskStorage, &SnapshotItem) + Sync,
 {
     type Item = SnapshotItem;
 
     fn next(&mut self) -> Option<Self::Item> {
         let process = self.shard.process;
+        let inspect_snapshot_item = self.shard.inspect_snapshot_item;
         let snapshots = &self.shard.storage.snapshots;
         let buffer = &mut self.buffer;
         let mut serialize_task = |task_id: TaskId, inner: &TaskStorage| {
@@ -1303,14 +1313,16 @@ where
             // hold the pre-modification state, already encoded, which we must persist instead
             // of the live data. Remove the entry so end_snapshot doesn't double-promote it;
             // we promote manually below.
-            if inner.flags.any_modified_during_snapshot() {
+            let item = if inner.flags.any_modified_during_snapshot() {
                 match snapshots.remove(&task_id) {
                     Some((_, Some(item))) => *item,
                     Some((_, None)) | None => process(task_id, inner, buffer),
                 }
             } else {
                 process(task_id, inner, buffer)
-            }
+            };
+            inspect_snapshot_item(inner, &item);
+            item
         };
 
         match &mut self.shard.work {
@@ -1344,7 +1356,7 @@ where
     }
 }
 
-impl<P> Drop for SnapshotShardIter<'_, P> {
+impl<P, I> Drop for SnapshotShardIter<'_, P, I> {
     fn drop(&mut self) {
         self.shard
             ._guard
@@ -1357,11 +1369,8 @@ mod tests {
     use turbo_bincode::TurboBincodeBuffer;
     use turbo_tasks::TaskId;
 
-    use super::{
-        SpecificTaskDataCategory, Storage, StorageOptions, TaskStorage, TrackOutcome,
-        encode_task_contents,
-    };
-    use crate::{backing_storage::SnapshotItem, data::OutputValue};
+    use super::{SpecificTaskDataCategory, Storage, StorageOptions, TaskStorage, TrackOutcome};
+    use crate::backing_storage::SnapshotItem;
 
     fn non_transient_task(id: u32) -> TaskId {
         // TRANSIENT_TASK_BIT is 0x2000_0000; any id without that bit is non-transient.
@@ -1394,6 +1403,9 @@ mod tests {
             task_type_hash: None,
         }
     }
+
+    /// An `inspect_snapshot_item` callback that ignores the items.
+    fn noop_inspect(_: &super::TaskStorage, _: &SnapshotItem) {}
 
     /// Regression test: a task modified before a snapshot and then modified *again* during
     /// snapshot iteration must serialize the pre-snapshot state and carry the during-snapshot
@@ -1432,7 +1444,7 @@ mod tests {
         // Step 3: `take_snapshot` scans the shard. At this point the task has
         // `any_modified()=true` and `any_modified_during_snapshot()=false`, so it
         // goes into the `modified` list inside the returned `SnapshotShard`.
-        let shards = storage.take_snapshot(snapshot_guard, &dummy_process, false);
+        let shards = storage.take_snapshot(snapshot_guard, &dummy_process, &noop_inspect, false);
 
         // Step 4: now that the scan is done but before we consume the iterator,
         // modify the task again. We're still in snapshot mode, the task is already
@@ -1504,7 +1516,7 @@ mod tests {
         assert!(has_modifications);
 
         // Step 3: take_snapshot — task goes into modified list (meta_modified = true).
-        let shards = storage.take_snapshot(snapshot_guard, &dummy_process, false);
+        let shards = storage.take_snapshot(snapshot_guard, &dummy_process, &noop_inspect, false);
 
         // Step 4: modify data during snapshot. The `(true, false)` branch fires:
         // data was not previously modified, so snapshots gets a None entry.
@@ -1561,7 +1573,7 @@ mod tests {
         assert!(has_modifications);
 
         // Take the snapshot in drain mode.
-        let shards = storage.take_snapshot(snapshot_guard, &dummy_process, true);
+        let shards = storage.take_snapshot(snapshot_guard, &dummy_process, &noop_inspect, true);
 
         // Consume the iterator: the task is serialized and then removed from the map.
         let items: Vec<_> = shards
@@ -1603,7 +1615,7 @@ mod tests {
         let (snapshot_guard, has_modifications) = storage.start_snapshot();
         assert!(has_modifications);
 
-        let shards = storage.take_snapshot(snapshot_guard, &dummy_process, true);
+        let shards = storage.take_snapshot(snapshot_guard, &dummy_process, &noop_inspect, true);
         let items: Vec<_> = shards
             .into_iter()
             .flat_map(|shard| shard.into_iter())
@@ -1647,7 +1659,7 @@ mod tests {
         let (snapshot_guard, has_modifications) = storage.start_snapshot();
         assert!(has_modifications);
 
-        let shards = storage.take_snapshot(snapshot_guard, &dummy_process, true);
+        let shards = storage.take_snapshot(snapshot_guard, &dummy_process, &noop_inspect, true);
 
         // The scan moved the modified table out and freed the unmodified entry, so both ids are
         // already absent from the map before any iterator is consumed.
@@ -1810,54 +1822,35 @@ mod tests {
         );
     }
 
-    /// A task modified before a snapshot and modified again during it must persist the state
-    /// as of the first during-snapshot modification. That state is encoded eagerly by
-    /// `track_modification`, so later mutations of the live task (including through shared,
-    /// interior-mutable cell contents) cannot leak into the persisted bytes, and the snapshot
-    /// iterator must yield the pre-encoded item instead of encoding the task again.
+    /// `inspect_snapshot_item` sees every yielded item, including a task that was modified again
+    /// during the snapshot and therefore yields the item pre-encoded by `track_modification`
+    /// without going through `process`.
     #[tokio::test(flavor = "multi_thread")]
-    async fn modify_during_snapshot_persists_pre_encoded_state() {
-        fn output(id: u32) -> OutputValue {
-            OutputValue::Output(non_transient_task(id))
-        }
-
+    async fn inspect_sees_fresh_and_pre_encoded_items() {
         let storage = Storage::new(StorageOptions::for_tests());
-        let task_id = non_transient_task(1);
-
-        // Modify the task's meta data outside snapshot mode.
-        {
+        let fresh = non_transient_task(1);
+        let pre_encoded = non_transient_task(2);
+        for task_id in [fresh, pre_encoded] {
             let mut guard = storage.access_mut(task_id);
-            guard.set_output(output(2));
             let _ = guard.track_modification(SpecificTaskDataCategory::Meta, "test");
         }
 
-        // The bytes persistence must write: the meta data as it was before the second mutation.
-        let expected = {
-            let mut pre = TaskStorage::new();
-            pre.set_output(output(2));
-            encode_task_contents(
-                task_id,
-                &pre,
-                SpecificTaskDataCategory::Meta,
-                &mut TurboBincodeBuffer::new(),
-            )
-            .unwrap()
-        };
-
-        let (snapshot_guard, has_modifications) = storage.start_snapshot();
-        assert!(has_modifications);
+        let (snapshot_guard, _) = storage.start_snapshot();
+        let processed = std::sync::Mutex::new(Vec::new());
         let process = |id: TaskId, inner: &TaskStorage, buffer: &mut TurboBincodeBuffer| {
-            assert_ne!(
-                id, task_id,
-                "a task with a pre-encoded snapshot item must not be encoded again"
-            );
+            processed.lock().unwrap().push(id);
             dummy_process(id, inner, buffer)
         };
-        let shards = storage.take_snapshot(snapshot_guard, &process, false);
-
-        // Modify the task again during the snapshot, then keep mutating the live data.
+        let inspected = std::sync::Mutex::new(Vec::new());
+        let inspect = |_: &TaskStorage, item: &SnapshotItem| {
+            let SnapshotItem::Put { task_id, .. } = item else {
+                panic!("expected a Put item");
+            };
+            inspected.lock().unwrap().push(*task_id);
+        };
+        let shards = storage.take_snapshot(snapshot_guard, &process, &inspect, false);
         {
-            let mut guard = storage.access_mut(task_id);
+            let mut guard = storage.access_mut(pre_encoded);
             let outcome = guard.track_modification(SpecificTaskDataCategory::Meta, "test");
             assert!(matches!(
                 outcome,
@@ -1866,40 +1859,13 @@ mod tests {
                     ..
                 }
             ));
-            guard.set_output(output(3));
         }
 
-        let items: Vec<_> = shards
-            .into_iter()
-            .flat_map(|shard| shard.into_iter())
-            .collect();
-        assert_eq!(items.len(), 1);
-        let SnapshotItem::Put {
-            task_id: item_task_id,
-            meta,
-            data,
-            task_type_hash,
-        } = &items[0]
-        else {
-            panic!("expected a Put item");
-        };
-        assert_eq!(*item_task_id, task_id);
-        assert!(data.is_none(), "data was never modified");
-        assert!(task_type_hash.is_none());
-        assert_eq!(meta.as_deref(), Some(&expected[..]));
-
-        // Sanity check: the live state really diverged from what was persisted.
-        let live = {
-            let guard = storage.access_mut(task_id);
-            encode_task_contents(
-                task_id,
-                &guard,
-                SpecificTaskDataCategory::Meta,
-                &mut TurboBincodeBuffer::new(),
-            )
-            .unwrap()
-        };
-        assert_ne!(live, expected);
-        assert!(storage.snapshots.get(&task_id).is_none());
+        let items: Vec<_> = shards.into_iter().flatten().collect();
+        assert_eq!(items.len(), 2);
+        assert_eq!(*processed.lock().unwrap(), vec![fresh]);
+        let mut inspected = inspected.into_inner().unwrap();
+        inspected.sort();
+        assert_eq!(inspected, vec![fresh, pre_encoded]);
     }
 }

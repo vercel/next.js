@@ -73,6 +73,7 @@ use crate::{
         storage::{Storage, StorageOptions, encode_snapshot_item},
         storage_schema::{TaskStorage, TaskStorageAccessors},
     },
+    backing_storage::SnapshotItem,
     data::{
         ActivenessState, CellRef, CollectibleRef, CollectiblesRef, Dirtyness, InProgressCellState,
         InProgressState, InProgressStateInner, OutputValue, TransientTask,
@@ -1378,19 +1379,20 @@ impl TurboTasksBackend {
         // modified don't need re-persisting since the on-disk version is still valid.
         // Tasks that were modified again during snapshot mode were already encoded by
         // `track_modification` (see `Storage::snapshots`), and are yielded without calling this.
-        // (Those rare items are not included in the `print_cache_item_size` statistics.)
         let process = |task_id: TaskId, inner: &TaskStorage, buffer: &mut TurboBincodeBuffer| {
-            let item = encode_snapshot_item(task_id, inner, self.gc_enabled, buffer)
-                .unwrap_or_else(|err| {
-                    panic!(
-                        "Serializing task {} failed: {:?}",
-                        self.debug_get_task_description(task_id),
-                        err
-                    )
-                });
+            encode_snapshot_item(task_id, inner, self.gc_enabled, buffer).unwrap_or_else(|err| {
+                panic!(
+                    "Serializing task {} failed: {:?}",
+                    self.debug_get_task_description(task_id),
+                    err
+                )
+            })
+        };
 
+        // Called for every item persisted, including the ones encoded by `track_modification`.
+        let inspect_snapshot_item = |inner: &TaskStorage, item: &SnapshotItem| {
             #[cfg(feature = "print_cache_item_size")]
-            if let crate::backing_storage::SnapshotItem::Put { meta, data, .. } = &item
+            if let SnapshotItem::Put { meta, data, .. } = item
                 && (meta.is_some() || data.is_some())
             {
                 let mut stats = task_cache_stats.lock();
@@ -1403,13 +1405,16 @@ impl TurboTasksBackend {
                     entry.add_data(data);
                 }
             }
-
-            item
+            #[cfg(not(feature = "print_cache_item_size"))]
+            let _ = (inner, item);
         };
 
-        let task_snapshots =
-            self.storage
-                .take_snapshot(snapshot_guard, &process, reason.drain_entries());
+        let task_snapshots = self.storage.take_snapshot(
+            snapshot_guard,
+            &process,
+            &inspect_snapshot_item,
+            reason.drain_entries(),
+        );
 
         drop(snapshot_span);
         let snapshot_duration = start.elapsed();
