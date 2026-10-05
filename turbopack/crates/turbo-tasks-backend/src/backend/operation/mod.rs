@@ -1044,15 +1044,13 @@ impl<'e> ExecuteContext<'e> {
             drop(task1);
             drop(task2);
 
-            for (task_id, restored) in ids.into_iter().zip(restored) {
+            // Pair each id with the other endpoint, whose pin must be released too on failure.
+            for ((task_id, other_id), restored) in
+                ids.into_iter().zip(ids.into_iter().rev()).zip(restored)
+            {
                 if restored {
                     continue;
                 }
-                let other_id = if task_id == task_id1 {
-                    task_id2
-                } else {
-                    task_id1
-                };
                 let (mut task, outcome) = match self.restore_pinned_task(task_id, category) {
                     Ok(restored) => restored,
                     Err(e) => {
