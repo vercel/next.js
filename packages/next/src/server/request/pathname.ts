@@ -57,7 +57,7 @@ export function createServerPathnameForMetadata(
         // behavior of always resolving in the PrefetchRuntime stage
         // (i.e. assuming that we have non-static params in the pathname)
         const { stagedRendering } = workUnitStore
-        const pathnameStage = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
+        const pathnameStage = RENDER_STAGES_BY_DATA_KIND.runtimeUrlData
         if (stagedRendering) {
           return stagedRendering.delayUntilStage(
             pathnameStage,

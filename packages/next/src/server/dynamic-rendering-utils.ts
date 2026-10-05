@@ -746,8 +746,30 @@ class TrackedPromise<T> extends Promise<T> {
 
 export const RENDER_STAGES_BY_DATA_KIND = {
   sessionData: RenderStage.ShellRuntime as const,
-  staticLinkData: RenderStage.PrefetchStatic as const,
-  runtimeLinkData: RenderStage.PrefetchRuntime as const,
+  /**
+   * Statically-prerenderable URL data, like static `params`.
+   * It may need to be pushed to a runtime stage in a runtime prerender,
+   * but it's semantically distinct from `runtimeUrlData` like `searchParams`,
+   * which is always excluded from static prerenders.
+   * */
+  staticUrlData: {
+    /**
+     * From that app's point of view, `prefetch()` is semantically the same as
+     * `staticUrlData`, because it does not resolve in a shell but resolves in
+     * a prefetch (even a static one).
+     * We handle it separately to provide a specialized error in validation renders.
+     */
+    prefetchApi: {
+      static: RenderStage.PrefetchStatic_prefetchApi as const,
+      runtime: RenderStage.PrefetchRuntime_prefetchApi as const,
+    },
+    static: RenderStage.PrefetchStatic as const,
+    runtime: RenderStage.PrefetchRuntime as const,
+  },
+  /**
+   * URL data that is never statically-prerenderable, like static `searchParams`.
+   * */
+  runtimeUrlData: RenderStage.PrefetchRuntime as const,
 }
 
 export function applyOwnerStack(error: Error): Error {

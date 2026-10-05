@@ -245,7 +245,7 @@ function createRuntimePrerenderSearchParams(
       ? createVaryingSearchParams(varyParamsAccumulator, underlyingSearchParams)
       : underlyingSearchParams
 
-  const searchParamsStage = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
+  const searchParamsStage = RENDER_STAGES_BY_DATA_KIND.runtimeUrlData
 
   const { stagedRendering } = workUnitStore
   if (!stagedRendering) {
@@ -596,7 +596,7 @@ function makeUntrackedSearchParamsWithDevWarningsImpl(
   const promise = makeDevtoolsIOAwarePromise(
     proxiedUnderlying,
     requestStore,
-    RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
+    RENDER_STAGES_BY_DATA_KIND.runtimeUrlData
   )
 
   promise.then(
