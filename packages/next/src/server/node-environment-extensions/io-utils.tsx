@@ -27,6 +27,7 @@ export function io(expression: string, type: SyncIOApiType) {
       if (prerenderSignal.aborted === false) {
         // If the prerender signal is already aborted we don't need to construct
         // any stacks because something else actually terminated the prerender.
+        // TODO: synchronize this with `stageController`
         abortOnSynchronousPlatformIOAccess(
           workStore.route,
           expression,
