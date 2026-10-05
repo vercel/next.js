@@ -18,6 +18,10 @@ import {
 } from '../../lib/constants'
 import { hasNextSupport } from '../../server/ci-info'
 import { lazyPrerenderAppPage } from '../../server/route-modules/app-page/module.render'
+import {
+  parseRequestHeaders,
+  type ParsedRequestHeaders,
+} from '../../server/route-modules/app-page/parse-request-headers'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { NodeNextRequest, NodeNextResponse } from '../../server/base-http/node'
 import { NEXT_IS_PRERENDER_HEADER } from '../../client/components/app-router-headers'
@@ -81,16 +85,25 @@ export async function exportAppPage(
   }
 
   try {
+    const nextReq = new NodeNextRequest(req)
+    const parsedRequestHeaders: ParsedRequestHeaders = parseRequestHeaders(
+      nextReq.headers,
+      {
+        isRoutePPREnabled: renderOpts.experimental.isRoutePPREnabled === true,
+        previewModeId: renderOpts.previewProps?.previewModeId,
+      }
+    )
     const result = await lazyPrerenderAppPage(
-      new NodeNextRequest(req),
+      nextReq,
       new NodeNextResponse(res),
       pathname,
       query,
       fallbackRouteParams,
       renderOpts,
-      undefined,
+      undefined, // dev
       sharedContext,
-      routeMatch
+      routeMatch,
+      parsedRequestHeaders
     )
 
     if ('error' in result) {

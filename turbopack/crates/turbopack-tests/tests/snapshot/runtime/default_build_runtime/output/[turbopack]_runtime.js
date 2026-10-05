@@ -55,15 +55,15 @@ function defineProp(obj, name, options) {
     if (!hasOwnProperty.call(obj, name)) Object.defineProperty(obj, name, options);
 }
 function getOverwrittenModule(moduleCache, id) {
-    let module = moduleCache[id];
-    if (!module) {
+    let module = moduleCache.get(id);
+    if (module === undefined) {
         if (createModuleWithDirectionFlag) {
             // set in development modes for hmr support
             module = createModuleWithDirection(id);
         } else {
             module = createModuleObject(id);
         }
-        moduleCache[id] = module;
+        moduleCache.set(id, module);
     }
     return module;
 }
@@ -87,7 +87,7 @@ function createModuleWithDirection(id) {
         children: []
     };
 }
-const BindingTag_Value = 0;
+const BindingTag_Accessor = 0;
 /**
  * Terminates a module's group of entries in an {@link EsmReexports} list.
  */ const REEXPORT_GROUP_END = 0;
@@ -103,19 +103,9 @@ const BindingTag_Value = 0;
     let i = 0;
     while(i < bindings.length){
         const propName = bindings[i++];
-        const tagOrFunction = bindings[i++];
-        if (typeof tagOrFunction === 'number') {
-            if (tagOrFunction === BindingTag_Value) {
-                defineProp(exports, propName, {
-                    value: bindings[i++],
-                    enumerable: true,
-                    writable: false
-                });
-            } else {
-                throw new Error(`unexpected tag: ${tagOrFunction}`);
-            }
-        } else {
-            const getterFn = tagOrFunction;
+        if (bindings[i] === BindingTag_Accessor && typeof bindings[i + 1] === 'function') {
+            i++;
+            const getterFn = bindings[i++];
             if (typeof bindings[i] === 'function') {
                 const setterFn = bindings[i++];
                 defineProp(exports, propName, {
@@ -129,6 +119,12 @@ const BindingTag_Value = 0;
                     enumerable: true
                 });
             }
+        } else {
+            defineProp(exports, propName, {
+                value: bindings[i++],
+                enumerable: true,
+                writable: false
+            });
         }
     }
     // The properties defined above are already non-configurable and
@@ -247,8 +243,9 @@ function appendReexportBinding(bindings, exportedName, namespace, importedName) 
     if (descriptor) {
         if ('value' in descriptor) {
             // Code generation only routes immutable imported bindings through this helper, so a data
-            // descriptor is a constant export and can be captured once.
-            bindings.push(exportedName, BindingTag_Value, descriptor.value);
+            // descriptor is a constant export and can be captured once. Values are untagged; only
+            // accessors carry a tag.
+            bindings.push(exportedName, descriptor.value);
             return;
         }
         if (descriptor.get) {
@@ -259,12 +256,12 @@ function appendReexportBinding(bindings, exportedName, namespace, importedName) 
             // and the CommonJS/dynamic-namespace paths create arrows in `createGetter` and
             // `getOwnPropertyDescriptor`. The destination can therefore reuse the exact function instead
             // of allocating another wrapper getter.
-            bindings.push(exportedName, descriptor.get);
+            bindings.push(exportedName, BindingTag_Accessor, descriptor.get);
             return;
         }
     }
     // Dynamic/proxy/inherited CommonJS edge cases may not expose a usable own descriptor.
-    bindings.push(exportedName, ()=>namespace[importedName]);
+    bindings.push(exportedName, BindingTag_Accessor, ()=>namespace[importedName]);
 }
 function ensureDynamicExports(module, exports) {
     let reexportedObjects = REEXPORTED_OBJECTS.get(module);
@@ -419,9 +416,10 @@ function createGetter(obj, key) {
     let defaultLocation = -1;
     for(let current = raw; (typeof current === 'object' || typeof current === 'function') && !LEAF_PROTOTYPES.includes(current); current = getProto(current)){
         for (const key of Object.getOwnPropertyNames(current)){
-            bindings.push(key, createGetter(raw, key));
+            bindings.push(key, BindingTag_Accessor, createGetter(raw, key));
             if (defaultLocation === -1 && key === 'default') {
-                defaultLocation = bindings.length - 1;
+                // The index of the tag, so that the tag and the getter can be replaced together below.
+                defaultLocation = bindings.length - 2;
             }
         }
     }
@@ -429,11 +427,12 @@ function createGetter(obj, key) {
     // we should set the `default` getter if the imported module is a `.cjs file`
     if (!(allowExportDefault && defaultLocation >= 0)) {
         // Replace the binding with one for the namespace itself in order to preserve iteration order.
+        // Values are untagged, so `raw` is bound directly even when it is itself a function.
         if (defaultLocation >= 0) {
-            // Replace the getter with the value
-            bindings.splice(defaultLocation, 1, BindingTag_Value, raw);
+            // Replace the tag and getter with the value
+            bindings.splice(defaultLocation, 2, raw);
         } else {
-            bindings.push('default', BindingTag_Value, raw);
+            bindings.push('default', raw);
         }
     }
     esm(ns, bindings);
@@ -628,6 +627,14 @@ contextPrototype.U = relativeURL;
     return `Module ${moduleId} was instantiated ${instantiationReason}, but the module factory is not available.`;
 }
 /**
+ * Returns a `file://` URL under a synthetic directory named after `root`
+ * (`ROOT` for the project root), for when the real filesystem path is unknown.
+ * The root name and path segments are percent-encoded so the result is always
+ * a valid file URI.
+ */ function placeholderFileUrl(modulePath, root) {
+    return `file:///${encodeURIComponent(root ?? 'ROOT')}/${modulePath.split('/').map(encodeURIComponent).join('/')}`;
+}
+/**
  * A stub function to make `require` available but non-functional in ESM.
  */ function requireStub(_moduleId) {
     throw new Error('dynamic usage of require is not supported');
@@ -704,12 +711,19 @@ const ABSOLUTE_ROOT = path.resolve(__filename, relativePathToDistRoot);
 }
 Context.prototype.P = resolveAbsolutePath;
 /**
- * Returns an absolute `file://` URL for the given module path.
+ * Returns an absolute `file://` URL for the given module path, which is
+ * relative to the project root or the named `root`.
  *
  * Uses `url.pathToFileURL` so that the resulting URL is a valid file URI on
  * all platforms (forward slashes on Windows, drive letters handled
  * correctly, path segments URL-encoded).
- */ function resolveFileUrl(modulePath) {
+ *
+ * The location of a named `root` isn't known at runtime (the output may have
+ * been moved away from the sources), so this returns a placeholder URL for it.
+ */ function resolveFileUrl(modulePath, root) {
+    if (root !== undefined) {
+        return placeholderFileUrl(modulePath, root);
+    }
     return require('url').pathToFileURL(resolveAbsolutePath(modulePath)).href;
 }
 Context.prototype.F = resolveFileUrl;
@@ -723,7 +737,7 @@ Context.prototype.F = resolveFileUrl;
  */ process.env.TURBOPACK = '1';
 const url = require('url');
 const moduleFactories = new Map();
-const moduleCache = Object.create(null);
+const moduleCache = new Map();
 /**
  * Returns an absolute path to the given module's id.
  */ function resolvePathFromModule(moduleId) {
@@ -852,7 +866,7 @@ function instantiateModule(id, sourceType, sourceData) {
     }
     const module1 = createModuleWithDirection(id);
     const exports = module1.exports;
-    moduleCache[id] = module1;
+    moduleCache.set(id, module1);
     const context = new Context(module1, exports);
     // NOTE(alexkirsz) This can fail when the module encounters a runtime error.
     try {
@@ -873,7 +887,7 @@ function instantiateModule(id, sourceType, sourceData) {
  * Retrieves a module from the cache, or instantiate it if it is not cached.
  */ // @ts-ignore
 function getOrInstantiateModuleFromParent(id, sourceModule) {
-    const module1 = moduleCache[id];
+    const module1 = moduleCache.get(id);
     if (module1) {
         if (module1.error) {
             throw module1.error;
@@ -891,7 +905,7 @@ function getOrInstantiateModuleFromParent(id, sourceModule) {
  * Retrieves a module from the cache, or instantiate it as a runtime module if it is not cached.
  */ // @ts-ignore TypeScript doesn't separate this module space from the browser runtime
 function getOrInstantiateRuntimeModule(chunkPath, moduleId) {
-    const module1 = moduleCache[moduleId];
+    const module1 = moduleCache.get(moduleId);
     if (module1) {
         if (module1.error) {
             throw module1.error;

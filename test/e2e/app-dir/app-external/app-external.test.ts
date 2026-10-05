@@ -15,6 +15,7 @@ async function resolveStreamResponse(response: any, onData?: any) {
   return result
 }
 
+// @force-gate !deploy
 describe('app dir - external dependency', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
@@ -32,7 +33,6 @@ describe('app dir - external dependency', () => {
     installCommand: 'pnpm i',
     startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
     buildCommand: 'pnpm build',
-    skipDeployment: true,
   })
 
   if (skipped) {

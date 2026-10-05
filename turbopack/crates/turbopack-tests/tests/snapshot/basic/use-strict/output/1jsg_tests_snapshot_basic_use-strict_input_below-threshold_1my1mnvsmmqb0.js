@@ -4,6 +4,7 @@
 
 __turbopack_context__.s([
     "value",
+    0,
     ()=>value
 ]);
 const value = 2;

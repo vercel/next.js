@@ -139,7 +139,7 @@ define_id!(
     TaskId: u32,
     // Capped below `u32::MAX` so the id fits in 31 bits when packed into `RawVc`.
     max = TASK_ID_MAX,
-    derive(Serialize, Deserialize, Encode, Decode),
+    derive(Deserialize, Decode),
     serde(transparent),
 );
 define_id!(
@@ -162,6 +162,25 @@ define_id!(
     doc = "An identifier for a specific task execution. Used to assert that local `Vc`s don't \
         leak. This value may overflow and re-use old values.",
 );
+
+// Preserve transparent serde and the derived NonZero<u32> bincode format, but reject references
+// to transient tasks. RawVc packs TaskId into its own integer and checks that path separately.
+impl Serialize for TaskId {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        debug_assert!(
+            !self.is_transient(),
+            "transient TaskId must not be serialized"
+        );
+        self.id.serialize(serializer)
+    }
+}
+
+impl Encode for TaskId {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        debug_assert!(!self.is_transient(), "transient TaskId must not be encoded");
+        self.id.encode(encoder)
+    }
+}
 
 impl Debug for TaskId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

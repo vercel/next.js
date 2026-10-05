@@ -35,10 +35,10 @@ import type { LoaderTree } from '../lib/app-dir-module'
 import { MIN_PRERENDERABLE_EXPIRE } from '../use-cache/constants'
 import type {
   AppPageModule,
+  DevRenderContext,
   RouteMatch,
 } from '../route-modules/app-page/module'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
-import type { IncomingHttpHeaders } from 'http'
 import * as ReactClient from 'react'
 
 import RenderResult, {
@@ -78,22 +78,14 @@ import { getInstantTestBootstrapScriptContent } from './instant-test-bootstrap'
 import { stripInternalQueries } from '../internal-utils'
 import { getRenderedSearch } from '../../shared/lib/router/utils/querystring'
 import {
-  NEXT_HMR_REFRESH_HEADER,
-  NEXT_ROUTER_PREFETCH_HEADER,
-  NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_ROUTER_STALE_TIME_HEADER,
   NEXT_URL,
-  RSC_HEADER,
-  NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
-  NEXT_REQUEST_ID_HEADER,
-  NEXT_HTML_REQUEST_ID_HEADER,
 } from '../../client/components/app-router-headers'
 import { createMetadataContext } from '../../lib/metadata/metadata-context'
 import {
   createRequestStore as createRequestStoreFromInputs,
   createRequestStoreForRender,
 } from '../async-storage/request-store'
-import { isRSCRequestHeader } from '../lib/is-rsc-request'
 import {
   createPrerenderWorkStore,
   createWorkStore,
@@ -135,8 +127,6 @@ import {
 } from './create-error-handler'
 import { dynamicParamTypes } from './get-short-dynamic-param-type'
 import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param'
-import { getScriptNonceFromHeader } from './get-script-nonce-from-header'
-import { parseAndValidateFlightRouterState } from './parse-and-validate-flight-router-state'
 import {
   createFullTransportTreeFromLoaderTree,
   getMissingPrefetchHintPolicy,
@@ -229,7 +219,6 @@ import {
   type ParsedRelativeUrl,
 } from '../../shared/lib/router/utils/parse-relative-url'
 import AppRouter from '../../client/components/app-router'
-import type { ServerComponentsHmrCache } from '../response-cache'
 import type { RequestErrorContext } from '../instrumentation/types'
 import { getIsPossibleServerAction } from '../lib/server-action-request-meta'
 import { createInitialRouterState } from '../../client/components/router-reducer/create-initial-router-state'
@@ -296,7 +285,7 @@ import {
 import type { MetadataErrorType } from '../../lib/metadata/resolve-metadata'
 import isError, { getProperError } from '../../lib/is-error'
 import { createServerInsertedMetadata } from './metadata-insertion/create-server-inserted-metadata'
-import { getPreviouslyRevalidatedTags } from '../server-utils'
+import type { ParsedRequestHeaders } from '../route-modules/app-page/parse-request-headers'
 import { executeRevalidates } from '../revalidation-utils'
 import {
   trackPendingChunkLoad,
@@ -456,11 +445,6 @@ function maybeAppendBuildIdToRSCPayload<T extends RSCPayload>(
   return payload
 }
 
-interface ParseRequestHeadersOptions {
-  readonly isRoutePPREnabled: boolean
-  readonly previewModeId: string | undefined
-}
-
 const flightDataPathHeadKey = 'h'
 const getFlightViewportKey = (requestId: string) => requestId + 'v'
 const getFlightMetadataKey = (requestId: string) => requestId + 'm'
@@ -470,111 +454,6 @@ const filterStackFrame =
     ? (require('../lib/source-maps') as typeof import('../lib/source-maps'))
         .filterStackFrameDEV
     : undefined
-
-interface ParsedRequestHeaders {
-  /**
-   * Router state provided from the client-side router. Used to handle rendering
-   * from the common layout down. This value will be undefined if the request is
-   * not a client-side navigation request, or if the request is a prefetch
-   * request.
-   */
-  readonly flightRouterState: FlightRouterState | undefined
-  readonly isPrefetchRequest: boolean
-  readonly isRuntimePrefetchRequest: boolean
-  /**
-   * App Shell prefetch: a runtime prefetch that the server renders with
-   * params omitted (any `await params` hangs forever). Produces the
-   * param-independent shell of the route. Implies isRuntimePrefetchRequest.
-   */
-  readonly isAppShellPrefetchRequest: boolean
-  readonly isRouteTreePrefetchRequest: boolean
-  readonly isHmrRefresh: boolean
-  readonly isRSCRequest: boolean
-  readonly nonce: string | undefined
-  readonly previouslyRevalidatedTags: string[]
-  readonly requestId: string | undefined
-  readonly htmlRequestId: string | undefined
-}
-
-function parseRequestHeaders(
-  headers: IncomingHttpHeaders,
-  options: ParseRequestHeadersOptions
-): ParsedRequestHeaders {
-  const isRSCRequest = isRSCRequestHeader(headers[RSC_HEADER])
-
-  // runtime prefetch requests are *not* treated as prefetch requests
-  // (TODO: this is confusing, we should refactor this to express this better)
-  const isPrefetchRequest =
-    isRSCRequest && headers[NEXT_ROUTER_PREFETCH_HEADER] === '1'
-
-  const isAppShellPrefetchRequest =
-    isRSCRequest && headers[NEXT_ROUTER_PREFETCH_HEADER] === '3'
-
-  // App Shell prefetches are a subtype of runtime prefetch — same code path,
-  // but with less resolved content (omitting link data)
-  const isRuntimePrefetchRequest =
-    isRSCRequest &&
-    (headers[NEXT_ROUTER_PREFETCH_HEADER] === '2' || isAppShellPrefetchRequest)
-
-  const isHmrRefresh = headers[NEXT_HMR_REFRESH_HEADER] !== undefined
-
-  const shouldProvideFlightRouterState =
-    isRSCRequest && (!isPrefetchRequest || !options.isRoutePPREnabled)
-
-  const flightRouterState = shouldProvideFlightRouterState
-    ? parseAndValidateFlightRouterState(headers[NEXT_ROUTER_STATE_TREE_HEADER])
-    : undefined
-
-  // Checks if this is a prefetch of the Route Tree by the Segment Cache
-  const isRouteTreePrefetchRequest =
-    isRSCRequest && headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER] === '/_tree'
-
-  const csp =
-    headers['content-security-policy'] ||
-    headers['content-security-policy-report-only']
-
-  const nonce =
-    typeof csp === 'string' ? getScriptNonceFromHeader(csp) : undefined
-
-  const previouslyRevalidatedTags = getPreviouslyRevalidatedTags(
-    headers,
-    options.previewModeId
-  )
-
-  let requestId: string | undefined
-  let htmlRequestId: string | undefined
-
-  if (process.env.__NEXT_DEV_SERVER) {
-    // The request IDs are only used for the dev server to send debug
-    // information to the matching client (identified by the HTML request ID
-    // that was sent to the client with the HTML document) for the current
-    // request (identified by the request ID, as defined by the client).
-
-    requestId =
-      typeof headers[NEXT_REQUEST_ID_HEADER] === 'string'
-        ? headers[NEXT_REQUEST_ID_HEADER]
-        : undefined
-
-    htmlRequestId =
-      typeof headers[NEXT_HTML_REQUEST_ID_HEADER] === 'string'
-        ? headers[NEXT_HTML_REQUEST_ID_HEADER]
-        : undefined
-  }
-
-  return {
-    flightRouterState,
-    isPrefetchRequest,
-    isRuntimePrefetchRequest,
-    isAppShellPrefetchRequest,
-    isRouteTreePrefetchRequest,
-    isHmrRefresh,
-    isRSCRequest,
-    nonce,
-    previouslyRevalidatedTags,
-    requestId,
-    htmlRequestId,
-  }
-}
 
 /**
  * Walks the loader tree to find the minimum `unstable_dynamicStaleTime` exported by
@@ -940,7 +819,6 @@ function createErrorContext(
  * `generateDynamicRSCPayload` for information on the contents of the render result.
  */
 async function generateDynamicFlightRenderResult(
-  req: BaseNextRequest,
   ctx: AppRenderContext,
   requestStore: RequestStore,
   options?: {
@@ -962,7 +840,6 @@ async function generateDynamicFlightRenderResult(
   function onFlightDataRenderError(err: DigestedError, silenceLog: boolean) {
     return onInstrumentationRequestError?.(
       err,
-      req,
       createRequestErrorContext(ctx, 'react-server-components-payload'),
       silenceLog
     )
@@ -1069,7 +946,6 @@ async function generateDynamicFlightRenderResult(
  * runtime/dynamic content.
  */
 async function generateStagedDynamicFlightRenderResultNode(
-  req: BaseNextRequest,
   ctx: AppRenderContext,
   requestStore: RequestStore
 ): Promise<RenderResult> {
@@ -1081,7 +957,6 @@ async function generateStagedDynamicFlightRenderResultNode(
   function onFlightDataRenderError(err: DigestedError, silenceLog: boolean) {
     return onInstrumentationRequestError?.(
       err,
-      req,
       createRequestErrorContext(ctx, 'react-server-components-payload'),
       silenceLog
     )
@@ -1400,7 +1275,6 @@ function getEnvironmentNameForStageWithoutCaches(stage: RenderStage) {
  * to ensure correct separation of environments Prerender/Server (for use in Cache Components)
  */
 async function generateDynamicFlightRenderResultWithStagesInDev(
-  req: BaseNextRequest,
   ctx: AppRenderContext,
   initialRequestStore: RequestStore,
   createRequestStore: (() => RequestStore) | undefined,
@@ -1432,7 +1306,6 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     didErrorObservably = true
     return onInstrumentationRequestError?.(
       err,
-      req,
       createRequestErrorContext(ctx, 'react-server-components-payload'),
       silenceLog
     )
@@ -1608,7 +1481,6 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
 }
 
 async function generateRuntimePrefetchResult(
-  req: BaseNextRequest,
   ctx: AppRenderContext,
   requestStore: RequestStore,
   isShellPrefetch: boolean
@@ -1623,7 +1495,6 @@ async function generateRuntimePrefetchResult(
   function onFlightDataRenderError(err: DigestedError, silenceLog: boolean) {
     return onInstrumentationRequestError?.(
       err,
-      req,
       // TODO(runtime-ppr): should we use a different value?
       createRequestErrorContext(ctx, 'react-server-components-payload'),
       silenceLog
@@ -2893,7 +2764,6 @@ async function prepareAppPageRender(
 }
 
 async function prerenderAppPage({
-  req,
   ctx,
   metadata,
   loaderTree,
@@ -2918,7 +2788,6 @@ async function prerenderAppPage({
   let response: PrerenderToStreamResult
   try {
     response = await prerenderToStreamWithTracing(
-      req,
       res,
       ctx,
       metadata,
@@ -3043,7 +2912,7 @@ async function prerenderAppPage({
 async function renderAppPage(
   { req, ctx, metadata, loaderTree }: PreparedAppPageRender,
   postponedState: PostponedState | null,
-  serverComponentsHmrCache: ServerComponentsHmrCache | undefined
+  dev: DevRenderContext | undefined
 ) {
   const {
     res,
@@ -3083,8 +2952,6 @@ async function renderAppPage(
       : stagedFallbackParams
         ? new Set(stagedFallbackParams.keys())
         : null
-  const hmrRefreshHash = getRequestMeta(req, 'hmrRefreshHash')
-
   const createRequestStore = createRequestStoreForRender.bind(
     null,
     req,
@@ -3095,10 +2962,10 @@ async function renderAppPage(
     renderOpts.onUpdateCookies,
     renderOpts.previewProps,
     isHmrRefresh,
-    serverComponentsHmrCache,
+    dev?.serverComponentsHmrCache,
     renderResumeDataCache,
     stagedFallbackParamNames,
-    hmrRefreshHash
+    dev?.hmrRefreshHash
   )
   const requestStore = createRequestStore()
 
@@ -3129,7 +2996,6 @@ async function renderAppPage(
     if (isRuntimePrefetchRequest) {
       // MARK: RSC runtimePrefetch
       return generateRuntimePrefetchResult(
-        req,
         ctx,
         requestStore,
         isAppShellPrefetchRequest
@@ -3142,7 +3008,6 @@ async function renderAppPage(
       ) {
         // MARK: RSC devCacheComponents
         return generateDynamicFlightRenderResultWithStagesInDev(
-          req,
           ctx,
           requestStore,
           createRequestStore,
@@ -3150,15 +3015,10 @@ async function renderAppPage(
         )
       } else if (cacheComponents && cachedNavigations) {
         // MARK: RSC cacheComponents
-        return generateStagedDynamicFlightRenderResultNode(
-          req,
-          ctx,
-          requestStore
-        )
+        return generateStagedDynamicFlightRenderResultNode(ctx, requestStore)
       } else {
         // MARK: RSC dynamic
         const result = await generateDynamicFlightRenderResult(
-          req,
           ctx,
           requestStore
         )
@@ -3210,7 +3070,6 @@ async function renderAppPage(
         try {
           const stream = await renderToStream(
             requestStore,
-            req,
             res,
             ctx,
             notFoundLoaderTree,
@@ -3256,7 +3115,6 @@ async function renderAppPage(
       // NOTE: in Cache Components (dev), if the render is restarted, it will use a different requestStore
       // than the one that we're passing in here.
       requestStore,
-      req,
       res,
       ctx,
       loaderTree,
@@ -3344,7 +3202,7 @@ async function renderToHTMLOrFlightImpl(
   workStore: WorkStore,
   parsedRequestHeaders: ParsedRequestHeaders,
   postponedState: PostponedState | null,
-  serverComponentsHmrCache: ServerComponentsHmrCache | undefined,
+  dev: DevRenderContext | undefined,
   sharedContext: AppSharedContext,
   interpolatedParams: Params,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
@@ -3380,7 +3238,7 @@ async function renderToHTMLOrFlightImpl(
       supportsPerSegmentPrefetching: renderOpts.cacheComponents,
     }
   )
-  return renderAppPage(prepared, postponedState, serverComponentsHmrCache)
+  return renderAppPage(prepared, postponedState, dev)
 }
 
 async function prerenderToHTMLOrFlightImpl(
@@ -3438,9 +3296,10 @@ export type AppPageRender = (
   query: NextParsedUrlQuery,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   renderOpts: RenderOpts,
-  serverComponentsHmrCache: ServerComponentsHmrCache | undefined,
+  dev: DevRenderContext | undefined,
   sharedContext: AppSharedContext,
-  routeMatch: RouteMatch
+  routeMatch: RouteMatch,
+  parsedRequestHeaders: ParsedRequestHeaders
 ) => Promise<RenderResult<AppPageRenderResultMetadata>>
 
 export type AppPagePrerender = (
@@ -3449,7 +3308,6 @@ export type AppPagePrerender = (
 
 type AppPagePreparation = {
   url: ReturnType<typeof parseRelativeUrl>
-  parsedRequestHeaders: ParsedRequestHeaders
   interpolatedParams: Params
   postponedState: PostponedState | null
 }
@@ -3465,13 +3323,6 @@ function prepareAppPage(
   }
 
   const url = parseRelativeUrl(req.url, undefined, false)
-
-  // We read these values from the request object as, in certain cases,
-  // base-server will strip them to opt into different rendering behavior.
-  const parsedRequestHeaders = parseRequestHeaders(req.headers, {
-    isRoutePPREnabled: renderOpts.experimental.isRoutePPREnabled === true,
-    previewModeId: renderOpts.previewProps?.previewModeId,
-  })
 
   const interpolatedParams = interpolateParallelRouteParams(
     renderOpts.ComponentMod.routeModule.userland.loaderTree,
@@ -3522,7 +3373,6 @@ function prepareAppPage(
 
   return {
     url,
-    parsedRequestHeaders,
     interpolatedParams,
     postponedState,
   }
@@ -3535,12 +3385,17 @@ export const renderToHTMLOrFlight: AppPageRender = (
   query,
   fallbackRouteParams,
   renderOpts,
-  serverComponentsHmrCache,
+  dev,
   sharedContext,
-  routeMatch
+  routeMatch,
+  parsedRequestHeaders
 ) => {
-  const { url, parsedRequestHeaders, interpolatedParams, postponedState } =
-    prepareAppPage(req, pagePath, fallbackRouteParams, renderOpts)
+  const { url, interpolatedParams, postponedState } = prepareAppPage(
+    req,
+    pagePath,
+    fallbackRouteParams,
+    renderOpts
+  )
   const { isPrefetchRequest, previouslyRevalidatedTags, nonce } =
     parsedRequestHeaders
   const workStore = createWorkStore({
@@ -3566,7 +3421,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
     workStore,
     parsedRequestHeaders,
     postponedState,
-    serverComponentsHmrCache,
+    dev,
     sharedContext,
     interpolatedParams,
     fallbackRouteParams,
@@ -3581,11 +3436,12 @@ export const prerenderToHTMLOrFlight: AppPagePrerender = (
   query,
   fallbackRouteParams,
   renderOpts,
-  _serverComponentsHmrCache,
+  _dev,
   sharedContext,
-  routeMatch
+  routeMatch,
+  parsedRequestHeaders
 ) => {
-  const { url, parsedRequestHeaders, interpolatedParams } = prepareAppPage(
+  const { url, interpolatedParams } = prepareAppPage(
     req,
     pagePath,
     fallbackRouteParams,
@@ -3681,7 +3537,6 @@ type RSCInitialPayloadPartialDev = {
 
 async function renderToStream(
   requestStore: RequestStore,
-  req: BaseNextRequest,
   res: BaseNextResponse,
   ctx: AppRenderContext,
   tree: LoaderTree,
@@ -3837,7 +3692,6 @@ async function renderToStream(
       didErrorObservably = true
       return onInstrumentationRequestError?.(
         err,
-        req,
         createRequestErrorContext(ctx, 'react-server-components'),
         silenceLog
       )
@@ -3856,7 +3710,6 @@ async function renderToStream(
       const silenceLog = false
       return onInstrumentationRequestError?.(
         err,
-        req,
         createRequestErrorContext(ctx, 'server-rendering'),
         silenceLog
       )
@@ -8979,7 +8832,6 @@ async function continueStaticPrerenderWithInlinedData(
 }
 
 async function prerenderToStream(
-  req: BaseNextRequest,
   res: BaseNextResponse,
   ctx: AppRenderContext,
   metadata: AppPageRenderResultMetadata,
@@ -9110,7 +8962,6 @@ async function prerenderToStream(
     if (reportErrors) {
       return onInstrumentationRequestError?.(
         err,
-        req,
         createPrerenderErrorContext(ctx, 'react-server-components'),
         silenceLog
       )
@@ -9130,7 +8981,6 @@ async function prerenderToStream(
       const silenceLog = false
       return onInstrumentationRequestError?.(
         err,
-        req,
         createPrerenderErrorContext(ctx, 'server-rendering'),
         silenceLog
       )

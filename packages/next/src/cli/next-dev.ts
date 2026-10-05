@@ -16,6 +16,7 @@ import {
 } from '../server/lib/utils'
 import * as Log from '../build/output/log'
 import { getProjectDir } from '../lib/get-project-dir'
+import { warnMissingReactDependencies } from '../lib/warn-missing-react-dependencies'
 import { ensureProfilesDir } from '../lib/profiles-dir'
 import path from 'path'
 import { traceGlobals } from '../trace/shared'
@@ -180,7 +181,7 @@ const handleSessionStop = async (
       }),
       true
     )
-    telemetry.flushDetached('dev', dir)
+    telemetry.flushDetached({ mode: 'dev', dir, distDir: null, events: null })
   } catch (_) {
     // errors here aren't actionable so don't add
     // noise to the output
@@ -249,6 +250,7 @@ const nextDev = async (
   isTurbopack = parseBundlerArgs(options) === Bundler.Turbopack
 
   dir = getProjectDir(process.env.NEXT_PRIVATE_DEV_DIR || directory)
+  warnMissingReactDependencies(dir)
 
   const { shouldPromptForUpgrade, runUpgrade, nudgeUpgrade } = await import(
     '../lib/upgrade/nudge.js'
@@ -265,14 +267,29 @@ const nextDev = async (
     upgradeInProgress = true
     const controller = new AbortController()
     upgradeController = controller
+
+    // Correlate the parent's rendered menu with the upgrade launched after Update.
+    const telemetry = new Telemetry({
+      distDir: path.join(dir, context.distDir),
+      skipNotify: true,
+    })
+
+    let nudgeId: string | null = null
     let action
+
     try {
       action = await nudgeUpgrade(
         dir,
         context,
         'dev',
         controller.signal,
-        initialAssessment
+        initialAssessment,
+        {
+          telemetry,
+          onNudgeId(id) {
+            nudgeId = id
+          },
+        }
       )
     } catch (error) {
       Log.warn(`Could not offer the upgrade: ${String(error)}`)
@@ -296,7 +313,9 @@ const nextDev = async (
       process.off('SIGINT', onInterrupt)
       process.off('SIGTERM', onTerminate)
       process.off('SIGHUP', onHangup)
-      process.exit(await runUpgrade(dir, context.experimental.agentUpgrade))
+      process.exit(
+        await runUpgrade(dir, context.experimental.agentUpgrade, nudgeId)
+      )
     }
     upgradeInProgress = false
     process.off('SIGHUP', onHangup)

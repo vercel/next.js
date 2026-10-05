@@ -12,7 +12,6 @@ import type { NextParsedUrlQuery } from './request-meta'
 import type { SizeLimit } from '../types'
 import type { SupportedTestRunners } from '../cli/next-test'
 import { INFINITE_CACHE } from '../lib/constants'
-import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
 import type { FallbackRouteParam } from '../build/static-paths/types'
 import type { MemoryEvictionMode, TurbopackGcOptions } from '../build/swc/types'
 import type { CacheLife } from './use-cache/cache-life'
@@ -41,6 +40,7 @@ export type NextConfigComplete = Required<
   Omit<
     NextConfig,
     | 'configFile'
+    | 'generateBuildId'
     | 'cacheLife'
     | 'expireTime'
     | 'output'
@@ -52,6 +52,7 @@ export type NextConfigComplete = Required<
   // Don't apply `Required<>` for these properties. They really can be undefined in the finalized config.
   Pick<
     NextConfig,
+    | 'generateBuildId'
     | 'cacheLife'
     | 'expireTime'
     | 'output'
@@ -358,6 +359,15 @@ export interface ReactCompilerOptions {
    * @see https://react.dev/reference/react-compiler/compilationMode
    */
   compilationMode?: 'infer' | 'annotation' | 'all'
+  environment?: {
+    /**
+     * Controls whether the React Compiler preserves existing memoization
+     * guarantees from `useMemo`, `useCallback`, and `React.memo`.
+     *
+     * When omitted, the installed React Compiler's default is used.
+     */
+    enablePreserveExistingMemoizationGuarantees?: boolean
+  }
   /**
    * Controls how the React Compiler handles errors during compilation.
    *
@@ -1088,9 +1098,19 @@ export interface ExperimentalConfig {
    * can be observed by user code (a namespace object that escapes, a dynamic `import()`, a
    * CommonJS `require()`) keeps its original names.
    *
-   * Defaults to `false`
+   * Defaults to `true` for production builds and `false` in development.
    */
   turbopackMangleExportNames?: boolean
+
+  /**
+   * Materialize namespace objects behind a facade so their local export keys can still be
+   * mangled. This can interfere with code that patches modules, since a module might be split
+   * into multiple parts.
+   *
+   * Defaults to `true` only when `turbopackMangleExportNames` is explicitly `true`; otherwise
+   * defaults to `false`, including when export mangling is enabled by default.
+   */
+  turbopackMangleViaMaterializedNamespaceObject?: boolean
 
   /**
    * Enable scope hoisting of static CommonJS modules.
@@ -1466,6 +1486,13 @@ export interface ExperimentalConfig {
    * Turbopack.
    */
   durableUseCacheEntries?: boolean
+
+  /**
+   * Collects root param dependencies for `'use cache'` in Turbopack production
+   * builds. Defaults to `false`. When disabled, the server-reference manifest
+   * omits `rootParamDependencies`.
+   */
+  useCacheStaticRootParamTracking?: boolean
 
   /**
    * Enables detection and reporting of slow modules during development builds.
@@ -2277,7 +2304,6 @@ export const defaultConfig = Object.freeze({
   cacheMaxMemorySize: 50 * 1024 * 1024,
   configOrigin: 'default',
   useFileSystemPublicRoutes: true,
-  generateBuildId: () => null,
   generateEtags: true,
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
   instrumentationClientInject: [],
@@ -2453,6 +2479,7 @@ export const defaultConfig = Object.freeze({
     gestureTransition: false,
     inlineCss: false,
     useCache: undefined,
+    useCacheStaticRootParamTracking: false,
     slowModuleDetection: undefined,
     globalNotFound: false,
     explicitParallelRouteChildren: true,
@@ -2470,10 +2497,10 @@ export const defaultConfig = Object.freeze({
     turbopackInferModuleSideEffects: true,
     turbopackPluginRuntimeStrategy: 'childProcesses',
     turbopackSharedRuntime: true,
-    // Pinned off for stable releases. Left unset on canary so the Turbopack side picks the
-    // default from the build mode (on for production builds, off in development) — see
-    // `NextConfig::turbopack_mangle_export_names`. An explicit value always wins either way.
-    turbopackMangleExportNames: isStableBuild() ? false : undefined,
+    // Left unset so the Turbopack side picks the default from the build mode (on for production
+    // builds, off in development) — see `NextConfig::turbopack_mangle_export_names`. An explicit
+    // value always wins either way.
+    turbopackMangleExportNames: undefined,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,

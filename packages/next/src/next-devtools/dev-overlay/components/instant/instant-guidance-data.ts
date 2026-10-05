@@ -13,6 +13,7 @@ export type FixCardGroup =
   | 'render'
   | 'upgrade'
   | 'disable'
+  | 'remove'
 
 export type FixCardIcon =
   | 'align-left'
@@ -44,6 +45,7 @@ export const FIX_CARD_GROUPS: Record<
   render: { label: 'Render', color: 'gray', icon: 'layout' },
   upgrade: { label: 'Upgrade', color: 'amber', icon: 'arrow-up' },
   disable: { label: 'Disable', color: 'gray', icon: 'minus' },
+  remove: { label: 'Remove', color: 'red', icon: 'minus' },
 }
 
 export type FixCard = {
@@ -680,7 +682,178 @@ const syncClientCryptoCards: FixCard[] = [
   },
 ]
 
+const staticRouteRuntimeCards: FixCard[] = [
+  {
+    id: 'remove-the-data-access',
+    title: 'Remove the data access',
+    group: 'remove',
+    snippets: [
+      { text: 'async function Page() {' },
+      { text: '- const store = await cookies()', highlight: true },
+      { text: '  return <Content />' },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/static-route-runtime#remove-the-data-access',
+  },
+  {
+    id: 'read-the-data-on-the-client',
+    title: 'Read the data on the client',
+    group: 'client',
+    snippets: [
+      { text: "'use client'" },
+      { text: "use(browser('Read cookie'))", highlight: true },
+      { text: 'document.cookie.match(/cart=/)' },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/static-route-runtime#read-the-data-on-the-client',
+  },
+]
+
+const staticRouteDynamicCards: FixCard[] = [
+  {
+    id: 'cache-the-data',
+    title: 'Cache the data',
+    group: 'cache',
+    snippets: [
+      {
+        text: 'async function getData() {',
+      },
+      {
+        text: '  "use cache"',
+        highlight: true,
+      },
+      {
+        text: '  return await db.query(\u2026)',
+      },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/static-route-dynamic#cache-the-data',
+  },
+  {
+    id: 'remove-the-data-access',
+    title: 'Remove the data access',
+    group: 'remove',
+    snippets: [
+      { text: 'async function Page() {' },
+      { text: '- await connection()', highlight: true },
+      { text: '  return <Content />' },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/static-route-dynamic#remove-the-data-access',
+  },
+  {
+    id: 'read-the-data-on-the-client',
+    title: 'Read the data on the client',
+    group: 'client',
+    snippets: [
+      { text: "'use client'" },
+      { text: "const data = useSWR('/api')", highlight: true },
+      { text: 'return <Content data={data} />' },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/static-route-dynamic#read-the-data-on-the-client',
+  },
+]
+const staticMetadataRuntimeCards: FixCard[] = [
+  {
+    id: 'use-static-metadata',
+    title: 'Use static metadata',
+    group: 'static',
+    snippets: [
+      { text: 'export const metadata = {', highlight: true },
+      { text: "  title: 'My page'" },
+      { text: '}' },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/static-metadata-runtime#use-static-metadata',
+  },
+]
+
+const staticMetadataDynamicCards: FixCard[] = [
+  {
+    id: 'cache-the-metadata',
+    title: 'Cache the metadata',
+    group: 'cache',
+    snippets: [
+      {
+        text: 'async function generateMetadata() {',
+      },
+      {
+        text: '  "use cache"',
+        highlight: true,
+      },
+      {
+        text: '  return await cms.getMeta(\u2026)',
+      },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/static-metadata-dynamic#cache-the-metadata',
+  },
+  {
+    id: 'use-static-metadata',
+    title: 'Use static metadata',
+    group: 'static',
+    snippets: [
+      { text: 'export const metadata = {', highlight: true },
+      { text: "  title: 'My page'" },
+      { text: '}' },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/static-metadata-dynamic#use-static-metadata',
+  },
+]
+const staticViewportRuntimeCards: FixCard[] = [
+  {
+    id: 'use-static-viewport',
+    title: 'Use static viewport',
+    group: 'static',
+    snippets: [
+      { text: 'export const viewport = {', highlight: true },
+      { text: "  themeColor: 'black'" },
+      { text: '}' },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/static-viewport-runtime#use-static-viewport',
+  },
+]
+
+const staticViewportDynamicCards: FixCard[] = [
+  {
+    id: 'cache-the-viewport',
+    title: 'Cache the viewport',
+    group: 'cache',
+    snippets: [
+      {
+        text: 'async function generateViewport() {',
+      },
+      {
+        text: '  "use cache"',
+        highlight: true,
+      },
+      {
+        text: '  return await cms.getViewport(\u2026)',
+      },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/static-viewport-dynamic#cache-the-viewport',
+  },
+  {
+    id: 'use-static-viewport',
+    title: 'Use static viewport',
+    group: 'static',
+    snippets: [
+      { text: 'export const viewport = {', highlight: true },
+      { text: "  themeColor: 'black'" },
+      { text: '}' },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/static-viewport-dynamic#use-static-viewport',
+  },
+]
 export type GuidanceKind =
+  | 'static-route'
+  | 'static-metadata'
+  | 'static-viewport'
   | 'blocking-route'
   | 'client-hook'
   | 'metadata'
@@ -693,6 +866,9 @@ export type GuidanceKind =
 export type GuidanceVariant = 'link' | 'runtime' | 'navigation' | 'dynamic'
 
 export const DOCS_URLS: Record<GuidanceKind, string> = {
+  'static-viewport': 'https://nextjs.org/docs/messages/static-viewport',
+  'static-metadata': 'https://nextjs.org/docs/messages/static-metadata',
+  'static-route': 'https://nextjs.org/docs/messages/static-route',
   'blocking-route': 'https://nextjs.org/docs/messages/blocking-route',
   'client-hook':
     'https://nextjs.org/docs/messages/blocking-prerender-client-hook',
@@ -798,6 +974,12 @@ export const SYNC_IO_CLIENT_DOCS: Record<string, string> = {
 }
 
 export const EXPLANATIONS: Record<GuidanceKind, string> = {
+  'static-viewport':
+    'This route is configured to be fully static, but data prevents its viewport from being fully prerendered.',
+  'static-metadata':
+    'This route is configured to be fully static, but data prevents its metadata from being fully prerendered.',
+  'static-route':
+    'This route is configured to be fully static, but data prevents it from being fully prerendered.',
   'blocking-route':
     'This prevents the route from being prerendered, blocking navigation and leading to a slower user experience.',
   'client-hook':
@@ -869,6 +1051,21 @@ export function getCards(
   cause?: string
 ): FixCard[] {
   switch (kind) {
+    case 'static-viewport':
+      return variant === 'runtime'
+        ? staticViewportRuntimeCards
+        : filterCacheForConnection(staticViewportDynamicCards, variant, cause)
+
+    case 'static-metadata':
+      return variant === 'runtime'
+        ? staticMetadataRuntimeCards
+        : filterCacheForConnection(staticMetadataDynamicCards, variant, cause)
+
+    case 'static-route':
+      return variant === 'runtime'
+        ? staticRouteRuntimeCards
+        : filterCacheForConnection(staticRouteDynamicCards, variant, cause)
+
     case 'blocking-route': {
       switch (variant) {
         case 'link':
@@ -924,4 +1121,14 @@ export function getCards(
     default:
       return kind satisfies never
   }
+}
+
+export function getStaticRouteDocsUrl(
+  kind: GuidanceKind,
+  variant: GuidanceVariant
+): string {
+  if (variant === 'runtime' || variant === 'dynamic') {
+    return `${DOCS_URLS[kind]}-${variant}`
+  }
+  return DOCS_URLS[kind]
 }

@@ -25,7 +25,11 @@ import type {
 import type { Params } from './request/params'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { RouteMatch } from './route-matches/route-match'
-import type { RouteMatch as AppRenderRouteMatch } from './route-modules/app-page/module'
+import type {
+  DevRenderContext,
+  RouteMatch as AppRenderRouteMatch,
+} from './route-modules/app-page/module'
+import { createDevRenderContext } from './route-modules/app-page/dev-render-context'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
 import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
@@ -116,6 +120,10 @@ import {
   lazyPrerenderAppPage,
   lazyRenderAppPage,
 } from './route-modules/app-page/module.render'
+import {
+  parseRequestHeaders,
+  type ParsedRequestHeaders,
+} from './route-modules/app-page/parse-request-headers'
 import { lazyRenderPagesPage } from './route-modules/pages/module.render'
 import { interopDefault } from '../lib/interop-default'
 import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
@@ -678,6 +686,20 @@ export default class NextNodeServer extends BaseServer<
           !renderOpts.isPossibleServerAction
             ? lazyPrerenderAppPage
             : lazyRenderAppPage
+        const dev: DevRenderContext | undefined = createDevRenderContext(
+          req,
+          process.env.__NEXT_DEV_SERVER
+            ? this.getServerComponentsHmrCache()
+            : undefined
+        )
+        const parsedRequestHeaders: ParsedRequestHeaders = parseRequestHeaders(
+          req.headers,
+          {
+            isRoutePPREnabled:
+              renderOpts.experimental.isRoutePPREnabled === true,
+            previewModeId: renderOpts.previewProps?.previewModeId,
+          }
+        )
 
         const result = await renderAppPage(
           req,
@@ -688,7 +710,7 @@ export default class NextNodeServer extends BaseServer<
           // shells. As a result, we don't need to pass in the unknown params.
           null,
           renderOpts as LoadedRenderOpts<AppPageModule>,
-          this.getServerComponentsHmrCache(),
+          dev,
           {
             buildId: this.buildId,
             deploymentId: this.deploymentId,
@@ -696,7 +718,8 @@ export default class NextNodeServer extends BaseServer<
               ? ''
               : this.deploymentId,
           },
-          routeMatch
+          routeMatch,
+          parsedRequestHeaders
         )
         if ('error' in result) {
           throw result.error

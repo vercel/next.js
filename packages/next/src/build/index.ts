@@ -137,6 +137,7 @@ import { writeAnalyzeSnapshot } from './analyze/snapshot'
 import { writeRouteBundleStats } from './route-bundle-stats'
 import {
   detectConflictingPaths,
+  printPrerenderMatchers,
   printCustomRoutes,
   printTreeView,
   copyTracedFiles,
@@ -154,6 +155,8 @@ import type {
   PrerenderedRoute,
 } from './static-paths/types'
 import type { AppSegmentConfig } from './segment-config/app/app-segment-config'
+import type { ParamMatching } from './segment-config/app/app-segments'
+import { validateParamMatchingCoherence } from './static-paths/param-matching'
 import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import isError from '../lib/is-error'
@@ -348,6 +351,18 @@ export interface DynamicPrerenderManifestRoute
   dataRouteRegex: string | null
   experimentalBypassFor?: RouteHas[]
   fallback: Fallback
+
+  /**
+   * A configured blocking policy must not be replaced by on-demand fallback
+   * shell generation when Partial Prefetching is enabled.
+   */
+  isExplicitlyBlocking?: true
+
+  /**
+   * Parameter-matching restrictions used by Next.js when constructing client
+   * route trees. Unlike legacy fallback=false, only these parameters are closed.
+   */
+  notFoundParams?: readonly string[]
 
   /**
    * The unresolved fallback route params that can still be specialized into a
@@ -1083,16 +1098,15 @@ async function getBuildId(
   if (isGenerateMode) {
     return await fs.readFile(path.join(distDir, BUILD_ID_FILE), 'utf8')
   }
-  if (config.deploymentId) {
+  if (config.deploymentId && !config.generateBuildId) {
     // Skew protection is enabled and NEXT_NAV_DEPLOYMENT_ID_HEADER will be used instead. Set a
     // constant but "random" string because various tools perform `.replace(escapedBuildId, ....)`
     // which would fail if this were something like "build-id" instead.
     return 'build-TfctsWXpff2fKS'
-  } else {
-    return await nextBuildSpan
-      .traceChild('generate-buildid')
-      .traceAsyncFn(() => generateBuildId(config.generateBuildId, nanoid))
   }
+  return await nextBuildSpan
+    .traceChild('generate-buildid')
+    .traceAsyncFn(() => generateBuildId(config.generateBuildId, nanoid))
 }
 
 export default async function build(
@@ -1109,7 +1123,7 @@ export default async function build(
   debugBuildPathsPatterns: string[] | undefined,
   enabledFeatures: Record<string, unknown> = {},
   allowHumanUpgrade = false
-): Promise<NudgeKind | 'interrupt' | void> {
+): Promise<{ policy: NudgeKind; nudgeId: string | null } | 'interrupt' | void> {
   const isCompileMode = experimentalBuildMode === 'compile'
   const isGenerateMode = experimentalBuildMode === 'generate'
   NextBuildContext.isCompileMode = isCompileMode
@@ -1188,42 +1202,6 @@ export default async function build(
         )
       loadedConfig = config
 
-      // Reuse the loaded config; ordinary builds do not load upgrade tooling.
-      if (
-        config.experimental.agentUpgrade === 'security' ||
-        config.experimental.agentUpgrade === 'latest' ||
-        config.experimental.agentUpgrade === 'experimental-future' ||
-        process.env.__NEXT_AGENT_UPGRADE
-      ) {
-        const { nudgeUpgrade, getUpgradeContext } =
-          require('../lib/upgrade/nudge') as typeof import('../lib/upgrade/nudge')
-        const upgradeContext = getUpgradeContext(config)
-        if (allowHumanUpgrade) {
-          // TODO: Do not block the build while prompting for an upgrade.
-          // Preserve all logs for display after the prompt and stop the build before Update.
-          const action = await nudgeUpgrade(
-            dir,
-            upgradeContext,
-            'build',
-            new AbortController().signal
-          ).catch((error) => {
-            Log.warn(`Could not offer the upgrade: ${String(error)}`)
-          })
-          if (action === 'update' && upgradeContext.experimental.agentUpgrade) {
-            return upgradeContext.experimental.agentUpgrade
-          }
-          if (action === 'interrupt') {
-            return 'interrupt' as const
-          }
-        } else {
-          // Agent checks retain their parallel behavior; humans decide before building.
-          pendingUpgradeNudge = nudgeUpgrade(dir, upgradeContext, 'build').then(
-            () => {}
-          )
-          void pendingUpgradeNudge.catch(() => {})
-        }
-      }
-
       // Resolve selective build paths now that the page extensions are known.
       const debugBuildPaths = debugBuildPathsPatterns
         ? await (async () => {
@@ -1273,6 +1251,58 @@ export default async function build(
       // events are captured if native bindings fail to load.
       const telemetry = new Telemetry({ distDir })
       setGlobal('telemetry', telemetry)
+
+      // Reuse the loaded config; ordinary builds do not load upgrade tooling.
+      if (
+        config.experimental.agentUpgrade === 'security' ||
+        config.experimental.agentUpgrade === 'latest' ||
+        config.experimental.agentUpgrade === 'experimental-future' ||
+        process.env.__NEXT_AGENT_UPGRADE
+      ) {
+        const { nudgeUpgrade, getUpgradeContext } =
+          require('../lib/upgrade/nudge') as typeof import('../lib/upgrade/nudge')
+        const upgradeContext = getUpgradeContext(config)
+        if (allowHumanUpgrade) {
+          // TODO: Do not block the build while prompting for an upgrade.
+          // Preserve all logs for display after the prompt and stop the build before Update.
+          let nudgeId: string | null = null
+          const action = await nudgeUpgrade(
+            dir,
+            upgradeContext,
+            'build',
+            new AbortController().signal,
+            null,
+            {
+              telemetry,
+              onNudgeId(id) {
+                nudgeId = id
+              },
+            }
+          ).catch((error) => {
+            Log.warn(`Could not offer the upgrade: ${String(error)}`)
+          })
+          if (action === 'update' && upgradeContext.experimental.agentUpgrade) {
+            return {
+              policy: upgradeContext.experimental.agentUpgrade,
+              nudgeId,
+            }
+          }
+          if (action === 'interrupt') {
+            return 'interrupt' as const
+          }
+        } else {
+          // Agent checks retain their parallel behavior; humans decide before building.
+          pendingUpgradeNudge = nudgeUpgrade(
+            dir,
+            upgradeContext,
+            'build',
+            null,
+            null,
+            { telemetry, onNudgeId: null }
+          ).then(() => {})
+          void pendingUpgradeNudge.catch(() => {})
+        }
+      }
 
       // Install the native bindings early so we can have synchronous access later.
       await installBindings(config.experimental?.useWasmBinary)
@@ -2260,6 +2290,7 @@ export default async function build(
       const additionalPaths = new Map<string, PrerenderedRoute[]>()
       const staticPaths = new Map<string, PrerenderedRoute[]>()
       const prerenderRouteMatchers = new Map<string, PrerenderRouteMatcher[]>()
+      const paramMatchingByRoute = new Map<string, ParamMatching | undefined>()
       const appNormalizedPaths = new Map<string, string>()
       const fallbackModes = new Map<string, FallbackMode>()
       const appDefaultConfigs = new Map<string, AppSegmentConfig>()
@@ -2643,6 +2674,17 @@ export default async function build(
                       )
 
                       if (pageType === 'app' && originalAppPath) {
+                        if (
+                          isAppCacheComponentsEnabled &&
+                          !isAppRouteRoute(originalAppPath)
+                        ) {
+                          // Include pages without exports: an omitted policy
+                          // cannot silently inherit another route's closure.
+                          paramMatchingByRoute.set(
+                            originalAppPath,
+                            workerResult.paramMatching
+                          )
+                        }
                         appNormalizedPaths.set(originalAppPath, page)
                         // TODO-APP: handle prerendering with edge
                         if (isEdgeRuntime(pageRuntime)) {
@@ -2685,9 +2727,11 @@ export default async function build(
                               originalAppPath,
                               workerResult.prerenderedRoutes
                             )
-                            ssgPageRoutes = workerResult.prerenderedRoutes.map(
-                              (route) => route.pathname
-                            )
+                            ssgPageRoutes = workerResult.prerenderedRoutes
+                              .filter(
+                                (route) => route.isPrerenderOutput !== false
+                              )
+                              .map((route) => route.pathname)
                             isSSG = true
                           }
 
@@ -2884,6 +2928,10 @@ export default async function build(
               })
             })
         )
+
+        if (isAppCacheComponentsEnabled) {
+          validateParamMatchingCoherence(paramMatchingByRoute)
+        }
 
         const errorPageResult = await errorPageStaticResult
         const nonStaticErrorPage =
@@ -3267,13 +3315,20 @@ export default async function build(
                 const appConfig = appDefaultConfigs.get(originalAppPath)
                 const isDynamicError = appConfig?.dynamic === 'error'
                 // Legacy dynamicParams=false closes the entire route tuple.
-                const notFoundParams =
+                // Explicit matching instead identifies the affected parameters.
+                const paramMatching = paramMatchingByRoute.get(originalAppPath)
+                let notFoundParams: readonly string[] | undefined
+                if (paramMatching) {
+                  notFoundParams = Object.keys(paramMatching).filter(
+                    (name) => paramMatching[name] === 'not-found'
+                  )
+                } else if (
                   fallbackModes.get(originalAppPath) === FallbackMode.NOT_FOUND
-                    ? Object.keys(
-                        getRouteRegex(normalizeAppPath(originalAppPath)).groups
-                      )
-                    : undefined
-
+                ) {
+                  notFoundParams = Object.keys(
+                    getRouteRegex(normalizeAppPath(originalAppPath)).groups
+                  )
+                }
                 const isRoutePPREnabled: boolean = appConfig
                   ? isAppCacheComponentsEnabled
                   : false
@@ -3378,13 +3433,16 @@ export default async function build(
             prerenderCandidate: PrerenderedRoute | undefined,
             hasEmptyStaticShell: boolean | undefined
           ) => {
-            // If the route has an empty static shell and is not configured to
-            // throw on empty static shell, then we should use the blocking
-            // static render mode.
+            // An unconfigured parameter uses its shell to infer the miss mode.
+            // This is separate from validation: even a required validation
+            // render can be empty when the user opts out with instant=false.
+            // Without matching configuration, preserve the existing heuristic
+            // for optional, more generic shells.
             if (
               prerenderCandidate &&
               hasEmptyStaticShell &&
-              !prerenderCandidate.throwOnEmptyStaticShell &&
+              (matcher.isFallbackModeInferred ||
+                !prerenderCandidate.throwOnEmptyStaticShell) &&
               matcher.fallbackMode === FallbackMode.PRERENDER
             ) {
               return FallbackMode.BLOCKING_STATIC_RENDER
@@ -3755,6 +3813,12 @@ export default async function build(
             }
 
             if (!hasRevalidateZero && isDynamicRoute(page)) {
+              const paramMatching = paramMatchingByRoute.get(originalAppPath)
+              const notFoundParams = paramMatching
+                ? Object.keys(paramMatching).filter(
+                    (name) => paramMatching[name] === 'not-found'
+                  )
+                : undefined
               // When PPR fallbacks aren't used, we need to include it here. If
               // they are enabled, then it'll already be included in the
               // prerendered routes.
@@ -4007,12 +4071,19 @@ export default async function build(
                 }
 
                 prerenderManifest.dynamicRoutes[prerenderOutputPathname] = {
+                  notFoundParams,
                   experimentalPPR: isRoutePPREnabled,
                   remainingPrerenderableParams:
                     route.remainingPrerenderableParams,
-                  throwOnEmptyStaticShell:
-                    prerenderCandidate?.throwOnEmptyStaticShell,
                   _isEnsureStaticPage: isEnsureStaticPage || undefined,
+                  // Only PPR routes use static-shell validation. Without a
+                  // build-time prerender, false lets runtime rendering resolve
+                  // the remaining prerenderable params during the static phase.
+                  throwOnEmptyStaticShell: isRoutePPREnabled
+                    ? prerenderCandidate
+                      ? prerenderCandidate.throwOnEmptyStaticShell
+                      : false
+                    : undefined,
                   renderingMode: isAppPPREnabled
                     ? isRoutePPREnabled
                       ? RenderingMode.PARTIALLY_STATIC
@@ -4027,6 +4098,16 @@ export default async function build(
                   ),
                   dataRoute,
                   fallback,
+                  isExplicitlyBlocking:
+                    fallbackMode === FallbackMode.BLOCKING_STATIC_RENDER &&
+                    route.fallbackRouteParams.some(
+                      ({ paramName }) =>
+                        paramMatchingByRoute.get(originalAppPath)?.[
+                          paramName
+                        ] === 'blocking'
+                    )
+                      ? true
+                      : undefined,
                   fallbackRevalidate: fallbackCacheControl?.revalidate,
                   fallbackExpire: fallbackCacheControl?.expire,
                   fallbackStatus: meta.status,
@@ -4768,6 +4849,10 @@ export default async function build(
           hasGSPAndRevalidateZero,
         })
       )
+
+      if (process.env.NEXT_PRIVATE_DEBUG_PARAM_MATCHING) {
+        printPrerenderMatchers(prerenderManifest, routesManifest.dynamicRoutes)
+      }
 
       if (bundler === Bundler.Turbopack) {
         await nextBuildSpan

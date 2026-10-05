@@ -17,6 +17,7 @@ const proc = (0, __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$cr
 
 __turbopack_context__.s([
     "spawn",
+    0,
     ()=>spawn
 ]);
 function spawn(cmd, args) {

@@ -8,6 +8,7 @@ import { warn } from '../build/output/log'
 import { printAndExit } from '../server/lib/utils'
 import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
+import { warnMissingReactDependencies } from '../lib/warn-missing-react-dependencies'
 import { enableMemoryDebuggingMode } from '../lib/memory/startup'
 import { disableMemoryDebuggingMode } from '../lib/memory/shutdown'
 import { Bundler, parseBundlerArgs } from '../lib/bundler'
@@ -102,6 +103,7 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
   }
 
   const dir = getProjectDir(directory)
+  warnMissingReactDependencies(dir)
 
   if (!existsSync(dir)) {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
@@ -157,7 +159,7 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
         process.off('SIGTERM', onTerminate)
         process.off('SIGINT', onInterrupt)
         process.off('SIGHUP', onHangup)
-        process.exit(await runUpgrade(dir, action))
+        process.exit(await runUpgrade(dir, action.policy, action.nudgeId))
       }
     })
     .catch((err) => {

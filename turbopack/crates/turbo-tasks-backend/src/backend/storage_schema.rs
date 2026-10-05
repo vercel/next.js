@@ -295,19 +295,19 @@ struct TaskStorageSchema {
     collectibles_dependencies: AutoSet<CollectiblesRef, 3>,
 
     /// Outdated output dependencies to be cleaned up (transient).
-    #[field(storage = "auto_set", category = "transient", shrink_on_completion)]
+    #[field(storage = "auto_set", category = "transient", drop_on_completion)]
     outdated_output_dependencies: AutoSet<TaskId, 6>,
 
     /// Outdated keyless cell dependencies to be cleaned up (transient).
-    #[field(storage = "auto_set", category = "transient", shrink_on_completion)]
+    #[field(storage = "auto_set", category = "transient", drop_on_completion)]
     outdated_cell_dependencies: AutoSet<CellRef, 3>,
 
     /// Outdated hashed cell dependencies to be cleaned up (transient).
-    #[field(storage = "auto_set", category = "transient", shrink_on_completion)]
+    #[field(storage = "auto_set", category = "transient", drop_on_completion)]
     outdated_cell_dependencies_hashed: AutoSet<(CellRef, u64), 1>,
 
     /// Outdated collectibles dependencies to be cleaned up (transient).
-    #[field(storage = "auto_set", category = "transient", shrink_on_completion)]
+    #[field(storage = "auto_set", category = "transient", drop_on_completion)]
     outdated_collectibles_dependencies: AutoSet<CollectiblesRef, 3>,
 
     // =========================================================================

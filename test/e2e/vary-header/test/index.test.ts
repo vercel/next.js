@@ -2,10 +2,12 @@ import { nextTestSetup } from 'e2e-utils'
 import { expectVaryHeaderToContain } from 'next-test-utils'
 import path from 'path'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// No deploy-specific incompatibility is documented.
+// @force-gate !deploy
 describe('Vary Header Tests', () => {
   const { next } = nextTestSetup({
     files: path.join(__dirname, '../app'),
-    skipDeployment: true,
   })
 
   it('should preserve custom vary header in API routes', async () => {

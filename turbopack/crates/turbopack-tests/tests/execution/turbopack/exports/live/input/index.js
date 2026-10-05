@@ -1,6 +1,8 @@
 import * as liveDefaultClass from './live_default_class.js'
 import * as liveExports from './live_exports.js'
 import * as constDefaultExportFunction from './const_default_export_function.js'
+import * as zeroBeforeAccessor from './zero_before_accessor.js'
+import cjsFunctionDefault, * as cjsFunctionNs from './cjs_function_with_default.js'
 
 it('hoisted declarations are live', () => {
   expect(liveExports.bar()).toBe('bar')
@@ -33,11 +35,10 @@ it('exported lets are live', () => {
 })
 
 // Whether a binding is emitted as a plain value or as a getter is decided by the module that
-// *owns* it. A local-only module is no longer split merely for export mangling, so its namespace
-// is the right place to inspect the emitted property descriptors. Look up its exact module ID to
-// avoid accidentally testing a re-export facade instead of the original module.
+// *owns* it. Materialized-namespace mangling splits the public facade from its `<locals>` module,
+// so inspect the latter's descriptors rather than those on the forwarding facade.
 function moduleNamespaceOf(fileName) {
-  const suffix = `exports/live/input/${fileName} [test] (ecmascript)`
+  const suffix = `exports/live/input/${fileName} [test] (ecmascript) <locals>`
   const id = Array.from(__turbopack_modules__.keys()).find((m) =>
     m.endsWith(suffix)
   )
@@ -74,6 +75,44 @@ it('exported bindings that are free vars are live', () => {
 
   const ns = moduleNamespaceOf('live_exports.js')
   expectGetter(ns, liveExports.exportsInfo.g.mangledName)
+})
+
+it('a constant 0 directly before an accessor binding is bound as a value', () => {
+  // Bindings are emitted in original name order, which puts `zero` immediately before
+  // `zeroLive`. Enumerating the namespace keeps the original names on the public facade, but the
+  // `<locals>` module behind it may still emit mangled keys.
+  expect(Object.keys(zeroBeforeAccessor)).toEqual([
+    'exportsInfo',
+    'setZeroLive',
+    'zero',
+    'zeroLive',
+  ])
+
+  const ns = moduleNamespaceOf('zero_before_accessor.js')
+  const info = zeroBeforeAccessor.exportsInfo
+  expectValue(ns, info.zero.mangledName, 0)
+  expectGetter(ns, info.zeroLive.mangledName)
+
+  expect(zeroBeforeAccessor.zeroLive).toBe('zeroLive')
+  zeroBeforeAccessor.setZeroLive('patched')
+  expect(zeroBeforeAccessor.zeroLive).toBe('patched')
+  expect(zeroBeforeAccessor.zero).toBe(0)
+})
+
+it('CommonJS function exports with a default key bind the function as default', () => {
+  expect(cjsFunctionDefault).toEqual(expect.any(Function))
+  expect(cjsFunctionDefault()).toBe('cjsFunction')
+
+  // Interop replaces the `default` getter with the exports function itself as a value. That
+  // swaps an accessor for a value in the middle of the bindings, so the binding after it has to
+  // stay intact, and in the same position.
+  expectValue(cjsFunctionNs, 'default', cjsFunctionDefault)
+  expectGetter(cjsFunctionNs, 'afterDefault')
+  expect(cjsFunctionNs.afterDefault).toBe('afterDefault')
+  expect(Object.keys(cjsFunctionNs).slice(-2)).toEqual([
+    'default',
+    'afterDefault',
+  ])
 })
 
 function expectValue(ns, propName, value) {

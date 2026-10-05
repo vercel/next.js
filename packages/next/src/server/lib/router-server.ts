@@ -283,7 +283,11 @@ export async function initialize(opts: {
           upgradeContext,
           'dev',
           null,
-          isCI || forceDevToolsForTesting ? null : assessment
+          isCI || forceDevToolsForTesting ? null : assessment,
+          {
+            telemetry,
+            onNudgeId: null,
+          }
         ).catch((error) => {
           const { printAndExit } =
             require('./utils') as typeof import('./utils')

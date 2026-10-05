@@ -10,6 +10,10 @@ function makeUntrackedParams(underlyingParams: Params): Promise<Params> {
   }
 
   const promise = Promise.resolve(underlyingParams)
+  // Mark it as fulfilled the way React does once it has tracked it, so `use()`
+  // can unwrap it without suspending.
+  ;(promise as any).status = 'fulfilled'
+  ;(promise as any).value = underlyingParams
   CachedParams.set(underlyingParams, promise)
 
   return promise

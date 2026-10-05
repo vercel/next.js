@@ -1,5 +1,4 @@
 import { nextTestSetup } from 'e2e-utils'
-import path from 'path'
 
 // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
 // This test is skipped when deployed because the local tarball appears corrupted
@@ -9,7 +8,7 @@ describe('self-importing-package', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     dependencies: {
-      'internal-pkg': `file:${path.join(__dirname, 'internal-pkg.tar')}`,
+      'internal-pkg': 'file:./internal-pkg.tar',
     },
   })
 

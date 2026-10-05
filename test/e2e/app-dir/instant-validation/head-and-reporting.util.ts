@@ -1408,15 +1408,9 @@ export function registerHeadAndReportingTests(
               expectInsightsToMatchPattern(insights, errorPattern.dev)
               expect(insights).toMatchInlineSnapshot(`
                {
-                 "description": "Route "/shells/ensure-static/navigation/session-data-without-suspense": Next.js encountered runtime data on a route that must be fully static.
-
-               \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` prevent the route from being prerendered.
-
-               Ways to fix this:
-                 - [static-params] For \`params\`: specify a static set of params to be prerendered using \`generateStaticParams\`
-                 - [client] For \`searchParams\`: read on the client with \`useSearchParams()\`",
+                 "description": "Next.js encountered runtime data on a route that must be fully static.",
                  "environmentLabel": "Server",
-                 "label": "Console Error",
+                 "label": "Static Route",
                  "source": "app/shells/(default)/ensure-static/_base/session-data-without-suspense/page.base.tsx (25:16) @ Cookies
                > 25 |   await cookies()
                     |                ^",
@@ -1439,11 +1433,14 @@ export function registerHeadAndReportingTests(
               expect(error).toMatchInlineSnapshot(`
                "Error: Route "/shells/ensure-static/navigation/session-data-without-suspense": Next.js encountered uncached or runtime data on a route that must be fully static.
 
-               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` prevents the route from being prerendered.
+               This route is configured to be fully static, but uncached or runtime data prevents it from being fully prerendered.
 
                Ways to fix this:
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
+                 - [remove] Remove the data access
+                 - [client] Read the data on the client
 
+               Learn more: https://nextjs.org/docs/messages/static-route-dynamic
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)

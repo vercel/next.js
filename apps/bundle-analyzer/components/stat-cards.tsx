@@ -2,8 +2,7 @@ import { cn } from '@/lib/utils'
 
 /**
  * Inline colored delta rendered next to the `A → B` value. For size deltas,
- * positive deltas (regressions) are red and negative (improvements) are
- * emerald — matching how regressions are usually framed. Neutral deltas
+ * positive deltas are blue and negative deltas are amber. Neutral deltas
  * (counts) render muted.
  */
 export function DeltaChip({
@@ -18,9 +17,9 @@ export function DeltaChip({
   const toneClass =
     tone === 'size'
       ? delta > 0
-        ? 'text-red-400'
+        ? 'text-delta-increase'
         : delta < 0
-          ? 'text-emerald-400'
+          ? 'text-delta-decrease'
           : 'text-muted-foreground'
       : 'text-muted-foreground'
   return (
@@ -105,12 +104,10 @@ export function CountCard({
 }) {
   const toneClass =
     tone === 'added'
-      ? 'text-red-500'
+      ? 'text-delta-increase'
       : tone === 'removed'
-        ? 'text-green-500'
-        : tone === 'changed'
-          ? 'text-amber-500'
-          : 'text-muted-foreground'
+        ? 'text-delta-decrease'
+        : 'text-muted-foreground'
   return (
     <div className="flex min-w-[80px] flex-col gap-1 rounded-md border border-border bg-background/60 px-3 py-2">
       <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
