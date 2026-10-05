@@ -264,6 +264,71 @@ describe('next analyze', () => {
     expect(outputRecords.map((record) => record.coverage)).toEqual(
       membershipHeader.output_file_module_coverage
     )
+
+    const clientEntries = records.filter(
+      (record) =>
+        record.type === 'module' &&
+        record.path.endsWith('/app/client-entry.tsx') &&
+        record.ident.includes('[app-client]')
+    )
+    const asyncTargets = records.filter(
+      (record) =>
+        record.type === 'module' &&
+        record.ident.includes('[app-client]') &&
+        (record.path.endsWith('/app/async-target.ts') ||
+          record.path.endsWith('/app/dynamic-target.tsx'))
+    )
+    expect(clientEntries.length).toBeGreaterThan(0)
+    expect(
+      asyncTargets.some((record) =>
+        record.path.endsWith('/app/async-target.ts')
+      )
+    ).toBe(true)
+    expect(
+      asyncTargets.some(
+        (record) =>
+          record.path.endsWith('/app/dynamic-target.tsx') &&
+          record.ident.includes('next/dynamic entry')
+      )
+    ).toBe(true)
+    const asyncDependencies = clientEntries.flatMap(
+      (record) => record.dependencies.async
+    )
+    for (const target of asyncTargets) {
+      // The import graph records the target, not a synthetic loader module.
+      if (
+        target.ident.includes('next/dynamic entry') ||
+        target.path.endsWith('/app/async-target.ts')
+      ) {
+        expect(asyncDependencies).toContain(target.ident)
+      }
+    }
+    const importerOutputs = outputRecords.filter((record) =>
+      clientEntries.some((entry) => record.modules.includes(entry.ident))
+    )
+    expect(importerOutputs.length).toBeGreaterThan(0)
+    for (const output of importerOutputs) {
+      expect(output.coverage).toBe('exact')
+      // Joining a loader's target must not attribute that target to the importer.
+      for (const target of asyncTargets) {
+        expect(output.modules).not.toContain(target.ident)
+      }
+    }
+    expect(
+      records.filter(
+        (record) =>
+          record.type === 'unjoined' &&
+          /\/app\/(async-target\.ts|dynamic-target\.tsx)\b/.test(
+            record.module_ident
+          )
+      )
+    ).toEqual([])
+    expect(
+      outputRecords
+        .flatMap((record) => record.modules)
+        .some((ident: string) => ident.endsWith('async loader)'))
+    ).toBe(false)
+
     const filtered = await next.runCommand([
       'analyze',
       'export',

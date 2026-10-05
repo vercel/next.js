@@ -192,10 +192,10 @@
         },
         "modules": {
           "$ref": "#/$defs/identities",
-          "description": "Joined module identities from this snapshot's global module table. Unsupported enumeration or joining can yield partial or empty membership; separately compiled worker payloads can remain unjoined."
+          "description": "Joined module identities from this snapshot's global module table. Async loader stubs are omitted only after their dynamically imported target joins this table; the target is not added to the loader's output membership. Unsupported enumeration or joining can yield partial or empty membership; separately compiled worker payloads can remain unjoined."
         },
         "coverage": {
-          "description": "Membership evidence: exact joins all enumerable JS/CSS chunk members; unsupported could not establish complete enumeration or joining (partial members may exist); not_a_chunk is outside JS/CSS chunk membership. Unsupported never means an empty chunk.",
+          "description": "Membership evidence: exact enumerates all JS/CSS chunk members and joins every member other than async loader stubs whose targets were confirmed in the module table; unsupported could not establish complete enumeration or joining (partial members may exist); not_a_chunk is outside JS/CSS chunk membership. Unsupported never means an empty chunk.",
           "enum": ["exact", "unsupported", "not_a_chunk"]
         }
       },
@@ -251,7 +251,7 @@
         },
         "reason": {
           "type": "string",
-          "description": "Reason a reported output member cannot join the global snapshot module table."
+          "description": "Reason a reported output member cannot join the global snapshot module table. async_loader_target_missing means a typed async loader's target was absent from that table, so the stub remains unjoined. outside_whole_app_module_graph means the member itself is outside the graph, for example a separately compiled worker payload."
         }
       },
       "additionalProperties": true
