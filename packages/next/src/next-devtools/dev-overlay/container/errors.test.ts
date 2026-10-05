@@ -549,9 +549,9 @@ describe('card sets for all error families', () => {
   })
 
   it.each([
-    ['Math.random()', 'return <Confetti seed={Math.random()} />'],
+    ['Math.random()', 'return <Dots seed={Math.random()} />'],
     ['Date.now()', 'return <Clock time={Date.now()} />'],
-    ['crypto.randomUUID()', 'return <Draft id={crypto.randomUUID()} />'],
+    ['crypto.randomUUID()', 'return <Id>{crypto.randomUUID()}</Id>'],
   ])(
     'sync-io %s suggests use(browser()) with a rendered value',
     (cause, renderSnippet) => {
@@ -561,6 +561,10 @@ describe('card sets for all error families', () => {
 
       expect(clientCard?.snippets).toContainEqual({
         text: 'use(browser())',
+        highlight: true,
+      })
+      expect(clientCard?.snippets).toContainEqual({
+        text: '"use client"',
         highlight: true,
       })
       expect(clientCard?.snippets).toContainEqual({ text: renderSnippet })
