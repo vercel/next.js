@@ -34,17 +34,14 @@ function inlineSourcemaps(entry: EcmascriptModuleEntry): string {
 
 let serverHmrUpdateHandler: ((msg: NodeJsHmrPayload) => void) | null = null
 
-function initializeServerHmr(
-  moduleFactories: ModuleFactories,
-  devModuleCache: ModuleCache<HotModule>
-): void {
+function initializeServerHmr(): void {
   if (serverHmrUpdateHandler != null) {
     throw new Error('[Server HMR] Server HMR client is already initialized')
   }
 
   // Register the update handler for the server runtime
   serverHmrUpdateHandler = (msg: NodeJsHmrPayload) => {
-    handleNodejsUpdate(msg, moduleFactories, devModuleCache)
+    handleNodejsUpdate(msg)
   }
 }
 
@@ -69,11 +66,7 @@ function emitMessage(msg: { type: string; data: any }): void {
  * Handles server message updates and applies them to the Node.js runtime.
  * Uses shared HMR update logic from hmr-runtime.ts.
  */
-function handleNodejsUpdate(
-  msg: NodeJsHmrPayload,
-  moduleFactories: ModuleFactories,
-  devModuleCache: ModuleCache<HotModule>
-): void {
+function handleNodejsUpdate(msg: NodeJsHmrPayload): void {
   if (msg.type !== 'partial') {
     return
   }
@@ -97,14 +90,14 @@ function handleNodejsUpdate(
 
       if (instruction.merged) {
         for (const merged of instruction.merged) {
-          applyEcmascriptMergedUpdate(merged, moduleFactories, devModuleCache)
+          applyEcmascriptMergedUpdate(merged)
         }
       }
       return
     }
 
     if (instruction.type === 'EcmascriptMergedUpdate') {
-      applyEcmascriptMergedUpdate(instruction, moduleFactories, devModuleCache)
+      applyEcmascriptMergedUpdate(instruction)
       return
     }
   } catch (e) {
@@ -114,9 +107,7 @@ function handleNodejsUpdate(
 }
 
 function applyEcmascriptMergedUpdate(
-  instruction: NodeJsEcmascriptMergedUpdate,
-  moduleFactories: ModuleFactories,
-  devModuleCache: ModuleCache<HotModule>
+  instruction: NodeJsEcmascriptMergedUpdate
 ): void {
   const { entries = {}, chunks = {} } = instruction
 
@@ -150,8 +141,6 @@ function applyEcmascriptMergedUpdate(
     evalModuleEntry,
     instantiateModule,
     applyModuleFactoryName: () => {}, // Node doesn't use this
-    moduleFactories,
-    devModuleCache,
     autoAcceptRootModules: true,
   })
 }

@@ -14,7 +14,6 @@ process.env.TURBOPACK = '1'
 
 const url = require('url') as typeof import('url')
 
-const moduleFactories: ModuleFactories = new Map()
 const moduleCache: ModuleCache<Module> = new Map()
 
 /**
@@ -82,7 +81,7 @@ function loadRuntimeChunkPath(
   try {
     const resolved = path.resolve(RUNTIME_ROOT, chunkPath)
     const chunkModules: CompressedModuleFactories = require(resolved)
-    installCompressedModuleFactories(chunkModules, 0, moduleFactories)
+    installCompressedModuleFactories(chunkModules, 0)
     loadedChunks.add(chunkPath)
   } catch (cause) {
     let errorMessage = `Failed to load chunk ${chunkPath}`
@@ -116,7 +115,7 @@ function loadChunkAsync<TModule extends Module>(
       // TODO: consider switching to `import()` to enable concurrent chunk loading and async file io
       // However this is incompatible with hot reloading (since `import` doesn't use the require cache)
       const chunkModules: CompressedModuleFactories = require(resolved)
-      installCompressedModuleFactories(chunkModules, 0, moduleFactories)
+      installCompressedModuleFactories(chunkModules, 0)
       entry = loadedChunk
     } catch (cause) {
       const errorMessage = `Failed to load chunk ${chunkPath} from module ${this.m.id}`

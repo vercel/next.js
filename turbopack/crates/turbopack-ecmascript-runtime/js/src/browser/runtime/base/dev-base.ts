@@ -90,16 +90,10 @@ function getOrInstantiateRuntimeModule(
   chunkPath: ChunkPath | undefined,
   moduleId: ModuleId
 ): HotModule {
-  const module = devModuleCache.get(moduleId)
-  if (module) {
-    if (module.error) {
-      throw module.error
-    }
-    return module
-  }
-
-  // @ts-ignore
-  return instantiateModule(moduleId, SourceType.Runtime, chunkPath)
+  return (
+    getCachedModule(devModuleCache, moduleId) ??
+    instantiateModule(moduleId, SourceType.Runtime, chunkPath)
+  )
 }
 
 /**
@@ -115,17 +109,12 @@ const getOrInstantiateModuleFromParent: GetOrInstantiateModuleFromParent<
     )
   }
 
-  const module = devModuleCache.get(id)
-
   if (sourceModule.children.indexOf(id) === -1) {
     sourceModule.children.push(id)
   }
 
+  const module = getCachedModule(devModuleCache, id)
   if (module) {
-    if (module.error) {
-      throw module.error
-    }
-
     if (module.parents.indexOf(sourceModule.id) === -1) {
       module.parents.push(sourceModule.id)
     }
@@ -160,34 +149,12 @@ function instantiateModule(
   sourceType: SourceType,
   sourceData: SourceData
 ): HotModule {
-  // Browser: creates base HotModule object (hot API added by shared code)
-  const createModuleObjectFn = (id: ModuleId) => {
-    return createModuleObject(id) as HotModule
-  }
-
-  // Browser: creates DevContext with refresh
-  const createContext = (
-    module: HotModule,
-    exports: Exports,
-    refresh: RefreshContext
-  ) => {
-    return new (DevContext as any as DevContextConstructor)(
-      module,
-      exports,
-      refresh
-    )
-  }
-
   // Use shared instantiation logic (includes hot API setup)
   return instantiateModuleShared(
     moduleId,
     sourceType,
     sourceData,
-    moduleFactories,
-    devModuleCache,
-    runtimeModules,
-    createModuleObjectFn,
-    createContext,
+    createModuleObject,
     runModuleExecutionHooks
   )
 }
@@ -205,17 +172,23 @@ const DUMMY_REFRESH_CONTEXT = {
  */
 function runModuleExecutionHooks(
   module: HotModule,
-  executeModule: (ctx: RefreshContext) => void
+  exports: Exports,
+  factory: Function
 ) {
   if (typeof globalThis.$RefreshInterceptModuleExecution$ === 'function') {
     const cleanupReactRefreshIntercept =
       globalThis.$RefreshInterceptModuleExecution$(module.id)
     try {
-      executeModule({
-        register: globalThis.$RefreshReg$,
-        signature: globalThis.$RefreshSig$,
-        registerExports: registerExportsAndSetupBoundaryForReactRefresh,
-      })
+      factory.call(
+        exports,
+        new (DevContext as unknown as DevContextConstructor)(module, exports, {
+          register: globalThis.$RefreshReg$,
+          signature: globalThis.$RefreshSig$,
+          registerExports: registerExportsAndSetupBoundaryForReactRefresh,
+        }),
+        module,
+        exports
+      )
     } finally {
       // Always cleanup the intercept, even if module execution failed.
       cleanupReactRefreshIntercept()
@@ -224,7 +197,16 @@ function runModuleExecutionHooks(
     // If the react refresh hooks are not installed we need to bind dummy functions.
     // This is expected when running in a Web Worker.  It is also common in some of
     // our test environments.
-    executeModule(DUMMY_REFRESH_CONTEXT)
+    factory.call(
+      exports,
+      new (DevContext as unknown as DevContextConstructor)(
+        module,
+        exports,
+        DUMMY_REFRESH_CONTEXT
+      ),
+      module,
+      exports
+    )
   }
 }
 
@@ -387,8 +369,6 @@ function applyEcmascriptMergedUpdate(update: EcmascriptMergedUpdate) {
     evalModuleEntry: _eval, // browser's eval with source maps
     instantiateModule, // now wraps shared logic
     applyModuleFactoryName,
-    moduleFactories,
-    devModuleCache,
     autoAcceptRootModules: false,
   })
 }
@@ -563,7 +543,6 @@ function registerChunk(registration: ChunkRegistration | RuntimeParams) {
     installCompressedModuleFactories(
       registration as CompressedModuleFactories,
       /* offset= */ 1,
-      moduleFactories,
       (id: ModuleId) => addModuleToChunk(id, chunkPath)
     )
   }

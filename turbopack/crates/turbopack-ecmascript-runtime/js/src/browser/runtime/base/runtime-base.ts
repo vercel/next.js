@@ -92,7 +92,6 @@ interface DevRuntimeBackend {
   restart: () => void
 }
 
-const moduleFactories: ModuleFactories = new Map()
 contextPrototype.M = moduleFactories
 
 const availableModules: Map<ModuleId, Promise<any> | true> = new Map()
