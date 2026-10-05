@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="2023a48b-532f-58b2-896b-3ba56652458f")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="5c399b2f-d432-1f6e-d98a-76367be5d318")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/0rv8_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js",
     {"otherChunks":["output/0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvsq4xsbk.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -494,7 +494,7 @@ function esmImport(id) {
 }
 contextPrototype.i = esmImport;
 function asyncLoader(moduleId) {
-    const loader = this.r(moduleId);
+    const loader = getOrInstantiateModuleFromParent(moduleId, this.m).exports;
     return loader(esmImport.bind(this));
 }
 contextPrototype.A = asyncLoader;
@@ -1185,6 +1185,19 @@ function isCss(chunkUrl) {
  * Module IDs that are instantiated as part of the runtime of a chunk.
  */ let runtimeModules;
 /**
+ * Creates the `__turbopack_context__` passed to a module factory. Assigned by
+ * each dev runtime.
+ */ let createDevModuleContext;
+/**
+ * Called right before a module factory runs. It may return a callback, which is
+ * called once the factory returns or throws. Assigned by dev runtimes that need
+ * it.
+ */ let interceptDevModuleExecution = undefined;
+/**
+ * Whether to set `module.loaded` once a module has evaluated, as Node.js does
+ * for CommonJS modules. Set by the Node.js dev runtime.
+ */ let markDevModulesLoaded = false;
+/**
  * Maps module IDs to persisted data between executions of their hot module
  * implementation (`hot.data`).
  */ const moduleHotData = new Map();
@@ -1594,24 +1607,52 @@ function formatDependencyChain(dependencyChain) {
     };
 }
 /* eslint-disable @typescript-eslint/no-unused-vars */ /**
- * Shared module instantiation logic.
- * This handles the full module instantiation flow for both browser and Node.js.
- * Only React Refresh hooks differ between platforms (passed as callback).
- */ function instantiateModuleShared(moduleId, sourceType, sourceData, createModuleObjectFn, runModuleExecutionHooksFn) {
-    // 1. Factory validation (same in both browser and Node.js)
-    const id = moduleId;
-    const moduleFactory = moduleFactories.get(id);
+ * Instantiates a module in development mode.
+ *
+ * Every frame between an import and the imported module's evaluation is
+ * repeated once per level of an import chain, which limits how deep that chain
+ * can get before the stack overflows. So this calls the module factory
+ * directly, and the setup lives in `createDevModule` and the
+ * `interceptDevModuleExecution`/`createDevModuleContext` hooks, which all
+ * return before the factory runs.
+ */ function instantiateModule(moduleId, sourceType, sourceData) {
+    const moduleFactory = moduleFactories.get(moduleId);
     if (typeof moduleFactory !== 'function') {
         throw new Error(factoryNotAvailableMessage(moduleId, sourceType, sourceData) + `\nThis is often caused by a stale browser cache, misconfigured Cache-Control headers, or a service worker serving outdated responses.` + `\nTo fix this, make sure your Cache-Control headers allow revalidation of chunks and review your service worker configuration. ` + `As an immediate workaround, try hard-reloading the page, clearing the browser cache, or unregistering any service workers.`);
     }
-    // 2. Hot API setup (same in both - works for browser, included for Node.js)
-    const hotData = moduleHotData.get(id);
-    const { hot, hotState } = createModuleHot(id, hotData);
-    // 3. Parent assignment logic (same in both)
+    const module = createDevModule(moduleId, sourceType, sourceData);
+    const exports = module.exports;
+    const finishExecution = interceptDevModuleExecution?.(module);
+    // Called like in the production runtimes, without a `this`, and without a
+    // `finally`: both make this frame measurably larger.
+    try {
+        moduleFactory(createDevModuleContext(module, exports), module, exports);
+    } catch (error) {
+        module.error = error;
+        finishExecution?.();
+        throw error;
+    }
+    finishExecution?.();
+    if (markDevModulesLoaded) {
+        ;
+        module.loaded = true;
+    }
+    if (module.namespaceObject && module.exports !== module.namespaceObject) {
+        // in case of a circular dependency: cjs1 -> esm2 -> cjs1
+        interopEsm(module.exports, module.namespaceObject);
+    }
+    return module;
+}
+/**
+ * Creates a module object with its hot API and parents, and adds it to the
+ * module cache.
+ */ function createDevModule(moduleId, sourceType, sourceData) {
+    const hotData = moduleHotData.get(moduleId);
+    const { hot, hotState } = createModuleHot(moduleId, hotData);
     let parents;
     switch(sourceType){
         case SourceType.Runtime:
-            runtimeModules.add(id);
+            runtimeModules.add(moduleId);
             parents = [];
             break;
         case SourceType.Parent:
@@ -1625,27 +1666,12 @@ function formatDependencyChain(dependencyChain) {
         default:
             throw new Error(`Unknown source type: ${sourceType}`);
     }
-    // 4. Module creation (platform creates base module object, which becomes a
-    // HotModule once the fields below are assigned)
-    const module = createModuleObjectFn(id);
-    const exports = module.exports;
+    // The module object becomes a HotModule once `hot` is assigned.
+    const module = createModuleWithDirection(moduleId);
     module.parents = parents;
-    module.children = [];
     module.hot = hot;
-    devModuleCache.set(id, module);
+    devModuleCache.set(moduleId, module);
     moduleHotState.set(module, hotState);
-    // 5. Module execution (React Refresh hooks are platform-specific)
-    try {
-        runModuleExecutionHooksFn(module, exports, moduleFactory);
-    } catch (error) {
-        module.error = error;
-        throw error;
-    }
-    // 6. ESM interop (same in both)
-    if (module.namespaceObject && module.exports !== module.namespaceObject) {
-        // in case of a circular dependency: cjs1 -> esm2 -> cjs1
-        interopEsm(module.exports, module.namespaceObject);
-    }
     return module;
 }
 /**
@@ -1878,6 +1904,8 @@ devContextPrototype.c = devModuleCache;
 runtimeModules = new Set();
 // Set flag to indicate we use ModuleWithDirection
 createModuleWithDirectionFlag = true;
+interceptDevModuleExecution = interceptModuleExecutionForReactRefresh;
+createDevModuleContext = createDevContextWithReactRefresh;
 /**
  * Map from module ID to the chunks that contain this module.
  *
@@ -1929,10 +1957,6 @@ function DevContext(module, exports, refresh) {
     this.k = refresh;
 }
 DevContext.prototype = Context.prototype;
-function instantiateModule(moduleId, sourceType, sourceData) {
-    // Use shared instantiation logic (includes hot API setup)
-    return instantiateModuleShared(moduleId, sourceType, sourceData, createModuleObject, runModuleExecutionHooks);
-}
 const DUMMY_REFRESH_CONTEXT = {
     register: (_type, _id)=>{},
     signature: ()=>(_type)=>{},
@@ -1941,26 +1965,25 @@ const DUMMY_REFRESH_CONTEXT = {
 /**
  * NOTE(alexkirsz) Webpack has a "module execution" interception hook that
  * Next.js' React Refresh runtime hooks into to add module context to the
- * refresh registry.
- */ function runModuleExecutionHooks(module, exports, factory) {
+ * refresh registry. The returned cleanup restores the previous registry.
+ */ function interceptModuleExecutionForReactRefresh(module) {
     if (typeof globalThis.$RefreshInterceptModuleExecution$ === 'function') {
-        const cleanupReactRefreshIntercept = globalThis.$RefreshInterceptModuleExecution$(module.id);
-        try {
-            factory.call(exports, new DevContext(module, exports, {
-                register: globalThis.$RefreshReg$,
-                signature: globalThis.$RefreshSig$,
-                registerExports: registerExportsAndSetupBoundaryForReactRefresh
-            }), module, exports);
-        } finally{
-            // Always cleanup the intercept, even if module execution failed.
-            cleanupReactRefreshIntercept();
-        }
-    } else {
-        // If the react refresh hooks are not installed we need to bind dummy functions.
-        // This is expected when running in a Web Worker.  It is also common in some of
-        // our test environments.
-        factory.call(exports, new DevContext(module, exports, DUMMY_REFRESH_CONTEXT), module, exports);
+        return globalThis.$RefreshInterceptModuleExecution$(module.id);
     }
+    return undefined;
+}
+/**
+ * Creates the module's context. This runs after
+ * `interceptModuleExecutionForReactRefresh`, so `$RefreshReg$` and
+ * `$RefreshSig$` already belong to this module.
+ */ function createDevContextWithReactRefresh(module, exports) {
+    return new DevContext(module, exports, typeof globalThis.$RefreshInterceptModuleExecution$ === 'function' ? {
+        register: globalThis.$RefreshReg$,
+        signature: globalThis.$RefreshSig$,
+        registerExports: registerExportsAndSetupBoundaryForReactRefresh
+    } : // This is expected when running in a Web Worker.  It is also common in some of
+    // our test environments.
+    DUMMY_REFRESH_CONTEXT);
 }
 /**
  * This is adapted from https://github.com/vercel/next.js/blob/3466862d9dc9c8bb3131712134d38757b918d1c0/packages/react-refresh-utils/internal/ReactRefreshModule.runtime.ts
@@ -2605,5 +2628,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=2023a48b-532f-58b2-896b-3ba56652458f
+//# debugId=5c399b2f-d432-1f6e-d98a-76367be5d318
 //# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js.map

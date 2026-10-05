@@ -25,6 +25,9 @@ runtimeModules = new Set()
 // Set flag to indicate we use ModuleWithDirection
 createModuleWithDirectionFlag = true
 
+interceptDevModuleExecution = interceptModuleExecutionForReactRefresh
+createDevModuleContext = createDevContextWithReactRefresh
+
 // This file must not use `import` and `export` statements. Otherwise, it
 // becomes impossible to augment interfaces declared in `<reference>`d files
 // (e.g. `Module`). Hence, the need for `import()` here.
@@ -144,21 +147,6 @@ type DevContextConstructor = {
   ): TurbopackDevContext
 }
 
-function instantiateModule(
-  moduleId: ModuleId,
-  sourceType: SourceType,
-  sourceData: SourceData
-): HotModule {
-  // Use shared instantiation logic (includes hot API setup)
-  return instantiateModuleShared(
-    moduleId,
-    sourceType,
-    sourceData,
-    createModuleObject,
-    runModuleExecutionHooks
-  )
-}
-
 const DUMMY_REFRESH_CONTEXT = {
   register: (_type: unknown, _id: unknown) => {},
   signature: () => (_type: unknown) => {},
@@ -168,46 +156,40 @@ const DUMMY_REFRESH_CONTEXT = {
 /**
  * NOTE(alexkirsz) Webpack has a "module execution" interception hook that
  * Next.js' React Refresh runtime hooks into to add module context to the
- * refresh registry.
+ * refresh registry. The returned cleanup restores the previous registry.
  */
-function runModuleExecutionHooks(
-  module: HotModule,
-  exports: Exports,
-  factory: Function
-) {
+function interceptModuleExecutionForReactRefresh(
+  module: HotModule
+): (() => void) | undefined {
   if (typeof globalThis.$RefreshInterceptModuleExecution$ === 'function') {
-    const cleanupReactRefreshIntercept =
-      globalThis.$RefreshInterceptModuleExecution$(module.id)
-    try {
-      factory.call(
-        exports,
-        new (DevContext as unknown as DevContextConstructor)(module, exports, {
+    return globalThis.$RefreshInterceptModuleExecution$(module.id)
+  }
+  return undefined
+}
+
+/**
+ * Creates the module's context. This runs after
+ * `interceptModuleExecutionForReactRefresh`, so `$RefreshReg$` and
+ * `$RefreshSig$` already belong to this module.
+ */
+function createDevContextWithReactRefresh(
+  module: HotModule,
+  exports: Exports
+): TurbopackDevContext {
+  return new (DevContext as unknown as DevContextConstructor)(
+    module,
+    exports,
+    typeof globalThis.$RefreshInterceptModuleExecution$ === 'function'
+      ? {
           register: globalThis.$RefreshReg$,
           signature: globalThis.$RefreshSig$,
           registerExports: registerExportsAndSetupBoundaryForReactRefresh,
-        }),
-        module,
-        exports
-      )
-    } finally {
-      // Always cleanup the intercept, even if module execution failed.
-      cleanupReactRefreshIntercept()
-    }
-  } else {
-    // If the react refresh hooks are not installed we need to bind dummy functions.
-    // This is expected when running in a Web Worker.  It is also common in some of
-    // our test environments.
-    factory.call(
-      exports,
-      new (DevContext as unknown as DevContextConstructor)(
-        module,
-        exports,
+        }
+      : // If the react refresh hooks are not installed we need to bind dummy functions.
+        // This is expected when running in a Web Worker.  It is also common in some of
+        // our test environments.
         DUMMY_REFRESH_CONTEXT
-      ),
-      module,
-      exports
-    )
-  }
+  )
 }
 
 /**

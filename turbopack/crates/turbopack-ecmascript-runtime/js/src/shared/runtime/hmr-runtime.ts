@@ -29,6 +29,30 @@ let devModuleCache: ModuleCache<HotModule>
 let runtimeModules: Set<ModuleId>
 
 /**
+ * Creates the `__turbopack_context__` passed to a module factory. Assigned by
+ * each dev runtime.
+ */
+let createDevModuleContext: (
+  module: HotModule,
+  exports: Exports
+) => TurbopackBaseContext<HotModule>
+
+/**
+ * Called right before a module factory runs. It may return a callback, which is
+ * called once the factory returns or throws. Assigned by dev runtimes that need
+ * it.
+ */
+let interceptDevModuleExecution:
+  | ((module: HotModule) => (() => void) | undefined)
+  | undefined = undefined
+
+/**
+ * Whether to set `module.loaded` once a module has evaluated, as Node.js does
+ * for CommonJS modules. Set by the Node.js dev runtime.
+ */
+let markDevModulesLoaded = false
+
+/**
  * Maps module IDs to persisted data between executions of their hot module
  * implementation (`hot.data`).
  */
@@ -586,24 +610,21 @@ function disposePhase(
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 /**
- * Shared module instantiation logic.
- * This handles the full module instantiation flow for both browser and Node.js.
- * Only React Refresh hooks differ between platforms (passed as callback).
+ * Instantiates a module in development mode.
+ *
+ * Every frame between an import and the imported module's evaluation is
+ * repeated once per level of an import chain, which limits how deep that chain
+ * can get before the stack overflows. So this calls the module factory
+ * directly, and the setup lives in `createDevModule` and the
+ * `interceptDevModuleExecution`/`createDevModuleContext` hooks, which all
+ * return before the factory runs.
  */
-function instantiateModuleShared(
+function instantiateModule(
   moduleId: ModuleId,
   sourceType: SourceType,
-  sourceData: SourceData,
-  createModuleObjectFn: (id: ModuleId) => Module,
-  runModuleExecutionHooksFn: (
-    module: HotModule,
-    exports: Exports,
-    factory: Function
-  ) => void
+  sourceData: SourceData
 ): HotModule {
-  // 1. Factory validation (same in both browser and Node.js)
-  const id = moduleId
-  const moduleFactory = moduleFactories.get(id)
+  const moduleFactory = moduleFactories.get(moduleId)
   if (typeof moduleFactory !== 'function') {
     throw new Error(
       factoryNotAvailableMessage(moduleId, sourceType, sourceData) +
@@ -613,15 +634,47 @@ function instantiateModuleShared(
     )
   }
 
-  // 2. Hot API setup (same in both - works for browser, included for Node.js)
-  const hotData = moduleHotData.get(id)!
-  const { hot, hotState } = createModuleHot(id, hotData)
+  const module = createDevModule(moduleId, sourceType, sourceData)
+  const exports = module.exports
 
-  // 3. Parent assignment logic (same in both)
+  const finishExecution = interceptDevModuleExecution?.(module)
+  // Called like in the production runtimes, without a `this`, and without a
+  // `finally`: both make this frame measurably larger.
+  try {
+    moduleFactory(createDevModuleContext(module, exports), module, exports)
+  } catch (error) {
+    module.error = error as any
+    finishExecution?.()
+    throw error
+  }
+  finishExecution?.()
+  if (markDevModulesLoaded) {
+    ;(module as any).loaded = true
+  }
+  if (module.namespaceObject && module.exports !== module.namespaceObject) {
+    // in case of a circular dependency: cjs1 -> esm2 -> cjs1
+    interopEsm(module.exports, module.namespaceObject)
+  }
+
+  return module
+}
+
+/**
+ * Creates a module object with its hot API and parents, and adds it to the
+ * module cache.
+ */
+function createDevModule(
+  moduleId: ModuleId,
+  sourceType: SourceType,
+  sourceData: SourceData
+): HotModule {
+  const hotData = moduleHotData.get(moduleId)!
+  const { hot, hotState } = createModuleHot(moduleId, hotData)
+
   let parents: ModuleId[]
   switch (sourceType) {
     case SourceType.Runtime:
-      runtimeModules.add(id)
+      runtimeModules.add(moduleId)
       parents = []
       break
     case SourceType.Parent:
@@ -634,31 +687,13 @@ function instantiateModuleShared(
       throw new Error(`Unknown source type: ${sourceType}`)
   }
 
-  // 4. Module creation (platform creates base module object, which becomes a
-  // HotModule once the fields below are assigned)
-  const module = createModuleObjectFn(id) as HotModule
-  const exports = module.exports
+  // The module object becomes a HotModule once `hot` is assigned.
+  const module = createModuleWithDirection(moduleId) as HotModule
   module.parents = parents
-  module.children = []
   module.hot = hot
 
-  devModuleCache.set(id, module)
+  devModuleCache.set(moduleId, module)
   moduleHotState.set(module, hotState)
-
-  // 5. Module execution (React Refresh hooks are platform-specific)
-  try {
-    runModuleExecutionHooksFn(module, exports, moduleFactory)
-  } catch (error) {
-    module.error = error as any
-    throw error
-  }
-
-  // 6. ESM interop (same in both)
-  if (module.namespaceObject && module.exports !== module.namespaceObject) {
-    // in case of a circular dependency: cjs1 -> esm2 -> cjs1
-    interopEsm(module.exports, module.namespaceObject)
-  }
-
   return module
 }
 
