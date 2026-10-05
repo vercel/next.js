@@ -517,7 +517,6 @@ async function exportAppImpl(
         nextConfig.experimental.parallelRouteMetadata ?? false,
       inlineCss: nextConfig.experimental.inlineCss ?? false,
       prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
-      authInterrupts: !!nextConfig.experimental.authInterrupts,
       reactBrowserBailout: nextConfig.experimental.reactBrowserBailout ?? false,
       useCacheTimeout: nextConfig.experimental.useCacheTimeout,
       durableUseCacheEntries: Boolean(

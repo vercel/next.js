@@ -868,7 +868,6 @@ export async function buildAppStaticPaths({
   route,
   distDir,
   cacheComponents,
-  authInterrupts,
   useCacheTimeout,
   durableUseCacheEntries,
   staticPageGenerationTimeout,
@@ -893,7 +892,6 @@ export async function buildAppStaticPaths({
   page: string
   route: NormalizedAppRoute
   cacheComponents: boolean
-  authInterrupts: boolean
   useCacheTimeout: number
   durableUseCacheEntries: boolean
   staticPageGenerationTimeout: number
@@ -970,7 +968,6 @@ export async function buildAppStaticPaths({
       // TODO: remove validationLevel and other global config out of renderOpts
       validationLevel: 'warning',
       experimental: {
-        authInterrupts,
         useCacheTimeout,
         durableUseCacheEntries,
       },

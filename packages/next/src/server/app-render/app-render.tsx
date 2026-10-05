@@ -2120,7 +2120,6 @@ async function getRSCPayload(
     rootLayoutIncluded: false,
     missingSlots,
     preloadCallbacks,
-    authInterrupts: ctx.renderOpts.experimental.authInterrupts,
     MetadataOutlet,
     isPrerendering,
     hintTree: hints,

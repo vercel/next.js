@@ -247,6 +247,13 @@ function checkDeprecations(
 
   warnOptionHasBeenDeprecated(
     userConfig,
+    'experimental.authInterrupts',
+    `\`experimental.authInterrupts\` is no longer needed, because \`forbidden\` and \`unauthorized\` are available by default. You can remove it from ${configFileName}.`,
+    silent
+  )
+
+  warnOptionHasBeenDeprecated(
+    userConfig,
     'eslint',
     `\`eslint\` configuration in ${configFileName} is no longer supported. See more info here: https://nextjs.org/docs/app/api-reference/cli/next#next-lint-options`,
     silent
