@@ -15,11 +15,12 @@ The following example shows a file with a `use server` directive at the top. All
 'use server'
 import { db } from '@/lib/db' // Your database client
 import { auth } from '@/lib/auth'
+import { unauthorized } from 'next/navigation'
 
 export async function createUser(data: { name: string; email: string }) {
   const session = await auth()
   if (!session?.user) {
-    throw new Error('Unauthorized')
+    unauthorized()
   }
 
   const user = await db.user.create({ data })
@@ -31,11 +32,12 @@ export async function createUser(data: { name: string; email: string }) {
 'use server'
 import { db } from '@/lib/db' // Your database client
 import { auth } from '@/lib/auth'
+import { unauthorized } from 'next/navigation'
 
 export async function createUser(data) {
   const session = await auth()
   if (!session?.user) {
-    throw new Error('Unauthorized')
+    unauthorized()
   }
 
   const user = await db.user.create({ data })
@@ -53,11 +55,12 @@ Assuming you have a `fetchUsers` Server Function in `actions.ts`:
 'use server'
 import { db } from '@/lib/db' // Your database client
 import { auth } from '@/lib/auth'
+import { unauthorized } from 'next/navigation'
 
 export async function fetchUsers() {
   const session = await auth()
   if (!session?.user) {
-    throw new Error('Unauthorized')
+    unauthorized()
   }
 
   const users = await db.user.findMany({
@@ -71,11 +74,12 @@ export async function fetchUsers() {
 'use server'
 import { db } from '@/lib/db' // Your database client
 import { auth } from '@/lib/auth'
+import { unauthorized } from 'next/navigation'
 
 export async function fetchUsers() {
   const session = await auth()
   if (!session?.user) {
-    throw new Error('Unauthorized')
+    unauthorized()
   }
 
   const users = await db.user.findMany({
@@ -157,32 +161,36 @@ Design your data access functions as secure primitives: validate inputs, check a
 
 Always authenticate and authorize users before performing sensitive server-side operations. Read authentication from cookies or headers rather than accepting tokens as function parameters.
 
-```tsx filename="app/actions.ts" highlight={1,7,8,9,10} switcher
+Call [`unauthorized()`](/docs/app/api-reference/functions/unauthorized) when a request is not authenticated. Next.js renders the nearest `unauthorized.js` fallback.
+
+```tsx filename="app/actions.ts" highlight={1,5,8,9,10,11} switcher
 'use server'
 
 import { db } from '@/lib/db' // Your database client
 import { auth } from '@/lib/auth' // Your authentication library
+import { unauthorized } from 'next/navigation'
 
 export async function createUser(data: { name: string; email: string }) {
   const session = await auth()
   if (!session?.user) {
-    throw new Error('Unauthorized')
+    unauthorized()
   }
   const newUser = await db.user.create({ data })
   return { id: newUser.id, name: newUser.name }
 }
 ```
 
-```jsx filename="app/actions.js" highlight={1,7,8,9,10} switcher
+```jsx filename="app/actions.js" highlight={1,5,8,9,10,11} switcher
 'use server'
 
 import { db } from '@/lib/db' // Your database client
 import { auth } from '@/lib/auth' // Your authentication library
+import { unauthorized } from 'next/navigation'
 
 export async function createUser(data) {
   const session = await auth()
   if (!session?.user) {
-    throw new Error('Unauthorized')
+    unauthorized()
   }
   const newUser = await db.user.create({ data })
   return { id: newUser.id, name: newUser.name }
