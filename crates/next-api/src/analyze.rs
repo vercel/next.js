@@ -1,3 +1,4 @@
+mod load_edges;
 mod membership;
 
 use std::{borrow::Cow, io::Write};
@@ -21,6 +22,7 @@ use turbo_tasks_fs::{
 };
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_analyze::split_chunk::{split_output_asset_into_parts, split_traced_file_into_parts};
+use turbopack_browser::ecmascript::EcmascriptBrowserChunk;
 use turbopack_core::{
     SOURCE_URL_PROTOCOL,
     asset::{Asset, AssetContent},
@@ -30,6 +32,7 @@ use turbopack_core::{
     output::{OutputAsset, OutputAssets, OutputAssetsReference},
     reference::all_assets_from_entries,
 };
+use turbopack_ecmascript::references::service_worker::ServiceWorkerEntryModule;
 
 use crate::route::AnalyzeChunkGroups;
 
@@ -48,39 +51,6 @@ pub struct RouteBundleSummary {
     pub size: u64,
     pub compressed_size: u64,
     pub client: BundleTotals,
-}
-
-pub struct EdgesData {
-    pub offsets: Vec<u32>,
-    pub data: Vec<u32>,
-}
-
-impl EdgesData {
-    fn from_iterator<'a>(iterable: impl IntoIterator<Item = &'a Vec<u32>> + Clone) -> Self {
-        let mut current_offset = 0;
-        let sum: usize = iterable.clone().into_iter().map(|v| v.len()).sum();
-        let mut data = Vec::with_capacity(sum);
-        let offsets = iterable
-            .into_iter()
-            .map(|edges| {
-                current_offset += edges.len() as u32;
-                data.extend(edges);
-                current_offset
-            })
-            .collect();
-        Self { offsets, data }
-    }
-
-    fn write(&self, writer: &mut impl Write) -> Result<()> {
-        writer.write_u32::<BE>(self.offsets.len() as u32)?;
-        for &offset in &self.offsets {
-            writer.write_u32::<BE>(offset)?;
-        }
-        for &data in &self.data {
-            writer.write_u32::<BE>(data)?;
-        }
-        Ok(())
-    }
 }
 
 #[derive(Serialize)]
@@ -136,6 +106,10 @@ pub struct AnalyzeClientReferenceEntry {
 #[turbo_tasks::value(transparent)]
 pub struct AnalyzeRouteEntries(Vec<AnalyzeRouteEntry>);
 
+pub type AnalyzeGraphModule = ResolvedVc<Box<dyn Module>>;
+pub type AnalyzeSyncDependents = FxHashMap<AnalyzeGraphModule, Vec<AnalyzeGraphModule>>;
+pub type AnalyzeWorkerRegistration = (AnalyzeGraphModule, ResolvedVc<ServiceWorkerEntryModule>);
+
 /// Snapshot-scoped module order shared by both artifact writers. Never regenerate
 /// indices independently from a route graph or use them across analyzer snapshots.
 #[turbo_tasks::value(shared)]
@@ -144,17 +118,35 @@ pub struct AnalyzeModuleIndex {
     pub by_ident: FxHashMap<RcStr, u32>,
     /// Fingerprint of the exact ordered module identities serialized in modules.data.
     pub module_index_hash: RcStr,
+    /// Cached once for the whole application, not rebuilt for each route.
+    pub sync_dependents: AnalyzeSyncDependents,
+    pub worker_registrations: Vec<AnalyzeWorkerRegistration>,
 }
 
 #[turbo_tasks::function]
 pub async fn analyze_module_index(module_graph: Vc<ModuleGraph>) -> Result<Vc<AnalyzeModuleIndex>> {
     let mut all_modules = FxIndexSet::default();
+    let mut sync_dependents: AnalyzeSyncDependents = FxHashMap::default();
+    let mut registrations = FxIndexSet::default();
     let graph = module_graph.await?;
     graph.traverse_edges_dfs(
         graph.all_entry_modules(),
         &mut (),
-        |_, node, _| {
+        |parent, node, _| {
             all_modules.insert(node);
+            if let Some((importer, reference)) = parent {
+                if !matches!(
+                    reference.chunking_type,
+                    ChunkingType::Async | ChunkingType::Traced { .. }
+                ) {
+                    sync_dependents.entry(node).or_default().push(importer);
+                }
+                if let Some(marker) =
+                    ResolvedVc::try_downcast_type::<ServiceWorkerEntryModule>(node)
+                {
+                    registrations.insert((importer, marker));
+                }
+            }
             Ok(GraphTraversalAction::Continue)
         },
         |_, _, _| Ok(()),
@@ -195,6 +187,8 @@ pub async fn analyze_module_index(module_graph: Vc<ModuleGraph>) -> Result<Vc<An
         modules,
         by_ident,
         module_index_hash,
+        sync_dependents,
+        worker_registrations: registrations.into_iter().collect(),
     }
     .cell())
 }
@@ -226,7 +220,11 @@ struct AnalyzeDataHeader {
     pub output_file_modules: EdgesDataReference,
     pub output_file_async_loaders: EdgesDataReference,
     pub output_file_module_coverage: Vec<AnalyzeOutputFileCoverage>,
+    /// Non-asset reference wrappers whose direct runtime load type is unknown.
+    pub unresolved_output_references: Vec<u32>,
     pub chunk_groups: Vec<AnalyzeChunkGroupData>,
+    pub chunk_load_edges: Vec<AnalyzeChunkLoadEdge>,
+    pub unjoined_chunk_load_edges: Vec<AnalyzeUnjoinedChunkLoadEdge>,
     /// Exact endpoint roots; nested client references do not become roots.
     pub route_entries: Vec<AnalyzeRouteEntry>,
     /// Edges from chunks to chunk parts
@@ -280,12 +278,43 @@ struct AnalyzeChunkGroupData {
     output_file_indices: Vec<u32>,
 }
 
+#[derive(Serialize)]
+struct AnalyzeChunkLoadEdge {
+    source_output_file_index: u32,
+    target_output_file_index: u32,
+    kind: RcStr,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    trigger_module_index: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    unjoined_trigger_ident: Option<RcStr>,
+}
+
+#[derive(Serialize)]
+struct AnalyzeUnjoinedChunkLoadEdge {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    source_output_file_index: Option<u32>,
+    target_path: RcStr,
+    kind: RcStr,
+    reason: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    trigger_module_ident: Option<RcStr>,
+}
+
+struct ChunkLoadCandidate {
+    source: u32,
+    target: ResolvedVc<Box<dyn OutputAsset>>,
+    kind: RcStr,
+    trigger_module_index: Option<u32>,
+    unjoined_trigger_ident: Option<RcStr>,
+}
+
 struct AnalyzeOutputFileBuilder {
     output_file: AnalyzeOutputFile,
     chunk_part_indices: Vec<u32>,
     module_indices: Vec<u32>,
     async_loader_indices: Vec<u32>,
     module_coverage: AnalyzeOutputFileCoverage,
+    unresolved_references: u32,
 }
 
 struct AnalyzeSourceBuilder {
@@ -313,12 +342,48 @@ struct AnalyzeDataBuilder {
     route_entries: Vec<AnalyzeRouteEntry>,
     module_index_hash: RcStr,
     chunk_groups: Vec<AnalyzeChunkGroupData>,
+    chunk_load_edges: Vec<AnalyzeChunkLoadEdge>,
+    unjoined_chunk_load_edges: Vec<AnalyzeUnjoinedChunkLoadEdge>,
 }
 
 struct ModulesDataBuilder {
     modules: Vec<AnalyzeModuleBuilder>,
     module_index_map: FxHashMap<RcStr, u32>,
     module_index_hash: RcStr,
+}
+
+/// Shared row-offset encoding used by both analyzer artifacts.
+pub struct EdgesData {
+    pub offsets: Vec<u32>,
+    pub data: Vec<u32>,
+}
+
+impl EdgesData {
+    fn from_iterator<'a>(iterable: impl IntoIterator<Item = &'a Vec<u32>> + Clone) -> Self {
+        let mut current_offset = 0;
+        let sum: usize = iterable.clone().into_iter().map(|v| v.len()).sum();
+        let mut data = Vec::with_capacity(sum);
+        let offsets = iterable
+            .into_iter()
+            .map(|edges| {
+                current_offset += edges.len() as u32;
+                data.extend(edges);
+                current_offset
+            })
+            .collect();
+        Self { offsets, data }
+    }
+
+    fn write(&self, writer: &mut impl Write) -> Result<()> {
+        writer.write_u32::<BE>(self.offsets.len() as u32)?;
+        for &offset in &self.offsets {
+            writer.write_u32::<BE>(offset)?;
+        }
+        for &data in &self.data {
+            writer.write_u32::<BE>(data)?;
+        }
+        Ok(())
+    }
 }
 
 struct EdgesDataSectionBuilder {
@@ -349,6 +414,8 @@ impl AnalyzeDataBuilder {
             output_file_index_map: FxHashMap::default(),
             route_entries,
             chunk_groups: vec![],
+            chunk_load_edges: vec![],
+            unjoined_chunk_load_edges: vec![],
         }
     }
 
@@ -389,6 +456,7 @@ impl AnalyzeDataBuilder {
             module_indices: vec![],
             async_loader_indices: vec![],
             module_coverage: AnalyzeOutputFileCoverage::NotAChunk,
+            unresolved_references: 0,
         });
         i
     }
@@ -403,6 +471,30 @@ impl AnalyzeDataBuilder {
         self.sources[source_index as usize]
             .chunk_part_indices
             .push(chunk_part_index);
+    }
+
+    /// Link the attributed sources into their directory hierarchy before
+    /// serializing the route artifact.
+    fn finish_sources(&mut self) {
+        let mut i: u32 = 0;
+        while i < self.sources.len().try_into().unwrap() {
+            let source = &self.sources[i as usize];
+            let path = source.source.path.as_str();
+            if !path.is_empty() {
+                let (parent_path, path) = if let Some(pos) = path.trim_end_matches('/').rfind('/') {
+                    (&path[..pos + 1], &path[pos + 1..])
+                } else {
+                    ("", path)
+                };
+                let parent_path = parent_path.to_string();
+                let path = path.into();
+                let (parent_source, parent_index) = self.ensure_source(&parent_path);
+                parent_source.child_source_indices.push(i);
+                self.sources[i as usize].source.parent_source_index = Some(parent_index);
+                self.sources[i as usize].source.path = path;
+            }
+            i += 1;
+        }
     }
 
     fn build(self) -> Rope {
@@ -445,6 +537,11 @@ impl AnalyzeDataBuilder {
                 .map(|of| of.module_coverage)
                 .collect(),
             output_file_modules: binary_section.add_edges(&output_file_modules),
+            unresolved_output_references: self
+                .output_files
+                .iter()
+                .map(|of| of.unresolved_references)
+                .collect(),
             output_file_async_loaders: binary_section.add_edges(&output_file_async_loaders),
             output_files: self
                 .output_files
@@ -452,6 +549,8 @@ impl AnalyzeDataBuilder {
                 .map(|of| of.output_file)
                 .collect(),
             chunk_groups: self.chunk_groups,
+            chunk_load_edges: self.chunk_load_edges,
+            unjoined_chunk_load_edges: self.unjoined_chunk_load_edges,
             route_entries: self.route_entries,
             output_file_chunk_parts: binary_section.add_edges(&output_file_chunk_parts),
             source_chunk_parts: binary_section.add_edges(&source_chunk_parts),
@@ -633,6 +732,9 @@ pub async fn analyze_output_assets(
         AnalyzeDataBuilder::new(route_entries, module_index.module_index_hash.clone());
     let mut asset_indices: FxHashMap<ResolvedVc<Box<dyn OutputAsset>>, Vec<u32>> =
         FxHashMap::default();
+    let mut candidates = Vec::new();
+    let mut browser_chunks = FxHashSet::default();
+
     let prefix = format!("{SOURCE_URL_PROTOCOL}///");
 
     // Process the output assets and extract chunk parts.
@@ -671,8 +773,12 @@ pub async fn analyze_output_assets(
                 .entry(*asset)
                 .or_default()
                 .push(output_file_index);
-            let (indices, coverage, async_loaders) =
-                output_chunk_modules(*asset, &filename, &module_index).await?;
+            if ResolvedVc::try_downcast_type::<EcmascriptBrowserChunk>(*asset).is_some() {
+                browser_chunks.insert(output_file_index);
+            }
+            let (indices, coverage, edges, unresolved, async_loaders) =
+                output_chunk_modules(*asset, &filename, &module_index, output_file_index).await?;
+            candidates.extend(edges);
             let file = &mut builder.output_files[output_file_index as usize];
             file.module_indices.extend(indices);
             file.module_indices.sort_unstable();
@@ -681,6 +787,7 @@ pub async fn analyze_output_assets(
             file.async_loader_indices.sort_unstable();
             file.async_loader_indices.dedup();
             file.module_coverage = coverage;
+            file.unresolved_references = unresolved;
         }
         let chunk_parts = match asset {
             Either::Left(asset) => split_output_asset_into_parts(*asset).await?,
@@ -718,55 +825,17 @@ pub async fn analyze_output_assets(
         }
     }
 
-    for group in chunk_groups.await?.iter() {
-        let id = builder.chunk_groups.len() as u32;
-        let mut output_indices = FxIndexSet::default();
-        for &asset in group.assets.await?.iter() {
-            let Some(indices) = asset_indices.get(&asset) else {
-                let path = asset.path().await?.to_string_ref().await?;
-                anyhow::bail!("chunk-group asset {path} not present among emitted output files");
-            };
-            output_indices.extend(indices.iter().copied());
-        }
-        let (trigger_module_index, unjoined_trigger_ident) = if let Some(module) = group.trigger {
-            let ident = module.ident().to_string().owned().await?;
-            if let Some(&index) = module_index.by_ident.get(&ident) {
-                (Some(index), None)
-            } else {
-                (None, Some(ident))
-            }
-        } else {
-            (None, None)
-        };
-        builder.chunk_groups.push(AnalyzeChunkGroupData {
-            id,
-            kind: group.kind.clone(),
-            trigger_module_index,
-            unjoined_trigger_ident,
-            output_file_indices: output_indices.into_iter().collect(),
-        });
-    }
+    load_edges::collect_load_edges(
+        &mut builder,
+        candidates,
+        &asset_indices,
+        chunk_groups,
+        &module_index,
+        &browser_chunks,
+    )
+    .await?;
 
-    // Build a directory structure for the sources.
-    let mut i: u32 = 0;
-    while i < builder.sources.len().try_into().unwrap() {
-        let source = &builder.sources[i as usize];
-        let path = source.source.path.as_str();
-        if !path.is_empty() {
-            let (parent_path, path) = if let Some(pos) = path.trim_end_matches('/').rfind('/') {
-                (&path[..pos + 1], &path[pos + 1..])
-            } else {
-                ("", path)
-            };
-            let parent_path = parent_path.to_string();
-            let path = path.into();
-            let (parent_source, parent_index) = builder.ensure_source(&parent_path);
-            parent_source.child_source_indices.push(i);
-            builder.sources[i as usize].source.parent_source_index = Some(parent_index);
-            builder.sources[i as usize].source.path = path;
-        }
-        i += 1;
-    }
+    builder.finish_sources();
 
     let rope = builder.build();
     Ok(AnalyzedRoute {
