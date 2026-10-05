@@ -25,9 +25,6 @@ runtimeModules = new Set()
 // Set flag to indicate we use ModuleWithDirection
 createModuleWithDirectionFlag = true
 
-interceptDevModuleExecution = interceptModuleExecutionForReactRefresh
-createDevModuleContext = createDevContextWithReactRefresh
-
 // This file must not use `import` and `export` statements. Otherwise, it
 // becomes impossible to augment interfaces declared in `<reference>`d files
 // (e.g. `Module`). Hence, the need for `import()` here.
@@ -158,7 +155,7 @@ const DUMMY_REFRESH_CONTEXT = {
  * Next.js' React Refresh runtime hooks into to add module context to the
  * refresh registry. The returned cleanup restores the previous registry.
  */
-function interceptModuleExecutionForReactRefresh(
+function interceptDevModuleExecution(
   module: HotModule
 ): (() => void) | undefined {
   if (typeof globalThis.$RefreshInterceptModuleExecution$ === 'function') {
@@ -168,18 +165,18 @@ function interceptModuleExecutionForReactRefresh(
 }
 
 /**
- * Creates the module's context. This runs after
- * `interceptModuleExecutionForReactRefresh`, so `$RefreshReg$` and
- * `$RefreshSig$` already belong to this module.
+ * Creates the module's context. When the execution was intercepted,
+ * `$RefreshReg$` and `$RefreshSig$` already belong to this module.
  */
-function createDevContextWithReactRefresh(
+function createDevModuleContext(
   module: HotModule,
-  exports: Exports
+  exports: Exports,
+  intercepted: boolean
 ): TurbopackDevContext {
   return new (DevContext as unknown as DevContextConstructor)(
     module,
     exports,
-    typeof globalThis.$RefreshInterceptModuleExecution$ === 'function'
+    intercepted
       ? {
           register: globalThis.$RefreshReg$,
           signature: globalThis.$RefreshSig$,

@@ -1169,6 +1169,7 @@ function isCss(chunkUrl) {
 /// <reference path="./runtime-types.d.ts" />
 /// <reference path="./dev-extensions.ts" />
 /// <reference path="./dev-protocol.d.ts" />
+/// <reference path="./dev-runtime-hooks.d.ts" />
 /**
  * Shared HMR (Hot Module Replacement) implementation.
  *
@@ -1183,15 +1184,6 @@ function isCss(chunkUrl) {
 /**
  * Module IDs that are instantiated as part of the runtime of a chunk.
  */ let runtimeModules;
-/**
- * Creates the `__turbopack_context__` passed to a module factory. Assigned by
- * each dev runtime.
- */ let createDevModuleContext;
-/**
- * Called right before a module factory runs. It may return a callback, which is
- * called once the factory returns or throws. Assigned by dev runtimes that need
- * it.
- */ let interceptDevModuleExecution = undefined;
 /**
  * Whether to set `module.loaded` once a module has evaluated, as Node.js does
  * for CommonJS modules. Set by the Node.js dev runtime.
@@ -1612,8 +1604,8 @@ function formatDependencyChain(dependencyChain) {
  * repeated once per level of an import chain, which limits how deep that chain
  * can get before the stack overflows. So this calls the module factory
  * directly, and the setup lives in `createDevModule` and the
- * `interceptDevModuleExecution`/`createDevModuleContext` hooks, which all
- * return before the factory runs.
+ * `interceptDevModuleExecution`/`createDevModuleContext` hooks (see
+ * `dev-runtime-hooks.d.ts`), which all return before the factory runs.
  */ function instantiateModule(moduleId, sourceType, sourceData) {
     const moduleFactory = moduleFactories.get(moduleId);
     if (typeof moduleFactory !== 'function') {
@@ -1621,17 +1613,17 @@ function formatDependencyChain(dependencyChain) {
     }
     const module = createDevModule(moduleId, sourceType, sourceData);
     const exports = module.exports;
-    const finishExecution = interceptDevModuleExecution?.(module);
-    // Called like in the production runtimes, without a `this`, and without a
-    // `finally`: both make this frame measurably larger.
+    const finishExecution = interceptDevModuleExecution(module);
     try {
-        moduleFactory(createDevModuleContext(module, exports), module, exports);
+        // Called like in the production runtimes, without a `this`, which keeps
+        // this frame smaller.
+        moduleFactory(createDevModuleContext(module, exports, finishExecution !== undefined), module, exports);
     } catch (error) {
         module.error = error;
-        finishExecution?.();
         throw error;
+    } finally{
+        finishExecution?.();
     }
-    finishExecution?.();
     if (markDevModulesLoaded) {
         ;
         module.loaded = true;
@@ -1903,8 +1895,6 @@ devContextPrototype.c = devModuleCache;
 runtimeModules = new Set();
 // Set flag to indicate we use ModuleWithDirection
 createModuleWithDirectionFlag = true;
-interceptDevModuleExecution = interceptModuleExecutionForReactRefresh;
-createDevModuleContext = createDevContextWithReactRefresh;
 /**
  * Map from module ID to the chunks that contain this module.
  *
@@ -1965,18 +1955,17 @@ const DUMMY_REFRESH_CONTEXT = {
  * NOTE(alexkirsz) Webpack has a "module execution" interception hook that
  * Next.js' React Refresh runtime hooks into to add module context to the
  * refresh registry. The returned cleanup restores the previous registry.
- */ function interceptModuleExecutionForReactRefresh(module) {
+ */ function interceptDevModuleExecution(module) {
     if (typeof globalThis.$RefreshInterceptModuleExecution$ === 'function') {
         return globalThis.$RefreshInterceptModuleExecution$(module.id);
     }
     return undefined;
 }
 /**
- * Creates the module's context. This runs after
- * `interceptModuleExecutionForReactRefresh`, so `$RefreshReg$` and
- * `$RefreshSig$` already belong to this module.
- */ function createDevContextWithReactRefresh(module, exports) {
-    return new DevContext(module, exports, typeof globalThis.$RefreshInterceptModuleExecution$ === 'function' ? {
+ * Creates the module's context. When the execution was intercepted,
+ * `$RefreshReg$` and `$RefreshSig$` already belong to this module.
+ */ function createDevModuleContext(module, exports, intercepted) {
+    return new DevContext(module, exports, intercepted ? {
         register: globalThis.$RefreshReg$,
         signature: globalThis.$RefreshSig$,
         registerExports: registerExportsAndSetupBoundaryForReactRefresh

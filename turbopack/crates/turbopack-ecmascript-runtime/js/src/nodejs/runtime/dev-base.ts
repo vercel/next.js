@@ -64,8 +64,20 @@ if (globalThis.__turbopack_ensure_chunk__ !== undefined) {
 }
 
 markDevModulesLoaded = true
-createDevModuleContext = (module, exports) =>
-  new (Context as any as ContextConstructor<HotModule>)(module, exports)
+
+function interceptDevModuleExecution(
+  _module: HotModule
+): (() => void) | undefined {
+  return undefined
+}
+
+function createDevModuleContext(
+  module: HotModule,
+  exports: Exports,
+  _intercepted: boolean
+): TurbopackBaseContext<HotModule> {
+  return new (Context as any as ContextConstructor<HotModule>)(module, exports)
+}
 
 /**
  * Instantiates a runtime module in development mode.

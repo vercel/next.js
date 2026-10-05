@@ -2,6 +2,7 @@
 /// <reference path="./runtime-types.d.ts" />
 /// <reference path="./dev-extensions.ts" />
 /// <reference path="./dev-protocol.d.ts" />
+/// <reference path="./dev-runtime-hooks.d.ts" />
 
 type HotModuleFactoryFunction = ModuleFactoryFunction<
   HotModule,
@@ -27,24 +28,6 @@ let devModuleCache: ModuleCache<HotModule>
  * Module IDs that are instantiated as part of the runtime of a chunk.
  */
 let runtimeModules: Set<ModuleId>
-
-/**
- * Creates the `__turbopack_context__` passed to a module factory. Assigned by
- * each dev runtime.
- */
-let createDevModuleContext: (
-  module: HotModule,
-  exports: Exports
-) => TurbopackBaseContext<HotModule>
-
-/**
- * Called right before a module factory runs. It may return a callback, which is
- * called once the factory returns or throws. Assigned by dev runtimes that need
- * it.
- */
-let interceptDevModuleExecution:
-  | ((module: HotModule) => (() => void) | undefined)
-  | undefined = undefined
 
 /**
  * Whether to set `module.loaded` once a module has evaluated, as Node.js does
@@ -616,8 +599,8 @@ function disposePhase(
  * repeated once per level of an import chain, which limits how deep that chain
  * can get before the stack overflows. So this calls the module factory
  * directly, and the setup lives in `createDevModule` and the
- * `interceptDevModuleExecution`/`createDevModuleContext` hooks, which all
- * return before the factory runs.
+ * `interceptDevModuleExecution`/`createDevModuleContext` hooks (see
+ * `dev-runtime-hooks.d.ts`), which all return before the factory runs.
  */
 function instantiateModule(
   moduleId: ModuleId,
@@ -637,17 +620,21 @@ function instantiateModule(
   const module = createDevModule(moduleId, sourceType, sourceData)
   const exports = module.exports
 
-  const finishExecution = interceptDevModuleExecution?.(module)
-  // Called like in the production runtimes, without a `this`, and without a
-  // `finally`: both make this frame measurably larger.
+  const finishExecution = interceptDevModuleExecution(module)
   try {
-    moduleFactory(createDevModuleContext(module, exports), module, exports)
+    // Called like in the production runtimes, without a `this`, which keeps
+    // this frame smaller.
+    moduleFactory(
+      createDevModuleContext(module, exports, finishExecution !== undefined),
+      module,
+      exports
+    )
   } catch (error) {
     module.error = error as any
-    finishExecution?.()
     throw error
+  } finally {
+    finishExecution?.()
   }
-  finishExecution?.()
   if (markDevModulesLoaded) {
     ;(module as any).loaded = true
   }
