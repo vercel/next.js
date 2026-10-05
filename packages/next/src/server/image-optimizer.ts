@@ -547,6 +547,7 @@ function upstreamTimedOut(href: string): ImageError {
 const agentOptions = {
   keepAlive: true,
   timeout: 7_000,
+  proxyEnv: process.env.NODE_USE_ENV_PROXY === '1' ? process.env : undefined,
 }
 type ImageRequestOptions = HttpRequestOptions & { imageLookupKey?: string }
 type AgentGetName = (options?: HttpRequestOptions) => string
