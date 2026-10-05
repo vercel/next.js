@@ -1,8 +1,9 @@
-export const dynamic = 'force-dynamic'
+import { connection } from 'next/server'
 
 const value = await Promise.resolve('async userland')
 console.log('preload-test:async-evaluated')
 
-export function GET() {
+export async function GET() {
+  await connection()
   return Response.json({ value })
 }
