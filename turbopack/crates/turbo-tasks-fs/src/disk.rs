@@ -714,7 +714,7 @@ impl DiskFileSystem {
             if let Some(found) = self
                 .inner
                 .root_prefixes
-                .walk_canonicalized_ancestry(&*target_sys_path, |canonical| {
+                .walk_canonicalized_ancestry(target_sys_path, |canonical| {
                     let root_path = self.inner.root_path();
                     if canonical == root_path {
                         ControlFlow::Break(Some(vc_self))
@@ -750,7 +750,7 @@ impl DiskFileSystem {
         // Slow path: Try to canonicalize and compare each ancestor against the map.
         Ok(map
             .canonicalized_paths
-            .walk_canonicalized_ancestry(&*target_sys_path, |canonical| {
+            .walk_canonicalized_ancestry(target_sys_path, |canonical| {
                 let Some(found) = map.lookup_sys_path_suffix(canonical) else {
                     return ControlFlow::Continue(());
                 };
