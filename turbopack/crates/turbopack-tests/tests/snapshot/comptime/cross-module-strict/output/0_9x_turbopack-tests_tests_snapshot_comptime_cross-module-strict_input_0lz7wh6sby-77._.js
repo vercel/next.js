@@ -31,16 +31,22 @@ console.log(("TURBOPACK compile-time value", "abcdefghijklmnopqrstuvwxyz01234567
 
 __turbopack_context__.s([
     "LONG_BIG_NUMBER",
+    0,
     ()=>LONG_BIG_NUMBER,
     "LONG_NUMBER",
+    0,
     ()=>LONG_NUMBER,
     "LONG_REGEX",
+    0,
     ()=>LONG_REGEX,
     "LONG_STRING",
+    0,
     ()=>LONG_STRING,
     "NO_CONSTANT",
+    0,
     ()=>NO_CONSTANT,
     "SOME_VALUE",
+    0,
     ()=>SOME_VALUE
 ]);
 'use turbopack: constants';

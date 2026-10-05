@@ -39,7 +39,6 @@ pub struct PartialNamespaceModules(FxHashSet<ResolvedVc<Box<dyn Module>>>);
 #[derive(Clone, Default, Debug)]
 pub struct BindingUsageInfo {
     unused_references: ResolvedVc<UnusedReferences>,
-    #[turbo_tasks(trace_ignore)]
     unused_references_edges: FxHashSet<GraphEdgeIndex>,
 
     used_exports: ResolvedVc<UsedExportsMap>,
@@ -53,7 +52,8 @@ pub struct OptionBindingUsageInfo(Option<ResolvedVc<BindingUsageInfo>>);
 #[turbo_tasks::value]
 pub struct ModuleExportUsage {
     pub export_usage: ResolvedVc<ModuleExportUsageInfo>,
-    // Whether this module exists in an import cycle and has been selected to break the cycle.
+    /// Whether this module must expose exports before imports. This is conservative when export
+    /// usage analysis did not run, because a cycle cannot be ruled out.
     pub is_circuit_breaker: bool,
     /// Whether this module is read through a namespace value somewhere, which means one of those
     /// reads may still use an original export name. See [`PartialNamespaceModules`].
@@ -62,7 +62,7 @@ pub struct ModuleExportUsage {
 #[turbo_tasks::value_impl]
 impl ModuleExportUsage {
     #[turbo_tasks::function]
-    pub async fn all() -> Result<Vc<Self>> {
+    pub async fn unknown() -> Result<Vc<Self>> {
         Ok(Self {
             export_usage: ModuleExportUsageInfo::all().to_resolved().await?,
             is_circuit_breaker: true,
@@ -83,17 +83,10 @@ impl BindingUsageInfo {
     ) -> Result<Vc<ModuleExportUsage>> {
         let is_circuit_breaker = self.export_circuit_breakers.contains_key(&module).await?;
         let Some(exports) = self.used_exports.get(&module).await? else {
-            // There are some module that are codegened, but not referenced in the module graph,
-            let ident = module.ident_string().await?;
-            if ident.contains(".wasm_.loader.mjs") || ident.contains("/__nextjs-internal-proxy.") {
-                // Both the turbopack-wasm `ModuleChunkItem` and `EcmascriptClientReferenceModule`
-                // do `self.slightly_different_module().as_chunk_item()`, so the
-                // module that codegen sees isn't actually in the module graph.
-                // TODO fix these cases
-                return Ok(ModuleExportUsage::all());
-            }
-
-            bail!("export usage not found for module: {ident:?}");
+            bail!(
+                "export usage not found for module: {:?}",
+                module.ident_string().await?
+            );
         };
         let namespace_object_may_escape =
             self.partial_namespace_modules.contains_key(&module).await?;
@@ -270,17 +263,25 @@ pub async fn compute_binding_usage_info(
                     ExportUsage::Passthrough {
                         namespace_object_may_escape,
                     } => {
-                        if *namespace_object_may_escape {
-                            partial_namespace_modules.insert(target);
-                        }
+                        // Passthrough edges always carry namespace provenance that already reached
+                        // their parent. Some edges (for example a forwarded CommonJS namespace)
+                        // additionally expose the target's original property names themselves.
+                        let namespace_changed = if *namespace_object_may_escape
+                            || partial_namespace_modules.contains(&parent)
+                        {
+                            partial_namespace_modules.insert(target)
+                        } else {
+                            false
+                        };
                         let passthrough_usage = used_exports
                             .get(&parent)
                             .context("parent module must have usage info")?
                             .clone();
-                        used_exports
+                        let usage_changed = used_exports
                             .entry(target)
                             .or_default()
-                            .add_usage_info(&passthrough_usage)
+                            .add_usage_info(&passthrough_usage);
+                        namespace_changed || usage_changed
                     }
                     export_usage => {
                         if matches!(export_usage, ExportUsage::PartialNamespaceObject(_)) {
@@ -292,8 +293,8 @@ pub async fn compute_binding_usage_info(
                     }
                 };
                 if changed || is_first_visit {
-                    // First visit, or the used exports changed. This can cause more imports to get
-                    // used downstream.
+                    // First visit, or the used exports/namespace provenance changed. Either can
+                    // cause more imports to become used downstream.
                     Ok(GraphTraversalAction::Continue)
                 } else {
                     Ok(GraphTraversalAction::Skip)
@@ -485,13 +486,21 @@ mod tests {
     use crate::resolve::ExportUsage;
 
     #[test]
-    fn resolved_usage_merges_exports() {
-        let mut usage = ModuleExportUsageInfo::Exports([rcstr!("first")].into_iter().collect());
-        let additional = ModuleExportUsageInfo::Exports([rcstr!("second")].into_iter().collect());
+    fn resolved_usage_join_is_monotonic() {
+        let mut usage = ModuleExportUsageInfo::Evaluation;
+        let first = ModuleExportUsageInfo::Exports([rcstr!("first")].into_iter().collect());
+        let second = ModuleExportUsageInfo::Exports([rcstr!("second")].into_iter().collect());
 
-        assert!(usage.add_usage_info(&additional));
+        assert!(!usage.add_usage_info(&ModuleExportUsageInfo::Evaluation));
+        assert!(usage.add_usage_info(&first));
         assert!(usage.is_export_used(&rcstr!("first")));
+        assert!(!usage.add_usage_info(&first));
+        assert!(usage.add_usage_info(&second));
         assert!(usage.is_export_used(&rcstr!("second")));
+        assert!(!usage.add_usage_info(&ModuleExportUsageInfo::Evaluation));
+        assert!(usage.add_usage_info(&ModuleExportUsageInfo::All));
+        assert!(!usage.add_usage_info(&second));
+        assert!(matches!(usage, ModuleExportUsageInfo::All));
     }
 
     #[test]

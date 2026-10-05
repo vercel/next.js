@@ -92,9 +92,10 @@ Every name in a pragma must be declared in `test/lib/gate/conditions.ts`
 (typos fail the suite at collection). Two tiers:
 
 - **static** — the run's shape: `dev`, `start`, `deploy`, `mode`, `turbopack`,
-  `rspack`, `webpack`, `bundler`, `react18`, `wasm`, `ci`; specialized CI
-  variants `adapter`, `standaloneOutput`, `turbopackDev`, and `turbopackBuild`;
-  plus the always-false `FIXME`/`TODO`.
+  `rspack`, `webpack`, `bundler`, `react18`, `wasm`, `linux`, `macos`,
+  `windows`, `ci`; specialized CI variants `adapter`, `nodeMiddleware`,
+  `standaloneOutput`, `turbopackDev`, and `turbopackBuild`; plus the
+  always-false `FIXME`/`TODO`.
   `prod` and `prefetching` are semantic aliases for `!dev` — prefer the name
   that states _why_ the suite cannot run.
 - **lazy** — a predicate over the fixture's _resolved_ `next.config`
@@ -164,9 +165,6 @@ single dimension.
 - `afterEach` failures (e.g. redbox matchers) are not gated, only the body is.
   Hooks under a false lazy `@force-gate` are the exception: they are skipped
   with the suite instead of running against a fixture that was never booted.
-- `jest.retryTimes(1)` on non-dev CI means a _flaky_ gated-false test passes
-  whenever it happens to fail; the tripwire is only deterministic for
-  deterministic tests.
 - Gated titles are unchanged in the Jest output; the
   `⚠ gated test failed as expected` log line is the only signal.
 - `pragma-transform.js` bails out early on files containing neither `@gate`

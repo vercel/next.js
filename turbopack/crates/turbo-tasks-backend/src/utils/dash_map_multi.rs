@@ -228,7 +228,13 @@ mod tests {
 
     use super::*;
 
+    // This test is too slow to run under Miri.
+    #[cfg(not(miri))]
     #[test]
+    #[cfg_attr(
+        target_family = "wasm",
+        ignore = "stalls indefinitely under the Worker-based WASI host; tracked separately"
+    )]
     fn stress_deadlock() {
         const N: usize = 100000;
         const THREADS: usize = 20;

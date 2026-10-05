@@ -2313,19 +2313,19 @@ function getTargetInstForChangeEvent(domEventName, targetInst) {
 }
 var isInputEventSupported = !1;
 if (canUseDOM) {
-  var JSCompiler_inline_result$jscomp$362;
+  var JSCompiler_inline_result$jscomp$364;
   if (canUseDOM) {
-    var isSupported$jscomp$inline_520 = "oninput" in document;
-    if (!isSupported$jscomp$inline_520) {
-      var element$jscomp$inline_521 = document.createElement("div");
-      element$jscomp$inline_521.setAttribute("oninput", "return;");
-      isSupported$jscomp$inline_520 =
-        "function" === typeof element$jscomp$inline_521.oninput;
+    var isSupported$jscomp$inline_522 = "oninput" in document;
+    if (!isSupported$jscomp$inline_522) {
+      var element$jscomp$inline_523 = document.createElement("div");
+      element$jscomp$inline_523.setAttribute("oninput", "return;");
+      isSupported$jscomp$inline_522 =
+        "function" === typeof element$jscomp$inline_523.oninput;
     }
-    JSCompiler_inline_result$jscomp$362 = isSupported$jscomp$inline_520;
-  } else JSCompiler_inline_result$jscomp$362 = !1;
+    JSCompiler_inline_result$jscomp$364 = isSupported$jscomp$inline_522;
+  } else JSCompiler_inline_result$jscomp$364 = !1;
   isInputEventSupported =
-    JSCompiler_inline_result$jscomp$362 &&
+    JSCompiler_inline_result$jscomp$364 &&
     (!document.documentMode || 9 < document.documentMode);
 }
 function stopWatchingForValueChange() {
@@ -2537,6 +2537,7 @@ function makePrefixMap(styleProp, eventName) {
   return prefixes;
 }
 var vendorPrefixes = {
+    animationcancel: makePrefixMap("Animation", "AnimationCancel"),
     animationend: makePrefixMap("Animation", "AnimationEnd"),
     animationiteration: makePrefixMap("Animation", "AnimationIteration"),
     animationstart: makePrefixMap("Animation", "AnimationStart"),
@@ -2550,7 +2551,8 @@ var vendorPrefixes = {
 canUseDOM &&
   ((style = document.createElement("div").style),
   "AnimationEvent" in window ||
-    (delete vendorPrefixes.animationend.animation,
+    (delete vendorPrefixes.animationcancel.animation,
+    delete vendorPrefixes.animationend.animation,
     delete vendorPrefixes.animationiteration.animation,
     delete vendorPrefixes.animationstart.animation),
   "TransitionEvent" in window ||
@@ -2565,7 +2567,8 @@ function getVendorPrefixedEventName(eventName) {
       return (prefixedEventNames[eventName] = prefixMap[styleProp]);
   return eventName;
 }
-var ANIMATION_END = getVendorPrefixedEventName("animationend"),
+var ANIMATION_CANCEL = getVendorPrefixedEventName("animationcancel"),
+  ANIMATION_END = getVendorPrefixedEventName("animationend"),
   ANIMATION_ITERATION = getVendorPrefixedEventName("animationiteration"),
   ANIMATION_START = getVendorPrefixedEventName("animationstart"),
   TRANSITION_RUN = getVendorPrefixedEventName("transitionrun"),
@@ -13484,23 +13487,28 @@ function performWorkOnRoot(root$jscomp$0, lanes, forceSync) {
           wasRootDehydrated &&
             (prepareFreshStack(root, JSCompiler_inline_result).flags |= 256);
           exitStatus = renderRootSync(root, JSCompiler_inline_result, !1);
-          2 !== exitStatus &&
-            6 !== exitStatus &&
-            (workInProgressRootDidAttachPingListener && !wasRootDehydrated
-              ? ((root.errorRecoveryDisabledLanes |= renderWasConcurrent),
-                (workInProgressRootInterleavedUpdatedLanes |=
-                  renderWasConcurrent),
-                (exitStatus = 4))
-              : ((renderWasConcurrent = workInProgressRootRecoverableErrors),
-                (workInProgressRootRecoverableErrors = yieldDuration),
-                null !== renderWasConcurrent &&
-                  ((yieldDuration = renderWasConcurrent),
-                  null === workInProgressRootRecoverableErrors
-                    ? (workInProgressRootRecoverableErrors = yieldDuration)
-                    : workInProgressRootRecoverableErrors.push.apply(
-                        workInProgressRootRecoverableErrors,
-                        yieldDuration
-                      ))));
+          6 === exitStatus
+            ? wasRootDehydrated ||
+              (root.errorRecoveryDisabledLanes =
+                root.errorRecoveryDisabledLanes |
+                renderWasConcurrent |
+                workInProgressDeferredLane)
+            : 2 !== exitStatus &&
+              (workInProgressRootDidAttachPingListener && !wasRootDehydrated
+                ? ((root.errorRecoveryDisabledLanes |= renderWasConcurrent),
+                  (workInProgressRootInterleavedUpdatedLanes |=
+                    renderWasConcurrent),
+                  (exitStatus = 4))
+                : ((renderWasConcurrent = workInProgressRootRecoverableErrors),
+                  (workInProgressRootRecoverableErrors = yieldDuration),
+                  null !== renderWasConcurrent &&
+                    ((yieldDuration = renderWasConcurrent),
+                    null === workInProgressRootRecoverableErrors
+                      ? (workInProgressRootRecoverableErrors = yieldDuration)
+                      : workInProgressRootRecoverableErrors.push.apply(
+                          workInProgressRootRecoverableErrors,
+                          yieldDuration
+                        ))));
           renderWasConcurrent = !1;
           if (2 !== exitStatus) continue;
           else yieldDuration = now$1();
@@ -15562,22 +15570,23 @@ function extractEvents$1(
   }
 }
 for (
-  var i$jscomp$inline_1971 = 0;
-  i$jscomp$inline_1971 < simpleEventPluginEvents.length;
-  i$jscomp$inline_1971++
+  var i$jscomp$inline_1976 = 0;
+  i$jscomp$inline_1976 < simpleEventPluginEvents.length;
+  i$jscomp$inline_1976++
 ) {
-  var eventName$jscomp$inline_1972 =
-      simpleEventPluginEvents[i$jscomp$inline_1971],
-    domEventName$jscomp$inline_1973 =
-      eventName$jscomp$inline_1972.toLowerCase(),
-    capitalizedEvent$jscomp$inline_1974 =
-      eventName$jscomp$inline_1972[0].toUpperCase() +
-      eventName$jscomp$inline_1972.slice(1);
+  var eventName$jscomp$inline_1977 =
+      simpleEventPluginEvents[i$jscomp$inline_1976],
+    domEventName$jscomp$inline_1978 =
+      eventName$jscomp$inline_1977.toLowerCase(),
+    capitalizedEvent$jscomp$inline_1979 =
+      eventName$jscomp$inline_1977[0].toUpperCase() +
+      eventName$jscomp$inline_1977.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_1973,
-    "on" + capitalizedEvent$jscomp$inline_1974
+    domEventName$jscomp$inline_1978,
+    "on" + capitalizedEvent$jscomp$inline_1979
   );
 }
+registerSimpleEvent(ANIMATION_CANCEL, "onAnimationCancel");
 registerSimpleEvent(ANIMATION_END, "onAnimationEnd");
 registerSimpleEvent(ANIMATION_ITERATION, "onAnimationIteration");
 registerSimpleEvent(ANIMATION_START, "onAnimationStart");
@@ -15868,6 +15877,7 @@ function dispatchEventForPluginEventSystem(
           case "touchstart":
             SyntheticEventCtor = SyntheticTouchEvent;
             break;
+          case ANIMATION_CANCEL:
           case ANIMATION_END:
           case ANIMATION_ITERATION:
           case ANIMATION_START:
@@ -15908,7 +15918,10 @@ function dispatchEventForPluginEventSystem(
         var inCapturePhase = 0 !== (eventSystemFlags & 4),
           accumulateTargetOnly =
             !inCapturePhase &&
-            ("scroll" === domEventName || "scrollend" === domEventName),
+            ("scroll" === domEventName ||
+              "scrollend" === domEventName ||
+              "toggle" === domEventName ||
+              "beforetoggle" === domEventName),
           reactEventName = inCapturePhase
             ? null !== reactName
               ? reactName + "Capture"
@@ -18337,13 +18350,19 @@ function validateDocumentPositionWithFiberTree(
     return precedingBoundaryFiber;
   }
   if (documentPosition & Node.DOCUMENT_POSITION_CONTAINS) {
-    if (null === otherFiber)
-      return (
-        (otherFiber = getOwnerDocumentFromRootContainer(otherNode)),
-        otherNode === otherFiber ||
-          otherNode === otherFiber.documentElement ||
-          otherNode === otherFiber.body
-      );
+    if (null === otherFiber) {
+      a: {
+        for (otherFiber = fragmentFiber.return; null !== otherFiber; ) {
+          if (3 === otherFiber.tag) {
+            otherFiber = otherFiber.stateNode.containerInfo;
+            break a;
+          }
+          otherFiber = otherFiber.return;
+        }
+        otherFiber = null;
+      }
+      return null !== otherFiber && otherNode.contains(otherFiber);
+    }
     a: {
       otherFiber = fragmentFiber;
       for (
@@ -20459,16 +20478,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_2347 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_2355 = React.version;
 if (
-  "19.3.0-canary-019019be-20260911" !==
-  isomorphicReactPackageVersion$jscomp$inline_2347
+  "19.3.0-canary-278794d7-20261002" !==
+  isomorphicReactPackageVersion$jscomp$inline_2355
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_2347,
-      "19.3.0-canary-019019be-20260911"
+      isomorphicReactPackageVersion$jscomp$inline_2355,
+      "19.3.0-canary-278794d7-20261002"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -20488,24 +20507,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2903 = {
+var internals$jscomp$inline_2916 = {
   bundleType: 0,
-  version: "19.3.0-canary-019019be-20260911",
+  version: "19.3.0-canary-278794d7-20261002",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-canary-019019be-20260911"
+  reconcilerVersion: "19.3.0-canary-278794d7-20261002"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2904 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2917 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2904.isDisabled &&
-    hook$jscomp$inline_2904.supportsFiber
+    !hook$jscomp$inline_2917.isDisabled &&
+    hook$jscomp$inline_2917.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2904.inject(
-        internals$jscomp$inline_2903
+      (rendererID = hook$jscomp$inline_2917.inject(
+        internals$jscomp$inline_2916
       )),
-        (injectedHook = hook$jscomp$inline_2904);
+        (injectedHook = hook$jscomp$inline_2917);
     } catch (err) {}
 }
 function getCrossOriginStringAs(as, input) {
@@ -20764,7 +20783,7 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.3.0-canary-019019be-20260911";
+exports.version = "19.3.0-canary-278794d7-20261002";
 "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
   "function" ===
     typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

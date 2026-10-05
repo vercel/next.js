@@ -157,7 +157,7 @@ function splitShellPage(
  * with shells for `acme/en`, `acme/de` and `globex/en`, that pattern holds:
  *
  * ```
- * (?<shellPrefix>acme/en|acme/de|globex/en)
+ * (acme/en|acme/de|globex/en)
  * ```
  *
  * A pattern that offered a choice per param instead, such as

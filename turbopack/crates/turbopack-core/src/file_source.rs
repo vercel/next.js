@@ -2,8 +2,8 @@ use anyhow::{Result, bail};
 use turbo_rcstr::RcStr;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::{
-    FileContent, FileSystemEntryType, FileSystemPath, LinkContent, LinkTarget, WriteLinkContent,
-    WriteLinkTarget, WriteLinkTargetType,
+    FileContent, FileSystemEntryType, FileSystemPath, LinkContent, WriteLinkContent,
+    WriteLinkTargetType,
 };
 
 use crate::{
@@ -70,12 +70,6 @@ impl Asset for FileSource {
         match file_type {
             FileSystemEntryType::Symlink => match &*self.path.read_link().await? {
                 LinkContent::Link { target } => {
-                    let write_target = match target {
-                        LinkTarget::Absolute { resolved } => {
-                            WriteLinkTarget::Absolute(resolved.path.clone())
-                        }
-                        LinkTarget::Relative { raw, .. } => WriteLinkTarget::Relative(raw.clone()),
-                    };
                     let target_fs_path = target.file_system_path();
                     let write_target_type = match *target_fs_path.get_type().await? {
                         FileSystemEntryType::Directory => {
@@ -89,12 +83,17 @@ impl Asset for FileSource {
                         _ => WriteLinkTargetType::FileNonPortable,
                     };
                     Ok(AssetContent::Redirect(WriteLinkContent {
-                        target: write_target,
+                        target: target_fs_path.clone(),
                         target_type: write_target_type,
                     })
                     .cell())
                 }
-                _ => bail!("Invalid symlink"),
+                LinkContent::NotFound => {
+                    // This should not normally happen because the path was already identified as
+                    // a symlink, but it may be removed between get_type and read_link.
+                    Ok(AssetContent::File(FileContent::NotFound.resolved_cell()).cell())
+                }
+                LinkContent::Invalid { reason } => bail!("Invalid symlink: {reason}"),
             },
             FileSystemEntryType::File => {
                 Ok(AssetContent::File(self.path.read().to_resolved().await?).cell())

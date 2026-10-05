@@ -10,7 +10,7 @@ export enum RenderStage {
   Static = 13,
   //
   ShellRuntime = 20,
-  Runtime = 21,
+  PrefetchRuntime = 21,
   NavigationRuntime = 22,
   //
   Dynamic = 30,
@@ -29,7 +29,7 @@ export const RENDER_STAGE_ADVANCE_ORDER: AdvanceableRenderStage[] = [
   RenderStage.Static,
   //
   RenderStage.ShellRuntime,
-  RenderStage.Runtime,
+  RenderStage.PrefetchRuntime,
   RenderStage.NavigationRuntime,
   //
   RenderStage.Dynamic,
@@ -113,6 +113,11 @@ export class StagedRenderingController {
     }
   }
 
+  /**
+   * Schedules a callback that will execute synchronously when the controller is advanced
+   * to `stage` or past it, before any promises for that stage are resolved.
+   * If the controller is already past `stage`, the callback is executed immediately.
+   * */
   onStage(stage: AdvanceableRenderStage, callback: () => void) {
     addSyncTriggerListener(this.triggers[stage], callback)
   }

@@ -4,8 +4,7 @@ use indoc::formatdoc;
 use serde::Deserialize;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, Completions, ResolvedVc, TryFlatJoinIterExt, Vc, fxindexmap, trace::TraceRawVcs,
-    turbofmt,
+    Completion, Completions, ResolvedVc, TryFlatJoinIterExt, Vc, fxindexmap, turbofmt,
 };
 use turbo_tasks_fs::{
     File, FileContent, FileSystemEntryType, FileSystemPath, json::parse_json_with_source_context,
@@ -46,7 +45,7 @@ struct PostCssProcessingResult {
 }
 
 #[turbo_tasks::task_input]
-#[derive(Default, Copy, Clone, PartialEq, Eq, Hash, Debug, TraceRawVcs, Encode, Decode)]
+#[derive(Default, Copy, Clone, PartialEq, Eq, Hash, Debug, Encode, Decode)]
 pub enum PostCssConfigLocation {
     /// Searches for postcss config only starting from the project root directory.
     /// Used for foreign code (node_modules) where per-directory configs should be ignored.

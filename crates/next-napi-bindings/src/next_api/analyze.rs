@@ -1,19 +1,30 @@
-use std::{iter::once, sync::Arc};
+use std::sync::Arc;
 
 use anyhow::Result;
 use next_api::{
     analyze::{
-        AnalyzeDataOutputAsset, ModulesDataOutputAsset, combine_output_assets, combine_traced_files,
+        AnalyzeDataOutputAsset, ModulesDataOutputAsset, RouteBundleSummary, analyze_output_assets,
+        combine_output_assets, combine_traced_files,
     },
     project::ProjectContainer,
     route::EndpointGroupKey,
 };
+use serde::Serialize;
 use turbo_tasks::{Effects, ReadRef, ResolvedVc, TryJoinIterExt, Vc};
-use turbo_tasks_fs::FileSystemPath;
+use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
+    asset::AssetContent,
     issue::PlainIssue,
     output::{OutputAsset, OutputAssets},
+    virtual_output::VirtualOutputAsset,
 };
+
+#[derive(Serialize)]
+struct RouteSummary {
+    route: String,
+    #[serde(flatten)]
+    bundles: RouteBundleSummary,
+}
 
 use crate::next_api::utils::strongly_consistent_catch_collectables;
 
@@ -88,7 +99,7 @@ async fn get_analyze_data_operation(
     let combined_assets_vc = Vc::cell(combined_output_assets);
     let combined_traced_vc = Vc::cell(combined_traced_files);
 
-    let analyze_data = endpoint_groups
+    let analyze_data_and_summaries = endpoint_groups
         .iter()
         .map(async |(key, endpoint_group)| {
             let output_assets = if has_combined
@@ -123,10 +134,41 @@ async fn get_analyze_data_operation(
             .to_resolved()
             .await?;
 
-            Ok(ResolvedVc::upcast(analyze_data))
+            let summary = if let EndpointGroupKey::Route(route) = key {
+                Some(RouteSummary {
+                    route: route.to_string(),
+                    bundles: analyze_output_assets(output_assets, traced_files)
+                        .await?
+                        .summary,
+                })
+            } else {
+                None
+            };
+
+            Ok((ResolvedVc::upcast(analyze_data), summary))
         })
         .try_join()
         .await?;
+
+    let mut analyze_data = Vec::with_capacity(analyze_data_and_summaries.len() + 2);
+    let mut route_summaries = Vec::new();
+    for (asset, summary) in analyze_data_and_summaries {
+        analyze_data.push(asset);
+        if let Some(summary) = summary {
+            route_summaries.push(summary);
+        }
+    }
+
+    let route_summaries_asset = ResolvedVc::upcast(
+        VirtualOutputAsset::new(
+            analyze_output_root.join("route-summaries.json")?,
+            AssetContent::file(
+                FileContent::Content(File::from(serde_json::to_string(&route_summaries)?)).cell(),
+            ),
+        )
+        .to_resolved()
+        .await?,
+    );
 
     let modules_data = ResolvedVc::upcast(
         ModulesDataOutputAsset::new(
@@ -137,11 +179,6 @@ async fn get_analyze_data_operation(
         .await?,
     );
 
-    Ok(Vc::cell(
-        analyze_data
-            .iter()
-            .cloned()
-            .chain(once(modules_data))
-            .collect(),
-    ))
+    analyze_data.extend([route_summaries_asset, modules_data]);
+    Ok(Vc::cell(analyze_data))
 }

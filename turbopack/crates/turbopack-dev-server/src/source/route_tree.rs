@@ -3,17 +3,14 @@ use std::{fmt::Write, mem::replace};
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{
-    FxIndexMap, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc, fxindexmap,
-    trace::TraceRawVcs,
-};
+use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc, fxindexmap};
 
 use crate::source::{GetContentSourceContent, GetContentSourceContents};
 
 /// The type of the route. This will decide about the remaining segments of the
 /// route after the base.
 #[turbo_tasks::task_input]
-#[derive(Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Encode, Decode)]
 pub enum RouteType {
     Exact,
     CatchAll,
@@ -23,7 +20,7 @@ pub enum RouteType {
 
 /// Some normal segment of a route.
 #[turbo_tasks::task_input]
-#[derive(Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Encode, Decode)]
 pub enum BaseSegment {
     Static(RcStr),
     Dynamic,

@@ -15,6 +15,7 @@ if (!__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turb
 
 __turbopack_context__.s([
     "default",
+    0,
     ()=>__TURBOPACK__default__export__
 ]);
 const __TURBOPACK__default__export__ = {

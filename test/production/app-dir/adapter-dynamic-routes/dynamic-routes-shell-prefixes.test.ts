@@ -31,13 +31,13 @@ describe('adapter dynamic routes (shell prefixes)', () => {
       .toMatchInlineSnapshot(`
      "2 entries
 
-     /$shellPrefix/posts/[id]
-       ^[/]?/(?<shellPrefix>acme\\.one\\-two,three/de|acme\\.one\\-two,three/en|sparse/en)/posts/(?<nxtPid>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
-       -> /$shellPrefix/posts/[id]$rscSuffix?nxtPid=$nxtPid
+     /$1/posts/[id]
+       ^[/]?/(acme\\.one\\-two,three/de|acme\\.one\\-two,three/en|sparse/en)/posts/(?<nxtPid>[^/]+?)(\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
+       -> /$1/posts/[id]$3?nxtPid=$nxtPid
 
      /[team]/[locale]/posts/[id]
-       ^[/]?/(?<nxtPteam>[^/]+?)/(?<nxtPlocale>[^/]+?)/posts/(?<nxtPid>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
-       -> /[team]/[locale]/posts/[id]$rscSuffix?nxtPteam=$nxtPteam&nxtPlocale=$nxtPlocale&nxtPid=$nxtPid"
+       ^[/]?/(?<nxtPteam>[^/]+?)/(?<nxtPlocale>[^/]+?)/posts/(?<nxtPid>[^/]+?)(\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
+       -> /[team]/[locale]/posts/[id]$4?nxtPteam=$nxtPteam&nxtPlocale=$nxtPlocale&nxtPid=$nxtPid"
     `)
   })
 })

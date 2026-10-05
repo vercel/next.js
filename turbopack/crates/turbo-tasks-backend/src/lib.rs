@@ -1,4 +1,3 @@
-#![feature(anonymous_lifetime_in_impl_trait)]
 #![feature(deref_patterns)]
 
 mod backend;
@@ -17,8 +16,8 @@ use turbo_persistence::{CompactConfig, TurboPersistence};
 use crate::database::turbo::{self, TurboKeyValueDatabase};
 pub use crate::{
     backend::{
-        BackendOptions, EvictionMode, GcStats, StorageMode, TestSnapshotOutcome, TtlCounter,
-        TurboTasksBackend,
+        BackendOptions, EvictionMode, GcPassResult, GcStats, StorageMode, TestSnapshotOutcome,
+        TtlCounter, TurboTasksBackend,
     },
     database::{
         db_invalidation,
@@ -98,7 +97,7 @@ pub fn compact_database(
     // Fully compact with no segment count limit (unlike the runtime shutdown path
     // which caps segments based on available parallelism).
     db.compact(&CompactConfig {
-        max_merge_segment_count: usize::MAX,
+        max_merge_jobs: usize::MAX,
         ..turbo::COMPACT_CONFIG
     })?;
     db.shutdown()

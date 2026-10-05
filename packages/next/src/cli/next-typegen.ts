@@ -8,6 +8,7 @@ import loadConfig from '../server/config'
 import { printAndExit } from '../server/lib/utils'
 import { PHASE_PRODUCTION_BUILD } from '../shared/lib/constants'
 import { getProjectDir } from '../lib/get-project-dir'
+import { warnMissingReactDependencies } from '../lib/warn-missing-react-dependencies'
 import { findPagesDir } from '../lib/find-pages-dir'
 import { verifyAndRunTypeScript } from '../lib/verify-typescript-setup'
 import { discoverRoutes } from '../build/route-discovery'
@@ -31,6 +32,7 @@ const nextTypegen = async (options: NextTypegenOptions, directory?: string) => {
   parseBundlerArgs(options)
 
   const baseDir = getProjectDir(directory)
+  warnMissingReactDependencies(baseDir)
 
   // Check if the provided directory exists
   if (!existsSync(baseDir)) {

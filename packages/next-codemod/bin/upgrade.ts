@@ -113,7 +113,13 @@ function resolveSemanticRevision(
 
 export async function runUpgrade(
   revision: string | undefined,
-  options: { verbose: boolean; yes?: boolean; skipAdoption?: boolean }
+  options: {
+    verbose: boolean
+    yes?: boolean
+    skipAdoption?: boolean
+    skipReactUpgrade: boolean | undefined
+    skipEslintUpgrade: boolean | undefined
+  }
 ): Promise<void> {
   const { verbose } = options
   const nonInteractive = options.yes === true || !process.stdin.isTTY
@@ -223,6 +229,7 @@ export async function runUpgrade(
     // x-ref(release): https://github.com/vercel/next.js/releases/tag/v14.3.0-canary.45
     compareVersions(targetNextVersion, '14.3.0-canary.45') >= 0 &&
     installedReactVersion.startsWith('18') &&
+    !options.skipReactUpgrade &&
     // Pure App Router always uses React 19
     // The mixed case is tricky to handle from a types perspective.
     // We'll recommend to upgrade in the prompt but users can decide to try 18.
@@ -256,11 +263,13 @@ export async function runUpgrade(
   // E.g. in peerDependencies we could have `^18.2.0 || ^19.0.0 || 20.0.0-canary`
   // If we'd just `npm add` that, the manifest would read the same version query.
   // This is basically a `npm --save-exact react@$versionQuery` that works for every package manager.
-  const targetReactVersion = shouldStayOnReact18
-    ? '18.3.1'
-    : await loadHighestNPMVersionMatching(
-        `react@${targetNextPackageJson.peerDependencies['react']}`
-      )
+  const targetReactVersion = options.skipReactUpgrade
+    ? installedReactVersion
+    : shouldStayOnReact18
+      ? '18.3.1'
+      : await loadHighestNPMVersionMatching(
+          `react@${targetNextPackageJson.peerDependencies['react']}`
+        )
 
   if (
     compareVersions(targetNextVersion, '15.0.0-canary') >= 0 &&
@@ -282,6 +291,7 @@ export async function runUpgrade(
   let execCommand = 'npx --yes'
   // The following React codemods are for React 19
   if (
+    !options.skipReactUpgrade &&
     !shouldStayOnReact18 &&
     compareVersions(targetReactVersion, '19.0.0-0') >= 0 &&
     compareVersions(installedReactVersion, '19.0.0-0') < 0
@@ -306,11 +316,27 @@ export async function runUpgrade(
   const versionMapping: Record<string, { version: string; required: boolean }> =
     {
       next: { version: targetNextVersion, required: true },
+    }
+
+  // Recovery retries must preserve the repaired React declarations and pins.
+  if (!options.skipReactUpgrade) {
+    Object.assign(versionMapping, {
       react: { version: targetReactVersion, required: true },
       'react-dom': { version: targetReactVersion, required: true },
       'react-is': { version: targetReactVersion, required: false },
-    }
+    })
+  }
+
   for (const optionalNextjsPackage of optionalNextjsPackages) {
+    // Preserve the lint stack together; its newer config can require newer ESLint.
+    if (
+      options.skipEslintUpgrade &&
+      (optionalNextjsPackage === 'eslint-config-next' ||
+        optionalNextjsPackage === '@next/eslint-plugin-next')
+    ) {
+      continue
+    }
+
     versionMapping[optionalNextjsPackage] = {
       version: targetNextVersion,
       required: false,
@@ -318,9 +344,10 @@ export async function runUpgrade(
   }
 
   if (
-    targetReactVersion.startsWith('19.0.0-canary') ||
-    targetReactVersion.startsWith('19.0.0-beta') ||
-    targetReactVersion.startsWith('19.0.0-rc')
+    !options.skipReactUpgrade &&
+    (targetReactVersion.startsWith('19.0.0-canary') ||
+      targetReactVersion.startsWith('19.0.0-beta') ||
+      targetReactVersion.startsWith('19.0.0-rc'))
   ) {
     const [targetReactTypesVersion, targetReactDOMTypesVersion] =
       await Promise.all([
@@ -339,7 +366,7 @@ export async function runUpgrade(
         required: false,
       }
     }
-  } else {
+  } else if (!options.skipReactUpgrade) {
     const [targetReactTypesVersion, targetReactDOMTypesVersion] =
       await Promise.all([
         loadHighestNPMVersionMatching(
@@ -374,7 +401,11 @@ export async function runUpgrade(
   // Only act when the project is actually using `eslint-config-next` — we
   // don't want to silently upgrade eslint majors for projects that use
   // eslint for unrelated reasons.
-  if (allDependencies['eslint'] && allDependencies['eslint-config-next']) {
+  if (
+    !options.skipEslintUpgrade &&
+    allDependencies['eslint'] &&
+    allDependencies['eslint-config-next']
+  ) {
     try {
       const eslintConfigNextPeerDepsJSON = execSync(
         `npm --silent view "eslint-config-next@${targetNextVersion}" peerDependencies --json`,
@@ -386,8 +417,14 @@ export async function runUpgrade(
           : JSON.parse(eslintConfigNextPeerDepsJSON)
       const eslintRange = eslintConfigNextPeerDeps?.eslint
       if (eslintRange) {
+        // TODO: Target ESLint 10 once eslint-config-next's plugins, especially
+        // eslint-plugin-react, support its API removals (e.g. context.getFilename).
+        const cappedRange = eslintRange
+          .split('||')
+          .map((range) => `${range.trim()} <10`)
+          .join(' || ')
         const targetEslintVersion = await loadHighestNPMVersionMatching(
-          `eslint@${eslintRange}`
+          `eslint@${cappedRange}`
         )
         versionMapping['eslint'] = {
           version: targetEslintVersion,
@@ -408,10 +445,10 @@ export async function runUpgrade(
   // we still do it out of safety due to https://github.com/microsoft/DefinitelyTyped-tools/issues/433.
   const overrides: Record<string, string> = {}
 
-  if (allDependencies['@types/react']) {
+  if (!options.skipReactUpgrade && allDependencies['@types/react']) {
     overrides['@types/react'] = versionMapping['@types/react'].version
   }
-  if (allDependencies['@types/react-dom']) {
+  if (!options.skipReactUpgrade && allDependencies['@types/react-dom']) {
     overrides['@types/react-dom'] = versionMapping['@types/react-dom'].version
   }
 
@@ -447,7 +484,17 @@ export async function runUpgrade(
 
   runInstallation(packageManager, { cwd })
 
-  for (const codemod of codemods) {
+  // Opting out skips the lint migration as well as its dependency upgrades.
+  const selectedCodemods = codemods.filter(
+    (codemod) =>
+      !options.skipEslintUpgrade || codemod !== 'next-lint-to-eslint-cli'
+  )
+  if (selectedCodemods.length !== codemods.length) {
+    console.log(
+      'Skipping next-lint-to-eslint-cli. Complete any required lint migration manually before verification.'
+    )
+  }
+  for (const codemod of selectedCodemods) {
     await runTransform(codemod, cwd, {
       force: true,
       verbose,
@@ -463,10 +510,21 @@ export async function runUpgrade(
     // https://github.com/codemod-com/codemod/blob/c0cf00d13161a0ec0965b6cc6bc5d54076839cc8/apps/cli/src/flags.ts#L160
     // `--allow-dirty` is required because the upgrade above modified package.json
     // and the lockfile; the recipe refuses to run on a dirty tree otherwise.
-    execSync(
-      `${execCommand} codemod@latest react/19/migration-recipe --no-interactive --allow-dirty`,
-      { stdio: 'inherit' }
-    )
+    try {
+      execSync(
+        `${execCommand} codemod@latest react/19/migration-recipe --no-interactive --allow-dirty`,
+        { stdio: 'inherit' }
+      )
+    } catch (error) {
+      // TODO: Remove this fallback once codemod publishes a Linux binary that
+      // supports the glibc versions used by our upgrade environments.
+      console.warn(
+        new Error(
+          `${pc.yellow('⚠')} The React 19 codemod could not run. Continue the upgrade and review the React 19 migration guide manually.`,
+          { cause: error }
+        )
+      )
+    }
   }
 
   if (shouldRunReactTypesCodemods) {
@@ -478,14 +536,14 @@ export async function runUpgrade(
     })
   }
   console.log() // new line
-  if (codemods.length > 0) {
+  if (selectedCodemods.length > 0) {
     console.log(`${pc.green('✔')} Codemods have been applied successfully.`)
   }
 
   try {
     if (refreshAgentRulesBlock(cwd) === 'refreshed') {
       console.log(
-        `${pc.green('✔')} Refreshed the managed agent-rules block in AGENTS.md / CLAUDE.md to match the upgraded Next.js.`
+        `${pc.green('✔')} Refreshed the managed agent-rules block in AGENTS.md to match the upgraded Next.js.`
       )
     }
   } catch {
