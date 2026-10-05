@@ -39,6 +39,7 @@ type RouteHeader = {
     }>
   }>
   output_file_modules: EdgeRef
+  output_file_async_loaders: EdgeRef
   output_file_module_coverage: Array<'exact' | 'unsupported' | 'not_a_chunk'>
   unjoined_modules: Array<{
     output_file_index: number
@@ -229,6 +230,13 @@ function parseRoutes(file: string, modules: ReturnType<typeof parseModules>) {
     modules.modules.length,
     'output modules'
   )
+  const asyncLoaders = validateEdges(
+    binary,
+    header.output_file_async_loaders,
+    outputs.length,
+    modules.modules.length,
+    'output async loaders'
+  )
   if (
     !Array.isArray(header.output_file_module_coverage) ||
     header.output_file_module_coverage.length !== outputs.length
@@ -269,6 +277,7 @@ function parseRoutes(file: string, modules: ReturnType<typeof parseModules>) {
     header,
     entries: header.route_entries ?? null,
     membership,
+    asyncLoaders,
     unjoined,
   }
 }
@@ -335,10 +344,8 @@ export function dumpAnalyzeGraph(
   // Retain only the current route's data. A later validation error may leave
   // partial output; callers must check the exit status before using it.
   for (const route of selected) {
-    const { paths, header, entries, membership, unjoined } = parseRoutes(
-      routeFile(directory, route),
-      moduleData
-    )
+    const { paths, header, entries, membership, asyncLoaders, unjoined } =
+      parseRoutes(routeFile(directory, route), moduleData)
     const prefix = { route }
     writeRecord({
       type: 'route',
@@ -351,7 +358,14 @@ export function dumpAnalyzeGraph(
         type: 'output',
         ...prefix,
         filename: header.output_files[i].filename,
-        modules: membership.row(i).map((id) => modules[id].ident),
+        modules: membership
+          .row(i)
+          .map((id) => modules[id].ident)
+          .sort(),
+        async_loaders: asyncLoaders
+          .row(i)
+          .map((id) => modules[id].ident)
+          .sort(),
         coverage: header.output_file_module_coverage[i],
       })
     }

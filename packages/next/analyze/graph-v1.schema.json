@@ -182,7 +182,14 @@
     },
     "output": {
       "type": "object",
-      "required": ["type", "route", "filename", "modules", "coverage"],
+      "required": [
+        "type",
+        "route",
+        "filename",
+        "modules",
+        "async_loaders",
+        "coverage"
+      ],
       "properties": {
         "type": { "const": "output" },
         "route": { "type": "string", "description": "Owning route path." },
@@ -192,10 +199,14 @@
         },
         "modules": {
           "$ref": "#/$defs/identities",
-          "description": "Joined module identities from this snapshot's global module table. Async loader stubs are omitted only after their dynamically imported target joins this table; the target is not added to the loader's output membership. Unsupported enumeration or joining can yield partial or empty membership; separately compiled worker payloads can remain unjoined."
+          "description": "Sorted identities of the output chunk's real members, joined to this snapshot's module index. Async loader stubs and their targets are represented separately in async_loaders. Unsupported coverage may have partial membership."
+        },
+        "async_loaders": {
+          "$ref": "#/$defs/identities",
+          "description": "Sorted target module identities of typed async loader stubs contained in this chunk. Each target is recorded only after joining the snapshot module index through the loader's inner module; a missing target retains an unjoined record with reason async_loader_target_missing."
         },
         "coverage": {
-          "description": "Membership evidence: exact enumerates all JS/CSS chunk members and joins every member other than async loader stubs whose targets were confirmed in the module table; unsupported could not establish complete enumeration or joining (partial members may exist); not_a_chunk is outside JS/CSS chunk membership. Unsupported never means an empty chunk.",
+          "description": "Membership evidence: exact enumerates and joins every real chunk member and async loader target; unsupported means complete enumeration or joining could not be established; not_a_chunk identifies non-chunk outputs, including runtime, precompiled polyfill and separately compiled worker outputs by concrete type. Attribution part records remain available.",
           "enum": ["exact", "unsupported", "not_a_chunk"]
         }
       },

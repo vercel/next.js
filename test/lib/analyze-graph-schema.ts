@@ -50,7 +50,11 @@ export function validateGraphDump(output: string): void {
         throw new Error(`Unknown route for graph record ${index}`)
       }
       if (record.type === 'output') {
-        outputs.add(JSON.stringify([key, record.filename]))
+        const outputKey = JSON.stringify([key, record.filename])
+        if (outputs.has(outputKey)) {
+          throw new Error(`Duplicate analyzer output: ${record.filename}`)
+        }
+        outputs.add(outputKey)
       } else if (
         (record.type === 'part' || record.type === 'unjoined') &&
         !outputs.has(JSON.stringify([key, record.filename]))

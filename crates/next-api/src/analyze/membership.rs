@@ -5,7 +5,10 @@ use anyhow::Result;
 use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexSet, ResolvedVc, ValueToString, Vc};
-use turbopack_browser::ecmascript::EcmascriptBrowserChunk;
+use turbopack_browser::ecmascript::{
+    EcmascriptBrowserChunk, EcmascriptBrowserRuntimeChunk, EcmascriptBrowserSingleEntryChunk,
+    EcmascriptBrowserWorkerEntrypoint,
+};
 use turbopack_core::{
     chunk::{Chunk, ChunkItem},
     module::Module,
@@ -15,8 +18,9 @@ use turbopack_css::chunk::CssChunk;
 use turbopack_ecmascript::{
     async_chunk::module::AsyncLoaderModule,
     chunk::{EcmascriptChunk, EcmascriptChunkItemOrBatchWithAsyncInfo},
+    single_file_ecmascript_output::SingleFileEcmascriptOutput,
 };
-use turbopack_nodejs::EcmascriptBuildNodeChunk;
+use turbopack_nodejs::{EcmascriptBuildNodeChunk, EcmascriptBuildNodeRuntimeChunk};
 
 use crate::analyze::{AnalyzeModuleIndex, AnalyzeOutputFileCoverage, AnalyzeUnjoinedModule};
 
@@ -26,6 +30,7 @@ async fn join_chunk_item(
     module_index: &AnalyzeModuleIndex,
     output_file_index: u32,
     indices: &mut FxIndexSet<u32>,
+    async_loaders: &mut FxIndexSet<u32>,
     unjoined: &mut Vec<AnalyzeUnjoinedModule>,
 ) -> Result<()> {
     let module = module.to_resolved().await?;
@@ -41,6 +46,7 @@ async fn join_chunk_item(
         &module_index.by_ident,
         output_file_index,
         indices,
+        async_loaders,
         unjoined,
     );
     Ok(())
@@ -52,6 +58,7 @@ fn join_chunk_item_ident(
     by_ident: &FxHashMap<RcStr, u32>,
     output_file_index: u32,
     indices: &mut FxIndexSet<u32>,
+    async_loaders: &mut FxIndexSet<u32>,
     unjoined: &mut Vec<AnalyzeUnjoinedModule>,
 ) {
     let (lookup_ident, reason) = match &loader_target_ident {
@@ -59,9 +66,9 @@ fn join_chunk_item_ident(
         None => (&ident, "outside_whole_app_module_graph"),
     };
     if let Some(&index) = by_ident.get(lookup_ident) {
-        // A typed loader is synthetic membership, not another copy of its target.
-        // Exclude it only after confirming its target in this snapshot's index.
-        if loader_target_ident.is_none() {
+        if loader_target_ident.is_some() {
+            async_loaders.insert(index);
+        } else {
             indices.insert(index);
         }
     } else {
@@ -84,8 +91,18 @@ pub(super) async fn output_chunk_modules(
     Vec<u32>,
     AnalyzeOutputFileCoverage,
     Vec<AnalyzeUnjoinedModule>,
+    Vec<u32>,
 )> {
+    if ResolvedVc::try_downcast_type::<EcmascriptBrowserRuntimeChunk>(asset).is_some()
+        || ResolvedVc::try_downcast_type::<EcmascriptBuildNodeRuntimeChunk>(asset).is_some()
+        || ResolvedVc::try_downcast_type::<SingleFileEcmascriptOutput>(asset).is_some()
+        || ResolvedVc::try_downcast_type::<EcmascriptBrowserSingleEntryChunk>(asset).is_some()
+        || ResolvedVc::try_downcast_type::<EcmascriptBrowserWorkerEntrypoint>(asset).is_some()
+    {
+        return Ok((vec![], AnalyzeOutputFileCoverage::NotAChunk, vec![], vec![]));
+    }
     let mut indices = FxIndexSet::default();
+    let mut async_loaders = FxIndexSet::default();
     let mut unjoined = Vec::new();
     let mut enumerated = true;
     let ecmascript_content = if let Some(browser_chunk) =
@@ -109,6 +126,7 @@ pub(super) async fn output_chunk_modules(
                         module_index,
                         output_file_index,
                         &mut indices,
+                        &mut async_loaders,
                         &mut unjoined,
                     )
                     .await?;
@@ -120,6 +138,7 @@ pub(super) async fn output_chunk_modules(
                             module_index,
                             output_file_index,
                             &mut indices,
+                            &mut async_loaders,
                             &mut unjoined,
                         )
                         .await?;
@@ -135,6 +154,7 @@ pub(super) async fn output_chunk_modules(
                 module_index,
                 output_file_index,
                 &mut indices,
+                &mut async_loaders,
                 &mut unjoined,
             )
             .await?;
@@ -143,14 +163,19 @@ pub(super) async fn output_chunk_modules(
         // Other emitted JS/CSS wrappers cannot enumerate their module members.
         enumerated = false;
     } else {
-        return Ok((vec![], AnalyzeOutputFileCoverage::NotAChunk, vec![]));
+        return Ok((vec![], AnalyzeOutputFileCoverage::NotAChunk, vec![], vec![]));
     }
     let coverage = if enumerated && unjoined.is_empty() {
         AnalyzeOutputFileCoverage::Exact
     } else {
         AnalyzeOutputFileCoverage::Unsupported
     };
-    Ok((indices.into_iter().collect(), coverage, unjoined))
+    Ok((
+        indices.into_iter().collect(),
+        coverage,
+        unjoined,
+        async_loaders.into_iter().collect(),
+    ))
 }
 
 #[cfg(test)]
@@ -161,12 +186,16 @@ mod tests {
 
     use crate::analyze::{AnalyzeUnjoinedModule, membership::join_chunk_item_ident};
 
-    fn join(ident: &str, loader_target: Option<&str>) -> (Vec<u32>, Vec<AnalyzeUnjoinedModule>) {
+    fn join(
+        ident: &str,
+        loader_target: Option<&str>,
+    ) -> (Vec<u32>, Vec<u32>, Vec<AnalyzeUnjoinedModule>) {
         let by_ident = FxHashMap::from_iter([
             (RcStr::from("target"), 7),
             (RcStr::from("ordinary (async loader)"), 9),
         ]);
         let mut indices = FxIndexSet::default();
+        let mut async_loaders = FxIndexSet::default();
         let mut unjoined = Vec::new();
         join_chunk_item_ident(
             ident.into(),
@@ -174,22 +203,29 @@ mod tests {
             &by_ident,
             3,
             &mut indices,
+            &mut async_loaders,
             &mut unjoined,
         );
-        (indices.into_iter().collect(), unjoined)
+        (
+            indices.into_iter().collect(),
+            async_loaders.into_iter().collect(),
+            unjoined,
+        )
     }
 
     #[test]
     fn confirmed_async_loader_is_not_a_member() {
-        let (indices, unjoined) = join("target (async loader)", Some("target"));
+        let (indices, async_loaders, unjoined) = join("target (async loader)", Some("target"));
         assert!(indices.is_empty());
+        assert_eq!(async_loaders, [7]);
         assert!(unjoined.is_empty());
     }
 
     #[test]
     fn missing_async_loader_target_stays_visible() {
-        let (indices, unjoined) = join("missing (async loader)", Some("missing"));
+        let (indices, async_loaders, unjoined) = join("missing (async loader)", Some("missing"));
         assert!(indices.is_empty());
+        assert!(async_loaders.is_empty());
         assert_eq!(unjoined.len(), 1);
         assert_eq!(unjoined[0].output_file_index, 3);
         assert_eq!(unjoined[0].module_ident, "missing (async loader)");
@@ -198,12 +234,14 @@ mod tests {
 
     #[test]
     fn ordinary_members_are_not_classified_by_ident_suffix() {
-        let (indices, unjoined) = join("ordinary (async loader)", None);
+        let (indices, async_loaders, unjoined) = join("ordinary (async loader)", None);
         assert_eq!(indices, [9]);
+        assert!(async_loaders.is_empty());
         assert!(unjoined.is_empty());
 
-        let (indices, unjoined) = join("unknown (async loader)", None);
+        let (indices, async_loaders, unjoined) = join("unknown (async loader)", None);
         assert!(indices.is_empty());
+        assert!(async_loaders.is_empty());
         assert_eq!(unjoined.len(), 1);
         assert_eq!(unjoined[0].reason, "outside_whole_app_module_graph");
     }

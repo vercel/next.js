@@ -29,6 +29,7 @@ type ChunkGraphHeader = {
   module_index_hash: string
   output_files: Array<{ filename: string }>
   output_file_modules: EdgesReference
+  output_file_async_loaders: EdgesReference
   output_file_module_coverage: Array<'exact' | 'unsupported' | 'not_a_chunk'>
   unjoined_modules: Array<{
     output_file_index: number
@@ -258,12 +259,21 @@ describe('next analyze', () => {
     const moduleRows = readRows(binary, membershipHeader.output_file_modules)
     expect(outputRecords.map((record) => record.modules)).toEqual(
       moduleRows.map((row) =>
-        row.map((index) => moduleHeader.modules[index].ident)
+        row.map((index) => moduleHeader.modules[index].ident).sort()
       )
     )
     expect(outputRecords.map((record) => record.coverage)).toEqual(
       membershipHeader.output_file_module_coverage
     )
+    expect(outputRecords.map((record) => record.async_loaders)).toEqual(
+      readRows(binary, membershipHeader.output_file_async_loaders).map((row) =>
+        row.map((index) => moduleHeader.modules[index].ident).sort()
+      )
+    )
+    for (const output of records.filter((record) => record.type === 'output')) {
+      expect(output.modules).toEqual([...output.modules].sort())
+      expect(output.async_loaders).toEqual([...output.async_loaders].sort())
+    }
 
     const clientEntries = records.filter(
       (record) =>
@@ -307,6 +317,18 @@ describe('next analyze', () => {
       clientEntries.some((entry) => record.modules.includes(entry.ident))
     )
     expect(importerOutputs.length).toBeGreaterThan(0)
+    for (const target of asyncTargets.filter(
+      (target) =>
+        target.ident.includes('next/dynamic entry') ||
+        target.path.endsWith('/app/async-target.ts')
+    )) {
+      expect(
+        importerOutputs.some((output) =>
+          output.async_loaders.includes(target.ident)
+        )
+      ).toBe(true)
+    }
+
     for (const output of importerOutputs) {
       expect(output.coverage).toBe('exact')
       // Joining a loader's target must not attribute that target to the importer.
@@ -716,7 +738,20 @@ describe('next analyze', () => {
           )
         )
         expect(runtimeOutputs.length).toBeGreaterThan(0)
-        expect(runtimeOutputs).not.toContain('exact')
+        expect(
+          runtimeOutputs.every((coverage) => coverage === 'not_a_chunk')
+        ).toBe(true)
+        const workers = routeGraphs.flatMap(({ header }) =>
+          header.output_files.flatMap((output, index) =>
+            output.filename.includes('/service-worker/')
+              ? [header.output_file_module_coverage[index]]
+              : []
+          )
+        )
+        expect(workers.length).toBeGreaterThan(0)
+        expect(workers.every((coverage) => coverage === 'not_a_chunk')).toBe(
+          true
+        )
         const appGraph = routeGraphs[0].header
         const appRows = readRows(
           routeGraphs[0].binary,

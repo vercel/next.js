@@ -1,4 +1,3 @@
-mod format;
 mod membership;
 
 use std::{borrow::Cow, io::Write};
@@ -222,6 +221,7 @@ struct AnalyzeDataHeader {
     pub output_files: Vec<AnalyzeOutputFile>,
     /// Exact indices into this snapshot's modules.data.modules, one row per output file.
     pub output_file_modules: EdgesDataReference,
+    pub output_file_async_loaders: EdgesDataReference,
     pub output_file_module_coverage: Vec<AnalyzeOutputFileCoverage>,
     pub unjoined_modules: Vec<AnalyzeUnjoinedModule>,
     /// Exact endpoint roots; nested client references do not become roots.
@@ -275,6 +275,7 @@ struct AnalyzeOutputFileBuilder {
     output_file: AnalyzeOutputFile,
     chunk_part_indices: Vec<u32>,
     module_indices: Vec<u32>,
+    async_loader_indices: Vec<u32>,
     module_coverage: AnalyzeOutputFileCoverage,
 }
 
@@ -299,6 +300,7 @@ struct AnalyzeDataBuilder {
     source_index_map: FxHashMap<RcStr, u32>,
     chunk_parts: Vec<AnalyzeChunkPart>,
     output_files: Vec<AnalyzeOutputFileBuilder>,
+    output_file_index_map: FxHashMap<RcStr, u32>,
     route_entries: Vec<AnalyzeRouteEntry>,
     module_index_hash: RcStr,
     unjoined_modules: Vec<AnalyzeUnjoinedModule>,
@@ -335,6 +337,7 @@ impl AnalyzeDataBuilder {
             source_index_map: FxHashMap::default(),
             chunk_parts: vec![],
             output_files: vec![],
+            output_file_index_map: FxHashMap::default(),
             route_entries,
             unjoined_modules: vec![],
         }
@@ -365,11 +368,17 @@ impl AnalyzeDataBuilder {
     }
 
     fn add_output_file(&mut self, output_file: AnalyzeOutputFile) -> u32 {
+        if let Some(&index) = self.output_file_index_map.get(&output_file.filename) {
+            return index;
+        }
         let i = self.output_files.len() as u32;
+        self.output_file_index_map
+            .insert(output_file.filename.clone(), i);
         self.output_files.push(AnalyzeOutputFileBuilder {
             output_file,
             chunk_part_indices: vec![],
             module_indices: vec![],
+            async_loader_indices: vec![],
             module_coverage: AnalyzeOutputFileCoverage::NotAChunk,
         });
         i
@@ -385,6 +394,70 @@ impl AnalyzeDataBuilder {
         self.sources[source_index as usize]
             .chunk_part_indices
             .push(chunk_part_index);
+    }
+
+    fn build(self) -> Rope {
+        let source_roots = self
+            .sources
+            .iter()
+            .enumerate()
+            .filter_map(|(i, s)| {
+                if s.source.parent_source_index.is_none() {
+                    Some(i as u32)
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        let source_children =
+            EdgesData::from_iterator(self.sources.iter().map(|s| &s.child_source_indices));
+
+        let source_chunk_parts =
+            EdgesData::from_iterator(self.sources.iter().map(|s| &s.chunk_part_indices));
+
+        let output_file_chunk_parts =
+            EdgesData::from_iterator(self.output_files.iter().map(|of| &of.chunk_part_indices));
+        let output_file_modules =
+            EdgesData::from_iterator(self.output_files.iter().map(|of| &of.module_indices));
+
+        let output_file_async_loaders =
+            EdgesData::from_iterator(self.output_files.iter().map(|of| &of.async_loader_indices));
+        let mut binary_section = EdgesDataSectionBuilder::new();
+
+        let header = AnalyzeDataHeader {
+            schema_version: ANALYZE_SCHEMA_VERSION,
+            module_index_hash: self.module_index_hash,
+            sources: self.sources.into_iter().map(|s| s.source).collect(),
+            chunk_parts: self.chunk_parts,
+            output_file_module_coverage: self
+                .output_files
+                .iter()
+                .map(|of| of.module_coverage)
+                .collect(),
+            output_file_modules: binary_section.add_edges(&output_file_modules),
+            output_file_async_loaders: binary_section.add_edges(&output_file_async_loaders),
+            output_files: self
+                .output_files
+                .into_iter()
+                .map(|of| of.output_file)
+                .collect(),
+            unjoined_modules: self.unjoined_modules,
+            route_entries: self.route_entries,
+            output_file_chunk_parts: binary_section.add_edges(&output_file_chunk_parts),
+            source_chunk_parts: binary_section.add_edges(&source_chunk_parts),
+            source_children: binary_section.add_edges(&source_children),
+            source_roots,
+        };
+
+        let header_json = serde_json::to_vec(&header).unwrap();
+
+        let mut rope = RopeBuilder::default();
+        rope.push_bytes(&(header_json.len() as u32).to_be_bytes());
+        rope.reserve_bytes(header_json.len() + binary_section.data.len());
+        rope.push_bytes(&header_json);
+        rope.push_bytes(&binary_section.data);
+        rope.build()
     }
 }
 
@@ -582,10 +655,15 @@ pub async fn analyze_output_assets(
             filename: filename.clone(),
         });
         if let Either::Left(asset) = &asset {
-            let (indices, coverage, unjoined) =
+            let (indices, coverage, unjoined, async_loaders) =
                 output_chunk_modules(*asset, &filename, &module_index, output_file_index).await?;
             let file = &mut builder.output_files[output_file_index as usize];
-            file.module_indices = indices;
+            file.module_indices.extend(indices);
+            file.module_indices.sort_unstable();
+            file.module_indices.dedup();
+            file.async_loader_indices.extend(async_loaders);
+            file.async_loader_indices.sort_unstable();
+            file.async_loader_indices.dedup();
             file.module_coverage = coverage;
             builder.unjoined_modules.extend(unjoined);
         }
@@ -933,6 +1011,13 @@ mod tests {
             filename: "chunk.js".into(),
         });
         route_builder.output_files[first as usize].module_indices = vec![1, 0];
+        route_builder.output_files[first as usize].async_loader_indices = vec![1];
+        assert_eq!(
+            route_builder.add_output_file(AnalyzeOutputFile {
+                filename: "chunk.js".into()
+            }),
+            first
+        );
         route_builder.output_files[first as usize].module_coverage =
             AnalyzeOutputFileCoverage::Exact;
         route_builder.add_output_file(AnalyzeOutputFile {
@@ -947,6 +1032,10 @@ mod tests {
         assert_eq!(
             route_header["output_file_module_coverage"],
             serde_json::json!(["exact", "not_a_chunk"])
+        );
+        assert_eq!(
+            read_rows(&binary, &route_header["output_file_async_loaders"]),
+            vec![vec![1], vec![]]
         );
         let rows = read_rows(&binary, &route_header["output_file_modules"]);
         assert_eq!(rows, vec![vec![1, 0], vec![]]);
