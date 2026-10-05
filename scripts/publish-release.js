@@ -168,6 +168,11 @@ const publishRetryDelaySeconds = 15
         url: 'https://github.com/vercel/next.js',
         directory: pkgDirectory,
       }
+      wasmPkg.license = 'MIT'
+      await fs.copyFile(
+        path.join(cwd, 'license.md'),
+        path.join(pkgDir, 'license.md')
+      )
       await fs.writeFile(
         path.join(pkgDir, 'package.json'),
         JSON.stringify(wasmPkg, null, 2)
