@@ -21,18 +21,20 @@ describe('param-matching-build-metadata', () => {
     'records parameter matching used by %s',
     async (route) => {
       const manifest = await buildRoute(`${route}/[slug]`)
-      expect(manifest.hasParamMatching).toBe(true)
+      expect(manifest.__private_unstable_hasParamMatching).toBe(true)
     }
   )
 
   it('does not mark unconfigured dynamic routes', async () => {
     const manifest = await buildRoute('unconfigured/[slug]')
-    expect(manifest).not.toHaveProperty('hasParamMatching')
+    expect(manifest).not.toHaveProperty('__private_unstable_hasParamMatching')
   })
 
   it('clears the marker when the last matching export is removed', async () => {
     const route = 'layout-only/[slug]'
-    expect((await buildRoute(route)).hasParamMatching).toBe(true)
+    expect((await buildRoute(route)).__private_unstable_hasParamMatching).toBe(
+      true
+    )
 
     await next.patchFile(
       `app/${route}/layout.tsx`,
@@ -43,7 +45,9 @@ describe('param-matching-build-metadata', () => {
         ),
       async () => {
         const manifest = await buildRoute(route)
-        expect(manifest).not.toHaveProperty('hasParamMatching')
+        expect(manifest).not.toHaveProperty(
+          '__private_unstable_hasParamMatching'
+        )
       }
     )
   })

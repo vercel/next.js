@@ -457,8 +457,11 @@ const ALLOWED_HEADERS: string[] = [
 
 export type PrerenderManifest = {
   version: 4
-  /** Whether parameter matching exports were evaluated for this build. */
-  hasParamMatching?: true
+  /**
+   * Temporary compatibility marker for hosts without adapter support for
+   * parameter matching. This will be removed; it is not an API-usage signal.
+   */
+  __private_unstable_hasParamMatching?: true
   routes: { [route: string]: PrerenderManifestRoute }
   dynamicRoutes: { [route: string]: DynamicPrerenderManifestRoute }
   notFoundRoutes: string[]
@@ -3169,7 +3172,7 @@ export default async function build(
         version: 4,
         // Record evaluated exports, including empty fragments, rather than
         // inferring API usage from the resulting fallback modes.
-        hasParamMatching:
+        __private_unstable_hasParamMatching:
           [...paramMatchingByRoute.values()].some(
             (paramMatching) => paramMatching !== undefined
           ) || undefined,
