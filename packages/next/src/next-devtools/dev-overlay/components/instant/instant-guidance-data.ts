@@ -487,10 +487,14 @@ const syncMathCards: FixCard[] = [
   },
   {
     id: 'render-on-the-client',
-    title: 'Render on the client',
+    title: 'Render after hydration',
     group: 'client',
-    link: 'https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client',
-    snippets: [{ text: '"use client"', highlight: true }],
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-random#render-after-hydration',
+    snippets: [
+      { text: '"use client"', highlight: true },
+      { text: 'use(browser())' },
+      { text: 'return <Dots seed={Math.random()} />' },
+    ],
     copyable: true,
   },
 ]
@@ -522,10 +526,14 @@ const syncDateCards: FixCard[] = [
   },
   {
     id: 'render-on-the-client',
-    title: 'Render on the client',
+    title: 'Render after hydration',
     group: 'client',
-    link: 'https://nextjs.org/docs/messages/blocking-prerender-current-time#render-on-the-client',
-    snippets: [{ text: '"use client"', highlight: true }],
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-current-time#render-after-hydration',
+    snippets: [
+      { text: '"use client"', highlight: true },
+      { text: 'use(browser())' },
+      { text: 'return <Clock time={Date.now()} />' },
+    ],
     copyable: true,
   },
   {
@@ -569,10 +577,14 @@ const syncCryptoCards: FixCard[] = [
   },
   {
     id: 'render-on-the-client',
-    title: 'Render on the client',
+    title: 'Render after hydration',
     group: 'client',
-    link: 'https://nextjs.org/docs/messages/blocking-prerender-crypto#render-on-the-client',
-    snippets: [{ text: '"use client"', highlight: true }],
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-crypto#render-after-hydration',
+    snippets: [
+      { text: '"use client"', highlight: true },
+      { text: 'use(browser())' },
+      { text: 'return <Id>{crypto.randomUUID()}</Id>' },
+    ],
     copyable: true,
   },
 ]
