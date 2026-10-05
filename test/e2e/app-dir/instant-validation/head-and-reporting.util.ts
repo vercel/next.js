@@ -1438,7 +1438,7 @@ export function registerHeadAndReportingTests(
                Ways to fix this:
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
                  - [remove] Remove the data access
-                 - Only applies to \`searchParams\`: read them on the client with \`useSearchParams()\`
+                 - [client] Read the data on the client
 
                Learn more: https://nextjs.org/docs/messages/static-route-dynamic
                    at main (<anonymous>)
