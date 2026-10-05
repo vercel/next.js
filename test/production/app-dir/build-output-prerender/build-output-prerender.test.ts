@@ -340,7 +340,7 @@ describe('build-output-prerender', () => {
            Ways to fix this:
              - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
              - [cache] Prerender and cache the value with \`"use cache"\`
-             - [client] Render the value on the client
+             - [client] Render the value on the client with the \`"use client"\` directive
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                at Page (app/server/page.tsx:13:27)
@@ -388,7 +388,7 @@ describe('build-output-prerender', () => {
            Ways to fix this:
              - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
              - [cache] Prerender and cache the value with \`"use cache"\`
-             - [client] Render the value on the client
+             - [client] Render the value on the client with the \`"use client"\` directive
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                at Page (webpack:///app/server/page.tsx:13:27)
