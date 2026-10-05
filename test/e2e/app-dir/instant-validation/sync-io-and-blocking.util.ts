@@ -56,7 +56,7 @@ export function registerSyncIoAndBlockingTests(
            Ways to fix this:
              - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
              - [cache] Prerender and cache the value with \`"use cache"\`
-             - [client] Render the value in the browser with \`"use client"\` and \`use(browser())\`
+             - [client] Render the value after hydration
              - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
@@ -117,7 +117,7 @@ export function registerSyncIoAndBlockingTests(
          Ways to fix this:
            - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
            - [cache] Prerender and cache the value with \`"use cache"\`
-           - [client] Render the value in the browser with \`"use client"\` and \`use(browser())\`
+           - [client] Render the value after hydration
            - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
          Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
@@ -175,7 +175,7 @@ export function registerSyncIoAndBlockingTests(
          Ways to fix this:
            - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
            - [cache] Prerender and cache the value with \`"use cache"\`
-           - [client] Render the value in the browser with \`"use client"\` and \`use(browser())\`
+           - [client] Render the value after hydration
            - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
          Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
@@ -244,7 +244,7 @@ export function registerSyncIoAndBlockingTests(
          Ways to fix this:
            - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
            - [cache] Prerender and cache the value with \`"use cache"\`
-           - [client] Render the value in the browser with \`"use client"\` and \`use(browser())\`
+           - [client] Render the value after hydration
            - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
          Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
@@ -302,7 +302,7 @@ export function registerSyncIoAndBlockingTests(
            Ways to fix this:
              - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
              - [cache] Prerender and cache the value with \`"use cache"\`
-             - [client] Render the value in the browser with \`"use client"\` and \`use(browser())\`
+             - [client] Render the value after hydration
              - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
