@@ -21,7 +21,7 @@ type HotModuleFactoryFunction = ModuleFactoryFunction<
  * Browser runtime declares this directly.
  * Node.js runtime assigns globalThis.__turbopack_module_cache__ to this.
  */
-let devModuleCache: ModuleCache<any>
+let devModuleCache: ModuleCache<HotModule>
 
 /**
  * Module IDs that are instantiated as part of the runtime of a chunk.
@@ -558,7 +558,9 @@ function disposePhase(
   const outdatedModuleParents = new Map<ModuleId, Array<ModuleId>>()
   for (const moduleId of outdatedModules) {
     const oldModule = devModuleCache.get(moduleId)
-    outdatedModuleParents.set(moduleId, oldModule?.parents)
+    if (oldModule) {
+      outdatedModuleParents.set(moduleId, oldModule.parents)
+    }
     devModuleCache.delete(moduleId)
   }
 
@@ -592,14 +594,11 @@ function instantiateModuleShared(
   moduleId: ModuleId,
   sourceType: SourceType,
   sourceData: SourceData,
-  moduleFactories: ModuleFactories,
-  devModuleCache: ModuleCache<HotModule>,
-  runtimeModules: Set<ModuleId>,
-  createModuleObjectFn: (id: ModuleId) => HotModule,
-  createContextFn: (module: HotModule, exports: Exports, refresh?: any) => any,
+  createModuleObjectFn: (id: ModuleId) => Module,
   runModuleExecutionHooksFn: (
     module: HotModule,
-    exec: (refresh: any) => void
+    exports: Exports,
+    factory: Function
   ) => void
 ): HotModule {
   // 1. Factory validation (same in both browser and Node.js)
@@ -635,8 +634,9 @@ function instantiateModuleShared(
       throw new Error(`Unknown source type: ${sourceType}`)
   }
 
-  // 4. Module creation (platform creates base module object)
-  const module = createModuleObjectFn(id)
+  // 4. Module creation (platform creates base module object, which becomes a
+  // HotModule once the fields below are assigned)
+  const module = createModuleObjectFn(id) as HotModule
   const exports = module.exports
   module.parents = parents
   module.children = []
@@ -647,10 +647,7 @@ function instantiateModuleShared(
 
   // 5. Module execution (React Refresh hooks are platform-specific)
   try {
-    runModuleExecutionHooksFn(module, (refresh) => {
-      const context = createContextFn(module, exports, refresh)
-      moduleFactory.call(exports, context, module, exports)
-    })
+    runModuleExecutionHooksFn(module, exports, moduleFactory)
   } catch (error) {
     module.error = error as any
     throw error
@@ -803,8 +800,6 @@ function applyPhase(
   newModuleFactories: Map<ModuleId, HotModuleFactoryFunction>,
   outdatedModuleParents: Map<ModuleId, Array<ModuleId>>,
   outdatedDependencies: Map<ModuleId, Set<ModuleId>>,
-  moduleFactories: ModuleFactories,
-  devModuleCache: ModuleCache<HotModule>,
   instantiateModuleFn: (
     moduleId: ModuleId,
     sourceType: SourceType,
@@ -911,8 +906,6 @@ function applyInternal(
   outdatedDependencies: Map<ModuleId, Set<ModuleId>>,
   disposedModules: Iterable<ModuleId>,
   newModuleFactories: Map<ModuleId, HotModuleFactoryFunction>,
-  moduleFactories: ModuleFactories,
-  devModuleCache: ModuleCache<HotModule>,
   instantiateModuleFn: (
     moduleId: ModuleId,
     sourceType: SourceType,
@@ -949,8 +942,6 @@ function applyInternal(
     newModuleFactories,
     outdatedModuleParents,
     outdatedDependencies,
-    moduleFactories,
-    devModuleCache,
     instantiateModuleFn,
     applyModuleFactoryNameFn,
     reportError
@@ -967,8 +958,6 @@ function applyInternal(
       new Map(),
       [],
       new Map(),
-      moduleFactories,
-      devModuleCache,
       instantiateModuleFn,
       applyModuleFactoryNameFn,
       autoAcceptRootModules
@@ -995,8 +984,6 @@ function applyEcmascriptMergedUpdateShared(options: {
     sourceData: SourceData
   ) => HotModule
   applyModuleFactoryName: (factory: HotModuleFactoryFunction) => void
-  moduleFactories: ModuleFactories
-  devModuleCache: ModuleCache<HotModule>
   autoAcceptRootModules: boolean
 }) {
   const {
@@ -1006,8 +993,6 @@ function applyEcmascriptMergedUpdateShared(options: {
     evalModuleEntry,
     instantiateModule,
     applyModuleFactoryName,
-    moduleFactories,
-    devModuleCache,
     autoAcceptRootModules,
   } = options
 
@@ -1024,8 +1009,6 @@ function applyEcmascriptMergedUpdateShared(options: {
     outdatedDependencies,
     disposedModules,
     newModuleFactories,
-    moduleFactories,
-    devModuleCache,
     instantiateModule,
     applyModuleFactoryName,
     autoAcceptRootModules

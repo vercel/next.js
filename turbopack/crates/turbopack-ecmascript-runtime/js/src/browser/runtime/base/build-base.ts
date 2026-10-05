@@ -103,8 +103,7 @@ function registerChunk(registration: ChunkRegistration | RuntimeParams) {
     runtimeParams = undefined
     installCompressedModuleFactories(
       registration as CompressedModuleFactories,
-      /* offset= */ 1,
-      moduleFactories
+      /* offset= */ 1
     )
   }
 

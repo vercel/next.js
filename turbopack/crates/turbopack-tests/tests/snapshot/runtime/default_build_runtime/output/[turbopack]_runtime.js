@@ -34,6 +34,9 @@ var ASSET_PREFIX = "/";
  * nodejs build-base.ts). Browser production (build-base.ts) leaves it as `false` since it
  * uses plain Module objects.
  */ let createModuleWithDirectionFlag = false;
+/**
+ * Maps module IDs to the factory functions that instantiate them.
+ */ const moduleFactories = new Map();
 const REEXPORTED_OBJECTS = new WeakMap();
 /**
  * Constructs the `__turbopack_context__` object for a module.
@@ -529,11 +532,11 @@ contextPrototype.f = moduleContext;
 // Load the CompressedModuleFactories of a chunk into the `moduleFactories` Map.
 // The flat format alternates one or more module IDs with their factory function.
 // Strict factories can be prepended as a nested array.
-function installCompressedModuleFactories(chunkModules, offset, moduleFactories, newModuleId) {
+function installCompressedModuleFactories(chunkModules, offset, newModuleId) {
     let i = offset;
     const strictFactories = chunkModules[i];
     if (Array.isArray(strictFactories)) {
-        installCompressedModuleFactories(strictFactories, 0, moduleFactories, newModuleId);
+        installCompressedModuleFactories(strictFactories, 0, newModuleId);
         i++;
     }
     while(i < chunkModules.length){
@@ -736,7 +739,6 @@ Context.prototype.F = resolveFileUrl;
  * Contains chunk loading, module caching, and other non-HMR functionality.
  */ process.env.TURBOPACK = '1';
 const url = require('url');
-const moduleFactories = new Map();
 const moduleCache = new Map();
 /**
  * Returns an absolute path to the given module's id.
@@ -782,7 +784,7 @@ function loadRuntimeChunkPath(sourcePath, chunkPath) {
     try {
         const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
         const chunkModules = require(resolved);
-        installCompressedModuleFactories(chunkModules, 0, moduleFactories);
+        installCompressedModuleFactories(chunkModules, 0);
         loadedChunks.add(chunkPath);
     } catch (cause) {
         let errorMessage = `Failed to load chunk ${chunkPath}`;
@@ -811,7 +813,7 @@ function loadChunkAsync(chunkData) {
             // TODO: consider switching to `import()` to enable concurrent chunk loading and async file io
             // However this is incompatible with hot reloading (since `import` doesn't use the require cache)
             const chunkModules = require(resolved);
-            installCompressedModuleFactories(chunkModules, 0, moduleFactories);
+            installCompressedModuleFactories(chunkModules, 0);
             entry = loadedChunk;
         } catch (cause) {
             const errorMessage = `Failed to load chunk ${chunkPath} from module ${this.m.id}`;
@@ -846,7 +848,7 @@ const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/;
 /**
  * Production Node.js runtime.
  * Uses ModuleWithDirection and simple module instantiation without HMR support.
- */ // moduleCache and moduleFactories are declared in runtime-base.ts
+ */ // moduleCache is declared in runtime-base.ts and moduleFactories in runtime-utils.ts
 // this is read in runtime-utils.ts so it creates a module with direction for hmr
 createModuleWithDirectionFlag = true;
 const nodeContextPrototype = Context.prototype;

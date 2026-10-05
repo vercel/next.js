@@ -181,6 +181,9 @@ function _type_of(obj) {
  * nodejs build-base.ts). Browser production (build-base.ts) leaves it as `false` since it
  * uses plain Module objects.
  */ var createModuleWithDirectionFlag = false;
+/**
+ * Maps module IDs to the factory functions that instantiate them.
+ */ var moduleFactories = new Map();
 var REEXPORTED_OBJECTS = new WeakMap();
 /**
  * Constructs the `__turbopack_context__` object for a module.
@@ -772,11 +775,11 @@ contextPrototype.f = moduleContext;
 // Load the CompressedModuleFactories of a chunk into the `moduleFactories` Map.
 // The flat format alternates one or more module IDs with their factory function.
 // Strict factories can be prepended as a nested array.
-function installCompressedModuleFactories(chunkModules, offset, moduleFactories, newModuleId) {
+function installCompressedModuleFactories(chunkModules, offset, newModuleId) {
     var i = offset;
     var strictFactories = chunkModules[i];
     if (Array.isArray(strictFactories)) {
-        installCompressedModuleFactories(strictFactories, 0, moduleFactories, newModuleId);
+        installCompressedModuleFactories(strictFactories, 0, newModuleId);
         i++;
     }
     while(i < chunkModules.length){
@@ -1080,7 +1083,6 @@ function _unsupported_iterable_to_array(o, minLen) {
 }
 var browserContextPrototype = Context.prototype;
 var RUNTIME_CHUNK_BASE_PATH = typeof TURBOPACK_CHUNK_BASE_PATH === 'string' ? TURBOPACK_CHUNK_BASE_PATH : CHUNK_BASE_PATH;
-var moduleFactories = new Map();
 contextPrototype.M = moduleFactories;
 var availableModules = new Map();
 var availableModuleChunks = new Map();
@@ -1614,7 +1616,7 @@ function registerChunk(registration) {
         runtimeParams = registration[1];
     } else {
         runtimeParams = undefined;
-        installCompressedModuleFactories(registration, /* offset= */ 1, moduleFactories);
+        installCompressedModuleFactories(registration, /* offset= */ 1);
     }
     return BACKEND.registerChunk(chunk, runtimeParams);
 }

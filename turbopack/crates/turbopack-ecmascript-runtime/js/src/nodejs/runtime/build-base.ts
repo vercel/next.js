@@ -7,7 +7,7 @@
  * Uses ModuleWithDirection and simple module instantiation without HMR support.
  */
 
-// moduleCache and moduleFactories are declared in runtime-base.ts
+// moduleCache is declared in runtime-base.ts and moduleFactories in runtime-utils.ts
 
 // this is read in runtime-utils.ts so it creates a module with direction for hmr
 createModuleWithDirectionFlag = true

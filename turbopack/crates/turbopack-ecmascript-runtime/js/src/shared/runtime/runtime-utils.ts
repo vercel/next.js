@@ -52,6 +52,11 @@ declare function getOrInstantiateModuleFromParent<M>(
  */
 let createModuleWithDirectionFlag = false
 
+/**
+ * Maps module IDs to the factory functions that instantiate them.
+ */
+const moduleFactories: ModuleFactories = new Map()
+
 const REEXPORTED_OBJECTS = new WeakMap<Module, ReexportedObjects>()
 
 /**
@@ -732,18 +737,12 @@ function getChunkPath(chunkData: ChunkData): ChunkPath {
 function installCompressedModuleFactories(
   chunkModules: CompressedModuleFactories,
   offset: number,
-  moduleFactories: ModuleFactories,
   newModuleId?: (id: ModuleId) => void
 ) {
   let i = offset
   const strictFactories = chunkModules[i]
   if (Array.isArray(strictFactories)) {
-    installCompressedModuleFactories(
-      strictFactories,
-      0,
-      moduleFactories,
-      newModuleId
-    )
+    installCompressedModuleFactories(strictFactories, 0, newModuleId)
     i++
   }
   while (i < chunkModules.length) {

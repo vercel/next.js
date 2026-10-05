@@ -63,6 +63,20 @@ if (globalThis.__turbopack_ensure_chunk__ !== undefined) {
   nodeDevContextPrototype.l = loadChunkAsyncOnDemand
 }
 
+// Node.js: no hooks wrapper, just execute directly
+const runWithHooks = (
+  module: HotModule,
+  exports: Exports,
+  factory: Function
+) => {
+  factory.call(
+    exports,
+    new (Context as any as ContextConstructor<HotModule>)(module, exports),
+    module,
+    exports
+  )
+}
+
 /**
  * Instantiates a module in development mode using shared HMR logic.
  */
@@ -71,38 +85,12 @@ function instantiateModule(
   sourceType: SourceType,
   sourceData: SourceData
 ): HotModule {
-  // Node.js: creates base module object (hot API added by shared code)
-  const createModuleObjectFn = (moduleId: ModuleId) => {
-    return createModuleWithDirection(moduleId) as HotModule
-  }
-
-  // Node.js: creates Context (no refresh parameter)
-  const createContext = (
-    module: HotModule,
-    exports: Exports,
-    _refresh?: any
-  ) => {
-    return new (Context as any as ContextConstructor<HotModule>)(
-      module,
-      exports
-    )
-  }
-
-  // Node.js: no hooks wrapper, just execute directly
-  const runWithHooks = (_module: HotModule, exec: (refresh: any) => void) => {
-    exec(undefined) // no refresh context
-  }
-
   // Use shared instantiation logic (includes hot API setup)
   const newModule = instantiateModuleShared(
     id,
     sourceType,
     sourceData,
-    moduleFactories,
-    devModuleCache,
-    runtimeModules,
-    createModuleObjectFn,
-    createContext,
+    createModuleWithDirection,
     runWithHooks
   )
 
