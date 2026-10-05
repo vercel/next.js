@@ -80,7 +80,7 @@ fn init() {
     use tokio::runtime::Builder;
     use turbo_tasks::{panic_hooks::handle_panic, parallel::available_parallelism};
     use turbo_tasks_malloc::TurboMalloc;
-    use turbopack_trace_utils::tokio_workers::ActiveWorkerThreads;
+    use turbopack_trace_utils::tokio_workers;
 
     let prev_hook = take_hook();
     set_hook(Box::new(move |info| {
@@ -89,17 +89,15 @@ fn init() {
     }));
 
     let worker_threads = available_parallelism().map(|n| n.get()).unwrap_or(1);
-    let active_workers = ActiveWorkerThreads::new(worker_threads);
-    let parked_workers = active_workers.clone();
-    let unparked_workers = active_workers.clone();
+    tokio_workers::set_worker_threads(worker_threads);
 
     let rt = Builder::new_multi_thread()
         .enable_all()
         .on_thread_stop(|| {
             TurboMalloc::thread_stop();
         })
-        .on_thread_park(move || {
-            parked_workers.park();
+        .on_thread_park(|| {
+            tokio_workers::park();
             LAST_SWC_ATOM_GC_TIME.with_borrow_mut(|cell| {
                 if cell.is_none_or(|t| t.elapsed() > Duration::from_secs(2)) {
                     swc_core::ecma::atoms::hstr::global_atom_store_gc();
@@ -108,7 +106,7 @@ fn init() {
             });
             TurboMalloc::thread_park();
         })
-        .on_thread_unpark(move || unparked_workers.unpark())
+        .on_thread_unpark(tokio_workers::unpark)
         .worker_threads(worker_threads)
         // Avoid a limit on threads to avoid deadlocks due to usage of block_in_place
         .max_blocking_threads(usize::MAX - worker_threads)
