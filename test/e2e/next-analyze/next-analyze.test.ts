@@ -336,6 +336,66 @@ describe('next analyze', () => {
         .some((ident: string) => ident.endsWith('async loader)'))
     ).toBe(false)
 
+    const modulesByIdent = new Map(
+      records
+        .filter((record) => record.type === 'module')
+        .map((record) => [record.ident, record])
+    )
+    const allAsyncDependencies = new Set(
+      [...modulesByIdent.values()].flatMap(
+        (module) => module.dependencies.async
+      )
+    )
+    const asyncGroups = records.filter(
+      (record) => record.type === 'group' && record.kind === 'async'
+    )
+    const asyncLoads = records.filter(
+      (record) =>
+        record.type === 'load_edge' &&
+        (record.kind === 'async' || record.kind === 'async_manifest')
+    )
+    expect(asyncGroups.length).toBeGreaterThan(0)
+    expect(asyncLoads.length).toBeGreaterThan(0)
+    for (const record of [...asyncGroups, ...asyncLoads]) {
+      expect(record.trigger_join).toBe('joined')
+      const target = modulesByIdent.get(record.trigger_module_ident)
+      expect(target).toBeDefined()
+      expect(record.trigger_module_ident).toBe(target.ident)
+      expect(allAsyncDependencies.has(target.ident)).toBe(true)
+    }
+    const expectedTargets = [
+      ...asyncTargets.filter(
+        (target) =>
+          target.ident.includes('next/dynamic entry') ||
+          target.path.endsWith('/app/async-target.ts')
+      ),
+      ...[...modulesByIdent.values()].filter(
+        (module) =>
+          module.path.endsWith('/app/lazy.ts') &&
+          module.ident.includes('[app-client]')
+      ),
+      ...[...modulesByIdent.values()].filter(
+        (module) =>
+          module.ident.includes('node:os') &&
+          module.ident.includes('[external]')
+      ),
+    ]
+    expect(
+      expectedTargets.some((target) => target.path.endsWith('/app/lazy.ts'))
+    ).toBe(true)
+    expect(
+      expectedTargets.some((target) => target.ident.includes('node:os'))
+    ).toBe(true)
+    for (const target of expectedTargets) {
+      expect(allAsyncDependencies.has(target.ident)).toBe(true)
+      expect(
+        asyncGroups.some((group) => group.trigger_module_ident === target.ident)
+      ).toBe(true)
+      expect(
+        asyncLoads.some((edge) => edge.trigger_module_ident === target.ident)
+      ).toBe(true)
+    }
+
     const filtered = await next.runCommand([
       'analyze',
       'export',

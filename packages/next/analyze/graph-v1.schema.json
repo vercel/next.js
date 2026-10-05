@@ -285,7 +285,7 @@
         },
         "trigger_module_ident": {
           "type": ["string", "null"],
-          "description": "Exact trigger identity when joined or explicitly unjoined."
+          "description": "Exact trigger identity when joined or explicitly unjoined. For async groups, this is the dynamically imported target module's ident, not the synthetic loader ident. Other kinds retain their bootstrap, render-dependent or worker trigger semantics."
         },
         "trigger_join": {
           "enum": ["joined", "unjoined", "none"],
@@ -331,7 +331,7 @@
         },
         "trigger_module_ident": {
           "type": ["string", "null"],
-          "description": "Exact importer identity when known; null means no joined trigger."
+          "description": "Exact trigger identity when known. For async/async_manifest edges, this is the dynamically imported target module's ident, not the synthetic loader ident; worker_registration uses the registering importer. null means no trigger; trigger_join distinguishes joined and explicitly unjoined identities."
         },
         "trigger_join": {
           "enum": ["joined", "unjoined", "none"],

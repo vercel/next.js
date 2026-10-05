@@ -269,6 +269,8 @@ enum AnalyzeOutputFileCoverage {
 struct AnalyzeChunkGroupData {
     id: u32,
     kind: RcStr,
+    /// Async groups identify the dynamically imported target, not a loader stub.
+    /// Other group kinds retain their explicitly selected trigger.
     #[serde(skip_serializing_if = "Option::is_none")]
     trigger_module_index: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -304,6 +306,7 @@ struct ChunkLoadCandidate {
     source: u32,
     target: ResolvedVc<Box<dyn OutputAsset>>,
     kind: RcStr,
+    /// For async/async_manifest, this is the dynamically imported target.
     trigger_module_index: Option<u32>,
     unjoined_trigger_ident: Option<RcStr>,
 }

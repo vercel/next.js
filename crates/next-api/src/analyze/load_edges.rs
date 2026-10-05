@@ -65,6 +65,8 @@ async fn resolve_candidates(
                 );
                 let group_index = *async_groups.entry(key).or_insert_with(|| {
                     let index = builder.chunk_groups.len();
+                    // Candidate selection uses the dynamically imported target
+                    // for both the async group's trigger and its load edges.
                     builder.chunk_groups.push(AnalyzeChunkGroupData {
                         id: index as u32,
                         kind: "async".into(),

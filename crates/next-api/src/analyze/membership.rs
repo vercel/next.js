@@ -81,16 +81,20 @@ async fn chunk_item_load_candidates(
     source: u32,
 ) -> Result<Vec<ChunkLoadCandidate>> {
     let module = item.module().to_resolved().await?;
-    let kind = if ResolvedVc::try_downcast_type::<AsyncLoaderModule>(module).is_some()
-        || ResolvedVc::try_downcast_type::<ManifestAsyncModule>(module).is_some()
+    let (kind, trigger) = if let Some(loader) =
+        ResolvedVc::try_downcast_type::<AsyncLoaderModule>(module)
     {
-        "async"
-    } else if ResolvedVc::try_downcast_type::<ManifestLoaderModule>(module).is_some() {
-        "async_manifest"
+        ("async", loader.await?.inner)
+    } else if let Some(manifest) = ResolvedVc::try_downcast_type::<ManifestAsyncModule>(module) {
+        ("async", manifest.await?.inner)
+    } else if let Some(loader) = ResolvedVc::try_downcast_type::<ManifestLoaderModule>(module) {
+        ("async_manifest", loader.await?.manifest.await?.inner)
     } else {
         return Ok(vec![]);
     };
-    let ident = module.ident().to_string().owned().await?;
+    // Use the same typed target as the module graph's async dependency, including
+    // next/dynamic entry wrappers. Synthetic loader identities do not join it.
+    let ident = trigger.ident().to_string().owned().await?;
     let (trigger_module_index, unjoined_trigger_ident) = match index.by_ident.get(&ident) {
         Some(&i) => (Some(i), None),
         None => (None, Some(ident)),
