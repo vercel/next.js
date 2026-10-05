@@ -4888,7 +4888,7 @@ export default async function build(
 
         // Capture this build alongside any prior builds so the analyzer UI
         // can offer it as a comparison baseline in the future.
-        await writeAnalyzeSnapshot({
+        writeAnalyzeSnapshot({
           projectDir: dir,
           analyzeDir,
           routes,

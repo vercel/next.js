@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:nextjs:analyze:analyzer-graph:v1",
+  "title": "Next.js analyzer graph v1 record",
+  "description": "The analyzer graph represents static dependency information from a Next.js application. The graph is produced as a set of newline-delimited JSON objects described in this schema.",
+  "oneOf": [
+    { "$ref": "#/$defs/meta" },
+    { "$ref": "#/$defs/module" },
+    { "$ref": "#/$defs/route" },
+    { "$ref": "#/$defs/output" },
+    { "$ref": "#/$defs/part" }
+  ],
+  "$defs": {
+    "index": { "type": "integer", "minimum": 0 },
+    "size": {
+      "$ref": "#/$defs/index",
+      "description": "Attributed bytes, not measured transfer or predicted savings."
+    },
+    "identity": {
+      "type": "string",
+      "description": "Exact module ident; variants can share a source path."
+    },
+    "identities": { "type": "array", "items": { "$ref": "#/$defs/identity" } },
+    "meta": {
+      "type": "object",
+      "required": [
+        "type",
+        "schema_version",
+        "snapshot_name",
+        "route_count",
+        "selected_routes"
+      ],
+      "properties": {
+        "type": { "const": "meta" },
+        "schema_version": {
+          "const": 1,
+          "description": "Version of each emitted record."
+        },
+        "snapshot_name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Generated or provided snapshot name. Reusing an explicit name replaces its earlier capture."
+        },
+        "route_count": {
+          "$ref": "#/$defs/index",
+          "description": "Total routes in this snapshot."
+        },
+        "selected_routes": {
+          "$ref": "#/$defs/index",
+          "description": "Number of routes selected by the optional route filter; the total number of routes if no filter is set."
+        }
+      },
+      "additionalProperties": true,
+      "description": "Snapshot metadata, expected first in a complete stream."
+    },
+    "module": {
+      "type": "object",
+      "required": ["type", "ident", "path", "dependencies"],
+      "properties": {
+        "type": { "const": "module" },
+        "ident": {
+          "$ref": "#/$defs/identity",
+          "description": "Identity for this module."
+        },
+        "path": {
+          "type": "string",
+          "description": "Source path; may match multiple modules. Use `ident` as a key for this module."
+        },
+        "dependencies": {
+          "type": "object",
+          "required": ["sync", "async", "traced"],
+          "properties": {
+            "sync": {
+              "$ref": "#/$defs/identities",
+              "description": "Synchronous imports from this module."
+            },
+            "async": {
+              "$ref": "#/$defs/identities",
+              "description": "Asynchronous imports from this module."
+            },
+            "traced": {
+              "$ref": "#/$defs/identities",
+              "description": "Non-bundled file-tracing dependencies, not browser imports."
+            }
+          },
+          "additionalProperties": true,
+          "description": "Modules this module depends on, along with the type of dependency. The import graph may contain cycles."
+        }
+      },
+      "additionalProperties": true,
+      "description": "Whole-app module graph, including when --route filters route-local records."
+    },
+    "route": {
+      "type": "object",
+      "required": ["type", "route"],
+      "properties": {
+        "type": { "const": "route", "description": "Defines a route record." },
+        "route": {
+          "type": "string",
+          "description": "The unique normalized route key from routes.json."
+        }
+      },
+      "additionalProperties": true,
+      "description": "One route; route-local records join by this path."
+    },
+    "output": {
+      "type": "object",
+      "required": ["type", "route", "filename"],
+      "properties": {
+        "type": { "const": "output" },
+        "route": { "type": "string", "description": "Owning route path." },
+        "filename": {
+          "type": "string",
+          "description": "Snapshot-scoped emitted path, not stable across builds or proof of a browser request."
+        }
+      },
+      "additionalProperties": true,
+      "description": "Emitted file. Verify [client-fs]/ client-output provenance before treating it as browser work. Membership and size attribution are separate."
+    },
+    "part": {
+      "type": "object",
+      "required": [
+        "type",
+        "route",
+        "filename",
+        "source_path",
+        "size",
+        "compressed_size"
+      ],
+      "properties": {
+        "type": { "const": "part" },
+        "route": { "type": "string", "description": "Owning route path." },
+        "filename": {
+          "type": "string",
+          "description": "Attributed output file."
+        },
+        "source_path": {
+          "type": "string",
+          "description": "Reconstructed source path, not a unique module ident."
+        },
+        "size": { "$ref": "#/$defs/size" },
+        "compressed_size": {
+          "$ref": "#/$defs/size",
+          "description": "Attributed compressed bytes, not observed network transfer."
+        }
+      },
+      "additionalProperties": true,
+      "description": "Source attribution within an emitted output."
+    }
+  }
+}

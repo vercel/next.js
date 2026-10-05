@@ -10,6 +10,7 @@
   "types": "index.d.ts",
   "files": [
     "AGENTS.md",
+    "analyze",
     "dist",
     "app.js",
     "app.d.ts",
