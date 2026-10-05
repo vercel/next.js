@@ -408,12 +408,12 @@ A per-link prefetch is best-effort. It only helps the navigations where it compl
 
 When many links to a route are visible at once, such as a grid of cards, each `<Link prefetch={true}>` prefetches that link's content as it enters the viewport, so the grid makes one such server request per card. Prefetch on intent instead. A [hover-triggered prefetch](/docs/app/guides/prefetching#hover-triggered-prefetch) fetches only the links the user is likely to click. The default `<Link>` (without `prefetch={true}`) loads only the App Shell, so it doesn't carry this cost.
 
-|         | App Shell                                                               | Per-link prefetch with `prefetch={true}`                 | Navigation                                           |
-| ------- | ----------------------------------------------------------------------- | -------------------------------------------------------- | ---------------------------------------------------- |
-| Scope   | One per route                                                           | One per visible `<Link prefetch={true}>`                 | One per click                                        |
-| Content | Route's rendered output minus per-link data and work below `prefetch()` | Same, plus per-link URL data and work below `prefetch()` | Everything left, including work below `navigation()` |
-| Cost    | Bounded by route count                                                  | Bounded by visible-link count                            | Bounded by navigations                               |
-| Role    | Default prefetch                                                        | More rendered before click                               | Completes the route                                  |
+|         | App Shell                                                                                 | Per-link prefetch with `prefetch={true}`                                                          | Navigation                                           |
+| ------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| Scope   | One per route                                                                             | One per visible `<Link prefetch={true}>`                                                          | One per click                                        |
+| Content | Route's rendered output minus per-link data and work below `prefetch()` or `navigation()` | App Shell plus per-link URL data and work below `prefetch()`, excluding work below `navigation()` | Everything left, including work below `navigation()` |
+| Cost    | Bounded by route count                                                                    | Bounded by visible-link count                                                                     | Bounded by navigations                               |
+| Role    | Default prefetch                                                                          | More rendered before click                                                                        | Completes the route                                  |
 
 [Deferring work](#defer-work-to-a-later-stage) avoids generating content for prefetches that may never be used. The tradeoff is that a navigation may show the nearest `<Suspense>` fallback while the deferred content renders.
 

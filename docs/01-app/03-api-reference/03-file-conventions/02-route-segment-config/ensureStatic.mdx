@@ -122,7 +122,7 @@ With Partial Prefetching, `false` keeps the route's normal rendering behavior an
 
 [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) validates whether a navigation can update the UI immediately. Cached or prerendered UI can satisfy this requirement while request-specific content streams later behind `<Suspense>`.
 
-Setting `instant = false` disables Instant Navigation and static-shell validation for the route. The `'shell'` and `'prefetch'` values still make the client request the corresponding static output, but Next.js no longer checks whether request-specific work prevents that response from including UI. For example, a prefetch can still include a parent layout, metadata, and Client Component preload hints even when the page UI renders only after the user follows the link. The `'navigation'` value uses separate complete static-output validation, which `instant = false` does not relax.
+Setting `instant = false` disables Instant Navigation validation for the route. The `'shell'` and `'prefetch'` values still make the client request the corresponding static output, but neither value adds separate build validation. A static prefetch can still include a parent layout, metadata, and Client Component preload hints even when the page UI renders only after the user follows the link. The `'navigation'` value uses separate complete static-output validation, which `instant = false` does not relax.
 
 ## Combining levels across layouts and pages
 

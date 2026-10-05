@@ -42,7 +42,7 @@ During runtime rendering, awaiting `prefetch()` keeps content out of the App She
 
 To keep content out of per-link prefetches as well, so it renders only on the navigation, use [`navigation()`](/docs/app/api-reference/functions/navigation).
 
-To enforce a static App Shell across a route, use [`ensureStatic = 'shell'`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#shell). See [Keeping pages static](/docs/app/guides/keeping-pages-static) for how route-wide enforcement relates to `prefetch()`.
+> **Good to know**: `prefetch()` defers one subtree. To require a static App Shell across the route, use [`ensureStatic = 'shell'`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#shell). See [Keeping pages static](/docs/app/guides/keeping-pages-static) for a worked example.
 
 Everything above `prefetch()` renders in the App Shell, and everything below renders on a per-link prefetch or on the navigation. Deferral is scoped to the component that awaits it and the tree below: sibling branches render in the shell as usual. Place it above the work to defer, and wrap the component in [`<Suspense>`](https://react.dev/reference/react/Suspense):
 
