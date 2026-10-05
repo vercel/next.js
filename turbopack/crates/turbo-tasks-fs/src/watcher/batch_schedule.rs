@@ -15,7 +15,7 @@ use crate::{
     watcher::{BatchedInvalidations, fs_api::DiskFileSystemWatcherApi},
 };
 
-/// Decides how long a batch of watcher events stays open, and emits a repeated
+/// Decides how long a batch of collected invalidations stays open, and emits a repeated
 /// [`FilesystemSettlingEvent`] for as long as it does.
 pub struct BatchSchedule {
     settling_event_initial_delay: Duration,
@@ -23,10 +23,10 @@ pub struct BatchSchedule {
     pending: Option<PendingBatch>,
 }
 
-/// A batch that has at least one event in it and hasn't been flushed yet.
+/// A batch that has at least one event affecting an invalidator and hasn't been flushed yet.
 struct PendingBatch {
     started: Instant,
-    /// The batch is flushed once this passes without any further events.
+    /// The batch is flushed once this passes without any further event extending it.
     deadline: Instant,
     /// When to emit the next [`FilesystemSettlingEvent`].
     settling_event_next_at: Instant,
@@ -66,7 +66,7 @@ impl BatchSchedule {
     }
 
     /// Waits for the next watcher event, emitting [`FilesystemSettlingEvent`]s while the pending
-    /// batch keeps growing. If no batch is pending, this blocks until an event arrives.
+    /// batch is held open. If no batch is pending, this blocks until an event arrives.
     ///
     /// [`RecvTimeoutError::Timeout`] means the pending batch's deadline has passed *and* nothing
     /// more is queued, so the batch is complete and should be flushed.
@@ -112,6 +112,11 @@ impl BatchSchedule {
     /// Closes the pending batch, used when a rescan happens.
     pub fn reset(&mut self) {
         self.pending = None;
+    }
+
+    /// Whether a batch is currently open, i.e. [`Self::extend`] was called since the last flush.
+    pub fn is_pending(&self) -> bool {
+        self.pending.is_some()
     }
 }
 
