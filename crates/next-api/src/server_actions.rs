@@ -240,11 +240,9 @@ impl Asset for ServerActionManifestAsset {
         let durable_use_cache_entries = *next_config
             .enable_durable_use_cache_entries(self.project.next_mode())
             .await?;
-        let static_root_param_tracking_enabled = self.project.next_mode().await?.is_production()
-            && *next_config.enable_use_cache().await?
-            && *next_config
-                .enable_use_cache_static_root_param_tracking()
-                .await?;
+        let static_root_param_tracking_enabled = *next_config
+            .enable_use_cache_static_root_param_tracking(self.project.next_mode())
+            .await?;
         let hash_salt = next_config.output_hash_salt();
 
         let loader_id = self.chunk_item.id().await?;

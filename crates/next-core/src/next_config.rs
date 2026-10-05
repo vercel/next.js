@@ -2199,12 +2199,21 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn enable_use_cache_static_root_param_tracking(&self) -> Vc<bool> {
-        Vc::cell(
-            self.experimental
-                .use_cache_static_root_param_tracking
-                .unwrap_or(false),
-        )
+    pub async fn enable_use_cache_static_root_param_tracking(
+        self: Vc<Self>,
+        mode: Vc<NextMode>,
+    ) -> Result<Vc<bool>> {
+        Ok(match *mode.await? {
+            NextMode::Development => Vc::cell(false),
+            NextMode::Build => Vc::cell(
+                *self.enable_use_cache().await?
+                    && self
+                        .await?
+                        .experimental
+                        .use_cache_static_root_param_tracking
+                        .unwrap_or(false),
+            ),
+        })
     }
 
     #[turbo_tasks::function]
