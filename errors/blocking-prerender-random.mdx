@@ -51,8 +51,8 @@ Other unpredictable APIs ([`Date.now()`](https://developer.mozilla.org/en-US/doc
   />
   <FixCard
     group="client"
-    title="Move to a Client Component"
-    href="#move-to-a-client-component"
+    title="Render on the client"
+    href="#render-on-the-client"
     snippets={[
       { text: '"use client"', highlight: true },
       { text: 'use(io())' },
@@ -181,7 +181,7 @@ Every visitor in the cache window sees the same "random" value. That's the right
 
 To keep the page prerendered, use a profile with a longer revalidate window such as `"default"` (15 minutes), `"hours"`, or `"days"`. If a short profile is intentional, treat the value as dynamic and use [Generate on every request](#generate-on-every-request) instead.
 
-## Move to a Client Component
+## Render on the client
 
 Choose this fix when the random value belongs to the client experience, such as a canvas seed or random placeholder color. Move the value into a [Client Component](/docs/app/getting-started/server-and-client-components), then suspend during static prerendering or compute it after hydration.
 

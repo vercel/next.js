@@ -487,9 +487,9 @@ const syncMathCards: FixCard[] = [
   },
   {
     id: 'render-on-the-client',
-    title: 'Move to a Client Component',
+    title: 'Render on the client',
     group: 'client',
-    link: 'https://nextjs.org/docs/messages/blocking-prerender-random#move-to-a-client-component',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client',
     snippets: [
       { text: '"use client"', highlight: true },
       { text: 'use(io())' },
@@ -526,9 +526,9 @@ const syncDateCards: FixCard[] = [
   },
   {
     id: 'render-on-the-client',
-    title: 'Move to a Client Component',
+    title: 'Render on the client',
     group: 'client',
-    link: 'https://nextjs.org/docs/messages/blocking-prerender-current-time#move-to-a-client-component',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-current-time#render-on-the-client',
     snippets: [
       { text: '"use client"', highlight: true },
       { text: 'use(io())' },
@@ -577,9 +577,9 @@ const syncCryptoCards: FixCard[] = [
   },
   {
     id: 'render-on-the-client',
-    title: 'Move to a Client Component',
+    title: 'Render on the client',
     group: 'client',
-    link: 'https://nextjs.org/docs/messages/blocking-prerender-crypto#move-to-a-client-component',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-crypto#render-on-the-client',
     snippets: [
       { text: '"use client"', highlight: true },
       { text: 'use(io())' },

@@ -51,8 +51,8 @@ Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/
   />
   <FixCard
     group="client"
-    title="Move to a Client Component"
-    href="#move-to-a-client-component"
+    title="Render on the client"
+    href="#render-on-the-client"
     snippets={[
       { text: '"use client"', highlight: true },
       { text: 'use(io())' },
@@ -129,7 +129,7 @@ The route renders on every request. The shell still ships instantly because of t
 ### Gotchas
 
 - Any UI rendered as part of the prerender shell must be deterministic. That includes [`<Suspense>`](https://react.dev/reference/react/Suspense) fallbacks, [`loading.js`](/docs/app/api-reference/file-conventions/loading), [`error.js`](/docs/app/api-reference/file-conventions/error), [`not-found.js`](/docs/app/api-reference/file-conventions/not-found), and [`global-error.js`](/docs/app/api-reference/file-conventions/error#global-error). Calling [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) in any of them raises this same error.
-- If you're showing a relative time ("3 minutes ago"), the relative formatting belongs on the client so it can update without a server render. See [Move to a Client Component](#move-to-a-client-component).
+- If you're showing a relative time ("3 minutes ago"), the relative formatting belongs on the client so it can update without a server render. See [Render on the client](#render-on-the-client).
 
 ## Cache the timestamp
 
@@ -226,7 +226,7 @@ Every visitor in the cache window sees the same timestamp. That's fine for "as o
 
 To keep the page prerendered, use a profile with a longer revalidate window such as `"default"` (15 minutes), `"hours"`, or `"days"`. If a short profile is intentional, treat the value as dynamic and use [Generate on every request](#generate-on-every-request) instead.
 
-## Move to a Client Component
+## Render on the client
 
 Choose this fix when the timestamp belongs to the user's local clock or needs to update while they're on the page, such as a relative time label, localized time display, or stopwatch. Move the value into a [Client Component](/docs/app/getting-started/server-and-client-components), then suspend during static prerendering or compute it after hydration.
 
