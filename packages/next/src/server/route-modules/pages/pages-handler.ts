@@ -317,7 +317,10 @@ export const getHandler = ({
                   nextFontManifest,
                   reactLoadableManifest,
 
-                  assetPrefix: nextConfig.assetPrefix,
+                  assetPrefix: routeModule.getAssetPrefixForRender(
+                    routerServerContext,
+                    nextConfig.assetPrefix
+                  ),
                   previewProps,
                   images: nextConfig.images as any,
                   nextConfigOutput: nextConfig.output,
