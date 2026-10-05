@@ -263,23 +263,59 @@ Neither function can be awaited inside a cached scope, so the directive goes on 
 
 ### Wait for the navigation
 
-If no prefetch should generate the ranking, await `navigation()` instead:
+Consider an inbox where each visible thread uses `<Link prefetch={true}>`. The prefetch should include the thread subject, but fetching every message body before the user opens it would waste work.
 
-```diff filename="app/dashboard/recommendations.tsx"
-  import { cookies } from 'next/headers'
-- import { prefetch } from 'next/cache'
-+ import { navigation } from 'next/cache'
+Render the latest message in its own `<Suspense>` boundary and await `navigation()` before loading it:
 
-  async function Recommendations() {
-    const session = (await cookies()).get('session')?.value
--   await prefetch()
-+   await navigation()
-    const items = await rank(session)
-    return <List items={items} />
-  }
+```tsx filename="app/inbox/[threadId]/thread.tsx" highlight={19}
+import { Suspense } from 'react'
+import { navigation } from 'next/cache'
+import { getLatestMessage, getThreadSummary } from '@/lib/mail'
+
+export async function Thread({ threadId }: { threadId: string }) {
+  const thread = await getThreadSummary(threadId)
+
+  return (
+    <article>
+      <h1>{thread.subject}</h1>
+      <Suspense fallback={<p>Loading message...</p>}>
+        <LatestMessage threadId={threadId} />
+      </Suspense>
+    </article>
+  )
+}
+
+async function LatestMessage({ threadId }: { threadId: string }) {
+  await navigation()
+  const message = await getLatestMessage(threadId)
+  return <p>{message.body}</p>
+}
 ```
 
-Now no prefetch generates the ranking. Prefetched output contains the `<Suspense>` fallback, and the ranking replaces it during navigation. The shell still includes the session as before.
+Both queries remain cached:
+
+```ts filename="lib/mail.ts"
+import { db } from '@/lib/db'
+
+export async function getThreadSummary(threadId: string) {
+  'use cache'
+  return db.thread.findUniqueOrThrow({
+    select: { subject: true },
+    where: { id: threadId },
+  })
+}
+
+export async function getLatestMessage(threadId: string) {
+  'use cache'
+  return db.message.findFirstOrThrow({
+    orderBy: { sentAt: 'desc' },
+    select: { body: true },
+    where: { threadId },
+  })
+}
+```
+
+The per-link prefetch includes the cached subject and the message fallback. The cached message body loads when the user opens the thread, then remains available for later visits.
 
 {/* TODO: once `<Link prefetch="navigation">` ships, document it here as the opt-in for a link that also prefetches cacheable work deferred with `navigation()`. */}
 
