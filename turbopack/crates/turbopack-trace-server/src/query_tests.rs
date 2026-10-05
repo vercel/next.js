@@ -66,7 +66,10 @@ fn reads_active_workers_and_exposes_them_in_span_queries() {
                 aggregated,
                 sort: SortMode::ExecutionOrder,
                 search: None,
+                max_depth: u32::MAX,
+                depth: 1,
                 page: 1,
+                page_size: None,
             },
         );
         assert_eq!(result.spans.len(), 1);
