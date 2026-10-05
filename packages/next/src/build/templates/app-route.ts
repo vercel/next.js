@@ -244,7 +244,6 @@ export async function handler(
     previewProps,
     renderOpts: {
       experimental: {
-        authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
         useCacheTimeout: nextConfig.experimental.useCacheTimeout,
         durableUseCacheEntries: Boolean(
           nextConfig.experimental.durableUseCacheEntries
