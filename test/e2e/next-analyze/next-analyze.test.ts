@@ -4,24 +4,20 @@ import path from 'node:path'
 import type { ChildProcess } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 
-describe('next experimental-analyze', () => {
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely inspects local build artifacts that deploy tests do not expose.
+// @force-gate !deploy
+describe('next analyze', () => {
   if (!shouldUseTurbopack()) {
     // Test suites require at least one test
     it('skips in non-Turbopack tests', () => {})
     return
   }
 
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    // Test suites require at least one test
-    it('is skipped', () => {})
-    return
-  }
 
   it('runs successfully without errors', async () => {
     let serveProcess: ChildProcess | undefined
@@ -38,7 +34,7 @@ describe('next experimental-analyze', () => {
     }, 30000)
 
     const exit = next
-      .runCommand(['experimental-analyze', '--port', '0'], {
+      .runCommand(['analyze', '--port', '0'], {
         onStdout(msg) {
           stdoutBuffer += msg
           const urlMatch = stdoutBuffer.match(/http:\/\/[^\s]+/)
@@ -66,6 +62,32 @@ describe('next experimental-analyze', () => {
       await exit.catch(() => {})
     }
   })
+
+  it('stores the snapshot name in live and historical metadata', async () => {
+    const name = 'My snapshot'
+    const { exitCode, stderr } = await next.runCommand([
+      'analyze',
+      '--output',
+      '--snapshot-name',
+      name,
+    ])
+
+    expect(exitCode).toBe(0)
+    expect(stderr).not.toContain('Error')
+
+    const analyzeDir = path.join(next.testDir, '.next/diagnostics/analyze')
+    const metadata = JSON.parse(
+      readFileSync(path.join(analyzeDir, 'data/metadata.json'), 'utf-8')
+    )
+    expect(metadata.snapshotName).toBe(name)
+    expect(metadata).not.toHaveProperty('baselineName')
+
+    const history = JSON.parse(
+      readFileSync(path.join(analyzeDir, 'history/history.json'), 'utf-8')
+    )
+    expect(history.snapshots[0].snapshotName).toBe(name)
+    expect(history.snapshots[0]).not.toHaveProperty('baselineName')
+  })
   ;['-o', '--output'].forEach((flag) => {
     describe(`with ${flag} flag`, () => {
       it('writes output to .next/diagnostics/analyze path', async () => {
@@ -75,7 +97,7 @@ describe('next experimental-analyze', () => {
         )
 
         const { exitCode, stderr, stdout } = await next.runCommand([
-          'experimental-analyze',
+          'analyze',
           flag,
         ])
 
@@ -87,6 +109,7 @@ describe('next experimental-analyze', () => {
         for (const file of [
           'index.html',
           'data/routes.json',
+          'data/route-summaries.json',
           'data/modules.data',
           'data/analyze.data',
         ]) {
@@ -99,6 +122,81 @@ describe('next experimental-analyze', () => {
         )
         const routes = JSON.parse(routesJson)
         expect(routes).toEqual(['/', '/_not-found'])
+
+        const routeSummaries = JSON.parse(
+          readFileSync(
+            path.join(defaultOutputPath, 'data', 'route-summaries.json'),
+            'utf-8'
+          )
+        )
+        expect(
+          routeSummaries.map((summary: { route: string }) => summary.route)
+        ).toEqual(expect.arrayContaining(routes))
+        for (const summary of routeSummaries) {
+          expect(Number.isFinite(summary.size)).toBe(true)
+          expect(summary.size).toBeGreaterThanOrEqual(0)
+          expect(Number.isFinite(summary.compressed_size)).toBe(true)
+          expect(summary.compressed_size).toBeGreaterThanOrEqual(0)
+
+          // The summary and analyze.data must account for exactly the same
+          // chunk parts, including shared assets and traced files.
+          const routeDir = summary.route.replace(/^\//, '')
+          const analyzeBuffer = readFileSync(
+            path.join(defaultOutputPath, 'data', routeDir, 'analyze.data')
+          )
+          const header = JSON.parse(
+            analyzeBuffer
+              .subarray(4, 4 + analyzeBuffer.readUInt32BE(0))
+              .toString('utf-8')
+          ) as {
+            output_files: { filename: string }[]
+            chunk_parts: {
+              output_file_index: number
+              size: number
+              compressed_size: number
+            }[]
+          }
+          const totals = {
+            size: 0,
+            compressed_size: 0,
+            client: { size: 0, compressed_size: 0 },
+          }
+          for (const part of header.chunk_parts) {
+            totals.size += part.size
+            totals.compressed_size += part.compressed_size
+            if (
+              header.output_files[part.output_file_index].filename.startsWith(
+                '[client-fs]/'
+              )
+            ) {
+              totals.client.size += part.size
+              totals.client.compressed_size += part.compressed_size
+            }
+          }
+          expect(summary).toMatchObject(totals)
+          expect(
+            header.output_files.some(({ filename }) =>
+              /\.(?:map|nft\.json)$/.test(filename)
+            )
+          ).toBe(false)
+        }
+
+        const history = JSON.parse(
+          readFileSync(
+            path.join(defaultOutputPath, 'history', 'history.json'),
+            'utf-8'
+          )
+        )
+        const snapshotRouteSummaries = readFileSync(
+          path.join(
+            defaultOutputPath,
+            'history',
+            history.snapshots[0].id,
+            'route-summaries.json'
+          ),
+          'utf-8'
+        )
+        expect(JSON.parse(snapshotRouteSummaries)).toEqual(routeSummaries)
       })
     })
   })

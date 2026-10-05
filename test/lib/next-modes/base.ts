@@ -4,11 +4,21 @@ import { existsSync, promises as fs, rmSync, readFileSync } from 'fs'
 import treeKill from 'tree-kill'
 import type { NextConfig } from 'next'
 import { FileRef, isNextDeploy, PatchedFileRef } from '../e2e-utils'
+import { getDeploymentTestEnvAssignments } from '../e2e-utils/deployment-test-env'
 import { ChildProcess } from 'child_process'
 import spawn from 'cross-spawn'
 import { quote as shellQuote } from 'shell-quote'
 import { createNextInstall } from '../create-next-install'
+import {
+  getCommitFromPreviewBuildUrl,
+  previewTarballUrl,
+} from '../../../scripts/wait-for-preview-tarball.mjs'
 import { Span } from 'next/dist/trace'
+import { normalizePagePath } from 'next/dist/shared/lib/page-path/normalize-page-path'
+import {
+  getRouteCacheKey,
+  type ResponseCacheOwner,
+} from 'next/dist/server/lib/route-cache-key'
 import webdriver from '../next-webdriver'
 import {
   renderViaHTTP,
@@ -81,7 +91,7 @@ type OmitFirstArgument<F> = F extends (
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.2.8";
+const nextjsReactPeerVersion = "19.3.0";
 
 const ROOT_PACKAGE_MANAGER: string =
   require('../../../package.json').packageManager
@@ -286,6 +296,46 @@ export class NextInstance {
         }
 
         if (skipInstall || skipIsolatedNext) {
+          // Dependencies declared as `workspace:*` must install the build of
+          // the tested commit rather than a published version. Deploy tests
+          // install `next` from the preview build of the tested commit via
+          // NEXT_TEST_VERSION, so workspace dependencies resolve to the
+          // preview tarball of the same commit: the published version would
+          // not contain the changes under test, and its `peerDependencies`
+          // ranges (e.g. `^16.0.0-beta.0`) reject prerelease preview versions
+          // such as `16.4.0-preview-<sha>-<date>`, failing `npm install` with
+          // ERESOLVE. The preview tarballs rewrite their monorepo (peer)
+          // dependencies to the preview URLs of the same commit (see
+          // `scripts/create-preview-tarballs.js`). Without a preview build,
+          // workspace dependencies track whatever `next` is installed with
+          // (e.g. the version the release workflow pins), since all packages
+          // in this repository are published in lockstep.
+          const nextVersion =
+            process.env.NEXT_TEST_VERSION ||
+            require('next/package.json').version
+          const previewCommitSha = getCommitFromPreviewBuildUrl(
+            process.env.NEXT_TEST_VERSION,
+            process.env.NEXT_TEST_PREVIEW_BUILDS_BASE_URL
+          )
+          for (const dependencyName of Object.keys(finalDependencies)) {
+            if (finalDependencies[dependencyName] !== 'workspace:*') {
+              continue
+            }
+            if (previewCommitSha === null) {
+              finalDependencies[dependencyName] = nextVersion
+              continue
+            }
+            const previewBuildUrl = previewTarballUrl(
+              process.env.NEXT_TEST_PREVIEW_BUILDS_BASE_URL,
+              previewCommitSha,
+              dependencyName
+            )
+            require('console').log(
+              `Resolving ${dependencyName}@workspace:* to the preview build: ${previewBuildUrl}`
+            )
+            finalDependencies[dependencyName] = previewBuildUrl
+          }
+
           const pkgScripts = (this.packageJson['scripts'] as {}) || {}
           // Pin the same pnpm version the repo uses so corepack resolves a
           // consistent pnpm across isolated test dirs. Mirrors the logic in
@@ -312,9 +362,7 @@ export class NextInstance {
                 }),
                 dependencies: {
                   ...finalDependencies,
-                  next:
-                    process.env.NEXT_TEST_VERSION ||
-                    require('next/package.json').version,
+                  next: nextVersion,
                 },
                 ...(this.resolutions ? { resolutions: this.resolutions } : {}),
                 scripts: {
@@ -322,7 +370,9 @@ export class NextInstance {
                     ? // since we can't get the build id as a build artifact,
                       // add it in build logs
                       {
-                        'post-build': `node -e 'console.log("BUILD" + "_ID: " + fs.readFileSync("${this.distDir}/BUILD_ID") + "\\nDEPLOYMENT" + "_ID: " + process.env.NEXT_DEPLOYMENT_ID + "\\nNEXT_SUPPORTS_IMMUTABLE" + "_ASSETS: " + ((process.env.VERCEL_IMMUTABLE_STATIC_FILES_ENABLED && process.env.NEXT_ENABLE_ADAPTER==="1") ? 1 : 0))'`,
+                        // Read the deployed fixture's config after its files have
+                        // been written, using the same output directory as Vercel.
+                        'post-build': `node -e 'const config = fs.existsSync("vercel.json") ? JSON.parse(fs.readFileSync("vercel.json", "utf8")) : {}; console.log("BUILD" + "_ID: " + fs.readFileSync((config.outputDirectory ?? "${this.distDir}") + "/BUILD_ID") + "\\nDEPLOYMENT" + "_ID: " + process.env.NEXT_DEPLOYMENT_ID + "\\nNEXT_SUPPORTS_IMMUTABLE" + "_ASSETS: " + ((process.env.VERCEL_IMMUTABLE_STATIC_FILES_ENABLED && process.env.NEXT_ENABLE_ADAPTER==="1") ? 1 : 0))'`,
                       }
                     : {}),
                   ...pkgScripts,
@@ -489,19 +539,12 @@ export class NextInstance {
           await fs.writeFile(
             fileName,
             `${content}\n` +
+              getDeploymentTestEnvAssignments() +
               `
           // alias __NEXT_TEST_MODE for next-deploy as "_" is not a valid
           // env variable during deploy
           if (process.env.NEXT_PRIVATE_TEST_MODE) {
             process.env.__NEXT_TEST_MODE = process.env.NEXT_PRIVATE_TEST_MODE
-          }
-
-          // alias experimental feature flags for deployment compatibility
-          if (process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS) {
-            process.env.__NEXT_CACHE_COMPONENTS = process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS
-          }
-          if (process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHED_NAVIGATIONS) {
-            process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS = process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHED_NAVIGATIONS
           }
         `
           )
@@ -974,6 +1017,33 @@ export class NextInstance {
     return existsSync(path.join(this.testDir, filename))
   }
 
+  /** Resolve a response artifact without assuming the cache key is its URL. */
+  public getPrerenderFilePath(
+    pathname: string,
+    extension: string,
+    {
+      router = 'app',
+      distDir = this.distDir,
+      route,
+    }: {
+      router?: 'app' | 'pages'
+      distDir?: string
+      /** Supply the source for an entry generated only at runtime. */
+      route?: ResponseCacheOwner
+    } = {}
+  ): string {
+    pathname = `/${pathname.replace(/^\/+/, '')}`
+    // Build artifacts retain their historical layout. A caller supplies an
+    // owner only when it is intentionally addressing a scoped runtime entry.
+    const cacheKey = route ? getRouteCacheKey(pathname, route) : undefined
+    const filename = normalizePagePath(pathname)
+    return path.join(
+      distDir,
+      'server',
+      `${cacheKey ?? `/${router}${filename}`}${extension}`
+    )
+  }
+
   public async readFile(filename: string) {
     return fs.readFile(path.join(this.testDir, filename), 'utf8')
   }
@@ -1202,10 +1272,7 @@ export class NextInstance {
    * @param opts the optional options to pass to the underlying fetch
    * @returns the fetch response
    */
-  public async fetch(
-    pathname: string,
-    opts?: import('node-fetch').RequestInit
-  ) {
+  public async fetch(pathname: string, opts?: RequestInit) {
     try {
       this.throwIfUnavailable()
     } catch (error) {

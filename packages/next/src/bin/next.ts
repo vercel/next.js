@@ -75,17 +75,6 @@ if (
 
 process.env.NEXT_PRIVATE_START_TIME = Date.now().toString()
 
-for (const dependency of ['react', 'react-dom']) {
-  try {
-    // When 'npm link' is used it checks the clone location. Not the project.
-    require.resolve(dependency)
-  } catch (err) {
-    console.warn(
-      `The module '${dependency}' was not found. Next.js requires that you include it in 'dependencies' of your 'package.json'. To add it, run 'npm install ${dependency}'`
-    )
-  }
-}
-
 class NextRootCommand extends Command {
   createCommand(name: string) {
     const command = new Command(name)
@@ -109,8 +98,13 @@ class NextRootCommand extends Command {
         }
       }
 
-      ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
-      ;(process.env as any).NEXT_RUNTIME = 'nodejs'
+      // The upgrade harness may run both dev and production checks. Preserve
+      // its caller's environment instead of forcing all child commands into
+      // production mode merely because they were launched through this CLI.
+      if (commandName !== 'upgrade' || !event.getOptionValue('agent')) {
+        ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
+        ;(process.env as any).NEXT_RUNTIME = 'nodejs'
+      }
 
       if (
         process.platform === 'darwin' &&
@@ -186,10 +180,8 @@ program
       'If no directory is provided, the current directory will be used.'
     )}`
   )
-  .option(
-    '--experimental-analyze',
-    'Analyze bundle output. Only compatible with Turbopack.'
-  )
+  .option('--analyze', 'Analyze bundle output. Only compatible with Turbopack.')
+  .addOption(new Option('--experimental-analyze').hideHelp())
   .option('-d, --debug', 'Enables a more verbose build output.')
   .option(
     '--debug-prerender',
@@ -272,7 +264,8 @@ program
   .usage('[directory] [options]')
 
 program
-  .command('experimental-analyze')
+  .command('analyze')
+  .alias('experimental-analyze')
   .description(
     'Analyze production bundle output with an interactive web ui. Does not produce an application build. Only compatible with Turbopack.'
   )
@@ -284,6 +277,11 @@ program
   )
   .option('--no-mangling', 'Disables mangling.')
   .option('--profile', 'Enables production profiling for React.')
+  .option('--experimental-app-only', 'Analyzes only App Router routes.')
+  .option(
+    '--snapshot-name <name>',
+    'Name this snapshot in the metadata, overriding branch/sha in the comparison UI.'
+  )
   .option(
     '-o, --output',
     'Only write analysis files to disk. Does not start the server.'
@@ -549,6 +547,7 @@ program
 const nextVersion = process.env.__NEXT_VERSION || 'unknown'
 program
   .command('upgrade')
+  .aliases(['update', 'up'])
   .description(
     'Upgrade Next.js apps to desired versions with a single command.'
   )
@@ -571,9 +570,23 @@ program
           : 'latest'
   )
   .option('--verbose', 'Verbose output', false)
+  .addOption(
+    new Option(
+      '--agent [type]',
+      'Upgrade with an agent to security, latest, or experimental-future. Defaults to security.'
+    ).conflicts('revision')
+  )
+  // Keep nudge attribution available to agents without exposing it in public help.
+  .addOption(new Option('--internal-nudge-id <id>').hideHelp())
   .action(async (directory, options) => {
     const mod = await import('../cli/next-upgrade.js')
-    mod.spawnNextUpgrade(directory, options)
+    await mod.spawnNextUpgrade(
+      directory,
+      options,
+      options.internalNudgeId !== undefined
+        ? { id: options.internalNudgeId, recipient: 'agent' }
+        : null
+    )
   })
 
 program
@@ -644,6 +657,29 @@ const internal = program
     'Internal debugging commands. Use with caution. Not covered by semver.'
   )
 
+// Agents use the pinned CLI to report completion after the upgrade has changed dependencies.
+internal
+  .command('report-agent-upgrade', { hidden: true })
+  .argument('<run-id>', 'The upgrade run UUID.')
+  .argument('<result>', 'The agent-reported success or failure result.')
+  .action((runId: string, result: string) =>
+    import('../cli/next-upgrade.js').then((mod) =>
+      mod.reportAgentUpgradeAgentResult(runId, result)
+    )
+  )
+
+internal
+  .command('agent-feedback-instructions', { hidden: true })
+  .option(
+    '--dry-run',
+    'Print report preview URLs without opening the review form.'
+  )
+  .action((options: { dryRun?: boolean }) =>
+    import('../cli/internal/agent-feedback-instructions.js').then((mod) =>
+      mod.agentFeedbackInstructionsCli(options)
+    )
+  )
+
 internal
   .command('trace')
   .alias('turbo-trace-server')
@@ -696,17 +732,38 @@ internal
   .addOption(
     new Option(
       '--sort <mode>',
-      'Sort mode: "value" for corrected duration descending, "name" for alphabetical.'
-    ).choices(['value', 'name'])
+      'Sort mode: "value" for corrected duration descending, "name" for alphabetical, "allocations" for total allocated bytes descending, "persistent-allocations" for persistentAllocations descending.'
+    ).choices(['value', 'name', 'allocations', 'persistent-allocations'])
   )
   .addOption(
-    new Option('--search <search>', 'Substring filter on span name/category.')
+    new Option(
+      '--search <search>',
+      'Substring filter on span name/category. Searches the whole subtree below --parent.'
+    )
+  )
+  .addOption(
+    new Option(
+      '--max-depth <depth>',
+      'Levels to descend for --search and --depth (default 32, also the cap).'
+    ).argParser(parseValidPositiveInteger)
+  )
+  .addOption(
+    new Option(
+      '--depth <depth>',
+      'Levels of descendants to nest inline under each span (default 1).'
+    ).argParser(parseValidPositiveInteger)
   )
   .addOption(new Option('--json', 'Output as JSON instead of markdown.'))
   .addOption(
     new Option('--page <page>', 'Page number (1-based, default 1).').argParser(
       parseValidPositiveInteger
     )
+  )
+  .addOption(
+    new Option(
+      '--page-size <size>',
+      'Spans per page (default 20, max 500).'
+    ).argParser(parseValidPositiveInteger)
   )
   .addHelpText('after', ({ command }) => {
     const port = (command.opts() as { port?: number }).port ?? 5748

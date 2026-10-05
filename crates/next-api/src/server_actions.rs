@@ -2,11 +2,16 @@ use std::{borrow::Cow, collections::BTreeMap, io::Write, sync::LazyLock};
 
 use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
+use either::Either;
+use itertools::Itertools;
 use next_core::{
+    get_next_package,
     next_client_reference::{CssClientReferenceModule, EcmascriptClientReferenceModule},
     next_manifests::{
-        ActionLayer, ActionManifestModuleId, ActionManifestWorkerEntry, ServerReferenceManifest,
+        ActionLayer, ActionManifestModuleId, ActionManifestWorkerEntry,
+        ActionManifestWorkerEntryDurability, ServerReferenceManifest,
     },
+    root_param_getters_path,
     util::NextRuntime,
 };
 use swc_core::{
@@ -24,7 +29,7 @@ use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TryFlatJoinIterExt,
-    TryJoinIterExt, ValueToString, Vc, trace::TraceRawVcs, turbofmt,
+    TryJoinIterExt, ValueToString, Vc, turbofmt,
 };
 use turbo_tasks_fs::{self, File, FileContent, FileSystemPath, rope::RopeBuilder};
 use turbo_tasks_hash::{HashAlgorithm, deterministic_hash};
@@ -36,7 +41,7 @@ use turbopack_core::{
     context::AssetContext,
     file_source::FileSource,
     ident::AssetIdent,
-    module::Module,
+    module::{Module, Modules},
     module_graph::{
         GraphTraversalAction, ModuleGraph, ModuleGraphLayer, async_module_info::AsyncModulesInfo,
     },
@@ -46,7 +51,7 @@ use turbopack_core::{
     virtual_source::VirtualSource,
 };
 use turbopack_ecmascript::{
-    EcmascriptParsable,
+    EcmascriptAnalyzable, EcmascriptParsable, EnvVarAccessMode, EnvVarInfo,
     chunk::{EcmascriptChunkItem, EcmascriptChunkItemExt, EcmascriptChunkPlaceable},
     module_fragments::part::module::EcmascriptModulePartAsset,
     parse::ParseResult,
@@ -235,6 +240,9 @@ impl Asset for ServerActionManifestAsset {
         let durable_use_cache_entries = *next_config
             .enable_durable_use_cache_entries(self.project.next_mode())
             .await?;
+        let static_root_param_tracking_enabled = *next_config
+            .enable_use_cache_static_root_param_tracking(self.project.next_mode())
+            .await?;
         let hash_salt = next_config.output_hash_salt();
 
         let loader_id = self.chunk_item.id().await?;
@@ -247,10 +255,30 @@ impl Asset for ServerActionManifestAsset {
             NextRuntime::NodeJs => &mut manifest.node,
         };
 
+        // These modules end up pulling in a lot of env vars and would always cause invalidations.
+        // But they don't actually read the env vars for the imports that are used. Their code is
+        // versioned anyway via the Next.js version in the cache key.
+        //
+        // `module.compiled.js -> app-page-turbo.runtime.prod.js` is imported by the following
+        // modules. But none of them have values whose runtime value depends on the runtime env
+        // vars.
+        // - react
+        // - react-dom
+        // - react-server-dom-*
+        // - next/dist/shared/lib/app-router-context.shared-runtime
+        // - next/dist/shared/lib/head-manager-context.shared-runtime
+        // - next/dist/shared/lib/hooks-client-context.shared-runtime
+        // - next/dist/shared/lib/image-config-context.shared-runtime
+        // - next/dist/shared/lib/router-context.shared-runtime
+        // - next/dist/shared/lib/server-inserted-html.shared-runtime
+        let modules_to_ignore = (durable_use_cache_entries || static_root_param_tracking_enabled)
+            .then(|| get_use_cache_modules_to_ignore(*self.project));
+
         struct ActionMetadata<'a> {
             exported_name: &'a str,
             filename: Cow<'a, str>,
-            code_hash: Option<ReadRef<RcStr>>,
+            data: Option<ReadRef<ModulesInformation>>,
+            root_param_dependencies: Option<ReadRef<Vec<RcStr>>>,
         }
 
         let action_metadata: Vec<(&str, ActionMetadata<'_>)> = actions_value
@@ -265,27 +293,48 @@ impl Asset for ServerActionManifestAsset {
                     Cow::Owned(module.ident().await?.path.to_string())
                 };
 
+                let data = if durable_use_cache_entries
+                    && extract_type_from_server_reference_id(hash_id)
+                        == ServerReferenceType::UseCache
+                {
+                    Some(
+                        compute_subtree_content_hash(
+                            *self.module_graph,
+                            **module,
+                            *self.chunking_context,
+                            hash_salt,
+                            modules_to_ignore
+                                .expect("cache metadata collection requires module exclusions"),
+                        )
+                        .await?,
+                    )
+                } else {
+                    None
+                };
+                let root_param_dependencies = if static_root_param_tracking_enabled
+                    && extract_type_from_server_reference_id(hash_id)
+                        == ServerReferenceType::UseCache
+                {
+                    Some(
+                        collect_root_param_dependencies_from_graph(
+                            *self.module_graph,
+                            **module,
+                            modules_to_ignore
+                                .expect("cache metadata collection requires module exclusions"),
+                        )
+                        .await?,
+                    )
+                } else {
+                    None
+                };
+
                 Ok((
                     &**hash_id,
                     ActionMetadata {
                         exported_name: &meta.name,
                         filename,
-                        code_hash: if durable_use_cache_entries
-                            && extract_type_from_server_reference_id(hash_id)
-                                == ServerReferenceType::UseCache
-                        {
-                            Some(
-                                compute_subtree_content_hash(
-                                    *self.module_graph,
-                                    **module,
-                                    *self.chunking_context,
-                                    hash_salt,
-                                )
-                                .await?,
-                            )
-                        } else {
-                            None
-                        },
+                        data,
+                        root_param_dependencies,
                     },
                 ))
             })
@@ -298,7 +347,8 @@ impl Asset for ServerActionManifestAsset {
             ActionMetadata {
                 exported_name,
                 filename,
-                code_hash,
+                data,
+                root_param_dependencies,
             },
         ) in &action_metadata
         {
@@ -310,7 +360,14 @@ impl Asset for ServerActionManifestAsset {
                     is_async: async_module_info
                         .is_async(self.chunk_item.module().to_resolved().await?)
                         .await?,
-                    code_hash: code_hash.as_ref().map(|h| h.as_str()),
+                    durability: data.as_ref().map(|d| ActionManifestWorkerEntryDurability {
+                        code_hash: d.ident_code_hash.as_str(),
+                        runtime_env_vars_read: d.runtime_env_vars_read.as_slice(),
+                        runtime_env_vars_existence: d.runtime_env_vars_existence.as_slice(),
+                    }),
+                    root_param_dependencies: root_param_dependencies
+                        .as_ref()
+                        .map(|names| names.as_slice()),
                 },
             );
 
@@ -357,13 +414,123 @@ pub async fn to_rsc_context(
     Ok(module)
 }
 
+/// Merged information about a module graph subgraph
+#[turbo_tasks::value]
+#[derive(Debug)]
+struct ModulesInformation {
+    /// The combined code hash of all modules in the subgraph.
+    pub ident_code_hash: RcStr,
+    /// The merged and deduplicated list of all runtime env vars read in the subgraph.
+    pub runtime_env_vars_read: Vec<RcStr>,
+    /// The merged and deduplicated list of runtime env vars used only checked for set/falsy/truthy
+    /// in the subgraph.
+    pub runtime_env_vars_existence: Vec<RcStr>,
+}
+
+#[turbo_tasks::function]
+async fn get_use_cache_modules_to_ignore(project: ResolvedVc<Project>) -> Result<Vc<Modules>> {
+    let app_project = project.app_project().await?.unwrap();
+    let next_dir = get_next_package(project.project_path().owned().await?).await?;
+    let source_to_ignore =
+        FileSource::new(next_dir.join("dist/server/route-modules/app-page/module.compiled.js")?);
+    Ok(Vc::cell(
+        [
+            app_project.rsc_module_context(),
+            app_project.route_module_context(),
+        ]
+        .iter()
+        .map(|c| {
+            c.process(Vc::upcast(source_to_ignore), ReferenceType::Undefined)
+                .module()
+                .to_resolved()
+        })
+        .try_join()
+        .await?,
+    ))
+}
+
+fn collect_cache_modules(
+    graph: &ModuleGraph,
+    entry: ResolvedVc<Box<dyn Module>>,
+    ignored: &[ResolvedVc<Box<dyn Module>>],
+) -> Result<FxIndexSet<ResolvedVc<Box<dyn Module>>>> {
+    let mut modules = FxIndexSet::default();
+    graph.traverse_edges_dfs(
+        std::iter::once(entry),
+        &mut (),
+        |_, target, _| {
+            if ignored.contains(&target) {
+                return Ok(GraphTraversalAction::Exclude);
+            }
+            if ResolvedVc::try_downcast_type::<CssClientReferenceModule>(target).is_some() {
+                // CSS client references do not execute code on the server.
+                return Ok(GraphTraversalAction::Exclude);
+            }
+            if ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(target).is_some() {
+                // Include the proxy, but do not traverse client
+                // implementations.
+                modules.insert(target);
+                return Ok(GraphTraversalAction::Exclude);
+            }
+            modules.insert(target);
+            Ok(GraphTraversalAction::Continue)
+        },
+        |_, _, _| Ok(()),
+        true,
+    )?;
+    Ok(modules)
+}
+
+// Returns the sorted root param dependencies from this cache module's graph. A
+// callable received at runtime can read other root params. The runtime must
+// check reads against this list when it uses the list for upfront cache keys.
+#[turbo_tasks::function]
+async fn collect_root_param_dependencies_from_graph(
+    module_graph: ResolvedVc<ModuleGraph>,
+    entry: ResolvedVc<Box<dyn Module>>,
+    modules_to_ignore: Vc<Modules>,
+) -> Result<Vc<Vec<RcStr>>> {
+    let span = tracing::info_span!(
+        "collect use-cache root param dependencies",
+        entry = display(entry.ident_string().await?)
+    );
+    async {
+        let graph = module_graph.await?;
+        let ignored = modules_to_ignore.await?;
+        let modules = collect_cache_modules(&graph, entry, &ignored)?;
+        let getters_path = root_param_getters_path().await?;
+        let mut names = modules
+            .iter()
+            .map(async |module| {
+                let ident = module.ident().await?;
+                if let Some(filename) = getters_path.get_path_to(&ident.path)
+                    && let Some(name) = filename.strip_suffix(".js")
+                    && !name.is_empty()
+                    && !name.contains('/')
+                {
+                    Ok(Some(RcStr::from(name)))
+                } else {
+                    Ok(None)
+                }
+            })
+            .try_flat_join()
+            .await?;
+        names.sort_unstable();
+        names.dedup();
+        anyhow::Ok(Vc::cell(names))
+    }
+    .instrument(span)
+    .await
+}
+
 #[turbo_tasks::function]
 async fn compute_subtree_content_hash(
     module_graph: ResolvedVc<ModuleGraph>,
     entry: ResolvedVc<Box<dyn Module>>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     hash_salt: Vc<RcStr>,
-) -> Result<Vc<RcStr>> {
+    modules_to_ignore: Vc<Modules>,
+) -> Result<Vc<ModulesInformation>> {
     let span = tracing::info_span!(
         "compute use-cache code hash",
         entry = display(entry.ident_string().await?)
@@ -372,30 +539,26 @@ async fn compute_subtree_content_hash(
         let module_graph_value = module_graph.await?;
         let async_module_info = module_graph.async_module_info();
 
-        let mut modules = FxIndexSet::default();
-        module_graph_value.traverse_edges_dfs(
-            std::iter::once(entry),
-            /* state */ &mut (),
-            /* visit_preorder */
-            |_, target, _| {
-                if ResolvedVc::try_downcast_type::<CssClientReferenceModule>(target).is_some() {
-                    // Don't include the module at all. There is nothing that executes on the server
-                    Ok(GraphTraversalAction::Exclude)
-                } else if ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(target)
-                    .is_some()
-                {
-                    // Include the client reference proxy module, but not the referenced client
-                    // modules themselves.
-                    modules.insert(target);
-                    Ok(GraphTraversalAction::Exclude)
-                } else {
-                    modules.insert(target);
-                    Ok(GraphTraversalAction::Continue)
-                }
-            },
-            /* visit_postorder */ |_, _, _| Ok(()),
-            /* include_traced */ true,
-        )?;
+        let modules_to_ignore = modules_to_ignore.await?;
+        let modules = collect_cache_modules(&module_graph_value, entry, &modules_to_ignore)?;
+
+        let data = modules
+            .into_iter()
+            .map(async |m| {
+                Ok((
+                    m,
+                    module_hash(
+                        *module_graph,
+                        chunking_context,
+                        async_module_info,
+                        *m,
+                        hash_salt,
+                    )
+                    .await?,
+                ))
+            })
+            .try_join()
+            .await?;
 
         static PRINT_USE_CACHE_SUBTREE: LazyLock<bool> = LazyLock::new(|| {
             std::env::var_os("TURBOPACK_PRINT_USE_CACHE_SUBTREE")
@@ -405,43 +568,79 @@ async fn compute_subtree_content_hash(
             println!(
                 "Modules in subtree for {}:\n{}",
                 entry.ident().await?.path,
-                modules
-                    .iter()
-                    .map(async |m| Ok(format!(
-                        "  '{}': {}",
-                        m.ident_string().await?,
-                        module_hash(
-                            *module_graph,
-                            chunking_context,
-                            async_module_info,
-                            **m,
-                            hash_salt
-                        )
-                        .await?
-                    )))
+                data.iter()
+                    .map(async |(m, data)| {
+                        Ok(format!(
+                            "  '{}': {} with env: {}",
+                            m.ident_string().await?,
+                            data.ident_code_hash,
+                            data.env_var_info
+                                .as_ref()
+                                .map(|e| {
+                                    e.runtime
+                                        .iter()
+                                        .map(|(name, mode)| match mode {
+                                            EnvVarAccessMode::Read => format!("read {name}"),
+                                            EnvVarAccessMode::Existence => {
+                                                format!("exists {name}")
+                                            }
+                                        })
+                                        .collect::<Vec<_>>()
+                                })
+                                .unwrap_or_default()
+                                .join(",")
+                        ))
+                    })
                     .try_join()
                     .await?
                     .join("\n")
             );
         }
 
-        let hashes = modules
-            .into_iter()
-            .map(|m| {
-                module_hash(
-                    *module_graph,
-                    chunking_context,
-                    async_module_info,
-                    *m,
-                    hash_salt,
-                )
-            })
-            .try_join()
-            .await?;
+        let mut hashes = Vec::with_capacity(data.len());
+        let mut runtime_env_vars = FxIndexMap::default();
 
-        anyhow::Ok(Vc::cell(
-            deterministic_hash("", hashes, HashAlgorithm::Xxh3Hash128Hex).into(),
-        ))
+        for (_m, data) in &data {
+            hashes.push(&data.ident_code_hash);
+            if let Some(env) = &data.env_var_info {
+                for (name, mode) in &env.runtime {
+                    match mode {
+                        EnvVarAccessMode::Read => {
+                            // Overwrite
+                            runtime_env_vars.insert(name.clone(), EnvVarAccessMode::Read);
+                        }
+                        EnvVarAccessMode::Existence => {
+                            // Keep EnvVarAccessMode::Read if it already exists
+                            runtime_env_vars
+                                .entry(name.clone())
+                                .or_insert(EnvVarAccessMode::Existence);
+                        }
+                    }
+                }
+            }
+        }
+
+        let hash = deterministic_hash("", hashes, HashAlgorithm::Xxh3Hash128Hex).into();
+        let (mut runtime_read, mut runtime_existence): (Vec<_>, Vec<_>) =
+            runtime_env_vars.into_iter().partition_map(|(name, mode)| {
+                if mode == EnvVarAccessMode::Read {
+                    Either::Left(name)
+                } else {
+                    Either::Right(name)
+                }
+            });
+
+        // Sort for more stable return values (less invalidation)
+        runtime_read.sort_unstable();
+        runtime_existence.sort_unstable();
+        anyhow::Ok(
+            ModulesInformation {
+                ident_code_hash: hash,
+                runtime_env_vars_read: runtime_read,
+                runtime_env_vars_existence: runtime_existence,
+            }
+            .cell(),
+        )
     }
     .instrument(span)
     .await
@@ -458,6 +657,13 @@ async fn compute_subtree_content_hash(
     }
 }
 
+#[turbo_tasks::value]
+#[derive(Debug)]
+struct ModuleInformation {
+    pub ident_code_hash: RcStr,
+    pub env_var_info: Option<ReadRef<EnvVarInfo>>,
+}
+
 #[turbo_tasks::function]
 async fn module_hash(
     module_graph: ResolvedVc<ModuleGraph>,
@@ -465,12 +671,34 @@ async fn module_hash(
     async_module_info: ResolvedVc<AsyncModulesInfo>,
     m: ResolvedVc<Box<dyn Module>>,
     hash_salt: Vc<RcStr>,
-) -> Result<Vc<RcStr>> {
+) -> Result<Vc<ModuleInformation>> {
     let ident = m.ident();
     let ident_value = ident.await?;
     let ident_str = ident.to_string().await?;
 
-    if let Some(placeable_module) = ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(m)
+    if cfg!(debug_assertions)
+        && (ident_str
+            .contains("next/dist/compiled/next-server/app-page-turbo-experimental.runtime.dev.js")
+            || ident_str.contains(
+                "next/dist/compiled/next-server/app-page-turbo-experimental.runtime.prod.js",
+            )
+            || ident_str.contains("next/dist/compiled/next-server/app-page-turbo.runtime.dev.js")
+            || ident_str.contains("next/dist/compiled/next-server/app-page-turbo.runtime.prod.js"))
+    {
+        // This isn't exactly a fatal error, but it makes cross-deployment caching completely
+        // ineffective.
+        bail!("use cache subtree shouldn't contain {}", ident_str);
+    }
+
+    let env_var_info =
+        if let Some(module) = ResolvedVc::try_downcast::<Box<dyn EcmascriptAnalyzable>>(m) {
+            Some(module.env_var_info().await?)
+        } else {
+            None
+        };
+
+    let ident_code_hash = if let Some(placeable_module) =
+        ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(m)
         && !ident_value
             .layer
             .as_ref()
@@ -481,19 +709,19 @@ async fn module_hash(
             .as_chunk_item(*module_graph, *chunking_context)
             .to_resolved()
             .await?;
-        let chunk_item =
-            ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkItem>>(chunk_item).unwrap();
+        let chunk_item = ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkItem>>(chunk_item)
+            .context("expected EcmascriptChunkItem")?;
         let async_info = if async_module_info.is_async(m).await? {
             Some(module_graph.referenced_async_modules(*m))
         } else {
             None
         };
-        let code = chunk_item.code(async_info);
-        Ok(Vc::cell(RcStr::from(deterministic_hash(
+        let factory = chunk_item.code(async_info).await?;
+        RcStr::from(deterministic_hash(
             "",
-            (ident_str, code.source_code_hash().await?),
+            (ident_str, factory.code.to_code().source_code_hash().await?),
             HashAlgorithm::Xxh3Hash128Hex,
-        ))))
+        ))
     } else {
         // A non-JS static file or an external module
         let content_hash = m
@@ -503,12 +731,18 @@ async fn module_hash(
             .content()
             .hash(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
             .await?;
-        Ok(Vc::cell(RcStr::from(deterministic_hash(
+        RcStr::from(deterministic_hash(
             "",
             (ident_str, content_hash),
             HashAlgorithm::Xxh3Hash128Hex,
-        ))))
+        ))
+    };
+
+    Ok(ModuleInformation {
+        ident_code_hash,
+        env_var_info,
     }
+    .cell())
 }
 
 /// Server action info for JSON parsing
@@ -531,7 +765,7 @@ impl ServerActionInfoRaw {
 }
 
 /// Simplified action entry for storage in turbo_tasks values
-#[derive(Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub struct ActionEntry {
     pub name: String,
 }
@@ -726,7 +960,7 @@ fn is_turbopack_internal_var(with: &Option<Box<ObjectLit>>) -> bool {
 }
 
 /// Action metadata including name and source path
-#[derive(Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub struct ActionMeta {
     pub name: String,
     /// The original source file path (from entry_path in the action comment)

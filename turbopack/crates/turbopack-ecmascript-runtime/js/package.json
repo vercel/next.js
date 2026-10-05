@@ -5,6 +5,7 @@
   "license": "UNLICENSED",
   "private": true,
   "scripts": {
+    "typescript": "pnpm check",
     "check": "run-p check:*",
     "check:nodejs": "tsc -p src/nodejs",
     "check:browser-dev-client": "tsc -p src/browser/dev/hmr-client",

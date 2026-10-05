@@ -7,15 +7,11 @@ import {
 } from 'e2e-utils/instant-validation'
 
 describe('instant-validation-build', () => {
-  const { next, skipped, isNextStart, isTurbopack } = nextTestSetup({
+  const { next, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
 
-  if (skipped) {
-    return
-  }
   if (!isNextStart) {
     it.skip('Build-time only test', () => {})
     return
@@ -42,7 +38,14 @@ describe('instant-validation-build', () => {
   }
 
   beforeAll(async () => {
-    await next.build({ args: ['--experimental-build-mode', 'compile'] })
+    const result = await next.build({
+      args: ['--experimental-build-mode', 'compile'],
+    })
+    if (result.exitCode !== 0) {
+      throw new Error(
+        `Build exited with exit code ${result.exitCode}. CLI Output:\n\n${result.cliOutput}`
+      )
+    }
   })
 
   describe('basic dynamic hole detection', () => {

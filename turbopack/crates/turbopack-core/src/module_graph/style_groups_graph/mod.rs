@@ -12,9 +12,10 @@
 //! 1. **`create_graph`** — for each chunk group, the ordered list of CSS modules is converted into
 //!    pairwise "later depends on earlier" edges in a directed weighted graph. Edge weights
 //!    accumulate when the same `(from, to)` pair occurs in multiple groups.
-//! 2. **`make_acyclic`** — co-occurrence almost always produces cycles. Each multi-node SCC has its
-//!    lowest-weight edge cut until the graph is a DAG. Heavy edges represent strong co-occurrence
-//!    and are preserved.
+//! 2. **`make_acyclic`** — co-occurrence almost always produces cycles. Each multi-node SCC is
+//!    ordered with a weighted feedback-arc heuristic, refined with bounded insertion moves, then
+//!    all backward edges are removed in one pass. The heuristic preferentially preserves heavy
+//!    edges that represent strong co-occurrence.
 //! 3. **`linearize`** — Kahn-style topological sort with a tie-break: when several dependents
 //!    become unblocked at once, the heaviest edge wins (and insertion order breaks ties among equal
 //!    weights). This places strongly co-occurring modules adjacent in the global order.

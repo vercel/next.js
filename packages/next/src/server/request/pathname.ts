@@ -45,9 +45,9 @@ export function createServerPathnameForMetadata(
         throw new InvariantError(
           'createServerPathnameForMetadata should not be called in cache contexts.'
         )
-      case 'generate-static-params':
+      case 'build-time-generator':
         throw new InvariantError(
-          'createServerPathnameForMetadata should not be called inside generateStaticParams.'
+          `createServerPathnameForMetadata should not be called inside ${workUnitStore.functionName}.`
         )
       case 'prerender-runtime': {
         // TODO(app-shells): whether or not this is included in the shell
@@ -57,15 +57,15 @@ export function createServerPathnameForMetadata(
         // behavior of always resolving in the runtime stage
         // (i.e. assuming that we have non-static params in the pathname)
         const { stagedRendering } = workUnitStore
+        const pathnameStage = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
         if (stagedRendering) {
-          const pathnameStage = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
           return stagedRendering.delayUntilStage(
             pathnameStage,
             undefined,
             underlyingPathname
           )
         } else {
-          if (workUnitStore.isSessionShell) {
+          if (workUnitStore.finalStage < pathnameStage) {
             return makeDynamicHangingPromise<string>(
               workUnitStore.renderSignal,
               workStore.route,
@@ -95,9 +95,7 @@ function createPrerenderPathname(
     case 'prerender': {
       const fallbackParams = prerenderStore.fallbackRouteParams
       if (fallbackParams && fallbackParams.size > 0) {
-        // The pathname only hangs when there are fallback params, and a
-        // concrete (ISR-upgraded) prerender resolves it — so this access is
-        // fallback-param data for the static-prefetch hint.
+        // The pathname depends on params, so we track it like a fallback params access.
         return makeFallbackParamsHangingPromise<string>(
           prerenderStore.renderSignal,
           workStore.route,

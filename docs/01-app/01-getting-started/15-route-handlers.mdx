@@ -1,7 +1,7 @@
 ---
 title: Route Handlers
 nav_title: Route Handlers
-description: Learn how to use Route Handlers
+description: Create custom request handlers with Next.js Route Handlers using the Web Request and Response APIs.
 related:
   title: API Reference
   description: Learn more about Route Handlers

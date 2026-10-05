@@ -11,8 +11,6 @@ crate-type = ["cdylib"]
 default = ["swc_v1"]
 swc_v1 = []
 
-plugin = ["swc_core/plugin_transform_host_js"]
-
 [lints]
 workspace = true
 

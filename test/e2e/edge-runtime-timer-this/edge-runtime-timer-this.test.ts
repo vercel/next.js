@@ -2,16 +2,13 @@ import { nextTestSetup } from 'e2e-utils'
 
 const enableCacheComponents = process.env.__NEXT_CACHE_COMPONENTS === 'true'
 
+// Deploy mode exclusion: The assertions exercise behavior specific to the local Next.js server.
+// This is testing the edge runtime sandbox, which is only used in `next start`.
+// @force-gate !deploy
 describe('edge-runtime-timer-this', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    // This is testing the edge runtime sandbox, which is only used in `next start`.
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   if (enableCacheComponents) {
     it.skip('skipped because `runtime = "edge"` is not allowed in cacheComponents', () => {})

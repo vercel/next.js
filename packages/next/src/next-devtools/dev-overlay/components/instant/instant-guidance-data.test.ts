@@ -16,14 +16,30 @@ import {
 } from '../../../../server/app-render/blocking-route-messages'
 import { createLinkPrefetchPartialError } from '../../../../shared/lib/instant-messages'
 import {
+  EXPLANATIONS,
   FIX_CARD_GROUPS,
   SYNC_IO_DOCS,
   SYNC_IO_CLIENT_DOCS,
   getCards,
+  getStaticRouteDocsUrl,
   type FixCardGroup,
   type GuidanceKind,
   type GuidanceVariant,
 } from './instant-guidance-data'
+
+describe('static route explanations', () => {
+  it('matches the fully static build guidance', () => {
+    expect(EXPLANATIONS['static-route']).toBe(
+      'This route is configured to be fully static, but data prevents it from being fully prerendered.'
+    )
+    expect(EXPLANATIONS['static-metadata']).toBe(
+      'This route is configured to be fully static, but data prevents its metadata from being fully prerendered.'
+    )
+    expect(EXPLANATIONS['static-viewport']).toBe(
+      'This route is configured to be fully static, but data prevents its viewport from being fully prerendered.'
+    )
+  })
+})
 
 const GUIDANCE_VARIANTS = [
   'runtime',
@@ -33,7 +49,9 @@ const GUIDANCE_VARIANTS = [
 ] as const satisfies GuidanceVariant[]
 
 function tagsFromMessage(message: string): string[] {
-  return Array.from(message.matchAll(/^\s*-\s*\[([a-z]+)\]/gm)).map((m) => m[1])
+  return Array.from(message.matchAll(/^\s*-\s*\[([a-z-]+)\]/gm)).map(
+    (m) => m[1]
+  )
 }
 
 function groupsFromCards(
@@ -148,6 +166,27 @@ describe('instant-guidance-data card ordering', () => {
 })
 
 describe('instant-guidance-data card links', () => {
+  it('links each static error variant to its focused page', () => {
+    expect(getStaticRouteDocsUrl('static-route', 'runtime')).toBe(
+      'https://nextjs.org/docs/messages/static-route-runtime'
+    )
+    expect(getStaticRouteDocsUrl('static-route', 'dynamic')).toBe(
+      'https://nextjs.org/docs/messages/static-route-dynamic'
+    )
+    expect(getStaticRouteDocsUrl('static-metadata', 'runtime')).toBe(
+      'https://nextjs.org/docs/messages/static-metadata-runtime'
+    )
+    expect(getStaticRouteDocsUrl('static-metadata', 'dynamic')).toBe(
+      'https://nextjs.org/docs/messages/static-metadata-dynamic'
+    )
+    expect(getStaticRouteDocsUrl('static-viewport', 'runtime')).toBe(
+      'https://nextjs.org/docs/messages/static-viewport-runtime'
+    )
+    expect(getStaticRouteDocsUrl('static-viewport', 'dynamic')).toBe(
+      'https://nextjs.org/docs/messages/static-viewport-dynamic'
+    )
+  })
+
   it('every card.link ends with #card.id', () => {
     type Item = [GuidanceKind, GuidanceVariant]
     const variants: Array<Item> = [
@@ -157,6 +196,12 @@ describe('instant-guidance-data card links', () => {
       ['client-hook', 'runtime'],
       ['unrendered-segment', 'runtime'],
       ['link-prefetch-partial', 'runtime'],
+      ['static-route', 'runtime'],
+      ['static-route', 'dynamic'],
+      ['static-metadata', 'runtime'],
+      ['static-metadata', 'dynamic'],
+      ['static-viewport', 'runtime'],
+      ['static-viewport', 'dynamic'],
     ]
     for (const [kind, variant] of variants) {
       for (const card of getCards(kind, variant)) {
@@ -184,6 +229,12 @@ describe('instant-guidance-data card invariants', () => {
       ['client-hook', 'runtime'],
       ['unrendered-segment', 'runtime'],
       ['link-prefetch-partial', 'runtime'],
+      ['static-route', 'runtime'],
+      ['static-route', 'dynamic'],
+      ['static-metadata', 'runtime'],
+      ['static-metadata', 'dynamic'],
+      ['static-viewport', 'runtime'],
+      ['static-viewport', 'dynamic'],
     ]
     for (const [kind, variant, cause] of variants) {
       cards.push(...getCards(kind, variant, cause))
@@ -247,6 +298,12 @@ describe('instant-guidance-data dispatcher', () => {
       ['client-hook', 'runtime'],
       ['unrendered-segment', 'runtime'],
       ['link-prefetch-partial', 'runtime'],
+      ['static-route', 'runtime'],
+      ['static-route', 'dynamic'],
+      ['static-metadata', 'runtime'],
+      ['static-metadata', 'dynamic'],
+      ['static-viewport', 'runtime'],
+      ['static-viewport', 'dynamic'],
     ]
     for (const [kind, variant] of variants) {
       for (const card of getCards(kind, variant)) used.add(card.group)

@@ -2,16 +2,13 @@ import { nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
+// Deploy mode exclusion: This suite asserts local CLI or runtime logs that deployments do not expose.
+// don't have access to runtime logs on deploy
+// @force-gate !deploy
 describe('fetch failures have good stack traces in edge runtime', () => {
-  const { next, isNextStart, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextStart, isNextDev } = nextTestSetup({
     files: __dirname,
-    // don't have access to runtime logs on deploy
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   // TODO: Failure is not specific to Turbopack, edge runtime errors don't have source maps applied.
   ;(process.env.IS_TURBOPACK_TEST && isNextStart ? it.skip : it)(

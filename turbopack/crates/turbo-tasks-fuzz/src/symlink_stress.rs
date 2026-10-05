@@ -14,8 +14,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_fs::{
-    DiskFileSystem, FileSystem, FileSystemPath, WriteLinkContent, WriteLinkTarget,
-    WriteLinkTargetType,
+    DiskFileSystem, FileSystem, FileSystemPath, WriteLinkContent, WriteLinkTargetType,
 };
 
 #[derive(Args)]
@@ -240,7 +239,7 @@ async fn write_symlink(
 ) -> anyhow::Result<()> {
     let symlink_path = symlinks_dir.join(&symlink_idx.to_string())?;
     let link_content = WriteLinkContent {
-        target: WriteLinkTarget::Relative(target),
+        target: symlink_path.parent().join(&target)?,
         target_type: WriteLinkTargetType::DirectoryOrJunctionPoint,
     };
     symlink_path

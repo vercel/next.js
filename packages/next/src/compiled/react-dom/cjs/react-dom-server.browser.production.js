@@ -444,7 +444,15 @@ function createRenderState(
     ));
   bootstrapScriptContent = [];
   void 0 !== importMap &&
-    (bootstrapScriptContent.push(importMapScriptStart),
+    (bootstrapScriptContent.push(
+      void 0 === externalRuntimeConfig
+        ? importMapScriptStart
+        : stringToPrecomputedChunk(
+            '<script type="importmap" nonce="' +
+              escapeTextForBrowser(externalRuntimeConfig) +
+              '">'
+          )
+    ),
     bootstrapScriptContent.push(
       stringToChunk(
         ("" + JSON.stringify(importMap)).replace(scriptRegex, scriptReplacer)
@@ -7611,12 +7619,12 @@ function getPostponedState(request) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.3.0-canary-f789f203-20260825" !== isomorphicReactPackageVersion)
+  if ("19.3.0-canary-278794d7-20261002" !== isomorphicReactPackageVersion)
     throw Error(
       formatProdErrorMessage(
         527,
         isomorphicReactPackageVersion,
-        "19.3.0-canary-f789f203-20260825"
+        "19.3.0-canary-278794d7-20261002"
       )
     );
 }
@@ -7831,4 +7839,4 @@ exports.resumeAndPrerender = function (children, postponedState, options) {
     startWork(request);
   });
 };
-exports.version = "19.3.0-canary-f789f203-20260825";
+exports.version = "19.3.0-canary-278794d7-20261002";

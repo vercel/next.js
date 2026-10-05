@@ -1,3 +1,4 @@
+import { getDeploymentTestEnvAssignments } from './deployment-test-env'
 import path from 'path'
 import assert from 'assert'
 import { flushAllTraces, setGlobal, trace } from 'next/dist/trace'
@@ -17,6 +18,7 @@ import {
   getActiveDescribeGates,
   hasLazyForceGate,
   findLazyForceSkip,
+  ungatedHook,
 } from '../gate/runtime'
 
 export type { NextInstance }
@@ -137,10 +139,6 @@ if (!e2eGlobal.__NEXT_E2E_TEST_CONFIG_PATCHED__) {
     if (typeof global.test === 'function') {
       global.test = wrapJestTestFn(global.test) as jest.It
     }
-
-    if (process.env.NEXT_TEST_CI && !process.env.NEXT_FLAKE_DETECTION) {
-      jest.retryTimes(1)
-    }
   }
 
   e2eGlobal.__NEXT_E2E_TEST_CONFIG_PATCHED__ = true
@@ -234,6 +232,24 @@ export class PatchedFileRef {
     this.fsPath = path
     this.cb = cb
   }
+}
+
+/**
+ * Return a PatchedFileRef that appends captured test env assignments when the
+ * harness copies the file in deploy mode. Other modes copy the content unchanged.
+ * Nested app configs need this because the deploy harness only patches the
+ * fixture-root config.
+ *
+ * TODO: Patch nested configs automatically in the deploy harness so fixtures no
+ * longer need these explicit overrides.
+ * https://github.com/vercel/next.js/blob/3854a98484ec2ce5bafcb074ef0fbad5290dede2/test/lib/next-modes/base.ts#L520-L554
+ */
+export function patchFileWithDeployEnvAssignments(
+  path: string
+): PatchedFileRef {
+  return new PatchedFileRef(path, (content) =>
+    isNextDeploy ? `${content}\n` + getDeploymentTestEnvAssignments() : content
+  )
 }
 
 let nextInstance: NextInstance | undefined = undefined
@@ -382,74 +398,84 @@ export function nextTestSetup(
 
   let next: NextInstance | undefined
   if (!skipped) {
-    beforeAll(async () => {
-      if (!buildForceGated) {
-        next = await createNext(options)
-        return
-      }
-      // Try to decide the force-gate against the *source* fixture first,
-      // before paying for the fixture setup (which includes a dependency
-      // install when the run is isolated). The config resolver falls back to
-      // the repo's own `next` when the directory has no install, and the env
-      // mirrors what `getSpawnOpts` hands every fixture child process. An
-      // inline `files` object has no directory to resolve against, and any
-      // resolution failure (e.g. a config that imports from the fixture's
-      // own node_modules) falls through to the instance-based decision below.
-      if (typeof options.files === 'string') {
-        const config = await loadResolvedConfig({
-          dir: options.files,
-          phase: isNextDev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_BUILD,
-          env: {
-            ...process.env,
-            ...options.env,
-            NODE_ENV: (options.env?.NODE_ENV ||
-              '') as NodeJS.ProcessEnv['NODE_ENV'],
-            PORT: '0',
-            __NEXT_TEST_MODE: 'e2e',
-          },
-        }).catch(() => null)
-        const earlySkip = config && findLazyForceSkip(describeGates, config)
-        if (earlySkip) {
-          // No instance ever exists on this path, so register the resolved
-          // config directly for the per-test force-pass decisions.
-          registerFixture({ getResolvedConfig: async () => config })
+    // `ungatedHook`: this hook makes the lazy `@force-gate` skip decision, so
+    // it must run even (especially) when that decision is "skip".
+    beforeAll(
+      ungatedHook(async () => {
+        if (!buildForceGated) {
+          next = await createNext(options)
+          return
+        }
+        // Try to decide the force-gate against the *source* fixture first,
+        // before paying for the fixture setup (which includes a dependency
+        // install when the run is isolated). The config resolver falls back to
+        // the repo's own `next` when the directory has no install, and the env
+        // mirrors what `getSpawnOpts` hands every fixture child process. An
+        // inline `files` object has no directory to resolve against, and any
+        // resolution failure (e.g. a config that imports from the fixture's
+        // own node_modules) falls through to the instance-based decision below.
+        if (typeof options.files === 'string') {
+          const config = await loadResolvedConfig({
+            dir: options.files,
+            phase: isNextDev
+              ? PHASE_DEVELOPMENT_SERVER
+              : PHASE_PRODUCTION_BUILD,
+            env: {
+              ...process.env,
+              ...options.env,
+              NODE_ENV: (options.env?.NODE_ENV ||
+                '') as NodeJS.ProcessEnv['NODE_ENV'],
+              PORT: '0',
+              __NEXT_TEST_MODE: 'e2e',
+            },
+          }).catch(() => null)
+          const earlySkip = config && findLazyForceSkip(describeGates, config)
+          if (earlySkip) {
+            // No instance ever exists on this path, so register the resolved
+            // config directly for the per-test force-pass decisions.
+            registerFixture({ getResolvedConfig: async () => config })
+            require('console').warn(
+              `  ⚠ suite build skipped by \`@force-gate ${earlySkip.source}\` ` +
+                `(decided from the source fixture; setup skipped)`
+            )
+            return
+          }
+        }
+        // Set the fixture up (so its config is resolvable) without building, then
+        // resolve the force-gate. If it's false, skip the build entirely — the
+        // inherited gate makes every test force-pass, so nothing touches `next`.
+        const instance = await createNext({ ...options, skipStart: true })
+        next = instance
+        const config = await instance.getResolvedConfig()
+        const forceSkip = findLazyForceSkip(describeGates, config)
+        if (forceSkip) {
           require('console').warn(
-            `  ⚠ suite build skipped by \`@force-gate ${earlySkip.source}\` ` +
-              `(decided from the source fixture; setup skipped)`
+            `  ⚠ suite build skipped by \`@force-gate ${forceSkip.source}\``
           )
           return
         }
-      }
-      // Set the fixture up (so its config is resolvable) without building, then
-      // resolve the force-gate. If it's false, skip the build entirely — the
-      // inherited gate makes every test force-pass, so nothing touches `next`.
-      const instance = await createNext({ ...options, skipStart: true })
-      next = instance
-      const config = await instance.getResolvedConfig()
-      const forceSkip = findLazyForceSkip(describeGates, config)
-      if (forceSkip) {
-        require('console').warn(
-          `  ⚠ suite build skipped by \`@force-gate ${forceSkip.source}\``
-        )
-        return
-      }
-      try {
-        await instance.start()
-      } catch (err) {
-        await instance.destroy().catch(() => {})
-        next = undefined
-        throw err
-      }
-    })
-    afterAll(async () => {
-      // Gracefully destroy the instance if `createNext` success.
-      // If next instance is not available, it's likely beforeAll hook failed and unnecessarily throws another error
-      // by attempting to destroy on undefined.
-      await next?.destroy()
-      // The early force-skip path registers a config source without an
-      // instance (an instance clears itself on destroy).
-      if (!next) clearFixture()
-    })
+        try {
+          await instance.start()
+        } catch (err) {
+          await instance.destroy().catch(() => {})
+          next = undefined
+          throw err
+        }
+      })
+    )
+    // `ungatedHook`: teardown must run even when the suite was force-skipped,
+    // otherwise the fixture leaks into the next describe's gate decisions.
+    afterAll(
+      ungatedHook(async () => {
+        // Gracefully destroy the instance if `createNext` success.
+        // If next instance is not available, it's likely beforeAll hook failed and unnecessarily throws another error
+        // by attempting to destroy on undefined.
+        await next?.destroy()
+        // The early force-skip path registers a config source without an
+        // instance (an instance clears itself on destroy).
+        if (!next) clearFixture()
+      })
+    )
   }
 
   const nextProxy = new Proxy<NextInstance>({} as NextInstance, {

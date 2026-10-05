@@ -824,7 +824,15 @@
             })));
       externalRuntimeConfig = [];
       void 0 !== importMap &&
-        (externalRuntimeConfig.push(importMapScriptStart),
+        (externalRuntimeConfig.push(
+          void 0 === nonceScript
+            ? importMapScriptStart
+            : stringToPrecomputedChunk(
+                '<script type="importmap" nonce="' +
+                  escapeTextForBrowser(nonceScript) +
+                  '">'
+              )
+        ),
         externalRuntimeConfig.push(
           escapeEntireInlineScriptContent(JSON.stringify(importMap))
         ),
@@ -9739,11 +9747,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-experimental-f789f203-20260825" !== isomorphicReactPackageVersion)
+      if ("19.3.0-experimental-278794d7-20261002" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-experimental-f789f203-20260825\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-experimental-278794d7-20261002\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     function createDrainHandler(destination, request) {
@@ -11826,5 +11834,5 @@
         }
       };
     };
-    exports.version = "19.3.0-experimental-f789f203-20260825";
+    exports.version = "19.3.0-experimental-278794d7-20261002";
   })();

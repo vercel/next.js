@@ -1,7 +1,6 @@
 import { execSync, spawn } from 'child_process'
 import { join } from 'path'
 import { fileURLToPath } from 'url'
-import fetch from 'node-fetch'
 import {
   existsSync,
   readFileSync,

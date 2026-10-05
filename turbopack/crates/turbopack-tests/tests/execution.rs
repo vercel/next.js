@@ -15,7 +15,6 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, Effects, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TurboTasks, Vc,
     debug::ValueDebugFormat, fxindexmap, read_strongly_consistent_and_apply_effects, take_effects,
-    trace::TraceRawVcs,
 };
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_env::CommandLineProcessEnv;
@@ -26,6 +25,7 @@ use turbo_tasks_fs::{
 use turbo_unix_path::sys_to_unix;
 use turbopack::{
     ModuleAssetContext,
+    global_module_ids::get_global_module_id_strategy,
     module_options::{
         EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions,
         side_effect_free_packages_glob,
@@ -80,7 +80,7 @@ struct RunTestResult {
 struct JsResult {
     uncaught_exceptions: Vec<String>,
     unhandled_rejections: Vec<String>,
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(unsafe_ignore)]
     jest_result: JestRunResult,
 }
 
@@ -261,9 +261,7 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
     .await
 }
 
-#[derive(
-    PartialEq, Eq, Debug, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, Debug, Deserialize, ValueDebugFormat, NonLocalValue, Encode, Decode)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct TestOptions {
     #[serde(default = "default_true")]
@@ -281,6 +279,10 @@ struct TestOptions {
     #[serde(default)]
     cjs_tree_shaking: bool,
     #[serde(default = "default_true")]
+    mangle_export_names: bool,
+    #[serde(default = "default_true")]
+    mangle_via_materialized_namespace_object: bool,
+    #[serde(default = "default_true")]
     cross_module_constants: bool,
     #[serde(default)]
     cjs_scope_hoisting: bool,
@@ -288,6 +290,12 @@ struct TestOptions {
     minify: bool,
     #[serde(default)]
     production_chunking: bool,
+    #[serde(default)]
+    global_module_ids: bool,
+    /// Assign numeric module ids, as production builds do, instead of the
+    /// human-readable ident-based ids tests use by default.
+    #[serde(default)]
+    numeric_module_ids: bool,
     /// Packages that are assumed to be side effect free, unless they declare otherwise in their
     /// package.json.
     #[serde(default)]
@@ -312,11 +320,15 @@ impl Default for TestOptions {
             remove_unused_imports: default_true(),
             scope_hoisting: default_true(),
             cjs_tree_shaking: false,
+            mangle_export_names: default_true(),
+            mangle_via_materialized_namespace_object: default_true(),
             cjs_scope_hoisting: false,
             cross_module_constants: true,
             infer_module_side_effects: default_true(),
             minify: false,
             production_chunking: false,
+            global_module_ids: false,
+            numeric_module_ids: false,
             side_effect_free_packages: Vec::new(),
             server_relative_root: default_true(),
         }
@@ -479,6 +491,9 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
                 import_externals: true,
                 enable_exports_info_inlining: true,
                 cjs_tree_shaking: options.cjs_tree_shaking,
+                mangle_export_names: options.mangle_export_names,
+                mangle_via_materialized_namespace_object: options
+                    .mangle_via_materialized_namespace_object,
                 cjs_scope_hoisting: options.cjs_scope_hoisting,
                 cross_module_constants: options.cross_module_constants,
                 infer_module_side_effects: options.infer_module_side_effects,
@@ -601,6 +616,17 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     } else {
         None
     });
+
+    // Production builds assign numeric module ids; the default ident-based ids are strings.
+    // Exercising both matters for code that keys off the module cache, since `ModuleId` is
+    // `string | number`.
+    if options.global_module_ids || options.numeric_module_ids {
+        builder = builder.module_id_strategy(
+            get_global_module_id_strategy(module_graph)
+                .to_resolved()
+                .await?,
+        );
+    }
 
     if options.remove_unused_imports {
         builder = builder.unused_references(

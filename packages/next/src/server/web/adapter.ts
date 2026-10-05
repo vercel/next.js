@@ -341,6 +341,7 @@ export async function adapter(
                   // the cache fill will time out immediately and surface the
                   // bug.
                   useCacheTimeout: 0,
+                  durableUseCacheEntries: false,
                 },
                 waitUntil,
                 onClose: closeController.onClose.bind(closeController),

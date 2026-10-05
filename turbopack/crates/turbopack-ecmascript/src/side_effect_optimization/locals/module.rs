@@ -148,6 +148,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleLocalsModule {
             generate_source_map,
             original_source_map: analyze_result.source_map,
             exports,
+            export_registration_mode: None,
             async_module_info,
         }
         .cell())
@@ -184,6 +185,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleLocalsModule {
         let exports = EsmExports {
             exports: FrozenMap::from_unique_sorted_box(exports.into_boxed_slice()),
             star_exports: vec![],
+            mangle_export_names: esm_exports.mangle_export_names,
         }
         .resolved_cell();
         Ok(EcmascriptExports::EsmExports(exports).cell())

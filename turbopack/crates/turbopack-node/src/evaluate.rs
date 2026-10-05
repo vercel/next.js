@@ -11,7 +11,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, FxIndexMap, OperationVc, PrettyPrintError, ResolvedVc, TryJoinIterExt, Vc,
     duration_span, fxindexmap, parallel::available_parallelism,
-    resolve_strongly_consistent_and_take_and_apply_effects, trace::TraceRawVcs,
+    resolve_strongly_consistent_and_take_and_apply_effects,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath, to_sys_path};
@@ -74,7 +74,7 @@ enum EvalJavaScriptIncomingMessage {
     shared
 )]
 pub struct EvaluatePool {
-    #[turbo_tasks(trace_ignore, debug_ignore)]
+    #[turbo_tasks(unsafe_ignore, debug_ignore)]
     pool: Box<dyn EvaluateOperation>,
     pub assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
     pub assets_root: FileSystemPath,
@@ -206,7 +206,7 @@ async fn create_evaluate_pool_assets_operation(
 }
 
 #[turbo_tasks::task_input]
-#[derive(Clone, Copy, Hash, Debug, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Copy, Hash, Debug, PartialEq, Eq, Encode, Decode)]
 pub enum EnvVarTracking {
     WholeEnvTracked,
     Untracked,
