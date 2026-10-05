@@ -105,6 +105,11 @@ describe('next analyze', () => {
   })
 
   it('captures, replaces and streams a named snapshot without building on replay', async () => {
+    const exportHelp = await next.runCommand(['analyze', 'export', '--help'])
+    expect(exportHelp.exitCode).toBe(0)
+    expect(exportHelp.stdout).toContain(
+      'as JSON Lines without building or serving.'
+    )
     const name = 'JSON snapshot'
     const captureArgs = ['analyze', '--output', '--snapshot', name]
     const fresh = await next.runCommand(captureArgs)
@@ -141,7 +146,7 @@ describe('next analyze', () => {
     ).toHaveLength(1)
     expect(history.snapshots[0].name).toBe(name)
     expect(history.snapshots[0].createdAt > metadata.createdAt).toBe(true)
-    expect(existsSync(path.join(snapshotDir, 'graph.ndjson'))).toBe(false)
+    expect(existsSync(path.join(snapshotDir, 'graph.jsonl'))).toBe(false)
 
     const named = await next.runCommand(
       ['analyze', 'export', next.testDir, '--snapshot', name],

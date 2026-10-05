@@ -329,7 +329,7 @@ analyzeCommand
   .command('export')
   .version(program.version()!, '-v, --version', 'Outputs the Next.js version.')
   .description(
-    'Stream a saved analyzer graph as NDJSON without building or serving.'
+    'Stream a saved analyzer graph as JSON Lines without building or serving.'
   )
   .argument(
     '[directory]',
