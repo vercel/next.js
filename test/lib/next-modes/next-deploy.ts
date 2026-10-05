@@ -301,8 +301,6 @@ export class NextDeployInstance extends NextInstance {
   }
 
   private async deploy() {
-    // `getDeployTarget()` in ./deploy-target.ts mirrors these branches for the
-    // `vercel` gate condition. Keep the two in sync.
     const existingDeployUrl = process.env.NEXT_TEST_DEPLOY_URL?.trim()
     const customDeployScriptPath =
       process.env.NEXT_TEST_DEPLOY_SCRIPT_PATH?.trim()

@@ -43,7 +43,6 @@
  * `// @gate mode === 'deploy'` works.
  */
 
-import { getDeployTarget } from '../next-modes/deploy-target'
 import type { ResolvedNextConfig } from './resolved-config'
 import { getGateTestContext } from './test-context'
 
@@ -100,12 +99,14 @@ export const conditions: Record<string, Condition> = {
   // adapters, so gate on `vercel` rather than `deploy` when the reason is
   // specific to Vercel: `@force-gate vercel` for a Vercel-only suite,
   // `@force-gate !deploy || vercel` to skip only other hosts, `!vercel` to
-  // skip only Vercel.
+  // skip only Vercel. The host is declared, not inferred: our CI sets
+  // `NEXT_DEPLOY_TARGET=vercel` on every job that deploys to Vercel.
   vercel: staticCondition(
-    'running against a Vercel deployment, not another host deployed via ' +
-      '`NEXT_TEST_DEPLOY_SCRIPT_PATH`; false outside deploy mode',
+    'running against a Vercel deployment (`NEXT_DEPLOY_TARGET=vercel`); ' +
+      'false outside deploy mode',
     () =>
-      getGateTestContext().mode === 'deploy' && getDeployTarget() === 'vercel'
+      getGateTestContext().mode === 'deploy' &&
+      process.env.NEXT_DEPLOY_TARGET === 'vercel'
   ),
 
   // Semantic aliases for `!dev`. A gate is a claim about *why* a suite cannot

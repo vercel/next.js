@@ -309,43 +309,25 @@ describe('@gate runtime', () => {
       }
     })
 
-    it('tells a Vercel deployment apart from other hosts', async () => {
-      const keys = [
-        'NEXT_TEST_DEPLOY_URL',
-        'NEXT_TEST_DEPLOY_SCRIPT_PATH',
-        'NEXT_TEST_DEPLOY_LOGS_SCRIPT_PATH',
-      ] as const
-      const original = keys.map((key) => process.env[key])
+    it('runs `vercel` only for a deploy declared as Vercel', async () => {
+      const original = process.env.NEXT_DEPLOY_TARGET
       const vercelOnly = parseGate('vercel', true)
       const notOtherHosts = parseGate('!deploy || vercel', true)
 
-      const url = { NEXT_TEST_DEPLOY_URL: 'https://example.com' }
-      const logs = { NEXT_TEST_DEPLOY_LOGS_SCRIPT_PATH: '/logs.sh' }
-      const deployScript = { NEXT_TEST_DEPLOY_SCRIPT_PATH: '/deploy.sh' }
-
       const results: [string, string, string][] = []
       try {
-        for (const [label, mode, env] of [
-          ['Vercel CLI', 'deploy', {}],
-          ['existing URL, `vercel inspect` logs', 'deploy', url],
-          ['existing URL, custom logs', 'deploy', { ...url, ...logs }],
-          ['custom deploy script', 'deploy', { ...deployScript, ...logs }],
-          [
-            'blank deploy script',
-            'deploy',
-            { NEXT_TEST_DEPLOY_SCRIPT_PATH: ' ' },
-          ],
-          ['start', 'start', {}],
-          [
-            'start, custom deploy script',
-            'start',
-            { ...deployScript, ...logs },
-          ],
+        for (const [mode, target] of [
+          ['deploy', 'vercel'],
+          ['deploy', undefined],
+          ['deploy', 'netlify'],
+          ['start', 'vercel'],
+          ['start', undefined],
         ] as const) {
-          for (const key of keys) {
-            delete process.env[key]
+          if (target === undefined) {
+            delete process.env.NEXT_DEPLOY_TARGET
+          } else {
+            process.env.NEXT_DEPLOY_TARGET = target
           }
-          Object.assign(process.env, env)
           setGateTestContext({
             mode,
             bundler: 'turbopack',
@@ -353,30 +335,26 @@ describe('@gate runtime', () => {
             wasm: false,
           })
           results.push([
-            label,
+            `${mode}, ${target ?? 'unset'}`,
             (await __testing.decideGates([vercelOnly])).type,
             (await __testing.decideGates([notOtherHosts])).type,
           ])
         }
       } finally {
-        keys.forEach((key, i) => {
-          if (original[i] === undefined) {
-            delete process.env[key]
-          } else {
-            process.env[key] = original[i]
-          }
-        })
+        if (original === undefined) {
+          delete process.env.NEXT_DEPLOY_TARGET
+        } else {
+          process.env.NEXT_DEPLOY_TARGET = original
+        }
       }
 
-      // [scenario, `@force-gate vercel`, `@force-gate !deploy || vercel`]
+      // [mode + NEXT_DEPLOY_TARGET, `@force-gate vercel`, `@force-gate !deploy || vercel`]
       expect(results).toEqual([
-        ['Vercel CLI', 'run', 'run'],
-        ['existing URL, `vercel inspect` logs', 'run', 'run'],
-        ['existing URL, custom logs', 'force-pass', 'force-pass'],
-        ['custom deploy script', 'force-pass', 'force-pass'],
-        ['blank deploy script', 'run', 'run'],
-        ['start', 'force-pass', 'run'],
-        ['start, custom deploy script', 'force-pass', 'run'],
+        ['deploy, vercel', 'run', 'run'],
+        ['deploy, unset', 'force-pass', 'force-pass'],
+        ['deploy, netlify', 'force-pass', 'force-pass'],
+        ['start, vercel', 'force-pass', 'run'],
+        ['start, unset', 'force-pass', 'run'],
       ])
     })
 
