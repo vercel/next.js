@@ -4061,13 +4061,26 @@ fn emit_error(error_kind: ServerActionsErrorKind) {
             location,
         } => (
             span,
-            formatdoc! {
-                r#"
-                    The "{directive}" directive must be at the top of the {location}.
-                "#,
-                location = match location {
-                    DirectiveLocation::Module => "file",
-                    DirectiveLocation::FunctionBody => "function body",
+            // "use server" and "use cache" are also allowed at the top of a
+            // function body, so point that out instead of only mentioning the
+            // top of the file.
+            if matches!(location, DirectiveLocation::Module)
+                && (directive == "use server" || directive.starts_with("use cache"))
+            {
+                formatdoc! {
+                    r#"
+                        The "{directive}" directive must be at the top of the file or the top of a function body.
+                    "#
+                }
+            } else {
+                formatdoc! {
+                    r#"
+                        The "{directive}" directive must be at the top of the {location}.
+                    "#,
+                    location = match location {
+                        DirectiveLocation::Module => "file",
+                        DirectiveLocation::FunctionBody => "function body",
+                    }
                 }
             },
         ),
