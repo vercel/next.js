@@ -156,10 +156,10 @@ describe('isSyncIOError', () => {
   )
 
   it.each<[SyncIOApiType]>([['time'], ['random'], ['crypto']])(
-    'suggests client rendering for createSyncIOError(%s) without prescribing an API',
+    'suggests moving createSyncIOError(%s) to a Client Component with io()',
     (type) => {
       expect(createSyncIOError(ROUTE, 'expr', type).message).toContain(
-        'Render the value after hydration'
+        'Move the value to a Client Component and suspend prerendering with `use(io())`'
       )
       expect(createSyncIOError(ROUTE, 'expr', type).message).not.toContain(
         'use(browser())'
@@ -556,7 +556,7 @@ describe('card sets for all error families', () => {
     ['Date.now()', 'return <Clock time={Date.now()} />'],
     ['crypto.randomUUID()', 'return <Id>{crypto.randomUUID()}</Id>'],
   ])(
-    'sync-io %s shows use(browser()) as an unhighlighted client pattern',
+    'sync-io %s shows use(io()) as an unhighlighted client pattern',
     (cause, renderSnippet) => {
       const clientCard = getCards('sync-io', 'runtime', cause).find(
         (card) => card.id === 'render-on-the-client'
@@ -564,7 +564,7 @@ describe('card sets for all error families', () => {
 
       expect(clientCard?.snippets).toEqual([
         { text: '"use client"', highlight: true },
-        { text: 'use(browser())' },
+        { text: 'use(io())' },
         { text: renderSnippet },
       ])
     }

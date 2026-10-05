@@ -51,11 +51,11 @@ Other unpredictable APIs ([`Date.now()`](https://developer.mozilla.org/en-US/doc
   />
   <FixCard
     group="client"
-    title="Render after hydration"
-    href="#render-after-hydration"
+    title="Move to a Client Component"
+    href="#move-to-a-client-component"
     snippets={[
       { text: '"use client"', highlight: true },
-      { text: 'use(browser())' },
+      { text: 'use(io())' },
       { text: 'return <Dots seed={Math.random()} />' },
     ]}
   />
@@ -181,24 +181,24 @@ Every visitor in the cache window sees the same "random" value. That's the right
 
 To keep the page prerendered, use a profile with a longer revalidate window such as `"default"` (15 minutes), `"hours"`, or `"days"`. If a short profile is intentional, treat the value as dynamic and use [Generate on every request](#generate-on-every-request) instead.
 
-## Render after hydration
+## Move to a Client Component
 
-Choose this fix when the random value belongs to the client experience, such as a canvas seed, random placeholder color, or browser-only UI nonce. Move the value into a [Client Component](/docs/app/getting-started/server-and-client-components), then skip prerendering or compute it after hydration.
+Choose this fix when the random value belongs to the client experience, such as a canvas seed or random placeholder color. Move the value into a [Client Component](/docs/app/getting-started/server-and-client-components), then suspend during static prerendering or compute it after hydration.
 
 ### Patterns
 
-#### Skip prerendering with `use(browser())`
+#### Suspend static prerendering with `use(io())`
 
-Call [`use(browser())`](https://react.dev/reference/react-dom/browser) when the component should render only in the browser. During prerendering, the component suspends and its nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary renders a fallback.
+Call [`use(io())`](/docs/app/api-reference/functions/io) before reading the random value. It suspends during static prerendering, so the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary renders a fallback. During a dynamic request, `io()` resolves immediately and the server can include the value in the streamed HTML.
 
 ```jsx filename="app/confetti.js"
 'use client'
 
 import { use } from 'react'
-import { browser } from 'react-dom'
+import { io } from 'next/cache'
 
 export function Confetti() {
-  use(browser('Generate the confetti seed in the browser.'))
+  use(io())
   return <Canvas seed={Math.random()} />
 }
 ```
@@ -218,7 +218,7 @@ export default function Page() {
 }
 ```
 
-Learn more: [Rendering components only in the browser](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser).
+Learn more: [`io`](/docs/app/api-reference/functions/io).
 
 #### Compute the value inside `useEffect`
 
@@ -251,11 +251,11 @@ Learn more: [Client Components](/docs/app/getting-started/server-and-client-comp
 
 ### Trade-off
 
-The first paint shows the SSR fallback or initial state, and the random value appears only after the browser hydrates the component. That's fine for UI flourishes but wrong for content that has to be in the prerendered HTML. See [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) for techniques that eliminate the flash.
+With `use(io())`, static prerenders contain the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) fallback, while dynamic requests can include the random value in the streamed HTML. With `useEffect`, the initial render shows the placeholder and the value appears after hydration. See [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) for techniques that eliminate the flash.
 
 ### Gotchas
 
-- A Client Component that produces a random value inline during render still trips this error during SSR. See the dedicated [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client) page for the [`<Suspense>`](https://react.dev/reference/react/Suspense) and effect-based recipes.
+- A Client Component that produces a random value inline during render without first calling `use(io())` still trips this error during static prerendering. See the dedicated [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client) page for the [`<Suspense>`](https://react.dev/reference/react/Suspense) and effect-based recipes.
 
 ## Verifying the fix
 

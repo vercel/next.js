@@ -51,11 +51,11 @@ Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/
   />
   <FixCard
     group="client"
-    title="Render after hydration"
-    href="#render-after-hydration"
+    title="Move to a Client Component"
+    href="#move-to-a-client-component"
     snippets={[
       { text: '"use client"', highlight: true },
-      { text: 'use(browser())' },
+      { text: 'use(io())' },
       { text: 'return <Clock time={Date.now()} />' },
     ]}
   />
@@ -129,7 +129,7 @@ The route renders on every request. The shell still ships instantly because of t
 ### Gotchas
 
 - Any UI rendered as part of the prerender shell must be deterministic. That includes [`<Suspense>`](https://react.dev/reference/react/Suspense) fallbacks, [`loading.js`](/docs/app/api-reference/file-conventions/loading), [`error.js`](/docs/app/api-reference/file-conventions/error), [`not-found.js`](/docs/app/api-reference/file-conventions/not-found), and [`global-error.js`](/docs/app/api-reference/file-conventions/error#global-error). Calling [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) in any of them raises this same error.
-- If you're showing a relative time ("3 minutes ago"), the relative formatting belongs on the client so it can update without a re-render. See [Render after hydration](#render-after-hydration).
+- If you're showing a relative time ("3 minutes ago"), the relative formatting belongs on the client so it can update without a server render. See [Move to a Client Component](#move-to-a-client-component).
 
 ## Cache the timestamp
 
@@ -226,24 +226,24 @@ Every visitor in the cache window sees the same timestamp. That's fine for "as o
 
 To keep the page prerendered, use a profile with a longer revalidate window such as `"default"` (15 minutes), `"hours"`, or `"days"`. If a short profile is intentional, treat the value as dynamic and use [Generate on every request](#generate-on-every-request) instead.
 
-## Render after hydration
+## Move to a Client Component
 
-Choose this fix when the timestamp belongs to the user's local clock or needs to update while they're on the page, such as a relative time label, localized time display, or stopwatch. Move the value into a [Client Component](/docs/app/getting-started/server-and-client-components), then skip prerendering or compute it after hydration.
+Choose this fix when the timestamp belongs to the user's local clock or needs to update while they're on the page, such as a relative time label, localized time display, or stopwatch. Move the value into a [Client Component](/docs/app/getting-started/server-and-client-components), then suspend during static prerendering or compute it after hydration.
 
 ### Patterns
 
-#### Skip prerendering with `use(browser())`
+#### Suspend static prerendering with `use(io())`
 
-Call [`use(browser())`](https://react.dev/reference/react-dom/browser) when the component should render only in the browser. During prerendering, the component suspends and its nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary renders a fallback.
+Call [`use(io())`](/docs/app/api-reference/functions/io) before reading the timestamp. It suspends during static prerendering, so the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary renders a fallback. During a dynamic request, `io()` resolves immediately and the server can include the timestamp in the streamed HTML.
 
 ```jsx filename="app/current-time.js"
 'use client'
 
 import { use } from 'react'
-import { browser } from 'react-dom'
+import { io } from 'next/cache'
 
 export function CurrentTime() {
-  use(browser('Read the current time in the browser.'))
+  use(io())
   return <time>{new Date().toLocaleString()}</time>
 }
 ```
@@ -263,7 +263,7 @@ export default function Page() {
 }
 ```
 
-Learn more: [Rendering components only in the browser](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser).
+Learn more: [`io`](/docs/app/api-reference/functions/io).
 
 #### Compute the timestamp after hydration
 
@@ -298,11 +298,11 @@ Learn more: [Client Components](/docs/app/getting-started/server-and-client-comp
 
 ### Trade-off
 
-The first paint shows the SSR fallback (often `null` or an em-dash), and the timestamp appears only after the browser hydrates the component. That's fine for time-of-day displays but wrong for timestamps that have to be in the prerendered HTML. See [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) for techniques that eliminate the flash.
+With `use(io())`, static prerenders contain the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) fallback, while dynamic requests can include the timestamp in the streamed HTML. With `useEffect`, the initial render shows the placeholder and the timestamp appears after hydration. See [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) for techniques that eliminate the flash.
 
 ### Gotchas
 
-- A Client Component that calls [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) inline during render still trips this error during SSR. See the dedicated [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client) page for the [`<Suspense>`](https://react.dev/reference/react/Suspense) and effect-based recipes.
+- A Client Component that calls [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) inline during render without first calling `use(io())` still trips this error during static prerendering. See the dedicated [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client) page for the [`<Suspense>`](https://react.dev/reference/react/Suspense) and effect-based recipes.
 
 ## For telemetry, use a timing API
 

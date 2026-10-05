@@ -74,7 +74,7 @@ export function registerSyncIoNodeCryptoTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value after hydration
+               - [client] Move the value to a Client Component and suspend prerendering with \`use(io())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                  at SyncIOComponent (app/sync-io-node-crypto/generate-key-pair-sync/page.tsx:20:24)
@@ -101,7 +101,7 @@ export function registerSyncIoNodeCryptoTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value after hydration
+               - [client] Move the value to a Client Component and suspend prerendering with \`use(io())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                  at a (app/sync-io-node-crypto/generate-key-pair-sync/page.tsx:20:24)
@@ -129,7 +129,7 @@ export function registerSyncIoNodeCryptoTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value after hydration
+               - [client] Move the value to a Client Component and suspend prerendering with \`use(io())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                  at SyncIOComponent (webpack:///app/sync-io-node-crypto/generate-key-pair-sync/page.tsx:20:17)
@@ -156,7 +156,7 @@ export function registerSyncIoNodeCryptoTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value after hydration
+               - [client] Move the value to a Client Component and suspend prerendering with \`use(io())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                  at a (<next-dist-dir>)
@@ -234,7 +234,7 @@ export function registerSyncIoNodeCryptoTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value after hydration
+               - [client] Move the value to a Client Component and suspend prerendering with \`use(io())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                  at SyncIOComponent (app/sync-io-node-crypto/generate-key-sync/page.tsx:21:6)
@@ -261,7 +261,7 @@ export function registerSyncIoNodeCryptoTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value after hydration
+               - [client] Move the value to a Client Component and suspend prerendering with \`use(io())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                  at a (app/sync-io-node-crypto/generate-key-sync/page.tsx:21:6)
@@ -289,7 +289,7 @@ export function registerSyncIoNodeCryptoTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value after hydration
+               - [client] Move the value to a Client Component and suspend prerendering with \`use(io())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                  at SyncIOComponent (webpack:///app/sync-io-node-crypto/generate-key-sync/page.tsx:20:17)
@@ -316,7 +316,7 @@ export function registerSyncIoNodeCryptoTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value after hydration
+               - [client] Move the value to a Client Component and suspend prerendering with \`use(io())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                  at a (<next-dist-dir>)
@@ -394,7 +394,7 @@ export function registerSyncIoNodeCryptoTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value after hydration
+               - [client] Move the value to a Client Component and suspend prerendering with \`use(io())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                  at SyncIOComponent (app/sync-io-node-crypto/generate-prime-sync/page.tsx:20:39)
@@ -421,7 +421,7 @@ export function registerSyncIoNodeCryptoTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value after hydration
+               - [client] Move the value to a Client Component and suspend prerendering with \`use(io())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                  at a (app/sync-io-node-crypto/generate-prime-sync/page.tsx:20:39)
@@ -449,7 +449,7 @@ export function registerSyncIoNodeCryptoTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value after hydration
+               - [client] Move the value to a Client Component and suspend prerendering with \`use(io())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                  at SyncIOComponent (webpack:///app/sync-io-node-crypto/generate-prime-sync/page.tsx:20:32)
@@ -476,7 +476,7 @@ export function registerSyncIoNodeCryptoTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value after hydration
+               - [client] Move the value to a Client Component and suspend prerendering with \`use(io())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                  at a (<next-dist-dir>)
@@ -554,7 +554,7 @@ export function registerSyncIoNodeCryptoTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value after hydration
+               - [client] Move the value to a Client Component and suspend prerendering with \`use(io())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at SyncIOComponent (app/sync-io-node-crypto/get-random-values/page.tsx:21:10)
@@ -581,7 +581,7 @@ export function registerSyncIoNodeCryptoTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value after hydration
+               - [client] Move the value to a Client Component and suspend prerendering with \`use(io())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at a (app/sync-io-node-crypto/get-random-values/page.tsx:21:10)
@@ -609,7 +609,7 @@ export function registerSyncIoNodeCryptoTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value after hydration
+               - [client] Move the value to a Client Component and suspend prerendering with \`use(io())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at SyncIOComponent (webpack:///app/sync-io-node-crypto/get-random-values/page.tsx:21:3)
@@ -636,7 +636,7 @@ export function registerSyncIoNodeCryptoTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value after hydration
+               - [client] Move the value to a Client Component and suspend prerendering with \`use(io())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-crypto
                  at a (<next-dist-dir>)
@@ -714,7 +714,7 @@ export function registerSyncIoNodeCryptoTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value after hydration
+               - [client] Move the value to a Client Component and suspend prerendering with \`use(io())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                  at SyncIOComponent (app/sync-io-node-crypto/random-bytes/page.tsx:20:24)
@@ -741,7 +741,7 @@ export function registerSyncIoNodeCryptoTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value after hydration
+               - [client] Move the value to a Client Component and suspend prerendering with \`use(io())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                  at a (app/sync-io-node-crypto/random-bytes/page.tsx:20:24)
@@ -769,7 +769,7 @@ export function registerSyncIoNodeCryptoTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value after hydration
+               - [client] Move the value to a Client Component and suspend prerendering with \`use(io())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                  at SyncIOComponent (webpack:///app/sync-io-node-crypto/random-bytes/page.tsx:20:17)
@@ -796,7 +796,7 @@ export function registerSyncIoNodeCryptoTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value after hydration
+               - [client] Move the value to a Client Component and suspend prerendering with \`use(io())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                  at a (<next-dist-dir>)
@@ -874,7 +874,7 @@ export function registerSyncIoNodeCryptoTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value after hydration
+               - [client] Move the value to a Client Component and suspend prerendering with \`use(io())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                  at SyncIOComponent (app/sync-io-node-crypto/random-fill-sync/page.tsx:21:10)
@@ -901,7 +901,7 @@ export function registerSyncIoNodeCryptoTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value after hydration
+               - [client] Move the value to a Client Component and suspend prerendering with \`use(io())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                  at a (app/sync-io-node-crypto/random-fill-sync/page.tsx:21:10)
@@ -929,7 +929,7 @@ export function registerSyncIoNodeCryptoTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value after hydration
+               - [client] Move the value to a Client Component and suspend prerendering with \`use(io())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                  at SyncIOComponent (webpack:///app/sync-io-node-crypto/random-fill-sync/page.tsx:21:3)
@@ -956,7 +956,7 @@ export function registerSyncIoNodeCryptoTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value after hydration
+               - [client] Move the value to a Client Component and suspend prerendering with \`use(io())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                  at a (<next-dist-dir>)
@@ -1034,7 +1034,7 @@ export function registerSyncIoNodeCryptoTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value after hydration
+               - [client] Move the value to a Client Component and suspend prerendering with \`use(io())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                  at SyncIOComponent (app/sync-io-node-crypto/random-int-between/page.tsx:20:24)
@@ -1061,7 +1061,7 @@ export function registerSyncIoNodeCryptoTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value after hydration
+               - [client] Move the value to a Client Component and suspend prerendering with \`use(io())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                  at a (app/sync-io-node-crypto/random-int-between/page.tsx:20:24)
@@ -1089,7 +1089,7 @@ export function registerSyncIoNodeCryptoTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value after hydration
+               - [client] Move the value to a Client Component and suspend prerendering with \`use(io())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                  at SyncIOComponent (webpack:///app/sync-io-node-crypto/random-int-between/page.tsx:20:17)
@@ -1116,7 +1116,7 @@ export function registerSyncIoNodeCryptoTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value after hydration
+               - [client] Move the value to a Client Component and suspend prerendering with \`use(io())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                  at a (<next-dist-dir>)
@@ -1194,7 +1194,7 @@ export function registerSyncIoNodeCryptoTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value after hydration
+               - [client] Move the value to a Client Component and suspend prerendering with \`use(io())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                  at SyncIOComponent (app/sync-io-node-crypto/random-int-up-to/page.tsx:20:24)
@@ -1221,7 +1221,7 @@ export function registerSyncIoNodeCryptoTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value after hydration
+               - [client] Move the value to a Client Component and suspend prerendering with \`use(io())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                  at a (app/sync-io-node-crypto/random-int-up-to/page.tsx:20:24)
@@ -1249,7 +1249,7 @@ export function registerSyncIoNodeCryptoTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value after hydration
+               - [client] Move the value to a Client Component and suspend prerendering with \`use(io())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                  at SyncIOComponent (webpack:///app/sync-io-node-crypto/random-int-up-to/page.tsx:20:17)
@@ -1276,7 +1276,7 @@ export function registerSyncIoNodeCryptoTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value after hydration
+               - [client] Move the value to a Client Component and suspend prerendering with \`use(io())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                  at a (<next-dist-dir>)
@@ -1354,7 +1354,7 @@ export function registerSyncIoNodeCryptoTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value after hydration
+               - [client] Move the value to a Client Component and suspend prerendering with \`use(io())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                  at SyncIOComponent (app/sync-io-node-crypto/random-uuid/page.tsx:20:24)
@@ -1381,7 +1381,7 @@ export function registerSyncIoNodeCryptoTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value after hydration
+               - [client] Move the value to a Client Component and suspend prerendering with \`use(io())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                  at a (app/sync-io-node-crypto/random-uuid/page.tsx:20:24)
@@ -1409,7 +1409,7 @@ export function registerSyncIoNodeCryptoTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value after hydration
+               - [client] Move the value to a Client Component and suspend prerendering with \`use(io())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                  at SyncIOComponent (webpack:///app/sync-io-node-crypto/random-uuid/page.tsx:20:17)
@@ -1436,7 +1436,7 @@ export function registerSyncIoNodeCryptoTests(
              Ways to fix this:
                - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                - [cache] Prerender and cache the value with \`"use cache"\`
-               - [client] Render the value after hydration
+               - [client] Move the value to a Client Component and suspend prerendering with \`use(io())\`
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                  at a (<next-dist-dir>)
