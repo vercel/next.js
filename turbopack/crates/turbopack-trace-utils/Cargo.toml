@@ -9,7 +9,8 @@ autobenches = false
 [lib]
 bench = false
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lints]
+workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
