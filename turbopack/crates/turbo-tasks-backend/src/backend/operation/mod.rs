@@ -101,6 +101,44 @@ impl TaskLockCounter {
     }
 }
 
+#[cfg(debug_assertions)]
+thread_local! {
+    static IN_STATE_MUTATION: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// User serialization under the state lock must never re-enter the task graph.
+pub(crate) struct StateMutationScope;
+
+impl StateMutationScope {
+    pub(crate) fn enter() -> Self {
+        #[cfg(debug_assertions)]
+        IN_STATE_MUTATION.with(|flag| {
+            assert!(
+                !flag.replace(true),
+                "state mutation must not call back into turbo-tasks"
+            );
+        });
+        Self
+    }
+
+    fn assert_not_inside() {
+        #[cfg(debug_assertions)]
+        IN_STATE_MUTATION.with(|flag| {
+            assert!(
+                !flag.get(),
+                "state mutation must not call back into turbo-tasks"
+            );
+        });
+    }
+}
+
+impl Drop for StateMutationScope {
+    fn drop(&mut self) {
+        #[cfg(debug_assertions)]
+        IN_STATE_MUTATION.with(|flag| flag.set(false));
+    }
+}
+
 pub struct ExecuteContext<'e> {
     backend: &'e TurboTasksBackend,
     turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
@@ -118,6 +156,7 @@ impl<'e> ExecuteContext<'e> {
         backend: &'e TurboTasksBackend,
         turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
     ) -> Self {
+        StateMutationScope::assert_not_inside();
         Self {
             backend,
             turbo_tasks,
@@ -136,6 +175,7 @@ impl<'e> ExecuteContext<'e> {
         turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
         shutdown_guard: RwLockReadGuard<'e, bool>,
     ) -> Self {
+        StateMutationScope::assert_not_inside();
         Self {
             backend,
             turbo_tasks,
@@ -902,6 +942,30 @@ impl<'e> ExecuteContext<'e> {
         category: TaskDataCategory,
     ) -> Option<TaskGuard<'e>> {
         self.open_task(task_id, category, TaskAccess::AllowMissing)
+    }
+
+    /// Remove an outdated forward state edge and its reverse reader entry.
+    pub fn remove_state_dependency(&mut self, reader: TaskId, key: &turbo_tasks::StateKey) {
+        // State before reader, as for registration. The caller has released its
+        // task guard, so a re-read either revives the edge or observes removal.
+        let backend = self.backend;
+        let mut states = backend.states.lock();
+        let Some(mut task) = self.try_task(reader, TaskDataCategory::Data) else {
+            if let Some(state) = states.entries.get_mut(key)
+                && state.dependents.remove(&reader)
+            {
+                states.dirty.insert(*key);
+            }
+            return;
+        };
+        if task.remove_outdated_state_dependencies(key) {
+            task.remove_state_dependencies(key);
+            if let Some(state) = states.entries.get_mut(key)
+                && state.dependents.remove(&reader)
+            {
+                states.dirty.insert(*key);
+            }
+        }
     }
 
     /// Opens a task, materializing an in-memory storage entry for it if one is not resident yet
@@ -1720,7 +1784,7 @@ pub use self::{
     },
     connect_child::connect_child,
     connect_children::connect_children,
-    invalidate::{invalidate, make_task_dirty_internal},
+    invalidate::{invalidate, make_task_dirty_internal, try_make_task_dirty},
     leaf_distance_update::LeafDistanceUpdateQueue,
     prepare_new_children::prepare_new_children,
     update_cell::update_cell,
@@ -1832,7 +1896,7 @@ mod must_exist_tests {
                 task_type_hash: None,
             })
             .collect::<Vec<_>>();
-        backing.save_snapshot(None, vec![items]).unwrap();
+        backing.save_snapshot(None, vec![items], None).unwrap();
         let tt = TurboTasks::new(TurboTasksBackend::new(
             BackendOptions {
                 storage_mode: Some(StorageMode::ReadOnly),

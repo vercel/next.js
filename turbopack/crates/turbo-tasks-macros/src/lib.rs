@@ -8,6 +8,7 @@ mod func;
 mod function_macro;
 mod global_name;
 mod primitive_macro;
+mod state_slot_macro;
 mod task_input_attr_macro;
 mod value_impl_macro;
 mod value_macro;
@@ -73,6 +74,16 @@ pub fn task_storage(_args: TokenStream, input: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     value_macro::value(args, input)
+}
+
+#[proc_macro_attribute]
+pub fn state(args: TokenStream, input: TokenStream) -> TokenStream {
+    if !args.is_empty() {
+        return syn::Error::new(proc_macro2::Span::call_site(), "state takes no arguments")
+            .to_compile_error()
+            .into();
+    }
+    state_slot_macro::state(input)
 }
 
 #[proc_macro_attribute]

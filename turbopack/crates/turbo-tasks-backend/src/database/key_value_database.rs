@@ -6,6 +6,8 @@ pub enum KeySpace {
     TaskMeta = 1,
     TaskData = 2,
     TaskCache = 3,
+    StateData = 4,
+    StateIndex = 5,
 }
 impl KeySpace {
     /// Constructs a [`KeySpace`] from its numeric index (i.e., the `usize` discriminant).
@@ -19,6 +21,8 @@ impl KeySpace {
             1 => KeySpace::TaskMeta,
             2 => KeySpace::TaskData,
             3 => KeySpace::TaskCache,
+            4 => KeySpace::StateData,
+            5 => KeySpace::StateIndex,
             _ => panic!("KeySpace index out of range"),
         }
     }
@@ -29,6 +33,8 @@ impl KeySpace {
             KeySpace::TaskMeta => "TaskMeta",
             KeySpace::TaskData => "TaskData",
             KeySpace::TaskCache => "TaskCache",
+            KeySpace::StateData => "StateData",
+            KeySpace::StateIndex => "StateIndex",
         }
     }
 
@@ -44,15 +50,16 @@ impl KeySpace {
                     _ => 2,
                 }),
             },
-            KeySpace::TaskData => FamilyConfig {
+            KeySpace::TaskData | KeySpace::StateData => FamilyConfig {
                 name: self.name(),
                 kind: FamilyKind::SingleValue,
                 compression: Compression::Zstd3,
                 initial_shard_bits: ShardBits::new(3),
             },
-            KeySpace::TaskCache => FamilyConfig {
+            KeySpace::TaskCache | KeySpace::StateIndex => FamilyConfig {
                 name: self.name(),
-                // TaskCache uses hash-based lookups with potential collisions.
+                // Hash candidates and live-state IDs are individual mappings,
+                // with incremental insertion/deletion instead of whole buckets.
                 kind: FamilyKind::MultiValue,
                 compression: Compression::Lz4,
                 initial_shard_bits: ShardBits::new(0),

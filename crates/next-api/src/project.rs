@@ -45,8 +45,9 @@ use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, Completions, FxIndexMap, InvalidationReason, NonLocalValue, OperationValue,
-    OperationVc, ReadRef, ResolvedVc, State, TransientInstance, TryFlatJoinIterExt, TryJoinIterExt,
-    Vc, debug::ValueDebugFormat, fxindexmap, message_queue::TraceEvent, turbo_tasks,
+    OperationVc, ReadRef, ResolvedVc, StateSlot, TransientInstance, TryFlatJoinIterExt,
+    TryJoinIterExt, TurboTasksState, Vc, debug::ValueDebugFormat, fxindexmap,
+    message_queue::TraceEvent, turbo_tasks,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{
@@ -420,12 +421,20 @@ struct ProjectFileSystemState {
     output_file_system: OperationVc<DiskFileSystem>,
 }
 
+#[turbo_tasks::state]
+static PROJECT_OPTIONS: StateSlot<Option<ProjectOptions>> = StateSlot::new();
+#[turbo_tasks::state]
+static PROJECT_FILE_SYSTEMS: StateSlot<Option<ProjectFileSystemState>> = StateSlot::new();
+#[turbo_tasks::state]
+static PROJECT_ADDITIONAL_ROOTS: StateSlot<Vec<(RcStr, AdditionalDiskFileSystem)>> =
+    StateSlot::new();
+
 #[turbo_tasks::value(evict = "never", eq = "manual", cell = "new")]
 pub struct ProjectContainer {
     name: RcStr,
-    options_state: State<Option<ProjectOptions>>,
-    file_systems_state: State<Option<ProjectFileSystemState>>,
-    additional_roots_state: State<Vec<(RcStr, AdditionalDiskFileSystem)>>,
+    options_state: TurboTasksState<Option<ProjectOptions>>,
+    file_systems_state: TurboTasksState<Option<ProjectFileSystemState>>,
+    additional_roots_state: TurboTasksState<Vec<(RcStr, AdditionalDiskFileSystem)>>,
     #[turbo_tasks(debug_ignore, unsafe_ignore)]
     #[bincode(skip)]
     fs_map_init_lock: tokio::sync::Mutex<()>,
@@ -445,9 +454,9 @@ impl ProjectContainer {
             } else {
                 None
             },
-            options_state: State::new(None),
-            file_systems_state: State::new(None),
-            additional_roots_state: State::new(Vec::new()),
+            options_state: PROJECT_OPTIONS.for_current_task(None),
+            file_systems_state: PROJECT_FILE_SYSTEMS.for_current_task(None),
+            additional_roots_state: PROJECT_ADDITIONAL_ROOTS.for_current_task(Vec::new()),
             fs_map_init_lock: tokio::sync::Mutex::new(()),
         }
         .cell())
@@ -3043,4 +3052,42 @@ fn all_assets_from_entries_operation(
 ) -> Result<Vc<ExpandedOutputAssets>> {
     let assets = operation.connect();
     Ok(all_assets_from_entries(assets))
+}
+
+#[cfg(test)]
+mod state_slot_tests {
+    use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
+
+    use crate::project::ProjectContainer;
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn project_container_uses_independent_backend_state_slots() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async {
+            let container = ProjectContainer::new_operation("state-slot-test".into(), false)
+                .read_strongly_consistent()
+                .await?;
+            assert!(container.options_state.get_untracked().is_none());
+            assert!(container.file_systems_state.get_untracked().is_none());
+            assert!(container.additional_roots_state.get_untracked().is_empty());
+            assert_ne!(
+                container.options_state.key(),
+                container.file_systems_state.key()
+            );
+            assert_ne!(
+                container.options_state.key(),
+                container.additional_roots_state.key()
+            );
+            assert_ne!(
+                container.file_systems_state.key(),
+                container.additional_roots_state.key()
+            );
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+    }
 }

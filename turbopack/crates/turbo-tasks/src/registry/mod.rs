@@ -5,7 +5,8 @@ use scattered_collect::slice::ScatteredSlice;
 
 use crate::{
     TraitType, ValueType,
-    id::{FunctionId, TraitTypeId, ValueTypeId},
+    backend_state::StateFactory,
+    id::{FunctionId, StateFactoryId, TraitTypeId, ValueTypeId},
     native_function::NativeFunction,
 };
 
@@ -54,6 +55,10 @@ pub static VALUES_SLICE: ScatteredSlice<&'static ValueType>;
 #[doc(hidden)]
 #[scattered_collect::gather]
 pub static TRAITS_SLICE: ScatteredSlice<&'static TraitType>;
+
+#[doc(hidden)]
+#[scattered_collect::gather]
+pub static STATES_SLICE: ScatteredSlice<&'static StateFactory>;
 
 /// Register a [`NativeFunction`] definition into the link-time [`FUNCTIONS_SLICE`].
 #[macro_export]
@@ -104,6 +109,19 @@ macro_rules! register_trait {
     };
 }
 
+/// Register a state slot's erased type information into the link-time registry.
+#[macro_export]
+#[doc(hidden)]
+macro_rules! register_state {
+    ($name:ident = $value:expr) => {
+        static $name: $crate::backend_state::StateFactory = $value;
+        $crate::macro_helpers::scattered_collect::declarative::scatter! {
+            #[scatter($crate::registry::STATES_SLICE)]
+            const _: &'static $crate::backend_state::StateFactory = &$name;
+        }
+    };
+}
+
 #[doc(hidden)]
 pub trait RegistryDef<T: 'static> {
     const DEF: &'static T;
@@ -146,6 +164,14 @@ impl Registerable for ValueType {
 impl Registerable for TraitType {
     type Id = TraitTypeId;
     const TYPE_NAME: &'static str = "Trait";
+    fn ty(&self) -> &RegistryType {
+        &self.ty
+    }
+}
+
+impl Registerable for StateFactory {
+    type Id = StateFactoryId;
+    const TYPE_NAME: &'static str = "State";
     fn ty(&self) -> &RegistryType {
         &self.ty
     }
@@ -304,6 +330,23 @@ pub fn get_trait(id: TraitTypeId) -> &'static TraitType {
 
 pub fn validate_trait_type_id(id: TraitTypeId) -> Option<Error> {
     validate_id(&TRAITS, id)
+}
+
+static STATES: LazyLock<Box<[&'static StateFactory]>> =
+    LazyLock::new(|| init_registry(STATES_SLICE.iter().copied().collect()));
+
+#[inline]
+pub fn get_state_factory_id(factory: &'static StateFactory) -> StateFactoryId {
+    get_id(&STATES, factory)
+}
+
+#[inline]
+pub fn get_state_factory(id: StateFactoryId) -> &'static StateFactory {
+    get_item(&STATES, id)
+}
+
+pub fn validate_state_factory_id(id: StateFactoryId) -> Option<Error> {
+    validate_id(&STATES, id)
 }
 
 #[cfg(test)]

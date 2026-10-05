@@ -13,6 +13,7 @@ Turbo Tasks defines 4 primitives:
 It defines some derived elements from that:
 - **Tasks:** An instance of a function together with its arguments.
 - **[`Vc`s ("Value Cells")][`Vc`]:** References to locations associated with tasks where values are stored. The contents of a cell can change after the reexecution of a function due to invalidation. A [`Vc`] can be read to get [a read-only reference][crate::ReadRef] to the stored data, representing a snapshot of that cell at that point in time.
+- **[`StateSlot`]s and [`TurboTasksState`]s:** Registered, typed mutable sources whose canonical values live in the backend, independently of any task's value cell. One slot produces one state per task owner or explicitly rooted named owner; tracked synchronous reads invalidate their consumers on updates.
 
 There are a few design patterns that are commonly used with Turbo Tasks:
 - **[Singleton Pattern][crate::_singleton_pattern]:** Use a private constructor function to ensure a 1:1 mapping between values and value cells.
@@ -20,6 +21,34 @@ There are a few design patterns that are commonly used with Turbo Tasks:
 [blog-post]: https://nextjs.org/blog/turbopack-incremental-computation
 [cell id equality]: crate::ResolvedVc#equality--hashing
 [`Vc`]: crate::Vc
+
+## Backend-owned state
+
+`#[turbo_tasks::state] static SLOT: StateSlot<T> = StateSlot::new()` declares a
+registered codec and a distinct factory identity, even when another slot has the
+same Rust value type. Creating a slot for the current task, or for an explicitly
+pinned `StateOwnerRoot::named(...)`, resolves the backend's `(owner, slot)` lookup
+without resetting an existing value.
+
+`TurboTasksState<T>` is a **Copy** reference containing only a factory ID and an
+allocated instance ID. Owner names and mutable values stay in the backend, not in
+task-input keys. Collected IDs are never recycled; an old handle returns a missing
+state error even if the same logical owner/slot is created again. Named owners are
+persistent; transient task owners produce transient references.
+
+Reads are synchronous snapshots. `get` tracks a dependency and `get_untracked`
+does not. Changed writes dirty current readers before publishing the value;
+no-op writes do not invalidate them. State locks precede task locks. A contended
+getter releases its operation guard before waiting, then retries acquisition.
+Initializers/serialization under the state lock must not re-enter turbo-tasks.
+Values containing operations still require their usual call-graph connections.
+
+Persistence writes only dirty state rows and collected-ID tombstones, atomically
+with affected task data and allocator progress. A fixed-bucket multi-value index
+tracks live IDs through individual insertions/deletions, without rewriting an
+entire value store or scanning unused IDs in the allocated range on restart. Task
+GC collects task-owned states; named roots pin their namespace, and normal GC
+aging applies after the last root drops.
 
 ## Functions and Tasks
 
