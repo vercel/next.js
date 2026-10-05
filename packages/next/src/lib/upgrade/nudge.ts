@@ -7,10 +7,16 @@ import { updateInitialEnv } from '@next/env'
 
 import * as Log from '../../build/output/log'
 import type { NextConfigComplete } from '../../server/config-shared'
+import type { Telemetry } from '../../telemetry/storage'
+import {
+  eventAgentUpgradeNudgeDecision,
+  eventAgentUpgradeNudgeShown,
+  eventAgentUpgradePolicyDetected,
+} from '../../telemetry/events/agent-upgrade'
 import semver from 'next/dist/compiled/semver'
 import type { UpgradeAction } from './prompt'
 import { getAgentName } from '../../telemetry/agent-name'
-import { futureDefaults, getPendingFutureDefaults } from './future-defaults'
+import { getPendingFutureDefaults } from './future-defaults'
 import { isCI } from '../../server/ci-info'
 
 type NudgeOptions = {
@@ -19,17 +25,25 @@ type NudgeOptions = {
   command: 'dev' | 'build'
 }
 
-export type NudgeKind = 'security' | 'latest' | 'future'
+export type NudgeKind = 'security' | 'latest' | 'experimental-future'
 
 function getRequestedUpgrade() {
-  const policy = process.env.__NEXT_AGENTIC_AUTO_UPGRADE
-  return policy === 'security' || policy === 'latest' || policy === 'future'
+  const policy = process.env.__NEXT_AGENT_UPGRADE
+  return policy === 'security' ||
+    policy === 'latest' ||
+    policy === 'experimental-future'
     ? policy
     : null
 }
 
 const RETRY_TTL = 5 * 60 * 1000
-const allowedRetries = new Set<string>()
+const allowedRetries = new Set(
+  process.env.NEXT_PRIVATE_WORKER === '1'
+    ? (process.env.NEXT_PRIVATE_ALLOWED_UPGRADE_RETRIES ?? '')
+        .split(',')
+        .filter((identity) => /^[a-f0-9]{64}$/.test(identity))
+    : []
+)
 
 function hasCode(error: unknown, code: string): boolean {
   return (
@@ -103,6 +117,18 @@ async function allowNudgeRetry(
     issuedAt <= now &&
     now - issuedAt < RETRY_TTL
   ) {
+    if (command === 'dev' && process.env.NEXT_PRIVATE_WORKER === '1') {
+      await new Promise<void>((complete, reject) => {
+        const message = { nextUpgradeRetryAllowed: identity }
+        process.send!(message, (error: Error | null) => {
+          if (error) {
+            reject(error)
+          } else {
+            complete()
+          }
+        })
+      })
+    }
     allowedRetries.add(identity)
     return true
   }
@@ -115,7 +141,8 @@ export type UpgradeContext = Pick<
   NextConfigComplete,
   'distDir' | 'cacheComponents'
 > & {
-  experimental: Pick<NextConfigComplete['experimental'], 'agenticAutoUpgrade'>
+  configuredPolicy: NudgeKind | false | null
+  experimental: { agentUpgrade: NudgeKind | false }
 }
 
 type UpgradeReminder = {
@@ -125,20 +152,20 @@ type UpgradeReminder = {
   | {
       kind: 'security'
       reference: string | null
-      targetVersion: string | null
-      unavailableReason: string | null
+      targetVersion: string
     }
   | { kind: 'latest'; latestVersion: string | null; names: string[] }
-  | { kind: 'future'; targetVersion: string; names: string[] }
+  | { kind: 'experimental-future'; targetVersion: string; names: string[] }
 )
 
 export function getUpgradeContext(config: NextConfigComplete): UpgradeContext {
   return {
     distDir: config.distDir,
     cacheComponents: config.cacheComponents,
+    configuredPolicy: config.experimental.agentUpgrade ?? null,
     experimental: {
-      agenticAutoUpgrade:
-        getRequestedUpgrade() ?? config.experimental.agenticAutoUpgrade,
+      agentUpgrade:
+        getRequestedUpgrade() ?? config.experimental.agentUpgrade ?? false,
     },
   }
 }
@@ -150,23 +177,32 @@ export async function assessUpgrade(
   stopBefore: NudgeKind | null = null,
   forceVersionReminder: boolean = false
 ): Promise<UpgradeReminder | null> {
-  const policy = config.experimental.agenticAutoUpgrade
-  if (policy !== 'security' && policy !== 'latest' && policy !== 'future') {
+  const policy = config.experimental.agentUpgrade
+  if (
+    policy !== 'security' &&
+    policy !== 'latest' &&
+    policy !== 'experimental-future'
+  ) {
     return null
   }
   if (stopBefore === 'security') {
     return null
   }
 
+  if (!semver.valid(installedVersion)) {
+    return null
+  }
+  const {
+    getPrereleaseChannel,
+    getUpgradeAssessment,
+    getLatestUpgradeVersion,
+  } = require('./prepare-upgrade') as typeof import('./prepare-upgrade')
   if (
-    !semver.valid(installedVersion) ||
-    (semver.prerelease(installedVersion) &&
-      semver.prerelease(installedVersion)?.[0] !== 'canary')
+    semver.prerelease(installedVersion) &&
+    !getPrereleaseChannel(installedVersion)
   ) {
     return null
   }
-  const { getUpgradeAssessment, getLatestUpgradeVersion } =
-    require('./prepare-upgrade') as typeof import('./prepare-upgrade')
   let assessment
   try {
     assessment = await getUpgradeAssessment(
@@ -181,24 +217,21 @@ export async function assessUpgrade(
     return null
   }
   const { upgrade } = assessment
+  if (upgrade.status !== 'ready') {
+    // TODO: Record affected and upgrade.status in telemetry so we can see when
+    // an advisory applies but no ready target was available to nudge.
+    return null
+  }
   if (assessment.affected) {
     return {
       kind: 'security',
       policy,
       installedVersion,
       reference: assessment.reference,
-      targetVersion: upgrade.status === 'ready' ? upgrade.targetVersion : null,
-      unavailableReason:
-        upgrade.status === 'ready'
-          ? null
-          : `${upgrade.status === 'unknown' ? 'Upgrade availability could not be checked.' : 'No safe newer target is available for the configured upgrade policy.'} ${upgrade.reason}`,
+      targetVersion: upgrade.targetVersion,
     }
   }
-  if (
-    upgrade.status !== 'ready' ||
-    policy === 'security' ||
-    stopBefore === 'latest'
-  ) {
+  if (policy === 'security' || stopBefore === 'latest') {
     return null
   }
   const latestVersion = getLatestUpgradeVersion(
@@ -215,7 +248,7 @@ export async function assessUpgrade(
       installedVersion,
       latestVersion: upgrade.targetVersion,
       names:
-        policy === 'future'
+        policy === 'experimental-future'
           ? getPendingFutureDefaults(
               directory,
               config,
@@ -225,7 +258,10 @@ export async function assessUpgrade(
     }
   }
 
-  if (policy !== 'future' || stopBefore === 'future') {
+  if (
+    policy !== 'experimental-future' ||
+    stopBefore === 'experimental-future'
+  ) {
     return null
   }
   const pending = getPendingFutureDefaults(directory, config, installedVersion)
@@ -233,7 +269,7 @@ export async function assessUpgrade(
     return null
   }
   return {
-    kind: 'future',
+    kind: 'experimental-future',
     policy,
     installedVersion,
     targetVersion: upgrade.targetVersion,
@@ -244,7 +280,10 @@ export async function assessUpgrade(
 async function nudgeUpgradeForAgent(
   options: NudgeOptions,
   reminder: UpgradeReminder,
-  preview: boolean
+  nudgeId: string,
+  agentProduct: string,
+  telemetry: Telemetry | null,
+  policyEvent: ReturnType<typeof eventAgentUpgradePolicyDetected>
 ): Promise<void> {
   let summary: string
   let recommendation: string
@@ -252,50 +291,37 @@ async function nudgeUpgradeForAgent(
   switch (reminder.kind) {
     case 'security':
       summary =
-        'Your version of Next.js is affected by a published security advisory.'
+        'Your version of Next.js is affected by a known security vulnerability.'
       recommendation = 'We strongly recommend you upgrade Next.js.'
       reference = reminder.reference
       break
     case 'latest':
       summary = `Next.js ${reminder.latestVersion ?? '[latest version]'} is available. You're using ${reminder.installedVersion}.`
       recommendation = 'We recommend you upgrade Next.js.'
-      reference = `https://registry.npmjs.org/next/${semver.prerelease(reminder.latestVersion ?? reminder.installedVersion)?.[0] === 'canary' ? 'canary' : 'latest'}`
+      reference = `https://registry.npmjs.org/next/${semver.prerelease(reminder.installedVersion)?.[0] === 'canary' ? 'canary' : 'latest'}`
       break
-    case 'future':
+    case 'experimental-future':
       summary = `Installed Next.js ${reminder.installedVersion} includes Future Defaults available for this app:\n\n${reminder.names.map((name) => `- ${name}`).join('\n')}`
       recommendation = 'We recommend you adopt these Future Defaults.'
       break
   }
-  const unavailableReason =
-    reminder.kind === 'security' ? reminder.unavailableReason : null
-  const command = unavailableReason
-    ? null
-    : `next upgrade --ai=${reminder.policy}`
-  const note = getRequestedUpgrade()
-    ? `Note: This reminder is enabled by \`__NEXT_AGENTIC_AUTO_UPGRADE=${reminder.policy}\`.`
-    : `Note: This reminder is enabled by \`experimental.agenticAutoUpgrade: '${reminder.policy}'\`.`
-  let message = `${summary}
+  // Pass attribution on the invocation using the same command syntax on every platform.
+  const command = `next upgrade --agent=${reminder.policy} --internal-nudge-id=${nudgeId}`
+  const message = `${summary}
 
 **${recommendation}**
 
-This command stopped so the reminder you configured is not missed. Retry the same command to continue the original task.
+This command stopped to show the upgrade recommendation. Retry the same command to continue the original task.
 
 When you report back to the user, include this upgrade recommendation even if the retry succeeds.
 
-${
-  command
-    ? `At the end of the task, ask the user whether they want you to run the upgrade using the configured '${reminder.policy}' policy in the background in a separate Git worktree unless they request otherwise. Run this command from this app's directory:
+At the end of the task, ask the user once: "Would you like me to run the '${reminder.policy}' upgrade in the background in a separate Git worktree? I can use the current checkout if you prefer." If the app is not in Git, say it will run in place. Use their worktree choice and continue in this agent session. Run this command from this app's directory:
 
 \`\`\`
 ${command}
-\`\`\``
-    : unavailableReason
-}
+\`\`\`
 
-${reference ? `Reference: ${reference}\n\n` : ''}${note}`
-  if (preview) {
-    message = `Forced preview: this reminder does not establish upgrade eligibility.\n\n${message}`
-  }
+${reference ? `Reference: ${reference}` : ''}`
   let retryAllowed = false
   try {
     retryAllowed = await allowNudgeRetry(
@@ -309,10 +335,36 @@ ${reference ? `Reference: ${reference}\n\n` : ''}${note}`
     )
   }
   if (retryAllowed) {
+    telemetry?.record(policyEvent)
     Log.warn(
-      `${summary} This command is continuing after the reminder you configured.${unavailableReason ? `\n${unavailableReason}` : ''}${reference ? `\nReference: ${reference}` : ''}`
+      `${summary} This command is continuing after the upgrade reminder.${reference ? `\nReference: ${reference}` : ''}`
     )
     return
+  }
+  // Queue the full nudge once, then send it outside the command that is about to stop.
+  if (telemetry) {
+    try {
+      if (telemetry.isEnabled || process.env.NEXT_TELEMETRY_DEBUG) {
+        telemetry.flushDetached({
+          mode: 'dev',
+          dir: options.directory,
+          distDir: resolve(options.directory, options.distDir),
+          events: [
+            policyEvent,
+            eventAgentUpgradeNudgeShown({
+              nudgeId,
+              recipient: 'agent',
+              agentProduct,
+              sourceCommand: options.command,
+              policy: reminder.policy,
+              nudgeKind: reminder.kind,
+            }),
+          ],
+        })
+      }
+    } catch (error) {
+      Log.warn(`Could not queue upgrade telemetry: ${String(error)}`)
+    }
   }
   const error = new Error(message)
   error.name =
@@ -350,7 +402,7 @@ async function getUpgradePreferences(directory: string) {
   const hash = createHash('sha256').update(identity).digest('hex')
   // Conf treats dots as separators, including dots in directory names.
   const name = encodeURIComponent(projectName).replace(/\./g, '%2E')
-  const key = `ai-upgrade.${name}.${hash}`
+  const key = `agent-upgrade.${name}.${hash}`
   // Upgrade preferences share Next.js' global config location, not telemetry consent.
   return { key, preferences: new Conf({ projectName: 'nextjs' }) }
 }
@@ -370,7 +422,7 @@ async function getUpgradeDismissal(
 ): Promise<NudgeKind | null> {
   try {
     const { key, preferences } = await getUpgradePreferences(directory)
-    for (const kind of ['security', 'latest', 'future'] as const) {
+    for (const kind of ['security', 'latest', 'experimental-future'] as const) {
       if (preferences.get(`${key}.${kind}`) === `${version}:${policy}`) {
         return kind
       }
@@ -385,18 +437,16 @@ async function nudgeUpgradeForHuman(
   directory: string,
   reminder: UpgradeReminder,
   signal: AbortSignal,
-  preview: boolean
+  onShown: (() => void) | null
 ): Promise<UpgradeAction> {
   if (signal.aborted) {
     return 'skip'
   }
   let message: string
-  let canUpgrade = true
   if (reminder.kind === 'security') {
     message = `⚠ Installed Next.js version ${reminder.installedVersion} is affected by a known security vulnerability.`
-    canUpgrade = reminder.unavailableReason === null
-    message += `\n\n${reminder.unavailableReason ?? `Next.js security version upgrade available: ${reminder.installedVersion} -> ${reminder.targetVersion ?? '[target version]'}`}`
-  } else if (reminder.policy === 'future') {
+    message += `\n\nNext.js security version upgrade available: ${reminder.installedVersion} -> ${reminder.targetVersion}`
+  } else if (reminder.policy === 'experimental-future') {
     const targetVersion =
       reminder.kind === 'latest'
         ? reminder.latestVersion
@@ -414,11 +464,13 @@ async function nudgeUpgradeForHuman(
   } else {
     return 'skip'
   }
-  if (preview) {
-    message = `Forced preview: __NEXT_AGENTIC_AUTO_UPGRADE=${reminder.policy}. Upgrade eligibility has not been established.\n\n${message}`
-  }
   const { promptUpgrade } = require('./prompt') as typeof import('./prompt')
-  const action = await promptUpgrade(message, signal, canUpgrade)
+  const action = await promptUpgrade({
+    message,
+    signal,
+    canUpdate: true,
+    onShown,
+  })
   if (signal.aborted) {
     return 'skip'
   }
@@ -438,16 +490,22 @@ async function nudgeUpgradeForHuman(
   return action
 }
 
-export async function runUpgrade(directory: string, policy: NudgeKind) {
+export async function runUpgrade(
+  directory: string,
+  policy: NudgeKind,
+  nudgeId: string | null
+) {
   // The agent's dev/build commands must not trigger this explicit request again.
-  delete process.env.__NEXT_AGENTIC_AUTO_UPGRADE
-  updateInitialEnv({ __NEXT_AGENTIC_AUTO_UPGRADE: undefined })
+  delete process.env.__NEXT_AGENT_UPGRADE
+  updateInitialEnv({ __NEXT_AGENT_UPGRADE: undefined })
   const { spawnNextUpgrade } = await import('../../cli/next-upgrade.js')
-  await spawnNextUpgrade(directory, {
-    revision: 'latest',
-    verbose: false,
-    ai: policy,
-  })
+
+  // Human Update actions invoke the CLI directly, so their ID does not need an env var.
+  await spawnNextUpgrade(
+    directory,
+    { revision: 'latest', verbose: false, agent: policy },
+    nudgeId ? { id: nudgeId, recipient: 'human' } : null
+  )
   return process.exitCode ?? 0
 }
 
@@ -459,17 +517,40 @@ export async function nudgeUpgrade(
   directory: string,
   config: UpgradeContext,
   command: 'dev' | 'build',
-  signal: AbortSignal | null = null
+  signal: AbortSignal | null,
+  initialAssessment: Promise<UpgradeReminder | null> | null,
+  telemetryOptions: {
+    telemetry: Telemetry
+    onNudgeId: ((nudgeId: string) => void) | null
+  } | null
 ): Promise<UpgradeAction | void> {
   const requested = getRequestedUpgrade()
-  const policy = requested ?? config.experimental.agenticAutoUpgrade
-  if (policy !== 'security' && policy !== 'latest' && policy !== 'future') {
+  const policy = requested ?? config.experimental.agentUpgrade
+  if (
+    policy !== 'security' &&
+    policy !== 'latest' &&
+    policy !== 'experimental-future'
+  ) {
     return
   }
+  // Observe the effective policy even when assessment finds no upgrade to offer.
+  const telemetry = telemetryOptions?.telemetry ?? null
+  const policyEvent = eventAgentUpgradePolicyDetected({
+    configuredPolicy: config.configuredPolicy ?? null,
+    effectivePolicy: policy,
+    policySource: requested ? 'environment' : 'config',
+    sourceCommand: command,
+  })
   if (requested && isCI) {
+    telemetry?.record(policyEvent)
     return
   }
+
+  // An agent's stopped command sends policy and nudge together before synchronous exit.
   const agent = await getAgentName()
+  if (!agent) {
+    telemetry?.record(policyEvent)
+  }
   const installedVersion = process.env.__NEXT_VERSION || 'unknown'
   let stopBefore: NudgeKind | null = null
   if (!agent) {
@@ -490,56 +571,73 @@ export async function nudgeUpgrade(
       return
     }
   }
-  let reminder = await assessUpgrade(
-    directory,
-    { ...config, experimental: { agenticAutoUpgrade: policy } },
-    installedVersion,
-    stopBefore,
-    requested !== null
-  )
-  const preview = !reminder && requested !== null
-  if (preview) {
-    // Exercise the real template without inventing an advisory or release.
-    // Update still runs the normal eligibility checks against this installation.
-    const context = { policy, installedVersion }
-    switch (requested) {
-      case 'security':
-        reminder = {
-          ...context,
-          kind: 'security',
-          reference: null,
-          targetVersion: null,
-          unavailableReason: null,
-        }
-        break
-      case 'latest':
-        reminder = {
-          ...context,
-          kind: 'latest',
-          latestVersion: null,
-          names: [],
-        }
-        break
-      case 'future':
-        reminder = {
-          ...context,
-          kind: 'future',
-          targetVersion: installedVersion,
-          names: futureDefaults.map((entry) => entry.name),
-        }
-        break
+  const reminder = await (
+    stopBefore === null && initialAssessment
+      ? initialAssessment
+      : assessUpgrade(
+          directory,
+          { ...config, experimental: { agentUpgrade: policy } },
+          installedVersion,
+          stopBefore,
+          requested !== null
+        )
+  ).catch((error) => {
+    if (agent) {
+      telemetry?.record(policyEvent)
     }
-  }
+    throw error
+  })
   if (!reminder || signal?.aborted) {
+    if (agent) {
+      telemetry?.record(policyEvent)
+    }
     return
   }
+
+  // The nudge and any resulting upgrade run share this ID across processes.
+  const nudgeId = randomUUID()
   if (agent) {
     await nudgeUpgradeForAgent(
       { directory, distDir: config.distDir, command },
       reminder,
-      preview
+      nudgeId,
+      agent,
+      telemetry,
+      policyEvent
     )
   } else if (signal) {
-    return nudgeUpgradeForHuman(directory, reminder, signal, preview)
+    // Count a human nudge only after the menu renders, including its selected action.
+    let shown = false
+    const onShown = telemetryOptions
+      ? () => {
+          shown = true
+          telemetryOptions.onNudgeId?.(nudgeId)
+          telemetryOptions.telemetry.record(
+            eventAgentUpgradeNudgeShown({
+              nudgeId,
+              recipient: 'human',
+              agentProduct: null,
+              sourceCommand: command,
+              policy: reminder.policy,
+              nudgeKind: reminder.kind,
+            })
+          )
+        }
+      : null
+
+    const action = await nudgeUpgradeForHuman(
+      directory,
+      reminder,
+      signal,
+      onShown
+    )
+
+    if (shown && telemetry) {
+      if (!signal.aborted) {
+        telemetry.record(eventAgentUpgradeNudgeDecision({ nudgeId, action }))
+      }
+      await telemetry.flush()
+    }
+    return action
   }
 }

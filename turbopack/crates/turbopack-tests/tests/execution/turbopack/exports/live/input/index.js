@@ -1,6 +1,8 @@
 import * as liveDefaultClass from './live_default_class.js'
 import * as liveExports from './live_exports.js'
 import * as constDefaultExportFunction from './const_default_export_function.js'
+import * as zeroBeforeAccessor from './zero_before_accessor.js'
+import cjsFunctionDefault, * as cjsFunctionNs from './cjs_function_with_default.js'
 
 it('hoisted declarations are live', () => {
   expect(liveExports.bar()).toBe('bar')
@@ -33,49 +35,34 @@ it('exported lets are live', () => {
 })
 
 // Whether a binding is emitted as a plain value or as a getter is decided by the module that
-// *owns* the binding. These modules have their exports mangled, which splits each of them into a
-// facade plus a `<locals>` module (see `EcmascriptExports::split_locals_and_reexports`); the
-// bindings live on the locals module, and the facade only re-exposes them under their original
-// names.
-//
-// That re-exposure is unconditionally a getter -- a facade forwards a name it does not own, so it
-// cannot know the binding is never reassigned. Asserting on the namespace object of `import * as`
-// therefore only ever observes the facade and says nothing about the optimization. These tests
-// reach past it to the locals module, which is what actually decides value-vs-getter.
-function localsNamespaceOf(fileName) {
+// *owns* it. Materialized-namespace mangling splits the public facade from its `<locals>` module,
+// so inspect the latter's descriptors rather than those on the forwarding facade.
+function moduleNamespaceOf(fileName) {
   const suffix = `exports/live/input/${fileName} [test] (ecmascript) <locals>`
   const id = Array.from(__turbopack_modules__.keys()).find((m) =>
     m.endsWith(suffix)
   )
-  // Not a soft check: without the split there is no locals module to inspect, and every
-  // assertion below would be silently testing the facade instead.
   expect(id).toEqual(expect.stringContaining(suffix))
   return __turbopack_import__(id)
 }
 
 it('exported bindings that are not mutated are not live', () => {
-  const locals = localsNamespaceOf('live_exports.js')
-  // Mangled keys, so look up what each original name was emitted as.
+  const ns = moduleNamespaceOf('live_exports.js')
   const info = liveExports.exportsInfo
-
-  expectValue(locals, info.neverMutated.mangledName, 'neverMutated')
+  // This module's export keys can still be mangled when all reads are statically known.
+  expectValue(ns, info.neverMutated.mangledName, 'neverMutated')
   expectValue(
-    locals,
+    ns,
     info.obviouslyneverMutated.mangledName,
     'obviouslyneverMutated'
   )
 
-  // `const_default_export_function.js` exports only `default`, and a module with a single export
-  // to mangle always emits it under the same fixed key, so its namespace has exactly one own
-  // enumerable property and no lookup table is needed to find it.
-  const constDefaultLocals = localsNamespaceOf(
-    'const_default_export_function.js'
-  )
-  const keys = Object.keys(constDefaultLocals)
+  const constDefaultNs = moduleNamespaceOf('const_default_export_function.js')
+  const keys = Object.keys(constDefaultNs)
   expect(keys).toHaveLength(1)
-  expectValue(constDefaultLocals, keys[0], expect.any(Function))
+  expectValue(constDefaultNs, keys[0], expect.any(Function))
 
-  // The values are still reachable under the original names through the facade.
+  // The values are still reachable under the original names.
   expect(liveExports.neverMutated).toBe('neverMutated')
   expect(liveExports.obviouslyneverMutated).toBe('obviouslyneverMutated')
   expect(constDefaultExportFunction.default).toEqual(expect.any(Function))
@@ -83,12 +70,49 @@ it('exported bindings that are not mutated are not live', () => {
 
 it('exported bindings that are free vars are live', () => {
   // Reading `g` here is also what keeps it alive: export usage is tracked per name, so an export
-  // this file never mentions is dropped from the locals module altogether and would have no
-  // descriptor left to inspect.
+  // this file never mentions can be dropped and would have no descriptor left to inspect.
   expect(liveExports.g).toBe(globalThis)
 
-  const locals = localsNamespaceOf('live_exports.js')
-  expectGetter(locals, liveExports.exportsInfo.g.mangledName)
+  const ns = moduleNamespaceOf('live_exports.js')
+  expectGetter(ns, liveExports.exportsInfo.g.mangledName)
+})
+
+it('a constant 0 directly before an accessor binding is bound as a value', () => {
+  // Bindings are emitted in original name order, which puts `zero` immediately before
+  // `zeroLive`. Enumerating the namespace keeps the original names on the public facade, but the
+  // `<locals>` module behind it may still emit mangled keys.
+  expect(Object.keys(zeroBeforeAccessor)).toEqual([
+    'exportsInfo',
+    'setZeroLive',
+    'zero',
+    'zeroLive',
+  ])
+
+  const ns = moduleNamespaceOf('zero_before_accessor.js')
+  const info = zeroBeforeAccessor.exportsInfo
+  expectValue(ns, info.zero.mangledName, 0)
+  expectGetter(ns, info.zeroLive.mangledName)
+
+  expect(zeroBeforeAccessor.zeroLive).toBe('zeroLive')
+  zeroBeforeAccessor.setZeroLive('patched')
+  expect(zeroBeforeAccessor.zeroLive).toBe('patched')
+  expect(zeroBeforeAccessor.zero).toBe(0)
+})
+
+it('CommonJS function exports with a default key bind the function as default', () => {
+  expect(cjsFunctionDefault).toEqual(expect.any(Function))
+  expect(cjsFunctionDefault()).toBe('cjsFunction')
+
+  // Interop replaces the `default` getter with the exports function itself as a value. That
+  // swaps an accessor for a value in the middle of the bindings, so the binding after it has to
+  // stay intact, and in the same position.
+  expectValue(cjsFunctionNs, 'default', cjsFunctionDefault)
+  expectGetter(cjsFunctionNs, 'afterDefault')
+  expect(cjsFunctionNs.afterDefault).toBe('afterDefault')
+  expect(Object.keys(cjsFunctionNs).slice(-2)).toEqual([
+    'default',
+    'afterDefault',
+  ])
 })
 
 function expectValue(ns, propName, value) {

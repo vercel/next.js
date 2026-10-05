@@ -66,10 +66,9 @@ The following options are available when running `next dev`:
 | `-h, --help`                             | Show all available options.                                                                                                                          |
 | `[directory]`                            | A directory in which to build the application. If not provided, current directory is used.                                                           |
 | `--turbopack`                            | Force enable [Turbopack](/docs/app/api-reference/turbopack) (enabled by default). Also available as `--turbo`.                                       |
-| `--webpack`                              | Use the bundled Webpack instead of the default [Turbopack](/docs/app/api-reference/turbopack) bundler for development.                               |
-| `--custom-webpack`                       | Use the project-installed `webpack` peer dependency (`^5.98.0`) for development.                                                                     |
+| `--webpack`                              | Use Webpack instead of the default [Turbopack](/docs/app/api-reference/turbopack) bundler for development.                                           |
 | `-p` or `--port <port>`                  | Specify a port number on which to start the application. Default: 3000, env: PORT                                                                    |
-| `-H`or `--hostname <hostname>`           | Specify a hostname on which to start the application. Useful for making the application available for other devices on the network. Default: 0.0.0.0 |
+| `-H` or `--hostname <hostname>`          | Specify a hostname on which to start the application. Useful for making the application available for other devices on the network. Default: 0.0.0.0 |
 | `--experimental-https`                   | Starts the server with HTTPS and generates a self-signed certificate.                                                                                |
 | `--experimental-https-key <path>`        | Path to a HTTPS key file.                                                                                                                            |
 | `--experimental-https-cert <path>`       | Path to a HTTPS certificate file.                                                                                                                    |
@@ -100,7 +99,6 @@ The following options are available for the `next build` command:
 | `[directory]`                      | A directory on which to build the application. If not provided, the current directory will be used.                                           |
 | `--turbopack`                      | Force enable [Turbopack](/docs/app/api-reference/turbopack) (enabled by default). Also available as `--turbo`.                                |
 | `--webpack`                        | Build using the bundled Webpack.                                                                                                              |
-| `--custom-webpack`                 | Build using the project-installed `webpack` peer dependency (`^5.98.0`).                                                                      |
 | `--analyze`                        | Generate bundle analysis data for the interactive analyzer during a Turbopack build.                                                          |
 | `-d` or `--debug`                  | Enables a more verbose build output. With this flag enabled additional build output like rewrites, redirects, and headers will be shown.      |
 | `--profile`                        | Enables production [profiling for React](https://react.dev/reference/react/Profiler).                                                         |
@@ -218,12 +216,13 @@ To ensure `next-env.d.ts` is present before type-checking run `next typegen`. Th
 
 The following options are available for the `next upgrade` command:
 
-| Option                  | Description                                                                                                                                        |
-| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `-h, --help`            | Show all available options.                                                                                                                        |
-| `[directory]`           | A directory with the Next.js application to upgrade. If not provided, the current directory will be used.                                          |
-| `--revision <revision>` | Specify a Next.js version or tag to upgrade to (e.g., `latest`, `canary`, `15.0.0`). Defaults to the release channel you have currently installed. |
-| `--verbose`             | Show verbose output during the upgrade process.                                                                                                    |
+| Option                  | Description                                                                                                                                                                                                                                                                               |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `-h, --help`            | Show all available options.                                                                                                                                                                                                                                                               |
+| `[directory]`           | A directory with the Next.js application to upgrade. If not provided, the current directory will be used.                                                                                                                                                                                 |
+| `--revision <revision>` | Specify a Next.js version or tag to upgrade to (e.g., `latest`, `canary`, `15.0.0`). Defaults to the release channel you have currently installed.                                                                                                                                        |
+| `--verbose`             | Show verbose output during the upgrade process.                                                                                                                                                                                                                                           |
+| `--agent [type]`        | [Upgrade with a coding agent](/docs/app/guides/upgrading/agent-upgrade) using `security`, `latest`, or `experimental-future`. Defaults to [`experimental.agentUpgrade`](/docs/app/api-reference/config/next-config-js/agentUpgrade), or `security`. Cannot be combined with `--revision`. |
 
 ### `next analyze` options
 

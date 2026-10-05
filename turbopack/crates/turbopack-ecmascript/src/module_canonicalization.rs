@@ -33,7 +33,15 @@ pub async fn canonicalize_ecmascript_module(
             EcmascriptModulePartAsset::select_part(*module, part)
         }
         EcmascriptModuleCanonicalization::FollowReexports(part) => {
-            if *module.get_exports().split_locals_and_reexports().await? {
+            let mangle_via_materialized_namespace_object = module
+                .options()
+                .await?
+                .mangle_via_materialized_namespace_object;
+            if *module
+                .get_exports()
+                .split_locals_and_reexports(mangle_via_materialized_namespace_object)
+                .await?
+            {
                 if let Some(part) = part {
                     match part {
                         ModulePart::Evaluation => {

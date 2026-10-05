@@ -130,6 +130,27 @@ describe('use-cache-segment-configs', () => {
          > Build failed because of Rspack errors
          "
         `)
+      } else if (isNextDeploy) {
+        // Vercel strips code-frame indentation and trailing whitespace from
+        // the fetched build logs.
+        expect(buildOutput).toMatchInlineSnapshot(`
+         "
+         // TODO(veil): Fix broken import trace for Webpack loader resource.
+         Error:   x Route segment config "runtime" is not compatible with \`nextConfig.experimental.useCache\`. Please remove it.
+         ,-[1:1]
+         1 | export const runtime = 'edge'
+         :              ^^^^^^^
+         2 |
+         3 | export default function Page() {
+         4 |   return <div>This page uses \`export const runtime\`.</div>
+         \`----
+
+         Import trace for requested module:
+         // TODO(veil): Fix broken import trace for Webpack loader resource.
+
+
+         > Build failed because of webpack errors"
+        `)
       } else {
         expect(buildOutput).toMatchInlineSnapshot(`
          "

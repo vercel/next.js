@@ -26,6 +26,7 @@ import {
   SYNC_IO_CLIENT_DOCS,
   SYNC_IO_DOCS,
   getCards,
+  getStaticRouteDocsUrl,
   type FixCard,
   type FixCardGroup,
   type FixCardIcon,
@@ -247,6 +248,11 @@ export function InstantGuidance({
   const cards = getCards(kind, variant, cause)
   let docsUrl: string
   switch (kind) {
+    case 'static-route':
+    case 'static-metadata':
+    case 'static-viewport':
+      docsUrl = getStaticRouteDocsUrl(kind, variant)
+      break
     case 'sync-io':
       docsUrl = (cause ? SYNC_IO_DOCS[cause] : undefined) ?? DOCS_URLS[kind]
       break
@@ -316,6 +322,13 @@ export function InstantHeaderExplanation({
     resolvedDocsUrl = BLOCKING_METADATA_DOCS_URLS[variant ?? 'dynamic']
   } else if (!resolvedDocsUrl && kind === 'viewport') {
     resolvedDocsUrl = BLOCKING_VIEWPORT_DOCS_URLS[variant ?? 'dynamic']
+  } else if (
+    !resolvedDocsUrl &&
+    (kind === 'static-route' ||
+      kind === 'static-metadata' ||
+      kind === 'static-viewport')
+  ) {
+    resolvedDocsUrl = getStaticRouteDocsUrl(kind, variant ?? 'dynamic')
   } else if (!resolvedDocsUrl && kind) {
     resolvedDocsUrl = DOCS_URLS[kind]
   }

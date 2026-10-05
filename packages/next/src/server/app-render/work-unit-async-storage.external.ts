@@ -85,16 +85,16 @@ export interface RequestStore extends CommonWorkUnitStore {
    * - if `false`, they will follow static semantics
    * - if `true`, they will follow runtime semantics
    *
-   * NOTE: Whenever the stage of a promise varies on `needsAppShell`,
+   * NOTE: Whenever the stage of a promise varies on `needsRuntimeShell`,
    * we should also call `trackIncompatibleShellContent` to signal this.
    * Otherwise, instant validation or static shell validation might incorrectly
    * use a render that resolves it at an inappropriate time.
    * */
-  needsAppShell?: boolean // DEV-only
+  needsRuntimeShell?: boolean // DEV-only
   /**
    * DEV-only, mutable.
    * Whether any APIs that resolve in different stages in static and
-   * runtime prerenders (i.e. whose behavior varies on `needsAppShell`)
+   * runtime prerenders (i.e. whose behavior varies on `needsRuntimeShell`)
    * were used during this render.
    * */
   hasIncompatibleShellContent?: boolean
@@ -117,7 +117,7 @@ export interface RequestStore extends CommonWorkUnitStore {
   validationSamples?: InstantValidationSamples
   validationSampleTracking?: InstantValidationSampleTracking | null
 
-  // DEV-only
+  // DEV-only. Whether a dynamic API was used during this render.
   usedDynamic?: boolean
 }
 
@@ -413,7 +413,9 @@ export interface UnstableCacheStore extends CommonCacheStore {
  */
 export type CacheStore = UseCacheStore | UnstableCacheStore
 
-export type BuildTimeGeneratorName = 'generateStaticParams'
+export type BuildTimeGeneratorName =
+  | 'generateStaticParams'
+  | 'unstable_generateParamMatching'
 
 export interface BuildTimeGeneratorStore extends CommonWorkUnitStore {
   readonly type: 'build-time-generator'

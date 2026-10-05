@@ -1,9 +1,9 @@
 use std::{
-    collections::BTreeMap,
     ops::Bound,
     path::{Path, PathBuf},
 };
 
+use turbo_frozenmap::FrozenMap;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{OperationVc, ResolvedVc, Vc};
 use turbo_unix_path::sys_to_unix;
@@ -15,21 +15,21 @@ use crate::{DiskFileSystem, FileSystemPath};
 /// The roots must not overlap: no root may be an ancestor of another root. [`Self::lookup`]
 /// relies on this invariant when selecting the nearest preceding root in path order.
 #[turbo_tasks::value(shared)]
-pub struct DiskFileSystemMap(BTreeMap<PathBuf, ResolvedVc<DiskFileSystem>>);
+pub struct DiskFileSystemMap(FrozenMap<PathBuf, ResolvedVc<DiskFileSystem>>);
 
 impl FromIterator<(PathBuf, ResolvedVc<DiskFileSystem>)> for DiskFileSystemMap {
     fn from_iter<T: IntoIterator<Item = (PathBuf, ResolvedVc<DiskFileSystem>)>>(iter: T) -> Self {
-        let filesystems = BTreeMap::from_iter(iter);
-        let mut map = DiskFileSystemMap(BTreeMap::new());
-        for (root, fs) in filesystems {
+        let filesystems = FrozenMap::from_iter(iter);
+        for pair in filesystems.as_slice().windows(2) {
+            let (previous_root, _) = &pair[0];
+            let (root, _) = &pair[1];
             assert!(
-                map.lookup(&root).is_none(),
+                !root.starts_with(previous_root),
                 "filesystem root {} overlaps another filesystem root",
                 root.display()
             );
-            map.0.insert(root, fs);
         }
-        map
+        DiskFileSystemMap(filesystems)
     }
 }
 
@@ -43,7 +43,10 @@ impl DiskFileSystemMap {
     /// Returns `None` if the file path does not exist inside any other root, or if the relative
     /// path would not be valid unicode.
     pub fn lookup(&self, path: &Path) -> Option<FileSystemPath> {
-        let (root, fs) = self.0.upper_bound(Bound::Included(path)).peek_prev()?;
+        let (root, fs) = self
+            .0
+            .range::<Path, _>((Bound::Unbounded, Bound::Included(path)))
+            .next_back()?;
         let relative = path.strip_prefix(root).ok()?.to_str()?;
         Some(FileSystemPath::new_normalized_unchecked(
             ResolvedVc::upcast(*fs),
@@ -56,7 +59,7 @@ impl DiskFileSystemMap {
     pub fn empty() -> OperationVc<DiskFileSystemMap> {
         #[turbo_tasks::function(operation)]
         pub fn operation() -> Vc<DiskFileSystemMap> {
-            DiskFileSystemMap(BTreeMap::new()).cell()
+            DiskFileSystemMap(FrozenMap::new()).cell()
         }
         operation()
     }

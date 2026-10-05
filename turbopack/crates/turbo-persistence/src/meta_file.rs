@@ -14,7 +14,6 @@ use byteorder::{BE, ReadBytesExt};
 use fs_err::File;
 #[cfg(feature = "mmap")]
 use memmap2::{Mmap, MmapOptions};
-use smallvec::SmallVec;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, big_endian as be};
 
 #[cfg(feature = "mmap")]
@@ -22,6 +21,7 @@ use crate::mmap_helper::advise_mmap_for_persistence;
 use crate::{
     AccessMode, Compression, FamilyConfig, QueryKey,
     lookup_entry::LookupValue,
+    shard::ShardBits,
     static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFile, StaticSortedFileMetaData},
 };
 
@@ -31,25 +31,31 @@ bitfield! {
     impl Debug;
     impl From<u32>;
     /// The SST file was compacted and none of the entries have been accessed recently.
+    /// Only relevant for bottom files
     pub cold, set_cold: 0;
     /// The SST file was freshly written and has not been compacted yet.
     pub fresh, set_fresh: 1;
+    /// The SST file is part of the bottom run of its shard.
+    pub bottom, set_bottom: 2;
 }
 
 impl MetaEntryFlags {
-    pub const FRESH: MetaEntryFlags = MetaEntryFlags(0b10);
-    pub const COLD: MetaEntryFlags = MetaEntryFlags(0b01);
-    pub const WARM: MetaEntryFlags = MetaEntryFlags(0b00);
+    pub const FRESH: MetaEntryFlags = MetaEntryFlags(0b010);
+    pub const COMPACTED: MetaEntryFlags = MetaEntryFlags(0b000);
+    pub const COLD_BOTTOM: MetaEntryFlags = MetaEntryFlags(0b101);
+    pub const HOT_BOTTOM: MetaEntryFlags = MetaEntryFlags(0b100);
 }
 
 impl Display for MetaEntryFlags {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if self.fresh() {
             f.pad_integral(true, "", "fresh")
-        } else if self.cold() {
-            f.pad_integral(true, "", "cold")
+        } else if self.bottom() && self.cold() {
+            f.pad_integral(true, "", "cold bottom")
+        } else if self.bottom() {
+            f.pad_integral(true, "", "hot bottom")
         } else {
-            f.pad_integral(true, "", "warm")
+            f.pad_integral(true, "", "compacted")
         }
     }
 }
@@ -69,6 +75,8 @@ pub(crate) struct EntryHeader {
     max_hash: be::U64,
     size: be::U64,
     flags: be::U32,
+    entry_count: be::U32,
+    tombstone_count: be::U32,
     amqf_end_offset: be::U32,
 }
 
@@ -80,6 +88,8 @@ impl EntryHeader {
         max_hash: u64,
         size: u64,
         flags: MetaEntryFlags,
+        entry_count: u32,
+        tombstone_count: u32,
         amqf_end_offset: u32,
     ) -> Self {
         Self {
@@ -89,6 +99,8 @@ impl EntryHeader {
             max_hash: be::U64::new(max_hash),
             size: be::U64::new(size),
             flags: be::U32::new(flags.0),
+            entry_count: be::U32::new(entry_count),
+            tombstone_count: be::U32::new(tombstone_count),
             amqf_end_offset: be::U32::new(amqf_end_offset),
         }
     }
@@ -110,6 +122,10 @@ pub struct MetaEntry {
     size: u64,
     /// The status flags for this entry.
     flags: MetaEntryFlags,
+    /// The number of entries in the SST file.
+    entry_count: u32,
+    /// The number of tombstone entries in the SST file.
+    tombstone_count: u32,
     /// Byte offset range of the raw AMQF data within the backing, used for carrying forward
     /// serialized bytes during compaction without re-serializing.
     amqf_data_offset: std::ops::Range<u32>,
@@ -139,6 +155,16 @@ impl MetaEntry {
 
     pub fn flags(&self) -> MetaEntryFlags {
         self.flags
+    }
+
+    /// The number of entries in the SST file.
+    pub fn entry_count(&self) -> u32 {
+        self.entry_count
+    }
+
+    /// The number of tombstone entries (`KeyDeleted` and `KeyValueDeleted`) in the SST file.
+    pub fn tombstone_count(&self) -> u32 {
+        self.tombstone_count
     }
 
     pub fn amqf_size(&self) -> u32 {
@@ -184,8 +210,6 @@ impl MetaEntry {
 
 /// The result of a lookup operation.
 pub enum MetaLookupResult {
-    /// The key was not found because it is from a different key family.
-    FamilyMiss,
     /// The key was not found because it is out of the range of this SST file. But it was the
     /// correct key family.
     RangeMiss,
@@ -198,9 +222,6 @@ pub enum MetaLookupResult {
 /// The result of a batch lookup operation.
 #[derive(Default)]
 pub struct MetaBatchLookupResult {
-    /// The key was not found because it is from a different key family.
-    #[cfg(feature = "stats")]
-    pub family_miss: bool,
     /// The key was not found because it is out of the range of this SST file. But it was the
     /// correct key family.
     #[cfg(feature = "stats")]
@@ -280,6 +301,8 @@ pub struct MetaFile {
     /// Byte offset within the backing where the AMQF data region starts.
     /// Entry AMQF offsets and used-keys offsets are relative to this position.
     amqf_data_start: u32,
+    /// The shards the SST files of this meta file were split with.
+    shard_bits: ShardBits,
     /// The offset of the start of the "used keys" AMQF data relative to the AMQF data region.
     start_of_used_keys_amqf_data_offset: u32,
     /// The offset of the end of the "used keys" AMQF data relative to the AMQF data region.
@@ -343,6 +366,9 @@ impl MetaFile {
             value if value == Compression::Zstd3 as u8 => Compression::Zstd3,
             value => bail!("Invalid compression algorithm {value}"),
         };
+        let shard_bits = reader.read_u8()?;
+        let shard_bits = ShardBits::try_new(shard_bits)
+            .with_context(|| format!("Invalid shard bits {shard_bits}"))?;
         if let Some(configs) = family_configs {
             let configured = configs
                 .get(family as usize)
@@ -386,6 +412,8 @@ impl MetaFile {
             let max_hash = header.max_hash.get();
             let size = header.size.get();
             let flags = MetaEntryFlags(header.flags.get());
+            let entry_count = header.entry_count.get();
+            let tombstone_count = header.tombstone_count.get();
             let end_of_amqf_data_offset = header.amqf_end_offset.get();
 
             let amqf_bytes = amqf_data
@@ -408,6 +436,8 @@ impl MetaFile {
                 sst_data,
                 size,
                 flags,
+                entry_count,
+                tombstone_count,
                 amqf_data_offset: start_of_amqf_data_offset..end_of_amqf_data_offset,
                 amqf,
                 compression,
@@ -429,6 +459,7 @@ impl MetaFile {
             obsolete_entries: Vec::new(),
             obsolete_sst_files,
             amqf_data_start,
+            shard_bits,
             start_of_used_keys_amqf_data_offset,
             end_of_used_keys_amqf_data_offset,
             access_mode,
@@ -450,6 +481,11 @@ impl MetaFile {
 
     pub fn sequence_number(&self) -> u32 {
         self.sequence_number
+    }
+
+    /// The shards the SST files of this meta file were split with.
+    pub fn shard_bits(&self) -> ShardBits {
+        self.shard_bits
     }
 
     pub fn family(&self) -> u32 {
@@ -493,6 +529,8 @@ impl MetaFile {
         &self.backing[self.amqf_data_start as usize..]
     }
 
+    /// The hashes of the keys that were read in the session that wrote this meta file, if it was
+    /// written by a commit.
     pub fn deserialize_used_key_hashes_amqf(&self) -> Result<Option<qfilter::FilterRef<'_>>> {
         if self.start_of_used_keys_amqf_data_offset == self.end_of_used_keys_amqf_data_offset {
             return Ok(None);
@@ -547,170 +585,113 @@ impl MetaFile {
         &self.obsolete_sst_files
     }
 
-    /// Looks up a key in this meta file.
+    /// Looks up a key in the SST file of the entry `entry_index`. The caller checks the hash range,
+    /// e.g. with [`crate::shard::ShardIndex`].
     ///
     /// If `FIND_ALL` is false, returns after finding the first match.
-    /// If `FIND_ALL` is true, returns all entries with the same key from all SST files
+    /// If `FIND_ALL` is true, returns all entries with the same key in the SST file
     /// (useful for keyspaces where keys are hashes and collisions are possible).
-    pub fn lookup<K: QueryKey, const FIND_ALL: bool>(
+    pub(crate) fn lookup_entry<K: QueryKey, const FIND_ALL: bool>(
         &self,
-        key_family: u32,
+        entry_index: u32,
         key_hash: u64,
         key: &K,
         key_block_cache: &BlockCache,
         value_block_cache: &BlockCache,
     ) -> Result<MetaLookupResult> {
-        if key_family != self.family {
-            return Ok(MetaLookupResult::FamilyMiss);
+        let entry = &self.entries[entry_index as usize];
+        if !entry.amqf.contains_fingerprint(key_hash) {
+            return Ok(MetaLookupResult::QuickFilterMiss);
         }
-        let mut miss_result = MetaLookupResult::RangeMiss;
-        let mut all_results: SmallVec<[LookupValue; 1]> = SmallVec::new();
-
-        for (index, range) in self.hash_ranges.iter().enumerate().rev() {
-            if !range.contains(key_hash) {
-                continue;
-            }
-            let entry = &self.entries[index];
-            if !entry.amqf.contains_fingerprint(key_hash) {
-                miss_result = MetaLookupResult::QuickFilterMiss;
-                continue;
-            }
-
-            let result = entry.sst(self)?.lookup::<K, FIND_ALL>(
+        Ok(MetaLookupResult::SstLookup(
+            entry.sst(self)?.lookup::<K, FIND_ALL>(
                 key_hash,
                 key,
                 key_block_cache,
                 value_block_cache,
-            )?;
-
-            match result {
-                SstLookupResult::NotFound => {
-                    // continue searching other sst files
-                }
-                SstLookupResult::Found(values) => {
-                    if !FIND_ALL {
-                        // Return immediately with the first result
-                        return Ok(MetaLookupResult::SstLookup(SstLookupResult::Found(values)));
-                    }
-                    // A key tombstone stops the search across older SSTs within this meta file.
-                    // It sorts last within a key group, so it is the last value if present.
-                    // Key-value tombstones do not stop the search: they delete a single value,
-                    // and older SSTs may hold others for this key.
-                    let has_tombstone =
-                        values.last().is_some_and(|v| *v == LookupValue::KeyDeleted);
-                    all_results.extend(values);
-                    if has_tombstone {
-                        return Ok(MetaLookupResult::SstLookup(SstLookupResult::Found(
-                            all_results,
-                        )));
-                    }
-                }
-            }
-        }
-
-        if FIND_ALL && !all_results.is_empty() {
-            return Ok(MetaLookupResult::SstLookup(SstLookupResult::Found(
-                all_results,
-            )));
-        }
-
-        Ok(miss_result)
+            )?,
+        ))
     }
 
-    pub fn batch_lookup<K: QueryKey>(
+    /// Looks up the keys of `cells` in the SST file of the entry `entry_index`, whose hash range is
+    /// `range`. Only cells without a result are looked up. `cells` must be sorted by key hash.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn batch_lookup_entry<K: QueryKey>(
         &self,
-        key_family: u32,
+        entry_index: u32,
+        range: &StaticSortedFileRange,
         keys: &[K],
         cells: &mut [(u64, usize, Option<LookupValue>)],
         empty_cells: &mut usize,
         key_block_cache: &BlockCache,
         value_block_cache: &BlockCache,
     ) -> Result<MetaBatchLookupResult> {
-        if key_family != self.family {
-            #[cfg(feature = "stats")]
-            return Ok(MetaBatchLookupResult {
-                family_miss: true,
-                ..Default::default()
-            });
-            #[cfg(not(feature = "stats"))]
-            return Ok(MetaBatchLookupResult {});
-        }
         debug_assert!(
             cells.is_sorted_by_key(|(hash, _, _)| *hash),
             "Cells must be sorted by key hash"
         );
         #[allow(unused_mut, reason = "It's used when stats are enabled")]
         let mut lookup_result = MetaBatchLookupResult::default();
-        for (entry_index, range) in self.hash_ranges.iter().enumerate().rev() {
-            let start_index = cells
-                .binary_search_by(|(hash, _, _)| hash.cmp(&range.min_hash).then(Ordering::Greater))
-                .err()
-                .unwrap();
-            if start_index >= cells.len() {
+        let start_index = cells
+            .binary_search_by(|(hash, _, _)| hash.cmp(&range.min_hash).then(Ordering::Greater))
+            .err()
+            .unwrap();
+        if start_index >= cells.len() {
+            #[cfg(feature = "stats")]
+            {
+                lookup_result.range_misses += 1;
+            }
+            return Ok(lookup_result);
+        }
+        let end_index = cells
+            .binary_search_by(|(hash, _, _)| hash.cmp(&range.max_hash).then(Ordering::Less))
+            .err()
+            .unwrap();
+        if start_index >= end_index {
+            #[cfg(feature = "stats")]
+            {
+                lookup_result.range_misses += 1;
+            }
+            return Ok(lookup_result);
+        }
+        let entry = &self.entries[entry_index as usize];
+        for (hash, index, result) in &mut cells[start_index..end_index] {
+            debug_assert!(range.contains(*hash), "Key hash out of range");
+            if result.is_some() {
+                continue;
+            }
+            if !entry.amqf.contains_fingerprint(*hash) {
                 #[cfg(feature = "stats")]
                 {
-                    lookup_result.range_misses += 1;
+                    lookup_result.quick_filter_misses += 1;
                 }
                 continue;
             }
-            let end_index = cells
-                .binary_search_by(|(hash, _, _)| hash.cmp(&range.max_hash).then(Ordering::Less))
-                .err()
-                .unwrap()
-                .checked_sub(1);
-            let Some(end_index) = end_index else {
+            let sst_result = entry.sst(self)?.lookup::<_, false>(
+                *hash,
+                &keys[*index],
+                key_block_cache,
+                value_block_cache,
+            )?;
+            if let SstLookupResult::Found(mut values) = sst_result {
+                // find_all=false guarantees exactly one result
+                debug_assert!(values.len() == 1);
+                let Some(value) = values.pop() else {
+                    unreachable!()
+                };
+                *result = Some(value);
+                *empty_cells -= 1;
                 #[cfg(feature = "stats")]
                 {
-                    lookup_result.range_misses += 1;
+                    lookup_result.hits += 1;
                 }
-                continue;
-            };
-            if start_index > end_index {
+                if *empty_cells == 0 {
+                    return Ok(lookup_result);
+                }
+            } else {
                 #[cfg(feature = "stats")]
                 {
-                    lookup_result.range_misses += 1;
-                }
-                continue;
-            }
-            let entry = &self.entries[entry_index];
-            for (hash, index, result) in &mut cells[start_index..=end_index] {
-                debug_assert!(range.contains(*hash), "Key hash out of range");
-                if result.is_some() {
-                    continue;
-                }
-                if !entry.amqf.contains_fingerprint(*hash) {
-                    #[cfg(feature = "stats")]
-                    {
-                        lookup_result.quick_filter_misses += 1;
-                    }
-                    continue;
-                }
-                let sst_result = entry.sst(self)?.lookup::<_, false>(
-                    *hash,
-                    &keys[*index],
-                    key_block_cache,
-                    value_block_cache,
-                )?;
-                if let SstLookupResult::Found(mut values) = sst_result {
-                    // find_all=false guarantees exactly one result
-                    debug_assert!(values.len() == 1);
-                    let Some(value) = values.pop() else {
-                        unreachable!()
-                    };
-                    *result = Some(value);
-                    *empty_cells -= 1;
-                    #[cfg(feature = "stats")]
-                    {
-                        lookup_result.hits += 1;
-                    }
-                    if *empty_cells == 0 {
-                        return Ok(lookup_result);
-                    }
-                } else {
-                    #[cfg(feature = "stats")]
-                    {
-                        lookup_result.sst_misses += 1;
-                    }
+                    lookup_result.sst_misses += 1;
                 }
             }
         }

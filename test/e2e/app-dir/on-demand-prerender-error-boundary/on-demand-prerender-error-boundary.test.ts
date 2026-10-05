@@ -249,7 +249,7 @@ describe('on-demand-prerender-error-boundary', () => {
       ['healthy', 200, 'Healthy page'],
       ['suspense-error', 500, 'Partial prerender error boundary'],
       ['error', 500, 'Partial prerender error boundary'],
-      ['suspense-missing', 200, 'Partial prerender not-found boundary'],
+      ['suspense-missing', 404, 'Partial prerender not-found boundary'],
       ['missing', 404, 'Partial prerender not-found boundary'],
     ] as const) {
       it(`resumes ${slug} with the current request outside the page boundary`, async () => {

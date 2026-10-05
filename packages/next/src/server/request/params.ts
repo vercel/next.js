@@ -378,6 +378,7 @@ function createStaticPrerenderParams(
             // to consider the awaiting of this params object "dynamic". Since
             // we are in cacheComponents mode we encode this as a promise that never
             // resolves.
+
             return makeHangingParams(
               underlyingParams,
               workStore,
@@ -573,8 +574,8 @@ function createStagedRenderParamsImpl(
     // so static params can resolve in the static stage, because session
     // shells are handled with a separate render.
     // However, in dev we might need to recover a session shell for instant validation.
-    // This is indicated by `needsAppShell`.
-    const staticParamsStage = workUnitStore.needsAppShell
+    // This is indicated by `needsRuntimeShell`.
+    const staticParamsStage = workUnitStore.needsRuntimeShell
       ? RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
       : RENDER_STAGES_BY_DATA_KIND.staticLinkData
 
