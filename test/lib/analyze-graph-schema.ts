@@ -35,6 +35,7 @@ export function validateGraphDump(output: string): void {
       type: string
       route: string
       filename: string
+      outputs: string[]
     }
     if (record.type === 'meta') {
       if (index !== 0) throw new Error('Duplicate analyzer graph meta')
@@ -60,6 +61,12 @@ export function validateGraphDump(output: string): void {
         !outputs.has(JSON.stringify([key, record.filename]))
       ) {
         throw new Error(`Unknown output for graph record ${index}`)
+      } else if (record.type === 'group') {
+        for (const filename of record.outputs) {
+          if (!outputs.has(JSON.stringify([key, filename]))) {
+            throw new Error(`Unknown group output for graph record ${index}`)
+          }
+        }
       }
     }
   }
