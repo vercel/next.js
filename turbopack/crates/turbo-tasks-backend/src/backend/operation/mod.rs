@@ -393,6 +393,12 @@ impl<'e> ExecuteContext<'e> {
     /// Restores a batch of tasks, then hands each to `prepared_task_callback`. Like
     /// [`ExecuteContext::task`], every task must have the requested category on disk if it is not
     /// resident; a missing key panics.
+    ///
+    /// `prepared_task_callback` must not panic. A missing key is reported only after every task in
+    /// the batch has been handed off, so that panic leaves nothing behind. A panicking callback is
+    /// a bug in the backend, which is expected to abort, and it gets no such care: one that runs in
+    /// Phase 1a can leave restores this batch has already claimed with their restoring bits set,
+    /// and any thread waiting on those tasks then waits forever.
     fn prepare_tasks_with_callback(
         &mut self,
         task_ids: impl IntoIterator<Item = (TaskId, TaskDataCategory)>,
@@ -456,7 +462,6 @@ impl<'e> ExecuteContext<'e> {
                 wait_meta: false,
                 task_type: None,
                 self_restored: false,
-                ready: false,
                 failed: false,
             })
             .collect::<Vec<_>>();
@@ -472,7 +477,6 @@ impl<'e> ExecuteContext<'e> {
         // Only claim reads after the ready-task callbacks above have finished, so callbacks
         // cannot block on a restore this batch has claimed but not yet started.
         let mut any_waiting = false;
-        let mut any_ready = false;
         for (i, entry) in tasks.iter_mut().enumerate() {
             let task_id = entry.task_id;
             let category = entry.category;
@@ -503,19 +507,15 @@ impl<'e> ExecuteContext<'e> {
                 }
             }
             self.task_lock_counter.release();
-            // A peer may have completed the restore since filtering. Its callback is deferred to
-            // Phase 2: this loop may already have claimed restores for earlier entries, and a
-            // callback that panicked here would strand those claims, hanging their waiters.
+            // A peer may have completed the restore since filtering.
             if ready {
-                entry.ready = true;
-                any_ready = true;
+                prepared_task_callback(self, task_id, category, task);
             }
         }
 
         if tasks_to_restore_for_data.is_empty()
             && tasks_to_restore_for_meta.is_empty()
             && !any_waiting
-            && !any_ready
         {
             return;
         }
@@ -670,10 +670,10 @@ impl<'e> ExecuteContext<'e> {
             self.backend.storage.restored.notify(usize::MAX);
         }
 
-        // --- Phase 2: Callbacks for tasks we restored ourselves, or found ready in Phase 1a ---
+        // --- Phase 2: Callbacks for tasks we restored ourselves ---
         // Separated from Phase 1c so that other threads are unblocked as early as possible.
         for entry in &tasks {
-            if !(entry.self_restored || entry.ready) || entry.failed {
+            if !entry.self_restored || entry.failed {
                 continue;
             }
             if let Some(task_type) = entry.task_type.clone() {
@@ -780,9 +780,6 @@ struct TaskRestoreEntry {
     task_type: Option<CachedTaskTypeArc>,
     /// This thread performed the restore for at least one category (set in Phase 1c).
     self_restored: bool,
-    /// Another thread finished restoring the task between filtering and Phase 1a. Its callback is
-    /// deferred to Phase 2.
-    ready: bool,
     /// The task is missing or failed to restore (set in Phase 1c), so the later phases skip it.
     failed: bool,
 }
