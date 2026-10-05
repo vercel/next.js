@@ -28,7 +28,10 @@ use swc_core::{
         ast::*,
         codegen::{self, Emitter, text_writer::JsWriter},
         utils::{ExprFactory, prepend_stmts, private_ident, quote_ident},
-        visit::{VisitMut, VisitMutWith, noop_visit_mut_type, visit_mut_pass},
+        visit::{
+            Visit, VisitMut, VisitMutWith, VisitWith, noop_visit_mut_type, noop_visit_type,
+            visit_mut_pass,
+        },
     },
     quote,
 };
@@ -133,6 +136,9 @@ enum ServerActionsErrorKind {
     UnknownCacheKind {
         span: Span,
         cache_kind: RcStr,
+    },
+    UseClientDirectiveInFunctionBody {
+        span: Span,
     },
     UseCacheWithoutCacheComponents {
         span: Span,
@@ -1535,6 +1541,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_module(&mut self, m: &mut Module) {
+        // Check the original module for directives in positions where they are
+        // silently ignored, before the transform rewrites anything.
+        m.visit_with(&mut MisplacedDirectiveScanner::default());
+
         self.start_pos = m.span.lo;
         m.visit_mut_children_with(self);
     }
@@ -3639,6 +3649,149 @@ impl DirectiveVisitor<'_> {
     }
 }
 
+/// Scans the module for directive statements (`"use client"`, `"use server"`,
+/// `"use cache"`) in positions where they would be silently ignored:
+///
+/// - a `"use client"` directive anywhere inside a function body (it is only valid at the top of a
+///   module), and
+/// - any directive inside a nested statement container (blocks, `if`/`else` branches, loops,
+///   `try`/`catch`/`finally`, `switch` cases, labels), at the module level or inside a function
+///   body.
+///
+/// Only statements are inspected: a string literal used as a value (e.g.
+/// `foo('use client')`) is ordinary data, not a directive. Valid directive
+/// positions (the top of a module, and the top of a function body for
+/// `"use server"`/`"use cache"`) are handled by the existing module/directive
+/// validation, so each directive is reported exactly once.
+///
+/// This runs on the original module, before the transform rewrites or removes
+/// any directives.
+#[derive(Default)]
+struct MisplacedDirectiveScanner {
+    /// Number of function bodies currently being visited. Function bodies of
+    /// all kinds count: plain functions, arrow functions, methods, accessors
+    /// and constructors.
+    function_depth: usize,
+    /// Number of nested statement containers currently being visited.
+    nested_depth: usize,
+}
+
+impl MisplacedDirectiveScanner {
+    fn check_stmt(&self, stmt: &Stmt) {
+        let Some(expr_stmt) = stmt.as_expr() else {
+            return;
+        };
+
+        // Unwrap (possibly nested) parentheses: `('use client')`.
+        let mut expr = &*expr_stmt.expr;
+        let mut wrapped = false;
+        while let Expr::Paren(paren) = expr {
+            wrapped = true;
+            expr = &*paren.expr;
+        }
+
+        let Expr::Lit(Lit::Str(Str { value, span, .. })) = expr else {
+            return;
+        };
+
+        // Highlight the whole statement when the directive is parenthesized.
+        let error_span = if wrapped { expr_stmt.span } else { *span };
+        let in_fn_body = self.function_depth > 0;
+        let location = || {
+            if in_fn_body {
+                DirectiveLocation::FunctionBody
+            } else {
+                DirectiveLocation::Module
+            }
+        };
+
+        if self.nested_depth > 0 {
+            // A directive inside a nested statement container is silently
+            // ignored.
+            if value == "use client" {
+                if in_fn_body {
+                    // "use client" cannot be used inside a function at all.
+                    emit_error(ServerActionsErrorKind::UseClientDirectiveInFunctionBody {
+                        span: error_span,
+                    });
+                } else {
+                    emit_misplaced_nested_directive("use client", wrapped, error_span, location());
+                }
+            } else if value == "use server"
+                || value == "use cache"
+                || value.starts_with("use cache: ")
+            {
+                emit_misplaced_nested_directive(
+                    &value.to_string_lossy(),
+                    wrapped,
+                    error_span,
+                    location(),
+                );
+            }
+        } else if in_fn_body && value == "use client" {
+            emit_error(ServerActionsErrorKind::UseClientDirectiveInFunctionBody {
+                span: error_span,
+            });
+        }
+    }
+}
+
+/// Emits an error for a directive statement found in a nested position where it
+/// is silently ignored (see `MisplacedDirectiveScanner`).
+fn emit_misplaced_nested_directive(
+    directive: &str,
+    wrapped: bool,
+    span: Span,
+    location: DirectiveLocation,
+) {
+    if wrapped {
+        emit_error(ServerActionsErrorKind::MisplacedWrappedDirective {
+            span,
+            directive: directive.to_string(),
+            location,
+        });
+    } else {
+        emit_error(ServerActionsErrorKind::MisplacedDirective {
+            span,
+            directive: directive.to_string(),
+            location,
+        });
+    }
+}
+
+impl Visit for MisplacedDirectiveScanner {
+    noop_visit_type!();
+
+    fn visit_function_body(&mut self, body: &FunctionBody) {
+        // A function boundary is a fresh directive prologue scope. This
+        // visitor is only entered for function-like bodies (plain functions,
+        // arrow functions, methods, accessors and constructors); class static
+        // blocks are `BlockStmt`s and stay nested.
+        self.function_depth += 1;
+        let nested_depth = replace(&mut self.nested_depth, 0);
+        body.visit_children_with(self);
+        self.nested_depth = nested_depth;
+        self.function_depth -= 1;
+    }
+
+    fn visit_block_stmt(&mut self, n: &BlockStmt) {
+        self.nested_depth += 1;
+        n.visit_children_with(self);
+        self.nested_depth -= 1;
+    }
+
+    fn visit_stmt(&mut self, n: &Stmt) {
+        self.check_stmt(n);
+        // Everything nested inside a statement (blocks, `if`/`else` branches,
+        // loop bodies, `try`/`catch`/`finally`, `switch` cases, labels) is a
+        // nested container for its children, unless a function boundary (see
+        // above) starts a fresh prologue scope.
+        self.nested_depth += 1;
+        n.visit_children_with(self);
+        self.nested_depth -= 1;
+    }
+}
+
 pub(crate) struct ClosureReplacer<'a> {
     used_ids: &'a [Name],
     private_ctxt: SyntaxContext,
@@ -3938,6 +4091,16 @@ fn emit_error(error_kind: ServerActionsErrorKind) {
             formatdoc! {
                 r#"
                     Unknown cache kind "{cache_kind}". Please configure a cache handler for this kind in the `cacheHandlers` object in your Next.js config.
+                "#
+            },
+        ),
+        ServerActionsErrorKind::UseClientDirectiveInFunctionBody { span } => (
+            span,
+            formatdoc! {
+                r#"
+                    The "use client" directive must be placed at the top of the file, before any other statements. It cannot be used inside a function.
+
+                    Read more: https://nextjs.org/docs/app/api-reference/directives/use-client
                 "#
             },
         ),
