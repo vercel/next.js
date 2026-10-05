@@ -1,6 +1,7 @@
 {
   "name": "@next/rspack-binding",
   "version": "1.0.3",
+  "license": "MIT",
   "homepage": "https://nextjs.org",
   "bugs": {
     "url": "https://github.com/vercel/next.js/issues"
