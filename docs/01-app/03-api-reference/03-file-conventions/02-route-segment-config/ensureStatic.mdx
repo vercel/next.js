@@ -81,7 +81,7 @@ To require static server output for the entire app, set `'navigation'` on the ro
 
 #### Validation
 
-With `'shell'` and `'prefetch'`, request-specific work inside `<Suspense>` can move to a later navigation stage. These values do not add build validation. In development, [Instant Navigation validation](/docs/messages/instant-navigation-validation) can still report request-specific work outside `<Suspense>` because it blocks the navigation.
+With `'shell'` and `'prefetch'`, request-specific work inside `<Suspense>` can move to a later navigation stage. These values do not add build validation. When [Instant Navigation validation](/docs/messages/instant-navigation-validation) is enabled, it can report request-specific work outside `<Suspense>` because it blocks the navigation.
 
 `'navigation'` is the final server-rendering stage, so no later stage remains. Next.js validates its complete static-output requirement during both `next dev` and `next build`. In development, errors include source-mapped stack traces that update as you edit. Build output is more abbreviated, so you may need to run [`next build --debug-prerender`](/docs/app/guides/building#debug-prerender-errors) for detailed stack traces and code frames. See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the development workflow.
 
@@ -122,7 +122,7 @@ With Partial Prefetching, `false` keeps the route's normal rendering behavior an
 
 [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) validates whether a navigation can update the UI immediately. Cached or prerendered UI can satisfy this requirement while request-specific content streams later behind `<Suspense>`.
 
-Setting `instant = false` opts the route out of Instant Navigation validation. Because `'shell'` and `'prefetch'` do not add separate validation, no validation remains for those levels. The `'navigation'` value uses separate complete static-output validation, which `instant = false` does not relax.
+Setting `instant = false` disables Instant Navigation and static-shell validation for the route. The `'shell'` and `'prefetch'` values still make the client request the corresponding static output, but Next.js no longer checks whether request-specific work prevents that response from including UI. For example, a prefetch can still include a parent layout, metadata, and Client Component preload hints even when the page UI renders only after the user follows the link. The `'navigation'` value uses separate complete static-output validation, which `instant = false` does not relax.
 
 ## Combining levels across layouts and pages
 
