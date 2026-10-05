@@ -248,7 +248,7 @@ impl<'a> SpanRef<'a> {
                     None
                 })
                 .sum();
-            if self.children().next().is_none() {
+            if !self.time_data().ignore_self_time && self.children().next().is_none() {
                 self_time = max(self_time, Timestamp::from_value(1));
             }
             self_time

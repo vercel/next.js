@@ -220,7 +220,7 @@ impl WorkerThreadPool {
 impl EvaluateOperation for WorkerThreadPool {
     async fn operation(&self) -> Result<Box<dyn Operation>> {
         let operation = {
-            let _guard = duration_span!("Node.js operation");
+            let _guard = duration_span!("Node.js operation", blocking = true);
             let worker_options = self.worker_options.clone();
 
             let task_id = OPERATION_TASK_ID.fetch_add(1, Ordering::Release);

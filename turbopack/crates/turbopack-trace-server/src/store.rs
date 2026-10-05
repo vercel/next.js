@@ -113,7 +113,11 @@ impl Store {
         outdated_spans: &mut FxHashSet<SpanIndex>,
     ) -> SpanIndex {
         let id = SpanIndex::new(self.spans.len()).unwrap();
-        let ignore_self_time = &name == "thread" || &name == "blocking";
+        let ignore_self_time = &name == "thread"
+            || &name == "blocking"
+            || args
+                .iter()
+                .any(|(key, value)| key.as_str() == "blocking" && value.as_str() == "true");
         self.spans.push(Span {
             parent,
             depth: 0,
@@ -216,12 +220,14 @@ impl Store {
         let event = SpanEvent::self_time(start, end);
         let span = &mut self.spans[span_index.get()];
         let time_data = &mut span.time_data;
+        // Waiting intervals still extend the elapsed range, but contribute no
+        // work and must not affect other intervals' concurrency correction.
+        outdated_spans.insert(span_index);
+        time_data.self_end = max(time_data.self_end, end);
         if time_data.ignore_self_time {
             return;
         }
-        outdated_spans.insert(span_index);
         time_data.self_time += end - start;
-        time_data.self_end = max(time_data.self_end, end);
         if let Some(event) = event {
             span.events.push(event);
             self.insert_self_time(start, end, span_index, outdated_spans);
@@ -235,6 +241,13 @@ impl Store {
         total_time: Timestamp,
         outdated_spans: &mut FxHashSet<SpanIndex>,
     ) {
+        if self.spans[span_index.get()].time_data.ignore_self_time {
+            let span = &mut self.spans[span_index.get()];
+            span.start = start_time;
+            span.time_data.self_end = start_time + total_time;
+            outdated_spans.insert(span_index);
+            return;
+        }
         let span = SpanRef {
             span: &self.spans[span_index.get()],
             store: self,
@@ -534,6 +547,54 @@ impl Store {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn blocking_total_time_preserves_ranges_and_counted_children() {
+        let mut store = Store::new();
+        let mut outdated = FxHashSet::default();
+        let parent = store.add_span(
+            None,
+            Timestamp::from_micros(5),
+            rcstr!("test"),
+            rcstr!("waiting"),
+            vec![(rcstr!("blocking"), rcstr!("true"))].into(),
+            &mut outdated,
+        );
+        let child = store.add_span(
+            Some(parent),
+            Timestamp::from_micros(10),
+            rcstr!("test"),
+            rcstr!("external work"),
+            SpanArgs::new(),
+            &mut outdated,
+        );
+        store.set_total_time(
+            child,
+            Timestamp::from_micros(10),
+            Timestamp::from_micros(10),
+            &mut outdated,
+        );
+        store.set_total_time(
+            parent,
+            Timestamp::from_micros(5),
+            Timestamp::from_micros(25),
+            &mut outdated,
+        );
+        store.invalidate_outdated_spans(&outdated);
+        let parent = store.root_spans().next().unwrap();
+        assert_eq!(parent.start(), Timestamp::from_micros(5));
+        assert_eq!(parent.end(), Timestamp::from_micros(30));
+        assert_eq!(parent.self_time(), Timestamp::ZERO);
+        assert_eq!(parent.total_time(), Timestamp::from_micros(10));
+        assert_eq!(parent.corrected_total_time(), Timestamp::from_micros(10));
+        assert_eq!(
+            store.concurrency_samples_for_range(
+                Timestamp::from_micros(5),
+                Timestamp::from_micros(10)
+            ),
+            vec![0.0; 200]
+        );
+    }
 
     #[test]
     fn concurrency_samples_are_empty_without_a_self_time_tree() {
