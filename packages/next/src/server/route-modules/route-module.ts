@@ -161,8 +161,7 @@ export abstract class RouteModule<
   }
 
   /**
-   * Initialize lazy userland in subclasses. Eagerly loaded route modules need
-   * no additional initialization. App module callers must patch fetch first.
+   * Initialize the user's code
    */
   public async ensureUserland(): Promise<void> {}
 
