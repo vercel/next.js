@@ -12,9 +12,10 @@
 //! 1. **`create_graph`** — for each chunk group, the ordered list of CSS modules is converted into
 //!    pairwise "later depends on earlier" edges in a directed weighted graph. Edge weights
 //!    accumulate when the same `(from, to)` pair occurs in multiple groups.
-//! 2. **`make_acyclic`** — co-occurrence almost always produces cycles. Each multi-node SCC has its
-//!    lowest-weight edge cut until the graph is a DAG. Heavy edges represent strong co-occurrence
-//!    and are preserved.
+//! 2. **`make_acyclic`** — co-occurrence almost always produces cycles. Each multi-node SCC is
+//!    ordered with a weighted feedback-arc heuristic, refined with bounded insertion moves, then
+//!    all backward edges are removed in one pass. The heuristic preferentially preserves heavy
+//!    edges that represent strong co-occurrence.
 //! 3. **`linearize`** — Kahn-style topological sort with a tie-break: when several dependents
 //!    become unblocked at once, the heaviest edge wins (and insertion order breaks ties among equal
 //!    weights). This places strongly co-occurring modules adjacent in the global order.
@@ -373,6 +374,8 @@ async fn collect_chunk_groups(
         let mut items_in_postorder = FxIndexSet::default();
         batches_graph.traverse_edges_from_entries_dfs(
             entries.iter().copied(),
+            // TODO this would be wrong with emitted CSS modules
+            None,
             &mut (),
             |parent_info, module, _| {
                 if let Some((_, ModuleBatchesGraphEdge { ty, .. })) = parent_info
@@ -401,7 +404,7 @@ async fn collect_chunk_groups(
         // order.
         let mut ids: Vec<usize> = Vec::new();
         let mut seen: FxHashSet<usize> = FxHashSet::default();
-        let mut handle_module = async |module| -> Result<()> {
+        let mut handle_module = |module| {
             let id_slot = match module_id_map.entry(module) {
                 Entry::Occupied(e) => *e.get(),
                 Entry::Vacant(e) => {
@@ -420,19 +423,18 @@ async fn collect_chunk_groups(
             {
                 ids.push(id);
             }
-            Ok(())
         };
 
         for item in items_in_postorder {
             match item {
                 ModuleOrBatch::Batch(batch) => {
                     for &module in &batch.await?.modules {
-                        handle_module(module).await?;
+                        handle_module(module);
                     }
                 }
                 ModuleOrBatch::Module(module) => {
                     if let Some(chunkable_module) = ResolvedVc::try_downcast(module) {
-                        handle_module(chunkable_module).await?;
+                        handle_module(chunkable_module);
                     }
                 }
                 ModuleOrBatch::None(_) => {}

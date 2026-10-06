@@ -1,8 +1,19 @@
 import type { ComponentType } from 'react'
-import type {
-  CacheNodeSeedData,
-  LoadingModuleData,
+import {
+  propagateSubtreeBits,
+  type LoadingModuleData,
+  type PrefetchHints,
 } from '../../shared/lib/app-router-types'
+import type {
+  FullTransportNode,
+  PartialTransportNode,
+  TransportSegment,
+} from '../../shared/lib/rsc-transport'
+import { segmentToTransportSegment } from '../../shared/lib/rsc-transport'
+import {
+  computeSegmentPrefetchHints,
+  createTransportTreeFromLoaderTree,
+} from './create-transport-tree-from-loader-tree'
 import type { PreloadCallbacks } from './types'
 import {
   isClientReference,
@@ -22,7 +33,11 @@ import { getTracer } from '../lib/trace/tracer'
 import { NextNodeServerSpan } from '../lib/trace/constants'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import type { Params } from '../request/params'
-import { workUnitAsyncStorage } from './work-unit-async-storage.external'
+import {
+  workUnitAsyncStorage,
+  type WorkUnitStore,
+} from './work-unit-async-storage.external'
+import { InvariantError } from '../../shared/lib/invariant-error'
 import {
   createVaryParamsAccumulator,
   emptyVaryParamsAccumulator,
@@ -41,11 +56,7 @@ import {
   isNextjsBuiltinFilePath,
 } from './segment-explorer-path'
 
-/**
- * Use the provided loader tree to create the React Component tree.
- */
-// TODO convert these arguments to non-object form. the entrypoint doesn't need most of them
-export function createComponentTree(props: {
+type CreateComponentTreeProps = {
   loaderTree: LoaderTree
   parentParams: Params
   parentOptionalCatchAllParamName: string | null
@@ -57,16 +68,45 @@ export function createComponentTree(props: {
   ctx: AppRenderContext
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
-  authInterrupts: boolean
-  MetadataOutlet: ComponentType
-}): Promise<CacheNodeSeedData> {
+  MetadataOutlet: ComponentType<{ tree: LoaderTree }>
+  isPrerendering: boolean
+  hintTree: PrefetchHints | null
+}
+
+/**
+ * Use the provided loader tree to create the React Component tree, returned
+ * as the response's transport tree: each node carries its segment identity,
+ * its prefetch hints, and its render output.
+ */
+// TODO convert these arguments to non-object form. the entrypoint doesn't need most of them
+export function createComponentTree(
+  props: CreateComponentTreeProps
+): Promise<PartialTransportNode> {
+  const workUnitStore = workUnitAsyncStorage.getStore()
+  if (!workUnitStore) {
+    throw new InvariantError('Missing workUnitStore in createComponentTree')
+  }
+
   return getTracer().trace(
     NextNodeServerSpan.createComponentTree,
     {
       spanName: 'build component tree',
     },
-    () => createComponentTreeInternal(props, true)
+    () => createComponentTreeInternal(props, true, workUnitStore)
   )
+}
+
+/**
+ * Variant of createComponentTree for full renders — the initial document
+ * (and error) payloads, which are never prefetches. No subtree is cut at a
+ * loading boundary, so every node carries its render output, which is what
+ * FullTransportNode requires. TypeScript can't see through that invariant,
+ * hence the cast.
+ */
+export function createFullComponentTree(
+  props: CreateComponentTreeProps
+): Promise<FullTransportNode> {
+  return createComponentTree(props) as Promise<FullTransportNode>
 }
 
 function errorMissingDefaultExport(
@@ -93,8 +133,9 @@ async function createComponentTreeInternal(
     ctx,
     missingSlots,
     preloadCallbacks,
-    authInterrupts,
     MetadataOutlet,
+    isPrerendering,
+    hintTree,
   }: {
     loaderTree: LoaderTree
     parentParams: Params
@@ -106,11 +147,13 @@ async function createComponentTreeInternal(
     ctx: AppRenderContext
     missingSlots?: Set<string>
     preloadCallbacks: PreloadCallbacks
-    authInterrupts: boolean
-    MetadataOutlet: ComponentType | null
+    MetadataOutlet: ComponentType<{ tree: LoaderTree }> | null
+    isPrerendering: boolean
+    hintTree: PrefetchHints | null
   },
-  isRoot: boolean
-): Promise<CacheNodeSeedData> {
+  isRoot: boolean,
+  workUnitStore: WorkUnitStore
+): Promise<PartialTransportNode> {
   const {
     renderOpts: { nextConfigOutput, experimental, cacheComponents },
     workStore,
@@ -128,7 +171,6 @@ async function createComponentTreeInternal(
       createServerParamsForServerSegment,
       createPrerenderParamsForClientSegment,
       serverHooks: { DynamicServerError },
-      Postpone,
     },
     pagePath,
     getDynamicParamFromSegment,
@@ -137,11 +179,13 @@ async function createComponentTreeInternal(
     query,
   } = ctx
 
-  const { executionMode } = workStore
-  const { canPostpone, isPossiblyPartialResponse } = renderCapabilities
+  const { isPossiblyPartialResponse } = renderCapabilities
 
   const { page, conventionPath, segment, modules, parallelRoutes } =
     parseLoaderTree(tree)
+
+  const prefetchInliningEnabled = Boolean(experimental.prefetchInlining)
+  const partialPrefetching = Boolean(ctx.renderOpts.partialPrefetching)
 
   const {
     layout,
@@ -232,27 +276,25 @@ async function createComponentTreeInternal(
       })
     : []
 
-  const [Forbidden, forbiddenStyles] =
-    authInterrupts && forbidden
-      ? await createComponentStylesAndScripts({
-          ctx,
-          filePath: forbidden[1],
-          getComponent: forbidden[0],
-          injectedCSS: injectedCSSWithCurrentLayout,
-          injectedJS: injectedJSWithCurrentLayout,
-        })
-      : []
+  const [Forbidden, forbiddenStyles] = forbidden
+    ? await createComponentStylesAndScripts({
+        ctx,
+        filePath: forbidden[1],
+        getComponent: forbidden[0],
+        injectedCSS: injectedCSSWithCurrentLayout,
+        injectedJS: injectedJSWithCurrentLayout,
+      })
+    : []
 
-  const [Unauthorized, unauthorizedStyles] =
-    authInterrupts && unauthorized
-      ? await createComponentStylesAndScripts({
-          ctx,
-          filePath: unauthorized[1],
-          getComponent: unauthorized[0],
-          injectedCSS: injectedCSSWithCurrentLayout,
-          injectedJS: injectedJSWithCurrentLayout,
-        })
-      : []
+  const [Unauthorized, unauthorizedStyles] = unauthorized
+    ? await createComponentStylesAndScripts({
+        ctx,
+        filePath: unauthorized[1],
+        getComponent: unauthorized[0],
+        injectedCSS: injectedCSSWithCurrentLayout,
+        injectedJS: injectedJSWithCurrentLayout,
+      })
+    : []
 
   let dynamic = layoutOrPageMod?.dynamic
 
@@ -275,11 +317,7 @@ async function createComponentTreeInternal(
       workStore.dynamicShouldError = true
     } else if (dynamic === 'force-dynamic') {
       workStore.forceDynamic = true
-
-      // TODO: (PPR) remove this bailout once PPR is the default
-      if (executionMode === 'prerender' && !canPostpone) {
-        // If the postpone API isn't available, we can't postpone the render and
-        // therefore we can't use the dynamic API.
+      if (isPrerendering) {
         const err = new DynamicServerError(
           `Page with \`dynamic = "force-dynamic"\` won't be rendered statically.`
         )
@@ -304,42 +342,30 @@ async function createComponentTreeInternal(
   if (typeof layoutOrPageMod?.revalidate === 'number') {
     const defaultRevalidate = layoutOrPageMod.revalidate as number
 
-    const workUnitStore = workUnitAsyncStorage.getStore()
-
-    if (workUnitStore) {
-      switch (workUnitStore.type) {
-        case 'prerender':
-        case 'prerender-runtime':
-        case 'prerender-legacy':
-        case 'prerender-ppr':
-          if (workUnitStore.revalidate > defaultRevalidate) {
-            workUnitStore.revalidate = defaultRevalidate
-          }
-          break
-        case 'request':
-          // A request store doesn't have a revalidate property.
-          break
-        // createComponentTree is not called for these stores:
-        case 'cache':
-        case 'private-cache':
-        case 'prerender-client':
-        case 'validation-client':
-        case 'unstable-cache':
-        case 'generate-static-params':
-          break
-        default:
-          workUnitStore satisfies never
-      }
+    switch (workUnitStore.type) {
+      case 'prerender':
+      case 'prerender-runtime':
+      case 'prerender-legacy':
+        if (workUnitStore.revalidate > defaultRevalidate) {
+          workUnitStore.revalidate = defaultRevalidate
+        }
+        break
+      case 'request':
+        // A request store doesn't have a revalidate property.
+        break
+      // createComponentTree is not called for these stores:
+      case 'cache':
+      case 'private-cache':
+      case 'prerender-client':
+      case 'validation-client':
+      case 'unstable-cache':
+      case 'build-time-generator':
+        break
+      default:
+        workUnitStore satisfies never
     }
 
-    if (
-      !workStore.forceStatic &&
-      executionMode === 'prerender' &&
-      defaultRevalidate === 0 &&
-      // If the postpone API isn't available, we can't postpone the render and
-      // therefore we can't use the dynamic API.
-      !canPostpone
-    ) {
+    if (!workStore.forceStatic && isPrerendering && defaultRevalidate === 0) {
       const dynamicUsageDescription = `revalidate: 0 configured ${segment}`
       workStore.dynamicUsageDescription = dynamicUsageDescription
 
@@ -355,37 +381,32 @@ async function createComponentTreeInternal(
     typeof layoutOrPageMod?.unstable_dynamicStaleTime === 'number'
   ) {
     const pageStaleTime = layoutOrPageMod.unstable_dynamicStaleTime
-    const workUnitStore = workUnitAsyncStorage.getStore()
-
-    if (workUnitStore) {
-      switch (workUnitStore.type) {
-        case 'prerender':
-        case 'prerender-runtime':
-        case 'prerender-legacy':
-        case 'prerender-ppr':
-          if (workUnitStore.stale > pageStaleTime) {
-            workUnitStore.stale = pageStaleTime
-          }
-          break
-        case 'request':
-          if (
-            workUnitStore.stale === undefined ||
-            workUnitStore.stale > pageStaleTime
-          ) {
-            workUnitStore.stale = pageStaleTime
-          }
-          break
-        // createComponentTree is not called for these stores:
-        case 'cache':
-        case 'private-cache':
-        case 'prerender-client':
-        case 'validation-client':
-        case 'unstable-cache':
-        case 'generate-static-params':
-          break
-        default:
-          workUnitStore satisfies never
-      }
+    switch (workUnitStore.type) {
+      case 'prerender':
+      case 'prerender-runtime':
+      case 'prerender-legacy':
+        if (workUnitStore.stale > pageStaleTime) {
+          workUnitStore.stale = pageStaleTime
+        }
+        break
+      case 'request':
+        if (
+          workUnitStore.stale === undefined ||
+          workUnitStore.stale > pageStaleTime
+        ) {
+          workUnitStore.stale = pageStaleTime
+        }
+        break
+      // createComponentTree is not called for these stores:
+      case 'cache':
+      case 'private-cache':
+      case 'prerender-client':
+      case 'validation-client':
+      case 'unstable-cache':
+      case 'build-time-generator':
+        break
+      default:
+        workUnitStore satisfies never
     }
   }
 
@@ -398,7 +419,7 @@ async function createComponentTreeInternal(
    */
   let MaybeComponent = LayoutOrPage
 
-  if (process.env.NODE_ENV === 'development' || executionMode === 'prerender') {
+  if (process.env.NODE_ENV === 'development' || isPrerendering) {
     const { isValidElementType } =
       require('next/dist/compiled/react-is') as typeof import('next/dist/compiled/react-is')
     if (
@@ -437,6 +458,11 @@ async function createComponentTreeInternal(
 
   // Handle dynamic segment params.
   const segmentParam = getDynamicParamFromSegment(tree)
+
+  // The segment's identity on the wire.
+  const transportSegment = segmentToTransportSegment(
+    segmentParam ? segmentParam.treeSegment : segment
+  )
 
   // Create object holding the parent params and current params
   let currentParams: Params = parentParams
@@ -497,9 +523,10 @@ async function createComponentTreeInternal(
     Object.keys(parallelRoutes).map(
       async (
         parallelRouteKey
-      ): Promise<[string, React.ReactNode, CacheNodeSeedData | null]> => {
+      ): Promise<[string, React.ReactNode, PartialTransportNode]> => {
         const isChildrenRouteKey = parallelRouteKey === 'children'
         const parallelRoute = parallelRoutes[parallelRouteKey]
+        const childHintTree = hintTree?.slots?.[parallelRouteKey] ?? null
 
         const notFoundComponent = isChildrenRouteKey
           ? notFoundElement
@@ -516,7 +543,7 @@ async function createComponentTreeInternal(
         // if we're prefetching and that there's a Loading component, we bail out
         // otherwise we keep rendering for the prefetch.
         // We also want to bail out if there's no Loading component in the tree.
-        let childCacheNodeSeedData: CacheNodeSeedData | null = null
+        let childNode: PartialTransportNode
 
         if (
           // Before PPR, the way instant navigations work in Next.js is we
@@ -551,8 +578,19 @@ async function createComponentTreeInternal(
           // communications.
           !experimental.isRoutePPREnabled
         ) {
-          // Don't prefetch this child. This will trigger a lazy fetch by the
+          // Don't render this child. Emit its structure only — no render
+          // output on any node — which will trigger a lazy fetch by the
           // client router.
+          childNode = await createTransportTreeFromLoaderTree(
+            parallelRoute,
+            childHintTree,
+            prefetchInliningEnabled,
+            ctx.missingPrefetchHintPolicy,
+            partialPrefetching,
+            getDynamicParamFromSegment,
+            ctx.renderOpts.notFoundParams,
+            rootLayoutIncludedAtThisLevelOrAbove
+          )
         } else {
           // Create the child component
 
@@ -567,30 +605,28 @@ async function createComponentTreeInternal(
             }
           }
 
-          if (childCacheNodeSeedData === null) {
-            const seedData = await createComponentTreeInternal(
-              {
-                loaderTree: parallelRoute,
-                parentParams: currentParams,
-                parentOptionalCatchAllParamName: optionalCatchAllParamName,
-                rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
-                injectedCSS: injectedCSSWithCurrentLayout,
-                injectedJS: injectedJSWithCurrentLayout,
-                injectedFontPreloadTags:
-                  injectedFontPreloadTagsWithCurrentLayout,
-                ctx,
-                missingSlots,
-                preloadCallbacks,
-                authInterrupts,
-                // `StreamingMetadataOutlet` is used to conditionally throw. In the case of parallel routes we will have more than one page
-                // but we only want to throw on the first one.
-                MetadataOutlet: isChildrenRouteKey ? MetadataOutlet : null,
-              },
-              false
-            )
-
-            childCacheNodeSeedData = seedData
-          }
+          childNode = await createComponentTreeInternal(
+            {
+              loaderTree: parallelRoute,
+              parentParams: currentParams,
+              parentOptionalCatchAllParamName: optionalCatchAllParamName,
+              rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
+              injectedCSS: injectedCSSWithCurrentLayout,
+              injectedJS: injectedJSWithCurrentLayout,
+              injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
+              ctx,
+              missingSlots,
+              preloadCallbacks,
+              MetadataOutlet:
+                experimental.parallelRouteMetadata || isChildrenRouteKey
+                  ? MetadataOutlet
+                  : null,
+              isPrerendering,
+              hintTree: childHintTree,
+            },
+            false,
+            workUnitStore
+          )
         }
 
         const templateNode = createElement(
@@ -678,21 +714,38 @@ async function createComponentTreeInternal(
               segmentViewBoundaries,
             }),
           }),
-          childCacheNodeSeedData,
+          childNode,
         ]
       }
     )
   )
 
+  // The segment's local prefetch hints, plus the "subtree" bits propagated
+  // up from the children in the loop below.
+  let prefetchHints = await computeSegmentPrefetchHints(
+    tree,
+    hintTree,
+    prefetchInliningEnabled,
+    ctx.missingPrefetchHintPolicy,
+    partialPrefetching,
+    !rootLayoutIncluded,
+    ctx.renderOpts.notFoundParams
+  )
+
   // Convert the parallel route map into an object after all promises have been resolved.
   let parallelRouteProps: { [key: string]: React.ReactNode } = {}
-  let parallelRouteCacheNodeSeedData: {
-    [key: string]: CacheNodeSeedData | null
-  } = {}
+  let parallelRouteNodes: Map<string, PartialTransportNode> | undefined
   for (const parallelRoute of parallelRouteMap) {
-    const [parallelRouteKey, parallelRouteProp, flightData] = parallelRoute
+    const [parallelRouteKey, parallelRouteProp, childNode] = parallelRoute
     parallelRouteProps[parallelRouteKey] = parallelRouteProp
-    parallelRouteCacheNodeSeedData[parallelRouteKey] = flightData
+    if (parallelRouteNodes === undefined) {
+      parallelRouteNodes = new Map()
+    }
+    parallelRouteNodes.set(parallelRouteKey, childNode)
+    // Propagate subtree flags from children
+    if (childNode.h !== undefined) {
+      prefetchHints = propagateSubtreeBits(prefetchHints, childNode.h)
+    }
   }
 
   let loadingElement = Loading
@@ -721,8 +774,10 @@ async function createComponentTreeInternal(
 
   // When the segment does not have a layout or page we still have to add the layout router to ensure the path holds the loading component
   if (!MaybeComponent) {
-    return createSeedData(
+    return createTransportNode(
       ctx,
+      transportSegment,
+      prefetchHints,
       createElement(
         Fragment,
         {
@@ -731,7 +786,7 @@ async function createComponentTreeInternal(
         layerAssets,
         parallelRouteProps.children
       ),
-      parallelRouteCacheNodeSeedData,
+      parallelRouteNodes,
       loadingData,
       isPossiblyPartialResponse,
 
@@ -742,41 +797,6 @@ async function createComponentTreeInternal(
   }
 
   const Component = MaybeComponent
-  // If force-dynamic is used and the current render supports postponing, we
-  // replace it with a node that will postpone the render. This ensures that the
-  // postpone is invoked during the react render phase and not during the next
-  // render phase.
-  // @TODO this does not actually do what it seems like it would or should do. The idea is that
-  // if we are rendering in a force-dynamic mode and we can postpone we should only make the segments
-  // that ask for force-dynamic to be dynamic, allowing other segments to still prerender. However
-  // because this comes after the children traversal and the static generation store is mutated every segment
-  // along the parent path of a force-dynamic segment will hit this condition effectively making the entire
-  // render force-dynamic. We should refactor this function so that we can correctly track which segments
-  // need to be dynamic
-  if (canPostpone && workStore.forceDynamic) {
-    return createSeedData(
-      ctx,
-      createElement(
-        Fragment,
-        {
-          key: cacheNodeKey,
-        },
-        createElement(Postpone, {
-          reason: 'dynamic = "force-dynamic" was used',
-          route: workStore.route,
-        }),
-        layerAssets
-      ),
-      parallelRouteCacheNodeSeedData,
-      loadingData,
-      true,
-
-      // force-dynamic postpones without rendering the component, so no params
-      // are accessed. The vary params are empty.
-      emptyVaryParamsAccumulator
-    )
-  }
-
   const isClientComponent = isClientReference(layoutOrPageMod)
 
   const varyParamsAccumulator =
@@ -808,7 +828,7 @@ async function createComponentTreeInternal(
           Component: PageComponent,
           serverProvidedParams: null,
         })
-      } else if (executionMode === 'prerender') {
+      } else if (isPrerendering) {
         const promiseOfParams =
           createPrerenderParamsForClientSegment(currentParams)
         const promiseOfSearchParams = createPrerenderSearchParamsForClientPage()
@@ -882,8 +902,10 @@ async function createComponentTreeInternal(
           )
         : pageElement
 
-    return createSeedData(
+    return createTransportNode(
       ctx,
+      transportSegment,
+      prefetchHints,
       createElement(
         Fragment,
         {
@@ -891,9 +913,9 @@ async function createComponentTreeInternal(
         },
         wrappedPageElement,
         layerAssets,
-        MetadataOutlet ? createElement(MetadataOutlet, null) : null
+        MetadataOutlet ? createElement(MetadataOutlet, { tree }) : null
       ),
-      parallelRouteCacheNodeSeedData,
+      parallelRouteNodes,
       loadingData,
       isPossiblyPartialResponse,
 
@@ -917,7 +939,7 @@ async function createComponentTreeInternal(
           slots: parallelRouteProps,
           serverProvidedParams: null,
         })
-      } else if (executionMode === 'prerender') {
+      } else if (isPrerendering) {
         const promiseOfParams =
           createPrerenderParamsForClientSegment(currentParams)
 
@@ -1105,10 +1127,12 @@ async function createComponentTreeInternal(
         : segmentNode
 
     // For layouts we just render the component
-    return createSeedData(
+    return createTransportNode(
       ctx,
+      transportSegment,
+      prefetchHints,
       wrappedSegmentNode,
-      parallelRouteCacheNodeSeedData,
+      parallelRouteNodes,
       loadingData,
       isPossiblyPartialResponse,
       varyParamsAccumulator
@@ -1256,14 +1280,16 @@ async function createBoundaryConventionElement({
   return [wrappedElement, pagePath] as const
 }
 
-function createSeedData(
+function createTransportNode(
   ctx: AppRenderContext,
+  segment: TransportSegment,
+  prefetchHints: number,
   rsc: React.ReactNode,
-  parallelRoutes: Record<string, CacheNodeSeedData | null>,
+  children: Map<string, PartialTransportNode> | undefined,
   loading: LoadingModuleData | null,
   isPossiblyPartialResponse: boolean,
   varyParamsAccumulator: VaryParamsAccumulator | null
-): CacheNodeSeedData {
+): PartialTransportNode {
   const createElement = ctx.componentMod.createElement
   if (loading !== null) {
     // If a loading.tsx boundary is present, wrap the component data in an
@@ -1277,13 +1303,21 @@ function createSeedData(
       children: rsc,
     })
   }
-  return [
-    rsc,
-    parallelRoutes,
-    null,
-    isPossiblyPartialResponse,
+  const node: PartialTransportNode = {
+    s: segment,
+  }
+  if (prefetchHints !== 0) {
+    node.h = prefetchHints
+  }
+  node.d = {
+    r: rsc,
+    p: isPossiblyPartialResponse,
     // The accumulator is itself the AsyncIterable<string> that Flight
-    // serializes into the segment's seed data.
-    varyParamsAccumulator,
-  ]
+    // serializes into the segment's render output.
+    v: varyParamsAccumulator,
+  }
+  if (children !== undefined) {
+    node.c = children
+  }
+  return node
 }

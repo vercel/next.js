@@ -1,7 +1,4 @@
-import type {
-  WorkStore,
-  WorkStoreExecutionMode,
-} from '../app-render/work-async-storage.external'
+import type { WorkStore } from '../app-render/work-async-storage.external'
 import type { IncrementalCache } from '../lib/incremental-cache'
 import type { RenderOpts } from '../app-render/types'
 import type { FetchMetric } from '../base-http'
@@ -25,12 +22,6 @@ export type WorkStoreContext = {
    */
   page: string
 
-  /**
-   * Whether this invocation produces reusable prerender output or renders a
-   * response for the current request.
-   */
-  executionMode: WorkStoreExecutionMode
-
   isPrefetchRequest?: boolean
   nonce?: string
   renderOpts: {
@@ -50,7 +41,7 @@ export type WorkStoreContext = {
     pendingWaitUntil?: Promise<any>
     experimental: Pick<
       RenderOpts['experimental'],
-      'isRoutePPREnabled' | 'authInterrupts' | 'useCacheTimeout'
+      'isRoutePPREnabled' | 'useCacheTimeout' | 'durableUseCacheEntries'
     >
 
     /**
@@ -94,27 +85,32 @@ export type WorkStoreContext = {
   previouslyRevalidatedTags: string[]
 }
 
-export function createWorkStore({
-  page,
-  executionMode,
-  renderOpts,
-  isPrefetchRequest,
-  buildId,
-  deploymentId,
-  previouslyRevalidatedTags,
-  nonce,
-}: WorkStoreContext): WorkStore {
-  const shouldTrackFetchMetrics =
-    !!process.env.__NEXT_DEV_SERVER ||
-    // The only times we want to track fetch metrics outside of development is
-    // when we are performing a static generation and we either are in debug
-    // mode, or tracking fetch metrics was specifically opted into.
-    (executionMode === 'prerender' &&
-      (!!process.env.NEXT_DEBUG_BUILD ||
-        process.env.NEXT_SSG_FETCH_METRICS === '1'))
+export function createWorkStore(context: WorkStoreContext): WorkStore {
+  return createWorkStoreImpl(context, !!process.env.__NEXT_DEV_SERVER)
+}
 
+export function createPrerenderWorkStore(context: WorkStoreContext): WorkStore {
+  return createWorkStoreImpl(
+    context,
+    !!process.env.__NEXT_DEV_SERVER ||
+      !!process.env.NEXT_DEBUG_BUILD ||
+      process.env.NEXT_SSG_FETCH_METRICS === '1'
+  )
+}
+
+function createWorkStoreImpl(
+  {
+    page,
+    renderOpts,
+    isPrefetchRequest,
+    buildId,
+    deploymentId,
+    previouslyRevalidatedTags,
+    nonce,
+  }: WorkStoreContext,
+  shouldTrackFetchMetrics: boolean
+): WorkStore {
   const store: WorkStore = {
-    executionMode,
     page,
     route: normalizeAppPath(page),
     incrementalCache:
@@ -123,6 +119,7 @@ export function createWorkStore({
       renderOpts.incrementalCache || (globalThis as any).__incrementalCache,
     cacheLifeProfiles: renderOpts.cacheLifeProfiles,
     useCacheTimeout: renderOpts.experimental.useCacheTimeout,
+    durableUseCacheEntries: renderOpts.experimental.durableUseCacheEntries,
     staticPageGenerationTimeout: renderOpts.staticPageGenerationTimeout,
     isBuildTimePrerendering: renderOpts.isBuildTimePrerendering,
     fetchCache: renderOpts.fetchCache,
@@ -143,9 +140,11 @@ export function createWorkStore({
     cacheComponentsEnabled: renderOpts.cacheComponents,
     validationLevel: renderOpts.validationLevel,
     previouslyRevalidatedTags,
+    requestStartTime: performance.timeOrigin + performance.now(),
     refreshTagsByCacheKind: createRefreshTagsByCacheKind(),
     runInCleanSnapshot: createSnapshot(),
     shouldTrackFetchMetrics,
+    clientComponentLoadTracker: undefined,
     reactServerErrorsByDigest: new Map(),
   }
 

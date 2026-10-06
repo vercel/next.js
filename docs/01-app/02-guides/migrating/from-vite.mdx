@@ -185,7 +185,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <meta charset="UTF-8" />
+        <meta charSet="UTF-8" />
         <link rel="icon" type="image/svg+xml" href="/icon.svg" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>My App</title>
@@ -204,7 +204,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <head>
-        <meta charset="UTF-8" />
+        <meta charSet="UTF-8" />
         <link rel="icon" type="image/svg+xml" href="/icon.svg" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>My App</title>
@@ -530,7 +530,9 @@ properties with no changes needed. `BASE_URL` reflects the Next.js
 [`basePath`](/docs/app/api-reference/config/next-config-js/basePath) configuration and includes a
 trailing slash, matching Vite's format.
 
-**`import.meta.glob`** is supported by Turbopack (the default Next.js bundler) with no changes needed. If you were using the `as` option (deprecated in Vite 5), replace it with `query`:
+**`import.meta.glob`** is supported by Turbopack (the default Next.js bundler) with no changes needed.
+
+Turbopack has no built-in handling for Vite's `?raw` and `?url` queries, so the `as` option (deprecated in Vite 5) and its `query` replacement need a matching rule in `next.config.ts`:
 
 ```js
 // Before (Vite)
@@ -538,6 +540,21 @@ const modules = import.meta.glob('./dir/*.txt', { as: 'raw' })
 
 // After (Next.js / Turbopack)
 const modules = import.meta.glob('./dir/*.txt', { query: '?raw' })
+```
+
+```ts filename="next.config.ts"
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  turbopack: {
+    rules: {
+      // Any file imported with `?raw` is loaded as a string
+      '*': { condition: { query: '?raw' }, type: 'text' },
+    },
+  },
+}
+
+export default nextConfig
 ```
 
 See the [import.meta.glob docs](/docs/app/api-reference/turbopack#importmetaglob) for the full API.

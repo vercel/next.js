@@ -2,27 +2,20 @@ import { nextTestSetup } from 'e2e-utils'
 import path from 'path'
 
 describe('app-root-param-getters - generateStaticParams error', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: path.join(__dirname, 'fixtures', 'generate-static-params-error'),
     skipStart: true,
-    skipDeployment: true,
-  })
-  if (skipped) return
-
-  beforeAll(async () => {
-    try {
-      await next.start()
-    } catch {}
   })
 
   if (isNextDev) {
+    beforeAll(() => next.start())
+
     it('should error when reading a root param inside the generateStaticParams that defines it - dev', async () => {
       const browser = await next.browser('/en/us')
 
       // TODO: This is not the correct error code.
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E394",
          "description": "Route /[lang]/[locale] used \`import('next/root-params').lang()\` inside \`generateStaticParams\`, but the \`lang\` parameter was not provided by a parent \`generateStaticParams\`. In \`generateStaticParams\`, root params are only available for segments nested below the segment that provides them.",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -37,9 +30,10 @@ describe('app-root-param-getters - generateStaticParams error', () => {
     })
   } else {
     it('should error when reading a root param inside the generateStaticParams that defines it - build', async () => {
+      await expect(next.start()).rejects.toThrow()
       expect(next.cliOutput).toContain(
         "Route /[lang]/[locale] used `import('next/root-params').lang()` inside `generateStaticParams`, but the `lang` parameter was not provided by a parent `generateStaticParams`. In `generateStaticParams`, root params are only available for segments nested below the segment that provides them."
       )
-    })
+    }, 240_000)
   }
 })

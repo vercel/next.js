@@ -41,13 +41,14 @@ import {
   ReplayableNodeStream,
   type AnyStream as AnyStreamType,
 } from './app-render-prerender-utils'
-import { DetachedPromise } from '../../lib/detached-promise'
+import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
 import { getTracer } from '../lib/trace/tracer'
 import { AppRenderSpan } from '../lib/trace/constants'
 import {
   atLeastOneTask,
   waitAtLeastOneReactRenderTask,
 } from '../../lib/scheduler'
+import { ResponseAborted } from '../web/spec-extension/adapters/next-request'
 import type {
   FlightPayload,
   FlightClientModules,
@@ -562,6 +563,17 @@ export function renderToNodeFlightStream(
     clientModules,
     renderOptions
   )
+
+  // If the destination is destroyed before the render ended, React aborts with a
+  // generic "The destination stream closed early." error that `onError` can't
+  // tell apart from a real render error. Abort first with the reason we already
+  // know; the listener is registered before piping so it runs before React's.
+  pt.once('close', () => {
+    if (!pt.writableEnded) {
+      pipeable.abort(new ResponseAborted())
+    }
+  })
+
   pipeable.pipe(pt)
 
   if (signal) {
@@ -585,8 +597,8 @@ export async function renderToNodeFizzStream(
   options?: { waitForAllReady?: boolean }
 ): Promise<FizzStreamResult> {
   const pt = new PassThrough()
-  const shellReady = new DetachedPromise<void>()
-  const allReady = new DetachedPromise<void>()
+  const shellReady = createPromiseWithResolvers<void>()
+  const allReady = createPromiseWithResolvers<void>()
   const deferPipe = options?.waitForAllReady === true
 
   const pipeable = getTracer().trace(AppRenderSpan.renderToReadableStream, () =>
@@ -638,8 +650,8 @@ export async function resumeToFizzStream(
   const run: <T>(fn: () => T) => T = runInContext ?? ((fn) => fn())
 
   const pt = new PassThrough()
-  const shellReady = new DetachedPromise<void>()
-  const allReady = new DetachedPromise<void>()
+  const shellReady = createPromiseWithResolvers<void>()
+  const allReady = createPromiseWithResolvers<void>()
 
   const pipeable = await run(() =>
     resumeToPipeableStream(element, postponedState, {

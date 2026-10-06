@@ -2,28 +2,60 @@ import {
   createRuntimeBodyError,
   createDynamicBodyError,
   createRuntimeBodyErrorInNavigation,
-  createDynamicBodyErrorInNavigation,
   createLinkBodyErrorInNavigation,
+  createNavigationBodyErrorInNavigation,
+  createPrefetchBodyErrorInNavigation,
+  createDynamicBodyErrorInNavigation,
   createRuntimeMetadataError,
-  createDynamicMetadataError,
   createLinkMetadataError,
+  createNavigationMetadataError,
+  createPrefetchMetadataError,
+  createDynamicMetadataError,
   createRuntimeViewportError,
-  createDynamicViewportError,
   createLinkViewportError,
+  createNavigationViewportError,
+  createPrefetchViewportError,
+  createDynamicViewportError,
 } from '../../../../server/app-render/blocking-route-messages'
 import { createLinkPrefetchPartialError } from '../../../../shared/lib/instant-messages'
 import {
+  EXPLANATIONS,
   FIX_CARD_GROUPS,
   SYNC_IO_DOCS,
   SYNC_IO_CLIENT_DOCS,
   getCards,
+  getStaticRouteDocsUrl,
   type FixCardGroup,
   type GuidanceKind,
   type GuidanceVariant,
 } from './instant-guidance-data'
 
+describe('static route explanations', () => {
+  it('matches the fully static build guidance', () => {
+    expect(EXPLANATIONS['static-route']).toBe(
+      'This route is configured to be fully static, but data prevents it from being fully prerendered.'
+    )
+    expect(EXPLANATIONS['static-metadata']).toBe(
+      'This route is configured to be fully static, but data prevents its metadata from being fully prerendered.'
+    )
+    expect(EXPLANATIONS['static-viewport']).toBe(
+      'This route is configured to be fully static, but data prevents its viewport from being fully prerendered.'
+    )
+  })
+})
+
+const GUIDANCE_VARIANTS = [
+  'runtime',
+  'link',
+  'prefetch',
+  'navigation',
+  'dynamic',
+] as const satisfies GuidanceVariant[]
+
 function tagsFromMessage(message: string): string[] {
-  return Array.from(message.matchAll(/^\s*-\s*\[([a-z]+)\]/gm)).map((m) => m[1])
+  return Array.from(message.matchAll(/^\s*-\s*\[([a-z-]+)\]/gm)).map(
+    (m) => m[1]
+  )
 }
 
 function groupsFromCards(
@@ -47,6 +79,7 @@ describe('instant-guidance-data card ordering', () => {
       'blocking-route',
       'dynamic',
     ],
+
     [
       'blocking-route runtime in navigation',
       createRuntimeBodyErrorInNavigation('/x').message,
@@ -54,28 +87,35 @@ describe('instant-guidance-data card ordering', () => {
       'runtime',
     ],
     [
-      'blocking-route dynamic in navigation',
-      createDynamicBodyErrorInNavigation('/x').message,
-      'blocking-route',
-      'dynamic',
-    ],
-    [
-      'blocking-route link',
+      'blocking-route link in navigation',
       createLinkBodyErrorInNavigation('/x').message,
       'blocking-route',
       'link',
     ],
     [
+      'blocking-route prefetch in navigation',
+      createPrefetchBodyErrorInNavigation('/x').message,
+      'blocking-route',
+      'prefetch',
+    ],
+    [
+      'blocking-route navigation in navigation',
+      createNavigationBodyErrorInNavigation('/x').message,
+      'blocking-route',
+      'navigation',
+    ],
+    [
+      'blocking-route dynamic in navigation',
+      createDynamicBodyErrorInNavigation('/x').message,
+      'blocking-route',
+      'dynamic',
+    ],
+
+    [
       'metadata runtime',
       createRuntimeMetadataError('/x').message,
       'metadata',
       'runtime',
-    ],
-    [
-      'metadata dynamic',
-      createDynamicMetadataError('/x').message,
-      'metadata',
-      'dynamic',
     ],
     [
       'metadata link',
@@ -84,16 +124,29 @@ describe('instant-guidance-data card ordering', () => {
       'link',
     ],
     [
+      'metadata prefetch',
+      createPrefetchMetadataError('/x').message,
+      'metadata',
+      'prefetch',
+    ],
+    [
+      'metadata navigation',
+      createNavigationMetadataError('/x').message,
+      'metadata',
+      'navigation',
+    ],
+    [
+      'metadata dynamic',
+      createDynamicMetadataError('/x').message,
+      'metadata',
+      'dynamic',
+    ],
+
+    [
       'viewport runtime',
       createRuntimeViewportError('/x').message,
       'viewport',
       'runtime',
-    ],
-    [
-      'viewport dynamic',
-      createDynamicViewportError('/x').message,
-      'viewport',
-      'dynamic',
     ],
     [
       'viewport link',
@@ -101,6 +154,25 @@ describe('instant-guidance-data card ordering', () => {
       'viewport',
       'link',
     ],
+    [
+      'viewport prefetch',
+      createPrefetchViewportError('/x').message,
+      'viewport',
+      'prefetch',
+    ],
+    [
+      'viewport navigation',
+      createNavigationViewportError('/x').message,
+      'viewport',
+      'navigation',
+    ],
+    [
+      'viewport dynamic',
+      createDynamicViewportError('/x').message,
+      'viewport',
+      'dynamic',
+    ],
+
     [
       'link-prefetch-partial',
       createLinkPrefetchPartialError('/x').message,
@@ -116,20 +188,42 @@ describe('instant-guidance-data card ordering', () => {
 })
 
 describe('instant-guidance-data card links', () => {
+  it('links each static error variant to its focused page', () => {
+    expect(getStaticRouteDocsUrl('static-route', 'runtime')).toBe(
+      'https://nextjs.org/docs/messages/static-route-runtime'
+    )
+    expect(getStaticRouteDocsUrl('static-route', 'dynamic')).toBe(
+      'https://nextjs.org/docs/messages/static-route-dynamic'
+    )
+    expect(getStaticRouteDocsUrl('static-metadata', 'runtime')).toBe(
+      'https://nextjs.org/docs/messages/static-metadata-runtime'
+    )
+    expect(getStaticRouteDocsUrl('static-metadata', 'dynamic')).toBe(
+      'https://nextjs.org/docs/messages/static-metadata-dynamic'
+    )
+    expect(getStaticRouteDocsUrl('static-viewport', 'runtime')).toBe(
+      'https://nextjs.org/docs/messages/static-viewport-runtime'
+    )
+    expect(getStaticRouteDocsUrl('static-viewport', 'dynamic')).toBe(
+      'https://nextjs.org/docs/messages/static-viewport-dynamic'
+    )
+  })
+
   it('every card.link ends with #card.id', () => {
-    const variants: Array<[GuidanceKind, GuidanceVariant]> = [
-      ['blocking-route', 'runtime'],
-      ['blocking-route', 'dynamic'],
-      ['blocking-route', 'link'],
+    type Item = [GuidanceKind, GuidanceVariant]
+    const variants: Array<Item> = [
+      ...GUIDANCE_VARIANTS.map((v) => ['blocking-route', v] as Item),
+      ...GUIDANCE_VARIANTS.map((v) => ['metadata', v] as Item),
+      ...GUIDANCE_VARIANTS.map((v) => ['viewport', v] as Item),
       ['client-hook', 'runtime'],
-      ['metadata', 'runtime'],
-      ['metadata', 'dynamic'],
-      ['metadata', 'link'],
-      ['viewport', 'runtime'],
-      ['viewport', 'dynamic'],
-      ['viewport', 'link'],
       ['unrendered-segment', 'runtime'],
       ['link-prefetch-partial', 'runtime'],
+      ['static-route', 'runtime'],
+      ['static-route', 'dynamic'],
+      ['static-metadata', 'runtime'],
+      ['static-metadata', 'dynamic'],
+      ['static-viewport', 'runtime'],
+      ['static-viewport', 'dynamic'],
     ]
     for (const [kind, variant] of variants) {
       for (const card of getCards(kind, variant)) {
@@ -143,22 +237,26 @@ describe('instant-guidance-data card links', () => {
 describe('instant-guidance-data card invariants', () => {
   function allCards() {
     const cards = []
-    const variants: Array<[GuidanceKind, GuidanceVariant, string?]> = [
-      ['blocking-route', 'runtime'],
-      ['blocking-route', 'dynamic'],
+    type Item = [GuidanceKind, GuidanceVariant, string?]
+    const variants: Array<Item> = [
+      ...GUIDANCE_VARIANTS.map((v) => ['blocking-route', v] as Item),
       ['blocking-route', 'dynamic', 'connection'],
-      ['blocking-route', 'link'],
-      ['client-hook', 'runtime'],
-      ['metadata', 'runtime'],
-      ['metadata', 'dynamic'],
+
+      ...GUIDANCE_VARIANTS.map((v) => ['metadata', v] as Item),
       ['metadata', 'dynamic', 'connection'],
-      ['metadata', 'link'],
-      ['viewport', 'runtime'],
-      ['viewport', 'dynamic'],
+
+      ...GUIDANCE_VARIANTS.map((v) => ['viewport', v] as Item),
       ['viewport', 'dynamic', 'connection'],
-      ['viewport', 'link'],
+
+      ['client-hook', 'runtime'],
       ['unrendered-segment', 'runtime'],
       ['link-prefetch-partial', 'runtime'],
+      ['static-route', 'runtime'],
+      ['static-route', 'dynamic'],
+      ['static-metadata', 'runtime'],
+      ['static-metadata', 'dynamic'],
+      ['static-viewport', 'runtime'],
+      ['static-viewport', 'dynamic'],
     ]
     for (const [kind, variant, cause] of variants) {
       cards.push(...getCards(kind, variant, cause))
@@ -214,19 +312,20 @@ describe('instant-guidance-data dispatcher', () => {
 
   it('every group in FIX_CARD_GROUPS is used by at least one card', () => {
     const used = new Set<FixCardGroup>()
-    const variants: Array<[GuidanceKind, GuidanceVariant]> = [
-      ['blocking-route', 'runtime'],
-      ['blocking-route', 'dynamic'],
-      ['blocking-route', 'link'],
+    type Item = [GuidanceKind, GuidanceVariant]
+    const variants: Array<Item> = [
+      ...GUIDANCE_VARIANTS.map((v) => ['blocking-route', v] as Item),
+      ...GUIDANCE_VARIANTS.map((v) => ['metadata', v] as Item),
+      ...GUIDANCE_VARIANTS.map((v) => ['viewport', v] as Item),
       ['client-hook', 'runtime'],
-      ['metadata', 'runtime'],
-      ['metadata', 'dynamic'],
-      ['metadata', 'link'],
-      ['viewport', 'runtime'],
-      ['viewport', 'dynamic'],
-      ['viewport', 'link'],
       ['unrendered-segment', 'runtime'],
       ['link-prefetch-partial', 'runtime'],
+      ['static-route', 'runtime'],
+      ['static-route', 'dynamic'],
+      ['static-metadata', 'runtime'],
+      ['static-metadata', 'dynamic'],
+      ['static-viewport', 'runtime'],
+      ['static-viewport', 'dynamic'],
     ]
     for (const [kind, variant] of variants) {
       for (const card of getCards(kind, variant)) used.add(card.group)

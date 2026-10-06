@@ -58,12 +58,11 @@ export {
 } from '../request/params'
 export * as serverHooks from '../../client/components/hooks-server-context'
 export { HTTPAccessFallbackBoundary } from '../../client/components/http-access-fallback/error-boundary'
-export { createMetadataComponents } from '../../lib/metadata/metadata'
+export { createMetadataComponents } from '../../lib/metadata'
 export { RootLayoutBoundary } from '../../lib/framework/boundary-components'
 
 export { preloadStyle, preloadFont, preconnect } from './rsc/preloads'
 export { isEmptyHTMLPrelude } from './postponed-state'
-export { Postpone } from './rsc/postpone'
 export { taintObjectReference } from './rsc/taint'
 export {
   collectSegmentData,
@@ -115,8 +114,6 @@ if (process.env.TURBOPACK) {
   globalThis.__next__clear_chunk_cache__ = null
 }
 
-// patchFetch makes use of APIs such as `React.unstable_postpone` which are only available
-// in the experimental channel of React, so export it from here so that it comes from the bundled runtime
 export function patchFetch() {
   return _patchFetch({
     workAsyncStorage,

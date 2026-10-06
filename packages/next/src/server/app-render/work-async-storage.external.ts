@@ -13,17 +13,9 @@ import { workAsyncStorageInstance } from './work-async-storage-instance' with { 
 import type { LazyResult } from '../lib/lazy-result'
 import type { DigestedError } from './create-error-handler'
 import type { ActionRevalidationKind } from '../../shared/lib/action-revalidation-kind'
-
-export type WorkStoreExecutionMode = 'prerender' | 'request'
+import type { ClientComponentLoadTracker } from '../client-component-renderer-logger'
 
 export interface WorkStore {
-  /**
-   * Whether this invocation produces reusable prerender output or renders a
-   * response for the current request. Prerendering includes both build-time
-   * generation and runtime revalidation.
-   */
-  readonly executionMode: WorkStoreExecutionMode
-
   /**
    * The page that is being rendered. This relates to the path to the page file.
    */
@@ -38,6 +30,7 @@ export interface WorkStore {
   readonly incrementalCache?: IncrementalCache
   readonly cacheLifeProfiles: ResolvedCacheLifeProfiles
   readonly useCacheTimeout: number
+  readonly durableUseCacheEntries: boolean
   readonly staticPageGenerationTimeout: number
 
   readonly isOnDemandRevalidate?: boolean
@@ -74,6 +67,14 @@ export interface WorkStore {
   pendingRevalidatedTags?: Array<{
     tag: string
     profile?: string | { stale?: number; revalidate?: number; expire?: number }
+    /**
+     * When the tag was revalidated, on the same clock as `CacheEntry.timestamp`
+     * (`performance.timeOrigin + performance.now()`). A cache entry created
+     * before this is stale; one created after it already reflects the
+     * revalidation and can still be served. Re-revalidating a tag moves this
+     * forward.
+     */
+    revalidatedAt: number
   }>
 
   /**
@@ -84,6 +85,15 @@ export interface WorkStore {
   readonly previouslyRevalidatedTags: readonly string[]
 
   /**
+   * When this request started, on the same clock as `CacheEntry.timestamp`.
+   * `previouslyRevalidatedTags` carry no timestamp of their own, having been
+   * revalidated by an earlier request, so they are treated as revalidated at
+   * this instant: entries predating the request are discarded, while entries
+   * generated during it are not.
+   */
+  readonly requestStartTime: number
+
+  /**
    * This map contains lazy results so that we can evaluate them when the first
    * cache entry is read. It allows us to skip refreshing tags if no caches are
    * read at all.
@@ -92,6 +102,7 @@ export interface WorkStore {
 
   fetchMetrics?: FetchMetrics
   shouldTrackFetchMetrics: boolean
+  clientComponentLoadTracker: ClientComponentLoadTracker | undefined
 
   /**
    * Tracks pending `"use cache"` invocations within the current request scope,
@@ -102,6 +113,21 @@ export interface WorkStore {
    * Root params are identical within a request, so the coarse key is sufficient.
    */
   pendingCacheInvocations?: Map<string, Promise<SharedCacheResult>>
+
+  /**
+   * Invocations from this request that have already completed, keyed the same
+   * way as `pendingCacheInvocations`. Entries move here when their fill
+   * finishes rather than being dropped, so a later invocation of the same cache
+   * function reuses the entry instead of repeating the cache handler lookup
+   * and, on a miss, the work.
+   *
+   * Only populated for kinds where that saves something real: private caches,
+   * which have no cache handler in production, and kinds whose handler was
+   * supplied by the platform or by `cacheHandlers` config, whose reads may be
+   * remote. A built-in handler read is a map lookup, so retaining its entries
+   * would cost memory for nothing.
+   */
+  completedCacheInvocations?: Map<string, Promise<SharedCacheResult>>
 
   /**
    * Set by the dev-server's hang-detection probe worker (see

@@ -3,6 +3,15 @@
 const { chromium, firefox, webkit } = require('playwright')
 
 /**
+ * Tells the browser launcher which host to redirect, as `<hostname>=<address>`.
+ * A deploy test sets this when it redirects the deployment host inside the test
+ * process (`NEXT_TEST_PROXY_IN_PROCESS`), because the launcher runs in the same
+ * process but has no access to the test instance. The `/etc/hosts` mode never
+ * sets it, since that mode already covers every process on the machine.
+ */
+const PROXY_HOST_MAP_ENV_KEY = 'NEXT_TEST_PROXY_HOST_MAP'
+
+/**
  * Maps a test browser name (`BROWSER_NAME`) to a Playwright `BrowserType` and
  * the launch options we always use for it.
  *
@@ -49,4 +58,4 @@ function getBrowserLaunch(browserName, { headless }) {
   }
 }
 
-module.exports = { getBrowserLaunch }
+module.exports = { getBrowserLaunch, PROXY_HOST_MAP_ENV_KEY }

@@ -164,4 +164,21 @@ describe('LRU disk eviction', () => {
     const lru = await getOrInitDiskLRU(missing, 1000, initEntries, rmEntry)
     expect(lru.size).toBe(0)
   })
+
+  it('should skip a 0-byte entry instead of poisoning the singleton', async () => {
+    // A 0-byte (empty/corrupt) cache file yields a size-0 entry. `LRUCache.set()`
+    // rejects sizes <= 0, which previously threw during init and permanently
+    // rejected the cached singleton promise, breaking the disk cache.
+    const expireAt = Date.now() + 60_000
+    await writeEntry(cacheDir, 'valid-a', 400, expireAt + 1)
+    await writeEntry(cacheDir, 'empty', 0, expireAt + 2)
+    await writeEntry(cacheDir, 'valid-b', 400, expireAt + 3)
+
+    // Init must resolve (not reject) and simply skip the 0-byte entry.
+    const lru = await getOrInitDiskLRU(cacheDir, 1500, initEntries, rmEntry)
+
+    expect(lru.has('empty')).toBe(false)
+    expect(lru.has('valid-a')).toBe(true)
+    expect(lru.has('valid-b')).toBe(true)
+  })
 })

@@ -19,7 +19,7 @@ fn create_state_operation() -> Vc<Step> {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_invalidation_map() {
-    run(&REGISTRATION, || async {
+    run(&REGISTRATION, async || {
         let state_op = create_state_operation();
         let state_vc = state_op.resolve().strongly_consistent().await?;
         let state = state_op.read_strongly_consistent().await?;
@@ -99,7 +99,7 @@ async fn get_value(map: OperationVc<Map>, key: String) -> Result<Vc<GetValueResu
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_invalidation_set() {
-    run(&REGISTRATION, || async {
+    run(&REGISTRATION, async || {
         let state_op = create_state_operation();
         let state_vc = state_op.resolve().strongly_consistent().await?;
         let state = state_op.read_strongly_consistent().await?;

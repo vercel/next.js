@@ -334,6 +334,7 @@ export default async function getBaseWebpackConfig(
     dev = false,
     entrypoints,
     deferredEntrypoints,
+    deferredEntrySourceDirectories,
     isDevFallback = false,
     pagesDir,
     rewrites,
@@ -361,6 +362,7 @@ export default async function getBaseWebpackConfig(
     dev?: boolean
     entrypoints: webpack.EntryObject
     deferredEntrypoints?: webpack.EntryObject
+    deferredEntrySourceDirectories?: string[]
     isDevFallback?: boolean
     pagesDir: string | undefined
     rewrites: CustomRoutes['rewrites']
@@ -2018,6 +2020,7 @@ export default async function getBaseWebpackConfig(
           dev,
           config,
           deferredEntrypoints,
+          deferredEntrySourceDirectories,
         }),
       isNodeServer &&
         new bundler.NormalModuleReplacementPlugin(

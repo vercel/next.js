@@ -1,11 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
-const enableNewScrollHandler =
-  process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER !== 'false'
-
-// The new handler leaves focus on the clicked link; the old handler focuses the
-// navigated segment.
 describe('navigation-focus', () => {
   const { next } = nextTestSetup({
     files: __dirname,
@@ -18,17 +13,9 @@ describe('navigation-focus', () => {
     await retry(async () => {
       // Good debug info is a moving target. Use Playwright traces to find out
       // what was focused if this fails
-      if (enableNewScrollHandler) {
-        expect(
-          await browser.eval(() => document.activeElement.getAttribute('href'))
-        ).toBe('/interactive-segment')
-      } else {
-        expect(
-          await browser.eval(() =>
-            document.activeElement.getAttribute('data-testid')
-          )
-        ).toBe('segment-container')
-      }
+      expect(
+        await browser.eval(() => document.activeElement.getAttribute('href'))
+      ).toBe('/interactive-segment')
     })
   })
 
@@ -37,17 +24,9 @@ describe('navigation-focus', () => {
     await browser.elementByCss('a[href="/scrollable-segment"]').click()
 
     await retry(async () => {
-      if (enableNewScrollHandler) {
-        expect(
-          await browser.eval(() => document.activeElement.getAttribute('href'))
-        ).toBe('/scrollable-segment')
-      } else {
-        expect(
-          await browser.eval(() =>
-            document.activeElement.getAttribute('data-testid')
-          )
-        ).toBe('segment-container')
-      }
+      expect(
+        await browser.eval(() => document.activeElement.getAttribute('href'))
+      ).toBe('/scrollable-segment')
     })
   })
 

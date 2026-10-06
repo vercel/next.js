@@ -1,0 +1,1 @@
+An unrelated nested application asset must never be traced from the package.

@@ -8,7 +8,7 @@ use anyhow::{Context, Result, bail};
 use futures_util::{StreamExt, TryStreamExt};
 use next_api::{
     entrypoints::Entrypoints,
-    project::{HmrTarget, ProjectContainer, ProjectOptions},
+    project::{ProjectContainer, ProjectOptions},
     route::{Endpoint, EndpointOutputPaths, Route, endpoint_write_to_disk},
 };
 use turbo_rcstr::{RcStr, rcstr};
@@ -204,6 +204,7 @@ pub async fn render_routes(
                         Route::AppRoute {
                             original_name: _,
                             endpoint,
+                            ..
                         } => {
                             endpoint_write_to_disk_with_apply(endpoint).await?;
                         }
@@ -292,7 +293,7 @@ async fn hmr(
 
     #[turbo_tasks::function(operation, root)]
     fn project_hmr_chunk_names_operation(project: ResolvedVc<ProjectContainer>) -> Vc<Vec<RcStr>> {
-        project.hmr_chunk_names(HmrTarget::Client)
+        project.hmr_chunk_names()
     }
 
     let idents = tt
@@ -316,10 +317,8 @@ async fn hmr(
             let ident = ident_for_task.clone();
             async move {
                 let project = project.project();
-                let state = project.hmr_version_state(ident.clone(), HmrTarget::Client, session);
-                project
-                    .hmr_update(ident.clone(), HmrTarget::Client, state)
-                    .await?;
+                let state = project.hmr_version_state(ident.clone(), session);
+                project.hmr_update(ident.clone(), state).await?;
                 Ok(Vc::<()>::cell(()))
             }
         });

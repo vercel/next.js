@@ -1,21 +1,37 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
+import type { CacheWrite } from './cache-writes'
 
 const isoDateRegExp = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// Skip deployment so we can test the custom cache handlers log output
+// @force-gate !deploy
 describe('use-cache-custom-handler', () => {
-  const { next, skipped, isNextStart } = nextTestSetup({
+  const { next, isNextStart } = nextTestSetup({
     files: __dirname,
-    // Skip deployment so we can test the custom cache handlers log output
-    skipDeployment: true,
   })
-
-  if (skipped) return
 
   let outputIndex: number
 
   beforeEach(() => {
     outputIndex = next.cliOutput.length
+  })
+
+  it('uses the custom handler for the first request during startup', async () => {
+    const $ = await next.render$('/registration')
+    expect($('#data').text()).toBe('registration')
+
+    await retry(async () => {
+      const writes: CacheWrite[] = await next
+        .fetch('/cache-writes')
+        .then((response) => response.json())
+      expect(writes).toContainEqual(
+        expect.objectContaining({
+          tags: expect.arrayContaining(['registration']),
+        })
+      )
+    }, 3000)
   })
 
   it('should use a modern custom cache handler if provided', async () => {
@@ -27,15 +43,10 @@ describe('use-cache-custom-handler', () => {
 
     expect(cliOutput).toContain('ModernCustomCacheHandler::refreshTags')
 
-    // In development the cache key carries a trailing HMR refresh hash element
-    // (absent in production), so the args array may be followed by an optional
-    // quoted hash.
+    // The implementation parts contain either the code hash and version or the
+    // build ID, followed by an optional HMR refresh hash in development.
     expect(next.cliOutput.slice(outputIndex)).toMatch(
-      /ModernCustomCacheHandler::get \["(development|[A-Za-z0-9_-]+)","([0-9a-f]{2})+",\[\](,"[^"]+")?\] \[ '_N_T_\/layout', '_N_T_\/page', '_N_T_\/', '_N_T_\/index' \]/
-    )
-
-    expect(next.cliOutput.slice(outputIndex)).toMatch(
-      /ModernCustomCacheHandler::set \["(development|[A-Za-z0-9_-]+)","([0-9a-f]{2})+",\[\](,"[^"]+")?\]/
+      /ModernCustomCacheHandler::get \["([0-9a-f]{2})+",\[\],\["(development|[A-Za-z0-9_-]+)"(,"[^"]+")*\]\] \[ '_N_T_\/layout', '_N_T_\/page', '_N_T_\/', '_N_T_\/index' \]/
     )
 
     // Since no existing cache entry was retrieved, we don't need to call
@@ -126,34 +137,110 @@ describe('use-cache-custom-handler', () => {
     })
   })
 
+  it('should call updateTags once per profile group', async () => {
+    const browser = await next.browser(`/`)
+
+    outputIndex = next.cliOutput.length
+
+    await browser.elementById('revalidate-multiple-profiles').click()
+
+    await retry(async () => {
+      const cliOutput = next.cliOutput.slice(outputIndex)
+      expect(cliOutput).toInclude(
+        'ModernCustomCacheHandler::updateTags ["modern"]'
+      )
+      expect(cliOutput).toInclude(
+        'ModernCustomCacheHandler::updateTags ["other"]'
+      )
+    })
+  })
+
   if (isNextStart) {
     it('should save a short-lived cache during prerendering at buildtime', async () => {
       expect(next.cliOutput).toMatch(
-        /ModernCustomCacheHandler::set \["[A-Za-z0-9_-]+","([0-9a-f]{2})+",\[{"id":"dynamic-cache"}]\]/
+        /ModernCustomCacheHandler::set \["([0-9a-f]{2})+",\[{"id":"dynamic-cache"}\],\["[A-Za-z0-9_-]+"(,"[^"]+")*\]\]/
       )
     })
   }
 
   it('should dedupe nested caches across different outer cache scopes, and still propagate cache life/tags correctly', async () => {
-    await next.fetch('/nested')
+    const $ = await next.render$('/nested')
+    const values = $('p#inner')
+      .map((_, element) => $(element).text())
+      .get()
+    expect(values).toHaveLength(2)
+    expect(values[0]).toBeTruthy()
+    expect(values[0]).toBe(values[1])
+
+    await retry(async () => {
+      const writes: CacheWrite[] = await next
+        .fetch('/cache-writes')
+        .then((response) => response.json())
+      const nestedWrites = writes.filter(({ tags }) =>
+        tags.some((tag) => ['inner', 'outer1', 'outer2'].includes(tag))
+      )
+      expect(new Set(nestedWrites.map(({ cacheKey }) => cacheKey)).size).toBe(3)
+      expect(nestedWrites).toEqual([
+        expect.objectContaining({
+          revalidate: 180,
+          expire: 300,
+          tags: ['inner'],
+        }),
+        expect.objectContaining({
+          revalidate: 180,
+          expire: 300,
+          tags: ['outer1', 'inner'],
+        }),
+        expect.objectContaining({
+          revalidate: 180,
+          expire: 300,
+          tags: ['outer2', 'inner'],
+        }),
+      ])
+    })
+  })
+
+  it('should reach the cache handler only once for sequential calls in a request', async () => {
+    const $ = await next.render$('/sequential-dedupe')
+
+    expect($('#first').text()).toBe($('#second').text())
 
     await retry(async () => {
       const cliOutput = next.cliOutput.slice(outputIndex)
 
-      expect(cliOutput).toIncludeRepeated(
-        `ModernCustomCacheHandler::set-resolved-entry revalidate: 180, expire: 300, tags: inner`,
-        1
-      )
+      // The first call misses and fills. The second is served from the entry
+      // retained for this request, so it never reaches the handler, which for a
+      // registered handler can be a remote round trip.
+      expect(cliOutput).toIncludeRepeated(`ModernCustomCacheHandler::get`, 1)
 
+      // Matched up to the escaped opening bracket of the logged cache key,
+      // since `::set-resolved-entry` would otherwise count as another `::set`.
+      // The matcher compiles its argument as a regular expression.
       expect(cliOutput).toIncludeRepeated(
-        `ModernCustomCacheHandler::set-resolved-entry revalidate: 180, expire: 300, tags: outer1,inner`,
-        1
-      )
-
-      expect(cliOutput).toIncludeRepeated(
-        `ModernCustomCacheHandler::set-resolved-entry revalidate: 180, expire: 300, tags: outer2,inner`,
+        `ModernCustomCacheHandler::set \\[`,
         1
       )
     })
   })
+
+  if (isNextStart) {
+    it('handles a failed handler preload without an unhandled rejection', async () => {
+      await next.stop()
+      await next.start({
+        skipBuild: true,
+        env: { NEXT_TEST_FAIL_CUSTOM_CACHE_HANDLER: '1' },
+      })
+
+      await retry(() => {
+        expect(next.cliOutput).toContain('Failed to preload entries:')
+        expect(next.cliOutput).toContain(
+          'test custom cache handler failed to load'
+        )
+      })
+
+      const response = await next.fetch('/registration')
+      expect(response.status).toBe(500)
+      expect(next.cliOutput).not.toContain('unhandledRejection:')
+    })
+  }
 })

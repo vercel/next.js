@@ -4,14 +4,20 @@ import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolv
 export enum RenderStage {
   Before = 1,
   //
-  ShellStatic = 11,
-  Static = 13,
+  ShellStatic = 10,
+  /** Discrimination-only stage: `prefetch()` in validation renders (static) */
+  PrefetchStatic_prefetchApi = 11,
+  PrefetchStatic = 12,
+  NavigationStatic = 13,
+  Static = 14,
   //
-  ShellRuntime = 21,
-  Runtime = 23,
+  ShellRuntime = 20,
+  /** Discrimination-only stage: `prefetch()` in validation renders (runtime) */
+  PrefetchRuntime_prefetchApi = 21,
+  PrefetchRuntime = 22,
+  NavigationRuntime = 23,
   //
   Dynamic = 30,
-  //
   Abandoned = 40,
 }
 
@@ -22,10 +28,15 @@ export type AdvanceableRenderStage = Exclude<
 
 export const RENDER_STAGE_ADVANCE_ORDER: AdvanceableRenderStage[] = [
   RenderStage.ShellStatic,
+  RenderStage.PrefetchStatic_prefetchApi,
+  RenderStage.PrefetchStatic,
+  RenderStage.NavigationStatic,
   RenderStage.Static,
   //
   RenderStage.ShellRuntime,
-  RenderStage.Runtime,
+  RenderStage.PrefetchRuntime_prefetchApi,
+  RenderStage.PrefetchRuntime,
+  RenderStage.NavigationRuntime,
   //
   RenderStage.Dynamic,
 ]
@@ -63,15 +74,8 @@ export class StagedRenderingController {
 
   syncInterruptReason: Error | null = null
 
-  triggers: Record<AdvanceableRenderStage, StageTrigger> = {
-    [RenderStage.ShellStatic]: createStageTrigger(),
-    [RenderStage.Static]: createStageTrigger(),
-    //
-    [RenderStage.ShellRuntime]: createStageTrigger(),
-    [RenderStage.Runtime]: createStageTrigger(),
-    //
-    [RenderStage.Dynamic]: createStageTrigger(),
-  }
+  triggers: Record<AdvanceableRenderStage, StageTrigger> =
+    createAdvanceableStageTriggers()
 
   constructor({
     abortSignal,
@@ -115,41 +119,39 @@ export class StagedRenderingController {
     }
   }
 
+  /**
+   * Schedules a callback that will execute synchronously when the controller is advanced
+   * to `stage` or past it, before any promises for that stage are resolved.
+   * If the controller is already past `stage`, the callback is executed immediately.
+   * */
   onStage(stage: AdvanceableRenderStage, callback: () => void) {
     addSyncTriggerListener(this.triggers[stage], callback)
   }
 
   shouldTrackSyncInterrupt(): boolean {
-    if (this.syncIOMode === SyncIOMode.Untracked) {
-      return false
-    }
-
-    switch (this.currentStage) {
-      case RenderStage.Before:
-        // If we haven't started the render yet, it can't be interrupted.
+    const { syncIOMode, currentStage } = this
+    switch (syncIOMode) {
+      case SyncIOMode.Untracked: {
         return false
-      case RenderStage.ShellStatic:
-      case RenderStage.Static:
-        return true
-      case RenderStage.ShellRuntime:
-      case RenderStage.Runtime: {
-        switch (this.syncIOMode) {
-          case SyncIOMode.AllowedInRuntimeOrDynamic: {
-            // Before `partialPrefetching`: Sync IO only errors in static stages.
-            return false
-          }
-          case SyncIOMode.AllowedInDynamic: {
-            return true
-          }
-        }
-        // NOT a fallthrough, but eslint doesn't understand that
       }
-      case RenderStage.Dynamic:
-      case RenderStage.Abandoned:
-        return false
-      default:
-        this.currentStage satisfies never
-        return false
+      case SyncIOMode.AllowedInRuntimeOrDynamic: {
+        // Legacy: track Sync IO only in static stages.
+        // Do not track it before the render, or in runtime/dynamic stages.
+        return (
+          currentStage > RenderStage.Before &&
+          currentStage <= RenderStage.Static
+        )
+      }
+      case SyncIOMode.AllowedInDynamic: {
+        // Track sync IO in all cacheable stages.
+        // This means all stages except:
+        // - before the render
+        // - in the dynamic stage
+        return (
+          currentStage > RenderStage.Before &&
+          currentStage < RenderStage.Dynamic
+        )
+      }
     }
   }
 
@@ -305,6 +307,17 @@ export class StagedRenderingController {
     }
     return promise
   }
+}
+
+function createAdvanceableStageTriggers(): Record<
+  AdvanceableRenderStage,
+  StageTrigger
+> {
+  const triggers: Partial<Record<AdvanceableRenderStage, StageTrigger>> = {}
+  for (const stage of RENDER_STAGE_ADVANCE_ORDER) {
+    triggers[stage] = createStageTrigger()
+  }
+  return triggers as Record<AdvanceableRenderStage, StageTrigger>
 }
 
 function ignoreReject() {}

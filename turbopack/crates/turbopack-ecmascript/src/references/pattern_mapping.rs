@@ -13,8 +13,8 @@ use swc_core::{
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, ResolvedVc, TryJoinIterExt, Vc, debug::ValueDebugFormat,
-    trace::TraceRawVcs,
+    FxIndexMap, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    debug::ValueDebugFormat,
 };
 use turbopack_core::{
     chunk::{ChunkableModule, ChunkingContext, ModuleChunkItemIdExt, ModuleId},
@@ -42,7 +42,7 @@ use crate::{
     utils::module_id_to_lit,
 };
 
-#[derive(PartialEq, Eq, ValueDebugFormat, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Encode, Decode)]
 pub(crate) enum SinglePatternMapping {
     /// Invalid request.
     Invalid,
@@ -94,7 +94,7 @@ pub(crate) enum PatternMapping {
 }
 
 #[turbo_tasks::task_input]
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, TraceRawVcs, Encode, Decode)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Encode, Decode)]
 pub(crate) enum ResolveType {
     AsyncChunkLoader,
     ChunkItem,
@@ -137,6 +137,34 @@ impl SinglePatternMapping {
             Self::External(request, ty) => throw_module_not_found_error_expr(
                 request,
                 &format!("Unsupported external type {ty:?} for commonjs reference"),
+            ),
+        }
+    }
+
+    /// Like [`Self::create_require`], but evaluates to the ESM *namespace* of the
+    /// module instead of its CommonJS `exports` object, so that the CommonJS
+    /// interop applies. This is what a static `import * as ns from "..."`
+    /// produces, and it is the difference between a JSON (or CommonJS) module
+    /// having a `default` export and not having one.
+    pub fn create_esm_require(&self, key_expr: Cow<'_, Expr>) -> Expr {
+        match self {
+            Self::Invalid => self.create_id(key_expr),
+            Self::Unresolvable(request) => throw_module_not_found_expr(request),
+            Self::Ignored => quote!("{}" as Expr),
+            Self::Dropped => quote!("0" as Expr),
+            Self::Module(_) | Self::ModuleLoader(_) => quote!(
+                "$turbopack_import($arg)" as Expr,
+                turbopack_import: Expr = TURBOPACK_IMPORT.into(),
+                arg: Expr = self.create_id(key_expr)
+            ),
+            Self::External(request, ExternalType::CommonJs) => quote!(
+                "$turbopack_external_require($arg, () => require($arg), true)" as Expr,
+                turbopack_external_require: Expr = TURBOPACK_EXTERNAL_REQUIRE.into(),
+                arg: Expr = request.as_str().into()
+            ),
+            Self::External(request, ty) => throw_module_not_found_error_expr(
+                request,
+                &format!("Unsupported external type {ty:?} for esm reference"),
             ),
         }
     }
@@ -346,7 +374,9 @@ async fn to_single_pattern_mapping(
             ))
             .await;
         }
-        ModuleResolveResultItem::Empty | ModuleResolveResultItem::Custom(_) => {
+        // `false` alias — no backing asset, produces the same empty-stub code as Ignored.
+        ModuleResolveResultItem::Empty => return Ok(SinglePatternMapping::Ignored),
+        ModuleResolveResultItem::Custom(_) => {
             // TODO implement mapping
             CodeGenerationIssue {
                 severity: IssueSeverity::Bug,
@@ -392,11 +422,16 @@ async fn to_single_pattern_mapping(
         }
     }
     CodeGenerationIssue {
-        severity: IssueSeverity::Bug,
+        severity: IssueSeverity::Error,
         title: StyledString::Text(rcstr!("non-ecmascript placeable asset")).resolved_cell(),
-        message: StyledString::Text(rcstr!(
-            "asset is not placeable in ESM chunks, so it doesn't have a module id"
-        ))
+        message: StyledString::Text(
+            format!(
+                "{} is not placeable in ESM chunks, so it doesn't have a module id and can't be \
+                 imported here. Only modules that are compiled to JavaScript can be imported.",
+                module.ident().to_string().await?
+            )
+            .into(),
+        )
         .resolved_cell(),
         path: origin.into_trait_ref().await?.origin_path(),
         source: None,
@@ -460,7 +495,7 @@ impl PatternMapping {
                     .collect();
                 let map = items
                     .into_iter()
-                    .map(|(k, v)| async move {
+                    .map(async |(k, v)| {
                         let single_pattern_mapping = to_single_pattern_mapping(
                             origin,
                             chunking_context,

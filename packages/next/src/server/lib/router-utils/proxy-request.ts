@@ -5,7 +5,7 @@ import type { NextUrlWithParsedQuery } from '../../request-meta'
 import url from 'url'
 import { stringifyQuery } from '../../server-route-utils'
 import { Duplex } from 'stream'
-import { DetachedPromise } from '../../../lib/detached-promise'
+import { createPromiseWithResolvers } from '../../../shared/lib/promise-with-resolvers'
 
 export async function proxyRequest(
   req: IncomingMessage,
@@ -80,7 +80,7 @@ export async function proxyRequest(
     innerRes.once('close', cleanup)
   })
 
-  const detached = new DetachedPromise<boolean>()
+  const detached = createPromiseWithResolvers<boolean>()
 
   const onProxyError = (err: Error) => {
     if (!finished) {

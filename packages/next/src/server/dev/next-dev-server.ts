@@ -7,7 +7,6 @@ import type { ParsedUrlQuery } from 'querystring'
 import type { UrlWithParsedQuery } from 'url'
 import type { MiddlewareRoutingItem } from '../base-server'
 import type { RouteDefinition } from '../route-definitions/route-definition'
-import type { RouteMatcherManager } from '../route-matcher-managers/route-matcher-manager'
 
 import {
   addRequestMeta,
@@ -19,7 +18,6 @@ import type { DevBundlerService } from '../lib/dev-bundler-service'
 import type { IncrementalCache } from '../lib/incremental-cache'
 import type { UnwrapPromise } from '../../lib/coalesced-function'
 import type { NodeNextResponse, NodeNextRequest } from '../base-http/node'
-import type { RouteEnsurer } from '../route-matcher-managers/dev-route-matcher-manager'
 import type { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
 
 import * as React from 'react'
@@ -62,17 +60,9 @@ import isError, { getProperError } from '../../lib/is-error'
 import { defaultConfig, type NextConfigComplete } from '../config-shared'
 import { isMiddlewareFile } from '../../build/utils'
 import { formatServerError } from '../../lib/format-server-error'
-import { DevRouteMatcherManager } from '../route-matcher-managers/dev-route-matcher-manager'
-import { DevPagesRouteMatcherProvider } from '../route-matcher-providers/dev/dev-pages-route-matcher-provider'
-import { DevPagesAPIRouteMatcherProvider } from '../route-matcher-providers/dev/dev-pages-api-route-matcher-provider'
-import { DevAppPageRouteMatcherProvider } from '../route-matcher-providers/dev/dev-app-page-route-matcher-provider'
-import { DevAppRouteRouteMatcherProvider } from '../route-matcher-providers/dev/dev-app-route-route-matcher-provider'
-import { NodeManifestLoader } from '../route-matcher-providers/helpers/manifest-loaders/node-manifest-loader'
-import { BatchedFileReader } from '../route-matcher-providers/dev/helpers/file-reader/batched-file-reader'
-import { DefaultFileReader } from '../route-matcher-providers/dev/helpers/file-reader/default-file-reader'
 import { LRUCache } from '../lib/lru-cache'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
-import { DetachedPromise } from '../../lib/detached-promise'
+import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
 import {
   isUnhandledRejectionListenerRegistered,
   registerUnhandledRejectionListener,
@@ -91,7 +81,6 @@ import {
 } from '../lib/router-utils/instrumentation-globals.external'
 import type { PrerenderManifest } from '../../build'
 import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
-import type { PrerenderedRoute } from '../../build/static-paths/types'
 import { HMR_MESSAGE_SENT_TO_BROWSER } from './hot-reloader-types'
 import { registerLocalSpanRecorder } from '../lib/trace/local-span-recorder'
 
@@ -106,6 +95,14 @@ const ReactDevOverlay: PagesDevOverlayBridgeType = (props) => {
     ).PagesDevOverlayBridge
   }
   return React.createElement(PagesDevOverlayBridgeImpl, props)
+}
+
+function requireManifest(id: string) {
+  try {
+    return require(id)
+  } catch {
+    return null
+  }
 }
 
 export interface Options extends ServerOptions {
@@ -135,7 +132,7 @@ export default class DevServer extends Server {
    * The promise that resolves when the server is ready. When this is unset
    * the server is ready.
    */
-  private ready? = new DetachedPromise<void>()
+  private ready? = createPromiseWithResolvers<void>()
   protected sortedRoutes?: string[]
   private pagesDir?: string
   private appDir?: string
@@ -265,90 +262,6 @@ export default class DevServer extends Server {
     return this.bundlerService.getServerComponentsHmrRefreshHash()
   }
 
-  protected getRouteMatchers(): RouteMatcherManager {
-    const { pagesDir, appDir } = findPagesDir(this.dir)
-
-    const ensurer: RouteEnsurer = {
-      ensure: async (match, pathname) => {
-        await this.ensurePage({
-          definition: match.definition,
-          page: match.definition.page,
-          clientOnly: false,
-          url: pathname,
-        })
-      },
-    }
-
-    const matchers = new DevRouteMatcherManager(
-      super.getRouteMatchers(),
-      ensurer,
-      this.dir
-    )
-    const extensions = this.nextConfig.pageExtensions
-    const extensionsExpression = new RegExp(`\\.(?:${extensions.join('|')})$`)
-
-    // If the pages directory is available, then configure those matchers.
-    if (pagesDir) {
-      const fileReader = new BatchedFileReader(
-        new DefaultFileReader({
-          // Only allow files that have the correct extensions.
-          pathnameFilter: (pathname) => extensionsExpression.test(pathname),
-        })
-      )
-
-      matchers.push(
-        new DevPagesRouteMatcherProvider(
-          pagesDir,
-          extensions,
-          fileReader,
-          this.localeNormalizer
-        )
-      )
-      matchers.push(
-        new DevPagesAPIRouteMatcherProvider(
-          pagesDir,
-          extensions,
-          fileReader,
-          this.localeNormalizer
-        )
-      )
-    }
-
-    if (appDir) {
-      // We create a new file reader for the app directory because we don't want
-      // to include any folders or files starting with an underscore. This will
-      // prevent the reader from wasting time reading files that we know we
-      // don't care about.
-      const fileReader = new BatchedFileReader(
-        new DefaultFileReader({
-          // Ignore any directory prefixed with an underscore.
-          ignorePartFilter: (part) => part.startsWith('_'),
-        })
-      )
-
-      // TODO: Improve passing of "is running with Turbopack"
-      const isTurbopack = !!process.env.TURBOPACK
-      matchers.push(
-        new DevAppPageRouteMatcherProvider(
-          appDir,
-          extensions,
-          fileReader,
-          isTurbopack
-        )
-      )
-      matchers.push(
-        new DevAppRouteRouteMatcherProvider(
-          appDir,
-          extensions,
-          fileReader,
-          isTurbopack
-        )
-      )
-    }
-
-    return matchers
-  }
-
   protected getBuildId(): string {
     return 'development'
   }
@@ -365,7 +278,6 @@ export default class DevServer extends Server {
       existingTelemetry || new Telemetry({ distDir: this.distDir })
 
     await super.prepareImpl()
-    await this.matchers.reload()
 
     this.ready?.resolve()
     this.ready = undefined
@@ -492,8 +404,7 @@ export default class DevServer extends Server {
         request.url.includes('/_next/static') ||
         request.url.includes('/__nextjs_attach-nodejs-inspector') ||
         request.url.includes('/__nextjs_original-stack-frame') ||
-        request.url.includes('/__nextjs_source-map') ||
-        request.url.includes('/__nextjs_error_feedback')
+        request.url.includes('/__nextjs_source-map')
       ) {
         return { finished: false }
       }
@@ -687,9 +598,7 @@ export default class DevServer extends Server {
 
   protected getPagesManifest(): PagesManifest | undefined {
     return (
-      NodeManifestLoader.require(
-        pathJoin(this.serverDistDir, PAGES_MANIFEST)
-      ) ?? undefined
+      requireManifest(pathJoin(this.serverDistDir, PAGES_MANIFEST)) ?? undefined
     )
   }
 
@@ -697,9 +606,8 @@ export default class DevServer extends Server {
     if (!this.enabledDirectories.app) return undefined
 
     return (
-      NodeManifestLoader.require(
-        pathJoin(this.serverDistDir, APP_PATHS_MANIFEST)
-      ) ?? undefined
+      requireManifest(pathJoin(this.serverDistDir, APP_PATHS_MANIFEST)) ??
+      undefined
     )
   }
 
@@ -824,11 +732,7 @@ export default class DevServer extends Server {
     requestHeaders: IncrementalCache['requestHeaders']
     page: string
     isAppPath: boolean
-  }): Promise<{
-    prerenderedRoutes?: PrerenderedRoute[]
-    staticPaths?: string[]
-    fallbackMode?: FallbackMode
-  }> {
+  }): ReturnType<Server['getStaticPaths']> {
     // we lazy load the staticPaths to prevent the user
     // from waiting on them for the page to load in dev mode
 
@@ -843,9 +747,9 @@ export default class DevServer extends Server {
           distDir: this.distDir,
           pathname,
           config: {
-            pprConfig: this.nextConfig.experimental.ppr,
             configFileName,
             cacheComponents: Boolean(this.nextConfig.cacheComponents),
+            partialPrefetching: Boolean(this.nextConfig.partialPrefetching),
           },
           httpAgentOptions,
           locales,
@@ -862,8 +766,10 @@ export default class DevServer extends Server {
           nextConfigOutput: this.nextConfig.output,
           buildId: this.buildId,
           deploymentId: this.deploymentId,
-          authInterrupts: Boolean(this.nextConfig.experimental.authInterrupts),
           useCacheTimeout: this.nextConfig.experimental.useCacheTimeout,
+          durableUseCacheEntries: Boolean(
+            this.nextConfig.experimental.durableUseCacheEntries
+          ),
           staticPageGenerationTimeout:
             this.nextConfig.staticPageGenerationTimeout,
           sriEnabled: Boolean(this.nextConfig.experimental.sri?.algorithm),
@@ -881,7 +787,12 @@ export default class DevServer extends Server {
       []
     )
       .then(async (res) => {
-        const { prerenderedRoutes, fallbackMode: fallback } = res.value
+        const {
+          prerenderedRoutes,
+          prerenderRouteMatchers,
+          fallbackMode: fallback,
+          paramMatching,
+        } = res.value
 
         if (isAppPath) {
           if (this.nextConfig.output === 'export') {
@@ -913,17 +824,13 @@ export default class DevServer extends Server {
           }
         }
 
-        const value: {
-          staticPaths: string[] | undefined
-          prerenderedRoutes: PrerenderedRoute[] | undefined
-          fallbackMode: FallbackMode | undefined
-        } = {
+        const value = {
+          ...res.value,
           staticPaths: prerenderedRoutes?.map((route) => route.pathname),
-          prerenderedRoutes,
-          fallbackMode: fallback,
         }
 
         if (
+          paramMatching === undefined &&
           res.value?.fallbackMode !== undefined &&
           // This matches the hasGenerateStaticParams logic we do during build.
           (!isAppPath || (prerenderedRoutes && prerenderedRoutes.length > 0))
@@ -944,9 +851,10 @@ export default class DevServer extends Server {
           // the route whose pathname matches the page pattern (e.g.
           // /dynamic-params/[slug]) and has fallback route params describing
           // which params are unknown at build time.
-          const fallbackPrerenderedRoute = prerenderedRoutes?.find(
-            (route) => route.pathname === pathname
-          )
+          const fallbackRoute =
+            prerenderRouteMatchers?.find(
+              (route) => route.pathname === pathname
+            ) ?? prerenderedRoutes?.find((route) => route.pathname === pathname)
 
           existingManifest.dynamicRoutes[pathname] = {
             dataRoute: null,
@@ -956,8 +864,8 @@ export default class DevServer extends Server {
             fallbackExpire: undefined,
             fallbackHeaders: undefined,
             fallbackStatus: undefined,
-            fallbackRootParams: fallbackPrerenderedRoute?.fallbackRootParams,
-            fallbackRouteParams: fallbackPrerenderedRoute?.fallbackRouteParams,
+            fallbackRootParams: fallbackRoute?.fallbackRootParams,
+            fallbackRouteParams: fallbackRoute?.fallbackRouteParams,
             fallbackSourceRoute: pathname,
             prefetchDataRoute: undefined,
             prefetchDataRouteRegex: undefined,
@@ -978,12 +886,12 @@ export default class DevServer extends Server {
         }
         this.staticPathsCache.set(pathname, value)
 
-        // Since generateStaticParams runs in the background, the fallbackParams
-        // accessed during a render are derived from the previous result served
-        // by the static paths cache. Now that the cache holds the new result,
-        // trigger a refresh so the next render picks up the new fallbackParams
-        // (e.g. so blocking-route validation reflects params that just became
-        // statically known).
+        // Since generateStaticParams runs in the background, the
+        // stagedFallbackParams accessed during a render are derived from the
+        // previous result served by the static paths cache. Now that the cache
+        // holds the new result, trigger a refresh so the next render picks up
+        // the new stagedFallbackParams (e.g. so blocking-route validation
+        // reflects params that just became statically known).
         if (
           isAppPath &&
           this.nextConfig.cacheComponents &&
