@@ -229,6 +229,17 @@ impl SnapshotReason {
     }
 }
 
+/// The outcome of the last persistence cycle. The backend starts at `Ok` in its constructor.
+///
+/// `Failed` is sticky: a failed persist (an error or a panic) leaves the task graph and the
+/// database out of sync (e.g. `save_snapshot` already consumed `persisted_task_cache_log`
+/// entries), so persisting stays disabled for the rest of the session.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum LastPersistenceStatus {
+    Ok,
+    Failed,
+}
+
 pub struct TurboTasksBackend {
     options: BackendOptions,
 
@@ -246,7 +257,9 @@ pub struct TurboTasksBackend {
     /// `begin_exclusion` asserts that exclusive phases don't overlap; this mutex
     /// enforces that contract for our callers (background loop and
     /// `stop_and_wait`).
-    snapshot_in_progress: Mutex<()>,
+    ///
+    /// Also holds the [`LastPersistenceStatus`], which disables persisting after a failure.
+    snapshot_in_progress: Mutex<LastPersistenceStatus>,
 
     /// Experimental feature to enable dead tasks to be deleted from storage and ram.
     gc_enabled: bool,
@@ -354,7 +367,7 @@ impl TurboTasksBackend {
                 small_preallocation,
             }),
             snapshot_coord: SnapshotCoordinator::new(),
-            snapshot_in_progress: Mutex::new(()),
+            snapshot_in_progress: Mutex::new(LastPersistenceStatus::Ok),
             stopping: RwLock::new(false),
             stopping_event: Event::new(|| || "TurboTasksBackend::stopping_event".to_string()),
             idle_start_event: Event::new(|| || "TurboTasksBackend::idle_start_event".to_string()),
@@ -429,8 +442,9 @@ impl TurboTasksBackend {
         let snapshot_result = self.snapshot_and_persist(None, SnapshotReason::Test, turbo_tasks);
         let (had_new_data, gc_outcome) = match snapshot_result {
             Ok(Some((_, new_data, gc_outcome))) => (new_data, gc_outcome),
-            Ok(None) => unreachable!("test snapshots wait for operations to settle"),
-            Err(_) => {
+            // Test snapshots wait for operations to settle, so `None` means persisting is
+            // disabled after an earlier failure.
+            Ok(None) | Err(_) => {
                 // Snapshot/persist failed — skip eviction since the data may not
                 // be on disk yet. Evicting now could lose in-memory state that
                 // can't be restored.
@@ -1153,14 +1167,41 @@ impl TurboTasksBackend {
 
     /// Runs a persistence cycle
     ///
-    /// Returns `None` if the cycle was skipped because operations were active and the reason
-    /// doesn't [wait for them](SnapshotReason::waits_for_operations). Otherwise returns
+    /// Returns `None` if the cycle was skipped: persisting is disabled after an earlier failure, or
+    /// operations were active and the reason doesn't
+    /// [wait for them](SnapshotReason::waits_for_operations). Otherwise returns
     /// `(snapshot_start, had_new_data, gc_outcome)`. `gc_outcome` is `None` when GC is
     /// disabled; it is returned rather than stashed on `self` so a test can inspect the pass it
     /// just triggered without the backend carrying test-only state. Production reads the same
     /// numbers off the `gc` span.
+    ///
+    /// A failure (an error or a panic) disables persisting for the rest of the session: later
+    /// calls return `None` without starting a snapshot or GC.
     #[allow(clippy::type_complexity, reason = "only used for tests")]
     fn snapshot_and_persist(
+        &self,
+        parent_span: Option<tracing::Id>,
+        reason: SnapshotReason,
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+    ) -> Result<Option<(Instant, bool, Option<(GcStats, GcPassResult)>)>> {
+        // Serialize snapshots and GC for the entire persistence cycle.
+        let mut status = self.snapshot_in_progress.lock();
+        if *status == LastPersistenceStatus::Failed {
+            return Ok(None);
+        }
+        // Mark the cycle failed up front and only reset it on success: encoding failures panic,
+        // and a panic unwinds past any post-call check (`parking_lot` mutexes don't poison).
+        *status = LastPersistenceStatus::Failed;
+        let result = self.snapshot_and_persist_locked(parent_span, reason, turbo_tasks);
+        if result.is_ok() {
+            *status = LastPersistenceStatus::Ok;
+        }
+        result
+    }
+
+    /// [`Self::snapshot_and_persist`], called while holding `snapshot_in_progress`.
+    #[allow(clippy::type_complexity, reason = "only used for tests")]
+    fn snapshot_and_persist_locked(
         &self,
         parent_span: Option<tracing::Id>,
         reason: SnapshotReason,
@@ -1169,8 +1210,6 @@ impl TurboTasksBackend {
         let snapshot_span =
             tracing::trace_span!(parent: parent_span.clone(), "snapshot", reason = reason.as_str())
                 .entered();
-        // Serialize snapshots and GC for the entire persistence cycle.
-        let _snapshot_in_progress = self.snapshot_in_progress.lock();
 
         // One exclusion covers the GC pass and the snapshot that follows it, so the collected
         // tasks' tombstones (derived from the `deleted` flag) ride this same commit and no
@@ -3916,4 +3955,59 @@ fn far_future() -> Instant {
     // or convert specific date in the future to instant.
     // 1000 years overflows on macOS, 100 years overflows on FreeBSD.
     Instant::now() + Duration::from_secs(86400 * 365 * 30)
+}
+
+#[cfg(test)]
+mod persist_failure_tests {
+    use turbo_tasks::{TaskId, TurboTasks};
+
+    use crate::{
+        backend::{
+            BackendOptions, LastPersistenceStatus, SnapshotReason, StorageMode, TurboTasksBackend,
+            storage::SpecificTaskDataCategory,
+        },
+        noop_backing_storage,
+    };
+
+    /// A failed persist (the noop backing storage rejects writes) disables persisting for the
+    /// session: a later snapshot doesn't start, so it leaves the task's modification as it is.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn failed_persist_disables_persisting() {
+        let tt = TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions {
+                storage_mode: Some(StorageMode::ReadWrite),
+                num_workers: Some(1),
+                small_preallocation: true,
+                ..Default::default()
+            },
+            noop_backing_storage(),
+        ));
+        let backend = tt.backend();
+        let modify = |id: u32| {
+            let task_id = TaskId::new(id).unwrap();
+            let mut task = backend.storage.access_mut(task_id);
+            let _ = task.track_modification(SpecificTaskDataCategory::Data, "test");
+            task_id
+        };
+
+        let status = || *backend.snapshot_in_progress.lock();
+
+        modify(1);
+        assert_eq!(status(), LastPersistenceStatus::Ok);
+        let _ = backend.snapshot_and_evict_for_testing(&tt);
+        assert_eq!(status(), LastPersistenceStatus::Failed);
+
+        let task_id = modify(2);
+        let result = backend
+            .snapshot_and_persist(None, SnapshotReason::Test, &tt)
+            .expect("a disabled persist is skipped, not an error");
+        assert!(result.is_none(), "persisting must stay disabled");
+        assert_eq!(status(), LastPersistenceStatus::Failed);
+        let task = backend.storage.access_mut(task_id);
+        assert!(
+            task.flags.data_modified(),
+            "the second snapshot must not start"
+        );
+        assert!(!task.flags.any_modified_during_snapshot());
+    }
 }
