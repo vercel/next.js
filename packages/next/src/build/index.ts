@@ -1775,6 +1775,9 @@ export default async function build(
       )
 
       const isAppCacheComponentsEnabled = Boolean(config.cacheComponents)
+      const isAuthInterruptsEnabled = Boolean(
+        config.experimental.authInterrupts
+      )
       const isAppPPREnabled = isAppCacheComponentsEnabled
 
       const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
@@ -2393,6 +2396,7 @@ export default async function build(
               configFileName,
               cacheComponents: isAppCacheComponentsEnabled,
               partialPrefetching: config.partialPrefetching,
+              authInterrupts: isAuthInterruptsEnabled,
               useCacheTimeout: config.experimental.useCacheTimeout,
               durableUseCacheEntries: Boolean(
                 config.experimental.durableUseCacheEntries
@@ -2628,6 +2632,7 @@ export default async function build(
                             pageType,
                             cacheComponents: isAppCacheComponentsEnabled,
                             partialPrefetching: config.partialPrefetching,
+                            authInterrupts: isAuthInterruptsEnabled,
                             useCacheTimeout:
                               config.experimental.useCacheTimeout,
                             durableUseCacheEntries: Boolean(
