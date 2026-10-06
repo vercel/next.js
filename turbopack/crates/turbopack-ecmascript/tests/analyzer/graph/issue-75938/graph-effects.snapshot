@@ -5,6 +5,7 @@
             "useMemo",
         ),
         member: None,
+        namespace_access: None,
         ast_path: [
             Program(
                 Module,
@@ -257,6 +258,7 @@
             "jsx",
         ),
         member: None,
+        namespace_access: None,
         ast_path: [
             Program(
                 Module,
@@ -791,6 +793,7 @@
                                 "fooBar",
                             ),
                             member: None,
+                            namespace_access: None,
                             ast_path: [
                                 Program(
                                     Module,

@@ -5,6 +5,7 @@
             "default",
         ),
         member: None,
+        namespace_access: None,
         ast_path: [
             Program(
                 Module,
@@ -43,6 +44,7 @@
             "a",
         ),
         member: None,
+        namespace_access: None,
         ast_path: [
             Program(
                 Module,
@@ -79,6 +81,7 @@
         esm_reference_index: 6,
         export: None,
         member: None,
+        namespace_access: None,
         ast_path: [
             Program(
                 Module,
