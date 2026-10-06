@@ -4,18 +4,16 @@ description: Keep selected route output static as your app changes.
 nav_title: Keeping pages static
 related:
   title: API reference
-  description: Require static output across a route or defer request-specific work within one subtree.
+  description: Require static output across a route or defer work within one subtree.
   links:
     - app/api-reference/file-conventions/route-segment-config/ensureStatic
     - app/api-reference/functions/prefetch
     - app/api-reference/functions/navigation
 ---
 
-Before [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), route segment configs such as [`dynamic = 'force-static'`](/docs/app/guides/caching-without-cache-components#dynamic), `dynamic = 'force-dynamic'`, and `dynamic = 'error'` selected a rendering mode for an entire route. Cache Components lets one route combine prerendered UI, cached content, and request-specific content that renders later.
+Before [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), route segment configs such as [`dynamic = 'force-static'`](/docs/app/guides/caching-without-cache-components#dynamic), `dynamic = 'force-dynamic'`, and `dynamic = 'error'` selected a rendering mode for an entire route. Cache Components lets one route combine prerendered UI, cached content, and request-specific content rendered at request time.
 
-This flexibility is useful for routes that need personalization. However, you may still want some or all of a route to avoid request-time server rendering for predictable performance and compute costs.
-
-Use [`ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic) to require static output at the stages that matter for your route.
+This flexibility is useful for routes that need personalization. Use [`ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic) when some or all of a route must avoid request-time server rendering for predictable performance and compute costs.
 
 ## Decide what should stay static
 

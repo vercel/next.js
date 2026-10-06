@@ -10,8 +10,6 @@ related:
     - app/guides/optimizing-prefetching
     - app/api-reference/config/next-config-js/partialPrefetching
     - app/api-reference/file-conventions/route-segment-config/prefetch
-    - app/api-reference/functions/prefetch
-    - app/api-reference/functions/navigation
 ---
 
 [Partial Prefetching](/docs/app/glossary#partial-prefetching) changes what a `<Link>` downloads for a Cache Components route. With Partial Prefetching enabled, a `<Link>` prefetches the route's [App Shell](/docs/app/glossary#app-shell): its static content and the cached content that doesn't depend on the URL. Next.js builds one App Shell per route and reuses it for every link to that route, rather than prefetching each link separately as it did before.

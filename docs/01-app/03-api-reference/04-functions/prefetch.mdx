@@ -1,16 +1,14 @@
 ---
 title: prefetch
-description: API Reference for the prefetch function, which defers runtime work until a per-link prefetch or navigation.
+nav_title: prefetch()
+description: Defer runtime work until a per-link prefetch or navigation with the prefetch function.
 related:
   links:
+    - app/guides/optimizing-prefetching
     - app/guides/keeping-pages-static
-    - app/api-reference/file-conventions/route-segment-config/ensureStatic
     - app/api-reference/functions/navigation
     - app/api-reference/functions/connection
-    - app/guides/adopting-partial-prefetching
-    - app/api-reference/functions/io
     - app/api-reference/config/next-config-js/partialPrefetching
-    - app/api-reference/config/next-config-js/cacheComponents
 ---
 
 Calling `await prefetch()` keeps runtime work below it out of the route's [App Shell](/docs/app/glossary#app-shell). The work can run during a per-link prefetch or navigation, while the fallback of the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary renders in the shell.

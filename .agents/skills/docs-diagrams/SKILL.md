@@ -117,7 +117,7 @@ Some docs images are product screenshots (DevTools panels, the bundle analyzer, 
 
 **Margins.** The mdx `height` wins: fit the content to the declared box. Top must equal bottom and left must equal right, within 4px; the two pairs need not match each other. Measure from the ink with `scripts/measure.py`, not from the coordinates you passed: text drawn with `dominant-baseline="central"` has its visual top about `0.35 × size` above its `y`, and `textWidth` is a heuristic, so expect to nudge by a few px after measuring.
 
-**Color.** Within one picture a color means exactly one thing in the bars and the legend; if the legend says blue is "request-time content", nothing else may be blue. In the windows, rendered UI is always gray skeleton, whatever the bars say gray means; that is the docs' convention. Blue in a window marks the one state the picture is about (not included in static output, or just rendered), the same state blue marks in the bars. See "What the colors mean" in [style-tokens.md](style-tokens.md).
+**Color.** Within one picture a color means exactly one thing in the bars and the legend; if the legend says blue is "request-time content", nothing else may be blue. In the windows, rendered UI is always gray skeleton, whatever the bars say gray means; that is the docs' convention. Blue in a window marks the one state the picture is about (not included in static output, or newly rendered), the same state blue marks in the bars. See "What the colors mean" in [style-tokens.md](style-tokens.md).
 
 **Alignment.** Equal margins, shared edges, text centered in its box, arrows and splits lined up vertically through the whole diagram. This is the review bar.
 

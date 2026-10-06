@@ -1,16 +1,14 @@
 ---
 title: navigation
-description: API Reference for the navigation function, which defers runtime work until the user navigates.
+nav_title: navigation()
+description: Defer runtime work until the user navigates with the navigation function.
 related:
   links:
+    - app/guides/optimizing-prefetching
     - app/guides/keeping-pages-static
-    - app/api-reference/file-conventions/route-segment-config/ensureStatic
     - app/api-reference/functions/prefetch
     - app/api-reference/functions/connection
-    - app/guides/adopting-partial-prefetching
-    - app/api-reference/functions/io
     - app/api-reference/config/next-config-js/partialPrefetching
-    - app/api-reference/config/next-config-js/cacheComponents
 ---
 
 Calling `await navigation()` keeps runtime work below it out of the [App Shell](/docs/app/glossary#app-shell) and per-link prefetches. The work runs when the user navigates, while the fallback of the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary renders in the prefetched output.
