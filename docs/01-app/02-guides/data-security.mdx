@@ -371,11 +371,11 @@ export default async function AdminPage() {
 }
 ```
 
-The highlighted checks inside the action are critical. The page-level checks control which UI is rendered, but the Server Action is a separate entry point and must verify the caller on its own.
+The page redirects unauthenticated visitors to sign in. The highlighted checks inside the action are still required because a Server Action is a separate entry point that may be called directly.
 
 Beyond authentication (is the user logged in?), remember to check **authorization** (does this user have permission to act on this specific resource?). This prevents [Insecure Direct Object Reference (IDOR)](https://cheatsheetseries.owasp.org/cheatsheets/Insecure_Direct_Object_Reference_Prevention_Cheat_Sheet.html) vulnerabilities:
 
-Call [`unauthorized()`](/docs/app/api-reference/functions/unauthorized) when a request is not authenticated. Call [`forbidden()`](/docs/app/api-reference/functions/forbidden) when the user is authenticated but lacks permission.
+Call [`unauthorized()`](/docs/app/api-reference/functions/unauthorized) when a request is not authenticated. Call [`forbidden()`](/docs/app/api-reference/functions/forbidden) when the user is authenticated but lacks permission. Next.js renders the nearest [`unauthorized.js`](/docs/app/api-reference/file-conventions/unauthorized) or [`forbidden.js`](/docs/app/api-reference/file-conventions/forbidden) fallback.
 
 ```tsx filename="app/actions.ts"
 'use server'

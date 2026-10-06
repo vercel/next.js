@@ -38,6 +38,8 @@ Behind the scenes, actions use the `POST` method, and only this HTTP method can 
 
 A Server Function can be defined by using the [`use server`](https://react.dev/reference/rsc/use-server) directive. You can place the directive at the top of an **asynchronous** function to mark the function as a Server Function, or at the top of a separate file to mark all exports of that file.
 
+The following example calls [`unauthorized()`](/docs/app/api-reference/functions/unauthorized) when a request is not authenticated. Next.js renders the nearest [`unauthorized.js`](/docs/app/api-reference/file-conventions/unauthorized) fallback.
+
 ```ts filename="app/lib/actions.ts" switcher
 import { auth } from '@/lib/auth'
 import { unauthorized } from 'next/navigation'

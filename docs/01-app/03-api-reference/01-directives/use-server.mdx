@@ -9,7 +9,7 @@ For Next.js-specific Server Action behaviors (response model, security, configur
 
 ## Using `use server` at the top of a file
 
-The following example shows a file with a `use server` directive at the top. All functions in the file are executed on the server.
+The following example shows a file with a `use server` directive at the top. All functions in the file are executed on the server. It calls [`unauthorized()`](/docs/app/api-reference/functions/unauthorized) when a request is not authenticated, which renders the nearest [`unauthorized.js`](/docs/app/api-reference/file-conventions/unauthorized) fallback.
 
 ```tsx filename="app/actions.ts" highlight={1} switcher
 'use server'
