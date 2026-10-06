@@ -143,7 +143,13 @@ impl CssChunk {
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         let code = self.code().await?;
 
-        let rope = if code.has_source_map() {
+        let rope = if code.has_source_map()
+            && *self
+                .await?
+                .chunking_context
+                .publish_chunk_source_maps(Vc::upcast(self))
+                .await?
+        {
             use std::io::Write;
             let mut rope_builder = RopeBuilder::default();
             rope_builder.concat(code.source_code());
@@ -279,7 +285,7 @@ impl OutputAssetsReference for CssChunk {
             .await?;
         let source_map = if *this
             .chunking_context
-            .reference_chunk_source_maps(Vc::upcast(self))
+            .publish_chunk_source_maps(Vc::upcast(self))
             .await?
         {
             Some(ResolvedVc::upcast(

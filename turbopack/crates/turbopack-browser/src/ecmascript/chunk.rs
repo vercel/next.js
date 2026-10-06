@@ -123,7 +123,7 @@ impl OutputAssetsReference for EcmascriptBrowserChunk {
         let chunk_references = this.chunk.references().await?;
         let include_source_map = *this
             .chunking_context
-            .reference_chunk_source_maps(Vc::upcast(self))
+            .publish_chunk_source_maps(Vc::upcast(self))
             .await?
             && *self.own_content().has_source_map().await?;
         let ref_assets = chunk_references.assets.await?;

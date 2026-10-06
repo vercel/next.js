@@ -126,10 +126,17 @@ impl OutputAsset for EcmascriptBrowserWorkerEntrypoint {
 impl Asset for EcmascriptBrowserWorkerEntrypoint {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
+        let this = self.await?;
         Ok(AssetContent::file(
             FileContent::Content(File::from(
                 self.code()
-                    .to_rope_with_magic_comments(|| self.source_map())
+                    .to_rope_with_magic_comments(
+                        *this
+                            .chunking_context
+                            .publish_chunk_source_maps(Vc::upcast(self))
+                            .await?,
+                        || self.source_map(),
+                    )
                     .await?,
             ))
             .cell(),
