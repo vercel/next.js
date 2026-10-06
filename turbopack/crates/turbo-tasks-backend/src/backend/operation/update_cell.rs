@@ -29,7 +29,7 @@ pub fn update_cell(
     content_hash: Option<CellHash>,
     #[cfg(feature = "verify_determinism")] verification_mode: VerificationMode,
     #[cfg(not(feature = "verify_determinism"))] _verification_mode: VerificationMode,
-    mut ctx: ExecuteContext<'_>,
+    ctx: ExecuteContext<'_>,
 ) {
     let value_type = registry::get_value_type(cell.type_id());
     // `content_hash` is only ever supplied for `HashOnly` cells — only the
@@ -186,7 +186,7 @@ pub fn update_cell(
                 #[cfg(feature = "task_dirty_cause")]
                 has_updated_key_hashes,
                 content.map(|r| r.into_typed(cell.type_id())),
-                &mut ctx,
+                &ctx,
             );
             return;
         }
@@ -235,7 +235,7 @@ fn invalidate_cell_dependents(
     mut dependent_tasks: FxIndexMap<TaskId, SmallVec<[Option<u64>; 2]>>,
     #[cfg(feature = "task_dirty_cause")] has_updated_key_hashes: bool,
     content: Option<TypedSharedReference>,
-    ctx: &mut ExecuteContext<'_>,
+    ctx: &ExecuteContext<'_>,
 ) {
     let mut queue = AggregationUpdateQueue::new();
     while let Some((dependent_task_id, keys)) = dependent_tasks.pop() {

@@ -20,12 +20,12 @@ use crate::{
 /// connect handshake.
 ///
 /// GC destructively mutates tasks so mark resurrected tasks as dirty to get them re-scheduled.
-pub(super) fn resurrect_deleted<'e>(
-    guard: TaskGuard<'e>,
+pub(super) fn resurrect_deleted<'ctx>(
+    guard: TaskGuard<'ctx>,
     task_id: TaskId,
     queue: &mut AggregationUpdateQueue,
-    ctx: &mut ExecuteContext<'e>,
-) -> TaskGuard<'e> {
+    ctx: &'ctx ExecuteContext<'_>,
+) -> TaskGuard<'ctx> {
     if !guard.deleted() {
         return guard;
     }
@@ -64,7 +64,7 @@ pub(super) fn resurrect_deleted<'e>(
     task
 }
 
-fn release_construction_ref(task_id: TaskId, ctx: &mut ExecuteContext<'_>) {
+fn release_construction_ref(task_id: TaskId, ctx: &ExecuteContext<'_>) {
     let mut task = ctx.task(task_id, TaskDataCategory::Meta);
     task.update_and_get_transient_ref_count(-1);
 }
@@ -73,7 +73,7 @@ pub fn connect_child(
     parent_task_id: Option<TaskId>,
     child_task_id: TaskId,
     release_construction_ref: bool,
-    mut ctx: ExecuteContext<'_>,
+    ctx: ExecuteContext<'_>,
 ) {
     if parent_task_id.is_none() {
         // All parentless tasks receive a transient ref when connected: their lifetime cannot be
@@ -95,7 +95,7 @@ pub fn connect_child(
         if new_children.contains(&child_task_id) {
             drop(parent_task);
             if release_construction_ref {
-                self::release_construction_ref(child_task_id, &mut ctx);
+                self::release_construction_ref(child_task_id, &ctx);
             }
             return;
         }
@@ -111,7 +111,7 @@ pub fn connect_child(
             new_children.insert(child_task_id);
             drop(parent_task);
             if release_construction_ref {
-                self::release_construction_ref(child_task_id, &mut ctx);
+                self::release_construction_ref(child_task_id, &ctx);
             }
             return;
         }
@@ -142,7 +142,7 @@ pub fn connect_child(
 
         // Revive the child if GC soft-deleted it. This can happen in a rare race between a
         // cache hit on a task and snapshotting actually performing the delete.
-        let mut child_task = resurrect_deleted(child_task, child_task_id, &mut queue, &mut ctx);
+        let mut child_task = resurrect_deleted(child_task, child_task_id, &mut queue, &ctx);
 
         let has_output = child_task.has_output();
         // An already constructed top-level task was made a root when it was first connected.
@@ -174,7 +174,7 @@ pub fn connect_child(
     }
 
     if !queue.is_empty() {
-        queue.execute(&mut ctx);
+        queue.execute(&ctx);
     }
 
     if let Some(parent_task_id) = parent_task_id {
@@ -195,7 +195,7 @@ pub fn connect_child(
                 AggregationUpdateJob::DecreaseActiveCount {
                     task: child_task_id,
                 },
-                &mut ctx,
+                &ctx,
             );
         }
     }

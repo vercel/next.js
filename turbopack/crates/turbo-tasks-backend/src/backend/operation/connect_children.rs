@@ -18,7 +18,7 @@ use crate::backend::{
 };
 
 pub fn connect_children(
-    ctx: &mut ExecuteContext<'_>,
+    ctx: &ExecuteContext<'_>,
     parent_task_id: TaskId,
     mut parent_task: TaskGuard<'_>,
     new_children: FxHashSet<TaskId>,
@@ -46,7 +46,7 @@ pub fn connect_children(
     drop(parent_task);
 
     fn process_new_children(
-        ctx: &mut ExecuteContext<'_>,
+        ctx: &ExecuteContext<'_>,
         new_follower_ids: SmallVec<[TaskId; 4]>,
         upper_ids: Option<SmallVec<[TaskId; 4]>>,
         parent_task_id: TaskId,
@@ -183,10 +183,10 @@ pub fn connect_children(
                 let upper_ids = &upper_ids;
                 let child_ctx = ctx.child_context();
                 scope.spawn(move || {
-                    let mut ctx = child_ctx.create();
+                    let ctx = child_ctx.create();
                     let new_follower_ids = chunk.collect::<SmallVec<[_; 4]>>();
                     process_new_children(
-                        &mut ctx,
+                        &ctx,
                         new_follower_ids,
                         upper_ids.clone(),
                         parent_task_id,
