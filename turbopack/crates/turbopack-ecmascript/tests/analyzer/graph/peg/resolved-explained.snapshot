@@ -204,15 +204,15 @@ DESCRIBE_EXPECTATION_FNS = {
     "other": (...) => expectation["description"]
 }
 
-alias#42 = ???*0*
+alias#43 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-alias#44 = ???*0*
+alias#45 = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analyzed yet
 
-alias#78 = ???*0*
+alias#79 = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analyzed yet
 
@@ -220,11 +220,11 @@ alternate = ???*0*
 - *0* arguments[2]
   ⚠️  function calls are not analyzed yet
 
-args#48 = ???*0*
+args#49 = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analyzed yet
 
-args#49 = ???*0*
+args#50 = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analyzed yet
 
@@ -272,13 +272,13 @@ child = ???*0*
 
 classEscape = (...) => ...[...](..., ...)["replace"](/\]/g, "\\]")["replace"](/\^/g, "\\^")["replace"](/-/g, "\\-")["replace"](/\0/g, "\\0")["replace"](/\t/g, "\\t")["replace"](/\n/g, "\\n")["replace"](/\r/g, "\\r")["replace"](/[\x00-\x0F]/g, *anonymous function 2287*)["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 2385*)
 
-computed#86 = ???*0*
+computed#87 = ???*0*
 - *0* ???*1*["computed"]
   ⚠️  unknown object
 - *1* arguments[1]
   ⚠️  function calls are not analyzed yet
 
-computed#95 = ???*0*
+computed#96 = ???*0*
 - *0* ???*1*["computed"]
   ⚠️  unknown object
 - *1* arguments[1]
@@ -307,11 +307,11 @@ describeExpected = (...) => (
 
 describeFound = (...) => (found ? `"${literalEscape(found)}"` : "end of input")
 
-description#105 = ???*0*
+description#106 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-description#111 = ???*0*
+description#112 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
@@ -424,11 +424,11 @@ expectation#9 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-expected#120 = ???*0*
+expected#121 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-expected#124 = ???*0*
+expected#125 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
@@ -436,7 +436,7 @@ expected#22 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-expected#28 = (...) => undefined
+expected#29 = (...) => undefined
 
 expected#5 = ???*0*
 - *0* arguments[1]
@@ -446,23 +446,19 @@ expected#7 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-expression#42 = ???*0*
-- *0* arguments[1]
-  ⚠️  function calls are not analyzed yet
-
 expression#43 = ???*0*
-- *0* arguments[0]
+- *0* arguments[1]
   ⚠️  function calls are not analyzed yet
 
 expression#44 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-expression#47 = ???*0*
+expression#45 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-expression#79 = ???*0*
+expression#48 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
@@ -478,19 +474,23 @@ expression#82 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-expression#93 = ???*0*
+expression#83 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-expression#96 = ???*0*
+expression#94 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-found#124 = ???*0*
+expression#97 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analyzed yet
+
+found#125 = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analyzed yet
 
-found#27 = ???*0*
+found#28 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
@@ -502,10 +502,6 @@ found#7 = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analyzed yet
 
-from#32 = ???*0*
-- *0* arguments[2]
-  ⚠️  function calls are not analyzed yet
-
 from#33 = ???*0*
 - *0* arguments[2]
   ⚠️  function calls are not analyzed yet
@@ -514,11 +510,15 @@ from#34 = ???*0*
 - *0* arguments[2]
   ⚠️  function calls are not analyzed yet
 
-head#1801 = ???*0*
+from#35 = ???*0*
+- *0* arguments[2]
+  ⚠️  function calls are not analyzed yet
+
+head#100 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-head#38 = ???*0*
+head#1802 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
@@ -526,15 +526,15 @@ head#39 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-head#46 = ???*0*
+head#40 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-head#50 = ???*0*
+head#47 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-head#58 = ???*0*
+head#51 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
@@ -542,11 +542,11 @@ head#59 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-head#66 = ???*0*
+head#60 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-head#83 = ???*0*
+head#67 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
@@ -558,19 +558,19 @@ head#85 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-head#89 = ???*0*
+head#86 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-head#94 = ???*0*
+head#90 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-head#99 = ???*0*
+head#95 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-hex#56 = ???*0*
+hex#57 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
@@ -588,11 +588,11 @@ i#9 = (???*0* | 0 | ???*1*)
 - *1* updated with update expression
   ⚠️  This value might have side effects
 
-ignoreCase#107 = ???*0*
+ignoreCase#108 = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analyzed yet
 
-ignoreCase#108 = ???*0*
+ignoreCase#109 = ???*0*
 - *0* arguments[2]
   ⚠️  function calls are not analyzed yet
 
@@ -628,33 +628,33 @@ list = ???*0*
 
 literalEscape = (...) => s["replace"](/\\/g, "\\\\")["replace"](/"/g, "\\\"")["replace"](/\0/g, "\\0")["replace"](/\t/g, "\\t")["replace"](/\n/g, "\\n")["replace"](/\r/g, "\\r")["replace"](/[\x00-\x0F]/g, *anonymous function 1822*)["replace"](/[\x10-\x1F\x7F-\x9F]/g, *anonymous function 1920*)
 
-location#105 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
-
 location#106 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-location#123 = ???*0*
+location#107 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+location#124 = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analyzed yet
 
-location#124 = ???*0*
+location#125 = ???*0*
 - *0* arguments[2]
   ⚠️  function calls are not analyzed yet
 
-location#28 = (...) => peg$computeLocation(peg$savedPos, peg$currPos)
+location#29 = (...) => peg$computeLocation(peg$savedPos, peg$currPos)
 
 location#5 = ???*0*
 - *0* arguments[3]
   ⚠️  function calls are not analyzed yet
 
-message#106 = ???*0*
+message#107 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-message#123 = ???*0*
+message#124 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
@@ -662,33 +662,33 @@ message#5 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-name#48 = ???*0*
-- *0* arguments[0]
-  ⚠️  function calls are not analyzed yet
-
 name#49 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-name#65 = ???*0*
+name#50 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-object#86 = ???*0*
+name#66 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-object#95 = ???*0*
+object#87 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-operator#1802 = ???*0*
+object#96 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analyzed yet
+
+operator#1803 = ???*0*
 - *0* ???*1*[1]
   ⚠️  unknown object
 - *1* arguments[1]
   ⚠️  function calls are not analyzed yet
 
-operator#87 = ???*0*
+operator#88 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
@@ -1446,29 +1446,29 @@ properties = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-property#77 = ???*0*
-- *0* arguments[0]
-  ⚠️  function calls are not analyzed yet
-
 property#78 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-property#83 = ???*0*
-- *0* arguments[1]
+property#79 = ???*0*
+- *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
 property#84 = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analyzed yet
 
-property#86 = ???*0*
+property#85 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analyzed yet
+
+property#87 = ???*0*
 - *0* ???*1*["property"]
   ⚠️  unknown object
 - *1* arguments[1]
   ⚠️  function calls are not analyzed yet
 
-property#95 = ???*0*
+property#96 = ???*0*
 - *0* ???*1*["property"]
   ⚠️  unknown object
 - *1* arguments[1]
@@ -1488,19 +1488,19 @@ s#18 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-s0#1019 = ???*0*
+s0#1020 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#1026 = ???*0*
+s0#1027 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#1031 = ???*0*
+s0#1032 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#1049 = (???*0* | ???*1* | {})
+s0#1050 = (???*0* | ???*1* | {})
 - *0* s0
   ⚠️  pattern without value
 - *1* ???*2*["charAt"](peg$currPos)
@@ -1508,323 +1508,215 @@ s0#1049 = (???*0* | ???*1* | {})
 - *2* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-s0#1053 = ???*0*
+s0#1054 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#1070 = ???*0*
+s0#1071 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#1093 = ???*0*
+s0#1094 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#1096 = ???*0*
+s0#1097 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#1103 = ???*0*
+s0#1104 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#1110 = ???*0*
+s0#1111 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#1112 = ???*0*
+s0#1113 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#1186 = ???*0*
+s0#1187 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#1195 = ???*0*
+s0#1196 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#1221 = ???*0*
+s0#1222 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#125 = ???*0*
+s0#1252 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#1251 = ???*0*
+s0#126 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#1273 = ???*0*
+s0#1274 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#1317 = ???*0*
+s0#1318 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#132 = ???*0*
+s0#133 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#1369 = ???*0*
+s0#1370 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#1395 = ???*0*
+s0#1396 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#1415 = ???*0*
+s0#1416 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#1443 = ???*0*
+s0#1444 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#1471 = ???*0*
+s0#1472 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#1499 = ???*0*
+s0#1500 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#1543 = ???*0*
+s0#1544 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#1587 = ???*0*
+s0#1588 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#1631 = ???*0*
+s0#1632 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#1646 = ???*0*
+s0#1647 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#1661 = ???*0*
+s0#1662 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#1663 = ???*0*
+s0#1664 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#1739 = ???*0*
+s0#1740 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#1741 = ???*0*
+s0#1742 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#1744 = ???*0*
+s0#1745 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#1755 = ???*0*
+s0#1756 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#1784 = ???*0*
+s0#1785 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#187 = ???*0*
+s0#188 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#201 = ???*0*
+s0#202 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#229 = ???*0*
+s0#230 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#251 = ???*0*
+s0#252 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#279 = ???*0*
+s0#280 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#282 = ???*0*
+s0#283 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#284 = ???*0*
+s0#285 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#312 = ???*0*
+s0#313 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#323 = ???*0*
+s0#324 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#376 = ???*0*
+s0#377 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#419 = ???*0*
+s0#420 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#436 = ???*0*
+s0#437 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#443 = ???*0*
+s0#444 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#448 = ???*0*
+s0#449 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#450 = ???*0*
+s0#451 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#454 = ???*0*
+s0#455 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#497 = ???*0*
+s0#498 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#525 = ???*0*
+s0#526 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#567 = ???*0*
+s0#568 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#609 = (???*0* | [])
+s0#610 = (???*0* | [])
 - *0* s0
   ⚠️  pattern without value
 
-s0#613 = (???*0* | ???*1* | {})
-- *0* s0
-  ⚠️  pattern without value
-- *1* ???*2*["charAt"](peg$currPos)
-  ⚠️  unknown callee object
-- *2* arguments[0]
-  ⚠️  function calls are not analyzed yet
-
-s0#617 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
-
-s0#644 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
-
-s0#654 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
-
-s0#664 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
-
-s0#674 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
-
-s0#684 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
-
-s0#694 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
-
-s0#704 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
-
-s0#714 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
-
-s0#724 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
-
-s0#734 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
-
-s0#744 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
-
-s0#754 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
-
-s0#764 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
-
-s0#774 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
-
-s0#784 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
-
-s0#794 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
-
-s0#804 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
-
-s0#814 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
-
-s0#824 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
-
-s0#834 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
-
-s0#844 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
-
-s0#854 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
-
-s0#864 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
-
-s0#886 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
-
-s0#893 = (???*0* | ???*1* | {})
+s0#614 = (???*0* | ???*1* | {})
 - *0* s0
   ⚠️  pattern without value
 - *1* ???*2*["charAt"](peg$currPos)
@@ -1832,27 +1724,107 @@ s0#893 = (???*0* | ???*1* | {})
 - *2* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-s0#897 = ???*0*
+s0#618 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#909 = ???*0*
+s0#645 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#917 = ???*0*
+s0#655 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#930 = ???*0*
+s0#665 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#952 = ???*0*
+s0#675 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#974 = (???*0* | ???*1* | {})
+s0#685 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#695 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#705 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#715 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#725 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#735 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#745 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#755 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#765 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#775 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#785 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#795 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#805 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#815 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#825 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#835 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#845 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#855 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#865 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#887 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s0#894 = (???*0* | ???*1* | {})
 - *0* s0
   ⚠️  pattern without value
 - *1* ???*2*["charAt"](peg$currPos)
@@ -1860,139 +1832,167 @@ s0#974 = (???*0* | ???*1* | {})
 - *2* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-s0#978 = ???*0*
+s0#898 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#980 = ???*0*
+s0#910 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s0#982 = ???*0*
+s0#918 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#1019 = ???*0*
+s0#931 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#1031 = ???*0*
+s0#953 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#1053 = ???*0*
+s0#975 = (???*0* | ???*1* | {})
+- *0* s0
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analyzed yet
+
+s0#979 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#1070 = ???*0*
+s0#981 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#1096 = ???*0*
+s0#983 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#1103 = ???*0*
+s1#1020 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#1110 = ???*0*
+s1#1032 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#1112 = ???*0*
+s1#1054 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#1186 = ???*0*
+s1#1071 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#1195 = ???*0*
+s1#1097 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#1221 = ???*0*
+s1#1104 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#125 = ???*0*
+s1#1111 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#1251 = ???*0*
+s1#1113 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#1273 = ???*0*
+s1#1187 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#1317 = ???*0*
+s1#1196 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#132 = ???*0*
+s1#1222 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#1369 = ???*0*
+s1#1252 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#1395 = ???*0*
+s1#126 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#1415 = ???*0*
+s1#1274 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#1443 = ???*0*
+s1#1318 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#1471 = ???*0*
+s1#133 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#1499 = ???*0*
+s1#1370 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#1543 = ???*0*
+s1#1396 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#1587 = ???*0*
+s1#1416 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#1631 = ???*0*
+s1#1444 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#1646 = ???*0*
+s1#1472 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#1661 = ???*0*
+s1#1500 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#1663 = ???*0*
+s1#1544 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#1739 = ???*0*
+s1#1588 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#1741 = ???*0*
+s1#1632 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#1744 = (???*0* | [] | {} | {"type": "number_constant", "value": ???*1*})
+s1#1647 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#1662 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#1664 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#1740 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#1742 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s1#1745 = (???*0* | [] | {} | {"type": "number_constant", "value": ???*1*})
 - *0* s1
   ⚠️  pattern without value
 - *1* ???*2*(text())
@@ -2002,67 +2002,67 @@ s1#1744 = (???*0* | [] | {} | {"type": "number_constant", "value": ???*1*})
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-s1#1755 = ???*0*
+s1#1756 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#1784 = ???*0*
+s1#1785 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#187 = ???*0*
+s1#188 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#201 = ???*0*
+s1#202 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#229 = ???*0*
+s1#230 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#251 = ???*0*
+s1#252 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#282 = ???*0*
+s1#283 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#284 = ???*0*
+s1#285 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#312 = ???*0*
+s1#313 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#323 = ???*0*
+s1#324 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#376 = ???*0*
+s1#377 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#419 = ???*0*
+s1#420 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#443 = (???*0* | "undefined" | {} | {"type": "undefined_constant"})
+s1#444 = (???*0* | "undefined" | {} | {"type": "undefined_constant"})
 - *0* s1
   ⚠️  pattern without value
 
-s1#448 = ???*0*
+s1#449 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#450 = ???*0*
+s1#451 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#454 = (
+s1#455 = (
   | ???*0*
   | "-"
   | {}
@@ -2089,7 +2089,7 @@ s1#454 = (
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-s1#497 = (
+s1#498 = (
   | ???*0*
   | "\""
   | {}
@@ -2107,19 +2107,19 @@ s1#497 = (
 - *4* []["join"]
   ⚠️  non-num constant property on array
 
-s1#525 = ???*0*
+s1#526 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#567 = ???*0*
+s1#568 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#609 = ???*0*
+s1#610 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#617 = (???*0* | "--" | {} | [???*1*, (???*2* | [])])
+s1#618 = (???*0* | "--" | {} | [???*1*, (???*2* | [])])
 - *0* s1
   ⚠️  pattern without value
 - *1* s1
@@ -2127,47 +2127,47 @@ s1#617 = (???*0* | "--" | {} | [???*1*, (???*2* | [])])
 - *2* s2
   ⚠️  pattern without value
 
-s1#644 = ???*0*
+s1#645 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#654 = ???*0*
+s1#655 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#664 = ???*0*
+s1#665 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#674 = ???*0*
+s1#675 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#684 = ???*0*
+s1#685 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#694 = ???*0*
+s1#695 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#704 = ???*0*
+s1#705 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#714 = ???*0*
+s1#715 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#724 = ???*0*
+s1#725 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#734 = ???*0*
+s1#735 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#744 = (???*0* | ???*1* | {} | "ASC")
+s1#745 = (???*0* | ???*1* | {} | "ASC")
 - *0* s1
   ⚠️  pattern without value
 - *1* ???*2*["substr"](peg$currPos, 3)
@@ -2175,7 +2175,7 @@ s1#744 = (???*0* | ???*1* | {} | "ASC")
 - *2* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-s1#754 = (???*0* | ???*1* | {} | "DESC")
+s1#755 = (???*0* | ???*1* | {} | "DESC")
 - *0* s1
   ⚠️  pattern without value
 - *1* ???*2*["substr"](peg$currPos, 4)
@@ -2183,7 +2183,7 @@ s1#754 = (???*0* | ???*1* | {} | "DESC")
 - *2* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-s1#764 = (???*0* | ???*1* | {} | "AND")
+s1#765 = (???*0* | ???*1* | {} | "AND")
 - *0* s1
   ⚠️  pattern without value
 - *1* ???*2*["substr"](peg$currPos, 3)
@@ -2191,7 +2191,7 @@ s1#764 = (???*0* | ???*1* | {} | "AND")
 - *2* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-s1#774 = (???*0* | ???*1* | {} | "OR")
+s1#775 = (???*0* | ???*1* | {} | "OR")
 - *0* s1
   ⚠️  pattern without value
 - *1* ???*2*["substr"](peg$currPos, 2)
@@ -2199,7 +2199,7 @@ s1#774 = (???*0* | ???*1* | {} | "OR")
 - *2* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-s1#784 = (???*0* | ???*1* | {} | "NOT")
+s1#785 = (???*0* | ???*1* | {} | "NOT")
 - *0* s1
   ⚠️  pattern without value
 - *1* ???*2*["substr"](peg$currPos, 3)
@@ -2207,39 +2207,39 @@ s1#784 = (???*0* | ???*1* | {} | "NOT")
 - *2* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-s1#794 = ???*0*
+s1#795 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#804 = ???*0*
+s1#805 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#814 = ???*0*
+s1#815 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#824 = ???*0*
+s1#825 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#834 = ???*0*
+s1#835 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#844 = ???*0*
+s1#845 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#854 = ???*0*
+s1#855 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#886 = ???*0*
+s1#887 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#897 = (???*0* | ???*1* | {} | (???*3* + (???*4* | ???*6*)))
+s1#898 = (???*0* | ???*1* | {} | (???*3* + (???*4* | ???*6*)))
 - *0* s1
   ⚠️  pattern without value
 - *1* ???*2*["charAt"](peg$currPos)
@@ -2257,7 +2257,7 @@ s1#897 = (???*0* | ???*1* | {} | (???*3* + (???*4* | ???*6*)))
 - *7* []["join"]
   ⚠️  non-num constant property on array
 
-s1#909 = (???*0* | "@" | {} | {"type": "parameter_name", "name": ???*1*})
+s1#910 = (???*0* | "@" | {} | {"type": "parameter_name", "name": ???*1*})
 - *0* s1
   ⚠️  pattern without value
 - *1* ???*2*["substring"](peg$savedPos, peg$currPos)
@@ -2265,31 +2265,31 @@ s1#909 = (???*0* | "@" | {} | {"type": "parameter_name", "name": ???*1*})
 - *2* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-s1#930 = ???*0*
+s1#931 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#952 = ???*0*
+s1#953 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s1#982 = (???*0* | "b" | {} | "\b" | "f" | "\f" | "n" | "\n" | "r" | "\r" | "t" | "\t")
+s1#983 = (???*0* | "b" | {} | "\b" | "f" | "\f" | "n" | "\n" | "r" | "\r" | "t" | "\t")
 - *0* s1
   ⚠️  pattern without value
 
-s10#132 = ???*0*
+s10#133 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s10#323 = (???*0* | [])
+s10#324 = (???*0* | [])
 - *0* s10
   ⚠️  pattern without value
 
-s11#132 = ???*0*
+s11#133 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s11#323 = (???*0* | ")" | {})
+s11#324 = (???*0* | ")" | {})
 - *0* s11
   ⚠️  pattern without value
 
@@ -2313,111 +2313,111 @@ s16 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s2#1019 = ???*0*
+s2#1020 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s2#1031 = ???*0*
+s2#1032 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s2#1053 = ???*0*
+s2#1054 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s2#1070 = (???*0* | [])
+s2#1071 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#1096 = (???*0* | [])
+s2#1097 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#1103 = (???*0* | [])
+s2#1104 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#1112 = (???*0* | [])
+s2#1113 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#1186 = (???*0* | [])
+s2#1187 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#1195 = (???*0* | [])
+s2#1196 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#1221 = (???*0* | [])
+s2#1222 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#125 = ???*0*
+s2#1252 = (???*0* | [])
+- *0* s2
+  ⚠️  pattern without value
+
+s2#126 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s2#1251 = (???*0* | [])
+s2#1274 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#1273 = (???*0* | [])
+s2#1318 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#1317 = (???*0* | [])
+s2#133 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#132 = (???*0* | [])
+s2#1370 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#1369 = (???*0* | [])
+s2#1396 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#1395 = (???*0* | [])
+s2#1416 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#1415 = (???*0* | [])
+s2#1444 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#1443 = (???*0* | [])
+s2#1472 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#1471 = (???*0* | [])
+s2#1500 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#1499 = (???*0* | [])
+s2#1544 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#1543 = (???*0* | [])
+s2#1588 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#1587 = (???*0* | [])
+s2#1632 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#1631 = (???*0* | [])
+s2#1647 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#1646 = (???*0* | [])
+s2#1664 = (???*0* | [] | {})
 - *0* s2
   ⚠️  pattern without value
 
-s2#1663 = (???*0* | [] | {})
-- *0* s2
-  ⚠️  pattern without value
-
-s2#1744 = (???*0* | ???*1* | {})
+s2#1745 = (???*0* | ???*1* | {})
 - *0* s2
   ⚠️  pattern without value
 - *1* ???*2*["charAt"](peg$currPos)
@@ -2425,351 +2425,343 @@ s2#1744 = (???*0* | ???*1* | {})
 - *2* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-s2#1755 = (???*0* | [])
+s2#1756 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#1784 = (???*0* | [])
+s2#1785 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#187 = (???*0* | [])
+s2#188 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#201 = (???*0* | [])
+s2#202 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#229 = (???*0* | [])
+s2#230 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#251 = ???*0*
+s2#252 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s2#284 = (???*0* | [])
+s2#285 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#312 = ???*0*
+s2#313 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s2#323 = (???*0* | [])
+s2#324 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#376 = (???*0* | [])
+s2#377 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#419 = (???*0* | [])
+s2#420 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#454 = (???*0* | "0x" | {} | null)
+s2#455 = (???*0* | "0x" | {} | null)
 - *0* s2
   ⚠️  pattern without value
 
-s2#497 = (???*0* | [])
+s2#498 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#525 = (???*0* | [])
+s2#526 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#567 = (???*0* | [])
+s2#568 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#617 = (???*0* | [])
+s2#618 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#644 = ???*0*
+s2#645 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s2#654 = ???*0*
+s2#655 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s2#664 = ???*0*
+s2#665 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s2#674 = ???*0*
+s2#675 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s2#684 = ???*0*
+s2#685 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s2#694 = ???*0*
+s2#695 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s2#704 = ???*0*
+s2#705 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s2#714 = ???*0*
+s2#715 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s2#724 = ???*0*
+s2#725 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s2#734 = ???*0*
+s2#735 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s2#744 = ???*0*
+s2#745 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s2#754 = ???*0*
+s2#755 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s2#764 = ???*0*
+s2#765 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s2#774 = ???*0*
+s2#775 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s2#784 = ???*0*
+s2#785 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s2#794 = ???*0*
+s2#795 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s2#804 = ???*0*
+s2#805 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s2#814 = ???*0*
+s2#815 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s2#824 = ???*0*
+s2#825 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s2#834 = ???*0*
+s2#835 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s2#844 = ???*0*
+s2#845 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s2#854 = ???*0*
+s2#855 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s2#886 = ???*0*
+s2#887 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s2#897 = (???*0* | [])
+s2#898 = (???*0* | [])
 - *0* s2
   ⚠️  pattern without value
 
-s2#909 = ???*0*
+s2#910 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s2#930 = ???*0*
+s2#931 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s2#952 = ???*0*
+s2#953 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s3#1031 = ???*0*
+s3#1032 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s3#1053 = ???*0*
+s3#1054 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s3#1070 = ???*0*
+s3#1071 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s3#1096 = ???*0*
+s3#1097 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s3#1103 = ???*0*
+s3#1104 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s3#1112 = ???*0*
+s3#1113 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s3#1186 = ???*0*
+s3#1187 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s3#1195 = (???*0* | "?" | {})
+s3#1196 = (???*0* | "?" | {})
 - *0* s3
   ⚠️  pattern without value
 
-s3#1221 = ???*0*
+s3#1222 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s3#125 = (???*0* | [])
+s3#1252 = ???*0*
+- *0* max number of linking steps reached
+  ⚠️  This value might have side effects
+
+s3#126 = (???*0* | [])
 - *0* s3
   ⚠️  pattern without value
 
-s3#1251 = ???*0*
+s3#1274 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s3#1273 = ???*0*
+s3#1318 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s3#1317 = ???*0*
+s3#133 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s3#132 = ???*0*
+s3#1370 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s3#1369 = ???*0*
+s3#1396 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s3#1395 = ???*0*
+s3#1416 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s3#1415 = ???*0*
+s3#1444 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s3#1443 = ???*0*
+s3#1472 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s3#1471 = ???*0*
+s3#1500 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s3#1499 = ???*0*
+s3#1544 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s3#1543 = ???*0*
+s3#1588 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s3#1587 = ???*0*
-- *0* max number of linking steps reached
-  ⚠️  This value might have side effects
-
-s3#1631 = (???*0* | ":" | {})
+s3#1632 = (???*0* | ":" | {})
 - *0* s3
   ⚠️  pattern without value
 
-s3#1646 = (???*0* | ":" | {})
+s3#1647 = (???*0* | ":" | {})
 - *0* s3
   ⚠️  pattern without value
 
-s3#1663 = ???*0*
+s3#1664 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s3#1755 = ???*0*
+s3#1756 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s3#1784 = ???*0*
+s3#1785 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s3#187 = ???*0*
+s3#188 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s3#201 = ???*0*
+s3#202 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s3#229 = ???*0*
+s3#230 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s3#251 = ???*0*
+s3#252 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s3#284 = ???*0*
+s3#285 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s3#312 = ???*0*
+s3#313 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s3#323 = (???*0* | "." | {} | "(")
+s3#324 = (???*0* | "." | {} | "(")
 - *0* s3
   ⚠️  pattern without value
 
-s3#376 = ???*0*
+s3#377 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s3#419 = ???*0*
+s3#420 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s3#454 = (???*0* | [] | {})
+s3#455 = (???*0* | [] | {})
 - *0* s3
   ⚠️  pattern without value
 
-s3#497 = ???*0*
+s3#498 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s3#525 = ???*0*
+s3#526 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s3#567 = ???*0*
+s3#568 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s3#617 = ???*0*
+s3#618 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s3#644 = (???*0* | ???*1* | {})
-- *0* s3
-  ⚠️  pattern without value
-- *1* ???*2*["charAt"](peg$currPos)
-  ⚠️  unknown callee object
-- *2* arguments[0]
-  ⚠️  function calls are not analyzed yet
-
-s3#654 = (???*0* | ???*1* | {})
+s3#645 = (???*0* | ???*1* | {})
 - *0* s3
   ⚠️  pattern without value
 - *1* ???*2*["charAt"](peg$currPos)
@@ -2777,7 +2769,7 @@ s3#654 = (???*0* | ???*1* | {})
 - *2* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-s3#664 = (???*0* | ???*1* | {})
+s3#655 = (???*0* | ???*1* | {})
 - *0* s3
   ⚠️  pattern without value
 - *1* ???*2*["charAt"](peg$currPos)
@@ -2785,7 +2777,7 @@ s3#664 = (???*0* | ???*1* | {})
 - *2* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-s3#674 = (???*0* | ???*1* | {})
+s3#665 = (???*0* | ???*1* | {})
 - *0* s3
   ⚠️  pattern without value
 - *1* ???*2*["charAt"](peg$currPos)
@@ -2793,7 +2785,7 @@ s3#674 = (???*0* | ???*1* | {})
 - *2* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-s3#684 = (???*0* | ???*1* | {})
+s3#675 = (???*0* | ???*1* | {})
 - *0* s3
   ⚠️  pattern without value
 - *1* ???*2*["charAt"](peg$currPos)
@@ -2801,7 +2793,7 @@ s3#684 = (???*0* | ???*1* | {})
 - *2* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-s3#694 = (???*0* | ???*1* | {})
+s3#685 = (???*0* | ???*1* | {})
 - *0* s3
   ⚠️  pattern without value
 - *1* ???*2*["charAt"](peg$currPos)
@@ -2809,7 +2801,7 @@ s3#694 = (???*0* | ???*1* | {})
 - *2* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-s3#704 = (???*0* | ???*1* | {})
+s3#695 = (???*0* | ???*1* | {})
 - *0* s3
   ⚠️  pattern without value
 - *1* ???*2*["charAt"](peg$currPos)
@@ -2817,7 +2809,7 @@ s3#704 = (???*0* | ???*1* | {})
 - *2* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-s3#714 = (???*0* | ???*1* | {})
+s3#705 = (???*0* | ???*1* | {})
 - *0* s3
   ⚠️  pattern without value
 - *1* ???*2*["charAt"](peg$currPos)
@@ -2825,7 +2817,7 @@ s3#714 = (???*0* | ???*1* | {})
 - *2* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-s3#724 = (???*0* | ???*1* | {})
+s3#715 = (???*0* | ???*1* | {})
 - *0* s3
   ⚠️  pattern without value
 - *1* ???*2*["charAt"](peg$currPos)
@@ -2833,7 +2825,7 @@ s3#724 = (???*0* | ???*1* | {})
 - *2* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-s3#734 = (???*0* | ???*1* | {})
+s3#725 = (???*0* | ???*1* | {})
 - *0* s3
   ⚠️  pattern without value
 - *1* ???*2*["charAt"](peg$currPos)
@@ -2841,7 +2833,7 @@ s3#734 = (???*0* | ???*1* | {})
 - *2* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-s3#744 = (???*0* | ???*1* | {})
+s3#735 = (???*0* | ???*1* | {})
 - *0* s3
   ⚠️  pattern without value
 - *1* ???*2*["charAt"](peg$currPos)
@@ -2849,7 +2841,7 @@ s3#744 = (???*0* | ???*1* | {})
 - *2* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-s3#754 = (???*0* | ???*1* | {})
+s3#745 = (???*0* | ???*1* | {})
 - *0* s3
   ⚠️  pattern without value
 - *1* ???*2*["charAt"](peg$currPos)
@@ -2857,7 +2849,7 @@ s3#754 = (???*0* | ???*1* | {})
 - *2* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-s3#764 = (???*0* | ???*1* | {})
+s3#755 = (???*0* | ???*1* | {})
 - *0* s3
   ⚠️  pattern without value
 - *1* ???*2*["charAt"](peg$currPos)
@@ -2865,7 +2857,7 @@ s3#764 = (???*0* | ???*1* | {})
 - *2* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-s3#774 = (???*0* | ???*1* | {})
+s3#765 = (???*0* | ???*1* | {})
 - *0* s3
   ⚠️  pattern without value
 - *1* ???*2*["charAt"](peg$currPos)
@@ -2873,7 +2865,7 @@ s3#774 = (???*0* | ???*1* | {})
 - *2* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-s3#784 = (???*0* | ???*1* | {})
+s3#775 = (???*0* | ???*1* | {})
 - *0* s3
   ⚠️  pattern without value
 - *1* ???*2*["charAt"](peg$currPos)
@@ -2881,7 +2873,7 @@ s3#784 = (???*0* | ???*1* | {})
 - *2* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-s3#794 = (???*0* | ???*1* | {})
+s3#785 = (???*0* | ???*1* | {})
 - *0* s3
   ⚠️  pattern without value
 - *1* ???*2*["charAt"](peg$currPos)
@@ -2889,7 +2881,7 @@ s3#794 = (???*0* | ???*1* | {})
 - *2* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-s3#804 = (???*0* | ???*1* | {})
+s3#795 = (???*0* | ???*1* | {})
 - *0* s3
   ⚠️  pattern without value
 - *1* ???*2*["charAt"](peg$currPos)
@@ -2897,7 +2889,7 @@ s3#804 = (???*0* | ???*1* | {})
 - *2* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-s3#814 = (???*0* | ???*1* | {})
+s3#805 = (???*0* | ???*1* | {})
 - *0* s3
   ⚠️  pattern without value
 - *1* ???*2*["charAt"](peg$currPos)
@@ -2905,7 +2897,7 @@ s3#814 = (???*0* | ???*1* | {})
 - *2* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-s3#824 = (???*0* | ???*1* | {})
+s3#815 = (???*0* | ???*1* | {})
 - *0* s3
   ⚠️  pattern without value
 - *1* ???*2*["charAt"](peg$currPos)
@@ -2913,7 +2905,7 @@ s3#824 = (???*0* | ???*1* | {})
 - *2* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-s3#834 = (???*0* | ???*1* | {})
+s3#825 = (???*0* | ???*1* | {})
 - *0* s3
   ⚠️  pattern without value
 - *1* ???*2*["charAt"](peg$currPos)
@@ -2921,7 +2913,7 @@ s3#834 = (???*0* | ???*1* | {})
 - *2* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-s3#844 = (???*0* | ???*1* | {})
+s3#835 = (???*0* | ???*1* | {})
 - *0* s3
   ⚠️  pattern without value
 - *1* ???*2*["charAt"](peg$currPos)
@@ -2929,7 +2921,7 @@ s3#844 = (???*0* | ???*1* | {})
 - *2* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-s3#854 = (???*0* | ???*1* | {})
+s3#845 = (???*0* | ???*1* | {})
 - *0* s3
   ⚠️  pattern without value
 - *1* ???*2*["charAt"](peg$currPos)
@@ -2937,7 +2929,7 @@ s3#854 = (???*0* | ???*1* | {})
 - *2* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-s3#897 = (???*0* | ???*1* | {})
+s3#855 = (???*0* | ???*1* | {})
 - *0* s3
   ⚠️  pattern without value
 - *1* ???*2*["charAt"](peg$currPos)
@@ -2945,7 +2937,15 @@ s3#897 = (???*0* | ???*1* | {})
 - *2* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-s4#1031 = (
+s3#898 = (???*0* | ???*1* | {})
+- *0* s3
+  ⚠️  pattern without value
+- *1* ???*2*["charAt"](peg$currPos)
+  ⚠️  unknown callee object
+- *2* arguments[0]
+  ⚠️  function calls are not analyzed yet
+
+s4#1032 = (
   | ???*0*
   | ???*1*
   | {}
@@ -2978,143 +2978,143 @@ s4#1031 = (
 - *12* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-s4#1053 = ???*0*
+s4#1054 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s4#1070 = (???*0* | [])
+s4#1071 = (???*0* | [])
 - *0* s4
   ⚠️  pattern without value
 
-s4#1112 = ???*0*
+s4#1113 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s4#1195 = (???*0* | [])
+s4#1196 = (???*0* | [])
 - *0* s4
   ⚠️  pattern without value
 
-s4#1221 = ???*0*
+s4#1222 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s4#1251 = ???*0*
+s4#1252 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s4#1273 = ???*0*
+s4#1274 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s4#1317 = ???*0*
+s4#1318 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s4#132 = ???*0*
+s4#133 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s4#1369 = (???*0* | [])
+s4#1370 = (???*0* | [])
 - *0* s4
   ⚠️  pattern without value
 
-s4#1395 = (???*0* | [])
+s4#1396 = (???*0* | [])
 - *0* s4
   ⚠️  pattern without value
 
-s4#1415 = ???*0*
+s4#1416 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s4#1443 = ???*0*
+s4#1444 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s4#1471 = ???*0*
+s4#1472 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s4#1499 = ???*0*
+s4#1500 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s4#1543 = ???*0*
+s4#1544 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s4#1587 = ???*0*
+s4#1588 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s4#1631 = (???*0* | [])
+s4#1632 = (???*0* | [])
 - *0* s4
   ⚠️  pattern without value
 
-s4#1646 = (???*0* | [])
+s4#1647 = (???*0* | [])
 - *0* s4
   ⚠️  pattern without value
 
-s4#1663 = ???*0*
+s4#1664 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s4#1755 = ???*0*
+s4#1756 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s4#1784 = (???*0* | [])
+s4#1785 = (???*0* | [])
 - *0* s4
   ⚠️  pattern without value
 
-s4#201 = ???*0*
+s4#202 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s4#229 = ???*0*
+s4#230 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s4#251 = ???*0*
+s4#252 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s4#284 = ???*0*
+s4#285 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s4#312 = ???*0*
+s4#313 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s4#323 = (???*0* | [])
+s4#324 = (???*0* | [])
 - *0* s4
   ⚠️  pattern without value
 
-s4#376 = (???*0* | [])
+s4#377 = (???*0* | [])
 - *0* s4
   ⚠️  pattern without value
 
-s4#419 = (???*0* | [])
+s4#420 = (???*0* | [])
 - *0* s4
   ⚠️  pattern without value
 
-s4#454 = ???*0*
+s4#455 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s4#525 = (???*0* | [])
+s4#526 = (???*0* | [])
 - *0* s4
   ⚠️  pattern without value
 
-s4#567 = (???*0* | [])
+s4#568 = (???*0* | [])
 - *0* s4
   ⚠️  pattern without value
 
-s4#617 = ???*0*
+s4#618 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s5#1031 = (???*0* | ???*1* | {})
+s5#1032 = (???*0* | ???*1* | {})
 - *0* s5
   ⚠️  pattern without value
 - *1* ???*2*["charAt"](peg$currPos)
@@ -3122,123 +3122,123 @@ s5#1031 = (???*0* | ???*1* | {})
 - *2* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-s5#1053 = ???*0*
+s5#1054 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s5#1070 = (???*0* | ")" | {})
+s5#1071 = (???*0* | ")" | {})
 - *0* s5
   ⚠️  pattern without value
 
-s5#1112 = (???*0* | "." | {} | "[")
+s5#1113 = (???*0* | "." | {} | "[")
 - *0* s5
   ⚠️  pattern without value
 
-s5#1195 = ???*0*
+s5#1196 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s5#1221 = ???*0*
+s5#1222 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s5#1251 = ???*0*
+s5#1252 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s5#1273 = (???*0* | "=" | {} | "!=" | "<>")
+s5#1274 = (???*0* | "=" | {} | "!=" | "<>")
 - *0* s5
   ⚠️  pattern without value
 
-s5#1317 = (???*0* | "<=" | {} | ">=" | "<" | ">")
+s5#1318 = (???*0* | "<=" | {} | ">=" | "<" | ">")
 - *0* s5
   ⚠️  pattern without value
 
-s5#132 = ???*0*
+s5#133 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s5#1369 = (???*0* | "(" | {})
+s5#1370 = (???*0* | "(" | {})
 - *0* s5
   ⚠️  pattern without value
 
-s5#1395 = ???*0*
+s5#1396 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s5#1415 = (???*0* | "|" | {})
+s5#1416 = (???*0* | "|" | {})
 - *0* s5
   ⚠️  pattern without value
 
-s5#1443 = (???*0* | "^" | {})
+s5#1444 = (???*0* | "^" | {})
 - *0* s5
   ⚠️  pattern without value
 
-s5#1471 = (???*0* | "&" | {})
+s5#1472 = (???*0* | "&" | {})
 - *0* s5
   ⚠️  pattern without value
 
-s5#1499 = (???*0* | "<<" | {} | ">>>" | ">>")
+s5#1500 = (???*0* | "<<" | {} | ">>>" | ">>")
 - *0* s5
   ⚠️  pattern without value
 
-s5#1543 = (???*0* | "+" | {} | "-" | "||")
+s5#1544 = (???*0* | "+" | {} | "-" | "||")
 - *0* s5
   ⚠️  pattern without value
 
-s5#1587 = (???*0* | "*" | {} | "/" | "%")
+s5#1588 = (???*0* | "*" | {} | "/" | "%")
 - *0* s5
   ⚠️  pattern without value
 
-s5#1631 = ???*0*
+s5#1632 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s5#1646 = ???*0*
+s5#1647 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s5#1663 = (???*0* | "." | {} | "[")
+s5#1664 = (???*0* | "." | {} | "[")
 - *0* s5
   ⚠️  pattern without value
 
-s5#1755 = (???*0* | "," | {})
+s5#1756 = (???*0* | "," | {})
 - *0* s5
   ⚠️  pattern without value
 
-s5#1784 = (???*0* | ")" | {})
+s5#1785 = (???*0* | ")" | {})
 - *0* s5
   ⚠️  pattern without value
 
-s5#201 = (???*0* | "," | {})
+s5#202 = (???*0* | "," | {})
 - *0* s5
   ⚠️  pattern without value
 
-s5#229 = ???*0*
+s5#230 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s5#251 = ???*0*
+s5#252 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s5#284 = (???*0* | "," | {})
+s5#285 = (???*0* | "," | {})
 - *0* s5
   ⚠️  pattern without value
 
-s5#323 = ???*0*
+s5#324 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s5#376 = ???*0*
+s5#377 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s5#419 = (???*0* | "]" | {})
+s5#420 = (???*0* | "]" | {})
 - *0* s5
   ⚠️  pattern without value
 
-s5#454 = (???*0* | "." | {} | [???*1*, (???*2* | [] | {})])
+s5#455 = (???*0* | "." | {} | [???*1*, (???*2* | [] | {})])
 - *0* s5
   ⚠️  pattern without value
 - *1* s5
@@ -3246,15 +3246,15 @@ s5#454 = (???*0* | "." | {} | [???*1*, (???*2* | [] | {})])
 - *2* s6
   ⚠️  pattern without value
 
-s5#525 = ???*0*
+s5#526 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s5#567 = ???*0*
+s5#568 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s5#617 = (???*0* | ???*1* | {})
+s5#618 = (???*0* | ???*1* | {})
 - *0* s5
   ⚠️  pattern without value
 - *1* ???*2*["charAt"](peg$currPos)
@@ -3262,7 +3262,7 @@ s5#617 = (???*0* | ???*1* | {})
 - *2* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-s6#1031 = (???*0* | ???*1* | {})
+s6#1032 = (???*0* | ???*1* | {})
 - *0* s6
   ⚠️  pattern without value
 - *1* ???*2*["charAt"](peg$currPos)
@@ -3270,107 +3270,107 @@ s6#1031 = (???*0* | ???*1* | {})
 - *2* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-s6#1112 = (???*0* | [])
+s6#1113 = (???*0* | [])
 - *0* s6
   ⚠️  pattern without value
 
-s6#1195 = (???*0* | [])
+s6#1196 = (???*0* | [])
 - *0* s6
   ⚠️  pattern without value
 
-s6#1221 = (???*0* | [])
+s6#1222 = (???*0* | [])
 - *0* s6
   ⚠️  pattern without value
 
-s6#1251 = (???*0* | [])
+s6#1252 = (???*0* | [])
 - *0* s6
   ⚠️  pattern without value
 
-s6#1273 = (???*0* | [])
+s6#1274 = (???*0* | [])
 - *0* s6
   ⚠️  pattern without value
 
-s6#1317 = (???*0* | [])
+s6#1318 = (???*0* | [])
 - *0* s6
   ⚠️  pattern without value
 
-s6#132 = ???*0*
+s6#133 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s6#1369 = (???*0* | [])
+s6#1370 = (???*0* | [])
 - *0* s6
   ⚠️  pattern without value
 
-s6#1395 = (???*0* | [])
+s6#1396 = (???*0* | [])
 - *0* s6
   ⚠️  pattern without value
 
-s6#1415 = (???*0* | [])
+s6#1416 = (???*0* | [])
 - *0* s6
   ⚠️  pattern without value
 
-s6#1443 = (???*0* | [])
+s6#1444 = (???*0* | [])
 - *0* s6
   ⚠️  pattern without value
 
-s6#1471 = (???*0* | [])
+s6#1472 = (???*0* | [])
 - *0* s6
   ⚠️  pattern without value
 
-s6#1499 = (???*0* | [])
+s6#1500 = (???*0* | [])
 - *0* s6
   ⚠️  pattern without value
 
-s6#1543 = (???*0* | [])
+s6#1544 = (???*0* | [])
 - *0* s6
   ⚠️  pattern without value
 
-s6#1587 = (???*0* | [])
+s6#1588 = (???*0* | [])
 - *0* s6
   ⚠️  pattern without value
 
-s6#1663 = (???*0* | [])
+s6#1664 = (???*0* | [])
 - *0* s6
   ⚠️  pattern without value
 
-s6#1755 = (???*0* | [])
+s6#1756 = (???*0* | [])
 - *0* s6
   ⚠️  pattern without value
 
-s6#201 = (???*0* | [])
+s6#202 = (???*0* | [])
 - *0* s6
   ⚠️  pattern without value
 
-s6#229 = (???*0* | [])
+s6#230 = (???*0* | [])
 - *0* s6
   ⚠️  pattern without value
 
-s6#284 = (???*0* | [])
+s6#285 = (???*0* | [])
 - *0* s6
   ⚠️  pattern without value
 
-s6#323 = (???*0* | [])
+s6#324 = (???*0* | [])
 - *0* s6
   ⚠️  pattern without value
 
-s6#376 = ???*0*
+s6#377 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s6#454 = (???*0* | [] | {})
+s6#455 = (???*0* | [] | {})
 - *0* s6
   ⚠️  pattern without value
 
-s6#525 = ???*0*
+s6#526 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s6#567 = ???*0*
+s6#568 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s7#1031 = (???*0* | ???*1* | {})
+s7#1032 = (???*0* | ???*1* | {})
 - *0* s7
   ⚠️  pattern without value
 - *1* ???*2*["charAt"](peg$currPos)
@@ -3378,95 +3378,95 @@ s7#1031 = (???*0* | ???*1* | {})
 - *2* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-s7#1112 = ???*0*
+s7#1113 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s7#1195 = (???*0* | ":" | {})
+s7#1196 = (???*0* | ":" | {})
 - *0* s7
   ⚠️  pattern without value
 
-s7#1221 = ???*0*
+s7#1222 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s7#1251 = ???*0*
+s7#1252 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s7#1273 = ???*0*
+s7#1274 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s7#1317 = ???*0*
+s7#1318 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s7#132 = ???*0*
+s7#133 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s7#1369 = ???*0*
+s7#1370 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s7#1395 = ???*0*
+s7#1396 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s7#1415 = ???*0*
+s7#1416 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s7#1443 = ???*0*
+s7#1444 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s7#1471 = ???*0*
+s7#1472 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s7#1499 = ???*0*
+s7#1500 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s7#1543 = ???*0*
+s7#1544 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s7#1587 = ???*0*
+s7#1588 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s7#1663 = ???*0*
+s7#1664 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s7#1755 = ???*0*
+s7#1756 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s7#201 = ???*0*
+s7#202 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s7#229 = ???*0*
+s7#230 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s7#284 = ???*0*
+s7#285 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s7#323 = (???*0* | "(" | {} | ")")
+s7#324 = (???*0* | "(" | {} | ")")
 - *0* s7
   ⚠️  pattern without value
 
-s7#376 = (???*0* | "," | {})
+s7#377 = (???*0* | "," | {})
 - *0* s7
   ⚠️  pattern without value
 
-s7#454 = (???*0* | ???*1* | {})
+s7#455 = (???*0* | ???*1* | {})
 - *0* s7
   ⚠️  pattern without value
 - *1* ???*2*["charAt"](peg$currPos)
@@ -3474,97 +3474,93 @@ s7#454 = (???*0* | ???*1* | {})
 - *2* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-s7#525 = (???*0* | "," | {})
+s7#526 = (???*0* | "," | {})
 - *0* s7
   ⚠️  pattern without value
 
-s7#567 = (???*0* | "," | {})
+s7#568 = (???*0* | "," | {})
 - *0* s7
   ⚠️  pattern without value
 
-s8#1112 = (???*0* | [])
+s8#1113 = (???*0* | [])
 - *0* s8
   ⚠️  pattern without value
 
-s8#1195 = (???*0* | [])
+s8#1196 = (???*0* | [])
 - *0* s8
   ⚠️  pattern without value
 
-s8#132 = ???*0*
+s8#133 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s8#1369 = (???*0* | [])
+s8#1370 = (???*0* | [])
 - *0* s8
   ⚠️  pattern without value
 
-s8#1395 = (???*0* | [])
+s8#1396 = (???*0* | [])
 - *0* s8
   ⚠️  pattern without value
 
-s8#1663 = (???*0* | [])
+s8#1664 = (???*0* | [])
 - *0* s8
   ⚠️  pattern without value
 
-s8#323 = (???*0* | [])
+s8#324 = (???*0* | [])
 - *0* s8
   ⚠️  pattern without value
 
-s8#376 = (???*0* | [])
+s8#377 = (???*0* | [])
 - *0* s8
   ⚠️  pattern without value
 
-s8#525 = (???*0* | [])
+s8#526 = (???*0* | [])
 - *0* s8
   ⚠️  pattern without value
 
-s8#567 = (???*0* | [])
+s8#568 = (???*0* | [])
 - *0* s8
   ⚠️  pattern without value
 
-s9#1112 = (???*0* | "]" | {})
+s9#1113 = (???*0* | "]" | {})
 - *0* s9
   ⚠️  pattern without value
 
-s9#1195 = ???*0*
+s9#1196 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s9#132 = ???*0*
+s9#133 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s9#1369 = (???*0* | ")" | {})
+s9#1370 = (???*0* | ")" | {})
 - *0* s9
   ⚠️  pattern without value
 
-s9#1395 = ???*0*
+s9#1396 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s9#1663 = (???*0* | "]" | {})
+s9#1664 = (???*0* | "]" | {})
 - *0* s9
   ⚠️  pattern without value
 
-s9#323 = ???*0*
+s9#324 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s9#376 = ???*0*
+s9#377 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s9#525 = ???*0*
+s9#526 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-s9#567 = ???*0*
+s9#568 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
-
-select#31 = ???*0*
-- *0* arguments[1]
-  ⚠️  function calls are not analyzed yet
 
 select#32 = ???*0*
 - *0* arguments[1]
@@ -3578,15 +3574,19 @@ select#34 = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analyzed yet
 
+select#35 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analyzed yet
+
 seq = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-source#40 = ???*0*
+source#41 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-source#41 = ???*0*
+source#42 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
@@ -3612,23 +3612,23 @@ subquery = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-tail#1801 = ???*0*
+tail#100 = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analyzed yet
 
-tail#39 = ???*0*
+tail#1802 = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analyzed yet
 
-tail#46 = ???*0*
+tail#40 = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analyzed yet
 
-tail#50 = ???*0*
+tail#47 = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analyzed yet
 
-tail#58 = ???*0*
+tail#51 = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analyzed yet
 
@@ -3636,23 +3636,23 @@ tail#59 = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analyzed yet
 
-tail#66 = ???*0*
+tail#60 = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analyzed yet
 
-tail#85 = ???*0*
+tail#67 = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analyzed yet
 
-tail#89 = ???*0*
+tail#86 = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analyzed yet
 
-tail#94 = ???*0*
+tail#90 = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analyzed yet
 
-tail#99 = ???*0*
+tail#95 = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analyzed yet
 
@@ -3660,15 +3660,11 @@ test = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-text#107 = ???*0*
+text#108 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-text#28 = (...) => input["substring"](peg$savedPos, peg$currPos)
-
-top#31 = ???*0*
-- *0* arguments[0]
-  ⚠️  function calls are not analyzed yet
+text#29 = (...) => input["substring"](peg$savedPos, peg$currPos)
 
 top#32 = ???*0*
 - *0* arguments[0]
@@ -3682,43 +3678,43 @@ top#34 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-v#30 = ???*0*
+top#35 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
 v#31 = ???*0*
-- *0* arguments[2]
-  ⚠️  function calls are not analyzed yet
-
-v#32 = ???*0*
-- *0* arguments[3]
-  ⚠️  function calls are not analyzed yet
-
-v#33 = ???*0*
-- *0* arguments[4]
-  ⚠️  function calls are not analyzed yet
-
-v#38 = ???*0*
-- *0* arguments[1]
-  ⚠️  function calls are not analyzed yet
-
-v#40 = ???*0*
-- *0* arguments[1]
-  ⚠️  function calls are not analyzed yet
-
-v#43 = ???*0*
-- *0* arguments[1]
-  ⚠️  function calls are not analyzed yet
-
-v#77 = ???*0*
-- *0* arguments[1]
-  ⚠️  function calls are not analyzed yet
-
-value#37 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-value#90 = ???*0*
+v#32 = ???*0*
+- *0* arguments[2]
+  ⚠️  function calls are not analyzed yet
+
+v#33 = ???*0*
+- *0* arguments[3]
+  ⚠️  function calls are not analyzed yet
+
+v#34 = ???*0*
+- *0* arguments[4]
+  ⚠️  function calls are not analyzed yet
+
+v#39 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analyzed yet
+
+v#41 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analyzed yet
+
+v#44 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analyzed yet
+
+v#78 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analyzed yet
+
+value#38 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
@@ -3727,17 +3723,21 @@ value#91 = ???*0*
   ⚠️  function calls are not analyzed yet
 
 value#92 = ???*0*
-- *0* arguments[1]
-  ⚠️  function calls are not analyzed yet
-
-value#97 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
-where#33 = ???*0*
-- *0* arguments[3]
+value#93 = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analyzed yet
+
+value#98 = ???*0*
+- *0* arguments[0]
   ⚠️  function calls are not analyzed yet
 
 where#34 = ???*0*
+- *0* arguments[3]
+  ⚠️  function calls are not analyzed yet
+
+where#35 = ???*0*
 - *0* arguments[3]
   ⚠️  function calls are not analyzed yet

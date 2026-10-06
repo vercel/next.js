@@ -41,7 +41,7 @@ export type WorkStoreContext = {
     pendingWaitUntil?: Promise<any>
     experimental: Pick<
       RenderOpts['experimental'],
-      'isRoutePPREnabled' | 'authInterrupts' | 'useCacheTimeout'
+      'isRoutePPREnabled' | 'useCacheTimeout' | 'durableUseCacheEntries'
     >
 
     /**
@@ -119,6 +119,7 @@ function createWorkStoreImpl(
       renderOpts.incrementalCache || (globalThis as any).__incrementalCache,
     cacheLifeProfiles: renderOpts.cacheLifeProfiles,
     useCacheTimeout: renderOpts.experimental.useCacheTimeout,
+    durableUseCacheEntries: renderOpts.experimental.durableUseCacheEntries,
     staticPageGenerationTimeout: renderOpts.staticPageGenerationTimeout,
     isBuildTimePrerendering: renderOpts.isBuildTimePrerendering,
     fetchCache: renderOpts.fetchCache,
@@ -143,6 +144,7 @@ function createWorkStoreImpl(
     refreshTagsByCacheKind: createRefreshTagsByCacheKind(),
     runInCleanSnapshot: createSnapshot(),
     shouldTrackFetchMetrics,
+    clientComponentLoadTracker: undefined,
     reactServerErrorsByDigest: new Map(),
   }
 

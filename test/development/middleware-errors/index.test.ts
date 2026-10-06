@@ -308,15 +308,13 @@ describe('middleware - development errors', () => {
               '\n    at module evaluation (middleware.js:3:13)'
           : isRspack
             ? '\n⨯ Error: booooom!' +
-              `\n    at <unknown> (${getDistDir()}/server/edge-runtime-webpack.js:35)` +
               '\n    at eval (middleware.js:3:13)' +
-              `\n    at (middleware)/./middleware.js (${getDistDir()}/server/middleware.js:26:1)` +
+              `\n    at (middleware)/./middleware.js (${getDistDir()}/server/middleware.js:14:1)` +
               '\n    at __webpack_require__ '
             : '\n⨯ Error: booooom!' +
               // TODO: Should be anonymous method without a method name
-              '\n    at <unknown> (middleware.js:3)' +
-              // TODO: Should be ignore-listed
               '\n    at eval (middleware.js:3:13)' +
+              // TODO: Should be ignore-listed
               `\n    at (middleware)/./middleware.js (${getDistDir()}/server/middleware.js:18:1)` +
               '\n    at __webpack_require__ '
       )
@@ -349,7 +347,6 @@ describe('middleware - development errors', () => {
          > 3 |       throw new Error('booooom!')
              |             ^",
            "stack": [
-             "<FIXME-next-dist-dir>",
              "eval middleware.js (3:13)",
              "<FIXME-next-dist-dir>",
              "<FIXME-next-dist-dir>",
@@ -372,7 +369,6 @@ describe('middleware - development errors', () => {
          > 3 |       throw new Error('booooom!')
              |             ^",
            "stack": [
-             "<unknown> middleware.js (3)",
              "eval middleware.js (3:13)",
              "<FIXME-next-dist-dir>",
              "<FIXME-next-dist-dir>",

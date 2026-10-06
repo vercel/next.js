@@ -56,7 +56,8 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::{
     AnalyzeMode, CustomTransformer, EcmascriptInputTransform, TransformPlugin,
-    chunk::EcmascriptChunkType, transform::ReactCompilerCompilationMode,
+    chunk::EcmascriptChunkType,
+    transform::{ReactCompilerCompilationMode, ReactCompilerTransformOptions},
 };
 use turbopack_ecmascript_plugins::transform::{
     emotion::{EmotionTransformConfig, EmotionTransformer},
@@ -95,6 +96,8 @@ struct SnapshotOptions {
     remove_unused_exports: bool,
     #[serde(default)]
     cjs_tree_shaking: bool,
+    #[serde(default)]
+    mangle_export_names: bool,
     #[serde(default)]
     cjs_scope_hoisting: bool,
     #[serde(default)]
@@ -145,6 +148,7 @@ impl Default for SnapshotOptions {
             remove_unused_imports: false,
             remove_unused_exports: false,
             cjs_tree_shaking: false,
+            mangle_export_names: false,
             cjs_scope_hoisting: false,
             cross_module_constants: false,
             scope_hoisting: false,
@@ -422,12 +426,16 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 ignore_dynamic_requests: true,
                 infer_module_side_effects: true,
                 cjs_tree_shaking: options.cjs_tree_shaking,
+                mangle_export_names: options.mangle_export_names,
                 cjs_scope_hoisting: options.cjs_scope_hoisting,
                 cross_module_constants: options.cross_module_constants,
                 enable_exports_info_inlining: true,
-                enable_rust_react_compiler: options
-                    .enable_rust_react_compiler
-                    .then_some(ReactCompilerCompilationMode::Infer),
+                enable_rust_react_compiler: options.enable_rust_react_compiler.then_some(
+                    ReactCompilerTransformOptions {
+                        compilation_mode: ReactCompilerCompilationMode::Infer,
+                        ..Default::default()
+                    },
+                ),
                 ..Default::default()
             },
             environment: Some(env),
@@ -437,7 +445,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                     environment: Some(env),
                     follow_reexports: options.follow_reexports,
                     module_fragments_enabled: options.module_fragments_enabled,
-                    analyze_mode: AnalyzeMode::CodeGenerationAndTracing,
+                    analyze_mode: AnalyzeMode::code_generation_and_tracing(),
                     ..Default::default()
                 }
                 .resolved_cell(),
@@ -445,7 +453,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             module_rules: vec![module_rules],
             follow_reexports: options.follow_reexports,
             module_fragments_enabled: options.module_fragments_enabled,
-            analyze_mode: AnalyzeMode::CodeGenerationAndTracing,
+            analyze_mode: AnalyzeMode::code_generation_and_tracing(),
             ..Default::default()
         }
         .cell(),

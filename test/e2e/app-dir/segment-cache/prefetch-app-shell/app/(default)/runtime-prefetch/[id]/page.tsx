@@ -1,5 +1,5 @@
 import { Suspense } from 'react'
-import { unstable_prefetch } from 'next/cache'
+import { prefetch as prefetchStage } from 'next/cache'
 import { cookies } from 'next/headers'
 import { connection } from 'next/server'
 
@@ -24,7 +24,7 @@ export default async function Page({ params }: { params: Promise<Params> }) {
 
 async function PrefetchData() {
   await cookies() // Makes sure this page uses a runtime prefetch
-  await unstable_prefetch() // Exclude the contents below from runtime app shells
+  await prefetchStage() // Exclude the contents below from runtime app shells
   return <div id="prefetch-content">Prefetch content</div>
 }
 

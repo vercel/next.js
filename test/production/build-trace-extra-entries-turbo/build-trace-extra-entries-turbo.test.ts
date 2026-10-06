@@ -2,13 +2,13 @@ import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 
 describe('build trace with extra entries', () => {
+  // This suite controls the local build lifecycle directly, which deployment tests cannot reproduce.
+  // @force-gate !deploy
   describe('production mode', () => {
-    const { next, isTurbopack, skipped } = nextTestSetup({
+    const { next, isTurbopack } = nextTestSetup({
       files: path.join(__dirname, 'app'),
       skipStart: true,
-      skipDeployment: true,
     })
-    if (skipped) return
 
     it('should build and trace correctly', async () => {
       const { exitCode } = await next.build()
@@ -74,8 +74,8 @@ describe('build trace with extra entries', () => {
       ).toBe(true)
       if (isTurbopack) {
         // A symlink matched by outputFileTracingIncludes is traced as the symlink itself, even
-        // when it points at a directory (this used to fail the build with
-        // `reading file "..." Is a directory (os error 21)`).
+        // when it points at a directory. Files reached through it are traced at their resolved
+        // paths so deployment includes both the link and its target contents.
         // The webpack tracer globs with `nodir: true`, which drops directory symlinks, so this
         // only applies to Turbopack.
         expect(
@@ -84,8 +84,24 @@ describe('build trace with extra entries', () => {
           )
         ).toBe(true)
         expect(
+          tracedFiles.some(
+            (file: string) => file === '../../../content/hello.json'
+          )
+        ).toBe(true)
+        expect(
+          tracedFiles.some(
+            (file: string) =>
+              file === '../../../include-me/link-to-dir/hello.json'
+          )
+        ).toBe(false)
+        expect(
           appDirRoute1Trace.files.some(
             (file: string) => file === '../../../../include-me/link-to-dir'
+          )
+        ).toBe(true)
+        expect(
+          appDirRoute1Trace.files.some(
+            (file: string) => file === '../../../../content/hello.json'
           )
         ).toBe(true)
       }

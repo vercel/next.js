@@ -43,9 +43,11 @@ function parseLogsFromCli(cliOutput: string) {
   }, [])
 }
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('app-dir - fetch logging', () => {
   const { next, isNextDev } = nextTestSetup({
-    skipDeployment: true,
     files: __dirname,
   })
 
@@ -79,12 +81,13 @@ describe('app-dir - fetch logging', () => {
   })
 })
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('app-dir - logging', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
-    skipDeployment: true,
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
   })
-  if (skipped) return
   function runTests({
     withFetchesLogging,
     withFullUrlFetches = false,

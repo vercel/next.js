@@ -88,10 +88,12 @@ export async function buildDevValidationSnapshot(
       .additionalClientReferenceManifestPages
       ? [...ctx.workStore.additionalClientReferenceManifestPages]
       : [],
+    reactBrowserBailout: ctx.renderOpts.experimental.reactBrowserBailout,
     isDebugChannelEnabled: !!ctx.renderOpts.setReactDebugChannel,
     renderOpts: {
       images: ctx.renderOpts.images,
       allowEmptyStaticShell: ctx.renderOpts.allowEmptyStaticShell,
+      partialPrefetching: ctx.renderOpts.partialPrefetching,
     },
     instantInputs: instantInputs
       ? await toSerializedInputs(instantInputs)

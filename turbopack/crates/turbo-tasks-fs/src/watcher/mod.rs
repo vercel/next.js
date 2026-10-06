@@ -35,7 +35,7 @@ use tracing::instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, InvalidationReason, InvalidationReasonKind, Invalidator, ResolvedVc,
-    TraitRef, TurboTasksApi, spawn_thread, trace::TraceRawVcs, util::StaticOrArc,
+    TraitRef, TurboTasksApi, spawn_thread, util::StaticOrArc,
 };
 
 use crate::{
@@ -63,7 +63,7 @@ static FORCED_WATCH_RECURSIVE_MODE: LazyLock<Option<DiskWatcherRecursiveMode>> =
 );
 
 #[turbo_tasks::task_input]
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Encode, Decode)]
 pub struct DiskWatcherConfig {
     /// Whether to let the [`notify::Watcher`] recurse into subdirectories itself, or to track and
     /// watch each directory we care about ourselves.
@@ -144,7 +144,7 @@ pub trait DiskWatcherPathMatcher {
 /// When using [`Self::NonRecursive`], we only track previously read files and their parent
 /// directories.
 #[turbo_tasks::task_input]
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Encode, Decode)]
 pub enum DiskWatcherRecursiveMode {
     Recursive,
     NonRecursive,
@@ -1134,6 +1134,9 @@ mod tests {
     /// `recursive_mode` is set explicitly rather than left to the platform default so that both
     /// watching strategies are covered on every host. `TURBO_TASKS_FORCE_WATCH_MODE` still
     /// overrides it, collapsing these into two cases.
+    // Miri cannot run the native cases because inotify is unsupported, while the polling cases
+    // require Turbo Tasks' link-section registry, which is unavailable under Miri.
+    #[cfg(not(miri))]
     #[rstest]
     #[case::native_recursive(None, DiskWatcherRecursiveMode::Recursive)]
     #[case::native_non_recursive(None, DiskWatcherRecursiveMode::NonRecursive)]

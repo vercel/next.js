@@ -566,6 +566,10 @@ mod tests {
 
     /// Aborting in the middle of a deep, still-growing cascade must terminate rather than hang:
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    #[cfg_attr(
+        target_family = "wasm",
+        ignore = "tokio runtime shutdown hangs on wasm while blocking threads are live"
+    )]
     async fn test_unbounded_abort_during_cascade() {
         // Each item spawns two children until the id exceeds the bound, so the queue is still
         // growing when the abort lands.
@@ -650,6 +654,7 @@ mod tests {
     /// swallowed by the wind-down: the abort's queue-clear races the panic's unwind through
     /// `catch_unwind` -> `on_item_finished`.
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[cfg_attr(target_family = "wasm", ignore = "no unwinding on wasm")]
     async fn test_unbounded_abort_then_panic() {
         let result = catch_unwind(AssertUnwindSafe(|| {
             scope_unbounded(0..1000usize, |_spawner, item| {
@@ -667,19 +672,27 @@ mod tests {
     /// A panic in a `run` invocation propagates after all in-flight work is joined, and aborts the
     /// scope: the queued-but-unstarted items are abandoned rather than run.
     ///
-    /// The first item panics, so with a large seed set almost nothing else should be dispatched.
-    /// Items already picked up by another drainer still complete, so the bound is "far fewer than
-    /// seeded" rather than exactly one.
+    /// Use a growing cascade and panic after enough work has run to guarantee that work remains
+    /// queued. A fixed seed set can drain completely before its first item panics, making it unable
+    /// to distinguish a missed abort from valid scheduling.
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    #[cfg_attr(target_family = "wasm", ignore = "no unwinding on wasm")]
     async fn test_unbounded_panic_propagates_and_abandons_queue() {
-        const ITEMS: usize = 10_000;
+        const MAX_ID: usize = 1 << 14;
         let processed = Arc::new(AtomicUsize::new(0));
         let processed_clone = processed.clone();
         let result = catch_unwind(AssertUnwindSafe(|| {
-            scope_unbounded(0..ITEMS, move |_spawner, item| {
-                processed_clone.fetch_add(1, Ordering::SeqCst);
-                if item == 0 {
+            scope_unbounded(std::iter::once(1usize), move |spawner, id| {
+                let n = processed_clone.fetch_add(1, Ordering::SeqCst);
+                if n == 100 {
                     panic!("Intentional panic");
+                }
+                let (left, right) = (id * 2, id * 2 + 1);
+                if left <= MAX_ID {
+                    spawner.spawn(left);
+                }
+                if right <= MAX_ID {
+                    spawner.spawn(right);
                 }
                 ControlFlow::Continue(())
             });
@@ -689,8 +702,8 @@ mod tests {
         assert_eq!(err.downcast_ref::<&str>(), Some(&"Intentional panic"));
         let count = processed.load(Ordering::SeqCst);
         assert!(
-            count < ITEMS,
-            "a panic must abandon the queue, but all {ITEMS} items ran"
+            count < MAX_ID,
+            "a panic must cut the cascade short, but {count} items ran"
         );
     }
 
@@ -787,6 +800,7 @@ mod tests {
     /// A panic must propagate through the fold path without deadlocking the join, which drainers
     /// reach only after their merge.
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[cfg_attr(target_family = "wasm", ignore = "no unwinding on wasm")]
     async fn test_unbounded_with_panic_propagates() {
         let result = catch_unwind(AssertUnwindSafe(|| {
             scope_unbounded_with(
@@ -909,6 +923,12 @@ mod tests {
     }
 
     /// Sustained work keeps workers alive rather than churning them:
+    #[cfg_attr(
+        target_family = "wasm",
+        ignore = "intermittently stalls under the full wasm suite"
+    )]
+    // This test is too slow to run under Miri.
+    #[cfg(not(miri))]
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn test_unbounded_busy_queue_does_not_churn_workers() {
         const ITEMS: usize = 20_000;

@@ -81,7 +81,6 @@ import {
 } from '../lib/router-utils/instrumentation-globals.external'
 import type { PrerenderManifest } from '../../build'
 import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
-import type { PrerenderedRoute } from '../../build/static-paths/types'
 import { HMR_MESSAGE_SENT_TO_BROWSER } from './hot-reloader-types'
 import { registerLocalSpanRecorder } from '../lib/trace/local-span-recorder'
 
@@ -733,11 +732,7 @@ export default class DevServer extends Server {
     requestHeaders: IncrementalCache['requestHeaders']
     page: string
     isAppPath: boolean
-  }): Promise<{
-    prerenderedRoutes?: PrerenderedRoute[]
-    staticPaths?: string[]
-    fallbackMode?: FallbackMode
-  }> {
+  }): ReturnType<Server['getStaticPaths']> {
     // we lazy load the staticPaths to prevent the user
     // from waiting on them for the page to load in dev mode
 
@@ -754,6 +749,7 @@ export default class DevServer extends Server {
           config: {
             configFileName,
             cacheComponents: Boolean(this.nextConfig.cacheComponents),
+            partialPrefetching: Boolean(this.nextConfig.partialPrefetching),
           },
           httpAgentOptions,
           locales,
@@ -770,8 +766,10 @@ export default class DevServer extends Server {
           nextConfigOutput: this.nextConfig.output,
           buildId: this.buildId,
           deploymentId: this.deploymentId,
-          authInterrupts: Boolean(this.nextConfig.experimental.authInterrupts),
           useCacheTimeout: this.nextConfig.experimental.useCacheTimeout,
+          durableUseCacheEntries: Boolean(
+            this.nextConfig.experimental.durableUseCacheEntries
+          ),
           staticPageGenerationTimeout:
             this.nextConfig.staticPageGenerationTimeout,
           sriEnabled: Boolean(this.nextConfig.experimental.sri?.algorithm),
@@ -789,7 +787,12 @@ export default class DevServer extends Server {
       []
     )
       .then(async (res) => {
-        const { prerenderedRoutes, fallbackMode: fallback } = res.value
+        const {
+          prerenderedRoutes,
+          prerenderRouteMatchers,
+          fallbackMode: fallback,
+          paramMatching,
+        } = res.value
 
         if (isAppPath) {
           if (this.nextConfig.output === 'export') {
@@ -821,17 +824,13 @@ export default class DevServer extends Server {
           }
         }
 
-        const value: {
-          staticPaths: string[] | undefined
-          prerenderedRoutes: PrerenderedRoute[] | undefined
-          fallbackMode: FallbackMode | undefined
-        } = {
+        const value = {
+          ...res.value,
           staticPaths: prerenderedRoutes?.map((route) => route.pathname),
-          prerenderedRoutes,
-          fallbackMode: fallback,
         }
 
         if (
+          paramMatching === undefined &&
           res.value?.fallbackMode !== undefined &&
           // This matches the hasGenerateStaticParams logic we do during build.
           (!isAppPath || (prerenderedRoutes && prerenderedRoutes.length > 0))
@@ -852,9 +851,10 @@ export default class DevServer extends Server {
           // the route whose pathname matches the page pattern (e.g.
           // /dynamic-params/[slug]) and has fallback route params describing
           // which params are unknown at build time.
-          const fallbackPrerenderedRoute = prerenderedRoutes?.find(
-            (route) => route.pathname === pathname
-          )
+          const fallbackRoute =
+            prerenderRouteMatchers?.find(
+              (route) => route.pathname === pathname
+            ) ?? prerenderedRoutes?.find((route) => route.pathname === pathname)
 
           existingManifest.dynamicRoutes[pathname] = {
             dataRoute: null,
@@ -864,8 +864,8 @@ export default class DevServer extends Server {
             fallbackExpire: undefined,
             fallbackHeaders: undefined,
             fallbackStatus: undefined,
-            fallbackRootParams: fallbackPrerenderedRoute?.fallbackRootParams,
-            fallbackRouteParams: fallbackPrerenderedRoute?.fallbackRouteParams,
+            fallbackRootParams: fallbackRoute?.fallbackRootParams,
+            fallbackRouteParams: fallbackRoute?.fallbackRouteParams,
             fallbackSourceRoute: pathname,
             prefetchDataRoute: undefined,
             prefetchDataRouteRegex: undefined,
@@ -886,12 +886,12 @@ export default class DevServer extends Server {
         }
         this.staticPathsCache.set(pathname, value)
 
-        // Since generateStaticParams runs in the background, the fallbackParams
-        // accessed during a render are derived from the previous result served
-        // by the static paths cache. Now that the cache holds the new result,
-        // trigger a refresh so the next render picks up the new fallbackParams
-        // (e.g. so blocking-route validation reflects params that just became
-        // statically known).
+        // Since generateStaticParams runs in the background, the
+        // stagedFallbackParams accessed during a render are derived from the
+        // previous result served by the static paths cache. Now that the cache
+        // holds the new result, trigger a refresh so the next render picks up
+        // the new stagedFallbackParams (e.g. so blocking-route validation
+        // reflects params that just became statically known).
         if (
           isAppPath &&
           this.nextConfig.cacheComponents &&

@@ -42,7 +42,7 @@ export type AppTreeType = ComponentType<
  * Web vitals provided to _app.reportWebVitals by Core Web Vitals plugin developed by Google Chrome team.
  * https://nextjs.org/blog/next-9-4#integrated-web-vitals-reporting
  */
-export const WEB_VITALS = ['CLS', 'FCP', 'FID', 'INP', 'LCP', 'TTFB'] as const
+export const WEB_VITALS = ['CLS', 'FCP', 'INP', 'LCP', 'TTFB'] as const
 export type NextWebVitalsMetric = {
   id: string
   startTime: number
@@ -463,6 +463,8 @@ export interface CacheFs {
   readFile: typeof fs.promises.readFile
   readFileSync: typeof fs.readFileSync
   writeFile(f: string, d: any): Promise<void>
+  /** Publish a complete file without replacing an existing destination. */
+  writeFileAtomic?(f: string, d: any): Promise<boolean>
   mkdir(dir: string): Promise<void | string>
   stat(f: string): Promise<{ mtime: Date }>
 }

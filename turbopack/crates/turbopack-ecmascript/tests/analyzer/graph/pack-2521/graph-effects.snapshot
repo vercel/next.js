@@ -1,4 +1,29 @@
 [
+    DestructuredMember {
+        obj: Call(
+            3,
+            FreeVar(
+                "require",
+            ),
+            [
+                Constant(
+                    Str(
+                        Atom(
+                            "./libvips",
+                        ),
+                    ),
+                ),
+            ],
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "runtimePlatformArch",
+                ),
+            ),
+        ),
+        span: 9..28,
+    },
     FreeVar {
         var: "require",
         ast_path: [
@@ -164,6 +189,7 @@
             ),
         ],
         span: 102..113,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "console",
@@ -458,6 +484,7 @@
             ),
         ],
         span: 508..519,
+        in_truthiness_context: false,
     },
     MemberCall {
         obj: Variable(

@@ -18,9 +18,7 @@ use image::{
 };
 use mime::Mime;
 use turbo_rcstr::rcstr;
-use turbo_tasks::{
-    NonLocalValue, PrettyPrintError, ResolvedVc, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
-};
+use turbo_tasks::{NonLocalValue, PrettyPrintError, ResolvedVc, Vc, debug::ValueDebugFormat};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     issue::{Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString},
@@ -30,7 +28,7 @@ use turbopack_core::{
 use self::svg::calculate;
 
 /// Small placeholder version of the image.
-#[derive(PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Encode, Decode)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Encode, Decode)]
 pub struct BlurPlaceholder {
     pub data_url: String,
     pub width: u32,
@@ -57,7 +55,7 @@ impl BlurPlaceholder {
 pub struct ImageMetaData {
     pub width: u32,
     pub height: u32,
-    #[turbo_tasks(trace_ignore, debug_ignore)]
+    #[turbo_tasks(unsafe_ignore, debug_ignore)]
     #[bincode(with = "turbo_bincode::mime_option")]
     pub mime_type: Option<Mime>,
     pub blur_placeholder: Option<BlurPlaceholder>,

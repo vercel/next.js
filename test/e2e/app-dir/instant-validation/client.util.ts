@@ -25,6 +25,7 @@ export function registerClientTests(ctx: InstantValidationCaseContext) {
     isClientNav,
     navigateTo,
     expectNoDevValidationErrors,
+    getInstantInsight,
     getCliOutputSinceMark,
     prerender,
   } = ctx
@@ -35,7 +36,7 @@ export function registerClientTests(ctx: InstantValidationCaseContext) {
         const browser = await navigateTo(
           '/suspense-in-root/static/invalid-client-data-blocks-validation'
         )
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -208,6 +209,7 @@ export function registerClientTests(ctx: InstantValidationCaseContext) {
         const browser = await navigateTo(
           '/suspense-in-root/static/invalid-client-error-in-parent-blocks-children'
         )
+        await waitForValidation(await browser.url(), getCliOutputSinceMark)
         // We expect a collapsed redbox. We need to open it to assert on the messages.
         await openRedbox(browser)
 
@@ -313,6 +315,7 @@ export function registerClientTests(ctx: InstantValidationCaseContext) {
         const browser = await navigateTo(
           '/suspense-in-root/static/invalid-error-in-node-modules-blocks-children'
         )
+        await waitForValidation(await browser.url(), getCliOutputSinceMark)
         // We expect a collapsed redbox. We need to open it to assert on the messages.
         await openRedbox(browser)
 
@@ -399,7 +402,7 @@ export function registerClientTests(ctx: InstantValidationCaseContext) {
         const browser = await navigateTo(
           '/suspense-in-root/static/invalid-csr-bailout-blocks-children'
         )
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            [
              {
                "description": "Route "/suspense-in-root/static/invalid-csr-bailout-blocks-children": Could not validate \`instant\` because the target segment was prevented from rendering, likely due to the following error.",
@@ -416,7 +419,7 @@ export function registerClientTests(ctx: InstantValidationCaseContext) {
                "cause": [
                  {
                    "label": "Caused by: Error",
-                   "message": "Bail out to client-side rendering: next/dynamic",
+                   "message": "Browser-only rendering was requested by \`browser()\`.",
                    "source": null,
                    "stack": [],
                  },
@@ -448,10 +451,9 @@ export function registerClientTests(ctx: InstantValidationCaseContext) {
                at body (<anonymous>)
                at html (<anonymous>)
                at c (<anonymous>) {
-             [cause]: Error: Bail out to client-side rendering: next/dynamic
+             [cause]: Error: Browser-only rendering was requested by \`browser()\`.
                  at ignore-listed frames {
-               reason: 'next/dynamic',
-               digest: 'BAILOUT_TO_CLIENT_SIDE_RENDERING'
+               [cause]: 'next/dynamic'
              }
            }
            Build-time instant validation failed for route "/suspense-in-root/static/invalid-csr-bailout-blocks-children".

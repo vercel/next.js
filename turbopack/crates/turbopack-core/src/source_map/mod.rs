@@ -59,7 +59,7 @@ pub trait GenerateSourceMap {
 #[derive(Debug)]
 pub struct SourceMap {
     /// A decoded source map contains no Vcs.
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(unsafe_ignore)]
     map: Arc<CrateMapWrapper>,
 }
 impl Eq for SourceMap {}

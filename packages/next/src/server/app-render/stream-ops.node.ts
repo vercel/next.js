@@ -48,6 +48,7 @@ import {
   atLeastOneTask,
   waitAtLeastOneReactRenderTask,
 } from '../../lib/scheduler'
+import { ResponseAborted } from '../web/spec-extension/adapters/next-request'
 import type {
   FlightPayload,
   FlightClientModules,
@@ -562,6 +563,17 @@ export function renderToNodeFlightStream(
     clientModules,
     renderOptions
   )
+
+  // If the destination is destroyed before the render ended, React aborts with a
+  // generic "The destination stream closed early." error that `onError` can't
+  // tell apart from a real render error. Abort first with the reason we already
+  // know; the listener is registered before piping so it runs before React's.
+  pt.once('close', () => {
+    if (!pt.writableEnded) {
+      pipeable.abort(new ResponseAborted())
+    }
+  })
+
   pipeable.pipe(pt)
 
   if (signal) {

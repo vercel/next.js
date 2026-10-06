@@ -397,13 +397,6 @@ async function exportAppImpl(
       )
   }
 
-  // Get the exportPathMap from the config file
-  if (typeof nextConfig.exportPathMap !== 'function') {
-    nextConfig.exportPathMap = async (defaultMap) => {
-      return defaultMap
-    }
-  }
-
   const {
     i18n,
     images: { loader = 'default', unoptimized },
@@ -520,10 +513,15 @@ async function exportAppImpl(
         nextConfig.experimental.clientParamParsingOrigins,
       dynamicOnHover: nextConfig.experimental.dynamicOnHover ?? false,
       optimisticRouting: nextConfig.experimental.optimisticRouting ?? false,
+      parallelRouteMetadata:
+        nextConfig.experimental.parallelRouteMetadata ?? false,
       inlineCss: nextConfig.experimental.inlineCss ?? false,
       prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
-      authInterrupts: !!nextConfig.experimental.authInterrupts,
+      reactBrowserBailout: nextConfig.experimental.reactBrowserBailout ?? false,
       useCacheTimeout: nextConfig.experimental.useCacheTimeout,
+      durableUseCacheEntries: Boolean(
+        nextConfig.experimental.durableUseCacheEntries
+      ),
       cachedNavigations: nextConfig.experimental.cachedNavigations ?? false,
       maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
         nextConfig.experimental.maxPostponedStateSize
@@ -544,6 +542,10 @@ async function exportAppImpl(
   const exportPathMap = await span
     .traceChild('run-export-path-map')
     .traceAsyncFn(async () => {
+      if (typeof nextConfig.exportPathMap !== 'function') {
+        return defaultPathMap
+      }
+
       const exportMap = await nextConfig.exportPathMap(defaultPathMap, {
         dev: false,
         dir,

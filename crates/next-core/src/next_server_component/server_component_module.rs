@@ -65,7 +65,7 @@ impl NextServerComponentModule {
         Vc::upcast(SingleChunkableModuleReference::new(
             Vc::upcast(*self.module),
             rcstr!("Next.js Server Component"),
-            ExportUsage::all(),
+            ExportUsage::passthrough(true),
         ))
     }
 }

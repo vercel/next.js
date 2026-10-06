@@ -4,7 +4,7 @@ describe('@next/third-parties basic usage', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     dependencies: {
-      '@next/third-parties': 'canary',
+      '@next/third-parties': 'workspace:*',
     },
   })
 

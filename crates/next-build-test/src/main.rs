@@ -171,6 +171,7 @@ fn main() {
                 encryption_key: rcstr!("deadbeef"),
                 env: vec![],
                 next_config: include_str!("../nextConfig.json").into(),
+                additional_roots: vec![],
                 preview_props: next_api::project::DraftModeOptions {
                     preview_mode_encryption_key: rcstr!("deadbeef"),
                     preview_mode_id: rcstr!("test"),

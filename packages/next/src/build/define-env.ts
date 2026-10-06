@@ -169,6 +169,9 @@ export function getDefineEnv({
     'process.env.__NEXT_APP_NAV_FAIL_HANDLING': Boolean(
       config.experimental.appNavFailHandling
     ),
+    'process.env.__NEXT_PARALLEL_ROUTE_METADATA': Boolean(
+      config.experimental.parallelRouteMetadata
+    ),
     'process.env.__NEXT_TURBOPACK_SHARED_RUNTIME': Boolean(
       config.experimental.turbopackSharedRuntime
     ),
@@ -253,6 +256,9 @@ export function getDefineEnv({
     'process.env.__NEXT_DYNAMIC_ON_HOVER': Boolean(
       config.experimental.dynamicOnHover
     ),
+    'process.env.__NEXT_EXPERIMENTAL_REACT_BROWSER_BAILOUT': Boolean(
+      config.experimental.reactBrowserBailout
+    ),
     'process.env.__NEXT_USE_OFFLINE': Boolean(config.experimental.useOffline),
     'process.env.__NEXT_PREFETCH_INLINING': Boolean(
       config.experimental.prefetchInlining
@@ -323,8 +329,6 @@ export function getDefineEnv({
     'process.env.__NEXT_LINK_NO_TOUCH_START':
       config.experimental.linkNoTouchStart ?? false,
     'process.env.__NEXT_ASSET_PREFIX': config.assetPrefix,
-    'process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS':
-      !!config.experimental.authInterrupts,
     'process.env.__NEXT_TELEMETRY_DISABLED': Boolean(
       process.env.NEXT_TELEMETRY_DISABLED
     ),
@@ -363,6 +367,10 @@ export function getDefineEnv({
       (config.logging && config.logging.browserToTerminal) || false
     ),
     'process.env.__NEXT_MCP_SERVER': !!config.experimental.mcpServer,
+    'process.env.__NEXT_EXPOSE_RUNTIME_ERRORS_TO_HMR':
+      dev &&
+      (config.experimental.exposeRuntimeErrorsToHMR ||
+        Boolean(process.env.__NEXT_EXPOSE_RUNTIME_ERRORS_TO_HMR)),
 
     // The devtools need to know whether or not to show an option to clear the
     // bundler cache. This option may be removed later once Turbopack's

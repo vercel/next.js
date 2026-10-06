@@ -1,3 +1,6 @@
+# The cache handler only needs plain Redis. We use the redis-stack image so
+# the bundled RedisInsight viewer (port 8001) is available for inspecting the
+# cache during local development.
 services:
   redis-stack:
     image: redis/redis-stack:latest

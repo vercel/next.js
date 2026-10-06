@@ -1,20 +1,18 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
+// These tests start a custom Next.js server (server.js),
+// which is not supported in deploy mode.
+// @force-gate !deploy
 describe('custom-app-render', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     startCommand: 'node server.js',
     serverReadyPattern: /Next mode: (production|development)/,
     dependencies: {
       'get-port': '5.1.1',
     },
   })
-
-  if (skipped) {
-    return
-  }
 
   it.each(['/', '/render'])('should render %s', async (page) => {
     const $ = await next.render$(page)

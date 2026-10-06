@@ -1,4 +1,7 @@
-import type { AppPageRender } from '../../app-render/app-render'
+import type {
+  AppPagePrerender,
+  AppPageRender,
+} from '../../app-render/app-render'
 
 function getAppPageModule(): typeof import('./module.compiled') {
   if (process.env.NEXT_MINIMAL) {
@@ -13,7 +16,7 @@ export const lazyRenderAppPage: AppPageRender = (...args) => {
   return render(...args)
 }
 
-export const lazyPrerenderAppPage: AppPageRender = (...args) => {
-  const prerender: AppPageRender = getAppPageModule().prerenderToHTMLOrFlight
+export const lazyPrerenderAppPage: AppPagePrerender = (...args) => {
+  const prerender: AppPagePrerender = getAppPageModule().prerenderToHTMLOrFlight
   return prerender(...args)
 }
