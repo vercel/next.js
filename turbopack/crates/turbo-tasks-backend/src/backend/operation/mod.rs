@@ -1911,6 +1911,8 @@ mod must_exist_tests {
                 data: Some(encoded_data.clone()),
                 meta: Some(encoded_meta.clone()),
                 task_type_hash: None,
+                #[cfg(feature = "print_cache_item_size")]
+                stats: Default::default(),
             })
             .collect::<Vec<_>>();
         backing.save_snapshot(None, vec![items]).unwrap();
@@ -2104,7 +2106,10 @@ mod filter_transient_tracking_tests {
 
     use super::*;
     use crate::{
-        backend::{TaskDataCategory, storage::Storage},
+        backend::{
+            TaskDataCategory,
+            storage::{Storage, StorageOptions},
+        },
         data::{CellRef, OutputValue},
     };
 
@@ -2140,7 +2145,7 @@ mod filter_transient_tracking_tests {
 
     #[test]
     fn autoset_add_remove_only_tracks_persistent_keys() {
-        let storage = Storage::new(2, true);
+        let storage = Storage::new(StorageOptions::for_tests());
         let task_id = persistent_task(1);
 
         // `children` is an AutoSet<TaskId> meta field with filter_transient.
@@ -2190,7 +2195,7 @@ mod filter_transient_tracking_tests {
 
     #[test]
     fn autoset_extend_tracks_iff_any_persistent() {
-        let storage = Storage::new(2, true);
+        let storage = Storage::new(StorageOptions::for_tests());
 
         // Extend with only transient children: no meta modification.
         let task_id = persistent_task(1);
@@ -2218,7 +2223,7 @@ mod filter_transient_tracking_tests {
 
     #[test]
     fn countermap_update_count_only_tracks_persistent_keys() {
-        let storage = Storage::new(2, true);
+        let storage = Storage::new(StorageOptions::for_tests());
         let task_id = persistent_task(1);
 
         // `upper` is a CounterMap<TaskId> meta field with filter_transient.
@@ -2241,7 +2246,7 @@ mod filter_transient_tracking_tests {
 
     #[test]
     fn countermap_update_counts_batch_tracks_iff_any_persistent() {
-        let storage = Storage::new(2, true);
+        let storage = Storage::new(StorageOptions::for_tests());
 
         // followers: CounterMap<TaskId>, filter_transient, has update_counts.
         let task_id = persistent_task(1);
@@ -2267,7 +2272,7 @@ mod filter_transient_tracking_tests {
 
     #[test]
     fn direct_option_set_take_tracks_by_value_transience() {
-        let storage = Storage::new(2, true);
+        let storage = Storage::new(StorageOptions::for_tests());
 
         // `output` is a direct Option<OutputValue> meta field with filter_transient.
         // Setting a transient output: no meta modification.
@@ -2352,18 +2357,39 @@ mod filter_transient_tracking_tests {
 mod cell_data_tracking_tests {
     //! `cell_data` writes track a Data modification only when the cell's value
     //! type persists something.
+    use turbo_bincode::TurboBincodeBuffer;
     use turbo_tasks::{
         self as turbo_tasks, CellId, TRANSIENT_TASK_BIT, TaskId, ValueTypePersistence, VcValueType,
         registry,
     };
 
     use super::*;
-    use crate::backend::{
-        TaskDataCategory, storage::Storage, storage_schema::TaskStorageAccessors,
+    use crate::{
+        backend::{
+            TaskDataCategory,
+            storage::{Storage, StorageOptions, encode_task_contents},
+            storage_schema::TaskStorageAccessors,
+        },
+        backing_storage::SnapshotItem,
     };
 
     #[turbo_tasks::value]
     struct PersistableV(#[allow(dead_code)] u32);
+
+    #[turbo_tasks::value(eq = "manual")]
+    struct InteriorMutableV {
+        #[bincode(with = "turbo_tasks::parking_lot_mutex_bincode")]
+        #[turbo_tasks(debug_ignore)]
+        value: parking_lot::Mutex<u32>,
+    }
+
+    impl PartialEq for InteriorMutableV {
+        fn eq(&self, _other: &Self) -> bool {
+            false
+        }
+    }
+
+    impl Eq for InteriorMutableV {}
 
     #[turbo_tasks::value(serialization = "skip")]
     struct SkipCheapV(#[allow(dead_code)] u32);
@@ -2409,7 +2435,7 @@ mod cell_data_tracking_tests {
         // (HashOnly persists via the separate `cell_data_hash` field) — but both
         // are still stored in memory. Tracking is monotonic: a later persistable
         // write flips the flag even after skipped writes left it clean.
-        let storage = Storage::new(2, true);
+        let storage = Storage::new(StorageOptions::for_tests());
         let mut g = guard_for(&storage, persistent_task(1));
 
         let skip = cell_of::<SkipCheapV>(0);
@@ -2432,7 +2458,7 @@ mod cell_data_tracking_tests {
 
     #[test]
     fn remove_tracks_only_for_persistable() {
-        let storage = Storage::new(2, true);
+        let storage = Storage::new(StorageOptions::for_tests());
         let skip = cell_of::<SkipCheapV>(0);
         let persistable = cell_of::<PersistableV>(0);
 
@@ -2471,7 +2497,7 @@ mod cell_data_tracking_tests {
         // `drop_partial` (which keys on Evictability, not the modified flag), so
         // a task that only wrote such a cell is both evictable-clean AND keeps the
         // value. This is the core safety property of not tracking Skip writes.
-        let storage = Storage::new(2, true);
+        let storage = Storage::new(StorageOptions::for_tests());
         let task_id = persistent_task(1);
         let cell = cell_of::<SkipNeverV>(0);
 
@@ -2494,5 +2520,106 @@ mod cell_data_tracking_tests {
             g.cell_data_contains(&cell),
             "Skip + evict=never cell must survive eviction even though the task was never modified"
         );
+    }
+
+    /// Regression test for copy-on-write snapshots with interior-mutable cell contents.
+    ///
+    /// Cloning `TaskStorage` only clones the cell's `SharedReference` pointer, so a mutation
+    /// through the shared value would also change the supposedly frozen snapshot copy. The
+    /// pre-mutation state must instead be encoded when the task is modified during a snapshot.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn modify_during_snapshot_encodes_interior_mutable_cell_contents() {
+        let storage = Storage::new(StorageOptions::for_tests());
+        let task_id = persistent_task(1);
+        let cell = cell_of::<InteriorMutableV>(0);
+        let value = SharedReference::new(triomphe::Arc::new(InteriorMutableV {
+            value: parking_lot::Mutex::new(1),
+        }));
+
+        {
+            let mut g = guard_for(&storage, task_id);
+            g.insert_cell_data(cell, value.clone(), persistence_of(&cell));
+            assert!(g.data_modified());
+        }
+
+        let expected = {
+            let task = storage.access_mut(task_id);
+            encode_task_contents(
+                task_id,
+                &task,
+                SpecificTaskDataCategory::Data,
+                &mut TurboBincodeBuffer::new(),
+            )
+            .unwrap()
+        };
+
+        let (snapshot_guard, has_modifications) = storage.start_snapshot();
+        assert!(has_modifications);
+        let process = |_: TaskId, _: &TaskStorage, _: &mut TurboBincodeBuffer| -> SnapshotItem {
+            panic!("the pre-encoded snapshot item must be used")
+        };
+        let shards = storage.take_snapshot(snapshot_guard, &process, &|_| {}, false);
+
+        {
+            let mut g = guard_for(&storage, task_id);
+            let _ = g.track_modification(SpecificTaskDataCategory::Data, "test");
+            *value
+                .downcast_ref::<InteriorMutableV>()
+                .unwrap()
+                .value
+                .lock() = 2;
+        }
+
+        let items: Vec<_> = shards.into_iter().flatten().collect();
+        assert_eq!(items.len(), 1);
+        let SnapshotItem::Put { data, .. } = &items[0] else {
+            panic!("expected a Put item");
+        };
+        assert_eq!(data.as_deref(), Some(&expected[..]));
+
+        let live = {
+            let task = storage.access_mut(task_id);
+            encode_task_contents(
+                task_id,
+                &task,
+                SpecificTaskDataCategory::Data,
+                &mut TurboBincodeBuffer::new(),
+            )
+            .unwrap()
+        };
+        assert_ne!(live, expected, "the shared cell value really changed");
+    }
+
+    /// A pre-encoded (copy-on-write) item carries the cache size stats of the state it encoded,
+    /// not the live state after the mutation that triggered the copy.
+    #[cfg(feature = "print_cache_item_size")]
+    #[tokio::test(flavor = "multi_thread")]
+    async fn pre_encoded_item_carries_stats_captured_at_copy_time() {
+        let storage = Storage::new(StorageOptions::for_tests());
+        let task_id = persistent_task(1);
+        {
+            let mut g = guard_for(&storage, task_id);
+            let _ = g.track_modification(SpecificTaskDataCategory::Meta, "test");
+        }
+
+        let (snapshot_guard, _) = storage.start_snapshot();
+        let process = |_: TaskId, _: &TaskStorage, _: &mut TurboBincodeBuffer| -> SnapshotItem {
+            panic!("the pre-encoded snapshot item must be used")
+        };
+        let shards = storage.take_snapshot(snapshot_guard, &process, &|_| {}, false);
+
+        // The tracked add copies the task (no children yet) before inserting the child.
+        {
+            let mut g = guard_for(&storage, task_id);
+            assert!(g.add_children(persistent_task(2)));
+        }
+
+        let items: Vec<_> = shards.into_iter().flatten().collect();
+        assert_eq!(items.len(), 1);
+        let SnapshotItem::Put { stats, .. } = &items[0] else {
+            panic!("expected a Put item");
+        };
+        assert_eq!(stats.counts.children, 0);
+        assert_eq!(storage.access_mut(task_id).meta_counts().children, 1);
     }
 }
