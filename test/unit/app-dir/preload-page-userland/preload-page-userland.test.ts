@@ -31,6 +31,35 @@ const clientReferenceManifest = {
   entryCSSFiles: {},
 }
 const serverActionsManifest = { encryptionKey: 'test-key', node: {}, edge: {} }
+type ReferenceManifests = {
+  clientReferenceManifest?: typeof clientReferenceManifest
+  serverActionsManifest?: typeof serverActionsManifest
+}
+const { loadReferenceManifests } = jest.requireActual<{
+  loadReferenceManifests: (options: {
+    page: string
+    projectDir: string
+    distDir: string
+    isDev: boolean
+  }) => ReferenceManifests
+}>('next/dist/server/load-reference-manifests')
+// Keep the request loader's private test access and manifest types local.
+const { RouteModule } = jest.requireActual<{
+  RouteModule: new (options: {
+    definition: {
+      kind: RouteKind
+      page: string
+      pathname: string
+      filename: string
+      bundlePath: string
+    }
+    userland: object
+    distDir: string
+    relativeProjectDir: string
+  }) => {
+    loadManifests: (page: string, projectDir: string) => ReferenceManifests
+  }
+}>('next/dist/server/route-modules/route-module')
 const manifestsKey = Symbol.for('next.server.manifests')
 const manifestsGlobal = globalThis as typeof globalThis & {
   [key: symbol]: unknown
@@ -55,6 +84,179 @@ function routeModule(
     relativeProjectDir,
   })
 }
+
+describe('shared Node reference-manifest loading', () => {
+  const options = {
+    page: '/%5Fencoded/custom-entry',
+    projectDir: join(process.cwd(), 'project'),
+    distDir: 'custom-build',
+    isDev: false,
+  }
+
+  beforeEach(() => {
+    evalManifestFromRelativePath.mockReset().mockReturnValue({
+      __RSC_MANIFEST: { '/_encoded/custom-entry': clientReferenceManifest },
+    })
+    loadManifestFromRelativePath
+      .mockReset()
+      .mockReturnValue(serverActionsManifest)
+  })
+
+  it.each([false, true])(
+    'uses canonical addressing and cache policy with isDev=%s',
+    (isDev) => {
+      const previous = manifestsGlobal[manifestsKey]
+      expect(loadReferenceManifests({ ...options, isDev })).toEqual({
+        clientReferenceManifest,
+        serverActionsManifest,
+      })
+      expect(evalManifestFromRelativePath).toHaveBeenCalledTimes(1)
+      expect(loadManifestFromRelativePath).toHaveBeenCalledTimes(1)
+      const [clientOptions] = evalManifestFromRelativePath.mock.calls[0]
+      expect(clientOptions.projectDir.replace(/\\/g, '/')).toBe(
+        options.projectDir.replace(/\\/g, '/')
+      )
+      expect(clientOptions).toMatchObject({
+        distDir: options.distDir,
+        manifest:
+          'server/app/_encoded/custom-entry_client-reference-manifest.js',
+        shouldCache: !isDev,
+        handleMissing: true,
+      })
+      expect(loadManifestFromRelativePath).toHaveBeenCalledWith({
+        projectDir: clientOptions.projectDir,
+        distDir: options.distDir,
+        manifest: 'server/server-reference-manifest.json',
+        shouldCache: !isDev,
+        handleMissing: true,
+      })
+      expect(
+        evalManifestFromRelativePath.mock.invocationCallOrder[0]
+      ).toBeLessThan(loadManifestFromRelativePath.mock.invocationCallOrder[0])
+      expect(manifestsGlobal[manifestsKey]).toBe(previous)
+    }
+  )
+
+  it.each(['client context', 'client entry', 'actions'])(
+    'returns optional references with missing %s',
+    (missing) => {
+      if (missing === 'client context') {
+        evalManifestFromRelativePath.mockReturnValue(undefined)
+      } else if (missing === 'client entry') {
+        evalManifestFromRelativePath.mockReturnValue({ __RSC_MANIFEST: {} })
+      } else {
+        loadManifestFromRelativePath.mockReturnValue(undefined)
+      }
+      expect(loadReferenceManifests(options)).toEqual({
+        clientReferenceManifest:
+          missing === 'actions' ? clientReferenceManifest : undefined,
+        serverActionsManifest:
+          missing === 'actions' ? undefined : serverActionsManifest,
+      })
+    }
+  )
+
+  it.each([
+    ['/favicon.ico/route', false],
+    ['/nested/icon.png/route', false],
+    ['/robots.txt/route', true],
+    ['/nested/sitemap.xml/route', true],
+  ])('preserves static metadata exclusion for %s', (page, readsClient) => {
+    evalManifestFromRelativePath.mockReturnValue({
+      __RSC_MANIFEST: { [page]: clientReferenceManifest },
+    })
+    expect(loadReferenceManifests({ ...options, page })).toEqual({
+      clientReferenceManifest: readsClient
+        ? clientReferenceManifest
+        : undefined,
+      serverActionsManifest,
+    })
+    expect(evalManifestFromRelativePath).toHaveBeenCalledTimes(
+      readsClient ? 1 : 0
+    )
+    expect(loadManifestFromRelativePath).toHaveBeenCalledTimes(1)
+  })
+
+  it.each(['client', 'actions'])(
+    'propagates %s reader errors',
+    (failedReader) => {
+      const failure = new Error('shared reader failed')
+      const reader =
+        failedReader === 'client'
+          ? evalManifestFromRelativePath
+          : loadManifestFromRelativePath
+      reader.mockImplementation(() => {
+        throw failure
+      })
+      expect(() => loadReferenceManifests(options)).toThrow(failure)
+      if (failedReader === 'client')
+        expect(loadManifestFromRelativePath).not.toHaveBeenCalled()
+    }
+  )
+
+  it.each([
+    [RouteKind.APP_PAGE, '/%5Fencoded/custom-entry', true],
+    [RouteKind.APP_ROUTE, '/api/route', true],
+    [RouteKind.APP_ROUTE, '/favicon.ico/route', false],
+    [RouteKind.PAGES, '/page', false],
+    [RouteKind.PAGES_API, '/api', false],
+  ])(
+    'preserves request references and registration timing for %s %s',
+    (kind, page, readsClient) => {
+      const previous = manifestsGlobal[manifestsKey]
+      evalManifestFromRelativePath.mockReturnValue({
+        __RSC_MANIFEST: {
+          [page.replace(/%5F/g, '_')]: clientReferenceManifest,
+        },
+      })
+      loadManifestFromRelativePath.mockImplementation(({ manifest }) => {
+        if (manifest === 'server/server-reference-manifest.json')
+          return serverActionsManifest
+        if (manifest === 'routes-manifest.json')
+          return { rewrites: { beforeFiles: [] } }
+        return {}
+      })
+      const route = new RouteModule({
+        definition: {
+          kind,
+          page,
+          pathname: '/',
+          filename: 'entry.js',
+          bundlePath: 'app/entry',
+        },
+        userland: {},
+        distDir: options.distDir,
+        relativeProjectDir: 'project',
+      })
+      const references = route.loadManifests(page, options.projectDir)
+      const isApp = kind === RouteKind.APP_PAGE || kind === RouteKind.APP_ROUTE
+      expect(references).toMatchObject({
+        clientReferenceManifest: readsClient
+          ? clientReferenceManifest
+          : undefined,
+        serverActionsManifest: isApp ? serverActionsManifest : {},
+      })
+      expect(evalManifestFromRelativePath).toHaveBeenCalledTimes(
+        readsClient ? 1 : 0
+      )
+      const actionReads = loadManifestFromRelativePath.mock.calls.filter(
+        ([{ manifest }]) => manifest === 'server/server-reference-manifest.json'
+      )
+      expect(actionReads).toHaveLength(isApp ? 1 : 0)
+      if (readsClient) {
+        const [clientOptions] = evalManifestFromRelativePath.mock.calls[0]
+        expect(clientOptions.projectDir.replace(/\\/g, '/')).toBe(
+          options.projectDir.replace(/\\/g, '/')
+        )
+        expect(clientOptions.distDir).toBe(options.distDir)
+        expect(clientOptions.manifest).toBe(
+          `server/app${page.replace(/%5F/g, '_')}_client-reference-manifest.js`
+        )
+      }
+      expect(manifestsGlobal[manifestsKey]).toBe(previous)
+    }
+  )
+})
 
 describe('App Page userland preloading', () => {
   beforeEach(() => {

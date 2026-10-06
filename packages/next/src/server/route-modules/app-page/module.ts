@@ -5,12 +5,6 @@ import type { RenderOpts } from '../../app-render/types'
 import { addRequestMeta, type NextParsedUrlQuery } from '../../request-meta'
 import type { LoaderTree } from '../../lib/app-dir-module'
 import type { PrerenderManifest } from '../../../build'
-import type { ActionManifest } from '../../../build/webpack/plugins/flight-client-entry-plugin'
-import type { ClientReferenceManifest } from '../../../build/webpack/plugins/flight-manifest-plugin'
-import {
-  CLIENT_REFERENCE_MANIFEST,
-  SERVER_REFERENCE_MANIFEST,
-} from '../../../shared/lib/constants'
 import { setManifestsSingleton } from '../../app-render/manifests-singleton'
 
 import {
@@ -121,30 +115,18 @@ export class AppPageRouteModule extends RouteModule<
       // Edge entries receive reference manifests through the edge loader.
     } else {
       const { join } = require('node:path') as typeof import('node:path')
-      const { evalManifestFromRelativePath, loadManifestFromRelativePath } =
-        require('../../load-manifest.external') as typeof import('../../load-manifest.external')
+      const { loadReferenceManifests } =
+        require('../../load-reference-manifests') as typeof import('../../load-reference-manifests')
       const projectDir = join(
         /* turbopackIgnore: true */ process.cwd(),
         this.relativeProjectDir
       )
-      const page = this.definition.page.replace(/%5F/g, '_')
-      const context = evalManifestFromRelativePath<{
-        __RSC_MANIFEST?: Record<string, ClientReferenceManifest>
-      }>({
-        projectDir,
-        distDir: this.distDir,
-        manifest: `server/app${page}_${CLIENT_REFERENCE_MANIFEST}.js`,
-        shouldCache: !this.isDev,
-        handleMissing: true,
-      })
-      const clientReferenceManifest = context?.__RSC_MANIFEST?.[page]
-      const serverActionsManifest =
-        loadManifestFromRelativePath<ActionManifest>({
+      const { clientReferenceManifest, serverActionsManifest } =
+        loadReferenceManifests({
+          page: this.definition.page,
           projectDir,
           distDir: this.distDir,
-          manifest: `server/${SERVER_REFERENCE_MANIFEST}.json`,
-          shouldCache: !this.isDev,
-          handleMissing: true,
+          isDev: this.isDev,
         })
       // Module evaluation can create Server Action closures, so register the
       // required references before calling any loader-tree factory. Other
