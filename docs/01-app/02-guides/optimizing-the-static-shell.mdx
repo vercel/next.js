@@ -440,7 +440,7 @@ export default async function SettingsPage({
 
 The settings tabs are interactive, so they can read the URL directly with `useSearchParams()`. The server-rendered form receives the `params` and `searchParams` promises and resolves them where their values are needed.
 
-During prerendering, both regions depend on the URL, so an outer boundary provides one fallback for the group. After hydration, the tabs can read the URL directly. The form also waits for the settings query, so a nested boundary keeps its own loading state visible until the server work finishes:
+During prerendering, both regions depend on the URL, so an outer boundary provides one fallback for the group. Once the URL is available, the tabs can render. The form also waits for the settings query, so a nested boundary keeps its own loading state visible until the server work finishes:
 
 ```tsx filename="app/[team]/settings/page.tsx"
 // After: the heading renders before URL-dependent content
@@ -495,7 +495,7 @@ export async function TeamSettings({
 }
 ```
 
-The prerendered shell shows `SettingsContentSkeleton`. During hydration, the tabs read the browser URL and replace that fallback while the nested form boundary stays in its loading state until the settings query finishes.
+The prerendered shell shows `SettingsContentSkeleton`. Once the URL is available, the tabs replace that fallback while the nested form boundary stays in its loading state until the settings query finishes.
 
 The plan query does not depend on either URL value. Move it into a sibling component so React can start it while the URL-dependent branch is pending. It still runs for each request at this point, so keep a temporary boundary:
 
@@ -643,7 +643,7 @@ With the refactor complete, the route reveals in three stages:
    <SettingsContentSkeleton />
    ```
 
-2. **After hydration.** The tabs read the browser URL and replace the content skeleton while the settings query continues behind its nested fallback.
+2. **Once the URL is available.** The tabs replace the content skeleton while the settings query continues behind its nested fallback.
 
    ```tsx
    <h1>Settings</h1>
@@ -706,7 +706,7 @@ The completed route should have the same settings data, redirects, error states,
 
 ### Step 5: Include URL-specific content in the instant UI
 
-The direct visit starts with the shared static shell and `SettingsContentSkeleton` because the route does not know `searchParams` during prerendering. Hydration can render the tabs from the browser URL without waiting for request-time server content.
+The direct visit starts with the shared static shell and `SettingsContentSkeleton` because the route does not know `searchParams` during prerendering. Once the URL is available, the tabs replace that fallback.
 
 During a client navigation, `SettingsTabs` can read the URL synchronously. Other server content that depends on the destination's `params` or `searchParams` is not part of the shared shell. If that work is cacheable, a per-link prefetch can resolve it before the click instead of streaming it afterward.
 
