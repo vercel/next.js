@@ -31,6 +31,12 @@ type ChunkGraphHeader = {
   output_file_modules: EdgesReference
   output_file_async_loaders: EdgesReference
   output_file_module_coverage: Array<'exact' | 'unsupported' | 'not_a_chunk'>
+  chunk_groups: Array<{
+    id: number
+    kind: 'bootstrap' | 'render_dependent'
+    trigger_module_index?: number
+    output_file_indices: number[]
+  }>
 }
 
 function readAnalyzeFile<T>(filename: string) {
@@ -702,6 +708,35 @@ describe('next analyze', () => {
           true
         )
         const appGraph = routeGraphs[0].header
+        const pagesGraph = routeGraphs[1].header
+        const apiGraph = routeGraphs[2].header
+        const sharedAppGraph = readAnalyzeHeader<ChunkGraphHeader>(
+          path.join(dataDir, '_app/analyze.data')
+        )
+        expect(
+          sharedAppGraph.chunk_groups.filter(
+            (group) => group.kind === 'bootstrap'
+          )
+        ).toHaveLength(1)
+        const documentGraph = readAnalyzeHeader<ChunkGraphHeader>(
+          path.join(dataDir, '_document/analyze.data')
+        )
+        expect(documentGraph.chunk_groups).toEqual([])
+
+        expect(
+          appGraph.chunk_groups.some((group) => group.kind === 'bootstrap')
+        ).toBe(true)
+        expect(
+          appGraph.chunk_groups.some(
+            (group) => group.kind === 'render_dependent'
+          )
+        ).toBe(true)
+        expect(
+          pagesGraph.chunk_groups.some((group) => group.kind === 'bootstrap')
+        ).toBe(true)
+        expect(
+          apiGraph.chunk_groups.some((group) => group.kind === 'bootstrap')
+        ).toBe(false)
         const appRows = readRows(
           routeGraphs[0].binary,
           appGraph.output_file_modules
@@ -712,6 +747,12 @@ describe('next analyze', () => {
           )
         ).toBe(true)
         expect(appGraph.output_file_module_coverage).toContain('exact')
+        const groupedFileIndices = appGraph.chunk_groups.flatMap(
+          (group) => group.output_file_indices
+        )
+        expect(new Set(groupedFileIndices).size).toBeLessThan(
+          groupedFileIndices.length
+        )
         expect(
           appRows.some(
             (row, index) =>
@@ -719,6 +760,21 @@ describe('next analyze', () => {
               row.some((module) => modules[module].ident.includes('page.css'))
           )
         ).toBe(true)
+        expect(
+          appGraph.chunk_groups.some(
+            (group) =>
+              group.kind === 'render_dependent' &&
+              group.output_file_indices.some((index) =>
+                appRows[index].some((module) =>
+                  modules[module].ident.includes('client-entry')
+                )
+              )
+          )
+        ).toBe(true)
+        expect(
+          pagesGraph.chunk_groups.filter((group) => group.kind === 'bootstrap')
+            .length
+        ).toBeGreaterThanOrEqual(2)
       })
     })
   })
