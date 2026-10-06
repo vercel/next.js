@@ -614,6 +614,13 @@ describe('agentic upgrade prompts', () => {
       const questions = jest
         .mocked(Log.bootstrap)
         .mock.calls.map(([value]) => String(value))
+      expect(questions.filter((value) => value.startsWith('  ❯ '))).toEqual([
+        `  ❯ Continue with ${agent === 'codex' ? 'Codex' : 'Claude Code'}`,
+        `  ❯ ${modelMenu.values[model]}`,
+        `  ❯ ${effort}`,
+        '  ❯ Yes',
+        '  ❯ No',
+      ])
       expect(
         questions.findIndex((value) => value.includes('model should run'))
       ).toBeLessThan(
@@ -649,6 +656,7 @@ describe('agentic upgrade prompts', () => {
 
     await handoffUpgrade('Upgrade prompt', '/workspace/app', null)
 
+    expect(Log.bootstrap).toHaveBeenCalledWith('  ❯ Model default')
     expect(crossSpawn).toHaveBeenCalledWith(
       expectedHarnessPath('codex'),
       ['--model', 'gpt-5.6-terra', '--approve-for-me', 'Upgrade prompt'],
@@ -996,6 +1004,22 @@ describe('agentic upgrade prompts', () => {
     ).toHaveLength(1)
     expect(jest.mocked(cliSelect).mock.calls[7][0].defaultValue).toBe(1)
     expect(jest.mocked(cliSelect).mock.calls[9][0].defaultValue).toBe(0)
+    expect(
+      jest
+        .mocked(Log.bootstrap)
+        .mock.calls.map(([value]) => String(value))
+        .filter((value) => value.startsWith('  ❯ '))
+    ).toEqual([
+      '  ❯ Continue with Codex',
+      '  ❯ GPT-5.6-Terra',
+      '  ❯ high',
+      '  ❯ Yes',
+      '  ❯ No, ask for approval',
+      '  ❯ GPT-6-Astra',
+      '  ❯ ultra',
+      '  ❯ Yes',
+      '  ❯ No',
+    ])
     expect(crossSpawn).toHaveBeenCalledWith(
       expectedHarnessPath('codex'),
       [
