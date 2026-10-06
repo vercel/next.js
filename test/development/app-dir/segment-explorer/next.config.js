@@ -4,7 +4,6 @@
 const nextConfig = {
   experimental: {
     authInterrupts: true,
-    explicitParallelRouteChildren: true,
   },
 }
 

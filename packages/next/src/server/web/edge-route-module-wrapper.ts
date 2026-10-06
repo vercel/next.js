@@ -127,6 +127,7 @@ export class EdgeRouteModuleWrapper {
         // TODO: Remove validationLevel and other global config from renderOpts
         validationLevel: 'warning',
         experimental: {
+          authInterrupts: !!process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS,
           // Edge runtime doesn't support Cache Components, so this value is
           // never read. 0 is a sentinel: if something ever reads it, the cache
           // fill will time out immediately and surface the bug.

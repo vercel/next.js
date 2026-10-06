@@ -9,7 +9,6 @@ related:
     - app/api-reference/functions/revalidatePath
     - app/api-reference/functions/revalidateTag
     - app/api-reference/functions/redirect
-    - app/api-reference/functions/unauthorized
 ---
 
 You can mutate data in Next.js using [React Server Functions](https://react.dev/reference/rsc/server-functions). This page will go through how you can [create](#creating-server-functions) and [invoke](#invoking-server-functions) Server Functions. For Next.js-specific behaviors (single-roundtrip response, sequential dispatch, security, deployment), see [Server Actions and Mutations](/docs/app/guides/server-actions).
@@ -38,17 +37,14 @@ Behind the scenes, actions use the `POST` method, and only this HTTP method can 
 
 A Server Function can be defined by using the [`use server`](https://react.dev/reference/rsc/use-server) directive. You can place the directive at the top of an **asynchronous** function to mark the function as a Server Function, or at the top of a separate file to mark all exports of that file.
 
-The following example calls [`unauthorized()`](/docs/app/api-reference/functions/unauthorized) when a request is not authenticated. Next.js renders the nearest [`unauthorized.js`](/docs/app/api-reference/file-conventions/unauthorized) fallback.
-
 ```ts filename="app/lib/actions.ts" switcher
 import { auth } from '@/lib/auth'
-import { unauthorized } from 'next/navigation'
 
 export async function createPost(formData: FormData) {
   'use server'
   const session = await auth()
   if (!session?.user) {
-    unauthorized()
+    throw new Error('Unauthorized')
   }
 
   const title = formData.get('title')
@@ -62,7 +58,7 @@ export async function deletePost(formData: FormData) {
   'use server'
   const session = await auth()
   if (!session?.user) {
-    unauthorized()
+    throw new Error('Unauthorized')
   }
 
   const id = formData.get('id')
@@ -75,13 +71,12 @@ export async function deletePost(formData: FormData) {
 
 ```js filename="app/lib/actions.js" switcher
 import { auth } from '@/lib/auth'
-import { unauthorized } from 'next/navigation'
 
 export async function createPost(formData) {
   'use server'
   const session = await auth()
   if (!session?.user) {
-    unauthorized()
+    throw new Error('Unauthorized')
   }
 
   const title = formData.get('title')
@@ -95,7 +90,7 @@ export async function deletePost(formData) {
   'use server'
   const session = await auth()
   if (!session?.user) {
-    unauthorized()
+    throw new Error('Unauthorized')
   }
 
   const id = formData.get('id')
@@ -249,12 +244,11 @@ export function Form() {
 'use server'
 
 import { auth } from '@/lib/auth'
-import { unauthorized } from 'next/navigation'
 
 export async function createPost(formData: FormData) {
   const session = await auth()
   if (!session?.user) {
-    unauthorized()
+    throw new Error('Unauthorized')
   }
 
   const title = formData.get('title')
@@ -269,12 +263,11 @@ export async function createPost(formData: FormData) {
 'use server'
 
 import { auth } from '@/lib/auth'
-import { unauthorized } from 'next/navigation'
 
 export async function createPost(formData) {
   const session = await auth()
   if (!session?.user) {
-    unauthorized()
+    throw new Error('Unauthorized')
   }
 
   const title = formData.get('title')
@@ -394,12 +387,11 @@ After a mutation, you may want to refresh the current page to show the latest da
 
 import { auth } from '@/lib/auth'
 import { refresh } from 'next/cache'
-import { unauthorized } from 'next/navigation'
 
 export async function updatePost(formData: FormData) {
   const session = await auth()
   if (!session?.user) {
-    unauthorized()
+    throw new Error('Unauthorized')
   }
   // Mutate data
   // ...
@@ -413,12 +405,11 @@ export async function updatePost(formData: FormData) {
 
 import { auth } from '@/lib/auth'
 import { refresh } from 'next/cache'
-import { unauthorized } from 'next/navigation'
 
 export async function updatePost(formData) {
   const session = await auth()
   if (!session?.user) {
-    unauthorized()
+    throw new Error('Unauthorized')
   }
   // Mutate data
   // ...
@@ -436,13 +427,12 @@ After performing a mutation, you can revalidate the Next.js cache and show the u
 ```ts filename="app/lib/actions.ts" switcher
 import { auth } from '@/lib/auth'
 import { revalidatePath } from 'next/cache'
-import { unauthorized } from 'next/navigation'
 
 export async function createPost(formData: FormData) {
   'use server'
   const session = await auth()
   if (!session?.user) {
-    unauthorized()
+    throw new Error('Unauthorized')
   }
   // Mutate data
   // ...
@@ -454,13 +444,12 @@ export async function createPost(formData: FormData) {
 ```js filename="app/lib/actions.js" switcher
 import { auth } from '@/lib/auth'
 import { revalidatePath } from 'next/cache'
-import { unauthorized } from 'next/navigation'
 
 export async function createPost(formData) {
   'use server'
   const session = await auth()
   if (!session?.user) {
-    unauthorized()
+    throw new Error('Unauthorized')
   }
   // Mutate data
   // ...
@@ -477,12 +466,12 @@ You may want to redirect the user to a different page after a mutation. You can 
 
 import { auth } from '@/lib/auth'
 import { revalidatePath } from 'next/cache'
-import { redirect, unauthorized } from 'next/navigation'
+import { redirect } from 'next/navigation'
 
 export async function createPost(formData: FormData) {
   const session = await auth()
   if (!session?.user) {
-    unauthorized()
+    throw new Error('Unauthorized')
   }
   // Mutate data
   // ...
@@ -497,12 +486,12 @@ export async function createPost(formData: FormData) {
 
 import { auth } from '@/lib/auth'
 import { revalidatePath } from 'next/cache'
-import { redirect, unauthorized } from 'next/navigation'
+import { redirect } from 'next/navigation'
 
 export async function createPost(formData) {
   const session = await auth()
   if (!session?.user) {
-    unauthorized()
+    throw new Error('Unauthorized')
   }
   // Mutate data
   // ...
