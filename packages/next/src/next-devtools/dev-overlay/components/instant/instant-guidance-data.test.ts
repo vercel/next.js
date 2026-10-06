@@ -31,15 +31,15 @@ import {
 } from './instant-guidance-data'
 
 describe('static route explanations', () => {
-  it('describes the static requirement', () => {
+  it('matches the fully static build guidance', () => {
     expect(EXPLANATIONS['static-route']).toBe(
-      "This data access requires request-time work, which conflicts with the route's static requirement."
+      'This route is configured to be fully static, but this data access requires request-time work.'
     )
     expect(EXPLANATIONS['static-metadata']).toBe(
-      "This data access requires request-time work in `generateMetadata()`, which conflicts with the route's static requirement."
+      'This route is configured to be fully static, but this data access requires request-time work.'
     )
     expect(EXPLANATIONS['static-viewport']).toBe(
-      "This data access requires request-time work in `generateViewport()`, which conflicts with the route's static requirement."
+      'This route is configured to be fully static, but this data access requires request-time work.'
     )
   })
 })
