@@ -71,11 +71,6 @@ const REEXPORTED_OBJECTS = new WeakMap();
     this.e = exports;
 }
 const contextPrototype = Context.prototype;
-contextPrototype.R = {
-    shareScopes: Object.create(null),
-    initScopes: Object.create(null),
-    remoteInitializations: Object.create(null)
-};
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 const toStringTag = typeof Symbol !== 'undefined' && Symbol.toStringTag;
 function defineProp(obj, name, options) {

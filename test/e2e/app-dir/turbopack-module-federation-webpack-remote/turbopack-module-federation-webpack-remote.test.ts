@@ -38,6 +38,7 @@ async function buildRemote(
             shared: worker
               ? {}
               : {
+                  react: { singleton: true, requiredVersion: false },
                   'shared-value': {
                     singleton: true,
                     requiredVersion: '^1.0.0',
@@ -73,6 +74,7 @@ const describeTurbopack =
 describeTurbopack('turbopack module federation with a webpack remote', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    dependencies: { '@module-federation/runtime-tools': '2.9.0' },
     skipStart: true,
     // The separately launched webpack server is not reachable from a deployed fixture.
     skipDeployment: true,
@@ -134,10 +136,31 @@ describeTurbopack('turbopack module federation with a webpack remote', () => {
       expect(await browser.elementByCss('#remote-message').text()).toBe(
         'hello from Turbopack host sharing'
       )
+      expect(await browser.elementByCss('#enhanced-runtime-name').text()).toBe(
+        'nextHost'
+      )
+      expect(
+        await browser.elementByCss('#enhanced-runtime-isolation').text()
+      ).toBe('isolated')
+      expect(
+        await browser.elementByCss('#enhanced-share-strategy').text()
+      ).toBe('version-first')
+      expect(
+        await browser.elementByCss('#enhanced-dynamic-message').text()
+      ).toBe('hello from Turbopack host sharing')
+      expect(await browser.elementByCss('#enhanced-plugin-marker').text()).toBe(
+        'plugin ran'
+      )
+      expect(
+        await browser.elementByCss('#enhanced-fallback-remote').text()
+      ).toBe('hello from Turbopack host sharing')
       expect(await browser.elementByCss('#remote-react-component').text()).toBe(
         'next/dynamic from webpack remote'
       )
       expect(await browser.elementByCss('#host-shared-message').text()).toBe(
+        'Turbopack host sharing'
+      )
+      expect(await browser.elementByCss('#static-shared-value').text()).toBe(
         'Turbopack host sharing'
       )
       expect(await browser.elementByCss('#shared-message').text()).toBe(
@@ -177,6 +200,11 @@ describeTurbopack('turbopack module federation with a webpack remote', () => {
         'eager local sharing'
       )
     })
+    expect(
+      await browser.eval(
+        `performance.getEntriesByType('resource').some((entry) => entry.name.includes('/missing/remoteEntry.js'))`
+      )
+    ).toBe(true)
   })
 
   it('loads a rebuilt remote after a browser reload', async () => {
