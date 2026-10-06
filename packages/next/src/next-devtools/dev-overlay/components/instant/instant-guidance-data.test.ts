@@ -33,13 +33,13 @@ import {
 describe('static route explanations', () => {
   it('matches the fully static build guidance', () => {
     expect(EXPLANATIONS['static-route']).toBe(
-      'This route is configured to be fully static, but the data requires request-time work.'
+      'This route is configured to be fully static, but some data requires request-time work.'
     )
     expect(EXPLANATIONS['static-metadata']).toBe(
-      'This route is configured to be fully static, but the data requires request-time work.'
+      'This route is configured to be fully static, but some data requires request-time work.'
     )
     expect(EXPLANATIONS['static-viewport']).toBe(
-      'This route is configured to be fully static, but the data requires request-time work.'
+      'This route is configured to be fully static, but some data requires request-time work.'
     )
   })
 })

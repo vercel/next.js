@@ -992,11 +992,11 @@ export const SYNC_IO_CLIENT_DOCS: Record<string, string> = {
 
 export const EXPLANATIONS: Record<GuidanceKind, string> = {
   'static-viewport':
-    'This route is configured to be fully static, but the data requires request-time work.',
+    'This route is configured to be fully static, but some data requires request-time work.',
   'static-metadata':
-    'This route is configured to be fully static, but the data requires request-time work.',
+    'This route is configured to be fully static, but some data requires request-time work.',
   'static-route':
-    'This route is configured to be fully static, but the data requires request-time work.',
+    'This route is configured to be fully static, but some data requires request-time work.',
   'blocking-route':
     'This prevents the route from being prerendered, blocking navigation and leading to a slower user experience.',
   'client-hook':
