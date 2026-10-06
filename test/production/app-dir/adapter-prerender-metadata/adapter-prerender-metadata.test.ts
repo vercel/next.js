@@ -1,3 +1,4 @@
+import { stat } from 'fs/promises'
 import { nextTestSetup } from 'e2e-utils'
 import type { NextAdapter } from 'next'
 
@@ -42,6 +43,17 @@ describe('adapter-prerender-metadata', () => {
   async function getPrerenderManifest() {
     return next.readJSON('.next/prerender-manifest.json')
   }
+
+  it('provides existing files for every prerender fallback', async () => {
+    const prerenders = await getPrerenders()
+    const files = prerenders.flatMap((output) =>
+      output.fallback?.filePath ? [output.fallback.filePath] : []
+    )
+    expect(files.length).toBeGreaterThan(0)
+    for (const file of files) {
+      expect((await stat(file)).isFile()).toBe(true)
+    }
+  })
 
   it('exercises every valid classification combination', async () => {
     const cases: Array<

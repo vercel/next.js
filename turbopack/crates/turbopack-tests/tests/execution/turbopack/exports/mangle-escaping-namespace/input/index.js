@@ -64,8 +64,8 @@ it('should preserve namespace reads through an export-star forwarding edge', () 
 
 it('should preserve namespace names through a multi-hop diamond', () => {
   expect(readMultiHopDiamond()).toEqual(['multi-hop', 'multi-hop'])
-  // The materialized facade preserves the original public name, so the locals module remains
-  // mangleable even though the namespace escapes through multiple forwarding edges.
+  // The backing module can mangle its local keys, while the escaped facade retains the
+  // original public export names for consumers of the namespace.
   expect(multiHopExportsInfo.veryLongMultiHopExportName.canMangle).toBe(true)
   expect(multiHopExportsInfo.veryLongMultiHopExportName.mangledName).not.toBe(
     'veryLongMultiHopExportName'

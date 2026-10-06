@@ -25,6 +25,23 @@ use turbopack_core::{
     reference::all_assets_from_entries,
 };
 
+const ANALYZE_SCHEMA_VERSION: u32 = 1;
+
+#[turbo_tasks::value]
+#[derive(Clone, Copy, Serialize)]
+pub struct BundleTotals {
+    pub size: u64,
+    pub compressed_size: u64,
+}
+
+#[turbo_tasks::value]
+#[derive(Clone, Copy, Serialize)]
+pub struct RouteBundleSummary {
+    pub size: u64,
+    pub compressed_size: u64,
+    pub client: BundleTotals,
+}
+
 pub struct EdgesData {
     pub offsets: Vec<u32>,
     pub data: Vec<u32>,
@@ -94,6 +111,8 @@ struct EdgesDataReference {
 
 #[derive(Serialize)]
 struct AnalyzeDataHeader {
+    /// Supported by the agent graph-dump decoder; UI readers ignore this field.
+    pub schema_version: u32,
     pub sources: Vec<AnalyzeSource>,
     pub chunk_parts: Vec<AnalyzeChunkPart>,
     pub output_files: Vec<AnalyzeOutputFile>,
@@ -109,6 +128,8 @@ struct AnalyzeDataHeader {
 
 #[derive(Serialize)]
 struct ModulesDataHeader {
+    /// Supported by the agent graph-dump decoder; UI readers ignore this field.
+    pub schema_version: u32,
     pub modules: Vec<AnalyzeModule>,
     /// Edges from modules to modules
     pub module_dependents: EdgesDataReference,
@@ -255,6 +276,7 @@ impl AnalyzeDataBuilder {
         let mut binary_section = EdgesDataSectionBuilder::new();
 
         let header = AnalyzeDataHeader {
+            schema_version: ANALYZE_SCHEMA_VERSION,
             sources: self.sources.into_iter().map(|s| s.source).collect(),
             chunk_parts: self.chunk_parts,
             output_files: self
@@ -356,6 +378,7 @@ impl ModulesDataBuilder {
         let mut binary_section = EdgesDataSectionBuilder::new();
 
         let header = ModulesDataHeader {
+            schema_version: ANALYZE_SCHEMA_VERSION,
             modules: self.modules.into_iter().map(|s| s.module).collect(),
             module_dependents: binary_section.add_edges(&module_dependents),
             async_module_dependents: binary_section.add_edges(&async_module_dependents),
@@ -401,12 +424,34 @@ pub async fn combine_traced_files(
     Ok(Vc::cell(combined))
 }
 
+#[turbo_tasks::value]
+pub struct AnalyzedRoute {
+    pub content: ResolvedVc<FileContent>,
+    pub summary: RouteBundleSummary,
+}
+
+#[turbo_tasks::value_impl]
+impl AnalyzedRoute {
+    #[turbo_tasks::function]
+    fn file_content(&self) -> Vc<FileContent> {
+        *self.content
+    }
+}
+
 #[turbo_tasks::function]
 pub async fn analyze_output_assets(
     output_assets: Vc<OutputAssets>,
     traced_files: Vc<FileSystemPathVec>,
-) -> Result<Vc<FileContent>> {
+) -> Result<Vc<AnalyzedRoute>> {
     let output_assets = all_assets_from_entries(output_assets);
+    let mut summary = RouteBundleSummary {
+        size: 0,
+        compressed_size: 0,
+        client: BundleTotals {
+            size: 0,
+            compressed_size: 0,
+        },
+    };
 
     let mut builder = AnalyzeDataBuilder::new();
 
@@ -439,6 +484,7 @@ pub async fn analyze_output_assets(
             Either::Right(path) => path.to_string_ref().await?,
         };
 
+        let is_client = filename.starts_with("[client-fs]/");
         let output_file_index = builder.add_output_file(AnalyzeOutputFile {
             filename: filename.clone(),
         });
@@ -460,11 +506,18 @@ pub async fn analyze_output_assets(
             };
             let source_index = builder.ensure_source(&source).1;
             let size = chunk_part.real_size + chunk_part.unaccounted_size;
+            let compressed_size = chunk_part.get_compressed_size().await?.unwrap_or(size);
+            summary.size += u64::from(size);
+            summary.compressed_size += u64::from(compressed_size);
+            if is_client {
+                summary.client.size += u64::from(size);
+                summary.client.compressed_size += u64::from(compressed_size);
+            }
             let chunk_part_index = builder.add_chunk_part(AnalyzeChunkPart {
                 source_index,
                 output_file_index,
                 size,
-                compressed_size: chunk_part.get_compressed_size().await?.unwrap_or(size),
+                compressed_size,
             });
             builder.add_chunk_part_to_output_file(output_file_index, chunk_part_index);
             builder.add_chunk_part_to_source(source_index, chunk_part_index);
@@ -493,7 +546,14 @@ pub async fn analyze_output_assets(
     }
 
     let rope = builder.build();
-    Ok(FileContent::Content(File::from(rope)).cell())
+    Ok(AnalyzedRoute {
+        content: FileContent::Content(File::from(rope))
+            .cell()
+            .to_resolved()
+            .await?,
+        summary,
+    }
+    .cell())
 }
 
 #[turbo_tasks::function]
@@ -660,7 +720,8 @@ impl AnalyzeDataOutputAsset {
 impl Asset for AnalyzeDataOutputAsset {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
-        let file_content = analyze_output_assets(*self.output_assets, *self.traced_files);
+        let file_content =
+            analyze_output_assets(*self.output_assets, *self.traced_files).file_content();
         AssetContent::file(file_content)
     }
 }

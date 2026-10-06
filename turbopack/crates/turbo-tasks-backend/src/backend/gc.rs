@@ -29,10 +29,10 @@ use turbo_tasks::{TaskId, TurboTasks, scope_unbounded::scope_unbounded_with};
 
 use crate::{
     backend::{
-        AnyOperation, TurboTasksBackend,
+        TurboTasksBackend,
         operation::{
-            AggregationUpdateQueue, CleanupOldEdgesOperation, ExecuteContext, ExecuteContextImpl,
-            TaskGuard, capture_all_outgoing_edges,
+            AggregationUpdateQueue, ExecuteContext, capture_all_edges,
+            cleanup_old_edges_deletions_only,
         },
         snapshot_coordinator::SnapshotPhase,
         storage::{SpecificTaskDataCategory, TaskDataCategory},
@@ -73,7 +73,7 @@ enum GcJob {
 
 /// Decides when a GC pass should stop early because it is delaying real work.
 struct GcBudget<'a> {
-    phase: &'a SnapshotPhase<'a, AnyOperation>,
+    phase: &'a SnapshotPhase<'a>,
     started: Instant,
     /// The minimum quantum of work this pass does before any interrupt is honoured.
     min_progress: Duration,
@@ -196,7 +196,7 @@ impl TurboTasksBackend {
     pub(crate) fn gc_collect(
         &self,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
-        phase: &SnapshotPhase<'_, AnyOperation>,
+        phase: &SnapshotPhase<'_>,
         interruptible: bool,
     ) -> (GcStats, GcPassResult, Option<Vec<(TaskId, TtlCounter)>>) {
         // Record the time at the beginning of the loop to have a consistent timestamp for the roots
@@ -250,8 +250,8 @@ impl TurboTasksBackend {
                     GcJob::Collect(task_id) => task_id,
                 };
                 let collector = |child_id| spawner.spawn(GcJob::Collect(child_id));
-                let mut ctx = ExecuteContextImpl::new_for_gc(self, turbo_tasks, phase, &collector);
-                // `All` restores Data so `capture_all_outgoing_edges` below can read the
+                let mut ctx = ExecuteContext::new_for_gc(self, turbo_tasks, phase, &collector);
+                // `All` restores Data so `capture_all_edges` below can read the
                 // Data-category dependency sets. The recheck itself only needs Meta.
                 let mut task = ctx.task(task_id, TaskDataCategory::All);
                 // Recheck under the guard: the shard scan saw this task without holding it, and a
@@ -261,7 +261,7 @@ impl TurboTasksBackend {
                     return ControlFlow::Continue(());
                 }
 
-                let old_edges = capture_all_outgoing_edges(&task);
+                let old_edges = capture_all_edges(&task);
                 // Clear `immutable` defensively so `resurrect_deleted` can mark the task dirty if
                 // it needs to
                 task.set_immutable(false);
@@ -276,7 +276,7 @@ impl TurboTasksBackend {
                     // It is almost certainly already marked modified, so this is mostly a no-op.
                     let _ = task.track_modification(SpecificTaskDataCategory::Meta, "gc_deleted");
                 }
-                drop(task); // drop the lock so CleanupOldEdgesOperation can run
+                drop(task); // drop the lock so edge cleanup can run
                 stats.collected += 1;
                 stats.edges_deleted += old_edges.len();
                 // If we happened to delete a known root at this point record it so we can reconcile
@@ -287,9 +287,8 @@ impl TurboTasksBackend {
                 // Delete outgoing edges but don't update the aggregation graph yet.
                 // To avoid accidentally rebalancing on deleted tasks due to racing deletions,
                 // we defer all rebalancing to the end
-                result.deferred_balance_edges.extend(
-                    CleanupOldEdgesOperation::run_edge_deletions_only(task_id, old_edges, &mut ctx),
-                );
+                let deferred = cleanup_old_edges_deletions_only(task_id, old_edges, &mut ctx);
+                result.deferred_balance_edges.extend(deferred.balance_edges);
                 ControlFlow::Continue(())
             },
             |(stats, result), (other_stats, other_result)| {
@@ -307,7 +306,7 @@ impl TurboTasksBackend {
         let deferred = std::mem::take(&mut result.deferred_balance_edges);
         if !deferred.is_empty() {
             let noop_collector = |_task_id| {};
-            let mut ctx = ExecuteContextImpl::new_for_gc(self, turbo_tasks, phase, &noop_collector);
+            let mut ctx = ExecuteContext::new_for_gc(self, turbo_tasks, phase, &noop_collector);
             let mut queue = AggregationUpdateQueue::new();
             queue.extend_balance_edges(deferred, &mut ctx);
             while !queue.process(&mut ctx) {}
@@ -421,18 +420,18 @@ impl TurboTasksBackend {
             "gc_for_testing requires a GC-enabled backend: set `BackendOptions::gc = Some(true)`"
         );
         let _serialize = self.snapshot_in_progress.lock();
-        let phase = self.snapshot_coord.begin_snapshot();
+        let phase = self
+            .snapshot_coord
+            .begin_snapshot(|slow| Self::report_slow_settle_for_snapshot(turbo_tasks, slow));
         let (stats, _result, roots) =
             self.gc_collect(turbo_tasks, &phase, /* interruptible= */ false);
 
         // Persist the roots map this pass produced. Some tests query the roots set and GC itself
         // does as well, this ensures it is available to the next cycle.
         if let Some(roots) = roots
-            && let Err(err) = self.backing_storage.save_snapshot(
-                Vec::new(),
-                Some(roots),
-                Vec::<Vec<SnapshotItem>>::new(),
-            )
+            && let Err(err) = self
+                .backing_storage
+                .save_snapshot(Some(roots), Vec::<Vec<SnapshotItem>>::new())
         {
             panic!("gc_for_testing: failed to persist GC roots: {err:?}");
         }

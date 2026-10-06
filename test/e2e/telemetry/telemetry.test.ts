@@ -1,6 +1,6 @@
 import path from 'path'
 import fs from 'fs-extra'
-import { isReact18, nextTestSetup } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import { findAllTelemetryEvents } from 'next-test-utils'
 
 // The telemetry suite drives multiple consecutive `next build` invocations
@@ -9,13 +9,15 @@ import { findAllTelemetryEvents } from 'next-test-utils'
 // first". The telemetry feature itself is not React-version-specific, so
 // skipping under React 18 is fine until the underlying build/server lifecycle
 // race is fixed.
-;(isReact18 ? describe.skip : describe)('Telemetry CLI', () => {
-  const { next, isNextStart, isTurbopack, skipped } = nextTestSetup({
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
+// @force-gate !react18
+describe('Telemetry CLI', () => {
+  const { next, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-  if (skipped) return
 
   it('can print telemetry status', async () => {
     const { stdout } = await next.runCommand(['telemetry'])
@@ -92,12 +94,9 @@ import { findAllTelemetryEvents } from 'next-test-utils'
     expect(stdout).toMatch(/Status: Disabled/)
   })
   ;(isNextStart ? describe : describe.skip)('production mode', () => {
-    // Tests in this block run a full `next build` per test. With a custom
-    // `.babelrc` webpack switches off SWC and the build can take 60s+,
-    // exceeding Jest's default 60s timeout. When the test times out, the
-    // build process keeps running, so the auto-retry (jest.retryTimes(1) in
-    // CI start mode) and subsequent tests see `this.childProcess` still set
-    // and throw "can not run export while server is running".
+    // Allow time for a full `next build` in each test. Webpack disables SWC
+    // with a custom `.babelrc`, so the build can exceed the default 60s
+    // per-test timeout.
     jest.setTimeout(180 * 1000)
 
     it('emits event when swc fails to load', async () => {

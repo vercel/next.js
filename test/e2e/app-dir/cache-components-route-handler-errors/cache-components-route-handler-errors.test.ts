@@ -14,11 +14,7 @@ describe('cache-components-route-handler-errors', () => {
   it("should error when route handlers use segment configs that aren't supported by cacheComponents", async () => {
     if (isNextDev) {
       await next.start()
-    } else {
-      await expect(next.start()).rejects.toThrow()
-    }
 
-    if (isNextDev) {
       // Test the first route handler with "dynamic" config
       const browser = await next.browser('/route-with-dynamic')
       await waitForRedbox(browser)
@@ -40,6 +36,8 @@ describe('cache-components-route-handler-errors', () => {
         '"dynamic" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
       )
     } else {
+      await expect(next.start()).rejects.toThrow()
+
       // In build mode, check for all three errors in the output
       expect(next.cliOutput).toContain('./app/route-with-dynamic/route.ts')
       expect(next.cliOutput).toContain(

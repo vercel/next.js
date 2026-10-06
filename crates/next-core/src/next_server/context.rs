@@ -186,7 +186,6 @@ pub async fn get_server_resolve_options_context(
     external_packages.retain(|item| !transpiled_packages.contains(item));
 
     let server_external_packages_plugin = ExternalCjsModulesResolvePlugin::new(
-        project_path.root().owned().await?,
         ExternalPredicate::Only(ResolvedVc::cell(external_packages)).cell(),
         *next_config.import_externals().await?,
     )
@@ -211,7 +210,6 @@ pub async fn get_server_resolve_options_context(
         server_external_packages_plugin
     } else {
         ExternalCjsModulesResolvePlugin::new(
-            project_path.root().owned().await?,
             ExternalPredicate::AllExcept(ResolvedVc::cell(transpiled_packages)).cell(),
             *next_config.import_externals().await?,
         )
@@ -219,13 +217,10 @@ pub async fn get_server_resolve_options_context(
         .await?
     };
 
-    let next_external_plugin = NextExternalResolvePlugin::new(project_path.clone())
+    let next_external_plugin = NextExternalResolvePlugin::new().to_resolved().await?;
+    let next_node_shared_runtime_plugin = NextNodeSharedRuntimeResolvePlugin::new(ty.clone())
         .to_resolved()
         .await?;
-    let next_node_shared_runtime_plugin =
-        NextNodeSharedRuntimeResolvePlugin::new(project_path.clone(), ty.clone())
-            .to_resolved()
-            .await?;
 
     let after_resolve_plugins = match ty {
         ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. } => {
@@ -552,6 +547,9 @@ pub async fn get_server_module_options_context(
             infer_module_side_effects: *next_config.turbopack_infer_module_side_effects().await?,
             cjs_tree_shaking: *next_config.turbopack_cjs_tree_shaking().await?,
             mangle_export_names: *next_config.turbopack_mangle_export_names(mode).await?,
+            mangle_via_materialized_namespace_object: *next_config
+                .turbopack_mangle_via_materialized_namespace_object()
+                .await?,
             cjs_scope_hoisting: *next_config.turbopack_cjs_scope_hoisting().await?,
             cross_module_constants: *next_config.turbopack_cross_module_constants().await?,
             ..Default::default()
@@ -672,6 +670,10 @@ pub async fn get_server_module_options_context(
             }
         }
         ServerContextType::AppSSR { app_dir, .. } => {
+            let lazy_compilation = matches!(next_runtime, NextRuntime::NodeJs)
+                && *next_config
+                    .turbopack_lazy_dynamic_imports_ssr(*next_mode)
+                    .await?;
             foreign_next_server_rules.extend(internal_custom_rules);
 
             next_server_rules.extend(source_transform_rules);
@@ -717,6 +719,7 @@ pub async fn get_server_module_options_context(
                     enable_decorators: Some(decorators_options.to_resolved().await?),
                     // React Compiler only optimizes the React client runtime, so skip it.
                     enable_rust_react_compiler: None,
+                    lazy_compilation,
                     ..module_options_context.ecmascript
                 },
                 enable_webpack_loaders,
@@ -741,6 +744,10 @@ pub async fn get_server_module_options_context(
             ecmascript_client_reference_transition_name,
             ..
         } => {
+            let lazy_compilation = matches!(next_runtime, NextRuntime::NodeJs)
+                && *next_config
+                    .turbopack_lazy_dynamic_imports_ssr(*next_mode)
+                    .await?;
             let client_directive_transformer =
                 if let Some(name) = ecmascript_client_reference_transition_name {
                     Some(get_ecma_transform_rule(
@@ -799,6 +806,7 @@ pub async fn get_server_module_options_context(
                     enable_typescript_transform: Some(tsconfig),
                     enable_decorators: Some(decorators_options.to_resolved().await?),
                     enable_rust_react_compiler: None,
+                    lazy_compilation,
                     ..module_options_context.ecmascript
                 },
                 enable_webpack_loaders,
@@ -1028,6 +1036,7 @@ pub struct ServerChunkingContextOptions {
     pub hash_salt: ResolvedVc<RcStr>,
     pub style_groups_algorithm: StyleGroupsAlgorithm,
     pub per_page_module_graph: Vc<bool>,
+    pub lazy_dynamic_imports: Vc<bool>,
 }
 
 /// Like `get_server_chunking_context` but all assets are emitted as client assets (so `/_next`)
@@ -1057,6 +1066,7 @@ pub async fn get_server_chunking_context_with_client_assets(
         hash_salt,
         style_groups_algorithm,
         per_page_module_graph,
+        lazy_dynamic_imports,
     } = options;
     let css_url_suffix = css_url_suffix.to_resolved().await?;
 
@@ -1106,7 +1116,8 @@ pub async fn get_server_chunking_context_with_client_assets(
     // Per-page graphs each see only one page, so none of them can decide what the shared runtime
     // chunk may leave out.
     .shared_runtime_chunk(*per_page_module_graph.await?)
-    .worker_forwarded_globals(worker_forwarded_globals());
+    .worker_forwarded_globals(worker_forwarded_globals())
+    .manifest_chunks(*lazy_dynamic_imports.await?);
 
     builder = builder.source_map_source_type(if next_mode.is_development() {
         SourceMapSourceType::AbsoluteFileUri
@@ -1167,6 +1178,8 @@ pub async fn get_server_chunking_context(
         hash_salt,
         style_groups_algorithm,
         per_page_module_graph,
+        // TODO: Revisit this if we want to make more things lazy.
+        lazy_dynamic_imports: _,
     } = options;
     let css_url_suffix = css_url_suffix.to_resolved().await?;
     let next_mode = mode.await?;

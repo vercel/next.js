@@ -1,3 +1,4 @@
+import { RouteKind } from 'next/dist/server/route-kind'
 import { nextTestSetup } from 'e2e-utils'
 import imageSize from 'image-size'
 import { check, getDistDir } from 'next-test-utils'
@@ -13,7 +14,7 @@ describe('app dir - metadata dynamic routes', () => {
   const { next, isNextDev, isNextStart, isNextDeploy } = nextTestSetup({
     files: __dirname,
     dependencies: {
-      '@vercel/og': 'latest',
+      '@vercel/og': '1.0.1',
     },
   })
 
@@ -371,12 +372,26 @@ describe('app dir - metadata dynamic routes', () => {
           await next.hasFile(`.next/server/app${dynamicRoute}/route.js`)
         ).toBe(true)
         // dynamic routes should not have body and meta files
-        expect(await next.hasFile(`.next/server/app${dynamicRoute}.body`)).toBe(
-          false
-        )
-        expect(await next.hasFile(`.next/server/app${dynamicRoute}.meta`)).toBe(
-          false
-        )
+        expect(
+          await next.hasFile(
+            next.getPrerenderFilePath(dynamicRoute, '.body', {
+              route: {
+                kind: RouteKind.APP_ROUTE,
+                sourceRoute: `${dynamicRoute}/route`,
+              },
+            })
+          )
+        ).toBe(false)
+        expect(
+          await next.hasFile(
+            next.getPrerenderFilePath(dynamicRoute, '.meta', {
+              route: {
+                kind: RouteKind.APP_ROUTE,
+                sourceRoute: `${dynamicRoute}/route`,
+              },
+            })
+          )
+        ).toBe(false)
       })
     })
   }

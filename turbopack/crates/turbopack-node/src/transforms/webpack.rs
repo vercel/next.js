@@ -1,4 +1,4 @@
-use std::mem::take;
+use std::{mem::take, path::Path};
 
 use anyhow::{Context, Result, bail};
 use async_trait::async_trait;
@@ -17,10 +17,11 @@ use turbo_tasks::{
 };
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{
-    File, FileContent, FileSystemEntryType, FileSystemPath,
+    DiskFileSystem, File, FileContent, FileSystemEntryType, FileSystemPath,
     glob::{Glob, GlobOptions},
     json::parse_json_with_source_context,
     rope::Rope,
+    to_sys_path,
 };
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -39,6 +40,7 @@ use turbopack_core::{
     reference_type::{EcmaScriptModulesReferenceSubType, InnerAssets, ReferenceType},
     resolve::{
         ResolveErrorMode,
+        node::{node_cjs_resolve_options, node_esm_resolve_options},
         options::{ConditionValue, ResolveInPackage, ResolveIntoPackage, ResolveOptions},
         origin::PlainResolveOrigin,
         parse::Request,
@@ -231,25 +233,39 @@ async fn webpack_loaders_executor(
     ))
 }
 
+async fn loader_path(cwd: &FileSystemPath, path: &str) -> Result<FileSystemPath> {
+    let fs = ResolvedVc::try_downcast_type::<DiskFileSystem>(cwd.fs)
+        .context("webpack loader working directory must be on a disk filesystem")?;
+    fs.await?
+        .try_from_sys_path_across_roots(fs, Path::new(path), cwd)
+        .await?
+        .with_context(|| format!("webpack loader path {path:?} is outside configured roots"))
+}
+
+// TODO: This creates a task that's keyed on the list of file paths, which might churn through tasks
+// (creating more pressure for task GC).
 #[turbo_tasks::function]
 async fn build_files_changed(
-    cwd: FileSystemPath,
-    paths: Vec<RcStr>,
+    paths: Vec<FileSystemPath>,
     source: ResolvedVc<Box<dyn Source>>,
 ) -> Result<Vc<Completion>> {
     for path in paths {
-        let path = cwd.join(&path)?;
         let entry_type = path.get_type().await?;
-        match &*entry_type {
-            FileSystemEntryType::File | FileSystemEntryType::NotFound => {
+        let supported = match &*entry_type {
+            FileSystemEntryType::File => {
                 path.read().await?;
+                true
+            }
+            FileSystemEntryType::NotFound => {
+                path.read().await?;
+                false
             }
             FileSystemEntryType::Directory
             | FileSystemEntryType::Symlink
             | FileSystemEntryType::Other
-            | FileSystemEntryType::Error => {}
-        }
-        if !matches!(&*entry_type, FileSystemEntryType::File) {
+            | FileSystemEntryType::Error => false,
+        };
+        if !supported {
             BuildDependencyIssue {
                 source: IssueSource::from_source_only(source),
                 path,
@@ -301,6 +317,93 @@ async fn loaders_changed(
         .await?;
 
     Ok(Vc::<Completions>::cell(completions).completed())
+}
+
+#[turbo_tasks::function]
+async fn build_dependency_requests_changed(
+    cwd: FileSystemPath,
+    requests: Vec<(RcStr, bool)>,
+    source: ResolvedVc<Box<dyn Source>>,
+) -> Result<Vc<Completion>> {
+    for (request, is_directory) in requests {
+        let request_path = cwd.join(&request)?;
+        if matches!(
+            &*request_path.get_type().await?,
+            FileSystemEntryType::Symlink
+        ) {
+            BuildDependencyIssue {
+                source: IssueSource::from_source_only(source),
+                path: request_path,
+            }
+            .resolved_cell()
+            .emit();
+            continue;
+        }
+        let path = if is_directory {
+            request_path.clone()
+        } else {
+            let parsed_request = Request::parse(Pattern::Constant(request.clone()));
+            let options = if request.ends_with(".mjs") {
+                node_esm_resolve_options()
+            } else {
+                node_cjs_resolve_options()
+            };
+            let resolved = resolve(
+                cwd.clone(),
+                ReferenceType::Undefined,
+                parsed_request,
+                options,
+            );
+            let (resolved_source, error) = match resolved.await {
+                Ok(result) => {
+                    assert!(result.primary_sources().count() <= 1);
+                    (result.first_source(), None)
+                }
+                Err(error) => (None, Some(format!("{error:#}").into())),
+            };
+            let Some(resolved_source) = resolved_source else {
+                UnresolvedBuildDependencyIssue {
+                    source: IssueSource::from_source_only(source),
+                    request,
+                    error,
+                }
+                .resolved_cell()
+                .emit();
+                continue;
+            };
+            resolved_source.ident().await?.path.clone()
+        };
+        let entry_type = path.get_type().await?;
+        let supported = match &*entry_type {
+            FileSystemEntryType::File if !is_directory => {
+                path.read().await?;
+                true
+            }
+            FileSystemEntryType::Directory if is_directory => {
+                path.track_glob(Glob::new(rcstr!("**"), GlobOptions::default()), false)
+                    .await?;
+                true
+            }
+            FileSystemEntryType::NotFound => {
+                path.read().await?;
+                false
+            }
+            FileSystemEntryType::File
+            | FileSystemEntryType::Directory
+            | FileSystemEntryType::Symlink
+            | FileSystemEntryType::Other
+            | FileSystemEntryType::Error => false,
+        };
+        if !supported {
+            BuildDependencyIssue {
+                source: IssueSource::from_source_only(source),
+                path,
+            }
+            .resolved_cell()
+            .emit();
+        }
+    }
+    Ok(Completion::new())
 }
 
 #[turbo_tasks::value_impl]
@@ -523,6 +626,8 @@ pub enum InfoMessage {
         directories: Vec<(RcStr, RcStr)>,
         #[serde(default)]
         build_file_paths: Vec<RcStr>,
+        #[serde(default)]
+        build_dependency_requests: Vec<(RcStr, bool)>,
     },
     EmittedError {
         severity: IssueSeverity,
@@ -700,6 +805,7 @@ impl EvaluateContext for WebpackLoaderContext {
                 file_paths,
                 directories,
                 build_file_paths,
+                build_dependency_requests,
             } => {
                 // We only process these dependencies to help with tracking, so if it is disabled
                 // dont bother.
@@ -717,12 +823,24 @@ impl EvaluateContext for WebpackLoaderContext {
                         .try_join();
                     let file_subscriptions = file_paths
                         .iter()
-                        .map(async |p| self.cwd.join(p)?.read().await)
+                        .map(async |p| loader_path(&self.cwd, p).await?.read().await)
                         .try_join();
                     let build_file_subscriptions = async {
-                        build_files_changed(
+                        // Resolve to `FileSystemPath`s before calling the task: system paths
+                        // aren't valid task inputs, as they aren't portable across machines.
+                        let build_file_paths = build_file_paths
+                            .iter()
+                            .map(|p| loader_path(&self.cwd, p))
+                            .try_join()
+                            .await?;
+                        build_files_changed(build_file_paths, *self.context_source_for_issue)
+                            .await?;
+                        Ok::<_, anyhow::Error>(())
+                    };
+                    let build_dependency_request_subscriptions = async {
+                        build_dependency_requests_changed(
                             self.cwd.clone(),
-                            build_file_paths,
+                            build_dependency_requests,
                             *self.context_source_for_issue,
                         )
                         .await?;
@@ -731,8 +849,8 @@ impl EvaluateContext for WebpackLoaderContext {
                     let directory_subscriptions = directories
                         .iter()
                         .map(async |(dir, glob)| {
-                            self.cwd
-                                .join(dir)?
+                            loader_path(&self.cwd, dir)
+                                .await?
                                 .track_glob(Glob::new(glob.clone(), GlobOptions::default()), false)
                                 .await
                         })
@@ -741,6 +859,7 @@ impl EvaluateContext for WebpackLoaderContext {
                         env_subscriptions,
                         file_subscriptions,
                         build_file_subscriptions,
+                        build_dependency_request_subscriptions,
                         directory_subscriptions
                     )?;
                 }
@@ -779,7 +898,7 @@ impl EvaluateContext for WebpackLoaderContext {
                 let Some(resolve_options_context) = self.resolve_options_context else {
                     bail!("Resolve options are not available in this context");
                 };
-                let lookup_path = self.cwd.join(&lookup_path)?;
+                let lookup_path = loader_path(&self.cwd, &lookup_path).await?;
                 let request = Request::parse(Pattern::Constant(request));
                 let options = resolve_options(lookup_path.clone(), *resolve_options_context);
 
@@ -793,15 +912,12 @@ impl EvaluateContext for WebpackLoaderContext {
                 );
 
                 if let Some(source) = resolved.await?.first_source() {
-                    if let Some(path) = self.cwd.get_relative_path_to(&source.ident().await?.path) {
-                        Ok(ResponseMessage::Resolve { path })
-                    } else {
-                        bail!(
-                            "Resolving {} in {} ends up on a different filesystem",
-                            request.to_string().await?,
-                            lookup_path.to_string_ref().await?
-                        );
-                    }
+                    // Always return absolute paths from the resolve function.
+                    let path = to_sys_path(source.ident().await?.path.clone())
+                        .await?
+                        .context("resolved path is not on a disk filesystem")?;
+                    let path = path.to_str().context("resolved path is not valid UTF-8")?;
+                    Ok(ResponseMessage::Resolve { path: path.into() })
                 } else {
                     bail!(
                         "Unable to resolve {} in {}",
@@ -813,14 +929,14 @@ impl EvaluateContext for WebpackLoaderContext {
             RequestMessage::TrackFileRead { file } => {
                 // Ignore result, we read on the JS side again to prevent some IPC overhead. Still
                 // await the read though to cover at least one class of race conditions.
-                let _ = &*self.cwd.join(&file)?.read().await?;
+                let _ = &*loader_path(&self.cwd, &file).await?.read().await?;
                 Ok(ResponseMessage::TrackFileRead {})
             }
             RequestMessage::ImportModule {
                 lookup_path,
                 request,
             } => {
-                let lookup_path = self.cwd.join(&lookup_path)?;
+                let lookup_path = loader_path(&self.cwd, &lookup_path).await?;
 
                 let request_vc = Request::parse(Pattern::Constant(request.clone()));
                 let origin = PlainResolveOrigin::new(*self.asset_context, lookup_path.join("_")?);
@@ -1098,12 +1214,58 @@ impl Issue for BuildDependencyIssue {
             StyledString::Text(rcstr!("The path at ")),
             StyledString::Code(self.path.to_string().into()),
             StyledString::Text(
-                " was passed to this.addBuildDependency, but it is not an exact existing file. \
-                 Only exact existing file paths are supported; other inputs may require \
-                 restarting the development server."
+                " is not a supported file or explicit directory build dependency. Unsupported \
+                 inputs may require restarting the development server."
                     .into(),
             ),
         ])))
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.source)
+    }
+}
+
+#[turbo_tasks::value(shared)]
+pub struct UnresolvedBuildDependencyIssue {
+    pub request: RcStr,
+    pub error: Option<RcStr>,
+    pub source: IssueSource,
+}
+
+#[async_trait]
+#[turbo_tasks::value_impl]
+impl Issue for UnresolvedBuildDependencyIssue {
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Warning
+    }
+
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Unable to resolve webpack loader build dependency"
+        )))
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::Resolve
+    }
+
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        self.source.file_path().await
+    }
+
+    async fn description(&self) -> Result<Option<StyledString>> {
+        let mut description = vec![
+            StyledString::Text(rcstr!("The build dependency request ")),
+            StyledString::Code(self.request.clone()),
+            StyledString::Text(rcstr!(" could not be resolved to a file.")),
+        ];
+        if let Some(error) = &self.error {
+            description.push(StyledString::Text(
+                format!(" Resolver error: {error}").into(),
+            ));
+        }
+        Ok(Some(StyledString::Line(description)))
     }
 
     fn source(&self) -> Option<IssueSource> {

@@ -451,18 +451,11 @@ function resolveAbsolutePath(modulePath?: string): string {
 browserContextPrototype.P = resolveAbsolutePath
 
 /**
- * Returns a placeholder `file://` URL for the given module path. The browser
- * runtime intentionally does not expose the real filesystem path. Path
- * segments are percent-encoded so the result is always a valid file URI.
+ * Returns a placeholder `file://` URL for the given module path, which is
+ * relative to the project root or the named `root`. The browser runtime
+ * intentionally does not expose the real filesystem path.
  */
-function resolveFileUrl(modulePath?: string): string {
-  if (!modulePath) return 'file:///ROOT/'
-  return `file:///ROOT/${modulePath
-    .split('/')
-    .map(encodeURIComponent)
-    .join('/')}`
-}
-browserContextPrototype.F = resolveFileUrl
+browserContextPrototype.F = placeholderFileUrl
 
 /**
  * Exports a URL with the static suffix appended.

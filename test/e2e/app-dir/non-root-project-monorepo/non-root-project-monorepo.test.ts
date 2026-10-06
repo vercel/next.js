@@ -1,4 +1,9 @@
-import { nextTestSetup, FileRef } from 'e2e-utils'
+import {
+  nextTestSetup,
+  FileRef,
+  patchFileWithDeployEnvAssignments,
+  isNextDeploy,
+} from 'e2e-utils'
 import {
   waitForRedbox,
   waitForNoRedbox,
@@ -6,29 +11,47 @@ import {
   getRedboxSource,
 } from 'next-test-utils'
 import * as path from 'path'
+import { realpathSync } from 'fs'
+import { pathToFileURL } from 'url'
 
 describe('non-root-project-monorepo', () => {
-  const { next, skipped, isTurbopack, isNextDev, isRspack } = nextTestSetup({
+  const { next, isTurbopack, isNextDev, isRspack } = nextTestSetup({
     files: {
       apps: new FileRef(path.resolve(__dirname, 'apps')),
       packages: new FileRef(path.resolve(__dirname, 'packages')),
       // Deliberately shadows apps/web/content, to pin down which one a
       // `/`-rooted import resolves from.
       content: new FileRef(path.resolve(__dirname, 'content')),
+      'vercel.json': new FileRef(path.resolve(__dirname, 'vercel.json')),
       'pnpm-workspace.yaml': `packages:
       - 'apps/*'
       - 'packages/*'
       `,
     },
+    overrideFiles: {
+      'apps/web/next.config.js': patchFileWithDeployEnvAssignments(
+        path.join(__dirname, 'apps/web/next.config.js')
+      ),
+    },
     packageJson: require('./package.json'),
     buildCommand: 'pnpm build',
     startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
     installCommand: 'pnpm i',
-    skipDeployment: true,
+    env: { ENABLE_EXPERIMENTAL_COREPACK: '1' },
   })
 
-  if (skipped) {
-    return
+  function sourceFileUrl(file: string) {
+    // Server bundles preserve the source path from the build environment.
+    if (isNextDeploy) {
+      return new URL(file, 'file:///vercel/path0/apps/web/').href
+    }
+    // Turbopack expands Windows 8.3 names (e.g. RUNNER~1) in source paths.
+    const testDir =
+      process.platform === 'win32' && isTurbopack
+        ? realpathSync.native(next.testDir)
+        : realpathSync(next.testDir)
+    const filePath = path.join(testDir, 'apps/web', file)
+    return pathToFileURL(filePath).href
   }
 
   describe('server relative import', () => {
@@ -63,15 +86,15 @@ describe('non-root-project-monorepo', () => {
   describe('import.meta.url', () => {
     it('should work during RSC', async () => {
       const $ = await next.render$('/import-meta-url-rsc')
-      expect($('p').text()).toMatch(
-        /^file:\/\/.*\/next-install-[^/]+\/apps\/web\/app\/import-meta-url-rsc\/page.tsx$/
+      expect($('p').text()).toBe(
+        sourceFileUrl('app/import-meta-url-rsc/page.tsx')
       )
     })
 
     it('should work during SSR', async () => {
       const $ = await next.render$('/import-meta-url-ssr')
-      expect($('p').text()).toMatch(
-        /^file:\/\/.*\/next-install-[^/]+\/apps\/web\/app\/import-meta-url-ssr\/page.tsx$/
+      expect($('p').text()).toBe(
+        sourceFileUrl('app/import-meta-url-ssr/page.tsx')
       )
     })
 
@@ -84,8 +107,8 @@ describe('non-root-project-monorepo', () => {
           'file:///ROOT/apps/web/app/import-meta-url-ssr/page.tsx'
         )
       } else {
-        expect(await browser.elementByCss('p').text()).toMatch(
-          /^file:\/\/.*\/next-install-[^/]+\/apps\/web\/app\/import-meta-url-ssr\/page.tsx$/
+        expect(await browser.elementByCss('p').text()).toBe(
+          sourceFileUrl('app/import-meta-url-ssr/page.tsx')
         )
       }
       await browser.close()
@@ -96,15 +119,15 @@ describe('non-root-project-monorepo', () => {
     describe('non-url-safe characters', () => {
       it('should encode special chars during RSC', async () => {
         const $ = await next.render$('/import-meta-url-encoded-rsc')
-        expect($('p').text()).toMatch(
-          /^file:\/\/.*\/next-install-[^/]+\/apps\/web\/app\/import-meta-url-encoded-rsc\/with%20space.ts$/
+        expect($('p').text()).toBe(
+          sourceFileUrl('app/import-meta-url-encoded-rsc/with space.ts')
         )
       })
 
       it('should encode special chars during SSR', async () => {
         const $ = await next.render$('/import-meta-url-encoded-ssr')
-        expect($('p').text()).toMatch(
-          /^file:\/\/.*\/next-install-[^/]+\/apps\/web\/app\/import-meta-url-encoded-ssr\/with%20space.ts$/
+        expect($('p').text()).toBe(
+          sourceFileUrl('app/import-meta-url-encoded-ssr/with space.ts')
         )
       })
 
@@ -117,8 +140,8 @@ describe('non-root-project-monorepo', () => {
             'file:///ROOT/apps/web/app/import-meta-url-encoded-ssr/with%20space.ts'
           )
         } else {
-          expect(await browser.elementByCss('p').text()).toMatch(
-            /^file:\/\/.*\/next-install-[^/]+\/apps\/web\/app\/import-meta-url-encoded-ssr\/with%20space.ts$/
+          expect(await browser.elementByCss('p').text()).toBe(
+            sourceFileUrl('app/import-meta-url-encoded-ssr/with space.ts')
           )
         }
         await browser.close()

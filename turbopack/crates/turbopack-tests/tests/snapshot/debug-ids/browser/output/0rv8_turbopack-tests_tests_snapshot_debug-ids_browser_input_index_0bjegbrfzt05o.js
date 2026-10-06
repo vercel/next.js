@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="30bdd4b9-98f8-d92c-1735-98906e239378")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="c43766b6-b61f-49ce-2bc6-d270f17e82af")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/0rv8_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js",
     {"otherChunks":["output/0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvsq4xsbk.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -78,15 +78,15 @@ function defineProp(obj, name, options) {
     if (!hasOwnProperty.call(obj, name)) Object.defineProperty(obj, name, options);
 }
 function getOverwrittenModule(moduleCache, id) {
-    let module = moduleCache[id];
-    if (!module) {
+    let module = moduleCache.get(id);
+    if (module === undefined) {
         if (createModuleWithDirectionFlag) {
             // set in development modes for hmr support
             module = createModuleWithDirection(id);
         } else {
             module = createModuleObject(id);
         }
-        moduleCache[id] = module;
+        moduleCache.set(id, module);
     }
     return module;
 }
@@ -651,6 +651,14 @@ contextPrototype.U = relativeURL;
     return `Module ${moduleId} was instantiated ${instantiationReason}, but the module factory is not available.`;
 }
 /**
+ * Returns a `file://` URL under a synthetic directory named after `root`
+ * (`ROOT` for the project root), for when the real filesystem path is unknown.
+ * The root name and path segments are percent-encoded so the result is always
+ * a valid file URI.
+ */ function placeholderFileUrl(modulePath, root) {
+    return `file:///${encodeURIComponent(root ?? 'ROOT')}/${modulePath.split('/').map(encodeURIComponent).join('/')}`;
+}
+/**
  * A stub function to make `require` available but non-functional in ESM.
  */ function requireStub(_moduleId) {
     throw new Error('dynamic usage of require is not supported');
@@ -1053,14 +1061,10 @@ browserContextPrototype.R = resolvePathFromModule;
 }
 browserContextPrototype.P = resolveAbsolutePath;
 /**
- * Returns a placeholder `file://` URL for the given module path. The browser
- * runtime intentionally does not expose the real filesystem path. Path
- * segments are percent-encoded so the result is always a valid file URI.
- */ function resolveFileUrl(modulePath) {
-    if (!modulePath) return 'file:///ROOT/';
-    return `file:///ROOT/${modulePath.split('/').map(encodeURIComponent).join('/')}`;
-}
-browserContextPrototype.F = resolveFileUrl;
+ * Returns a placeholder `file://` URL for the given module path, which is
+ * relative to the project root or the named `root`. The browser runtime
+ * intentionally does not expose the real filesystem path.
+ */ browserContextPrototype.F = placeholderFileUrl;
 /**
  * Exports a URL with the static suffix appended.
  */ function exportUrl(url, id) {
@@ -1248,7 +1252,7 @@ function formatDependencyChain(dependencyChain) {
                 dependencyChain
             };
         }
-        const module = devModuleCache[moduleId];
+        const module = devModuleCache.get(moduleId);
         const hotState = moduleHotState.get(module);
         if (// The module is not in the cache. Since this is a "modified" update,
         // it means that the module was never instantiated before.
@@ -1276,7 +1280,7 @@ function formatDependencyChain(dependencyChain) {
             continue;
         }
         for (const parentId of module.parents){
-            const parent = devModuleCache[parentId];
+            const parent = devModuleCache.get(parentId);
             if (!parent) {
                 continue;
             }
@@ -1475,7 +1479,7 @@ function formatDependencyChain(dependencyChain) {
  */ function computeOutdatedSelfAcceptedModules(outdatedModules) {
     const outdatedSelfAcceptedModules = [];
     for (const moduleId of outdatedModules){
-        const module = devModuleCache[moduleId];
+        const module = devModuleCache.get(moduleId);
         const hotState = moduleHotState.get(module);
         if (module && hotState?.selfAccepted && !hotState.selfInvalidated) {
             outdatedSelfAcceptedModules.push({
@@ -1493,7 +1497,7 @@ function formatDependencyChain(dependencyChain) {
  * NOTE: mode = "replace" will not remove modules from devModuleCache.
  * This must be done in a separate step afterwards.
  */ function disposeModule(moduleId, mode) {
-    const module = devModuleCache[moduleId];
+    const module = devModuleCache.get(moduleId);
     if (!module) {
         return;
     }
@@ -1517,7 +1521,7 @@ function formatDependencyChain(dependencyChain) {
     // It will be added back once the module re-instantiates and imports its
     // children again.
     for (const childId of module.children){
-        const child = devModuleCache[childId];
+        const child = devModuleCache.get(childId);
         if (!child) {
             continue;
         }
@@ -1528,7 +1532,7 @@ function formatDependencyChain(dependencyChain) {
     }
     switch(mode){
         case 'clear':
-            delete devModuleCache[module.id];
+            devModuleCache.delete(module.id);
             moduleHotData.delete(module.id);
             break;
         case 'replace':
@@ -1552,16 +1556,16 @@ function formatDependencyChain(dependencyChain) {
     // We also want to keep track of previous parents of the outdated modules.
     const outdatedModuleParents = new Map();
     for (const moduleId of outdatedModules){
-        const oldModule = devModuleCache[moduleId];
+        const oldModule = devModuleCache.get(moduleId);
         outdatedModuleParents.set(moduleId, oldModule?.parents);
-        delete devModuleCache[moduleId];
+        devModuleCache.delete(moduleId);
     }
     // Remove outdated dependencies from parent module's children list.
     // When a parent accepts a child's update, the child is re-instantiated
     // but the parent stays alive. We remove the old child reference so it
     // gets re-added when the child re-imports.
     for (const [parentId, deps] of outdatedDependencies){
-        const module = devModuleCache[parentId];
+        const module = devModuleCache.get(parentId);
         if (module) {
             for (const dep of deps){
                 const idx = module.children.indexOf(dep);
@@ -1613,7 +1617,7 @@ function formatDependencyChain(dependencyChain) {
     module.parents = parents;
     module.children = [];
     module.hot = hot;
-    devModuleCache[id] = module;
+    devModuleCache.set(id, module);
     moduleHotState.set(module, hotState);
     // 5. Module execution (React Refresh hooks are platform-specific)
     try {
@@ -1747,7 +1751,7 @@ function formatDependencyChain(dependencyChain) {
     // This runs BEFORE re-instantiating self-accepted modules, matching
     // webpack's behavior.
     for (const [parentId, deps] of outdatedDependencies){
-        const module = devModuleCache[parentId];
+        const module = devModuleCache.get(parentId);
         if (!module) continue;
         const hotState = moduleHotState.get(module);
         if (!hotState) continue;
@@ -1797,7 +1801,7 @@ function formatDependencyChain(dependencyChain) {
                 try {
                     errorHandler(err, {
                         moduleId,
-                        module: devModuleCache[moduleId]
+                        module: devModuleCache.get(moduleId)
                     });
                 } catch (err2) {
                     reportError(err2);
@@ -1857,7 +1861,7 @@ const devContextPrototype = Context.prototype;
  * It will be appended to the runtime code of each runtime right after the
  * shared runtime utils.
  */ /* eslint-disable @typescript-eslint/no-unused-vars */ // Assign browser's module cache and runtime modules to shared HMR state
-devModuleCache = Object.create(null);
+devModuleCache = new Map();
 devContextPrototype.c = devModuleCache;
 runtimeModules = new Set();
 // Set flag to indicate we use ModuleWithDirection
@@ -1887,7 +1891,7 @@ createModuleWithDirectionFlag = true;
  * Gets or instantiates a runtime module.
  */ // @ts-ignore
 function getOrInstantiateRuntimeModule(chunkPath, moduleId) {
-    const module = devModuleCache[moduleId];
+    const module = devModuleCache.get(moduleId);
     if (module) {
         if (module.error) {
             throw module.error;
@@ -1904,7 +1908,7 @@ const getOrInstantiateModuleFromParent = (id, sourceModule)=>{
     if (!sourceModule.hot.active) {
         console.warn(`Unexpected import of module ${id} from module ${sourceModule.id}, which was deleted by an HMR update`);
     }
-    const module = devModuleCache[id];
+    const module = devModuleCache.get(id);
     if (sourceModule.children.indexOf(id) === -1) {
         sourceModule.children.push(id);
     }
@@ -2610,5 +2614,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=30bdd4b9-98f8-d92c-1735-98906e239378
+//# debugId=c43766b6-b61f-49ce-2bc6-d270f17e82af
 //# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js.map
