@@ -1,8 +1,9 @@
 // Test how many imports/requires can be stacked sequentially
 // The actual limit varies slightly for esm and cjs (due to the async machinery).
 // Turbopack doesn't guarantee any particular amount but we should try to avoid
-// droppping below what nodejs supports natively.  So if a runtime refactoring
+// dropping below what nodejs supports natively.  So if a runtime refactoring
 // requires this to drop that is OK.
+// NOTE: this might also change due to nodejs/v8 changes, so again, not a strict contract.
 const CHAIN_DEPTH = 1301
 
 function evaluationFrames(kind) {
