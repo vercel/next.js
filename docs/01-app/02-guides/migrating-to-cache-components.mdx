@@ -653,6 +653,8 @@ Paths you don't return are still served at request time.
 
 Params not returned by `generateStaticParams` are rendered on request. If you used `dynamicParams: false` to reject them, call [`notFound()`](/docs/app/api-reference/functions/not-found) in the page when the param doesn't resolve to real data.
 
+> **Good to know**: To preserve a `dynamicParams: false` policy, use the experimental [parameter matching](/docs/app/api-reference/file-conventions/route-segment-config/paramMatching) API with the `'not-found'` mode.
+
 ### Await `params` inside `<Suspense>`
 
 For routes that don't use `generateStaticParams`, pass the `params` promise into a [`<Suspense>`](/docs/app/api-reference/file-conventions/loading) boundary instead of awaiting it at the top of the component. This lets Next.js prerender a static shell while the params remain unknown. For routes that use `generateStaticParams`, follow the ISR guidance above.

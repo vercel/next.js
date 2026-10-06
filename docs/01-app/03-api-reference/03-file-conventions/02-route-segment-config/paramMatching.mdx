@@ -7,9 +7,9 @@ version: unstable
 
 Use `unstable_paramMatching` to control how a dynamic route handles parameter values that are not returned by [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params).
 
-For example, this route prerenders `/products/featured` during the build. When another product is requested, Next.js waits for the complete route to be generated before responding:
+For example, this route prerenders `/products/featured` during the build. When any other value is requested, Next.js waits for the complete route to be generated before responding:
 
-```tsx filename="app/products/[slug]/page.tsx" switcher
+```tsx filename="app/products/[slug]/page.tsx" highlight={3-5} switcher
 import type { ParamMatching } from 'next'
 
 export const unstable_paramMatching = {
@@ -21,7 +21,7 @@ export function generateStaticParams() {
 }
 ```
 
-```jsx filename="app/products/[slug]/page.js" switcher
+```jsx filename="app/products/[slug]/page.js" highlight={1-3} switcher
 export const unstable_paramMatching = {
   slug: 'blocking',
 }
@@ -33,7 +33,7 @@ export function generateStaticParams() {
 
 ## Reference
 
-Set a matching mode for each dynamic parameter you want to configure:
+The export maps a dynamic parameter to one of the following modes:
 
 | Mode          | Behavior for a value not returned by `generateStaticParams`         |
 | ------------- | ------------------------------------------------------------------- |
@@ -42,13 +42,13 @@ Set a matching mode for each dynamic parameter you want to configure:
 | `'fallback'`  | Serve the route's fallback while the requested content is rendered. |
 | `'dynamic'`   | Render the parameter at request time.                               |
 
-The optional `ParamMatching` type checks the parameter names and matching modes without widening the object's keys.
+Use the optional `ParamMatching` type to check the parameter names and matching modes. Pass the route's parameter names as its type argument.
 
-### Generate the policy
+### `unstable_generateParamMatching`
 
-If the policy must be computed asynchronously, export `unstable_generateParamMatching` instead:
+To compute the policy in a function, export `unstable_generateParamMatching` instead:
 
-```tsx filename="app/products/[slug]/page.tsx" switcher
+```tsx filename="app/products/[slug]/page.tsx" highlight={3-7} switcher
 import type { ParamMatching } from 'next'
 
 export async function unstable_generateParamMatching(): Promise<
@@ -58,7 +58,7 @@ export async function unstable_generateParamMatching(): Promise<
 }
 ```
 
-```jsx filename="app/products/[slug]/page.js" switcher
+```jsx filename="app/products/[slug]/page.js" highlight={1-3} switcher
 export async function unstable_generateParamMatching() {
   return { slug: 'blocking' }
 }
@@ -69,6 +69,6 @@ The function takes no arguments. A route cannot export both `unstable_paramMatch
 > **Good to know**:
 >
 > - Parameter matching requires [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents).
-> - Export it from a Server Component page or layout. It is not supported in Client Components, Route Handlers, or the Edge runtime.
+> - `unstable_paramMatching` and `unstable_generateParamMatching` can only be exported from Server Component pages and layouts that use the [Node.js runtime](/docs/app/api-reference/file-conventions/route-segment-config/runtime).
 > - Each key must name a dynamic parameter from the current segment or a parent segment.
 > - With [`ensureStatic = 'navigation'`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#navigation), use `'blocking'` or `'not-found'`. The `'fallback'` and `'dynamic'` modes require request-time rendering.
