@@ -31,6 +31,10 @@ unexpected_cfgs = { level = "warn", check-cfg = [
   'cfg(codspeed)',
 ] }
 
+[workspace.lints.cargo]
+# These are generally useful, but there are a lot of false positives when running commands scoped to individual workspace members.
+unused_workspace_dependencies = "allow"
+
 [profile.dev]
 # https://kobzol.github.io/rust/rustc/2025/05/20/disable-debuginfo-to-improve-rust-compile-times.html
 debug = "line-tables-only"
