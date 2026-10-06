@@ -310,7 +310,7 @@ describe('@gate runtime', () => {
     })
 
     it('runs `vercel` only for a deploy declared as Vercel', async () => {
-      const original = process.env.NEXT_DEPLOY_TARGET
+      const original = process.env.NEXT_TEST_DEPLOY_TARGET
       const vercelOnly = parseGate('vercel', true)
       const notOtherHosts = parseGate('!deploy || vercel', true)
 
@@ -324,9 +324,9 @@ describe('@gate runtime', () => {
           ['start', undefined],
         ] as const) {
           if (target === undefined) {
-            delete process.env.NEXT_DEPLOY_TARGET
+            delete process.env.NEXT_TEST_DEPLOY_TARGET
           } else {
-            process.env.NEXT_DEPLOY_TARGET = target
+            process.env.NEXT_TEST_DEPLOY_TARGET = target
           }
           setGateTestContext({
             mode,
@@ -342,13 +342,13 @@ describe('@gate runtime', () => {
         }
       } finally {
         if (original === undefined) {
-          delete process.env.NEXT_DEPLOY_TARGET
+          delete process.env.NEXT_TEST_DEPLOY_TARGET
         } else {
-          process.env.NEXT_DEPLOY_TARGET = original
+          process.env.NEXT_TEST_DEPLOY_TARGET = original
         }
       }
 
-      // [mode + NEXT_DEPLOY_TARGET, `@force-gate vercel`, `@force-gate !deploy || vercel`]
+      // [mode + NEXT_TEST_DEPLOY_TARGET, `@force-gate vercel`, `@force-gate !deploy || vercel`]
       expect(results).toEqual([
         ['deploy, vercel', 'run', 'run'],
         ['deploy, unset', 'force-pass', 'force-pass'],
