@@ -29,6 +29,7 @@ use next_core::{
     segment_config::ParseSegmentMode,
     util::{NextRuntime, get_asset_prefix_from_pathname, pages_function_name},
 };
+use smallvec::smallvec;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{Completion, FxIndexMap, ResolvedVc, ValueToString, Vc, fxindexmap, fxindexset};
@@ -1027,7 +1028,7 @@ impl PageEndpoint {
                 async {
                     let chunk_group = chunking_context.chunk_group(
                         layout.ident(),
-                        ChunkGroup::Shared(layout),
+                        smallvec![ChunkGroup::Shared(layout)],
                         ssr_module_graph,
                         current_chunk_group.await?.availability_info,
                     );
