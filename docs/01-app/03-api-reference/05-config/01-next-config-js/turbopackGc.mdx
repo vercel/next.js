@@ -5,6 +5,7 @@ version: experimental
 related:
   links:
     - app/api-reference/config/next-config-js/turbopackFileSystemCache
+    - app/api-reference/config/next-config-js/turbopackMemoryEviction
 ---
 
 The `experimental.turbopackGc` option enables garbage collection for Turbopack's in-memory and [persistent caches](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache).
@@ -43,6 +44,11 @@ module.exports = nextConfig
 | `{ minProgressMs?, rootTtlMs? }` | Enables garbage collection and overrides one or more of the default timings. |
 
 When enabled, Turbopack removes unreachable work from memory and its persistent cache. The option applies to both `next dev` and `next build` when they use Turbopack.
+
+> **Good to know:**
+>
+> - Garbage collection requires the [Turbopack FileSystem Cache](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache). The option has no effect when the cache is disabled for the current command.
+> - In long-running read-write sessions, Turbopack disables garbage collection when [`turbopackMemoryEviction`](/docs/app/api-reference/config/next-config-js/turbopackMemoryEviction) is set to `false`.
 
 ### Options
 
