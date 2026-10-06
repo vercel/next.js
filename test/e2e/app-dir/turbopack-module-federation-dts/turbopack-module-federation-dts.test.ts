@@ -123,7 +123,7 @@ describeTurbopack('producer Module Federation declarations', () => {
   })
 
   if (!isNextDeploy) {
-    it('reports missing and incompatible optional producer peers', async () => {
+    it('reports missing and incompatible producer packages', async () => {
       const projectDir = await mkdtemp(join(tmpdir(), 'next-mf-no-peer-'))
       const incompatibleDir = await mkdtemp(join(tmpdir(), 'next-mf-old-peer-'))
       const options = (dir: string) => ({
@@ -145,14 +145,14 @@ describeTurbopack('producer Module Federation declarations', () => {
             '{"metaData":{}}'
           )
         }
-        // An ancestor of tmpdir() may already provide this optional peer on CI.
+        // An ancestor of tmpdir() may already provide this package on CI.
         const fromProject = createRequire(join(projectDir, 'package.json'))
-        let hasAncestorPeer = false
+        let hasAncestorInstallation = false
         try {
           fromProject.resolve('@module-federation/dts-plugin/package.json')
-          hasAncestorPeer = true
+          hasAncestorInstallation = true
         } catch {}
-        if (hasAncestorPeer) {
+        if (hasAncestorInstallation) {
           // In CI, a valid ancestor installation is expected to resolve here.
           expect(
             (
@@ -166,13 +166,13 @@ describeTurbopack('producer Module Federation declarations', () => {
             writeModuleFederationTypes(options(projectDir))
           ).rejects.toThrow('Install it in the producing app')
         }
-        const peerDir = join(
+        const installationDir = join(
           incompatibleDir,
           'node_modules/@module-federation/dts-plugin'
         )
-        await mkdir(peerDir, { recursive: true })
+        await mkdir(installationDir, { recursive: true })
         await writeFile(
-          join(peerDir, 'package.json'),
+          join(installationDir, 'package.json'),
           '{"name":"@module-federation/dts-plugin","version":"1.0.0"}'
         )
         await expect(
@@ -186,9 +186,9 @@ describeTurbopack('producer Module Federation declarations', () => {
       }
     })
 
-    // A nested project has no node_modules. Its optional DTS peer lives in the
+    // A nested project has no node_modules. Its DTS package lives in the
     // ancestor app, just as it does in a hoisted monorepo installation.
-    it('resolves a hoisted producer DTS peer from ancestor node_modules', async () => {
+    it('resolves a hoisted producer DTS package from ancestor node_modules', async () => {
       const projectDir = join(next.testDir, 'hoisted-producer')
       const distDir = join(projectDir, '.next')
       await mkdir(join(distDir, 'static'), { recursive: true })
