@@ -22,10 +22,51 @@ type RouteEntry = {
   }>
 }
 
-function readAnalyzeHeader<T>(filename: string): T {
+type EdgesReference = { offset: number; length: number }
+
+type ChunkGraphHeader = {
+  schema_version: number
+  module_index_hash: string
+  output_files: Array<{ filename: string }>
+  output_file_modules: EdgesReference
+  output_file_async_loaders: EdgesReference
+  output_file_module_coverage: Array<'exact' | 'unsupported' | 'not_a_chunk'>
+}
+
+function readAnalyzeFile<T>(filename: string) {
   const buffer = readFileSync(filename)
   const jsonLength = buffer.readUInt32BE(0)
-  return JSON.parse(buffer.subarray(4, 4 + jsonLength).toString('utf8')) as T
+  const binaryStart = 4 + jsonLength
+  expect(binaryStart).toBeLessThanOrEqual(buffer.length)
+  return {
+    header: JSON.parse(buffer.subarray(4, binaryStart).toString('utf8')) as T,
+    binary: buffer.subarray(binaryStart),
+  }
+}
+
+function readAnalyzeHeader<T>(filename: string): T {
+  return readAnalyzeFile<T>(filename).header
+}
+
+function readRows(binary: Buffer, reference: EdgesReference): number[][] {
+  const { offset, length } = reference
+  expect(offset + length).toBeLessThanOrEqual(binary.length)
+  const section = binary.subarray(offset, offset + length)
+  const count = section.readUInt32BE(0)
+  const offsets = Array.from({ length: count }, (_, i) =>
+    section.readUInt32BE(4 + 4 * i)
+  )
+  const total = offsets.at(-1) ?? 0
+  expect(section.length).toBe(4 * (1 + count + total))
+  let start = 0
+  return offsets.map((end) => {
+    expect(end).toBeGreaterThanOrEqual(start)
+    const row = Array.from({ length: end - start }, (_, i) =>
+      section.readUInt32BE(4 * (1 + count + start + i))
+    )
+    start = end
+    return row
+  })
 }
 
 // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
@@ -200,6 +241,87 @@ describe('next analyze', () => {
     ])
     expect(alias.exitCode).toBe(0)
     expect(alias.stdout).toBe(named.stdout)
+    const outputRecords = records.filter(
+      (record) => record.type === 'output' && record.route === '/'
+    )
+    for (const output of records.filter((record) => record.type === 'output')) {
+      expect(output.modules).toEqual([...output.modules].sort())
+      expect(output.async_loaders).toEqual([...output.async_loaders].sort())
+    }
+
+    const clientEntries = records.filter(
+      (record) =>
+        record.type === 'module' &&
+        record.path.endsWith('/app/client-entry.tsx') &&
+        record.ident.includes('[app-client]')
+    )
+    const asyncTargets = records.filter(
+      (record) =>
+        record.type === 'module' &&
+        record.ident.includes('[app-client]') &&
+        (record.path.endsWith('/app/async-target.ts') ||
+          record.path.endsWith('/app/dynamic-target.tsx'))
+    )
+    expect(clientEntries.length).toBeGreaterThan(0)
+    expect(
+      asyncTargets.some((record) =>
+        record.path.endsWith('/app/async-target.ts')
+      )
+    ).toBe(true)
+    expect(
+      asyncTargets.some(
+        (record) =>
+          record.path.endsWith('/app/dynamic-target.tsx') &&
+          record.ident.includes('next/dynamic entry')
+      )
+    ).toBe(true)
+    const asyncDependencies = clientEntries.flatMap(
+      (record) => record.dependencies.async
+    )
+    for (const target of asyncTargets) {
+      // The import graph records the target, not a synthetic loader module.
+      if (
+        target.ident.includes('next/dynamic entry') ||
+        target.path.endsWith('/app/async-target.ts')
+      ) {
+        expect(asyncDependencies).toContain(target.ident)
+      }
+    }
+    const importerOutputs = outputRecords.filter((record) =>
+      clientEntries.some((entry) => record.modules.includes(entry.ident))
+    )
+    expect(importerOutputs.length).toBeGreaterThan(0)
+    for (const target of asyncTargets.filter(
+      (target) =>
+        target.ident.includes('next/dynamic entry') ||
+        target.path.endsWith('/app/async-target.ts')
+    )) {
+      expect(
+        importerOutputs.some((output) =>
+          output.async_loaders.includes(target.ident)
+        )
+      ).toBe(true)
+    }
+
+    for (const target of asyncTargets) {
+      expect(
+        outputRecords.some((output) => output.modules.includes(target.ident))
+      ).toBe(true)
+    }
+
+    for (const output of importerOutputs) {
+      expect(output.coverage).toBe('exact')
+      // Joining a loader's target must not attribute that target to the importer.
+      for (const target of asyncTargets) {
+        expect(output.modules).not.toContain(target.ident)
+      }
+    }
+    expect(
+      outputRecords
+        .flatMap((record) => record.modules)
+        .some((ident: string) => ident.endsWith('async loader)'))
+    ).toBe(false)
+
     const filtered = await next.runCommand([
       'analyze',
       'export',
@@ -284,6 +406,45 @@ describe('next analyze', () => {
       expect(truncated.stderr).toContain('Truncated analyzer header')
     } finally {
       writeFileSync(moduleFile, originalModules)
+    }
+
+    const routeFile = path.join(snapshotDir, 'analyze.data')
+    const routeOriginal = readFileSync(routeFile)
+    try {
+      const oldHeaderLength = routeOriginal.readUInt32BE(0)
+      const header = JSON.parse(
+        routeOriginal.toString('utf8', 4, 4 + oldHeaderLength)
+      )
+      const altered = Buffer.from(
+        JSON.stringify({ ...header, module_index_hash: 'wrong' })
+      )
+      const length = Buffer.alloc(4)
+      length.writeUInt32BE(altered.length)
+      writeFileSync(
+        routeFile,
+        Buffer.concat([
+          length,
+          altered,
+          routeOriginal.subarray(4 + oldHeaderLength),
+        ])
+      )
+      const mismatch = await next.runCommand([
+        'analyze',
+        'export',
+        '--snapshot',
+        name,
+      ])
+      expect(mismatch.exitCode).not.toBe(0)
+      const partial = mismatch.stdout
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line))
+      expect(partial[0]).toMatchObject({ type: 'meta', snapshot_name: name })
+      expect(partial.some((record) => record.type === 'module')).toBe(true)
+      expect(partial.some((record) => record.route === '/')).toBe(false)
+      expect(mismatch.stderr).toContain('module-index fingerprint mismatch')
+    } finally {
+      writeFileSync(routeFile, routeOriginal)
     }
   }, 120_000)
 
@@ -490,6 +651,74 @@ describe('next analyze', () => {
           expect(entry).not.toHaveProperty('initial')
           expect(entry).not.toHaveProperty('load_scope')
         }
+
+        const routeGraphs = [
+          'analyze.data',
+          'legacy/analyze.data',
+          'api/ping/analyze.data',
+        ].map((route) =>
+          readAnalyzeFile<ChunkGraphHeader>(path.join(dataDir, route))
+        )
+        for (const { header, binary } of routeGraphs) {
+          const rows = readRows(binary, header.output_file_modules)
+          for (const [i, row] of rows.entries()) {
+            if (header.output_file_module_coverage[i] === 'not_a_chunk') {
+              expect(row).toEqual([])
+            }
+          }
+        }
+        expect(
+          routeGraphs.some(({ header, binary }) => {
+            const rows = readRows(binary, header.output_file_modules)
+            return header.output_files.some(
+              (output, i) =>
+                output.filename.includes('/server/chunks/') &&
+                output.filename.endsWith('.js') &&
+                header.output_file_module_coverage[i] === 'exact' &&
+                rows[i].length > 0
+            )
+          })
+        ).toBe(true)
+        const runtimeOutputs = routeGraphs.flatMap(({ header }) =>
+          header.output_files.flatMap((output, i) =>
+            output.filename.includes('[turbopack]_runtime')
+              ? [header.output_file_module_coverage[i]]
+              : []
+          )
+        )
+        expect(runtimeOutputs.length).toBeGreaterThan(0)
+        expect(
+          runtimeOutputs.every((coverage) => coverage === 'not_a_chunk')
+        ).toBe(true)
+        const workers = routeGraphs.flatMap(({ header }) =>
+          header.output_files.flatMap((output, index) =>
+            output.filename.includes('/service-worker/')
+              ? [header.output_file_module_coverage[index]]
+              : []
+          )
+        )
+        expect(workers.length).toBeGreaterThan(0)
+        expect(workers.every((coverage) => coverage === 'not_a_chunk')).toBe(
+          true
+        )
+        const appGraph = routeGraphs[0].header
+        const appRows = readRows(
+          routeGraphs[0].binary,
+          appGraph.output_file_modules
+        )
+        expect(
+          appRows.some((row) =>
+            row.some((index) => modules[index].ident.includes('client-entry'))
+          )
+        ).toBe(true)
+        expect(appGraph.output_file_module_coverage).toContain('exact')
+        expect(
+          appRows.some(
+            (row, index) =>
+              appGraph.output_files[index].filename.endsWith('.css') &&
+              row.some((module) => modules[module].ident.includes('page.css'))
+          )
+        ).toBe(true)
       })
     })
   })

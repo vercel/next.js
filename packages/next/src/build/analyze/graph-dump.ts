@@ -14,6 +14,7 @@ type Part = {
 }
 type ModuleHeader = {
   schema_version: number
+  module_index_hash: string
   modules: Module[]
   module_dependencies: EdgeRef
   async_module_dependencies: EdgeRef
@@ -21,6 +22,7 @@ type ModuleHeader = {
 }
 type RouteHeader = {
   schema_version: number
+  module_index_hash: string
   sources: Source[]
   chunk_parts: Part[]
   output_files: Array<{ filename: string }>
@@ -36,6 +38,9 @@ type RouteHeader = {
       reference_kind: 'ecmascript' | 'css'
     }>
   }>
+  output_file_modules: EdgeRef
+  output_file_async_loaders: EdgeRef
+  output_file_module_coverage: Array<'exact' | 'unsupported' | 'not_a_chunk'>
 }
 
 type Data<H> = { header: H; binary: Buffer }
@@ -183,11 +188,13 @@ function parseModules(file: string) {
       field
     )
   }
-  return { modules, edges }
+  if (typeof header.module_index_hash !== 'string' || !header.module_index_hash)
+    throw new Error('Missing analyzer module-index fingerprint')
+  return { modules, edges, hash: header.module_index_hash }
 }
 
-function parseRoutes(file: string) {
-  const { header } = readData<RouteHeader>(file)
+function parseRoutes(file: string, modules: ReturnType<typeof parseModules>) {
+  const { header, binary } = readData<RouteHeader>(file)
   if (
     !Array.isArray(header.sources) ||
     !Array.isArray(header.output_files) ||
@@ -208,10 +215,49 @@ function parseRoutes(file: string) {
       throw new Error('Invalid analyzer part size')
     }
   }
+  if (header.module_index_hash !== modules.hash) {
+    throw new Error('Analyzer module-index fingerprint mismatch')
+  }
+  const membership = validateEdges(
+    binary,
+    header.output_file_modules,
+    outputs.length,
+    modules.modules.length,
+    'output modules'
+  )
+  const asyncLoaders = validateEdges(
+    binary,
+    header.output_file_async_loaders,
+    outputs.length,
+    modules.modules.length,
+    'output async loaders'
+  )
+  if (
+    !Array.isArray(header.output_file_module_coverage) ||
+    header.output_file_module_coverage.length !== outputs.length
+  ) {
+    throw new Error('Missing analyzer output coverage')
+  }
+  if (
+    header.output_file_module_coverage.some(
+      (coverage) =>
+        coverage !== 'exact' &&
+        coverage !== 'unsupported' &&
+        coverage !== 'not_a_chunk'
+    )
+  ) {
+    throw new Error('Invalid analyzer output coverage')
+  }
   for (const output of outputs)
     if (typeof output.filename !== 'string')
       throw new Error('Invalid output filename')
-  return { paths, header, entries: header.route_entries ?? null }
+  return {
+    paths,
+    header,
+    entries: header.route_entries ?? null,
+    membership,
+    asyncLoaders,
+  }
 }
 
 function writeRecord(record: object): void {
@@ -250,11 +296,13 @@ export function dumpAnalyzeGraph(
   )
   if (routeFilter !== undefined && selected.length === 0)
     throw new Error(`Unknown analyzer route: ${routeFilter}`)
-  const { modules, edges } = parseModules(join(directory, 'modules.data'))
+  const moduleData = parseModules(join(directory, 'modules.data'))
+  const { modules, edges, hash } = moduleData
   writeRecord({
     type: 'meta',
     schema_version: 1,
     snapshot_name: snapshotName,
+    module_index_hash: hash,
     route_count: routes.length,
     selected_routes: selected.length,
   })
@@ -274,7 +322,10 @@ export function dumpAnalyzeGraph(
   // Retain only the current route's data. A later validation error may leave
   // partial output; callers must check the exit status before using it.
   for (const route of selected) {
-    const { paths, header, entries } = parseRoutes(routeFile(directory, route))
+    const { paths, header, entries, membership, asyncLoaders } = parseRoutes(
+      routeFile(directory, route),
+      moduleData
+    )
     const prefix = { route }
     writeRecord({
       type: 'route',
@@ -287,6 +338,15 @@ export function dumpAnalyzeGraph(
         type: 'output',
         ...prefix,
         filename: header.output_files[i].filename,
+        modules: membership
+          .row(i)
+          .map((id) => modules[id].ident)
+          .sort(),
+        async_loaders: asyncLoaders
+          .row(i)
+          .map((id) => modules[id].ident)
+          .sort(),
+        coverage: header.output_file_module_coverage[i],
       })
     }
     for (const part of header.chunk_parts) {

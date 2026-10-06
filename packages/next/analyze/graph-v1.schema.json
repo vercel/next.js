@@ -27,6 +27,7 @@
         "type",
         "schema_version",
         "snapshot_name",
+        "module_index_hash",
         "route_count",
         "selected_routes"
       ],
@@ -40,6 +41,11 @@
           "type": "string",
           "minLength": 1,
           "description": "Generated or provided snapshot name. Reusing an explicit name replaces its earlier capture."
+        },
+        "module_index_hash": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Fingerprint of the ordered, snapshot-scoped modules.data indices; not proof of identical graphs or builds."
         },
         "route_count": {
           "$ref": "#/$defs/index",
@@ -175,13 +181,32 @@
     },
     "output": {
       "type": "object",
-      "required": ["type", "route", "filename"],
+      "required": [
+        "type",
+        "route",
+        "filename",
+        "modules",
+        "async_loaders",
+        "coverage"
+      ],
       "properties": {
         "type": { "const": "output" },
         "route": { "type": "string", "description": "Owning route path." },
         "filename": {
           "type": "string",
           "description": "Snapshot-scoped emitted path, not stable across builds or proof of a browser request."
+        },
+        "modules": {
+          "$ref": "#/$defs/identities",
+          "description": "Sorted identities of the output chunk's real members, joined to this snapshot's module index. Async loader stubs and their targets are represented separately in async_loaders. Unsupported coverage may have partial membership."
+        },
+        "async_loaders": {
+          "$ref": "#/$defs/identities",
+          "description": "Sorted target module identities of typed async loader stubs contained in this chunk. Each target is recorded only after joining the snapshot module index through the loader's inner module."
+        },
+        "coverage": {
+          "description": "Membership evidence: exact enumerates and joins every real chunk member and async loader target; unsupported means the output type cannot enumerate its members; not_a_chunk identifies non-chunk outputs, including runtime, precompiled polyfill and separately compiled worker outputs by concrete type. Attribution part records remain available.",
+          "enum": ["exact", "unsupported", "not_a_chunk"]
         }
       },
       "additionalProperties": true,
