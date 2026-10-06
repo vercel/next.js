@@ -1,5 +1,5 @@
 use std::{
-    cell::Cell,
+    cell::{Cell, RefCell},
     fmt::{Display, Formatter},
     hash::{BuildHasher, Hash},
     ops::{Deref, DerefMut},
@@ -207,49 +207,32 @@ pub(crate) fn encode_task_contents(
 /// Converts a task's current state into the [`SnapshotItem`] that persistence writes for it.
 ///
 /// Only categories whose `modified` flag is set are encoded. A `new_task` additionally carries
-/// its task type hash so it can be added to the task cache. When `gc_enabled` is set, a
-/// GC-deleted task becomes a [`SnapshotItem::Delete`] tombstone.
+/// its task type hash so it can be added to the task cache. A GC-deleted task becomes a
+/// [`SnapshotItem::Delete`] tombstone.
 ///
 /// This is shared by the regular snapshot path and by [`StorageWriteGuard::track_modification`],
 /// which encodes a task eagerly when it is about to be mutated while a snapshot that includes it
-/// is still in progress.
+/// is still in progress. Consistency checks run where items are yielded instead (see
+/// `SnapshotShardIter`), since this may run in the middle of an operation.
 pub(crate) fn encode_snapshot_item(
     task_id: TaskId,
     inner: &TaskStorage,
-    gc_enabled: bool,
     buffer: &mut TurboBincodeBuffer,
 ) -> Result<SnapshotItem> {
     if task_id.is_transient() {
         unreachable!("transient task_ids should never be enqueued to be persisted");
     }
 
-    if gc_enabled {
-        if inner.flags.deleted() {
-            debug_assert!(
-                !inner.flags.new_task(),
-                "a scanned GC-deleted task must be persisted; new tasks are discarded by GC"
-            );
-            let task_type_hash = compute_task_type_hash(
-                inner
-                    .get_persistent_task_type()
-                    .expect("a GC-deleted task must have a task type"),
-            );
-            return Ok(SnapshotItem::Delete {
-                task_id,
-                task_type_hash,
-            });
-        } else {
-            debug_assert!(
-                !inner.gc_collectible(),
-                "tasks scheduled for persistent must not be collectible, this implies a missed \
-                 task during GC"
-            );
-        }
-    } else {
-        debug_assert!(
-            !inner.flags.deleted(),
-            "Deleted flags should only be set by GC and it is disabled"
-        )
+    if inner.flags.deleted() {
+        let task_type_hash = compute_task_type_hash(
+            inner
+                .get_persistent_task_type()
+                .expect("a GC-deleted task must have a task type"),
+        );
+        return Ok(SnapshotItem::Delete {
+            task_id,
+            task_type_hash,
+        });
     }
 
     let meta = if inner.flags.meta_modified() {
@@ -288,14 +271,28 @@ pub(crate) fn encode_snapshot_item(
         meta,
         data,
         task_type_hash,
+        #[cfg(feature = "print_cache_item_size")]
+        stats: Box::new(snapshot_item_stats(inner)),
     })
+}
+
+/// Captures the cache size statistics of the task state being encoded.
+#[cfg(feature = "print_cache_item_size")]
+fn snapshot_item_stats(inner: &TaskStorage) -> crate::backing_storage::SnapshotItemStats {
+    crate::backing_storage::SnapshotItemStats {
+        task_name: inner
+            .get_persistent_task_type()
+            .map(|t| t.to_string())
+            .unwrap_or_else(|| "<unknown>".to_string()),
+        counts: inner.meta_counts(),
+        output_size: inner.get_output().map_or(0, |output| {
+            turbo_bincode::turbo_bincode_encode(&output).map_or(0, |data| data.len())
+        }),
+    }
 }
 
 pub struct Storage {
     snapshot_mode: AtomicBool,
-    /// Whether GC is enabled. Used by [`encode_snapshot_item`] when a task has to be encoded
-    /// eagerly during snapshot mode.
-    gc_enabled: bool,
     /// Per-shard counts of tasks with modified flags set. Incremented when a task
     /// transitions from unmodified to modified (outside snapshot mode). Reset to zero when
     /// snapshot mode begins, and re-incremented in `end_snapshot` for tasks that still have
@@ -361,8 +358,6 @@ pub struct StorageOptions {
     /// Preallocate a small task map instead of a large one (e.g. for tests or short-lived
     /// instances).
     pub small_preallocation: bool,
-    /// Whether task GC is enabled. Affects how GC-deleted tasks are persisted.
-    pub gc_enabled: bool,
 }
 
 impl Default for StorageOptions {
@@ -370,19 +365,17 @@ impl Default for StorageOptions {
         Self {
             shard_amount: compute_shard_amount(None, false),
             small_preallocation: false,
-            gc_enabled: false,
         }
     }
 }
 
 #[cfg(test)]
 impl StorageOptions {
-    /// Small, GC-disabled storage for unit tests.
+    /// Small storage for unit tests.
     pub(crate) fn for_tests() -> Self {
         Self {
             shard_amount: 2,
             small_preallocation: true,
-            gc_enabled: false,
         }
     }
 }
@@ -392,7 +385,6 @@ impl Storage {
         let StorageOptions {
             shard_amount,
             small_preallocation,
-            gc_enabled,
         } = options;
         let map_capacity: usize = if small_preallocation {
             1024
@@ -411,7 +403,6 @@ impl Storage {
             .into_boxed_slice();
         Self {
             snapshot_mode: AtomicBool::new(false),
-            gc_enabled,
             shard_modified_counts,
             snapshots: FxDashMap::with_capacity_and_hasher_and_shard_amount(
                 // We expect very few updates to this map since it will only happen when updates
@@ -485,8 +476,10 @@ impl Storage {
     ///
     /// `inspect_snapshot_item` is called with every item the iterators yield, including items
     /// that were encoded ahead of time by `track_modification` (see `Storage::snapshots`) and so
-    /// never went through `process`. It receives the live task storage, borrowed the same way as
-    /// for `process`.
+    /// never went through `process`.
+    ///
+    /// Before yielding an item, the iterators check (in debug builds) that a GC-deleted task is
+    /// not also a new task.
     ///
     /// The returned shards implement `IntoIterator`. Empty shards (no modified or snapshot
     /// entries) are filtered out, but shards may still yield no items if all entries produce
@@ -499,7 +492,7 @@ impl Storage {
     pub fn take_snapshot<
         'l,
         P: for<'a> Fn(TaskId, &'a TaskStorage, &mut TurboBincodeBuffer) -> SnapshotItem + Sync,
-        I: Fn(&TaskStorage, &SnapshotItem) + Sync,
+        I: Fn(&SnapshotItem) + Sync,
     >(
         &'l self,
         guard: SnapshotGuard<'l>,
@@ -1073,16 +1066,13 @@ impl StorageWriteGuard<'_> {
                     // which categories to persist. This way persistence sees a consistent view of
                     // the task pre-mutation.
                     let task_id = *self.inner.key();
-                    let mut buffer = TurboBincodeBuffer::new();
-                    let item = encode_snapshot_item(
-                        task_id,
-                        &self.inner,
-                        self.storage.gc_enabled,
-                        &mut buffer,
-                    )
-                    .unwrap_or_else(|err| {
-                        panic!("Serializing task {task_id} for a snapshot failed: {err:?}")
-                    });
+                    let item = COPY_ON_WRITE_BUFFER
+                        .with_borrow_mut(|buffer| {
+                            encode_snapshot_item(task_id, &self.inner, buffer)
+                        })
+                        .unwrap_or_else(|err| {
+                            panic!("Serializing task {task_id} for a snapshot failed: {err:?}")
+                        });
                     self.storage.snapshots.insert(task_id, Some(Box::new(item)));
                 }
                 self.inner
@@ -1171,6 +1161,13 @@ impl DerefMut for StorageWriteGuard<'_> {
 /// How big of a buffer to allocate initially. Based on metrics from a large
 /// application this should cover about 98% of values with no resizes.
 const SCRATCH_BUFFER_INITIAL_SIZE: usize = 4096;
+
+thread_local! {
+    /// Scratch buffer for the copy-on-write encoding in `track_modification`. Encoding never
+    /// re-enters `track_modification`, so the buffer is never borrowed twice.
+    static COPY_ON_WRITE_BUFFER: RefCell<TurboBincodeBuffer> =
+        RefCell::new(TurboBincodeBuffer::with_capacity(SCRATCH_BUFFER_INITIAL_SIZE));
+}
 
 /// State machine for a per-thread scratch buffer slot.
 ///
@@ -1272,7 +1269,7 @@ pub struct SnapshotShard<'l, P, I> {
 impl<'l, P, I> IntoIterator for SnapshotShard<'l, P, I>
 where
     P: Fn(TaskId, &TaskStorage, &mut TurboBincodeBuffer) -> SnapshotItem + Sync,
-    I: Fn(&TaskStorage, &SnapshotItem) + Sync,
+    I: Fn(&SnapshotItem) + Sync,
 {
     type Item = SnapshotItem;
     type IntoIter = SnapshotShardIter<'l, P, I>;
@@ -1296,7 +1293,7 @@ pub struct SnapshotShardIter<'l, P, I> {
 impl<'l, P, I> Iterator for SnapshotShardIter<'l, P, I>
 where
     P: Fn(TaskId, &TaskStorage, &mut TurboBincodeBuffer) -> SnapshotItem + Sync,
-    I: Fn(&TaskStorage, &SnapshotItem) + Sync,
+    I: Fn(&SnapshotItem) + Sync,
 {
     type Item = SnapshotItem;
 
@@ -1306,6 +1303,10 @@ where
         let snapshots = &self.shard.storage.snapshots;
         let buffer = &mut self.buffer;
         let mut serialize_task = |task_id: TaskId, inner: &TaskStorage| {
+            debug_assert!(
+                !(inner.flags.deleted() && inner.flags.new_task()),
+                "a scanned GC-deleted task must be persisted; new tasks are discarded by GC"
+            );
             // If the task was re-modified during snapshot, the snapshots map may
             // hold the pre-modification state, already encoded, which we must persist instead
             // of the live data. Remove the entry so end_snapshot doesn't double-promote it;
@@ -1318,7 +1319,7 @@ where
             } else {
                 process(task_id, inner, buffer)
             };
-            inspect_snapshot_item(inner, &item);
+            inspect_snapshot_item(&item);
             item
         };
 
@@ -1398,11 +1399,13 @@ mod tests {
             meta: Some(TurboBincodeBuffer::default()),
             data: None,
             task_type_hash: None,
+            #[cfg(feature = "print_cache_item_size")]
+            stats: Default::default(),
         }
     }
 
     /// An `inspect_snapshot_item` callback that ignores the items.
-    fn noop_inspect(_: &super::TaskStorage, _: &SnapshotItem) {}
+    fn noop_inspect(_: &SnapshotItem) {}
 
     /// Regression test: a task modified before a snapshot and then modified *again* during
     /// snapshot iteration must serialize the pre-snapshot state and carry the during-snapshot

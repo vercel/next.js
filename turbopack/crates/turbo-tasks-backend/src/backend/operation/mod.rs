@@ -1830,6 +1830,8 @@ mod must_exist_tests {
                 data: Some(encoded_data.clone()),
                 meta: Some(encoded_meta.clone()),
                 task_type_hash: None,
+                #[cfg(feature = "print_cache_item_size")]
+                stats: Default::default(),
             })
             .collect::<Vec<_>>();
         backing.save_snapshot(None, vec![items]).unwrap();
@@ -2475,7 +2477,7 @@ mod cell_data_tracking_tests {
         let process = |_: TaskId, _: &TaskStorage, _: &mut TurboBincodeBuffer| -> SnapshotItem {
             panic!("the pre-encoded snapshot item must be used")
         };
-        let shards = storage.take_snapshot(snapshot_guard, &process, &|_, _| {}, false);
+        let shards = storage.take_snapshot(snapshot_guard, &process, &|_| {}, false);
 
         {
             let mut g = guard_for(&storage, task_id);
@@ -2505,5 +2507,38 @@ mod cell_data_tracking_tests {
             .unwrap()
         };
         assert_ne!(live, expected, "the shared cell value really changed");
+    }
+
+    /// A pre-encoded (copy-on-write) item carries the cache size stats of the state it encoded,
+    /// not the live state after the mutation that triggered the copy.
+    #[cfg(feature = "print_cache_item_size")]
+    #[tokio::test(flavor = "multi_thread")]
+    async fn pre_encoded_item_carries_stats_captured_at_copy_time() {
+        let storage = Storage::new(StorageOptions::for_tests());
+        let task_id = persistent_task(1);
+        {
+            let mut g = guard_for(&storage, task_id);
+            let _ = g.track_modification(SpecificTaskDataCategory::Meta, "test");
+        }
+
+        let (snapshot_guard, _) = storage.start_snapshot();
+        let process = |_: TaskId, _: &TaskStorage, _: &mut TurboBincodeBuffer| -> SnapshotItem {
+            panic!("the pre-encoded snapshot item must be used")
+        };
+        let shards = storage.take_snapshot(snapshot_guard, &process, &|_| {}, false);
+
+        // The tracked add copies the task (no children yet) before inserting the child.
+        {
+            let mut g = guard_for(&storage, task_id);
+            assert!(g.add_children(persistent_task(2)));
+        }
+
+        let items: Vec<_> = shards.into_iter().flatten().collect();
+        assert_eq!(items.len(), 1);
+        let SnapshotItem::Put { stats, .. } = &items[0] else {
+            panic!("expected a Put item");
+        };
+        assert_eq!(stats.counts.children, 0);
+        assert_eq!(storage.access_mut(task_id).meta_counts().children, 1);
     }
 }

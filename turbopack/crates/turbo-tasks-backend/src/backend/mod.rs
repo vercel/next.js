@@ -352,7 +352,6 @@ impl TurboTasksBackend {
             storage: Storage::new(StorageOptions {
                 shard_amount,
                 small_preallocation,
-                gc_enabled,
             }),
             snapshot_coord: SnapshotCoordinator::new(),
             snapshot_in_progress: Mutex::new(()),
@@ -1285,8 +1284,8 @@ impl TurboTasksBackend {
                 self.meta_count += 1;
             }
 
-            fn add_counts(&mut self, storage: &TaskStorage) {
-                let counts = storage.meta_counts();
+            fn add_counts(&mut self, stats: &crate::backing_storage::SnapshotItemStats) {
+                let counts = &stats.counts;
                 self.upper_count += counts.upper;
                 self.collectibles_count += counts.collectibles;
                 self.aggregated_collectibles_count += counts.aggregated_collectibles;
@@ -1294,21 +1293,7 @@ impl TurboTasksBackend {
                 self.followers_count += counts.followers;
                 self.collectibles_dependents_count += counts.collectibles_dependents;
                 self.aggregated_dirty_containers_count += counts.aggregated_dirty_containers;
-                if let Some(output) = storage.get_output() {
-                    use turbo_bincode::turbo_bincode_encode;
-
-                    self.output_size += turbo_bincode_encode(&output)
-                        .map(|data| data.len())
-                        .unwrap_or(0);
-                }
-            }
-
-            /// Returns the task name used as the stats grouping key.
-            fn task_name(storage: &TaskStorage) -> String {
-                storage
-                    .get_persistent_task_type()
-                    .map(|t| t.to_string())
-                    .unwrap_or_else(|| "<unknown>".to_string())
+                self.output_size += stats.output_size;
             }
 
             /// Returns the primary sort key: compressed total when
@@ -1380,7 +1365,12 @@ impl TurboTasksBackend {
         // Tasks that were modified again during snapshot mode were already encoded by
         // `track_modification` (see `Storage::snapshots`), and are yielded without calling this.
         let process = |task_id: TaskId, inner: &TaskStorage, buffer: &mut TurboBincodeBuffer| {
-            encode_snapshot_item(task_id, inner, self.gc_enabled, buffer).unwrap_or_else(|err| {
+            debug_assert!(
+                !self.gc_enabled || inner.flags.deleted() || !inner.gc_collectible(),
+                "tasks scheduled for persistent must not be collectible, this implies a missed \
+                 task during GC"
+            );
+            encode_snapshot_item(task_id, inner, buffer).unwrap_or_else(|err| {
                 panic!(
                     "Serializing task {} failed: {:?}",
                     self.debug_get_task_description(task_id),
@@ -1390,14 +1380,17 @@ impl TurboTasksBackend {
         };
 
         // Called for every item persisted, including the ones encoded by `track_modification`.
-        let inspect_snapshot_item = |inner: &TaskStorage, item: &SnapshotItem| {
+        // The stats were captured when the item was encoded.
+        let inspect_snapshot_item = |item: &SnapshotItem| {
             #[cfg(feature = "print_cache_item_size")]
-            if let SnapshotItem::Put { meta, data, .. } = item
+            if let SnapshotItem::Put {
+                meta, data, stats, ..
+            } = item
                 && (meta.is_some() || data.is_some())
             {
-                let mut stats = task_cache_stats.lock();
-                let entry = stats.entry(TaskCacheStats::task_name(inner)).or_default();
-                entry.add_counts(inner);
+                let mut task_cache_stats = task_cache_stats.lock();
+                let entry = task_cache_stats.entry(stats.task_name.clone()).or_default();
+                entry.add_counts(stats);
                 if let Some(meta) = meta {
                     entry.add_meta(meta);
                 }
@@ -1406,7 +1399,7 @@ impl TurboTasksBackend {
                 }
             }
             #[cfg(not(feature = "print_cache_item_size"))]
-            let _ = (inner, item);
+            let _ = item;
         };
 
         let task_snapshots = self.storage.take_snapshot(
