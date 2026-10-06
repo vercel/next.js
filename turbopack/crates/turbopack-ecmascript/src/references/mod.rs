@@ -131,7 +131,7 @@ use crate::{
         dynamic_expression::DynamicExpression,
         emit_collect::{CollectReference, EmitReference},
         esm::{
-            EsmAssetReference, EsmAssetReferenceOptions, EsmAsyncAssetReference, EsmBinding,
+            EsmAssetReference, EsmAssetReferenceOptions, EsmAsyncAssetReference, EsmBindings,
             ImportMetaBinding, ImportMetaRef, UrlAssetReference, UrlRewriteBehavior,
             base::EsmAssetReferences, module_id::EsmModuleIdAssetReference,
         },
@@ -226,6 +226,8 @@ struct AnalyzeEcmascriptModuleResultBuilder {
     // This caches repeated access because EsmAssetReference::new is not a turbo task function.
     esm_references_rewritten: FxHashMap<usize, FxIndexMap<RcStr, ResolvedVc<EsmAssetReference>>>,
 
+    esm_bindings: EsmBindings,
+
     code_gens: CodeGenCollection,
     /// Interns the AST paths referenced by `code_gens`, so overlapping paths share storage.
     /// Handed to the resulting [`CodeGens`] once analysis finishes.
@@ -253,6 +255,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             esm_reexport_references: Default::default(),
             esm_references_rewritten: Default::default(),
             esm_references_free_var: Default::default(),
+            esm_bindings: Default::default(),
             code_gens: Default::default(),
             ast_paths: Default::default(),
             async_module: ResolvedVc::cell(None),
@@ -457,6 +460,11 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             {
                 esm_reexport_references.push(*reference);
             }
+        }
+
+        if !self.esm_bindings.is_empty() {
+            let esm_bindings = std::mem::take(&mut self.esm_bindings);
+            self.add_code_gen(CodeGen::EsmBindings(esm_bindings));
         }
 
         let references: Vec<_> = self.references.into_iter().collect();
@@ -1473,11 +1481,11 @@ async fn analyze_ecmascript_module_internal(
                                                 .resolved_cell()
                                         },
                                     );
-                                analysis.add_code_gen(EsmBinding::new_keep_this(
+                                analysis.esm_bindings.add_keep_this(
                                     named_reference,
                                     Some(export),
                                     analysis.intern_path(&ast_path),
-                                ));
+                                );
                                 continue;
                             }
 
@@ -1500,21 +1508,19 @@ async fn analyze_ecmascript_module_internal(
                                                 .resolved_cell()
                                         },
                                     );
-                                analysis.add_code_gen(EsmBinding::new(
+                                analysis.esm_bindings.add(
                                     narrowed_reference,
                                     export,
                                     analysis.intern_path(&ast_path),
-                                ));
+                                );
                                 continue;
                             }
                         }
 
                         analysis.add_esm_reference(esm_reference_index);
-                        analysis.add_code_gen(EsmBinding::new(
-                            *r,
-                            export,
-                            analysis.intern_path(&ast_path),
-                        ));
+                        analysis
+                            .esm_bindings
+                            .add(*r, export, analysis.intern_path(&ast_path));
                     }
                 }
                 Effect::TypeOf {
@@ -3868,11 +3874,11 @@ async fn handle_free_var_reference(
                 })
                 .await?;
 
-            analysis.add_code_gen(EsmBinding::new(
+            analysis.esm_bindings.add(
                 esm_reference,
                 export.clone(),
                 analysis.intern_path(ast_path),
-            ));
+            );
         }
         FreeVarReference::InputRelative(kind) => {
             let source_path = (*state.source).ident().await?.path.clone();
