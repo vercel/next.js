@@ -770,9 +770,9 @@ impl ImportMappingReplacement for GeneratedChainReplacer {
                  below + 1\n",
                 n - 1
             ),
-            ("cjs", 0) => format!("{}\nmodule.exports = {{ depth: 1 }}\n", leaf_prelude(kind)),
+            ("cjs", 0) => format!("{}\nexports.depth = 1;\n", leaf_prelude(kind)),
             ("cjs", n) => format!(
-                "module.exports = {{ depth: require('generated-chain/cjs/{}').depth + 1 }}\n",
+                "exports.depth = require('generated-chain/cjs/{}').depth + 1;\n",
                 n - 1
             ),
             (kind, _) => bail!("unknown kind `{kind}` in `generated-chain/{kind}/{n}`"),
