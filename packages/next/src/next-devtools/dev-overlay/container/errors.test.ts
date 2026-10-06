@@ -986,11 +986,11 @@ describe('deriveCauseFromCodeFrame', () => {
 
 describe('fully static route errors', () => {
   const runtimeDataExplanation =
-    'This route is configured to be fully static, but runtime data from `cookies()`, `headers()`, `params`, `searchParams`, or a short-lived cache requires request-time work.'
+    'This route is configured to be fully static, but runtime data from `cookies()`, `headers()`, `params`, `searchParams`, or a short-lived cache requires rendering at request time.'
   const uncachedDataExplanation =
-    'This route is configured to be fully static, but an uncached `fetch(...)`, database call, or `connection()` requires request-time work.'
+    'This route is configured to be fully static, but an uncached `fetch(...)`, database call, or `connection()` requires rendering at request time.'
   const combinedDataExplanation =
-    'This route is configured to be fully static, but some data requires request-time work.'
+    'This route is configured to be fully static, but some data requires rendering at request time.'
 
   it.each([
     [createRuntimeBodyErrorInStaticRoute, runtimeDataExplanation],

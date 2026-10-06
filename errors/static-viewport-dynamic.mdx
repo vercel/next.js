@@ -22,7 +22,7 @@ kind: error
 
 A page or layout on this route exports [`ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic) with the `'navigation'` value, requiring all server-rendered work for the route to complete during prerendering.
 
-During [prerendering](/docs/app/glossary#prerendering), [`generateViewport()`](/docs/app/api-reference/functions/generate-viewport) performed an uncached [`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Window/fetch) request, database call, or [`connection()`](/docs/app/api-reference/functions/connection). The operation requires request-time server work, which conflicts with the route's static requirement.
+During [prerendering](/docs/app/glossary#prerendering), [`generateViewport()`](/docs/app/api-reference/functions/generate-viewport) performed an uncached [`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Window/fetch) request, database call, or [`connection()`](/docs/app/api-reference/functions/connection). The operation requires rendering at request time, which conflicts with the route's static requirement.
 
 During `next build`, Next.js may link to this page when it cannot distinguish uncached data from runtime data. For a short cache, [extend the cache lifetime](/docs/messages/static-viewport-runtime#extend-the-cache-lifetime).
 
