@@ -70,6 +70,7 @@ fn reads_active_workers_and_exposes_them_in_span_queries() {
                 depth: 1,
                 page: 1,
                 page_size: None,
+                samples: None,
             },
         );
         assert_eq!(result.spans.len(), 1);

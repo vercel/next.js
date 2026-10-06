@@ -833,6 +833,11 @@ export interface TraceQueryOptions {
   page?: number
   /** Spans per page. Default `20`, capped at `500`. */
   pageSize?: number
+  /**
+   * Optional maximum values per sample series, including counts above 200.
+   * Must be a nonnegative safe integer. Zero requests empty arrays.
+   */
+  samples?: number
 }
 
 /** The result of a `query_trace_spans` call. */
@@ -966,8 +971,24 @@ export interface TraceSpanInfo {
    * `peak` is the figure to quote for memory actually in use.
    */
   memorySummary?: TraceMemorySummary
+  /**
+   * Requested value arrays; absent unless `samples` was supplied.
+   * MCP flattens this internal object and omits the legacy tuples above.
+   */
+  sampleSeries?: TraceSpanSampleSeries
   /** Descendants of this span, populated only when `depth > 1`. */
   children: Array<TraceSpanInfo>
+}
+
+/**
+ * Requested process/global value series. Captured memory/pressure/workers
+ * are grouped by recorded timestamps; concurrency uses equal-time segments.
+ */
+export interface TraceSpanSampleSeries {
+  memorySamples: Array<number>
+  memoryPressureSamples: Array<number>
+  activeWorkerThreadsSamples: Array<number>
+  concurrencySamples: Array<number>
 }
 
 export declare function transform(

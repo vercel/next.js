@@ -1,5 +1,6 @@
 use std::{path::PathBuf, sync::Arc};
 
+use napi::{Error, Result};
 use napi_derive::napi;
 use turbopack_trace_server::{
     QueryOptions, SortMode, query_spans, start_turbopack_trace_server,
@@ -45,6 +46,9 @@ pub struct TraceQueryOptions {
     pub page: Option<u32>,
     /// Spans per page. Default `20`, capped at `500`.
     pub page_size: Option<u32>,
+    /// Optional maximum values per sample series, including counts above 200.
+    /// Must be a nonnegative safe integer. Zero requests empty arrays.
+    pub samples: Option<f64>,
 }
 
 /// Information about a single span or aggregated span group.
@@ -144,8 +148,21 @@ pub struct TraceSpanInfo {
     /// Unlike the allocation counters these are absolute live-heap readings, so
     /// `peak` is the figure to quote for memory actually in use.
     pub memory_summary: Option<TraceMemorySummary>,
+    /// Requested value arrays; absent unless `samples` was supplied.
+    /// MCP flattens this internal object and omits the legacy tuples above.
+    pub sample_series: Option<TraceSpanSampleSeries>,
     /// Descendants of this span, populated only when `depth > 1`.
     pub children: Vec<TraceSpanInfo>,
+}
+
+/// Requested process/global value series. Captured memory/pressure/workers
+/// are grouped by recorded timestamps; concurrency uses equal-time segments.
+#[napi(object)]
+pub struct TraceSpanSampleSeries {
+    pub memory_samples: Vec<i64>,
+    pub memory_pressure_samples: Vec<u8>,
+    pub active_worker_threads_samples: Vec<i64>,
+    pub concurrency_samples: Vec<f64>,
 }
 
 /// Aggregate view of a span's TurboMalloc memory samples.
@@ -227,6 +244,20 @@ fn convert_span(s: turbopack_trace_server::SpanInfo) -> TraceSpanInfo {
             peak: m.peak as i64,
             max_pressure: m.max_pressure,
         }),
+        sample_series: s.sample_series.map(|series| TraceSpanSampleSeries {
+            memory_samples: series
+                .memory_samples
+                .into_iter()
+                .map(|value| value as i64)
+                .collect(),
+            memory_pressure_samples: series.memory_pressure_samples,
+            active_worker_threads_samples: series
+                .active_worker_threads_samples
+                .into_iter()
+                .map(|value| value as i64)
+                .collect(),
+            concurrency_samples: series.concurrency_samples,
+        }),
         children: s.children.into_iter().map(convert_span).collect(),
     }
 }
@@ -236,7 +267,24 @@ fn convert_span(s: turbopack_trace_server::SpanInfo) -> TraceSpanInfo {
 pub fn query_trace_spans(
     handle: &TraceServerHandle,
     options: TraceQueryOptions,
-) -> TraceQueryResult {
+) -> Result<TraceQueryResult> {
+    // NAPI's integer conversions truncate; validate the original JS number instead.
+    let samples = options
+        .samples
+        .map(|count| {
+            if !count.is_finite()
+                || count < 0.0
+                || count.fract() != 0.0
+                || count > 9_007_199_254_740_991.0
+                || count > usize::MAX as f64
+            {
+                return Err(Error::from_reason(
+                    "samples must be a nonnegative safe integer representable on this platform",
+                ));
+            }
+            Ok(count as usize)
+        })
+        .transpose()?;
     let result = query_spans(
         &handle.store,
         QueryOptions {
@@ -254,13 +302,14 @@ pub fn query_trace_spans(
             depth: options.depth.unwrap_or(1),
             page: options.page.unwrap_or(1) as usize,
             page_size: options.page_size.map(|n| n as usize),
+            samples,
         },
     );
 
-    TraceQueryResult {
+    Ok(TraceQueryResult {
         spans: result.spans.into_iter().map(convert_span).collect(),
         page: result.page as u32,
         total_pages: result.total_pages as u32,
         total_count: result.total_count as u32,
-    }
+    })
 }

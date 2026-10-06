@@ -121,6 +121,18 @@ pub struct QueryOptions {
     /// Number of spans per page. Clamped to `MAX_PAGE_SIZE`; `None` uses
     /// `DEFAULT_PAGE_SIZE`.
     pub page_size: Option<usize>,
+    /// Opt-in sample-series limit per returned span. `None` omits details;
+    /// `Some(0)` returns empty series. Independent of the viewer's fixed cap.
+    pub samples: Option<usize>,
+}
+
+/// Requested value series for a span's elapsed range. Captured samples and
+/// equal-duration concurrency segments do not share a timestamp grid.
+pub struct SpanSampleSeries {
+    pub memory_samples: Vec<u64>,
+    pub memory_pressure_samples: Vec<u8>,
+    pub active_worker_threads_samples: Vec<u64>,
+    pub concurrency_samples: Vec<f64>,
 }
 
 /// Information about a single span (or aggregated group of spans).
@@ -236,6 +248,8 @@ pub struct SpanInfo {
     pub memory_samples: Vec<(i64, u64, u8, u64)>,
     /// Summary of `memory_samples`. `None` when the span's range holds none.
     pub memory_summary: Option<MemorySummary>,
+    /// Opt-in series independent of the legacy, 200-row summary inputs above.
+    pub sample_series: Option<SpanSampleSeries>,
     /// Descendants of this span, populated only when `QueryOptions::depth` is
     /// greater than 1. Sorted and aggregated the same way as this level.
     pub children: Vec<SpanInfo>,
@@ -506,6 +520,18 @@ fn memory_samples_for(store: &store::Store, span: &SpanRef<'_>) -> Vec<(i64, u64
         .collect()
 }
 
+fn sample_series_for(store: &store::Store, span: &SpanRef<'_>, limit: usize) -> SpanSampleSeries {
+    let start = span.start();
+    let end = span.end();
+    let samples = store.memory_samples_for_range_with_ts_limit(start, end, limit);
+    SpanSampleSeries {
+        memory_samples: samples.iter().map(|sample| sample.1).collect(),
+        memory_pressure_samples: store.memory_pressure_samples_for_range_limit(start, end, limit),
+        active_worker_threads_samples: samples.iter().map(|sample| sample.3).collect(),
+        concurrency_samples: store.concurrency_samples_for_range_limit(start, end, limit),
+    }
+}
+
 /// Build a `SpanInfo` for an aggregated graph node, recursing into children
 /// while `depth > 1`.
 fn build_graph_span_info(
@@ -514,6 +540,7 @@ fn build_graph_span_info(
     parent_start: Timestamp,
     sort: SortMode,
     depth: u32,
+    samples: Option<usize>,
 ) -> SpanInfo {
     let Located { item: graph, id } = located;
     let first = graph.first_span();
@@ -544,7 +571,9 @@ fn build_graph_span_info(
         sort_graph(&mut located_children, sort);
         located_children
             .into_iter()
-            .map(|child| build_graph_span_info(store, child, first.start(), sort, depth - 1))
+            .map(|child| {
+                build_graph_span_info(store, child, first.start(), sort, depth - 1, samples)
+            })
             .collect()
     } else {
         Vec::new()
@@ -579,6 +608,7 @@ fn build_graph_span_info(
         self_allocation_count: graph.self_allocation_count(),
         memory_samples,
         memory_summary,
+        sample_series: samples.map(|limit| sample_series_for(store, &first, limit)),
         children,
     }
 }
@@ -590,6 +620,7 @@ fn build_raw_span_info(
     parent_start: Timestamp,
     sort: SortMode,
     depth: u32,
+    samples: Option<usize>,
 ) -> SpanInfo {
     let Located { item: span, id } = located;
     let (cat, title) = span.nice_name();
@@ -608,7 +639,7 @@ fn build_raw_span_info(
         sort_spans(&mut located_children, sort);
         located_children
             .into_iter()
-            .map(|child| build_raw_span_info(store, child, span.start(), sort, depth - 1))
+            .map(|child| build_raw_span_info(store, child, span.start(), sort, depth - 1, samples))
             .collect()
     } else {
         Vec::new()
@@ -643,6 +674,7 @@ fn build_raw_span_info(
         self_allocation_count: span.self_allocation_count(),
         memory_samples,
         memory_summary,
+        sample_series: samples.map(|limit| sample_series_for(store, &span, limit)),
         children,
     }
 }
@@ -714,7 +746,14 @@ pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryR
         let spans = page_items
             .into_iter()
             .map(|located| {
-                build_graph_span_info(store_ref, located, parent_start, options.sort, depth)
+                build_graph_span_info(
+                    store_ref,
+                    located,
+                    parent_start,
+                    options.sort,
+                    depth,
+                    options.samples,
+                )
             })
             .collect();
 
@@ -775,7 +814,14 @@ pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryR
         let spans = page_items
             .into_iter()
             .map(|located| {
-                build_raw_span_info(store_ref, located, parent_start, options.sort, depth)
+                build_raw_span_info(
+                    store_ref,
+                    located,
+                    parent_start,
+                    options.sort,
+                    depth,
+                    options.samples,
+                )
             })
             .collect();
 
@@ -939,6 +985,142 @@ mod tests {
             depth: 1,
             page: 1,
             page_size: None,
+            samples: None,
+        }
+    }
+
+    #[test]
+    fn requested_series_use_example_ranges_and_recurse_into_children() {
+        let container = Arc::new(StoreContainer::new());
+        {
+            let mut store = container.write();
+            let mut outdated = FxHashSet::default();
+            let first = store.add_span(
+                None,
+                Timestamp::ZERO,
+                RcStr::default(),
+                RcStr::from("group"),
+                SpanArgs::new(),
+                &mut outdated,
+            );
+            let second = store.add_span(
+                None,
+                Timestamp::from_value(1000),
+                RcStr::default(),
+                RcStr::from("group"),
+                SpanArgs::new(),
+                &mut outdated,
+            );
+            let child = store.add_span(
+                Some(first),
+                Timestamp::ZERO,
+                RcStr::default(),
+                RcStr::from("child"),
+                SpanArgs::new(),
+                &mut outdated,
+            );
+            store.add_self_time(
+                first,
+                Timestamp::ZERO,
+                Timestamp::from_value(1000),
+                &mut outdated,
+            );
+            store.add_self_time(
+                second,
+                Timestamp::from_value(1000),
+                Timestamp::from_value(2000),
+                &mut outdated,
+            );
+            store.add_self_time(
+                child,
+                Timestamp::ZERO,
+                Timestamp::from_value(600),
+                &mut outdated,
+            );
+            for i in 0..600 {
+                store.add_memory_sample(Timestamp::from_value(i), i, (i % 100) as u8, i % 8);
+            }
+            for span in [first, second, child] {
+                store.complete_span(span);
+            }
+            store.invalidate_outdated_spans(&outdated);
+        }
+        for aggregated in [false, true] {
+            for limit in [None, Some(0), Some(1), Some(300)] {
+                let result = query(
+                    &container,
+                    QueryOptions {
+                        aggregated,
+                        depth: 2,
+                        samples: limit,
+                        ..options()
+                    },
+                );
+                let first = &result.spans[0];
+                assert_eq!(first.memory_summary.as_ref().unwrap().count, 200);
+                let child = &first.children[0];
+                if let Some(limit) = limit {
+                    for span in [first, child] {
+                        let series = span.sample_series.as_ref().unwrap();
+                        for length in [
+                            series.memory_samples.len(),
+                            series.memory_pressure_samples.len(),
+                            series.active_worker_threads_samples.len(),
+                            series.concurrency_samples.len(),
+                        ] {
+                            assert!(length <= limit);
+                        }
+                        assert_eq!(series.memory_samples.len(), limit);
+                        assert_eq!(series.concurrency_samples.len(), limit);
+                        if limit > 0 {
+                            assert_eq!(series.memory_samples.last(), Some(&599));
+                            assert_eq!(
+                                series.active_worker_threads_samples.last(),
+                                Some(&(599 % 8))
+                            );
+                        }
+                    }
+                    if limit == 1 {
+                        assert_eq!(
+                            first.sample_series.as_ref().unwrap().concurrency_samples,
+                            vec![1.6]
+                        );
+                        assert_eq!(
+                            child.sample_series.as_ref().unwrap().concurrency_samples,
+                            vec![2.0]
+                        );
+                        assert_eq!(
+                            first
+                                .sample_series
+                                .as_ref()
+                                .unwrap()
+                                .memory_pressure_samples,
+                            vec![99]
+                        );
+                    }
+                } else {
+                    assert!(first.sample_series.is_none());
+                    assert!(child.sample_series.is_none());
+                }
+                if aggregated {
+                    assert_eq!(first.count, Some(2));
+                    // The second member has no capture samples. Its elapsed
+                    // range must not be appended to the example's series.
+                    assert_eq!(result.spans.len(), 1);
+                } else {
+                    assert_eq!(result.spans.len(), 2);
+                    if limit.is_some() {
+                        assert!(
+                            result.spans[1]
+                                .sample_series
+                                .as_ref()
+                                .unwrap()
+                                .memory_samples
+                                .is_empty()
+                        );
+                    }
+                }
+            }
         }
     }
 

@@ -35,6 +35,7 @@ import type {
 import type { NextBuildOptions } from '../cli/next-build.js'
 import type { NextTypegenOptions } from '../cli/next-typegen.js'
 import type { NextPostBuildOptions } from '../cli/next-post-build.js'
+import { parseTraceSampleCount } from '../cli/internal/query-trace'
 import { ensureProfilesDir } from '../lib/profiles-dir'
 import type { NextRequestInsightsOptions } from '../cli/next-request-insights.js'
 
@@ -839,9 +840,15 @@ internal
       'Spans per page (default 20, max 500).'
     ).argParser(parseValidPositiveInteger)
   )
+  .addOption(
+    new Option(
+      '--samples <N>',
+      'Include up to N memory, pressure, active Tokio worker, and concurrency values per span. Omit for summaries only; 0 returns empty arrays.'
+    ).argParser(parseTraceSampleCount)
+  )
   .addHelpText('after', ({ command }) => {
     const port = (command.opts() as { port?: number }).port ?? 5748
-    return `\nExample:\n  next internal query-trace --port ${port} --parent <id>`
+    return `\nExample:\n  next internal query-trace --port ${port} --parent <id> --samples=200`
   })
   .action((options) =>
     import('../cli/internal/query-trace.js').then((mod) =>
