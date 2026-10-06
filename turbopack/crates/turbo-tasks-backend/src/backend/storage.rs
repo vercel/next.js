@@ -167,7 +167,7 @@ pub enum TrackOutcome {
 
 impl TaskDataCategory {
     /// The categories captured by the in-progress snapshot that are not persisted yet.
-    fn snapshot_pending(task: &TaskStorage) -> Self {
+    fn from_snapshot_pending(task: &TaskStorage) -> Self {
         Self::from_flags(
             task.flags.meta_snapshot_pending(),
             task.flags.data_snapshot_pending(),
@@ -176,7 +176,7 @@ impl TaskDataCategory {
 
     /// The task's unpersisted modifications (used in drain mode, where nothing is captured
     /// because the map is discarded right after the snapshot).
-    fn modified(task: &TaskStorage) -> Self {
+    fn from_modified(task: &TaskStorage) -> Self {
         Self::from_flags(task.flags.meta_modified(), task.flags.data_modified())
     }
 
@@ -976,14 +976,8 @@ impl StorageWriteGuard<'_> {
         // modification after the capture needs to do this; later ones find the entry. Pending
         // flags only exist during snapshot mode: tasks a failed persist didn't reach are cleared
         // when their shard drops, before the snapshot ends.
-        let insert_snapshot = self.inner.flags.any_snapshot_pending()
-            && !self.storage.snapshots.contains_key(self.inner.key());
-        if insert_snapshot {
-            let item = self.encode_for_snapshot();
-            self.storage
-                .snapshots
-                .insert(*self.inner.key(), Box::new(item));
-        }
+        let inserted_snapshot =
+            self.inner.flags.any_snapshot_pending() && self.maybe_encode_for_snapshot();
         let bumped = !self.inner.flags.any_modified();
         if bumped {
             let shard_idx = self.storage.shard_index(self.inner.key());
@@ -993,23 +987,30 @@ impl StorageWriteGuard<'_> {
         TrackOutcome::Tracked {
             category,
             bumped,
-            inserted_snapshot: insert_snapshot,
+            inserted_snapshot,
         }
     }
 
-    /// Encodes the task's captured, not yet persisted (`*_snapshot_pending`) categories into the
-    /// [`SnapshotItem`] the racing persistence will write.
+    /// Stores a copy-on-write snapshot of the task's captured, not yet persisted
+    /// (`*_snapshot_pending`) categories in `snapshots`, for the racing persistence to write
+    /// instead of the live data. Returns whether it inserted one: `false` if the task already
+    /// has an entry (an earlier modification after the capture made it).
     #[cold]
-    fn encode_for_snapshot(&self) -> SnapshotItem {
+    fn maybe_encode_for_snapshot(&self) -> bool {
         let task_id = *self.inner.key();
+        if self.storage.snapshots.contains_key(&task_id) {
+            return false;
+        }
         let mut buffer = TurboBincodeBuffer::new();
-        encode_snapshot_item(
+        let item = encode_snapshot_item(
             task_id,
             &self.inner,
-            TaskDataCategory::snapshot_pending(&self.inner),
+            TaskDataCategory::from_snapshot_pending(&self.inner),
             &mut buffer,
         )
-        .unwrap_or_else(|err| panic!("Serializing task {task_id} for a snapshot failed: {err:?}"))
+        .unwrap_or_else(|err| panic!("Serializing task {task_id} for a snapshot failed: {err:?}"));
+        self.storage.snapshots.insert(task_id, Box::new(item));
+        true
     }
 
     /// Reverse a [`TrackOutcome`] produced by [`Self::track_modification`] when the mutation it
@@ -1231,7 +1232,7 @@ where
                     None => process(
                         task_id,
                         &inner,
-                        TaskDataCategory::snapshot_pending(&inner),
+                        TaskDataCategory::from_snapshot_pending(&inner),
                         buffer,
                     ),
                 };
@@ -1253,7 +1254,12 @@ where
                 // this snapshot.
                 let (task_id, inner) = entries.next()?;
                 debug_assert_persistable(&inner);
-                let item = process(task_id, &inner, TaskDataCategory::modified(&inner), buffer);
+                let item = process(
+                    task_id,
+                    &inner,
+                    TaskDataCategory::from_modified(&inner),
+                    buffer,
+                );
                 inspect_snapshot_item(&item);
                 Some(item)
             }
@@ -1957,6 +1963,7 @@ mod tests {
     /// A panic while encoding a captured task (e.g. a value type without a bincode impl) unwinds
     /// out of the shard iterator. The task being encoded must still be cleaned up when the shards
     /// drop, like the tasks that weren't reached yet.
+    #[cfg_attr(target_family = "wasm", ignore = "no unwinding on wasm")]
     #[tokio::test(flavor = "multi_thread")]
     async fn panic_while_encoding_clears_pending_flags() {
         let storage = Storage::new(StorageOptions::for_tests());
