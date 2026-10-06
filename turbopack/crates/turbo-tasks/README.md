@@ -60,7 +60,7 @@ for this mode. Existing values and `State<T>` users are unchanged.
   Tokio runtime. The executing owner cannot call `set` or `update` on its own cell.
   Update closures must be short, synchronous, and must not call turbo-tasks, nest
   cell access, or spawn/wait for task work. Reentrant calls panic even in release
-  builds. Old read snapshots remain unchanged after publication.
+  builds. Old read snapshots are unchanged after publication.
 
 This is a bounded prototype, not a named state registry, schema-migration API,
 mutable read guard, or multi-cell transaction facility.
