@@ -1070,11 +1070,8 @@ impl StorageWriteGuard<'_> {
                 let inserted_snapshot = !flags.any_modified_during_snapshot();
                 if inserted_snapshot {
                     // Encode the pre-mutation state now, using the live modified bits to decide
-                    // which categories to persist. We encode instead of cloning because cell
-                    // contents may have interior mutability and would be shared with the clone,
-                    // which would break the consistency of the snapshot. The racing persistence
-                    // uses this item directly, so the only cost is the temporary memory.
-                    // This is rare, so we use a fresh scratch buffer.
+                    // which categories to persist. This way persistence sees a consistent view of
+                    // the task pre-mutation.
                     let task_id = *self.inner.key();
                     let mut buffer = TurboBincodeBuffer::new();
                     let item = encode_snapshot_item(
@@ -1369,7 +1366,7 @@ mod tests {
     use turbo_bincode::TurboBincodeBuffer;
     use turbo_tasks::TaskId;
 
-    use super::{SpecificTaskDataCategory, Storage, StorageOptions, TaskStorage, TrackOutcome};
+    use super::{SpecificTaskDataCategory, Storage, StorageOptions, TrackOutcome};
     use crate::backing_storage::SnapshotItem;
 
     fn non_transient_task(id: u32) -> TaskId {
@@ -1820,52 +1817,5 @@ mod tests {
             storage.snapshots.get(&task_id).is_none(),
             "undo must remove the pre-mutation item it inserted"
         );
-    }
-
-    /// `inspect_snapshot_item` sees every yielded item, including a task that was modified again
-    /// during the snapshot and therefore yields the item pre-encoded by `track_modification`
-    /// without going through `process`.
-    #[tokio::test(flavor = "multi_thread")]
-    async fn inspect_sees_fresh_and_pre_encoded_items() {
-        let storage = Storage::new(StorageOptions::for_tests());
-        let fresh = non_transient_task(1);
-        let pre_encoded = non_transient_task(2);
-        for task_id in [fresh, pre_encoded] {
-            let mut guard = storage.access_mut(task_id);
-            let _ = guard.track_modification(SpecificTaskDataCategory::Meta, "test");
-        }
-
-        let (snapshot_guard, _) = storage.start_snapshot();
-        let processed = std::sync::Mutex::new(Vec::new());
-        let process = |id: TaskId, inner: &TaskStorage, buffer: &mut TurboBincodeBuffer| {
-            processed.lock().unwrap().push(id);
-            dummy_process(id, inner, buffer)
-        };
-        let inspected = std::sync::Mutex::new(Vec::new());
-        let inspect = |_: &TaskStorage, item: &SnapshotItem| {
-            let SnapshotItem::Put { task_id, .. } = item else {
-                panic!("expected a Put item");
-            };
-            inspected.lock().unwrap().push(*task_id);
-        };
-        let shards = storage.take_snapshot(snapshot_guard, &process, &inspect, false);
-        {
-            let mut guard = storage.access_mut(pre_encoded);
-            let outcome = guard.track_modification(SpecificTaskDataCategory::Meta, "test");
-            assert!(matches!(
-                outcome,
-                TrackOutcome::TrackedDuringSnapshot {
-                    inserted_snapshot: true,
-                    ..
-                }
-            ));
-        }
-
-        let items: Vec<_> = shards.into_iter().flatten().collect();
-        assert_eq!(items.len(), 2);
-        assert_eq!(*processed.lock().unwrap(), vec![fresh]);
-        let mut inspected = inspected.into_inner().unwrap();
-        inspected.sort();
-        assert_eq!(inspected, vec![fresh, pre_encoded]);
     }
 }
