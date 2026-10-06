@@ -69,7 +69,7 @@ describeTurbopack('turbopack module federation between Next.js apps', () => {
       )
     }
 
-    process.env.MF_REMOTE_URL = `http://localhost:${remotePort}/_next/static/chunks/mf/nextRemote.js`
+    process.env.MF_REMOTE_URL = `http://localhost:${remotePort}/_next/static/nextRemote.js`
     await next.start()
   })
 
