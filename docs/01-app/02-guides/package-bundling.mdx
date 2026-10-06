@@ -96,7 +96,16 @@ This command writes the output to `.next/diagnostics/analyze`. You can copy this
 cp -r .next/diagnostics/analyze ./analyze-before-refactor
 ```
 
-> More options are available for the Bundle Analyzer, see Next.js CLI reference docs for the full list.
+### Export analysis data
+
+Use `next analyze export` to stream a saved snapshot as JSON Lines for scripts or AI tools, without rebuilding or starting a server:
+
+```bash filename="Terminal"
+npx next analyze --output --snapshot before
+npx next analyze export --snapshot before > bundle-graph.jsonl
+```
+
+See the [CLI reference](/docs/app/api-reference/cli/next#next-analyze-export-options) for export options.
 
 ### Give your AI agent access to the bundle analyzer
 
