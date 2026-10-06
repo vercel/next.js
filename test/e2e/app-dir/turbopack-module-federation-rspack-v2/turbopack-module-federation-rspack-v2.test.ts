@@ -1,8 +1,9 @@
 import type { ChildProcess } from 'child_process'
-import type { Server } from 'http'
+import { createServer, type Server } from 'http'
 import { mkdir, readFile, rm, symlink, writeFile } from 'fs/promises'
 import { join } from 'path'
 import execa from 'execa'
+import express from 'express'
 import { isNextDeploy, nextTestSetup } from 'e2e-utils'
 import {
   fetchViaHTTP,
@@ -74,7 +75,34 @@ async function buildRspack(
     nodeExecutable,
     [target, kind, context, output, url, worker ? 'worker' : 'browser'],
     { cwd: testDir }
-  )
+  ).catch((error) => {
+    throw new Error(
+      `Rspack build failed: ${error.stderr || error.stdout || error.message}`
+    )
+  })
+}
+
+async function startCorsStaticServer(
+  dir: string,
+  port: number
+): Promise<Server> {
+  const app = express()
+  app.use((request, response, next) => {
+    if (request.path.endsWith('.json')) {
+      response.setHeader('Access-Control-Allow-Origin', '*')
+    }
+    next()
+  })
+  app.use(express.static(dir))
+  const server = createServer(app)
+  await new Promise<void>((resolve, reject) => {
+    server.once('error', reject)
+    server.listen(port, () => {
+      server.off('error', reject)
+      resolve()
+    })
+  })
+  return server
 }
 
 function stopStaticServer(server: Server) {
@@ -116,6 +144,24 @@ describeTurbopack('Turbopack host and Rspack v2 remote', () => {
       `export const value = 'default shared fallback'`
     )
     const context = join(next.testDir, 'remote')
+    await Promise.all([
+      writeFile(
+        join(context, 'rspack-component.js'),
+        "import './rspack-style.css'; export { default } from './component.js'\n"
+      ),
+      writeFile(
+        join(context, 'rspack-style.css'),
+        '.rspack-remote { color: royalblue }\n'
+      ),
+      writeFile(
+        join(context, 'rspack-message.js'),
+        "export * from './message.js'; export async function lazy() { return (await import('./rspack-late.js')).late }\n"
+      ),
+      writeFile(
+        join(context, 'rspack-late.js'),
+        "export const late = 'nested lazy from Rspack remote'\n"
+      ),
+    ])
     await buildRspack(
       next.testDir,
       'remote',
@@ -131,9 +177,26 @@ describeTurbopack('Turbopack host and Rspack v2 remote', () => {
       remoteOrigin,
       true
     )
-    remoteServer = await startStaticServer(remoteOutput, undefined, port)
+    await writeFile(
+      join(remoteOutput, 'browser', 'invalid-manifest.json'),
+      JSON.stringify({ exposes: [] })
+    )
+    remoteServer = await startCorsStaticServer(remoteOutput, port)
     process.env.MF_REMOTE_ORIGIN = remoteOrigin
     process.env.NEXT_PUBLIC_MF_REMOTE_ORIGIN = remoteOrigin
+    process.env.MF_REMOTE_MANIFEST = `${remoteOrigin}/browser/mf-manifest.json`
+    process.env.NEXT_PUBLIC_MF_REMOTE_MANIFEST = process.env.MF_REMOTE_MANIFEST
+    await writeFile(
+      join(next.testDir, 'app', 'manifest-import.tsx'),
+      await readFile(join(__dirname, 'manifest-host.tsx'))
+    )
+    await writeFile(
+      join(next.testDir, 'app', 'page.tsx'),
+      `import { RemoteMessage } from './remote-message'
+import { ManifestImports } from './manifest-import'
+export default function Page() { return <><RemoteMessage /><ManifestImports /></> }
+`
+    )
     await next.start()
   })
 
@@ -144,12 +207,35 @@ describeTurbopack('Turbopack host and Rspack v2 remote', () => {
     if (sharedPackage) await rm(sharedPackage, { recursive: true, force: true })
     delete process.env.MF_REMOTE_ORIGIN
     delete process.env.NEXT_PUBLIC_MF_REMOTE_ORIGIN
+    delete process.env.MF_REMOTE_MANIFEST
+    delete process.env.NEXT_PUBLIC_MF_REMOTE_MANIFEST
   })
 
   it('loads exposed JS, React and worker modules with shared versions', async () => {
     const browser = await next.browser('/')
     await retry(async () => {
       expect(await browser.elementByCss('#remote-message').text()).toBe(
+        'hello from Turbopack host sharing'
+      )
+      expect(
+        await browser.elementByCss('#manifest-string-message').text()
+      ).toBe('hello from Turbopack host sharing')
+      expect(
+        await browser.elementByCss('#manifest-object-message').text()
+      ).toBe('hello from Turbopack host sharing')
+      expect(
+        await browser.elementByCss('#manifest-preloaded-message').text()
+      ).toBe('hello from Turbopack host sharing')
+      expect(
+        await browser.elementByCss('#manifest-invalid-error').text()
+      ).toMatch(/RUNTIME-013|not a valid federation manifest/)
+      expect(
+        await browser.elementByCss('#manifest-missing-error').text()
+      ).toMatch(/RUNTIME-003|Failed to get manifest/)
+      expect(await browser.elementByCss('#manifest-import-string').text()).toBe(
+        'hello from Turbopack host sharing'
+      )
+      expect(await browser.elementByCss('#manifest-import-object').text()).toBe(
         'hello from Turbopack host sharing'
       )
       expect(await browser.elementByCss('#remote-react-component').text()).toBe(
@@ -199,6 +285,39 @@ describeTurbopack('Turbopack host and Rspack v2 remote', () => {
       `performance.getEntriesByType('resource').map((entry) => entry.name).filter((name) => name.startsWith(${JSON.stringify(remoteOrigin + '/browser/')}) && !name.endsWith('remoteEntry.js'))`
     )
     expect(chunks).not.toEqual([])
+    const manifestUrl = `${remoteOrigin}/browser/mf-manifest.json`
+    const manifestResponse = await fetch(manifestUrl)
+    expect(manifestResponse.headers.get('access-control-allow-origin')).toBe(
+      '*'
+    )
+    const manifest = (await manifestResponse.json()) as {
+      exposes: Array<{
+        path: string
+        assets: Record<'js' | 'css', { sync: string[]; async: string[] }>
+      }>
+    }
+    const component = manifest.exposes.find(
+      (expose) => expose.path === './component'
+    )
+    const message = manifest.exposes.find(
+      (expose) => expose.path === './message'
+    )
+    expect(component?.assets.css.sync.length).toBeGreaterThan(0)
+    expect(message?.assets.js.async.length).toBeGreaterThan(0)
+    const resourceUrls = (await browser.eval(
+      `performance.getEntriesByType('resource').map((entry) => entry.name)`
+    )) as string[]
+    expect(
+      resourceUrls.some((url) => url.includes('/browser/mf-manifest.json'))
+    ).toBe(true)
+    for (const file of [
+      ...(component?.assets.css.sync || []),
+      ...(message?.assets.js.async || []),
+    ]) {
+      expect(resourceUrls.some((url) => url.includes(`/browser/${file}`))).toBe(
+        true
+      )
+    }
   })
 
   it('loads a rebuilt Rspack remote after a browser reload', async () => {
@@ -258,6 +377,7 @@ describeTurbopack('Rspack v2 host and Turbopack remote', () => {
   })
   let remoteServer: ChildProcess
   let remoteOrigin: string
+  let manifestUrl: string
   let rspackHostServer: Server
   let rspackHostOrigin: string
 
@@ -294,6 +414,7 @@ describeTurbopack('Rspack v2 host and Turbopack remote', () => {
       throw new Error(`Remote server returned status ${response.status}`)
     }
     process.env.MF_REMOTE_URL = `${remoteOrigin}/_next/static/nested/nextRemote.js`
+    manifestUrl = `${remoteOrigin}/_next/static/mf-manifest.json`
 
     const hostPort = await findPort()
     rspackHostOrigin = `http://localhost:${hostPort}`
@@ -303,7 +424,7 @@ describeTurbopack('Rspack v2 host and Turbopack remote', () => {
       'host',
       join(next.testDir, 'webpack-host'),
       hostOutput,
-      process.env.MF_REMOTE_URL
+      manifestUrl
     )
     await writeFile(
       join(hostOutput, 'index.html'),
@@ -322,9 +443,17 @@ describeTurbopack('Rspack v2 host and Turbopack remote', () => {
   })
 
   it('loads a Turbopack expose from an enhanced Rspack host', async () => {
+    const manifestResponse = await fetch(manifestUrl)
+    expect(manifestResponse.status).toBe(200)
+    expect(manifestResponse.headers.get('access-control-allow-origin')).toBe(
+      '*'
+    )
     const browser = await next.browser('/', { baseUrl: rspackHostOrigin })
     await retry(async () => {
       expect(await browser.elementByCss('#webpack-message').text()).toBe(
+        'hello from Next.js'
+      )
+      expect(await browser.elementByCss('#manifest-composite').text()).toBe(
         'hello from Next.js'
       )
       expect(await browser.elementByCss('#next-remote-react').text()).toBe(
@@ -338,5 +467,10 @@ describeTurbopack('Rspack v2 host and Turbopack remote', () => {
       `performance.getEntriesByType('resource').map((entry) => entry.name).filter((name) => name.startsWith(${JSON.stringify(remoteOrigin + '/_next/static/chunks/mf/')}) && !name.endsWith('nextRemote.js'))`
     )
     expect(assets).not.toEqual([])
+    expect(
+      await browser.eval(
+        `performance.getEntriesByType('resource').some((entry) => entry.name.startsWith(${JSON.stringify(manifestUrl)}))`
+      )
+    ).toBe(true)
   })
 })
