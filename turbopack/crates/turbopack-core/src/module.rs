@@ -1,7 +1,13 @@
+use bincode::{Decode, Encode};
+use turbo_frozenmap::FrozenMap;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{NonLocalValue, ResolvedVc, ValueToString, Vc};
 
-use crate::{ident::AssetIdent, reference::ModuleReferences, source::OptionSource};
+use crate::{
+    ident::AssetIdent,
+    reference::{ModuleReference, ModuleReferences},
+    source::OptionSource,
+};
 
 #[derive(Clone, Copy, Debug, Hash)]
 #[turbo_tasks::value(shared)]
@@ -31,6 +37,49 @@ pub enum ModuleSideEffects {
     SideEffectFree,
     // Neither of the above, so we should assume it has side effects.
     SideEffectful,
+}
+
+/// Where one export of a module gets its value, see [`Module::export_bindings`].
+#[derive(Clone, Hash, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
+pub enum ExportBinding {
+    /// A binding declared by the module itself.
+    Local {
+        /// Whether the binding holds the same value from module evaluation on, so it can be read
+        /// once instead of at every use.
+        is_constant: bool,
+        /// Whether calling the value could observe the receiver it is called with. Conservatively
+        /// true.
+        maybe_uses_this: bool,
+    },
+    /// Forwards export `name` of the module behind `reference`.
+    Reexport {
+        reference: ResolvedVc<Box<dyn ModuleReference>>,
+        name: RcStr,
+    },
+    /// Anything a reader cannot see through, such as a re-exported namespace.
+    Opaque,
+}
+
+/// How a module's exports get their values, see [`Module::export_bindings`].
+///
+/// The default describes nothing, which leaves every export opaque.
+#[turbo_tasks::value(shared)]
+#[derive(Debug, Default)]
+pub struct ExportBindings {
+    /// The exports the module declares.
+    pub exports: FrozenMap<RcStr, ExportBinding>,
+    /// The `export * from` references, in declaration order. Of two that export the same name,
+    /// the first wins, and neither forwards `default`.
+    pub star_reexports: Vec<ResolvedVc<Box<dyn ModuleReference>>>,
+}
+
+#[turbo_tasks::value_impl]
+impl ExportBindings {
+    /// Nothing is known about the module's exports, so none of them can be seen through.
+    #[turbo_tasks::function]
+    pub fn unknown() -> Vc<Self> {
+        ExportBindings::default().cell()
+    }
 }
 
 /// A module. This usually represents parsed source code, which has references to other modules.
@@ -77,6 +126,18 @@ pub trait Module {
     /// [packagejson]: https://webpack.js.org/guides/tree-shaking/#mark-the-file-as-side-effect-free
     #[turbo_tasks::function]
     fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects>;
+
+    /// Where the module's exports get their values.
+    ///
+    /// This only describes the module itself: a re-export names the reference it forwards through,
+    /// not where that leads. [`compute_binding_usage_info`] follows those across the whole graph.
+    /// Modules that don't describe their exports leave all of them opaque.
+    ///
+    /// [`compute_binding_usage_info`]: crate::module_graph::binding_usage_info::compute_binding_usage_info
+    #[turbo_tasks::function]
+    fn export_bindings(self: Vc<Self>) -> Vc<ExportBindings> {
+        ExportBindings::unknown()
+    }
 }
 
 #[turbo_tasks::value_trait]

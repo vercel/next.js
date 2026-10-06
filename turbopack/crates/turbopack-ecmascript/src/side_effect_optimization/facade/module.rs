@@ -7,7 +7,7 @@ use turbopack_core::{
         MergeableModules, MergeableModulesExposed,
     },
     ident::AssetIdent,
-    module::{Module, ModuleSideEffects},
+    module::{ExportBindings, Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     reference::ModuleReferences,
     resolve::{ExportUsage, ModulePart},
@@ -26,7 +26,7 @@ use crate::{
     export::Liveness,
     references::{
         async_module::{AsyncModule, OptionAsyncModule},
-        esm::{EsmExport, EsmExports, base::EsmAssetReferences},
+        esm::{EsmExport, EsmExports, base::EsmAssetReferences, export::esm_export_bindings},
     },
     side_effect_optimization::reference::EcmascriptModulePartReference,
 };
@@ -159,6 +159,12 @@ impl Module for EcmascriptModuleFacadeModule {
             .to_resolved()
             .await?;
         Ok(*is_self_async)
+    }
+
+    /// See [`esm_export_bindings`].
+    #[turbo_tasks::function]
+    async fn export_bindings(self: Vc<Self>) -> Result<Vc<ExportBindings>> {
+        Ok(esm_export_bindings(self.get_exports()).await?.cell())
     }
 
     #[turbo_tasks::function]

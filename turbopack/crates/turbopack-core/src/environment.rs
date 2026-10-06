@@ -436,6 +436,45 @@ impl RuntimeVersions {
 
         Vc::cell(supported)
     }
+
+    /// Whether the environment supports destructuring declarations.
+    #[turbo_tasks::function]
+    pub fn supports_destructuring(&self) -> Vc<bool> {
+        // https://github.com/babel/babel/blob/b0e3517dc566880e76b5f1f4dcf7fcecba58337d/packages/babel-compat-data/data/plugins.json
+        // "chrome": "51",
+        // "opera": "38",
+        // "edge": "15",
+        // "firefox": "53",
+        // "safari": "14.1",
+        // "node": "6.5",
+        // "deno": "1",
+        // "ios": "14.5",
+        // "samsung": "5",
+        // "opera_mobile": "41",
+        // "electron": "1.2"
+        let data = &self.0;
+        let supported = data.chrome.is_none_or(|v| v.major >= 51)
+            && data.opera.is_none_or(|v| v.major >= 38)
+            && data.edge.is_none_or(|v| v.major >= 15)
+            && data.firefox.is_none_or(|v| v.major >= 53)
+            && data
+                .safari
+                .is_none_or(|v| v.major > 14 || (v.major == 14 && v.minor >= 1))
+            && data
+                .node
+                .is_none_or(|v| v.major > 6 || (v.major == 6 && v.minor >= 5))
+            && data.deno.is_none_or(|v| v.major >= 1)
+            && data
+                .ios
+                .is_none_or(|v| v.major > 14 || (v.major == 14 && v.minor >= 5))
+            && data.samsung.is_none_or(|v| v.major >= 5)
+            && data.opera_mobile.is_none_or(|v| v.major >= 41)
+            && data
+                .electron
+                .is_none_or(|v| v.major > 1 || (v.major == 1 && v.minor >= 2));
+
+        Vc::cell(supported)
+    }
 }
 
 #[turbo_tasks::function]
