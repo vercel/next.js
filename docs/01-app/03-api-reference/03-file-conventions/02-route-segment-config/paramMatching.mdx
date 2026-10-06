@@ -7,7 +7,7 @@ version: unstable
 
 Use `unstable_paramMatching` to control how a dynamic route handles parameter values that are not returned by [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params).
 
-For example, this route prerenders `/products/featured` during the build. When any other value is requested, Next.js waits for the complete route to be generated before responding:
+For example, this route prerenders `/products/featured` during the build. When any other value is requested, Next.js resolves the product slug before serving a fallback:
 
 ```tsx filename="app/products/[slug]/page.tsx" highlight={3-5} switcher
 import type { ParamMatching } from 'next'
@@ -38,7 +38,7 @@ The export maps a dynamic parameter to one of the following modes:
 | Mode          | Behavior for a value not returned by `generateStaticParams`         |
 | ------------- | ------------------------------------------------------------------- |
 | `'not-found'` | Return a `404` response.                                            |
-| `'blocking'`  | Wait for the complete route to be generated before responding.      |
+| `'blocking'`  | Do not serve a fallback that omits this parameter.                   |
 | `'fallback'`  | Serve the route's fallback while the requested content is rendered. |
 | `'dynamic'`   | Render the parameter at request time.                               |
 
