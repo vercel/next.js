@@ -45,10 +45,10 @@ Measured from published docs diagrams of every kind listed in SKILL.md. All valu
 The docs use color as a legend, so keep the meaning stable across a diagram and consistent with its neighbours:
 
 - **Gray**: static, prerendered, already there, or not the focus. Skeleton UI is always gray unless it sits inside an accent region. A static _region_ in a bar or grid cell is a stroked `static` card (`panelMuted` fill, `skel` stroke), so it has the same weight as the accent cards beside it; the darker `gray` accent is for mono pills.
-- **Blue, dashed stroke + fill**: not rendered yet at this moment; will render later (a Suspense hole, "can render later").
+- **Blue, dashed stroke + fill**: not included in static output at this stage; can render at request time (a Suspense hole, "request-time content").
 - **Blue, solid stroke + fill**: content that has rendered, arrived, or is highlighted as the subject (streamed card, selected `<Link>`, slot A).
 - **Gray, dashed stroke, no fill**: a Suspense fallback standing in for content.
-- **Purple**: a second category next to blue (static vs dynamic regions, slot B, zone C), never a second shade of "later".
+- **Purple**: a second category next to blue (static vs dynamic regions, slot B, zone C), never a second shade of request-time content.
 - **Red / green**: judgments (not routable / routable). Only in badges and zone boxes.
 
 Within one picture every accent means exactly one thing, and the same thing in every part of the picture. Rendered UI inside a window stays gray skeleton regardless; only the state the picture is about gets the accent.

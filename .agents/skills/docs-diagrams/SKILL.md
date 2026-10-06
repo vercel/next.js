@@ -31,7 +31,7 @@ Use the diagrams already published in the docs as references. They share a faint
 
 The `<Image>` block gives you the file names (`srcLight="/docs/light/<name>.png"`), the `width` and `height` the page reserves, and the `alt` text, which is the brief.
 
-The paragraph before the image often states the color legend in words ("gray marks output that must remain static, while blue marks work that can render later"). When it does, the drawing has to match that sentence exactly. When it does not, take the states the alt text names (a Suspense fallback, content that renders later), map them with "What the colors mean" in [style-tokens.md](style-tokens.md), and suggest adding the legend sentence to the mdx in your hand-off.
+The paragraph before the image often states the color legend in words ("gray marks static output and blue marks content that can render at request time"). When it does, the drawing has to match that sentence exactly. When it does not, take the states the alt text names (a Suspense fallback, request-time content), map them with "What the colors mean" in [style-tokens.md](style-tokens.md), and suggest adding the legend sentence to the mdx in your hand-off.
 
 Draw only what the brief names. The alt text and surrounding paragraph determine which values, rows, and labels appear. Use the labels from the alt text and `docs/01-app/04-glossary.mdx` for terminology the brief leaves open.
 
@@ -68,7 +68,7 @@ export default {
 
 - Panels and rows: `panel`, `treePanel`, `urlPill`, `urlStack`, `codePanel`.
 - Arrows and captions: `arrow`, `bracketArrow`, `bracketCaption`, `callout`.
-- Browser windows: `browserWindow` for the frame, `pageLayout` for the page inside it, `postCard` and `commentRows` for the content, `skel.*` for single placeholders.
+- Browser windows: `browserWindow(t, x, y, w, h, url, body = '')` for the frame, `pageLayout` for the page inside it, `postCard` and `commentRows` for the content, `skel.*` for single placeholders. Pass the URL and body as positional arguments.
 - States and comparisons: `hole` (not rendered yet), `card` (rendered or highlighted), `grid` (columns and spans for bars).
 - Badges and legends: `badge`, `statusBadge`, `legendRow`, `swatchLegend`.
 - Text: `label`, `code`, `textWidth` for sizing a block around a label, and the `icons`.
@@ -84,6 +84,12 @@ A module may export an array of diagrams when several share a drawing. Helper mo
 ### 4. Render
 
 Run `./render.sh` from inside the scratch folder. It runs `node gen.mjs` and screenshots each `<name>-<theme>.html` with headless Chrome at `--force-device-scale-factor=2`. Output lands in `light/<name>.png` and `dark/<name>.png`, the names the mdx expects. `node gen.mjs <name>` regenerates one diagram while iterating.
+
+The script defaults to the macOS Google Chrome path. On Linux, Windows, or a machine with Chrome installed elsewhere, set `CHROME` to the browser executable:
+
+```bash filename="Terminal"
+CHROME=/path/to/chrome ./render.sh
+```
 
 ### 5. Review
 
@@ -111,7 +117,7 @@ Some docs images are product screenshots (DevTools panels, the bundle analyzer, 
 
 **Margins.** The mdx `height` wins: fit the content to the declared box. Top must equal bottom and left must equal right, within 4px; the two pairs need not match each other. Measure from the ink with `scripts/measure.py`, not from the coordinates you passed: text drawn with `dominant-baseline="central"` has its visual top about `0.35 × size` above its `y`, and `textWidth` is a heuristic, so expect to nudge by a few px after measuring.
 
-**Color.** Within one picture a color means exactly one thing in the bars and the legend; if the legend says blue is "renders later", nothing else may be blue. In the windows, rendered UI is always gray skeleton, whatever the bars say gray means; that is the docs' convention. Blue in a window marks the one state the picture is about (not yet rendered, or just rendered), the same state blue marks in the bars. See "What the colors mean" in [style-tokens.md](style-tokens.md).
+**Color.** Within one picture a color means exactly one thing in the bars and the legend; if the legend says blue is "request-time content", nothing else may be blue. In the windows, rendered UI is always gray skeleton, whatever the bars say gray means; that is the docs' convention. Blue in a window marks the one state the picture is about (not included in static output, or just rendered), the same state blue marks in the bars. See "What the colors mean" in [style-tokens.md](style-tokens.md).
 
 **Alignment.** Equal margins, shared edges, text centered in its box, arrows and splits lined up vertically through the whole diagram. This is the review bar.
 

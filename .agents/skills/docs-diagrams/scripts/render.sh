@@ -3,6 +3,7 @@
 #
 # Usage: copy lib.mjs, gen.mjs, diagrams/ and this script into a scratch folder,
 # add or edit a module in diagrams/, then run ./render.sh from that folder.
+# Set CHROME=/path/to/chrome when Chrome is not installed at the default macOS path.
 set -euo pipefail
 
 CHROME="${CHROME:-/Applications/Google Chrome.app/Contents/MacOS/Google Chrome}"
