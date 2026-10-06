@@ -295,19 +295,19 @@ struct TaskStorageSchema {
     collectibles_dependencies: AutoSet<CollectiblesRef, 3>,
 
     /// Outdated output dependencies to be cleaned up (transient).
-    #[field(storage = "auto_set", category = "transient", shrink_on_completion)]
+    #[field(storage = "auto_set", category = "transient", drop_on_completion)]
     outdated_output_dependencies: AutoSet<TaskId, 6>,
 
     /// Outdated keyless cell dependencies to be cleaned up (transient).
-    #[field(storage = "auto_set", category = "transient", shrink_on_completion)]
+    #[field(storage = "auto_set", category = "transient", drop_on_completion)]
     outdated_cell_dependencies: AutoSet<CellRef, 3>,
 
     /// Outdated hashed cell dependencies to be cleaned up (transient).
-    #[field(storage = "auto_set", category = "transient", shrink_on_completion)]
+    #[field(storage = "auto_set", category = "transient", drop_on_completion)]
     outdated_cell_dependencies_hashed: AutoSet<(CellRef, u64), 1>,
 
     /// Outdated collectibles dependencies to be cleaned up (transient).
-    #[field(storage = "auto_set", category = "transient", shrink_on_completion)]
+    #[field(storage = "auto_set", category = "transient", drop_on_completion)]
     outdated_collectibles_dependencies: AutoSet<CollectiblesRef, 3>,
 
     // =========================================================================
@@ -853,18 +853,6 @@ impl TaskStorage {
     pub fn gc_pin_for_construction(&mut self) {
         debug_assert_eq!(self.gc_transient_ref_count(), 0);
         self.set_transient_ref_count(1);
-    }
-
-    /// Adjust the transient in-session reference count and return the new value.
-    ///
-    /// Panics on underflow or overflow.
-    pub fn update_and_get_transient_ref_count(&mut self, delta: i32) -> u32 {
-        let current = self.gc_transient_ref_count();
-        let new_value = current
-            .checked_add_signed(delta)
-            .expect("transient_ref_count underflow");
-        self.set_transient_ref_count(new_value);
-        new_value
     }
 
     /// Whether a GC pass can collect this task: nothing references it, via parents, transient

@@ -2134,7 +2134,7 @@ export async function cache(
     switch (outerWorkUnitStore.type) {
       case 'prerender-runtime': {
         // In a runtime prerender, we have to make sure that APIs that would hang during a static prerender
-        // are resolved with a delay, in the appropriate runtime stage. Private caches resolve in EarlyRuntime,
+        // are resolved with a delay, in the appropriate runtime stage.
         const stagedRendering = outerWorkUnitStore.stagedRendering
         if (stagedRendering) {
           await stagedRendering.waitForStage(
@@ -2734,9 +2734,10 @@ export async function cache(
                   // This entry cannot be part of the shell, so we delay it to the prefetch.
                   let prefetchStage: AdvanceableRenderStage
                   if (prerenderStore.type === 'prerender') {
-                    prefetchStage = RENDER_STAGES_BY_DATA_KIND.staticLinkData
+                    prefetchStage =
+                      RENDER_STAGES_BY_DATA_KIND.staticUrlData.static
                   } else {
-                    prefetchStage = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
+                    prefetchStage = RENDER_STAGES_BY_DATA_KIND.runtimeUrlData
                   }
                   if (
                     // If the prerender ends before the prefetch stage (because
@@ -2795,16 +2796,17 @@ export async function cache(
                   stage = RenderStage.Dynamic
                 } else {
                   // If the entry would be be excluded from the shell, treat it as
-                  // if it were link data.
+                  // if it were static URL data.
                   // (Note that this is still correct without PPF or in static shell validation,
-                  // where we don't use runtime shells and include static link data)
+                  // where we don't use runtime shells and include static URL data)
                   trackIncompatibleShellContent(
                     workUnitStore,
                     '"use cache" excluded from app shells due to a short staletime'
                   )
-                  stage = workUnitStore.needsRuntimeShell
-                    ? RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
-                    : RENDER_STAGES_BY_DATA_KIND.staticLinkData
+                  stage =
+                    RENDER_STAGES_BY_DATA_KIND.staticUrlData[
+                      workUnitStore.needsRuntimeShell ? 'runtime' : 'static'
+                    ]
                 }
                 debug?.(
                   logPrefix,
@@ -2886,7 +2888,8 @@ export async function cache(
       debug?.(
         logPrefix,
         'Resume Data Cache entry not found',
-        serializedCacheKey
+        serializedCacheKey,
+        `(${resumeDataCache.cache.size} entries)`
       )
 
       if (cacheSignal) {
@@ -3094,7 +3097,14 @@ export async function cache(
     // headers, so concurrent requests with identical request data should share
     // a fill too; that request-scoped `cacheHandlerKey` keeps requests with
     // different cookies or headers in separate entries.
-    const skipCrossRequestDedupe = isPrivate && !process.env.__NEXT_DEV_SERVER
+    //
+    // Draft mode requests are skipped as well, in both directions. A fill that
+    // runs with draft mode enabled can contain unpublished content, so it must
+    // not be registered for other requests to join. And a draft mode request
+    // must not join a pending public fill, because it would be served the
+    // published content instead of the draft.
+    const skipCrossRequestDedupe =
+      (isPrivate && !process.env.__NEXT_DEV_SERVER) || workStore.isDraftMode
 
     try {
       // The loop handles cross-request root param mismatches: when a
@@ -3434,16 +3444,17 @@ export async function cache(
                   stage = RenderStage.Dynamic
                 } else {
                   // If the entry would be be excluded from the shell, treat it as
-                  // if it were link data.
+                  // if it were static URL data.
                   // (Note that this is still correct without PPF or in static shell validation,
-                  // where we don't use runtime shells and include static link data)
+                  // where we don't use runtime shells and include static URL data)
                   trackIncompatibleShellContent(
                     workUnitStore,
                     '"use cache" excluded from app shells due to a short staletime'
                   )
-                  stage = workUnitStore.needsRuntimeShell
-                    ? RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
-                    : RENDER_STAGES_BY_DATA_KIND.staticLinkData
+                  stage =
+                    RENDER_STAGES_BY_DATA_KIND.staticUrlData[
+                      workUnitStore.needsRuntimeShell ? 'runtime' : 'static'
+                    ]
                 }
                 debug?.(
                   logPrefix,

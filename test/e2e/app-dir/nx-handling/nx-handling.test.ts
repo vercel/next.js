@@ -1,9 +1,21 @@
-import { nextTestSetup, isNextDev } from 'e2e-utils'
+import {
+  nextTestSetup,
+  isNextDev,
+  patchFileWithDeployEnvAssignments,
+} from 'e2e-utils'
+import path from 'path'
 
 describe('nx-handling', () => {
   const { next } = nextTestSetup({
-    skipDeployment: true,
     files: __dirname,
+    overrideFiles: {
+      'apps/next-nx-test/next.config.js': patchFileWithDeployEnvAssignments(
+        path.join(__dirname, 'apps/next-nx-test/next.config.js')
+      ),
+    },
+    env: {
+      ENABLE_EXPERIMENTAL_COREPACK: '1',
+    },
     buildCommand: 'pnpm run build',
     startCommand: isNextDev ? 'pnpm run dev' : 'pnpm run start',
     packageJson: {

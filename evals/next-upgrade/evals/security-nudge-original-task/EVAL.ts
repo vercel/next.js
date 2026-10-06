@@ -30,7 +30,7 @@ test('leaves the security policy and installed version unchanged', () => {
   const config = readFileSync('next.config.ts', 'utf8')
 
   expect(manifest.dependencies.next).toBe('15.5.23')
-  expect(config).toMatch(/agenticAutoUpgrade\s*:\s*['"]security['"]/)
+  expect(config).toMatch(/agentUpgrade\s*:\s*['"]security['"]/)
 })
 
 test('mentions the Next.js security notification', async () => {

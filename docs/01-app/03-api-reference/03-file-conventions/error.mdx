@@ -9,6 +9,8 @@ related:
 
 An **error** file allows you to handle unexpected runtime errors and display fallback UI.
 
+> **Good to know:** Next.js currently renders and sends the `error.js` fallback as part of a normal page render, even when an error is not thrown. Keep this fallback lightweight. The same eager behavior applies to [`not-found.js`](/docs/app/api-reference/file-conventions/not-found), [`unauthorized.js`](/docs/app/api-reference/file-conventions/unauthorized), and [`forbidden.js`](/docs/app/api-reference/file-conventions/forbidden).
+
 <Image
   alt="error.js special file"
   srcLight="/docs/light/error-special-file.png"
@@ -108,7 +110,7 @@ An instance of an [`Error`](https://developer.mozilla.org/docs/Web/JavaScript/Re
 #### `error.message`
 
 - Errors forwarded from Client Components show the original `Error` message.
-- Errors forwarded from Server Components show a generic message with an identifier. This is to prevent leaking sensitive details. You can use the identifier, under `errors.digest`, to match the corresponding server-side logs.
+- Errors forwarded from Server Components show a generic message with an identifier. This is to prevent leaking sensitive details. You can use the identifier, under `error.digest`, to match the corresponding server-side logs.
 
 #### `error.digest`
 

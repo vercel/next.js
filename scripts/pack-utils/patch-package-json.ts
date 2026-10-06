@@ -2,6 +2,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import os from 'node:os'
+import semver from 'semver'
 
 export interface DependencyPaths {
   nextTarball: string
@@ -23,6 +24,7 @@ export interface PackageJson {
   overrides?: Record<string, string>
   resolutions?: Record<string, string>
   pnpm?: { overrides?: Record<string, string>; [key: string]: unknown }
+  packageManager?: string
   workspaces?: string[] | { packages: string[] }
   [key: string]: unknown
 }
@@ -40,19 +42,22 @@ export default async function patchPackageJson(
     const packageJsonPath = await findPackageJsonPath(targetProjectPath)
     const workspaceRoot = path.dirname(packageJsonPath)
     const packageJsonValue = await readJsonValue(packageJsonPath)
+    const pnpmMajorVersion = getPnpmMajorVersion(
+      packageJsonValue.packageManager
+    )
     const overrides = await patchWorkspacePackageJsonMap(
       paths,
-      packageJsonValue
+      packageJsonValue,
+      pnpmMajorVersion
     )
     await writeJsonValue(packageJsonPath, packageJsonValue)
-    // Also mirror overrides into pnpm-workspace.yaml so pnpm v11+ picks them
-    // up. We don't try to detect the pnpm version — pnpm v10 reads
-    // `pnpm.overrides` (written above) and pnpm v11+ reads
-    // `pnpm-workspace.yaml#overrides`. To avoid dropping a pnpm-workspace.yaml
-    // into non-pnpm projects, we only write the file if it already exists or
-    // if a `pnpm-lock.yaml` indicates this is a pnpm project. See
-    // https://pnpm.io/settings and https://github.com/pnpm/pnpm/issues/11536.
-    if (await shouldWritePnpmWorkspace(workspaceRoot)) {
+    // pnpm v11+ reads overrides from pnpm-workspace.yaml, while older versions
+    // read pnpm.overrides from package.json. For an unknown version, keep writing
+    // both. Only write a workspace file when one or a pnpm lockfile already exists.
+    if (
+      (pnpmMajorVersion === null || pnpmMajorVersion >= 11) &&
+      (await shouldWritePnpmWorkspace(workspaceRoot))
+    ) {
       await mergePnpmWorkspaceOverrides(
         workspaceRoot,
         Object.fromEntries(overrides)
@@ -97,7 +102,8 @@ async function writeJsonValue(
 
 async function patchWorkspacePackageJsonMap(
   paths: DependencyPaths,
-  packageJsonMap: PackageJson
+  packageJsonMap: PackageJson,
+  pnpmMajorVersion: number | null
 ): Promise<[string, string][]> {
   const nextPeerDeps = await getNextPeerDeps()
 
@@ -119,11 +125,13 @@ async function patchWorkspacePackageJsonMap(
   packageJsonMap.resolutions = packageJsonMap.resolutions || {}
   insertMapEntries(packageJsonMap.resolutions, overrides)
 
-  // pnpm v10 and below read `pnpm.overrides` from package.json.
-  // pnpm v11+ reads `pnpm-workspace.yaml#overrides` (written separately).
-  packageJsonMap.pnpm = packageJsonMap.pnpm || {}
-  packageJsonMap.pnpm.overrides = packageJsonMap.pnpm.overrides || {}
-  insertMapEntries(packageJsonMap.pnpm.overrides, overrides)
+  // pnpm v11+ ignores pnpm.overrides and warns if it is present.
+  // Keep writing it when the destination's pnpm version is unknown.
+  if (pnpmMajorVersion === null || pnpmMajorVersion < 11) {
+    packageJsonMap.pnpm = packageJsonMap.pnpm || {}
+    packageJsonMap.pnpm.overrides = packageJsonMap.pnpm.overrides || {}
+    insertMapEntries(packageJsonMap.pnpm.overrides, overrides)
+  }
 
   // Add @next/swc to dependencies
   packageJsonMap.dependencies = packageJsonMap.dependencies || {}
@@ -164,6 +172,18 @@ async function getNextPeerDeps(): Promise<NextPeerDeps> {
   } catch (error) {
     throw new Error('Failed to get Next.js peer dependencies', { cause: error })
   }
+}
+
+function getPnpmMajorVersion(
+  packageManager: string | undefined
+): number | null {
+  if (
+    typeof packageManager !== 'string' ||
+    !packageManager.startsWith('pnpm@')
+  ) {
+    return null
+  }
+  return semver.parse(packageManager.slice('pnpm@'.length))?.major ?? null
 }
 
 async function shouldWritePnpmWorkspace(

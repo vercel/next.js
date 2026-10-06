@@ -53,6 +53,7 @@ type Snapshot = {
 }
 
 const POLL_INTERVAL_MS = 5 * 60 * 1000
+const TOPOLOGY_REFRESH_MS = 20 * 60 * 1000
 const WAIT_DEADLINE_MS = 5 * 60 * 60 * 1000
 const REQUIRED_CHECK = 'thank you, next'
 
@@ -127,6 +128,9 @@ export async function runGate({
 
   const startedAt = Date.now()
   let lastFingerprint = ''
+  let cachedTopology: Topology | undefined
+  let nextTopologyRefreshAt = startedAt
+  let consecutiveInvalidations = 0
   const { owner, repo } = context.repo
   const repository = context.payload.repository?.full_name ?? ''
 
@@ -268,10 +272,9 @@ export async function runGate({
     return { pull, check: check ?? null, state: checkState(check ?? null) }
   }
 
-  // pulls.list already includes head/base metadata. Fetching each PR again
-  // during *every* pending poll wastes three REST requests (11 -> 8). Before
-  // any decisive open/fail, validate live PR revisions and re-read their checks
-  // so a rebase, retarget, closure or rerun cannot reuse a stale result.
+  // A pending poll uses cached head/base metadata between twenty-minute
+  // topology refreshes. Before a decisive open/fail, validate live PR revisions
+  // and checks so a rebase, retarget, closure or rerun cannot use stale data.
   async function stillDecisive(
     topology: Topology,
     candidates: Candidate[],
@@ -364,7 +367,11 @@ export async function runGate({
       let topology: Topology
       const candidates: Candidate[] = []
       try {
-        topology = await discoverTopology()
+        if (!cachedTopology || Date.now() >= nextTopologyRefreshAt) {
+          cachedTopology = await discoverTopology()
+          nextTopologyRefreshAt = Date.now() + TOPOLOGY_REFRESH_MS
+        }
+        topology = cachedTopology
         if (topology.role === 'middle') {
           // Always check all three, even if the nearest is pending: a more
           // distant PR can have succeeded. A failed PR may also pass on rerun.
@@ -377,11 +384,17 @@ export async function runGate({
             !(await stillDecisive(topology, candidates, decision))
           ) {
             core.info('Stack/check state changed during verification; retrying')
-            await new Promise((resolve) =>
-              setTimeout(resolve, POLL_INTERVAL_MS)
-            )
+            // An invalid decision needs fresh branch links immediately. If
+            // state keeps changing, back off rather than hammering GitHub.
+            cachedTopology = undefined
+            if (++consecutiveInvalidations > 1) {
+              await new Promise((resolve) =>
+                setTimeout(resolve, POLL_INTERVAL_MS)
+              )
+            }
             continue
           }
+          consecutiveInvalidations = 0
         }
       } catch (error) {
         // A brief GitHub outage should not start all waiting CI at once;

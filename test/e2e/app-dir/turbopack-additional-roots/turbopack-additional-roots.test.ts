@@ -31,6 +31,9 @@ describe('turbopack additional roots', () => {
   })
 
   let externalRoot: string | undefined
+  const rootInfoPath = 'packages/linked/root-info.mjs'
+  // The `@` in the filesystem name is percent-encoded.
+  const placeholderRootInfoUrl = `file:///%40linkedPackages/${rootInfoPath}`
 
   beforeAll(async () => {
     if (!isNextDeploy) {
@@ -63,6 +66,25 @@ describe('turbopack additional roots', () => {
     expect(await browser.elementByCss('#value').text()).toBe(
       'linked-initial-/next-plugin'
     )
+  })
+
+  it('handles absolute paths and an additional root in dependencies from a webpack loader', async () => {
+    const browser = await next.browser('/loader')
+    expect(await browser.elementByCss('#loader-value').text()).toBe('processed')
+  })
+
+  it('uses a placeholder for import.meta.url in an additional root', async () => {
+    const $ = await next.render$('/root-info')
+    expect(JSON.parse($('#server-root-info').text())).toEqual({
+      url: placeholderRootInfoUrl,
+    })
+
+    const browser = await next.browser('/root-info')
+    await retry(async () => {
+      expect(
+        JSON.parse(await browser.elementByCss('#client-root-info').text())
+      ).toEqual({ url: placeholderRootInfoUrl })
+    })
   })
 
   it('reports initialization warnings when startup succeeds', () => {

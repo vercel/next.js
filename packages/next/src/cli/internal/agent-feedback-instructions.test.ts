@@ -15,6 +15,35 @@ describe('loadAgentFeedbackInstructions', () => {
     ).resolves.toBe('# Agent feedback protocol\n')
   })
 
+  it('documents the review form field limits', async () => {
+    const instructions = await loadAgentFeedbackInstructions(
+      {},
+      async () => true,
+      undefined,
+      () => true
+    )
+
+    expect(instructions).toContain('`title` of no more than 100 characters')
+    expect(instructions).toContain(
+      '`relevantFeatures` of no more than 32 characters each'
+    )
+    expect(instructions).toContain(
+      '`steps` of no more than 240 characters each'
+    )
+    expect(instructions).toContain(
+      '`observed` facts of no more than 160 characters each'
+    )
+    expect(instructions).toContain(
+      '`expected` result of no more than 200 characters'
+    )
+    expect(instructions).toContain(
+      '`comparison` of no more than 180 characters'
+    )
+    expect(instructions).toContain(
+      '`nextVersion` and `agent`, with no more than 64 characters each'
+    )
+  })
+
   it('does not read the protocol when feedback is disabled', async () => {
     const readProtocol = jest.fn(async () => '# Agent feedback protocol\n')
 

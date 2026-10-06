@@ -21,7 +21,7 @@ use crate::{
     references::{
         amd::AmdDefineWithDependenciesCodeGen,
         cjs::{
-            CjsExportsDropCodeGen, CjsRequireAssetReferenceCodeGen, CjsRequireCacheAccess,
+            CjsExportsDropCodeGen, CjsRequireAssetReferenceCodeGen,
             CjsRequireResolveAssetReferenceCodeGen,
         },
         constant_condition::ConstantConditionCodeGen,
@@ -184,7 +184,6 @@ pub enum CodeGen {
     // AMD occurs very rarely and makes the enum much bigger
     AmdDefineWithDependenciesCodeGen(Box<AmdDefineWithDependenciesCodeGen>),
     CollectReferenceCodeGen(CollectReferenceCodeGen),
-    CjsRequireCacheAccess(CjsRequireCacheAccess),
     ConstantConditionCodeGen(ConstantConditionCodeGen),
     ConstantValueCodeGen(ConstantValueCodeGen),
     DynamicExpression(DynamicExpression),
@@ -222,7 +221,6 @@ impl CodeGen {
     ) -> Result<CodeGeneration> {
         match self {
             Self::AmdDefineWithDependenciesCodeGen(v) => v.code_generation(trie, ctx).await,
-            Self::CjsRequireCacheAccess(v) => v.code_generation(trie, ctx).await,
             Self::ConstantConditionCodeGen(v) => v.code_generation(trie, ctx).await,
             Self::CollectReferenceCodeGen(v) => v.code_generation(trie, ctx).await,
             Self::ConstantValueCodeGen(v) => v.code_generation(trie, ctx).await,

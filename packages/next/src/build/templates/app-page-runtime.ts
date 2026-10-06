@@ -5,7 +5,10 @@ import type { FallbackRouteParam } from '../static-paths/types'
 import {
   AppPageRouteModule,
   type AppPageRouteHandlerContext,
+  type DevRenderContext,
+  type RouteMatch,
 } from '../../server/route-modules/app-page/module.compiled' with { 'turbopack-transition': 'next-ssr' }
+import { createDevRenderContext } from '../../server/route-modules/app-page/dev-render-context' with { 'turbopack-transition': 'next-server-utility' }
 
 import { RouteKind } from '../../server/route-kind' with { 'turbopack-transition': 'next-server-utility' }
 
@@ -24,6 +27,10 @@ import {
 } from '../../server/request-meta' with { 'turbopack-transition': 'next-server-utility' }
 import { BaseServerSpan } from '../../server/lib/trace/constants' with { 'turbopack-transition': 'next-server-utility' }
 import { stripFlightHeaders } from '../../server/app-render/strip-flight-headers' with { 'turbopack-transition': 'next-server-utility' }
+import {
+  parseRequestHeaders,
+  type ParsedRequestHeaders,
+} from '../../server/route-modules/app-page/parse-request-headers' with { 'turbopack-transition': 'next-server-utility' }
 import {
   NodeNextRequest,
   NodeNextResponse,
@@ -80,6 +87,7 @@ import type { CacheControl } from '../../server/lib/cache-control'
 import { ENCODED_TAGS } from '../../server/stream-utils/encoded-tags' with { 'turbopack-transition': 'next-server-utility' }
 import { sendRenderResult } from '../../server/send-payload' with { 'turbopack-transition': 'next-server-utility' }
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external' with { 'turbopack-transition': 'next-server-utility' }
+import { isRouteCacheOwner } from '../../server/lib/route-cache-key' with { 'turbopack-transition': 'next-server-utility' }
 import { parseMaxPostponedStateSize } from '../../shared/lib/size-limit' with { 'turbopack-transition': 'next-server-utility' }
 import {
   getMaxPostponedStateSize,
@@ -283,7 +291,18 @@ export function createAppPageEntrypoint({
     )
     const prerenderInfo = prerenderMatch?.route ?? null
 
-    const isPrerendered = !!prerenderManifest.routes[resolvedPathname]
+    // A sibling's prerender must not change this route's rendering mode or
+    // supply prefetch metadata for its response.
+    const prerenderedRoute =
+      routeModule.isDev ||
+      isRouteCacheOwner(
+        resolvedPathname,
+        routeModule.cacheOwner,
+        prerenderManifest.routes[resolvedPathname]
+      )
+        ? prerenderManifest.routes[resolvedPathname]
+        : undefined
+    const isPrerendered = Boolean(prerenderedRoute)
 
     const userAgent = req.headers['user-agent'] || ''
     const botType = getBotType(userAgent)
@@ -496,8 +515,8 @@ export function createAppPageEntrypoint({
     // If PPR is enabled, and this is a RSC request (but not a prefetch), then
     // we can use this fact to only generate the flight data for the request
     // because we can't cache the HTML (as it's also dynamic).
-    const staticPrefetchDataRoute =
-      prerenderManifest.routes[resolvedPathname]?.prefetchDataRoute
+    const staticPrefetchDataRoute = prerenderedRoute?.prefetchDataRoute
+    const isEnsureStaticPage = prerenderInfo?._isEnsureStaticPage === true
 
     let isDynamicRSCRequest =
       isRoutePPREnabled &&
@@ -506,7 +525,11 @@ export function createAppPageEntrypoint({
       // If generated at build time, treat the RSC request as static
       // so we can serve the prebuilt .rsc without a dynamic render.
       // Only do this for routes that have a concrete prefetchDataRoute.
-      !staticPrefetchDataRoute
+      !staticPrefetchDataRoute &&
+      // Do not serve `ensureStatic = "navigation"` with a dynamic response,
+      // (we want to do a blocking prerender instead)
+      // TODO(ensure-static): express this in a cleaner way
+      !isEnsureStaticPage
 
     // During a PPR revalidation, the RSC request is not dynamic if postponed
     // metadata is absent. An empty string represents a resume request without
@@ -626,6 +649,9 @@ export function createAppPageEntrypoint({
     let shellCacheKey: string | null = null
     if (
       nextConfig.cacheComponents &&
+      // A closed matcher has no fallback shell. Its generated outputs must
+      // retain their concrete cache keys.
+      prerenderInfo?.fallback !== false &&
       // Never-prerenderable params must stay out of the key even when Partial
       // Prefetching is disabled.
       (nextConfig.partialPrefetching ||
@@ -855,19 +881,29 @@ export function createAppPageEntrypoint({
 
         renderOperation: AppPageRenderOperation
       }): Promise<ResponseCacheEntry | PrerenderFailure> => {
+        // A static page may have stripped Flight headers before reaching this
+        // render. Parse only when the response cache invokes the render.
+        const parsedRequestHeaders: ParsedRequestHeaders = parseRequestHeaders(
+          req.headers,
+          {
+            isRoutePPREnabled,
+            previewModeId: previewProps?.previewModeId,
+          }
+        )
+        const routeMatch: RouteMatch = { resolvedPathname }
+        const dev: DevRenderContext | undefined = createDevRenderContext(req)
         const context: AppPageRouteHandlerContext = {
           query,
           params,
           page: normalizedSrcPage,
+          routeMatch,
+          parsedRequestHeaders,
           sharedContext: {
             buildId,
             deploymentId,
             clientAssetToken,
           },
-          serverComponentsHmrCache: getRequestMeta(
-            req,
-            'serverComponentsHmrCache'
-          ),
+          dev,
           fallbackRouteParams,
           renderOpts: {
             App: () => null,
@@ -906,7 +942,10 @@ export function createAppPageEntrypoint({
             botType,
             isOnDemandRevalidate,
             isPossibleServerAction,
-            assetPrefix: nextConfig.assetPrefix,
+            assetPrefix: routeModule.getAssetPrefixForRender(
+              routerServerContext,
+              nextConfig.assetPrefix
+            ),
             nextConfigOutput: nextConfig.output,
             crossOrigin: nextConfig.crossOrigin,
             trailingSlash: nextConfig.trailingSlash,
@@ -922,10 +961,15 @@ export function createAppPageEntrypoint({
             // URLs. Read the current manifest here because dev updates it as
             // routes compile.
             notFoundParams:
-              prerenderManifest.dynamicRoutes[normalizedSrcPage]?.fallback ===
+              (routeModule.isDev
+                ? getRequestMeta(req, 'devNotFoundParams')
+                : undefined) ??
+              prerenderManifest.dynamicRoutes[normalizedSrcPage]
+                ?.notFoundParams ??
+              (prerenderManifest.dynamicRoutes[normalizedSrcPage]?.fallback ===
               false
                 ? routeParamNames
-                : undefined,
+                : undefined),
             incrementalCache,
             cacheLifeProfiles: nextConfig.cacheLife,
             staticPageGenerationTimeout: nextConfig.staticPageGenerationTimeout,
@@ -971,7 +1015,6 @@ export function createAppPageEntrypoint({
               inlineCss: Boolean(nextConfig.experimental.inlineCss),
               prefetchInlining:
                 nextConfig.experimental.prefetchInlining ?? false,
-              authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
               reactBrowserBailout: Boolean(
                 nextConfig.experimental.reactBrowserBailout
               ),
@@ -1003,12 +1046,7 @@ export function createAppPageEntrypoint({
             },
             onAfterTaskError: () => {},
 
-            onInstrumentationRequestError: (
-              error,
-              _request,
-              errorContext,
-              silenceLog
-            ) =>
+            onInstrumentationRequestError: (error, errorContext, silenceLog) =>
               routeModule.onRequestError(
                 req,
                 error,
@@ -1165,6 +1203,9 @@ export function createAppPageEntrypoint({
           if (
             nextConfig.partialPrefetching &&
             prerenderInfo?.fallback === null &&
+            // TODO(ensure-static): express this in a cleaner way
+            !isEnsureStaticPage &&
+            !prerenderInfo.isExplicitlyBlocking &&
             !hasOmittedConcreteFallbackParam &&
             !hasUnresolvedRootFallbackParams &&
             remainingPrerenderableParams.length > 0
@@ -1200,6 +1241,10 @@ export function createAppPageEntrypoint({
           }
 
           if (
+            // Ordinary dev requests always use the request-specific render
+            // below. Only production, forced background work, and explicit
+            // shell debugging may enter fallback prerender handling.
+            (isProduction || forceStaticRender || isDebugPrerender) &&
             !isMinimalMode &&
             fallbackMode !== FallbackMode.BLOCKING_STATIC_RENDER &&
             staticPathKey &&
@@ -1410,6 +1455,7 @@ export function createAppPageEntrypoint({
               incrementalCacheKey,
               {
                 kind: IncrementalCacheKind.APP_PAGE,
+                route: routeModule.cacheOwner,
                 isRoutePPREnabled: true,
                 isFallback: false,
               }
@@ -1725,6 +1771,13 @@ export function createAppPageEntrypoint({
       }
 
       const handleResponse = async (span?: Span): Promise<null | void> => {
+        // Development evaluates the configured policy without emitting its
+        // production matchers. Use that outcome at the same admission boundary.
+        const devParamMatchingRejected =
+          routeModule.isDev &&
+          !isDebugPrerender &&
+          getRequestMeta(req, 'devParamMatchingRejected')
+
         // Decide whether this URL is allowed before consulting ISR. An exact
         // build path remains valid even when its cached result is missing, and
         // the most specific matched route controls whether other paths may be
@@ -1736,8 +1789,8 @@ export function createAppPageEntrypoint({
           !isDraftMode &&
           !isPossibleServerAction &&
           pageIsDynamic &&
-          prerenderInfo?.fallback === false &&
-          !isPrerendered
+          (devParamMatchingRejected ||
+            (prerenderInfo?.fallback === false && !isPrerendered))
         ) {
           if (nextConfig.adapterPath) {
             return await render404()

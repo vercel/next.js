@@ -9,6 +9,8 @@ React Server Actions are [Server Functions](https://react.dev/reference/rsc/serv
 > [!WARNING]
 > Always verify [authentication and authorization](/docs/app/guides/authentication) inside each Server Action, even if the form is only rendered on an authenticated page. See the [Data Security guide](/docs/app/guides/data-security) for more details.
 
+Call [`unauthorized()`](/docs/app/api-reference/functions/unauthorized) when a request is not authenticated. Next.js renders the nearest `unauthorized.js` fallback.
+
 ## How it works
 
 React extends the HTML [`<form>`](https://developer.mozilla.org/docs/Web/HTML/Element/form) element to allow Server Actions to be invoked with the [`action`](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/form#action) attribute.
@@ -17,6 +19,7 @@ When used in a form, the function automatically receives the [`FormData`](https:
 
 ```tsx filename="app/invoices/page.tsx" switcher
 import { auth } from '@/lib/auth'
+import { unauthorized } from 'next/navigation'
 
 export default function Page() {
   async function createInvoice(formData: FormData) {
@@ -24,7 +27,7 @@ export default function Page() {
 
     const session = await auth()
     if (!session?.user) {
-      throw new Error('Unauthorized')
+      unauthorized()
     }
 
     const rawFormData = {
@@ -43,6 +46,7 @@ export default function Page() {
 
 ```jsx filename="app/invoices/page.js" switcher
 import { auth } from '@/lib/auth'
+import { unauthorized } from 'next/navigation'
 
 export default function Page() {
   async function createInvoice(formData) {
@@ -50,7 +54,7 @@ export default function Page() {
 
     const session = await auth()
     if (!session?.user) {
-      throw new Error('Unauthorized')
+      unauthorized()
     }
 
     const rawFormData = {
