@@ -31,7 +31,7 @@ pub use crate::vc::{
     cast::{VcCast, VcValueTraitCast, VcValueTypeCast},
     cell_mode::{
         VcCellCompareMode, VcCellHashedCompareMode, VcCellKeyedCompareMode, VcCellMode,
-        VcCellNewMode,
+        VcCellNewMode, VcCellStatefulMode,
     },
     default::ValueDefault,
     local::NonLocalValue,

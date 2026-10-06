@@ -1,0 +1,20 @@
+error[E0277]: the trait bound `NotClone: Clone` is not satisfied
+ --> tests/value/fail_stateful_bounds.rs:7:1
+  |
+7 | #[turbo_tasks::value(cell = "stateful", operation)]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `Clone` is not implemented for `NotClone`
+  |
+note: required by a bound in `StateCell::<T>::cell_private`
+ --> $WORKSPACE/turbopack/crates/turbo-tasks/src/state_cell.rs
+  |
+  | impl<T: VcValueType + Clone + OperationValue> StateCell<T> {
+  |                       ^^^^^ required by this bound in `StateCell::<T>::cell_private`
+...
+  |     pub fn cell_private(value: T) -> Self {
+  |            ------------ required by a bound in this associated function
+  = note: this error originates in the attribute macro `turbo_tasks::value` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: consider annotating `NotClone` with `#[derive(Clone)]`
+  |
+8 + #[derive(Clone)]
+9 | struct NotClone { value: u32 }
+  |

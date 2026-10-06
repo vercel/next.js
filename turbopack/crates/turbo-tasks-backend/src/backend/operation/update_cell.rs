@@ -21,6 +21,59 @@ use crate::{
     data::CellRef,
 };
 
+/// Explicit stateful replacement or retirement: unlike deterministic task
+/// recomputation, every commit invalidates. The caller holds the owner's reservation
+/// until this function (including aggregation) returns. `None` retires the slot.
+pub fn update_stateful_cell(
+    task_id: TaskId,
+    cell: CellId,
+    content: Option<turbo_tasks::SharedReference>,
+    ctx: &mut ExecuteContext<'_>,
+) -> Option<turbo_tasks::SharedReference> {
+    let mut task = ctx.task(task_id, TaskDataCategory::All);
+    let mut dependents: FxIndexMap<TaskId, SmallVec<[Option<u64>; 2]>> = FxIndexMap::default();
+    for dependent in task.iter_cell_dependents().filter(|r| r.cell == cell) {
+        dependents.entry(dependent.task).or_default().push(None);
+    }
+    for (dependent, key) in task
+        .iter_cell_dependents_hashed()
+        .filter(|(r, _)| r.cell == cell)
+    {
+        dependents
+            .entry(dependent.task)
+            .or_default()
+            .push(Some(key));
+    }
+    let persistence = &registry::get_value_type(cell.type_id()).persistence;
+    if dependents.is_empty() {
+        let old = if let Some(content) = content {
+            task.insert_cell_data(cell, content, persistence)
+        } else {
+            task.remove_cell_data(&cell, persistence)
+        };
+        drop(task);
+        return old;
+    }
+    let old = task.remove_cell_data(&cell, persistence);
+    drop(task);
+    ctx.prepare_tasks(
+        dependents.keys().map(|&id| (id, TaskDataCategory::All)),
+        "invalidate stateful cell dependents",
+    );
+    invalidate_cell_dependents(
+        CellRef {
+            task: task_id,
+            cell,
+        },
+        dependents,
+        #[cfg(feature = "task_dirty_cause")]
+        false,
+        content.map(|content| content.into_typed(cell.type_id())),
+        ctx,
+    );
+    old
+}
+
 pub fn update_cell(
     task_id: TaskId,
     cell: CellId,

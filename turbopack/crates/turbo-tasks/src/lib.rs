@@ -54,6 +54,8 @@ mod serialization_invalidation;
 pub mod small_duration;
 mod spawn;
 mod state;
+mod state_cell;
+pub use state_cell::{StateCell, assert_not_in_stateful_update};
 pub mod task;
 #[cfg(feature = "task_dirty_cause")]
 mod task_dirty_cause;
@@ -128,8 +130,8 @@ pub use crate::{
         RawVc, RawVcUnpacked, ReadRawVcFuture, ReadVcFuture, ResolveOperationVcFuture,
         ResolveRawVcFuture, ResolveVcFuture, ResolvedVc, ToResolvedVcFuture, Upcast, UpcastStrict,
         ValueDefault, Vc, VcCast, VcCellCompareMode, VcCellHashedCompareMode,
-        VcCellKeyedCompareMode, VcCellNewMode, VcDefaultRead, VcRead, VcTransparentRead,
-        VcValueTrait, VcValueTraitCast, VcValueType, VcValueTypeCast,
+        VcCellKeyedCompareMode, VcCellNewMode, VcCellStatefulMode, VcDefaultRead, VcRead,
+        VcTransparentRead, VcValueTrait, VcValueTraitCast, VcValueType, VcValueTypeCast,
     },
 };
 

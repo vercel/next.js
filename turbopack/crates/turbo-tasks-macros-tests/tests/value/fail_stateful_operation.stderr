@@ -1,0 +1,30 @@
+error[E0277]: the trait bound `ConnectedPayload: OperationValue` is not satisfied
+ --> tests/value/fail_stateful_operation.rs:6:1
+  |
+6 | #[turbo_tasks::value(cell = "stateful")]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ unsatisfied trait bound
+  |
+help: the trait `OperationValue` is not implemented for `ConnectedPayload`
+ --> tests/value/fail_stateful_operation.rs:8:1
+  |
+8 | struct ConnectedPayload { value: turbo_tasks::ResolvedVc<u32> }
+  | ^^^^^^^^^^^^^^^^^^^^^^^
+  = help: the following other types implement trait `OperationValue`:
+            &T
+            &mut T
+            ()
+            (A, Z, Y, X, W, V, U, T)
+            (B, A, Z, Y, X, W, V, U, T)
+            (C, B, A, Z, Y, X, W, V, U, T)
+            (D, C, B, A, Z, Y, X, W, V, U, T)
+            (E, D, C, B, A, Z, Y, X, W, V, U, T)
+          and $N others
+note: required by a bound in `StateCell::<T>::cell_private`
+ --> $WORKSPACE/turbopack/crates/turbo-tasks/src/state_cell.rs
+  |
+  | impl<T: VcValueType + Clone + OperationValue> StateCell<T> {
+  |                               ^^^^^^^^^^^^^^ required by this bound in `StateCell::<T>::cell_private`
+...
+  |     pub fn cell_private(value: T) -> Self {
+  |            ------------ required by a bound in this associated function
+  = note: this error originates in the attribute macro `turbo_tasks::value` (in Nightly builds, run with -Z macro-backtrace for more info)

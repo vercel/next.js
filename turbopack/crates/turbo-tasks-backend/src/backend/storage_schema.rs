@@ -379,6 +379,11 @@ struct TaskStorageSchema {
     #[field(storage = "direct", category = "transient")]
     in_progress: InProgressState,
 
+    /// Per-owner admission for bounded stateful-cell transactions. This is not
+    /// value storage and is never persisted. It also prevents concurrent eviction.
+    #[field(storage = "direct", category = "transient")]
+    stateful_cell_operation: crate::data::StatefulCellOperation,
+
     /// In-progress cell state for cells being computed (transient).
     #[field(storage = "auto_map", category = "transient", shrink_on_completion)]
     in_progress_cells: AutoMap<CellId, InProgressCellState, 1>,
@@ -535,6 +540,12 @@ pub enum KeyEvictability {
 }
 
 impl TaskStorage {
+    /// Diagnostic wait registrations while a stateful reservation is held.
+    pub(super) fn stateful_waiting_accesses(&self) -> usize {
+        self.get_stateful_cell_operation()
+            .map_or(0, |r| r.waiting_accesses)
+    }
+
     /// Determine the evictability level of this task based on its flags.
     ///
     /// This checks only the flags on the TaskStorage itself. The caller
@@ -559,6 +570,7 @@ impl TaskStorage {
         // All these flags imply that the task is currently being used in some way
         // either literally executing, or about to
         if self.get_in_progress().is_some()
+            || self.get_stateful_cell_operation().is_some()
             || self.get_activeness().is_some()
             // Without these checks we could corrupt racing reads.
             // Basically if a task restores ALL but data is already restored, then it will set meta_restoring, so it would break semantics to clear data_restored while that is happening.  We could fix it by adding a loop to the restoring threads but it is just much simpler to back off in this case.
