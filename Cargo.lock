@@ -9210,6 +9210,7 @@ dependencies = [
  "codspeed-criterion-compat",
  "crossbeam-utils",
  "dashmap 7.0.0-rc2",
+ "either",
  "fs-err",
  "futures",
  "hashbrown 0.15.4",
