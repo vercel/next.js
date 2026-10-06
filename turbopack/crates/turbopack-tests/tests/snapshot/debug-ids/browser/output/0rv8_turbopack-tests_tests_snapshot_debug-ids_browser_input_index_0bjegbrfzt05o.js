@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="3330c3e4-f7f5-ba8b-3b9a-dfd2e152633f")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="398e7a01-c4f9-7a02-bc58-5b363bf7b840")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/0rv8_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js",
     {"otherChunks":["output/0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvsq4xsbk.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -1055,7 +1055,7 @@ function loadChunkPath(sourceType, sourceData, chunkPath) {
     const exported = this.r(moduleId);
     return exported?.default ?? exported;
 }
-browserContextPrototype.S = resolvePathFromModule;
+browserContextPrototype.p = resolvePathFromModule;
 /**
  * no-op for browser
  * @param modulePath
@@ -2649,5 +2649,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=3330c3e4-f7f5-ba8b-3b9a-dfd2e152633f
+//# debugId=398e7a01-c4f9-7a02-bc58-5b363bf7b840
 //# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js.map

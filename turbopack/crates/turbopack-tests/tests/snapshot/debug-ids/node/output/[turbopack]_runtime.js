@@ -1567,7 +1567,7 @@ const nodeDevContextPrototype = Context.prototype;
 nodeDevContextPrototype.q = exportUrl;
 nodeDevContextPrototype.M = moduleFactories;
 nodeDevContextPrototype.c = devModuleCache;
-nodeDevContextPrototype.S = resolvePathFromModule;
+nodeDevContextPrototype.p = resolvePathFromModule;
 nodeDevContextPrototype.C = clearChunkCache;
 if (globalThis.__turbopack_ensure_chunk__ !== undefined) {
     const chunksBeingEnsured = new Map();
