@@ -269,8 +269,6 @@ struct AnalyzeChunkGroupData {
     /// Other group kinds retain their explicitly selected trigger.
     #[serde(skip_serializing_if = "Option::is_none")]
     trigger_module_index: Option<u32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    unjoined_trigger_ident: Option<RcStr>,
     /// Direct emitted output_file indices; group membership is not a claim that
     /// an individual reference contributes every module in a cumulative group.
     output_file_indices: Vec<u32>,
@@ -280,8 +278,7 @@ struct ChunkLoadCandidate {
     source: u32,
     target: ResolvedVc<Box<dyn OutputAsset>>,
     /// The dynamically imported target, shared by loaders and manifests.
-    trigger_module_index: Option<u32>,
-    unjoined_trigger_ident: Option<RcStr>,
+    trigger_module_index: u32,
 }
 
 struct AnalyzeOutputFileBuilder {

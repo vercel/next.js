@@ -42,18 +42,13 @@ fn record_async_groups(
             if target == candidate.source {
                 continue;
             }
-            let key = (
-                candidate.source,
-                candidate.trigger_module_index,
-                candidate.unjoined_trigger_ident.clone(),
-            );
+            let key = (candidate.source, candidate.trigger_module_index);
             let group_index = *async_groups.entry(key).or_insert_with(|| {
                 let index = builder.chunk_groups.len();
                 builder.chunk_groups.push(AnalyzeChunkGroupData {
                     id: index as u32,
                     kind: "async".into(),
-                    trigger_module_index: candidate.trigger_module_index,
-                    unjoined_trigger_ident: candidate.unjoined_trigger_ident.clone(),
+                    trigger_module_index: Some(candidate.trigger_module_index),
                     output_file_indices: vec![],
                 });
                 index
@@ -82,21 +77,21 @@ async fn record_groups(
             };
             output_indices.extend(indices.iter().copied());
         }
-        let (trigger_module_index, unjoined_trigger_ident) = if let Some(module) = group.trigger {
+        let trigger_module_index = if let Some(module) = group.trigger {
             let ident = module.ident().to_string().owned().await?;
-            if let Some(&index) = module_index.by_ident.get(&ident) {
-                (Some(index), None)
-            } else {
-                (None, Some(ident))
-            }
+            Some(*module_index.by_ident.get(&ident).ok_or_else(|| {
+                anyhow::anyhow!(
+                    "{} group trigger {ident} is missing from the analyzer module index",
+                    group.kind
+                )
+            })?)
         } else {
-            (None, None)
+            None
         };
         builder.chunk_groups.push(AnalyzeChunkGroupData {
             id,
             kind: group.kind.clone(),
             trigger_module_index,
-            unjoined_trigger_ident,
             output_file_indices: output_indices.into_iter().collect(),
         });
     }
@@ -158,7 +153,6 @@ async fn record_worker_groups(
                             id: index as u32,
                             kind: "worker".into(),
                             trigger_module_index: Some(trigger),
-                            unjoined_trigger_ident: None,
                             output_file_indices: vec![],
                         });
                         index

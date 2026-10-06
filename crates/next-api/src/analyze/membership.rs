@@ -93,10 +93,9 @@ async fn chunk_item_load_candidates(
     // Use the same typed target as the module graph's async dependency, including
     // next/dynamic entry wrappers. Synthetic loader identities do not join it.
     let ident = trigger.ident().to_string().owned().await?;
-    let (trigger_module_index, unjoined_trigger_ident) = match index.by_ident.get(&ident) {
-        Some(&i) => (Some(i), None),
-        None => (None, Some(ident)),
-    };
+    let trigger_module_index = *index.by_ident.get(&ident).ok_or_else(|| {
+        anyhow!("Async group trigger {ident} is missing from the analyzer module index")
+    })?;
     let references = item.references().await?;
     let assets = references.assets.await?;
     Ok(assets
@@ -106,7 +105,6 @@ async fn chunk_item_load_candidates(
             source,
             target,
             trigger_module_index,
-            unjoined_trigger_ident: unjoined_trigger_ident.clone(),
         })
         .collect())
 }

@@ -4,7 +4,7 @@ Read the section matching the candidate before proposing a change. Each section 
 
 ## Lazy interaction feature
 
-For an editor, chart or dialog needed after interaction, inspect its actual importer and confirm the feature is not already async. Add one lazy boundary with a stable placeholder, preserving loading/error states, keyboard/focus, direct visits and client/server behavior.
+For a large component such as an editor, chart or dialog needed after interaction, inspect its actual importer and confirm the feature is not already async. Add one lazy boundary with a stable placeholder, preserving loading/error states, keyboard/focus, direct visits and client/server behavior.
 
 Preload on intent only after measuring its benefit. Idle preloading can waste data/battery and compete with important requests.
 
