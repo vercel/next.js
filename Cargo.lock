@@ -746,16 +746,6 @@ dependencies = [
 
 [[package]]
 name = "browserslist-data"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77d121add86b74ceac9755a74ec3b4abc1f4935711aede468f26a36dc685dc80"
-dependencies = [
- "ahash 0.8.12",
- "chrono",
-]
-
-[[package]]
-name = "browserslist-data"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "58f90c231428ed81dbb8f39dcc14021335c3cc4f46ffdffde278638ca832b579"
@@ -777,23 +767,6 @@ dependencies = [
  "either",
  "itertools 0.13.0",
  "nom 7.1.3",
- "serde",
- "serde_json",
- "thiserror 1.0.69",
-]
-
-[[package]]
-name = "browserslist-rs"
-version = "0.20.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec54e3c5c50eae1f8d771c7ffc311c1cc8e5e3c85b9fd87b557633bbe9b7cb01"
-dependencies = [
- "ahash 0.8.12",
- "browserslist-data 0.2.0",
- "chrono",
- "either",
- "itertools 0.15.0",
- "nom 8.0.0",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
@@ -9640,7 +9613,7 @@ dependencies = [
  "auto-hash-map",
  "bincode",
  "bitfield",
- "browserslist-rs 0.20.0",
+ "browserslist-rs 0.21.2",
  "bytes-str",
  "const_format",
  "data-encoding",

@@ -224,7 +224,7 @@ swc_plugin_backend_wasmtime = "16.0.0"
 testing = "27.0.0"
 
 # Keep consistent with preset_env_base through swc_core
-browserslist-rs = "0.20.0"
+browserslist-rs = "0.21.0"
 mdxjs = "1.0.4"
 modularize_imports = "21.0.0"
 styled_components = "21.0.0"
