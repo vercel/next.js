@@ -1260,8 +1260,7 @@ impl TurboTasksBackend {
 
         if !has_modifications && gc_roots_to_persist.is_none() {
             // No tasks modified since the last snapshot — drop the guard (which
-            // calls end_snapshot) and skip the expensive O(N) scan. The exclusion
-            // (`snapshot_phase`) ends on return.
+            // calls end_snapshot) and skip the expensive O(N) scan.
             drop(snapshot_guard);
             return Ok(Some((start, false, gc_outcome)));
         }

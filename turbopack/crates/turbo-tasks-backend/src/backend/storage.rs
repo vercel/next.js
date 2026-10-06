@@ -331,8 +331,8 @@ pub struct Storage {
     ///
     /// Should only be modified while holding the corresponding dashmap shard lock.
     shard_modified_counts: Box<[CachePadded<AtomicU64>]>,
-    /// Copy-on-write snapshots of tasks that were captured by the in-progress snapshot (they have
-    /// `*_snapshot_pending` flags) and then modified before the snapshot iterator persisted them.
+    /// Copy-on-write snapshots of tasks that are currently enqueued for persistence (they have
+    /// `*_snapshot_pending` flags) and then modified.
     /// Captured as `SnapshotItem` to defend against interior mutability in tasks carrying `State`.
     /// Entries are removed when the iterator persists the task, and any left over (persisting
     /// failed) are cleared when the snapshot ends, so the map is empty outside of snapshots. The
@@ -594,14 +594,20 @@ impl Storage {
 
     /// Enter snapshot mode and return a guard that will call `end_snapshot` on drop.
     ///
-    /// Returns whether any shard has modifications. Per-shard counts are reset in
-    /// `take_snapshot` as each shard is captured.
+    /// Returns whether any shard has modifications. Per-shard counts are reset
+    /// in `take_snapshot` as each shard is captured, not here — resetting eagerly
+    /// would lose the counts `take_snapshot` uses to skip unmodified shards.
     ///
     /// Safety invariant: `start_snapshot` and `end_snapshot` are always called
     /// sequentially within a single `snapshot_and_persist` invocation (the sole
     /// caller). There is no concurrent snapshot lifecycle, so they cannot race.
     pub fn start_snapshot(&self) -> (SnapshotGuard<'_>, bool) {
+        // Enter snapshot mode so track_modification copies captured tasks
+        // (copy-on-write) before mutating them.
         self.snapshot_mode.store(true, Ordering::Release);
+        // Check if any shard has modifications. Don't reset counts here —
+        // take_snapshot resets per-shard counts as it captures each shard,
+        // and uses them to skip shards without modifications.
         let has_modifications = self
             .shard_modified_counts
             .iter()
@@ -963,11 +969,7 @@ impl StorageWriteGuard<'_> {
             "track_modification called on transient task {:?}",
             self.inner.key()
         );
-        let flags = &self.inner.flags;
-        if flags.is_modified(category) {
-            // Already tracked. If the task is captured by the in-progress snapshot, that earlier
-            // tracking (which happened after the capture, since the capture clears the modified
-            // flags) already froze its snapshot state.
+        if self.inner.flags.is_modified(category) {
             return TrackOutcome::NoChange;
         }
         #[cfg(feature = "trace_task_modification")]
@@ -975,13 +977,20 @@ impl StorageWriteGuard<'_> {
         // If the in-progress snapshot captured this task and hasn't persisted it yet, freeze the
         // captured categories before this mutation lands (copy-on-write). Only the first
         // modification after the capture needs to do this; later ones find the entry. Outside
-        // snapshot mode, pending flags are leftovers of a failed persist and are ignored. A
-        // copy-on-write racing `end_snapshot` can still leave its entry behind, but only after a
-        // failed persist, which disables persisting, so that is accepted.
-        let inserted_snapshot = flags.any_snapshot_pending()
-            && self.storage.snapshot_mode()
-            && !self.storage.snapshots.contains_key(self.inner.key());
-        if inserted_snapshot {
+        // snapshot mode, pending flags are leftovers of a failed persist; the abandoned captured
+        // state no longer needs to be persisted, so clear them and track normally. A copy-on-write
+        // racing `end_snapshot` can still leave its entry behind, but only after a failed persist,
+        // which disables persisting, so that is accepted.
+        let mut insert_snapshot = false;
+        if self.inner.flags.any_snapshot_pending() {
+            if self.storage.snapshot_mode() {
+                insert_snapshot = !self.storage.snapshots.contains_key(self.inner.key());
+            } else {
+                self.inner.flags.set_meta_snapshot_pending(false);
+                self.inner.flags.set_data_snapshot_pending(false);
+            }
+        }
+        if insert_snapshot {
             let item = self.encode_for_snapshot();
             self.storage
                 .snapshots
@@ -996,7 +1005,7 @@ impl StorageWriteGuard<'_> {
         TrackOutcome::Tracked {
             category,
             bumped,
-            inserted_snapshot,
+            inserted_snapshot: insert_snapshot,
         }
     }
 
@@ -1873,7 +1882,7 @@ mod tests {
     /// When persisting fails, the shards are dropped before every captured task is yielded.
     /// Persisting is then disabled for the session, so the leftovers are not restored: ending the
     /// snapshot drops their copy-on-write items, and their pending flags no longer trigger
-    /// copy-on-write.
+    /// copy-on-write. Tracking a new modification clears them.
     #[tokio::test(flavor = "multi_thread")]
     async fn dropping_shards_early_leaves_no_copy_on_write_items() {
         let storage = Storage::new(StorageOptions::for_tests());
@@ -1922,6 +1931,10 @@ mod tests {
             }
         ));
         assert!(guard.flags.meta_modified());
+        assert!(
+            !guard.flags.any_snapshot_pending(),
+            "leftover pending flags are cleared once the task is modified outside a snapshot"
+        );
         drop(guard);
         assert!(storage.snapshots.is_empty());
     }
