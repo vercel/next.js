@@ -15,7 +15,7 @@ Before [Cache Components](/docs/app/api-reference/config/next-config-js/cacheCom
 
 This flexibility is useful for routes that need personalization. However, you may still want some or all of a route to avoid request-time server rendering for predictable performance and compute costs.
 
-Use [`ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic) to declare how much route output must remain static. `next dev` and `next build` then identify changes that would introduce request-time server rendering.
+Use [`ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic) to require static output at the stages that matter for your route.
 
 ## Decide what should stay static
 
@@ -54,7 +54,7 @@ app/
 │   ├── page.tsx           # Product catalog
 │   └── products/
 │       └── [slug]/
-│           └── page.tsx   # Product details and live inventory
+│           └── page.tsx   # Product details and cart status
 ├── guides/
 │   └── [id]/
 │       └── page.tsx       # Editorial buying guides
@@ -134,9 +134,10 @@ A default `<Link>` into the store now loads the navigation and `Cart (0)` fallba
 
 ### Step 2: Prefetch static product details
 
-Each product page combines details that can be reused across visitors with inventory that changes as orders come in. `ProductDetails` caches its query with [`use cache`](/docs/app/api-reference/directives/use-cache), while `Inventory` reads the current stock level for each request:
+Each product page combines details that can be reused across visitors with a cart action that depends on the current visitor. `ProductDetails` caches its query with [`use cache`](/docs/app/api-reference/directives/use-cache), while `ProductCartStatus` reads a cookie to check whether the product is already in the cart:
 
 ```tsx filename="app/ui/product.tsx"
+import { cookies } from 'next/headers'
 import { db } from '@/lib/db'
 
 type Params = Promise<{ slug: string }>
@@ -147,10 +148,12 @@ export async function ProductDetails({ params }: { params: Params }) {
   return <h1>{product.name}</h1>
 }
 
-export async function Inventory({ params }: { params: Params }) {
+export async function ProductCartStatus({ params }: { params: Params }) {
   const { slug } = await params
-  const { stock } = await db.inventory.findUniqueOrThrow({ where: { slug } })
-  return <p>{stock} in stock</p>
+  const cart = (await cookies()).get('cart')?.value?.split(',') ?? []
+  return (
+    <button>{cart.includes(slug) ? 'Remove from cart' : 'Add to cart'}</button>
+  )
 }
 
 async function getProduct(slug: string) {
@@ -159,11 +162,11 @@ async function getProduct(slug: string) {
 }
 ```
 
-The product route prerenders the catalog's product URL with [`generateStaticParams()`](/docs/app/api-reference/functions/generate-static-params). Separate `<Suspense>` boundaries let the product details render without waiting for live inventory:
+The product route prerenders the catalog's product URL with [`generateStaticParams()`](/docs/app/api-reference/functions/generate-static-params). Separate `<Suspense>` boundaries let the product details render with a static cart fallback:
 
 ```tsx filename="app/store/products/[slug]/page.tsx"
 import { Suspense } from 'react'
-import { Inventory, ProductDetails } from '@/app/ui/product'
+import { ProductCartStatus, ProductDetails } from '@/app/ui/product'
 
 export function generateStaticParams() {
   return [{ slug: 'coffee-grinder' }]
@@ -177,8 +180,8 @@ export default function ProductPage({
       <Suspense fallback={<p>Loading product...</p>}>
         <ProductDetails params={params} />
       </Suspense>
-      <Suspense fallback={<p>Loading...</p>}>
-        <Inventory params={params} />
+      <Suspense fallback={<button>Add to cart</button>}>
+        <ProductCartStatus params={params} />
       </Suspense>
     </>
   )
@@ -193,11 +196,13 @@ A default product link loads the App Shell, which contains the product fallback.
 </Link>
 ```
 
-This per-link prefetch can also render request-specific work such as inventory. A grid with 20 visible products can therefore trigger 20 request-time server renders before the user clicks a product. Add `ensureStatic = 'prefetch'` to make every product prefetch use only static output:
+Each visible `prefetch={true}` link can render `ProductCartStatus` to personalize the cart action for that product. A grid with 20 visible products can therefore trigger 20 request-time server renders before the user clicks a product.
+
+Add `ensureStatic = 'prefetch'` to make every product prefetch use only static output:
 
 ```tsx filename="app/store/products/[slug]/page.tsx" highlight={4}
 import { Suspense } from 'react'
-import { Inventory, ProductDetails } from '@/app/ui/product'
+import { ProductCartStatus, ProductDetails } from '@/app/ui/product'
 
 export const ensureStatic = 'prefetch'
 
@@ -208,11 +213,11 @@ export default function ProductPage({
 }
 ```
 
-Each product prefetch now includes the cached product details and the inventory fallback without invoking request-time server rendering. Live inventory renders after the user follows the link.
+Each product prefetch now includes the cached product details and the static **Add to cart** fallback without invoking request-time server rendering. The current cart status renders after the user follows the link.
 
 An `ensureStatic` value covers the whole route, including layouts above the segment that exports it. On product routes, `'prefetch'` also keeps the store layout static through the per-link prefetch.
 
-> **Good to know**: If only `Inventory` needed to be deferred from per-link prefetches, you could call [`await navigation()`](/docs/app/api-reference/functions/navigation) inside that subtree. Here, every product prefetch must avoid request-time server rendering, so the page uses `ensureStatic = 'prefetch'`.
+> **Good to know**: If only `ProductCartStatus` needed to be deferred from per-link prefetches, you could call [`await navigation()`](/docs/app/api-reference/functions/navigation) before reading the cookie. Here, every product prefetch must avoid request-time server rendering, so the page uses `ensureStatic = 'prefetch'`.
 
 ### Step 3: Prerender the buying guides
 
@@ -263,7 +268,7 @@ Route (app)
 ◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
 ```
 
-Partial output is expected for the store and product routes because their cart count and inventory render later. The buying guides are public editorial pages, so they should return complete static output without request-time server rendering. Add `ensureStatic = 'navigation'`:
+Partial output is expected for the store and product routes because their request-specific cart UI renders later. The buying guides are public editorial pages, so they should return complete static output without request-time server rendering. Add `ensureStatic = 'navigation'`:
 
 ```diff filename="app/guides/[id]/page.tsx"
   import { Suspense } from 'react'
@@ -343,7 +348,7 @@ Learn more: https://nextjs.org/docs/messages/static-route-dynamic
     at html (<anonymous>)
 ```
 
-The build identifies the affected route, but these minified stack frames do not identify the data access. To get source-mapped code frames while fixing it, start `next dev` and open `/guides/coffee`. If you can only run a build, use [`next build --debug-prerender`](/docs/app/guides/building#debug-prerender-errors).
+The build identifies the affected route, but its stack frames do not include source locations for the data access. To get source-mapped code frames while fixing it, start `next dev` and open `/guides/coffee`. If you can only run a build, use [`next build --debug-prerender`](/docs/app/guides/building#debug-prerender-errors).
 
 The development overlay first points to the uncached database query:
 
@@ -469,7 +474,7 @@ Route (app)
 
 The listed guide is now fully prerendered. For an unlisted guide ID, the first request waits while Next.js generates and stores the complete static page. The buying guides no longer perform request-time server rendering, and `ensureStatic` will report future changes that would break that requirement.
 
-The store now loads shared navigation from its static App Shell, includes cached product details in per-link prefetches without invoking the server, and returns complete static output for buying guides. Personalized cart and inventory data still render when they are needed.
+The store now loads shared navigation from its static App Shell, includes cached product details in per-link prefetches without invoking the server, and returns complete static output for buying guides. Personalized cart data still renders when it is needed.
 
 ## Next steps
 
