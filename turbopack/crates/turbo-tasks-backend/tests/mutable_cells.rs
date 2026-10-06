@@ -2,7 +2,7 @@
 #![feature(arbitrary_self_types_pointers)]
 #![allow(clippy::needless_return)]
 
-//! Real persistent-backend regressions for experimental task-owned stateful cells.
+//! Real persistent-backend regressions for experimental task-owned mutable cells.
 mod util;
 
 use std::{
@@ -15,7 +15,7 @@ use std::{
 };
 
 use anyhow::{Result, bail};
-use turbo_tasks::{Invalidator, OperationVc, RawVcUnpacked, StateCell, Vc, get_invalidator};
+use turbo_tasks::{Invalidator, MutableCell, OperationVc, RawVcUnpacked, Vc, get_invalidator};
 
 use crate::util::{create_tt, reopen_tt_with_gc};
 
@@ -47,7 +47,7 @@ fn expected_runs(committed_executions: u32) -> u32 {
         }
 }
 
-#[turbo_tasks::value(cell = "stateful", operation)]
+#[turbo_tasks::value(cell = "mutable", operation)]
 #[derive(Clone)]
 struct Counter {
     value: u32,
@@ -55,7 +55,7 @@ struct Counter {
 
 #[turbo_tasks::value]
 struct CounterHandle {
-    state: Option<StateCell<Counter>>,
+    state: Option<MutableCell<Counter>>,
 }
 
 #[turbo_tasks::function(operation, root)]
@@ -80,7 +80,7 @@ async fn create_counter(id: u32) -> Result<Vc<CounterHandle>> {
         let cell = Counter {
             value: if behavior == 1 { 99 } else { 0 },
         }
-        .stateful_cell();
+        .mutable_cell();
         if behavior == 4 {
             assert!(cell.set(Counter { value: 100 }).is_err());
             assert!(cell.update(|v| v.value += 1).is_err());
@@ -91,7 +91,7 @@ async fn create_counter(id: u32) -> Result<Vc<CounterHandle>> {
 }
 
 #[turbo_tasks::function]
-async fn read_counter(id: u32, state: StateCell<Counter>, tracked: bool) -> Result<Vc<u32>> {
+async fn read_counter(id: u32, state: MutableCell<Counter>, tracked: bool) -> Result<Vc<u32>> {
     READER_RUNS[id as usize].fetch_add(1, Ordering::SeqCst);
     let gate = if id == 5 {
         READ_GATE.lock().unwrap().take()
@@ -111,13 +111,13 @@ async fn read_counter(id: u32, state: StateCell<Counter>, tracked: bool) -> Resu
 }
 
 #[turbo_tasks::function(operation, root)]
-async fn downstream(id: u32, state: StateCell<Counter>, tracked: bool) -> Result<Vc<u32>> {
+async fn downstream(id: u32, state: MutableCell<Counter>, tracked: bool) -> Result<Vc<u32>> {
     Ok(Vc::cell(*read_counter(id, state, tracked).await? * 2))
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn tracked_untracked_and_immutable_snapshots() {
-    let (tt, _dir) = create_tt("stateful_snapshots");
+    let (tt, _dir) = create_tt("mutable_snapshots");
     turbo_tasks::run_once(tt.clone(), async move {
         let state = create_counter(0)
             .read_strongly_consistent()
@@ -181,7 +181,7 @@ async fn tracked_untracked_and_immutable_snapshots() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn canonical_mutation_after_eviction_and_restart() {
-    let (tt, dir) = create_tt("stateful_restart");
+    let (tt, dir) = create_tt("mutable_restart");
     let (state, old) = turbo_tasks::run_once(tt.clone(), async move {
         let state = create_counter(2)
             .read_strongly_consistent()
@@ -235,7 +235,7 @@ async fn canonical_mutation_after_eviction_and_restart() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn concurrent_writers_and_release_reentrancy_panic_recovery() {
-    let (tt, _dir) = create_tt("stateful_writers");
+    let (tt, _dir) = create_tt("mutable_writers");
     let state = turbo_tasks::run_once(tt.clone(), async move {
         anyhow::Ok(
             create_counter(3)
@@ -323,7 +323,7 @@ async fn concurrent_writers_and_release_reentrancy_panic_recovery() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn creator_reexecution_first_value_wins_failure_preserves_and_success_retires() {
-    let (tt, dir) = create_tt("stateful_retirement");
+    let (tt, dir) = create_tt("mutable_retirement");
     let state = turbo_tasks::run_once(tt.clone(), async move {
         let state = create_counter(4)
             .read_strongly_consistent()
@@ -421,14 +421,14 @@ async fn load_retired_identity() -> Result<Vc<CounterHandle>> {
     Ok(CounterHandle { state }.cell())
 }
 
-#[turbo_tasks::value(cell = "stateful", operation)]
+#[turbo_tasks::value(cell = "mutable", operation)]
 #[derive(Clone)]
 struct OperationState {
     operation: OperationVc<u32>,
 }
 #[turbo_tasks::value]
 struct OperationHandle {
-    state: StateCell<OperationState>,
+    state: MutableCell<OperationState>,
 }
 #[turbo_tasks::function(operation)]
 fn number(value: u32) -> Vc<u32> {
@@ -440,18 +440,18 @@ fn create_operation_state() -> Vc<OperationHandle> {
         state: OperationState {
             operation: number(1),
         }
-        .stateful_cell(),
+        .mutable_cell(),
     }
     .cell()
 }
 #[turbo_tasks::function(operation, root)]
-async fn read_operation(state: StateCell<OperationState>) -> Result<Vc<u32>> {
+async fn read_operation(state: MutableCell<OperationState>) -> Result<Vc<u32>> {
     let operation = state.get()?.operation;
     Ok(Vc::cell(*operation.connect().await?))
 }
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn operation_payload_strong_consistency() {
-    let (tt, _dir) = create_tt("stateful_operations");
+    let (tt, _dir) = create_tt("mutable_operations");
     tokio::time::timeout(
         Duration::from_secs(15),
         turbo_tasks::run_once(tt.clone(), async move {
@@ -475,7 +475,7 @@ async fn operation_payload_strong_consistency() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn reader_registered_after_snapshot_survives_restart() {
-    let (tt, dir) = create_tt("stateful_persisted_reader");
+    let (tt, dir) = create_tt("mutable_persisted_reader");
     let state = turbo_tasks::run_once(tt.clone(), async move {
         anyhow::Ok(
             create_counter(6)
@@ -547,20 +547,20 @@ struct CellLocation {
     cell: turbo_tasks::ResolvedVc<u32>,
 }
 #[turbo_tasks::function(operation, root)]
-async fn reader_location(state: StateCell<Counter>) -> Result<Vc<CellLocation>> {
+async fn reader_location(state: MutableCell<Counter>) -> Result<Vc<CellLocation>> {
     Ok(CellLocation {
         cell: read_counter(5, state, true).to_resolved().await?,
     }
     .cell())
 }
 #[turbo_tasks::function(operation, root)]
-async fn force_clean_recompute(state: StateCell<Counter>) -> Result<Vc<u32>> {
+async fn force_clean_recompute(state: MutableCell<Counter>) -> Result<Vc<u32>> {
     Ok(Vc::cell(*read_counter(5, state, true).await?))
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn clean_recomputation_becomes_dirty_before_consuming_changed_cell() {
-    let (tt, _dir) = create_tt("stateful_clean_recompute");
+    let (tt, _dir) = create_tt("mutable_clean_recompute");
     let (state, producer, cell) = turbo_tasks::run_once(tt.clone(), async move {
         let state = create_counter(5)
             .read_strongly_consistent()
@@ -643,13 +643,13 @@ async fn clean_recomputation_becomes_dirty_before_consuming_changed_cell() {
 #[turbo_tasks::function]
 fn unrooted_counter() -> Vc<CounterHandle> {
     CounterHandle {
-        state: Some(Counter { value: 0 }.stateful_cell()),
+        state: Some(Counter { value: 0 }.mutable_cell()),
     }
     .cell()
 }
 #[turbo_tasks::value]
 struct GcHandle {
-    state: Option<StateCell<Counter>>,
+    state: Option<MutableCell<Counter>>,
     owner: u32,
 }
 #[turbo_tasks::function(operation, root)]
@@ -676,7 +676,7 @@ async fn select_unrooted_counter() -> Result<Vc<GcHandle>> {
 }
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn explicit_pin_prevents_collection_then_old_handles_fail() {
-    let (tt, _dir) = create_tt("stateful_gc");
+    let (tt, _dir) = create_tt("mutable_gc");
     let (state, owner) = turbo_tasks::run_once(tt.clone(), async move {
         let selected = select_unrooted_counter().read_strongly_consistent().await?;
         let state = selected.state.unwrap();
@@ -750,7 +750,7 @@ async fn force_owner_recompute(id: u32) -> Result<Vc<CounterHandle>> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn clean_creator_failure_and_cancellation_preserve_canonical_state() {
     use turbo_tasks::backend::Backend;
-    let (tt, dir) = create_tt("stateful_failed_clean_creator");
+    let (tt, dir) = create_tt("mutable_failed_clean_creator");
     let (state, owner, ordinary_cell) = turbo_tasks::run_once(tt.clone(), async move {
         let state = create_counter(9)
             .read_strongly_consistent()
@@ -780,7 +780,7 @@ async fn clean_creator_failure_and_cancellation_preserve_canonical_state() {
         assert_eq!(
             state.get_untracked()?.value,
             17,
-            "failed clean recomputation preserves stateful slots"
+            "failed clean recomputation preserves mutable slots"
         );
         state.update(|v| v.value += 1)?;
         anyhow::Ok(())
@@ -791,6 +791,22 @@ async fn clean_creator_failure_and_cancellation_preserve_canonical_state() {
     // tasks at shutdown. It must preserve the canonical slot and mark the owner
     // session-dependent so the next backend can execute it again.
     Backend::task_execution_canceled(tt.backend(), owner, &tt);
+    // A cancelled execution can still report completion with partial counters.
+    // Upstream cleanup now runs under completion's shard lock; it must not retire
+    // mutable slots from this incomplete allocation layout.
+    assert!(
+        Backend::task_execution_completed(
+            tt.backend(),
+            owner,
+            Ok(turbo_tasks::RawVc::task_cell(owner, ordinary_cell)),
+            &Default::default(),
+            #[cfg(feature = "verify_determinism")]
+            true,
+            true,
+            &tt,
+        )
+        .is_none()
+    );
     turbo_tasks::run_once(tt.clone(), async move {
         assert_eq!(state.get_untracked()?.value, 18);
         anyhow::Ok(())
@@ -820,7 +836,7 @@ async fn clean_creator_failure_and_cancellation_preserve_canonical_state() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn creator_execution_races_external_update_without_reset() {
-    let (tt, _dir) = create_tt("stateful_creator_writer_race");
+    let (tt, _dir) = create_tt("mutable_creator_writer_race");
     let (state, owner_id) = turbo_tasks::run_once(tt.clone(), async move {
         let operation = create_counter(10);
         let owner = operation.task_id();
@@ -870,7 +886,7 @@ async fn creator_execution_races_external_update_without_reset() {
         // No task work is awaited inside the update; both gates are plain test signals.
         resume.send(()).unwrap();
         let registered = tokio::time::timeout(Duration::from_secs(15), async {
-            while tt.backend().stateful_waiters_for_testing(owner_id) == 0 {
+            while tt.backend().mutable_waiters_for_testing(owner_id) == 0 {
                 tokio::task::yield_now().await;
             }
         })
@@ -922,7 +938,7 @@ async fn creator_execution_races_external_update_without_reset() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn no_context_access_and_ordinary_constructor_backdoors_fail() {
-    let (tt, _dir) = create_tt("stateful_context");
+    let (tt, _dir) = create_tt("mutable_context");
     let state = turbo_tasks::run_once(tt.clone(), async move {
         let state = create_counter(11)
             .read_strongly_consistent()
@@ -935,16 +951,16 @@ async fn no_context_access_and_ordinary_constructor_backdoors_fail() {
                     let _ = Vc::<Counter>::cell_private(Counter { value: 0 });
                 }
                 1 => {
-                    let _ = Counter { value: 0 }.stateful_cell();
+                    let _ = Counter { value: 0 }.mutable_cell();
                 } // transient Once Task cannot own persistable state
                 _ => {
-                    let _ = StateCell::<u32>::cell_private(0);
+                    let _ = MutableCell::<u32>::cell_private(0);
                 }
             });
             assert!(panic.is_err());
         }
         let encoded = bincode::encode_to_vec(state, bincode::config::standard())?;
-        let (wrong, _): (StateCell<OperationState>, usize) =
+        let (wrong, _): (MutableCell<OperationState>, usize) =
             bincode::decode_from_slice(&encoded, bincode::config::standard())?;
         assert!(wrong.get().is_err());
         assert!(
@@ -978,7 +994,7 @@ async fn no_context_access_and_ordinary_constructor_backdoors_fail() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn snapshot_waits_for_admitted_update_and_persists_dirty_readers() {
-    let (tt, dir) = create_tt("stateful_update_before_cut");
+    let (tt, dir) = create_tt("mutable_update_before_cut");
     let state = turbo_tasks::run_once(tt.clone(), async move {
         let state = create_counter(13)
             .read_strongly_consistent()
@@ -1038,7 +1054,7 @@ async fn snapshot_waits_for_admitted_update_and_persists_dirty_readers() {
         .unwrap();
     assert!(outcome.had_new_data);
     // Freeze this cut before strong reading can execute/persist the dirty reader.
-    let snapshot_dir = util::create_persistence_dir("stateful_update_before_cut_copy");
+    let snapshot_dir = util::create_persistence_dir("mutable_update_before_cut_copy");
     copy_snapshot_dir(dir.path(), snapshot_dir.path());
     let restored = reopen_tt_with_gc(&snapshot_dir);
     turbo_tasks::run_once(restored.clone(), async move {
@@ -1078,8 +1094,8 @@ fn copy_snapshot_dir(source: &std::path::Path, target: &std::path::Path) {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn snapshot_cut_during_update_preserves_frozen_data_and_skips_eviction() {
-    let (tt, dir) = create_tt("stateful_snapshot_cut");
-    let frozen_dir = util::create_persistence_dir("stateful_frozen_snapshot");
+    let (tt, dir) = create_tt("mutable_snapshot_cut");
+    let frozen_dir = util::create_persistence_dir("mutable_frozen_snapshot");
     let (state, owner) = turbo_tasks::run_once(tt.clone(), async move {
         let operation = create_counter(8);
         let owner = operation.task_id();
@@ -1139,7 +1155,7 @@ async fn snapshot_cut_during_update_preserves_frozen_data_and_skips_eviction() {
     });
     before_get.await.unwrap();
     let registered = tokio::time::timeout(Duration::from_secs(15), async {
-        while tt.backend().stateful_waiters_for_testing(owner) == 0 {
+        while tt.backend().mutable_waiters_for_testing(owner) == 0 {
             tokio::task::yield_now().await;
         }
     })

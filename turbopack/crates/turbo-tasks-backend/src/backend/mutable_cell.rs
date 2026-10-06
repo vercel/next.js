@@ -1,11 +1,11 @@
-//! TaskStorage-owned admission for bounded stateful-cell transactions.
+//! TaskStorage-owned admission for bounded mutable-cell transactions.
 //!
 //! Reservation installation/removal is protected by the owner's shard lock.
 //! Dependent-task locking and user callbacks run without that lock. Contenders
 //! release snapshot admission before waiting. The admitted reservation prevents
 //! GC; the transient storage field separately prevents post-snapshot eviction.
 
-use anyhow::{Result, anyhow, ensure};
+use anyhow::{Result, anyhow, bail, ensure};
 use turbo_tasks::{
     CellId, SharedReference, TaskId, TurboTasks, ValueTypePersistence, event::Event,
     registry::get_value_type,
@@ -14,10 +14,10 @@ use turbo_tasks::{
 use crate::{
     backend::{
         TaskDataCategory, TurboTasksBackend, lock_task_and_optional_reader,
-        operation::{ExecuteContext, update_stateful_cell},
+        operation::{ExecuteContext, update_mutable_cell},
         storage_schema::TaskStorageAccessors,
     },
-    data::{CellRef, StatefulCellOperation},
+    data::{CellRef, MutableCellOperation},
 };
 
 pub(super) struct CellTransaction<'a> {
@@ -31,13 +31,13 @@ impl<'a> CellTransaction<'a> {
         tt: &'a TurboTasks<TurboTasksBackend>,
         id: TaskId,
     ) -> Result<Self> {
-        turbo_tasks::assert_not_in_stateful_update();
+        turbo_tasks::assert_not_in_mutable_update();
         loop {
             let mut ctx = backend.execute_context(tt);
             let mut task = ctx
                 .try_task(id, TaskDataCategory::All)
-                .ok_or_else(|| anyhow!("stateful cell owner was collected or is unavailable"))?;
-            if let Some(reservation) = task.get_stateful_cell_operation_mut() {
+                .ok_or_else(|| anyhow!("mutable cell owner was collected or is unavailable"))?;
+            if let Some(reservation) = task.get_mutable_cell_operation_mut() {
                 reservation.waiting_accesses = reservation.waiting_accesses.saturating_add(1);
                 let listener = reservation.event.listen();
                 drop(task);
@@ -45,8 +45,8 @@ impl<'a> CellTransaction<'a> {
                 tokio::task::block_in_place(|| listener.wait());
                 continue;
             }
-            task.set_stateful_cell_operation(StatefulCellOperation {
-                event: Event::new(move || move || format!("stateful cell transaction ({id})")),
+            task.set_mutable_cell_operation(MutableCellOperation {
+                event: Event::new(move || move || format!("mutable cell transaction ({id})")),
                 waiting_accesses: 0,
             });
             drop(task);
@@ -59,7 +59,7 @@ impl Drop for CellTransaction<'_> {
     fn drop(&mut self) {
         let mut task = self.ctx.task(self.task, TaskDataCategory::All);
         let reservation = task
-            .take_stateful_cell_operation()
+            .take_mutable_cell_operation()
             .expect("owned reservation");
         drop(task);
         reservation.event.notify(usize::MAX);
@@ -69,14 +69,14 @@ impl Drop for CellTransaction<'_> {
 fn check_type(cell: CellId) -> Result<()> {
     let ty = get_value_type(cell.type_id());
     ensure!(
-        ty.stateful && matches!(ty.persistence, ValueTypePersistence::Persistable(..)),
-        "not a persistable stateful cell type"
+        ty.mutable_cell && matches!(ty.persistence, ValueTypePersistence::Persistable(..)),
+        "not a persistable mutable cell type"
     );
     Ok(())
 }
 
 impl TurboTasksBackend {
-    pub(super) fn initialize_stateful_cell_impl(
+    pub(super) fn initialize_mutable_cell_impl(
         &self,
         id: TaskId,
         cell: CellId,
@@ -86,11 +86,11 @@ impl TurboTasksBackend {
         check_type(cell)?;
         ensure!(
             !id.is_transient(),
-            "stateful cells require a persistent owner task"
+            "mutable cells require a persistent owner task"
         );
         let mut transaction = CellTransaction::acquire(self, tt, id)?;
         let mut task = transaction.ctx.task(id, TaskDataCategory::All);
-        // A stateful owner has an external invalidator even without a user-created
+        // An owner of mutable cells has an external invalidator even without a user-created
         // Invalidator handle. Persisting this flag prevents immutable classification.
         task.set_invalidator(true);
         #[cfg(feature = "verify_determinism")]
@@ -103,7 +103,7 @@ impl TurboTasksBackend {
         ensure!(
             task.get_cell_type_max_index(&cell.type_id())
                 .is_none_or(|max| cell.index() >= *max),
-            "existing stateful cell content is unavailable"
+            "existing mutable cell content is unavailable"
         );
         let _ = task.insert_cell_data(cell, value, &get_value_type(cell.type_id()).persistence);
         // Expose the initialized slot before first owner completion, while normal
@@ -117,7 +117,7 @@ impl TurboTasksBackend {
         Ok(())
     }
 
-    pub(super) fn read_stateful_cell_impl(
+    pub(super) fn read_mutable_cell_impl(
         &self,
         id: TaskId,
         cell: CellId,
@@ -127,20 +127,18 @@ impl TurboTasksBackend {
         check_type(cell)?;
         self.assert_not_persistent_calling_transient(reader, id);
         loop {
-            turbo_tasks::assert_not_in_stateful_update();
+            turbo_tasks::assert_not_in_mutable_update();
             let mut ctx = self.execute_context(tt);
             let owner = ctx
                 .try_task(id, TaskDataCategory::All)
-                .ok_or_else(|| anyhow!("stateful cell owner was collected or is unavailable"))?;
+                .ok_or_else(|| anyhow!("mutable cell owner was collected or is unavailable"))?;
             drop(owner);
             let reader = reader.filter(|r| *r != id && self.should_track_dependencies());
             let Some((mut task, reader_task)) = lock_task_and_optional_reader(&mut ctx, id, reader)
             else {
-                return Err(anyhow!(
-                    "stateful cell owner was collected or is unavailable"
-                ));
+                bail!("mutable cell owner was collected or is unavailable");
             };
-            if let Some(reservation) = task.get_stateful_cell_operation_mut() {
+            if let Some(reservation) = task.get_mutable_cell_operation_mut() {
                 reservation.waiting_accesses = reservation.waiting_accesses.saturating_add(1);
                 let listener = reservation.event.listen();
                 drop(task);
@@ -152,12 +150,12 @@ impl TurboTasksBackend {
             ensure!(
                 task.get_cell_type_max_index(&cell.type_id())
                     .is_some_and(|max| cell.index() < *max),
-                "stateful cell was retired or has an invalid index"
+                "mutable cell was retired or has an invalid index"
             );
             let content = task
                 .get_cell_data(&cell)
                 .cloned()
-                .ok_or_else(|| anyhow!("canonical stateful cell content is unavailable"))?;
+                .ok_or_else(|| anyhow!("canonical mutable cell content is unavailable"))?;
             if let Some(mut reader_task) = reader_task {
                 let reader = reader.expect("reader task");
                 let _ = task.add_cell_dependents(CellRef { task: reader, cell });
@@ -171,7 +169,7 @@ impl TurboTasksBackend {
         }
     }
 
-    pub(super) fn mutate_stateful_cell_impl(
+    pub(super) fn mutate_mutable_cell_impl(
         &self,
         id: TaskId,
         cell: CellId,
@@ -184,12 +182,12 @@ impl TurboTasksBackend {
         ensure!(
             task.get_cell_type_max_index(&cell.type_id())
                 .is_some_and(|max| cell.index() < *max),
-            "stateful cell was retired or has an invalid index"
+            "mutable cell was retired or has an invalid index"
         );
         let old = task
             .get_cell_data(&cell)
             .cloned()
-            .ok_or_else(|| anyhow!("canonical stateful cell content is unavailable"))?;
+            .ok_or_else(|| anyhow!("canonical mutable cell content is unavailable"))?;
         drop(task);
         let content = update(old)?;
         // The same owner reservation excludes initialization and completion, so
@@ -198,10 +196,10 @@ impl TurboTasksBackend {
         ensure!(
             task.get_cell_type_max_index(&cell.type_id())
                 .is_some_and(|max| cell.index() < *max),
-            "stateful cell was retired before publication"
+            "mutable cell was retired before publication"
         );
         drop(task);
-        let old = update_stateful_cell(id, cell, Some(content), &mut transaction.ctx);
+        let old = update_mutable_cell(id, cell, Some(content), &mut transaction.ctx);
         drop(transaction);
         // Destructors may call back into turbo-tasks: release both the reservation
         // and snapshot admission before dropping the replaced allocation.

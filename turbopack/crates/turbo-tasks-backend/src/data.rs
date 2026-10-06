@@ -270,16 +270,16 @@ pub enum InProgressState {
 
 transient_traits!(InProgressState);
 
-/// Transient per-owner reservation for stateful cell mutation/initialization/completion.
+/// Transient per-owner reservation for mutable cell mutation/initialization/completion.
 /// The event outlives released shard locks but never survives an admitted operation.
 #[derive(Debug)]
-pub struct StatefulCellOperation {
+pub struct MutableCellOperation {
     pub event: Event,
     /// Cumulative wait registrations during this reservation, for race diagnostics.
     /// Guarded by the same owner lock as the event; never persisted.
     pub waiting_accesses: usize,
 }
-transient_traits!(StatefulCellOperation);
+transient_traits!(MutableCellOperation);
 
 #[derive(Debug)]
 pub struct InProgressCellState {

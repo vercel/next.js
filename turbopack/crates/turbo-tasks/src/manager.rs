@@ -187,19 +187,19 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         index: CellId,
     ) -> Result<TypedCellContent>;
 
-    fn initialize_stateful_cell(
+    fn initialize_mutable_cell(
         &self,
         task: TaskId,
         cell: CellId,
         value: SharedReference,
     ) -> Result<()>;
-    fn read_stateful_cell(
+    fn read_mutable_cell(
         &self,
         task: TaskId,
         cell: CellId,
         reader: Option<TaskId>,
     ) -> Result<SharedReference>;
-    fn mutate_stateful_cell(
+    fn mutate_mutable_cell(
         &self,
         task: TaskId,
         cell: CellId,
@@ -1849,35 +1849,35 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
             .try_read_task_cell(task, index, reader, options, self)
     }
 
-    fn initialize_stateful_cell(
+    fn initialize_mutable_cell(
         &self,
         task: TaskId,
         cell: CellId,
         value: SharedReference,
     ) -> Result<()> {
-        crate::assert_not_in_stateful_update();
+        crate::assert_not_in_mutable_update();
         self.backend
-            .initialize_stateful_cell(task, cell, value, self)
+            .initialize_mutable_cell(task, cell, value, self)
     }
 
-    fn read_stateful_cell(
+    fn read_mutable_cell(
         &self,
         task: TaskId,
         cell: CellId,
         reader: Option<TaskId>,
     ) -> Result<SharedReference> {
-        crate::assert_not_in_stateful_update();
-        self.backend.read_stateful_cell(task, cell, reader, self)
+        crate::assert_not_in_mutable_update();
+        self.backend.read_mutable_cell(task, cell, reader, self)
     }
 
-    fn mutate_stateful_cell(
+    fn mutate_mutable_cell(
         &self,
         task: TaskId,
         cell: CellId,
         update: &mut dyn FnMut(SharedReference) -> Result<SharedReference>,
     ) -> Result<()> {
-        crate::assert_not_in_stateful_update();
-        self.backend.mutate_stateful_cell(task, cell, update, self)
+        crate::assert_not_in_mutable_update();
+        self.backend.mutate_mutable_cell(task, cell, update, self)
     }
 
     fn try_read_own_task_cell(
@@ -1885,7 +1885,7 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         current_task: TaskId,
         index: CellId,
     ) -> Result<TypedCellContent> {
-        crate::assert_not_in_stateful_update();
+        crate::assert_not_in_mutable_update();
         self.backend
             .try_read_own_task_cell(current_task, index, self)
     }
@@ -2208,7 +2208,7 @@ pub fn trait_call(
 }
 
 pub fn turbo_tasks() -> Arc<dyn TurboTasksApi> {
-    crate::assert_not_in_stateful_update();
+    crate::assert_not_in_mutable_update();
     TURBO_TASKS.with(|arc| arc.clone())
 }
 
@@ -2217,12 +2217,12 @@ pub fn turbo_tasks_weak() -> Weak<dyn TurboTasksApi> {
 }
 
 pub fn try_turbo_tasks() -> Option<Arc<dyn TurboTasksApi>> {
-    crate::assert_not_in_stateful_update();
+    crate::assert_not_in_mutable_update();
     TURBO_TASKS.try_with(|arc| arc.clone()).ok()
 }
 
 pub fn with_turbo_tasks<T>(func: impl FnOnce(&Arc<dyn TurboTasksApi>) -> T) -> T {
-    crate::assert_not_in_stateful_update();
+    crate::assert_not_in_mutable_update();
     TURBO_TASKS.with(|arc| func(arc))
 }
 
@@ -2784,7 +2784,7 @@ pub fn find_cell_by_type<T: VcValueType>() -> CurrentCellRef {
 }
 
 pub fn find_cell_by_id(ty: ValueTypeId) -> CurrentCellRef {
-    crate::assert_not_in_stateful_update();
+    crate::assert_not_in_mutable_update();
     CURRENT_TASK_STATE.with(|ts| {
         let current_task = current_task("celling turbo_tasks values");
         let mut ts = ts.write().unwrap();

@@ -22,7 +22,7 @@ enum CellMode {
     KeyedCompare,
     Compare,
     New,
-    Stateful,
+    Mutable,
 }
 
 impl Parse for CellMode {
@@ -40,10 +40,10 @@ impl TryFrom<LitStr> for CellMode {
             "keyed" => Ok(CellMode::KeyedCompare),
             "compare" => Ok(CellMode::Compare),
             "new" => Ok(CellMode::New),
-            "stateful" => Ok(CellMode::Stateful),
+            "mutable" => Ok(CellMode::Mutable),
             _ => Err(Error::new_spanned(
                 &lit,
-                "expected \"new\", \"keyed\", \"compare\", or \"stateful\"",
+                "expected \"new\", \"keyed\", \"compare\", or \"mutable\"",
             )),
         }
     }
@@ -277,8 +277,8 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         task_input,
     } = parse_macro_input!(args as ValueArguments);
 
-    let stateful = matches!(cell_mode, CellMode::Stateful);
-    if stateful
+    let mutable = matches!(cell_mode, CellMode::Mutable);
+    if mutable
         && (transparent
             || matches!(
                 serialization_mode,
@@ -287,7 +287,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     {
         return syn::Error::new(
             proc_macro2::Span::call_site(),
-            "cell = \"stateful\" requires a non-transparent persistable value",
+            "cell = \"mutable\" requires a non-transparent persistable value",
         )
         .to_compile_error()
         .into();
@@ -428,7 +428,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     };
 
     let cell_mode = match cell_mode {
-        CellMode::Stateful => quote! { turbo_tasks::VcCellStatefulMode<#ident> },
+        CellMode::Mutable => quote! { turbo_tasks::VcCellMutableMode<#ident> },
         CellMode::New => quote! {
             turbo_tasks::VcCellNewMode<#ident>
         },
@@ -443,13 +443,13 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         },
     };
 
-    let cell_struct = if stateful {
+    let cell_struct = if mutable {
         quote! {
-            /// Initializes a task-owned experimental stateful cell on first creation.
+            /// Initializes a task-owned experimental mutable cell on first creation.
             /// Subsequent executions preserve its canonical value. Identity follows
-            /// per-type construction order; see [`StateCell`][turbo_tasks::StateCell].
-            pub fn stateful_cell(self) -> turbo_tasks::StateCell<Self> {
-                turbo_tasks::StateCell::cell_private(self)
+            /// per-type construction order; see [`MutableCell`][turbo_tasks::MutableCell].
+            pub fn mutable_cell(self) -> turbo_tasks::MutableCell<Self> {
+                turbo_tasks::MutableCell::cell_private(self)
             }
         }
     } else {

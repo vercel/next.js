@@ -21,10 +21,10 @@ use crate::{
     data::CellRef,
 };
 
-/// Explicit stateful replacement or retirement: unlike deterministic task
+/// Explicit mutable-cell replacement or retirement: unlike deterministic task
 /// recomputation, every commit invalidates. The caller holds the owner's reservation
 /// until this function (including aggregation) returns. `None` retires the slot.
-pub fn update_stateful_cell(
+pub fn update_mutable_cell(
     task_id: TaskId,
     cell: CellId,
     content: Option<turbo_tasks::SharedReference>,
@@ -58,7 +58,7 @@ pub fn update_stateful_cell(
     drop(task);
     ctx.prepare_tasks(
         dependents.keys().map(|&id| (id, TaskDataCategory::All)),
-        "invalidate stateful cell dependents",
+        "invalidate mutable cell dependents",
     );
     invalidate_cell_dependents(
         CellRef {

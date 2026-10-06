@@ -36,11 +36,11 @@ There are a few design patterns that are commonly used with Turbo Tasks:
 
 [Tokio task]: https://tokio.rs/tokio/tutorial/spawning#tasks
 
-## Experimental Stateful Cells
+## Experimental Mutable Cells
 
-`#[turbo_tasks::value(cell = "stateful", operation)]` opts a persistable,
+`#[turbo_tasks::value(cell = "mutable", operation)]` opts a persistable,
 non-transparent `Clone + OperationValue` payload into task-owned mutable storage.
-The generated `value.stateful_cell()` returns a [`StateCell<T>`][crate::StateCell],
+The generated `value.mutable_cell()` returns a [`MutableCell<T>`][crate::MutableCell],
 not a `Vc<T>`; ordinary `.cell()` and `.resolved_cell()` constructors are unavailable
 for this mode. Existing values and `State<T>` users are unchanged.
 

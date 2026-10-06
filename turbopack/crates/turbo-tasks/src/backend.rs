@@ -702,8 +702,8 @@ pub trait Backend: Sized + Sync + Send {
         turbo_tasks: &TurboTasks<Self>,
     );
 
-    /// Initialize a canonical first-value-wins stateful cell.
-    fn initialize_stateful_cell(
+    /// Initialize a canonical first-value-wins mutable cell.
+    fn initialize_mutable_cell(
         &self,
         task: TaskId,
         cell: CellId,
@@ -711,8 +711,8 @@ pub trait Backend: Sized + Sync + Send {
         turbo_tasks: &TurboTasks<Self>,
     ) -> Result<()>;
 
-    /// Synchronously read canonical stateful content with optional normal cell tracking.
-    fn read_stateful_cell(
+    /// Synchronously read canonical mutable content with optional normal cell tracking.
+    fn read_mutable_cell(
         &self,
         task: TaskId,
         cell: CellId,
@@ -721,7 +721,7 @@ pub trait Backend: Sized + Sync + Send {
     ) -> Result<SharedReference>;
 
     /// Serialize clone/edit/publication as one backend operation. The callback runs once.
-    fn mutate_stateful_cell(
+    fn mutate_mutable_cell(
         &self,
         task: TaskId,
         cell: CellId,

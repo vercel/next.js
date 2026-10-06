@@ -38,6 +38,7 @@ mod manager;
 pub mod mapped_read_ref;
 mod marker_trait;
 pub mod message_queue;
+mod mutable_cell;
 mod native_function;
 mod once_map;
 mod output;
@@ -54,8 +55,7 @@ mod serialization_invalidation;
 pub mod small_duration;
 mod spawn;
 mod state;
-mod state_cell;
-pub use state_cell::{StateCell, assert_not_in_stateful_update};
+pub use mutable_cell::{MutableCell, assert_not_in_mutable_update};
 pub mod task;
 #[cfg(feature = "task_dirty_cause")]
 mod task_dirty_cause;
@@ -130,7 +130,7 @@ pub use crate::{
         RawVc, RawVcUnpacked, ReadRawVcFuture, ReadVcFuture, ResolveOperationVcFuture,
         ResolveRawVcFuture, ResolveVcFuture, ResolvedVc, ToResolvedVcFuture, Upcast, UpcastStrict,
         ValueDefault, Vc, VcCast, VcCellCompareMode, VcCellHashedCompareMode,
-        VcCellKeyedCompareMode, VcCellNewMode, VcCellStatefulMode, VcDefaultRead, VcRead,
+        VcCellKeyedCompareMode, VcCellMutableMode, VcCellNewMode, VcDefaultRead, VcRead,
         VcTransparentRead, VcValueTrait, VcValueTraitCast, VcValueType, VcValueTypeCast,
     },
 };
