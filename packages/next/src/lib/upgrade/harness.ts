@@ -124,7 +124,11 @@ async function chooseOption(
       valueRenderer: (value: string, selected: boolean) =>
         selected ? cyan(bold(value)) : value,
     })
-    return typeof id === 'string' ? id : undefined
+    if (typeof id === 'string') {
+      Log.bootstrap(`  ${cyan('❯')} ${cyan(bold(values[id]))}`)
+      return id
+    }
+    return undefined
   } catch (error) {
     if (error !== undefined) {
       throw error
