@@ -47,8 +47,8 @@ Uncached [`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Window/fet
     href="#read-the-data-on-the-client"
     snippets={[
       { text: "'use client'" },
-      { text: "use(browser('Read cookie'))", highlight: true },
-      { text: 'const cart = document.cookie.match(/cart=(\\d+)/)' },
+      { text: 'use(browser())', highlight: true },
+      { text: 'const value = readBrowserData()' },
     ]}
   />
 </FixCardGrid>

@@ -31,9 +31,9 @@ import {
 } from './instant-guidance-data'
 
 describe('static route explanations', () => {
-  it('matches the fully static build guidance', () => {
+  it('describes the static requirement', () => {
     expect(EXPLANATIONS['static-route']).toBe(
-      'This route is configured to be fully static, but data prevents it from being fully prerendered.'
+      "This data access requires request-time work, which conflicts with the route's static requirement."
     )
     expect(EXPLANATIONS['static-metadata']).toBe(
       'This route is configured to be fully static, but data prevents its metadata from being fully prerendered.'
