@@ -45,7 +45,6 @@ type RouteHeader = {
     id: number
     kind: string
     trigger_module_index?: number
-    unjoined_trigger_ident?: string
     output_file_indices: number[]
   }>
 }
@@ -290,12 +289,6 @@ function groupRecords(
     seen.add(group.id)
     let trigger_module_ident: string | null = null
     let trigger_join = 'none'
-    if (
-      group.trigger_module_index !== undefined &&
-      group.unjoined_trigger_ident !== undefined
-    ) {
-      throw new Error('Conflicting analyzer group triggers')
-    }
     if (group.trigger_module_index !== undefined) {
       requireIndex(
         group.trigger_module_index,
@@ -304,11 +297,6 @@ function groupRecords(
       )
       trigger_module_ident = modules.modules[group.trigger_module_index].ident
       trigger_join = 'joined'
-    } else if (group.unjoined_trigger_ident !== undefined) {
-      if (typeof group.unjoined_trigger_ident !== 'string')
-        throw new Error('Invalid unjoined analyzer trigger')
-      trigger_module_ident = group.unjoined_trigger_ident
-      trigger_join = 'unjoined'
     }
     return {
       id: group.id,

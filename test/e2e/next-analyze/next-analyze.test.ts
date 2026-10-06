@@ -33,7 +33,7 @@ type ChunkGraphHeader = {
   output_file_module_coverage: Array<'exact' | 'unsupported' | 'not_a_chunk'>
   chunk_groups: Array<{
     id: number
-    kind: 'bootstrap' | 'render_dependent'
+    kind: 'bootstrap' | 'render_dependent' | 'async' | 'worker'
     trigger_module_index?: number
     output_file_indices: number[]
   }>
@@ -327,6 +327,74 @@ describe('next analyze', () => {
         .flatMap((record) => record.modules)
         .some((ident: string) => ident.endsWith('async loader)'))
     ).toBe(false)
+
+    const modulesByIdent = new Map(
+      records
+        .filter((record) => record.type === 'module')
+        .map((record) => [record.ident, record])
+    )
+    const allAsyncDependencies = new Set(
+      [...modulesByIdent.values()].flatMap(
+        (module) => module.dependencies.async
+      )
+    )
+    const asyncGroups = records.filter(
+      (record) => record.type === 'group' && record.kind === 'async'
+    )
+    for (const group of records.filter(
+      (record) =>
+        record.type === 'group' &&
+        (record.kind === 'async' || record.kind === 'worker')
+    )) {
+      expect(group.trigger_join).toBe('joined')
+      expect(
+        records.some(
+          (output) =>
+            output.type === 'output' &&
+            output.route === group.route &&
+            output[
+              group.kind === 'async' ? 'async_loaders' : 'modules'
+            ].includes(group.trigger_module_ident)
+        )
+      ).toBe(true)
+    }
+    expect(asyncGroups.length).toBeGreaterThan(0)
+    for (const record of asyncGroups) {
+      expect(record.trigger_join).toBe('joined')
+      const target = modulesByIdent.get(record.trigger_module_ident)
+      expect(target).toBeDefined()
+      expect(record.trigger_module_ident).toBe(target.ident)
+      expect(allAsyncDependencies.has(target.ident)).toBe(true)
+    }
+    const expectedTargets = [
+      ...asyncTargets.filter(
+        (target) =>
+          target.ident.includes('next/dynamic entry') ||
+          target.path.endsWith('/app/async-target.ts')
+      ),
+      ...[...modulesByIdent.values()].filter(
+        (module) =>
+          module.path.endsWith('/app/lazy.ts') &&
+          module.ident.includes('[app-client]')
+      ),
+      ...[...modulesByIdent.values()].filter(
+        (module) =>
+          module.ident.includes('node:os') &&
+          module.ident.includes('[external]')
+      ),
+    ]
+    expect(
+      expectedTargets.some((target) => target.path.endsWith('/app/lazy.ts'))
+    ).toBe(true)
+    expect(
+      expectedTargets.some((target) => target.ident.includes('node:os'))
+    ).toBe(true)
+    for (const target of expectedTargets) {
+      expect(allAsyncDependencies.has(target.ident)).toBe(true)
+      expect(
+        asyncGroups.some((group) => group.trigger_module_ident === target.ident)
+      ).toBe(true)
+    }
 
     const filtered = await next.runCommand([
       'analyze',
@@ -672,6 +740,14 @@ describe('next analyze', () => {
               expect(row).toEqual([])
             }
           }
+          for (const group of header.chunk_groups) {
+            if (group.kind === 'worker') {
+              expect(group.trigger_module_index).toBeDefined()
+              expect(
+                rows.some((row) => row.includes(group.trigger_module_index!))
+              ).toBe(true)
+            }
+          }
         }
         expect(
           routeGraphs.some(({ header, binary }) => {
@@ -732,11 +808,17 @@ describe('next analyze', () => {
           )
         ).toBe(true)
         expect(
+          appGraph.chunk_groups.some((group) => group.kind === 'worker')
+        ).toBe(true)
+        expect(
           pagesGraph.chunk_groups.some((group) => group.kind === 'bootstrap')
         ).toBe(true)
         expect(
           apiGraph.chunk_groups.some((group) => group.kind === 'bootstrap')
         ).toBe(false)
+        expect(
+          appGraph.chunk_groups.some((group) => group.kind === 'async')
+        ).toBe(true)
         const appRows = readRows(
           routeGraphs[0].binary,
           appGraph.output_file_modules
@@ -746,6 +828,11 @@ describe('next analyze', () => {
             row.some((index) => modules[index].ident.includes('client-entry'))
           )
         ).toBe(true)
+        expect(
+          appRows.some((row) =>
+            row.some((index) => modules[index].ident.includes('/lazy'))
+          )
+        ).toBe(true)
         expect(appGraph.output_file_module_coverage).toContain('exact')
         const groupedFileIndices = appGraph.chunk_groups.flatMap(
           (group) => group.output_file_indices
@@ -753,6 +840,14 @@ describe('next analyze', () => {
         expect(new Set(groupedFileIndices).size).toBeLessThan(
           groupedFileIndices.length
         )
+        for (const index of appGraph.chunk_groups
+          .filter((group) => group.kind === 'worker')
+          .flatMap((group) => group.output_file_indices)) {
+          expect(appGraph.output_file_module_coverage[index]).toBe(
+            'not_a_chunk'
+          )
+          expect(appRows[index]).toEqual([])
+        }
         expect(
           appRows.some(
             (row, index) =>

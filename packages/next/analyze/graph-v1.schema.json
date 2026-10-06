@@ -274,11 +274,11 @@
         },
         "trigger_module_ident": {
           "type": ["string", "null"],
-          "description": "Exact trigger identity when joined or explicitly unjoined."
+          "description": "Exact trigger identity, or null when absent. For async groups, this is the joined dynamically imported target module's ident. Outputs in the same route whose async_loaders contain this trigger can load the group outputs. For worker groups, this is the joined registering module or its emitted synchronous ancestor. Outputs whose modules contain this trigger can load the worker group outputs. Other kinds retain their bootstrap or render-dependent trigger semantics."
         },
         "trigger_join": {
-          "enum": ["joined", "unjoined", "none"],
-          "description": "Whether the trigger identity joined the indexed snapshot modules, is unjoined, or absent."
+          "enum": ["joined", "none"],
+          "description": "Whether the group has an indexed trigger or no trigger."
         },
         "outputs": {
           "type": "array",

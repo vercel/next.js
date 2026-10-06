@@ -1,4 +1,5 @@
-//! Enumerate emitted chunk modules against this snapshot's ordered module index.
+//! Enumerate emitted chunk modules and typed loader candidates against this
+//! snapshot's ordered module index. Unknown wrappers remain unsupported.
 
 use anyhow::{Context, Result, anyhow};
 use rustc_hash::FxHashMap;
@@ -11,17 +12,18 @@ use turbopack_browser::ecmascript::{
 use turbopack_core::{
     chunk::{Chunk, ChunkItem},
     module::Module,
-    output::OutputAsset,
+    output::{OutputAsset, OutputAssetsReference},
 };
 use turbopack_css::chunk::CssChunk;
 use turbopack_ecmascript::{
     async_chunk::module::AsyncLoaderModule,
     chunk::{EcmascriptChunk, EcmascriptChunkItemOrBatchWithAsyncInfo},
+    manifest::{chunk_asset::ManifestAsyncModule, loader_module::ManifestLoaderModule},
     single_file_ecmascript_output::SingleFileEcmascriptOutput,
 };
 use turbopack_nodejs::{EcmascriptBuildNodeChunk, EcmascriptBuildNodeRuntimeChunk};
 
-use crate::analyze::{AnalyzeModuleIndex, AnalyzeOutputFileCoverage};
+use crate::analyze::{AnalyzeModuleIndex, AnalyzeOutputFileCoverage, ChunkLoadCandidate};
 
 async fn insert_chunk_item(
     module: Vc<Box<dyn Module>>,
@@ -71,23 +73,65 @@ fn insert_chunk_item_ident(
     Ok(())
 }
 
-/// Get exact constituent module identities only for chunk types whose items we
-/// can enumerate. Empty rows marked unsupported must not be treated as empty chunks.
+/// Only a loader or manifest item supplies a typed async relationship;
+/// generic output references do not establish an async load.
+async fn chunk_item_load_candidates(
+    item: ResolvedVc<Box<dyn turbopack_ecmascript::chunk::EcmascriptChunkItem>>,
+    index: &AnalyzeModuleIndex,
+    source: u32,
+) -> Result<Vec<ChunkLoadCandidate>> {
+    let module = item.module().to_resolved().await?;
+    let trigger = if let Some(loader) = ResolvedVc::try_downcast_type::<AsyncLoaderModule>(module) {
+        loader.await?.inner
+    } else if let Some(manifest) = ResolvedVc::try_downcast_type::<ManifestAsyncModule>(module) {
+        manifest.await?.inner
+    } else if let Some(loader) = ResolvedVc::try_downcast_type::<ManifestLoaderModule>(module) {
+        loader.await?.manifest.await?.inner
+    } else {
+        return Ok(vec![]);
+    };
+    // Use the same typed target as the module graph's async dependency, including
+    // next/dynamic entry wrappers. Synthetic loader identities do not join it.
+    let ident = trigger.ident().to_string().owned().await?;
+    let trigger_module_index = *index.by_ident.get(&ident).ok_or_else(|| {
+        anyhow!("Async group trigger {ident} is missing from the analyzer module index")
+    })?;
+    let references = item.references().await?;
+    let assets = references.assets.await?;
+    Ok(assets
+        .iter()
+        .copied()
+        .map(|target| ChunkLoadCandidate {
+            source,
+            target,
+            trigger_module_index,
+        })
+        .collect())
+}
+
+/// Enumerate known browser/Node.js JS and CSS chunk items; unknown wrappers remain unsupported.
 pub(super) async fn output_chunk_modules(
     asset: ResolvedVc<Box<dyn OutputAsset>>,
     filename: &str,
     module_index: &AnalyzeModuleIndex,
-) -> Result<(Vec<u32>, AnalyzeOutputFileCoverage, Vec<u32>)> {
+    output_file_index: u32,
+) -> Result<(
+    Vec<u32>,
+    AnalyzeOutputFileCoverage,
+    Vec<ChunkLoadCandidate>,
+    Vec<u32>,
+)> {
     if ResolvedVc::try_downcast_type::<EcmascriptBrowserRuntimeChunk>(asset).is_some()
         || ResolvedVc::try_downcast_type::<EcmascriptBuildNodeRuntimeChunk>(asset).is_some()
         || ResolvedVc::try_downcast_type::<SingleFileEcmascriptOutput>(asset).is_some()
         || ResolvedVc::try_downcast_type::<EcmascriptBrowserSingleEntryChunk>(asset).is_some()
         || ResolvedVc::try_downcast_type::<EcmascriptBrowserWorkerEntrypoint>(asset).is_some()
     {
-        return Ok((vec![], AnalyzeOutputFileCoverage::NotAChunk, vec![]));
+        return Ok((vec![], AnalyzeOutputFileCoverage::NotAChunk, vec![], vec![]));
     }
     let mut indices = FxIndexSet::default();
     let mut async_loaders = FxIndexSet::default();
+    let mut candidates = Vec::new();
     let mut enumerated = true;
     let ecmascript_content = if let Some(browser_chunk) =
         ResolvedVc::try_downcast_type::<EcmascriptBrowserChunk>(asset)
@@ -113,6 +157,14 @@ pub(super) async fn output_chunk_modules(
                     )
                     .await
                     .with_context(|| format!("Analyzing output {filename}"))?;
+                    candidates.extend(
+                        chunk_item_load_candidates(
+                            item.chunk_item,
+                            module_index,
+                            output_file_index,
+                        )
+                        .await?,
+                    );
                 }
                 EcmascriptChunkItemOrBatchWithAsyncInfo::Batch(batch) => {
                     for item in &batch.await?.chunk_items {
@@ -124,6 +176,14 @@ pub(super) async fn output_chunk_modules(
                         )
                         .await
                         .with_context(|| format!("Analyzing output {filename}"))?;
+                        candidates.extend(
+                            chunk_item_load_candidates(
+                                item.chunk_item,
+                                module_index,
+                                output_file_index,
+                            )
+                            .await?,
+                        );
                     }
                 }
             }
@@ -144,7 +204,7 @@ pub(super) async fn output_chunk_modules(
         // Other emitted JS/CSS wrappers cannot enumerate their module members.
         enumerated = false;
     } else {
-        return Ok((vec![], AnalyzeOutputFileCoverage::NotAChunk, vec![]));
+        return Ok((vec![], AnalyzeOutputFileCoverage::NotAChunk, vec![], vec![]));
     }
     let coverage = if enumerated {
         AnalyzeOutputFileCoverage::Exact
@@ -154,6 +214,7 @@ pub(super) async fn output_chunk_modules(
     Ok((
         indices.into_iter().collect(),
         coverage,
+        candidates,
         async_loaders.into_iter().collect(),
     ))
 }

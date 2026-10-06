@@ -1,3 +1,4 @@
-export function GET() {
-  return Response.json({ ok: true })
+export async function GET() {
+  const { platform } = await import('node:os')
+  return Response.json({ ok: true, platform: platform() })
 }

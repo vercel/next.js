@@ -7,6 +7,7 @@ const DynamicTarget = dynamic(() => import('./dynamic-target'))
 
 export default function ClientEntry() {
   const [count, setCount] = useState(0)
+  const [message, setMessage] = useState('not loaded')
   useEffect(() => {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register(new URL('./pwa', import.meta.url))
@@ -24,6 +25,14 @@ export default function ClientEntry() {
         Load async target
       </button>
       <DynamicTarget />
+      <button
+        onClick={() =>
+          import('./lazy').then((module) => setMessage(module.message))
+        }
+      >
+        Load on demand
+      </button>
+      <span>{message}</span>
     </>
   )
 }
