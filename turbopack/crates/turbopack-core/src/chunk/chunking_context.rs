@@ -63,7 +63,7 @@ pub enum SourceMapsType {
     /// Ignores existing input source maps, but writes source maps for output files.
     Partial,
     /// Computes mappings for analysis without writing source maps for output files.
-    Internal,
+    AnalyzeOnly,
     /// Ignores the existence of source maps and does not write source maps for output files.
     None,
 }
@@ -378,12 +378,12 @@ pub trait ChunkingContext {
     fn reference_chunk_source_maps(self: Vc<Self>, chunk: Vc<Box<dyn OutputAsset>>) -> Vc<bool>;
 
     /// Whether to publish a chunk's source map and reference it from the output.
-    /// Internal mappings may still be computed for analysis when this is false.
+    /// Analyze-only mappings may still be computed when this is false.
     #[turbo_tasks::function]
     fn publish_chunk_source_maps(self: Vc<Self>, chunk: Vc<Box<dyn OutputAsset>>) -> Vc<bool>;
 
     /// Keep generated PURE markers in the emitted code. Without source maps,
-    /// the SWC printer drops synthesized PURE spans; internal mappings must
+    /// the SWC printer drops synthesized PURE spans; analyze-only mappings must
     /// preserve that output behavior even while retaining source attribution.
     #[turbo_tasks::function]
     fn emit_pure_import_annotations(self: Vc<Self>) -> Vc<bool>;
