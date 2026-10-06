@@ -270,7 +270,7 @@ export function createNonPrerenderableBodyErrorInStaticRoute(
 ): Error {
   return new Error(
     `Route "${route}": Next.js encountered uncached or runtime data on a route that must be fully static.\n\n` +
-      `This route is configured to be fully static, but uncached or runtime data requires request-time work.\n\n` +
+      `This route is configured to be fully static, but the data requires request-time work.\n\n` +
       `Ways to fix this:\n` +
       `  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)\n` +
       `  - [remove] Remove the data access\n` +
@@ -305,7 +305,7 @@ export function createNonPrerenderableMetadataErrorInStaticRoute(
 ): Error {
   return new Error(
     `Route "${route}": Next.js encountered uncached or runtime data in \`generateMetadata()\` on a route that must be fully static.\n\n` +
-      `This route is configured to be fully static, but uncached or runtime data requires request-time work.\n\n` +
+      `This route is configured to be fully static, but the data requires request-time work.\n\n` +
       `Ways to fix this:\n` +
       `  - [cache] For uncached data: cache the data used by \`generateMetadata()\` with \`"use cache"\` (does not apply to \`connection()\`)\n` +
       `  - [static] Replace the dynamic data used by \`generateMetadata()\` with static data\n\n` +
@@ -339,7 +339,7 @@ export function createNonPrerenderableViewportErrorInStaticRoute(
 ): Error {
   return new Error(
     `Route "${route}": Next.js encountered uncached or runtime data in \`generateViewport()\` on a route that must be fully static.\n\n` +
-      `This route is configured to be fully static, but uncached or runtime data requires request-time work.\n\n` +
+      `This route is configured to be fully static, but the data requires request-time work.\n\n` +
       `Ways to fix this:\n` +
       `  - [cache] For uncached data: cache the data used by \`generateViewport()\` with \`"use cache"\` (does not apply to \`connection()\`)\n` +
       `  - [static] Replace the dynamic data used by \`generateViewport()\` with static data\n\n` +

@@ -1434,7 +1434,7 @@ export function registerHeadAndReportingTests(
               expect(error).toMatchInlineSnapshot(`
                "Error: Route "/shells/ensure-static/navigation/session-data-without-suspense": Next.js encountered uncached or runtime data on a route that must be fully static.
 
-               This route is configured to be fully static, but uncached or runtime data requires request-time work.
+               This route is configured to be fully static, but the data requires request-time work.
 
                Ways to fix this:
                  - [cache] For uncached data (\`fetch\`, database calls): cache the access with \`"use cache"\` (does not apply to \`connection()\`)
