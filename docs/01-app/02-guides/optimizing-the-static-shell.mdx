@@ -42,8 +42,6 @@ Optimize the static shell for /[team]/settings using the next-cache-components-o
 
 Enable [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) and resolve the route's blocking validation errors first. For the migration workflow, see [Migrating to Cache Components](/docs/app/guides/migrating-to-cache-components).
 
-For example, request-time work outside `<Suspense>` causes `next build` to report that the route encountered uncached or runtime data during prerendering. Resolve these errors before optimizing which UI appears in the static shell.
-
 ```ts filename="next.config.ts" highlight={4}
 import type { NextConfig } from 'next'
 

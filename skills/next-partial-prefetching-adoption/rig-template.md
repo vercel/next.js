@@ -35,8 +35,8 @@ the process listening on the recorded port before the next build.
 ### Testing API
 
 An `instant()` test against a production build requires
-`experimental.exposeTestingApiInProductionBuild`. Gate it so real production
-builds do not expose the API:
+[`experimental.exposeTestingApiInProductionBuild`](https://nextjs.org/docs/app/api-reference/config/next-config-js/exposeTestingApiInProductionBuild).
+Gate it so real production builds do not expose the API:
 
 ```ts filename="next.config.ts" highlight={3,8-10}
 import type { NextConfig } from 'next'
