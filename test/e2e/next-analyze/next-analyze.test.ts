@@ -565,7 +565,7 @@ describe('next analyze', () => {
       readFileSync(path.join(staticDir, file))
     )
 
-    const result = await next.build({ args: ['--experimental-analyze'] })
+    const result = await next.build({ args: ['--analyze'] })
     expect(result.exitCode).toBe(0)
     expect(assets()).toEqual(normalAssets)
     for (const [index, file] of normalAssets.entries()) {
@@ -606,9 +606,7 @@ describe('next analyze', () => {
       const normalContents = normalFiles.map((file) =>
         readFileSync(path.join(staticDir, file))
       )
-      expect(
-        (await next.build({ args: ['--experimental-analyze'] })).exitCode
-      ).toBe(0)
+      expect((await next.build({ args: ['--analyze'] })).exitCode).toBe(0)
       expect(files()).toEqual(normalFiles)
       for (const [index, file] of normalFiles.entries()) {
         expect(readFileSync(path.join(staticDir, file))).toEqual(
@@ -618,6 +616,21 @@ describe('next analyze', () => {
     } finally {
       await next.patchFile('next.config.js', originalConfig)
     }
+  }, 180_000)
+
+  it('advertises --analyze while accepting the legacy build flag', async () => {
+    const help = await next.runCommand(['build', '--help'])
+    expect(help.exitCode).toBe(0)
+    expect(help.stdout).toContain('--analyze')
+    expect(help.stdout).not.toContain('--experimental-analyze')
+
+    const result = await next.build({ args: ['--experimental-analyze'] })
+    expect(result.exitCode).toBe(0)
+    expect(
+      existsSync(
+        path.join(next.testDir, '.next/diagnostics/analyze/data/analyze.data')
+      )
+    ).toBe(true)
   }, 180_000)
   ;['-o', '--output'].forEach((flag) => {
     describe(`with ${flag} flag`, () => {

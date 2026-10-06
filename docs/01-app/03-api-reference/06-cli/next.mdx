@@ -99,7 +99,7 @@ The following options are available for the `next build` command:
 | `[directory]`                      | A directory on which to build the application. If not provided, the current directory will be used.                                           |
 | `--turbopack`                      | Force enable [Turbopack](/docs/app/api-reference/turbopack) (enabled by default). Also available as `--turbo`.                                |
 | `--webpack`                        | Build using the bundled Webpack.                                                                                                              |
-| `--analyze`                        | Generate bundle analysis data for the interactive analyzer during a Turbopack build.                                                          |
+| `--analyze`                        | Build with Turbopack and write bundle analysis to `.next/diagnostics/analyze`. Does not publish additional browser source maps.               |
 | `-d` or `--debug`                  | Enables a more verbose build output. With this flag enabled additional build output like rewrites, redirects, and headers will be shown.      |
 | `--profile`                        | Enables production [profiling for React](https://react.dev/reference/react/Profiler).                                                         |
 | `--no-mangling`                    | Disables [mangling](https://en.wikipedia.org/wiki/Name_mangling). This may affect performance and should only be used for debugging purposes. |
