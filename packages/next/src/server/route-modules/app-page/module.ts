@@ -24,6 +24,7 @@ import type { ServerComponentsHmrCache } from '../../response-cache'
 import type { OpaqueFallbackRouteParams } from '../../request/fallback-params'
 import { PrerenderManifestMatcher } from './helpers/prerender-manifest-matcher'
 import type { DeepReadonly } from '../../../shared/lib/deep-readonly'
+import type { ParsedRequestHeaders } from './parse-request-headers'
 import {
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
@@ -91,6 +92,7 @@ export interface AppPageRouteHandlerContext extends RouteModuleHandleContext {
   fallbackRouteParams: OpaqueFallbackRouteParams | null
   renderOpts: RenderOpts
   dev: DevRenderContext | undefined
+  parsedRequestHeaders: ParsedRequestHeaders
   sharedContext: AppSharedContext
 }
 
@@ -187,7 +189,8 @@ export class AppPageRouteModule extends RouteModule<
         : context.renderOpts,
       context.dev,
       context.sharedContext,
-      context.routeMatch
+      context.routeMatch,
+      context.parsedRequestHeaders
     )
   }
 
@@ -205,7 +208,8 @@ export class AppPageRouteModule extends RouteModule<
       context.renderOpts,
       undefined,
       context.sharedContext,
-      context.routeMatch
+      context.routeMatch,
+      context.parsedRequestHeaders
     )
   }
 

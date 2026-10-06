@@ -11,7 +11,7 @@ import {
 } from './future-defaults'
 
 type UpgradePreparation =
-  | { status: 'unaffected'; reason: string }
+  | { status: 'unaffected' | 'blocked' | 'unknown'; reason: string }
   | {
       status: 'ready'
       installedVersion: string
@@ -30,7 +30,7 @@ export async function prepareUpgrade(
     targetRequest !== 'experimental-future'
   ) {
     throw new Error(
-      `Unsupported AI upgrade type ${JSON.stringify(targetRequest)}. Expected "security", "latest", or "experimental-future".`
+      `Unsupported agent upgrade type ${JSON.stringify(targetRequest)}. Expected "security", "latest", or "experimental-future".`
     )
   }
 
@@ -51,9 +51,6 @@ export async function prepareUpgrade(
     installedVersion,
     targetRequest
   )
-  if (upgrade.status === 'blocked' || upgrade.status === 'unknown') {
-    throw new Error(upgrade.reason)
-  }
   if (upgrade.status !== 'ready' || targetRequest !== 'experimental-future') {
     return upgrade
   }
@@ -84,10 +81,7 @@ export type UpgradeAssessment = {
   // null means advisory assessment is unsupported for this release channel.
   affected: boolean | null
   reference: string | null
-  upgrade:
-    | UpgradePreparation
-    | { status: 'blocked'; reason: string }
-    | { status: 'unknown'; reason: string }
+  upgrade: UpgradePreparation
 }
 
 // TODO: Cache assessments briefly by installed version, policy, and resolved
@@ -104,7 +98,7 @@ export async function getUpgradeAssessment(
   const channel = getPrereleaseChannel(installedVersion)
   if (semver.prerelease(installedVersion) && !channel) {
     throw new Error(
-      'AI upgrades are not available for this prerelease version of Next.js.'
+      'Agent upgrades are not available for this prerelease version of Next.js.'
     )
   }
   if (channel && (policy === 'security' || onlyIfAffected)) {
@@ -113,7 +107,7 @@ export async function getUpgradeAssessment(
       reference: null,
       upgrade: {
         status: 'blocked',
-        reason: `The installed Next.js version (${installedVersion}) is a ${channel} prerelease. Security advisories target stable versions, and prereleases do not reliably follow stable version ordering, so an advisory could be a false positive. To upgrade to the latest ${channel === 'canary' ? 'canary' : 'stable'} release, run this command from the app's directory:\n\nnpx next@canary upgrade --ai=latest`,
+        reason: `The installed Next.js version (${installedVersion}) is a ${channel} prerelease. Security advisories target stable versions, and prereleases do not reliably follow stable version ordering, so an advisory could be a false positive. To upgrade to the latest ${channel === 'canary' ? 'canary' : 'stable'} release, run this command from the app's directory:\n\nnpx next@canary upgrade --agent=latest`,
       },
     }
   }
@@ -123,7 +117,7 @@ export async function getUpgradeAssessment(
       reference: null,
       upgrade: {
         status: 'blocked',
-        reason: `Future Defaults upgrades are not supported for Next.js ${installedVersion}. To upgrade to the latest stable release, run this command from the app's directory:\n\nnpx next@canary upgrade --ai=latest`,
+        reason: `Future Defaults upgrades are not supported for Next.js ${installedVersion}. To upgrade to the latest stable release, run this command from the app's directory:\n\nnpx next@canary upgrade --agent=latest`,
       },
     }
   }

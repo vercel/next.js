@@ -1,5 +1,5 @@
 export { default } from '../../param-page'
-export const unstable_ensureStatic = 'navigation'
+export const ensureStatic = 'navigation'
 
 export async function unstable_generateParamMatching() {
   return { top: 'blocking' }

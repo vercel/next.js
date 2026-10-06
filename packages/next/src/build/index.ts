@@ -1,4 +1,3 @@
-import type { NudgeKind } from '../lib/upgrade/nudge'
 import {
   getRouteCacheKey,
   ROUTE_CACHE_DIRECTORY,
@@ -131,7 +130,7 @@ import { PAGE_TYPES } from '../lib/page-types'
 import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
-import createSpinner from './spinner'
+import createSpinner, { finishSpinner } from './spinner'
 import { trace, flushAllTraces, setGlobal, type Span } from '../trace'
 import { writeAnalyzeSnapshot } from './analyze/snapshot'
 import { writeRouteBundleStats } from './route-bundle-stats'
@@ -211,7 +210,7 @@ import {
   type ConfiguredExperimentalFeature,
 } from '../server/lib/app-info-log'
 import type { NextEnabledDirectories } from '../server/base-server'
-import { hasCustomExportOutput } from '../export/utils'
+import { getBuildDistDir, hasCustomExportOutput } from '../export/utils'
 import { traceMemoryUsage } from '../lib/memory/trace'
 import { generateEncryptionKeyBase64 } from '../server/app-render/encryption-utils-server'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
@@ -457,6 +456,11 @@ const ALLOWED_HEADERS: string[] = [
 
 export type PrerenderManifest = {
   version: 4
+  /**
+   * Temporary compatibility marker for hosts without adapter support for
+   * parameter matching. This will be removed; it is not an API-usage signal.
+   */
+  __private_unstable_hasParamMatching?: true
   routes: { [route: string]: PrerenderManifestRoute }
   dynamicRoutes: { [route: string]: DynamicPrerenderManifestRoute }
   notFoundRoutes: string[]
@@ -1121,9 +1125,8 @@ export default async function build(
   experimentalBuildMode: 'default' | 'compile' | 'generate' | 'generate-env',
   traceUploadUrl: string | undefined,
   debugBuildPathsPatterns: string[] | undefined,
-  enabledFeatures: Record<string, unknown> = {},
-  allowHumanUpgrade = false
-): Promise<NudgeKind | 'interrupt' | void> {
+  enabledFeatures: Record<string, unknown> = {}
+): Promise<void> {
   const isCompileMode = experimentalBuildMode === 'compile'
   const isGenerateMode = experimentalBuildMode === 'generate'
   NextBuildContext.isCompileMode = isCompileMode
@@ -1202,42 +1205,6 @@ export default async function build(
         )
       loadedConfig = config
 
-      // Reuse the loaded config; ordinary builds do not load upgrade tooling.
-      if (
-        config.experimental.agentUpgrade === 'security' ||
-        config.experimental.agentUpgrade === 'latest' ||
-        config.experimental.agentUpgrade === 'experimental-future' ||
-        process.env.__NEXT_AGENT_UPGRADE
-      ) {
-        const { nudgeUpgrade, getUpgradeContext } =
-          require('../lib/upgrade/nudge') as typeof import('../lib/upgrade/nudge')
-        const upgradeContext = getUpgradeContext(config)
-        if (allowHumanUpgrade) {
-          // TODO: Do not block the build while prompting for an upgrade.
-          // Preserve all logs for display after the prompt and stop the build before Update.
-          const action = await nudgeUpgrade(
-            dir,
-            upgradeContext,
-            'build',
-            new AbortController().signal
-          ).catch((error) => {
-            Log.warn(`Could not offer the upgrade: ${String(error)}`)
-          })
-          if (action === 'update' && upgradeContext.experimental.agentUpgrade) {
-            return upgradeContext.experimental.agentUpgrade
-          }
-          if (action === 'interrupt') {
-            return 'interrupt' as const
-          }
-        } else {
-          // Agent checks retain their parallel behavior; humans decide before building.
-          pendingUpgradeNudge = nudgeUpgrade(dir, upgradeContext, 'build').then(
-            () => {}
-          )
-          void pendingUpgradeNudge.catch(() => {})
-        }
-      }
-
       // Resolve selective build paths now that the page extensions are known.
       const debugBuildPaths = debugBuildPathsPatterns
         ? await (async () => {
@@ -1269,12 +1236,11 @@ export default async function build(
       bundler = finalizeBundlerFromConfig(bundler)
       nextBuildSpan.setAttribute('bundler', getBundlerForTelemetry(bundler))
 
-      let configOutDir = 'out'
-      if (hasCustomExportOutput(config)) {
-        configOutDir = config.distDir
-        config.distDir = '.next'
-      }
-      const distDir = path.join(dir, config.distDir)
+      const configOutDir = hasCustomExportOutput(config)
+        ? config.distDir
+        : 'out'
+      const buildDistDir = getBuildDistDir(config)
+      const distDir = path.join(dir, buildDistDir)
       NextBuildContext.distDir = distDir
       setGlobal('phase', PHASE_PRODUCTION_BUILD)
       setGlobal('distDir', distDir)
@@ -1287,6 +1253,40 @@ export default async function build(
       // events are captured if native bindings fail to load.
       const telemetry = new Telemetry({ distDir })
       setGlobal('telemetry', telemetry)
+
+      // Reuse the loaded config; ordinary builds do not load upgrade tooling.
+      if (
+        config.experimental.agentUpgrade === 'security' ||
+        config.experimental.agentUpgrade === 'latest' ||
+        config.experimental.agentUpgrade === 'experimental-future' ||
+        process.env.__NEXT_AGENT_UPGRADE
+      ) {
+        const { nudgeUpgrade, getUpgradeContext } =
+          require('../lib/upgrade/nudge') as typeof import('../lib/upgrade/nudge')
+        const upgradeContext = getUpgradeContext(config)
+        if (
+          process.env.NEXT_PRIVATE_UPGRADE_BUILD_CHILD === '1' &&
+          process.connected
+        ) {
+          // The CLI shows the menu; keep building instead of waiting for it.
+          process.send!({
+            nextUpgradeContext: upgradeContext,
+            dir,
+            telemetryDisabled: process.env.NEXT_TELEMETRY_DISABLED,
+          })
+        } else {
+          // No menu (e.g. an agent): nudge in the background.
+          pendingUpgradeNudge = nudgeUpgrade(
+            dir,
+            upgradeContext,
+            'build',
+            null,
+            null,
+            { telemetry, onNudgeId: null }
+          ).then(() => {})
+          void pendingUpgradeNudge.catch(() => {})
+        }
+      }
 
       // Install the native bindings early so we can have synchronous access later.
       await installBindings(config.experimental?.useWasmBinary)
@@ -2082,6 +2082,7 @@ export default async function build(
             version: 1,
             config: {
               ...runtimeConfigWithoutFilePath,
+              distDir: buildDistDir,
               ...(ciEnvironment.hasNextSupport
                 ? {
                     compress: false,
@@ -2164,14 +2165,14 @@ export default async function build(
               SERVER_FILES_MANIFEST + '.json',
             ]
               .filter(nonNullable)
-              .map((file) => path.join(config.distDir, file)),
+              .map((file) => path.join(buildDistDir, file)),
             ignore: [] as string[],
           }
 
           if (hasInstrumentationHook) {
             serverFilesManifest.files.push(
               path.join(
-                config.distDir,
+                buildDistDir,
                 SERVER_DIRECTORY,
                 `${INSTRUMENTATION_HOOK_FILENAME}.js`
               )
@@ -2179,7 +2180,7 @@ export default async function build(
             // If there are edge routes, append the edge instrumentation hook
             // Turbopack generates this chunk with a hashed name and references it in middleware-manifest.
             let edgeInstrumentationHook = path.join(
-              config.distDir,
+              buildDistDir,
               SERVER_DIRECTORY,
               `edge-${INSTRUMENTATION_HOOK_FILENAME}.js`
             )
@@ -2212,7 +2213,7 @@ export default async function build(
 
             serverFilesManifest.files.push(
               ...cssFilePaths.map((filePath) =>
-                path.join(config.distDir, 'static', filePath)
+                path.join(buildDistDir, 'static', filePath)
               )
             )
           }
@@ -2932,13 +2933,10 @@ export default async function build(
         return returnValue
       })
 
-      if (postCompileSpinner) {
-        const collectingPageDataEnd = process.hrtime(collectingPageDataStart)
-        postCompileSpinner.setText(
-          `Collecting page data using ${numberOfWorkers} worker${numberOfWorkers > 1 ? 's' : ''} in ${hrtimeDurationToString(collectingPageDataEnd)}`
-        )
-        postCompileSpinner.stopAndPersist()
-      }
+      finishSpinner(
+        postCompileSpinner,
+        `Collecting page data using ${numberOfWorkers} worker${numberOfWorkers > 1 ? 's' : ''} in ${hrtimeDurationToString(process.hrtime(collectingPageDataStart))}`
+      )
       traceMemoryUsage('Finished collecting page data', nextBuildSpan)
 
       if (customAppGetInitialProps) {
@@ -3149,6 +3147,12 @@ export default async function build(
 
       const prerenderManifest: PrerenderManifest = {
         version: 4,
+        // Record evaluated exports, including empty fragments, rather than
+        // inferring API usage from the resulting fallback modes.
+        __private_unstable_hasParamMatching:
+          [...paramMatchingByRoute.values()].some(
+            (paramMatching) => paramMatching !== undefined
+          ) || undefined,
         routes: {},
         dynamicRoutes: {},
         notFoundRoutes: [],
@@ -3471,7 +3475,7 @@ export default async function build(
           }
 
           writeTurborepoAccessTraceResult({
-            distDir: config.distDir,
+            distDir: buildDistDir,
             traces: [
               turborepoAccessTraceResult,
               ...exportResult.turborepoAccessTraceResults.values(),
@@ -4666,14 +4670,11 @@ export default async function build(
 
       await buildTracesPromise
 
-      if (buildTracesSpinner) {
-        if (buildTracesStart) {
-          const buildTracesEnd = process.hrtime(buildTracesStart)
-          buildTracesSpinner.setText(
-            `Collecting build traces in ${hrtimeDurationToString(buildTracesEnd)}`
-          )
-        }
-        buildTracesSpinner.stopAndPersist()
+      if (buildTracesStart) {
+        finishSpinner(
+          buildTracesSpinner,
+          `Collecting build traces in ${hrtimeDurationToString(process.hrtime(buildTracesStart))}`
+        )
         buildTracesSpinner = undefined
       }
 
@@ -4803,15 +4804,10 @@ export default async function build(
           })
       }
 
-      if (postBuildSpinner) {
-        const finalizingPageOptimizationEnd = process.hrtime(
-          finalizingPageOptimizationStart
-        )
-        postBuildSpinner.setText(
-          `Finalizing page optimization in ${hrtimeDurationToString(finalizingPageOptimizationEnd)}`
-        )
-        postBuildSpinner.stopAndPersist()
-      }
+      finishSpinner(
+        postBuildSpinner,
+        `Finalizing page optimization in ${hrtimeDurationToString(process.hrtime(finalizingPageOptimizationStart))}`
+      )
       console.log()
 
       if (debugOutput) {
@@ -4877,7 +4873,7 @@ export default async function build(
 
         // Capture this build alongside any prior builds so the analyzer UI
         // can offer it as a comparison baseline in the future.
-        await writeAnalyzeSnapshot({
+        writeAnalyzeSnapshot({
           projectDir: dir,
           analyzeDir,
           routes,
@@ -4943,7 +4939,7 @@ export default async function build(
         traceUploadUrl,
         mode: 'build',
         projectDir: dir,
-        distDir: loadedConfig.distDir,
+        distDir: getBuildDistDir(loadedConfig),
         isTurboSession: bundler === Bundler.Turbopack,
         sync: true,
       })

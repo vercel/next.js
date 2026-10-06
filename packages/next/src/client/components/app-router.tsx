@@ -41,7 +41,7 @@ import {
   type AppRouterActionQueue,
   type GlobalErrorState,
 } from './app-router-instance'
-import { legacyUrgentBFCacheRestore, restore, traverse } from './navigator'
+import { restore, traverse } from './navigator'
 import { getRedirectTypeFromError, getURLFromRedirectError } from './redirect'
 import { isRedirectError } from './redirect-error'
 import { pingVisibleLinks } from './links'
@@ -279,7 +279,7 @@ function Router({
       // of the last MPA navigation.
       globalMutable.pendingMpaPath = undefined
 
-      legacyUrgentBFCacheRestore(
+      restore(
         new URL(window.location.href),
         window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE
       )

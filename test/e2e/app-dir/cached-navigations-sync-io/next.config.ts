@@ -2,7 +2,8 @@ import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
-  partialPrefetching: false,
+  // PPF is controlled by the test variant
+  // partialPrefetching: ...,
   experimental: {
     cachedNavigations: true,
   },

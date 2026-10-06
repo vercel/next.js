@@ -120,6 +120,10 @@ import {
   lazyPrerenderAppPage,
   lazyRenderAppPage,
 } from './route-modules/app-page/module.render'
+import {
+  parseRequestHeaders,
+  type ParsedRequestHeaders,
+} from './route-modules/app-page/parse-request-headers'
 import { lazyRenderPagesPage } from './route-modules/pages/module.render'
 import { interopDefault } from '../lib/interop-default'
 import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
@@ -688,6 +692,14 @@ export default class NextNodeServer extends BaseServer<
             ? this.getServerComponentsHmrCache()
             : undefined
         )
+        const parsedRequestHeaders: ParsedRequestHeaders = parseRequestHeaders(
+          req.headers,
+          {
+            isRoutePPREnabled:
+              renderOpts.experimental.isRoutePPREnabled === true,
+            previewModeId: renderOpts.previewProps?.previewModeId,
+          }
+        )
 
         const result = await renderAppPage(
           req,
@@ -706,7 +718,8 @@ export default class NextNodeServer extends BaseServer<
               ? ''
               : this.deploymentId,
           },
-          routeMatch
+          routeMatch,
+          parsedRequestHeaders
         )
         if ('error' in result) {
           throw result.error
@@ -1156,6 +1169,7 @@ export default class NextNodeServer extends BaseServer<
     if (!existingServerContext) {
       routerServerGlobal[RouterServerContextSymbol][relativeProjectDir] = {
         render404: this.render404.bind(this),
+        getAssetPrefix: this.getAssetPrefix.bind(this),
       }
     }
     routerServerGlobal[RouterServerContextSymbol][

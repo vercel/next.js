@@ -1010,7 +1010,7 @@ export async function buildAppStaticPaths({
     for (const [paramName, mode] of Object.entries(paramMatching)) {
       if (mode === 'fallback' || mode === 'dynamic') {
         throw new Error(
-          `Route "${page}" cannot configure parameter "${paramName}" as "${mode}" with \`unstable_ensureStatic = "navigation"\`. Use "blocking" or "not-found" parameter matching, or remove the navigation constraint.`
+          `Route "${page}" cannot configure parameter "${paramName}" as "${mode}" with \`ensureStatic = "navigation"\`. Use "blocking" or "not-found" parameter matching, or remove the navigation constraint.`
         )
       }
     }

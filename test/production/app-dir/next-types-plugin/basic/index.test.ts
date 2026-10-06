@@ -2,11 +2,9 @@ import { nextTestSetup } from 'e2e-utils'
 ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'next-types-plugin',
   () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
     })
-
-    if (skipped) return
 
     it('should have type for root page', async () => {
       expect(await next.hasFile('app/page.tsx')).toBe(true)

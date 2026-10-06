@@ -28,6 +28,10 @@ import {
 import { BaseServerSpan } from '../../server/lib/trace/constants' with { 'turbopack-transition': 'next-server-utility' }
 import { stripFlightHeaders } from '../../server/app-render/strip-flight-headers' with { 'turbopack-transition': 'next-server-utility' }
 import {
+  parseRequestHeaders,
+  type ParsedRequestHeaders,
+} from '../../server/route-modules/app-page/parse-request-headers' with { 'turbopack-transition': 'next-server-utility' }
+import {
   NodeNextRequest,
   NodeNextResponse,
 } from '../../server/base-http/node' with { 'turbopack-transition': 'next-server-utility' }
@@ -877,6 +881,15 @@ export function createAppPageEntrypoint({
 
         renderOperation: AppPageRenderOperation
       }): Promise<ResponseCacheEntry | PrerenderFailure> => {
+        // A static page may have stripped Flight headers before reaching this
+        // render. Parse only when the response cache invokes the render.
+        const parsedRequestHeaders: ParsedRequestHeaders = parseRequestHeaders(
+          req.headers,
+          {
+            isRoutePPREnabled,
+            previewModeId: previewProps?.previewModeId,
+          }
+        )
         const routeMatch: RouteMatch = { resolvedPathname }
         const dev: DevRenderContext | undefined = createDevRenderContext(req)
         const context: AppPageRouteHandlerContext = {
@@ -884,6 +897,7 @@ export function createAppPageEntrypoint({
           params,
           page: normalizedSrcPage,
           routeMatch,
+          parsedRequestHeaders,
           sharedContext: {
             buildId,
             deploymentId,
@@ -928,7 +942,10 @@ export function createAppPageEntrypoint({
             botType,
             isOnDemandRevalidate,
             isPossibleServerAction,
-            assetPrefix: nextConfig.assetPrefix,
+            assetPrefix: routeModule.getAssetPrefixForRender(
+              routerServerContext,
+              nextConfig.assetPrefix
+            ),
             nextConfigOutput: nextConfig.output,
             crossOrigin: nextConfig.crossOrigin,
             trailingSlash: nextConfig.trailingSlash,

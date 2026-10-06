@@ -573,10 +573,9 @@ function assignDefaultsAndValidate(
     )
   }
 
-  // Validate experimental.cssChunking compatibility with the active bundler. Graph mode is
-  // Turbopack-only; strict mode and `false` (single-chunk-per-module) are webpack-only.
-  // Only validate during build/dev — `next start` doesn't pick a bundler and would otherwise
-  // see `process.env.TURBOPACK` unset and reject a valid `cssChunking: "graph"` config.
+  // Build and development phases validate bundler-specific options. Server,
+  // info, and test phases do not select a bundler. They must accept
+  // configuration from either bundler.
   if (
     phase !== PHASE_PRODUCTION_SERVER &&
     phase !== PHASE_INFO &&
@@ -585,6 +584,16 @@ function assignDefaultsAndValidate(
     if (result.experimental.durableUseCacheEntries && !process.env.TURBOPACK) {
       throw new Error(
         `\`experimental.durableUseCacheEntries: true\` is only supported with Turbopack. ` +
+          `Please remove the option or run Next.js with Turbopack in ${configFileName}.`
+      )
+    }
+
+    if (
+      result.experimental.useCacheStaticRootParamTracking &&
+      !process.env.TURBOPACK
+    ) {
+      throw new Error(
+        `\`experimental.useCacheStaticRootParamTracking: true\` is only supported with Turbopack. ` +
           `Please remove the option or run Next.js with Turbopack in ${configFileName}.`
       )
     }
@@ -642,6 +651,23 @@ function assignDefaultsAndValidate(
   if (result.partialPrefetching && !result.cacheComponents) {
     throw new Error(
       `\`partialPrefetching\` requires \`cacheComponents\` to be enabled. Please update your ${configFileName} accordingly.`
+    )
+  }
+
+  // TODO: Before Next.js 17, also warn when `partialPrefetching` is `false`
+  // so apps can migrate before both features are enabled together by default.
+  if (
+    result.cacheComponents &&
+    result.partialPrefetching === undefined &&
+    !silent
+  ) {
+    Log.warnOnce(
+      [
+        '`cacheComponents` is enabled without a corresponding `partialPrefetching` option. Set `partialPrefetching` to either `true` or `false`.',
+        "The only reason to set `partialPrefetching` to `false` is if you're migrating an older Cache Components app. The initial release of Cache Components did not include Partial Prefetching. New projects should enable both Cache Components and Partial Prefetching.",
+        'Both Cache Components and Partial Prefetching will be enabled everywhere in the next major release, and the old configurations will be removed.',
+        'Learn more: https://nextjs.org/docs/app/guides/adopting-partial-prefetching',
+      ].join('\n\n')
     )
   }
 

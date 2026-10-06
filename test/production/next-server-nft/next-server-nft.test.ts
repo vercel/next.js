@@ -75,7 +75,7 @@ async function readNormalizedNFT(next, name) {
   'next-server-nft',
   () => {
     describe('with output:standalone', () => {
-      const { next, skipped } = nextTestSetup({
+      const { next } = nextTestSetup({
         files: __dirname,
         dependencies: {
           typescript: '5.9.2',
@@ -84,10 +84,6 @@ async function readNormalizedNFT(next, name) {
           output: 'standalone',
         },
       })
-
-      if (skipped) {
-        return
-      }
 
       it('should not trace too many files in next-server.js.nft.json', async () => {
         const trace = await readNormalizedNFT(
@@ -239,6 +235,7 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/experimental/testmode/server-edge.js",
            "/node_modules/next/dist/experimental/testmode/server.js",
            "/node_modules/next/dist/export/helpers/create-incremental-cache.js",
+           "/node_modules/next/dist/export/utils.js",
            "/node_modules/next/dist/lib/batcher.js",
            "/node_modules/next/dist/lib/build-custom-route.js",
            "/node_modules/next/dist/lib/bundler.js",
@@ -370,6 +367,7 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/lib/verify-root-layout.js",
            "/node_modules/next/dist/lib/verify-typescript-setup.js",
            "/node_modules/next/dist/lib/wait.js",
+           "/node_modules/next/dist/lib/warn-missing-react-dependencies.js",
            "/node_modules/next/dist/lib/with-promise-cache.js",
            "/node_modules/next/dist/lib/worker.js",
            "/node_modules/next/dist/server/*",
@@ -421,16 +419,12 @@ async function readNormalizedNFT(next, name) {
     })
 
     describe('default mode', () => {
-      const { next, skipped } = nextTestSetup({
+      const { next } = nextTestSetup({
         files: __dirname,
         dependencies: {
           typescript: '5.9.2',
         },
       })
-
-      if (skipped) {
-        return
-      }
 
       it('should not include .next directory in traces despite dynamic fs operations', async () => {
         // This test verifies that the denied_path feature prevents the .next directory
@@ -555,7 +549,7 @@ async function readNormalizedNFT(next, name) {
     })
 
     describe('with adapters', () => {
-      const { next, skipped } = nextTestSetup({
+      const { next } = nextTestSetup({
         files: __dirname,
         dependencies: {
           typescript: '5.9.2',
@@ -564,10 +558,6 @@ async function readNormalizedNFT(next, name) {
           adapterPath: path.join(__dirname, './my-adapter.mjs'),
         },
       })
-
-      if (skipped) {
-        return
-      }
 
       it('should not include .next directory in traces despite dynamic fs operations', async () => {
         // This test verifies that the denied_path feature prevents the .next directory
@@ -770,7 +760,7 @@ async function readNormalizedNFT(next, name) {
     })
 
     describe('with adapters and output:standalone', () => {
-      const { next, skipped } = nextTestSetup({
+      const { next } = nextTestSetup({
         files: __dirname,
         dependencies: {
           typescript: '5.9.2',
@@ -780,10 +770,6 @@ async function readNormalizedNFT(next, name) {
           adapterPath: path.join(__dirname, './my-adapter.mjs'),
         },
       })
-
-      if (skipped) {
-        return
-      }
 
       // Regression test for #96646: with an adapter configured, the whole-app server NFTs were
       // suppressed while `copyTracedFiles` (which runs for `output: 'standalone'`, adapter or
