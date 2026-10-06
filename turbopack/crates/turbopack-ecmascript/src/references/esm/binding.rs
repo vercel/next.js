@@ -88,9 +88,10 @@ impl EsmBindings {
     ) -> Result<CodeGeneration> {
         let mut visitors = vec![];
 
+        let unused_references = chunking_context.unused_references();
+
         for (reference, bindings) in &self.bindings {
-            if chunking_context
-                .unused_references()
+            if unused_references
                 .contains_key(&ResolvedVc::upcast(*reference))
                 .await?
             {
