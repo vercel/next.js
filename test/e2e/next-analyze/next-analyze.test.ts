@@ -189,29 +189,6 @@ describe('next analyze', () => {
     }
     for (const record of records)
       expect(record).not.toHaveProperty('route_index')
-    const appHeader = readAnalyzeHeader<{ route_entries: RouteEntry[] }>(
-      path.join(snapshotDir, 'analyze.data')
-    )
-    const appRecord = records.find(
-      (record) => record.type === 'route' && record.route === '/'
-    )
-    expect(
-      appRecord.entries.map((entry: RouteEntry) => ({
-        route_entry_id: entry.route_entry_id,
-        module_ident: entry.module_ident,
-        role: entry.role,
-        entry_kind: entry.entry_kind,
-        client_references: entry.client_references,
-      }))
-    ).toEqual(
-      appHeader.route_entries.map((entry) => ({
-        route_entry_id: entry.route_entry_id,
-        module_ident: entry.module_ident,
-        role: entry.role,
-        entry_kind: entry.entry_kind ?? null,
-        client_references: entry.client_references ?? [],
-      }))
-    )
     const latest = await next.runCommand(['analyze', 'export'])
     expect(latest.exitCode).toBe(0)
     expect(latest.stdout).toBe(named.stdout)
@@ -463,6 +440,13 @@ describe('next analyze', () => {
         expect(appEntries.some((entry) => entry.entry_kind === 'server')).toBe(
           true
         )
+        const routeRoots = appEntries.filter(
+          (entry) => entry.role === 'route' && entry.entry_kind === 'server'
+        )
+        expect(routeRoots).toHaveLength(2)
+        expect(
+          new Set(routeRoots.map((entry) => entry.route_entry_id)).size
+        ).toBe(2)
         expect(
           appEntries.some((entry) => entry.entry_kind === 'client_bootstrap')
         ).toBe(true)

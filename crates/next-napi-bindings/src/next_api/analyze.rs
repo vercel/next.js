@@ -11,6 +11,7 @@ use next_api::{
     route::{Endpoint, EndpointGroup, EndpointGroupKey},
 };
 use serde::Serialize;
+use turbo_rcstr::rcstr;
 use turbo_tasks::{
     Effects, FxIndexSet, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, ValueToStringRef, Vc,
 };
@@ -68,16 +69,14 @@ async fn write_analyze_data_with_issues_operation_inner(
     Ok(())
 }
 
-/// Preserve the endpoint roots used by the module graph, and annotate only
-/// client modules identified by the endpoint's actual build inputs. Client
-/// references are nested rather than becoming new graph roots.
+/// Routes are rooted by server code, with client references nested under those roots.
 async fn route_entries(
     key: &EndpointGroupKey,
     endpoint_group: &EndpointGroup,
     role: &str,
 ) -> Result<Vec<AnalyzeRouteEntry>> {
     let mut result = vec![];
-    for (endpoint_index, endpoint) in endpoint_group.primary.iter().enumerate() {
+    for endpoint in &endpoint_group.primary {
         let entries = endpoint.endpoint.entries().await?;
         let client = endpoint.endpoint.analyze_client_entries().await?;
         let bootstrap = client
@@ -130,17 +129,11 @@ async fn route_entries(
             attached |= is_owner;
             let sub_name = endpoint.sub_name.as_deref().unwrap_or("");
             result.push(AnalyzeRouteEntry {
-                route_entry_id: analyze_route_entry_id(
-                    key.as_str(),
-                    role,
-                    endpoint_index,
-                    sub_name,
-                    &module_ident,
-                ),
+                route_entry_id: analyze_route_entry_id(key.as_str(), role, sub_name, &module_ident),
                 entry_kind: if bootstrap.contains(&module_ident) {
-                    Some("client_bootstrap".into())
+                    Some(rcstr!("client_bootstrap"))
                 } else if server.contains(&module_ident) {
-                    Some("server".into())
+                    Some(rcstr!("server"))
                 } else {
                     None
                 },

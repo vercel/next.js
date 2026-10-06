@@ -2307,25 +2307,15 @@ impl Endpoint for AppEndpoint {
             .cell());
         }
         let project = this.app_project.project();
-        let module_graphs = this
-            .app_project
-            .app_module_graphs(
-                self,
+        let module_graphs = project.whole_app_module_graphs().await?;
+        let references = ClientReferencesGraphs::new(*module_graphs.base, false)
+            .get_client_references_for_endpoint(
                 *app_entry.rsc_entry,
-                Some(this.app_project.client_runtime_entries()),
+                true,
+                *project.should_write_nft_manifests().await?,
+                project.next_mode().await?.is_production(),
             )
             .await?;
-        let references = ClientReferencesGraphs::new(
-            *module_graphs.base,
-            *project.per_page_module_graph().await?,
-        )
-        .get_client_references_for_endpoint(
-            *app_entry.rsc_entry,
-            true,
-            *project.should_write_nft_manifests().await?,
-            project.next_mode().await?.is_production(),
-        )
-        .await?;
         let references = references
             .client_references
             .iter()

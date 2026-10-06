@@ -103,22 +103,15 @@
           "description": "Client reference path, not a unique module key."
         },
         "reference_kind": {
-          "type": "string",
-          "description": "Producer category such as ecmascript or css; not an endpoint root or observed request."
+          "enum": ["ecmascript", "css"],
+          "description": "Client reference category; not an endpoint root or observed request."
         }
       },
       "additionalProperties": true
     },
     "entry": {
       "type": "object",
-      "required": [
-        "route_entry_id",
-        "module_ident",
-        "module_path",
-        "role",
-        "entry_kind",
-        "client_references"
-      ],
+      "required": ["route_entry_id", "module_ident", "module_path", "role"],
       "properties": {
         "route_entry_id": {
           "type": "string",
@@ -133,12 +126,12 @@
           "description": "Source path associated with this endpoint root; not a unique module identity."
         },
         "role": {
-          "type": "string",
+          "enum": ["route", "shared"],
           "description": "Endpoint build role, not a browser-load classification."
         },
         "entry_kind": {
-          "type": ["string", "null"],
-          "description": "Server or client_bootstrap when known; null/unknown roles do not establish initial-load scope."
+          "enum": ["server", "client_bootstrap"],
+          "description": "Server or client bootstrap when known; omitted for unknown roles."
         },
         "client_references": {
           "type": "array",

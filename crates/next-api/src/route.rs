@@ -46,8 +46,7 @@ pub enum Route {
 #[turbo_tasks::value(transparent)]
 pub struct ModuleGraphs(Vec<ResolvedVc<ModuleGraph>>);
 
-/// Client-side modules associated with an endpoint. This is build provenance,
-/// not a claim that a browser requested their chunks during initial navigation.
+/// Client-side modules associated with an endpoint.
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug, Default)]
 pub struct AnalyzeClientEntries {

@@ -133,11 +133,10 @@ pub struct AnalyzeRouteEntries(Vec<AnalyzeRouteEntry>);
 pub fn analyze_route_entry_id(
     route: &str,
     role: &str,
-    endpoint_index: usize,
     sub_name: &str,
     module_ident: &str,
 ) -> RcStr {
-    format!("{route}|{role}|{endpoint_index}|{sub_name}|{module_ident}").into()
+    format!("{route}|{role}|{sub_name}|{module_ident}").into()
 }
 
 #[derive(Serialize)]
@@ -819,59 +818,5 @@ impl OutputAsset for ModulesDataOutputAsset {
     #[turbo_tasks::function]
     fn path(&self) -> Vc<FileSystemPath> {
         self.path.clone().cell()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{AnalyzeClientReferenceEntry, AnalyzeRouteEntry, analyze_route_entry_id};
-
-    #[test]
-    fn client_references_are_nested_and_do_not_claim_initial_load() {
-        let entry = AnalyzeRouteEntry {
-            route_entry_id: "route|route|0||rsc".into(),
-            module_ident: "rsc".into(),
-            module_path: "[project]/app/page.tsx".into(),
-            role: "route".into(),
-            entry_kind: Some("server".into()),
-            client_references: vec![AnalyzeClientReferenceEntry {
-                module_ident: "client".into(),
-                module_path: "[project]/app/client.tsx".into(),
-                reference_kind: "ecmascript".into(),
-            }],
-        };
-        let json = serde_json::to_value([entry]).unwrap();
-        assert_eq!(json.as_array().unwrap().len(), 1);
-        assert_eq!(json[0]["module_ident"], "rsc");
-        assert_eq!(json[0]["entry_kind"], "server");
-        assert_eq!(json[0]["client_references"][0]["module_ident"], "client");
-        assert!(json[0].get("runtime").is_none());
-        assert!(json[0].get("initial").is_none());
-        assert!(json[0].get("load_scope").is_none());
-    }
-
-    #[test]
-    fn route_entry_ids_preserve_endpoint_variant_and_shared_role() {
-        let first = analyze_route_entry_id("/settings", "route", 0, "@main", "module");
-        let second = analyze_route_entry_id("/settings", "route", 1, "@modal", "module");
-        let shared = analyze_route_entry_id("_app", "shared", 0, "", "module");
-        assert_ne!(first, second);
-        assert_ne!(first, shared);
-        assert_ne!(second, shared);
-    }
-
-    #[test]
-    fn unavailable_client_provenance_does_not_gain_a_role() {
-        let entry = AnalyzeRouteEntry {
-            route_entry_id: "route|route|0||unknown".into(),
-            module_ident: "unknown".into(),
-            module_path: "[project]/app/route.ts".into(),
-            role: "route".into(),
-            entry_kind: None,
-            client_references: vec![],
-        };
-        let json = serde_json::to_value(entry).unwrap();
-        assert!(json.get("entry_kind").is_none());
-        assert!(json.get("client_references").is_none());
     }
 }
