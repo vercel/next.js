@@ -98,6 +98,8 @@ cp -r .next/diagnostics/analyze ./analyze-before-refactor
 
 ### Export analysis data
 
+> Available in v16.4 and later. You can share feedback in the [dedicated GitHub discussion](https://github.com/vercel/next.js/discussions/86731) and view the demo at [turbopack-bundle-analyzer-demo.vercel.sh](https://turbopack-bundle-analyzer-demo.vercel.sh/).
+
 Use `next analyze export` to stream a saved snapshot as JSON Lines for scripts or AI tools, without rebuilding or starting a server:
 
 ```bash filename="Terminal" package="npm"
@@ -353,3 +355,9 @@ module.exports = nextConfig
 ```
 
 </PagesOnly>
+
+## Version History
+
+| Version   | Changes                                                          |
+| --------- | ---------------------------------------------------------------- |
+| `v16.4.0` | Add `next analyze export` and the `next-bundle-optimizer` skill. |
