@@ -276,7 +276,7 @@ The following options are available for the `next analyze` command:
 
 ### `next analyze export` options
 
-The `export` subcommand reads a saved snapshot without building or starting the UI server. Place replay options after `export`: `next analyze export --snapshot audit-1` selects saved data; `--snapshot` before `export` is a capture option and is rejected.
+The `export` subcommand streams an existing snapshot as a series of JSON Lines. It does not run analysis itself or start the web UI.
 
 | Option                   | Description                                                                                 |
 | ------------------------ | ------------------------------------------------------------------------------------------- |
