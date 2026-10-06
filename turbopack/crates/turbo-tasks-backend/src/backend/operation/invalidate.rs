@@ -20,7 +20,7 @@ use crate::{
 pub fn invalidate(
     task_ids: SmallVec<[TaskId; 4]>,
     #[cfg(feature = "task_dirty_cause")] cause: TaskDirtyCause,
-    mut ctx: impl ExecuteContext<'_>,
+    mut ctx: ExecuteContext<'_>,
 ) {
     let mut queue = AggregationUpdateQueue::new();
     for task_id in task_ids {
@@ -42,7 +42,7 @@ pub fn try_make_task_dirty(
     task_id: TaskId,
     #[cfg(feature = "task_dirty_cause")] cause: TaskDirtyCause,
     queue: &mut AggregationUpdateQueue,
-    ctx: &mut impl ExecuteContext<'_>,
+    ctx: &mut ExecuteContext<'_>,
 ) {
     let Some(mut task) = ctx.try_task(task_id, TaskDataCategory::All) else {
         return;
@@ -58,12 +58,12 @@ pub fn try_make_task_dirty(
 }
 
 /// Requires the guard to be allocated with [TaskDataCategory::All]
-pub fn make_task_dirty_internal<'e, E: ExecuteContext<'e>>(
-    task: &mut E::TaskGuardImpl,
+pub fn make_task_dirty_internal(
+    task: &mut TaskGuard<'_>,
     make_stale: bool,
     #[cfg(feature = "task_dirty_cause")] cause: TaskDirtyCause,
     queue: &mut AggregationUpdateQueue,
-    ctx: &mut E,
+    ctx: &mut ExecuteContext<'_>,
 ) {
     // There must be no way to invalidate immutable tasks. If there would be a way the task is not
     // immutable.

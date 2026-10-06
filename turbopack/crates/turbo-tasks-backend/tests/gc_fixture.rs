@@ -26,6 +26,13 @@ pub fn create_constant() -> Vc<Constant> {
     Constant(State::new(0)).cell()
 }
 
+/// A second, independent [`Constant`] cell, for a test that needs a dependency it can bump without
+/// touching the one [`create_constant`] returns.
+#[turbo_tasks::function(operation, root)]
+pub fn create_other_constant() -> Vc<Constant> {
+    Constant(State::new(0)).cell()
+}
+
 // --- Diamond fixture ---
 //
 // Reader `A` forward-cell-depends on target `B` without `B` being its child; both are children of

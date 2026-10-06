@@ -1,4 +1,3 @@
-#![feature(anonymous_lifetime_in_impl_trait)]
 #![feature(deref_patterns)]
 
 mod backend;
