@@ -10,6 +10,9 @@ use std::{
 ///
 /// In the future, this may use a more efficient representation, like a radix tree or trie.
 pub trait OrderedPathMapExt<K, V> {
+    /// Returns whether the map contains `path` or any of its children.
+    fn contains_path_or_children(&self, path: &Path) -> bool;
+
     fn extract_path_with_children<'a>(
         &'a mut self,
         path: &'a Path,
@@ -17,6 +20,12 @@ pub trait OrderedPathMapExt<K, V> {
 }
 
 impl<K: Borrow<Path> + Ord, V> OrderedPathMapExt<K, V> for BTreeMap<K, V> {
+    fn contains_path_or_children(&self, path: &Path) -> bool {
+        self.lower_bound(Bound::Included(path))
+            .peek_next()
+            .is_some_and(|(key, _)| key.borrow().starts_with(path))
+    }
+
     /// Iterates over and removes `path` and all of its children.
     fn extract_path_with_children<'a>(
         &'a mut self,
@@ -97,6 +106,16 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_map_contains_path_or_children() {
+        let mut map = BTreeMap::default();
+        map.insert(PathBuf::from("a/b"), 2);
+
+        assert!(map.contains_path_or_children(Path::new("a")));
+        assert!(map.contains_path_or_children(Path::new("a/b")));
+        assert!(!map.contains_path_or_children(Path::new("a/b/c")));
+    }
+
+    #[test]
     fn test_map_extract_path_with_children() {
         let mut map = BTreeMap::default();
         map.insert(PathBuf::from("a"), 1);
@@ -107,6 +126,9 @@ mod tests {
         map.insert(PathBuf::from("a/c"), 6);
         map.insert(PathBuf::from("x/y/z"), 7);
         map.insert(PathBuf::from("z/a/b"), 8);
+
+        assert!(map.contains_path_or_children(Path::new("x/y")));
+        assert!(!map.contains_path_or_children(Path::new("a/b/c/d")));
 
         let parent_path = PathBuf::from("a/b");
         let extracted: Vec<_> = map.extract_path_with_children(&parent_path).collect();
