@@ -7,6 +7,7 @@ import type { ProxyMatcher } from './analysis/get-page-static-info'
 import type { Rewrite } from '../lib/load-custom-routes'
 import path from 'node:path'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
+import { getBuildDistDir } from '../export/utils'
 import {
   getNextConfigEnv,
   getNextPublicEnvironmentVariables,
@@ -355,7 +356,9 @@ export function getDefineEnv({
       config.experimental.allowedRevalidateHeaderKeys ?? [],
     ...(isNodeServer || isEdgeServer
       ? {
-          'process.env.__NEXT_RELATIVE_DIST_DIR': config.distDir,
+          'process.env.__NEXT_RELATIVE_DIST_DIR': dev
+            ? config.distDir
+            : getBuildDistDir(config),
           'process.env.__NEXT_RELATIVE_PROJECT_DIR': path.relative(
             process.cwd(),
             projectPath
