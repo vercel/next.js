@@ -30,7 +30,6 @@ use notify::{
     Config, EventKind, PollWatcher, RecommendedWatcher, Watcher,
     event::{MetadataKind, ModifyKind, RenameMode},
 };
-use rustc_hash::FxHashSet;
 use tokio::sync::{RwLock, RwLockWriteGuard};
 use tracing::instrument;
 use turbo_rcstr::RcStr;
@@ -324,35 +323,36 @@ mod non_recursive_helpers {
     }
 
     /// Called when a new directory is found in a parent directory we're watching. Restores the
-    /// watcher if we were previously watching it.
+    /// watcher if we were previously watching it. Returns whether restoration was attempted
+    /// because the directory is in `watched`.
     #[instrument(skip_all, level = "trace")]
     pub async fn restore_if_watched(
         state: &RwLock<NonRecursiveState>,
         dir_path: &Path,
         root_path: &Path,
-    ) -> Result<()> {
+    ) -> Result<bool> {
         // fast path: The root directory is always implicitly watched during
         // `DiskWatcher::start_watching`, we assume it is never deleted and never needs to be
         // restored.
         if dir_path == root_path {
-            return Ok(());
+            return Ok(false);
         }
 
         // fast path: the directory isn't in `watched`, only take a read lock and bail out early
         {
             let guard = state.read().await;
             let NonRecursiveState::Watching(watching_state) = &*guard else {
-                return Ok(());
+                return Ok(false);
             };
             if !watching_state.watched.contains(dir_path) {
-                return Ok(());
+                return Ok(false);
             }
         }
 
         // slow path: re-watch the path
         let mut guard = state.write().await;
         let NonRecursiveState::Watching(watching_state) = &mut *guard else {
-            return Ok(());
+            return Ok(false);
         };
 
         // watch the new directory
@@ -363,7 +363,7 @@ mod non_recursive_helpers {
             // Don't watch the parents -- see the comment on `restore_all_watched`
             start_watching_dir(&mut watching_state.notify_watcher, child_path, root_path)?;
         }
-        Ok(())
+        Ok(true)
     }
 
     /// Called when a file in `dir_path` or `dir_path` itself is read or written. Adds a new watcher
@@ -672,6 +672,13 @@ impl DiskWatcher {
 
                         if batch.add_event(event, fs.invalidator_map(), fs.dir_invalidator_map()) {
                             schedule.extend(delay);
+                        } else if !batch.has_pending_invalidations() && batch.has_new_paths() {
+                            // Nothing will flush this batch soon, but newly created directories
+                            // may still need their watches restored. Do it right away, as a
+                            // dependent task could re-read them at any time.
+                            if !Self::flush(&*fs, &mut batch, report_invalidation_reason) {
+                                break 'outer;
+                            }
                         }
                     }
                     // Error raised by notify watcher itself
@@ -693,42 +700,71 @@ impl DiskWatcher {
                 }
             }
 
-            // We need to start watching first before invalidating the changed paths...
-            // This is only needed on platforms we don't do recursive watching on.
-            if let State::NonRecursive(non_recursive) = &watcher.state {
-                for path in batch.new_paths() {
-                    // TODO: Report diagnostics if this error happens
-                    let _ = fs
-                        .tokio_handle()
+            if !Self::flush(&*fs, &mut batch, report_invalidation_reason) {
+                break 'outer;
+            }
+        }
+    }
+
+    /// Restores the watches for [`BatchedInvalidations::new_paths`], then performs and clears the
+    /// batched invalidations. Returns `false` if turbo-tasks was dropped and watching should stop.
+    fn flush<FsApi: DiskFileSystemWatcherApi>(
+        fs: &FsApi,
+        batch: &mut BatchedInvalidations,
+        report_invalidation_reason: bool,
+    ) -> bool {
+        // We need to start watching first before invalidating the changed paths...
+        // This is only needed on platforms we don't do recursive watching on.
+        let mut restored_paths: Vec<Box<Path>> = Vec::new();
+        if let State::NonRecursive(non_recursive) = &fs.watcher().state {
+            for path in batch.new_paths() {
+                // TODO: Report diagnostics if this error happens. Invalidate on errors too, in
+                // case the watch was partially restored.
+                if !matches!(
+                    fs.tokio_handle()
                         .block_on(non_recursive_helpers::restore_if_watched(
                             non_recursive,
                             path,
                             fs.root_path(),
-                        ));
+                        )),
+                    Ok(false)
+                ) {
+                    restored_paths.push(Box::from(path));
                 }
             }
-
-            let Some(turbo_tasks) = fs.turbo_tasks() else {
-                // TurboTasks was dropped, stop watching
-                break 'outer;
-            };
-            let _guard = fs.tokio_handle().enter();
-
-            let _lock = fs.invalidation_lock().blocking_write();
-            batch.execute(
-                fs.invalidator_map(),
-                fs.dir_invalidator_map(),
-                |invalidation_reason_path, invalidator| {
-                    invalidate(
-                        &*fs,
-                        &*turbo_tasks,
-                        report_invalidation_reason,
-                        invalidation_reason_path,
-                        invalidator,
-                    )
-                },
-            );
         }
+        // A read registered after the directory was created, but before its watch was restored,
+        // took `ensure_watched`'s fast path without a live watch, and could have missed
+        // changes made in the meantime. Now that the watch is live, invalidate everything
+        // under the restored paths, even if they didn't affect any tracked read when the
+        // event arrived.
+        batch.mark_restored_paths(restored_paths);
+        if !batch.has_pending_invalidations() {
+            batch.clear();
+            return true;
+        }
+
+        let Some(turbo_tasks) = fs.turbo_tasks() else {
+            // TurboTasks was dropped, stop watching
+            return false;
+        };
+        let _guard = fs.tokio_handle().enter();
+
+        let _lock = fs.invalidation_lock().blocking_write();
+        batch.execute(
+            fs.invalidator_map(),
+            fs.dir_invalidator_map(),
+            |invalidation_reason_path, invalidator| {
+                invalidate(
+                    fs,
+                    &*turbo_tasks,
+                    report_invalidation_reason,
+                    invalidation_reason_path,
+                    invalidator,
+                )
+            },
+        );
+        true
     }
 
     pub async fn ensure_watched_file(&self, path: &Path, root_path: &Path) -> Result<()> {
@@ -772,15 +808,19 @@ bitflags! {
 /// This avoids reading partially-written files which might generate transient errors, and reduces
 /// CPU and memory usage by producing less wasted work.
 ///
-/// Paths are stored once in a flag-keyed map, with a set of [`InvalidationFlags`] describing what
-/// needs to happen for each, rather than in several separate sets. This avoids cloning each
-/// `PathBuf` into multiple collections.
+/// Paths to invalidate are stored once in a flag-keyed map, with a set of [`InvalidationFlags`]
+/// describing what needs to happen for each. Newly created paths are tracked separately because
+/// their watches must be restored even when they don't affect any tracked read.
 struct BatchedInvalidations {
     paths: FxIndexMap<Box<Path>, InvalidationFlags>,
     /// The most recently updated entry in [`Self::paths`].
     last_updated_index: Option<usize>,
     /// See [`Self::new_paths`]. Stored as [`None`] in recursive mode.
-    new_paths: Option<FxHashSet<usize>>,
+    ///
+    /// Kept separately from [`Self::paths`], because it also includes paths that don't affect any
+    /// tracked read: a recreated directory must get its watch back even if nothing currently
+    /// depends on it, as a dependent task may re-read it later (and then wouldn't watch it again).
+    new_paths: Option<FxIndexSet<Box<Path>>>,
     /// Whether events are coming from [`PollWatcher`] instead of [`RecommendedWatcher`], which
     /// changes how a file content change is reported. See [`Self::is_content_change`].
     polling: bool,
@@ -792,7 +832,7 @@ impl BatchedInvalidations {
             paths: FxIndexMap::default(),
             last_updated_index: None,
             new_paths: match recursive_mode {
-                DiskWatcherRecursiveMode::NonRecursive => Some(FxHashSet::default()),
+                DiskWatcherRecursiveMode::NonRecursive => Some(FxIndexSet::default()),
                 DiskWatcherRecursiveMode::Recursive => None,
             },
             polling,
@@ -834,11 +874,33 @@ impl BatchedInvalidations {
         }
     }
 
-    /// Records `index` as newly-created so its watch can be (re-)established. No-op in recursive
-    /// watching mode.
-    fn mark_new_path(&mut self, index: usize) {
-        if let Some(new_paths) = &mut self.new_paths {
-            new_paths.insert(index);
+    fn has_new_paths(&self) -> bool {
+        self.new_paths.as_ref().is_some_and(|p| !p.is_empty())
+    }
+
+    /// Adds recursive invalidations for paths whose watches were just restored. See
+    /// [`DiskWatcher::flush`].
+    fn mark_restored_paths(&mut self, paths: Vec<Box<Path>>) {
+        for path in paths {
+            self.mark(
+                Cow::Owned(path.into_path_buf()),
+                InvalidationFlags::PATH_AND_CHILDREN | InvalidationFlags::PATH_AND_CHILDREN_DIR,
+            );
+        }
+    }
+
+    /// Whether the batch contains any paths to invalidate, i.e. whether a flush is pending.
+    fn has_pending_invalidations(&self) -> bool {
+        !self.paths.is_empty()
+    }
+
+    /// Records `path` as newly-created so its watch can be (re-)established, regardless of whether
+    /// it affects any tracked read. No-op in recursive watching mode.
+    fn mark_new_path(&mut self, path: &Path) {
+        if let Some(new_paths) = &mut self.new_paths
+            && !new_paths.contains(path)
+        {
+            new_paths.insert(Box::from(path));
         }
     }
 
@@ -869,20 +931,18 @@ impl BatchedInvalidations {
         }
     }
 
-    /// Iterates over the newly-created paths in this batch. In non-recursive watching mode, these
-    /// must have their watches (re-)established before [`Self::execute`] is called (see the note
-    /// there). Always empty in recursive mode.
+    /// Iterates over the newly-created paths in this batch, including ones that don't affect any
+    /// tracked read. In non-recursive watching mode, these must have their watches (re-)established
+    /// before [`Self::execute`] is called (see the note there). Always empty in recursive mode.
     fn new_paths(&self) -> impl Iterator<Item = &Path> {
-        self.new_paths
-            .iter()
-            .flatten()
-            .map(|&index| self.paths.get_index(index).unwrap().0.as_ref())
+        self.new_paths.iter().flatten().map(|path| &**path)
     }
 
     /// Updates the batch to contain updated paths from the given event. Does not perform any
     /// invalidations.
     ///
-    /// Returns whether the event contributed any paths affecting tracked reads.
+    /// Returns whether the event contributed any paths affecting tracked reads. Newly created paths
+    /// are recorded in [`Self::new_paths`] either way.
     #[must_use]
     fn add_event(
         &mut self,
@@ -936,13 +996,12 @@ impl BatchedInvalidations {
                 for path in paths {
                     let flags = InvalidationFlags::PATH_AND_CHILDREN
                         | InvalidationFlags::PATH_AND_CHILDREN_DIR;
+                    self.mark_new_path(&path);
                     if !is_relevant(self, &path, path.parent(), true) {
                         continue;
                     }
                     self.mark_parent_dir(&path);
-                    let index = self.mark(Cow::Owned(path), flags);
-                    self.mark_new_path(index);
-                    last_updated_index = Some(index);
+                    last_updated_index = Some(self.mark(Cow::Owned(path), flags));
                 }
             }
             EventKind::Remove(_) => {
@@ -967,14 +1026,13 @@ impl BatchedInvalidations {
                         Some(self.mark(Cow::Owned(source), InvalidationFlags::PATH_AND_CHILDREN));
                 }
 
+                self.mark_new_path(&destination);
                 if is_relevant(self, &destination, destination.parent(), true) {
                     self.mark_parent_dir(&destination);
-                    let index = self.mark(
+                    last_updated_index = Some(self.mark(
                         Cow::Owned(destination),
                         InvalidationFlags::PATH_AND_CHILDREN,
-                    );
-                    self.mark_new_path(index);
-                    last_updated_index = Some(index);
+                    ));
                 }
             }
             // We expect `RenameMode::Both` to cover most of the cases we need to invalidate,
@@ -1438,9 +1496,20 @@ mod tests {
     /// directory. That is the case here: the deletion's batch consumed the only invalidator, and
     /// the invalidated read is held back (via `MockFileSystem::read_gate`) until after the
     /// directory has been recreated in a later batch.
+    ///
+    /// The directory is either recreated in place, or built elsewhere and renamed into place. Runs
+    /// in both watching modes, though only non-recursive mode needs watches to be restored.
     #[cfg(not(miri))]
+    #[rstest]
+    #[case::non_recursive_create(DiskWatcherRecursiveMode::NonRecursive, false)]
+    #[case::non_recursive_rename(DiskWatcherRecursiveMode::NonRecursive, true)]
+    #[case::recursive_create(DiskWatcherRecursiveMode::Recursive, false)]
+    #[case::recursive_rename(DiskWatcherRecursiveMode::Recursive, true)]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn recreated_directory_is_watched_again() {
+    async fn recreated_directory_is_watched_again(
+        #[case] recursive_mode: DiskWatcherRecursiveMode,
+        #[case] rename_into_place: bool,
+    ) {
         const BATCH_DELAY: Duration = Duration::from_millis(50);
         // well past `BATCH_DELAY`, so that the removal and the recreation are flushed as separate
         // batches
@@ -1452,7 +1521,7 @@ mod tests {
         ));
         tt.run_once(async move {
             let fs = MockFileSystem::new(DiskWatcherConfig {
-                recursive_mode: Some(DiskWatcherRecursiveMode::NonRecursive),
+                recursive_mode: Some(recursive_mode),
                 batch_delay: BATCH_DELAY,
                 extended_batch_delay_duration: BATCH_DELAY,
                 ..Default::default()
@@ -1474,8 +1543,15 @@ mod tests {
             fs::remove_dir_all(&dir_a)?;
             tokio::time::sleep(SETTLE).await;
 
-            fs::create_dir_all(&dir_b)?;
-            fs::write(&file_path, "recreated")?;
+            if rename_into_place {
+                let staging = fs.root_path.join("staging");
+                fs::create_dir_all(staging.join("b"))?;
+                fs::write(staging.join("b").join("c.txt"), "recreated")?;
+                fs::rename(&staging, &dir_a)?;
+            } else {
+                fs::create_dir_all(&dir_b)?;
+                fs::write(&file_path, "recreated")?;
+            }
             tokio::time::sleep(SETTLE).await;
 
             // re-runs because of the removal, and registers the read again
@@ -1483,6 +1559,101 @@ mod tests {
             assert_eq!(fs.tracked_read_strongly_consistent(&file_path).await, 2);
 
             fs::write(&file_path, "modified")?;
+            wait_for_rerun(&fs, &file_path, 2).await;
+
+            fs.watcher.stop_watching().await;
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    /// A read that re-registers after a directory was recreated, but before its watch was restored,
+    /// takes `ensure_watched`'s fast path without a live watch. Changes in that window produce no
+    /// events, so the reader must be invalidated once the watch is restored.
+    ///
+    /// The window is kept open deterministically: writes to an unrelated tracked file keep a batch
+    /// pending, which defers restoring the recreated directory's watch until that batch flushes.
+    #[cfg(not(miri))]
+    #[rstest]
+    #[case::non_recursive(DiskWatcherRecursiveMode::NonRecursive)]
+    #[case::recursive(DiskWatcherRecursiveMode::Recursive)]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn read_registered_before_watch_is_restored_is_invalidated(
+        #[case] recursive_mode: DiskWatcherRecursiveMode,
+    ) {
+        const BATCH_DELAY: Duration = Duration::from_millis(300);
+        const SETTLE: Duration = Duration::from_millis(800);
+        const CHURN_INTERVAL: Duration = Duration::from_millis(50);
+        // fallback, in case the test fails before stopping the writes explicitly
+        const MAX_CHURN: Duration = Duration::from_secs(10);
+
+        let tt = TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            let fs = MockFileSystem::new(DiskWatcherConfig {
+                recursive_mode: Some(recursive_mode),
+                batch_delay: BATCH_DELAY,
+                extended_batch_delay_duration: BATCH_DELAY,
+                ..Default::default()
+            });
+            let dir_a = fs.root_path.join("a");
+            let dir_b = dir_a.join("b");
+            let file_path = dir_b.join("c.txt");
+            let other_dir = fs.root_path.join("other");
+            let other_path = other_dir.join("x.txt");
+            fs::create_dir_all(&dir_b)?;
+            fs::create_dir_all(&other_dir)?;
+            fs::write(&file_path, "initial")?;
+            fs::write(&other_path, "0")?;
+            backdate(&file_path);
+            backdate(&other_path);
+
+            DiskWatcher::start_watching(fs.clone()).await?;
+            assert_eq!(fs.tracked_read_strongly_consistent(&file_path).await, 1);
+            assert_eq!(fs.tracked_read_strongly_consistent(&other_path).await, 1);
+
+            // The removal invalidates the read and consumes its invalidator. Hold back the
+            // re-execution until the directory has been recreated.
+            let gate = fs.read_gate.write().await;
+            fs::remove_dir_all(&dir_a)?;
+            tokio::time::sleep(SETTLE).await;
+
+            // Keep a batch pending with writes to an unrelated tracked file, so that restoring the
+            // recreated directory's watch is deferred until that batch flushes.
+            let churn_done = Arc::new(std::sync::atomic::AtomicBool::new(false));
+            let churn = std::thread::spawn({
+                let other_path = other_path.clone();
+                let churn_done = churn_done.clone();
+                move || {
+                    let churn_start = Instant::now();
+                    let mut i = 0u64;
+                    while !churn_done.load(std::sync::atomic::Ordering::Relaxed)
+                        && churn_start.elapsed() < MAX_CHURN
+                    {
+                        i += 1;
+                        fs::write(&other_path, i.to_string()).unwrap();
+                        std::thread::sleep(CHURN_INTERVAL);
+                    }
+                }
+            });
+            std::thread::sleep(CHURN_INTERVAL * 2);
+
+            fs::create_dir_all(&dir_b)?;
+            fs::write(&file_path, "recreated")?;
+            std::thread::sleep(CHURN_INTERVAL * 2);
+
+            // Re-register the read while the batch (and the watch restoration) is still pending.
+            drop(gate);
+            assert_eq!(fs.tracked_read_strongly_consistent(&file_path).await, 2);
+
+            // In non-recursive mode, there is no watch on `a/b` yet, so this produces no event.
+            fs::write(&file_path, "modified")?;
+
+            churn_done.store(true, std::sync::atomic::Ordering::Relaxed);
+            churn.join().unwrap();
             wait_for_rerun(&fs, &file_path, 2).await;
 
             fs.watcher.stop_watching().await;
