@@ -47,10 +47,7 @@ export async function exportAppRoute(
   cacheComponents: boolean,
   staticPageGenerationTimeout: number,
   experimental: Required<
-    Pick<
-      ExperimentalConfig,
-      'authInterrupts' | 'useCacheTimeout' | 'durableUseCacheEntries'
-    >
+    Pick<ExperimentalConfig, 'useCacheTimeout' | 'durableUseCacheEntries'>
   >,
   buildId: string,
   deploymentId: string,

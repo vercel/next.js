@@ -457,6 +457,11 @@ const ALLOWED_HEADERS: string[] = [
 
 export type PrerenderManifest = {
   version: 4
+  /**
+   * Temporary compatibility marker for hosts without adapter support for
+   * parameter matching. This will be removed; it is not an API-usage signal.
+   */
+  __private_unstable_hasParamMatching?: true
   routes: { [route: string]: PrerenderManifestRoute }
   dynamicRoutes: { [route: string]: DynamicPrerenderManifestRoute }
   notFoundRoutes: string[]
@@ -1790,9 +1795,6 @@ export default async function build(
       )
 
       const isAppCacheComponentsEnabled = Boolean(config.cacheComponents)
-      const isAuthInterruptsEnabled = Boolean(
-        config.experimental.authInterrupts
-      )
       const isAppPPREnabled = isAppCacheComponentsEnabled
 
       const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
@@ -2411,7 +2413,6 @@ export default async function build(
               configFileName,
               cacheComponents: isAppCacheComponentsEnabled,
               partialPrefetching: config.partialPrefetching,
-              authInterrupts: isAuthInterruptsEnabled,
               useCacheTimeout: config.experimental.useCacheTimeout,
               durableUseCacheEntries: Boolean(
                 config.experimental.durableUseCacheEntries
@@ -2647,7 +2648,6 @@ export default async function build(
                             pageType,
                             cacheComponents: isAppCacheComponentsEnabled,
                             partialPrefetching: config.partialPrefetching,
-                            authInterrupts: isAuthInterruptsEnabled,
                             useCacheTimeout:
                               config.experimental.useCacheTimeout,
                             durableUseCacheEntries: Boolean(
@@ -3165,6 +3165,12 @@ export default async function build(
 
       const prerenderManifest: PrerenderManifest = {
         version: 4,
+        // Record evaluated exports, including empty fragments, rather than
+        // inferring API usage from the resulting fallback modes.
+        __private_unstable_hasParamMatching:
+          [...paramMatchingByRoute.values()].some(
+            (paramMatching) => paramMatching !== undefined
+          ) || undefined,
         routes: {},
         dynamicRoutes: {},
         notFoundRoutes: [],
@@ -4893,7 +4899,7 @@ export default async function build(
 
         // Capture this build alongside any prior builds so the analyzer UI
         // can offer it as a comparison baseline in the future.
-        await writeAnalyzeSnapshot({
+        writeAnalyzeSnapshot({
           projectDir: dir,
           analyzeDir,
           routes,

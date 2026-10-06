@@ -21,7 +21,7 @@ impl UpdateCollectibleOperation {
         task_id: TaskId,
         collectible: CollectibleRef,
         mut count: i32,
-        mut ctx: impl ExecuteContext<'_>,
+        mut ctx: ExecuteContext<'_>,
     ) {
         let mut task = ctx.task(task_id, TaskDataCategory::All);
         if count < 0

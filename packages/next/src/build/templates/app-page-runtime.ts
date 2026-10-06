@@ -942,7 +942,10 @@ export function createAppPageEntrypoint({
             botType,
             isOnDemandRevalidate,
             isPossibleServerAction,
-            assetPrefix: nextConfig.assetPrefix,
+            assetPrefix: routeModule.getAssetPrefixForRender(
+              routerServerContext,
+              nextConfig.assetPrefix
+            ),
             nextConfigOutput: nextConfig.output,
             crossOrigin: nextConfig.crossOrigin,
             trailingSlash: nextConfig.trailingSlash,
@@ -1012,7 +1015,6 @@ export function createAppPageEntrypoint({
               inlineCss: Boolean(nextConfig.experimental.inlineCss),
               prefetchInlining:
                 nextConfig.experimental.prefetchInlining ?? false,
-              authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
               reactBrowserBailout: Boolean(
                 nextConfig.experimental.reactBrowserBailout
               ),

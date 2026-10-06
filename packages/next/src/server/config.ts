@@ -247,6 +247,13 @@ function checkDeprecations(
 
   warnOptionHasBeenDeprecated(
     userConfig,
+    'experimental.authInterrupts',
+    `\`experimental.authInterrupts\` is no longer needed, because \`forbidden\` and \`unauthorized\` are available by default. You can remove it from ${configFileName}.`,
+    silent
+  )
+
+  warnOptionHasBeenDeprecated(
+    userConfig,
     'eslint',
     `\`eslint\` configuration in ${configFileName} is no longer supported. See more info here: https://nextjs.org/docs/app/api-reference/cli/next#next-lint-options`,
     silent
@@ -573,10 +580,9 @@ function assignDefaultsAndValidate(
     )
   }
 
-  // Validate experimental.cssChunking compatibility with the active bundler. Graph mode is
-  // Turbopack-only; strict mode and `false` (single-chunk-per-module) are webpack-only.
-  // Only validate during build/dev — `next start` doesn't pick a bundler and would otherwise
-  // see `process.env.TURBOPACK` unset and reject a valid `cssChunking: "graph"` config.
+  // Build and development phases validate bundler-specific options. Server,
+  // info, and test phases do not select a bundler. They must accept
+  // configuration from either bundler.
   if (
     phase !== PHASE_PRODUCTION_SERVER &&
     phase !== PHASE_INFO &&
@@ -585,6 +591,16 @@ function assignDefaultsAndValidate(
     if (result.experimental.durableUseCacheEntries && !process.env.TURBOPACK) {
       throw new Error(
         `\`experimental.durableUseCacheEntries: true\` is only supported with Turbopack. ` +
+          `Please remove the option or run Next.js with Turbopack in ${configFileName}.`
+      )
+    }
+
+    if (
+      result.experimental.useCacheStaticRootParamTracking &&
+      !process.env.TURBOPACK
+    ) {
+      throw new Error(
+        `\`experimental.useCacheStaticRootParamTracking: true\` is only supported with Turbopack. ` +
           `Please remove the option or run Next.js with Turbopack in ${configFileName}.`
       )
     }

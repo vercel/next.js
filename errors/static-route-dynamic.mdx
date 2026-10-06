@@ -51,6 +51,19 @@ Request-specific reads from [`cookies()`](/docs/app/api-reference/functions/cook
       { text: '  return <Content />' },
     ]}
   />
+  <FixCard
+    group="client"
+    title="Read the data on the client"
+    href="#read-the-data-on-the-client"
+    snippets={[
+      { text: "'use client'" },
+      {
+        text: "const { data } = useSWR('/api', fetcher)",
+        highlight: true,
+      },
+      { text: 'return <Content data={data} />' },
+    ]}
+  />
 </FixCardGrid>
 
 ## Cache the data
@@ -112,6 +125,44 @@ Every visitor receives the same output because the removed operation no longer r
 
 - Other uncached or runtime data in the route, including layouts and metadata, must also be resolved.
 - If the operation must run for each request, first confirm that request-time rendering is intended for the entire route. See [Remove the static requirement](#remove-the-static-requirement).
+
+## Read the data on the client
+
+Choose this fix when the data can load in the browser after the static output renders.
+
+### Patterns
+
+#### Fetch in a Client Component
+
+Move the request to a Client Component. A client data-fetching library can provide loading states, caching, and revalidation in the browser:
+
+```tsx filename="app/recommendations.tsx"
+'use client'
+
+import useSWR from 'swr'
+
+const fetcher = (url: string) => fetch(url).then((response) => response.json())
+
+export default function Recommendations() {
+  const { data, error, isLoading } = useSWR('/api/recommendations', fetcher)
+
+  if (error) return <p>Failed to load recommendations.</p>
+  if (isLoading) return <p>Loading recommendations...</p>
+
+  return <p>{data.summary}</p>
+}
+```
+
+Learn more: [Client-side data fetching](/docs/app/guides/client-side-data-fetching).
+
+### Trade-off
+
+The prerender does not include this data, and the browser makes an additional request after hydration.
+
+### Gotchas
+
+- Protect the API endpoint with the same authorization checks as the original server-side data access.
+- This pattern adds a client-side request. Prefer [caching the server data](#cache-the-data) when visitors can share the result.
 
 ## Verifying the fix
 

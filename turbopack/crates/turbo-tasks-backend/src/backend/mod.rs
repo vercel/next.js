@@ -64,11 +64,10 @@ pub use self::{
 use crate::{
     backend::{
         operation::{
-            AggregationUpdateJob, AggregationUpdateQueue, ChildExecuteContext, ExecuteContext,
-            ExecuteContextImpl, LeafDistanceUpdateQueue, OutdatedEdge, TaskGuard, TaskType,
-            TaskTypeRef, capture_all_edges, cleanup_old_edges, connect_child, connect_children,
-            get_aggregation_number, get_uppers, invalidate, make_task_dirty_internal,
-            prepare_new_children, update_cell,
+            AggregationUpdateJob, AggregationUpdateQueue, ExecuteContext, LeafDistanceUpdateQueue,
+            OutdatedEdge, TaskGuard, TaskType, TaskTypeRef, capture_all_edges, cleanup_old_edges,
+            connect_child, connect_children, get_aggregation_number, get_uppers, invalidate,
+            make_task_dirty_internal, prepare_new_children, update_cell,
         },
         snapshot_coordinator::{OperationGuard, SlowSettle, SnapshotCoordinator},
         storage::Storage,
@@ -104,7 +103,7 @@ const GC_MIN_PROGRESS: Duration = Duration::from_millis(100);
 /// than the (likely higher) priority of the original schedule. We use invalidation priority
 /// based on the task's leaf distance, parented under either the task's current dirty priority
 /// or `leaf()` if it is no longer dirty.
-fn compute_stale_priority(task: &impl TaskGuard) -> TaskPriority {
+fn compute_stale_priority(task: &TaskGuard<'_>) -> TaskPriority {
     TaskPriority::invalidation(
         task.get_leaf_distance()
             .copied()
@@ -371,8 +370,8 @@ impl TurboTasksBackend {
     fn execute_context<'a>(
         &'a self,
         turbo_tasks: &'a TurboTasks<TurboTasksBackend>,
-    ) -> impl ExecuteContext<'a> {
-        ExecuteContextImpl::new(self, turbo_tasks)
+    ) -> ExecuteContext<'a> {
+        ExecuteContext::new(self, turbo_tasks)
     }
 
     /// Like [`TurboTasksBackend::execute_context`], but refuses to hand out a context once
@@ -385,12 +384,12 @@ impl TurboTasksBackend {
     fn try_execute_context<'a>(
         &'a self,
         turbo_tasks: &'a TurboTasks<TurboTasksBackend>,
-    ) -> Option<impl ExecuteContext<'a>> {
+    ) -> Option<ExecuteContext<'a>> {
         let stopping = self.stopping.read();
         if *stopping {
             return None;
         }
-        Some(ExecuteContextImpl::new_with_shutdown_guard(
+        Some(ExecuteContext::new_with_shutdown_guard(
             self,
             turbo_tasks,
             stopping,
@@ -513,7 +512,7 @@ impl TurboTasksBackend {
     fn task_error_to_turbo_tasks_execution_error(
         &self,
         error: &TaskError,
-        ctx: &mut impl ExecuteContext<'_>,
+        ctx: &mut ExecuteContext<'_>,
     ) -> TurboTasksExecutionError {
         match error {
             TaskError::Panic(panic) => TurboTasksExecutionError::Panic(panic.clone()),
@@ -584,21 +583,24 @@ struct TaskExecutionCompletePrepareResult {
     pub is_session_dependent: bool,
 }
 
-fn lock_task_and_optional_reader<'e, C: ExecuteContext<'e>>(
-    ctx: &mut C,
+/// Locks the task being read, and the reader too when a dependency edge may need to be added.
+///
+/// Returns `None` if the task being read is gone (collected by GC, or missing from storage).
+fn lock_task_and_optional_reader<'e>(
+    ctx: &mut ExecuteContext<'e>,
     task_id: TaskId,
     reader_id: Option<TaskId>,
-) -> (C::TaskGuardImpl, Option<C::TaskGuardImpl>) {
+) -> Option<(TaskGuard<'e>, Option<TaskGuard<'e>>)> {
+    let task = ctx.try_task(task_id, TaskDataCategory::All)?;
     let Some(reader_id) = reader_id else {
-        return (ctx.task(task_id, TaskDataCategory::All), None);
+        return Some((task, None));
     };
 
     // Immutable tasks never need dependency edges and can never be invalidated. Avoid locking the
     // reader too in that common case. When the task is still mutable, drop the speculative lock
     // and reacquire both locks together to preserve the invalidation race guarantee.
-    let task = ctx.task(task_id, TaskDataCategory::All);
     if task.immutable() && !cfg!(feature = "verify_immutable") {
-        (task, None)
+        Some((task, None))
     } else {
         drop(task);
 
@@ -611,11 +613,19 @@ fn lock_task_and_optional_reader<'e, C: ExecuteContext<'e>>(
         // when dependency edges may still be added.
         if task.immutable() && !cfg!(feature = "verify_immutable") {
             drop(reader);
-            (task, None)
+            Some((task, None))
         } else {
-            (task, Some(reader))
+            Some((task, Some(reader)))
         }
     }
+}
+
+/// The error a read of a missing task (see [`lock_task_and_optional_reader`]) fails with.
+fn collected_task_read_error(task_id: TaskId, operation: &str) -> anyhow::Error {
+    anyhow::anyhow!(
+        "{operation}: task {task_id} no longer exists (it was garbage collected). The reading \
+         task holds a stale reference to it and is expected to be dropped by its parent."
+    )
 }
 
 // Operations
@@ -636,9 +646,11 @@ impl TurboTasksBackend {
                 && reader_id != task_id)
                 .then_some(reader_id)
         });
-        let (mut task, mut reader_task) =
-            lock_task_and_optional_reader(&mut ctx, task_id, need_reader_task);
-        task.assert_not_deleted("read_task_output");
+        let Some((mut task, mut reader_task)) =
+            lock_task_and_optional_reader(&mut ctx, task_id, need_reader_task)
+        else {
+            return Err(collected_task_read_error(task_id, "read_task_output"));
+        };
 
         fn listen_to_done_event(
             reader_description: Option<EventDescription>,
@@ -663,7 +675,7 @@ impl TurboTasksBackend {
         /// whether a worker has actually started it. A task that is only `Scheduled` can be taken
         /// over and executed by the reader; one that is `InProgress` can only be waited for.
         fn check_in_progress<T>(
-            task: &impl TaskGuard,
+            task: &TaskGuard<'_>,
             reader_description: Option<EventDescription>,
             tracking: ReadTracking,
         ) -> Option<Result<ReadOutcome<T>>> {
@@ -749,7 +761,7 @@ impl TurboTasksBackend {
                                 .collect::<String>()
                         }
                         fn get_info(
-                            ctx: &mut impl ExecuteContext<'_>,
+                            ctx: &mut ExecuteContext<'_>,
                             task_id: TaskId,
                             parent_and_count: Option<(TaskId, i32)>,
                             visited: &mut FxHashSet<TaskId>,
@@ -963,9 +975,9 @@ impl TurboTasksBackend {
 
         fn add_cell_dependency(
             task_id: TaskId,
-            mut task: impl TaskGuard,
+            mut task: TaskGuard<'_>,
             reader: Option<TaskId>,
-            reader_task: Option<impl TaskGuard>,
+            reader_task: Option<TaskGuard<'_>>,
             cell: CellId,
             key: Option<u64>,
         ) {
@@ -1011,9 +1023,11 @@ impl TurboTasksBackend {
                 && reader_id != task_id)
                 .then_some(reader_id)
         });
-        let (mut task, reader_task) =
-            lock_task_and_optional_reader(&mut ctx, task_id, need_reader_task);
-        task.assert_not_deleted("read_task_cell");
+        let Some((mut task, reader_task)) =
+            lock_task_and_optional_reader(&mut ctx, task_id, need_reader_task)
+        else {
+            return Err(collected_task_read_error(task_id, "read_task_cell"));
+        };
 
         let content = if final_read_hint {
             task.remove_cell_data(&cell, &get_value_type(cell.type_id()).persistence)
@@ -1104,10 +1118,10 @@ impl TurboTasksBackend {
 
     fn listen_to_cell(
         &self,
-        task: &mut impl TaskGuard,
+        task: &mut TaskGuard<'_>,
         task_id: TaskId,
         reader: Option<TaskId>,
-        reader_task: &Option<impl TaskGuard>,
+        reader_task: &Option<TaskGuard<'_>>,
         cell: CellId,
     ) -> (EventListener, bool) {
         let note = || {
@@ -2298,7 +2312,7 @@ impl TurboTasksBackend {
 
     fn task_execution_completed_prepare(
         &self,
-        ctx: &mut impl ExecuteContext<'_>,
+        ctx: &mut ExecuteContext<'_>,
         #[cfg(feature = "trace_task_details")] span: &Span,
         task_id: TaskId,
         result: Result<RawVc, TurboTasksExecutionError>,
@@ -2603,7 +2617,7 @@ impl TurboTasksBackend {
 
     fn task_execution_completed_invalidate_output_dependent(
         &self,
-        ctx: &mut impl ExecuteContext<'_>,
+        ctx: &mut ExecuteContext<'_>,
         task_id: TaskId,
         #[cfg(feature = "task_dirty_cause")] function_id: Option<FunctionId>,
         output_dependent_tasks: SmallVec<[TaskId; 4]>,
@@ -2626,7 +2640,7 @@ impl TurboTasksBackend {
         }
 
         fn process_output_dependents(
-            ctx: &mut impl ExecuteContext<'_>,
+            ctx: &mut ExecuteContext<'_>,
             task_id: TaskId,
             #[cfg(feature = "task_dirty_cause")] cause: &TaskDirtyCause,
             dependent_task_id: TaskId,
@@ -2719,7 +2733,7 @@ impl TurboTasksBackend {
 
     fn task_execution_completed_connect(
         &self,
-        ctx: &mut impl ExecuteContext<'_>,
+        ctx: &mut ExecuteContext<'_>,
         task_id: TaskId,
         new_children: FxHashSet<TaskId>,
     ) -> Option<TaskPriority> {
@@ -2789,7 +2803,7 @@ impl TurboTasksBackend {
     #[allow(clippy::type_complexity)]
     fn task_execution_completed_finish(
         &self,
-        ctx: &mut impl ExecuteContext<'_>,
+        ctx: &mut ExecuteContext<'_>,
         task_id: TaskId,
         #[cfg(feature = "verify_determinism")] no_output_set: bool,
         new_output: Option<OutputValue>,
@@ -2897,7 +2911,7 @@ impl TurboTasksBackend {
 
     fn task_execution_completed_cleanup(
         &self,
-        ctx: &mut impl ExecuteContext<'_>,
+        ctx: &mut ExecuteContext<'_>,
         task_id: TaskId,
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
         is_error: bool,
@@ -3427,11 +3441,24 @@ impl TurboTasksBackend {
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
     ) {
         self.assert_not_persistent_calling_transient(parent_task, task);
+        let mut ctx = self.execute_context(turbo_tasks);
+        // An `OperationVc` held without a pin can name a collected task (soft-deleted or already
+        // gone). That is a bug in whoever held it, so fail loudly here, in the connecting task,
+        // rather than letting the dead id spread into this task's output or another task's
+        // arguments. Panic before `connect_child`, which would materialize and schedule an entry
+        // for the missing task.
+        if ctx.try_task(task, TaskDataCategory::Meta).is_none() {
+            panic!(
+                "connect_task: task {task} no longer exists (it was garbage collected). An \
+                 `OperationVc` to it was held without a pin; hold it in a `GcRoot` or connect it \
+                 from its parent task."
+            );
+        }
         connect_child(
             parent_task,
             task,
             /* release_construction_ref */ false,
-            self.execute_context(turbo_tasks),
+            ctx,
         );
     }
 
