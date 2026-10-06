@@ -2368,9 +2368,7 @@ mod cell_data_tracking_tests {
         backend::{
             TaskDataCategory,
             snapshot_coordinator::SnapshotCoordinator,
-            storage::{
-                SnapshotMask, Storage, StorageOptions, encode_snapshot_item, encode_task_contents,
-            },
+            storage::{Storage, StorageOptions, encode_snapshot_item, encode_task_contents},
             storage_schema::TaskStorageAccessors,
         },
         backing_storage::SnapshotItem,
@@ -2561,7 +2559,7 @@ mod cell_data_tracking_tests {
         let process =
             |_: TaskId,
              _: &TaskStorage,
-             _: SnapshotMask,
+             _: TaskDataCategory,
              _: &mut TurboBincodeBuffer|
              -> SnapshotItem { panic!("the pre-encoded snapshot item must be used") };
         let coordinator = SnapshotCoordinator::new();
@@ -2631,9 +2629,9 @@ mod cell_data_tracking_tests {
         // Encodes the live state, like the backend does for tasks that weren't copied.
         let process = |task_id: TaskId,
                        task: &TaskStorage,
-                       mask: SnapshotMask,
+                       category: TaskDataCategory,
                        buffer: &mut TurboBincodeBuffer| {
-            encode_snapshot_item(task_id, task, mask, buffer).unwrap()
+            encode_snapshot_item(task_id, task, category, buffer).unwrap()
         };
         let coordinator = SnapshotCoordinator::new();
         let phase = coordinator.try_begin_snapshot().unwrap();
@@ -2682,7 +2680,7 @@ mod cell_data_tracking_tests {
         let process =
             |_: TaskId,
              _: &TaskStorage,
-             _: SnapshotMask,
+             _: TaskDataCategory,
              _: &mut TurboBincodeBuffer|
              -> SnapshotItem { panic!("the pre-encoded snapshot item must be used") };
         let coordinator = SnapshotCoordinator::new();

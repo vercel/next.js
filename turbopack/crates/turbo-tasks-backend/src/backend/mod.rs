@@ -70,7 +70,7 @@ use crate::{
             make_task_dirty_internal, prepare_new_children, update_cell,
         },
         snapshot_coordinator::{OperationGuard, SlowSettle, SnapshotCoordinator},
-        storage::{SnapshotMask, Storage, StorageOptions, encode_snapshot_item},
+        storage::{Storage, StorageOptions, encode_snapshot_item},
         storage_schema::{TaskStorage, TaskStorageAccessors},
     },
     backing_storage::SnapshotItem,
@@ -1412,21 +1412,21 @@ impl TurboTasksBackend {
         let task_cache_stats: Mutex<FxHashMap<_, TaskCacheStats>> =
             Mutex::new(FxHashMap::default());
 
-        // Encode each task's captured categories (`mask`). Only categories with `modified` set are
-        // captured, meaning the category was actually dirtied. Categories restored from disk but
-        // never modified don't need re-persisting since the on-disk version is still valid.
+        // Encode each task's captured categories (`category`). Only categories with `modified` set
+        // are captured, meaning the category was actually dirtied. Categories restored from disk
+        // but never modified don't need re-persisting since the on-disk version is still valid.
         // Captured tasks that were modified again before being persisted were already encoded by
         // `track_modification` (see `Storage::snapshots`), and are yielded without calling this.
         let process = |task_id: TaskId,
                        inner: &TaskStorage,
-                       mask: SnapshotMask,
+                       category: TaskDataCategory,
                        buffer: &mut TurboBincodeBuffer| {
             debug_assert!(
                 !self.gc_enabled || inner.flags.deleted() || !inner.gc_collectible(),
                 "tasks scheduled for persistent must not be collectible, this implies a missed \
                  task during GC"
             );
-            encode_snapshot_item(task_id, inner, mask, buffer).unwrap_or_else(|err| {
+            encode_snapshot_item(task_id, inner, category, buffer).unwrap_or_else(|err| {
                 panic!(
                     "Serializing task {} failed: {:?}",
                     self.debug_get_task_description(task_id),
