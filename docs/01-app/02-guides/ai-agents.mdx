@@ -191,13 +191,21 @@ Then give the agent this prompt:
 After every edit, verify the page still works at runtime using the next-dev-loop Skill.
 ```
 
-### `next-browser-initial-load-optimizer`
+### `next-bundle-optimizer`
 
-For slow route startup, oversized client bundles, duplicate browser dependencies, or features that can wait for interaction, use [`next-browser-initial-load-optimizer`](https://www.skills.sh/vercel/next.js/next-browser-initial-load-optimizer). It audits a route by default; explicitly request fixes to enter its edit, measure, and verify loop.
+The [`next-bundle-optimizer`](https://www.skills.sh/vercel/next.js/next-bundle-optimizer) uses Turbopack's bundle analyzer to identify sources of large client-side bundles that impact your site's initial load performance.
 
 ```bash filename="Terminal"
-npx skills add vercel/next.js --skill next-browser-initial-load-optimizer
+npx skills add vercel/next.js --skill next-bundle-optimizer
 ```
+
+In audit-only mode, it produces a report without making any changes:
+
+```prompt
+Use the next-bundle-optimizer skill to produce a report of the initial load performance of this site.
+```
+
+You can also tell your agent to fix any issues, and it will optimize your site based on its findings. Or have it focus on a specific route by providing the route in the prompt.
 
 ### `next-cache-components-adoption`
 
