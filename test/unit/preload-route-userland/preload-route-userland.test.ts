@@ -7,6 +7,9 @@ import { RouteKind } from 'next/dist/server/route-kind'
 jest.mock('next/dist/server/load-components', () => ({
   loadComponents: jest.fn(),
 }))
+jest.mock('next/dist/server/load-reference-manifests', () => ({
+  loadReferenceManifests: jest.fn(),
+}))
 
 // Exercise NextServer's actual constructor gates without starting BaseServer's
 // filesystem, routing, and process-global setup.
@@ -43,6 +46,36 @@ jest.mock(
 )
 
 const mockedLoadComponents = jest.mocked(loadComponents)
+
+// Local runtime typings avoid importing the published webpack declaration graph.
+type EagerRoute = {
+  userland: unknown
+  ensureUserland: () => Promise<void>
+  prepare: () => Promise<unknown>
+}
+type EagerRouteConstructor = new (options: {
+  definition: {
+    kind: RouteKind
+    page: string
+    pathname: string
+    filename: string
+    bundlePath: string
+  }
+  userland: { default: () => void }
+  distDir: string
+  relativeProjectDir: string
+  components?: { App: () => void; Document: () => void }
+}) => EagerRoute
+
+const { RouteModule } = jest.requireActual<{
+  RouteModule: EagerRouteConstructor
+}>('next/dist/server/route-modules/route-module')
+const { PagesRouteModule } = jest.requireActual<{
+  PagesRouteModule: EagerRouteConstructor
+}>('next/dist/server/route-modules/pages/module.compiled')
+const { PagesAPIRouteModule } = jest.requireActual<{
+  PagesAPIRouteModule: EagerRouteConstructor
+}>('next/dist/server/route-modules/pages-api/module.compiled')
 
 type Entry = {
   patchFetch: () => void
@@ -83,6 +116,99 @@ async function preload(entries: Record<string, Entry>, events: string[]) {
 describe('App Router startup preloading', () => {
   beforeEach(() => {
     mockedLoadComponents.mockReset()
+  })
+
+  it.each([
+    { name: 'base Pages', Constructor: RouteModule, kind: RouteKind.PAGES },
+    {
+      name: 'base Pages API',
+      Constructor: RouteModule,
+      kind: RouteKind.PAGES_API,
+    },
+    { name: 'base image', Constructor: RouteModule, kind: RouteKind.IMAGE },
+    { name: 'Pages', Constructor: PagesRouteModule, kind: RouteKind.PAGES },
+    {
+      name: 'Pages API',
+      Constructor: PagesAPIRouteModule,
+      kind: RouteKind.PAGES_API,
+    },
+  ])('has a no-op initializer for $name', async ({ Constructor, kind }) => {
+    const exported = jest.fn()
+    const route = new Constructor({
+      definition: {
+        kind,
+        page: '/eager',
+        pathname: '/eager',
+        filename: 'eager',
+        bundlePath: 'pages/eager',
+      },
+      userland: { default: exported },
+      components: { App: exported, Document: exported },
+      distDir: '.next',
+      relativeProjectDir: '.',
+    })
+    const userland = jest
+      .spyOn(route, 'userland', 'get')
+      .mockImplementation(() => {
+        throw new Error('the default initializer must not read userland')
+      })
+    const prepare = jest.spyOn(route, 'prepare')
+    const { loadReferenceManifests } = jest.requireMock<{
+      loadReferenceManifests: jest.Mock
+    }>('next/dist/server/load-reference-manifests')
+    loadReferenceManifests.mockClear()
+    const ownKeys = Reflect.ownKeys(route)
+    try {
+      if (Constructor !== RouteModule) {
+        expect(
+          Object.prototype.hasOwnProperty.call(
+            Constructor.prototype,
+            'ensureUserland'
+          )
+        ).toBe(false)
+      }
+      await expect(route.ensureUserland()).resolves.toBeUndefined()
+      await expect(route.ensureUserland()).resolves.toBeUndefined()
+      expect(userland).not.toHaveBeenCalled()
+      expect(exported).not.toHaveBeenCalled()
+      expect(prepare).not.toHaveBeenCalled()
+      expect(loadReferenceManifests).not.toHaveBeenCalled()
+      expect(Reflect.ownKeys(route)).toEqual(ownKeys)
+    } finally {
+      userland.mockRestore()
+      prepare.mockRestore()
+    }
+  })
+
+  it('dispatches initialization without inspecting the route kind', async () => {
+    const events: string[] = []
+    const ensureUserland = jest.fn(async () => {
+      events.push('userland:start')
+      await Promise.resolve()
+      events.push('userland:complete')
+    })
+    await preload(
+      {
+        '/polymorphic-entry': {
+          patchFetch: () => events.push('fetch:patch'),
+          routeModule: {
+            get definition(): { kind: RouteKind } {
+              throw new Error('preloading must not inspect the route kind')
+            },
+            ensureUserland,
+          },
+        },
+      },
+      events
+    )
+    expect(ensureUserland).toHaveBeenCalledTimes(1)
+    expect(events).toEqual([
+      'entry:/control',
+      'entry:/polymorphic-entry',
+      'fetch:patch',
+      'userland:start',
+      'userland:complete',
+    ])
   })
 
   it.each(['async rejection', 'sync throw'])(

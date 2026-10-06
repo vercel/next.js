@@ -132,10 +132,6 @@ import { isInterceptionRouteRewrite } from '../lib/is-interception-route-rewrite
 import type { ServerOnInstrumentationRequestError } from './app-render/types'
 import type { PrefetchHints } from '../shared/lib/app-router-types'
 import { RouteKind } from './route-kind'
-import {
-  isAppRouteRouteModule,
-  isAppPageRouteModule,
-} from './route-modules/checks'
 import { InvariantError } from '../shared/lib/invariant-error'
 import { AwaiterOnce } from './after/awaiter'
 import { AsyncCallbackSet } from './lib/async-callback-set'
@@ -372,12 +368,7 @@ export default class NextNodeServer extends BaseServer<
         // otherwise if the fetch is patched by user code, we will be patching it
         // too late and there won't be any caching behaviors
         ComponentMod.patchFetch()
-        if (
-          isAppRouteRouteModule(ComponentMod.routeModule) ||
-          isAppPageRouteModule(ComponentMod.routeModule)
-        ) {
-          await ComponentMod.routeModule.ensureUserland()
-        }
+        await ComponentMod.routeModule.ensureUserland()
       } catch (_err) {
         // Intentionally ignored because this is a preload step.
       }

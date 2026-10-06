@@ -160,6 +160,12 @@ export abstract class RouteModule<
     this.relativeProjectDir = relativeProjectDir
   }
 
+  /**
+   * Initialize lazy userland in subclasses. Eagerly loaded route modules need
+   * no additional initialization. App module callers must patch fetch first.
+   */
+  public async ensureUserland(): Promise<void> {}
+
   private getRouterServerContext(
     req: NextIncomingMessage
   ): RouterServerContext[string] | undefined {
