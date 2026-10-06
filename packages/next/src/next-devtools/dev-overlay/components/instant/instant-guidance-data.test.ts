@@ -36,10 +36,10 @@ describe('static route explanations', () => {
       "This data access requires request-time work, which conflicts with the route's static requirement."
     )
     expect(EXPLANATIONS['static-metadata']).toBe(
-      'This route is configured to be fully static, but data prevents its metadata from being fully prerendered.'
+      "This data access requires request-time work in `generateMetadata()`, which conflicts with the route's static requirement."
     )
     expect(EXPLANATIONS['static-viewport']).toBe(
-      'This route is configured to be fully static, but data prevents its viewport from being fully prerendered.'
+      "This data access requires request-time work in `generateViewport()`, which conflicts with the route's static requirement."
     )
   })
 })
