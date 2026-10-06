@@ -1,8 +1,10 @@
+use std::collections::BTreeMap;
+
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
-use serde_json::Value as JsonValue;
+use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, OperationValue, ResolvedVc, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
@@ -19,8 +21,255 @@ use turbopack_core::{
     virtual_source::VirtualSource,
 };
 
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    Encode,
+    Decode,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+)]
+#[serde(untagged)]
+pub enum ModuleFederationStringOrStrings {
+    String(RcStr),
+    Strings(Vec<RcStr>),
+}
+
+impl ModuleFederationStringOrStrings {
+    fn into_vec(self) -> Vec<RcStr> {
+        match self {
+            Self::String(value) => vec![value],
+            Self::Strings(values) => values,
+        }
+    }
+}
+
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    Encode,
+    Decode,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct UnnormalizedModuleFederationRemoteOptions {
+    pub external: ModuleFederationStringOrStrings,
+    pub share_scope: Option<RcStr>,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    Encode,
+    Decode,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+)]
+#[serde(untagged)]
+pub enum UnnormalizedModuleFederationRemote {
+    String(RcStr),
+    Strings(Vec<RcStr>),
+    Options(UnnormalizedModuleFederationRemoteOptions),
+}
+
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    Encode,
+    Decode,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+)]
+#[serde(untagged)]
+pub enum UnnormalizedModuleFederationRemoteArrayItem {
+    String(RcStr),
+    Object(BTreeMap<RcStr, UnnormalizedModuleFederationRemote>),
+}
+
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    Encode,
+    Decode,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+)]
+#[serde(untagged)]
+pub enum UnnormalizedModuleFederationRemotes {
+    Object(BTreeMap<RcStr, UnnormalizedModuleFederationRemote>),
+    Array(Vec<UnnormalizedModuleFederationRemoteArrayItem>),
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    Encode,
+    Decode,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct UnnormalizedModuleFederationSharedOptions {
+    pub import: Option<ModuleFederationSharedImport>,
+    pub share_key: Option<RcStr>,
+    pub share_scope: Option<RcStr>,
+    pub version: Option<RcStr>,
+    pub eager: Option<bool>,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    Encode,
+    Decode,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+)]
+#[serde(untagged)]
+pub enum ModuleFederationSharedImport {
+    String(RcStr),
+    False(bool),
+}
+
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    Encode,
+    Decode,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+)]
+#[serde(untagged)]
+pub enum UnnormalizedModuleFederationShared {
+    String(RcStr),
+    Options(UnnormalizedModuleFederationSharedOptions),
+}
+
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    Encode,
+    Decode,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+)]
+#[serde(untagged)]
+pub enum UnnormalizedModuleFederationSharedArrayItem {
+    String(RcStr),
+    Object(BTreeMap<RcStr, UnnormalizedModuleFederationShared>),
+}
+
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    Encode,
+    Decode,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+)]
+#[serde(untagged)]
+pub enum UnnormalizedModuleFederationSharedEntries {
+    Object(BTreeMap<RcStr, UnnormalizedModuleFederationShared>),
+    Array(Vec<UnnormalizedModuleFederationSharedArrayItem>),
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    Encode,
+    Decode,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+)]
+#[serde(rename_all = "lowercase")]
+pub enum ModuleFederationRemoteType {
+    Script,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    Encode,
+    Decode,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct UnnormalizedModuleFederationConfig {
+    pub name: Option<RcStr>,
+    pub remotes: Option<UnnormalizedModuleFederationRemotes>,
+    pub shared: Option<UnnormalizedModuleFederationSharedEntries>,
+    pub share_scope: Option<RcStr>,
+    pub remote_type: Option<ModuleFederationRemoteType>,
+}
+
 /// Normalized first-class Module Federation configuration.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[turbo_tasks::value(shared)]
+#[derive(Clone, Debug, Default)]
 pub struct ModuleFederationConfig {
     pub name: Option<RcStr>,
     pub filename: Option<RcStr>,
@@ -43,7 +292,7 @@ pub struct ModuleFederationRemoteExternal {
     pub url: RcStr,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, TraceRawVcs, NonLocalValue)]
 pub struct ModuleFederationExpose {
     pub request: RcStr,
     pub imports: Vec<RcStr>,
@@ -64,72 +313,68 @@ pub struct ModuleFederationShared {
     pub strict_version: bool,
 }
 
-impl ModuleFederationConfig {
-    pub fn from_json(json: &str) -> Result<Self> {
-        let value: JsonValue = serde_json::from_str(json)?;
-        let object = value
-            .as_object()
-            .ok_or_else(|| anyhow::anyhow!("Module Federation configuration must be an object"))?;
-        for key in object.keys() {
-            if !matches!(
-                key.as_str(),
-                "name"
-                    | "filename"
-                    | "remotes"
-                    | "exposes"
-                    | "shared"
-                    | "shareScope"
-                    | "remoteType"
-            ) {
-                bail!("Unknown Module Federation option '{key}'");
-            }
+impl UnnormalizedModuleFederationRemotes {
+    fn into_entries(self) -> Vec<(RcStr, UnnormalizedModuleFederationRemote)> {
+        match self {
+            Self::Object(entries) => entries.into_iter().collect(),
+            Self::Array(items) => items
+                .into_iter()
+                .flat_map(|item| match item {
+                    UnnormalizedModuleFederationRemoteArrayItem::String(request) => vec![(
+                        request.clone(),
+                        UnnormalizedModuleFederationRemote::String(request),
+                    )],
+                    UnnormalizedModuleFederationRemoteArrayItem::Object(entries) => {
+                        entries.into_iter().collect()
+                    }
+                })
+                .collect(),
         }
-        if let Some(remote_type) = object.get("remoteType").and_then(JsonValue::as_str)
-            && remote_type != "script"
-        {
-            bail!(
-                "Unsupported Module Federation remoteType '{remote_type}'; only 'script' is \
-                 supported"
-            );
+    }
+}
+
+impl UnnormalizedModuleFederationSharedEntries {
+    fn into_entries(self) -> Vec<(RcStr, UnnormalizedModuleFederationShared)> {
+        match self {
+            Self::Object(entries) => entries.into_iter().collect(),
+            Self::Array(items) => items
+                .into_iter()
+                .flat_map(|item| match item {
+                    UnnormalizedModuleFederationSharedArrayItem::String(request) => vec![(
+                        request.clone(),
+                        UnnormalizedModuleFederationShared::String(request),
+                    )],
+                    UnnormalizedModuleFederationSharedArrayItem::Object(entries) => {
+                        entries.into_iter().collect()
+                    }
+                })
+                .collect(),
         }
-        let share_scope: RcStr = object
-            .get("shareScope")
-            .and_then(JsonValue::as_str)
-            .unwrap_or("default")
-            .into();
-        let mut config = Self {
-            name: object
-                .get("name")
-                .and_then(JsonValue::as_str)
-                .map(Into::into),
-            filename: object
-                .get("filename")
-                .and_then(JsonValue::as_str)
-                .map(Into::into),
+    }
+}
+
+impl UnnormalizedModuleFederationConfig {
+    pub fn normalize(self) -> Result<ModuleFederationConfig> {
+        let share_scope = self.share_scope.unwrap_or_else(|| "default".into());
+        let mut config = ModuleFederationConfig {
+            name: self.name,
             share_scope: share_scope.clone(),
             ..Default::default()
         };
-        if let Some(remotes) = object.get("remotes") {
-            for (request, value) in option_entries(remotes)? {
-                let (external, remote_share_scope) = if let Some(options) = value.as_object() {
-                    let external = options.get("external").ok_or_else(|| {
-                        anyhow::anyhow!(
-                            "Module Federation remote '{request}' is missing 'external'"
-                        )
-                    })?;
-                    (
-                        string_or_strings(external, "remote external")?,
-                        options
-                            .get("shareScope")
-                            .and_then(JsonValue::as_str)
-                            .unwrap_or(&share_scope)
-                            .into(),
-                    )
-                } else {
-                    (
-                        string_or_strings(&value, "remote external")?,
-                        share_scope.clone(),
-                    )
+
+        if let Some(remotes) = self.remotes {
+            for (request, remote) in remotes.into_entries() {
+                let (external, remote_share_scope) = match remote {
+                    UnnormalizedModuleFederationRemote::String(external) => {
+                        (vec![external], share_scope.clone())
+                    }
+                    UnnormalizedModuleFederationRemote::Strings(external) => {
+                        (external, share_scope.clone())
+                    }
+                    UnnormalizedModuleFederationRemote::Options(options) => (
+                        options.external.into_vec(),
+                        options.share_scope.unwrap_or_else(|| share_scope.clone()),
+                    ),
                 };
                 config.remotes.push(ModuleFederationRemote {
                     request,
@@ -141,78 +386,47 @@ impl ModuleFederationConfig {
                 });
             }
         }
-        if let Some(exposes) = object.get("exposes") {
-            for (request, value) in option_entries(exposes)? {
-                let (imports, chunk_name) = if let Some(options) = value.as_object() {
-                    (
-                        string_or_strings(
-                            options.get("import").ok_or_else(|| {
-                                anyhow::anyhow!(
-                                    "Module Federation expose '{request}' is missing 'import'"
-                                )
-                            })?,
-                            "expose import",
-                        )?,
-                        options
-                            .get("name")
-                            .and_then(JsonValue::as_str)
-                            .map(Into::into),
-                    )
-                } else {
-                    (string_or_strings(&value, "expose import")?, None)
+
+        if let Some(shared) = self.shared {
+            for (request, shared) in shared.into_entries() {
+                let options = match shared {
+                    UnnormalizedModuleFederationShared::String(import) => {
+                        UnnormalizedModuleFederationSharedOptions {
+                            import: Some(ModuleFederationSharedImport::String(import)),
+                            ..Default::default()
+                        }
+                    }
+                    UnnormalizedModuleFederationShared::Options(options) => options,
                 };
-                config.exposes.push(ModuleFederationExpose {
-                    request,
-                    imports,
-                    chunk_name,
-                });
-            }
-        }
-        if let Some(shared) = object.get("shared") {
-            for (request, value) in option_entries(shared)? {
-                let options = value.as_object();
-                let import = match options.and_then(|value| value.get("import")) {
-                    Some(JsonValue::Bool(false)) => None,
-                    Some(JsonValue::String(value)) => Some(value.as_str().into()),
-                    Some(_) => bail!("Module Federation shared import must be a string or false"),
-                    None => Some(
-                        value
-                            .as_str()
-                            .filter(|value| *value != request.as_str())
-                            .unwrap_or(&request)
-                            .into(),
-                    ),
-                };
-                let string = |key: &str| {
-                    options
-                        .and_then(|value| value.get(key))
-                        .and_then(JsonValue::as_str)
-                        .map(RcStr::from)
-                };
-                let boolean = |key: &str| {
-                    options
-                        .and_then(|value| value.get(key))
-                        .and_then(JsonValue::as_bool)
-                        .unwrap_or(false)
+                let import = match options.import {
+                    Some(ModuleFederationSharedImport::String(import)) => Some(import),
+                    Some(ModuleFederationSharedImport::False(false)) => None,
+                    Some(ModuleFederationSharedImport::False(true)) => {
+                        bail!("Module Federation shared import must be a string or false")
+                    }
+                    None => Some(request.clone()),
                 };
                 config.shared.push(ModuleFederationShared {
                     request: request.clone(),
                     import,
-                    package_name: string("packageName"),
-                    required_version: string("requiredVersion"),
-                    share_key: string("shareKey").unwrap_or_else(|| request.clone()),
-                    share_scope: string("shareScope").unwrap_or_else(|| share_scope.clone()),
-                    version: string("version"),
-                    eager: boolean("eager"),
-                    singleton: boolean("singleton"),
-                    strict_version: boolean("strictVersion"),
+                    package_name: None,
+                    required_version: None,
+                    share_key: options.share_key.unwrap_or_else(|| request.clone()),
+                    share_scope: options.share_scope.unwrap_or_else(|| share_scope.clone()),
+                    version: options.version,
+                    eager: options.eager.unwrap_or(false),
+                    singleton: false,
+                    strict_version: false,
                 });
             }
         }
+
         config.validate()?;
         Ok(config)
     }
+}
 
+impl ModuleFederationConfig {
     pub fn validate(&self) -> Result<()> {
         if !self.exposes.is_empty() && self.name.as_deref().is_none_or(str::is_empty) {
             bail!("Module Federation exposes require a non-empty container name");
@@ -237,62 +451,16 @@ impl ModuleFederationConfig {
                         remote.request
                     );
                 }
-                if !(external.url.starts_with("http://") || external.url.starts_with("https://")) {
+                if external.url.is_empty() {
                     bail!(
-                        "Module Federation remote '{}' must use an absolute HTTP(S) script URL, \
-                         got '{}'",
-                        remote.request,
-                        external.url
+                        "Module Federation remote '{}' has an empty script URL",
+                        remote.request
                     );
                 }
             }
         }
         Ok(())
     }
-}
-
-fn option_entries(value: &JsonValue) -> Result<Vec<(RcStr, JsonValue)>> {
-    if let Some(object) = value.as_object() {
-        return Ok(object
-            .iter()
-            .map(|(key, value)| (key.as_str().into(), value.clone()))
-            .collect());
-    }
-    let Some(array) = value.as_array() else {
-        bail!("Module Federation options must be an object or array");
-    };
-    let mut entries = Vec::new();
-    for item in array {
-        if let Some(item) = item.as_str() {
-            entries.push((item.into(), JsonValue::String(item.to_string())));
-        } else if let Some(object) = item.as_object() {
-            entries.extend(
-                object
-                    .iter()
-                    .map(|(key, value)| (key.as_str().into(), value.clone())),
-            );
-        } else {
-            bail!("Unexpected Module Federation array item");
-        }
-    }
-    Ok(entries)
-}
-
-fn string_or_strings(value: &JsonValue, description: &str) -> Result<Vec<RcStr>> {
-    if let Some(value) = value.as_str() {
-        return Ok(vec![value.into()]);
-    }
-    let Some(values) = value.as_array() else {
-        bail!("Module Federation {description} must be a string or string array");
-    };
-    values
-        .iter()
-        .map(|value| {
-            value.as_str().map(Into::into).ok_or_else(|| {
-                anyhow::anyhow!("Module Federation {description} array must contain only strings")
-            })
-        })
-        .collect()
 }
 
 fn parse_remote_external(external: &str) -> Result<ModuleFederationRemoteExternal> {
@@ -411,18 +579,59 @@ export {{ get, init }};
     ))
 }
 
+fn provider_registrations(shared: &[ModuleFederationShared], host_name: &str) -> Result<String> {
+    let mut registrations = Vec::new();
+    for shared in shared {
+        let Some(import) = &shared.import else {
+            continue;
+        };
+        let version = shared.version.as_deref().unwrap_or("0");
+        registrations.push(format!(
+            r#"
+    const versions_{index} = scope[{key}] ||= Object.create(null);
+    versions_{index}[{version}] ||= {{
+      get: () => import({import}).then((module) => () => module),
+      from: {host_name},
+      eager: {eager}
+    }};"#,
+            index = registrations.len(),
+            key = serde_json::to_string(&shared.share_key)?,
+            version = serde_json::to_string(version)?,
+            import = serde_json::to_string(import)?,
+            host_name = serde_json::to_string(host_name)?,
+            eager = shared.eager,
+        ));
+    }
+    Ok(registrations.join("\n"))
+}
+
 /// Adds configured remote scopes to a Turbopack import map.
 pub fn apply_module_federation_import_map(
     import_map: &mut ImportMap,
     project_path: FileSystemPath,
     config: &ModuleFederationConfig,
 ) {
-    for remote in &config.remotes {
-        let replacer = ModuleFederationRemoteReplacer {
+    let host_name = config.name.clone().unwrap_or_else(|| "host".into());
+    for (index, remote) in config.remotes.iter().enumerate() {
+        let init_request: RcStr =
+            format!("__turbopack_module_federation_remote_init__/{index}").into();
+        let init_replacer = ModuleFederationRemoteInitReplacer {
             project_path: project_path.clone(),
             remote: remote.clone(),
             shared: config.shared.clone(),
-            host_name: config.name.clone().unwrap_or_else(|| "host".into()),
+            host_name: host_name.clone(),
+            init_request: init_request.clone(),
+        }
+        .resolved_cell();
+        import_map.insert_exact_alias(
+            init_request.clone(),
+            ImportMapping::Dynamic(ResolvedVc::upcast(init_replacer)).resolved_cell(),
+        );
+
+        let replacer = ModuleFederationRemoteReplacer {
+            project_path: project_path.clone(),
+            remote: remote.clone(),
+            init_request,
         }
         .resolved_cell();
         let mapping = ImportMapping::Dynamic(ResolvedVc::upcast(replacer)).resolved_cell();
@@ -433,11 +642,132 @@ pub fn apply_module_federation_import_map(
 
 #[turbo_tasks::value]
 #[derive(Clone)]
-struct ModuleFederationRemoteReplacer {
+struct ModuleFederationRemoteInitReplacer {
     project_path: FileSystemPath,
     remote: ModuleFederationRemote,
     shared: Vec<ModuleFederationShared>,
     host_name: RcStr,
+    init_request: RcStr,
+}
+
+#[turbo_tasks::value]
+#[derive(Clone)]
+struct ModuleFederationRemoteReplacer {
+    project_path: FileSystemPath,
+    remote: ModuleFederationRemote,
+    init_request: RcStr,
+}
+
+#[turbo_tasks::value_impl]
+impl ImportMappingReplacement for ModuleFederationRemoteInitReplacer {
+    #[turbo_tasks::function]
+    fn replace(&self, _capture: Vc<Pattern>) -> Vc<ReplacedImportMapping> {
+        ReplacedImportMapping::Dynamic(ResolvedVc::upcast(self.clone().resolved_cell())).cell()
+    }
+
+    #[turbo_tasks::function]
+    async fn result(
+        self: Vc<Self>,
+        _lookup_path: FileSystemPath,
+        _request: Vc<Request>,
+    ) -> Result<Vc<ImportMapResult>> {
+        let this = self.await?;
+        let candidates = serde_json::to_string(
+            &this
+                .remote
+                .external
+                .iter()
+                .map(|external| (&*external.global, &*external.url))
+                .collect::<Vec<_>>(),
+        )?;
+        let remote_key = serde_json::to_string(&this.remote.request)?;
+        let share_scope = serde_json::to_string(&this.remote.share_scope)?;
+        let registrations = provider_registrations(&this.shared, &this.host_name)?;
+        let code = format!(
+            r#"
+const candidates = {candidates};
+const remoteKey = {remote_key};
+const federation = __turbopack_module_federation__;
+const scope = federation.shareScopes[{share_scope}] ||= Object.create(null);
+{registrations}
+
+async function initializeCandidate(index) {{
+  const [globalName, url] = candidates[index];
+  const cacheKey = `${{remoteKey}}:${{index}}`;
+  let promise = federation.remoteInitializations[cacheKey];
+  if (!promise) {{
+    promise = (async () => {{
+      if (!Object.prototype.hasOwnProperty.call(globalThis, globalName)) {{
+        await __turbopack_load_by_url__(url, true);
+      }}
+      if (!Object.prototype.hasOwnProperty.call(globalThis, globalName)) {{
+        throw new Error(`Container global ${{globalName}} is missing after loading ${{url}}`);
+      }}
+      const container = globalThis[globalName];
+      const initScope = federation.initScopes[{share_scope}] ||= [];
+      await container.init(scope, initScope);
+      return container;
+    }})();
+    federation.remoteInitializations[cacheKey] = promise;
+    void promise.catch(() => {{
+      if (federation.remoteInitializations[cacheKey] === promise) {{
+        delete federation.remoteInitializations[cacheKey];
+      }}
+    }});
+  }}
+  return promise;
+}}
+
+export async function initializeAll() {{
+  const containers = [];
+  const failures = [];
+  for (let index = 0; index < candidates.length; index++) {{
+    try {{
+      containers.push(await initializeCandidate(index));
+    }} catch (error) {{
+      failures.push(error);
+    }}
+  }}
+  return {{ containers, failures }};
+}}
+
+export async function get(request, fullRequest) {{
+  const failures = [];
+  for (let index = 0; index < candidates.length; index++) {{
+    try {{
+      const container = await initializeCandidate(index);
+      const initScope = federation.initScopes[{share_scope}] ||= [];
+      const factory = await container.get(request, initScope);
+      if (typeof factory !== "function") {{
+        throw new Error(`Container ${{candidates[index][0]}} returned no factory for ${{request}}`);
+      }}
+      return factory;
+    }} catch (error) {{
+      failures.push(error);
+    }}
+  }}
+  const details = failures.map((failure) => failure?.message || String(failure)).join("; ");
+  const error = new Error(`Failed to load federated module ${{fullRequest}}: ${{details}}`);
+  error.cause = failures;
+  throw error;
+}}
+"#,
+        );
+        let virtual_name = format!(
+            ".turbopack-module-federation-init-{}.js",
+            this.remote.request.replace('/', "_")
+        );
+        let source = VirtualSource::new(
+            this.project_path.join(&virtual_name)?,
+            AssetContent::file(FileContent::Content(code.into()).cell()),
+        )
+        .to_resolved()
+        .await?;
+        Ok(ImportMapResult::Result(
+            ResolveResult::source(ResolvedVc::upcast(source)).resolved_cell(),
+        )
+        .cell())
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -465,73 +795,14 @@ impl ImportMappingReplacement for ModuleFederationRemoteReplacer {
             return Ok(ImportMapResult::NoEntry.cell());
         };
 
-        let candidates = serde_json::to_string(
-            &this
-                .remote
-                .external
-                .iter()
-                .map(|external| (&*external.global, &*external.url))
-                .collect::<Vec<_>>(),
-        )?;
-        let share_scope = serde_json::to_string(&this.remote.share_scope)?;
         let exposed_request_json = serde_json::to_string(&exposed_request)?;
         let full_request = serde_json::to_string(&request)?;
-        let mut registrations = Vec::new();
-        for shared in &this.shared {
-            let Some(import) = &shared.import else {
-                continue;
-            };
-            let version = shared.version.as_deref().unwrap_or("0");
-            registrations.push(format!(
-                r#"
-    const versions_{index} = scope[{key}] ||= Object.create(null);
-    versions_{index}[{version}] ||= {{
-      get: () => import({import}).then((module) => () => module),
-      from: {host_name},
-      eager: {eager}
-    }};"#,
-                index = registrations.len(),
-                key = serde_json::to_string(&shared.share_key)?,
-                version = serde_json::to_string(version)?,
-                import = serde_json::to_string(import)?,
-                host_name = serde_json::to_string(&this.host_name)?,
-                eager = shared.eager,
-            ));
-        }
-        let registrations = registrations.join("\n");
+        let init_request = serde_json::to_string(&this.init_request)?;
         let code = format!(
             r#"
-const candidates = {candidates};
-const failures = [];
-let federatedModule;
-for (const [globalName, url] of candidates) {{
-  try {{
-    await __turbopack_load_script__(url);
-    const container = globalThis[globalName];
-    if (!container) {{
-      throw new Error(`Container global ${{globalName}} is missing after loading ${{url}}`);
-    }}
-    const scopes = globalThis.__turbopack_module_federation_share_scopes__ ||= Object.create(null);
-    const scope = scopes[{share_scope}] ||= Object.create(null);
-    {registrations}
-    const initScope = [];
-    await container.init(scope, initScope);
-    const factory = await container.get({exposed_request_json}, initScope);
-    if (typeof factory !== "function") {{
-      throw new Error(`Container ${{globalName}} returned no factory for ${{{exposed_request_json}}}`);
-    }}
-    federatedModule = factory();
-    break;
-  }} catch (error) {{
-    failures.push(error);
-  }}
-}}
-if (federatedModule === undefined) {{
-  const details = failures.map((failure) => failure?.message || String(failure)).join("; ");
-  const error = new Error(`Failed to load federated module ${{{full_request}}}: ${{details}}`);
-  error.cause = failures;
-  throw error;
-}}
+const {{ get }} = await import({init_request});
+const factory = await get({exposed_request_json}, {full_request});
+const federatedModule = factory();
 __turbopack_export_namespace__(federatedModule);
 "#
         );
@@ -556,18 +827,19 @@ __turbopack_export_namespace__(federatedModule);
 
 #[cfg(test)]
 mod tests {
-    use super::{ModuleFederationConfig, validate_output_filename};
+    use super::{UnnormalizedModuleFederationConfig, validate_output_filename};
 
     #[test]
     fn normalizes_remote_configuration() {
-        let config = ModuleFederationConfig::from_json(
+        let config: UnnormalizedModuleFederationConfig = serde_json::from_str(
             r#"{
                 "name": "host",
                 "remotes": {
                     "catalog": {
                         "external": [
                             "catalog@https://one.example/remote.js",
-                            "fallback@https://two.example/remote.js"
+                            "fallback@/remote.js",
+                            "fileRemote@file:///tmp/remote.js"
                         ],
                         "shareScope": "catalog"
                     }
@@ -575,22 +847,38 @@ mod tests {
             }"#,
         )
         .unwrap();
+        let config = config.normalize().unwrap();
         assert_eq!(config.name.as_deref(), Some("host"));
         assert_eq!(config.remotes[0].request, "catalog");
         assert_eq!(config.remotes[0].external[1].global, "fallback");
+        assert_eq!(config.remotes[0].external[1].url, "/remote.js");
+        assert_eq!(config.remotes[0].external[2].url, "file:///tmp/remote.js");
         assert_eq!(config.remotes[0].share_scope, "catalog");
     }
 
     #[test]
     fn rejects_unsupported_configuration() {
-        assert!(ModuleFederationConfig::from_json(r#"{"remoteType":"module"}"#).is_err());
-        assert!(ModuleFederationConfig::from_json(r#"{"library":{"type":"var"}}"#).is_err());
         assert!(
-            ModuleFederationConfig::from_json(
-                r#"{"remotes":{"catalog":"catalog@file:///remote.js"}}"#
+            serde_json::from_str::<UnnormalizedModuleFederationConfig>(
+                r#"{"remoteType":"module"}"#
             )
             .is_err()
         );
+        assert!(
+            serde_json::from_str::<UnnormalizedModuleFederationConfig>(
+                r#"{"library":{"type":"var"}}"#
+            )
+            .is_err()
+        );
+        assert!(
+            serde_json::from_str::<UnnormalizedModuleFederationConfig>(
+                r#"{"remotes":{"catalog":{"external":"catalog@/remote.js","unknown":true}}}"#
+            )
+            .is_err()
+        );
+        let empty_url: UnnormalizedModuleFederationConfig =
+            serde_json::from_str(r#"{"remotes":{"catalog":"catalog@"}}"#).unwrap();
+        assert!(empty_url.normalize().is_err());
     }
 
     #[test]
