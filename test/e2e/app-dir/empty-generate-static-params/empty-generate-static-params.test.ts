@@ -49,6 +49,9 @@ describe('empty-generate-static-params', () => {
       `)
     })
   } else {
+    // The Turbopack deploy snapshot matches Vercel's build logs, which omit
+    // leading indentation. Other hosts format their build logs differently.
+    // @force-gate !deploy || vercel
     describe('literal empty array', () => {
       const { next, isTurbopack, isNextDeploy } = nextTestSetup({
         files: __dirname,
@@ -114,6 +117,9 @@ describe('empty-generate-static-params', () => {
       }, 240_000)
     })
 
+    // The Turbopack deploy snapshot matches Vercel's build logs, which omit
+    // leading indentation. Other hosts format their build logs differently.
+    // @force-gate !deploy || vercel
     describe('computed empty array', () => {
       const { next, isTurbopack, isNextDeploy } = nextTestSetup({
         files: __dirname,

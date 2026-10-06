@@ -3,6 +3,11 @@ import { nextTestSetup } from 'e2e-utils'
 // vercel.json uses pnpm so file: dependencies are installed inside node_modules.
 // npm links them to fixture source, which is transpiled without transpilePackages.
 describe('transpile-packages-typescript-foreign', () => {
+  // The build only fails because Vercel reads vercel.json's
+  // `installCommand: "pnpm install"`, which copies the `file:` package into
+  // node_modules. A host that ignores vercel.json may link it instead, and
+  // the build would then succeed.
+  // @force-gate !deploy || vercel
   describe('without transpilePackages', () => {
     const { next, isNextDev } = nextTestSetup({
       files: __dirname,

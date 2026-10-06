@@ -83,6 +83,10 @@ describe('non-root-project-monorepo', () => {
     })
   })
 
+  // Deployed server bundles embed the build machine's source path, and
+  // `sourceFileUrl()` hardcodes it as Vercel's build directory
+  // (`/vercel/path0`). Other hosts build in a different directory.
+  // @force-gate !deploy || vercel
   describe('import.meta.url', () => {
     it('should work during RSC', async () => {
       const $ = await next.render$('/import-meta-url-rsc')
