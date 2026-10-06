@@ -130,9 +130,9 @@ the marker; a retry masks the regression the guard exists to catch. The only leg
 `instant()` works by setting a cookie (`next-instant-navigation-testing`) that lock code inside the
 build reads. It does not throw when that lock code is absent; it only throws on nested calls or an
 unknown base URL. If the build was produced without the testing API
-(`experimental.exposeTestingApiInProductionBuild`), the cookie is ignored, the navigation runs
-normally, and the `instant()` test passes vacuously. A green `instant()` test is only meaningful if
-the lock engaged.
+([`experimental.exposeTestingApiInProductionBuild`](https://nextjs.org/docs/app/api-reference/config/next-config-js/exposeTestingApiInProductionBuild)),
+the cookie is ignored, the navigation runs normally, and the `instant()` test passes vacuously. A
+green `instant()` test is only meaningful if the lock engaged.
 
 Two defenses; use both:
 

@@ -152,7 +152,8 @@ The workflow depends on framework capabilities that ship with current Next.js:
   provides `instant()`. Verify with `npm ls next @next/playwright` (or the
   project's package manager) and align them if they differ. The matching
   testing API is in the `next` runtime, gated by the
-  `experimental.exposeTestingApiInProductionBuild` config flag (phase A).
+  [`experimental.exposeTestingApiInProductionBuild`](https://nextjs.org/docs/app/api-reference/config/next-config-js/exposeTestingApiInProductionBuild)
+  config flag (phase A).
 
 If the project does not meet these, upgrade first (`npx @next/codemod upgrade`
 automates most of it), then enable Cache Components in `next.config.ts`:
@@ -197,8 +198,8 @@ every platform:
    RED itself: the unfixed target route is the known-blocking route, and its
    RED under the lock shows the lock engages on this build (C-gate); the
    self-validating variant in `test-template.md` is the in-band guarantee. Wire
-   `experimental.exposeTestingApiInProductionBuild` to a condition that is
-   true for every build you measure and never true in production:
+   `experimental.exposeTestingApiInProductionBuild` to a condition that is true
+   for every build you measure and never true in production:
 
    ```ts
    experimental: {

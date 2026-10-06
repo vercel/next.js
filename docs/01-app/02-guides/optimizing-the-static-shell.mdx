@@ -42,6 +42,8 @@ Optimize the static shell for /[team]/settings using the next-cache-components-o
 
 Enable [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) and resolve the route's blocking validation errors first. For the migration workflow, see [Migrating to Cache Components](/docs/app/guides/migrating-to-cache-components).
 
+For example, request-time work outside `<Suspense>` causes `next build` to report that the route encountered uncached or runtime data during prerendering. Resolve these errors before optimizing which UI appears in the static shell.
+
 ```ts filename="next.config.ts" highlight={4}
 import type { NextConfig } from 'next'
 
@@ -440,7 +442,7 @@ export default async function SettingsPage({
 
 The settings tabs are interactive, so they can read the URL directly with `useSearchParams()`. The server-rendered form receives the `params` and `searchParams` promises and resolves them where their values are needed.
 
-Both regions depend on the URL, so an outer boundary keeps them together until that data is available. The form also waits for the settings query, so a nested boundary lets the tabs reveal while the form continues to show its own loading state:
+During prerendering, both regions depend on the URL, so an outer boundary provides one fallback for the group. After hydration, the tabs can read the URL directly. The form also waits for the settings query, so a nested boundary keeps its own loading state visible until the server work finishes:
 
 ```tsx filename="app/[team]/settings/page.tsx"
 // After: the heading renders before URL-dependent content
@@ -495,7 +497,7 @@ export async function TeamSettings({
 }
 ```
 
-Once the URL is available, the tabs can render while the nested form boundary stays in its loading state until the settings query finishes.
+The prerendered shell shows `SettingsContentSkeleton`. During hydration, the tabs read the browser URL and replace that fallback while the nested form boundary stays in its loading state until the settings query finishes.
 
 The plan query does not depend on either URL value. Move it into a sibling component so React can start it while the URL-dependent branch is pending. It still runs for each request at this point, so keep a temporary boundary:
 
@@ -643,7 +645,7 @@ With the refactor complete, the route reveals in three stages:
    <SettingsContentSkeleton />
    ```
 
-2. **After the URL resolves.** The tabs replace the content skeleton while the settings query continues behind its nested fallback.
+2. **After hydration.** The tabs read the browser URL and replace the content skeleton while the settings query continues behind its nested fallback.
 
    ```tsx
    <h1>Settings</h1>
@@ -665,22 +667,22 @@ The page now renders useful UI immediately while request-specific content stream
 
 ### Step 4: Verify the instant UI
 
-Use [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) to assert which parts of the page are available immediately and prevent future regressions.
+Use [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) to hold back request-time server content and assert which parts of the page are available immediately. Playwright makes these assertions after hydration, so Client Components that can resolve without server content may already be visible inside the callback.
 
-```ts filename="e2e/settings-navigation.test.ts" highlight={17,20-21,26-27}
+```ts filename="e2e/settings-navigation.test.ts" highlight={7-10,17,20-21,26-27}
 import { expect, test, type Page } from '@playwright/test'
 import { instant } from '@next/playwright'
 
-async function expectSettingsShell(page: Page) {
+async function expectInstantSettingsUI(page: Page) {
   await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible()
   await expect(page.getByTestId('plan-options')).toBeVisible()
-  await expect(page.getByTestId('settings-content-skeleton')).toBeVisible()
-  await expect(page.getByTestId('settings-tabs')).toHaveCount(0)
-  await expect(page.getByTestId('settings-form-skeleton')).toHaveCount(0)
+  await expect(page.getByTestId('settings-tabs')).toBeVisible()
+  await expect(page.getByTestId('settings-form-skeleton')).toBeVisible()
+  await expect(page.getByTestId('settings-content-skeleton')).toHaveCount(0)
   await expect(page.getByTestId('team-settings-form')).toHaveCount(0)
 }
 
-test('serves the settings shell on an initial load', async ({
+test('shows settings UI before request-time work completes', async ({
   page,
   baseURL,
 }) => {
@@ -688,25 +690,25 @@ test('serves the settings shell on an initial load', async ({
     page,
     async () => {
       await page.goto('/acme/settings')
-      await expectSettingsShell(page)
+      await expectInstantSettingsUI(page)
     },
     { baseURL }
   )
 
-  await expect(page.getByTestId('settings-tabs')).toBeVisible()
   await expect(page.getByTestId('team-settings-form')).toBeVisible()
-  await expect(page.getByTestId('settings-content-skeleton')).toHaveCount(0)
   await expect(page.getByTestId('settings-form-skeleton')).toHaveCount(0)
 })
 ```
 
-Inside the callback, the test checks the complete static-shell contract shown above. The heading, cached plan options, and settings-content skeleton are visible, while the tabs, form skeleton, and form are not. The final assertions confirm that the completed tabs and form replace the loading UI after the pause is released.
+Inside the callback, the heading and cached plan options stay visible. Hydration has already rendered the tabs from the browser URL, while `instant()` keeps the request-time form behind `SettingsFormSkeleton`. The final assertions confirm that the completed form replaces its loading state after the pause is released.
+
+The testing API is available automatically in `next dev`. When running the test against a production build with `next start`, enable [`experimental.exposeTestingApiInProductionBuild`](/docs/app/api-reference/config/next-config-js/exposeTestingApiInProductionBuild) for the test build.
 
 The completed route should have the same settings data, redirects, error states, and interactions as the original route.
 
 ### Step 5: Include URL-specific content in the instant UI
 
-The test above captures the shared static shell for a direct visit. It still shows `SettingsContentSkeleton` because the route does not know `searchParams` during prerendering.
+The direct visit starts with the shared static shell and `SettingsContentSkeleton` because the route does not know `searchParams` during prerendering. Hydration can render the tabs from the browser URL without waiting for request-time server content.
 
 During a client navigation, `SettingsTabs` can read the URL synchronously. Other server content that depends on the destination's `params` or `searchParams` is not part of the shared shell. If that work is cacheable, a per-link prefetch can resolve it before the click instead of streaming it afterward.
 

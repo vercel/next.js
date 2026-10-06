@@ -62,9 +62,13 @@ is shown only for brevity; like the marker, the trigger must reliably resolve fo
 
 ## Initial load (hard navigation)
 
-Drive `page.goto()` inside `instant()` with the `baseURL` option. The served document is the
-route's prerendered static shell. `baseURL` is required because `page` is still `about:blank` when
-`instant()` runs (`resolveURL` falls back to `page.url()` only when no `baseURL` is passed).
+Drive `page.goto()` inside `instant()` with the `baseURL` option. The document response contains
+the route's prerendered static shell, but Playwright assertions run after hydration. A Client
+Component that can resolve without request-time server content may already be visible. Choose a
+shell marker that remains valid after hydration instead of a prerender fallback that hydration
+replaces immediately. `baseURL` is required because `page` is still `about:blank` when `instant()`
+runs (`resolveURL` falls back to `page.url()` only when no `baseURL` is passed).
+
 Establish the session WITHOUT navigating `page` (inject `storageState`, or log in on a separate
 context/page). A login helper that navigates `page` itself defeats the measurement for a different
 reason: that navigation completes before `instant()` acquires the lock, so it runs unmeasured. The

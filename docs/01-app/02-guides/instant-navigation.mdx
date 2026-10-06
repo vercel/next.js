@@ -373,7 +373,7 @@ Inside the callback, an initial page load shows the static UI and a client navig
 
 For client navigations, wait for the destination URL before asserting on its UI. Otherwise, a shared selector can match the source page before the destination commits. If the prefetched destination cannot commit, the URL wait times out and the test fails.
 
-Run these against `next dev`, where the testing API is enabled automatically. To run them in CI against a production build, set `exposeTestingApiInProductionBuild` so `next start` exposes the same API:
+Run these against `next dev`, where the testing API is enabled automatically. To run them in CI against a production build, set [`exposeTestingApiInProductionBuild`](/docs/app/api-reference/config/next-config-js/exposeTestingApiInProductionBuild) so `next start` exposes the same API:
 
 ```ts filename="next.config.ts" highlight={5}
 import type { NextConfig } from 'next'
