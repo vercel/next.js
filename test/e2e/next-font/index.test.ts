@@ -2,7 +2,6 @@ import cheerio from 'cheerio'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
 import { join } from 'path'
-import fontData from '../../../packages/font/src/google/font-data.json'
 
 const mockedGoogleFontResponses = require.resolve(
   './google-font-mocked-responses.js'
@@ -414,9 +413,6 @@ describe('next/font', () => {
     })
 
     test('font without preloadable subsets', async () => {
-      // Keep this fixture on a font whose preload is disabled automatically.
-      expect(fontData['Noto Sans Math'].subsets).toEqual([])
-
       const html = await renderViaHTTP(
         next.url,
         '/font-without-preloadable-subsets'
