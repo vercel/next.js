@@ -1,5 +1,5 @@
 use std::{
-    cell::{Cell, RefCell},
+    cell::Cell,
     fmt::{Display, Formatter},
     hash::{BuildHasher, Hash},
     ops::{Deref, DerefMut},
@@ -470,16 +470,10 @@ impl Storage {
     /// the results. Ends snapshot mode when the returned `SnapshotGuard` (held by each shard) is
     /// dropped.
     ///
-    /// `process` is called while the task storage is borrowed, so it can access the TaskStorage
-    /// directly without cloning. It receives a mutable scratch buffer that can be reused across
-    /// iterations to avoid repeated allocations.
+    /// `process` is called with the task storage to encode. It receives a mutable scratch buffer
+    /// that can be reused across iterations to avoid repeated allocations.
     ///
-    /// `inspect_snapshot_item` is called with every item the iterators yield, including items
-    /// that were encoded ahead of time by `track_modification` (see `Storage::snapshots`) and so
-    /// never went through `process`.
-    ///
-    /// Before yielding an item, the iterators check (in debug builds) that a GC-deleted task is
-    /// not also a new task.
+    /// `inspect_snapshot_item` allows gathering statistics about encoded items
     ///
     /// The returned shards implement `IntoIterator`. Empty shards (no modified or snapshot
     /// entries) are filtered out, but shards may still yield no items if all entries produce
@@ -1066,10 +1060,8 @@ impl StorageWriteGuard<'_> {
                     // which categories to persist. This way persistence sees a consistent view of
                     // the task pre-mutation.
                     let task_id = *self.inner.key();
-                    let item = COPY_ON_WRITE_BUFFER
-                        .with_borrow_mut(|buffer| {
-                            encode_snapshot_item(task_id, &self.inner, buffer)
-                        })
+                    let mut buffer = TurboBincodeBuffer::new();
+                    let item = encode_snapshot_item(task_id, &self.inner, &mut buffer)
                         .unwrap_or_else(|err| {
                             panic!("Serializing task {task_id} for a snapshot failed: {err:?}")
                         });
@@ -1161,13 +1153,6 @@ impl DerefMut for StorageWriteGuard<'_> {
 /// How big of a buffer to allocate initially. Based on metrics from a large
 /// application this should cover about 98% of values with no resizes.
 const SCRATCH_BUFFER_INITIAL_SIZE: usize = 4096;
-
-thread_local! {
-    /// Scratch buffer for the copy-on-write encoding in `track_modification`. Encoding never
-    /// re-enters `track_modification`, so the buffer is never borrowed twice.
-    static COPY_ON_WRITE_BUFFER: RefCell<TurboBincodeBuffer> =
-        RefCell::new(TurboBincodeBuffer::with_capacity(SCRATCH_BUFFER_INITIAL_SIZE));
-}
 
 /// State machine for a per-thread scratch buffer slot.
 ///
