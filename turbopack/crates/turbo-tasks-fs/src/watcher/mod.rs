@@ -7,6 +7,7 @@ use std::{
     any::Any,
     collections::BTreeSet,
     env, fmt,
+    ops::Bound,
     path::{Path, PathBuf},
     sync::{
         Arc, LazyLock,
@@ -788,6 +789,16 @@ bitflags! {
     }
 }
 
+/// Whether `set` contains `path` or any of its children.
+///
+/// This works because `Path` implements `Ord` using path component comparisons, so a path is
+/// always ordered immediately before its children.
+fn contains_path_or_children(set: &BTreeSet<Box<Path>>, path: &Path) -> bool {
+    set.range::<Path, _>((Bound::Included(path), Bound::Unbounded))
+        .next()
+        .is_some_and(|candidate| candidate.starts_with(path))
+}
+
 /// A set of deferred invalidations. Because one or more files may be updated many times in quick
 /// succession, we don't want to perform invalidations until we think the filesystem has settled.
 ///
@@ -798,11 +809,21 @@ bitflags! {
 /// event arrives (see [`Self::add_event`]), so the caller can tell whether the event affected
 /// anything that has been read. Only events that did should keep the batch open: events for paths
 /// nobody depends on (e.g. build outputs or untracked directories) are effectively dropped.
+///
+/// The map paths that invalidators were extracted from are remembered until the batch is flushed,
+/// so that further events for them (e.g. a file that is written repeatedly) still count as
+/// affecting an invalidator and keep the batch open.
 struct BatchedInvalidations {
     /// The extracted invalidators, each with the event path that caused it to be extracted (used
     /// as the invalidation reason). Keyed by invalidator so that each is invalidated once.
     invalidators: FxIndexMap<Invalidator, Arc<Path>>,
-    /// The most recent path that contributed to [`Self::invalidators`].
+    /// The paths of the file-content invalidator map that [`Self::invalidators`] were extracted
+    /// from.
+    extracted_paths: BTreeSet<Box<Path>>,
+    /// The paths of the directory-listing invalidator map that [`Self::invalidators`] were
+    /// extracted from.
+    extracted_dir_paths: BTreeSet<Box<Path>>,
+    /// The most recent path that affected an invalidator in this batch.
     last_updated_path: Option<Arc<Path>>,
     /// See [`Self::new_paths`]. Stored as [`None`] in recursive mode.
     new_paths: Option<FxIndexSet<Box<Path>>>,
@@ -815,6 +836,8 @@ impl BatchedInvalidations {
     fn new(recursive_mode: DiskWatcherRecursiveMode, polling: bool) -> Self {
         Self {
             invalidators: FxIndexMap::default(),
+            extracted_paths: BTreeSet::new(),
+            extracted_dir_paths: BTreeSet::new(),
             last_updated_path: None,
             new_paths: match recursive_mode {
                 DiskWatcherRecursiveMode::NonRecursive => Some(FxIndexSet::default()),
@@ -853,6 +876,8 @@ impl BatchedInvalidations {
 
     fn clear(&mut self) {
         self.invalidators.clear();
+        self.extracted_paths.clear();
+        self.extracted_dir_paths.clear();
         self.last_updated_path = None;
         self.clear_new_paths();
     }
@@ -894,7 +919,8 @@ impl BatchedInvalidations {
     /// Removes the invalidators affected by each `(path, flags)` pair from the invalidator maps
     /// and adds them to the batch.
     ///
-    /// Returns whether any invalidator was extracted.
+    /// Returns whether any pair affected an invalidator: either one was extracted now, or the path
+    /// matches one that invalidators were already extracted from for this batch.
     fn extract(
         &mut self,
         marks: impl IntoIterator<Item = (PathBuf, InvalidationFlags)>,
@@ -903,17 +929,20 @@ impl BatchedInvalidations {
     ) -> bool {
         let mut invalidator_map = invalidator_map.lock().unwrap();
         let mut dir_invalidator_map = dir_invalidator_map.lock().unwrap();
-        let mut extracted_any = false;
+        let mut affected_any = false;
         for (path, flags) in marks {
             let mut extracted = Vec::new();
-            for (map, exact_flag, recursive_flag) in [
+            let mut affected = false;
+            for (map, extracted_paths, exact_flag, recursive_flag) in [
                 (
                     &mut *invalidator_map,
+                    &mut self.extracted_paths,
                     InvalidationFlags::PATH,
                     InvalidationFlags::PATH_AND_CHILDREN,
                 ),
                 (
                     &mut *dir_invalidator_map,
+                    &mut self.extracted_dir_paths,
                     InvalidationFlags::PATH_DIR,
                     InvalidationFlags::PATH_AND_CHILDREN_DIR,
                 ),
@@ -922,16 +951,24 @@ impl BatchedInvalidations {
                 // `extract_path_with_children` removes the path itself in addition to its
                 // children.
                 if flags.contains(recursive_flag) {
-                    for (_, invalidators) in map.extract_path_with_children(&path) {
-                        extracted.extend(invalidators);
+                    affected |= contains_path_or_children(extracted_paths, &path);
+                    for (map_path, invalidators) in map.extract_path_with_children(&path) {
+                        if !invalidators.is_empty() {
+                            extracted.extend(invalidators);
+                            extracted_paths.insert(map_path);
+                        }
                     }
-                } else if flags.contains(exact_flag)
-                    && let Some(invalidators) = map.remove(&*path)
-                {
-                    extracted.extend(invalidators);
+                } else if flags.contains(exact_flag) {
+                    affected |= extracted_paths.contains(&*path);
+                    if let Some((map_path, invalidators)) = map.remove_entry(&*path)
+                        && !invalidators.is_empty()
+                    {
+                        extracted.extend(invalidators);
+                        extracted_paths.insert(map_path);
+                    }
                 }
             }
-            if extracted.is_empty() {
+            if extracted.is_empty() && !affected {
                 continue;
             }
             let path: Arc<Path> = Arc::from(path);
@@ -941,9 +978,9 @@ impl BatchedInvalidations {
                     .or_insert_with(|| path.clone());
             }
             self.last_updated_path = Some(path);
-            extracted_any = true;
+            affected_any = true;
         }
-        extracted_any
+        affected_any
     }
 
     /// Extracts the invalidators affected by the given event from the invalidator maps into the
@@ -1312,6 +1349,154 @@ mod tests {
 
             churn.join().unwrap();
             fs.watcher.stop_watching().await;
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    /// Repeated writes to a tracked file must keep the batch open even though the file's
+    /// invalidator was already extracted into the batch by the first write.
+    #[cfg(not(miri))]
+    #[rstest]
+    #[case::native_recursive(None, DiskWatcherRecursiveMode::Recursive)]
+    #[case::native_non_recursive(None, DiskWatcherRecursiveMode::NonRecursive)]
+    #[case::polling_recursive(Some(Duration::from_millis(20)), DiskWatcherRecursiveMode::Recursive)]
+    #[case::polling_non_recursive(
+        Some(Duration::from_millis(20)),
+        DiskWatcherRecursiveMode::NonRecursive
+    )]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn repeated_writes_to_tracked_file_are_debounced(
+        #[case] poll_interval: Option<Duration>,
+        #[case] recursive_mode: DiskWatcherRecursiveMode,
+    ) {
+        const BATCH_DELAY: Duration = Duration::from_millis(300);
+        const CHURN: Duration = Duration::from_millis(1500);
+        const CHURN_INTERVAL: Duration = Duration::from_millis(50);
+
+        let tt = TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            let fs = MockFileSystem::new(DiskWatcherConfig {
+                recursive_mode: Some(recursive_mode),
+                poll_interval,
+                batch_delay: BATCH_DELAY,
+                extended_batch_delay_duration: BATCH_DELAY,
+                ..Default::default()
+            });
+            let sub_dir = fs.root_path.join("sub");
+            let file_path = sub_dir.join("file.txt");
+            fs::create_dir(&sub_dir).unwrap();
+            fs::write(&file_path, "initial").unwrap();
+            backdate(&file_path);
+
+            DiskWatcher::start_watching(fs.clone()).await?;
+            assert_eq!(fs.tracked_read_strongly_consistent(&file_path).await, 1);
+
+            let churn_start = Instant::now();
+            let churn = std::thread::spawn({
+                let file_path = file_path.clone();
+                move || {
+                    let mut i = 0u64;
+                    while churn_start.elapsed() < CHURN {
+                        i += 1;
+                        fs::write(&file_path, i.to_string()).unwrap();
+                        std::thread::sleep(CHURN_INTERVAL);
+                    }
+                }
+            });
+
+            // well past `BATCH_DELAY`, but while the writes are still going on
+            tokio::time::sleep(Duration::from_secs(1)).await;
+            assert!(churn_start.elapsed() < CHURN);
+            assert_eq!(
+                fs.tracked_read_strongly_consistent(&file_path).await,
+                1,
+                "the batch was flushed while the tracked file was still being written"
+            );
+
+            churn.join().unwrap();
+            wait_for_rerun(&fs, &file_path, 1).await;
+            assert_eq!(fs.tracked_read_strongly_consistent(&file_path).await, 2);
+
+            fs.watcher.stop_watching().await;
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    /// Paths whose invalidators were already extracted into the open batch keep counting as
+    /// affecting an invalidator, but only for the map (file content or directory listing) that the
+    /// invalidators were extracted from, and only until the batch is cleared.
+    #[cfg(not(miri))]
+    #[tokio::test]
+    async fn batch_remembers_extracted_paths() {
+        use notify::event::{CreateKind, DataChange, RemoveKind};
+
+        let tt = TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            let invalidator = turbo_tasks::get_invalidator().unwrap();
+            let invalidator_map = InvalidatorMap::new();
+            let dir_invalidator_map = InvalidatorMap::new();
+            invalidator_map.insert(Arc::new(PathBuf::from("/root/file")), invalidator);
+            invalidator_map.insert(Arc::new(PathBuf::from("/root/deep/a/b")), invalidator);
+            dir_invalidator_map.insert(Arc::new(PathBuf::from("/root/dir")), invalidator);
+
+            let content = EventKind::Modify(ModifyKind::Data(DataChange::Any));
+            let create = EventKind::Create(CreateKind::Any);
+            let remove = EventKind::Remove(RemoveKind::Any);
+            let mut batch = BatchedInvalidations::new(DiskWatcherRecursiveMode::Recursive, false);
+            let add = |batch: &mut BatchedInvalidations, kind, path: &str| {
+                let event = notify::Event::new(kind).add_path(PathBuf::from(path));
+                batch.add_event(event, &invalidator_map, &dir_invalidator_map)
+            };
+
+            // exact file: extracted, then remembered for the rest of the batch
+            assert!(add(&mut batch, content, "/root/file"));
+            assert!(add(&mut batch, content, "/root/file"));
+            assert_eq!(batch.last_updated_path(), Some(Path::new("/root/file")));
+            assert!(!add(&mut batch, content, "/root/untracked"));
+
+            // a pending directory listing doesn't make a content change of that path relevant
+            assert!(!add(&mut batch, content, "/root/dir"));
+            // ... but a change of the directory's children does, also after extraction
+            assert!(add(&mut batch, create, "/root/dir/new"));
+            assert!(add(&mut batch, create, "/root/dir/other"));
+
+            // recursive: a parent extracts its children, which then stay relevant
+            assert!(add(&mut batch, remove, "/root/deep"));
+            assert!(add(&mut batch, remove, "/root/deep/a"));
+            assert!(add(&mut batch, content, "/root/deep/a/b"));
+            assert!(!add(&mut batch, content, "/root/deep/a"));
+            assert!(batch.add_error(
+                vec![PathBuf::from("/root/deep")],
+                Path::new("/root"),
+                &invalidator_map,
+                &dir_invalidator_map,
+            ));
+            assert!(!batch.add_error(
+                vec![PathBuf::from("/root/unrelated")],
+                Path::new("/root"),
+                &invalidator_map,
+                &dir_invalidator_map,
+            ));
+
+            // the same invalidator was extracted via several paths, but is invalidated once
+            assert_eq!(batch.invalidators.len(), 1);
+
+            // flushing forgets the remembered paths
+            batch.clear();
+            assert!(!add(&mut batch, content, "/root/file"));
+            assert!(!add(&mut batch, create, "/root/dir/new"));
+            assert!(!add(&mut batch, remove, "/root/deep"));
+            assert!(batch.last_updated_path().is_none());
             anyhow::Ok(())
         })
         .await
