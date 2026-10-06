@@ -191,13 +191,21 @@ Then give the agent this prompt:
 After every edit, verify the page still works at runtime using the next-dev-loop Skill.
 ```
 
-### `next-browser-initial-load-optimizer`
+### `next-bundle-optimizer`
 
-For slow route startup, oversized client bundles, duplicate browser dependencies, or features that can wait for interaction, use [`next-browser-initial-load-optimizer`](https://www.skills.sh/vercel/next.js/next-browser-initial-load-optimizer). It audits a route by default; explicitly request fixes to enter its edit, measure, and verify loop.
+The [`next-bundle-optimizer`](https://www.skills.sh/vercel/next.js/next-bundle-optimizer) skill uses Turbopack's bundle analyzer to identify sources of large client-side bundles that impact your site's initial load performance.
 
 ```bash filename="Terminal"
-npx skills add vercel/next.js --skill next-browser-initial-load-optimizer
+npx skills add vercel/next.js --skill next-bundle-optimizer
 ```
+
+In audit-only mode, it produces a report without making any changes:
+
+```prompt
+Use the next-bundle-optimizer skill to produce a report of the initial load performance of this site.
+```
+
+You can also tell your agent to fix any issues, and it will optimize your site based on its findings. Or have it focus on a specific route by providing the route in the prompt.
 
 ### `next-cache-components-adoption`
 
@@ -221,13 +229,13 @@ Adopt Cache Components in this project using the next-cache-components-adoption 
 
 ### `next-cache-components-optimizer`
 
-The [`next-cache-components-optimizer`](https://www.skills.sh/vercel/next.js/next-cache-components-optimizer) Skill takes a target route or set of routes and works toward the UI you want on screen at click time:
+The [`next-cache-components-optimizer`](https://www.skills.sh/vercel/next.js/next-cache-components-optimizer) Skill expands a target route's static shell to include the useful UI you want available on an initial load:
 
-1. Writes a failing [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) test for the UI you named.
+1. Writes a failing [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) test for the static-shell UI you named.
 2. Refactors the route until it passes, often by moving a data read below a `<Suspense>` boundary.
 3. Commits the passing test with the refactoring, so it catches future regressions.
 
-It needs a route that already builds with [Cache Components](/docs/app/getting-started/caching).
+Use it after adopting [Cache Components](/docs/app/getting-started/caching) to optimize an initial load or client navigation. To prefetch URL-specific content for an already-instant destination, use the [`next-partial-prefetching-optimizer`](#next-partial-prefetching-optimizer) instead.
 
 ```bash filename="Terminal"
 npx skills add vercel/next.js --skill next-cache-components-optimizer
@@ -236,7 +244,7 @@ npx skills add vercel/next.js --skill next-cache-components-optimizer
 Then give the agent a prompt like:
 
 ```prompt
-Make the navigation from /settings to /dashboard instant using the next-cache-components-optimizer Skill. The header and the project list should be part of the instant UI.
+Optimize the static shell for /dashboard using the next-cache-components-optimizer Skill. On an initial load, the header and project list should be available immediately.
 ```
 
 ### `next-partial-prefetching-adoption`

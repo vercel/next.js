@@ -86,8 +86,12 @@ class NextRootCommand extends Command {
       const commandName = event.name()
       const defaultEnv = commandName === 'dev' ? 'development' : 'production'
       const standardEnv = ['production', 'development', 'test']
+      // `next build` reruns itself as a child to show the upgrade menu. The
+      // parent already warned, and it sets NODE_ENV for --debug-prerender.
+      const isUpgradeBuildChild =
+        process.env.NEXT_PRIVATE_UPGRADE_BUILD_CHILD === '1'
 
-      if (process.env.NODE_ENV) {
+      if (process.env.NODE_ENV && !isUpgradeBuildChild) {
         const isNotStandard = !standardEnv.includes(process.env.NODE_ENV)
         const shouldWarnCommands =
           process.env.NODE_ENV === 'development'
@@ -110,6 +114,7 @@ class NextRootCommand extends Command {
       }
 
       if (
+        !isUpgradeBuildChild &&
         process.platform === 'darwin' &&
         process.arch === 'x64' &&
         os.cpus().some((cpu) => cpu.model.includes('Apple'))

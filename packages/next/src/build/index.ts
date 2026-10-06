@@ -1,4 +1,3 @@
-import type { NudgeKind } from '../lib/upgrade/nudge'
 import {
   getRouteCacheKey,
   ROUTE_CACHE_DIRECTORY,
@@ -131,7 +130,7 @@ import { PAGE_TYPES } from '../lib/page-types'
 import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
-import createSpinner from './spinner'
+import createSpinner, { finishSpinner } from './spinner'
 import { trace, flushAllTraces, setGlobal, type Span } from '../trace'
 import { writeAnalyzeSnapshot } from './analyze/snapshot'
 import { writeRouteBundleStats } from './route-bundle-stats'
@@ -211,7 +210,7 @@ import {
   type ConfiguredExperimentalFeature,
 } from '../server/lib/app-info-log'
 import type { NextEnabledDirectories } from '../server/base-server'
-import { hasCustomExportOutput } from '../export/utils'
+import { getBuildDistDir, hasCustomExportOutput } from '../export/utils'
 import { traceMemoryUsage } from '../lib/memory/trace'
 import { generateEncryptionKeyBase64 } from '../server/app-render/encryption-utils-server'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
@@ -1126,9 +1125,8 @@ export default async function build(
   experimentalBuildMode: 'default' | 'compile' | 'generate' | 'generate-env',
   traceUploadUrl: string | undefined,
   debugBuildPathsPatterns: string[] | undefined,
-  enabledFeatures: Record<string, unknown> = {},
-  allowHumanUpgrade = false
-): Promise<{ policy: NudgeKind; nudgeId: string | null } | 'interrupt' | void> {
+  enabledFeatures: Record<string, unknown> = {}
+): Promise<void> {
   const isCompileMode = experimentalBuildMode === 'compile'
   const isGenerateMode = experimentalBuildMode === 'generate'
   NextBuildContext.isCompileMode = isCompileMode
@@ -1238,12 +1236,11 @@ export default async function build(
       bundler = finalizeBundlerFromConfig(bundler)
       nextBuildSpan.setAttribute('bundler', getBundlerForTelemetry(bundler))
 
-      let configOutDir = 'out'
-      if (hasCustomExportOutput(config)) {
-        configOutDir = config.distDir
-        config.distDir = '.next'
-      }
-      const distDir = path.join(dir, config.distDir)
+      const configOutDir = hasCustomExportOutput(config)
+        ? config.distDir
+        : 'out'
+      const buildDistDir = getBuildDistDir(config)
+      const distDir = path.join(dir, buildDistDir)
       NextBuildContext.distDir = distDir
       setGlobal('phase', PHASE_PRODUCTION_BUILD)
       setGlobal('distDir', distDir)
@@ -1267,36 +1264,18 @@ export default async function build(
         const { nudgeUpgrade, getUpgradeContext } =
           require('../lib/upgrade/nudge') as typeof import('../lib/upgrade/nudge')
         const upgradeContext = getUpgradeContext(config)
-        if (allowHumanUpgrade) {
-          // TODO: Do not block the build while prompting for an upgrade.
-          // Preserve all logs for display after the prompt and stop the build before Update.
-          let nudgeId: string | null = null
-          const action = await nudgeUpgrade(
+        if (
+          process.env.NEXT_PRIVATE_UPGRADE_BUILD_CHILD === '1' &&
+          process.connected
+        ) {
+          // The CLI shows the menu; keep building instead of waiting for it.
+          process.send!({
+            nextUpgradeContext: upgradeContext,
             dir,
-            upgradeContext,
-            'build',
-            new AbortController().signal,
-            null,
-            {
-              telemetry,
-              onNudgeId(id) {
-                nudgeId = id
-              },
-            }
-          ).catch((error) => {
-            Log.warn(`Could not offer the upgrade: ${String(error)}`)
+            telemetryDisabled: process.env.NEXT_TELEMETRY_DISABLED,
           })
-          if (action === 'update' && upgradeContext.experimental.agentUpgrade) {
-            return {
-              policy: upgradeContext.experimental.agentUpgrade,
-              nudgeId,
-            }
-          }
-          if (action === 'interrupt') {
-            return 'interrupt' as const
-          }
         } else {
-          // Agent checks retain their parallel behavior; humans decide before building.
+          // No menu (e.g. an agent): nudge in the background.
           pendingUpgradeNudge = nudgeUpgrade(
             dir,
             upgradeContext,
@@ -1795,6 +1774,9 @@ export default async function build(
       )
 
       const isAppCacheComponentsEnabled = Boolean(config.cacheComponents)
+      const isAuthInterruptsEnabled = Boolean(
+        config.experimental.authInterrupts
+      )
       const isAppPPREnabled = isAppCacheComponentsEnabled
 
       const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
@@ -2100,6 +2082,7 @@ export default async function build(
             version: 1,
             config: {
               ...runtimeConfigWithoutFilePath,
+              distDir: buildDistDir,
               ...(ciEnvironment.hasNextSupport
                 ? {
                     compress: false,
@@ -2182,14 +2165,14 @@ export default async function build(
               SERVER_FILES_MANIFEST + '.json',
             ]
               .filter(nonNullable)
-              .map((file) => path.join(config.distDir, file)),
+              .map((file) => path.join(buildDistDir, file)),
             ignore: [] as string[],
           }
 
           if (hasInstrumentationHook) {
             serverFilesManifest.files.push(
               path.join(
-                config.distDir,
+                buildDistDir,
                 SERVER_DIRECTORY,
                 `${INSTRUMENTATION_HOOK_FILENAME}.js`
               )
@@ -2197,7 +2180,7 @@ export default async function build(
             // If there are edge routes, append the edge instrumentation hook
             // Turbopack generates this chunk with a hashed name and references it in middleware-manifest.
             let edgeInstrumentationHook = path.join(
-              config.distDir,
+              buildDistDir,
               SERVER_DIRECTORY,
               `edge-${INSTRUMENTATION_HOOK_FILENAME}.js`
             )
@@ -2230,7 +2213,7 @@ export default async function build(
 
             serverFilesManifest.files.push(
               ...cssFilePaths.map((filePath) =>
-                path.join(config.distDir, 'static', filePath)
+                path.join(buildDistDir, 'static', filePath)
               )
             )
           }
@@ -2413,6 +2396,7 @@ export default async function build(
               configFileName,
               cacheComponents: isAppCacheComponentsEnabled,
               partialPrefetching: config.partialPrefetching,
+              authInterrupts: isAuthInterruptsEnabled,
               useCacheTimeout: config.experimental.useCacheTimeout,
               durableUseCacheEntries: Boolean(
                 config.experimental.durableUseCacheEntries
@@ -2648,6 +2632,7 @@ export default async function build(
                             pageType,
                             cacheComponents: isAppCacheComponentsEnabled,
                             partialPrefetching: config.partialPrefetching,
+                            authInterrupts: isAuthInterruptsEnabled,
                             useCacheTimeout:
                               config.experimental.useCacheTimeout,
                             durableUseCacheEntries: Boolean(
@@ -2948,13 +2933,10 @@ export default async function build(
         return returnValue
       })
 
-      if (postCompileSpinner) {
-        const collectingPageDataEnd = process.hrtime(collectingPageDataStart)
-        postCompileSpinner.setText(
-          `Collecting page data using ${numberOfWorkers} worker${numberOfWorkers > 1 ? 's' : ''} in ${hrtimeDurationToString(collectingPageDataEnd)}`
-        )
-        postCompileSpinner.stopAndPersist()
-      }
+      finishSpinner(
+        postCompileSpinner,
+        `Collecting page data using ${numberOfWorkers} worker${numberOfWorkers > 1 ? 's' : ''} in ${hrtimeDurationToString(process.hrtime(collectingPageDataStart))}`
+      )
       traceMemoryUsage('Finished collecting page data', nextBuildSpan)
 
       if (customAppGetInitialProps) {
@@ -3493,7 +3475,7 @@ export default async function build(
           }
 
           writeTurborepoAccessTraceResult({
-            distDir: config.distDir,
+            distDir: buildDistDir,
             traces: [
               turborepoAccessTraceResult,
               ...exportResult.turborepoAccessTraceResults.values(),
@@ -4688,14 +4670,11 @@ export default async function build(
 
       await buildTracesPromise
 
-      if (buildTracesSpinner) {
-        if (buildTracesStart) {
-          const buildTracesEnd = process.hrtime(buildTracesStart)
-          buildTracesSpinner.setText(
-            `Collecting build traces in ${hrtimeDurationToString(buildTracesEnd)}`
-          )
-        }
-        buildTracesSpinner.stopAndPersist()
+      if (buildTracesStart) {
+        finishSpinner(
+          buildTracesSpinner,
+          `Collecting build traces in ${hrtimeDurationToString(process.hrtime(buildTracesStart))}`
+        )
         buildTracesSpinner = undefined
       }
 
@@ -4825,15 +4804,10 @@ export default async function build(
           })
       }
 
-      if (postBuildSpinner) {
-        const finalizingPageOptimizationEnd = process.hrtime(
-          finalizingPageOptimizationStart
-        )
-        postBuildSpinner.setText(
-          `Finalizing page optimization in ${hrtimeDurationToString(finalizingPageOptimizationEnd)}`
-        )
-        postBuildSpinner.stopAndPersist()
-      }
+      finishSpinner(
+        postBuildSpinner,
+        `Finalizing page optimization in ${hrtimeDurationToString(process.hrtime(finalizingPageOptimizationStart))}`
+      )
       console.log()
 
       if (debugOutput) {
@@ -4965,7 +4939,7 @@ export default async function build(
         traceUploadUrl,
         mode: 'build',
         projectDir: dir,
-        distDir: loadedConfig.distDir,
+        distDir: getBuildDistDir(loadedConfig),
         isTurboSession: bundler === Bundler.Turbopack,
         sync: true,
       })

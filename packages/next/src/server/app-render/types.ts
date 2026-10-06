@@ -171,6 +171,7 @@ export interface RenderOptsPartial {
     parallelRouteMetadata: boolean
     inlineCss: boolean
     prefetchInlining: PrefetchInliningConfig
+    authInterrupts: boolean
     reactBrowserBailout: boolean
     serverComponentsHmrCancellation?: boolean
     useCacheTimeout: number
