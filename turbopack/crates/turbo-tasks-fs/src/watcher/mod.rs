@@ -1429,4 +1429,66 @@ mod tests {
         .unwrap();
     }
 
+    /// In non-recursive mode, deleting a watched directory drops its OS watches, but the path
+    /// stays in `NonRecursiveWatchingState::watched`. The watch is only re-established by
+    /// `restore_if_watched` when the directory's creation is processed. Re-reading a file in it
+    /// takes `ensure_watched`'s fast path and doesn't watch it again.
+    ///
+    /// So the creation must restore the watch even when nothing currently depends on the
+    /// directory. That is the case here: the deletion's batch consumed the only invalidator, and
+    /// the invalidated read is held back (via `MockFileSystem::read_gate`) until after the
+    /// directory has been recreated in a later batch.
+    #[cfg(not(miri))]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn recreated_directory_is_watched_again() {
+        const BATCH_DELAY: Duration = Duration::from_millis(50);
+        // well past `BATCH_DELAY`, so that the removal and the recreation are flushed as separate
+        // batches
+        const SETTLE: Duration = Duration::from_millis(500);
+
+        let tt = TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            let fs = MockFileSystem::new(DiskWatcherConfig {
+                recursive_mode: Some(DiskWatcherRecursiveMode::NonRecursive),
+                batch_delay: BATCH_DELAY,
+                extended_batch_delay_duration: BATCH_DELAY,
+                ..Default::default()
+            });
+            let dir_a = fs.root_path.join("a");
+            let dir_b = dir_a.join("b");
+            let file_path = dir_b.join("c.txt");
+            fs::create_dir_all(&dir_b)?;
+            fs::write(&file_path, "initial")?;
+            backdate(&file_path);
+
+            DiskWatcher::start_watching(fs.clone()).await?;
+            // watches `a` and `a/b`. Nothing reads or lists the root or `a`.
+            assert_eq!(fs.tracked_read_strongly_consistent(&file_path).await, 1);
+
+            // The removal invalidates the read and consumes its invalidator. Hold back the
+            // re-execution, so no invalidator is registered under `a` while it is recreated.
+            let gate = fs.read_gate.write().await;
+            fs::remove_dir_all(&dir_a)?;
+            tokio::time::sleep(SETTLE).await;
+
+            fs::create_dir_all(&dir_b)?;
+            fs::write(&file_path, "recreated")?;
+            tokio::time::sleep(SETTLE).await;
+
+            // re-runs because of the removal, and registers the read again
+            drop(gate);
+            assert_eq!(fs.tracked_read_strongly_consistent(&file_path).await, 2);
+
+            fs::write(&file_path, "modified")?;
+            wait_for_rerun(&fs, &file_path, 2).await;
+
+            fs.watcher.stop_watching().await;
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+    }
 }
