@@ -63,7 +63,7 @@ pnpm next build --analyze
 bunx next build --analyze
 ```
 
-Build analysis is saved to `.next/diagnostics/analyze`. Browser source maps are only published if enabled in your build configuration. The separate `next analyze` command opens the interactive analyzer without producing a production build.
+Build analysis is saved to `.next/diagnostics/analyze`. When browser source maps are enabled in your build configuration, `--analyze` still publishes them. Otherwise, it keeps mappings for analysis without publishing browser maps. The separate `next analyze` command opens the interactive analyzer without producing a production build.
 
 ### Step 2: Filter and inspect modules
 
