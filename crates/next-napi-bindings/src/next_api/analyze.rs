@@ -254,7 +254,13 @@ async fn get_analyze_data_operation(
                 entries.dedup_by(|a, b| a.route_entry_id == b.route_entry_id);
             }
             let mut groups = route_chunk_groups(endpoint_group).await?;
-            if has_client_bootstrap && groups.iter().any(|group| group.pages_html) {
+            if has_client_bootstrap
+                && !matches!(
+                    key,
+                    EndpointGroupKey::PagesApp | EndpointGroupKey::PagesDocument
+                )
+                && groups.iter().any(|group| group.pages_html)
+            {
                 groups.extend(shared_chunk_groups.iter().cloned());
             }
             let chunk_groups: Vc<AnalyzeChunkGroups> = Vc::cell(groups);

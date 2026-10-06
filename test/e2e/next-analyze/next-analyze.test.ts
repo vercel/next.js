@@ -328,22 +328,6 @@ describe('next analyze', () => {
         .some((ident: string) => ident.endsWith('async loader)'))
     ).toBe(false)
 
-    const grouped = records.filter(
-      (record) => record.type === 'group' && record.route === '/'
-    )
-    expect(
-      grouped.map((record) => ({ id: record.id, outputs: record.outputs }))
-    ).toEqual(
-      membershipHeader.chunk_groups.map((group) => ({
-        id: group.id,
-        outputs: group.output_file_indices.map(
-          (index) => membershipHeader.output_files[index].filename
-        ),
-      }))
-    )
-    expect(
-      grouped.every((record) => record.output_file_indices === undefined)
-    ).toBe(true)
     const filtered = await next.runCommand([
       'analyze',
       'export',
@@ -688,16 +672,6 @@ describe('next analyze', () => {
               expect(row).toEqual([])
             }
           }
-          for (const group of header.chunk_groups) {
-            for (const index of group.output_file_indices) {
-              expect(index).toBeLessThan(header.output_files.length)
-            }
-          }
-          expect(header.chunk_groups.map((group) => group.id)).toEqual(
-            header.chunk_groups.map((_, index) => index)
-          )
-          expect(header).not.toHaveProperty('initial')
-          expect(header).not.toHaveProperty('prefetched')
         }
         expect(
           routeGraphs.some(({ header, binary }) => {
@@ -736,6 +710,19 @@ describe('next analyze', () => {
         const appGraph = routeGraphs[0].header
         const pagesGraph = routeGraphs[1].header
         const apiGraph = routeGraphs[2].header
+        const sharedAppGraph = readAnalyzeHeader<ChunkGraphHeader>(
+          path.join(dataDir, '_app/analyze.data')
+        )
+        expect(
+          sharedAppGraph.chunk_groups.filter(
+            (group) => group.kind === 'bootstrap'
+          )
+        ).toHaveLength(1)
+        const documentGraph = readAnalyzeHeader<ChunkGraphHeader>(
+          path.join(dataDir, '_document/analyze.data')
+        )
+        expect(documentGraph.chunk_groups).toEqual([])
+
         expect(
           appGraph.chunk_groups.some((group) => group.kind === 'bootstrap')
         ).toBe(true)

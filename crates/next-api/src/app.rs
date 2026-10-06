@@ -2356,14 +2356,7 @@ impl Endpoint for AppEndpoint {
         }
         let project = this.app_project.project();
         let app_entry = self.app_endpoint_entry().await?;
-        let graphs = this
-            .app_project
-            .app_module_graphs(
-                self,
-                *app_entry.rsc_entry,
-                Some(this.app_project.client_runtime_entries()),
-            )
-            .await?;
+        let graphs = project.whole_app_module_graphs().await?;
         let client_chunking_context = project.client_chunking_context();
         let shared = get_app_client_shared_chunk_group(
             AssetIdent::from_path(project.project_path().owned().await?)
@@ -2385,16 +2378,15 @@ impl Endpoint for AppEndpoint {
             assets: shared.assets,
             pages_html: false,
         }];
-        let references =
-            ClientReferencesGraphs::new(*graphs.base, *project.per_page_module_graph().await?)
-                .get_client_references_for_endpoint(
-                    *app_entry.rsc_entry,
-                    true,
-                    *project.should_write_nft_manifests().await?,
-                    project.next_mode().await?.is_production(),
-                )
-                .to_resolved()
-                .await?;
+        let references = ClientReferencesGraphs::new(*graphs.base, false)
+            .get_client_references_for_endpoint(
+                *app_entry.rsc_entry,
+                true,
+                *project.should_write_nft_manifests().await?,
+                project.next_mode().await?.is_production(),
+            )
+            .to_resolved()
+            .await?;
         let chunks = get_app_client_references_chunks(
             *references,
             *graphs.full,
