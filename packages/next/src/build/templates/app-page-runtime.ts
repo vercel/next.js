@@ -1300,8 +1300,24 @@ export function createAppPageEntrypoint({
                     routeModule
                   )
                 } else if (isDebugStaticShell) {
+                  // If base-server determined that we should use a smaller set of
+                  // fallback params because some of them are prerenderable, then
+                  // we should use that instead of the full set.
+                  // This can happen:
+                  // - on a route like "/[static]" for a parameter that is not in gSP
+                  // - on a route like "/[static]/[dynamic]/", where
+                  //  the first param is prerenderable but the second isn't
+                  // In both cases the `[static]` param should not be a fallback in the
+                  // debug static shell.
+                  const stagedFallbackParams = getRequestMeta(
+                    req,
+                    'stagedFallbackParams'
+                  )
                   fallbackRouteParams =
-                    getRequestMeta(req, 'fallbackRouteParams') ?? null
+                    // NOTE: `null` signals that none of the params should be fallback.
+                    stagedFallbackParams !== undefined
+                      ? stagedFallbackParams
+                      : (getRequestMeta(req, 'fallbackRouteParams') ?? null)
                 } else {
                   fallbackRouteParams = null
                 }
