@@ -304,7 +304,6 @@ async function main() {
   const { values } = parseArgs({
     options: {
       'commit-sha': { type: 'string' },
-      'preview-builds-base-url': { type: 'string' },
       'timeout-minutes': { type: 'string' },
     },
   })
@@ -329,7 +328,7 @@ async function main() {
 
   await waitForPreviewTarball({
     commitSha,
-    previewBuildsBaseUrl: values['preview-builds-base-url'],
+    previewBuildsBaseUrl: process.env.NEXT_TEST_PREVIEW_BUILDS_BASE_URL,
     timeoutMs: timeoutMinutes * 60_000,
     getReadToken: createPreviewBuildsReadTokenGetter(),
   })
