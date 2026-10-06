@@ -24,6 +24,18 @@ type RouteHeader = {
   sources: Source[]
   chunk_parts: Part[]
   output_files: Array<{ filename: string }>
+  route_entries?: Array<{
+    route_entry_id: string
+    module_ident: string
+    module_path: string
+    role: 'route' | 'shared'
+    entry_kind?: 'server' | 'client_bootstrap'
+    client_references?: Array<{
+      module_ident: string
+      module_path: string
+      reference_kind: 'ecmascript' | 'css'
+    }>
+  }>
 }
 
 type Data<H> = { header: H; binary: Buffer }
@@ -199,7 +211,7 @@ function parseRoutes(file: string) {
   for (const output of outputs)
     if (typeof output.filename !== 'string')
       throw new Error('Invalid output filename')
-  return { paths, header }
+  return { paths, header, entries: header.route_entries ?? null }
 }
 
 function writeRecord(record: object): void {
@@ -262,11 +274,13 @@ export function dumpAnalyzeGraph(
   // Retain only the current route's data. A later validation error may leave
   // partial output; callers must check the exit status before using it.
   for (const route of selected) {
-    const { paths, header } = parseRoutes(routeFile(directory, route))
+    const { paths, header, entries } = parseRoutes(routeFile(directory, route))
     const prefix = { route }
     writeRecord({
       type: 'route',
       ...prefix,
+      entries,
+      coverage: { entries: entries ? 'exact' : 'unknown' },
     })
     for (let i = 0; i < header.output_files.length; i++) {
       writeRecord({

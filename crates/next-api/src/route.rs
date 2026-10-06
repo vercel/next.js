@@ -10,6 +10,7 @@ use turbo_tasks::{
     TryJoinIterExt, Vc, debug::ValueDebugFormat,
 };
 use turbopack_core::{
+    module::Module,
     module_graph::{GraphEntries, ModuleGraph},
     output::OutputAssets,
 };
@@ -45,6 +46,26 @@ pub enum Route {
 #[turbo_tasks::value(transparent)]
 pub struct ModuleGraphs(Vec<ResolvedVc<ModuleGraph>>);
 
+/// Client-side modules associated with an endpoint.
+#[turbo_tasks::value(shared)]
+#[derive(Clone, Debug, Default)]
+pub struct AnalyzeClientEntries {
+    /// Server entry modules established by this endpoint's build graph.
+    pub server_modules: Vec<ResolvedVc<Box<dyn Module>>>,
+    /// Client entry modules used to bootstrap this endpoint, not observed requests.
+    pub bootstrap_modules: Vec<ResolvedVc<Box<dyn Module>>>,
+    /// Client references discovered from the endpoint's server graph.
+    pub references: Vec<AnalyzeClientReference>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
+pub struct AnalyzeClientReference {
+    /// The referenced client module, with its bundler identity and variants intact.
+    pub module: ResolvedVc<Box<dyn Module>>,
+    /// Producer reference category (for example ECMAScript or CSS), not a load trigger.
+    pub kind: RcStr,
+}
+
 #[turbo_tasks::value_trait]
 pub trait Endpoint {
     #[turbo_tasks::function]
@@ -57,6 +78,11 @@ pub trait Endpoint {
     /// The entry modules for the modules graph.
     #[turbo_tasks::function]
     fn entries(self: Vc<Self>) -> Vc<GraphEntries>;
+    /// Build-time client bootstrap and client-reference modules for analysis.
+    #[turbo_tasks::function]
+    fn analyze_client_entries(self: Vc<Self>) -> Vc<AnalyzeClientEntries> {
+        AnalyzeClientEntries::default().cell()
+    }
     /// Additional entry modules for the module graph.
     /// This may read the module graph and return additional modules.
     #[turbo_tasks::function]
