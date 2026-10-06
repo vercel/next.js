@@ -2180,12 +2180,13 @@ impl TurboTasksBackend {
         has_invalidator: bool,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
     ) -> Option<TaskPriority> {
-        // Task completion is a 4 step process:
+        // Task completion is a 3 step process:
         // 1. Remove old edges (dependencies, collectibles, children, cells) and update the
         //    aggregation number of the task and the new children.
         // 2. Connect the new children to the task (and do the relevant aggregation updates).
-        // 3. Remove dirty flag (and propagate that to uppers) and remove the in-progress state.
-        // 4. Shrink the task memory to reduce footprint of the task.
+        // 3. Remove the in-progress state and the dirty flag (and propagate that to uppers), remove
+        //    no longer existing cells and shrink the task memory. The changes to the task itself
+        //    happen under one lock, so the next execution can't start before the cleanup is done.
 
         // The snapshot waits for this entire completion path, including its scoped child work,
         // before it observes the graph.
@@ -2279,29 +2280,25 @@ impl TurboTasksBackend {
             return Some(stale_priority);
         }
 
-        let (stale_priority, in_progress_cells) = self.task_execution_completed_finish(
-            &mut ctx,
-            task_id,
-            #[cfg(feature = "verify_determinism")]
-            no_output_set,
-            new_output,
-            is_now_immutable,
-            is_session_dependent,
-        );
+        let (stale_priority, in_progress_cells, removed_data) = self
+            .task_execution_completed_finish(
+                &mut ctx,
+                task_id,
+                #[cfg(feature = "verify_determinism")]
+                no_output_set,
+                new_output,
+                is_now_immutable,
+                is_session_dependent,
+                cell_counters,
+                is_error,
+                is_recomputation,
+            );
         if let Some(stale_priority) = stale_priority {
             // Task was stale and has been rescheduled
             #[cfg(feature = "trace_task_details")]
             span.record("stale", "finish");
             return Some(stale_priority);
         }
-
-        let removed_data = self.task_execution_completed_cleanup(
-            &mut ctx,
-            task_id,
-            cell_counters,
-            is_error,
-            is_recomputation,
-        );
 
         // Drop data outside of critical sections
         drop(removed_data);
@@ -2809,11 +2806,15 @@ impl TurboTasksBackend {
         new_output: Option<OutputValue>,
         is_now_immutable: bool,
         is_session_dependent: bool,
+        cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
+        is_error: bool,
+        is_recomputation: bool,
     ) -> (
         Option<TaskPriority>,
         Option<
             auto_hash_map::AutoMap<CellId, InProgressCellState, BuildHasherDefault<FxHasher>, 1>,
         >,
+        Vec<SharedReference>,
     ) {
         let mut task = ctx.task(task_id, TaskDataCategory::All);
         let Some(in_progress) = task.take_in_progress() else {
@@ -2821,7 +2822,13 @@ impl TurboTasksBackend {
         };
         if matches!(in_progress, InProgressState::Canceled) {
             // Task was canceled in the meantime, so we don't finish it
-            return (None, None);
+            let removed_data = Self::task_execution_completed_cleanup(
+                &mut task,
+                cell_counters,
+                is_error,
+                is_recomputation,
+            );
+            return (None, None, removed_data);
         }
         let InProgressState::InProgress(InProgressStateInner {
             done_event,
@@ -2843,7 +2850,7 @@ impl TurboTasksBackend {
                 reason: TaskExecutionReason::Stale,
             });
             debug_assert!(old.is_none(), "InProgress already exists");
-            return (Some(stale_priority), None);
+            return (Some(stale_priority), None, Vec::new());
         }
 
         // Set the output if it has changed
@@ -2885,19 +2892,29 @@ impl TurboTasksBackend {
                 .then(TaskPriority::leaf);
         #[cfg(not(feature = "verify_determinism"))]
         let stale_priority: Option<TaskPriority> = None;
-        if stale_priority.is_some() {
+        let removed_data = if stale_priority.is_some() {
             let old = task.set_in_progress(InProgressState::Scheduled {
                 done_event,
                 reason: TaskExecutionReason::Stale,
             });
             debug_assert!(old.is_none(), "InProgress already exists");
             drop(task);
+            Vec::new()
         } else {
+            // Clean up before the completion becomes visible: once the guard is dropped, the next
+            // execution can start, and cleaning up after that would remove its state.
+            let removed_data = Self::task_execution_completed_cleanup(
+                &mut task,
+                cell_counters,
+                is_error,
+                is_recomputation,
+            );
             drop(task);
 
             // Notify dependent tasks that are waiting for this task to finish
             done_event.notify(usize::MAX);
-        }
+            removed_data
+        };
 
         drop(old_content);
 
@@ -2906,18 +2923,24 @@ impl TurboTasksBackend {
         }
 
         // We return so the data can be dropped outside of critical sections
-        (stale_priority, in_progress_cells)
+        (stale_priority, in_progress_cells, removed_data)
     }
 
+    /// Removes the cells this execution no longer has and frees the per-execution bookkeeping
+    /// (`cleanup_after_execution`).
+    ///
+    /// Runs under the same task guard that completes the execution, before the completion is
+    /// published (`in_progress` removed and `done_event` notified). Otherwise a waiter could start
+    /// the next execution in between, and this cleanup would remove that execution's state, e.g.
+    /// the outdated dependencies it was just given.
+    ///
+    /// Returns the removed cell data, so it can be dropped outside of the critical section.
     fn task_execution_completed_cleanup(
-        &self,
-        ctx: &mut ExecuteContext<'_>,
-        task_id: TaskId,
+        task: &mut TaskGuard<'_>,
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
         is_error: bool,
         is_recomputation: bool,
     ) -> Vec<SharedReference> {
-        let mut task = ctx.task(task_id, TaskDataCategory::All);
         let mut removed_cell_data = Vec::new();
         // An error is potentially caused by a eventual consistency, so we avoid updating cells
         // after an error as it is likely transient and we want to keep the dependent tasks
@@ -2964,8 +2987,6 @@ impl TurboTasksBackend {
 
         // Free memory now that execution is complete.
         task.cleanup_after_execution();
-
-        drop(task);
 
         // Return so we can drop outside of critical sections
         removed_cell_data
