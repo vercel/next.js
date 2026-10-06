@@ -8,8 +8,7 @@
     { "$ref": "#/$defs/module" },
     { "$ref": "#/$defs/route" },
     { "$ref": "#/$defs/output" },
-    { "$ref": "#/$defs/part" },
-    { "$ref": "#/$defs/unjoined" }
+    { "$ref": "#/$defs/part" }
   ],
   "$defs": {
     "index": { "type": "integer", "minimum": 0 },
@@ -203,10 +202,10 @@
         },
         "async_loaders": {
           "$ref": "#/$defs/identities",
-          "description": "Sorted target module identities of typed async loader stubs contained in this chunk. Each target is recorded only after joining the snapshot module index through the loader's inner module; a missing target retains an unjoined record with reason async_loader_target_missing."
+          "description": "Sorted target module identities of typed async loader stubs contained in this chunk. Each target is recorded only after joining the snapshot module index through the loader's inner module."
         },
         "coverage": {
-          "description": "Membership evidence: exact enumerates and joins every real chunk member and async loader target; unsupported means complete enumeration or joining could not be established; not_a_chunk identifies non-chunk outputs, including runtime, precompiled polyfill and separately compiled worker outputs by concrete type. Attribution part records remain available.",
+          "description": "Membership evidence: exact enumerates and joins every real chunk member and async loader target; unsupported means the output type cannot enumerate its members; not_a_chunk identifies non-chunk outputs, including runtime, precompiled polyfill and separately compiled worker outputs by concrete type. Attribution part records remain available.",
           "enum": ["exact", "unsupported", "not_a_chunk"]
         }
       },
@@ -242,30 +241,6 @@
       },
       "additionalProperties": true,
       "description": "Source attribution within an emitted output."
-    },
-    "unjoined": {
-      "type": "object",
-      "required": ["type", "route", "filename", "module_ident", "reason"],
-      "properties": {
-        "type": {
-          "const": "unjoined",
-          "description": "Identifies an output member that could not join the global snapshot module table."
-        },
-        "route": { "type": "string", "description": "Owning route key." },
-        "filename": {
-          "type": "string",
-          "description": "Emitted output filename containing the unjoined module, scoped by route."
-        },
-        "module_ident": {
-          "$ref": "#/$defs/identity",
-          "description": "Exact module identity reported for this output but not joined to the snapshot's global module table; separately compiled worker payloads can be unjoined."
-        },
-        "reason": {
-          "type": "string",
-          "description": "Reason a reported output member cannot join the global snapshot module table. async_loader_target_missing means a typed async loader's target was absent from that table, so the stub remains unjoined. outside_whole_app_module_graph means the member itself is outside the graph, for example a separately compiled worker payload."
-        }
-      },
-      "additionalProperties": true
     }
   }
 }

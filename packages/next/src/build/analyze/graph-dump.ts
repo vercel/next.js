@@ -41,11 +41,6 @@ type RouteHeader = {
   output_file_modules: EdgeRef
   output_file_async_loaders: EdgeRef
   output_file_module_coverage: Array<'exact' | 'unsupported' | 'not_a_chunk'>
-  unjoined_modules: Array<{
-    output_file_index: number
-    module_ident: string
-    reason: string
-  }>
 }
 
 type Data<H> = { header: H; binary: Buffer }
@@ -256,29 +251,12 @@ function parseRoutes(file: string, modules: ReturnType<typeof parseModules>) {
   for (const output of outputs)
     if (typeof output.filename !== 'string')
       throw new Error('Invalid output filename')
-  if (!Array.isArray(header.unjoined_modules))
-    throw new Error('Missing unjoined analyzer modules')
-  const unjoined = header.unjoined_modules.map((item) => {
-    requireIndex(item.output_file_index, outputs.length, 'unjoined output')
-    if (
-      typeof item.module_ident !== 'string' ||
-      typeof item.reason !== 'string'
-    ) {
-      throw new Error('Invalid unjoined analyzer module')
-    }
-    return {
-      filename: outputs[item.output_file_index].filename,
-      module_ident: item.module_ident,
-      reason: item.reason,
-    }
-  })
   return {
     paths,
     header,
     entries: header.route_entries ?? null,
     membership,
     asyncLoaders,
-    unjoined,
   }
 }
 
@@ -344,8 +322,10 @@ export function dumpAnalyzeGraph(
   // Retain only the current route's data. A later validation error may leave
   // partial output; callers must check the exit status before using it.
   for (const route of selected) {
-    const { paths, header, entries, membership, asyncLoaders, unjoined } =
-      parseRoutes(routeFile(directory, route), moduleData)
+    const { paths, header, entries, membership, asyncLoaders } = parseRoutes(
+      routeFile(directory, route),
+      moduleData
+    )
     const prefix = { route }
     writeRecord({
       type: 'route',
@@ -379,7 +359,5 @@ export function dumpAnalyzeGraph(
         compressed_size: part.compressed_size,
       })
     }
-    for (const module of unjoined)
-      writeRecord({ type: 'unjoined', ...prefix, ...module })
   }
 }

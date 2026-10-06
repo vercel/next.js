@@ -95,7 +95,11 @@ export class ModulesData {
   }
 
   moduleIndexHash(): string {
-    return this.modulesHeader.module_index_hash
+    const hash = this.modulesHeader.module_index_hash
+    if (typeof hash !== 'string' || !hash) {
+      throw new Error('Missing analyzer module-index fingerprint')
+    }
+    return hash
   }
 
   module(index: ModuleIndex): AnalyzeModule | undefined {
@@ -216,14 +220,6 @@ export function assertMatchingModuleIndex(
 ): void {
   const moduleHash = modules.moduleIndexHash()
   const routeHash = route.moduleIndexHash()
-  if (
-    typeof moduleHash !== 'string' ||
-    !moduleHash ||
-    typeof routeHash !== 'string' ||
-    !routeHash
-  ) {
-    throw new Error(`${side}: missing analyzer module-index fingerprint`)
-  }
   if (moduleHash !== routeHash) {
     throw new Error(`${side}: analyzer module-index fingerprint mismatch`)
   }
@@ -265,7 +261,11 @@ export class AnalyzeData {
   // Accessor methods for header data
 
   moduleIndexHash(): string {
-    return this.analyzeHeader.module_index_hash
+    const hash = this.analyzeHeader.module_index_hash
+    if (typeof hash !== 'string' || !hash) {
+      throw new Error('Missing analyzer module-index fingerprint')
+    }
+    return hash
   }
 
   source(index: SourceIndex): AnalyzeSource | undefined {

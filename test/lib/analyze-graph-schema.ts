@@ -56,7 +56,7 @@ export function validateGraphDump(output: string): void {
         }
         outputs.add(outputKey)
       } else if (
-        (record.type === 'part' || record.type === 'unjoined') &&
+        record.type === 'part' &&
         !outputs.has(JSON.stringify([key, record.filename]))
       ) {
         throw new Error(`Unknown output for graph record ${index}`)
