@@ -1804,6 +1804,39 @@ struct HmrUpdateWithIssues {
     effects: Arc<Effects>,
 }
 
+fn trace_hmr_update_boundary(
+    stage: &'static str,
+    resource: &str,
+    target: HmrTarget,
+    update: &Update,
+    issue_count: usize,
+) {
+    if !tracing::enabled!(target: "turbopack_hmr_diagnostics", tracing::Level::INFO) {
+        return;
+    }
+    let (update_kind, instruction_kind) = match update {
+        Update::Missing => ("missing", None),
+        Update::None => ("none", None),
+        Update::Total(_) => ("total", None),
+        Update::Partial(PartialUpdate { instruction, .. }) => (
+            "partial",
+            instruction.get("type").and_then(|value| value.as_str()),
+        ),
+    };
+    tracing::info_span!(
+        target: "turbopack_hmr_diagnostics",
+        parent: None,
+        "hmr update boundary",
+        stage,
+        resource,
+        target = %target,
+        update_kind,
+        instruction_kind = instruction_kind.unwrap_or("none"),
+        issue_count,
+    )
+    .in_scope(|| {});
+}
+
 #[turbo_tasks::function(operation, root)]
 fn project_hmr_update_operation(
     project: ResolvedVc<Project>,
@@ -1815,6 +1848,7 @@ fn project_hmr_update_operation(
 }
 
 #[tracing::instrument(
+    target = "turbopack_hmr_diagnostics",
     level = "info",
     name = "hmr subscription",
     skip_all,
@@ -1828,7 +1862,7 @@ async fn hmr_update_with_issues_operation(
     target: HmrTarget,
 ) -> Result<Vc<HmrUpdateWithIssues>> {
     tracing::info!(chunk_name = %chunk_name, target = %target, "hmr subscription");
-    let update_op = project_hmr_update_operation(project, chunk_name, target, state);
+    let update_op = project_hmr_update_operation(project, chunk_name.clone(), target, state);
     // NOTE: we do not use `strongly_consistent_catch_collectables` here. The JS HMR
     // consumers in `hot-reloader-turbopack.ts` (`subscribeToServerHmr` and
     // `subscribeToClientHmrEvents`) rely on this read *throwing* on build-graph
@@ -1837,6 +1871,7 @@ async fn hmr_update_with_issues_operation(
     let filter = project.issue_filter().await?;
     let issues = get_issues(update_op, &filter).await?;
     let effects = Arc::new(take_effects(update_op).await?);
+    trace_hmr_update_boundary("computed", &chunk_name, target, &update, issues.len());
     Ok(HmrUpdateWithIssues {
         update,
         issues,
@@ -1857,6 +1892,7 @@ fn project_all_hmr_update_operation(
 
 /// Aggregate counterpart to [`hmr_update_with_issues_operation`].
 #[tracing::instrument(
+    target = "turbopack_hmr_diagnostics",
     level = "info",
     name = "aggregate hmr subscription",
     skip_all,
@@ -1879,6 +1915,13 @@ async fn all_hmr_update_with_issues_operation(
     let filter = project.issue_filter().await?;
     let issues = get_issues(update_op, &filter).await?;
     let effects = Arc::new(take_effects(update_op).await?);
+    trace_hmr_update_boundary(
+        "computed",
+        "__next_all_hmr__",
+        target,
+        &update,
+        issues.len(),
+    );
     Ok(HmrUpdateWithIssues {
         update,
         issues,
@@ -1887,7 +1930,7 @@ async fn all_hmr_update_with_issues_operation(
     .cell())
 }
 
-#[tracing::instrument(level = "info", name = "get all HMR events", skip(project, func), fields(target = %target))]
+#[tracing::instrument(target = "turbopack_hmr_diagnostics", level = "info", name = "get all HMR events", skip(project, func), fields(target = %target))]
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn project_all_hmr_events(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
@@ -1926,6 +1969,13 @@ pub fn project_all_hmr_events(
             unmark_top_level_task_may_leak_eventually_consistent_state();
 
             let HmrUpdateWithIssues { update, issues, .. } = &*read;
+            trace_hmr_update_boundary(
+                "subscription-cycle",
+                "__next_all_hmr__",
+                hmr_target,
+                update,
+                issues.len(),
+            );
             match &**update {
                 Update::Missing | Update::None => {}
                 Update::Total(TotalUpdate { to }) => {
@@ -1939,6 +1989,16 @@ pub fn project_all_hmr_events(
         },
         move |ctx| {
             let (update, issues) = ctx.value;
+
+            if let Some(update) = update.as_deref() {
+                trace_hmr_update_boundary(
+                    "napi-mapper",
+                    "__next_all_hmr__",
+                    hmr_target,
+                    update,
+                    issues.len(),
+                );
+            }
 
             let napi_issues = issues
                 .iter()
@@ -1973,7 +2033,7 @@ pub fn project_all_hmr_events(
     )
 }
 
-#[tracing::instrument(level = "info", name = "get HMR events", skip(project, func), fields(target = %target, chunk_name = %chunk_name))]
+#[tracing::instrument(target = "turbopack_hmr_diagnostics", level = "info", name = "get HMR events", skip(project, func), fields(target = %target, chunk_name = %chunk_name))]
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn project_hmr_events(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
@@ -2019,6 +2079,13 @@ pub fn project_hmr_events(
                     // HACK(bgw): Remove this unmark call
                     unmark_top_level_task_may_leak_eventually_consistent_state();
                     let HmrUpdateWithIssues { update, issues, .. } = &*read;
+                    trace_hmr_update_boundary(
+                        "subscription-cycle",
+                        &chunk_name,
+                        hmr_target,
+                        update,
+                        issues.len(),
+                    );
                     match &**update {
                         Update::Missing | Update::None => {}
                         Update::Total(TotalUpdate { to }) => {
@@ -2034,6 +2101,16 @@ pub fn project_hmr_events(
         },
         move |ctx| {
             let (update, issues) = ctx.value;
+
+            if let Some(update) = update.as_deref() {
+                trace_hmr_update_boundary(
+                    "napi-mapper",
+                    &chunk_name,
+                    hmr_target,
+                    update,
+                    issues.len(),
+                );
+            }
 
             let napi_issues = issues
                 .iter()
