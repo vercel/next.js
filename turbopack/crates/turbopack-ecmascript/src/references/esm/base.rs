@@ -1010,7 +1010,7 @@ impl EsmAssetReference {
                                         }
                                     };
                                     // SWC drops synthesized PURE spans when there are no maps.
-                                    // Analyze-only mappings must not change emitted build bytes.
+                                    // Compute-only mappings must not change emitted build bytes.
                                     if this.is_pure_import
                                         && *chunking_context.emit_pure_import_annotations().await?
                                     {

@@ -2606,7 +2606,7 @@ impl NextConfig {
         Ok(match (source_maps, input_source_maps) {
             (true, true) => SourceMapsType::Full,
             (true, false) => SourceMapsType::Partial,
-            (false, _) if self.build_analyze => SourceMapsType::AnalyzeOnly,
+            (false, _) if self.build_analyze => SourceMapsType::ComputeOnly,
             (false, _) => SourceMapsType::None,
         }
         .cell())
@@ -2626,7 +2626,7 @@ impl NextConfig {
         Ok(match (source_maps, input_source_maps) {
             (true, true) => SourceMapsType::Full,
             (true, false) => SourceMapsType::Partial,
-            (false, _) if self.build_analyze => SourceMapsType::AnalyzeOnly,
+            (false, _) if self.build_analyze => SourceMapsType::ComputeOnly,
             (false, _) => SourceMapsType::None,
         }
         .cell())
