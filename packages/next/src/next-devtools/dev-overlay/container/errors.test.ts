@@ -985,6 +985,30 @@ describe('deriveCauseFromCodeFrame', () => {
 })
 
 describe('fully static route errors', () => {
+  const runtimeDataExplanation =
+    'This route is configured to be fully static, but runtime data from `cookies()`, `headers()`, `params`, `searchParams`, or a short-lived cache requires request-time work.'
+  const uncachedDataExplanation =
+    'This route is configured to be fully static, but an uncached `fetch(...)`, database call, or `connection()` requires request-time work.'
+  const combinedDataExplanation =
+    'This route is configured to be fully static, but some data requires request-time work.'
+
+  it.each([
+    [createRuntimeBodyErrorInStaticRoute, runtimeDataExplanation],
+    [createDynamicBodyErrorInStaticRoute, uncachedDataExplanation],
+    [createNonPrerenderableBodyErrorInStaticRoute, combinedDataExplanation],
+    [createRuntimeMetadataErrorInStaticRoute, runtimeDataExplanation],
+    [createDynamicMetadataErrorInStaticRoute, uncachedDataExplanation],
+    [createNonPrerenderableMetadataErrorInStaticRoute, combinedDataExplanation],
+    [createRuntimeViewportErrorInStaticRoute, runtimeDataExplanation],
+    [createDynamicViewportErrorInStaticRoute, uncachedDataExplanation],
+    [createNonPrerenderableViewportErrorInStaticRoute, combinedDataExplanation],
+  ] as const)(
+    'preserves the primary guidance for %p',
+    (createError, explanation) => {
+      expect(createError(ROUTE).message.split('\n\n')[1]).toBe(explanation)
+    }
+  )
+
   it.each([
     [createRuntimeBodyErrorInStaticRoute, 'static-route', 'runtime'],
     [createDynamicBodyErrorInStaticRoute, 'static-route', 'dynamic'],
