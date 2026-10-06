@@ -35,7 +35,7 @@ const nodeDevContextPrototype =
 nodeDevContextPrototype.q = exportUrl
 nodeDevContextPrototype.M = moduleFactories
 nodeDevContextPrototype.c = devModuleCache
-nodeDevContextPrototype.R = resolvePathFromModule
+nodeDevContextPrototype.S = resolvePathFromModule
 nodeDevContextPrototype.C = clearChunkCache
 
 if (globalThis.__turbopack_ensure_chunk__ !== undefined) {
