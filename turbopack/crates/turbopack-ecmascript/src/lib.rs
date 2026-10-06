@@ -67,13 +67,14 @@ use swc_core::{
         BytePos, DUMMY_SP, FileName, GLOBALS, Globals, Loc, Mark, SourceFile, SourceMap,
         SourceMapper, Span, SpanSnippetError, Spanned, SyntaxContext,
         comments::{Comment, CommentKind, Comments},
-        source_map::{FileLinesResult, Files, SourceMapLookupError},
+        source_map::{FileLinesResult, Files, PURE_SP, SourceMapLookupError},
         util::take::Take,
     },
     ecma::{
         ast::{
-            self, CallExpr, Callee, Decl, EmptyStmt, Expr, ExprStmt, Id, Ident, ModuleItem,
-            Program, Script, SourceMapperExt, Stmt,
+            self, CallExpr, Callee, ComputedPropName, Decl, EmptyStmt, Expr, ExprStmt, Id, Ident,
+            KeyValuePatProp, Lit, MemberExpr, MemberProp, ModuleItem, ObjectPat, ObjectPatProp,
+            Pat, Program, PropName, Script, SourceMapperExt, Stmt, Str, VarDeclarator,
         },
         codegen::{Emitter, text_writer::JsWriter},
         utils::StmtLikeInjector,
@@ -98,7 +99,7 @@ use turbopack_core::{
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
     ident::AssetIdent,
-    module::{Module, ModuleSideEffects},
+    module::{ExportBindings, Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     reference::ModuleReferences,
     reference_type::InnerAssets,
@@ -118,7 +119,9 @@ use crate::{
         ecmascript_chunk_item,
         placeable::{SideEffectsDeclaration, get_side_effect_free_declaration},
     },
-    code_gen::{CodeGeneration, CodeGenerationHoistedStmt, CodeGens, ModifiableAst},
+    code_gen::{
+        CodeGeneration, CodeGenerationHoistedStmt, CodeGens, HoistedStmtKey, ModifiableAst,
+    },
     directive::parse_module_turbopack_directives,
     merged_module::MergedEcmascriptModule,
     parse::{IdentCollector, ParseResult, generate_js_source_map, parse},
@@ -126,7 +129,7 @@ use crate::{
     references::{
         analyze_ecmascript_module,
         async_module::OptionAsyncModule,
-        esm::{UrlRewriteBehavior, base::EsmAssetReferences, export},
+        esm::{UrlRewriteBehavior, base::EsmAssetReferences, export, export::esm_export_bindings},
         exports::compute_ecmascript_module_exports,
     },
     side_effect_optimization::reference::EcmascriptModulePartReference,
@@ -917,6 +920,12 @@ impl Module for EcmascriptModuleAsset {
         } else {
             Ok(Vc::cell(false))
         }
+    }
+
+    /// See [`esm_export_bindings`].
+    #[turbo_tasks::function]
+    async fn export_bindings(self: Vc<Self>) -> Result<Vc<ExportBindings>> {
+        Ok(esm_export_bindings(self.get_exports()).await?.cell())
     }
 
     #[turbo_tasks::function]
@@ -2078,11 +2087,25 @@ async fn process_parse_result(
                 trailing: Default::default(),
             };
 
+            // Declarations reading one namespace are combined below, and a destructuring is only
+            // worth it once several bindings share one. That is knowable here and not earlier.
+            let supports_destructuring = match options {
+                Some(options) => {
+                    *options
+                        .chunking_context
+                        .environment()
+                        .runtime_versions()
+                        .supports_destructuring()
+                        .await?
+                }
+                None => false,
+            };
             let early_hoisted_count = process_content_with_code_gens(
                 &mut program,
                 globals,
                 ast_paths.as_deref().map(|p| &p.ast_paths),
                 &mut code_gens,
+                supports_destructuring,
             );
 
             for comments in code_gens.iter_mut().flat_map(|cg| cg.comments.as_mut()) {
@@ -2442,6 +2465,131 @@ async fn emit_content(
     .cell())
 }
 
+/// Takes the `var` declaration out of a [`HoistedStmtKey::MergedValueBindings`] statement, keeping
+/// only the declarators that bind something no earlier one did.
+///
+/// `bound` holds every binding declared so far, across all namespaces. A value binding's name is
+/// unique to its value, so a binding declared again, whether through the same namespace or through
+/// a re-export's, holds the same value and only the first declaration is kept.
+///
+/// Panics unless the statement is a `var` declaration, which is the only shape that key is produced
+/// with.
+fn take_unbound_var_decls(stmt: Stmt, bound: &mut FxHashSet<Id>) -> Box<ast::VarDecl> {
+    let Stmt::Decl(Decl::Var(mut decl)) = stmt else {
+        panic!("mergeable hoisted statements must be `var` declarations");
+    };
+    decl.decls
+        .retain(|declarator| var_decl_binding(declarator).is_none_or(|id| bound.insert(id)));
+    decl
+}
+
+/// The identifier a `var <binding> = …` declarator binds.
+fn var_decl_binding(decl: &VarDeclarator) -> Option<Id> {
+    match &decl.name {
+        Pat::Ident(binding) => Some(binding.to_id()),
+        _ => None,
+    }
+}
+
+/// Rewrites runs of declarators that read properties of one object into a destructuring of it.
+///
+/// `var a = ns.a, b = ns.b` becomes `var {"a": a, "b": b} = ns`, which is smaller. A lone binding
+/// is left alone: a minifier that renames the local would have to write the key back out, making
+/// `var {a: x} = ns` longer than `var x = ns.a`.
+fn destructure_shared_namespaces(decls: &mut Vec<VarDeclarator>) {
+    let mut grouped: FxIndexMap<Id, Vec<(Str, Ident)>> = FxIndexMap::default();
+    let mut rest = Vec::new();
+
+    for decl in decls.drain(..) {
+        match as_namespace_read(&decl) {
+            Some((namespace, key, binding)) => {
+                grouped.entry(namespace).or_default().push((key, binding));
+            }
+            None => rest.push(decl),
+        }
+    }
+
+    for (namespace, members) in grouped {
+        let namespace = Ident::new(namespace.0, DUMMY_SP, namespace.1);
+        if members.len() < 2 {
+            // Rebuild the original single declarator, pure annotation included.
+            for (key, binding) in members {
+                rest.push(namespace_read_decl(&namespace, key, binding));
+            }
+            continue;
+        }
+        rest.push(VarDeclarator {
+            span: DUMMY_SP,
+            name: Pat::Object(ObjectPat {
+                // `PURE_SP` emits a `/*#__PURE__*/` annotation, asking that the declaration be
+                // dropped when the bindings are unused. On a pattern it also asserts that the
+                // initializer is not nullish, which holds: it is a module namespace object.
+                //
+                // The annotation is only specified for calls today. Extending it to other
+                // expressions is still being discussed in
+                // https://github.com/javascript-compiler-hints/compiler-notations-spec/issues/16, so until
+                // minifiers adopt that it is inert rather than wrong.
+                span: PURE_SP,
+                optional: false,
+                type_ann: None,
+                props: members
+                    .into_iter()
+                    .map(|(key, binding)| {
+                        ObjectPatProp::KeyValue(KeyValuePatProp {
+                            key: PropName::Str(key),
+                            value: Box::new(Pat::Ident(binding.into())),
+                        })
+                    })
+                    .collect(),
+            }),
+            init: Some(Box::new(Expr::Ident(namespace))),
+            definite: false,
+        });
+    }
+
+    *decls = rest;
+}
+
+/// Matches `<binding> = <namespace>["<key>"]`, the shape value binding declarations are built in.
+fn as_namespace_read(decl: &VarDeclarator) -> Option<(Id, Str, Ident)> {
+    let Pat::Ident(binding) = &decl.name else {
+        return None;
+    };
+    let Some(Expr::Member(member)) = decl.init.as_deref() else {
+        return None;
+    };
+    let Expr::Ident(namespace) = &*member.obj else {
+        return None;
+    };
+    let MemberProp::Computed(prop) = &member.prop else {
+        return None;
+    };
+    let Expr::Lit(Lit::Str(key)) = &*prop.expr else {
+        return None;
+    };
+    Some((namespace.to_id(), key.clone(), binding.id.clone()))
+}
+
+fn namespace_read_decl(namespace: &Ident, key: Str, binding: Ident) -> VarDeclarator {
+    VarDeclarator {
+        span: DUMMY_SP,
+        name: Pat::Ident(binding.into()),
+        init: Some(Box::new(Expr::Member(MemberExpr {
+            // `PURE_SP` emits a `/*#__PURE__*/` annotation, asking that the declaration be dropped
+            // when the binding is unused. It is only specified for calls today, see
+            // https://github.com/javascript-compiler-hints/compiler-notations-spec/issues/16, so until
+            // minifiers adopt that it is inert rather than wrong.
+            span: PURE_SP,
+            obj: Box::new(Expr::Ident(namespace.clone())),
+            prop: MemberProp::Computed(ComputedPropName {
+                span: DUMMY_SP,
+                expr: Box::new(Expr::Lit(Lit::Str(key))),
+            }),
+        }))),
+        definite: false,
+    }
+}
+
 /// Applies the code generations, returning the number of early hoisted statements it prepended.
 #[instrument(level = Level::TRACE, skip_all, name = "apply code generation")]
 fn process_content_with_code_gens(
@@ -2449,24 +2597,53 @@ fn process_content_with_code_gens(
     globals: &Globals,
     trie: Option<&AstPathTrie>,
     code_gens: &mut Vec<CodeGeneration>,
+    supports_destructuring: bool,
 ) -> usize {
     let mut visitors = Vec::new();
     let mut root_visitors = Vec::new();
     let mut early_hoisted_stmts = FxIndexMap::default();
     let mut hoisted_stmts = FxIndexMap::default();
+    // Every binding the mergeable statements declare so far, to drop duplicates as they arrive.
+    let mut value_bindings = FxHashSet::default();
+    // How many bindings each mergeable statement declares.
+    let mut value_binding_counts: FxIndexMap<HoistedStmtKey, usize> = FxIndexMap::default();
     let mut early_late_stmts = FxIndexMap::default();
     let mut late_stmts = FxIndexMap::default();
     for code_gen in code_gens {
         for CodeGenerationHoistedStmt { key, stmt } in code_gen.hoisted_stmts.drain(..) {
-            hoisted_stmts.entry(key).or_insert(stmt);
+            if !key.is_mergeable() {
+                // A duplicate is the same statement again, so the first one wins.
+                hoisted_stmts.entry(key).or_insert(stmt);
+                continue;
+            }
+            let incoming = take_unbound_var_decls(stmt, &mut value_bindings);
+            if incoming.decls.is_empty() {
+                continue;
+            }
+            *value_binding_counts.entry(key.clone()).or_default() += incoming.decls.len();
+            match hoisted_stmts.entry(key) {
+                indexmap::map::Entry::Vacant(entry) => {
+                    entry.insert(Stmt::Decl(Decl::Var(incoming)));
+                }
+                indexmap::map::Entry::Occupied(mut entry) => {
+                    let Stmt::Decl(Decl::Var(existing)) = entry.get_mut() else {
+                        unreachable!("only `var` declarations are inserted under a mergeable key");
+                    };
+                    assert_eq!(
+                        existing.kind, incoming.kind,
+                        "mergeable hoisted declarations must all be of the same kind"
+                    );
+                    existing.decls.extend(incoming.decls);
+                }
+            }
         }
-        for CodeGenerationHoistedStmt { key, stmt } in code_gen.early_hoisted_stmts.drain(..) {
+        for CodeGenerationHoistedStmt { key, stmt, .. } in code_gen.early_hoisted_stmts.drain(..) {
             early_hoisted_stmts.insert(key.clone(), stmt);
         }
-        for CodeGenerationHoistedStmt { key, stmt } in code_gen.late_stmts.drain(..) {
+        for CodeGenerationHoistedStmt { key, stmt, .. } in code_gen.late_stmts.drain(..) {
             late_stmts.insert(key.clone(), stmt);
         }
-        for CodeGenerationHoistedStmt { key, stmt } in code_gen.early_late_stmts.drain(..) {
+        for CodeGenerationHoistedStmt { key, stmt, .. } in code_gen.early_late_stmts.drain(..) {
             early_late_stmts.insert(key.clone(), stmt);
         }
         for (path, visitor) in &code_gen.visitors {
@@ -2474,6 +2651,20 @@ fn process_content_with_code_gens(
                 root_visitors.push(&**visitor);
             } else {
                 visitors.push((*path, &**visitor));
+            }
+        }
+    }
+
+    // Only once every declaration has arrived is it known how many bindings read each namespace,
+    // so destructuring happens once here rather than on every merge.
+    if supports_destructuring {
+        for (key, &count) in &value_binding_counts {
+            // Each key is one namespace, and a lone binding stays a plain read.
+            if count < 2 {
+                continue;
+            }
+            if let Some(Stmt::Decl(Decl::Var(decl))) = hoisted_stmts.get_mut(key) {
+                destructure_shared_namespaces(&mut decl.decls);
             }
         }
     }
@@ -3382,7 +3573,100 @@ fn merge_option_vec<T>(a: Option<Vec<T>>, b: Option<Vec<T>>) -> Option<Vec<T>> {
 
 #[cfg(test)]
 mod tests {
+    use swc_core::ecma::ast::{VarDecl, VarDeclKind};
+
     use super::*;
+
+    /// `var <binding> = <namespace>["<key>"]`, the shape value binding declarations arrive in.
+    fn namespace_read_stmt(namespace: &str, key: &str, binding: &str) -> Stmt {
+        let ident = |sym: &str| Ident::new(sym.into(), DUMMY_SP, SyntaxContext::empty());
+        let key = Str {
+            span: DUMMY_SP,
+            value: key.into(),
+            raw: None,
+        };
+        Stmt::Decl(Decl::Var(Box::new(VarDecl {
+            span: DUMMY_SP,
+            kind: VarDeclKind::Var,
+            declare: false,
+            ctxt: Default::default(),
+            decls: vec![namespace_read_decl(&ident(namespace), key, ident(binding))],
+        })))
+    }
+
+    /// Merges `stmts` the way hoisted value bindings are merged, then destructures them.
+    fn merge_value_bindings(stmts: Vec<Stmt>) -> Vec<VarDeclarator> {
+        let mut bound = FxHashSet::default();
+        let mut decls: Vec<_> = stmts
+            .into_iter()
+            .flat_map(|stmt| take_unbound_var_decls(stmt, &mut bound).decls)
+            .collect();
+        destructure_shared_namespaces(&mut decls);
+        decls
+    }
+
+    #[test]
+    fn value_binding_read_through_several_namespaces_is_declared_once() {
+        // A value binding's name is unique to its value, so reading it again through a
+        // re-export's namespace declares nothing new.
+        let decls = merge_value_bindings(vec![
+            namespace_read_stmt("ns", "a", "x"),
+            namespace_read_stmt("reexport", "b", "x"),
+        ]);
+        assert_eq!(decls.len(), 1);
+        assert!(matches!(
+            as_namespace_read(&decls[0]),
+            Some((namespace, _, binding)) if &*namespace.0 == "ns" && &*binding.sym == "x"
+        ));
+    }
+
+    #[test]
+    fn value_bindings_of_one_namespace_destructure_once() {
+        let decls = merge_value_bindings(vec![
+            namespace_read_stmt("ns", "a", "x"),
+            namespace_read_stmt("ns", "b", "y"),
+            // A second use of `x` declares it again.
+            namespace_read_stmt("ns", "a", "x"),
+            namespace_read_stmt("other", "c", "z"),
+        ]);
+
+        assert_eq!(decls.len(), 2);
+        // Several bindings of `ns` share one destructuring, each declared once. Namespaces keep
+        // the order they were first read in.
+        let Pat::Object(pat) = &decls[0].name else {
+            panic!("expected a destructuring, got {:?}", decls[0].name);
+        };
+        let members: Vec<_> = pat
+            .props
+            .iter()
+            .map(|prop| match prop {
+                ObjectPatProp::KeyValue(KeyValuePatProp {
+                    key: PropName::Str(key),
+                    value,
+                }) => {
+                    let Pat::Ident(binding) = &**value else {
+                        panic!("expected a binding, got {value:?}");
+                    };
+                    (
+                        key.value.to_string_lossy().into_owned(),
+                        binding.sym.to_string(),
+                    )
+                }
+                prop => panic!("unexpected property {prop:?}"),
+            })
+            .collect();
+        assert_eq!(
+            members,
+            [("a".into(), "x".into()), ("b".into(), "y".into())] as [(String, String); 2]
+        );
+        assert!(matches!(decls[0].init.as_deref(), Some(Expr::Ident(ns)) if &*ns.sym == "ns"));
+
+        // A lone binding stays a plain read, which keeps its pure annotation.
+        assert!(matches!(&decls[1].name, Pat::Ident(binding) if &*binding.sym == "z"));
+        assert!(
+            matches!(decls[1].init.as_deref(), Some(Expr::Member(member)) if member.span == PURE_SP)
+        );
+    }
     fn bytepos_ensure_identical(modules_header_width: u32, pos: BytePos) {
         let module_count = 2u32.pow(modules_header_width);
         let lookup_table = Arc::new(Mutex::new(Vec::new()));

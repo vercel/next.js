@@ -42,7 +42,7 @@ use crate::{
     EcmascriptModuleAsset, ScopeHoistingContext,
     analyzer::imports::ImportAnnotations,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
-    code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
+    code_gen::{CodeGeneration, CodeGenerationHoistedStmt, HoistedStmtKey},
     export::Liveness,
     magic_identifier,
     module_fragments::{TURBOPACK_PART_IMPORT_SOURCE, part::module::EcmascriptModulePartAsset},
@@ -118,13 +118,27 @@ impl ImportSource {
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<String> {
+        Ok(magic_identifier::mangle(
+            &self.get_namespace_description(chunking_context).await?,
+        ))
+    }
+
+    /// The unmangled description of the imported namespace, such as `imported module {id}`.
+    ///
+    /// This is what [`Self::get_namespace_ident`] mangles. It is also the uniquifying part of a
+    /// captured binding's name, so that both are derived from the same source.
+    pub(crate) async fn get_namespace_description(
+        &self,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Result<String> {
         Ok(match self {
             ImportSource::Module { asset } => {
-                ReferencedAsset::get_ident_from_placeable(asset, chunking_context).await?
+                let id = asset.chunk_item_id(chunking_context).await?;
+                // There are a number of places in `next` that match on this prefix.
+                // See `packages/next/src/shared/lib/magic-identifier.ts`
+                format!("imported module {id}")
             }
-            ImportSource::External { request, ty } => {
-                magic_identifier::mangle(&format!("{ty} external {request}"))
-            }
+            ImportSource::External { request, ty } => format!("{ty} external {request}"),
         })
     }
 }
@@ -366,16 +380,87 @@ impl ReferencedAsset {
             ReferencedAsset::None | ReferencedAsset::Empty | ReferencedAsset::Unresolvable => None,
         })
     }
+}
 
-    pub(crate) async fn get_ident_from_placeable(
-        asset: &Vc<Box<dyn EcmascriptChunkPlaceable>>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<String> {
-        let id = asset.chunk_item_id(chunking_context).await?;
-        // There are a number of places in `next` that match on this prefix.
-        // See `packages/next/src/shared/lib/magic-identifier.ts`
-        Ok(magic_identifier::mangle(&format!("imported module {id}")))
+/// Whether an imported export can be safely captured in a local value binding, see
+/// [`can_capture_export_value`].
+pub struct ExportCapture {
+    /// The name of the local the export can be read into once instead of at every use, or `None`
+    /// when it cannot be captured.
+    ///
+    /// The name comes from the module that defines the binding and its export name there, so it
+    /// is unique to the value: the same name always holds the same value, whichever namespace or
+    /// re-export it was read through. That is what lets the local be declared without a syntax
+    /// context, even when scope hoisting puts several modules in one scope. It can surface in the
+    /// error overlay, so it names the import rather than hashing it.
+    pub value_binding_name: Option<RcStr>,
+    /// Whether calling the export could observe `this`. Conservatively true.
+    pub maybe_uses_this: bool,
+}
+
+impl ExportCapture {
+    /// Nothing is known about the export, so it must be read through the namespace and called
+    /// with it as the receiver.
+    fn unknown() -> Self {
+        ExportCapture {
+            value_binding_name: None,
+            maybe_uses_this: true,
+        }
     }
+}
+
+/// Whether `export` of `module` can be captured into a local value binding, and whether calling it
+/// could observe `this`.
+///
+/// `module` is where the import points. The whole-graph export usage analysis has already followed
+/// its re-exports to the binding each export forwards, see
+/// [`ModuleExportUsage::capturable_exports`]. `namespace_module` is the module whose namespace the
+/// capture reads, which is the one that must have finished evaluating before the capture runs. The
+/// two differ when scope hoisting has already resolved part of a re-export chain.
+pub(crate) async fn can_capture_export_value(
+    namespace_module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    export: RcStr,
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
+) -> Result<ExportCapture> {
+    let export_usage = chunking_context
+        .module_export_usage(*ResolvedVc::upcast(module))
+        .await?;
+    // Anything the analysis could not follow to a constant binding, or where it did not run, says
+    // nothing about the value, so stay conservative on both questions.
+    let Some(capturable) = export_usage.capturable_exports.await?.get(&export).cloned() else {
+        return Ok(ExportCapture::unknown());
+    };
+    let Some(origin_module) =
+        ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(capturable.origin_module)
+    else {
+        return Ok(ExportCapture::unknown());
+    };
+
+    let is_circuit_breaker = if namespace_module == module {
+        export_usage.is_circuit_breaker
+    } else {
+        chunking_context
+            .module_export_usage(*ResolvedVc::upcast(namespace_module))
+            .await?
+            .is_circuit_breaker
+    };
+    if is_circuit_breaker {
+        return Ok(ExportCapture::unknown());
+    }
+    let value_binding_name = {
+        let source = ImportSource::Module {
+            asset: origin_module,
+        }
+        .get_namespace_description(chunking_context)
+        .await?;
+        let origin_export = &capturable.origin_export;
+        magic_identifier::mangle(&format!("imported binding {origin_export} from {source}")).into()
+    };
+    Ok(ExportCapture {
+        value_binding_name: Some(value_binding_name),
+        maybe_uses_this: capturable.maybe_uses_this,
+    })
 }
 
 impl ReferencedAsset {
@@ -839,7 +924,7 @@ impl EsmAssetReference {
                         span: DUMMY_SP,
                     });
                     return Ok(CodeGeneration::hoisted_stmt(
-                        format!("throw {request}").into(),
+                        HoistedStmtKey::Deduplicated(format!("throw {request}").into()),
                         stmt,
                     ));
                 }
@@ -861,7 +946,7 @@ impl EsmAssetReference {
                         // Insert a placeholder to inline the merged module at the right place
                         // relative to the other references (so to keep reference order).
                         result.push(CodeGenerationHoistedStmt::new(
-                            format!("hoisted {merged_index}").into(),
+                            HoistedStmtKey::Deduplicated(format!("hoisted {merged_index}").into()),
                             quote!(
                                 "__turbopack_merged_esm__($id);" as Stmt,
                                 id: Expr = Lit::Num(merged_index.into()).into(),
@@ -930,85 +1015,103 @@ impl EsmAssetReference {
                                         DUMMY_SP,
                                         ctxt.unwrap_or_default(),
                                     );
-                                    let (key, mut call_expr) = match import_source {
-                                        ImportSource::Module { asset } => {
-                                            let id = asset.chunk_item_id(chunking_context).await?;
-                                            // Include ctxt in the key to prevent incorrect
-                                            // deduplication when multiple merged modules import the
-                                            // same target but have different syntax contexts (which
-                                            // would cause hygiene to rename one of them).
-                                            (
-                                                format!("{} {:?}", id, ctxt).into(),
-                                                quote!(
-                                                    "$turbopack_import($id)" as Expr,
-                                                    turbopack_import: Expr = TURBOPACK_IMPORT.into(),
-                                                    id: Expr = module_id_to_lit(&id),
-                                                ),
-                                            )
-                                        }
-                                        ImportSource::External {
-                                            request,
-                                            ty: ExternalType::EcmaScriptModule,
-                                        } => {
-                                            if !*chunking_context
-                                                .environment()
-                                                .supports_esm_externals()
-                                                .await?
-                                            {
-                                                turbobail!(
-                                                    "the chunking context ({}) does not support \
-                                                     external modules (esm request: {request})",
-                                                    chunking_context.name()
-                                                );
-                                            }
-                                            let call = if import_externals {
-                                                quote!(
-                                                    "$turbopack_external_import($id)" as Expr,
-                                                    turbopack_external_import: Expr = TURBOPACK_EXTERNAL_IMPORT.into(),
-                                                    id: Expr = Expr::Lit(request.to_string().into())
+                                    let (key, mut call_expr): (HoistedStmtKey, _) =
+                                        match import_source {
+                                            ImportSource::Module { asset } => {
+                                                let id =
+                                                    asset.chunk_item_id(chunking_context).await?;
+                                                // Include ctxt in the key to prevent incorrect
+                                                // deduplication when multiple merged modules import
+                                                // the
+                                                // same target but have different syntax contexts
+                                                // (which
+                                                // would cause hygiene to rename one of them).
+                                                (
+                                                    HoistedStmtKey::Deduplicated(
+                                                        format!("{} {:?}", id, ctxt).into(),
+                                                    ),
+                                                    quote!(
+                                                        "$turbopack_import($id)" as Expr,
+                                                        turbopack_import: Expr = TURBOPACK_IMPORT.into(),
+                                                        id: Expr = module_id_to_lit(&id),
+                                                    ),
                                                 )
-                                            } else {
-                                                quote!(
+                                            }
+                                            ImportSource::External {
+                                                request,
+                                                ty: ExternalType::EcmaScriptModule,
+                                            } => {
+                                                if !*chunking_context
+                                                    .environment()
+                                                    .supports_esm_externals()
+                                                    .await?
+                                                {
+                                                    turbobail!(
+                                                        "the chunking context ({}) does not \
+                                                         support external modules (esm request: \
+                                                         {request})",
+                                                        chunking_context.name()
+                                                    );
+                                                }
+                                                let call = if import_externals {
+                                                    quote!(
+                                                        "$turbopack_external_import($id)" as Expr,
+                                                        turbopack_external_import: Expr = TURBOPACK_EXTERNAL_IMPORT.into(),
+                                                        id: Expr = Expr::Lit(request.to_string().into())
+                                                    )
+                                                } else {
+                                                    quote!(
+                                                        "$turbopack_external_require($id, () => require($id), true)" as Expr,
+                                                        turbopack_external_require: Expr = TURBOPACK_EXTERNAL_REQUIRE.into(),
+                                                        id: Expr = Expr::Lit(request.to_string().into())
+                                                    )
+                                                };
+                                                (
+                                                    HoistedStmtKey::Deduplicated(
+                                                        name.sym.as_str().into(),
+                                                    ),
+                                                    call,
+                                                )
+                                            }
+                                            ImportSource::External {
+                                                request,
+                                                ty: ExternalType::CommonJs | ExternalType::Url,
+                                            } => {
+                                                if !*chunking_context
+                                                    .environment()
+                                                    .supports_commonjs_externals()
+                                                    .await?
+                                                {
+                                                    turbobail!(
+                                                        "the chunking context ({}) does not \
+                                                         support external modules (request: \
+                                                         {request})",
+                                                        chunking_context.name()
+                                                    );
+                                                }
+                                                let call = quote!(
                                                     "$turbopack_external_require($id, () => require($id), true)" as Expr,
                                                     turbopack_external_require: Expr = TURBOPACK_EXTERNAL_REQUIRE.into(),
                                                     id: Expr = Expr::Lit(request.to_string().into())
-                                                )
-                                            };
-                                            (name.sym.as_str().into(), call)
-                                        }
-                                        ImportSource::External {
-                                            request,
-                                            ty: ExternalType::CommonJs | ExternalType::Url,
-                                        } => {
-                                            if !*chunking_context
-                                                .environment()
-                                                .supports_commonjs_externals()
-                                                .await?
-                                            {
-                                                turbobail!(
-                                                    "the chunking context ({}) does not support \
-                                                     external modules (request: {request})",
-                                                    chunking_context.name()
                                                 );
+                                                (
+                                                    HoistedStmtKey::Deduplicated(
+                                                        name.sym.as_str().into(),
+                                                    ),
+                                                    call,
+                                                )
                                             }
-                                            let call = quote!(
-                                                "$turbopack_external_require($id, () => require($id), true)" as Expr,
-                                                turbopack_external_require: Expr = TURBOPACK_EXTERNAL_REQUIRE.into(),
-                                                id: Expr = Expr::Lit(request.to_string().into())
-                                            );
-                                            (name.sym.as_str().into(), call)
-                                        }
-                                        // fallback in case we introduce a new `ExternalType`
-                                        #[allow(unreachable_patterns)]
-                                        ImportSource::External { request, ty, .. } => {
-                                            bail!(
-                                                "Unsupported external type {:?} for ESM reference \
-                                                 with request: {:?}",
-                                                ty,
-                                                request
-                                            )
-                                        }
-                                    };
+                                            // fallback in case we introduce a new `ExternalType`
+                                            #[allow(unreachable_patterns)]
+                                            ImportSource::External { request, ty, .. } => {
+                                                bail!(
+                                                    "Unsupported external type {:?} for ESM \
+                                                     reference with request: {:?}",
+                                                    ty,
+                                                    request
+                                                )
+                                            }
+                                        };
                                     if this.is_pure_import {
                                         call_expr.set_span(PURE_SP);
                                     }
