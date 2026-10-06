@@ -70,6 +70,7 @@ function writeExperiments(evalName, variants, timeout, runs) {
       : ''
     const body = `import type { ExperimentConfig } from '@vercel/agent-eval'
 ${v.imports}
+import { prepareBrowserJs, analyzeBrowserJs } from '../lib/bundle-optimizer/hooks.js'
 
 const config: ExperimentConfig = {
   // Via the Vercel AI Gateway, so the OIDC token from \`vc env pull\` is the only
@@ -84,9 +85,10 @@ const config: ExperimentConfig = {
   earlyExit: ${runs === 1},
   timeout: ${timeout},
   sandbox: 'auto',
-  ${v.onRunComplete ? `onRunComplete: ${v.onRunComplete},` : ''}
+  onRunComplete: (context) => analyzeBrowserJs({ ...context, runData: ${v.onRunComplete ? `${v.onRunComplete}(context)` : 'context.runData'} }),
   setup: async (sandbox) => {
     ${v.setup}
+    return prepareBrowserJs(sandbox)
   },
 }
 
@@ -160,8 +162,11 @@ function getExperimentSettings(evalName) {
   const multipleSkillGroups = skillGroups.size > 1
   const skillVariants = [...skillGroups.values()].map(({ skills, evals }) => ({
     suffix: multipleSkillGroups ? `skills-${skills.join('-')}` : 'skills',
-    imports: `import { installLocalSkills, installNextJs, installPlaywright, prepareFixture } from '../lib/setup.js'`,
+    imports: `import { installLocalSkills, installNextJs, installPlaywright, prepareFixture } from '../lib/setup.js'\nimport { assertBundleOptimizerSkillInvoked } from '../lib/bundle-optimizer/hooks.js'`,
     setup: `await installNextJs(sandbox)\n    await installPlaywright(sandbox)\n    await prepareFixture(sandbox)\n    await installLocalSkills(sandbox, ${JSON.stringify(skills)})`,
+    onRunComplete: skills.includes('next-bundle-optimizer')
+      ? 'assertBundleOptimizerSkillInvoked'
+      : undefined,
     evals,
   }))
 

@@ -34,7 +34,8 @@ Then edit three files:
 
 **`PROMPT.md`** — what you'd type into the agent. Write it like a real user would: describe the symptom or goal, not the API. "Navigating from `/a` to `/b` is slow, fix it" is a good prompt. "Use `instant`" is not — you're testing whether the agent understands the feature well enough to reach for it, not whether it can pattern-match a name you handed it.
 
-**`EVAL.ts`** — vitest assertions against files the agent wrote. Regex the source, don't run it.
+**`EVAL.ts`** — vitest assertions against the app the agent wrote. Check source
+for API contracts and use runtime assertions to verify rendered behavior.
 
 ```ts
 import { expect, test } from 'vitest'
@@ -87,6 +88,32 @@ The runner then adds a third `skills` variant for that fixture. It installs the 
 Browser-dependent fixtures declare `@playwright/test` in `dependencies` or
 `devDependencies` in their `package.json`. The runner detects that dependency
 and installs Chromium and its system libraries before the agent starts.
+
+The dynamic-editor bundle-optimizer fixture measures cold Turbopack production
+loads in headless Chromium before and after the agent runs. It uses
+plain `next build`, disabled browser caching, and fresh browser contexts. Passing
+requires fewer compressed JavaScript response-body bytes than the baseline and a
+rounded byte budget of 200,000 bytes.
+
+The editor must stay unloaded until interaction, preload on pointer hover, and
+remain editable. CodeMirror responses are identified by its
+`cm-content` runtime class.
+
+Shared utilities in `lib/bundle-optimizer/browser-js.ts` handle production builds,
+server and browser cleanup, cold-page measurement, byte summaries, and before/after
+eval results. Content and interaction checks stay in each fixture's
+`measure-browser-js.ts`. `lib/bundle-optimizer/hooks.ts` runs the same assertions
+before the agent starts and records their outcomes under `analysis.browserJs.before.checks`.
+Expected optimization failures allow the agent run to proceed; build, browser,
+and content failures stop setup. Per-request compressed and decoded sizes,
+before/after totals, and bytes saved are recorded under `analysis.browserJs` in
+`result.json`.
+
+The runner removes fixture measurement scripts from the sandbox and supplies the
+original scripts and shared utilities, transpiled from TypeScript, through
+environment variables. Before validation, EVAL.ts restores the compiled utility
+module and the measurement runs from a file with normal imports. Agent edits to
+sandbox files do not change validation.
 
 A run takes ~2–5 min. To validate a fixture without executing:
 
@@ -141,6 +168,7 @@ Full transcripts land in `evals/results/<variant>/<timestamp>/<eval>/run-1/`. Gr
 evals/
 ├── eval.config.json # optional skill and timeout settings by fixture
 ├── evals/agent-*/   # fixtures
+├── lib/bundle-optimizer/ # optimizer measurement and transcript hooks
 ├── lib/setup.ts     # uploads tarball, writes AGENTS.md (shared by all evals)
 ├── experiments/     # generated per-run, gitignored
 ├── .tarballs/       # packed next, gitignored
