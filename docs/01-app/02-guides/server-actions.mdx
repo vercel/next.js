@@ -51,13 +51,12 @@ A re-render is included in the same response when the action does any of these:
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { unauthorized } from 'next/navigation'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 
 export async function createPost(formData: FormData) {
   const session = await auth()
-  if (!session?.user) unauthorized()
+  if (!session?.user) throw new Error('Unauthorized')
 
   await db.post.create({
     data: {
@@ -95,22 +94,21 @@ For end-to-end patterns including a Data Access Layer, return-value tainting, an
 
 Destructive operations like deletes may warrant stronger handling, such as elevated session checks or re-authentication, and a loud failure when those checks miss.
 
-```ts filename="app/posts/actions.ts" highlight={4,7,8,9}
+```ts filename="app/posts/actions.ts" highlight={6,7,8}
 'use server'
 
 import { auth } from '@/lib/auth'
-import { forbidden, unauthorized } from 'next/navigation'
 
 export async function deletePost(postId: string) {
   const session = await auth()
-  if (!session?.user) unauthorized()
-  if (!(await canDelete(session.user, postId))) forbidden()
+  if (!session?.user) throw new Error('Unauthorized')
+  if (!(await canDelete(session.user, postId))) throw new Error('Forbidden')
 
   await db.post.delete({ where: { id: postId } })
 }
 ```
 
-Call [`unauthorized()`](/docs/app/api-reference/functions/unauthorized) when the request is not authenticated. Call [`forbidden()`](/docs/app/api-reference/functions/forbidden) when the user is authenticated but lacks permission. Next.js renders the corresponding `unauthorized.tsx` or `forbidden.tsx` fallback.
+You can also throw [`unauthorized()`](/docs/app/api-reference/functions/unauthorized) and [`forbidden()`](/docs/app/api-reference/functions/forbidden) from `next/navigation` instead, so Next.js renders the corresponding `unauthorized.tsx` / `forbidden.tsx` UI segment automatically.
 
 For example, a client legitimately tells the server _which_ item to act on, but it should not supply the row's contents or ownership. Send a reference (typically an ID) plus the user's change, and re-read the rest from a trusted source using the session. Schema validation (zod or similar) only checks the _shape_ of the input. A well-formed `Item` object can still refer to a row the caller does not own.
 
