@@ -35,12 +35,12 @@ export function generateStaticParams() {
 
 The export maps a dynamic parameter to one of the following modes:
 
-| Mode          | Behavior                                                                                                                                   |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `'not-found'` | Return a `404` response for values not returned by `generateStaticParams`.                                                                 |
-| `'blocking'`  | Do not serve a fallback that omits this parameter. Other request-time content can still stream.                                             |
-| `'fallback'`  | Allow a fallback that omits this parameter while the requested content renders.                                                            |
-| `'dynamic'`   | Render this parameter and all parameters after it at request time. Do not return any of these parameters from `generateStaticParams`.       |
+| Mode          | Behavior                                                                                                                              |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `'not-found'` | Return a `404` response for values not returned by `generateStaticParams`.                                                            |
+| `'blocking'`  | Do not serve a fallback that omits this parameter. Other request-time content can still stream.                                       |
+| `'fallback'`  | Allow a fallback that omits this parameter while the requested content renders.                                                       |
+| `'dynamic'`   | Render this parameter and all parameters after it at request time. Do not return any of these parameters from `generateStaticParams`. |
 
 Use the optional `ParamMatching` type to check the parameter names and matching modes. Pass the route's parameter names as its type argument.
 
