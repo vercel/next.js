@@ -4,7 +4,7 @@ use turbo_rcstr::RcStr;
 use turbopack_core::resolve::ExportUsage;
 
 use crate::{
-    analyzer::{Bump, BumpVec, JsValue},
+    analyzer::{Bump, BumpVec, JsValue, graph::NamespaceAccess},
     utils::AstPathRange,
 };
 
@@ -173,6 +173,8 @@ pub enum Effect<'a> {
         export: Option<RcStr>,
         /// A single member read from a named import (`z.member`), used only to narrow the part.
         member: Option<RcStr>,
+        /// How a namespace member access (`ns.export`) is used, or `None` when this is not one.
+        namespace_access: Option<NamespaceAccess>,
         ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,
     },
@@ -266,43 +268,6 @@ impl<'a> Effect<'a> {
             Effect::FreeVar { .. } => {}
             Effect::ImportMeta { .. } => {}
             Effect::Unreachable { .. } => {}
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum AssignmentScope {
-    /// assigned in the root scope
-    ModuleEval,
-    /// assigned in a function scopes
-    Function,
-}
-
-/// Tracks the locations where this was assigned to:
-/// This is used to track the _liveness_ of exports.
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum AssignmentScopes {
-    /// assigned only in the root scope
-    AllInModuleEvalScope,
-    /// assigned in any set of function scopes
-    AllInFunctionScopes,
-    /// assigned in both module and function scopes
-    Mixed,
-}
-impl AssignmentScopes {
-    pub fn new(initial: AssignmentScope) -> Self {
-        match initial {
-            AssignmentScope::ModuleEval => AssignmentScopes::AllInModuleEvalScope,
-            AssignmentScope::Function => AssignmentScopes::AllInFunctionScopes,
-        }
-    }
-
-    pub fn merge(self, other: AssignmentScope) -> Self {
-        // If the other assignment kind is the same as the current one, return the current one.
-        if self == Self::new(other) {
-            self
-        } else {
-            AssignmentScopes::Mixed
         }
     }
 }
