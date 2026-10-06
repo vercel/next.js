@@ -2286,7 +2286,7 @@ mod cell_data_tracking_tests {
     use crate::{
         backend::{
             TaskDataCategory,
-            storage::{Storage, StorageOptions, encode_task_contents},
+            storage::{Storage, StorageOptions, encode_snapshot_item, encode_task_contents},
             storage_schema::TaskStorageAccessors,
         },
         backing_storage::SnapshotItem,
@@ -2507,6 +2507,68 @@ mod cell_data_tracking_tests {
             .unwrap()
         };
         assert_ne!(live, expected, "the shared cell value really changed");
+    }
+
+    /// Regression test: a task that is part of the snapshot through one category must be copied
+    /// on its first modification during the snapshot, even when that modification touches a
+    /// category that isn't part of the snapshot.
+    ///
+    /// Meta is modified before the snapshot, data is clean. During the snapshot, data is modified
+    /// first and then meta. If the data modification only inserted a `None` marker, the meta
+    /// modification would find a marker already present and not copy either, so the snapshot
+    /// would persist the already mutated meta.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn modify_other_category_first_during_snapshot_preserves_snapshot_meta() {
+        let storage = Storage::new(StorageOptions::for_tests());
+        let task_id = persistent_task(1);
+        {
+            let mut g = guard_for(&storage, task_id);
+            let _ = g.track_modification(SpecificTaskDataCategory::Meta, "test");
+            assert!(!g.data_modified());
+        }
+        let expected_meta = {
+            let task = storage.access_mut(task_id);
+            encode_task_contents(
+                task_id,
+                &task,
+                SpecificTaskDataCategory::Meta,
+                &mut TurboBincodeBuffer::new(),
+            )
+            .unwrap()
+        };
+
+        let (snapshot_guard, has_modifications) = storage.start_snapshot();
+        assert!(has_modifications);
+        // Encodes the live state, like the backend does for tasks that weren't copied.
+        let process = |task_id: TaskId, task: &TaskStorage, buffer: &mut TurboBincodeBuffer| {
+            encode_snapshot_item(task_id, task, buffer).unwrap()
+        };
+        let shards = storage.take_snapshot(snapshot_guard, &process, &|_| {}, false);
+
+        {
+            let mut g = guard_for(&storage, task_id);
+            let cell = cell_of::<PersistableV>(0);
+            g.insert_cell_data(cell, dummy_ref(), persistence_of(&cell));
+            assert!(g.add_children(persistent_task(2)));
+        }
+
+        let items: Vec<_> = shards.into_iter().flatten().collect();
+        assert_eq!(items.len(), 1);
+        let SnapshotItem::Put { meta, data, .. } = &items[0] else {
+            panic!("expected a Put item");
+        };
+        assert_eq!(
+            meta.as_deref(),
+            Some(&expected_meta[..]),
+            "the snapshot must persist the meta from before the snapshot"
+        );
+        assert!(data.is_none(), "data wasn't modified before the snapshot");
+
+        // Both modifications made during the snapshot are left for the next snapshot.
+        let task = storage.access_mut(task_id);
+        assert!(task.flags.meta_modified());
+        assert!(task.flags.data_modified());
+        assert!(!task.flags.any_modified_during_snapshot());
     }
 
     /// A pre-encoded (copy-on-write) item carries the cache size stats of the state it encoded,
