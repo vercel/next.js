@@ -10,6 +10,8 @@ The **unauthorized** file renders UI when the [`unauthorized`](/docs/app/api-ref
 
 Before streaming starts, Next.js returns a `401` status code. After streaming starts, the status code remains `200` and the unauthorized UI renders in the response. Next.js injects a `<meta name="robots" content="noindex" />` tag in both cases. See [Status codes](/docs/app/api-reference/file-conventions/loading#status-codes) for details.
 
+> **Good to know:** Next.js currently renders and sends the `unauthorized.js` fallback as part of a normal page render, even when `unauthorized()` is not called. Keep this fallback lightweight. The same eager behavior applies to [`error.js`](/docs/app/api-reference/file-conventions/error), [`not-found.js`](/docs/app/api-reference/file-conventions/not-found), and [`forbidden.js`](/docs/app/api-reference/file-conventions/forbidden).
+
 ```tsx filename="app/unauthorized.tsx" switcher
 import Login from '@/app/components/Login'
 
