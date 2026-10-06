@@ -1,12 +1,12 @@
 ---
-name: next-browser-initial-load-optimizer
+name: next-bundle-optimizer
 description: >
   Audit and reduce Next.js browser initial-load work. Use for slow route startup,
   oversized client bundles, duplicate browser dependencies, or features that can
   wait for interaction.
 ---
 
-# Browser initial-load optimizer
+# Bundle optimizer
 
 ## 1. Set the scope
 
