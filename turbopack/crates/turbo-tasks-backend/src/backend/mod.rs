@@ -494,6 +494,14 @@ impl TurboTasksBackend {
         ctx.task(task, TaskDataCategory::All).get_dirty().is_some()
     }
 
+    /// Inspect payload persistence dirtying without restoring or executing a task.
+    #[doc(hidden)]
+    pub fn is_data_modified_for_testing(&self, task: TaskId) -> bool {
+        self.storage
+            .with_task(task, |t| t.flags.data_modified())
+            .expect("test task must be resident")
+    }
+
     /// Observe reservation wait registrations without entering snapshot admission.
     /// The count resets on release; callers must keep the writer held while inspecting.
     #[doc(hidden)]
@@ -3885,7 +3893,7 @@ impl Backend for TurboTasksBackend {
         cell: CellId,
         update: &mut dyn FnMut(
             turbo_tasks::SharedReference,
-        ) -> Result<turbo_tasks::SharedReference>,
+        ) -> Result<Option<turbo_tasks::SharedReference>>,
         tt: &TurboTasks<Self>,
     ) -> Result<()> {
         self.mutate_mutable_cell_impl(task, cell, update, tt)

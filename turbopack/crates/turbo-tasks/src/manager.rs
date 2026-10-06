@@ -203,7 +203,7 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         &self,
         task: TaskId,
         cell: CellId,
-        update: &mut dyn FnMut(SharedReference) -> Result<SharedReference>,
+        update: &mut dyn FnMut(SharedReference) -> Result<Option<SharedReference>>,
     ) -> Result<()>;
 
     fn read_own_task_cell(&self, task: TaskId, index: CellId) -> Result<TypedCellContent>;
@@ -1874,7 +1874,7 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         &self,
         task: TaskId,
         cell: CellId,
-        update: &mut dyn FnMut(SharedReference) -> Result<SharedReference>,
+        update: &mut dyn FnMut(SharedReference) -> Result<Option<SharedReference>>,
     ) -> Result<()> {
         crate::assert_not_in_mutable_update();
         self.backend.mutate_mutable_cell(task, cell, update, self)

@@ -720,12 +720,13 @@ pub trait Backend: Sized + Sync + Send {
         turbo_tasks: &TurboTasks<Self>,
     ) -> Result<SharedReference>;
 
-    /// Serialize clone/edit/publication as one backend operation. The callback runs once.
+    /// Serialize clone/edit/comparison/publication as one operation. The callback runs once;
+    /// `None` preserves existing content, dependencies, and payload persistence state.
     fn mutate_mutable_cell(
         &self,
         task: TaskId,
         cell: CellId,
-        update: &mut dyn FnMut(SharedReference) -> Result<SharedReference>,
+        update: &mut dyn FnMut(SharedReference) -> Result<Option<SharedReference>>,
         turbo_tasks: &TurboTasks<Self>,
     ) -> Result<()>;
 

@@ -1,0 +1,43 @@
+error[E0277]: can't compare `NoEquality` with `NoEquality`
+  --> tests/value/fail_mutable_equality.rs:12:18
+   |
+12 |     let _ = cell.set(NoEquality { value: 1 });
+   |                  ^^^ ----------------------- `NoEquality` doesn't satisfy the trait bound
+   |                  |
+   |                  no implementation for `NoEquality == NoEquality`
+   |
+   = help: the trait `PartialEq` is not implemented for `NoEquality`
+note: required by a bound in `MutableCell::<T>::set`
+  --> $WORKSPACE/turbopack/crates/turbo-tasks/src/mutable_cell.rs
+   |
+   |     pub fn set(&self, value: T) -> Result<()>
+   |            --- required by a bound in this associated function
+   |     where
+   |         T: PartialEq,
+   |            ^^^^^^^^^ required by this bound in `MutableCell::<T>::set`
+help: consider annotating `NoEquality` with `#[derive(PartialEq)]`
+   |
+ 9 + #[derive(PartialEq)]
+10 | struct NoEquality { value: u32 }
+   |
+
+error[E0277]: can't compare `NoEquality` with `NoEquality`
+  --> tests/value/fail_mutable_equality.rs:13:18
+   |
+13 |     let _ = cell.update(|value| value.value += 1);
+   |                  ^^^^^^ no implementation for `NoEquality == NoEquality`
+   |
+   = help: the trait `PartialEq` is not implemented for `NoEquality`
+note: required by a bound in `MutableCell::<T>::update`
+  --> $WORKSPACE/turbopack/crates/turbo-tasks/src/mutable_cell.rs
+   |
+   |     pub fn update(&self, f: impl FnOnce(&mut T)) -> Result<()>
+   |            ------ required by a bound in this associated function
+   |     where
+   |         T: PartialEq,
+   |            ^^^^^^^^^ required by this bound in `MutableCell::<T>::update`
+help: consider annotating `NoEquality` with `#[derive(PartialEq)]`
+   |
+ 9 + #[derive(PartialEq)]
+10 | struct NoEquality { value: u32 }
+   |

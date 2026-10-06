@@ -46,9 +46,11 @@ for this mode. Existing values and `State<T>` users are unchanged.
 
 - `get()` returns an immutable `ReadRef<T>` snapshot and tracks a normal cell dependency;
   `get_untracked()` returns the same snapshot without an edge.
-- `set(value)` replaces canonical backend content. `update(|value| ...)` serializes
-  writers, edits a private clone, and publishes only if the closure returns normally.
-  Every commit invalidates readers, even when the new value is equal.
+- `set(value)` and `update(|value| ...)` require the payload's `PartialEq`, including
+  custom equality implementations. They serialize writers and publish only when
+  the final value differs. Equal results preserve canonical storage without reader
+  invalidation or payload persistence dirtying. `update` edits a private clone;
+  panicking callbacks leave canonical content unchanged.
 - Construction is first-value-wins, including after eviction and persistence restore.
   One persistent creator task owns the cell; transient/Once Tasks cannot own it.
   Sharing handles never transfers ownership. Keep a
@@ -58,9 +60,9 @@ for this mode. Existing values and `State<T>` users are unchanged.
   handles through the creator after reopening a backend.
 - Methods are synchronous and require a turbo-tasks context and a multi-threaded
   Tokio runtime. The executing owner cannot call `set` or `update` on its own cell.
-  Update closures must be short, synchronous, and must not call turbo-tasks, nest
-  cell access, or spawn/wait for task work. Reentrant calls panic even in release
-  builds. Old read snapshots are unchanged after publication.
+  Cloning, custom equality, and update closures must be short and synchronous, and
+  must not call turbo-tasks, nest cell access, or spawn/wait for task work. Reentrant
+  calls panic even in release builds. Old read snapshots are unchanged after publication.
 
 This is a bounded prototype, not a named state registry, schema-migration API,
 mutable read guard, or multi-cell transaction facility.

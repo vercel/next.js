@@ -28,7 +28,7 @@ pub fn assert_not_in_mutable_update() {
     IN_UPDATE.with(|active| {
         assert!(
             !active.get(),
-            "turbo-tasks calls are forbidden inside MutableCell::update"
+            "turbo-tasks calls are forbidden inside MutableCell mutation callbacks"
         )
     });
 }
@@ -53,8 +53,8 @@ impl Drop for UpdateScope {
 /// can construct these handles; transient/Once Tasks cannot own this prototype's state.
 /// Initialization is first-value-wins, including after persistence restore. Identity
 /// follows per-type construction order: use a fixed-layout creator. Reordering or
-/// conditionally omitting allocations is not a state migration mechanism. Successful
-/// omission retires a cell; reuse of a retired index is unsupported.
+/// conditionally omitting allocations can change live cell identity across reruns.
+/// Successful omission retires a cell; reuse of a retired index is unsupported.
 ///
 /// Handles may be shared by multiple consumers, but never transfer cell ownership.
 /// They do not pin their creator against GC. Keep the creator connected to an explicit
@@ -64,8 +64,11 @@ impl Drop for UpdateScope {
 ///
 /// All access is synchronous and requires a current turbo-tasks context and a
 /// multi-threaded Tokio runtime. Reads return immutable snapshots; previously obtained
-/// snapshots never refresh. Every committed write invalidates tracked readers,
-/// including equal values. No equality comparison or physical interior mutation occurs.
+/// snapshots never refresh. Writes compare using the payload's `PartialEq`, like
+/// ordinary compare-mode cells. Equal results preserve canonical storage without
+/// invalidating readers or marking payload data modified. Changed results publish
+/// a new immutable allocation and invalidate tracked readers; no physical interior
+/// mutation of read snapshots occurs.
 #[derive(Serialize, Deserialize, Encode, Decode)]
 #[bincode(bounds = "T: VcValueType")]
 #[serde(bound = "")]
@@ -131,37 +134,64 @@ impl<T: VcValueType + Clone + OperationValue> MutableCell<T> {
         Ok(())
     }
 
-    /// Replace the canonical value and invalidate readers. Writes by the currently
-    /// executing owner task are rejected; use the constructor for initialization.
-    pub fn set(&self, value: T) -> Result<()> {
+    /// Replace the canonical value and invalidate readers only if it is not equal.
+    /// Writes by the currently executing owner task are rejected; use the constructor
+    /// for initialization. Custom equality must obey the restrictions of `update`.
+    pub fn set(&self, value: T) -> Result<()>
+    where
+        T: PartialEq,
+    {
+        // Keep rejected candidates outside the callback so their destructors run
+        // after backend reservation/admission release, including on unwind.
         let mut value = Some(value);
-        self.replace(&mut |_| {
-            Ok(SharedReference::new(triomphe::Arc::new(
-                value.take().expect("called once"),
-            )))
-        })
-    }
-
-    /// Serialize writers, clone the canonical value, edit it once, then publish.
-    ///
-    /// The closure must return promptly and must not call turbo-tasks, nest cell
-    /// access, perform async work, or spawn/wait for task work. Reentrant backend
-    /// calls panic in release builds too. A panicking closure discards its private
-    /// clone, leaves the published value unchanged, and releases its reservation.
-    pub fn update(&self, f: impl FnOnce(&mut T)) -> Result<()> {
-        let mut f = Some(f);
         self.replace(&mut |old| {
             let _scope = UpdateScope::enter();
-            let mut value = old
+            let old = old
                 .downcast_ref::<T>()
-                .ok_or_else(|| anyhow!("mutable cell type mismatch"))?
-                .clone();
-            f.take().expect("called once")(&mut value);
-            Ok(SharedReference::new(triomphe::Arc::new(value)))
+                .ok_or_else(|| anyhow!("mutable cell type mismatch"))?;
+            if old == value.as_ref().expect("called once") {
+                return Ok(None);
+            }
+            Ok(Some(SharedReference::new(triomphe::Arc::new(
+                value.take().expect("called once"),
+            ))))
         })
     }
 
-    fn replace(&self, f: &mut dyn FnMut(SharedReference) -> Result<SharedReference>) -> Result<()> {
+    /// Serialize writers, clone the canonical value, edit it once, then publish
+    /// only if the final value differs by `PartialEq`. Equal results are no-ops.
+    ///
+    /// The closure, cloning, and custom equality must return promptly and must not
+    /// call turbo-tasks, nest cell access, perform async work, or spawn/wait for task
+    /// work. Reentrant backend calls panic in release builds too. A panicking
+    /// callback discards its private candidate, leaves the published value unchanged,
+    /// and releases its reservation before the candidate is dropped.
+    pub fn update(&self, f: impl FnOnce(&mut T)) -> Result<()>
+    where
+        T: PartialEq,
+    {
+        let mut f = Some(f);
+        let mut value = None;
+        self.replace(&mut |old| {
+            let _scope = UpdateScope::enter();
+            let old = old
+                .downcast_ref::<T>()
+                .ok_or_else(|| anyhow!("mutable cell type mismatch"))?;
+            let candidate = value.insert(old.clone());
+            f.take().expect("called once")(candidate);
+            if old == candidate {
+                return Ok(None);
+            }
+            Ok(Some(SharedReference::new(triomphe::Arc::new(
+                value.take().expect("called once"),
+            ))))
+        })
+    }
+
+    fn replace(
+        &self,
+        f: &mut dyn FnMut(SharedReference) -> Result<Option<SharedReference>>,
+    ) -> Result<()> {
         assert_not_in_mutable_update();
         self.ensure_type()?;
         let tt = try_turbo_tasks()
