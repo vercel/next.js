@@ -34,33 +34,31 @@ module.exports = nextConfig
 
 ## How it works
 
-With `turbopackLazyDynamicImportsSSR` enabled, Turbopack compiles a dynamic `import()` target when server rendering first reaches it. A target that is not reached remains uncompiled.
+Client Components can use [`lazy`](https://react.dev/reference/react/lazy) to load a component dynamically. With `turbopackLazyDynamicImportsSSR` enabled, Turbopack compiles the imported component when a server render first reaches it. A target that is not rendered remains uncompiled.
 
-For example, the module in this Server Component is compiled when the `preview` search parameter is set to `1`:
+In the following example, Turbopack compiles `Preview` when `showPreview` is `true` during server rendering:
 
-```tsx filename="app/preview/page.tsx" switcher
-export default async function Page({
-  searchParams,
-}: {
-  searchParams: Promise<{ preview?: string }>
-}) {
-  if ((await searchParams).preview !== '1') {
-    return <p>Preview is hidden</p>
-  }
+```tsx filename="app/preview.tsx" switcher
+'use client'
 
-  const { getGreeting } = await import('./get-greeting')
-  return <p>{getGreeting('Ada')}</p>
+import { lazy } from 'react'
+
+const Preview = lazy(() => import('./preview-panel'))
+
+export function MaybePreview({ showPreview }: { showPreview: boolean }) {
+  return showPreview ? <Preview /> : null
 }
 ```
 
-```jsx filename="app/preview/page.js" switcher
-export default async function Page({ searchParams }) {
-  if ((await searchParams).preview !== '1') {
-    return <p>Preview is hidden</p>
-  }
+```jsx filename="app/preview.js" switcher
+'use client'
 
-  const { getGreeting } = await import('./get-greeting')
-  return <p>{getGreeting('Ada')}</p>
+import { lazy } from 'react'
+
+const Preview = lazy(() => import('./preview-panel'))
+
+export function MaybePreview({ showPreview }) {
+  return showPreview ? <Preview /> : null
 }
 ```
 
