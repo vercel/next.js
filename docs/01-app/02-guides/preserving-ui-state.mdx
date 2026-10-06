@@ -18,11 +18,68 @@ Instead of unmounting pages on navigation, Next.js hides them using React's [`<A
 
 Next.js preserves up to 3 routes. Beyond that, the oldest route is evicted and will re-render fresh.
 
-> **Good to know:** Use [`useRouter().bfcacheId`](/docs/app/api-reference/functions/use-router#bfcacheid) as a [React `key`](https://react.dev/learn/preserving-and-resetting-state#option-2-resetting-state-with-a-key): a single `<Fragment key={bfcacheId}>` resets an entire subtree on push or replace navigations (including `<Link>` clicks and `router.push` / `router.replace`) while still restoring state on browser back/forward. `bfcacheId` is mainly a migration tool. For new code, prefer the per-pattern resets below.
+## Keep route state resetting during migration
+
+An existing app may rely on a route unmounting after each new navigation. To keep that behavior while you adopt Cache Components, add a temporary reset boundary to each existing page and layout:
+
+```bash filename="Terminal"
+npx @next/codemod@canary cache-components-activity-reset ./app
+```
+
+> **Good to know**: Pass `./src/app` in a `src/` project.
+
+The codemod creates this Client Component:
+
+```tsx filename="app/_next-cache-components/activity-reset.tsx"
+'use client'
+
+import { Fragment, type ReactNode } from 'react'
+import { useRouter } from 'next/navigation'
+
+export function CacheComponentsActivityReset({
+  children,
+}: {
+  children: ReactNode
+}) {
+  const { bfcacheId } = useRouter()
+
+  return <Fragment key={bfcacheId}>{children}</Fragment>
+}
+```
+
+It then places each existing `page`, `layout`, and parallel-route `default` below a reset boundary, except the root layout. The boundary wraps the route component itself, so it also resets state declared by that component:
+
+```tsx filename="app/dashboard/page.tsx" highlight={1,3-5,11-19}
+import { createElement as createElementActivityReset } from 'react'
+
+// TODO: Cache Components adoption. Remove this wrapper after verifying this route no longer relies on unmounting to reset state.
+// See: https://nextjs.org/docs/app/guides/preserving-ui-state
+import { CacheComponentsActivityReset } from '../_next-cache-components/activity-reset'
+
+function Page() {
+  return <Dashboard />
+}
+
+export default function CacheComponentsActivityResetRoute(
+  ...args: Parameters<typeof Page>
+) {
+  return (
+    <CacheComponentsActivityReset>
+      {createElementActivityReset(Page, ...args)}
+    </CacheComponentsActivityReset>
+  )
+}
+```
+
+[`bfcacheId`](/docs/app/api-reference/functions/use-router#bfcacheid) changes on a new push or replace navigation, so the React `key` resets the wrapped subtree. It stays stable during browser back and forward navigation, preserving the state users expect when returning through their history.
+
+It also stays stable when only the URL's search parameters change. If a search parameter should reset part of the UI, derive that state from the URL or key that specific subtree by the parameter instead.
+
+The generated TODO comments form a migration checklist that is separate from validation opt-outs. An ancestor wrapper resets every route beneath it, so remove wrappers from layouts before their child routes. After removing each one, navigate away and back using both a new navigation and browser history. Use the patterns below to reset only the state that should not persist. After removing the final wrapper, delete the generated `_next-cache-components` directory.
 
 ## Choosing what to preserve
 
-Activity preserves all component state and DOM state by default. For each piece of state, you decide whether that's the right behavior for your UI. The patterns below show common scenarios and how to handle both sides.
+Activity preserves all component state and DOM state by default. For each piece of state, you decide whether that's the right behavior for your UI. The patterns below show common scenarios and how to handle both sides. Beyond component state, see [Global DOM queries](#global-dom-queries), [Third-party widgets](#third-party-widgets), and [Testing](#testing) for code that assumes hidden routes have left the document.
 
 ### Expandable UI (dropdowns, accordions, panels)
 
@@ -104,13 +161,13 @@ If the user navigated away while the dialog was open, returning and opening the 
 
 To fix this, derive the dialog state from something outside the preserved component state like a search param:
 
-```tsx highlight={3,7-9,20,25}
+```tsx filename="app/products/product-tab.tsx" highlight={3,7-9,20,25}
 'use client'
 
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useEffect, useRef } from 'react'
 
-function ProductTab() {
+export function ProductTab() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const isDialogOpen = searchParams.get('edit') === 'true'
@@ -135,6 +192,21 @@ function ProductTab() {
         </dialog>
       )}
     </div>
+  )
+}
+```
+
+With Cache Components, render a component that calls `useSearchParams` within a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary:
+
+```tsx filename="app/products/page.tsx"
+import { Suspense } from 'react'
+import { ProductTab } from './product-tab'
+
+export default function Page() {
+  return (
+    <Suspense fallback={null}>
+      <ProductTab />
+    </Suspense>
   )
 }
 ```
@@ -250,6 +322,36 @@ This resets all fields whenever the user navigates away.
 
 </details>
 
+#### Resetting a form when its record changes
+
+With Activity, an edit form that receives fresh server data keeps its existing React and DOM state. This is most visible with uncontrolled inputs: changing `defaultValue` does not replace the current input value.
+
+Key the form by the identity or version of the data that should start a new editing session:
+
+```tsx filename="app/products/[id]/edit-form.tsx" highlight={8-10}
+'use client'
+
+export function EditProduct({
+  product,
+}: {
+  product: { id: string; name: string; version: string }
+}) {
+  return (
+    <ProductForm key={`${product.id}:${product.version}`} product={product} />
+  )
+}
+
+function ProductForm({
+  product,
+}: {
+  product: { id: string; name: string; version: string }
+}) {
+  return <input name="name" defaultValue={product.name} />
+}
+```
+
+When the record or its version changes, React creates a new form and applies the new `defaultValue`. Keep the key on the smallest subtree that should reset so unrelated page state remains preserved.
+
 ## State and authentication
 
 Activity preserves local component state (`useState`, DOM input values) across navigations, including authentication changes. This is standard React behavior: props changing (such as receiving a new user) triggers a re-render but does not reset existing state. A draft composed by one user shouldn't be visible to another.
@@ -278,7 +380,7 @@ function UserScopedForm({ userId }: { userId: string | null }) {
 }
 ```
 
-Alternatively, key components by user ID to let React handle the reset: `<Form key={userId} />`.
+Alternatively, key components by user ID to let React handle the reset: `<Form key={userId} />`. Changing the key creates a new form state. React does not retain a separate draft for each previous key, so store drafts elsewhere if users need to return to them.
 
 ## Global styles
 
@@ -349,6 +451,39 @@ Reserve `:has()` for local parent/child styling within a component:
 This isn't only a React data-flow or Next.js concern. Broad `:has()` selectors are a real performance bottleneck. See [Performance considerations](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Selectors/:has#performance_considerations) on MDN.
 
 > **Good to know:** If the hidden component itself defines the global `:has` rule, the toggle from the section above disables it along with the component's other styles.
+
+## Global DOM queries
+
+Hidden routes remain in the document. Code that searches from `document` can therefore find both the visible route and retained, hidden routes. This commonly affects table-of-contents logic, focus management, and `IntersectionObserver` setup.
+
+When possible, scope the query to a ref owned by the visible component:
+
+```tsx highlight={8-11}
+'use client'
+
+import { useLayoutEffect, useRef } from 'react'
+
+export function Article() {
+  const articleRef = useRef<HTMLElement>(null)
+
+  useLayoutEffect(() => {
+    const headings = articleRef.current?.querySelectorAll('h2, h3') ?? []
+    // Set up the table of contents or observer from these headings.
+  }, [])
+
+  return <article ref={articleRef}>{/* ... */}</article>
+}
+```
+
+For a document-wide query, filter out hidden elements with [`checkVisibility()`](https://developer.mozilla.org/en-US/docs/Web/API/Element/checkVisibility):
+
+```ts
+const visibleHeadings = [
+  ...document.querySelectorAll<HTMLElement>('h2, h3'),
+].filter((heading) => heading.checkVisibility())
+```
+
+Create observers in an Effect and disconnect them in its cleanup function. Activity runs the cleanup when the route becomes hidden and runs the Effect again when it becomes visible, so the observer is rebuilt against the current visible elements.
 
 ## Testing
 
@@ -515,6 +650,30 @@ function VideoPlayer({ src }: { src: string }) {
 
 When the component becomes visible again, effects re-run and playback position is preserved since the DOM node was never removed.
 
+### Third-party widgets
+
+An imperative library may assume its DOM is removed when the user leaves a route. Initialize the library in an Effect and dispose of it in the cleanup function so it follows the Activity visibility lifecycle:
+
+```tsx
+'use client'
+
+import { useLayoutEffect, useRef } from 'react'
+import { createSearchWidget } from '@acme/search-widget'
+
+export function SearchWidget() {
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  useLayoutEffect(() => {
+    const widget = createSearchWidget(containerRef.current!)
+    return () => widget.destroy()
+  }, [])
+
+  return <div ref={containerRef} />
+}
+```
+
+When the route is hidden, the cleanup destroys the active instance without removing the preserved React state. When the route is shown again, the Effect creates a new instance against the existing container.
+
 ### Distinguishing first mount from re-show
 
 Effects run on every hide-to-visible transition, not just the initial mount. If you need to distinguish the first mount from subsequent visibility changes, use a ref:
@@ -541,6 +700,8 @@ function TrackedComponent() {
 ```
 
 The ref persists across hide/show cycles (refs aren't cleaned up), so `hasMountedRef.current` stays `true` after the first mount. Each time Activity becomes visible, the Effect runs again, but now it takes the `else` branch.
+
+Do not add this guard to work that should run whenever the user returns, such as scrolling the current item into view. Put that work directly in the Effect so it runs again when Activity reveals the route.
 
 ## Examples
 

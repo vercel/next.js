@@ -70,6 +70,50 @@ export async function installNextJs(sandbox: Sandbox): Promise<void> {
 }
 
 /**
+ * Install the locally-built @next/codemod when a fixture exercises an
+ * unpublished transform.
+ */
+export async function installLocalCodemod(sandbox: Sandbox): Promise<void> {
+  const pkg = JSON.parse(await sandbox.readFile('package.json'))
+  if (!pkg.nextEval?.localCodemod) return
+
+  const tarball = process.env.NEXT_EVAL_CODEMOD_TARBALL
+  if (!tarball) {
+    throw new Error(
+      'NEXT_EVAL_CODEMOD_TARBALL not set. Run evals via `pnpm eval` from the repo root.'
+    )
+  }
+
+  console.log('  Uploading local @next/codemod tarball...')
+  await sandbox.writeFiles({
+    // @ts-expect-error — upstream types only accept strings, but the runtime
+    // accepts Buffer. Tarballs are binary and cannot be sent as strings.
+    'next-codemod.tgz': readFileSync(tarball),
+  })
+  const install = await sandbox.runCommand('npm', [
+    'install',
+    '--no-save',
+    './next-codemod.tgz',
+  ])
+  if (install.exitCode !== 0) {
+    throw new Error(
+      `npm install --no-save ./next-codemod.tgz failed (exit ${install.exitCode}):\n${install.stderr}`
+    )
+  }
+
+  const verify = await sandbox.runCommand('node', [
+    '--eval',
+    "const fs = require('node:fs'); if (!fs.existsSync('node_modules/@next/codemod/transforms/cache-components-activity-reset.js')) process.exit(1)",
+  ])
+  if (verify.exitCode !== 0) {
+    throw new Error(
+      `Local @next/codemod verification failed (exit ${verify.exitCode}):\n${verify.stdout}\n${verify.stderr}`
+    )
+  }
+  console.log('  Installed and verified local @next/codemod tarball')
+}
+
+/**
  * Install Chromium and its Linux dependencies for fixtures that exercise
  * Playwright. The fixture declares @playwright/test so unrelated evals do not
  * pay this setup cost.
@@ -152,6 +196,69 @@ export async function installPlaywright(sandbox: Sandbox): Promise<void> {
     )
   }
   console.log('  Installed Chromium and system dependencies')
+}
+
+/**
+ * Provision the browser CLI used by runtime-verification skills.
+ *
+ * This belongs in eval setup rather than the scored agent run. Otherwise a
+ * skill that asks the agent to verify the app in a browser pays an unrelated
+ * time and token penalty for installing the verification tool itself.
+ */
+export async function installAgentBrowser(sandbox: Sandbox): Promise<void> {
+  const pkg = JSON.parse(await sandbox.readFile('package.json'))
+  if (!pkg.nextEval?.agentBrowser) return
+
+  console.log('  Installing agent-browser...')
+
+  const cli = await sandbox.runCommand('npm', [
+    'install',
+    '--global',
+    'agent-browser@latest',
+  ])
+  if (cli.exitCode !== 0) {
+    throw new Error(
+      `agent-browser installation failed (exit ${cli.exitCode}):\n${cli.stderr}`
+    )
+  }
+
+  const browser = await sandbox.runCommand('agent-browser', [
+    'install',
+    '--with-deps',
+  ])
+  if (browser.exitCode !== 0) {
+    throw new Error(
+      `agent-browser browser installation failed (exit ${browser.exitCode}):\n${browser.stderr}`
+    )
+  }
+
+  const session = 'eval-browser-preflight'
+  const open = await sandbox.runCommand('agent-browser', [
+    '--session',
+    session,
+    '--args',
+    '--no-sandbox',
+    'open',
+    'about:blank',
+  ])
+  if (open.exitCode !== 0) {
+    throw new Error(
+      `agent-browser launch check failed (exit ${open.exitCode}):\n${open.stderr}`
+    )
+  }
+
+  const close = await sandbox.runCommand('agent-browser', [
+    '--session',
+    session,
+    'close',
+  ])
+  if (close.exitCode !== 0) {
+    throw new Error(
+      `agent-browser cleanup failed (exit ${close.exitCode}):\n${close.stderr}`
+    )
+  }
+
+  console.log('  Installed and verified agent-browser')
 }
 
 /**

@@ -8,7 +8,7 @@ The point: find places where agents get Next.js wrong because their training dat
 
 The runner is [`@vercel/agent-eval`](https://github.com/vercel-labs/agent-eval). It spins up a sandbox (Vercel or local Docker), copies the fixture in, runs the coding agent against `PROMPT.md`, then executes `EVAL.ts` as a vitest file against whatever the agent wrote. The `PROMPT.md` / `EVAL.ts` / fixture-dir convention you'll see below is that package's convention — see its README for the full spec.
 
-`run-evals.js` is a thin wrapper around it: pack the local `next` build into a tarball, generate the configured experiments, then invoke `agent-eval`. The two default experiments (`baseline` and `agents-md`) differ only in whether they drop an `AGENTS.md` pointing at the bundled docs. Everything from "spawn sandbox" onward is `@vercel/agent-eval`'s job.
+`run-evals.js` is a thin wrapper around it: pack the local `next` and `@next/codemod` builds into tarballs, generate the configured experiments, then invoke `agent-eval`. The two default experiments (`baseline` and `agents-md`) differ only in whether they drop an `AGENTS.md` pointing at the bundled docs. Everything from "spawn sandbox" onward is `@vercel/agent-eval`'s job.
 
 ## One-time setup
 
@@ -84,6 +84,10 @@ Docs can link to a canonical skill, but an unmerged skill revision isn't part of
 
 The runner then adds a third `skills` variant for that fixture. It installs the listed directories from the local `skills/` folder before the coding agent starts, while keeping the prompt, app, and assertions identical. It does not also inject the `agents-md` instruction: the skill treatment measures whether the skill itself leads the agent to the canonical bundled guide. The optional timeout lets end-to-end workflows run longer than the 12-minute default. Fixtures without an entry continue to run only `baseline` and `agents-md`.
 
+Set `"nextEval": { "agentBrowser": true }` in the fixture's `package.json` when runtime verification is part of the workflow. The runner installs and launches `agent-browser` during setup, before the scored agent run. This keeps browser provisioning out of the treatment's duration, token, and cost measurements. Add any skill used by that runtime workflow, such as `next-dev-loop`, to the fixture's `skills` list explicitly.
+
+Set `"nextEval": { "localCodemod": true }` when an eval exercises an unpublished codemod from the current checkout. The runner installs the local `@next/codemod` tarball before the scored run. The agent should use the already-installed binary with `./node_modules/.bin/next-codemod <transform> <path>`; production instructions can continue to use `npx @next/codemod@canary`.
+
 A run takes ~2–5 min. To validate a fixture without executing:
 
 ```bash
@@ -113,7 +117,7 @@ Full transcripts land in `evals/results/<variant>/<timestamp>/<eval>/run-1/`. Gr
 
 ## When to rebuild
 
-`pnpm eval` packs `packages/next/dist/` into a tarball and ships that to the sandbox. It does not build. If you changed `packages/next/src/**` or `docs/**`, run `pnpm --filter=next build` first or the sandbox will see stale code. If you only changed fixture files, no rebuild is needed.
+`pnpm eval` packs `packages/next/dist/` and `packages/next-codemod/` into tarballs and ships them to the sandbox. It does not build. If you changed `packages/next/src/**` or `docs/**`, run `pnpm --filter=next build` first. If you changed the codemod, run `pnpm --filter @next/codemod build`. If you only changed fixture files, no rebuild is needed.
 
 ## Workflow
 
@@ -139,7 +143,7 @@ evals/
 ├── evals/agent-*/   # fixtures
 ├── lib/setup.ts     # uploads tarball, writes AGENTS.md (shared by all evals)
 ├── experiments/     # generated per-run, gitignored
-├── .tarballs/       # packed next, gitignored
+├── .tarballs/       # packed next and @next/codemod, gitignored
 └── results/         # transcripts + outputs, gitignored
 ```
 

@@ -160,4 +160,11 @@ export const TRANSFORMER_INQUIRER_CHOICES = [
     version: '16.3.0',
     adoption: true,
   },
+  {
+    title:
+      'Add temporary route state reset boundaries to ease Cache Components adoption',
+    value: 'cache-components-activity-reset',
+    version: '16.4.0',
+    adoption: true,
+  },
 ]

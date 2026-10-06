@@ -1,6 +1,10 @@
 {
   "private": true,
   "type": "module",
+  "nextEval": {
+    "agentBrowser": true,
+    "localCodemod": true
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",

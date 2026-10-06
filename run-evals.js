@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // @ts-check
 /**
- * Pack the locally-built `next` package and run agent evals against it.
+ * Pack the locally-built `next` and `@next/codemod` packages and run agent
+ * evals against them.
  *
  *   pnpm eval <eval-name>             run one eval and its configured variants
  *   pnpm eval <eval-name> --dry       preview without executing
@@ -10,7 +11,7 @@
  *
  * Mirrors run-tests.js: pack once, hand paths to child via env, forward args.
  *
- * We only pack `next`, not the whole workspace. The sandbox is remote Linux:
+ * We pack `next` and `@next/codemod`, not the whole workspace. The sandbox is remote Linux:
  *   - @next/swc: local darwin binary wouldn't run there; the sandbox downloads
  *     the right one at runtime (packages/next/src/build/swc/index.ts).
  *   - @next/env etc: resolved from npm at the pinned canary version.
@@ -33,6 +34,7 @@ const EVAL_CONFIG_PATH = path.join(EVALS_DIR, 'eval.config.json')
 const EXPERIMENTS_DIR = path.join(EVALS_DIR, 'experiments')
 const TARBALL_DIR = path.join(EVALS_DIR, '.tarballs')
 const TARBALL = path.join(TARBALL_DIR, 'next.tgz')
+const CODEMOD_TARBALL = path.join(TARBALL_DIR, 'next-codemod.tgz')
 
 /** @typedef {{ skills?: string[], timeout?: number, agentFeedback?: boolean }} EvalConfig */
 /** @type {Record<string, EvalConfig>} */
@@ -44,18 +46,19 @@ const EVAL_CONFIG = JSON.parse(fs.readFileSync(EVAL_CONFIG_PATH, 'utf-8'))
 const BASE_VARIANTS = [
   {
     suffix: 'baseline',
-    imports: `import { installNextJs, installPlaywright, prepareFixture } from '../lib/setup.js'`,
-    setup: `await installNextJs(sandbox)\n    await installPlaywright(sandbox)\n    await prepareFixture(sandbox)`,
+    imports: `import { installAgentBrowser, installLocalCodemod, installNextJs, installPlaywright, prepareFixture } from '../lib/setup.js'`,
+    setup: `await installNextJs(sandbox)\n    await installLocalCodemod(sandbox)\n    await installPlaywright(sandbox)\n    await prepareFixture(sandbox)\n    await installAgentBrowser(sandbox)`,
   },
   {
     suffix: 'agents-md',
-    imports: `import { installNextJs, installPlaywright, prepareFixture, writeAgentsMd } from '../lib/setup.js'`,
-    setup: `await installNextJs(sandbox)\n    await installPlaywright(sandbox)\n    await prepareFixture(sandbox)\n    await writeAgentsMd(sandbox)`,
+    imports: `import { installAgentBrowser, installLocalCodemod, installNextJs, installPlaywright, prepareFixture, writeAgentsMd } from '../lib/setup.js'`,
+    setup: `await installNextJs(sandbox)\n    await installLocalCodemod(sandbox)\n    await installPlaywright(sandbox)\n    await prepareFixture(sandbox)\n    await installAgentBrowser(sandbox)\n    await writeAgentsMd(sandbox)`,
   },
 ]
 
 function pack() {
   packPackage(path.join(ROOT, 'packages/next'), TARBALL)
+  packPackage(path.join(ROOT, 'packages/next-codemod'), CODEMOD_TARBALL)
 }
 
 /** @param {string | null} evalName  null means all evals */
@@ -160,8 +163,8 @@ function getExperimentSettings(evalName) {
   const multipleSkillGroups = skillGroups.size > 1
   const skillVariants = [...skillGroups.values()].map(({ skills, evals }) => ({
     suffix: multipleSkillGroups ? `skills-${skills.join('-')}` : 'skills',
-    imports: `import { installLocalSkills, installNextJs, installPlaywright, prepareFixture } from '../lib/setup.js'`,
-    setup: `await installNextJs(sandbox)\n    await installPlaywright(sandbox)\n    await prepareFixture(sandbox)\n    await installLocalSkills(sandbox, ${JSON.stringify(skills)})`,
+    imports: `import { installAgentBrowser, installLocalCodemod, installLocalSkills, installNextJs, installPlaywright, prepareFixture } from '../lib/setup.js'`,
+    setup: `await installNextJs(sandbox)\n    await installLocalCodemod(sandbox)\n    await installPlaywright(sandbox)\n    await prepareFixture(sandbox)\n    await installAgentBrowser(sandbox)\n    await installLocalSkills(sandbox, ${JSON.stringify(skills)})`,
     evals,
   }))
 
@@ -182,8 +185,8 @@ function getExperimentSettings(evalName) {
       suffix: multipleFeedbackGroups
         ? `agent-feedback-${skills.join('-') || 'no-skills'}`
         : 'agent-feedback',
-      imports: `import { analyzeAgentFeedbackRun, installLocalSkills, installNextJs, prepareFixture, writeAgentFeedbackInstructions } from '../lib/setup.js'`,
-      setup: `await installNextJs(sandbox)\n    await prepareFixture(sandbox)${
+      imports: `import { analyzeAgentFeedbackRun, installLocalCodemod, installLocalSkills, installNextJs, prepareFixture, writeAgentFeedbackInstructions } from '../lib/setup.js'`,
+      setup: `await installNextJs(sandbox)\n    await installLocalCodemod(sandbox)\n    await prepareFixture(sandbox)${
         skills.length > 0
           ? `\n    await installLocalSkills(sandbox, ${JSON.stringify(skills)})`
           : ''
@@ -279,13 +282,21 @@ function main() {
     process.exit(1)
   }
 
-  if (process.env.NEXT_SKIP_PACK && fs.existsSync(TARBALL)) {
+  if (
+    process.env.NEXT_SKIP_PACK &&
+    fs.existsSync(TARBALL) &&
+    fs.existsSync(CODEMOD_TARBALL)
+  ) {
     console.log('> Reusing existing tarball (NEXT_SKIP_PACK=1)')
   } else {
     console.log('> Packing next...')
     pack()
-    const mb = (fs.statSync(TARBALL).size / 1024 / 1024).toFixed(1)
-    console.log(`  ${TARBALL} (${mb} MB)`)
+    const nextMb = (fs.statSync(TARBALL).size / 1024 / 1024).toFixed(1)
+    const codemodMb = (fs.statSync(CODEMOD_TARBALL).size / 1024 / 1024).toFixed(
+      1
+    )
+    console.log(`  ${TARBALL} (${nextMb} MB)`)
+    console.log(`  ${CODEMOD_TARBALL} (${codemodMb} MB)`)
   }
 
   // agent-eval loads .env / .env.local from its own cwd (evals/). `vc env pull`
@@ -306,7 +317,11 @@ function main() {
   const result = spawnSync(bin, agentEvalArgs, {
     cwd: EVALS_DIR,
     stdio: 'inherit',
-    env: { ...process.env, NEXT_EVAL_TARBALL: TARBALL },
+    env: {
+      ...process.env,
+      NEXT_EVAL_TARBALL: TARBALL,
+      NEXT_EVAL_CODEMOD_TARBALL: CODEMOD_TARBALL,
+    },
   })
   if (result.error) {
     // ENOENT (missing bin), EACCES, etc. — spawnSync returns status: null

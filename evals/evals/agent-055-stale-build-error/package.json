@@ -1,6 +1,9 @@
 {
   "private": true,
   "type": "module",
+  "nextEval": {
+    "agentBrowser": true
+  },
   "scripts": {
     "eval:setup": "node eval-setup.mjs",
     "dev": "next dev --port 3100",
