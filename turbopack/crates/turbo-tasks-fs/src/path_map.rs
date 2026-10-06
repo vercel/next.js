@@ -128,7 +128,6 @@ mod tests {
         map.insert(PathBuf::from("z/a/b"), 8);
 
         assert!(map.contains_path_or_children(Path::new("x/y")));
-        assert!(map.contains_path_or_children(Path::new("x/y")));
         assert!(!map.contains_path_or_children(Path::new("a/b/c/d")));
 
         let parent_path = PathBuf::from("a/b");

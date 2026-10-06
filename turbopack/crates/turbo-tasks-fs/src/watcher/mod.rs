@@ -994,25 +994,29 @@ impl BatchedInvalidations {
             }
             EventKind::Create(_) => {
                 for path in paths {
-                    let flags = InvalidationFlags::PATH_AND_CHILDREN
-                        | InvalidationFlags::PATH_AND_CHILDREN_DIR;
                     self.mark_new_path(&path);
                     if !is_relevant(self, &path, path.parent(), true) {
                         continue;
                     }
                     self.mark_parent_dir(&path);
-                    last_updated_index = Some(self.mark(Cow::Owned(path), flags));
+                    last_updated_index = Some(self.mark(
+                        Cow::Owned(path),
+                        InvalidationFlags::PATH_AND_CHILDREN
+                            | InvalidationFlags::PATH_AND_CHILDREN_DIR,
+                    ));
                 }
             }
             EventKind::Remove(_) => {
                 for path in paths {
-                    let flags = InvalidationFlags::PATH_AND_CHILDREN
-                        | InvalidationFlags::PATH_AND_CHILDREN_DIR;
                     if !is_relevant(self, &path, path.parent(), true) {
                         continue;
                     }
                     self.mark_parent_dir(&path);
-                    last_updated_index = Some(self.mark(Cow::Owned(path), flags));
+                    last_updated_index = Some(self.mark(
+                        Cow::Owned(path),
+                        InvalidationFlags::PATH_AND_CHILDREN
+                            | InvalidationFlags::PATH_AND_CHILDREN_DIR,
+                    ));
                 }
             }
             // A single event emitted with both the `From` and `To` paths.
@@ -1040,13 +1044,15 @@ impl BatchedInvalidations {
             // two rename events.
             EventKind::Any | EventKind::Modify(ModifyKind::Any | ModifyKind::Name(..)) => {
                 for path in paths {
-                    let flags = InvalidationFlags::PATH_AND_CHILDREN
-                        | InvalidationFlags::PATH_AND_CHILDREN_DIR;
                     if !is_relevant(self, &path, path.parent(), true) {
                         continue;
                     }
                     self.mark_parent_dir(&path);
-                    last_updated_index = Some(self.mark(Cow::Owned(path), flags));
+                    last_updated_index = Some(self.mark(
+                        Cow::Owned(path),
+                        InvalidationFlags::PATH_AND_CHILDREN
+                            | InvalidationFlags::PATH_AND_CHILDREN_DIR,
+                    ));
                 }
             }
             EventKind::Modify(ModifyKind::Metadata(..) | ModifyKind::Other)
