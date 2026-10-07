@@ -736,43 +736,56 @@ export function createMoveSuffixStream(): TransformStream<
 > {
   let foundSuffix = false
 
+  const suffix = ENCODED_TAGS.CLOSED.BODY_AND_HTML
+  const suffixLen = suffix.length
+
+  // Buffer used to retain the trailing bytes of the previous chunk in case
+  // the suffix spans multiple chunks.
+  let tail = new Uint8Array(0)
+
   return new TransformStream({
     transform(chunk, controller) {
       if (foundSuffix) {
         return controller.enqueue(chunk)
       }
 
-      const index = indexOfUint8Array(chunk, ENCODED_TAGS.CLOSED.BODY_AND_HTML)
+      // Combine the previous tail with the current chunk so we can detect
+      // suffixes that span chunk boundaries.
+      const combined = new Uint8Array(tail.length + chunk.length)
+      combined.set(tail)
+      combined.set(chunk, tail.length)
+
+      const index = indexOfUint8Array(combined, suffix)
       if (index > -1) {
         foundSuffix = true
 
-        // If the whole chunk is the suffix, then don't write anything, it will
-        // be written in the flush.
-        if (chunk.length === ENCODED_TAGS.CLOSED.BODY_AND_HTML.length) {
-          return
-        }
-
         // Write out the part before the suffix.
-        const before = chunk.slice(0, index)
-        controller.enqueue(before)
-
-        // In the case where the suffix is in the middle of the chunk, we need
-        // to split the chunk into two parts.
-        if (chunk.length > ENCODED_TAGS.CLOSED.BODY_AND_HTML.length + index) {
-          // Write out the part after the suffix.
-          const after = chunk.slice(
-            index + ENCODED_TAGS.CLOSED.BODY_AND_HTML.length
-          )
-          controller.enqueue(after)
+        if (index > 0) {
+          controller.enqueue(combined.slice(0, index))
         }
+
+        // In the case where the suffix is in the middle of the combined buffer,
+        // write out the part after the suffix.
+        const afterIndex = index + suffixLen
+        if (afterIndex < combined.length) {
+          controller.enqueue(combined.slice(afterIndex))
+        }
+
+        // Clear the tail once the suffix has been handled.
+        tail = new Uint8Array(0)
       } else {
-        controller.enqueue(chunk)
+        // If the suffix was not found, emit everything except the last
+        // `suffixLen - 1` bytes, which may contain a partial suffix.
+        const safeLength = Math.max(0, combined.length - (suffixLen - 1))
+        controller.enqueue(combined.slice(0, safeLength))
+        tail = combined.slice(safeLength)
       }
     },
+
     flush(controller) {
-      // Even if we didn't find the suffix, the HTML is not valid if we don't
-      // add it, so insert it at the end.
-      controller.enqueue(ENCODED_TAGS.CLOSED.BODY_AND_HTML)
+      // Even if the suffix was not found in the stream, the HTML is not valid
+      // if we don't add it, so insert it at the end.
+      controller.enqueue(suffix)
     },
   })
 }
