@@ -1,4 +1,9 @@
-import { compareParams, ParamsChange } from './vary-path'
+import {
+  compareParams,
+  ParamsChange,
+  getSegmentVaryPathForRequest,
+  getStaticSegmentVaryPathForRequest,
+} from './vary-path'
 import type {
   FlightRouterState,
   CacheNode,
@@ -1249,8 +1254,8 @@ function isShellEntryEligibleForStaticAttempt(
   const revalidatingEntry = readOrCreateRevalidatingSegmentEntry(
     now,
     map,
-    fetchStrategy,
-    tree
+    getSegmentVaryPathForRequest(fetchStrategy, tree),
+    getStaticSegmentVaryPathForRequest(fetchStrategy, tree)
   )
   return (
     revalidatingEntry.status === EntryStatus.Empty ||
@@ -1780,8 +1785,8 @@ function pingPPRDisabledRouteTreeUpToLoadingBoundary(
   const segment = readOrCreateSegmentCacheEntry(
     now,
     task.segmentCacheMap,
-    task.fetchStrategy,
-    tree
+    getSegmentVaryPathForRequest(FetchStrategy.LoadingBoundary, tree),
+    getStaticSegmentVaryPathForRequest(FetchStrategy.LoadingBoundary, tree)
   )
   switch (segment.status) {
     case EntryStatus.Empty: {
@@ -1929,16 +1934,17 @@ function pingRouteTreeAndIncludeDynamicData(
   // explicit "refetch" marker so the server knows where to start rendering.
   // Once the server starts rendering along a path, it keeps rendering the
   // entire subtree.
+  // Note that `fetchStrategy` might be different from `task.fetchStrategy`,
+  // and we have to use the former here.
+  // We can have a task with `FetchStrategy.PPR` where some of its segments are configured to
+  // always use runtime prefetching (via `export const prefetch`), and those should check for
+  // entries that include search params.
+  const varyPath = getSegmentVaryPathForRequest(fetchStrategy, tree)
   const segment = readOrCreateSegmentCacheEntry(
     now,
     task.segmentCacheMap,
-    // Note that `fetchStrategy` might be different from `task.fetchStrategy`,
-    // and we have to use the former here.
-    // We can have a task with `FetchStrategy.PPR` where some of its segments are configured to
-    // always use runtime prefetching (via `export const prefetch`), and those should check for
-    // entries that include search params.
-    fetchStrategy,
-    tree
+    varyPath,
+    varyPath
   )
 
   let spawnedSegment: PendingSegmentCacheEntry | null = null
@@ -2216,8 +2222,8 @@ function pingSegmentBundle(
           const revalidatingEntry = readOrCreateRevalidatingSegmentEntry(
             now,
             task.segmentCacheMap,
-            fetchStrategy,
-            nodeTree
+            getSegmentVaryPathForRequest(fetchStrategy, nodeTree),
+            getStaticSegmentVaryPathForRequest(fetchStrategy, nodeTree)
           )
           if (revalidatingEntry.status === EntryStatus.Empty) {
             const pendingEntry = upgradeToPendingSegment(
@@ -2256,8 +2262,8 @@ function pingSegmentBundle(
           const revalidatingEntry = readOrCreateRevalidatingSegmentEntry(
             now,
             task.segmentCacheMap,
-            fetchStrategy,
-            nodeTree
+            getSegmentVaryPathForRequest(fetchStrategy, nodeTree),
+            getStaticSegmentVaryPathForRequest(fetchStrategy, nodeTree)
           )
           if (revalidatingEntry.status === EntryStatus.Empty) {
             const pendingEntry = upgradeToPendingSegment(
@@ -2366,8 +2372,8 @@ function pingSegmentBundle(
           const revalidatingEntry = readOrCreateRevalidatingSegmentEntry(
             now,
             task.segmentCacheMap,
-            fetchStrategy,
-            nodeTree
+            getSegmentVaryPathForRequest(fetchStrategy, nodeTree),
+            getStaticSegmentVaryPathForRequest(fetchStrategy, nodeTree)
           )
           if (revalidatingEntry.status === EntryStatus.Empty) {
             const pendingEntry = upgradeToPendingSegment(
@@ -2463,8 +2469,8 @@ function accumulateSegmentBundle(
   const segment = readOrCreateSegmentCacheEntry(
     now,
     task.segmentCacheMap,
-    fetchStrategy,
-    tree
+    getSegmentVaryPathForRequest(fetchStrategy, tree),
+    getStaticSegmentVaryPathForRequest(fetchStrategy, tree)
   )
 
   if (
@@ -2518,8 +2524,8 @@ function accumulateSegmentBundle(
       entry: readOrCreateSegmentCacheEntry(
         now,
         task.segmentCacheMap,
-        fetchStrategy,
-        route.root.head
+        getSegmentVaryPathForRequest(fetchStrategy, route.root.head),
+        getStaticSegmentVaryPathForRequest(fetchStrategy, route.root.head)
       ),
       parent: parentBundle,
     }
@@ -2596,11 +2602,12 @@ function pingFullSegmentRevalidation(
     | FetchStrategy.PPRRuntime
     | FetchStrategy.RuntimeShell
 ): PendingSegmentCacheEntry | null {
+  const varyPath = getSegmentVaryPathForRequest(fetchStrategy, tree)
   const revalidatingSegment = readOrCreateRevalidatingSegmentEntry(
     now,
     task.segmentCacheMap,
-    fetchStrategy,
-    tree
+    varyPath,
+    varyPath
   )
   if (revalidatingSegment.status === EntryStatus.Empty) {
     // During a Full/PPRRuntime prefetch, a single runtime request is made for
@@ -2629,8 +2636,7 @@ function pingFullSegmentRevalidation(
       const emptySegment = overwriteRevalidatingSegmentCacheEntry(
         now,
         task.segmentCacheMap,
-        fetchStrategy,
-        tree
+        varyPath
       )
       const pendingSegment = upgradeToPendingSegment(
         emptySegment,
