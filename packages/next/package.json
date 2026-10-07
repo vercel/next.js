@@ -163,7 +163,7 @@
     "@jest/transform": "29.5.0",
     "@jest/types": "29.5.0",
     "@modelcontextprotocol/sdk": "1.18.1",
-    "@mswjs/interceptors": "0.42.5",
+    "@mswjs/interceptors": "0.42.6",
     "@napi-rs/triples": "1.2.0",
     "@next/font": "16.5.0-canary.1",
     "@next/polyfill-module": "16.5.0-canary.1",
