@@ -57,8 +57,13 @@ export async function sendRenderResult({
 
   // If cache control is already set on the response we don't
   // override it to allow users to customize it via next.config
-  if (cacheControl && !res.getHeader('Cache-Control')) {
-    res.setHeader('Cache-Control', getCacheControlHeader(cacheControl))
+
+  if (cacheControl) {
+    const current = res.getHeader('Cache-Control')
+    const next = getCacheControlHeader(cacheControl)
+    if (next.includes('s-maxage') || !current) {
+      res.setHeader('Cache-Control', next)
+    }
   }
 
   const payload = result.isDynamic ? null : result.toUnchunkedString()
