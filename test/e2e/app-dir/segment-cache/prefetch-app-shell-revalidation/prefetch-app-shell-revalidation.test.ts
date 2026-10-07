@@ -343,7 +343,7 @@ describe('App Shell revalidation', () => {
       }
     })
 
-    it('[FAILING] starts using runtime requests when the page starts using cookies after a revalidation', async () => {
+    it('starts using runtime requests when the page starts using cookies after a revalidation', async () => {
       let page: Playwright.Page
       const browser = await next.browser('/', {
         beforePageLoad(p: Playwright.Page) {
@@ -357,60 +357,33 @@ describe('App Shell revalidation', () => {
 
       // Reveal a link to the page. We should see revalidated content.
       // After the revalidation, the page starts using cookies in the shell.
-      if (REPRODUCE_MISSING_RUNTIME_SHELL_FOLLOW_UP) {
-        // Expected behavior
-        await act(async () => {
-          await browser
-            .elementByCss(
-              linkAccordionSelector({ href: route, prefetch: 'auto' })
-            )
-            .click()
-        }, [
-          // First, a static request (because the page was statically optimized at build time).
-          // This response should signal to the client router that runtime requests are still needed.
-          { includes: 'Cached value: updated', kind: 'static' },
-          // Then, a runtime shell follow-up.
-          { includes: 'Cookie data', kind: 'runtime' },
-          // This should be a runtime shell, i.e. we should not see runtime prefetch content.
-          {
-            includes: 'Runtime prefetch data (behind cookies)',
-            block: 'reject',
-          },
-        ])
-      } else {
-        // Actual behavior
-        await act(async () => {
-          await browser
-            .elementByCss(
-              linkAccordionSelector({ href: route, prefetch: 'auto' })
-            )
-            .click()
-        }, [
-          // First, a static request (because the page was statically optimized at build time).
-          // This response should signal to the client router that runtime requests are still needed.
-          { includes: 'Cached value: updated', kind: 'static' },
-          // FAILING: No runtime follow-up is issued.
-          { includes: '', kind: 'runtime', block: 'reject' },
-        ])
-      }
+      await act(async () => {
+        await browser
+          .elementByCss(
+            linkAccordionSelector({ href: route, prefetch: 'auto' })
+          )
+          .click()
+      }, [
+        // First, a static request (because the page was statically optimized at build time).
+        // This response should signal to the client router that runtime requests are still needed.
+        { includes: 'Cached value: updated', kind: 'static' },
+        // Then, a runtime shell follow-up.
+        { includes: 'Cookie data', kind: 'runtime' },
+        // This should be a runtime shell, i.e. we should not see runtime prefetch content.
+        {
+          includes: 'Runtime prefetch data (behind cookies)',
+          block: 'reject',
+        },
+      ])
 
       // Navigate to the page.
       await act(async () => {
         await browser.elementByCss(`a[href="${route}"]`).click()
 
-        if (REPRODUCE_MISSING_RUNTIME_SHELL_FOLLOW_UP) {
-          // Expected behavior
-          // We should show contents from the runtime shell while navigating.
-          expect(await browser.elementById('cookie-data').text()).toEqual(
-            'Cookie data'
-          )
-        } else {
-          // Actual behavior
-          // We didn't do a runtime follow-up, so there's no cookies in the shell.
-          expect(
-            await browser.elementById('cookie-data-fallback').text()
-          ).toEqual('Loading cookie data...')
-        }
+        // We should show contents from the runtime shell while navigating.
+        expect(await browser.elementById('cookie-data').text()).toEqual(
+          'Cookie data'
+        )
       }, [{ includes: 'Dynamic data' }])
 
       expect(await browser.elementById('dynamic-data').text()).toEqual(
@@ -570,13 +543,14 @@ describe('App Shell revalidation', () => {
         // Navigate while the runtime prefetch is blocked.
         await browser.elementByCss(`a[href="${route}"]`).click()
 
-        // We should show the static prefetch we have already have.
-        expect(await browser.elementById('prefetch-data').text()).toBe(
-          'Prefetch data'
-        )
-        // The runtime prefetch follow-up hasn't finished, so we don't have runtime data.
-        expect(await browser.elementById('cookie-data-fallback').text()).toBe(
-          'Loading cookie data...'
+        // The page has no params, so the static shell and the full static
+        // prefetch are cached at the same key. The full prefetch needs runtime
+        // data but the shell doesn't, so the shell wins and we show it until
+        // the runtime follow-up finishes.
+        // TODO: collect-segment-data should send only the shell when the full
+        // static payload needs runtime data but its shell doesn't.
+        expect(await browser.elementById('prefetch-data-fallback').text()).toBe(
+          'Loading prefetch data...'
         )
         // Prefetch content blocked behind cookies is not visible, even as a fallback.
         expect(
@@ -667,51 +641,26 @@ describe('App Shell revalidation', () => {
         await updateAndWaitForRevalidation(route)
 
         // Reveal a prefetch-auto link to the page. We should see revalidated content.
-        // After the revalidation, the page starts using cookies in the shell.
-        if (REPRODUCE_MISSING_RUNTIME_SHELL_FOLLOW_UP) {
-          // [Expected behavior - runtime follow-ups for shells work]
-          // The page started using cookies in the shell, so we should fetch a runtime shell.
-          await act(async () => {
-            await browser
-              .elementByCss(
-                linkAccordionSelector({ href: route, prefetch: 'auto' })
-              )
-              .click()
-          }, [
-            // First, a static request (because the page was statically optimized at build time).
-            // This response should signal to the client router that runtime shells are needed.
-            { includes: 'Cached value: updated', kind: 'static' },
-            // This should not show up anymore after the revalidation.
-            { includes: 'No cookies used in the shell', block: 'reject' },
-            // Runtime follow-up, because the static shell is now insufficient.
-            {
-              includes: 'Cookie data in shell',
-              kind: 'runtime',
-            },
-          ])
-        } else {
-          // [Actual behavior - runtime follow-ups for shells don't work]
-          // The page started using cookies in the shell, but we don't fetch a runtime shell.
-          await act(async () => {
-            await browser
-              .elementByCss(
-                linkAccordionSelector({ href: route, prefetch: 'auto' })
-              )
-              .click()
-          }, [
-            // First, a static request (because the page was statically optimized at build time).
-            // This response should signal to the client router that runtime shells are needed.
-            { includes: 'Cached value: updated', kind: 'static' },
-            // This should not show up anymore after the revalidation.
-            { includes: 'No cookies used in the shell', block: 'reject' },
-            // FAILING: missing runtime follow-up despite insufficient shell
-            {
-              includes: '',
-              kind: 'runtime',
-              block: 'reject',
-            },
-          ])
-        }
+        // After the revalidation, the page starts using cookies in the shell,
+        // so we should fetch a runtime shell.
+        await act(async () => {
+          await browser
+            .elementByCss(
+              linkAccordionSelector({ href: route, prefetch: 'auto' })
+            )
+            .click()
+        }, [
+          // First, a static request (because the page was statically optimized at build time).
+          // This response should signal to the client router that runtime shells are needed.
+          { includes: 'Cached value: updated', kind: 'static' },
+          // This should not show up anymore after the revalidation.
+          { includes: 'No cookies used in the shell', block: 'reject' },
+          // Runtime follow-up, because the static shell is now insufficient.
+          {
+            includes: 'Cookie data in shell',
+            kind: 'runtime',
+          },
+        ])
 
         // Reveal a prefetch-true link to the page.
         // The prefetch also requires runtime data.

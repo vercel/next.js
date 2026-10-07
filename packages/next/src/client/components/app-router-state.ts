@@ -33,7 +33,7 @@ import {
 } from './segment-cache/cache-key'
 import type { CacheMap } from './segment-cache/cache-map'
 import { schedulePrefetchTask } from './segment-cache/scheduler'
-import { PrefetchPriority, FetchStrategy } from './segment-cache/types'
+import { PrefetchPriority, AppStage } from './segment-cache/types'
 import { getLinkForCurrentNavigation } from './links'
 import type { AppRouterState } from './router-reducer/router-reducer-types'
 import { ScrollBehavior } from './router-reducer/router-reducer-types'
@@ -277,7 +277,7 @@ export function navigateToKnownRoute(
     const link = getLinkForCurrentNavigation()
     if (
       link !== null &&
-      link.fetchStrategy === FetchStrategy.Full &&
+      link.prefetchStage !== AppStage.Shell &&
       (navigationSeed.root.tree.prefetchHints &
         (PrefetchHint.SubtreeHasPartialPrefetching |
           PrefetchHint.SubtreeHasInstantFalse)) ===
@@ -313,7 +313,7 @@ export function navigateToKnownRoute(
     const link = getLinkForCurrentNavigation()
     restrictToShell = shouldRestrictNavigationToShell(
       navigationSeed.root.tree.prefetchHints,
-      link !== null ? link.fetchStrategy : FetchStrategy.PPR
+      link !== null ? link.prefetchStage : AppStage.Shell
     )
   }
 
@@ -833,7 +833,7 @@ async function ensurePrefetchThenNavigate(
   navigationLock: NavigationLock | null
 ): Promise<AppRouterState> {
   const link = getLinkForCurrentNavigation()
-  const fetchStrategy = link !== null ? link.fetchStrategy : FetchStrategy.PPR
+  const prefetchStage = link !== null ? link.prefetchStage : AppStage.Shell
 
   const cacheKey = createCacheKey(url.href, nextUrl)
 
@@ -848,7 +848,7 @@ async function ensurePrefetchThenNavigate(
   const prefetchTask = schedulePrefetchTask(
     cacheKey,
     currentRoot,
-    fetchStrategy,
+    prefetchStage,
     PrefetchPriority.Default,
     null, // onInvalidate
     navigationLockPrefetch
