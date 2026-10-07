@@ -1514,10 +1514,9 @@ function pingNewPartOfCacheComponentsTree(
  * The static hints and `needsRuntimeRequest` have no effect if runtime requests
  * are not allowed (i.e. outside of Partial Prefetching).
  *
- * Returns the segment's bundle accumulation when the walk should continue
- * into its children, and null when the walk stops at this segment: the link
- * needs no speculative prefetch, or the segment deopted and the batched
- * runtime request covers the whole subtree.
+ * Returns the segment's bundle if we should keep going into its children.
+ * Returns null if we stop at this segment, because it needs a runtime
+ * request, and that request covers the whole subtree.
  */
 function pingSegmentInCacheComponentsTree(
   now: number,
@@ -1529,14 +1528,6 @@ function pingSegmentInCacheComponentsTree(
   // it's derived.
   fetchStrategy: FetchStrategy.PPR | FetchStrategy.StaticShell
 ): { bundle: SegmentBundle | null; needsRuntimeRequest: boolean } | null {
-  // In PPF, links may skip speculative prefetching if they only need a shell.
-  if (
-    fetchStrategy === FetchStrategy.PPR &&
-    !needsSpeculativePrefetch(task.fetchStrategy, route.root.tree.prefetchHints)
-  ) {
-    return null
-  }
-
   // Constant for the whole pass; recomputed here only because the walk is
   // recursive and the check is cheap.
   const canUseRuntimeRequests = walkCanUseRuntimeRequests(fetchStrategy, route)
