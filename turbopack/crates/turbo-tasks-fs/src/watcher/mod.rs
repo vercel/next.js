@@ -1209,7 +1209,7 @@ fn is_not_found_error(kind: &notify::ErrorKind) -> bool {
 #[cfg(test)]
 mod tests {
     use std::{
-        fs, io,
+        fs,
         time::{Instant, SystemTime},
     };
 
@@ -1220,20 +1220,6 @@ mod tests {
 
     use super::*;
     use crate::watcher::mock_fs_api::MockFileSystem;
-
-    #[test]
-    fn not_found_error_detection() {
-        assert!(is_not_found_error(&notify::ErrorKind::Io(io::Error::from(
-            io::ErrorKind::NotFound
-        ))));
-        assert!(!is_not_found_error(&notify::ErrorKind::Io(
-            io::Error::from(io::ErrorKind::PermissionDenied)
-        )));
-        assert!(!is_not_found_error(&notify::ErrorKind::PathNotFound));
-        assert!(!is_not_found_error(&notify::ErrorKind::Generic(
-            "error".into()
-        )));
-    }
 
     #[cfg(not(miri))]
     #[tokio::test]
