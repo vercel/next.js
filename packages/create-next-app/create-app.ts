@@ -262,6 +262,10 @@ export async function createApp({
       cacheComponents,
       agentFeedback,
     })
+    hasPackageJson = existsSync(packageJsonPath)
+  }
+
+  if (hasPackageJson) {
   }
 
   if (agentsMd) {
