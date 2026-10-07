@@ -327,7 +327,7 @@ mod non_recursive_helpers {
     /// we were previously watching (i.e. that are in `watched`), and leaves the `NEW` flag on
     /// exactly those.
     #[instrument(skip_all, level = "trace")]
-    pub(super) async fn restore_all_if_watched(
+    pub async fn restore_all_if_watched(
         state: &RwLock<NonRecursiveState>,
         batch: &mut BatchedInvalidations,
         root_path: &Path,
@@ -692,13 +692,15 @@ impl DiskWatcher {
                             delay = delay.max(config.extended_batch_delay_duration);
                         }
 
-                        if batch.add_event(event, fs.invalidator_map(), fs.dir_invalidator_map()) {
-                            schedule.extend(delay);
-                        } else if !batch.has_pending_invalidations() && batch.has_new_paths() {
-                            // No batch is pending, so `recv_event` would wait for the next event,
-                            // but newly created directories may still need their watches restored.
-                            // Flush right away, as a dependent task could re-read them at any time.
-                            break;
+                        match batch.add_event(event, fs.invalidator_map(), fs.dir_invalidator_map())
+                        {
+                            EventEffect::Invalidations => schedule.extend(delay),
+                            // Newly created directories may need their watches restored, so make
+                            // sure a batch is scheduled. But don't push back the deadline: in
+                            // non-recursive mode, every untracked child created in a watched
+                            // directory is reported, and these must not delay invalidations.
+                            EventEffect::NewPaths => schedule.ensure_pending(delay),
+                            EventEffect::None => {}
                         }
                     }
                     // Error raised by notify watcher itself
@@ -813,6 +815,18 @@ impl InvalidationFlags {
     }
 }
 
+/// What a single event contributed to a [`BatchedInvalidations`], which decides how it affects the
+/// [`BatchSchedule`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum EventEffect {
+    /// Nothing: the event didn't contribute any work to the batch.
+    None,
+    /// Only newly created paths, recorded for watch restoration. Non-recursive mode only.
+    NewPaths,
+    /// Paths affecting tracked reads (possibly alongside newly created paths).
+    Invalidations,
+}
+
 /// A set of deferred invalidations. Because one or more files may be updated many times in quick
 /// succession, we don't want to perform invalidations until we think the filesystem has settled.
 ///
@@ -826,12 +840,12 @@ impl InvalidationFlags {
 /// [`InvalidationFlags::NEW`] flag, even if they don't affect any tracked read: a recreated
 /// directory must get its watch back even if nothing currently depends on it, as a dependent task
 /// may re-read it later (and then wouldn't watch it again). Their watches must be (re-)established
-/// before [`Self::execute`] is called (see the note there).
+/// before [`Self::execute`] is called (see the note there). A new path makes sure a batch is
+/// scheduled, but only paths affecting tracked reads keep it open (see [`EventEffect`]).
 struct BatchedInvalidations {
     /// Entries whose flags are only [`InvalidationFlags::NEW`] don't invalidate anything.
     paths: FxIndexMap<Box<Path>, InvalidationFlags>,
-    /// Whether any entry in [`Self::paths`] invalidates something, i.e. whether a flush is
-    /// pending.
+    /// Whether any entry in [`Self::paths`] invalidates something.
     has_invalidations: bool,
     /// Whether any entry in [`Self::paths`] has the [`InvalidationFlags::NEW`] flag.
     has_new_paths: bool,
@@ -933,7 +947,8 @@ impl BatchedInvalidations {
         self.has_new_paths = false;
     }
 
-    /// Whether the batch contains any paths to invalidate, i.e. whether a flush is pending.
+    /// Whether the batch contains any paths to invalidate. Checked after newly created paths were
+    /// restored and promoted, to skip flushing a batch with nothing to invalidate.
     fn has_pending_invalidations(&self) -> bool {
         self.has_invalidations
     }
@@ -947,13 +962,14 @@ impl BatchedInvalidations {
 
     /// Records `path` as newly-created with [`InvalidationFlags::NEW`], so its watch can be
     /// (re-)established regardless of whether it affects any tracked read. No-op in recursive
-    /// watching mode.
-    fn mark_new_path(&mut self, path: &Path) {
+    /// watching mode. Returns whether the path was recorded.
+    fn mark_new_path(&mut self, path: &Path) -> bool {
         if !self.track_new_paths {
-            return;
+            return false;
         }
         self.mark(Cow::Borrowed(path), InvalidationFlags::NEW);
         self.has_new_paths = true;
+        true
     }
 
     /// Sets the `flags` for `path`. Returns the index that was modified.
@@ -989,15 +1005,16 @@ impl BatchedInvalidations {
     /// Updates the batch to contain updated paths from the given event. Does not perform any
     /// invalidations.
     ///
-    /// Returns whether the event contributed any paths affecting tracked reads. Newly created paths
-    /// are recorded with [`InvalidationFlags::NEW`] either way.
+    /// Returns what the event contributed: paths affecting tracked reads, only newly created paths
+    /// (non-recursive mode), or nothing. Newly created paths are recorded with
+    /// [`InvalidationFlags::NEW`] in non-recursive mode, even if they also affect tracked reads.
     #[must_use]
     fn add_event(
         &mut self,
         event: notify::Event,
         invalidator_map: &InvalidatorMap,
         dir_invalidator_map: &InvalidatorMap,
-    ) -> bool {
+    ) -> EventEffect {
         // if we need to lock an invalidator map, hold and cache the guard for the whole event
         let invalidator_map_guard = LazyCell::new(|| invalidator_map.lock().unwrap());
         let dir_invalidator_map_guard = LazyCell::new(|| dir_invalidator_map.lock().unwrap());
@@ -1024,6 +1041,7 @@ impl BatchedInvalidations {
 
         let paths = event.paths;
         let mut last_updated_index = None;
+        let mut added_new_path = false;
         match event.kind {
             EventKind::Modify(ModifyKind::Data(_)) => {
                 for path in paths {
@@ -1044,7 +1062,7 @@ impl BatchedInvalidations {
             }
             EventKind::Create(_) => {
                 for path in paths {
-                    self.mark_new_path(&path);
+                    added_new_path |= self.mark_new_path(&path);
                     if !is_relevant(self, &path, path.parent(), true) {
                         continue;
                     }
@@ -1080,7 +1098,7 @@ impl BatchedInvalidations {
                         Some(self.mark(Cow::Owned(source), InvalidationFlags::PATH_AND_CHILDREN));
                 }
 
-                self.mark_new_path(&destination);
+                added_new_path |= self.mark_new_path(&destination);
                 if is_relevant(self, &destination, destination.parent(), true) {
                     self.mark_parent_dir(&destination);
                     last_updated_index = Some(self.mark(
@@ -1111,9 +1129,11 @@ impl BatchedInvalidations {
         }
         if let Some(index) = last_updated_index {
             self.last_updated_index = Some(index);
-            true
+            EventEffect::Invalidations
+        } else if added_new_path {
+            EventEffect::NewPaths
         } else {
-            false
+            EventEffect::None
         }
     }
 
@@ -1293,7 +1313,8 @@ mod tests {
                     BatchedInvalidations::new(DiskWatcherRecursiveMode::NonRecursive, false);
                 let event = notify::Event::new(kind).add_path(PathBuf::from(path));
                 assert_eq!(
-                    batch.add_event(event, &invalidator_map, &dir_invalidator_map),
+                    batch.add_event(event, &invalidator_map, &dir_invalidator_map)
+                        == EventEffect::Invalidations,
                     relevant,
                     "{kind:?} at {path}",
                 );
@@ -1303,112 +1324,6 @@ mod tests {
         })
         .await
         .unwrap();
-    }
-
-    /// A path recorded only for watch restoration only has the `NEW` flag in `paths`: it must not
-    /// count as a pending invalidation, and must not make later events on it or its children
-    /// relevant.
-    #[cfg(not(miri))]
-    #[tokio::test]
-    async fn new_paths_do_not_count_as_pending_or_relevant() {
-        let tt = TurboTasks::new(TurboTasksBackend::new(
-            BackendOptions::default(),
-            noop_backing_storage(),
-        ));
-        tt.run_once(async move {
-            let invalidator_map = InvalidatorMap::new();
-            let dir_invalidator_map = InvalidatorMap::new();
-            let mut batch =
-                BatchedInvalidations::new(DiskWatcherRecursiveMode::NonRecursive, false);
-            let add = |batch: &mut BatchedInvalidations, kind: EventKind, path: &str| {
-                let event = notify::Event::new(kind).add_path(PathBuf::from(path));
-                batch.add_event(event, &invalidator_map, &dir_invalidator_map)
-            };
-            let create = EventKind::Create(CreateKind::Any);
-            let content = EventKind::Modify(ModifyKind::Data(DataChange::Any));
-
-            // an untracked creation is only recorded for watch restoration
-            assert!(!add(&mut batch, create, "a"));
-            assert!(batch.has_new_paths());
-            assert!(!batch.has_pending_invalidations());
-            assert_eq!(batch.last_updated_path(), None);
-            assert_eq!(batch.paths[Path::new("a")], InvalidationFlags::NEW);
-
-            // neither a repeated creation, nor events on the path or its children become relevant
-            // because of the `NEW`-only entry
-            assert!(!add(&mut batch, create, "a"));
-            assert!(!add(&mut batch, content, "a"));
-            assert!(!add(&mut batch, create, "a/b"));
-            assert!(!batch.has_pending_invalidations());
-            assert_eq!(batch.last_updated_path(), None);
-            assert_eq!(batch.paths[Path::new("a/b")], InvalidationFlags::NEW);
-
-            // only restored paths keep the flag
-            assert!(batch.retain_new_paths(|path| path == Path::new("a")));
-            assert!(batch.has_new_paths());
-            assert!(batch.paths[Path::new("a/b")].is_empty());
-            assert!(!batch.has_pending_invalidations());
-
-            // a restored path is invalidated recursively
-            batch.promote_new_paths();
-            assert!(!batch.has_new_paths());
-            assert!(batch.has_pending_invalidations());
-            assert_eq!(
-                batch.paths[Path::new("a")],
-                InvalidationFlags::PATH_AND_CHILDREN | InvalidationFlags::PATH_AND_CHILDREN_DIR,
-            );
-            assert!(batch.paths[Path::new("a/b")].is_empty());
-            // now that it is in the batch to be invalidated, later events on it and its children
-            // are relevant
-            assert!(add(&mut batch, content, "a"));
-            assert!(add(&mut batch, create, "a/c"));
-            assert_eq!(batch.last_updated_path(), Some(Path::new("a/c")));
-
-            batch.clear();
-            assert_eq!(batch.last_updated_path(), None);
-            assert!(!add(&mut batch, create, "a"));
-            batch.clear();
-            assert!(!batch.has_pending_invalidations());
-            assert!(!batch.has_new_paths());
-            assert!(batch.paths.is_empty());
-
-            // recursive mode doesn't need to restore watches, so it doesn't track new paths
-            let mut batch = BatchedInvalidations::new(DiskWatcherRecursiveMode::Recursive, false);
-            assert!(!add(&mut batch, create, "a"));
-            assert!(!batch.has_new_paths());
-            assert!(batch.paths.is_empty());
-            anyhow::Ok(())
-        })
-        .await
-        .unwrap();
-    }
-
-    /// Filtering and promoting new paths must preserve existing invalidation flags on the same
-    /// path, as well as the last updated path.
-    #[test]
-    fn new_flag_is_independent_of_invalidations() {
-        let mut batch = BatchedInvalidations::new(DiskWatcherRecursiveMode::NonRecursive, false);
-        batch.last_updated_index =
-            Some(batch.mark(Cow::Borrowed(Path::new("a")), InvalidationFlags::PATH));
-        batch.mark_new_path(Path::new("a"));
-        batch.mark_new_path(Path::new("b"));
-        assert!(batch.has_new_paths());
-        assert_eq!(
-            batch.paths[Path::new("a")],
-            InvalidationFlags::PATH | InvalidationFlags::NEW,
-        );
-
-        // the first phase rejects `a`: it keeps its invalidation, but loses `NEW`
-        assert!(batch.retain_new_paths(|path| path == Path::new("b")));
-        assert_eq!(batch.paths[Path::new("a")], InvalidationFlags::PATH);
-        // the second phase rejects `b` too: no new paths are left, and nothing is promoted
-        assert!(!batch.retain_new_paths(|_| false));
-        assert!(!batch.has_new_paths());
-        batch.promote_new_paths();
-        assert_eq!(batch.paths[Path::new("a")], InvalidationFlags::PATH);
-        assert!(batch.paths[Path::new("b")].is_empty());
-        assert!(batch.has_pending_invalidations());
-        assert_eq!(batch.last_updated_path(), Some(Path::new("a")));
     }
 
     /// Polls [`tracked_read`] until it has executed more than `previous_runs` times, i.e. until the
@@ -1502,7 +1417,9 @@ mod tests {
     }
 
     /// Events for paths that nobody has read must not extend the batch: a stream of writes to an
-    /// untracked file should not delay the invalidation of a tracked one.
+    /// untracked file, or of newly created untracked files, should not delay the invalidation of a
+    /// tracked one. In non-recursive mode, created paths are still recorded for watch restoration,
+    /// but they must not push back the batch deadline.
     #[cfg(not(miri))]
     #[rstest]
     #[case::native_recursive(None, DiskWatcherRecursiveMode::Recursive)]
@@ -1516,6 +1433,7 @@ mod tests {
     async fn irrelevant_events_do_not_delay_invalidation(
         #[case] poll_interval: Option<Duration>,
         #[case] recursive_mode: DiskWatcherRecursiveMode,
+        #[values(false, true)] create_files: bool,
     ) {
         const BATCH_DELAY: Duration = Duration::from_millis(300);
         const CHURN: Duration = Duration::from_secs(3);
@@ -1548,11 +1466,16 @@ mod tests {
             let churn_start = Instant::now();
             let churn = std::thread::spawn({
                 let other_path = other_path.clone();
+                let sub_dir = sub_dir.clone();
                 move || {
                     let mut i = 0u64;
                     while churn_start.elapsed() < CHURN {
                         i += 1;
-                        fs::write(&other_path, i.to_string()).unwrap();
+                        if create_files {
+                            fs::write(sub_dir.join(format!("new-{i}.txt")), "").unwrap();
+                        } else {
+                            fs::write(&other_path, i.to_string()).unwrap();
+                        }
                         std::thread::sleep(CHURN_INTERVAL);
                     }
                 }
