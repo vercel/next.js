@@ -701,7 +701,12 @@ impl DiskWatcher {
                     }
                     // Error raised by notify watcher itself
                     Ok(Err(notify::Error { kind, paths })) => {
-                        println!("watch error ({paths:?}): {kind:?} ");
+                        // A path removed while the watcher was scanning it is expected (e.g.
+                        // `PollWatcher` walking a tree that is being deleted), so don't report
+                        // it. The invalidation below still covers it.
+                        if !is_not_found_error(&kind) {
+                            eprintln!("watch error ({paths:?}): {kind:?} ");
+                        }
 
                         batch.add_error(paths, fs.root_path());
                         schedule.extend(config.batch_delay);
@@ -1195,10 +1200,16 @@ impl InvalidationReasonKind for InvalidateRescanKind {
     }
 }
 
+/// Whether a [`notify::Error`] was caused by a path that no longer exists, e.g. a directory
+/// removed between being listed and being read by [`PollWatcher`].
+fn is_not_found_error(kind: &notify::ErrorKind) -> bool {
+    matches!(kind, notify::ErrorKind::Io(err) if err.kind() == std::io::ErrorKind::NotFound)
+}
+
 #[cfg(test)]
 mod tests {
     use std::{
-        fs,
+        fs, io,
         time::{Instant, SystemTime},
     };
 
@@ -1209,6 +1220,20 @@ mod tests {
 
     use super::*;
     use crate::watcher::mock_fs_api::MockFileSystem;
+
+    #[test]
+    fn not_found_error_detection() {
+        assert!(is_not_found_error(&notify::ErrorKind::Io(io::Error::from(
+            io::ErrorKind::NotFound
+        ))));
+        assert!(!is_not_found_error(&notify::ErrorKind::Io(
+            io::Error::from(io::ErrorKind::PermissionDenied)
+        )));
+        assert!(!is_not_found_error(&notify::ErrorKind::PathNotFound));
+        assert!(!is_not_found_error(&notify::ErrorKind::Generic(
+            "error".into()
+        )));
+    }
 
     #[cfg(not(miri))]
     #[tokio::test]
