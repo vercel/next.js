@@ -1,6 +1,6 @@
 mod heaptrack;
 mod nextjs;
-mod turbopack;
+pub(crate) mod turbopack;
 
 use std::{
     any::Any,
@@ -23,7 +23,7 @@ use crate::{
 
 const MIN_INITIAL_REPORT_SIZE: u64 = 100 * 1024 * 1024;
 
-trait TraceFormat {
+pub(crate) trait TraceFormat {
     type Reused: Default;
     /// Create the initial reused buffer. Override to pre-allocate capacity.
     fn create_reused() -> Self::Reused {

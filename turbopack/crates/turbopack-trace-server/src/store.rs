@@ -24,11 +24,10 @@ pub type SpanId = NonZeroUsize;
 /// at the cut-off depth (Flattening).
 const CUT_OFF_DEPTH: u32 = 80;
 
-/// A single memory usage sample: (timestamp, memory_bytes, memory_pressure).
-/// Sorted by timestamp. `memory_pressure` is an OS-reported pressure value in
-/// the range `0..=100`; `0` is used when the reporter platform did not expose
-/// a pressure signal.
-type MemorySample = (Timestamp, u64, u8);
+/// A single process sample: (timestamp, memory_bytes, memory_pressure,
+/// active_worker_threads). Sorted by timestamp. `memory_pressure` is an
+/// OS-reported value in `0..=100`; `0` is used if unavailable.
+type MemorySample = (Timestamp, u64, u8, u64);
 
 /// Maximum number of memory samples returned in a query result.
 const MAX_MEMORY_SAMPLES: usize = 200;
@@ -37,7 +36,7 @@ pub struct Store {
     pub(crate) spans: ChunkedVec<Span>,
     pub(crate) self_time_tree: Option<SelfTimeTree<SpanIndex>>,
     max_self_time_lookup_time: AtomicU64,
-    /// Global sorted list of memory samples (timestamp, memory_bytes).
+    /// Global sorted list of process memory and worker samples.
     memory_samples: Vec<MemorySample>,
 }
 
@@ -341,11 +340,18 @@ impl Store {
         span.self_deallocation_count += count;
     }
 
-    pub fn add_memory_sample(&mut self, ts: Timestamp, memory: u64, memory_pressure: u8) {
+    pub fn add_memory_sample(
+        &mut self,
+        ts: Timestamp,
+        memory: u64,
+        memory_pressure: u8,
+        active_worker_threads: u64,
+    ) {
         // Samples arrive nearly sorted (roughly chronological from the trace
         // writer), so an insertion-sort step is efficient: push to the end
         // then swap backward until the timestamp ordering is restored.
-        self.memory_samples.push((ts, memory, memory_pressure));
+        self.memory_samples
+            .push((ts, memory, memory_pressure, active_worker_threads));
         let mut i = self.memory_samples.len() - 1;
         while i > 0 && self.memory_samples[i - 1].0 > ts {
             self.memory_samples.swap(i, i - 1);
@@ -359,16 +365,16 @@ impl Store {
     pub fn memory_samples_for_range(&self, start: Timestamp, end: Timestamp) -> Vec<u64> {
         self.memory_samples_for_range_with_ts(start, end)
             .into_iter()
-            .map(|(_, mem, _)| mem)
+            .map(|(_, mem, _, _)| mem)
             .collect()
     }
 
     /// Like `memory_samples_for_range` but keeps the timestamps and the
-    /// memory-pressure byte. Timestamps are absolute store timestamps (same
-    /// reference frame as span start/end). When the raw slice exceeds
-    /// `MAX_MEMORY_SAMPLES`, each merged group is represented by the sample
-    /// whose memory value was the group's max (its timestamp and pressure
-    /// byte are kept alongside it).
+    /// memory-pressure byte and active worker count. Timestamps are absolute
+    /// store timestamps (same reference frame as span start/end). When the raw
+    /// slice exceeds `MAX_MEMORY_SAMPLES`, each merged group is represented by
+    /// the sample whose memory value was the group's max (its timestamp,
+    /// pressure, and worker count are kept alongside it).
     pub fn memory_samples_for_range_with_ts(
         &self,
         start: Timestamp,
@@ -389,7 +395,20 @@ impl Store {
         let n = count.div_ceil(MAX_MEMORY_SAMPLES);
         slice
             .chunks(n)
-            .map(|chunk| *chunk.iter().max_by_key(|(_, mem, _)| *mem).unwrap())
+            .map(|chunk| *chunk.iter().max_by_key(|(_, mem, _, _)| *mem).unwrap())
+            .collect()
+    }
+
+    /// Returns worker counts from the same max-memory samples selected by
+    /// [`Self::memory_samples_for_range`], in the same order.
+    pub fn active_worker_threads_samples_for_range(
+        &self,
+        start: Timestamp,
+        end: Timestamp,
+    ) -> Vec<u64> {
+        self.memory_samples_for_range_with_ts(start, end)
+            .into_iter()
+            .map(|(_, _, _, workers)| workers)
             .collect()
     }
 
@@ -406,13 +425,13 @@ impl Store {
         }
 
         if count <= MAX_MEMORY_SAMPLES {
-            return slice.iter().map(|(_, _, p)| *p).collect();
+            return slice.iter().map(|(_, _, p, _)| *p).collect();
         }
 
         let n = count.div_ceil(MAX_MEMORY_SAMPLES);
         slice
             .chunks(n)
-            .map(|chunk| chunk.iter().map(|(_, _, p)| *p).max().unwrap())
+            .map(|chunk| chunk.iter().map(|(_, _, p, _)| *p).max().unwrap())
             .collect()
     }
 
@@ -420,9 +439,11 @@ impl Store {
         // Binary search for the first sample >= start
         let lo = self
             .memory_samples
-            .partition_point(|(ts, _, _)| *ts < start);
+            .partition_point(|(ts, _, _, _)| *ts < start);
         // Binary search for the first sample > end
-        let hi = self.memory_samples.partition_point(|(ts, _, _)| *ts <= end);
+        let hi = self
+            .memory_samples
+            .partition_point(|(ts, _, _, _)| *ts <= end);
         &self.memory_samples[lo..hi]
     }
 
@@ -496,5 +517,49 @@ impl Store {
                 is_graph,
             )
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn downsampling_keeps_worker_count_from_max_memory_sample() {
+        let mut store = Store::new();
+        for i in 0..=MAX_MEMORY_SAMPLES {
+            store.add_memory_sample(Timestamp::from_micros(i as u64), i as u64, 3, 1);
+        }
+        store.add_memory_sample(Timestamp::from_micros(201), 5000, 9, 4);
+        let samples = store.memory_samples_for_range_with_ts(
+            Timestamp::from_micros(0),
+            Timestamp::from_micros(201),
+        );
+        assert!(samples.len() <= MAX_MEMORY_SAMPLES);
+        assert!(samples.iter().any(|(_, mem, pressure, workers)| {
+            *mem == 5000 && *pressure == 9 && *workers == 4
+        }));
+
+        let start = Timestamp::from_micros(0);
+        let end = Timestamp::from_micros(201);
+        let memory = store.memory_samples_for_range(start, end);
+        let workers = store.active_worker_threads_samples_for_range(start, end);
+        assert_eq!(workers.len(), memory.len());
+        assert_eq!(
+            workers,
+            samples.iter().map(|sample| sample.3).collect::<Vec<_>>()
+        );
+        assert_eq!(
+            memory
+                .iter()
+                .position(|&value| value == 5000)
+                .map(|i| workers[i]),
+            Some(4)
+        );
+        assert!(
+            store
+                .active_worker_threads_samples_for_range(Timestamp::from_micros(202), end)
+                .is_empty()
+        );
     }
 }

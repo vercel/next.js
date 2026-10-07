@@ -287,9 +287,10 @@ impl TurbopackFormat {
                 ts,
                 memory,
                 memory_pressure,
+                active_worker_threads,
             } => {
                 let ts = Timestamp::from_micros(ts);
-                store.add_memory_sample(ts, memory, memory_pressure);
+                store.add_memory_sample(ts, memory, memory_pressure, active_worker_threads);
             }
             TraceRow::AllocationCounters {
                 ts: _,
