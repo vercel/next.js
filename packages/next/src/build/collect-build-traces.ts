@@ -227,6 +227,9 @@ export async function collectBuildTraces({
         '**/node_modules/webpack5/**/*',
         '**/next/dist/server/lib/route-resolver*',
         // Upgrade workflows are CLI-only and are not needed by production servers.
+        // Ignore the package path itself too: pnpm links it next to `next`,
+        // and keeping that symlink without its contents leaves it dangling.
+        '**/node_modules/@next/upgrade',
         '**/node_modules/@next/upgrade/**/*',
         // The testmode interceptors bundle reads its HTTP parser WASM with a
         // dynamic path, making nft trace the bundle's whole directory. Test

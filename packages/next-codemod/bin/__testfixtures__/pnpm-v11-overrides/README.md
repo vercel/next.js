@@ -7,14 +7,14 @@ https://github.com/pnpm/pnpm/issues/11536 and https://pnpm.io/settings.
 Run this fixture with pnpm v11+ on PATH:
 
 ```sh
-pnpm test:upgrade-fixture fixtures/pnpm-v11-overrides --revision latest
+pnpm test:upgrade-fixture bin/__testfixtures__/pnpm-v11-overrides --revision latest
 ```
 
 ```diff
-diff --git a/packages/next-upgrade/fixtures/pnpm-v11-overrides/package.json b/packages/next-upgrade/fixtures/pnpm-v11-overrides/package.json
+diff --git a/packages/next-codemod/bin/__testfixtures__/pnpm-v11-overrides/package.json b/packages/next-codemod/bin/__testfixtures__/pnpm-v11-overrides/package.json
 index 5ec4c37f0b..131f5b9f4a 100644
---- a/packages/next-upgrade/fixtures/pnpm-v11-overrides/package.json
-+++ b/packages/next-upgrade/fixtures/pnpm-v11-overrides/package.json
+--- a/packages/next-codemod/bin/__testfixtures__/pnpm-v11-overrides/package.json
++++ b/packages/next-codemod/bin/__testfixtures__/pnpm-v11-overrides/package.json
 @@ -4,8 +4,8 @@
      "dev": "next dev"
    },
@@ -31,10 +31,10 @@ index 5ec4c37f0b..131f5b9f4a 100644
 +    "@types/react-dom": "19.0.0"
    }
  }
-diff --git a/packages/next-upgrade/fixtures/pnpm-v11-overrides/pnpm-workspace.yaml b/packages/next-upgrade/fixtures/pnpm-v11-overrides/pnpm-workspace.yaml
+diff --git a/packages/next-codemod/bin/__testfixtures__/pnpm-v11-overrides/pnpm-workspace.yaml b/packages/next-codemod/bin/__testfixtures__/pnpm-v11-overrides/pnpm-workspace.yaml
 index ...
---- a/packages/next-upgrade/fixtures/pnpm-v11-overrides/pnpm-workspace.yaml
-+++ b/packages/next-upgrade/fixtures/pnpm-v11-overrides/pnpm-workspace.yaml
+--- a/packages/next-codemod/bin/__testfixtures__/pnpm-v11-overrides/pnpm-workspace.yaml
++++ b/packages/next-codemod/bin/__testfixtures__/pnpm-v11-overrides/pnpm-workspace.yaml
 @@ -1,2 +1,5 @@
  allowBuilds:
    sharp: false

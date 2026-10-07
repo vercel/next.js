@@ -5,6 +5,10 @@ import {
   getPackageManagerVersion,
   getPnpmMajorVersion,
 } from "../helpers/get-pkg-manager";
+import {
+  addTestPackageOverrides,
+  formatPnpmWorkspaceOverrides,
+} from "../helpers/test-package-overrides";
 
 import { async as glob } from "fast-glob";
 import os from "os";
@@ -395,6 +399,15 @@ export const installTemplate = async ({
     packageJson.devDependencies = sorted(packageJson.devDependencies);
   }
 
+  const pnpmMajorVersion =
+    packageManager === "pnpm" ? getPnpmMajorVersion() : null;
+  const pnpmWorkspaceOverrides = addTestPackageOverrides(
+    packageJson,
+    testPkgPaths,
+    packageManager,
+    pnpmMajorVersion,
+  );
+
   if (packageManager === "pnpm") {
     // Only create pnpm-workspace.yaml for pnpm v10+.
     // In v9, having a pnpm-workspace.yaml (even with packages: []) causes
@@ -402,7 +415,6 @@ export const installTemplate = async ({
     // In v10, the packages field can be omitted entirely.
     // If we can't determine the version, assume latest (v10+) since we already
     // know pnpm is being used at this point.
-    const pnpmMajorVersion = getPnpmMajorVersion();
     if (pnpmMajorVersion === null || pnpmMajorVersion >= 11) {
       // In pnpm v11, `ignoredBuiltDependencies` (and the other build-script
       // settings) were removed in favor of a single `allowBuilds` map where
@@ -420,7 +432,10 @@ export const installTemplate = async ({
       ].join(os.EOL);
       await fs.writeFile(
         path.join(root, "pnpm-workspace.yaml"),
-        pnpmWorkspaceYaml,
+        pnpmWorkspaceYaml +
+          (pnpmWorkspaceOverrides
+            ? formatPnpmWorkspaceOverrides(pnpmWorkspaceOverrides, os.EOL)
+            : ""),
       );
     } else if (pnpmMajorVersion >= 10) {
       const pnpmWorkspaceYaml = [

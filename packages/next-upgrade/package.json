@@ -30,7 +30,6 @@
     "build:source": "ncc build ./src/index.ts -o ./dist/ -e @next/env --minify --no-cache --no-source-map-register && ncc build ./src/terminal.ts -o ./dist/terminal/ -e @next/env -e ./index --minify --no-cache --no-source-map-register && node ./scripts/move-entry.mjs",
     "build:assets": "node ./scripts/copy-assets.mjs",
     "types": "tsc --project tsconfig.json --declaration --emitDeclarationOnly --declarationDir dist",
-    "test:upgrade-fixture": "./scripts/test-upgrade-fixture.sh",
     "pack-for-isolated-tests": "pnpm pack --out ./packed.tgz"
   },
   "dependencies": {

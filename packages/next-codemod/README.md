@@ -13,3 +13,7 @@ Visit [nextjs.org/docs/advanced-features/codemods](https://nextjs.org/docs/app/g
 `@next/codemod upgrade` runs [`@next/upgrade`](../next-upgrade), which owns
 the upgrade workflow, with the same options. The transforms the upgrade
 applies still come from this package.
+
+The apps in `bin/__testfixtures__` are for manual upgrade checks. Build
+`packages/next-upgrade`, then run them from this directory with
+`pnpm test:upgrade-fixture bin/__testfixtures__/<fixture> [options]`.

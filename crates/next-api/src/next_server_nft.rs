@@ -289,6 +289,9 @@ fn next_owned_ignores(
         rcstr!("**/node_modules/webpack5/**/*"),
         rcstr!("**/next/dist/server/lib/route-resolver*"),
         // Upgrade workflows are CLI-only and are not needed by production servers.
+        // Ignore the package path itself too: pnpm links it next to `next`,
+        // and keeping that symlink without its contents leaves it dangling.
+        rcstr!("**/node_modules/@next/upgrade"),
         rcstr!("**/node_modules/@next/upgrade/**/*"),
         // The testmode interceptors bundle reads its HTTP parser WASM with a
         // dynamic path, making the tracer include the bundle's whole

@@ -38,7 +38,11 @@ Combine it with `--yes` for an unattended version upgrade. Without
   every run.
 - `guides/`: instructions handed to the agent. The build also bundles the
   Next.js upgrade docs they reference (`scripts/copy-assets.mjs`).
-- `fixtures/`: apps for manual upgrade checks (`pnpm test:upgrade-fixture`)
+
+Apps for manual upgrade checks live in `@next/codemod`
+(`packages/next-codemod/bin/__testfixtures__`). Run them from
+`packages/next-codemod` with `pnpm test:upgrade-fixture`, which uses this
+package's local build.
 
 This package doesn't import `next`. It loads config and telemetry from the
 Next.js installed in the app being upgraded (`src/next-host.ts`), because
