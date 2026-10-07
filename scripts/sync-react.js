@@ -105,6 +105,35 @@ function getPackageVersion(packageName, versionStr) {
   return `npm:${packageName}@${versionStr}`
 }
 
+/**
+ * Replaces an existing entry of the top-level `overrides` map in
+ * `pnpm-workspace.yaml`, leaving the rest of the file (comments, ordering,
+ * quoting) untouched.
+ *
+ * @param {string} workspaceYaml
+ * @param {string} packageName
+ * @param {string} version
+ * @returns {string}
+ */
+function setPnpmWorkspaceOverride(workspaceYaml, packageName, version) {
+  const overridesMatch = /^overrides:\n((?:[ #].*\n|\n)*)/m.exec(workspaceYaml)
+  if (overridesMatch === null) {
+    throw new Error('Expected an `overrides` map in pnpm-workspace.yaml')
+  }
+  const entry = new RegExp(`^  '?${packageName}'?:.*$`, 'm')
+  if (!entry.test(overridesMatch[1])) {
+    throw new Error(
+      `Expected an override for "${packageName}" in pnpm-workspace.yaml`
+    )
+  }
+  const overridesStart = overridesMatch.index + 'overrides:\n'.length
+  return (
+    workspaceYaml.slice(0, overridesStart) +
+    overridesMatch[1].replace(entry, `  ${packageName}: '${version}'`) +
+    workspaceYaml.slice(overridesStart + overridesMatch[1].length)
+  )
+}
+
 async function sync({ channel, newVersionStr, noInstall }) {
   const useExperimental = channel === 'experimental'
   const cwd = process.cwd()
@@ -112,7 +141,8 @@ async function sync({ channel, newVersionStr, noInstall }) {
     await fsp.readFile(path.join(cwd, 'package.json'), 'utf-8')
   )
   const devDependencies = pkgJson.devDependencies
-  const pnpmOverrides = pkgJson.pnpm.overrides
+  /** @type {Record<string, string>} */
+  const pnpmOverrides = {}
   const baseVersionStr = devDependencies[
     useExperimental ? 'react-experimental-builtin' : 'react-builtin'
   ].replace(/^npm:react@/, '')
@@ -172,6 +202,17 @@ async function sync({ channel, newVersionStr, noInstall }) {
       // Prettier would add a newline anyway so do it manually to skip the additional `pnpm prettier-write`
       '\n'
   )
+
+  const pnpmWorkspacePath = path.join(cwd, 'pnpm-workspace.yaml')
+  let pnpmWorkspace = await fsp.readFile(pnpmWorkspacePath, 'utf-8')
+  for (const [packageName, version] of Object.entries(pnpmOverrides)) {
+    pnpmWorkspace = setPnpmWorkspaceOverride(
+      pnpmWorkspace,
+      packageName,
+      version
+    )
+  }
+  await fsp.writeFile(pnpmWorkspacePath, pnpmWorkspace)
 }
 
 /**

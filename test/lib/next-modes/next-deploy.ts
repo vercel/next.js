@@ -11,6 +11,10 @@ import { setTimeout } from 'timers/promises'
 import { FileRef } from '../e2e-utils'
 import { PROXY_HOST_MAP_ENV_KEY } from '../browsers/launch'
 import { packPackages } from '../create-next-install'
+import {
+  getPnpmSecuritySettings,
+  mergeSettingsIntoYaml,
+} from '../pnpm-security-settings'
 
 export class NextDeployInstance extends NextInstance {
   private _cliOutput: string
@@ -296,7 +300,29 @@ export class NextDeployInstance extends NextInstance {
       !process.env.NEXT_TEST_VERSION
     ) {
       await this.prepareLocalPackages(parentSpan)
+    } else if (process.env.NEXT_TEST_VERSION) {
+      this.preparePreviewPnpmSettings()
     }
+  }
+
+  private preparePreviewPnpmSettings(): void {
+    const workspacePath = path.join(this.testDir, 'pnpm-workspace.yaml')
+    const settings = {
+      ...getPnpmSecuritySettings(),
+      // Our preview tarballs reference other packages from the same commit by
+      // URL. pnpm rejects those subdependencies even with explicit overrides.
+      blockExoticSubdeps: false,
+    }
+    let workspace: string
+    if (fs.existsSync(workspacePath)) {
+      workspace = mergeSettingsIntoYaml(
+        fs.readFileSync(workspacePath, 'utf8'),
+        settings
+      )
+    } else {
+      workspace = dump(settings)
+    }
+    this.writeFixtureConfiguration(workspacePath, workspace)
   }
 
   private async deploy() {
@@ -580,22 +606,9 @@ export class NextDeployInstance extends NextInstance {
     this.parseIdsFromCliOutput()
   }
 
-  private async writeFixtureConfiguration(
-    filePath: string,
-    contents: string
-  ): Promise<void> {
-    const temporaryDirectory = await fs.mkdtemp(
-      path.join(path.dirname(filePath), '.next-test-config-')
-    )
-    const temporaryPath = path.join(temporaryDirectory, path.basename(filePath))
-    try {
-      // Preserve permissions and replace links rather than their targets.
-      await fs.copyFile(filePath, temporaryPath, fs.constants.COPYFILE_EXCL)
-      await fs.writeFile(temporaryPath, contents)
-      await fs.rename(temporaryPath, filePath)
-    } finally {
-      await fs.remove(temporaryDirectory)
-    }
+  private writeFixtureConfiguration(filePath: string, contents: string): void {
+    fs.rmSync(filePath, { force: true })
+    fs.writeFileSync(filePath, contents)
   }
 
   /**
@@ -783,7 +796,7 @@ export class NextDeployInstance extends NextInstance {
       }
     }
 
-    await this.writeFixtureConfiguration(
+    this.writeFixtureConfiguration(
       packageJsonPath,
       JSON.stringify(packageJson, null, 2) + '\n'
     )
@@ -811,10 +824,10 @@ export class NextDeployInstance extends NextInstance {
           ...packageJson.pnpm.overrides,
           ...workspace.overrides,
         }
-        await this.writeFixtureConfiguration(filePath, dump(workspace))
+        this.writeFixtureConfiguration(filePath, dump(workspace))
       } else if (contents !== '') {
         const separator = contents.endsWith('\n') ? '' : '\n'
-        await this.writeFixtureConfiguration(
+        this.writeFixtureConfiguration(
           filePath,
           `${contents}${separator}!/${directoryName}\n!/${directoryName}/**\n`
         )
