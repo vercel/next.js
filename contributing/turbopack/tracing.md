@@ -70,7 +70,7 @@ And there are different value modes:
 
 ## Trace file size
 
-To see what takes up the space in a trace file, use `turbo-trace-size`. It breaks the file down by row type (`Start`, `Enter`, `Exit`, `AllocationCounters`, ...), by span name, by attribute key and shows how many bytes are spent on repeated strings. Raw, gzip and zstd compressed files are supported. All sizes refer to the decompressed trace stream.
+To see what takes up the space in a trace file, use `turbo-trace-size`. It breaks the file down by row type (`Start`, `Enter`, `Exit`, `Record`, ...), by span name, by attribute key and shows how many bytes are spent on repeated strings. Raw, gzip and zstd compressed files are supported. All sizes refer to the decompressed trace stream.
 
 ```sh
 cargo run --bin turbo-trace-size --release -- /path/to/your/trace-turbopack.bin
