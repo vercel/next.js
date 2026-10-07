@@ -103,6 +103,7 @@ import {
   NEXT_ROUTER_PREFETCH_STATIC,
   NEXT_ROUTER_PREFETCH_RUNTIME_PREFETCH,
   NEXT_ROUTER_PREFETCH_RUNTIME_SHELL,
+  NEXT_ROUTER_PREFETCH_RUNTIME_NAVIGATION,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_URL,
   NEXT_ROUTER_STATE_TREE_HEADER,
@@ -2449,7 +2450,8 @@ export default abstract class Server<
           ? // We only recognize the values we send. Strip all others here.
             prefetchHeaderValue === NEXT_ROUTER_PREFETCH_STATIC ||
             prefetchHeaderValue === NEXT_ROUTER_PREFETCH_RUNTIME_PREFETCH ||
-            prefetchHeaderValue === NEXT_ROUTER_PREFETCH_RUNTIME_SHELL
+            prefetchHeaderValue === NEXT_ROUTER_PREFETCH_RUNTIME_SHELL ||
+            prefetchHeaderValue === NEXT_ROUTER_PREFETCH_RUNTIME_NAVIGATION
             ? prefetchHeaderValue
             : undefined
           : // For runtime prefetches, we always perform a dynamic request,

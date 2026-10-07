@@ -11,6 +11,7 @@ import {
   NEXT_ROUTER_PREFETCH_STATIC,
   NEXT_ROUTER_PREFETCH_RUNTIME_PREFETCH,
   NEXT_ROUTER_PREFETCH_RUNTIME_SHELL,
+  NEXT_ROUTER_PREFETCH_RUNTIME_NAVIGATION,
 } from '../../../client/components/app-router-headers'
 import { AppStage } from '../../../client/components/segment-cache/types'
 import { isRSCRequestHeader } from '../../lib/is-rsc-request'
@@ -68,6 +69,9 @@ export function parseRequestHeaders(
         break
       case NEXT_ROUTER_PREFETCH_RUNTIME_PREFETCH:
         runtimePrefetchStage = AppStage.Prefetch
+        break
+      case NEXT_ROUTER_PREFETCH_RUNTIME_NAVIGATION:
+        runtimePrefetchStage = AppStage.Navigation
         break
       case undefined:
       default:

@@ -3,6 +3,7 @@ import type {
   NEXT_ROUTER_PREFETCH_STATIC,
   NEXT_ROUTER_PREFETCH_RUNTIME_PREFETCH,
   NEXT_ROUTER_PREFETCH_RUNTIME_SHELL,
+  NEXT_ROUTER_PREFETCH_RUNTIME_NAVIGATION,
 } from '../../../../client/components/app-router-headers'
 
 const CACHE_BUSTING_SEARCH_PARAM_DIGEST_BYTES = 12
@@ -31,6 +32,7 @@ function createCacheBustingSearchParamInput(
     | typeof NEXT_ROUTER_PREFETCH_STATIC
     | typeof NEXT_ROUTER_PREFETCH_RUNTIME_PREFETCH
     | typeof NEXT_ROUTER_PREFETCH_RUNTIME_SHELL
+    | typeof NEXT_ROUTER_PREFETCH_RUNTIME_NAVIGATION
     | '0'
     | undefined,
   segmentPrefetchHeader: string | string[] | undefined,
@@ -72,6 +74,7 @@ export async function computeCacheBustingSearchParam(
     | typeof NEXT_ROUTER_PREFETCH_STATIC
     | typeof NEXT_ROUTER_PREFETCH_RUNTIME_PREFETCH
     | typeof NEXT_ROUTER_PREFETCH_RUNTIME_SHELL
+    | typeof NEXT_ROUTER_PREFETCH_RUNTIME_NAVIGATION
     | '0'
     | undefined,
   segmentPrefetchHeader: string | string[] | undefined,
@@ -96,6 +99,7 @@ export function computeLegacyCacheBustingSearchParam(
     | typeof NEXT_ROUTER_PREFETCH_STATIC
     | typeof NEXT_ROUTER_PREFETCH_RUNTIME_PREFETCH
     | typeof NEXT_ROUTER_PREFETCH_RUNTIME_SHELL
+    | typeof NEXT_ROUTER_PREFETCH_RUNTIME_NAVIGATION
     | '0'
     | undefined,
   segmentPrefetchHeader: string | string[] | undefined,
