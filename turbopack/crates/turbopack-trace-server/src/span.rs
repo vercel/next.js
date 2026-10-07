@@ -63,6 +63,9 @@ pub struct SpanTotals {
 #[derive(Default)]
 pub struct SpanTimeData {
     // These values won't change after creation:
+    /// Excludes own work from CPU, concurrency and corrected-time accounting,
+    /// but not the elapsed range or counted descendants. Set for `blocking =
+    /// true` attributes and the existing `thread`/`blocking` wrapper names.
     pub ignore_self_time: bool,
 
     // This might change during writing:
