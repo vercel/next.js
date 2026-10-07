@@ -32,6 +32,36 @@ const memoize = <T = any>(fn: (...args: any[]) => T) => {
   }
 }
 
+// Default page extensions used when next.config.js cannot be read
+const DEFAULT_PAGE_EXTENSIONS = ['js', 'jsx', 'ts', 'tsx', 'mjs', 'cjs']
+
+/**
+ * Attempts to read pageExtensions from next.config.js at the given rootDir.
+ * Returns undefined if the config cannot be read or parsed.
+ */
+function getPageExtensionsFromConfig(rootDir: string): string[] | undefined {
+  try {
+    const configPath = path.join(rootDir, 'next.config.js')
+    if (!fs.existsSync(configPath)) {
+      return undefined
+    }
+    const configContent = fs.readFileSync(configPath, 'utf8')
+    // Match pageExtensions assignment: pageExtensions: ['js', 'ts', ...]
+    const match = configContent.match(/pageExtensions\s*:\s*\[([^\]]+)\]/)
+    if (!match) {
+      return undefined
+    }
+    const extensionsStr = match[1]
+    // Extract quoted strings
+    const extensions = [...extensionsStr.matchAll(/['"]([^'"]+)['"]/g)].map(
+      (m) => m[1]
+    )
+    return extensions.length > 0 ? extensions : undefined
+  } catch {
+    return undefined
+  }
+}
+
 const cachedGetUrlFromPagesDirectories = memoize(getUrlFromPagesDirectories)
 const cachedGetUrlFromAppDirectory = memoize(getUrlFromAppDirectory)
 
@@ -62,6 +92,13 @@ export default defineRule({
           },
         ],
       },
+      {
+        type: 'array',
+        uniqueItems: true,
+        items: {
+          type: 'string',
+        },
+      },
     ],
   },
 
@@ -69,21 +106,31 @@ export default defineRule({
    * Creates an ESLint rule listener.
    */
   create(context) {
-    const ruleOptions: (string | string[])[] = context.options
-    const [customPagesDirectory] = ruleOptions
+    const ruleOptions = context.options as [
+      (string | string[])?,
+      string[]?,
+      ...unknown[],
+    ]
+    const [customPagesDirectory, customPageExtensions] = ruleOptions
 
     const rootDirs = getRootDirs(context)
 
-    const pagesDirs = (
-      customPagesDirectory
-        ? [customPagesDirectory]
-        : rootDirs.map((dir) => [
+    // customPagesDirectory can be a string or string[] (array of dirs)
+    const customDirs: string[] = customPagesDirectory
+      ? Array.isArray(customPagesDirectory)
+        ? customPagesDirectory
+        : [customPagesDirectory]
+      : []
+
+    const pagesDirs =
+      customDirs.length > 0
+        ? customDirs
+        : rootDirs.flatMap((dir) => [
             path.join(dir, 'pages'),
             path.join(dir, 'src', 'pages'),
           ])
-    ).flat()
 
-    const foundPagesDirs = pagesDirs.filter((dir) => {
+    const foundPagesDirs = pagesDirs.filter((dir: string) => {
       if (fsExistsSyncCache[dir] === undefined) {
         fsExistsSyncCache[dir] = fs.existsSync(dir)
       }
@@ -107,7 +154,25 @@ export default defineRule({
       return {}
     }
 
-    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs)
+    // Resolve page extensions: user-provided > next.config.js > default
+    let pageExtensions: string[]
+    if (
+      customPageExtensions &&
+      Array.isArray(customPageExtensions) &&
+      customPageExtensions.length > 0
+    ) {
+      pageExtensions = customPageExtensions as string[]
+    } else {
+      // Try to read from next.config.js
+      const configExtensions = getPageExtensionsFromConfig(rootDirs[0])
+      pageExtensions = configExtensions ?? DEFAULT_PAGE_EXTENSIONS
+    }
+
+    const pageUrls = cachedGetUrlFromPagesDirectories(
+      '/',
+      foundPagesDirs,
+      pageExtensions
+    )
     const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs)
     const allUrlRegex = [...pageUrls, ...appDirUrls]
 
