@@ -174,10 +174,10 @@ export async function collectSegmentData(
   // are due to hanging promises caused by dynamic data access. Note we only
   // have to do this once per page, not per individual segment.
   //
-  // The warm-up decode also tells us the page's own shell byte boundary (its
-  // `a` field): a byte offset into fullPageDataBuffer marking the end of the
-  // page's shell stage, null if the shell is identical to the full static
-  // response, or undefined if the render wasn't staged (no shell exists).
+  // The warm-up decode also tells us where the page's shell and prefetch
+  // stage end (its `a` field). The shell length is null if the shell is the
+  // whole response, and undefined if the render wasn't staged. The prefetch
+  // length is undefined if nothing comes after the prefetch stage.
   //
   // And it tells us whether the render accessed runtime data (cookies,
   // headers, fallback params, searchParams, ...): the settled value of the
@@ -196,10 +196,11 @@ export async function collectSegmentData(
       }
     )
     await waitAtLeastOneReactRenderTask()
-    // `a` is a promise resolved mid-stream; the whole buffer is present, so
-    // it resolves. undefined means the render wasn't staged (no shell).
+    // The whole buffer is here, so `a` has resolved. If the shell isn't
+    // listed, it ends at the end of the response.
     if (pagePayload.a !== undefined) {
-      pageShellByteLength = await pagePayload.a
+      const stageByteLengths = await pagePayload.a
+      pageShellByteLength = stageByteLengths[0] ?? null
     }
     if (pagePayload.u !== undefined) {
       // Every byte of the page buffer is present, so the flag's row (if the
@@ -214,20 +215,18 @@ export async function collectSegmentData(
     }
   } catch {}
 
-  // All segment responses of a page share one decode of the page buffer, and
-  // one `release` promise that coordinates the two serialization stages: it
-  // resolves when the coordinator lets the shell-stage bytes settle into the
-  // rest of the page data (see renderSegmentPrefetch, which measures each
-  // response's shell boundary at that moment). Its resolved value is true
-  // when the page's shell is identical to its full static response — then so
-  // is every segment's, so each resolves `a` to null instead of a boundary.
+  // Every segment response for the page shares one decode of the page data.
+  // We feed that decode in stages so each segment response can measure where
+  // its own shell ends. First we give it the page's shell, and when `release`
+  // resolves, we give it the rest. Each segment response counts its bytes at
+  // the release (see renderSegmentPrefetch).
   //
-  // When the page has a real shell boundary the decode is staged: only the
-  // shell byte prefix is enqueued now, the rest held until the release. With
-  // no boundary there's nothing to stage on, so the whole buffer is decoded
-  // at once and the release is resolved eagerly (segment boundaries then fall
-  // out as 0 or null without any measurement).
+  // The release resolves to true when the page's shell is the whole response.
+  // Then so is every segment's, so none of them lists it. In that case there's
+  // nothing to stage, so we decode everything at once. If the page wasn't
+  // staged at all, there's no release, and no segment response sends `a`.
   const release = createPromiseWithResolvers<boolean>()
+  let shellStageRelease: Promise<boolean> | null = release.promise
   let pageDataStream: ReadableStream<Uint8Array>
   if (typeof pageShellByteLength === 'number') {
     const prefixLength = pageShellByteLength
@@ -244,11 +243,16 @@ export async function collectSegmentData(
         // holes), and Flight errors if the stream closes while any are pending.
       },
     })
+  } else if (pageShellByteLength === null) {
+    pageDataStream = createUnclosingPrefetchStream(
+      streamFromBuffer(fullPageDataBuffer)
+    )
+    release.resolve(true)
   } else {
     pageDataStream = createUnclosingPrefetchStream(
       streamFromBuffer(fullPageDataBuffer)
     )
-    release.resolve(pageShellByteLength === null)
+    shellStageRelease = null
   }
 
   // Create an abort controller that we'll use to stop the stream.
@@ -286,7 +290,7 @@ export async function collectSegmentData(
         hints={hints}
         isUpgradeableISRFallback={isUpgradeableISRFallback}
         runtimeDataAccessed={runtimeDataAccessed}
-        shellStageRelease={release.promise}
+        shellStageRelease={shellStageRelease}
       />,
       clientModules,
       {
@@ -313,7 +317,8 @@ export async function collectSegmentData(
     // decode so each render can measure its boundary and finish. Runs on
     // failure too, so a tree-render error can't strand the spawned tasks on
     // a release that never comes. (false is inert here: a staged page's shell
-    // is always a strict prefix, and an unstaged release already resolved.)
+    // is always a strict prefix, a page whose shell is the whole response
+    // already resolved its release, and an unstaged page has none.)
     // TODO: I don't think it's really necessary to unblock the spawned tasks.
     // It's fine if they hang indefinitely; the tasks will be garbage collected.
     release.resolve(false)
@@ -449,9 +454,9 @@ export async function collectPrefetchHints(
   const needsRuntimeRequest = initialRSCPayload.u ?? Promise.resolve(true)
 
   // This pass only measures gzip sizes for inlining hints, so nothing is
-  // staged (each response's `a` falls out as the no-shell sentinel, 0), but
-  // the responses are byte-identical in shape to the real ones — the point
-  // of measuring. Pre-resolving false is the "nothing staged" release.
+  // staged (each response's `a` lists a shell boundary of 0), but the
+  // responses are byte-identical in shape to the real ones — the point of
+  // measuring. Pre-resolving false is the "nothing staged" release.
   const shellStageRelease = Promise.resolve(false)
 
   // This is the pass that COMPUTES the hints, so the spine hints here can't
@@ -869,7 +874,7 @@ async function PrefetchTreeData({
   hints: PrefetchHints | null
   isUpgradeableISRFallback: boolean
   runtimeDataAccessed: boolean
-  shellStageRelease: Promise<boolean>
+  shellStageRelease: Promise<boolean> | null
 }): Promise<PrefetchFlightResponse | null> {
   // We're currently rendering a Flight response for the route tree prefetch.
   // Inside this component, decode the Flight stream for the whole page. This is
@@ -1009,7 +1014,7 @@ function collectSegmentDataImpl(
   rootVaryParamsIterable: VaryParamsIterable | null,
   isUpgradeableISRFallback: boolean,
   needsRuntimeRequest: Promise<boolean>,
-  shellStageRelease: Promise<boolean>
+  shellStageRelease: Promise<boolean> | null
 ): PartialTransportNode {
   // Union the hints already embedded in the page payload's tree with the
   // separately-computed build-time hints. During the initial build, the
@@ -1210,7 +1215,8 @@ async function renderSegmentPrefetch(
   clientModules: ManifestNode,
   isUpgradeableISRFallback: boolean,
   needsRuntimeRequest: Promise<boolean>,
-  shellStageRelease: Promise<boolean>
+  // Null when the page wasn't staged; the response then sends no `a`.
+  shellStageRelease: Promise<boolean> | null
 ): Promise<[SegmentRequestKey, Buffer]> {
   const streamInfoStage = createPromiseWithResolvers<void>()
 
@@ -1280,14 +1286,16 @@ async function renderSegmentPrefetch(
   // `a` (see PrefetchFlightResponse['a']) is resolved below, once the
   // shell stage's bytes have been counted.
   let totalByteLength = 0
-  const shellByteOffset: PromiseWithResolvers<number | null> =
-    createPromiseWithResolvers<number | null>()
+  const stageByteLengths: PromiseWithResolvers<Array<number>> =
+    createPromiseWithResolvers<Array<number>>()
 
   // Wrap in the response envelope — an ordinary PrefetchFlightResponse.
   const payload: PrefetchFlightResponse = {
     t: transportData,
-    a: shellByteOffset.promise,
     u: needsRuntimeRequest,
+  }
+  if (shellStageRelease !== null) {
+    payload.a = stageByteLengths.promise
   }
   if (buildId) {
     payload.b = buildId
@@ -1342,9 +1350,9 @@ async function renderSegmentPrefetch(
     resolve(chunks)
   })
 
-  // The release's value is true when the page's shell is its entire static
-  // response — then so is every segment's, so `a` is null (no separate shell
-  // to extract). Otherwise we measure.
+  // The release resolves to true when the page's shell is the whole response.
+  // Then so is every segment's, so `a` doesn't list the shell. Otherwise we
+  // measure. (If there's no release, we don't send `a` at all.)
   const shellIsFullResponse = await shellStageRelease
 
   // The shell stage is complete: everything the render can emit from the shell
@@ -1356,19 +1364,16 @@ async function renderSegmentPrefetch(
   // enqueues it into the input decode, the render has emitted all of it.
   await waitAtLeastOneReactRenderTask()
 
-  // Resolve `a`: null when the page said its shell is the whole response
-  // (shellIsFullResponse) — then so is every segment's. Otherwise resolve the
-  // measured boundary, even if no segment *content* follows it: the
+  // Resolve `a`: no boundary when the page said its shell is the whole
+  // response (shellIsFullResponse) — then so is every segment's. Otherwise
+  // list the measured boundary, even if no segment *content* follows it: the
   // stage-dependent metadata (`staleTime`, `needsRuntimeRequest`) always
   // lands its post-shell values and completion rows after this point, so a
-  // truncated decode is meaningful for every segment of a staged page. When
-  // the page wasn't staged at all, the release resolved before any bytes
-  // flushed and the measured boundary falls out as 0, the "no shell"
-  // sentinel.
+  // truncated decode is meaningful for every segment of a staged page.
   if (shellIsFullResponse) {
-    shellByteOffset.resolve(null)
+    stageByteLengths.resolve([])
   } else {
-    shellByteOffset.resolve(byteLengthAfterShellStage)
+    stageByteLengths.resolve([byteLengthAfterShellStage])
   }
 
   // Now write the stream metadata (`a`, the `isPartial` promises, and a

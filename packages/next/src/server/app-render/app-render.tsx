@@ -588,7 +588,7 @@ async function generateDynamicRSCPayload(
     actionResult?: ActionResult
     skipPageRendering?: boolean
     staleTimeIterable?: AsyncIterable<number>
-    shellByteLengthPromise?: Promise<number | null>
+    stageByteLengthsPromise?: Promise<Array<number>>
     runtimePrefetchStream?: ReadableStream<Uint8Array>
   }
 ): Promise<RSCPayload> {
@@ -741,8 +741,8 @@ async function generateDynamicRSCPayload(
     baseResponse.s = options.staleTimeIterable
   }
 
-  if (options?.shellByteLengthPromise !== undefined) {
-    baseResponse.a = options.shellByteLengthPromise
+  if (options?.stageByteLengthsPromise !== undefined) {
+    baseResponse.a = options.stageByteLengthsPromise
   }
 
   if (options?.runtimePrefetchStream !== undefined) {
@@ -998,7 +998,7 @@ async function generateStagedDynamicFlightRenderResultNode(
     selectStaleTime
   )
 
-  const shellByteLengthDeferred = createPromiseWithResolvers<number | null>()
+  const stageByteLengthsDeferred = createPromiseWithResolvers<Array<number>>()
 
   let runtimePrefetchStream: ReadableStream<Uint8Array> | undefined
   let startRuntimePrefetchRender: (() => Promise<void>) | undefined
@@ -1059,7 +1059,7 @@ async function generateStagedDynamicFlightRenderResultNode(
     ctx,
     {
       staleTimeIterable,
-      shellByteLengthPromise: shellByteLengthDeferred.promise,
+      stageByteLengthsPromise: stageByteLengthsDeferred.promise,
       runtimePrefetchStream,
     }
   )
@@ -1092,7 +1092,7 @@ async function generateStagedDynamicFlightRenderResultNode(
       const shellStream = replayable.createReplayStream()
 
       void countShellBytes(shellStream, stageController).then(
-        shellByteLengthDeferred.resolve
+        (shellByteLength) => stageByteLengthsDeferred.resolve([shellByteLength])
       )
 
       return dynamicStream
@@ -1139,7 +1139,7 @@ async function spawnRuntimePrefetchWithFilledCaches(
     // We want to be able to rewind the result to a session shell.
     const mode: RuntimePrerenderMode & { type: 'navigation' } = {
       type: 'navigation',
-      shellByteLengthDeferred: createPromiseWithResolvers(),
+      stageByteLengthsDeferred: createPromiseWithResolvers(),
     }
 
     const { result } = await finalRuntimeServerPrerender(
@@ -1147,7 +1147,7 @@ async function spawnRuntimePrefetchWithFilledCaches(
       ctx,
       generateDynamicRSCPayload.bind(null, ctx, {
         staleTimeIterable,
-        shellByteLengthPromise: mode.shellByteLengthDeferred.promise,
+        stageByteLengthsPromise: mode.stageByteLengthsDeferred.promise,
       }),
       prerenderResumeDataCache,
       rootParams,
@@ -1525,7 +1525,7 @@ async function generateRuntimePrefetchResult(
     ? { type: 'session-shell-only' }
     : {
         type: 'rewindable-session-shell',
-        shellByteLengthDeferred: createPromiseWithResolvers(),
+        stageByteLengthsDeferred: createPromiseWithResolvers(),
       }
 
   await prospectiveRuntimeServerPrerender(
@@ -1551,10 +1551,12 @@ async function generateRuntimePrefetchResult(
     ctx,
     generateDynamicRSCPayload.bind(null, ctx, {
       staleTimeIterable,
-      shellByteLengthPromise:
+      // A runtime shell render stops at the shell stage, so the shell ends
+      // at the end of the response.
+      stageByteLengthsPromise:
         mode.type === 'rewindable-session-shell'
-          ? mode.shellByteLengthDeferred.promise
-          : undefined,
+          ? mode.stageByteLengthsDeferred.promise
+          : Promise.resolve([]),
     }),
     prerenderResumeDataCache,
     rootParams,
@@ -1746,11 +1748,11 @@ type RuntimePrerenderMode =
   | { type: 'session-shell-only' }
   | {
       type: 'rewindable-session-shell'
-      shellByteLengthDeferred: PromiseWithResolvers<number | null>
+      stageByteLengthsDeferred: PromiseWithResolvers<Array<number>>
     }
   | {
       type: 'navigation'
-      shellByteLengthDeferred: PromiseWithResolvers<number | null>
+      stageByteLengthsDeferred: PromiseWithResolvers<Array<number>>
     }
 
 async function finalRuntimeServerPrerender(
@@ -1963,12 +1965,12 @@ async function finalRuntimeServerPrerender(
 
       // An aborted render emits no more chunks, so there's no offset to send.
       if (
-        'shellByteLengthDeferred' in mode &&
+        'stageByteLengthsDeferred' in mode &&
         !finalServerController.signal.aborted
       ) {
-        // If neither link data nor `navigation()` unblocked new content, then
-        // the result can be used as a shell (indicated via `null`). Otherwise,
-        // send a byte length to indicate where the shell content ends.
+        // If neither link data nor `navigation()` unblocked new content, the
+        // whole response can be used as a shell, so we list nothing.
+        // Otherwise, we send where the shell ends.
         // NOTE: we must capture this *before* closing the accumulators below,
         // which emit new rows. If the render stopped before the
         // NavigationRuntime stage, that stage's count is the same as
@@ -1976,10 +1978,10 @@ async function finalRuntimeServerPrerender(
         const didNavigationUnblockNewContent =
           stageByteLengths[RenderStage.NavigationRuntime] >
           stageByteLengths[RenderStage.PrefetchRuntime]
-        mode.shellByteLengthDeferred.resolve(
+        mode.stageByteLengthsDeferred.resolve(
           didLinkDataUnblockNewContent || didNavigationUnblockNewContent
-            ? stageByteLengths[RenderStage.ShellRuntime]
-            : null
+            ? [stageByteLengths[RenderStage.ShellRuntime]]
+            : []
         )
       }
 
@@ -2057,7 +2059,7 @@ async function getRSCPayload(
     is404: boolean
     isPrerendering: boolean
     staleTimeIterable?: AsyncIterable<number>
-    shellByteLengthPromise?: Promise<number | null>
+    stageByteLengthsPromise?: Promise<Array<number>>
     runtimePrefetchStream?: ReadableStream<Uint8Array>
   }
 ): Promise<InitialRSCPayload & { P: ReactNode }> {
@@ -2065,7 +2067,7 @@ async function getRSCPayload(
     is404,
     isPrerendering,
     staleTimeIterable,
-    shellByteLengthPromise,
+    stageByteLengthsPromise,
     runtimePrefetchStream,
   } = options
   const injectedCSS = new Set<string>()
@@ -2194,7 +2196,7 @@ async function getRSCPayload(
     S: ctx.renderCapabilities.supportsPerSegmentPrefetching,
     r: getRootParamsVaryParamsAccumulator() ?? undefined,
     s: staleTimeIterable,
-    a: shellByteLengthPromise,
+    a: stageByteLengthsPromise,
     p: runtimePrefetchStream,
     // Include the per-page dynamic stale time from unstable_dynamicStaleTime, but
     // only for dynamic renders. The client treats its presence as
@@ -3899,9 +3901,8 @@ async function renderToStream(
           selectStaleTime
         )
 
-        const shellByteLengthDeferred = createPromiseWithResolvers<
-          number | null
-        >()
+        const stageByteLengthsDeferred =
+          createPromiseWithResolvers<Array<number>>()
 
         let runtimePrefetchStream: ReadableStream<Uint8Array> | undefined
         let startRuntimePrefetchRender: (() => Promise<void>) | undefined
@@ -3961,7 +3962,7 @@ async function renderToStream(
             is404: res.statusCode === 404,
             isPrerendering: false,
             staleTimeIterable,
-            shellByteLengthPromise: shellByteLengthDeferred.promise,
+            stageByteLengthsPromise: stageByteLengthsDeferred.promise,
             runtimePrefetchStream,
           }
         )
@@ -3995,7 +3996,8 @@ async function renderToStream(
             const shellStream = replayable.createReplayStream()
 
             void countShellBytes(shellStream, stageController).then(
-              shellByteLengthDeferred.resolve
+              (shellByteLength) =>
+                stageByteLengthsDeferred.resolve([shellByteLength])
             )
 
             return dynamicStream
@@ -9537,9 +9539,8 @@ async function prerenderToStream(
         isFallbackUpgradeable: renderOpts.isFallbackUpgradeable === true,
       }
 
-      const shellByteLengthDeferred = createPromiseWithResolvers<
-        number | null
-      >()
+      const stageByteLengthsDeferred =
+        createPromiseWithResolvers<Array<number>>()
 
       const finalServerPayload = await workUnitAsyncStorage.run(
         finalServerPayloadPrerenderStore,
@@ -9549,7 +9550,7 @@ async function prerenderToStream(
         {
           is404: res.statusCode === 404,
           isPrerendering: true,
-          shellByteLengthPromise: shellByteLengthDeferred.promise,
+          stageByteLengthsPromise: stageByteLengthsDeferred.promise,
         }
       )
 
@@ -9729,12 +9730,22 @@ async function prerenderToStream(
           // which is scheduled in a (fast) immediate, so we do this in a separate task
           // (fast immediates will be drained at the end of the task, so in the next task we know we're done flushing)
 
-          // Check if new chunks were emitted after unblocking link data or navigation().
+          // List where the shell ends, if new chunks were emitted after
+          // unblocking link data or navigation().
           // NOTE: we must capture this *before* resolving staleTime/varyParams,
           // which always emit new static chunks.
-          const hasMoreContentThanShell =
+          const stageByteLengths: Array<number> = []
+          if (
             collectedChunksByStage[RenderStage.Static].length >
             collectedChunksByStage[RenderStage.ShellStatic].length
+          ) {
+            stageByteLengths.push(
+              collectedChunksByStage[RenderStage.ShellStatic].reduce(
+                (acc, chunk) => acc + chunk.byteLength,
+                0
+              )
+            )
+          }
 
           // Now that the prerendering is complete, we know the final stale
           // time and vary params. Close the stale time iterable and resolve
@@ -9748,14 +9759,7 @@ async function prerenderToStream(
           finishPrerenderDataTracking(prerenderDataTracking)
           finishAccumulatingVaryParams(varyParamsAccumulator)
 
-          shellByteLengthDeferred.resolve(
-            hasMoreContentThanShell
-              ? collectedChunksByStage[RenderStage.ShellStatic].reduce(
-                  (acc, chunk) => acc + chunk.byteLength,
-                  0
-                )
-              : null
-          )
+          stageByteLengthsDeferred.resolve(stageByteLengths)
         },
         () => {
           if (checkUnexpectedAbort()) return
