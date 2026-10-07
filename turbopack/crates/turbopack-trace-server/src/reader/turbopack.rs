@@ -1,6 +1,5 @@
 use std::{
     borrow::Cow,
-    collections::hash_map::Entry,
     mem::transmute,
     ops::{Deref, DerefMut},
     sync::Arc,
@@ -67,7 +66,6 @@ pub struct TurbopackFormat {
     queued_rows: FxHashMap<u64, Vec<InternalRow>>,
     outdated_spans: FxHashSet<SpanIndex>,
     thread_stacks: FxHashMap<u64, Vec<u64>>,
-    thread_allocation_counters: FxHashMap<u64, Allocations>,
     self_time_started: FxHashMap<(u64, u64), Timestamp>,
     interner: RcStrInterning,
 }
@@ -86,7 +84,6 @@ impl TurbopackFormat {
             queued_rows: FxHashMap::with_capacity_and_hasher(1_024, Default::default()),
             outdated_spans: FxHashSet::with_capacity_and_hasher(8_192, Default::default()),
             thread_stacks: FxHashMap::with_capacity_and_hasher(64, Default::default()),
-            thread_allocation_counters: FxHashMap::with_capacity_and_hasher(64, Default::default()),
             self_time_started: FxHashMap::with_capacity_and_hasher(256, Default::default()),
             interner: RcStrInterning::new(),
         }
@@ -161,7 +158,7 @@ impl TurbopackFormat {
             } => {
                 // Allocations up to this point belong to the span that was running before.
                 if let Some(allocations) = allocations {
-                    self.process_allocation_counters(store, thread_id, allocations);
+                    self.add_allocations(store, thread_id, allocations);
                 }
                 let ts = Timestamp::from_micros(ts);
                 let stack = self.thread_stacks.entry(thread_id).or_default();
@@ -195,7 +192,7 @@ impl TurbopackFormat {
             } => {
                 // Allocations up to this point belong to the span that is exited.
                 if let Some(allocations) = allocations {
-                    self.process_allocation_counters(store, thread_id, allocations);
+                    self.add_allocations(store, thread_id, allocations);
                 }
                 let ts = Timestamp::from_micros(ts);
                 let stack = self.thread_stacks.entry(thread_id).or_default();
@@ -267,33 +264,6 @@ impl TurbopackFormat {
                 store.add_memory_sample(ts, memory, memory_pressure, active_worker_threads);
             }
         }
-    }
-
-    /// Processes the cumulative allocation counters of a thread. The difference to the previous
-    /// counters of the thread is attributed to the span on top of the thread's stack.
-    fn process_allocation_counters(
-        &mut self,
-        store: &mut StoreWriteGuard,
-        thread_id: u64,
-        counters: Allocations,
-    ) {
-        let diff = match self.thread_allocation_counters.entry(thread_id) {
-            Entry::Occupied(mut entry) => {
-                let previous = std::mem::replace(entry.get_mut(), counters);
-                Allocations {
-                    allocations: counters.allocations - previous.allocations,
-                    allocation_count: counters.allocation_count - previous.allocation_count,
-                    deallocations: counters.deallocations - previous.deallocations,
-                    deallocation_count: counters.deallocation_count - previous.deallocation_count,
-                }
-            }
-            Entry::Vacant(entry) => {
-                // The first counters of a thread are only the baseline.
-                entry.insert(counters);
-                return;
-            }
-        };
-        self.add_allocations(store, thread_id, diff);
     }
 
     /// Attributes (de)allocations of a thread to the span on top of the thread's stack.
@@ -605,15 +575,15 @@ mod tests {
         };
         let rows = [
             start(1, None, "outer"),
-            // Baseline counters
-            enter(1, 1, allocations(1000, 1000)),
+            // Nothing allocated before
+            enter(1, 1, None),
             start(2, Some(1), "inner"),
             // 100 bytes allocated in "outer" before "inner" is entered
-            enter(2, 2, allocations(1100, 1000)),
+            enter(2, 2, allocations(100, 0)),
             // 50 bytes allocated and 20 bytes deallocated in "inner"
-            exit(3, 2, allocations(1150, 1020)),
+            exit(3, 2, allocations(50, 20)),
             // 7 bytes allocated in "outer" after "inner" is exited
-            exit(4, 1, allocations(1157, 1020)),
+            exit(4, 1, allocations(7, 0)),
             TraceRow::End { ts: 5, id: 2 },
             TraceRow::End { ts: 5, id: 1 },
         ];
