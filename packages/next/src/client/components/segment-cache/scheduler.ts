@@ -2183,12 +2183,9 @@ function pingSegmentBundle(
           // During a static shell attempt, a rejected entry is skipped
           // outright: no retry revalidation, and — deliberately — no runtime
           // fallback either (per-segment rejection semantics; the entry's
-          // staleAt governs when it may be retried). Note that the cache
-          // path encodes "no shell exists" (a static response whose shell
-          // byte offset is 0, i.e. the page wasn't produced by staged
-          // rendering) as a rejection too, so such segments get no shell
-          // prefetch at all — an edge that shouldn't occur for hint-set
-          // Cache Components routes.
+          // staleAt governs when it may be retried). A response with no shell
+          // is recorded as a rejection, so these segments get no shell
+          // prefetch.
           walkStage !== AppStage.Shell &&
           // A rejected entry keeps what its request was expected to return.
           // Only retry if that wouldn't have been enough for this prefetch.
