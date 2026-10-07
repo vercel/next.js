@@ -2,13 +2,9 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry, waitFor } from 'next-test-utils'
 
 describe('use-cache-custom-handler-dev', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
   })
-
-  if (skipped) {
-    return
-  }
 
   // Reads the rendered cache value over HTTP instead of through the browser. A
   // dev page reload costs seconds on a CI runner, almost all of it downloading

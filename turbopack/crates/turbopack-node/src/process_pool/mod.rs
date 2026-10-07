@@ -311,7 +311,7 @@ impl NodeJsPoolProcess {
         shared_stderr: SharedOutputSet,
         debug: bool,
     ) -> Result<Self> {
-        let guard = duration_span!("Node.js process startup");
+        let guard = duration_span!("Node.js process startup", blocking = false);
         let listener = TcpListener::bind("127.0.0.1:0")
             .await
             .context("binding to a port")?;
@@ -437,7 +437,7 @@ impl NodeJsPoolProcess {
 
         drop(guard);
 
-        let guard = duration_span!("Node.js initialization");
+        let guard = duration_span!("Node.js initialization", blocking = false);
         let ready_signal = process.recv().await?;
 
         if !ready_signal.is_empty() {
@@ -739,7 +739,7 @@ impl EvaluateOperation for ChildProcessPool {
         // Acquire a running process (handles concurrency limits, boots up the process)
 
         let operation = {
-            let _guard = duration_span!("Node.js operation");
+            let _guard = duration_span!("Node.js operation", blocking = true);
             let (process, permits) = self.acquire_process().await?;
             ChildProcessOperation {
                 process: Some(process),

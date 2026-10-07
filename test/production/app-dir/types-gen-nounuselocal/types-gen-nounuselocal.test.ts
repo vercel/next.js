@@ -6,13 +6,9 @@ const strictRouteTypes =
   process.env.__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES === 'true'
 
 describe('types-gen-nounuselocal', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should build successfully', async () => {
     const $ = await next.render$('/')

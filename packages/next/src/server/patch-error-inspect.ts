@@ -13,7 +13,7 @@ import {
 import { parseStack, type StackFrame } from './lib/parse-stack'
 import type { IgnorableStackFrame } from '../next-devtools/server/shared'
 import { workUnitAsyncStorage } from './app-render/work-unit-async-storage.external'
-import { dim, italic } from '../lib/picocolors'
+import { dim, italic, stdoutIsTerminal } from '../lib/picocolors'
 
 type FindSourceMapPayload = (
   sourceURL: string
@@ -75,7 +75,7 @@ export function setCodeFrameRenderer(renderer: CodeFrameRenderer): void {
 function getOriginalCodeFrame(
   frame: IgnorableStackFrame,
   source: string | null,
-  colors: boolean = process.stdout.isTTY
+  colors: boolean = stdoutIsTerminal
 ): string | null {
   const codeFrameRenderer = (globalThis as GlobalWithCodeFrameRenderer)[
     CODE_FRAME_RENDERER

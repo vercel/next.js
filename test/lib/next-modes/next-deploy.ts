@@ -493,23 +493,6 @@ export class NextDeployInstance extends NextInstance {
       )
     }
 
-    // Add experimental feature flags
-
-    if (process.env.__NEXT_CACHE_COMPONENTS) {
-      additionalEnv.push(
-        `NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS=${process.env.__NEXT_CACHE_COMPONENTS}`
-      )
-    }
-    if (process.env.__NEXT_PARTIAL_PREFETCHING) {
-      additionalEnv.push(
-        `NEXT_PRIVATE_EXPERIMENTAL_PARTIAL_PREFETCHING=${process.env.__NEXT_PARTIAL_PREFETCHING}`
-      )
-    }
-    if (process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS) {
-      additionalEnv.push(
-        `NEXT_PRIVATE_EXPERIMENTAL_CACHED_NAVIGATIONS=${process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS}`
-      )
-    }
     if (process.env.IS_TURBOPACK_TEST) {
       additionalEnv.push(`IS_TURBOPACK_TEST=1`)
     }

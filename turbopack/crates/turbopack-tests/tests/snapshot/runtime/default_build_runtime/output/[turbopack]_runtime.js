@@ -55,15 +55,15 @@ function defineProp(obj, name, options) {
     if (!hasOwnProperty.call(obj, name)) Object.defineProperty(obj, name, options);
 }
 function getOverwrittenModule(moduleCache, id) {
-    let module = moduleCache[id];
-    if (!module) {
+    let module = moduleCache.get(id);
+    if (module === undefined) {
         if (createModuleWithDirectionFlag) {
             // set in development modes for hmr support
             module = createModuleWithDirection(id);
         } else {
             module = createModuleObject(id);
         }
-        moduleCache[id] = module;
+        moduleCache.set(id, module);
     }
     return module;
 }
@@ -628,6 +628,14 @@ contextPrototype.U = relativeURL;
     return `Module ${moduleId} was instantiated ${instantiationReason}, but the module factory is not available.`;
 }
 /**
+ * Returns a `file://` URL under a synthetic directory named after `root`
+ * (`ROOT` for the project root), for when the real filesystem path is unknown.
+ * The root name and path segments are percent-encoded so the result is always
+ * a valid file URI.
+ */ function placeholderFileUrl(modulePath, root) {
+    return `file:///${encodeURIComponent(root ?? 'ROOT')}/${modulePath.split('/').map(encodeURIComponent).join('/')}`;
+}
+/**
  * A stub function to make `require` available but non-functional in ESM.
  */ function requireStub(_moduleId) {
     throw new Error('dynamic usage of require is not supported');
@@ -704,12 +712,19 @@ const ABSOLUTE_ROOT = path.resolve(__filename, relativePathToDistRoot);
 }
 Context.prototype.P = resolveAbsolutePath;
 /**
- * Returns an absolute `file://` URL for the given module path.
+ * Returns an absolute `file://` URL for the given module path, which is
+ * relative to the project root or the named `root`.
  *
  * Uses `url.pathToFileURL` so that the resulting URL is a valid file URI on
  * all platforms (forward slashes on Windows, drive letters handled
  * correctly, path segments URL-encoded).
- */ function resolveFileUrl(modulePath) {
+ *
+ * The location of a named `root` isn't known at runtime (the output may have
+ * been moved away from the sources), so this returns a placeholder URL for it.
+ */ function resolveFileUrl(modulePath, root) {
+    if (root !== undefined) {
+        return placeholderFileUrl(modulePath, root);
+    }
     return require('url').pathToFileURL(resolveAbsolutePath(modulePath)).href;
 }
 Context.prototype.F = resolveFileUrl;
@@ -723,7 +738,7 @@ Context.prototype.F = resolveFileUrl;
  */ process.env.TURBOPACK = '1';
 const url = require('url');
 const moduleFactories = new Map();
-const moduleCache = Object.create(null);
+const moduleCache = new Map();
 /**
  * Returns an absolute path to the given module's id.
  */ function resolvePathFromModule(moduleId) {
@@ -852,7 +867,7 @@ function instantiateModule(id, sourceType, sourceData) {
     }
     const module1 = createModuleWithDirection(id);
     const exports = module1.exports;
-    moduleCache[id] = module1;
+    moduleCache.set(id, module1);
     const context = new Context(module1, exports);
     // NOTE(alexkirsz) This can fail when the module encounters a runtime error.
     try {
@@ -873,7 +888,7 @@ function instantiateModule(id, sourceType, sourceData) {
  * Retrieves a module from the cache, or instantiate it if it is not cached.
  */ // @ts-ignore
 function getOrInstantiateModuleFromParent(id, sourceModule) {
-    const module1 = moduleCache[id];
+    const module1 = moduleCache.get(id);
     if (module1) {
         if (module1.error) {
             throw module1.error;
@@ -891,7 +906,7 @@ function getOrInstantiateModuleFromParent(id, sourceModule) {
  * Retrieves a module from the cache, or instantiate it as a runtime module if it is not cached.
  */ // @ts-ignore TypeScript doesn't separate this module space from the browser runtime
 function getOrInstantiateRuntimeModule(chunkPath, moduleId) {
-    const module1 = moduleCache[moduleId];
+    const module1 = moduleCache.get(moduleId);
     if (module1) {
         if (module1.error) {
             throw module1.error;

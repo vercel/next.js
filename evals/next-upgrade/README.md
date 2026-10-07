@@ -39,7 +39,7 @@ fixtures fail before execution, and infrastructure failures are retained in the 
 
 Feature PRs add ordinary npm app fixtures with exact dependency versions,
 `PROMPT.md`, and `EVAL.ts`. Explicit upgrade scenarios invoke
-`npx next@canary upgrade --ai`. Reminder scenarios keep the original task prompt
+`npx next@canary upgrade --agent`. Reminder scenarios keep the original task prompt
 unchanged so the eval can attribute acknowledgment to the runtime notice. Feature
 PRs own browser setup, repository remotes, advisory responses, codemod routing,
 grading, and reference or negative controls. Keep graders and reference solutions

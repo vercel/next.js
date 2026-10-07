@@ -118,15 +118,15 @@ function getOverwrittenModule(
   moduleCache: ModuleCache<Module>,
   id: ModuleId
 ): Module {
-  let module = moduleCache[id]
-  if (!module) {
+  let module = moduleCache.get(id)
+  if (module === undefined) {
     if (createModuleWithDirectionFlag) {
       // set in development modes for hmr support
       module = createModuleWithDirection(id)
     } else {
       module = createModuleObject(id)
     }
-    moduleCache[id] = module
+    moduleCache.set(id, module)
   }
   return module
 }
@@ -844,6 +844,19 @@ function factoryNotAvailableMessage(
       )
   }
   return `Module ${moduleId} was instantiated ${instantiationReason}, but the module factory is not available.`
+}
+
+/**
+ * Returns a `file://` URL under a synthetic directory named after `root`
+ * (`ROOT` for the project root), for when the real filesystem path is unknown.
+ * The root name and path segments are percent-encoded so the result is always
+ * a valid file URI.
+ */
+function placeholderFileUrl(modulePath: string, root?: string): string {
+  return `file:///${encodeURIComponent(root ?? 'ROOT')}/${modulePath
+    .split('/')
+    .map(encodeURIComponent)
+    .join('/')}`
 }
 
 /**

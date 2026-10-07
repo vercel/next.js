@@ -186,7 +186,6 @@ pub async fn get_server_resolve_options_context(
     external_packages.retain(|item| !transpiled_packages.contains(item));
 
     let server_external_packages_plugin = ExternalCjsModulesResolvePlugin::new(
-        project_path.root().owned().await?,
         ExternalPredicate::Only(ResolvedVc::cell(external_packages)).cell(),
         *next_config.import_externals().await?,
     )
@@ -211,7 +210,6 @@ pub async fn get_server_resolve_options_context(
         server_external_packages_plugin
     } else {
         ExternalCjsModulesResolvePlugin::new(
-            project_path.root().owned().await?,
             ExternalPredicate::AllExcept(ResolvedVc::cell(transpiled_packages)).cell(),
             *next_config.import_externals().await?,
         )
@@ -219,13 +217,10 @@ pub async fn get_server_resolve_options_context(
         .await?
     };
 
-    let next_external_plugin = NextExternalResolvePlugin::new(project_path.clone())
+    let next_external_plugin = NextExternalResolvePlugin::new().to_resolved().await?;
+    let next_node_shared_runtime_plugin = NextNodeSharedRuntimeResolvePlugin::new(ty.clone())
         .to_resolved()
         .await?;
-    let next_node_shared_runtime_plugin =
-        NextNodeSharedRuntimeResolvePlugin::new(project_path.clone(), ty.clone())
-            .to_resolved()
-            .await?;
 
     let after_resolve_plugins = match ty {
         ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. } => {
@@ -552,6 +547,9 @@ pub async fn get_server_module_options_context(
             infer_module_side_effects: *next_config.turbopack_infer_module_side_effects().await?,
             cjs_tree_shaking: *next_config.turbopack_cjs_tree_shaking().await?,
             mangle_export_names: *next_config.turbopack_mangle_export_names(mode).await?,
+            mangle_via_materialized_namespace_object: *next_config
+                .turbopack_mangle_via_materialized_namespace_object()
+                .await?,
             cjs_scope_hoisting: *next_config.turbopack_cjs_scope_hoisting().await?,
             cross_module_constants: *next_config.turbopack_cross_module_constants().await?,
             ..Default::default()

@@ -76,6 +76,7 @@ import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import type { Params } from '../server/request/params'
 import { Bundler } from '../lib/bundler'
+import { getBuildDistDir } from './utils'
 
 export class ExportError extends Error {
   code = 'NEXT_EXPORT_ERROR'
@@ -212,7 +213,7 @@ async function exportAppImpl(
       })
     ))
 
-  const distDir = join(dir, nextConfig.distDir)
+  const distDir = join(dir, getBuildDistDir(nextConfig))
   const telemetry = options.buildExport ? null : new Telemetry({ distDir })
 
   if (telemetry) {
@@ -397,13 +398,6 @@ async function exportAppImpl(
       )
   }
 
-  // Get the exportPathMap from the config file
-  if (typeof nextConfig.exportPathMap !== 'function') {
-    nextConfig.exportPathMap = async (defaultMap) => {
-      return defaultMap
-    }
-  }
-
   const {
     i18n,
     images: { loader = 'default', unoptimized },
@@ -550,6 +544,10 @@ async function exportAppImpl(
   const exportPathMap = await span
     .traceChild('run-export-path-map')
     .traceAsyncFn(async () => {
+      if (typeof nextConfig.exportPathMap !== 'function') {
+        return defaultPathMap
+      }
+
       const exportMap = await nextConfig.exportPathMap(defaultPathMap, {
         dev: false,
         dir,
