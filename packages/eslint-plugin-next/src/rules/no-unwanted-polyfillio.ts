@@ -91,7 +91,15 @@ export default defineRule({
     return {
       ImportDeclaration(node) {
         if (node.source && node.source.value === 'next/script') {
-          scriptImport = node.specifiers[0].local.name
+          const defaultSpecifier = node.specifiers.find(
+            (specifier) => specifier.type === 'ImportDefaultSpecifier'
+          )
+          // A side-effect import (`import 'next/script'`) has no specifiers,
+          // and a purely named import has no default specifier — in neither
+          // case is there a `next/script` component to track.
+          if (defaultSpecifier) {
+            scriptImport = defaultSpecifier.local.name
+          }
         }
       },
       JSXOpeningElement(node) {
@@ -109,7 +117,7 @@ export default defineRule({
         const srcNode = node.attributes.find(
           (attr) => attr.type === 'JSXAttribute' && attr.name.name === 'src'
         )
-        if (!srcNode || srcNode.value.type !== 'Literal') {
+        if (!srcNode || !srcNode.value || srcNode.value.type !== 'Literal') {
           return
         }
         const src = srcNode.value.value
