@@ -1,4 +1,5 @@
 .tarballs/
 results/
+experiments/ci-*.ts
 .env
 .env.local

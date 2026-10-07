@@ -4,7 +4,10 @@ import type { Sandbox } from '@vercel/agent-eval'
 
 export const toolsDirectory = '/tmp/next-upgrade-eval'
 
-export async function setupUpgrade(sandbox: Sandbox) {
+export async function setupUpgrade(
+  sandbox: Sandbox,
+  selectedFixture: string | undefined = undefined
+) {
   const run = async (command: string, args: string[]) => {
     const result = await sandbox.runCommand(command, args)
     if (result.exitCode !== 0)
@@ -20,7 +23,7 @@ export async function setupUpgrade(sandbox: Sandbox) {
       'Run through pnpm eval:upgrade to provide the candidate packages'
     )
 
-  const fixture = process.env.NEXT_UPGRADE_EVAL_CASE
+  const fixture = selectedFixture ?? process.env.NEXT_UPGRADE_EVAL_CASE
   if (!fixture) throw new Error('Select one upgrade eval case')
   const fixtureDirectory = join(__dirname, '../evals', fixture)
   const baselineFiles = Object.fromEntries(
