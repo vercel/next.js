@@ -25,6 +25,8 @@ mod dyn_task_inputs;
 mod effect;
 mod error;
 pub mod event;
+// EXPERIMENT (not for merge)
+pub mod experiment_lock_stats;
 pub mod graph;
 mod id;
 mod id_factory;

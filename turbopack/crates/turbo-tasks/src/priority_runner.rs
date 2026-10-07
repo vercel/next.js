@@ -2,20 +2,23 @@ use std::{
     collections::BinaryHeap,
     fmt::Debug,
     future::Future,
-    hash::Hash,
+    hash::{BuildHasherDefault, Hash},
     pin::Pin,
     ptr::drop_in_place,
     sync::{
         Arc,
-        atomic::{AtomicUsize, Ordering},
+        atomic::{AtomicU64, AtomicUsize, Ordering},
     },
     task::{Context, Poll},
     time::{Duration, Instant},
 };
 
+use dashmap::DashMap;
 use parking_lot::Mutex;
 use pin_project_lite::pin_project;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHasher};
+
+use crate::experiment_lock_stats as lock_stats;
 
 pub trait Executor<C, T, P>: Send + Sync {
     type Future: Future<Output = ()> + Send;
@@ -92,7 +95,10 @@ struct Queue<P, T: Claimable> {
     /// The priority is stored here as well as in the heap entry because [`Queue::claim`] finds an
     /// item by key and never touches the heap, so unlike [`Queue::pop`] it has no heap entry to
     /// read it from — and [`Executor::execute`] needs the priority.
-    slots: Vec<Option<(P, T)>>,
+    ///
+    /// EXPERIMENT (local slot): the `u64` is the item's schedule sequence number, see
+    /// [`PriorityRunner::latest`].
+    slots: Vec<Option<(P, T, u64)>>,
     /// Recycled indices into `slots`.
     free_slots: Vec<usize>,
     /// Slot index of the claimable item for each key.
@@ -100,6 +106,9 @@ struct Queue<P, T: Claimable> {
     /// How many items were ever pushed. Diagnostics only, see [`PriorityRunner::total_queued`].
     #[cfg(feature = "inline_execution_stats")]
     pushes: u64,
+    /// EXPERIMENT (not for merge): number of live (not claimed, not popped) items. Unlike
+    /// `heap.len()` this excludes tombstones of claimed items.
+    live: usize,
 }
 
 impl<P: Clone + Ord, T: Claimable> Queue<P, T> {
@@ -111,6 +120,7 @@ impl<P: Clone + Ord, T: Claimable> Queue<P, T> {
             claimable: FxHashMap::default(),
             #[cfg(feature = "inline_execution_stats")]
             pushes: 0,
+            live: 0,
         }
     }
 
@@ -120,7 +130,13 @@ impl<P: Clone + Ord, T: Claimable> Queue<P, T> {
         self.heap.is_empty()
     }
 
-    fn push(&mut self, priority: P, task: T) {
+    /// Pushes an item. `seq` is its schedule sequence number.
+    ///
+    /// With `newest_by_seq == false` (local slot off) the most recently *pushed* item with a key is
+    /// the claimable one, as before. With `newest_by_seq == true` (local slot on) an item that was
+    /// parked locally and is flushed late must not hide a newer item with the same key, so the
+    /// claimable mapping keeps pointing at the item with the highest `seq`.
+    fn push(&mut self, priority: P, task: T, seq: u64, newest_by_seq: bool) {
         #[cfg(feature = "inline_execution_stats")]
         {
             self.pushes += 1;
@@ -128,29 +144,39 @@ impl<P: Clone + Ord, T: Claimable> Queue<P, T> {
         let key = task.claim_key();
         let heap_priority = priority.clone();
         let slot = if let Some(slot) = self.free_slots.pop() {
-            self.slots[slot] = Some((priority, task));
+            self.slots[slot] = Some((priority, task, seq));
             slot
         } else {
-            self.slots.push(Some((priority, task)));
+            self.slots.push(Some((priority, task, seq)));
             self.slots.len() - 1
         };
         if let Some(key) = key {
             // If this key is already queued, the older item stops being claimable. It stays in the
             // queue and is executed by a worker as usual.
-            self.claimable.insert(key, slot);
+            let keep_existing = newest_by_seq
+                && self.claimable.get(&key).is_some_and(|&existing| {
+                    self.slots[existing]
+                        .as_ref()
+                        .is_some_and(|(_, _, existing_seq)| *existing_seq > seq)
+                });
+            if !keep_existing {
+                self.claimable.insert(key, slot);
+            }
         }
         self.heap.push(HeapItem {
             priority: heap_priority,
             slot,
         });
+        self.live += 1;
     }
 
     /// Pops the highest priority item, skipping tombstones of claimed items.
-    fn pop(&mut self) -> Option<(P, T)> {
+    fn pop(&mut self) -> Option<(P, T, u64)> {
         while let Some(HeapItem { slot, .. }) = self.heap.pop() {
             let entry = self.slots[slot].take();
             self.free_slots.push(slot);
-            if let Some((priority, task)) = entry {
+            if let Some((priority, task, seq)) = entry {
+                self.live -= 1;
                 if let Some(key) = task.claim_key() {
                     // Only remove the mapping when it still points at this item. A newer item with
                     // the same key must stay claimable.
@@ -159,19 +185,30 @@ impl<P: Clone + Ord, T: Claimable> Queue<P, T> {
                     }
                 }
                 self.shrink_amortized();
-                return Some((priority, task));
+                return Some((priority, task, seq));
             }
         }
         self.shrink_amortized();
         None
     }
 
-    /// Removes the queued item with the given key, if it is still queued and claimable.
-    fn claim(&mut self, key: &T::Key) -> Option<(P, T)> {
-        let slot = self.claimable.remove(key)?;
+    /// Removes the queued item with the given key, if it is still queued and claimable and its
+    /// sequence number is accepted by `accept_seq`. A rejected item stays queued (and keeps its
+    /// claimable mapping), so a worker still executes it.
+    fn claim(&mut self, key: &T::Key, accept_seq: impl FnOnce(u64) -> bool) -> Option<(P, T)> {
+        let slot = *self.claimable.get(key)?;
+        let seq = self.slots.get(slot)?.as_ref()?.2;
+        if !accept_seq(seq) {
+            return None;
+        }
+        self.claimable.remove(key);
         // The slot is intentionally not recycled here: its heap entry is still around as a
         // tombstone and must not start pointing at a different item.
-        self.slots.get_mut(slot).and_then(|slot| slot.take())
+        let claimed = self.slots.get_mut(slot).and_then(|slot| slot.take());
+        if claimed.is_some() {
+            self.live -= 1;
+        }
+        claimed.map(|(priority, task, _)| (priority, task))
     }
 
     /// Amortized shrinking of the queue, but with a lower threshold to avoid
@@ -205,6 +242,16 @@ pub struct PriorityRunner<
     /// The number of active workers currently polling tasks.
     /// Workers that responded with Poll::Pending are not counted until they are polled again.
     active_workers: AtomicUsize,
+    /// EXPERIMENT (local slot): monotonically increasing schedule sequence number.
+    next_seq: AtomicU64,
+    /// EXPERIMENT (local slot): the sequence number of the newest scheduled item per claim key,
+    /// while it is still queued (locally or in the shared queue). Only maintained while the local
+    /// slot is enabled. Exactly the item with this sequence number is claimable; consuming it
+    /// (claim or pop) removes the entry, so older items with the same key never become claimable.
+    latest: DashMap<T::Key, u64, BuildHasherDefault<FxHasher>>,
+    /// EXPERIMENT (local slot): advisory copy of the shared queue's live item count (excluding
+    /// tombstones), written under the queue lock and read without it by adaptive parking.
+    live_hint: AtomicUsize,
     phantom: std::marker::PhantomData<C>,
 }
 
@@ -216,10 +263,10 @@ impl<
 > PriorityRunner<C, T, P, E>
 {
     pub fn new(executor: E) -> Self {
-        Self::with_target_workers(
-            executor,
-            tokio::runtime::Handle::current().metrics().num_workers(),
-        )
+        let target_workers = tokio::runtime::Handle::current().metrics().num_workers();
+        lock_stats::ensure_dumper();
+        lock_stats::TARGET_WORKERS.store(target_workers, Ordering::Relaxed);
+        Self::with_target_workers(executor, target_workers)
     }
 
     fn with_target_workers(executor: E, target_workers: usize) -> Self {
@@ -228,6 +275,9 @@ impl<
             target_workers,
             queue: Mutex::new(Queue::new()),
             active_workers: AtomicUsize::new(0),
+            next_seq: AtomicU64::new(0),
+            latest: DashMap::default(),
+            live_hint: AtomicUsize::new(0),
             phantom: std::marker::PhantomData,
         }
     }
@@ -240,8 +290,63 @@ impl<
         self.queue.lock().pushes
     }
 
+    fn record_gauges(&self, queue: &Queue<P, T>) {
+        // EXPERIMENT (local slot): keep the advisory live hint current. Written under the queue
+        // lock; adaptive parking reads it without the lock.
+        self.live_hint.store(queue.live, Ordering::Relaxed);
+        if *lock_stats::ENABLED {
+            lock_stats::record_queue_len(queue.heap.len(), queue.live);
+            lock_stats::ACTIVE_WORKERS.store(
+                self.active_workers.load(Ordering::Relaxed),
+                Ordering::Relaxed,
+            );
+        }
+    }
+
+    /// EXPERIMENT (local slot): forgets `key`'s newest-item entry if it still refers to `seq`.
+    fn consumed(&self, key: Option<T::Key>, seq: u64) {
+        if let Some(key) = key {
+            self.latest.remove_if(&key, |_, latest| *latest == seq);
+        }
+    }
+
     pub fn schedule(self: &Arc<Self>, execute_context: &Arc<C>, task: T, priority: P) {
-        let mut queue = self.queue.lock();
+        // EXPERIMENT (local slot): see [`local_slot`]. With the slot off this is exactly the
+        // previous behavior (`schedule_to_queue` with push-order newest-wins).
+        let mode = local_slot::mode();
+        // The schedule sequence number is allocated and published while holding the key's
+        // `latest` entry (a DashMap shard lock), so that for each key, a higher sequence number
+        // is always published later. Otherwise a schedule that allocated first but published
+        // last would overwrite a newer entry with an older one. No other lock is taken while
+        // holding the entry. With the slot off, or for unkeyed tasks, the sequence number is
+        // unused (0).
+        let seq = match task.claim_key() {
+            Some(key) if mode != local_slot::Mode::Off => {
+                let entry = self.latest.entry(key);
+                let seq = self.next_seq.fetch_add(1, Ordering::Relaxed);
+                #[cfg(test)]
+                tests::run_after_seq_alloc_hook();
+                entry.insert(seq);
+                seq
+            }
+            _ => 0,
+        };
+        if let Err((task, priority)) =
+            local_slot::try_put(self, execute_context, task, priority, seq, mode)
+        {
+            self.schedule_to_queue(execute_context, task, priority, seq);
+        }
+    }
+
+    fn schedule_to_queue(
+        self: &Arc<Self>,
+        execute_context: &Arc<C>,
+        task: T,
+        priority: P,
+        seq: u64,
+    ) {
+        let newest_by_seq = local_slot::mode() != local_slot::Mode::Off;
+        let mut queue = lock_stats::lock(&self.queue, lock_stats::Site::Schedule);
         if !queue.is_empty() {
             // If there is already work in the queue, we don't have any
             // free capacity so we can just push the task to the queue.
@@ -250,20 +355,36 @@ impl<
             // A worker only stops when it finds the queue empty, so a non-empty queue always has a
             // worker that will drain it. [`claim`](Self::claim) does take work out of the queue
             // without being a worker, but that only ever makes the queue shorter.
-            queue.push(priority, task);
+            queue.push(priority, task, seq, newest_by_seq);
+            self.record_gauges(&queue);
+            if *lock_stats::ENABLED {
+                lock_stats::PUSHES.fetch_add(1, Ordering::Relaxed);
+            }
             return;
         }
         // The queue is empty, so we might have free capacity to spawn a new worker.
         let active_workers = self.active_workers.fetch_add(1, Ordering::Relaxed);
         if active_workers < self.target_workers {
             // We have free capacity, spawn a new worker to execute this task immediately.
+            self.record_gauges(&queue);
+            if *lock_stats::ENABLED {
+                lock_stats::SPAWNS_DIRECT.fetch_add(1, Ordering::Relaxed);
+            }
             drop(queue);
+            // The task is executed directly, so it is no longer claimable.
+            if newest_by_seq {
+                self.consumed(task.claim_key(), seq);
+            }
 
             let future = self.executor.execute(execute_context, task, priority);
             WorkerFuture::spawn(future, execute_context.clone(), self.clone());
         } else {
             // No free capacity, push the task to the queue.
-            queue.push(priority, task);
+            queue.push(priority, task, seq, newest_by_seq);
+            self.record_gauges(&queue);
+            if *lock_stats::ENABLED {
+                lock_stats::PUSHES.fetch_add(1, Ordering::Relaxed);
+            }
             drop(queue);
 
             // Undo the added active worker since we didn't spawn a new worker.
@@ -278,8 +399,40 @@ impl<
     /// The caller takes over the responsibility to drive the returned future to completion; the
     /// task left the queue, so no worker will do it.
     pub fn claim(&self, execute_context: &Arc<C>, key: &T::Key) -> Option<E::Future> {
-        let (priority, task) = self.queue.lock().claim(key)?;
+        let (priority, task) = if local_slot::mode() == local_slot::Mode::Off {
+            self.claim_from_queue(key, |_| true)?
+        } else {
+            // EXPERIMENT (local slot): only the newest scheduled item for `key` is claimable,
+            // wherever it is stored. It is looked up locally first (no shared queue mutex; only a
+            // short DashMap shard read here and a compare-and-remove below), then in the shared
+            // queue.
+            let latest = *self.latest.get(key)?;
+            let claimed = match local_slot::try_take::<C, T, P, E>(self, key, latest) {
+                Some(claimed) => claimed,
+                None => self.claim_from_queue(key, |seq| seq == latest)?,
+            };
+            self.consumed(Some(*key), latest);
+            claimed
+        };
         Some(self.executor.execute(execute_context, task, priority))
+    }
+
+    fn claim_from_queue(
+        &self,
+        key: &T::Key,
+        accept_seq: impl FnOnce(u64) -> bool,
+    ) -> Option<(P, T)> {
+        let mut queue = lock_stats::lock(&self.queue, lock_stats::Site::Claim);
+        let claimed = queue.claim(key, accept_seq);
+        self.record_gauges(&queue);
+        if *lock_stats::ENABLED {
+            if claimed.is_some() {
+                lock_stats::CLAIM_HIT.fetch_add(1, Ordering::Relaxed);
+            } else {
+                lock_stats::CLAIM_MISS.fetch_add(1, Ordering::Relaxed);
+            }
+        }
+        claimed
     }
 
     /// Tries to decrease the active worker count by 1.
@@ -310,8 +463,27 @@ impl<
         }
     }
 
+    fn locked_pop(&self, site: lock_stats::Site) -> Option<(P, T)> {
+        let mut queue = lock_stats::lock(&self.queue, site);
+        let popped = queue.pop();
+        self.record_gauges(&queue);
+        if *lock_stats::ENABLED {
+            if popped.is_some() {
+                lock_stats::POP_HIT.fetch_add(1, Ordering::Relaxed);
+            } else {
+                lock_stats::POP_EMPTY.fetch_add(1, Ordering::Relaxed);
+            }
+        }
+        drop(queue);
+        let (priority, task, seq) = popped?;
+        if local_slot::mode() != local_slot::Mode::Off {
+            self.consumed(task.claim_key(), seq);
+        }
+        Some((priority, task))
+    }
+
     fn pop_future_from_worker(&self, execute_context: &Arc<C>) -> Option<E::Future> {
-        let popped = self.queue.lock().pop();
+        let popped = self.locked_pop(lock_stats::Site::PopFromWorker);
         popped.map(|(priority, task)| self.executor.execute(execute_context, task, priority))
     }
 
@@ -320,7 +492,7 @@ impl<
         execute_context: &Arc<C>,
         unused_active_count: bool,
     ) -> bool {
-        let popped = self.queue.lock().pop();
+        let popped = self.locked_pop(lock_stats::Site::SpawnIfAvailable);
         if let Some((priority, task)) = popped {
             let new_future = self.executor.execute(execute_context, task, priority);
 
@@ -409,7 +581,12 @@ impl<
                 WorkerState::Closed => return Poll::Ready(()),
                 WorkerState::PendingFuture => unreachable!(),
                 WorkerState::UnfinishedFuture => {
-                    match this.future.as_mut().poll(cx) {
+                    let poll = {
+                        let _slot_scope = local_slot::WorkerPollScope::enter();
+                        this.future.as_mut().poll(cx)
+                        // `_slot_scope` drop flushes a task left in the local slot
+                    };
+                    match poll {
                         Poll::Ready(()) => {
                             *this.state = WorkerState::Done;
 
@@ -464,6 +641,287 @@ impl<
                         return Poll::Ready(());
                     }
                 }
+            }
+        }
+    }
+}
+
+/// EXPERIMENT (not for merge): a per-thread "deferred schedule" buffer ("local slot"), see
+/// `turbopack/crates/turbo-tasks/EXPERIMENT_LOCAL_SLOT.md`.
+///
+/// Most scheduled tasks are read right after being scheduled by the task that scheduled them, and
+/// that read claims the task back out of the shared queue to execute it inline. That costs two
+/// acquisitions of the shared queue lock per task. Instead, while a worker poll is active on this
+/// thread, scheduled tasks are parked in a thread-local buffer (up to a capacity). A claim for a
+/// parked key takes it from the buffer without taking the shared queue mutex (it only touches the
+/// key's sharded `latest` entry). Whatever is still parked is pushed to the
+/// shared queue (via the regular scheduling path) when the worker poll ends, or before a blocking
+/// wait ([`flush`]), so a parked task is not stranded.
+///
+/// Modes (`TURBO_TASKS_EXPERIMENT_LOCAL_SLOT`): unset/`0` = off (default, never parks), `1` or
+/// `always` = park whenever possible, `adaptive` = park only while the shared queue has live items
+/// (an advisory hint), so that idle workers can pick up work immediately when the queue is empty.
+///
+/// Claim-by-key semantics: only the newest scheduled item for a key is claimable, wherever it is
+/// stored (see [`PriorityRunner::latest`]).
+pub(crate) mod local_slot {
+    use std::{
+        any::Any,
+        cell::{Cell, RefCell},
+        sync::{Arc, LazyLock, atomic::Ordering},
+    };
+
+    use super::{Claimable, Executor, PriorityRunner};
+    use crate::experiment_lock_stats as lock_stats;
+
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    pub enum Mode {
+        Off,
+        Always,
+        Adaptive,
+    }
+
+    fn parse_mode(value: Option<&str>) -> Mode {
+        match value {
+            None | Some("") | Some("0") => Mode::Off,
+            Some("1") | Some("always") => Mode::Always,
+            Some("adaptive") => Mode::Adaptive,
+            Some(other) => {
+                eprintln!(
+                    "TURBO_TASKS_EXPERIMENT_LOCAL_SLOT: unknown value {other:?}, using off \
+                     (expected 0, 1, always or adaptive)"
+                );
+                Mode::Off
+            }
+        }
+    }
+
+    static ENV_MODE: LazyLock<Mode> = LazyLock::new(|| {
+        parse_mode(
+            std::env::var("TURBO_TASKS_EXPERIMENT_LOCAL_SLOT")
+                .ok()
+                .as_deref(),
+        )
+    });
+
+    /// Max number of parked tasks per thread (`TURBO_TASKS_EXPERIMENT_LOCAL_SLOT_CAP`, default 16).
+    static ENV_CAPACITY: LazyLock<usize> = LazyLock::new(|| {
+        std::env::var("TURBO_TASKS_EXPERIMENT_LOCAL_SLOT_CAP")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .filter(|&cap| cap >= 1)
+            .unwrap_or(16)
+    });
+
+    thread_local! {
+        static IN_WORKER_POLL: Cell<bool> = const { Cell::new(false) };
+        static SLOT: RefCell<Vec<Box<dyn SlotEntry>>> = const { RefCell::new(Vec::new()) };
+    }
+
+    #[cfg(test)]
+    thread_local! {
+        static TEST_OVERRIDE: Cell<Option<(Mode, usize)>> = const { Cell::new(None) };
+    }
+
+    /// Test-only: overrides mode and capacity for the current thread (`None` restores the env).
+    #[cfg(test)]
+    pub(super) fn set_test_override(value: Option<(Mode, usize)>) {
+        TEST_OVERRIDE.set(value);
+    }
+
+    pub fn mode() -> Mode {
+        #[cfg(test)]
+        if let Some((mode, _)) = TEST_OVERRIDE.get() {
+            return mode;
+        }
+        *ENV_MODE
+    }
+
+    fn capacity() -> usize {
+        #[cfg(test)]
+        if let Some((_, capacity)) = TEST_OVERRIDE.get() {
+            return capacity;
+        }
+        *ENV_CAPACITY
+    }
+
+    trait SlotEntry {
+        fn runner_id(&self) -> usize;
+        fn flush(self: Box<Self>);
+        fn into_any(self: Box<Self>) -> Box<dyn Any>;
+        fn as_any(&self) -> &dyn Any;
+    }
+
+    struct Entry<C, T, P, E>
+    where
+        C: Send + Sync + 'static,
+        T: Claimable + Send + 'static,
+        P: Clone + std::fmt::Debug + Ord + Send + 'static,
+        E: Executor<C, T, P> + 'static,
+    {
+        runner: Arc<PriorityRunner<C, T, P, E>>,
+        execute_context: Arc<C>,
+        task: T,
+        priority: P,
+        seq: u64,
+    }
+
+    impl<C, T, P, E> SlotEntry for Entry<C, T, P, E>
+    where
+        C: Send + Sync + 'static,
+        T: Claimable + Send + 'static,
+        P: Clone + std::fmt::Debug + Ord + Send + 'static,
+        E: Executor<C, T, P> + 'static,
+    {
+        fn runner_id(&self) -> usize {
+            Arc::as_ptr(&self.runner) as *const () as usize
+        }
+
+        fn flush(self: Box<Self>) {
+            let Entry {
+                runner,
+                execute_context,
+                task,
+                priority,
+                seq,
+            } = *self;
+            runner.schedule_to_queue(&execute_context, task, priority, seq);
+        }
+
+        fn into_any(self: Box<Self>) -> Box<dyn Any> {
+            self
+        }
+
+        fn as_any(&self) -> &dyn Any {
+            self
+        }
+    }
+
+    /// Parks the task if the mode allows it, a worker poll is active, the task is claimable and
+    /// the buffer has room. Otherwise hands the task back.
+    pub(super) fn try_put<C, T, P, E>(
+        runner: &Arc<PriorityRunner<C, T, P, E>>,
+        execute_context: &Arc<C>,
+        task: T,
+        priority: P,
+        seq: u64,
+        mode: Mode,
+    ) -> Result<(), (T, P)>
+    where
+        C: Send + Sync + 'static,
+        T: Claimable + Send + 'static,
+        P: Clone + std::fmt::Debug + Ord + Send + 'static,
+        E: Executor<C, T, P> + 'static,
+    {
+        if mode == Mode::Off || !IN_WORKER_POLL.get() || task.claim_key().is_none() {
+            return Err((task, priority));
+        }
+        if mode == Mode::Adaptive && runner.live_hint.load(Ordering::Relaxed) == 0 {
+            // The shared queue (probably) has no live items, so idle workers could start this
+            // task right away. Don't hide it.
+            lock_stats::count(&lock_stats::SLOT_ADAPTIVE_SKIP);
+            return Err((task, priority));
+        }
+        let capacity = capacity();
+        SLOT.with_borrow_mut(|slot| {
+            if slot.len() >= capacity {
+                return Err((task, priority));
+            }
+            slot.push(Box::new(Entry {
+                runner: runner.clone(),
+                execute_context: execute_context.clone(),
+                task,
+                priority,
+                seq,
+            }));
+            lock_stats::count(&lock_stats::SLOT_PUT);
+            Ok(())
+        })
+    }
+
+    /// Takes the parked task of `runner` with `key` and sequence number `seq`, if any.
+    pub(super) fn try_take<C, T, P, E>(
+        runner: &PriorityRunner<C, T, P, E>,
+        key: &T::Key,
+        seq: u64,
+    ) -> Option<(P, T)>
+    where
+        C: Send + Sync + 'static,
+        T: Claimable + Send + 'static,
+        P: Clone + std::fmt::Debug + Ord + Send + 'static,
+        E: Executor<C, T, P> + 'static,
+    {
+        let runner_id = runner as *const PriorityRunner<C, T, P, E> as *const () as usize;
+        let found = SLOT.with_borrow_mut(|slot| {
+            if slot.is_empty() {
+                return None;
+            }
+            let index = slot.iter().position(|entry| {
+                entry.runner_id() == runner_id
+                    && entry
+                        .as_any()
+                        .downcast_ref::<Entry<C, T, P, E>>()
+                        .is_some_and(|e| e.seq == seq && e.task.claim_key().as_ref() == Some(key))
+            });
+            match index {
+                Some(index) => Some(slot.remove(index)),
+                None => {
+                    lock_stats::count(&lock_stats::SLOT_MISS);
+                    None
+                }
+            }
+        })?;
+        lock_stats::count(&lock_stats::SLOT_HIT);
+        let entry: Box<Entry<C, T, P, E>> = found
+            .into_any()
+            .downcast()
+            .unwrap_or_else(|_| unreachable!("slot entry type mismatch"));
+        let Entry { task, priority, .. } = *entry;
+        Some((priority, task))
+    }
+
+    /// Test-only: number of tasks parked on this thread.
+    #[cfg(test)]
+    pub(super) fn parked_len() -> usize {
+        SLOT.with_borrow(|slot| slot.len())
+    }
+
+    pub enum FlushReason {
+        PollEnd,
+        Blocking,
+    }
+
+    /// Pushes all parked tasks (if any) to their runner's shared queue, oldest first.
+    pub fn flush(reason: FlushReason) {
+        let entries = SLOT.with_borrow_mut(std::mem::take);
+        for entry in entries {
+            lock_stats::count(match reason {
+                FlushReason::PollEnd => &lock_stats::SLOT_FLUSH_POLL_END,
+                FlushReason::Blocking => &lock_stats::SLOT_FLUSH_BLOCKING,
+            });
+            entry.flush();
+        }
+    }
+
+    /// Marks a worker poll as active on this thread; flushes the slot when the outermost scope
+    /// ends (including on unwind).
+    pub(super) struct WorkerPollScope {
+        prev: bool,
+    }
+
+    impl WorkerPollScope {
+        pub fn enter() -> Self {
+            Self {
+                prev: IN_WORKER_POLL.replace(true),
+            }
+        }
+    }
+
+    impl Drop for WorkerPollScope {
+        fn drop(&mut self) {
+            IN_WORKER_POLL.set(self.prev);
+            if !self.prev {
+                flush(FlushReason::PollEnd);
             }
         }
     }
@@ -541,6 +999,38 @@ mod tests {
             Arc::new(PriorityRunner::with_target_workers(RecordingExecutor, 0)),
             Arc::new(Mutex::new(Vec::new())),
         )
+    }
+
+    /// EXPERIMENT (not for merge): `live` excludes tombstones of claimed items, while
+    /// `heap.len()` includes them.
+    #[test]
+    fn experiment_live_count_excludes_tombstones() {
+        let mut q: Queue<u32, (u32, bool)> = Queue::new();
+        q.push(1, (1, false), 0, false);
+        q.push(2, (2, false), 1, false);
+        q.push(3, (2, true), 2, false); // same key: (2, false) stops being claimable but stays live
+        assert_eq!((q.heap.len(), q.live), (3, 3));
+        // claim the newest key-2 item -> tombstone stays in the heap
+        assert_eq!(q.claim(&2, |_| true).map(|(_, t)| t), Some((2, true)));
+        assert_eq!((q.heap.len(), q.live), (3, 2));
+        // a second claim for the same key fails and changes nothing
+        assert!(q.claim(&2, |_| true).is_none());
+        assert_eq!((q.heap.len(), q.live), (3, 2));
+        // popping skips the tombstone (decrementing only heap.len) and returns live items
+        assert_eq!(q.pop().map(|(_, t, _)| t), Some((2, false)));
+        assert_eq!(q.live, 1);
+        assert_eq!(q.pop().map(|(_, t, _)| t), Some((1, false)));
+        assert_eq!((q.heap.len(), q.live), (0, 0));
+        assert!(q.pop().is_none());
+        assert_eq!(q.live, 0);
+
+        // unkeyed items are never claimable and are counted until popped
+        let mut u: Queue<u32, Unkeyed> = Queue::new();
+        u.push(1, Unkeyed(1), 0, false);
+        assert!(u.claim(&1, |_| true).is_none());
+        assert_eq!(u.live, 1);
+        assert!(u.pop().is_some());
+        assert_eq!((u.heap.len(), u.live), (0, 0));
     }
 
     /// Drains the queue the way workers would and returns the items in execution order.
@@ -640,6 +1130,349 @@ mod tests {
         // The other one is not claimable anymore, but it is not lost either.
         assert!(runner.claim(&executed, &1).is_none());
         assert_eq!(drain(&runner, &executed), vec![(1, false)]);
+    }
+
+    // EXPERIMENT (not for merge): local slot tests. They enable the slot for the current test
+    // thread only, via `local_slot::set_test_override`, and use `WorkerPollScope` to stand in for
+    // an active worker poll.
+
+    thread_local! {
+        /// One-shot hook run by `PriorityRunner::schedule` right after it allocated the schedule
+        /// sequence number, on this thread only.
+        static AFTER_SEQ_ALLOC_HOOK: std::cell::RefCell<Option<Box<dyn FnOnce()>>> =
+            const { std::cell::RefCell::new(None) };
+    }
+
+    pub(super) fn run_after_seq_alloc_hook() {
+        if let Some(hook) = AFTER_SEQ_ALLOC_HOOK.with_borrow_mut(Option::take) {
+            hook();
+        }
+    }
+
+    /// Enables the local slot for this thread until dropped.
+    struct SlotOverride;
+
+    impl Drop for SlotOverride {
+        fn drop(&mut self) {
+            local_slot::set_test_override(None);
+        }
+    }
+
+    fn slot_override(mode: local_slot::Mode, capacity: usize) -> SlotOverride {
+        local_slot::set_test_override(Some((mode, capacity)));
+        SlotOverride
+    }
+
+    fn live_in_queue<T: Claimable + Copy + Send + Sync + Debug + 'static>(
+        runner: &TestRunner<T>,
+    ) -> usize {
+        runner.queue.lock().live
+    }
+
+    #[test]
+    fn slot_dup_keys_local_newest_wins() {
+        let _override = slot_override(local_slot::Mode::Always, 16);
+        let (runner, executed) = queueing_runner::<(u32, bool)>();
+        {
+            let _scope = local_slot::WorkerPollScope::enter();
+            runner.schedule(&executed, (1, false), 1);
+            runner.schedule(&executed, (1, true), 2);
+            assert_eq!(local_slot::parked_len(), 2, "both are parked");
+
+            assert!(runner.claim(&executed, &1).is_some());
+            assert_eq!(*executed.lock(), vec![(1, true)], "the newest is claimed");
+            executed.lock().clear();
+            assert!(
+                runner.claim(&executed, &1).is_none(),
+                "the older one never becomes claimable"
+            );
+        }
+        assert_eq!(local_slot::parked_len(), 0, "scope end flushes");
+        assert!(runner.claim(&executed, &1).is_none());
+        assert_eq!(
+            drain(&runner, &executed),
+            vec![(1, false)],
+            "the older one is not lost"
+        );
+    }
+
+    #[test]
+    fn slot_dup_keys_older_local_newer_shared() {
+        let _override = slot_override(local_slot::Mode::Always, 1);
+        let (runner, executed) = queueing_runner::<(u32, bool)>();
+        {
+            let _scope = local_slot::WorkerPollScope::enter();
+            runner.schedule(&executed, (1, false), 1);
+            // The buffer is full, so the newer item goes to the shared queue.
+            runner.schedule(&executed, (1, true), 2);
+            assert_eq!(local_slot::parked_len(), 1);
+            assert_eq!(live_in_queue(&runner), 1);
+
+            assert!(runner.claim(&executed, &1).is_some());
+            assert_eq!(
+                *executed.lock(),
+                vec![(1, true)],
+                "the newer (shared) one wins"
+            );
+            executed.lock().clear();
+            assert!(runner.claim(&executed, &1).is_none());
+        }
+        assert!(
+            runner.claim(&executed, &1).is_none(),
+            "flushing the older one doesn't make it claimable"
+        );
+        assert_eq!(drain(&runner, &executed), vec![(1, false)]);
+    }
+
+    #[test]
+    fn slot_dup_keys_older_shared_newer_local() {
+        let _override = slot_override(local_slot::Mode::Always, 16);
+        let (runner, executed) = queueing_runner::<(u32, bool)>();
+        // Outside of a worker poll: goes to the shared queue.
+        runner.schedule(&executed, (1, false), 1);
+        {
+            let _scope = local_slot::WorkerPollScope::enter();
+            runner.schedule(&executed, (1, true), 2);
+            assert_eq!(local_slot::parked_len(), 1);
+
+            assert!(runner.claim(&executed, &1).is_some());
+            assert_eq!(
+                *executed.lock(),
+                vec![(1, true)],
+                "the newer (local) one wins"
+            );
+            executed.lock().clear();
+            assert!(
+                runner.claim(&executed, &1).is_none(),
+                "the older (shared) one never becomes claimable"
+            );
+        }
+        assert!(runner.claim(&executed, &1).is_none());
+        assert_eq!(drain(&runner, &executed), vec![(1, false)]);
+    }
+
+    #[test]
+    fn slot_newest_consumed_by_worker_no_resurrection() {
+        let _override = slot_override(local_slot::Mode::Always, 1);
+
+        // Older local, newer shared; a worker pops the newer one.
+        let (runner, executed) = queueing_runner::<(u32, bool)>();
+        {
+            let _scope = local_slot::WorkerPollScope::enter();
+            runner.schedule(&executed, (1, false), 1);
+            runner.schedule(&executed, (1, true), 2);
+            assert!(runner.pop_future_from_worker(&executed).is_some());
+            assert_eq!(*executed.lock(), vec![(1, true)]);
+            executed.lock().clear();
+            assert!(
+                runner.claim(&executed, &1).is_none(),
+                "the parked older one is not claimable after the newest was consumed"
+            );
+        }
+        assert!(runner.claim(&executed, &1).is_none());
+        assert_eq!(drain(&runner, &executed), vec![(1, false)]);
+
+        // Older shared, newer local; the newer one is flushed and popped by a worker.
+        let (runner, executed) = queueing_runner::<(u32, bool)>();
+        runner.schedule(&executed, (1, false), 1);
+        {
+            let _scope = local_slot::WorkerPollScope::enter();
+            runner.schedule(&executed, (1, true), 2);
+        }
+        // Highest priority first: the newer one.
+        assert!(runner.pop_future_from_worker(&executed).is_some());
+        assert_eq!(*executed.lock(), vec![(1, true)]);
+        executed.lock().clear();
+        assert!(
+            runner.claim(&executed, &1).is_none(),
+            "the older shared one is not claimable after the newest was consumed"
+        );
+        assert_eq!(drain(&runner, &executed), vec![(1, false)]);
+    }
+
+    /// Two concurrent schedules of the same key: thread A allocates its sequence number first but
+    /// is delayed before publishing it, while thread B schedules (and publishes) in between. The
+    /// newest-item entry must still refer to an item that is actually claimable, and both items
+    /// must execute exactly once.
+    #[test]
+    fn slot_dup_keys_concurrent_registration() {
+        let _override = slot_override(local_slot::Mode::Always, 16);
+        let (runner, executed) = queueing_runner::<(u32, bool)>();
+
+        let (paused_tx, paused_rx) = std::sync::mpsc::channel::<()>();
+        let (release_tx, release_rx) = std::sync::mpsc::channel::<()>();
+        let thread_a = {
+            let runner = runner.clone();
+            let executed = executed.clone();
+            std::thread::spawn(move || {
+                let _override = slot_override(local_slot::Mode::Always, 16);
+                AFTER_SEQ_ALLOC_HOOK.set(Some(Box::new(move || {
+                    paused_tx.send(()).unwrap();
+                    release_rx.recv().unwrap();
+                })));
+                // Outside of a worker poll: goes to the shared queue.
+                runner.schedule(&executed, (1, false), 1);
+            })
+        };
+        paused_rx.recv().unwrap();
+
+        // While A is paused right after allocating its sequence number, inspect the key's
+        // `latest` entry without blocking: if A holds the entry guard (allocation and publication
+        // are serialized per key), B will have to wait for A. Otherwise B can schedule and
+        // publish completely in between, which is the reordering this test is about.
+        let a_holds_entry = matches!(
+            runner.latest.try_get(&1),
+            dashmap::try_result::TryResult::Locked
+        );
+
+        let (b_started_tx, b_started_rx) = std::sync::mpsc::channel::<()>();
+        let (b_done_tx, b_done_rx) = std::sync::mpsc::channel::<()>();
+        let thread_b = {
+            let runner = runner.clone();
+            let executed = executed.clone();
+            std::thread::spawn(move || {
+                let _override = slot_override(local_slot::Mode::Always, 16);
+                b_started_tx.send(()).unwrap();
+                runner.schedule(&executed, (1, true), 2);
+                b_done_tx.send(()).unwrap();
+            })
+        };
+        // Timeouts only bound hangs; they don't decide which interleaving is tested.
+        b_started_rx.recv_timeout(Duration::from_secs(10)).unwrap();
+        if !a_holds_entry {
+            // B can complete while A is paused; make sure it did before releasing A.
+            b_done_rx.recv_timeout(Duration::from_secs(10)).unwrap();
+        }
+        release_tx.send(()).unwrap();
+        thread_a.join().unwrap();
+        thread_b.join().unwrap();
+
+        assert_eq!(live_in_queue(&runner), 2);
+        assert!(
+            runner.claim(&executed, &1).is_some(),
+            "the newest registered item must be claimable"
+        );
+        assert_eq!(
+            *executed.lock(),
+            vec![(1, true)],
+            "B registered after A, so B's item is the newest"
+        );
+        executed.lock().clear();
+        assert!(
+            runner.claim(&executed, &1).is_none(),
+            "only one item is claimable"
+        );
+        assert_eq!(
+            drain(&runner, &executed),
+            vec![(1, false)],
+            "A's item still executes, exactly once"
+        );
+    }
+
+    #[test]
+    fn slot_runner_isolation() {
+        let _override = slot_override(local_slot::Mode::Always, 16);
+        let (runner_a, executed_a) = queueing_runner::<u32>();
+        let (runner_b, executed_b) = queueing_runner::<u32>();
+        let _scope = local_slot::WorkerPollScope::enter();
+        runner_a.schedule(&executed_a, 5, 1);
+        assert!(
+            runner_b.claim(&executed_b, &5).is_none(),
+            "runner B can't take runner A's parked task"
+        );
+        runner_b.schedule(&executed_b, 5, 1);
+        assert_eq!(local_slot::parked_len(), 2);
+        assert!(runner_b.claim(&executed_b, &5).is_some());
+        assert_eq!(*executed_b.lock(), vec![5]);
+        assert!(executed_a.lock().is_empty(), "runner A's task is untouched");
+        assert!(runner_a.claim(&executed_a, &5).is_some());
+        assert_eq!(*executed_a.lock(), vec![5]);
+        assert_eq!(local_slot::parked_len(), 0);
+    }
+
+    #[test]
+    fn slot_flush_on_scope_end() {
+        let _override = slot_override(local_slot::Mode::Always, 16);
+        let (runner, executed) = queueing_runner::<u32>();
+        {
+            let _scope = local_slot::WorkerPollScope::enter();
+            runner.schedule(&executed, 1, 1);
+            runner.schedule(&executed, 2, 2);
+            assert_eq!(local_slot::parked_len(), 2);
+            assert_eq!(live_in_queue(&runner), 0);
+            {
+                // A nested scope doesn't flush when it ends.
+                let _nested = local_slot::WorkerPollScope::enter();
+            }
+            assert_eq!(local_slot::parked_len(), 2);
+        }
+        assert_eq!(local_slot::parked_len(), 0);
+        assert_eq!(live_in_queue(&runner), 2);
+        assert_eq!(drain(&runner, &executed), vec![2, 1]);
+    }
+
+    #[test]
+    fn slot_flush_on_unwind() {
+        let _override = slot_override(local_slot::Mode::Always, 16);
+        let (runner, executed) = queueing_runner::<u32>();
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _scope = local_slot::WorkerPollScope::enter();
+            runner.schedule(&executed, 3, 1);
+            assert_eq!(local_slot::parked_len(), 1);
+            panic!("unwind with a parked task");
+        }));
+        assert!(result.is_err());
+        assert_eq!(local_slot::parked_len(), 0, "unwinding flushes");
+        assert_eq!(drain(&runner, &executed), vec![3]);
+    }
+
+    #[test]
+    fn slot_blocking_flush() {
+        let _override = slot_override(local_slot::Mode::Always, 16);
+        let (runner, executed) = queueing_runner::<u32>();
+        let _scope = local_slot::WorkerPollScope::enter();
+        runner.schedule(&executed, 7, 1);
+        assert_eq!(local_slot::parked_len(), 1);
+        crate::experiment_lock_stats::flush_local_slot();
+        assert_eq!(local_slot::parked_len(), 0);
+        assert_eq!(live_in_queue(&runner), 1);
+        assert!(
+            runner.claim(&executed, &7).is_some(),
+            "a flushed task is still claimable via the shared queue"
+        );
+        assert_eq!(*executed.lock(), vec![7]);
+    }
+
+    #[test]
+    fn slot_adaptive_parks_only_with_live_hint() {
+        let _override = slot_override(local_slot::Mode::Adaptive, 16);
+        let (runner, executed) = queueing_runner::<u32>();
+        let _scope = local_slot::WorkerPollScope::enter();
+        runner.schedule(&executed, 1, 1);
+        assert_eq!(local_slot::parked_len(), 0, "empty queue: not parked");
+        assert_eq!(live_in_queue(&runner), 1);
+        runner.schedule(&executed, 2, 2);
+        assert_eq!(local_slot::parked_len(), 1, "non-empty queue: parked");
+        assert_eq!(live_in_queue(&runner), 1);
+        // Drain the shared queue; the hint drops to zero again.
+        assert!(runner.pop_future_from_worker(&executed).is_some());
+        runner.schedule(&executed, 3, 3);
+        assert_eq!(local_slot::parked_len(), 1, "queue empty again: not parked");
+    }
+
+    #[test]
+    fn slot_off_never_parks() {
+        let _override = slot_override(local_slot::Mode::Off, 16);
+        let (runner, executed) = queueing_runner::<u32>();
+        let _scope = local_slot::WorkerPollScope::enter();
+        runner.schedule(&executed, 1, 1);
+        runner.schedule(&executed, 2, 2);
+        assert_eq!(local_slot::parked_len(), 0);
+        assert_eq!(live_in_queue(&runner), 2);
+        assert!(
+            runner.latest.is_empty(),
+            "the newest-item map is only maintained while the slot is on"
+        );
     }
 
     #[test]

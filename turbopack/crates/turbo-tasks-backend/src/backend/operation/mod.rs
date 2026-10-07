@@ -373,6 +373,8 @@ impl<'e> ExecuteContext<'e> {
             drop(task);
             {
                 let _span = info_span!("blocking on another thread reading").entered();
+                // EXPERIMENT (local slot): don't keep parked tasks hidden while blocking.
+                turbo_tasks::experiment_lock_stats::flush_local_slot();
                 listener.wait();
             }
             task = self.backend.storage.access_entry_mut(task_id);

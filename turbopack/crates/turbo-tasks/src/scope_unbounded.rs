@@ -86,6 +86,9 @@ where
     Init: Fn() -> R + Send + Sync + 'env,
     Merge: Fn(R, R) -> R + Send + Sync + 'env,
 {
+    // EXPERIMENT (local slot): the caller blocks (draining, then waiting for workers), so don't
+    // keep parked tasks hidden from other workers meanwhile.
+    crate::experiment_lock_stats::flush_local_slot();
     let handle = Handle::current();
     // One worker per runtime thread beyond the calling thread
     let max_workers = handle.metrics().num_workers().saturating_sub(1);

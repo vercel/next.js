@@ -2892,6 +2892,8 @@ async fn whole_app_module_graph_operation(
 ) -> Result<Vc<BaseAndFullModuleGraph>> {
     let start = Instant::now();
     let wall_start = SystemTime::now();
+    // EXPERIMENT (not for merge): mark the phase in the lock-stats file
+    turbo_tasks::experiment_lock_stats::mark("whole_app_module_graph_start");
     let span = tracing::info_span!("whole app module graph", modules = Empty, edges = Empty);
     let span_clone = span.clone();
     let result = async move {
@@ -2980,6 +2982,7 @@ async fn whole_app_module_graph_operation(
     }
     .instrument(span_clone)
     .await;
+    turbo_tasks::experiment_lock_stats::mark("whole_app_module_graph_end");
     turbo_tasks().send_compilation_event(Arc::new(TraceEvent::new_with_duration(
         "turbopack-module-graph",
         wall_start,

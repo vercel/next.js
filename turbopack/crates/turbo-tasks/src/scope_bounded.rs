@@ -62,6 +62,9 @@ impl ScopeInner {
 
         let _span = info_span!("blocking").entered();
 
+        // EXPERIMENT (not for merge): don't block while holding a task in the local slot.
+        crate::experiment_lock_stats::flush_local_slot();
+
         // Park up to 1ms without block_in_place to avoid the overhead.
         const TIMEOUT: Duration = Duration::from_millis(1);
         let beginning_park = Instant::now();

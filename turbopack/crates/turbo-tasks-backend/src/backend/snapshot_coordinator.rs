@@ -113,6 +113,8 @@ impl SnapshotCoordinator {
             if state.snapshot_requested {
                 this.in_progress_operations.fetch_sub(1, Ordering::AcqRel);
                 this.operations_waiting.store(true, Ordering::Relaxed);
+                // EXPERIMENT (not for merge): don't block while holding a slot task.
+                turbo_tasks::experiment_lock_stats::flush_local_slot();
                 tokio::task::block_in_place(|| {
                     this.snapshot_completed
                         .wait_while(&mut state, |s| s.snapshot_requested);
@@ -189,6 +191,7 @@ impl SnapshotCoordinator {
             // This runs in a background Tokio task; release its worker so admitted work can
             // complete. The guard's drop synchronizes with this mutex when notifying. Wake up
             // at `next_report` even without a notification so a long wait gets reported.
+            turbo_tasks::experiment_lock_stats::flush_local_slot();
             tokio::task::block_in_place(|| {
                 self.operations_drained.wait_while_until(
                     &mut state,

@@ -21,6 +21,8 @@ use tokio::time::{Timeout, timeout};
 /// Its native implementation is just "register a waker, then park in a loop", so on wasm we drive
 /// the listener's `Future` to completion with a parking executor, which is the same mechanism.
 fn block_on_listener(listener: event_listener::EventListener) {
+    // EXPERIMENT (not for merge): don't block while holding a task in the local slot.
+    crate::experiment_lock_stats::flush_local_slot();
     #[cfg(not(target_family = "wasm"))]
     {
         use event_listener::Listener as _;
