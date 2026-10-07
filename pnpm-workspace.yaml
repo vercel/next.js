@@ -6,28 +6,37 @@ packages:
   - 'turbopack/crates/*/js'
   - 'turbopack/crates/turbopack-tests/tests/execution'
 updateNotifier: false
+autoInstallPeers: true
+linkWorkspacePackages: true
+saveExact: true
+strictPeerDependencies: false
+provenance: true
+tagVersionPrefix: ''
+# pnpm 11+ defaults this to `install`, which makes `pnpm run` (including the
+# script invocations turbo makes) install dependencies first if it considers
+# them stale. CI jobs that only run Rust tasks intentionally skip the install.
+verifyDepsBeforeRun: false
 publicHoistPattern:
   - '*eslint*'
 allowBuilds:
   '@ast-grep/cli': true
-ignoredBuiltDependencies:
-  - '@datadog/native-appsec'
-  - '@datadog/native-metrics'
-  - '@datadog/pprof'
-  - '@swc/core'
-  - '@tailwindcss/oxide'
-  - core-js
-  - cpu-features
-  - dd-trace
-  - esbuild
-  - msw
-  - nx
-  - playwright-chromium
-  - protobufjs
-  - sharp
-  - ssh2
-  - unrs-resolver
-  - wasm-pack
+  '@datadog/native-appsec': false
+  '@datadog/native-metrics': false
+  '@datadog/pprof': false
+  '@swc/core': false
+  '@tailwindcss/oxide': false
+  core-js: false
+  cpu-features: false
+  dd-trace: false
+  esbuild: false
+  msw: false
+  nx: false
+  playwright-chromium: false
+  protobufjs: false
+  sharp: false
+  ssh2: false
+  unrs-resolver: false
+  wasm-pack: false
 
 # - Keep security related settings in sync with pnpm-workspace.yaml written to
 #   temporary fixture dirs in `file://./scripts/install-native.mjs`
@@ -53,3 +62,40 @@ minimumReleaseAgeExclude:
   - satori@0.33.5
   - scheduler
   - turbo
+
+# `file://./scripts/sync-react.js` updates the React entries in place.
+overrides:
+  postcss: 8.5.23
+  webpack: 5.98.0
+  browserslist: 4.28.1
+  caniuse-lite: 1.0.30001746
+  '@types/node': 20.17.7
+  '@babel/core': 7.26.10
+  '@babel/parser': 7.27.0
+  '@babel/types': 7.27.0
+  '@babel/traverse': 7.27.0
+  '@types/react': 19.2.18
+  '@types/react-dom': 19.2.4
+  '@types/retry': 0.12.0
+  jest-snapshot: 30.0.0-alpha.6
+  react: 'npm:react@19.3.0-canary-b618bbb4-20261007'
+  react-dom: 'npm:react-dom@19.3.0-canary-b618bbb4-20261007'
+  react-is: 'npm:react-is@19.3.0-canary-b618bbb4-20261007'
+  scheduler: 'npm:scheduler@0.28.0-canary-b618bbb4-20261007'
+packageExtensions:
+  eslint-plugin-react-hooks@0.0.0-experimental-6de32a5a-20250822:
+    dependencies:
+      '@babel/plugin-proposal-private-methods': ^7.18.6
+patchedDependencies:
+  webpack-sources@3.2.3: patches/webpack-sources@3.2.3.patch
+  stacktrace-parser@0.1.10: patches/stacktrace-parser@0.1.10.patch
+  taskr@1.1.0: patches/taskr@1.1.0.patch
+  minizlib@3.1.0: patches/minizlib@3.1.0.patch
+  '@rspack/core@1.6.7': patches/@rspack__core@1.6.7.patch
+  '@modelcontextprotocol/sdk': patches/@modelcontextprotocol__sdk.patch
+  '@vercel/blob': patches/@vercel__blob.patch
+  postcss-scss: patches/postcss-scss.patch
+  playwright-core@1.61.0: patches/playwright-core@1.61.0.patch
+  '@types/node@20.17.7': patches/@types__node@20.17.7.patch
+  '@vercel/agent-eval@2.2.1': patches/@vercel__agent-eval@2.2.1.patch
+  '@vercel/og@1.0.1': patches/@vercel__og@1.0.1.patch

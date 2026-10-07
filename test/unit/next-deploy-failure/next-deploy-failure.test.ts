@@ -57,6 +57,9 @@ describe('deployment lifecycle', () => {
       .spyOn(NextDeployInstance.prototype as any, 'writeMirrorNpmrcIfNecessary')
       .mockResolvedValue(undefined)
     jest
+      .spyOn(NextDeployInstance.prototype as any, 'preparePreviewPnpmSettings')
+      .mockReturnValue(undefined)
+    jest
       .spyOn(NextDeployInstance.prototype as any, 'configureProxyAddress')
       .mockResolvedValue(undefined)
 

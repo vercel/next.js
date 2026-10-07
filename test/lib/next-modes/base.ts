@@ -1,6 +1,16 @@
 import os from 'os'
 import path from 'path'
-import { existsSync, promises as fs, rmSync, readFileSync } from 'fs'
+import { randomBytes } from 'crypto'
+import {
+  existsSync,
+  promises as fs,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'fs'
 import treeKill from 'tree-kill'
 import type { NextConfig } from 'next'
 import { FileRef, isNextDeploy, PatchedFileRef } from '../e2e-utils'
@@ -429,6 +439,9 @@ export class NextInstance {
           await fs.rm(path.join(this.testDir, 'pnpm-workspace.yaml'), {
             force: true,
           })
+          // Keep pnpm from reinstalling and recreating the workspace marker
+          // after we remove the YAML that normally disables this behavior.
+          this.env.pnpm_config_verify_deps_before_run = 'false'
         }
 
         const testDirFiles = await fs.readdir(this.testDir)
@@ -665,6 +678,7 @@ export class NextInstance {
       'package.json',
       'yarn.lock',
       'pnpm-lock.yaml',
+      'pnpm-workspace.yaml',
     ]
     for (const file of await fs.readdir(this.testDir)) {
       if (!keptFiles.includes(file)) {
@@ -1097,28 +1111,48 @@ export class NextInstance {
     runWithTempContent?: (context: { newFile: boolean }) => Promise<void>
   ): Promise<{ newFile: boolean }> {
     const outputPath = path.join(this.testDir, filename)
-    const newFile = !existsSync(outputPath)
-    await fs.mkdir(path.dirname(outputPath), { recursive: true })
-    const previousContent = newFile ? undefined : await this.readFile(filename)
+    const originalStat = statSync(outputPath, { throwIfNoEntry: false })
+    const newFile = originalStat === undefined
+    mkdirSync(path.dirname(outputPath), { recursive: true })
 
-    await fs.writeFile(
-      outputPath,
-      typeof content === 'function' ? content(previousContent) : content,
-      {
-        flush: true,
+    let patchedContent: string
+    if (typeof content === 'function') {
+      let previousContent: string | undefined
+      if (!newFile) {
+        previousContent = this.readFileSync(filename)
       }
-    )
+      patchedContent = content(previousContent)
+    } else {
+      patchedContent = content
+    }
 
-    if (runWithTempContent) {
-      try {
+    let originalPath: string | undefined
+    if (!newFile && runWithTempContent) {
+      originalPath = `${outputPath}.${randomBytes(4).toString('hex')}.bak`
+    }
+
+    // Never modify files in place: pnpm installs hard links, so a patch could
+    // corrupt its shared store and affect other fixtures. Keep the original
+    // inode for temporary patches and write the replacement as a new file.
+    if (originalPath) {
+      renameSync(outputPath, originalPath)
+    } else if (!newFile) {
+      rmSync(outputPath, { force: true })
+    }
+
+    try {
+      writeFileSync(outputPath, patchedContent, {
+        flush: true,
+        mode: originalStat?.mode,
+      })
+      if (runWithTempContent) {
         await runWithTempContent({ newFile })
-      } finally {
-        if (previousContent === undefined) {
-          await fs.rm(outputPath)
-        } else {
-          await fs.writeFile(outputPath, previousContent, {
-            flush: true,
-          })
+      }
+    } finally {
+      if (runWithTempContent) {
+        rmSync(outputPath, { force: true })
+        if (originalPath) {
+          renameSync(originalPath, outputPath)
         }
       }
     }

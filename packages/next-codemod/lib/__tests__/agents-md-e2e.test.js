@@ -4,6 +4,7 @@ jest.autoMockOff()
 const fs = require('fs')
 const path = require('path')
 const os = require('os')
+const { execFileSync } = require('child_process')
 const { runAgentsMd } = require('../../bin/agents-md')
 const { getNextjsVersion } = require('../../lib/agents-md')
 
@@ -428,9 +429,27 @@ This is my project documentation.
     })
 
     it('returns error when Next.js is not installed', () => {
-      // Use a directory where next is not installed
-      const nonNextDir = '/tmp'
-      const result = getNextjsVersion(nonNextDir)
+      // pnpm's Jest launcher adds hoisted dependencies to NODE_PATH, which causes `require.resolve`
+      // to succeed despite us passing in a bad cwd. We need to fork a child node process with
+      // `NODE_PATH` unset.
+      //
+      // This isn't an issue when the CLI is normally run: `pnpx` won't have a hoisted `next`
+      // package in the path.
+      const env = { ...process.env }
+      delete env.NODE_PATH
+      const result = JSON.parse(
+        execFileSync(
+          process.execPath,
+          [
+            '-e',
+            `const { getNextjsVersion } = require(process.argv[1])
+            console.log(JSON.stringify(getNextjsVersion(process.argv[2])))`,
+            path.join(__dirname, '../agents-md.js'),
+            testProjectDir,
+          ],
+          { env, encoding: 'utf8' }
+        )
+      )
 
       expect(result.version).toBeNull()
       expect(result.error).toBe('Next.js is not installed in this project.')

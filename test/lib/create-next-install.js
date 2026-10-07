@@ -8,7 +8,7 @@ const { linkPackages } = require('./link-packed-packages')
 const yaml = require('js-yaml')
 const {
   getPnpmSecuritySettings,
-  mergePnpmSecuritySettingsIntoYaml,
+  mergeSettingsIntoYaml,
   getYarnSecuritySettings,
   mergeYarnSecuritySettingsIntoYaml,
 } = require('./pnpm-security-settings')
@@ -16,6 +16,14 @@ const {
 const PREFER_OFFLINE = process.env.NEXT_TEST_PREFER_OFFLINE === '1'
 const useRspack = process.env.NEXT_TEST_USE_RSPACK === '1'
 const ROOT_PACKAGE_MANAGER = require('../../package.json').packageManager
+
+const PNPM_TEST_DIR_SETTINGS = {
+  // fixtures depend on packages with build scripts that they don't declare in `allowBuilds`: this
+  // will skip them (`allowBuilds` defaults to `false` for unlisted packages) instead of failing
+  strictDepBuilds: false,
+  // pnpm auto-installs before running scripts, we want to be explicit about this in tests
+  verifyDepsBeforeRun: false,
+}
 
 async function installDependencies(cwd, tmpDir) {
   const args = [
@@ -72,6 +80,10 @@ async function findConfigFile(fileName, installDir, isolationRoot) {
  * @returns {Promise<void>}
  */
 async function applyInstallSecuritySettings(installDir, isolationRoot) {
+  const pnpmSettings = {
+    ...getPnpmSecuritySettings(),
+    ...PNPM_TEST_DIR_SETTINGS,
+  }
   const workspaceFile = await findConfigFile(
     'pnpm-workspace.yaml',
     installDir,
@@ -80,14 +92,15 @@ async function applyInstallSecuritySettings(installDir, isolationRoot) {
   if (workspaceFile !== null) {
     await fs.writeFile(
       workspaceFile,
-      mergePnpmSecuritySettingsIntoYaml(
-        await fs.readFile(workspaceFile, 'utf8')
+      mergeSettingsIntoYaml(
+        await fs.readFile(workspaceFile, 'utf8'),
+        pnpmSettings
       )
     )
   } else {
     await fs.writeFile(
       path.join(installDir, 'pnpm-workspace.yaml'),
-      yaml.dump(getPnpmSecuritySettings())
+      yaml.dump(pnpmSettings)
     )
   }
 
@@ -154,14 +167,17 @@ async function lockfileResolvesLocalTarball(
   packageName,
   expectedTarballPath
 ) {
-  const lockfile = /** @type {Record<string, any>} */ (
-    yaml.load(
+  // pnpm 11+ prepends a separate YAML document that locks pnpm itself.
+  const lockfileDocuments = /** @type {Record<string, any>[]} */ (
+    yaml.loadAll(
       await fs.readFile(path.join(installDir, 'pnpm-lock.yaml'), 'utf8')
     )
   )
   const expectedRealpath = await fs.realpath(expectedTarballPath)
 
-  for (const [key, pkg] of Object.entries(lockfile.packages || {})) {
+  for (const [key, pkg] of lockfileDocuments.flatMap((lockfile) =>
+    Object.entries(lockfile?.packages || {})
+  )) {
     const tarball = pkg?.resolution?.tarball
     if (
       !key.startsWith(`${packageName}@file:`) ||
@@ -403,6 +419,8 @@ async function createNextInstall({
           childProcess.execSync(installString, {
             cwd: installDir,
             stdio: ['ignore', 'inherit', 'inherit'],
+            // Synchronous installs block Jest's timeout from firing.
+            timeout: 5 * 60 * 1000,
           })
         })
       } else {

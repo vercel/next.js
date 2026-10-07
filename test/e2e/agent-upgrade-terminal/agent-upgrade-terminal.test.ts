@@ -40,11 +40,6 @@ describe('agent upgrade terminal', () => {
       // The first release with Linux prebuilds, so CI does not compile it.
       'node-pty': '1.2.0-beta.15',
     },
-    packageJson: {
-      pnpm: {
-        onlyBuiltDependencies: ['node-pty'],
-      },
-    },
   })
 
   if (skipped) {
