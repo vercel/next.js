@@ -1210,13 +1210,15 @@ function wouldRuntimeRequestProvideMore(
 /**
  * Whether a fulfilled shell-tier entry should take a static attempt (a
  * spawned revalidation at the walk's static tier) before its position deopts
- * to a runtime request. A shell-tier recorded entry (StaticShell or
- * RuntimeShell) is not evidence that a static attempt would be pointless —
- * unlike a concrete static (PPR) entry, where a static re-fetch would return
- * the same bytes — so when the segment's hint says a static attempt is
- * worthwhile (the build-time prerender accessed no runtime data), the
- * attempt is taken and its response's own verdict decides whether to
- * escalate afterward.
+ * to a runtime request. A RuntimeShell entry is not evidence that a static
+ * attempt would be pointless — unlike a concrete static (PPR) entry, where a
+ * static re-fetch would return the same bytes — so when the segment's hint
+ * says a static attempt is worthwhile (the build-time prerender accessed no
+ * runtime data), the attempt is taken and its response's own verdict decides
+ * whether to escalate afterward. A StaticShell entry is not eligible: its
+ * verdict says the shell read runtime data, so the later stages read it too
+ * and a static prefetch can't make the entry cache complete. Only a runtime
+ * request can, so it goes straight there.
  *
  * Consults the revalidation slot so an attempt that already ran and settled
  * without healing the entry (a rejected attempt: server miss or network
@@ -1235,8 +1237,7 @@ function isShellEntryEligibleForStaticAttempt(
 ): boolean {
   if (
     !(
-      (entry.fetchStrategy === FetchStrategy.StaticShell ||
-        entry.fetchStrategy === FetchStrategy.RuntimeShell) &&
+      entry.fetchStrategy === FetchStrategy.RuntimeShell &&
       shouldSegmentAttemptStaticRequest(fetchStrategy, tree) &&
       // if the `fetchStrategy` is `FetchStrategy.PPR`, it might provide more content
       // (e.g. static params that this shell doesn't have)
@@ -2158,7 +2159,7 @@ function pingRuntimePrefetches(
  * produced the entry). The callers surface this signal to the per-segment
  * decision point in pingSegmentInCacheComponentsTree, which uses it during
  * a static attempt to decide whether to fall back to a runtime prefetch. One
- * exception withholds the signal: a shell-tier entry whose segment carries
+ * exception withholds the signal: a RuntimeShell entry whose segment carries
  * the static-attempt hint spawns a concrete static attempt first — see the
  * Fulfilled case.
  */
