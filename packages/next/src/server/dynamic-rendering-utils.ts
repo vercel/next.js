@@ -446,12 +446,11 @@ function trackRuntimeDataAccessed(
             // static prefetch would hit) so it does not indicate the need for a runtime
             // request and thus does not affect the static hints.
             //
-            // If runtime prefetches are not disallowed by `ensureStatic`, then we still
-            // set `runtimeDataAccessed` (while keeping the hints static). This means that
-            // if the concrete prerender isn't ready yet and we served the fallback, then
-            // the client knows it can use a *runtime* prefetch for speculative links --
-            // a runtime prefetch can provide the same content (or more) as the concrete
-            // prerender would.
+            // If `ensureStatic` doesn't disallow runtime prefetches, we still
+            // set `runtimeDataAccessed`, but keep the hints static. So if we
+            // serve the fallback, the client knows it needs more. It waits for
+            // the concrete prerender first, and only sends a runtime request
+            // if that still needs runtime data, or if it gives up waiting.
             if (ensureStaticLevel < EnsureStaticLevel.Prefetch) {
               markRuntimeDataAccessWhenStageReached(
                 prerenderDataTracking,
