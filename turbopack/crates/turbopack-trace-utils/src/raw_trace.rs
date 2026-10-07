@@ -31,7 +31,21 @@ thread_local! {
     static THREAD_LOCAL_LAST_MEMORY_SAMPLE: Cell<u64> = const { Cell::new(0) };
 }
 
-pub struct RawTraceLayerOptions {}
+/// Options for [`RawTraceLayer`].
+#[derive(Clone, Debug)]
+pub struct RawTraceLayerOptions {
+    /// Track memory: write the per-thread allocation counters on every span enter and exit
+    /// (`AllocationCounters` rows) and periodic process memory samples (`MemorySample` rows).
+    /// These make up a large part of the trace size, so disabling them significantly reduces
+    /// trace file size, at the cost of losing all memory information. Defaults to `true`.
+    pub memory: bool,
+}
+
+impl Default for RawTraceLayerOptions {
+    fn default() -> Self {
+        Self { memory: true }
+    }
+}
 
 struct RawTraceLayerExtension {
     id: u64,
@@ -55,15 +69,23 @@ pub struct RawTraceLayer<S: Subscriber + for<'a> LookupSpan<'a>> {
     trace_writer: TraceWriter,
     start: Instant,
     next_id: AtomicU64,
+    memory: bool,
     _phantom: PhantomData<fn(S)>,
 }
 
 impl<S: Subscriber + for<'a> LookupSpan<'a>> RawTraceLayer<S> {
+    /// Creates a layer with the default [`RawTraceLayerOptions`].
     pub fn new(trace_writer: TraceWriter) -> Self {
+        Self::with_options(trace_writer, RawTraceLayerOptions::default())
+    }
+
+    pub fn with_options(trace_writer: TraceWriter, options: RawTraceLayerOptions) -> Self {
+        let RawTraceLayerOptions { memory } = options;
         Self {
             trace_writer,
             start: Instant::now(),
             next_id: AtomicU64::new(1),
+            memory,
             _phantom: PhantomData,
         }
     }
@@ -171,8 +193,10 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for RawTraceLayer<S> {
     fn on_enter(&self, id: &span::Id, ctx: tracing_subscriber::layer::Context<'_, S>) {
         let ts = self.start.elapsed().as_micros() as u64;
         let thread_id = thread::current().id().as_u64().into();
-        self.maybe_report_memory_sample(ts);
-        self.report_allocations(ts, thread_id);
+        if self.memory {
+            self.maybe_report_memory_sample(ts);
+            self.report_allocations(ts, thread_id);
+        }
         self.write(TraceRow::Enter {
             ts,
             id: get_id(ctx, id),
@@ -183,7 +207,9 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for RawTraceLayer<S> {
     fn on_exit(&self, id: &span::Id, ctx: tracing_subscriber::layer::Context<'_, S>) {
         let ts = self.start.elapsed().as_micros() as u64;
         let thread_id = thread::current().id().as_u64().into();
-        self.report_allocations(ts, thread_id);
+        if self.memory {
+            self.report_allocations(ts, thread_id);
+        }
         self.write(TraceRow::Exit {
             ts,
             id: get_id(ctx, id),
@@ -280,5 +306,102 @@ impl Visit for ValuesVisitor {
         value: &(dyn std::error::Error + 'static),
     ) {
         self.record_debug(field, &display(value))
+    }
+}
+
+#[cfg(test)]
+pub(crate) mod tests {
+    use std::{
+        io::{self, Write},
+        sync::{Arc, Mutex},
+    };
+
+    use tracing_subscriber::{Registry, layer::SubscriberExt};
+
+    use crate::{
+        raw_trace::{RawTraceLayer, RawTraceLayerOptions},
+        trace_writer::TraceWriter,
+        tracing::TraceRow,
+    };
+
+    #[derive(Clone, Default)]
+    struct SharedBuffer(Arc<Mutex<Vec<u8>>>);
+
+    impl Write for SharedBuffer {
+        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+            self.0.lock().unwrap().extend_from_slice(buf);
+            Ok(buf.len())
+        }
+
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    /// Runs `f` with a [`RawTraceLayer`] installed as the thread's default subscriber and
+    /// returns the complete trace file content.
+    pub(crate) fn capture(options: RawTraceLayerOptions, f: impl FnOnce()) -> Vec<u8> {
+        let buffer = SharedBuffer::default();
+        let (trace_writer, guard) = TraceWriter::new(buffer.clone());
+        let subscriber =
+            Registry::default().with(RawTraceLayer::with_options(trace_writer, options));
+        tracing::subscriber::with_default(subscriber, f);
+        // Flushes all buffers and waits for the writer thread to finish.
+        drop(guard);
+        Arc::try_unwrap(buffer.0).unwrap().into_inner().unwrap()
+    }
+
+    /// Decodes the rows of a trace file, skipping the header.
+    pub(crate) fn decode(data: &[u8]) -> Vec<TraceRow<'_>> {
+        let header = b"TRACEv0";
+        assert!(data.starts_with(header), "missing trace header");
+        let mut remaining = &data[header.len()..];
+        let mut rows = Vec::new();
+        while !remaining.is_empty() {
+            let (row, rest) = postcard::take_from_bytes(remaining).unwrap();
+            rows.push(row);
+            remaining = rest;
+        }
+        rows
+    }
+
+    fn enter_exit_span() {
+        let span = tracing::info_span!("test span");
+        let _guard = span.enter();
+    }
+
+    fn count(rows: &[TraceRow<'_>], predicate: impl Fn(&TraceRow<'_>) -> bool) -> usize {
+        rows.iter().filter(|row| predicate(row)).count()
+    }
+
+    #[test]
+    fn writes_allocation_counters_by_default() {
+        let data = capture(RawTraceLayerOptions::default(), enter_exit_span);
+        let rows = decode(&data);
+        assert_eq!(count(&rows, |r| matches!(r, TraceRow::Enter { .. })), 1);
+        assert_eq!(count(&rows, |r| matches!(r, TraceRow::Exit { .. })), 1);
+        assert_eq!(
+            count(&rows, |r| matches!(r, TraceRow::AllocationCounters { .. })),
+            2
+        );
+    }
+
+    #[test]
+    fn memory_tracking_can_be_disabled() {
+        let data = capture(RawTraceLayerOptions { memory: false }, enter_exit_span);
+        let rows = decode(&data);
+        assert_eq!(count(&rows, |r| matches!(r, TraceRow::Start { .. })), 1);
+        assert_eq!(count(&rows, |r| matches!(r, TraceRow::Enter { .. })), 1);
+        assert_eq!(count(&rows, |r| matches!(r, TraceRow::Exit { .. })), 1);
+        assert_eq!(count(&rows, |r| matches!(r, TraceRow::End { .. })), 1);
+        assert_eq!(
+            count(&rows, |r| matches!(
+                r,
+                TraceRow::AllocationCounters { .. }
+                    | TraceRow::Allocation { .. }
+                    | TraceRow::MemorySample { .. }
+            )),
+            0
+        );
     }
 }

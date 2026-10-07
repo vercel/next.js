@@ -15,6 +15,12 @@ It supports [the following special preset values][presets]:
 
 Alternatively, any directives syntax supported by [`tracing_subscriber::filter::EnvFilter`][directives] can be used.
 
+Additionally, these flags can be added to the comma-separated list (e.g. `NEXT_TURBOPACK_TRACING=1,no-memory,gz`):
+
+- **`gz`:** Compress the trace file with gzip (fast compression level).
+- **`gz-best`:** Compress the trace file with gzip (best compression level).
+- **`no-memory`:** Don't track memory. Skips the per-thread allocation counters and the process memory samples, which make up a large part of the trace file size. Allocation and memory value modes in the viewer will be empty.
+
 > [!WARNING]
 > A normal Next.js canary/stable release only includes the info level tracing. This is the tracing level intended for user-facing tracing.
 >
