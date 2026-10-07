@@ -1,6 +1,13 @@
 const path = require('path')
 const webpack = require('webpack')
 const webpackPackageVersion = require('webpack/package.json').version
+const extensionlessWebpackPackageVersion = require('webpack/package').version
+
+if (extensionlessWebpackPackageVersion !== webpackPackageVersion) {
+  throw new Error(
+    'Webpack package metadata requests returned different versions'
+  )
+}
 const { CustomWebpackPlugin } = require('./custom-webpack-plugin')
 
 if (
