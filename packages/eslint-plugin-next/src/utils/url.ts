@@ -166,7 +166,9 @@ export function getUrlFromAppDirectory(
         .flat()
         .map(
           // Since the URLs are normalized we add `^` and `$` to the RegExp to make sure they match exactly.
-          (url) => `^${normalizeAppPath(url)}$`
+          // `href`s are compared after `normalizeURL` (which adds a trailing
+          // slash), so normalize here too or static app routes never match.
+          (url) => `^${normalizeURL(normalizeAppPath(url))}$`
         )
     )
   ).map((urlReg) => {
