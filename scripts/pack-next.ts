@@ -24,6 +24,7 @@ const NEXT_TARBALL = 'next.tar'
 const NEXT_SWC_TARBALL = 'next-swc.tar'
 const NEXT_MDX_TARBALL = 'next-mdx.tar'
 const NEXT_ENV_TARBALL = 'next-env.tar'
+const NEXT_UPGRADE_TARBALL = 'next-upgrade.tar'
 const NEXT_BA_TARBALL = 'next-bundle-analyzer.tar'
 
 type CompressOpt = 'none' | 'strip' | 'objcopy-zlib' | 'objcopy-zstd'
@@ -98,6 +99,7 @@ interface PackageFiles {
   nextFile: string
   nextMdxFile: string
   nextEnvFile: string
+  nextUpgradeFile: string
   nextBaFile: string
   nextSwcFile: string
 }
@@ -142,6 +144,7 @@ async function main(): Promise<void> {
         [`${NEXT_PACKAGES}/next`, tarballFiles.nextFile],
         [`${NEXT_PACKAGES}/next-mdx`, tarballFiles.nextMdxFile],
         [`${NEXT_PACKAGES}/next-env`, tarballFiles.nextEnvFile],
+        [`${NEXT_PACKAGES}/next-upgrade`, tarballFiles.nextUpgradeFile],
         [`${NEXT_PACKAGES}/next-bundle-analyzer`, tarballFiles.nextBaFile],
       ].map(([packagePath, tarballPath]) =>
         packWithTar(packagePath, tarballPath)
@@ -159,6 +162,7 @@ async function main(): Promise<void> {
       nextTarball: packageFiles.nextFile,
       nextMdxTarball: packageFiles.nextMdxFile,
       nextEnvTarball: packageFiles.nextEnvFile,
+      nextUpgradeTarball: packageFiles.nextUpgradeFile,
       nextBundleAnalyzerTarball: packageFiles.nextBaFile,
       nextSwcTarball: packageFiles.nextSwcFile,
     })
@@ -178,6 +182,9 @@ async function main(): Promise<void> {
     )
     console.log(
       `      "@next/env": ${JSON.stringify(`file:${packageFiles.nextEnvFile}`)},`
+    )
+    console.log(
+      `      "@next/upgrade": ${JSON.stringify(`file:${packageFiles.nextUpgradeFile}`)},`
     )
     console.log(
       `      "@next/bundle-analyzer": ${JSON.stringify(`file:${packageFiles.nextBaFile}`)}`
@@ -291,6 +298,7 @@ function getTarballFiles(tarballsDir: string): PackageFiles {
     nextFile: path.join(tarballsDir, NEXT_TARBALL),
     nextMdxFile: path.join(tarballsDir, NEXT_MDX_TARBALL),
     nextEnvFile: path.join(tarballsDir, NEXT_ENV_TARBALL),
+    nextUpgradeFile: path.join(tarballsDir, NEXT_UPGRADE_TARBALL),
     nextBaFile: path.join(tarballsDir, NEXT_BA_TARBALL),
     nextSwcFile: path.join(tarballsDir, NEXT_SWC_TARBALL),
   }
@@ -312,6 +320,7 @@ function getPackageFiles(
     nextFile: `${NEXT_PACKAGES}/next`,
     nextMdxFile: `${NEXT_PACKAGES}/next-mdx`,
     nextEnvFile: `${NEXT_PACKAGES}/next-env`,
+    nextUpgradeFile: `${NEXT_PACKAGES}/next-upgrade`,
     nextBaFile: `${NEXT_PACKAGES}/next-bundle-analyzer`,
     nextSwcFile: `${NEXT_PACKAGES}/next-swc`,
   }
@@ -325,6 +334,7 @@ function mapPackageFiles(
     nextFile: mapFile(packageFiles.nextFile),
     nextMdxFile: mapFile(packageFiles.nextMdxFile),
     nextEnvFile: mapFile(packageFiles.nextEnvFile),
+    nextUpgradeFile: mapFile(packageFiles.nextUpgradeFile),
     nextBaFile: mapFile(packageFiles.nextBaFile),
     nextSwcFile: mapFile(packageFiles.nextSwcFile),
   }

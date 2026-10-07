@@ -50,11 +50,6 @@ export async function copy_docs(task, opts) {
   await task
     .source(join(__dirname, 'src/agent-feedback/protocol.md'))
     .target('dist/agent-feedback')
-
-  // Keep upgrade workflow instructions outside the public docs bundle.
-  await task
-    .source(join(__dirname, 'src/lib/upgrade/*.md'))
-    .target('dist/lib/upgrade')
 }
 
 export async function copy_styled_jsx_assets(task, opts) {

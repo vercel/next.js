@@ -1,0 +1,16 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      // The build bundles the upgrade docs (scripts/copy-assets.mjs).
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/docs/01-app/02-guides/upgrading/**",
+        "$TURBO_ROOT$/docs/02-pages/02-guides/upgrading/**",
+        "$TURBO_ROOT$/docs/01-app/02-guides/migrating-to-cache-components.mdx"
+      ],
+      "outputs": ["dist/**"]
+    }
+  }
+}

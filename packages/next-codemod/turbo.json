@@ -7,7 +7,6 @@
         "**/*.js",
         "**/*.d.ts",
         "**/*.js.map",
-        "!bin/__testfixtures__/**",
         "!transforms/__testfixtures__/**",
         "!transforms/__tests__/**"
       ]
@@ -17,7 +16,6 @@
         "**/*.js",
         "**/*.d.ts",
         "**/*.js.map",
-        "!bin/__testfixtures__/**",
         "!transforms/__testfixtures__/**",
         "!transforms/__tests__/**"
       ]

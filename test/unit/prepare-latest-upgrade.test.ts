@@ -6,12 +6,13 @@ import {
   getLatestUpgradeVersion,
   getUpgradeAssessment,
   prepareUpgrade,
-} from 'next/dist/lib/upgrade/prepare-upgrade'
-import loadConfig from 'next/dist/server/config'
+} from '../../packages/next-upgrade/src/prepare-upgrade'
+import { loadNextConfig as loadConfig } from '../../packages/next-upgrade/src/next-host'
 
-jest.mock('next/dist/server/config', () => ({
-  __esModule: true,
-  default: jest.fn(),
+// The app's config comes from the Next.js installed in the app.
+jest.mock('../../packages/next-upgrade/src/next-host', () => ({
+  ...jest.requireActual('../../packages/next-upgrade/src/next-host'),
+  loadNextConfig: jest.fn(),
 }))
 
 describe('prepare latest upgrade', () => {

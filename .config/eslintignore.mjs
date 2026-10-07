@@ -27,7 +27,7 @@ export default globalIgnores([
   '.github/actions/next-stats-action/.work',
   'packages/next-codemod/transforms/__testfixtures__/**/*',
   'packages/next-codemod/transforms/__tests__/**/*',
-  'packages/next-codemod/bin/__testfixtures__/**/*',
+  'packages/next-upgrade/fixtures/**/*',
   'packages/next-codemod/**/*.js',
   'packages/next-codemod/**/*.d.ts',
   'packages/next-env/**/*.d.ts',

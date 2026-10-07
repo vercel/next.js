@@ -1,7 +1,7 @@
 import type { SpawnOptions } from 'child_process'
 import { constants as osConstants } from 'os'
 
-import spawn from 'next/dist/compiled/cross-spawn'
+import spawn from 'cross-spawn'
 
 export function runChildProcess(
   command: string,

@@ -653,8 +653,10 @@ program
   // Keep nudge attribution available to agents without exposing it in public help.
   .addOption(new Option('--internal-nudge-id <id>').hideHelp())
   .action(async (directory, options) => {
-    const mod = await import('../cli/next-upgrade.js')
-    await mod.spawnNextUpgrade(
+    // The upgrade workflow lives in @next/upgrade.
+    const { runNextUpgrade } =
+      require('@next/upgrade') as typeof import('@next/upgrade')
+    await runNextUpgrade(
       directory,
       options,
       options.internalNudgeId !== undefined
@@ -731,15 +733,19 @@ const internal = program
     'Internal debugging commands. Use with caution. Not covered by semver.'
   )
 
-// Agents use the pinned CLI to report completion after the upgrade has changed dependencies.
+// Agents of upgrade runs prepared before @next/upgrade report completion with
+// the pinned Next.js CLI. Newer runs use `@next/upgrade report`.
 internal
   .command('report-agent-upgrade', { hidden: true })
   .argument('<run-id>', 'The upgrade run UUID.')
   .argument('<result>', 'The agent-reported success or failure result.')
   .action((runId: string, result: string) =>
-    import('../cli/next-upgrade.js').then((mod) =>
-      mod.reportAgentUpgradeAgentResult(runId, result)
-    )
+    (require('@next/upgrade') as typeof import('@next/upgrade'))
+      .reportAgentUpgradeAgentResult(runId, result)
+      .catch((error: unknown) => {
+        console.error(error instanceof Error ? error.message : error)
+        process.exitCode = 1
+      })
   )
 
 internal

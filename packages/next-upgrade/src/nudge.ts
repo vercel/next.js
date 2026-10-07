@@ -5,19 +5,20 @@ import { basename, dirname, join, relative, resolve } from 'path'
 import { promisify } from 'util'
 import { updateInitialEnv } from '@next/env'
 
-import * as Log from '../../build/output/log'
-import type { NextConfigComplete } from '../../server/config-shared'
-import type { Telemetry } from '../../telemetry/storage'
+import * as Log from './utils/log'
+import type { UpgradeNextConfig, UpgradeTelemetry } from './next-host'
 import {
   eventAgentUpgradeNudgeDecision,
   eventAgentUpgradeNudgeShown,
   eventAgentUpgradePolicyDetected,
-} from '../../telemetry/events/agent-upgrade'
-import semver from 'next/dist/compiled/semver'
+} from './telemetry-events'
+import semver from 'semver'
 import type { UpgradeAction } from './prompt'
-import { getAgentName } from '../../telemetry/agent-name'
+import { getAgentName, isCI } from './utils/env'
+import { canPromptForUpgrade, isTerminalForcedForTesting } from './prompt-gate'
+
+export { shouldPromptForUpgrade } from './prompt-gate'
 import { getPendingFutureDefaults } from './future-defaults'
-import { isCI } from '../../server/ci-info'
 
 type NudgeOptions = {
   directory: string
@@ -137,10 +138,11 @@ async function allowNudgeRetry(
   return false
 }
 
-export type UpgradeContext = Pick<
-  NextConfigComplete,
-  'distDir' | 'cacheComponents'
-> & {
+export type UpgradeContext = {
+  distDir: string
+  cacheComponents: boolean | undefined
+  // The Next.js version running dev or build.
+  installedVersion: string
   configuredPolicy: NudgeKind | false | null
   experimental: { agentUpgrade: NudgeKind | false }
 }
@@ -158,14 +160,18 @@ export type UpgradeReminder = {
   | { kind: 'experimental-future'; targetVersion: string; names: string[] }
 )
 
-export function getUpgradeContext(config: NextConfigComplete): UpgradeContext {
+export function getUpgradeContext(
+  config: UpgradeNextConfig & { distDir: string },
+  installedVersion: string
+): UpgradeContext {
   return {
     distDir: config.distDir,
     cacheComponents: config.cacheComponents,
-    configuredPolicy: config.experimental.agentUpgrade ?? null,
+    installedVersion,
+    configuredPolicy: config.experimental?.agentUpgrade ?? null,
     experimental: {
       agentUpgrade:
-        getRequestedUpgrade() ?? config.experimental.agentUpgrade ?? false,
+        getRequestedUpgrade() ?? config.experimental?.agentUpgrade ?? false,
     },
   }
 }
@@ -173,7 +179,7 @@ export function getUpgradeContext(config: NextConfigComplete): UpgradeContext {
 export async function assessUpgrade(
   directory: string,
   config: UpgradeContext,
-  installedVersion: string = process.env.__NEXT_VERSION || 'unknown',
+  installedVersion: string = config.installedVersion,
   stopBefore: NudgeKind | null = null,
   forceVersionReminder: boolean = false
 ): Promise<UpgradeReminder | null> {
@@ -292,7 +298,7 @@ async function nudgeUpgradeForAgent(
   reminder: UpgradeReminder,
   nudgeId: string,
   agentProduct: string,
-  telemetry: Telemetry | null,
+  telemetry: UpgradeTelemetry | null,
   policyEvent: ReturnType<typeof eventAgentUpgradePolicyDetected>
 ): Promise<void> {
   let summary: string
@@ -384,8 +390,7 @@ ${reference ? `Reference: ${reference}` : ''}`
 }
 
 async function getUpgradePreferences(directory: string) {
-  const Conf =
-    require('next/dist/compiled/conf') as typeof import('next/dist/compiled/conf')
+  const Conf = require('conf') as typeof import('conf')
   const project = await realpath(directory)
   let identity = project
   let projectName = basename(project)
@@ -415,19 +420,6 @@ async function getUpgradePreferences(directory: string) {
   const key = `agent-upgrade.${name}.${hash}`
   // Upgrade preferences share Next.js' global config location, not telemetry consent.
   return { key, preferences: new Conf({ projectName: 'nextjs' }) }
-}
-
-// The terminal test needs a menu in CI and under agents, without the network.
-function isTerminalForcedForTesting(): boolean {
-  return process.env.__NEXT_AGENT_UPGRADE_FORCE_TERMINAL_FOR_TESTING === '1'
-}
-
-function canPromptForUpgrade(): boolean {
-  return (
-    (!isCI || isTerminalForcedForTesting()) &&
-    Boolean(process.stdin.isTTY && process.stdout.isTTY) &&
-    process.env.TERM !== 'dumb'
-  )
 }
 
 async function getUpgradeDismissal(
@@ -513,7 +505,8 @@ export async function runUpgrade(
   // The agent's dev/build commands must not trigger this explicit request again.
   delete process.env.__NEXT_AGENT_UPGRADE
   updateInitialEnv({ __NEXT_AGENT_UPGRADE: undefined })
-  const { spawnNextUpgrade } = await import('../../cli/next-upgrade.js')
+  const { spawnNextUpgrade } =
+    require('./agent-upgrade') as typeof import('./agent-upgrade')
 
   // Human Update actions invoke the CLI directly, so their ID does not need an env var.
   await spawnNextUpgrade(
@@ -524,13 +517,6 @@ export async function runUpgrade(
   return process.exitCode ?? 0
 }
 
-export async function shouldPromptForUpgrade(): Promise<boolean> {
-  return (
-    canPromptForUpgrade() &&
-    (isTerminalForcedForTesting() || !(await getAgentName()))
-  )
-}
-
 export async function nudgeUpgrade(
   directory: string,
   config: UpgradeContext,
@@ -538,7 +524,7 @@ export async function nudgeUpgrade(
   signal: AbortSignal | null,
   initialAssessment: Promise<UpgradeReminder | null> | null,
   telemetryOptions: {
-    telemetry: Telemetry
+    telemetry: UpgradeTelemetry
     onNudgeId: ((nudgeId: string) => void) | null
   } | null
 ): Promise<UpgradeAction | void> {
@@ -569,7 +555,7 @@ export async function nudgeUpgrade(
   if (!agent) {
     telemetry?.record(policyEvent)
   }
-  const installedVersion = process.env.__NEXT_VERSION || 'unknown'
+  const installedVersion = config.installedVersion
   let stopBefore: NudgeKind | null = null
   if (!agent) {
     if (!signal || signal.aborted) {

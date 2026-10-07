@@ -1121,6 +1121,9 @@ importers:
       '@next/env':
         specifier: workspace:*
         version: link:../next-env
+      '@next/upgrade':
+        specifier: workspace:*
+        version: link:../next-upgrade
       '@swc/helpers':
         specifier: 0.5.23
         version: 0.5.23
@@ -1978,6 +1981,73 @@ importers:
       wasm-pack:
         specifier: 0.13.1
         version: 0.13.1
+
+  packages/next-upgrade:
+    dependencies:
+      '@next/env':
+        specifier: workspace:*
+        version: link:../next-env
+    devDependencies:
+      '@types/ci-info':
+        specifier: 2.0.0
+        version: 2.0.0
+      '@types/cross-spawn':
+        specifier: 6.0.0
+        version: 6.0.0
+      '@types/debug':
+        specifier: 4.1.5
+        version: 4.1.5
+      '@types/js-yaml':
+        specifier: 4.0.9
+        version: 4.0.9
+      '@types/prompts':
+        specifier: 2.4.2
+        version: 2.4.2
+      '@types/semver':
+        specifier: 7.3.1
+        version: 7.3.1
+      '@vercel/detect-agent':
+        specifier: 1.2.3
+        version: 1.2.3
+      '@vercel/ncc':
+        specifier: 0.38.4
+        version: 0.38.4
+      ci-info:
+        specifier: watson/ci-info#f43f6a1cefff47fb361c88cf4b943fdbcaafe540
+        version: https://codeload.github.com/watson/ci-info/tar.gz/f43f6a1cefff47fb361c88cf4b943fdbcaafe540
+      cli-select:
+        specifier: 1.1.2
+        version: 1.1.2
+      commander:
+        specifier: 12.1.0
+        version: 12.1.0
+      conf:
+        specifier: 5.0.0
+        version: 5.0.0
+      cross-spawn:
+        specifier: 7.0.3
+        version: 7.0.3
+      debug:
+        specifier: 4.1.1
+        version: 4.1.1
+      execa:
+        specifier: 4.0.3
+        version: 4.0.3
+      js-yaml:
+        specifier: 4.2.0
+        version: 4.2.0
+      ora:
+        specifier: 4.0.4
+        version: 4.0.4
+      prompts:
+        specifier: 2.4.2
+        version: 2.4.2
+      semver:
+        specifier: 7.6.3
+        version: 7.6.3
+      typescript:
+        specifier: 6.0.2
+        version: 6.0.2
 
   packages/react-refresh-utils:
     devDependencies:

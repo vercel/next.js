@@ -1,20 +1,21 @@
-import { spawn } from 'child_process'
 import { randomUUID } from 'crypto'
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
 import { dirname, join, resolve as resolvePath } from 'path'
-import { major, prerelease, valid } from 'next/dist/compiled/semver'
-import * as Log from '../build/output/log'
-import createSpinner from '../build/spinner'
-import { findDir } from '../lib/find-pages-dir'
-import { getProjectDir } from '../lib/get-project-dir'
-import { warnMissingReactDependencies } from '../lib/warn-missing-react-dependencies'
-import { getNpxCommand } from '../lib/helpers/get-npx-command'
-import { interopDefault } from '../lib/interop-default'
-import { dim } from '../lib/picocolors'
-import type { UpgradeDocument } from '../lib/upgrade/future-defaults'
-import { runChildProcess } from '../lib/upgrade/run-child-process'
-import { getAgentName } from '../telemetry/agent-name'
+import { major, prerelease, valid } from 'semver'
+import spawnCommand from 'cross-spawn'
+import * as Log from './utils/log'
+import createSpinner from './utils/spinner'
+import {
+  findDir,
+  getProjectDir,
+  warnMissingReactDependencies,
+} from './utils/project'
+import { getNpxCommand } from './utils/npx'
+import { dim } from './utils/picocolors'
+import type { UpgradeDocument } from './future-defaults'
+import { runChildProcess } from './run-child-process'
+import { getAgentName, upgradeVersion } from './utils/env'
 import {
   eventAgentUpgradeAgentResult,
   eventAgentUpgradeCLIResult,
@@ -22,16 +23,22 @@ import {
   type AgentUpgradeCLIResult,
   type AgentUpgradeHandoffMethod,
   type AgentUpgradePolicy,
-} from '../telemetry/events/agent-upgrade'
-import { Telemetry } from '../telemetry/storage'
-import loadConfig from '../server/config'
-import { normalizeConfig } from '../server/config-shared'
-import { PHASE_PRODUCTION_BUILD } from '../shared/lib/constants'
+} from './telemetry-events'
+import {
+  createNextTelemetry,
+  loadNextConfig,
+  PHASE_PRODUCTION_BUILD,
+} from './next-host'
+import { BadInput, runVersionUpgrade } from './version-upgrade'
 
-type NextUpgradeOptions = {
-  revision: string
+export type NextUpgradeOptions = {
+  revision?: string
   verbose: boolean
   agent: boolean | string | undefined
+  yes?: boolean
+  skipAdoption?: boolean
+  skipReactUpgrade?: boolean
+  skipEslintUpgrade?: boolean
 }
 
 const UUID_PATTERN =
@@ -71,8 +78,6 @@ async function prepareUpgradeSkill(
   input: PrepareUpgradeDocumentInput,
   skill: string
 ): Promise<string> {
-  const spawnCommand =
-    require('next/dist/compiled/cross-spawn') as typeof import('next/dist/compiled/cross-spawn')
   const [command, ...runnerArgs] = getNpxCommand(input.directory).split(' ')
   const source =
     `https://github.com/vercel/next.js/tree/v${input.nextVersion}/skills/` +
@@ -135,22 +140,24 @@ async function prepareUpgradeSkill(
   }
 }
 
-async function loadAgentUpgradeConfig(directory: string) {
+function loadAgentUpgradeConfig(directory: string) {
   // Read and normalize the app's config without validating legacy options
   // against the current Next.js schema.
-  const rawConfig = await loadConfig(PHASE_PRODUCTION_BUILD, directory, {
+  return loadNextConfig(directory, PHASE_PRODUCTION_BUILD, {
     rawConfig: true,
   })
-  return normalizeConfig(PHASE_PRODUCTION_BUILD, interopDefault(rawConfig))
 }
 
 async function resolveCanaryVersion(): Promise<string> {
   try {
-    const response = await fetch('https://registry.npmjs.org/next/canary', {
-      signal: AbortSignal.timeout(10_000),
-      cache: 'no-store',
-      redirect: 'error',
-    })
+    const response = await fetch(
+      'https://registry.npmjs.org/@next%2fupgrade/canary',
+      {
+        signal: AbortSignal.timeout(10_000),
+        cache: 'no-store',
+        redirect: 'error',
+      }
+    )
 
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`)
@@ -163,9 +170,12 @@ async function resolveCanaryVersion(): Promise<string> {
 
     return version
   } catch (error) {
-    throw new Error('Could not fetch the latest Next.js canary from npm.', {
-      cause: error,
-    })
+    throw new Error(
+      'Could not fetch the latest @next/upgrade canary from npm.',
+      {
+        cause: error,
+      }
+    )
   }
 }
 
@@ -193,10 +203,7 @@ export async function spawnNextUpgrade(
     }
 
     // Count agent invocations even when resolving the directory or config fails.
-    const telemetry = new Telemetry({
-      distDir: join(baseDir, distDir),
-      skipNotify: true,
-    })
+    const telemetry = createNextTelemetry(baseDir, join(baseDir, distDir))
 
     // The parent records attribution; canary only needs its run ID to report results.
     // Remove it before launching an agent so later upgrades start their own runs.
@@ -280,9 +287,9 @@ export async function spawnNextUpgrade(
 
       if (expectedVersion !== undefined) {
         // Delegated upgrades and evals use their pinned CLI without another lookup.
-        if (process.env.__NEXT_VERSION !== expectedVersion) {
+        if (upgradeVersion !== expectedVersion) {
           throw new Error(
-            `Expected Next.js ${expectedVersion} for the upgrade, but launched ${process.env.__NEXT_VERSION}.`
+            `Expected @next/upgrade ${expectedVersion} for the upgrade, but launched ${upgradeVersion}.`
           )
         }
       } else {
@@ -290,7 +297,7 @@ export async function spawnNextUpgrade(
         failureStage = 'metadata'
         const canaryVersion = await resolveCanaryVersion()
         failureStage = 'cli'
-        if (process.env.__NEXT_VERSION !== canaryVersion) {
+        if (upgradeVersion !== canaryVersion) {
           const [command, ...runnerArgs] = getNpxCommand(baseDir).split(' ')
           const agentArgument =
             typeof options.agent === 'string'
@@ -298,8 +305,7 @@ export async function spawnNextUpgrade(
               : '--agent'
           const args = [
             ...runnerArgs,
-            `next@${canaryVersion}`,
-            'upgrade',
+            `@next/upgrade@${canaryVersion}`,
             baseDir,
             agentArgument,
           ]
@@ -319,8 +325,6 @@ export async function spawnNextUpgrade(
                 // The delegated CLI emits the CLI result for this invocation's run ID.
                 __NEXT_AGENT_UPGRADE_RUN_ID: runId,
                 __NEXT_UPGRADE_EXPECTED_CLI_VERSION: canaryVersion,
-                // Older canaries recognize only this recursion guard.
-                __NEXT_UPGRADE_USE_CURRENT_CLI: '1',
               },
             },
             null
@@ -359,7 +363,7 @@ export async function spawnNextUpgrade(
 
       // Resolve the requested target before preparing an agent session.
       const { prepareUpgrade } =
-        require('../lib/upgrade/prepare-upgrade') as typeof import('../lib/upgrade/prepare-upgrade')
+        require('./prepare-upgrade') as typeof import('./prepare-upgrade')
       const assessmentSpinner = createSpinner('Preparing upgrade')
       const result = await prepareUpgrade(baseDir, upgradeType).finally(() =>
         assessmentSpinner?.stop()
@@ -397,8 +401,8 @@ export async function spawnNextUpgrade(
       // Use the invoking CLI's guides, even when the app runs an older Next.js.
       // Retain them outside the app so dependency changes cannot remove them.
       failureStage = 'guide'
-      const bundledDocs = join(__dirname, '../docs')
-      const bundledGuides = join(__dirname, '../lib/upgrade')
+      const bundledDocs = join(__dirname, 'docs')
+      const bundledGuides = join(__dirname, 'guides')
       const runDirectory = await mkdtemp(join(tmpdir(), 'next-upgrade-'))
       const guideName = crossesMajor
         ? 'different-major'
@@ -472,11 +476,7 @@ export async function spawnNextUpgrade(
         }
 
         if (crossesMajor) {
-          const codemodVersion = process.env.__NEXT_VERSION
-          if (!codemodVersion) {
-            throw new Error('Could not determine the @next/codemod version.')
-          }
-          const codemodCommand = `${getNpxCommand(baseDir)} @next/codemod@${codemodVersion} upgrade ${result.targetVersion} --yes --skip-adoption${options.verbose ? ' --verbose' : ''}`
+          const codemodCommand = `${getNpxCommand(baseDir)} @next/upgrade@${upgradeVersion} --revision ${result.targetVersion} --yes --skip-adoption${options.verbose ? ' --verbose' : ''}`
           const guide = await readFile(guidePath, 'utf8')
           if (!guide.includes(CODEMOD_COMMAND_PLACEHOLDER)) {
             throw new Error('Could not prepare the upgrade guide.')
@@ -565,7 +565,7 @@ export async function spawnNextUpgrade(
         : `We're adopting the Future Defaults available to the app in ${JSON.stringify(baseDir)}, which already uses Next.js ${result.installedVersion}.`
 
       // Use the invoking CLI's reporter even after the app's Next.js package changes.
-      const reportCommand = `${getNpxCommand(baseDir)} next@${process.env.__NEXT_VERSION} internal report-agent-upgrade ${runId}`
+      const reportCommand = `${getNpxCommand(baseDir)} @next/upgrade@${upgradeVersion} report ${runId}`
       const prompt = (
         useWorktree: boolean | null
       ) => `Read and follow ${JSON.stringify(sharedGuidePath)} first. Attempt its applicable duplicate checks before changing files. If a check is unavailable, report it and continue. Stop only if you find equivalent work. Then read and follow every applicable instruction in ${JSON.stringify(guidePath)}.
@@ -582,7 +582,7 @@ ${references}
 When this task ends, report its result once. After completing the requested upgrade and all applicable verification, run \`${reportCommand} success\`. If the attempted upgrade remains unsuccessful after repairs or verification fails, run \`${reportCommand} failure\`. If you stop for duplicate work, user cancellation, or an unavailable prerequisite, do not report success or failure. Explain the result to the user separately; never include project details or error text in the telemetry command.`
 
       const { handoffUpgrade } =
-        require('../lib/upgrade/harness') as typeof import('../lib/upgrade/harness')
+        require('./harness') as typeof import('./harness')
 
       // Delivery is observable here; completing the upgrade belongs to the agent.
       failureStage = 'handoff'
@@ -631,33 +631,22 @@ When this task ends, report its result once. After completing the requested upgr
   baseDir = getProjectDir(directory)
   warnMissingReactDependencies(baseDir)
 
-  const [upgradeProcessCommand, ...upgradeProcessDefaultArgs] =
-    getNpxCommand(baseDir).split(' ')
-
-  const upgradeProcessCommandArgs = [
-    ...upgradeProcessDefaultArgs,
-    // Needs to be bleeding edge (canary) to pick up latest codemods.
-    '@next/codemod@canary',
-    'upgrade',
-    options.revision,
-  ]
-
-  if (options.verbose) {
-    upgradeProcessCommandArgs.push('--verbose')
-  }
-
-  const upgradeProcess = spawn(
-    upgradeProcessCommand,
-    upgradeProcessCommandArgs,
-    {
-      stdio: 'inherit',
-      cwd: baseDir,
+  try {
+    await runVersionUpgrade(baseDir, options.revision, {
+      verbose: options.verbose,
+      yes: options.yes,
+      skipAdoption: options.skipAdoption,
+      skipReactUpgrade: options.skipReactUpgrade,
+      skipEslintUpgrade: options.skipEslintUpgrade,
+    })
+  } catch (error) {
+    if (!options.verbose && error instanceof BadInput) {
+      console.error(error.message)
+    } else {
+      console.error(error)
     }
-  )
-
-  upgradeProcess.on('close', (code) => {
-    process.exitCode = code ?? 0
-  })
+    process.exitCode = 1
+  }
 }
 
 export async function reportAgentUpgradeAgentResult(
@@ -676,10 +665,10 @@ export async function reportAgentUpgradeAgentResult(
 
   // Reuse normal telemetry consent and delivery without starting another upgrade.
   const config = await loadAgentUpgradeConfig(process.cwd())
-  const telemetry = new Telemetry({
-    distDir: join(process.cwd(), config.distDir || '.next'),
-    skipNotify: true,
-  })
+  const telemetry = createNextTelemetry(
+    process.cwd(),
+    join(process.cwd(), config.distDir || '.next')
+  )
   await telemetry.record(eventAgentUpgradeAgentResult({ runId, result }))
   await telemetry.flush()
 }

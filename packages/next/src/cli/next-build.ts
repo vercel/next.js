@@ -25,9 +25,10 @@ import {
   flushUpgradeTelemetry,
   getPromptOutputEnv,
   reassertRawMode,
+  shouldPromptForUpgrade,
   showUpgradeMenu,
-} from '../lib/upgrade/prompt-output'
-import type { UpgradeContext } from '../lib/upgrade/nudge'
+} from '@next/upgrade/dist/terminal'
+import type { UpgradeContext } from '@next/upgrade'
 import { fork } from 'child_process'
 import { once } from 'events'
 import os from 'os'
@@ -206,7 +207,6 @@ async function shouldBuildInChild() {
   ) {
     return false
   }
-  const { shouldPromptForUpgrade } = await import('../lib/upgrade/nudge.js')
   return shouldPromptForUpgrade()
 }
 
@@ -289,7 +289,8 @@ async function buildInChild(): Promise<never> {
           for (const signal of signals) {
             process.off(signal, onSignal)
           }
-          const { runUpgrade } = await import('../lib/upgrade/nudge.js')
+          const { runUpgrade } =
+            require('@next/upgrade') as typeof import('@next/upgrade')
           const exitCode = await runUpgrade(dir, result.policy, result.nudgeId)
           await flushUpgradeTelemetry()
           // A build that failed still fails the command.

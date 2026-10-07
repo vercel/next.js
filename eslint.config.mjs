@@ -508,6 +508,13 @@ export default defineConfig([
     },
   },
   {
+    // @next/upgrade bundles its dependencies with ncc, so they are devDependencies.
+    files: ['packages/next-upgrade/src/**'],
+    rules: {
+      'import/no-extraneous-dependencies': 'off',
+    },
+  },
+  {
     files: ['packages/**/*.tsx', 'packages/**/*.ts'],
 
     rules: {

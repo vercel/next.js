@@ -83,6 +83,7 @@ async function main() {
   for (const [name, entry] of [
     ['next', 'dist/bin/next'],
     ['next-codemod', 'bin/next-codemod.js'],
+    ['next-upgrade', 'dist/index.js'],
   ]) {
     if (!fs.existsSync(path.join(root, 'packages', name, entry)))
       throw new Error(`Build packages/${name} before running upgrade evals`)
@@ -98,6 +99,10 @@ async function main() {
     NEXT_UPGRADE_EVAL_CODEMOD_TARBALL: packPackage(
       path.join(root, 'packages/next-codemod'),
       path.join(tarballs, 'codemod.tgz')
+    ),
+    NEXT_UPGRADE_EVAL_UPGRADE_TARBALL: packPackage(
+      path.join(root, 'packages/next-upgrade'),
+      path.join(tarballs, 'upgrade.tgz')
     ),
   }
   fs.mkdirSync(path.join(__dirname, 'results'), { recursive: true })

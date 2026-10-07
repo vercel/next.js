@@ -30,7 +30,7 @@ import uploadTrace from '../trace/upload-trace'
 import { initialEnv } from '@next/env'
 import { fork } from 'child_process'
 import type { ChildProcess } from 'child_process'
-import type { UpgradeContext, UpgradeReminder } from '../lib/upgrade/nudge'
+import type { UpgradeContext, UpgradeReminder } from '@next/upgrade'
 import {
   closedUpgradeMenu,
   createPromptOutput,
@@ -38,9 +38,10 @@ import {
   flushUpgradeTelemetry,
   getPromptOutputEnv,
   reassertRawMode,
+  shouldPromptForUpgrade,
   showUpgradeMenu,
   type UpgradeMenuResult,
-} from '../lib/upgrade/prompt-output'
+} from '@next/upgrade/dist/terminal'
 import {
   getReservedPortExplanation,
   isPortIsReserved,
@@ -271,9 +272,6 @@ const nextDev = async (
   dir = getProjectDir(process.env.NEXT_PRIVATE_DEV_DIR || directory)
   warnMissingReactDependencies(dir)
 
-  const { shouldPromptForUpgrade, runUpgrade } = await import(
-    '../lib/upgrade/nudge.js'
-  )
   const humanUpgrade = await shouldPromptForUpgrade()
   const allowedUpgradeRetries = new Set<string>()
   async function offerUpgrade(
@@ -317,6 +315,8 @@ const nextDev = async (
       process.off('SIGINT', onInterrupt)
       process.off('SIGTERM', onTerminate)
       process.off('SIGHUP', onHangup)
+      const { runUpgrade } =
+        require('@next/upgrade') as typeof import('@next/upgrade')
       const exitCode = await runUpgrade(dir, result.policy, result.nudgeId)
       await flushUpgradeTelemetry()
       process.exit(exitCode)

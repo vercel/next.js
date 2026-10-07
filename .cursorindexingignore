@@ -7,7 +7,7 @@
 /examples/
 /packages/create-next-app/templates/
 /packages/next/src/compiled/
-/packages/next-codemod/bin/__testfixtures__/
+/packages/next-upgrade/fixtures/
 /packages/next-codemod/transforms/__testfixtures__/
 /packages/next-codemod/transforms/__tests__/
 /scripts/

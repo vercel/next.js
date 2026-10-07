@@ -10,64 +10,43 @@ import {
   nudgeUpgrade,
   runUpgrade,
   shouldPromptForUpgrade,
-} from 'next/dist/lib/upgrade/nudge'
-import { promptUpgrade } from 'next/dist/lib/upgrade/prompt'
-import Conf from 'next/dist/compiled/conf'
-import { getAgentName } from 'next/dist/telemetry/agent-name'
-import { getUpgradeAssessment } from 'next/dist/lib/upgrade/prepare-upgrade'
-import { warn } from 'next/dist/build/output/log'
-import { spawnNextUpgrade } from 'next/dist/cli/next-upgrade'
+} from '../../packages/next-upgrade/src/nudge'
+import { promptUpgrade } from '../../packages/next-upgrade/src/prompt'
+import Conf from '../../packages/next-upgrade/node_modules/conf'
+import { getAgentName } from '../../packages/next-upgrade/src/utils/env'
+import { getUpgradeAssessment } from '../../packages/next-upgrade/src/prepare-upgrade'
+import { warn } from '../../packages/next-upgrade/src/utils/log'
+import { spawnNextUpgrade } from '../../packages/next-upgrade/src/agent-upgrade'
 import { defaultConfig } from 'next/dist/server/config-shared'
 
-jest.mock('next/dist/cli/next-upgrade', () => ({
+jest.mock('../../packages/next-upgrade/src/agent-upgrade', () => ({
   spawnNextUpgrade: jest.fn(),
 }))
-jest.mock(
-  '../../packages/next/src/cli/next-upgrade.js',
-  () => jest.requireMock('next/dist/cli/next-upgrade'),
-  { virtual: true }
-)
-
-// Read source so version cases run before the package build inlines __NEXT_VERSION.
-jest.mock('next/dist/lib/upgrade/nudge', () =>
-  jest.requireActual('../../packages/next/src/lib/upgrade/nudge')
-)
-jest.mock('../../packages/next/src/telemetry/agent-name', () =>
-  jest.requireMock('next/dist/telemetry/agent-name')
-)
-jest.mock('../../packages/next/src/lib/upgrade/prepare-upgrade', () =>
-  jest.requireMock('next/dist/lib/upgrade/prepare-upgrade')
-)
-jest.mock('../../packages/next/src/build/output/log', () =>
-  jest.requireMock('next/dist/build/output/log')
-)
-
-jest.mock('next/dist/telemetry/agent-name', () => ({
+jest.mock('../../packages/next-upgrade/src/utils/env', () => ({
+  ...jest.requireActual('../../packages/next-upgrade/src/utils/env'),
   getAgentName: jest.fn(),
+  isCI: false,
 }))
-jest.mock('next/dist/lib/upgrade/prepare-upgrade', () => ({
+jest.mock('../../packages/next-upgrade/src/prepare-upgrade', () => ({
   getPrereleaseChannel: jest.requireActual(
-    'next/dist/lib/upgrade/prepare-upgrade'
+    '../../packages/next-upgrade/src/prepare-upgrade'
   ).getPrereleaseChannel,
   getLatestUpgradeVersion: jest.requireActual(
-    'next/dist/lib/upgrade/prepare-upgrade'
+    '../../packages/next-upgrade/src/prepare-upgrade'
   ).getLatestUpgradeVersion,
   getUpgradeAssessment: jest.fn(),
 }))
-jest.mock('next/dist/build/output/log', () => ({
+jest.mock('../../packages/next-upgrade/src/utils/log', () => ({
   warn: jest.fn(),
 }))
-
-jest.mock('../../packages/next/src/server/ci-info', () => ({ isCI: false }))
-jest.mock('../../packages/next/src/lib/upgrade/prompt', () =>
-  jest.requireMock('next/dist/lib/upgrade/prompt')
-)
-jest.mock('next/dist/lib/upgrade/prompt', () => ({
+jest.mock('../../packages/next-upgrade/src/prompt', () => ({
   promptUpgrade: jest.fn(),
 }))
 let mockPreferencesDirectory: string
-jest.mock('next/dist/compiled/conf', () => {
-  const ActualConf = jest.requireActual('next/dist/compiled/conf')
+jest.mock('../../packages/next-upgrade/node_modules/conf', () => {
+  const ActualConf = jest.requireActual(
+    '../../packages/next-upgrade/node_modules/conf'
+  )
   return class extends ActualConf {
     constructor(options: object) {
       super({ ...options, cwd: mockPreferencesDirectory })
@@ -101,12 +80,17 @@ const config = (
   ({
     ...values,
     distDir: '.next',
+    // Next.js passes the version it runs as; the cases set it through
+    // __NEXT_VERSION, read when the nudge runs.
+    get installedVersion() {
+      return process.env.__NEXT_VERSION || 'unknown'
+    },
     experimental: { agentUpgrade: policy },
   }) as never
 
 it('defaults agentUpgrade to the security policy', () => {
   expect(defaultConfig.experimental.agentUpgrade).toBe('security')
-  const context = getUpgradeContext(config('security'))
+  const context = getUpgradeContext(config('security'), '16.4.0')
   expect(context.experimental.agentUpgrade).toBe('security')
 })
 
@@ -340,12 +324,12 @@ describe('security upgrade nudge', () => {
       jest.isolateModules(() => {
         restartedNudge = jest.requireActual<{
           nudgeUpgrade: typeof nudgeUpgrade
-        }>('../../packages/next/src/lib/upgrade/nudge').nudgeUpgrade
+        }>('../../packages/next-upgrade/src/nudge').nudgeUpgrade
         jest
           .mocked(
-            jest.requireMock<typeof import('next/dist/telemetry/agent-name')>(
-              'next/dist/telemetry/agent-name'
-            ).getAgentName
+            jest.requireMock<
+              typeof import('../../packages/next-upgrade/src/utils/env')
+            >('../../packages/next-upgrade/src/utils/env').getAgentName
           )
           .mockResolvedValue('codex')
       })
@@ -366,12 +350,12 @@ describe('security upgrade nudge', () => {
       jest.isolateModules(() => {
         newSessionNudge = jest.requireActual<{
           nudgeUpgrade: typeof nudgeUpgrade
-        }>('../../packages/next/src/lib/upgrade/nudge').nudgeUpgrade
+        }>('../../packages/next-upgrade/src/nudge').nudgeUpgrade
         jest
           .mocked(
-            jest.requireMock<typeof import('next/dist/telemetry/agent-name')>(
-              'next/dist/telemetry/agent-name'
-            ).getAgentName
+            jest.requireMock<
+              typeof import('../../packages/next-upgrade/src/utils/env')
+            >('../../packages/next-upgrade/src/utils/env').getAgentName
           )
           .mockResolvedValue('codex')
       })
@@ -424,9 +408,9 @@ describe('security upgrade nudge', () => {
 })
 describe('latest nudge release selection', () => {
   const { getLatestUpgradeVersion: readLatestUpgradeVersion } =
-    jest.requireActual<typeof import('next/dist/lib/upgrade/prepare-upgrade')>(
-      'next/dist/lib/upgrade/prepare-upgrade'
-    )
+    jest.requireActual<
+      typeof import('../../packages/next-upgrade/src/prepare-upgrade')
+    >('../../packages/next-upgrade/src/prepare-upgrade')
 
   afterEach(() => {
     jest.restoreAllMocks()
@@ -800,7 +784,7 @@ describe('human upgrade nudge', () => {
   beforeEach(() => {
     jest.resetAllMocks()
     mockPreferencesDirectory = join(directory, 'preferences')
-    jest.requireMock('../../packages/next/src/server/ci-info').isCI = false
+    jest.requireMock('../../packages/next-upgrade/src/utils/env').isCI = false
     for (const stream of [process.stdin, process.stdout]) {
       Object.defineProperty(stream, 'isTTY', {
         configurable: true,
@@ -940,7 +924,10 @@ describe('human upgrade nudge', () => {
       updateInitialEnv({ __NEXT_AGENT_UPGRADE: policy })
       for (const configured of [false, 'experimental-future'] as const) {
         const original = config(configured)
-        const context = getUpgradeContext(original)
+        const context = getUpgradeContext(
+          original,
+          process.env.__NEXT_VERSION || 'unknown'
+        )
         expect(context.experimental.agentUpgrade).toBe(policy)
         await expect(
           nudgeUpgrade(
@@ -1050,7 +1037,10 @@ describe('human upgrade nudge', () => {
 
   it('ignores invalid requests and retains the configured policy', async () => {
     process.env.__NEXT_AGENT_UPGRADE = 'invalid'
-    const context = getUpgradeContext(config(false))
+    const context = getUpgradeContext(
+      config(false),
+      process.env.__NEXT_VERSION || 'unknown'
+    )
     expect(context.experimental.agentUpgrade).toBe(false)
     await nudgeUpgrade(
       directory,
@@ -1250,7 +1240,8 @@ describe('human upgrade nudge', () => {
     'does not request metadata or prompt with ineligible %s',
     async (reason) => {
       if (reason === 'CI') {
-        jest.requireMock('../../packages/next/src/server/ci-info').isCI = true
+        jest.requireMock('../../packages/next-upgrade/src/utils/env').isCI =
+          true
       } else if (reason === 'TERM') {
         process.env.TERM = 'dumb'
       } else {

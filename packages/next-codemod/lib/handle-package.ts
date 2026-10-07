@@ -1,57 +1,9 @@
 import findUp from 'find-up'
 import execa from 'execa'
-import { execSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 
 export type PackageManager = 'npm' | 'pnpm' | 'yarn' | 'bun'
-
-/**
- * Get the full version string for the given package manager.
- *
- * First tries to parse from `npm_config_user_agent` (e.g., "pnpm/9.13.2 npm/? ..."),
- * then falls back to spawning `<packageManager> --version`.
- *
- * Returns null if unable to determine the version.
- *
- * Mirrors `packages/create-next-app/helpers/get-pkg-manager.ts`.
- */
-export function getPackageManagerVersion(
-  packageManager: PackageManager
-): string | null {
-  const userAgent = process.env.npm_config_user_agent || ''
-  const userAgentMatch = userAgent.match(
-    new RegExp(`${packageManager}/([\\d.]+[\\w.-]*)`)
-  )
-  if (userAgentMatch) {
-    return userAgentMatch[1]
-  }
-
-  try {
-    const version = execSync(`${packageManager} --version`, {
-      encoding: 'utf8',
-      stdio: ['pipe', 'pipe', 'ignore'],
-    }).trim()
-    if (/^\d+\.\d+\.\d+/.test(version)) {
-      return version
-    }
-  } catch {
-    // package manager not available or failed to run
-  }
-
-  return null
-}
-
-/**
- * Get the major version of pnpm being used.
- * Returns null if unable to determine the version.
- */
-export function getPnpmMajorVersion(): number | null {
-  const version = getPackageManagerVersion('pnpm')
-  if (!version) return null
-  const major = parseInt(version.split('.')[0], 10)
-  return Number.isNaN(major) ? null : major
-}
 
 export function getPkgManager(baseDir: string): PackageManager {
   try {
@@ -188,43 +140,4 @@ export function installPackages(
       { cause: error }
     )
   }
-}
-
-export function runInstallation(
-  packageManager: PackageManager,
-  options: { cwd: string }
-) {
-  try {
-    execa.sync(packageManager, ['install'], {
-      cwd: options.cwd,
-      env: {
-        ...process.env,
-        // In case NODE_ENV=production is set, we still want dev dependencies to
-        // be installed. Otherwise we won't be able to check for peer dependencies.
-        // --production=false is not implemented by every package manager.
-        NODE_ENV: 'development',
-      },
-      stdio: 'inherit',
-      shell: true,
-    })
-  } catch (error) {
-    throw new Error('Failed to install dependencies', { cause: error })
-  }
-}
-
-export function addPackageDependency(
-  packageJson: Record<string, any>,
-  name: string,
-  version: string,
-  dev: boolean
-): void {
-  if (dev) {
-    packageJson.devDependencies = packageJson.devDependencies || {}
-  } else {
-    packageJson.dependencies = packageJson.dependencies || {}
-  }
-
-  const deps = dev ? packageJson.devDependencies : packageJson.dependencies
-
-  deps[name] = version
 }

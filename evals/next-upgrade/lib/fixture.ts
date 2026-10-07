@@ -15,7 +15,8 @@ export async function setupUpgrade(sandbox: Sandbox) {
   }
   const nextTarball = process.env.NEXT_UPGRADE_EVAL_NEXT_TARBALL
   const codemodTarball = process.env.NEXT_UPGRADE_EVAL_CODEMOD_TARBALL
-  if (!nextTarball || !codemodTarball)
+  const upgradeTarball = process.env.NEXT_UPGRADE_EVAL_UPGRADE_TARBALL
+  if (!nextTarball || !codemodTarball || !upgradeTarball)
     throw new Error(
       'Run through pnpm eval:upgrade to provide the candidate packages'
     )
@@ -39,6 +40,8 @@ export async function setupUpgrade(sandbox: Sandbox) {
     [`${toolsDirectory}/next.tgz`]: readFileSync(nextTarball),
     // @ts-expect-error agent-eval accepts binary upload at runtime
     [`${toolsDirectory}/codemod.tgz`]: readFileSync(codemodTarball),
+    // @ts-expect-error agent-eval accepts binary upload at runtime
+    [`${toolsDirectory}/upgrade.tgz`]: readFileSync(upgradeTarball),
     [`${toolsDirectory}/entry.mjs`]: readFileSync(
       join(__dirname, 'entry.mjs'),
       'utf8'
@@ -48,11 +51,13 @@ export async function setupUpgrade(sandbox: Sandbox) {
       'utf8'
     ),
   })
+  // Next.js depends on the candidate @next/upgrade, which may be unpublished.
   await run('npm', [
     'install',
     '--prefix',
     `${toolsDirectory}/next`,
     `${toolsDirectory}/next.tgz`,
+    `${toolsDirectory}/upgrade.tgz`,
   ])
   await run('npm', [
     'install',
@@ -69,10 +74,15 @@ export async function setupUpgrade(sandbox: Sandbox) {
     '-p',
     `require('${toolsDirectory}/next/node_modules/next/package.json').version`,
   ])
+  const upgradeVersion = await run('node', [
+    '-p',
+    `require('${toolsDirectory}/next/node_modules/@next/upgrade/package.json').version`,
+  ])
   await run('mkdir', ['-p', bin])
   await sandbox.writeFiles({
     [`${toolsDirectory}/package-runner.json`]: JSON.stringify({
       nextVersion,
+      upgradeVersion,
       npm,
       npx,
     }),

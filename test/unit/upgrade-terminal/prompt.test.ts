@@ -1,5 +1,5 @@
 import { PassThrough } from 'stream'
-import { promptUpgrade } from 'next/dist/lib/upgrade/prompt'
+import { promptUpgrade } from '../../../packages/next-upgrade/src/prompt'
 
 describe('upgrade menu', () => {
   const stdin = Object.getOwnPropertyDescriptor(process, 'stdin')!

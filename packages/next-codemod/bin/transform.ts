@@ -65,9 +65,9 @@ export async function runTransform(
         name: 'transformer',
         message: 'Which transform would you like to apply?',
         choices: TRANSFORMER_INQUIRER_CHOICES.reverse().map(
-          ({ title, value, version }) => {
+          ({ title, value }) => {
             return {
-              title: `(v${version}) ${value}`,
+              title: value,
               description: title,
               value,
             }
@@ -80,7 +80,7 @@ export async function runTransform(
     transformer = res.transformer
   }
 
-  if (transformer === 'next-request-geo-ip' && !options.nonInteractive) {
+  if (transformer === 'next-request-geo-ip' && !options.yes) {
     const { isAppDeployedToVercel } = await prompts(
       {
         type: 'confirm',

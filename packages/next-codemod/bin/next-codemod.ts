@@ -40,6 +40,7 @@ const program = new Command(packageJson.name)
     'Print transformed files to stdout, useful for development'
   )
   .option('--verbose', 'Show more information about the transform process')
+  .option('-y, --yes', 'Skip interactive prompts and accept their defaults')
   .option(
     '-j, --jscodeshift',
     '(Advanced) Pass options directly to jscodeshift'

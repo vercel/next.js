@@ -10,19 +10,18 @@ import {
   stat,
   writeFile,
 } from 'fs/promises'
-import * as Log from 'next/dist/build/output/log'
-import cliSelect from 'next/dist/compiled/cli-select'
-import { spawnNextUpgrade } from 'next/dist/cli/next-upgrade'
-import { findDir } from 'next/dist/lib/find-pages-dir'
-import { getProjectDir } from 'next/dist/lib/get-project-dir'
-import { getHarnessModels } from 'next/dist/lib/upgrade/model-discovery'
-import { handoffUpgrade } from 'next/dist/lib/upgrade/harness'
-import { prepareUpgrade } from 'next/dist/lib/upgrade/prepare-upgrade'
-import loadConfig from 'next/dist/server/config'
-import { normalizeConfig } from 'next/dist/server/config-shared'
+import * as Log from '../../packages/next-upgrade/src/utils/log'
+import cliSelectModule from '../../packages/next-upgrade/node_modules/cli-select'
+import { spawnNextUpgrade } from '../../packages/next-upgrade/src/agent-upgrade'
+import {
+  findDir,
+  getProjectDir,
+} from '../../packages/next-upgrade/src/utils/project'
+import { getHarnessModels } from '../../packages/next-upgrade/src/model-discovery'
+import { handoffUpgrade } from '../../packages/next-upgrade/src/harness'
+import { prepareUpgrade } from '../../packages/next-upgrade/src/prepare-upgrade'
 import { PHASE_PRODUCTION_BUILD } from 'next/dist/shared/lib/constants'
-import { getAgentName } from 'next/dist/telemetry/agent-name'
-import { Telemetry } from 'next/dist/telemetry/storage'
+import { getAgentName } from '../../packages/next-upgrade/src/utils/env'
 
 jest.mock('fs/promises', () => ({
   access: jest.fn(),
@@ -34,61 +33,78 @@ jest.mock('fs/promises', () => ({
   stat: jest.fn(),
   writeFile: jest.fn(),
 }))
-jest.mock('next/dist/build/spinner', () => ({
+jest.mock('../../packages/next-upgrade/src/utils/spinner', () => ({
   __esModule: true,
   default: jest.fn(),
 }))
-jest.mock('next/dist/build/output/log', () => ({
+jest.mock('../../packages/next-upgrade/src/utils/log', () => ({
   bootstrap: jest.fn(),
   error: jest.fn(),
   info: jest.fn(),
   warn: jest.fn(),
 }))
-jest.mock('next/dist/compiled/cli-select', () => ({
+jest.mock('../../packages/next-upgrade/node_modules/cli-select', () => ({
   __esModule: true,
   default: jest.fn(),
 }))
-jest.mock('next/dist/compiled/cross-spawn', () =>
+jest.mock('../../packages/next-upgrade/node_modules/cross-spawn', () =>
   Object.assign(jest.fn(), { sync: jest.fn() })
 )
-jest.mock('next/dist/lib/find-pages-dir', () => ({
+jest.mock('../../packages/next-upgrade/src/utils/project', () => ({
+  ...jest.requireActual('../../packages/next-upgrade/src/utils/project'),
   findDir: jest.fn(),
-}))
-jest.mock('next/dist/lib/get-project-dir', () => ({
   getProjectDir: jest.fn(),
+  warnMissingReactDependencies: jest.fn(),
 }))
-jest.mock('next/dist/lib/helpers/get-npx-command', () => ({
+jest.mock('../../packages/next-upgrade/src/utils/npx', () => ({
   getNpxCommand: () => 'npx',
 }))
-jest.mock('next/dist/lib/picocolors', () => ({
+jest.mock('../../packages/next-upgrade/src/utils/picocolors', () => ({
   bold: (text: string) => text,
   cyan: (text: string) => text,
   dim: (text: string) => text,
 }))
-jest.mock('next/dist/lib/upgrade/model-discovery', () => ({
+jest.mock('../../packages/next-upgrade/src/model-discovery', () => ({
   getHarnessModels: jest.fn(),
 }))
-jest.mock('next/dist/lib/upgrade/prepare-upgrade', () => ({
+jest.mock('../../packages/next-upgrade/src/prepare-upgrade', () => ({
   prepareUpgrade: jest.fn(),
 }))
-jest.mock('next/dist/server/config', () => ({
-  __esModule: true,
-  default: jest.fn(),
-}))
-jest.mock('next/dist/server/config-shared', () => ({
-  normalizeConfig: jest.fn(),
-}))
-jest.mock('next/dist/telemetry/agent-name', () => ({
+jest.mock('../../packages/next-upgrade/src/utils/env', () => ({
+  ...jest.requireActual('../../packages/next-upgrade/src/utils/env'),
   getAgentName: jest.fn(),
 }))
-jest.mock('next/dist/telemetry/storage', () => ({
-  Telemetry: jest.fn(),
+// Config and telemetry come from the Next.js installed in the app. Keep the
+// cases on the shape of next's loadConfig, normalizeConfig and Telemetry.
+const mockLoadConfig = jest.fn()
+const mockNormalizeConfig = jest.fn()
+const mockTelemetry = jest.fn()
+jest.mock('../../packages/next-upgrade/src/next-host', () => ({
+  ...jest.requireActual('../../packages/next-upgrade/src/next-host'),
+  loadNextConfig: async (
+    directory: string,
+    phase: string,
+    options: { rawConfig?: boolean }
+  ) => {
+    const config = await mockLoadConfig(phase, directory, options)
+    return mockNormalizeConfig(phase, config.default || config)
+  },
+  createNextTelemetry: (_directory: string, distDir: string) =>
+    new mockTelemetry({ distDir, skipNotify: true }),
 }))
-const createSpinner = require('next/dist/build/spinner').default as jest.Mock
-const crossSpawn = require('next/dist/compiled/cross-spawn') as jest.Mock & {
-  sync: jest.Mock
-}
-const cliVersion: string = require('next/package.json').version
+// The cases resolve each menu with a raw `{ id }` choice.
+const cliSelect = cliSelectModule as unknown as jest.Mock
+const loadConfig = mockLoadConfig
+const normalizeConfig = mockNormalizeConfig
+const Telemetry = mockTelemetry
+const createSpinner = require('../../packages/next-upgrade/src/utils/spinner')
+  .default as jest.Mock
+const crossSpawn =
+  require('../../packages/next-upgrade/node_modules/cross-spawn') as jest.Mock & {
+    sync: jest.Mock
+  }
+const cliVersion: string =
+  require('../../packages/next-upgrade/package.json').version
 const restoreDescriptors: Array<() => void> = []
 
 function normalizedBootstrapCalls(): string[][] {
@@ -96,13 +112,10 @@ function normalizedBootstrapCalls(): string[][] {
     String(message)
       .replace(/\\+/g, '/')
       // Run IDs are intentionally unique; keep prompt snapshots stable.
-      .replace(
-        /report-agent-upgrade [0-9a-f-]{36}/g,
-        'report-agent-upgrade <run-id>'
-      )
+      .replace(/report [0-9a-f-]{36}/g, 'report <run-id>')
       .replaceAll(
-        `next@${cliVersion} internal report-agent-upgrade`,
-        'next@<cli-version> internal report-agent-upgrade'
+        `@next/upgrade@${cliVersion} report`,
+        '@next/upgrade@<cli-version> report'
       ),
   ])
 }
@@ -300,7 +313,7 @@ describe('agentic upgrade prompts', () => {
 
     expect(Log.error).toHaveBeenCalledWith(
       'Could not prepare the upgrade:',
-      `Expected Next.js 0.0.0 for the upgrade, but launched ${cliVersion}.`
+      `Expected @next/upgrade 0.0.0 for the upgrade, but launched ${cliVersion}.`
     )
     expect(process.exitCode).toBe(1)
     expect(global.fetch).toHaveBeenCalledTimes(0)
@@ -338,7 +351,7 @@ describe('agentic upgrade prompts', () => {
 
       expect(global.fetch).toHaveBeenCalledTimes(1)
       expect(global.fetch).toHaveBeenCalledWith(
-        'https://registry.npmjs.org/next/canary',
+        'https://registry.npmjs.org/@next%2fupgrade/canary',
         expect.objectContaining({
           signal: expect.any(AbortSignal),
           cache: 'no-store',
@@ -378,8 +391,7 @@ describe('agentic upgrade prompts', () => {
       expect(crossSpawn).toHaveBeenCalledWith(
         'npx',
         [
-          `next@${version}`,
-          'upgrade',
+          `@next/upgrade@${version}`,
           '/workspace/app',
           agent === true ? '--agent' : `--agent=${agent}`,
           '--verbose',
@@ -389,7 +401,6 @@ describe('agentic upgrade prompts', () => {
           stdio: 'inherit',
           env: expect.objectContaining({
             __NEXT_UPGRADE_EXPECTED_CLI_VERSION: version,
-            __NEXT_UPGRADE_USE_CURRENT_CLI: '1',
           }),
         })
       )
@@ -427,7 +438,7 @@ describe('agentic upgrade prompts', () => {
 
     expect(Log.error).toHaveBeenCalledWith(
       'Could not prepare the upgrade:',
-      'Could not fetch the latest Next.js canary from npm.'
+      'Could not fetch the latest @next/upgrade canary from npm.'
     )
     expect(process.exitCode).toBe(1)
     expect(crossSpawn).toHaveBeenCalledTimes(0)
@@ -1393,13 +1404,13 @@ describe('agentic upgrade prompts', () => {
       '/tmp/next-upgrade-test/upgrade/different-major.md'
     )
     expect(String(guide)).toMatch(
-      /^Run npx @next\/codemod@\S+ upgrade 16\.3\.5 --yes --skip-adoption$/
+      /^Run npx @next\/upgrade@\S+ --revision 16\.3\.5 --yes --skip-adoption$/
     )
     const copiedSources = normalizedCopiedSources()
     expect(copiedSources).toEqual(
       expect.arrayContaining([
-        expect.stringContaining('/lib/upgrade/shared.md'),
-        expect.stringContaining('/lib/upgrade/different-major.md'),
+        expect.stringContaining('/guides/shared.md'),
+        expect.stringContaining('/guides/different-major.md'),
         expect.stringContaining('/codemods.md'),
         expect.stringContaining('/version-15.md'),
         expect.stringContaining('/version-16.md'),
@@ -1407,7 +1418,7 @@ describe('agentic upgrade prompts', () => {
     )
     expect(
       copiedSources.some((source) =>
-        source.includes('/lib/upgrade/future-defaults.md')
+        source.includes('/guides/future-defaults.md')
       )
     ).toBe(false)
     expect(normalizedBootstrapCalls()).toMatchInlineSnapshot(`
@@ -1425,7 +1436,7 @@ describe('agentic upgrade prompts', () => {
      - https://api.github.com/advisories?affects=next
      - https://registry.npmjs.org/next
 
-     When this task ends, report its result once. After completing the requested upgrade and all applicable verification, run \`npx next@<cli-version> internal report-agent-upgrade <run-id> success\`. If the attempted upgrade remains unsuccessful after repairs or verification fails, run \`npx next@<cli-version> internal report-agent-upgrade <run-id> failure\`. If you stop for duplicate work, user cancellation, or an unavailable prerequisite, do not report success or failure. Explain the result to the user separately; never include project details or error text in the telemetry command.",
+     When this task ends, report its result once. After completing the requested upgrade and all applicable verification, run \`npx @next/upgrade@<cli-version> report <run-id> success\`. If the attempted upgrade remains unsuccessful after repairs or verification fails, run \`npx @next/upgrade@<cli-version> report <run-id> failure\`. If you stop for duplicate work, user cancellation, or an unavailable prerequisite, do not report success or failure. Explain the result to the user separately; never include project details or error text in the telemetry command.",
        ],
      ]
     `)
@@ -1519,7 +1530,7 @@ describe('agentic upgrade prompts', () => {
     expect(writeFile).toHaveBeenCalledTimes(0)
     expect(
       normalizedCopiedSources().some((source) =>
-        source.includes('/lib/upgrade/future-defaults.md')
+        source.includes('/guides/future-defaults.md')
       )
     ).toBe(false)
     expect(
@@ -1539,7 +1550,7 @@ describe('agentic upgrade prompts', () => {
      References:
      - https://registry.npmjs.org/next/latest
 
-     When this task ends, report its result once. After completing the requested upgrade and all applicable verification, run \`npx next@<cli-version> internal report-agent-upgrade <run-id> success\`. If the attempted upgrade remains unsuccessful after repairs or verification fails, run \`npx next@<cli-version> internal report-agent-upgrade <run-id> failure\`. If you stop for duplicate work, user cancellation, or an unavailable prerequisite, do not report success or failure. Explain the result to the user separately; never include project details or error text in the telemetry command.",
+     When this task ends, report its result once. After completing the requested upgrade and all applicable verification, run \`npx @next/upgrade@<cli-version> report <run-id> success\`. If the attempted upgrade remains unsuccessful after repairs or verification fails, run \`npx @next/upgrade@<cli-version> report <run-id> failure\`. If you stop for duplicate work, user cancellation, or an unavailable prerequisite, do not report success or failure. Explain the result to the user separately; never include project details or error text in the telemetry command.",
        ],
      ]
     `)
@@ -1573,8 +1584,8 @@ describe('agentic upgrade prompts', () => {
     expect(readFile).toHaveBeenCalledTimes(0)
     expect(writeFile).toHaveBeenCalledTimes(0)
     expect(normalizedCopiedSources()).toEqual([
-      expect.stringContaining('/lib/upgrade/shared.md'),
-      expect.stringContaining('/lib/upgrade/same-major.md'),
+      expect.stringContaining('/guides/shared.md'),
+      expect.stringContaining('/guides/same-major.md'),
     ])
   })
 
@@ -1602,7 +1613,7 @@ describe('agentic upgrade prompts', () => {
     )
     expect(
       normalizedCopiedSources().some((source) =>
-        source.includes('/lib/upgrade/future-defaults.md')
+        source.includes('/guides/future-defaults.md')
       )
     ).toBe(false)
   })
@@ -1631,7 +1642,7 @@ describe('agentic upgrade prompts', () => {
     expect(prompt).toContain('/upgrade/future-defaults.md')
     expect(normalizedCopiedSources()).toEqual(
       expect.arrayContaining([
-        expect.stringContaining('/lib/upgrade/future-defaults.md'),
+        expect.stringContaining('/guides/future-defaults.md'),
       ])
     )
   })
@@ -1752,7 +1763,7 @@ describe('agentic upgrade prompts', () => {
     expect(normalizedFileWriteCalls()).toEqual(normalizedWriteFileCalls())
     expect(normalizedCopiedSources()).toEqual(
       expect.arrayContaining([
-        expect.stringContaining('/lib/upgrade/future-defaults.md'),
+        expect.stringContaining('/guides/future-defaults.md'),
       ])
     )
 
@@ -1781,7 +1792,7 @@ describe('agentic upgrade prompts', () => {
      References:
      - https://registry.npmjs.org/next/latest
 
-     When this task ends, report its result once. After completing the requested upgrade and all applicable verification, run \`npx next@<cli-version> internal report-agent-upgrade <run-id> success\`. If the attempted upgrade remains unsuccessful after repairs or verification fails, run \`npx next@<cli-version> internal report-agent-upgrade <run-id> failure\`. If you stop for duplicate work, user cancellation, or an unavailable prerequisite, do not report success or failure. Explain the result to the user separately; never include project details or error text in the telemetry command.",
+     When this task ends, report its result once. After completing the requested upgrade and all applicable verification, run \`npx @next/upgrade@<cli-version> report <run-id> success\`. If the attempted upgrade remains unsuccessful after repairs or verification fails, run \`npx @next/upgrade@<cli-version> report <run-id> failure\`. If you stop for duplicate work, user cancellation, or an unavailable prerequisite, do not report success or failure. Explain the result to the user separately; never include project details or error text in the telemetry command.",
          ],
        ],
        "savedInstructions": [
@@ -1855,7 +1866,7 @@ describe('agentic upgrade prompts', () => {
     ).toEqual(
       expect.arrayContaining([
         [
-          expect.stringContaining('/lib/upgrade/future-defaults.md'),
+          expect.stringContaining('/guides/future-defaults.md'),
           '/tmp/next-upgrade-test/upgrade/future-defaults.md',
         ],
       ])
@@ -1885,7 +1896,7 @@ describe('agentic upgrade prompts', () => {
      References:
      - https://registry.npmjs.org/next/latest
 
-     When this task ends, report its result once. After completing the requested upgrade and all applicable verification, run \`npx next@<cli-version> internal report-agent-upgrade <run-id> success\`. If the attempted upgrade remains unsuccessful after repairs or verification fails, run \`npx next@<cli-version> internal report-agent-upgrade <run-id> failure\`. If you stop for duplicate work, user cancellation, or an unavailable prerequisite, do not report success or failure. Explain the result to the user separately; never include project details or error text in the telemetry command.",
+     When this task ends, report its result once. After completing the requested upgrade and all applicable verification, run \`npx @next/upgrade@<cli-version> report <run-id> success\`. If the attempted upgrade remains unsuccessful after repairs or verification fails, run \`npx @next/upgrade@<cli-version> report <run-id> failure\`. If you stop for duplicate work, user cancellation, or an unavailable prerequisite, do not report success or failure. Explain the result to the user separately; never include project details or error text in the telemetry command.",
        ],
      ]
     `)
@@ -1894,7 +1905,7 @@ describe('agentic upgrade prompts', () => {
 
 describe('upgrade model discovery protocol', () => {
   const discover: typeof getHarnessModels = jest.requireActual(
-    'next/dist/lib/upgrade/model-discovery'
+    '../../packages/next-upgrade/src/model-discovery'
   ).getHarnessModels
 
   function probe(

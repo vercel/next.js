@@ -1,0 +1,61 @@
+{
+  "name": "@next/upgrade",
+  "version": "16.5.0-canary.2",
+  "description": "Upgrade Next.js apps, with or without a coding agent.",
+  "keywords": [
+    "react",
+    "next",
+    "next.js",
+    "upgrade"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vercel/next.js",
+    "directory": "packages/next-upgrade"
+  },
+  "author": "Next.js Team <support@vercel.com>",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "next-upgrade": "./bin/next-upgrade.js"
+  },
+  "files": [
+    "bin",
+    "dist"
+  ],
+  "scripts": {
+    "prebuild": "node ../../scripts/rm.mjs dist",
+    "build": "pnpm build:source && pnpm build:assets && pnpm types",
+    "build:source": "ncc build ./src/index.ts -o ./dist/ -e @next/env --minify --no-cache --no-source-map-register && ncc build ./src/terminal.ts -o ./dist/terminal/ -e @next/env -e ./index --minify --no-cache --no-source-map-register && node ./scripts/move-entry.mjs",
+    "build:assets": "node ./scripts/copy-assets.mjs",
+    "types": "tsc --project tsconfig.json --declaration --emitDeclarationOnly --declarationDir dist",
+    "test:upgrade-fixture": "./scripts/test-upgrade-fixture.sh",
+    "pack-for-isolated-tests": "pnpm pack --out ./packed.tgz"
+  },
+  "dependencies": {
+    "@next/env": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/ci-info": "2.0.0",
+    "@types/cross-spawn": "6.0.0",
+    "@types/debug": "4.1.5",
+    "@types/js-yaml": "4.0.9",
+    "@types/prompts": "2.4.2",
+    "@types/semver": "7.3.1",
+    "@vercel/detect-agent": "1.2.3",
+    "@vercel/ncc": "0.38.4",
+    "ci-info": "watson/ci-info#f43f6a1cefff47fb361c88cf4b943fdbcaafe540",
+    "cli-select": "1.1.2",
+    "commander": "12.1.0",
+    "conf": "5.0.0",
+    "cross-spawn": "7.0.3",
+    "debug": "4.1.1",
+    "execa": "4.0.3",
+    "js-yaml": "4.2.0",
+    "ora": "4.0.4",
+    "prompts": "2.4.2",
+    "semver": "7.6.3",
+    "typescript": "6.0.2"
+  }
+}

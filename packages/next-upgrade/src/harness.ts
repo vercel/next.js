@@ -3,13 +3,13 @@ import { access, stat } from 'fs/promises'
 import { delimiter, resolve } from 'path'
 import type { Key } from 'readline'
 
-import cliSelect from 'next/dist/compiled/cli-select'
-import spawn from 'next/dist/compiled/cross-spawn'
+import cliSelect from 'cli-select'
+import spawn from 'cross-spawn'
 
-import * as Log from '../../build/output/log'
-import { getAgentName } from '../../telemetry/agent-name'
-import type { AgentUpgradeHandoffMethod } from '../../telemetry/events/agent-upgrade'
-import { bold, cyan, dim } from '../picocolors'
+import * as Log from './utils/log'
+import { getAgentName } from './utils/env'
+import type { AgentUpgradeHandoffMethod } from './telemetry-events'
+import { bold, cyan, dim } from './utils/picocolors'
 import { getHarnessModels, type UpgradeModel } from './model-discovery'
 import { runChildProcess } from './run-child-process'
 
@@ -85,7 +85,7 @@ async function chooseWorktree(): Promise<boolean | null | undefined> {
     0
   )
   if (choice === null || choice === undefined) {
-    return choice
+    return choice === null ? null : undefined
   }
   if (choice === 'yes') {
     return true

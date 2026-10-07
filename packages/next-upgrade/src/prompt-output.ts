@@ -1,10 +1,10 @@
 import path from 'path'
-import * as Log from '../../build/output/log'
-import { Telemetry } from '../../telemetry/storage'
+import * as Log from './utils/log'
+import { createNextTelemetry } from './next-host'
 
 import { once } from 'events'
 import { setTimeout as sleep } from 'timers/promises'
-import { isColorSupported } from '../picocolors'
+import { isColorSupported } from './utils/picocolors'
 
 import type { ChildProcess } from 'child_process'
 import type { NudgeKind, UpgradeContext, UpgradeReminder } from './nudge'
@@ -135,15 +135,15 @@ export async function showUpgradeMenu(
   }
 ): Promise<UpgradeMenuResult> {
   const { dir, context, command, signal, initialAssessment } = options
-  const { nudgeUpgrade } = require('./nudge') as typeof import('./nudge')
+  // Load the rest of the package only when the menu is about to open. This
+  // module is bundled into dist/terminal.js so `next dev` and `next build` stay cheap to
+  // start; `./index` stays a separate file in the published package.
+  const { nudgeUpgrade } = require('./index') as typeof import('./index')
 
   if (options.telemetryDisabled) {
     process.env.NEXT_TELEMETRY_DISABLED = options.telemetryDisabled
   }
-  const telemetry = new Telemetry({
-    distDir: path.join(dir, context.distDir),
-    skipNotify: true,
-  })
+  const telemetry = createNextTelemetry(dir, path.join(dir, context.distDir))
   let nudgeId: string | null = null
 
   // onNudgeId runs as the menu draws, so holding starts at exactly that point.

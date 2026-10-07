@@ -1,10 +1,8 @@
 import { readFile } from 'fs/promises'
 import { createRequire } from 'module'
 import { join } from 'path'
-import { resetEnv } from '@next/env'
-import semver from 'next/dist/compiled/semver'
-import loadConfig from '../../server/config'
-import { PHASE_INFO } from '../../shared/lib/constants'
+import semver from 'semver'
+import { loadNextConfig, PHASE_INFO } from './next-host'
 import {
   getPendingFutureDefaults,
   type FutureDefaultEntry,
@@ -55,9 +53,10 @@ export async function prepareUpgrade(
     return upgrade
   }
 
-  const config = await loadConfig(PHASE_INFO, directory, {
+  const config = await loadNextConfig(directory, PHASE_INFO, {
     silent: true,
-  }).finally(resetEnv)
+    resetEnv: true,
+  })
   const pendingFutureDefaults = getPendingFutureDefaults(
     directory,
     config,

@@ -1,13 +1,13 @@
-import type { NextConfigComplete } from '../../server/config-shared'
-import semver from 'next/dist/compiled/semver'
-import { findDir } from '../find-pages-dir'
+import semver from 'semver'
+import type { UpgradeNextConfig } from './next-host'
+import { findDir } from './utils/project'
 
 export type UpgradeDocument = `docs/${string}.md` | `skills/${string}/SKILL.md`
 
 type FutureDefault = {
   name: string
   availableSince: string
-  isAdopted(config: Pick<NextConfigComplete, 'cacheComponents'>): boolean
+  isAdopted(config: Pick<UpgradeNextConfig, 'cacheComponents'>): boolean
   adoptionDoc: readonly UpgradeDocument[]
   optimizationDoc: readonly UpgradeDocument[]
   isApplicable(directory: string): boolean
@@ -34,7 +34,7 @@ export type FutureDefaultEntry = (typeof futureDefaults)[number]
 
 export function getPendingFutureDefaults(
   directory: string,
-  config: Pick<NextConfigComplete, 'cacheComponents'>,
+  config: Pick<UpgradeNextConfig, 'cacheComponents'>,
   version: string
 ) {
   if (

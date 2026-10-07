@@ -26,8 +26,9 @@ above this infrastructure.
 
 1. Create one temporary Vercel Sandbox snapshot with the agent CLIs.
 2. Upload the fixture and establish its git baseline.
-3. Install candidate Next.js and codemod packages separately, route npm and npx
-   upgrade commands to the candidate CLI, then install app dependencies.
+3. Install candidate Next.js, `@next/upgrade` and codemod packages separately,
+   route npm and npx upgrade commands (`next upgrade` and `@next/upgrade`) to
+   the candidate CLIs, then install app dependencies.
 4. Snapshot the prepared fixture and fork each selected agent from it.
 5. Run each native agent and judge independently. Agent-eval withholds `EVAL.ts`
    and captures transcripts and results as usual.

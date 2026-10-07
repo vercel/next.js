@@ -10,6 +10,7 @@ const PACKAGES_TO_PATCH = [
   'next',
   '@next/mdx',
   '@next/env',
+  '@next/upgrade',
   '@next/bundle-analyzer',
   '@next/swc-linux-x64-gnu',
 ]

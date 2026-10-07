@@ -3,16 +3,17 @@
 # For manual verification only (check the README.md) in the fixtures
 # for the expected behavior.
 # Usage:
-# - cwd must be ~/packages/next-codemod
-# - `pnpm test:upgrade-fixture <fixture-name> <...next-codemod-args>`
+# - cwd must be ~/packages/next-upgrade, and the package must be built
+# - `pnpm test:upgrade-fixture <fixture-dir> <...next-upgrade-args>`
+#   e.g. `pnpm test:upgrade-fixture fixtures/next-14-installed --revision 15.0.0`
 
-NEXT_CODEMOD_BIN=$(pwd)/bin/next-codemod.js
+NEXT_UPGRADE_BIN=$(pwd)/bin/next-upgrade.js
 cd "$1" || exit 1
 # We're only interested in the changes the upgrade command does.
 git add -A .
 rm -rf node_modules
 pnpm install
-node "$NEXT_CODEMOD_BIN" upgrade "${@:2}"
+node "$NEXT_UPGRADE_BIN" "${@:2}"
 git --no-pager diff .
 git restore .
 git reset HEAD -- .

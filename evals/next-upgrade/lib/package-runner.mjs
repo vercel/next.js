@@ -68,6 +68,33 @@ if (
   process.exit(result.status ?? 1)
 }
 
+// The upgrade itself (version upgrades, delegated agent upgrades and result
+// reports) runs the candidate @next/upgrade.
+if (
+  invocation &&
+  [
+    '@next/upgrade',
+    '@next/upgrade@canary',
+    `@next/upgrade@${config.upgradeVersion}`,
+  ].includes(invocation.requestedPackage) &&
+  (!invocation.executable || invocation.executable === 'next-upgrade')
+) {
+  const result = spawnSync(
+    process.execPath,
+    [join(tools, 'entry.mjs'), '@next/upgrade', ...invocation.args],
+    {
+      stdio: 'inherit',
+      env: {
+        ...process.env,
+        NEXT_UPGRADE_EVAL_PACKAGE_RUNNER: runner,
+        NEXT_UPGRADE_EVAL_REQUESTED_PACKAGE: invocation.requestedPackage,
+      },
+    }
+  )
+  if (result.error) throw result.error
+  process.exit(result.status ?? 1)
+}
+
 const result = spawnSync(command, args, {
   stdio: 'inherit',
   env: process.env,
