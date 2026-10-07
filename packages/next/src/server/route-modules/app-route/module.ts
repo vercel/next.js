@@ -58,7 +58,7 @@ import {
 } from '../../app-render/action-async-storage.external'
 import * as sharedModules from './shared-modules'
 import { getIsPossibleServerAction } from '../../lib/server-action-request-meta'
-import { RequestCookies } from 'next/dist/compiled/@edge-runtime/cookies'
+import { RequestCookies } from '../../web/spec-extension/cookies'
 import { cleanURL } from './helpers/clean-url'
 import { StaticGenBailoutError } from '../../../client/components/static-generation-bailout'
 import { isStaticGenEnabled } from './helpers/is-static-gen-enabled'
