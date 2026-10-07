@@ -230,6 +230,8 @@ export interface PageInfo {
   hasEmptyStaticShell?: boolean
   hasPostponed?: boolean
   isDynamicAppRoute?: boolean
+  /** The HTTP status produced while prerendering this route. */
+  prerenderStatus?: number
 }
 
 export type PageInfos = Map<string, PageInfo>
@@ -274,6 +276,11 @@ function getTreeViewSymbol(
   }
 
   return 'ƒ'
+}
+
+function getPrerenderStatusAnnotation(pageInfo: PageInfo | undefined): string {
+  const status = pageInfo?.prerenderStatus
+  return status !== undefined && status !== 200 ? ` [status: ${status}]` : ''
 }
 
 export interface RoutesUsingEdgeRuntime {
@@ -401,6 +408,9 @@ export async function printTreeView(
       const hasChildRoutes = Boolean(pageInfo?.ssgPageRoutes?.length)
 
       const displayPath = getTreeViewDisplayPath(item)
+      const prerenderStatusAnnotation = hasChildRoutes
+        ? ''
+        : getPrerenderStatusAnnotation(pageInfo)
 
       if (hasGSPAndRevalidateZero.has(item)) {
         usedSymbols.add('ƒ')
@@ -426,7 +436,7 @@ export async function printTreeView(
       }
 
       messages.push([
-        `${border} ${hasChildRoutes ? ' ' : symbol} ${displayPath}${
+        `${border} ${hasChildRoutes ? ' ' : symbol} ${displayPath}${prerenderStatusAnnotation}${
           totalDuration > MIN_DURATION
             ? ` (${getPrettyDuration(totalDuration)})`
             : ''
@@ -493,12 +503,15 @@ export async function printTreeView(
             const routePageInfo = pageInfos.get(route) ?? pageInfo
             const routeSymbol = getTreeViewSymbol(route, routePageInfo)
             usedSymbols.add(routeSymbol)
+            const childStatusAnnotation = getPrerenderStatusAnnotation(
+              pageInfos.get(route)
+            )
 
             const initialCacheControl =
               pageInfos.get(route)?.initialCacheControl
 
             messages.push([
-              `${contSymbol} ${innerSymbol} ${routeSymbol} ${route}${
+              `${contSymbol} ${innerSymbol} ${routeSymbol} ${route}${childStatusAnnotation}${
                 duration > MIN_DURATION
                   ? ` (${getPrettyDuration(duration)})`
                   : ''
