@@ -1186,12 +1186,15 @@ function shouldSegmentAttemptStaticRequest(
  * runtime data records the runtime counterpart of its own variant (see
  * `recordedFetchStrategy` in cache.ts). That makes this a pure tier
  * comparison: an entry at or above the phase's runtime tier has nothing to
- * gain from it.
+ * gain from it. Neither does a non-partial entry, whatever its tier.
  */
 function wouldRuntimeRequestProvideMore(
   entry: SegmentCacheEntry,
   staticWalkStrategy: FetchStrategy.PPR | FetchStrategy.StaticShell
 ): boolean {
+  if (!entry.isPartial) {
+    return false
+  }
   return canNewFetchStrategyProvideMoreContent(
     entry.fetchStrategy,
     staticWalkStrategy === FetchStrategy.StaticShell
@@ -1211,7 +1214,8 @@ function wouldRuntimeRequestProvideMore(
  * whether to escalate afterward. A StaticShell entry is not eligible: its
  * verdict says the shell read runtime data, so the later stages read it too
  * and a static prefetch can't make the entry cache complete. Only a runtime
- * request can, so it goes straight there.
+ * request can, so it goes straight there. A non-partial entry is not eligible
+ * either: it has nothing more to fetch.
  *
  * Consults the revalidation slot so an attempt that already ran and settled
  * without healing the entry (a rejected attempt: server miss or network
@@ -1230,6 +1234,7 @@ function isShellEntryEligibleForStaticAttempt(
 ): boolean {
   if (
     !(
+      entry.isPartial &&
       entry.fetchStrategy === FetchStrategy.RuntimeShell &&
       shouldSegmentAttemptStaticRequest(fetchStrategy, tree) &&
       // if the `fetchStrategy` is `FetchStrategy.PPR`, it might provide more content
