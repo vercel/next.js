@@ -22,6 +22,7 @@ workspace = true
 anyhow = { workspace = true }
 bincode = { workspace = true }
 either = { workspace = true }
+fs-err = { workspace = true }
 indoc = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -39,4 +40,7 @@ turbopack = { workspace = true }
 turbopack-core = { workspace = true }
 turbopack-ecmascript = { workspace = true }
 turbopack-ecmascript-runtime = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
 
