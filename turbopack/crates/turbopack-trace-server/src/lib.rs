@@ -48,6 +48,9 @@ mod viewer;
 )]
 type FxIndexMap<K, V> = indexmap::IndexMap<K, V, BuildHasherDefault<FxHasher>>;
 
+/// Maximum number of process sample rows used for legacy query summaries.
+const MAX_MEMORY_SUMMARY_SAMPLES: usize = 200;
+
 /// Starts the trace server on a background thread and returns the store
 /// immediately. The WebSocket server runs non-blocking.
 pub fn start_turbopack_trace_server(path: PathBuf, port: Option<u16>) -> Arc<StoreContainer> {
@@ -242,9 +245,9 @@ pub struct SpanInfo {
     /// more pressure), and `active_worker_threads` counts non-parked Tokio
     /// scheduler workers. `100 ticks = 1 µs`. The offset is within the span.
     ///
-    /// The store caps the series at `MAX_MEMORY_SAMPLES`; when more samples
-    /// exist, groups are merged by picking the group's max-memory sample,
-    /// retaining its timestamp, pressure and worker count.
+    /// The query caller caps the series at `MAX_MEMORY_SUMMARY_SAMPLES`; when
+    /// more samples exist, groups are merged by picking the group's max-memory
+    /// sample, retaining its timestamp, pressure and worker count.
     pub memory_samples: Vec<(i64, u64, u8, u64)>,
     /// Summary of `memory_samples`. `None` when the span's range holds none.
     pub memory_summary: Option<MemorySummary>,
@@ -514,7 +517,7 @@ fn sort_spans(items: &mut [Located<SpanRef<'_>>], sort: SortMode) {
 fn memory_samples_for(store: &store::Store, span: &SpanRef<'_>) -> Vec<(i64, u64, u8, u64)> {
     let span_start = *span.start() as i64;
     store
-        .memory_samples_for_range_with_ts(span.start(), span.end())
+        .memory_samples_for_range_with_ts(span.start(), span.end(), MAX_MEMORY_SUMMARY_SAMPLES)
         .into_iter()
         .map(|(ts, mem, pressure, workers)| ((*ts as i64) - span_start, mem, pressure, workers))
         .collect()
@@ -523,12 +526,12 @@ fn memory_samples_for(store: &store::Store, span: &SpanRef<'_>) -> Vec<(i64, u64
 fn sample_series_for(store: &store::Store, span: &SpanRef<'_>, limit: usize) -> SpanSampleSeries {
     let start = span.start();
     let end = span.end();
-    let samples = store.memory_samples_for_range_with_ts_limit(start, end, limit);
+    let samples = store.memory_samples_for_range_with_ts(start, end, limit);
     SpanSampleSeries {
         memory_samples: samples.iter().map(|sample| sample.1).collect(),
-        memory_pressure_samples: store.memory_pressure_samples_for_range_limit(start, end, limit),
+        memory_pressure_samples: store.memory_pressure_samples_for_range(start, end, limit),
         active_worker_threads_samples: samples.iter().map(|sample| sample.3).collect(),
-        concurrency_samples: store.concurrency_samples_for_range_limit(start, end, limit),
+        concurrency_samples: store.concurrency_samples_for_range(start, end, limit),
     }
 }
 

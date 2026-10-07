@@ -51,9 +51,11 @@ fn reads_active_workers_and_exposes_them_in_span_queries() {
         bytes.len()
     );
 
-    let samples = store
-        .read()
-        .memory_samples_for_range_with_ts(Timestamp::from_micros(10), Timestamp::from_micros(30));
+    let samples = store.read().memory_samples_for_range_with_ts(
+        Timestamp::from_micros(10),
+        Timestamp::from_micros(30),
+        200,
+    );
     assert_eq!(samples[0].1, 1234);
     assert_eq!(samples[0].2, 7);
     assert_eq!(samples[0].3, 2);
@@ -169,8 +171,11 @@ fn blocking_duration_events_keep_ranges_without_inflating_work() {
     assert_eq!(root.corrected_total_time(), Timestamp::from_micros(20));
     assert_eq!(root.end(), Timestamp::from_micros(110));
     assert_eq!(
-        store
-            .concurrency_samples_for_range(Timestamp::from_micros(10), Timestamp::from_micros(100)),
+        store.concurrency_samples_for_range(
+            Timestamp::from_micros(10),
+            Timestamp::from_micros(100),
+            200
+        ),
         vec![0.0; 200]
     );
     let mut count = 0;
@@ -219,7 +224,7 @@ fn blocking_events_do_not_change_counted_work_correction() {
     assert_eq!(root.total_time(), Timestamp::from_micros(100));
     assert_eq!(root.corrected_total_time(), Timestamp::from_micros(100));
     assert_eq!(
-        store.concurrency_samples_for_range(Timestamp::ZERO, Timestamp::from_micros(100)),
+        store.concurrency_samples_for_range(Timestamp::ZERO, Timestamp::from_micros(100), 200),
         vec![1.0; 200]
     );
 }
@@ -252,7 +257,11 @@ fn non_blocking_and_legacy_duration_events_still_count() {
     assert_eq!(root.total_time(), Timestamp::from_micros(200));
     assert!(root.corrected_self_time() < root.self_time());
     assert_eq!(
-        store.concurrency_samples_for_range(Timestamp::from_micros(30), Timestamp::from_micros(80)),
+        store.concurrency_samples_for_range(
+            Timestamp::from_micros(30),
+            Timestamp::from_micros(80),
+            200
+        ),
         vec![3.0; 200]
     );
     for event in root.children() {
@@ -317,14 +326,15 @@ fn blocking_entered_spans_ignore_own_work_but_count_children() {
         );
         assert_eq!(parent.corrected_total_time(), parent.total_time(), "{name}");
         assert_eq!(
-            store.concurrency_samples_for_range(Timestamp::ZERO, Timestamp::from_micros(10)),
+            store.concurrency_samples_for_range(Timestamp::ZERO, Timestamp::from_micros(10), 200),
             vec![if ignored { 0.0 } else { 1.0 }; 200],
             "{name}"
         );
         assert_eq!(
             store.concurrency_samples_for_range(
                 Timestamp::from_micros(10),
-                Timestamp::from_micros(20)
+                Timestamp::from_micros(20),
+                200
             ),
             vec![1.0; 200],
             "{name}"
