@@ -1,5 +1,3 @@
-use std::hash::{Hash, Hasher};
-
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use rustc_hash::FxHashMap;
@@ -22,31 +20,25 @@ use crate::{
     },
 };
 
-#[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
+#[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode, Hash)]
 struct EsmBinding {
     export: Option<RcStr>,
     ast_path: AstPathId,
     keep_this: bool,
 }
 
-#[derive(Default, Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
-pub struct EsmBindings {
-    #[bincode(with = "turbo_bincode::indexmap")]
+#[derive(Default, Clone, Debug)]
+pub struct EsmBindingsBuilder {
     bindings: FxIndexMap<ResolvedVc<EsmAssetReference>, Vec<EsmBinding>>,
 }
 
-// CodeGen::EsmBindings requires Hash (and FxIndexMap doesn't implement Hash), but we never actually
-// push multiple EsmBindings into the code_gens set.
-// A constant (empty) hash is still a valid hash, you just get a collision probability of 100%.
-impl Hash for EsmBindings {
-    fn hash<H: Hasher>(&self, _state: &mut H) {}
+#[derive(Default, Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode, Hash)]
+pub struct EsmBindings {
+    #[allow(clippy::type_complexity)]
+    bindings: Box<[(ResolvedVc<EsmAssetReference>, Box<[EsmBinding]>)]>,
 }
 
-impl EsmBindings {
-    pub fn is_empty(&self) -> bool {
-        self.bindings.is_empty()
-    }
-
+impl EsmBindingsBuilder {
     pub fn add(
         &mut self,
         reference: ResolvedVc<EsmAssetReference>,
@@ -80,6 +72,22 @@ impl EsmBindings {
             });
     }
 
+    pub fn build(self) -> Option<EsmBindings> {
+        if self.bindings.is_empty() {
+            return None;
+        }
+
+        Some(EsmBindings {
+            bindings: self
+                .bindings
+                .into_iter()
+                .map(|(k, v)| (k, v.into_boxed_slice()))
+                .collect(),
+        })
+    }
+}
+
+impl EsmBindings {
     pub async fn code_generation(
         &self,
         trie: &AstPathTrie,

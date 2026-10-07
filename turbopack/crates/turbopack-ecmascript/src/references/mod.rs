@@ -131,9 +131,9 @@ use crate::{
         dynamic_expression::DynamicExpression,
         emit_collect::{CollectReference, EmitReference},
         esm::{
-            EsmAssetReference, EsmAssetReferenceOptions, EsmAsyncAssetReference, EsmBindings,
-            ImportMetaBinding, ImportMetaRef, UrlAssetReference, UrlRewriteBehavior,
-            base::EsmAssetReferences, module_id::EsmModuleIdAssetReference,
+            EsmAssetReference, EsmAssetReferenceOptions, EsmAsyncAssetReference, ImportMetaBinding,
+            ImportMetaRef, UrlAssetReference, UrlRewriteBehavior, base::EsmAssetReferences,
+            binding::EsmBindingsBuilder, module_id::EsmModuleIdAssetReference,
         },
         exports::{EcmascriptExportsAnalysis, compute_ecmascript_module_exports},
         exports_info::{ExportsInfoBinding, ExportsInfoRef},
@@ -226,7 +226,7 @@ struct AnalyzeEcmascriptModuleResultBuilder {
     // This caches repeated access because EsmAssetReference::new is not a turbo task function.
     esm_references_rewritten: FxHashMap<usize, FxIndexMap<RcStr, ResolvedVc<EsmAssetReference>>>,
 
-    esm_bindings: EsmBindings,
+    esm_bindings: EsmBindingsBuilder,
 
     code_gens: CodeGenCollection,
     /// Interns the AST paths referenced by `code_gens`, so overlapping paths share storage.
@@ -462,8 +462,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             }
         }
 
-        if !self.esm_bindings.is_empty() {
-            let esm_bindings = std::mem::take(&mut self.esm_bindings);
+        if let Some(esm_bindings) = std::mem::take(&mut self.esm_bindings).build() {
             self.add_code_gen(CodeGen::EsmBindings(esm_bindings));
         }
 
