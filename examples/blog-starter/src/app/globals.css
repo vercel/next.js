@@ -1,3 +1,35 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  /* colors */
+  --color-accent-1: #fafafa;
+  --color-accent-2: #eaeaea;
+  --color-accent-7: #333333;
+  --color-success: #0070f3;
+  --color-cyan: #79ffe1;
+
+  /* spacing */
+  --spacing-28: 7rem;
+
+  /* letter spacing */
+  --tracking-tighter: -0.04em;
+
+  /* font sizes */
+  --text-5xl: 2.5rem;
+  --text-6xl: 2.75rem;
+  --text-7xl: 4.5rem;
+  --text-8xl: 6.25rem;
+
+  /* shadows */
+  --shadow-sm: 0 5px 10px rgba(0, 0, 0, 0.12);
+  --shadow-md: 0 8px 30px rgba(0, 0, 0, 0.12);
+
+  /* background images (use as bg-gradient-radial / bg-gradient-conic) */
+  --background-image-gradient-radial: radial-gradient(var(--tw-gradient-stops));
+  --background-image-gradient-conic: conic-gradient(
+    from 180deg at 50% 50%,
+    var(--tw-gradient-stops)
+  );
+}
