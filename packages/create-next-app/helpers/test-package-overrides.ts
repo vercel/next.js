@@ -1,3 +1,5 @@
+/* eslint-disable import/no-extraneous-dependencies */
+import { t } from 'tar'
 import type { PackageManager } from './get-pkg-manager'
 
 /**
@@ -8,8 +10,15 @@ import type { PackageManager } from './get-pkg-manager'
  * `NEXT_TEST_PKG_PATHS`. Direct dependencies already point at those tarballs,
  * but dependencies of `next` (for example `@next/env` and `@next/upgrade`)
  * would otherwise come from the registry, where the version under test may
- * not exist yet. Packages that are direct dependencies of the app are left
- * out, because npm rejects overrides that conflict with a direct dependency.
+ * not exist yet.
+ *
+ * Only packed packages the app can actually install are overridden: those
+ * reachable through the `dependencies` / `optionalDependencies` of the packed
+ * packages it depends on directly. Yarn Classic resolves every `resolutions`
+ * entry, even ones the app never uses, so listing unrelated packages pulls in
+ * their whole dependency tree. Packages that are direct dependencies of the
+ * app are left out too, because npm rejects overrides that conflict with a
+ * direct dependency.
  *
  * Returns the overrides that belong in `pnpm-workspace.yaml` (pnpm v11 no
  * longer reads them from package.json). Every other package manager gets them
@@ -27,12 +36,14 @@ export function addTestPackageOverrides(
     ...Object.keys(packageJson.dependencies ?? {}),
     ...Object.keys(packageJson.devDependencies ?? {}),
   ])
+  const reachable = findReachablePackedPackages(
+    [...directDependencies].filter((name) => testPkgPaths.has(name)),
+    testPkgPaths
+  )
   const overrides: Record<string, string> = {}
-  for (const [name, tarballPath] of [...testPkgPaths].sort(([a], [b]) =>
-    a.localeCompare(b)
-  )) {
+  for (const name of [...reachable].sort((a, b) => a.localeCompare(b))) {
     if (!directDependencies.has(name)) {
-      overrides[name] = tarballPath
+      overrides[name] = testPkgPaths.get(name)!
     }
   }
   if (Object.keys(overrides).length === 0) return null
@@ -68,4 +79,56 @@ export function formatPnpmWorkspaceOverrides(
     ),
     '',
   ].join(eol)
+}
+
+/**
+ * Walks the dependencies of the given packed packages, following only names
+ * that are packed too. Includes the starting packages.
+ */
+function findReachablePackedPackages(
+  roots: string[],
+  testPkgPaths: Map<string, string>
+): Set<string> {
+  const reachable = new Set<string>()
+  const queue = [...roots]
+  while (queue.length > 0) {
+    const name = queue.pop()!
+    if (reachable.has(name)) continue
+    reachable.add(name)
+
+    const manifest = readPackedManifest(testPkgPaths.get(name)!)
+    for (const dependency of Object.keys({
+      ...manifest.dependencies,
+      ...manifest.optionalDependencies,
+    })) {
+      if (testPkgPaths.has(dependency) && !reachable.has(dependency)) {
+        queue.push(dependency)
+      }
+    }
+  }
+  return reachable
+}
+
+function readPackedManifest(tarballPath: string): Record<string, any> {
+  const chunks: Buffer[] = []
+  try {
+    t({
+      file: tarballPath,
+      sync: true,
+      filter: (entryPath) => entryPath === 'package/package.json',
+      onReadEntry: (entry) => {
+        entry.on('data', (chunk: Buffer) => chunks.push(chunk))
+      },
+    })
+    if (chunks.length === 0) {
+      throw new Error('package/package.json not found')
+    }
+    return JSON.parse(Buffer.concat(chunks).toString('utf8'))
+  } catch (error) {
+    throw new Error(
+      `Could not read package.json from the packed test package ${tarballPath}: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    )
+  }
 }
