@@ -31,6 +31,7 @@ fn reads_active_workers_and_exposes_them_in_span_queries() {
             ts: 20,
             memory: 1234,
             memory_pressure: 7,
+            memory_footprint: 5555,
             active_worker_threads: 2,
         },
         TraceRow::Exit {
@@ -56,7 +57,8 @@ fn reads_active_workers_and_exposes_them_in_span_queries() {
         .memory_samples_for_range_with_ts(Timestamp::from_micros(10), Timestamp::from_micros(30));
     assert_eq!(samples[0].1, 1234);
     assert_eq!(samples[0].2, 7);
-    assert_eq!(samples[0].3, 2);
+    assert_eq!(samples[0].3, 5555);
+    assert_eq!(samples[0].4, 2);
 
     for aggregated in [false, true] {
         let result = query_spans(
