@@ -31,6 +31,8 @@ type MemorySample = (Timestamp, u64, u8, u64);
 
 /// Maximum number of memory samples returned in a query result.
 const MAX_MEMORY_SAMPLES: usize = 200;
+/// Maximum number of equal-duration concurrency segments in a span query.
+const MAX_CONCURRENCY_SAMPLES: usize = 200;
 
 pub struct Store {
     pub(crate) spans: ChunkedVec<Span>,
@@ -435,6 +437,15 @@ impl Store {
             .collect()
     }
 
+    /// Average global self-time concurrency across equal-duration segments
+    /// of `[start, end)`. When corrected-time indexing is disabled, there is
+    /// no tree to query and the series is omitted.
+    pub fn concurrency_samples_for_range(&self, start: Timestamp, end: Timestamp) -> Vec<f64> {
+        self.self_time_tree.as_ref().map_or_else(Vec::new, |tree| {
+            tree.lookup_range_concurrency_samples(start, end, MAX_CONCURRENCY_SAMPLES)
+        })
+    }
+
     fn memory_samples_slice(&self, start: Timestamp, end: Timestamp) -> &[MemorySample] {
         // Binary search for the first sample >= start
         let lo = self
@@ -523,6 +534,17 @@ impl Store {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn concurrency_samples_are_empty_without_a_self_time_tree() {
+        let mut store = Store::new();
+        store.self_time_tree = None;
+        assert!(
+            store
+                .concurrency_samples_for_range(Timestamp::ZERO, Timestamp::from_value(100))
+                .is_empty()
+        );
+    }
 
     #[test]
     fn downsampling_keeps_worker_count_from_max_memory_sample() {
