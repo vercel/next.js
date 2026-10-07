@@ -13,7 +13,12 @@ import {
   hasRedirectHeaders,
 } from './destination'
 import { normalizeNextDataUrl, denormalizeNextDataUrl } from './next-data'
-import { detectLocale, detectDomainLocale, normalizeLocalePath } from './i18n'
+import {
+  detectLocale,
+  detectDomainLocale,
+  getDomainHostname,
+  normalizeLocalePath,
+} from './i18n'
 
 function getHeaderValueCaseInsensitive(
   headers: Record<string, string>,
@@ -649,8 +654,11 @@ export async function resolveRoutes(
             targetLocale
           )
 
+          const isTargetDomainCurrent =
+            !!targetDomain && getDomainHostname(targetDomain) === hostname
+
           // Redirect to different domain if target locale has a different configured domain
-          if (targetDomain && targetDomain.domain !== hostname) {
+          if (targetDomain && !isTargetDomainCurrent) {
             const scheme = targetDomain.http ? 'http' : 'https'
             const localePrefix =
               targetLocale === targetDomain.defaultLocale
@@ -668,10 +676,7 @@ export async function resolveRoutes(
 
           // If no dedicated domain for target locale, or we're already on the right domain,
           // redirect to add locale prefix on same domain
-          if (
-            !targetDomain ||
-            (targetDomain && targetDomain.domain === hostname)
-          ) {
+          if (!targetDomain || isTargetDomainCurrent) {
             const redirectUrl = new URL(currentUrl.toString())
             redirectUrl.pathname = `${basePath}/${targetLocale}${pathname}`
 
