@@ -1,0 +1,60 @@
+---
+title: Nested Middleware is not allowed
+---
+
+## Why This Error Occurred
+
+A file named `_middleware.js` or `_middleware.ts` was found inside the `pages` directory. Nested Middleware was the beta convention in Next.js 12.0 and 12.1, where Middleware ran based on the directory it was declared in. It was replaced in Next.js 12.2 by a single root file.
+
+Next.js skips the nested file rather than running it, so any logic it contains is inactive until you move it.
+
+```txt
+pages/
+├── dashboard/
+│   └── _middleware.ts   ← not executed
+└── _middleware.ts       ← not executed
+```
+
+## Possible Ways to Fix It
+
+Consolidate the logic into **one** file in the project root, at the same level as `pages` or `app` (or inside `src` if you use it). In Next.js 16 that file is [`proxy.ts`](/docs/app/api-reference/file-conventions/proxy), which exports a `proxy` function. Use [`config.matcher`](/docs/app/api-reference/file-conventions/proxy#matcher) to limit which routes it runs on.
+
+```txt
+proxy.ts                 ← runs for matched routes
+pages/
+└── dashboard/
+```
+
+```ts filename="proxy.ts" switcher
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+
+export function proxy(request: NextRequest) {
+  return NextResponse.rewrite(new URL('/about-2', request.url))
+}
+
+export const config = {
+  matcher: ['/about/:path*', '/dashboard/:path*'],
+}
+```
+
+```js filename="proxy.js" switcher
+import { NextResponse } from 'next/server'
+
+export function proxy(request) {
+  return NextResponse.rewrite(new URL('/about-2', request.url))
+}
+
+export const config = {
+  matcher: ['/about/:path*', '/dashboard/:path*'],
+}
+```
+
+Because a single file runs for every matched request, branch on `request.nextUrl.pathname` when different paths need different behavior.
+
+> **Good to know**: The `middleware` file convention still works but is [deprecated in Next.js 16 and renamed to `proxy`](/docs/app/api-reference/file-conventions/middleware). If you land on `middleware.ts` while consolidating, run `npx @next/codemod@canary middleware-to-proxy .` to migrate.
+
+## Useful Links
+
+- [`proxy.js` file convention](/docs/app/api-reference/file-conventions/proxy)
+- [Middleware Upgrade Guide](/docs/messages/middleware-upgrade-guide)
