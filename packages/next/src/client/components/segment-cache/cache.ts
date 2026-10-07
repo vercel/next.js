@@ -934,11 +934,19 @@ export function readOrCreateSegmentCacheEntry(
   fetchStrategy: FetchStrategy,
   tree: RouteTree<RSCSegmentData | null>
 ): SegmentCacheEntry {
+  // A shell walk asks for the shell, so it reads at the shell vary path,
+  // where its request writes. The concrete path could return a deeper entry
+  // for this URL, and the walk would judge the wrong entry. Other walks read
+  // at the concrete path, which also reaches entries stored at a more
+  // generic key through Fallback matching.
   const existingEntry = getFromCacheMap(
     now,
     getCurrentSegmentCacheVersion(),
     map,
-    tree.varyPath,
+    fetchStrategy === FetchStrategy.StaticShell ||
+      fetchStrategy === FetchStrategy.RuntimeShell
+      ? tree.shellVaryPath
+      : tree.varyPath,
     false,
     false
   )
@@ -1001,10 +1009,14 @@ export function readOrCreateRevalidatingSegmentEntry(
   // return a less generic entry upon revalidation. For now, though, this isn't
   // a concern because the keypath is based solely on the prefetch strategy,
   // not on data contained in the response.
+  // Read at the same vary path as readOrCreateSegmentCacheEntry.
   const existingEntry = readRevalidatingSegmentCacheEntry(
     now,
     map,
-    tree.varyPath
+    fetchStrategy === FetchStrategy.StaticShell ||
+      fetchStrategy === FetchStrategy.RuntimeShell
+      ? tree.shellVaryPath
+      : tree.varyPath
   )
   if (existingEntry !== null) {
     return existingEntry
