@@ -147,6 +147,14 @@ export default function Page() {
             Runtime navigation post "speculative-1" (prefetch=true)
           </LinkAccordion>
         </li>
+        <li>
+          <LinkAccordion
+            href="/runtime-navigation/speculative-2"
+            prefetch="navigation"
+          >
+            Runtime navigation post "speculative-2" (prefetch=navigation)
+          </LinkAccordion>
+        </li>
       </ul>
 
       <h2>Prefetch posts</h2>

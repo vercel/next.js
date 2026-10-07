@@ -73,7 +73,8 @@ type InternalLinkProps = {
    *
    * In App Router:
    * - "auto", null, undefined (default): For statically generated pages, this will prefetch the full React Server Component data. For dynamic pages, this will prefetch up to the nearest route segment with a [`loading.js`](https://nextjs.org/docs/app/api-reference/file-conventions/loading) file. If there is no loading file, it will not fetch the full tree to avoid fetching too much data.
-   * - `true`: This will prefetch the full React Server Component data for all route segments, regardless of whether they contain a segment with `loading.js`.
+   * - `true` or `"prefetch"`: This will prefetch the full React Server Component data for all route segments, regardless of whether they contain a segment with `loading.js`.
+   * - `"navigation"`: This will prefetch up to where `navigation()` resolves. Without Partial Prefetching, this is the same as `true`.
    * - `false`: This will not prefetch any data, even on hover.
    *
    * In Pages Router:
@@ -81,7 +82,7 @@ type InternalLinkProps = {
    * - `false`: Prefetching will not happen when entering the viewport, but will still happen on hover.
    * @defaultValue `true` (pages router) or `null` (app router)
    */
-  prefetch?: boolean | 'auto' | null
+  prefetch?: boolean | 'auto' | 'prefetch' | 'navigation' | null
   /**
    * The active locale is automatically prepended. `locale` allows for providing a different locale.
    * When `false` `href` has to include the locale as the default behavior is disabled.
@@ -450,11 +451,13 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           if (
             props[key] != null &&
             valType !== 'boolean' &&
-            props[key] !== 'auto'
+            props[key] !== 'auto' &&
+            props[key] !== 'prefetch' &&
+            props[key] !== 'navigation'
           ) {
             throw createPropError({
               key,
-              expected: '`boolean | "auto"`',
+              expected: '`boolean | "auto" | "prefetch" | "navigation"`',
               actual: valType,
             })
           }

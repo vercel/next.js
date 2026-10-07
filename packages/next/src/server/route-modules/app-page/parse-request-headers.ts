@@ -8,7 +8,12 @@ import {
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_REQUEST_ID_HEADER,
   NEXT_HTML_REQUEST_ID_HEADER,
+  NEXT_ROUTER_PREFETCH_STATIC,
+  NEXT_ROUTER_PREFETCH_RUNTIME_PREFETCH,
+  NEXT_ROUTER_PREFETCH_RUNTIME_SHELL,
+  NEXT_ROUTER_PREFETCH_RUNTIME_NAVIGATION,
 } from '../../../client/components/app-router-headers'
+import { AppStage } from '../../../client/components/segment-cache/types'
 import { isRSCRequestHeader } from '../../lib/is-rsc-request'
 import { getScriptNonceFromHeader } from '../../app-render/get-script-nonce-from-header'
 import { parseAndValidateFlightRouterState } from '../../app-render/parse-and-validate-flight-router-state'
@@ -28,13 +33,13 @@ export interface ParsedRequestHeaders {
    */
   readonly flightRouterState: FlightRouterState | undefined
   readonly isPrefetchRequest: boolean
-  readonly isRuntimePrefetchRequest: boolean
   /**
-   * App Shell prefetch: a runtime prefetch that the server renders with
-   * params omitted (any `await params` hangs forever). Produces the
-   * param-independent shell of the route. Implies isRuntimePrefetchRequest.
+   * The stage a runtime prefetch asks for, or null if this isn't a runtime
+   * prefetch. A runtime prefetch of the shell is rendered with params omitted
+   * (any `await params` hangs forever), so it produces the param-independent
+   * shell of the route.
    */
-  readonly isAppShellPrefetchRequest: boolean
+  readonly runtimePrefetchStage: AppStage | null
   readonly isRouteTreePrefetchRequest: boolean
   readonly isHmrRefresh: boolean
   readonly isRSCRequest: boolean
@@ -53,16 +58,26 @@ export function parseRequestHeaders(
   // runtime prefetch requests are *not* treated as prefetch requests
   // (TODO: this is confusing, we should refactor this to express this better)
   const isPrefetchRequest =
-    isRSCRequest && headers[NEXT_ROUTER_PREFETCH_HEADER] === '1'
-
-  const isAppShellPrefetchRequest =
-    isRSCRequest && headers[NEXT_ROUTER_PREFETCH_HEADER] === '3'
-
-  // App Shell prefetches are a subtype of runtime prefetch — same code path,
-  // but with less resolved content (omitting link data)
-  const isRuntimePrefetchRequest =
     isRSCRequest &&
-    (headers[NEXT_ROUTER_PREFETCH_HEADER] === '2' || isAppShellPrefetchRequest)
+    headers[NEXT_ROUTER_PREFETCH_HEADER] === NEXT_ROUTER_PREFETCH_STATIC
+
+  let runtimePrefetchStage: AppStage | null = null
+  if (isRSCRequest) {
+    switch (headers[NEXT_ROUTER_PREFETCH_HEADER]) {
+      case NEXT_ROUTER_PREFETCH_RUNTIME_SHELL:
+        runtimePrefetchStage = AppStage.Shell
+        break
+      case NEXT_ROUTER_PREFETCH_RUNTIME_PREFETCH:
+        runtimePrefetchStage = AppStage.Prefetch
+        break
+      case NEXT_ROUTER_PREFETCH_RUNTIME_NAVIGATION:
+        runtimePrefetchStage = AppStage.Navigation
+        break
+      case undefined:
+      default:
+        break
+    }
+  }
 
   const isHmrRefresh = headers[NEXT_HMR_REFRESH_HEADER] !== undefined
 
@@ -112,8 +127,7 @@ export function parseRequestHeaders(
   return {
     flightRouterState,
     isPrefetchRequest,
-    isRuntimePrefetchRequest,
-    isAppShellPrefetchRequest,
+    runtimePrefetchStage,
     isRouteTreePrefetchRequest,
     isHmrRefresh,
     isRSCRequest,

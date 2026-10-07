@@ -879,21 +879,29 @@ function pingRootRouteTree(
 
         // Pick the stage to prefetch up to on this pass. During the Shell
         // phase, we request each segment's shell (keyed at the shell vary
-        // paths). Otherwise, we go up to the prefetch stage. This is the only
-        // place we look at the phase. Everything below just uses the stage.
-        const walkStage =
-          task.phase === PrefetchPhase.Shell
-            ? AppStage.Shell
-            : AppStage.Prefetch
-
-        // Under Partial Prefetching, a link asking for the shell is done
-        // after the Shell phase.
-        if (
-          walkStage !== AppStage.Shell &&
-          walkCanUseRuntimeRequests(route) &&
-          task.prefetchStage === AppStage.Shell
-        ) {
-          return PrefetchTaskExitStatus.Done
+        // paths). Otherwise, we go up to the stage the link asked for. This is
+        // the only place we look at the phase. Everything below just uses the
+        // stage.
+        let walkStage: AppStage
+        if (task.phase === PrefetchPhase.Shell) {
+          walkStage = AppStage.Shell
+        } else {
+          switch (task.prefetchStage) {
+            case AppStage.Shell:
+              // Under Partial Prefetching, a link asking for the shell is
+              // done after the Shell phase.
+              if (walkCanUseRuntimeRequests(route)) {
+                return PrefetchTaskExitStatus.Done
+              }
+              // Without it, we go up to the prefetch stage, which gets the
+              // whole static prerender.
+              walkStage = AppStage.Prefetch
+              break
+            case AppStage.Prefetch:
+            case AppStage.Navigation:
+              walkStage = task.prefetchStage
+              break
+          }
         }
 
         // The head is a one-node tree next to the route tree (see
@@ -1125,7 +1133,7 @@ function walkCanUseRuntimeRequests(route: FulfilledRouteCacheEntry): boolean {
  * `walkCanUseRuntimeRequests` is true.
  * */
 function shouldSegmentAttemptStaticRequest(
-  walkStage: AppStage.Shell | AppStage.Prefetch,
+  walkStage: AppStage,
   tree: RouteTree<any>
 ): boolean {
   const { prefetchHints } = tree
@@ -1133,6 +1141,11 @@ function shouldSegmentAttemptStaticRequest(
     case AppStage.Shell:
       return (prefetchHints & PrefetchHint.ShouldAttemptStaticShell) !== 0
     case AppStage.Prefetch:
+      return (prefetchHints & PrefetchHint.ShouldAttemptStaticPrefetch) !== 0
+    case AppStage.Navigation:
+      // The hints don't track runtime data read after `navigation()`, so we
+      // use the prefetch stage's hint. The static response's `u` then tells
+      // us whether we still need a runtime request.
       return (prefetchHints & PrefetchHint.ShouldAttemptStaticPrefetch) !== 0
     default:
       walkStage satisfies never
@@ -1183,7 +1196,7 @@ function isShellEntryEligibleForStaticAttempt(
   map: CacheMap<SegmentCacheEntry>,
   entry: SegmentCacheEntry,
   tree: RouteTree<null>,
-  walkStage: AppStage.Shell | AppStage.Prefetch
+  walkStage: AppStage
 ): boolean {
   if (walkStage === AppStage.Shell) {
     // A shell prefetch never tries a static request for a shell entry. A
@@ -1264,7 +1277,7 @@ function pingSharedPartOfCacheComponentsTree(
   newTree: RouteTree<null>,
   parentBundle: SegmentBundle | null,
   // The stage this pass prefetches up to (see pingRootRouteTree).
-  walkStage: AppStage.Shell | AppStage.Prefetch
+  walkStage: AppStage
 ): PrefetchTaskExitStatus.InProgress | PrefetchTaskExitStatus.Done {
   if (!doesRouteStructureMatch(currentTree, newTree)) {
     // We're entering the part of the target route that doesn't exist on the
@@ -1382,7 +1395,7 @@ function pingNewPartOfCacheComponentsTree(
   tree: RouteTree<null>,
   parentBundle: SegmentBundle | null,
   // The stage this pass prefetches up to (see pingRootRouteTree).
-  walkStage: AppStage.Shell | AppStage.Prefetch
+  walkStage: AppStage
 ): PrefetchTaskExitStatus.InProgress | PrefetchTaskExitStatus.Done {
   const accumulation = pingSegmentInCacheComponentsTree(
     now,
@@ -1472,7 +1485,7 @@ function pingSegmentInCacheComponentsTree(
   tree: RouteTree<null>,
   parentBundle: SegmentBundle | null,
   // The stage this pass prefetches up to (see pingRootRouteTree).
-  walkStage: AppStage.Shell | AppStage.Prefetch
+  walkStage: AppStage
 ): { bundle: SegmentBundle | null; needsRuntimeRequest: boolean } | null {
   // Constant for the whole pass; recomputed here only because the walk is
   // recursive and the check is cheap.
@@ -2016,7 +2029,7 @@ function pingRuntimePrefetches(
   spawnedRuntimePrefetches: Set<SegmentRequestKey>,
   spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry>,
   // The walk's stage, which the runtime request runs at.
-  stage: AppStage.Shell | AppStage.Prefetch
+  stage: AppStage
 ): FlightRouterState {
   // Construct a request tree (FlightRouterState) for a runtime prefetch. If
   // a segment is part of the runtime prefetch, the tree is constructed by
@@ -2086,7 +2099,7 @@ function pingSegmentBundle(
   tree: RouteTree<null>,
   segments: SegmentBundle,
   // The stage this pass prefetches up to (see pingRootRouteTree).
-  walkStage: AppStage.Shell | AppStage.Prefetch,
+  walkStage: AppStage,
   // False when finishing an open bundle chain on a runtime-prefetch bailout
   // (finishStaticBundleOnRuntimeBailout). The finish exists only to fetch
   // data the batched runtime request won't cover — Empty entries in the
@@ -2370,10 +2383,9 @@ function accumulateSegmentBundle(
   route: FulfilledRouteCacheEntry,
   tree: RouteTree<null>,
   parentBundle: SegmentBundle | null,
-  // The stage this pass prefetches up to (see pingRootRouteTree). Usually
-  // Prefetch. During the Shell phase it's Shell, and the entries are keyed at
-  // the shell vary paths.
-  walkStage: AppStage.Shell | AppStage.Prefetch,
+  // The stage this pass prefetches up to (see pingRootRouteTree). During the
+  // Shell phase it's Shell, and the entries are keyed at the shell vary paths.
+  walkStage: AppStage,
   // False when finishing a chain on a runtime-prefetch bailout; see
   // pingSegmentBundle.
   spawnRevalidations: boolean
@@ -2501,7 +2513,7 @@ function finishStaticBundleOnRuntimeBailout(
   // The same walk stage the parent bundle was accumulated with.
   // Any needs-runtime signal from finishing the bundle is dropped: the
   // caller is already deopting this subtree to a runtime prefetch.
-  walkStage: AppStage.Shell | AppStage.Prefetch
+  walkStage: AppStage
 ): void {
   const bundle = accumulateSegmentBundle(
     now,

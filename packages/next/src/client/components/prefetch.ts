@@ -32,8 +32,6 @@ export function prefetchRoute(href: string, options?: PrefetchOptions): void {
   }
   const prefetchKind = options?.kind ?? PrefetchKind.AUTO
 
-  // We don't currently offer a way to issue a runtime prefetch via `router.prefetch()`.
-  // This will be possible when we update its API to not take a PrefetchKind.
   let prefetchStage: AppStage
   switch (prefetchKind) {
     case PrefetchKind.AUTO: {
@@ -42,6 +40,10 @@ export function prefetchRoute(href: string, options?: PrefetchOptions): void {
     }
     case PrefetchKind.FULL: {
       prefetchStage = AppStage.Prefetch
+      break
+    }
+    case PrefetchKind.NAVIGATION: {
+      prefetchStage = AppStage.Navigation
       break
     }
     default: {
