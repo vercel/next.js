@@ -29,7 +29,6 @@ import {
   status,
   writeStatus,
   sb,
-  sbExec,
   rmVm,
   runDetached,
   resolvePrArms,
@@ -258,11 +257,10 @@ async function ensureSsrSnapshot(cfg) {
     // Smoke: one full bench pass on the base arm proves the fixture
     // installs, builds its bundle, and emits parseable JSON before 16
     // VMs boot from this snapshot.
-    await sbExec(
+    await runDetached(
       vm,
-      '35m',
-      `set -e
-npm i -g yarn >/dev/null 2>&1
+      'ssrsnap',
+      `npm i -g yarn >/dev/null 2>&1
 mkdir -p /vercel/sandbox/fixture
 tar -xzf /vercel/sandbox/fixture.tgz --strip-components=2 -C /vercel/sandbox/fixture
 ${extractArms}
@@ -277,7 +275,8 @@ node -e 'const j=require("/tmp/smoke.json"); if (!Array.isArray(j.results) || j.
 rm -f /tmp/smoke.json /vercel/sandbox/fixture.tgz /vercel/sandbox/arm-*.tgz
 echo "PHASE done $(date +%s)"
 echo ssr env ready`,
-      'ssrsnap'
+      null,
+      40
     )
     return await takeSnapshot(vm, CACHE, key)
   } finally {
@@ -439,7 +438,7 @@ done
 echo "${profOrder}" > /vercel/sandbox/prof-order.txt
 cd /vercel/sandbox && tar -czf profiles.tgz prof-*`
       try {
-        await sbExec(vm, '40m', prof, `${tag}:prof`)
+        await runDetached(vm, `${tag}:prof`, prof, null, 45)
         const profTgz = path.join(outDir, `profiles-vm${index}.tgz`)
         await sb(['cp', `${vm}:/vercel/sandbox/profiles.tgz`, profTgz])
         if (!fs.existsSync(profTgz) || fs.statSync(profTgz).size === 0) {
