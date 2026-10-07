@@ -1,6 +1,10 @@
 import { mkdir, readFile, writeFile } from 'fs/promises'
 import { join } from 'path'
 import {
+  writeAgentFeedbackFiles,
+  writeAgentFiles,
+} from 'next/dist/server/lib/generate-agent-files'
+import {
   resolveNextTgzFilename,
   run,
   useTempDir,
@@ -175,6 +179,7 @@ describe('create-next-app', () => {
           '--no-import-alias',
           '--no-react-compiler',
           '--agents-md',
+          '--no-agent-feedback',
           '--skip-install',
           ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
         ],
@@ -189,6 +194,54 @@ describe('create-next-app', () => {
         projectName,
         files: ['AGENTS.md'],
       })
+      const agentsMd = await readFile(
+        join(cwd, projectName, 'AGENTS.md'),
+        'utf8'
+      )
+      expect(agentsMd).toContain('<!-- BEGIN:nextjs-agent-rules -->')
+      expect(agentsMd).not.toContain('nextjs-agent-feedback')
+    })
+  })
+
+  it('should write the agent feedback block to AGENTS.md with --agents-md --agent-feedback', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'with-agents-md-and-feedback'
+
+      const res = await run(
+        [
+          projectName,
+          '--ts',
+          '--app',
+          '--no-linter',
+          '--no-tailwind',
+          '--no-src-dir',
+          '--no-import-alias',
+          '--no-react-compiler',
+          '--agents-md',
+          '--agent-feedback',
+          '--skip-install',
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
+        ],
+        nextTgzFilename,
+        {
+          cwd,
+        }
+      )
+      expect(res.exitCode).toBe(0)
+
+      const projectDir = join(cwd, projectName)
+      const agentsMd = await readFile(join(projectDir, 'AGENTS.md'), 'utf8')
+      const rulesIdx = agentsMd.indexOf('<!-- BEGIN:nextjs-agent-rules -->')
+      const feedbackIdx = agentsMd.indexOf(
+        '<!-- BEGIN:nextjs-agent-feedback -->'
+      )
+      expect(rulesIdx).toBeGreaterThanOrEqual(0)
+      expect(feedbackIdx).toBeGreaterThan(rulesIdx)
+
+      // `next dev` rewrites AGENTS.md when its blocks differ, so the scaffolded
+      // file must match byte-for-byte or the initial commit is immediately dirty.
+      expect(writeAgentFiles(projectDir).agentsMd).toBe('unchanged')
+      expect(writeAgentFeedbackFiles(projectDir).agentsMd).toBe('unchanged')
     })
   })
 
@@ -252,6 +305,11 @@ describe('create-next-app', () => {
       expect(
         await readFile(join(cwd, projectName, 'next.config.ts'), 'utf8')
       ).toContain('\n  experimental: {\n    agentFeedback: true,\n  },\n')
+      projectFilesShouldNotExist({
+        cwd,
+        projectName,
+        files: ['AGENTS.md'],
+      })
     })
   })
 
