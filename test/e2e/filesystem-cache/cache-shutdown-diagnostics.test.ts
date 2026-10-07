@@ -2,15 +2,11 @@ import { nextTestSetup } from 'e2e-utils'
 import fs from 'fs/promises'
 import path from 'path'
 
-// Regression test for the Turbopack persistent build cache: when cache
-// maintenance (persisting/compaction) fails while shutting down — e.g. because
-// the cache directory cannot be written to anymore (full disk, read-only
-// directory) — `next build` keeps reporting success while printing a bare,
-// Display-formatted `Shutting down failed: <message>` line into the regular
-// build output. That line carries no cause chain, so the underlying
-// filesystem error is never shown, and it is repeated on every later build.
-//
-// This asserts the *current* behavior, which is reported as unactionable.
+// Regression test for the Turbopack persistent build cache: when persisting
+// the cache fails while shutting down — e.g. because the cache directory
+// cannot be written to anymore (full disk, read-only directory) — `next build`
+// keeps reporting success, and prints a warning that includes the full cause
+// chain so the underlying filesystem error is actionable.
 //
 // The failure is injected by making the versioned database directory
 // read-only, which only has an effect for a regular (non-root) user on a
@@ -20,7 +16,6 @@ import path from 'path'
 // @force-gate !deploy
 // @force-gate turbopack
 // @force-gate start
-// @force-gate linux
 describe('filesystem-cache shutdown diagnostics', () => {
   const { next } = nextTestSetup({
     files: __dirname,
@@ -36,29 +31,26 @@ describe('filesystem-cache shutdown diagnostics', () => {
     GITHUB_ACTIONS: '',
     NOW_BUILDER: '',
     TURBO_ENGINE_IGNORE_DIRTY: '1',
+    TURBO_ENGINE_DISABLE_VERSIONING: '1',
     TURBO_ENGINE_SNAPSHOT_MIN_ACTIVE_TIME_MILLIS: '0',
   }
 
-  function cachePath() {
-    return path.join(next.testDir, '.next', 'cache', 'turbopack')
+  function databasePath() {
+    return path.join(next.testDir, '.next', 'cache', 'turbopack', 'unversioned')
   }
 
-  // The database lives in a `v<version>-<hash>` subdirectory of the cache.
-  async function databasePath() {
-    const entries = await fs.readdir(cachePath(), { withFileTypes: true })
-    const dir = entries.find((entry) => entry.isDirectory())
-    expect(dir).toBeDefined()
-    return path.join(cachePath(), dir!.name)
+  // Returns each cache warning line together with the line that follows it,
+  // which carries the error cause chain.
+  function shutdownWarnings(cliOutput: string) {
+    const lines = cliOutput.split('\n').map((line) => line.trim())
+    return lines.flatMap((line, i) =>
+      line.startsWith('WARNING: Saving the filesystem cache failed')
+        ? [{ line, cause: lines[i + 1] ?? '' }]
+        : []
+    )
   }
 
-  function shutdownLines(cliOutput: string) {
-    return cliOutput
-      .split('\n')
-      .map((line) => line.trim())
-      .filter((line) => line.startsWith('Shutting down failed:'))
-  }
-
-  it('reports a successful build while printing an unactionable cache shutdown failure on every build', async () => {
+  it('reports a successful build while printing a warning about cache failures on every build', async () => {
     await fs.rm(path.join(next.testDir, '.next'), {
       recursive: true,
       force: true,
@@ -75,7 +67,7 @@ describe('filesystem-cache shutdown diagnostics', () => {
     // First build: populates the persistent cache.
     const first = await next.build({ env: BUILD_ENV })
     expect(first.exitCode).toBe(0)
-    expect(shutdownLines(first.cliOutput)).toEqual([])
+    expect(shutdownWarnings(first.cliOutput)).toEqual([])
 
     // Make cache maintenance fail for all following builds.
     const dbPath = await databasePath()
@@ -97,15 +89,16 @@ describe('filesystem-cache shutdown diagnostics', () => {
       expect(build.cliOutput).toContain('Compiled successfully')
       expect(build.cliOutput).toContain('Route (app)')
 
-      // ... while the cache maintenance failure is printed exactly once as a
-      // plain line of build output (no `⚠`/`Warning:` prefix).
-      const lines = shutdownLines(build.cliOutput)
-      expect(lines).toHaveLength(1)
-      expect(lines[0]).toMatch(/^Shutting down failed: /)
+      // ... while the cache persistence failure is reported exactly once ...
+      const warnings = shutdownWarnings(build.cliOutput)
+      expect(warnings).toHaveLength(1)
+      expect(warnings[0].line).toBe(
+        'WARNING: Saving the filesystem cache failed:'
+      )
 
-      // The message is Display-formatted, so the underlying filesystem error
-      // that caused it is dropped and never shown to the user.
-      expect(lines[0]).not.toMatch(/Permission denied|os error|Caused by/)
+      // ... including the underlying filesystem error.
+      expect(warnings[0].cause).toMatch(/Unable to write SST file/)
+      expect(warnings[0].cause).toMatch(/Permission denied/)
     }
   })
 })
