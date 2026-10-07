@@ -5,5 +5,14 @@
   "counter": {
     "increment": "Přidat",
     "decrement": "Ubrat"
+  },
+  "not-found": {
+    "title": "Stránka nenalezena",
+    "description": "Požadovaný zdroj nebyl nalezen.",
+    "back-home": "Zpět domů"
+  },
+  "error": {
+    "title": "Něco se pokazilo!",
+    "try-again": "Zkusit znovu"
   }
 }
