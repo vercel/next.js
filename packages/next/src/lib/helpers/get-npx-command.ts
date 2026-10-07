@@ -11,6 +11,8 @@ export function getNpxCommand(baseDir: string) {
       execSync('yarn dlx --help', { stdio: 'ignore' })
       command = 'yarn --quiet dlx'
     } catch {}
+  } else if (pkgManager === 'bun') {
+    command = 'bunx'
   }
 
   return command
