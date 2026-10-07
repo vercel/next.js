@@ -547,12 +547,23 @@ export async function renderToHTMLImpl(
     hasPageGetInitialProps &&
     !defaultErrorGetInitialProps
   ) {
-    warn(
-      `Detected getInitialProps on page '${pathname}'` +
-        ` while running export. It's recommended to use getStaticProps` +
-        ` which has a more correct behavior for static exporting.` +
-        `\nRead more: https://nextjs.org/docs/messages/get-initial-props-export`
-    )
+    // Custom _error page (not the default Next.js error page)
+    if (pathname === '/_error') {
+      warn(
+        `Detected getInitialProps on 'pages/_error' while running export. ` +
+          `Note that 'pages/_error' does not support getStaticProps. ` +
+          `To fetch data for static error pages, it is recommended to create 'pages/404.js' or 'pages/500.js' and use getStaticProps there instead.` +
+          `\nRead more: https://nextjs.org/docs/advanced-features/static-html-export`
+      )
+    } else {
+      // Regular page with getInitialProps
+      warn(
+        `Detected getInitialProps on page '${pathname}'` +
+          ` while running export. It's recommended to use getStaticProps` +
+          ` which has a more correct behavior for static exporting.` +
+          `\nRead more: https://nextjs.org/docs/messages/get-initial-props-export`
+      )
+    }
   }
 
   let isAutoExport =
