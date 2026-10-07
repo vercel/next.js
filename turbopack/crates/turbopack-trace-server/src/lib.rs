@@ -233,8 +233,9 @@ pub struct SpanInfo {
     /// offset is within the span.
     ///
     /// The store caps the series at `MAX_MEMORY_SAMPLES`; when more samples
-    /// exist, groups are merged by picking the group's max-memory sample,
-    /// retaining its timestamp, pressure, footprint and worker count.
+    /// exist in the range, consecutive groups are merged: the timestamp,
+    /// value and worker count come from the group's max-memory sample, while
+    /// pressure and footprint are the max over the group.
     pub memory_samples: Vec<(i64, u64, u8, u64, u64)>,
     /// Summary of `memory_samples`. `None` when the span's range holds none.
     pub memory_summary: Option<MemorySummary>,
