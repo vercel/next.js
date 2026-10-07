@@ -846,7 +846,10 @@ export async function fetchExternalImage(
     if (signal.aborted) {
       throw upstreamTimedOut(href)
     }
-    throw err
+    throw new ImageError(
+      502,
+      '"url" parameter is valid but upstream request failed'
+    )
   }
 
   const statusCode = res.statusCode
