@@ -827,7 +827,7 @@ describe('static App Shell prefetch attempt', () => {
     await act(async () => {
       await browser
         .elementByCss(
-          'input[data-link-accordion="/uses-runtime-after-navigation"]'
+          'input[data-prefetch="auto"][data-link-accordion="/uses-runtime-after-navigation"]'
         )
         .click()
     }, [
@@ -861,6 +861,63 @@ describe('static App Shell prefetch attempt', () => {
         expect(await browser.elementById('page-content').text()).toBe(
           'Runtime APIs called after navigation()'
         )
+        expect(await browser.elementById('navigation-content').text()).toBe(
+          'Navigation content'
+        )
+        expect(await browser.elementById('dynamic-loading').text()).toBe(
+          'Loading dynamic content...'
+        )
+      },
+      // The dynamic content streams in with the navigation response.
+      { includes: 'Dynamic content' }
+    )
+    expect(await browser.elementById('dynamic-content').text()).toBe(
+      'Dynamic content'
+    )
+  })
+
+  it('speculative: uses a static prefetch for a partial segment that calls runtime APIs after navigation()', async () => {
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page, { includeAppShellRequests: true })
+
+    // The page reads cookies only after navigation(), so the static response
+    // says a runtime request would have more content, but only past the
+    // prefetch stage. A link that asks for the prefetch stage stops after the
+    // static prefetch.
+    // TODO: Test that a link that asks for the navigation stage sends a
+    // runtime request, once such a link exists.
+    await act(async () => {
+      await browser
+        .elementByCss(
+          'input[data-prefetch="true"][data-link-accordion="/uses-runtime-after-navigation"]'
+        )
+        .click()
+    }, [
+      { includes: 'Navigation content', kind: 'static' },
+      // No runtime request should fire.
+      {
+        includes: '',
+        kind: 'runtime',
+        block: 'reject',
+      },
+      // Dynamic data should not be included.
+      {
+        includes: 'Dynamic content',
+        block: 'reject',
+      },
+    ])
+
+    await act(
+      async () => {
+        await browser
+          .elementByCss('a[href="/uses-runtime-after-navigation"]')
+          .click()
+
         expect(await browser.elementById('navigation-content').text()).toBe(
           'Navigation content'
         )

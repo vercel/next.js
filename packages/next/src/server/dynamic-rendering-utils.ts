@@ -377,12 +377,19 @@ function trackRuntimeDataAccessed(
         return
       }
       if (currentStage >= RenderStage.NavigationStatic) {
-        // Ignore any accesses that happen after `navigation()` resolves.
-        // The purpose of this tracking is to judge whether a runtime prefetch
-        // would give us a more complete result than a static one.
-        // But `navigation()` wouldn't have resolved in a runtime prefetch,
-        // so e.g. `await navigation(); await cookies()` wouldn't have more content
-        // in those, and we shouldn't count it.
+        // An access after `navigation()` resolves doesn't affect the shell or
+        // prefetch hints, because `navigation()` wouldn't have resolved in a
+        // runtime shell or prefetch either. We still mark it, so the client
+        // knows a link that needs the navigation stage should send a runtime
+        // request. It's marked in the stage where it happened, so if the
+        // client only reads up to the end of the prefetch stage, it won't
+        // see it.
+        markRuntimeDataAccessWhenStageReached(
+          prerenderDataTracking,
+          stagedRendering,
+          // We're already in this stage, so this marks it right away.
+          RenderStage.NavigationStatic
+        )
         return
       }
 
