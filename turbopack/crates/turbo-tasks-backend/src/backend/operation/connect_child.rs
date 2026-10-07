@@ -20,12 +20,12 @@ use crate::{
 /// connect handshake.
 ///
 /// GC destructively mutates tasks so mark resurrected tasks as dirty to get them re-scheduled.
-pub(super) fn resurrect_deleted<'e, C: ExecuteContext<'e>>(
-    guard: C::TaskGuardImpl,
+pub(super) fn resurrect_deleted<'e>(
+    guard: TaskGuard<'e>,
     task_id: TaskId,
     queue: &mut AggregationUpdateQueue,
-    ctx: &mut C,
-) -> C::TaskGuardImpl {
+    ctx: &mut ExecuteContext<'e>,
+) -> TaskGuard<'e> {
     if !guard.deleted() {
         return guard;
     }
@@ -64,7 +64,7 @@ pub(super) fn resurrect_deleted<'e, C: ExecuteContext<'e>>(
     task
 }
 
-fn release_construction_ref<'e, C: ExecuteContext<'e>>(task_id: TaskId, ctx: &mut C) {
+fn release_construction_ref(task_id: TaskId, ctx: &mut ExecuteContext<'_>) {
     let mut task = ctx.task(task_id, TaskDataCategory::Meta);
     task.update_and_get_transient_ref_count(-1);
 }
@@ -73,7 +73,7 @@ pub fn connect_child(
     parent_task_id: Option<TaskId>,
     child_task_id: TaskId,
     release_construction_ref: bool,
-    mut ctx: impl ExecuteContext<'_>,
+    mut ctx: ExecuteContext<'_>,
 ) {
     if parent_task_id.is_none() {
         // All parentless tasks receive a transient ref when connected: their lifetime cannot be

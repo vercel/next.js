@@ -2,8 +2,6 @@
 // DOING SO PREVENTS THEM FROM WORKING FOR TURBOPACK USERS.
 // FOLLOW THE PATTERN OF TYPED-ROUTES AND CACHE-LIFE GENERATION
 
-import type { Rewrite, Redirect } from '../../../../lib/load-custom-routes'
-
 import fs from 'fs/promises'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import path from 'path'
@@ -21,12 +19,6 @@ import { getProxiedPluginState } from '../../../build-context'
 
 const PLUGIN_NAME = 'NextTypesPlugin'
 
-type Rewrites = {
-  fallback: Rewrite[]
-  afterFiles: Rewrite[]
-  beforeFiles: Rewrite[]
-}
-
 interface Options {
   dir: string
   distDir: string
@@ -34,8 +26,6 @@ interface Options {
   dev: boolean
   isEdgeServer: boolean
   pageExtensions: PageExtensions
-  originalRewrites: Rewrites | undefined
-  originalRedirects: Redirect[] | undefined
 }
 
 function createTypeGuardFile(

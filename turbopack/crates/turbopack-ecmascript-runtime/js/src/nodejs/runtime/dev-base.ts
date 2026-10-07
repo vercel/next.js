@@ -89,7 +89,7 @@ function instantiateModule(
   }
 
   // Node.js: no hooks wrapper, just execute directly
-  const runWithHooks = (module: HotModule, exec: (refresh: any) => void) => {
+  const runWithHooks = (_module: HotModule, exec: (refresh: any) => void) => {
     exec(undefined) // no refresh context
   }
 
@@ -130,7 +130,7 @@ function getOrInstantiateRuntimeModule(
   chunkPath: ChunkPath,
   moduleId: ModuleId
 ): HotModule {
-  const module = devModuleCache[moduleId]
+  const module = devModuleCache.get(moduleId)
 
   if (module) {
     if (module.error) {
@@ -152,9 +152,8 @@ function getOrInstantiateModuleFromParent(
   sourceModule: HotModule
 ): HotModule {
   // Track parent-child relationship
-  trackModuleImport(sourceModule, id, devModuleCache[id])
-
-  const module = devModuleCache[id]
+  const module = devModuleCache.get(id)
+  trackModuleImport(sourceModule, id, module)
 
   if (module) {
     if (module.error) {

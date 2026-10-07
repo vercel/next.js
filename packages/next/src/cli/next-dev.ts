@@ -30,7 +30,17 @@ import uploadTrace from '../trace/upload-trace'
 import { initialEnv } from '@next/env'
 import { fork } from 'child_process'
 import type { ChildProcess } from 'child_process'
-import type { UpgradeContext } from '../lib/upgrade/nudge'
+import type { UpgradeContext, UpgradeReminder } from '../lib/upgrade/nudge'
+import {
+  closedUpgradeMenu,
+  createPromptOutput,
+  drainPromptOutput,
+  flushUpgradeTelemetry,
+  getPromptOutputEnv,
+  reassertRawMode,
+  showUpgradeMenu,
+  type UpgradeMenuResult,
+} from '../lib/upgrade/prompt-output'
 import {
   getReservedPortExplanation,
   isPortIsReserved,
@@ -75,6 +85,9 @@ let isTurbopack: boolean
 let traceUploadUrl: string
 let sessionStopHandled = false
 let upgradeController: AbortController | null = null
+let upgradeMenu: Promise<UpgradeMenuResult> | undefined
+// Holds the dev server's output while the upgrade menu is open.
+const promptOutput = createPromptOutput()
 let upgradeOffered = false
 let upgradeInProgress = false
 let interruption: NodeJS.Signals | null = null
@@ -123,11 +136,15 @@ const handleSessionStop = async (
   }
   sessionStopHandled = true
   const interruptedUpgrade = upgradeInProgress
+  // Close the menu and let it print what it held.
   upgradeController?.abort()
+  await closedUpgradeMenu(upgradeMenu)
 
   // Capture the child's exit code if it has already exited and caused the
-  // session stop (via the 'exit' event), otherwise assume success (0).
-  const exitCode = child?.exitCode || 0
+  // session stop (via the 'exit' event), otherwise assume success (0). A
+  // worker that exited to restart is not a failure.
+  const exitCode =
+    child?.exitCode === RESTART_EXIT_CODE ? 0 : child?.exitCode || 0
 
   if (
     signal != null &&
@@ -143,6 +160,7 @@ const handleSessionStop = async (
     }
     await once(child, 'exit').catch(() => {})
     if (exitTimeout) clearTimeout(exitTimeout)
+    await drainPromptOutput(child)
   }
 
   sessionSpan.stop()
@@ -207,6 +225,7 @@ const handleSessionStop = async (
   process.stdout.write('\x1B[?25h')
   process.stdout.write('\n')
   if (exit) {
+    await flushUpgradeTelemetry()
     process.exit(
       interruption && (interruption === 'SIGHUP' || interruptedUpgrade)
         ? 128 + os.constants.signals[interruption]
@@ -252,15 +271,15 @@ const nextDev = async (
   dir = getProjectDir(process.env.NEXT_PRIVATE_DEV_DIR || directory)
   warnMissingReactDependencies(dir)
 
-  const { shouldPromptForUpgrade, runUpgrade, nudgeUpgrade } = await import(
+  const { shouldPromptForUpgrade, runUpgrade } = await import(
     '../lib/upgrade/nudge.js'
   )
   const humanUpgrade = await shouldPromptForUpgrade()
   const allowedUpgradeRetries = new Set<string>()
   async function offerUpgrade(
-    worker: ChildProcess,
     context: UpgradeContext,
-    initialAssessment: Parameters<typeof nudgeUpgrade>[4]
+    initialAssessment: Promise<UpgradeReminder | null> | null,
+    telemetryDisabled: string | undefined
   ) {
     process.on('SIGHUP', onHangup)
     upgradeOffered = true
@@ -268,60 +287,42 @@ const nextDev = async (
     const controller = new AbortController()
     upgradeController = controller
 
-    // Correlate the parent's rendered menu with the upgrade launched after Update.
-    const telemetry = new Telemetry({
-      distDir: path.join(dir, context.distDir),
-      skipNotify: true,
+    upgradeMenu = showUpgradeMenu(promptOutput, {
+      dir,
+      context,
+      command: 'dev',
+      signal: controller.signal,
+      initialAssessment,
+      telemetryDisabled,
     })
+    const result = await upgradeMenu
+    upgradeController = null
 
-    let nudgeId: string | null = null
-    let action
-
-    try {
-      action = await nudgeUpgrade(
-        dir,
-        context,
-        'dev',
-        controller.signal,
-        initialAssessment,
-        {
-          telemetry,
-          onNudgeId(id) {
-            nudgeId = id
-          },
-        }
-      )
-    } catch (error) {
-      Log.warn(`Could not offer the upgrade: ${String(error)}`)
-    } finally {
-      upgradeController = null
-    }
-    if (controller.signal.aborted || sessionStopHandled) {
-      upgradeInProgress = false
-      process.off('SIGHUP', onHangup)
+    // Dev is already stopping (e.g. the server crashed).
+    if (sessionStopHandled) {
       return
     }
-    if (action === 'interrupt') {
+    if (result === 'interrupt') {
       onInterrupt()
       return
     }
-    if (action === 'update' && context.experimental.agentUpgrade) {
+    if (result) {
+      // The server is stopping, so its output doesn't matter.
+      promptOutput.discard()
       await handleSessionStop('SIGTERM', false)
       if (interruption) {
+        await flushUpgradeTelemetry()
         process.exit(128 + os.constants.signals[interruption])
       }
       process.off('SIGINT', onInterrupt)
       process.off('SIGTERM', onTerminate)
       process.off('SIGHUP', onHangup)
-      process.exit(
-        await runUpgrade(dir, context.experimental.agentUpgrade, nudgeId)
-      )
+      const exitCode = await runUpgrade(dir, result.policy, result.nudgeId)
+      await flushUpgradeTelemetry()
+      process.exit(exitCode)
     }
     upgradeInProgress = false
     process.off('SIGHUP', onHangup)
-    if (worker.connected) {
-      worker.send({ nextUpgradeContinue: true })
-    }
   }
 
   // Check if pages dir exists and warn if not
@@ -503,11 +504,13 @@ const nextDev = async (
       const { nodeOptions: formattedNodeOptions, execArgv } =
         formatNodeOptions(nodeOptions)
 
+      // Pipe output through us so it can be held while the menu is open.
       child = fork(startServerPath, {
-        stdio: 'inherit',
+        stdio: humanUpgrade ? ['inherit', 'pipe', 'pipe', 'ipc'] : 'inherit',
         execArgv,
         env: {
           ...defaultEnv,
+          ...(humanUpgrade ? getPromptOutputEnv() : undefined),
           ...(isTurbopack ? { TURBOPACK: process.env.TURBOPACK } : undefined),
           __NEXT_DEV_SERVER: '1',
           NEXT_PRIVATE_START_TIME: process.env.NEXT_PRIVATE_START_TIME,
@@ -542,6 +545,9 @@ const nextDev = async (
             : undefined),
         },
       })
+      if (humanUpgrade) {
+        promptOutput.attach(child)
+      }
 
       child.on('message', (msg: any) => {
         if (msg && typeof msg === 'object') {
@@ -557,13 +563,15 @@ const nextDev = async (
               msg.nextUpgradeAssessment !== undefined
                 ? Promise.resolve(msg.nextUpgradeAssessment)
                 : null
-            void offerUpgrade(child!, context, initialAssessment).catch(
-              async (error) => {
-                console.error(error)
-                await handleSessionStop('SIGTERM', false)
-                process.exit(1)
-              }
-            )
+            void offerUpgrade(
+              context,
+              initialAssessment,
+              msg.telemetryDisabled
+            ).catch(async (error) => {
+              console.error(error)
+              await handleSessionStop('SIGTERM', false)
+              process.exit(1)
+            })
           } else if (msg.nextWorkerReady) {
             child?.send({ nextWorkerOptions: startServerOptions })
           } else if (msg.nextServerReady && !resolved) {
@@ -583,8 +591,12 @@ const nextDev = async (
         }
       })
 
-      child.on('exit', async (code, signal) => {
-        upgradeController?.abort()
+      // A restart replaces `child`, so keep this one.
+      const worker = child
+      worker.on('exit', async (code, signal) => {
+        reassertRawMode()
+        // Read the rest of its output first. A restart keeps the menu open.
+        await drainPromptOutput(worker)
         if (sessionStopHandled) {
           return
         }
@@ -654,6 +666,8 @@ const nextDev = async (
         await startServer(devServerOptions)
       }
 
+      // Its warnings would land on the menu's screen and be lost.
+      await upgradeMenu
       await preflight(reboot)
     } catch (err) {
       console.error(err)

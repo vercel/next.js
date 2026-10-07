@@ -359,6 +359,15 @@ export interface ReactCompilerOptions {
    * @see https://react.dev/reference/react-compiler/compilationMode
    */
   compilationMode?: 'infer' | 'annotation' | 'all'
+  environment?: {
+    /**
+     * Controls whether the React Compiler preserves existing memoization
+     * guarantees from `useMemo`, `useCallback`, and `React.memo`.
+     *
+     * When omitted, the installed React Compiler's default is used.
+     */
+    enablePreserveExistingMemoizationGuarantees?: boolean
+  }
   /**
    * Controls how the React Compiler handles errors during compilation.
    *
@@ -1094,6 +1103,16 @@ export interface ExperimentalConfig {
   turbopackMangleExportNames?: boolean
 
   /**
+   * Materialize namespace objects behind a facade so their local export keys can still be
+   * mangled. This can interfere with code that patches modules, since a module might be split
+   * into multiple parts.
+   *
+   * Defaults to `true` only when `turbopackMangleExportNames` is explicitly `true`; otherwise
+   * defaults to `false`, including when export mangling is enabled by default.
+   */
+  turbopackMangleViaMaterializedNamespaceObject?: boolean
+
+  /**
    * Enable scope hoisting of static CommonJS modules.
    *
    * Defaults to `false`
@@ -1467,6 +1486,13 @@ export interface ExperimentalConfig {
    * Turbopack.
    */
   durableUseCacheEntries?: boolean
+
+  /**
+   * Collects root param dependencies for `'use cache'` in Turbopack production
+   * builds. Defaults to `false`. When disabled, the server-reference manifest
+   * omits `rootParamDependencies`.
+   */
+  useCacheStaticRootParamTracking?: boolean
 
   /**
    * Enables detection and reporting of slow modules during development builds.
@@ -2250,16 +2276,6 @@ export interface NextConfig {
    * @internal
    */
   configOrigin?: string | undefined
-
-  /**
-   * @internal
-   */
-  _originalRedirects?: any
-
-  /**
-   * @internal
-   */
-  _originalRewrites?: any
 }
 
 export const defaultConfig = Object.freeze({
@@ -2453,6 +2469,7 @@ export const defaultConfig = Object.freeze({
     gestureTransition: false,
     inlineCss: false,
     useCache: undefined,
+    useCacheStaticRootParamTracking: false,
     slowModuleDetection: undefined,
     globalNotFound: false,
     explicitParallelRouteChildren: true,
