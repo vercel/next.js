@@ -2304,37 +2304,32 @@ async function fetchAndWritePerSegmentPrefetchResponse(
     }
   }
 
-  // Extract the shell payload, if the response carries a distinct one
-  // (positive shell byte offset): decode the buffered bytes a SECOND time,
-  // truncated at the boundary. The truncation is what produces the shell
-  // variant: each segment's param-dependent rows land past the boundary and
-  // decode as still-pending, which renders as the param fallback. It also
-  // rewinds the response's signals — `needsRuntimeRequest` and `isPartial`
-  // fulfillments past the boundary read as pending in this decode, so a
-  // post-shell runtime-data access doesn't mark the shell variant itself as
-  // needing a runtime request.
-  // (A 0 offset means the response carries no shell: the server emits a
-  // fulfilled 0 when the page wasn't staged at all — see the `a` resolution
-  // in collect-segment-data — and 0 is also the default read of an
-  // unfulfilled `a`, which would be a Next.js bug since the full buffer is
-  // present. Both read the same here: no shell, and the scheduler skips the
-  // affected segments rather than falling back to a runtime request — see
-  // the no-shell handling in writeResponsePayloadsIntoCache. Failing in that
-  // direction costs a shell prefetch but never leaks post-shell content into
-  // shell positions. 0 can double as "none" on the wire precisely because
-  // it's never a valid offset — see the `a` field doc on
-  // NavigationFlightResponse.)
-  const shellOffset =
-    serverResponse.a !== undefined ? readFulfilledValue(serverResponse.a, 0) : 0
+  // If the response lists where its shell ends, decode the bytes again, cut
+  // off there. That gives us the shell: each segment's param-dependent rows
+  // come after the cut, so they decode as pending and render as the param
+  // fallback. Values like `u` and `isPartial` that resolve after the cut read
+  // as pending too, so a runtime data access after the shell doesn't count
+  // against the shell.
+  //
+  // If `a` is missing, the page wasn't staged (see renderSegmentPrefetch), so
+  // there's no shell. An unresolved `a` would be a bug, but we treat it the
+  // same. The scheduler then skips these segments instead of sending a
+  // runtime request. That costs a shell prefetch, but never puts content
+  // from after the shell where a shell belongs.
+  const stageByteLengths =
+    serverResponse.a !== undefined
+      ? readFulfilledValue(serverResponse.a, undefined)
+      : undefined
   let shellResponse: PrefetchFlightResponse | null
-  if (shellOffset === null) {
-    shellResponse = serverResponse
-  } else if (shellOffset === 0) {
+  if (stageByteLengths === undefined) {
     shellResponse = null
+  } else if (stageByteLengths.length === 0) {
+    // The shell ends at the end of the response.
+    shellResponse = serverResponse
   } else {
     try {
       shellResponse = await decodeBufferedResponse<PrefetchFlightResponse>(
-        buffer.subarray(0, shellOffset),
+        buffer.subarray(0, stageByteLengths[0]),
         headers
       )
     } catch {
@@ -2672,13 +2667,9 @@ export async function fetchSegmentPrefetchesUsingRuntimeRequest(
     // paths, this is resolved immediately — see TODO in fetchRouteOnCacheMiss.
     const closed = createPromiseWithResolvers<void>()
 
-    // With Cached Navigations, the response's bytes are kept here as they're
-    // passed to the decoder, so prefixes (like the shell) can be cut from them.
-    let responseChunks: Array<Uint8Array> | null =
-      process.env.__NEXT_CACHE_COMPONENTS &&
-      process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS
-        ? []
-        : null
+    // The response's bytes, kept as they're passed to the decoder, so
+    // prefixes (like the shell) can be cut from them.
+    let responseChunks: Array<Uint8Array> | null = null
 
     let fulfilledEntries: Array<FulfilledSegmentCacheEntry> | null = null
     let bufferedResponseSize: number | null = null
@@ -2690,7 +2681,14 @@ export async function fetchSegmentPrefetchesUsingRuntimeRequest(
       // Legacy full prefetches are dynamic responses stored in the prefetch cache.
       // They don't carry vary params or other cache metadata, so there's no
       // need to buffer them. Use the incremental version to allow data to be
-      // processed as it arrives.
+      // processed as it arrives. We only keep their bytes with Cached
+      // Navigations.
+      if (
+        process.env.__NEXT_CACHE_COMPONENTS &&
+        process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS
+      ) {
+        responseChunks = []
+      }
       const prefetchStream = createIncrementalPrefetchResponseStream(
         response.body,
         closed.resolve,
@@ -2724,9 +2722,7 @@ export async function fetchSegmentPrefetchesUsingRuntimeRequest(
       const buffer = await bufferPrefetchResponseBody(response.body)
       closed.resolve()
       bufferedResponseSize = buffer.byteLength
-      if (responseChunks !== null) {
-        responseChunks.push(buffer)
-      }
+      responseChunks = [buffer]
       serverDataPromise =
         decodeBufferedResponse<DynamicNavigationFlightResponse>(buffer, headers)
     }
@@ -2739,8 +2735,7 @@ export async function fetchSegmentPrefetchesUsingRuntimeRequest(
       response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? serverData.b
 
     // Cut the shell out of the response, if it has one. We can only do that
-    // if we kept the response's bytes, which we only do with Cached
-    // Navigations.
+    // if we kept the response's bytes.
     const shellResponse =
       responseChunks !== null
         ? await resolveShellStageResponse(responseChunks, serverData, headers)
@@ -2913,17 +2908,16 @@ function writeResponsePayloadsIntoCache(
 
   let fulfilledEntries: Array<FulfilledSegmentCacheEntry> | null
   if (shellPayload === null) {
-    if (fullPayload.u !== undefined && expectedStage === AppStage.Shell) {
-      // A shell was requested, but the response is a static prerender that
-      // carries no shell (its shell byte offset read as 0 — a bug in Next.js
-      // itself — or the shell prefix couldn't be decoded). The full payload
-      // is still usable, so it's written detached; the spawned entries are
-      // rejected so the task isn't stranded blocking on them.
-      // Note the scheduler does NOT fall back to a runtime request for
-      // rejected segments — it skips them outright (see the Rejected case
-      // in pingSegmentBundle in scheduler.ts), so these segments get no
-      // shell prefetch and no runtime substitute until the rejection's
-      // backoff expires.
+    if (expectedStage === AppStage.Shell) {
+      // We asked for a shell, but got a response without one. Either it
+      // didn't list where its stages end (a bug in Next.js), or the shell
+      // prefix couldn't be decoded. The full payload is still useful, so we
+      // write it, but we reject the spawned entries so the task isn't stuck
+      // waiting on them. They're keyed where a shell goes, so the full
+      // payload can't fulfill them. They back off like any other failed
+      // request. (After a static shell request, the scheduler skips a
+      // rejected segment instead of sending a runtime request. See the
+      // Rejected case in pingSegmentBundle.)
       writeServerResponseIntoCache(
         now,
         fullStage,
@@ -3832,24 +3826,24 @@ export async function bufferAndWriteNavigationResponse(
       undefined
     )
     isPartial = stripped.isPartial
-    // The stream is fully buffered, so its stale time and shell byte length
-    // are read synchronously. A shell byte length that can't be read (an
-    // aborted render errors it, and a cut-off stream leaves it pending) reads
-    // as no shell; the full payload is still written.
+    // The stream is fully buffered, so we can read its stale time and stage
+    // byte lengths synchronously. If we can't read the stage byte lengths (an
+    // aborted render errors them, and a cut-off stream leaves them pending),
+    // we treat it as having no shell, and still write the full payload.
     staleAt = readFulfilledStaleAt(now, prefetchResponse.s)
-    const shellByteLength =
+    const stageByteLengths =
       prefetchResponse.a !== undefined
         ? readFulfilledValue(prefetchResponse.a, undefined)
         : undefined
-    if (shellByteLength === null) {
+    if (stageByteLengths === undefined) {
+      shellResponse = null
+    } else if (stageByteLengths.length === 0) {
       // The shell is the full response.
       shellResponse = prefetchResponse
-    } else if (shellByteLength === undefined || shellByteLength === 0) {
-      shellResponse = null
     } else {
       shellResponse = await decodeResponsePrefix<NavigationFlightResponse>(
         [buffer],
-        shellByteLength,
+        stageByteLengths[0],
         undefined
       )
     }
@@ -3901,13 +3895,13 @@ export async function bufferAndWriteNavigationResponse(
 /**
  * Resolves the shell stage of a prerender response:
  *
- * - `a === undefined` (server didn't emit shell stage info): no shell exists —
+ * - `a === undefined` (server didn't emit stage info): no shell exists —
  *   returns null.
- * - `a` resolves to `null`: the shell IS the main response — returns
+ * - `a` lists no offsets: the shell IS the main response — returns
  *   `flightResponse` itself (callers compare by reference).
- * - `a` resolves to a number: the shell is a strict prefix of the response —
- *   returns a separate Flight decode of that many bytes from `chunks`, the
- *   response's bytes (see `decodeResponsePrefix`).
+ * - `a` lists the shell's offset: the shell is a strict prefix of the
+ *   response — returns a separate Flight decode of that many bytes from
+ *   `chunks`, the response's bytes (see `decodeResponsePrefix`).
  */
 async function resolveShellStageResponse<
   T extends NavigationFlightResponse | InitialRSCPayload,
@@ -3921,11 +3915,8 @@ async function resolveShellStageResponse<
     return null
   }
 
-  const shellByteLength = await flightResponse.a
-  if (shellByteLength === 0) {
-    return null
-  }
-  if (shellByteLength === null) {
+  const stageByteLengths = await flightResponse.a
+  if (stageByteLengths.length === 0) {
     // The shell IS the full response (no shell/full split). Return the full
     // response itself — callers detect this case by reference equality —
     // rather than collapsing it into null, which would lose the distinction
@@ -3934,5 +3925,5 @@ async function resolveShellStageResponse<
     return flightResponse
   }
 
-  return decodeResponsePrefix<T>(chunks, shellByteLength, headers)
+  return decodeResponsePrefix<T>(chunks, stageByteLengths[0], headers)
 }
