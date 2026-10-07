@@ -19,9 +19,12 @@ Every pull request has to be reviewed by a maintainer. Automation helps, but it 
 
 ## Signed commits
 
-This repository requires verified commit signatures on protected branches.
+This repository requires [verified commit signatures](https://docs.github.com/en/authentication/managing-commit-signature-verification/about-commit-signature-verification) on protected branches.
 
-Before contributing, configure Git to sign your commits with a GitHub-verified GPG, SSH, or S/MIME key. Unsigned commits will be rejected by the repository rules and will need to be rewritten as signed commits before they can be merged.
+Before contributing, [configure Git to sign your commits with a GitHub-verified GPG, SSH, or S/MIME key](https://docs.github.com/en/authentication/managing-commit-signature-verification/telling-git-about-your-signing-key). Unsigned commits will be rejected by the repository rules and will need to be rewritten as signed commits before they can be merged.
+
+> [!NOTE]
+> If signing commits with SSH, Git may require an `allowedSignersFile` to be configured for local signature verification. See [GitLab's documentation on verifying SSH-signed commits locally](https://docs.gitlab.com/user/project/repository/signed_commits/ssh/#verify-commits-locally) for an example.
 
 If a pull request includes unsigned commits, re-sign the commits and force-push the branch. Make sure the signing key is added to your GitHub account and that your commits appear as `Verified`.
 
