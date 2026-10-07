@@ -56,6 +56,41 @@ describe('og-api', () => {
     expect((await after.blob()).size).toBeGreaterThan(0)
   })
 
+  it('should work in app route with webp format', async () => {
+    const res = await fetchViaHTTP(next.url, '/og-webp')
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toContain('image/webp')
+    const buffer = Buffer.from(await res.arrayBuffer())
+    expect(buffer.length).toBeGreaterThan(0)
+    const riff = buffer.subarray(0, 4).toString('ascii')
+    const webp = buffer.subarray(8, 12).toString('ascii')
+    expect(riff).toBe('RIFF')
+    expect(webp).toBe('WEBP')
+  })
+
+  it('should work in app route with avif format', async () => {
+    const res = await fetchViaHTTP(next.url, '/og-avif')
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toContain('image/avif')
+    const buffer = Buffer.from(await res.arrayBuffer())
+    expect(buffer.length).toBeGreaterThan(0)
+    const ftyp = buffer.subarray(4, 8).toString('ascii')
+    const brand = buffer.subarray(8, 12).toString('ascii')
+    expect(ftyp).toBe('ftyp')
+    expect(brand === 'avif' || brand === 'avis').toBe(true)
+  })
+
+  it('should work in app route with jpeg format', async () => {
+    const res = await fetchViaHTTP(next.url, '/og-jpeg')
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toContain('image/jpeg')
+    const buffer = Buffer.from(await res.arrayBuffer())
+    expect(buffer.length).toBeGreaterThan(0)
+    expect(buffer[0]).toBe(0xff)
+    expect(buffer[1]).toBe(0xd8)
+    expect(buffer[2]).toBe(0xff)
+  })
+
   it('should work in middleware', async () => {
     const res = await fetchViaHTTP(next.url, '/middleware')
     expect(res.status).toBe(200)
