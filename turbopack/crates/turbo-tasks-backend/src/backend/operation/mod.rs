@@ -1726,7 +1726,7 @@ pub use self::{
     connect_child::connect_child,
     connect_children::connect_children,
     invalidate::{invalidate, make_task_dirty_internal},
-    leaf_distance_update::LeafDistanceUpdateQueue,
+    leaf_distance_update::{LeafDistanceUpdateQueue, compute_leaf_distance_update},
     prepare_new_children::prepare_new_children,
     update_cell::update_cell,
     update_collectible::UpdateCollectibleOperation,
