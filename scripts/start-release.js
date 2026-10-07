@@ -10,6 +10,7 @@ const {
 const {
   createGitHubReleaseCommit,
   createGitHubRelease,
+  updateLtsBranchRefs,
 } = require('./release-github-api')
 const { readReleaseVersion } = require('./release-version')
 
@@ -38,6 +39,11 @@ function createMockGitHubRequest() {
         body ? ` ${formatBody(body)}` : ''
       }`
     )
+
+    // Branch ref lookups (LTS branch moves): a canned commit SHA.
+    if (method === 'GET' && apiPath.includes('/git/ref/heads/')) {
+      return { object: { sha: 'f'.repeat(40), type: 'commit' } }
+    }
 
     // One canned shape covers every consumer: `.sha` (blobs/trees/commits) and
     // `.verification.verified` (commits). Ref writes ignore the return value.
@@ -239,10 +245,23 @@ async function main() {
     )
   }
 
-  const { tagName } = await createGitHubReleaseCommit(githubToken, {
-    ...releaseCommitOptions,
-    githubRequest: mockRequest,
-  })
+  const { tagName, sha: signedTagSha } = await createGitHubReleaseCommit(
+    githubToken,
+    {
+      ...releaseCommitOptions,
+      githubRequest: mockRequest,
+    }
+  )
+
+  if (releaseType === 'stable') {
+    await updateLtsBranchRefs(githubToken, {
+      // Validated against SEMVER_TYPES above (stable always requires one).
+      semverType: /** @type {'patch' | 'minor' | 'major'} */ (semverType),
+      tagName,
+      tagSha: signedTagSha,
+      githubRequest: mockRequest,
+    })
+  }
 
   if (isCanary || isReleaseCandidate || isBeta || isPreview) {
     await createGitHubRelease(githubToken, {
