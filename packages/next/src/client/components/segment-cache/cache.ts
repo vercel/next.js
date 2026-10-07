@@ -3586,16 +3586,11 @@ function writeSegmentDataIntoCache(
   // keying (this is load-bearing for entries spawned as revalidations:
   // without the re-key they'd stay in their Revalidation slot forever,
   // invisible to canonical reads, and the partial entry that prompted the
-  // revalidation would keep serving navigations). Full responses are
-  // excluded, matching the varyParams re-key: they're spawned as canonical
-  // entries at their final path, and their vary tracking can't be trusted
-  // for re-keying (see the fulfilledVaryPath derivation above).
+  // revalidation would keep serving navigations).
   const canonicalVaryPath =
     fulfilledVaryPath !== null
       ? fulfilledVaryPath
-      : payloadStrategy !== FetchStrategy.Full
-        ? getSegmentVaryPathForRequest(payloadStrategy, tree)
-        : null
+      : getSegmentVaryPathForRequest(payloadStrategy, tree)
 
   // We should only write into cache entries that are owned by us. Or create
   // a new one and write into that. We must never write over an entry that was
@@ -3609,7 +3604,6 @@ function writeSegmentDataIntoCache(
   const isOwned =
     ownedEntry !== undefined && ownedEntry.status === EntryStatus.Pending
   let fulfilledEntry: FulfilledSegmentCacheEntry
-  let insertVaryPath: VaryPath | null
   if (isOwned) {
     // We own this entry — fulfill it directly.
     fulfilledEntry = fulfillSegmentCacheEntry(
@@ -3621,14 +3615,9 @@ function writeSegmentDataIntoCache(
       isUpgradeableISRFallback,
       recordedFetchStrategy
     )
-    // Re-key the fulfilled entry at its canonical path. Owned Full entries
-    // are the exception (canonicalVaryPath is null): they were spawned as
-    // canonical entries at their final path, so no re-key happens.
-    insertVaryPath = canonicalVaryPath
   } else {
     // We don't own an entry for this segment. Create a detached one and
-    // attempt to insert it at the canonical path — or, for a Full response
-    // (which has no canonical re-key), at the request's own path.
+    // attempt to insert it at the canonical path.
     fulfilledEntry = fulfillSegmentCacheEntry(
       upgradeToPendingSegment(
         createDetachedSegmentCacheEntry(now),
@@ -3641,46 +3630,40 @@ function writeSegmentDataIntoCache(
       isUpgradeableISRFallback,
       recordedFetchStrategy
     )
-    insertVaryPath =
-      canonicalVaryPath !== null
-        ? canonicalVaryPath
-        : getSegmentVaryPathForRequest(fetchStrategy, tree)
   }
-  if (insertVaryPath !== null) {
-    // Insert through the upsert so the usual precedence rules apply — an
-    // existing entry with more complete content is never downgraded, and a
-    // shadowed Empty/Pending entry's blocked tasks are pinged. (In the
-    // common case the slot already holds the entry we just fulfilled, which
-    // the upsert replaces in place; but the re-key is load-bearing for
-    // entries whose spawn path differs from the canonical path — e.g.
-    // spawned revalidations, which would otherwise stay in their
-    // Revalidation slot forever, invisible to canonical reads, while the
-    // partial entry that prompted the revalidation kept serving
-    // navigations.)
-    //
-    // The concrete lookup path (tree.varyPath) is passed so that when the
-    // canonical path is more generic, any stale settled entry — or unclaimed
-    // Empty placeholder — at a more specific path that would shadow the
-    // fulfilled entry is evicted. Without this, a shadowed re-keyed entry is
-    // unreachable at the concrete read path: the scheduler would keep
-    // re-reading the stale entry and, for a revalidation, respawn it
-    // forever. See evictShadowingSegmentEntries.
-    const installedEntry = upsertSegmentEntry(
-      now,
-      map,
-      insertVaryPath,
-      fulfilledEntry,
-      tree.varyPath
-    )
-    if (installedEntry === null && !isOwned) {
-      // The upsert declined the detached candidate (an existing entry took
-      // precedence, or the candidate was already expired), so no cache slot
-      // holds this write's content — nothing for the caller to charge to
-      // the LRU. (An owned entry is returned regardless: it was fulfilled
-      // above and stays live for waiters that hold it, whether or not the
-      // re-key installed it.)
-      return null
-    }
+  // Insert through the upsert so the usual precedence rules apply — an
+  // existing entry with more complete content is never downgraded, and a
+  // shadowed Empty/Pending entry's blocked tasks are pinged. (In the
+  // common case the slot already holds the entry we just fulfilled, which
+  // the upsert replaces in place; but the re-key is load-bearing for
+  // entries whose spawn path differs from the canonical path — e.g.
+  // spawned revalidations, which would otherwise stay in their
+  // Revalidation slot forever, invisible to canonical reads, while the
+  // partial entry that prompted the revalidation kept serving
+  // navigations.)
+  //
+  // The concrete lookup path (tree.varyPath) is passed so that when the
+  // canonical path is more generic, any stale settled entry — or unclaimed
+  // Empty placeholder — at a more specific path that would shadow the
+  // fulfilled entry is evicted. Without this, a shadowed re-keyed entry is
+  // unreachable at the concrete read path: the scheduler would keep
+  // re-reading the stale entry and, for a revalidation, respawn it
+  // forever. See evictShadowingSegmentEntries.
+  const installedEntry = upsertSegmentEntry(
+    now,
+    map,
+    canonicalVaryPath,
+    fulfilledEntry,
+    tree.varyPath
+  )
+  if (installedEntry === null && !isOwned) {
+    // The upsert declined the detached candidate (an existing entry took
+    // precedence, or the candidate was already expired), so no cache slot
+    // holds this write's content — nothing for the caller to charge to
+    // the LRU. (An owned entry is returned regardless: it was fulfilled
+    // above and stays live for waiters that hold it, whether or not the
+    // re-key installed it.)
+    return null
   }
   return fulfilledEntry
 }
