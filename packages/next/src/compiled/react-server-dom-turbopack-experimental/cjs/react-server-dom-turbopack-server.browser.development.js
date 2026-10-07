@@ -3436,7 +3436,7 @@
             "$Z" +
             outlineDebugModel(
               request,
-              { objectLimit: 2 * ref.length + 1 },
+              { objectLimit: 2 * ref.length + 2 },
               key
             ).toString(16);
           return request;
