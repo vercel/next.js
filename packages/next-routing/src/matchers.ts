@@ -25,9 +25,7 @@ function matchesCondition(
   // Try to match as regex first
   try {
     const exactRegex = new RegExp(`^(?:${conditionValue})$`)
-    const fallbackRegex = new RegExp(conditionValue)
-    const match =
-      actualValue.match(exactRegex) ?? actualValue.match(fallbackRegex)
+    const match = actualValue.match(exactRegex)
     if (match) {
       const namedCaptures: Record<string, string> = {}
       if (match.groups) {
