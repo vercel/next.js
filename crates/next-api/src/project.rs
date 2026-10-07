@@ -425,7 +425,7 @@ struct ProjectFileSystemState {
 }
 
 // These distinct payload types give the root constructor a fixed per-type cell layout.
-// Do not reorder/conditionally omit mutable allocations as a persisted-state migration.
+// Allocate each payload unconditionally so reruns preserve the owner's cell identities.
 #[turbo_tasks::value(cell = "mutable", operation)]
 #[derive(Clone)]
 struct ProjectOptionsCell(Option<ProjectOptions>);
