@@ -1,4 +1,3 @@
-import os from 'os'
 import path from 'path'
 import dns from 'dns'
 import execa from 'execa'
@@ -6,6 +5,11 @@ import fs from 'fs-extra'
 import { load, dump } from 'js-yaml'
 import * as tar from 'next/dist/compiled/tar'
 import { NextInstance, type NextInstanceOpts } from './base'
+import {
+  collectDeploymentFiles,
+  VercelApiClient,
+  VercelApiError,
+} from '../vercel-api'
 import * as projectEnv from '../../../scripts/reset-project.mjs'
 import { Span } from 'next/dist/trace'
 import { setTimeout } from 'timers/promises'
@@ -237,15 +241,28 @@ export class NextDeployInstance extends NextInstance {
     )
   }
 
+  private async fetchBuildLogs(
+    api: VercelApiClient,
+    idOrUrl: string
+  ): Promise<string> {
+    try {
+      return await api.getBuildLogs(idOrUrl)
+    } catch (error) {
+      if (error instanceof VercelApiError) {
+        throw new Error(`Failed to get build output logs: ${error.message}`)
+      }
+      throw error
+    }
+  }
+
   private async fetchBuildLogsUntilComplete(
-    url: string,
-    vercelEnv: NodeJS.ProcessEnv,
-    vercelFlags: string[]
+    api: VercelApiClient,
+    idOrUrl: string
   ): Promise<string> {
     // The fixture's `post-build` script prints the BUILD_ID, DEPLOYMENT_ID and
     // NEXT_SUPPORTS_IMMUTABLE_ASSETS markers (in that order) as the final lines
     // of the build (see `base.ts`). A deployment can report `Ready` before that
-    // tail has propagated to the log query API, so `vercel inspect --logs` can
+    // tail has propagated to the log query API, so the events endpoint can
     // return a truncated prefix that stops before the markers. Gate on the
     // last-printed marker so a partial read can't slip into the parser, and
     // re-query until it appears.
@@ -254,19 +271,7 @@ export class NextDeployInstance extends NextInstance {
     let output = ''
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      const buildLogs = await execa(
-        'vercel',
-        ['inspect', '--logs', url, ...vercelFlags],
-        {
-          env: vercelEnv,
-          reject: false,
-        }
-      )
-      if (buildLogs.exitCode !== 0) {
-        throw new Error(`Failed to get build output logs: ${buildLogs.stderr}`)
-      }
-      // Build logs are piped to stderr, so combine both streams.
-      output = buildLogs.stdout + buildLogs.stderr
+      output = await this.fetchBuildLogs(api, idOrUrl)
 
       if (/NEXT_SUPPORTS_IMMUTABLE_ASSETS: (.+)/.test(output)) {
         return output
@@ -274,7 +279,7 @@ export class NextDeployInstance extends NextInstance {
 
       if (attempt < maxAttempts) {
         require('console').log(
-          `Build log markers not yet propagated for ${url} (attempt ${attempt}/${maxAttempts}); the build log tail likely hasn't propagated yet. Retrying in ${retryDelayMs}ms...`
+          `Build log markers not yet propagated for ${idOrUrl} (attempt ${attempt}/${maxAttempts}); the build log tail likely hasn't propagated yet. Retrying in ${retryDelayMs}ms...`
         )
         await setTimeout(retryDelayMs)
       }
@@ -324,24 +329,22 @@ export class NextDeployInstance extends NextInstance {
       // Configure proxy address if needed
       await this.configureProxyAddress()
 
-      // Use custom logs script if provided, otherwise use Vercel CLI
+      // Use custom logs script if provided, otherwise use the Vercel API
       if (customLogsScriptPath) {
         this._cliOutput = await this.fetchBuildLogsUsingCustomScript()
       } else {
-        // Use vercel inspect to get logs for existing deployment
-        const buildLogs = await execa(
-          'vercel',
-          ['inspect', '--logs', this._url],
-          {
-            env: process.env,
-            reject: false,
+        // Fetch logs for the existing deployment from the API. Ambient
+        // credentials only: this path attaches to deployments created
+        // outside this test run.
+        const api = new VercelApiClient(process.env.VERCEL_TOKEN ?? null)
+        try {
+          this._cliOutput = await api.getBuildLogs(this._parsedUrl.host)
+        } catch (error) {
+          if (error instanceof VercelApiError) {
+            this._cliOutput = error.message
+            throw new Error(`Failed to get build output logs: ${error.message}`)
           }
-        )
-        this._cliOutput = buildLogs.stdout + buildLogs.stderr
-        if (buildLogs.exitCode !== 0) {
-          throw new Error(
-            `Failed to get build output logs: ${buildLogs.stderr}`
-          )
+          throw error
         }
       }
 
@@ -373,19 +376,9 @@ export class NextDeployInstance extends NextInstance {
       return
     }
 
-    // Original Vercel CLI deployment logic
-    // ensure Vercel CLI is installed
-    try {
-      const res = await execa('vercel', ['--version'])
-      require('console').log(`Using Vercel CLI version:`, res.stdout)
-    } catch (_) {
-      require('console').log(`Installing Vercel CLI`)
-      await execa('npm', ['i', '-g', 'vercel@latest'], {
-        stdio: 'inherit',
-      })
-    }
-
-    const vercelFlags: string[] = []
+    // Deploy through the Vercel REST API instead of the Vercel CLI: the CLI
+    // gates OIDC-derived credentials per command, while a minted access token
+    // works for every endpoint.
     const NEXT_ENABLE_ADAPTER = process.env.NEXT_ENABLE_ADAPTER === '1'
     const IS_TURBOPACK_TEST = process.env.IS_TURBOPACK_TEST
 
@@ -395,80 +388,26 @@ export class NextDeployInstance extends NextInstance {
         ? projectEnv.TURBOPACK_TEST_TEAM_NAME
         : projectEnv.TEST_TEAM_NAME
 
-    const TEST_TOKEN = NEXT_ENABLE_ADAPTER
-      ? projectEnv.ADAPTER_TEST_TOKEN
-      : IS_TURBOPACK_TEST
-        ? projectEnv.TURBOPACK_TEST_TOKEN
-        : projectEnv.TEST_TOKEN
-
-    // If the team name is available in the environment, use it as the scope.
-    if (TEST_TEAM_NAME) {
-      vercelFlags.push('--scope', TEST_TEAM_NAME)
-    }
-    const vercelEnv = { ...process.env }
-
-    // The Vercel CLI uses @vercel/detect-agent to detect when it's running
-    // under an AI coding agent (Claude Code, Cursor, Codex, …) and, when it
-    // does, switches `vercel deploy` stdout from a plain URL to a JSON
-    // manifest intended for AI consumption — which breaks
-    // `new URL(deployRes.stdout)` below. The CLI honors an explicit
-    // `--non-interactive=false` as an override of the agent default, and the
-    // JSON-vs-plain decision keys off `client.nonInteractive`, so passing
-    // the flag is enough to force plain-URL output for both link and deploy.
-    vercelFlags.push('--non-interactive=false')
-
-    // If the token is available in the environment, use it as the token in the
-    // environment.
-    if (TEST_TOKEN) {
-      vercelEnv.TOKEN = TEST_TOKEN
-    }
-
-    // create auth file in CI
-    if (process.env.NEXT_TEST_JOB) {
-      if (!TEST_TOKEN && !TEST_TEAM_NAME) {
-        throw new Error(
-          'Missing TEST_TOKEN and TEST_TEAM_NAME environment variables for CI'
-        )
-      }
-
-      const vcConfigDir = path.join(os.homedir(), '.vercel')
-      await fs.ensureDir(vcConfigDir)
-      await fs.writeFile(
-        path.join(vcConfigDir, 'auth.json'),
-        JSON.stringify({ token: TEST_TOKEN })
-      )
-      vercelFlags.push('--global-config', vcConfigDir)
-    }
-
-    require('console').log(`Linking project at ${this.testDir}`)
-
-    // link the project
-    const linkRes = await execa(
-      'vercel',
-      ['link', '-p', projectEnv.TEST_PROJECT_NAME, '--yes', ...vercelFlags],
-      {
-        cwd: this.testDir,
-        env: vercelEnv,
-        reject: false,
-      }
-    )
-
-    if (linkRes.exitCode !== 0) {
+    // CI jobs vend a short-lived access token via
+    // vercel/authenticate-cli-action; local runs can provide any Vercel
+    // access token scoped to the team.
+    const accessToken = process.env.VERCEL_TOKEN ?? null
+    if (accessToken === null) {
       throw new Error(
-        `Failed to link project ${linkRes.stdout} ${linkRes.stderr} (${linkRes.exitCode})`
+        'Missing VERCEL_TOKEN environment variable. In CI it is vended by vercel/authenticate-cli-action; locally, provide any Vercel access token.'
       )
     }
-    require('console').log(`Deploying project at ${this.testDir}`)
 
-    const additionalEnv: string[] = []
+    const api = new VercelApiClient(accessToken, TEST_TEAM_NAME)
+
+    const env: Record<string, string> = {}
 
     for (const key of Object.keys(this.env || {})) {
-      additionalEnv.push(`${key}=${this.env[key]}`)
+      env[key] = this.env[key]
     }
 
-    additionalEnv.push(
-      `VERCEL_CLI_VERSION=${process.env.VERCEL_CLI_VERSION || 'vercel@latest'}`
-    )
+    env['VERCEL_CLI_VERSION'] =
+      process.env.VERCEL_CLI_VERSION || 'vercel@latest'
 
     // Route the build to a named hive, and to a specific build-container image.
     // The dispatcher reads the image version only for a build on a forced hive.
@@ -484,80 +423,52 @@ export class NextDeployInstance extends NextInstance {
     }
 
     if (forceBuildInHive) {
-      additionalEnv.push(`VERCEL_FORCE_BUILD_IN_HIVE=${forceBuildInHive}`)
+      env['VERCEL_FORCE_BUILD_IN_HIVE'] = forceBuildInHive
     }
 
     if (buildContainerVersion) {
-      additionalEnv.push(
-        `VERCEL_BUILD_CONTAINER_VERSION=${buildContainerVersion}`
-      )
+      env['VERCEL_BUILD_CONTAINER_VERSION'] = buildContainerVersion
     }
 
     if (process.env.IS_TURBOPACK_TEST) {
-      additionalEnv.push(`IS_TURBOPACK_TEST=1`)
+      env['IS_TURBOPACK_TEST'] = '1'
     }
     if (process.env.IS_WEBPACK_TEST) {
-      additionalEnv.push(`IS_WEBPACK_TEST=1`)
+      env['IS_WEBPACK_TEST'] = '1'
     }
-    if (NEXT_ENABLE_ADAPTER) {
-      additionalEnv.push(`NEXT_ENABLE_ADAPTER=1`)
-    } else {
-      additionalEnv.push(`NEXT_ENABLE_ADAPTER=0`)
-    }
+    env['NEXT_ENABLE_ADAPTER'] = NEXT_ENABLE_ADAPTER ? '1' : '0'
+    env['NEXT_PRIVATE_TEST_MODE'] = 'e2e'
+    env['NEXT_TELEMETRY_DISABLED'] = '1'
+    env['VERCEL_NEXT_BUNDLED_SERVER'] = '1'
 
-    const deployment = execa(
-      'vercel',
-      [
-        'deploy',
-        '--build-env',
-        'NEXT_PRIVATE_TEST_MODE=e2e',
-        '--build-env',
-        'NEXT_TELEMETRY_DISABLED=1',
-        '--build-env',
-        'VERCEL_NEXT_BUNDLED_SERVER=1',
-        ...additionalEnv.flatMap((pair) => [
-          '--env',
-          pair,
-          '--build-env',
-          pair,
-        ]),
-        '--force',
-        ...vercelFlags,
-      ],
-      {
-        cwd: this.testDir,
-        env: vercelEnv,
-        reject: false,
-      }
+    const files = await collectDeploymentFiles(this.testDir)
+    require('console').log(
+      `Uploading ${files.length} files (${files.reduce((total, file) => total + file.size, 0)} bytes) from ${this.testDir}`
     )
-    // Keep showing deployment progress while also retaining failure output.
-    deployment.stderr?.pipe(process.stderr)
-    const deployRes = await deployment
+    await api.uploadFiles(files)
 
-    if (deployRes.exitCode !== 0) {
-      await this.throwDeploymentError(
-        deployRes,
-        async () => {
-          const logs = await execa(
-            'vercel',
-            ['inspect', '--logs', this._url, ...vercelFlags],
-            { env: vercelEnv, reject: false }
-          )
-          // inspect exits 1 for a failed deployment even when logs are returned.
-          if (logs.exitCode !== 0 && logs.exitCode !== 1) {
-            throw new Error(`Failed to get build output logs: ${logs.stderr}`)
-          }
-          return (logs.stdout + logs.stderr).replace(
-            /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z {2}/gm,
-            ''
-          )
-        },
-        'Failed to deploy project'
-      )
+    require('console').log(`Deploying project at ${this.testDir}`)
+    let deployment: { id: string; url: string }
+    try {
+      deployment = await api.createDeployment({
+        projectName: projectEnv.TEST_PROJECT_NAME,
+        files,
+        env,
+      })
+    } catch (error) {
+      if (error instanceof VercelApiError) {
+        // The deployment was never created, so there is no deployment to
+        // fetch logs from; surface the API error itself.
+        await this.throwDeploymentError(
+          { exitCode: error.status, stdout: '', stderr: error.message },
+          () => this.fetchBuildLogs(api, projectEnv.TEST_PROJECT_NAME),
+          'Failed to deploy project'
+        )
+      }
+      throw error
     }
 
-    // the CLI gives just the deployment URL back when not a TTY
-    this._url = deployRes.stdout
+    this._url = `https://${deployment.url}`
     this._parsedUrl = new URL(this._url)
 
     // Configure proxy address if needed
@@ -565,17 +476,27 @@ export class NextDeployInstance extends NextInstance {
 
     require('console').log(`Deployment URL: ${this._url}`)
 
+    const finalState = await api.waitForDeployment(deployment.id)
+    if (finalState.readyState !== 'READY') {
+      await this.throwDeploymentError(
+        {
+          exitCode: 1,
+          stdout: this._url,
+          stderr:
+            finalState.errorMessage ??
+            `Deployment ${finalState.readyState.toLowerCase()}`,
+        },
+        () => this.fetchBuildLogs(api, deployment.id),
+        'Failed to deploy project'
+      )
+    }
+
     // Fetch the build logs to extract the build/deployment id markers that the
     // fixture's `post-build` script prints. The deployment can report `Ready`
-    // (and `vercel deploy` can return) before its full build-log tail has
-    // propagated to the log query API, so re-query until the markers appear
-    // rather than failing on the first incomplete read. TODO: Combine with
-    // runtime logs (via `vercel logs`)
-    this._cliOutput = await this.fetchBuildLogsUntilComplete(
-      this._url,
-      vercelEnv,
-      vercelFlags
-    )
+    // before its full build-log tail has propagated to the log query API, so
+    // re-query until the markers appear rather than failing on the first
+    // incomplete read. TODO: Combine with runtime logs.
+    this._cliOutput = await this.fetchBuildLogsUntilComplete(api, deployment.id)
 
     this.parseIdsFromCliOutput()
   }

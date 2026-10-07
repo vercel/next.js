@@ -900,8 +900,9 @@ jobs:
 
     permissions:
       contents: read
-      # Minting GitHub OIDC tokens to read private preview builds. Dormant in
-      # this repo since builds here are public.
+      # Minting GitHub OIDC tokens to read private preview builds (dormant in
+      # this repo since builds here are public) and to exchange them for
+      # Vercel access tokens used by the deploy tests.
       id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
@@ -915,6 +916,8 @@ jobs:
           --mode deploy \
           --group ${{ matrix.group }}
       stepName: 'test-new-tests-deploy-${{matrix.group}}'
+      # vtest314-next-adapter-e2e-tests
+      vercelDeployTeamId: team_as7bs3fOseGenQtkrYbDI6VP
 
     secrets: inherit
 
@@ -930,8 +933,9 @@ jobs:
 
     permissions:
       contents: read
-      # Minting GitHub OIDC tokens to read private preview builds. Dormant in
-      # this repo since builds here are public.
+      # Minting GitHub OIDC tokens to read private preview builds (dormant in
+      # this repo since builds here are public) and to exchange them for
+      # Vercel access tokens used by the deploy tests.
       id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
@@ -946,6 +950,8 @@ jobs:
           --mode deploy \
           --group ${{ matrix.group }}
       stepName: 'test-new-tests-deploy-cache-components-${{matrix.group}}'
+      # vtest314-next-adapter-e2e-tests
+      vercelDeployTeamId: team_as7bs3fOseGenQtkrYbDI6VP
 
     secrets: inherit
 

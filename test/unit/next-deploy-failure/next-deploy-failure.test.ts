@@ -3,6 +3,19 @@ import { trace } from 'next/dist/trace'
 
 jest.mock('execa', () => jest.fn())
 
+// File collection touches the real test directory, which the mocked
+// createTestDir never sets up. Uploads and deployments go through the mocked
+// fetch instead.
+jest.mock('../../lib/vercel-api', () => {
+  const actual = jest.requireActual('../../lib/vercel-api')
+  return {
+    ...actual,
+    collectDeploymentFiles: jest.fn(async () => [
+      { file: 'package.json', sha: 'sha', size: 2, data: Buffer.from('{}') },
+    ]),
+  }
+})
+
 // Initialize the real harness in deploy mode, without running a deployment.
 const originalMode = process.env.NEXT_TEST_MODE
 process.env.NEXT_TEST_MODE = 'deploy'
@@ -22,10 +35,21 @@ const diagnostic =
 const ids =
   'BUILD_ID: build-id\nDEPLOYMENT_ID: deployment-id\nNEXT_SUPPORTS_IMMUTABLE_ASSETS: 1'
 type Result = { exitCode: number; stdout: string; stderr: string }
+type DeployOutcome =
+  // The deployment request itself failed; no deployment exists.
+  | { kind: 'request-error'; status: number; body: string }
+  // The deployment was created but reached a non-READY terminal state.
+  | {
+      kind: 'not-ready'
+      readyState: 'ERROR' | 'CANCELED'
+      errorMessage: string
+    }
+  | { kind: 'ready' }
 
 describe('deployment lifecycle', () => {
+  let deployOutcome: DeployOutcome
+  let logsResult: { status: number; text: string }
   let deployResult: Result
-  let logs: Result
   let customLogs: Result
 
   beforeEach(() => {
@@ -41,6 +65,9 @@ describe('deployment lifecycle', () => {
       NEXT_TEST_JOB: '',
       VERCEL_FORCE_BUILD_IN_HIVE: '',
       VERCEL_BUILD_CONTAINER_VERSION: '',
+      // The deploy setup requires a Vercel access token; in CI it is vended
+      // by vercel/authenticate-cli-action.
+      VERCEL_TOKEN: 'test-unit-token',
     })
     jest.spyOn(require('console'), 'log').mockImplementation(() => {})
     jest.spyOn(require('console'), 'error').mockImplementation(() => {})
@@ -60,9 +87,62 @@ describe('deployment lifecycle', () => {
       .spyOn(NextDeployInstance.prototype as any, 'configureProxyAddress')
       .mockResolvedValue(undefined)
 
+    deployOutcome = { kind: 'not-ready', readyState: 'ERROR', errorMessage: '' }
+    logsResult = { status: 200, text: diagnostic }
     deployResult = { exitCode: 1, stdout: deploymentUrl, stderr: '' }
-    logs = { exitCode: 1, stdout: '', stderr: diagnostic }
-    customLogs = { ...logs, exitCode: 0 }
+    customLogs = { exitCode: 0, stdout: '', stderr: diagnostic }
+
+    jest.spyOn(global, 'fetch').mockImplementation(async (input, init) => {
+      const url = String(input)
+      const method = init?.method ?? 'GET'
+
+      if (method === 'POST' && url.includes('/v2/files')) {
+        return new Response('{}', { status: 200 })
+      }
+      if (method === 'POST' && url.includes('/v13/deployments')) {
+        if (deployOutcome.kind === 'request-error') {
+          return new Response(deployOutcome.body, {
+            status: deployOutcome.status,
+          })
+        }
+        return Response.json(
+          { id: 'dpl_fixture', url: 'fixture.vercel.app' },
+          { status: 200 }
+        )
+      }
+      if (method === 'GET' && url.includes('/v13/deployments/')) {
+        if (deployOutcome.kind === 'ready') {
+          return Response.json({ readyState: 'READY' }, { status: 200 })
+        }
+        if (deployOutcome.kind === 'not-ready') {
+          return Response.json(
+            {
+              readyState: deployOutcome.readyState,
+              errorMessage: deployOutcome.errorMessage,
+            },
+            { status: 200 }
+          )
+        }
+      }
+      if (method === 'GET' && url.includes('/events')) {
+        if (logsResult.status === 200) {
+          return Response.json(
+            logsResult.text === ''
+              ? []
+              : [
+                  {
+                    type: 'stdout',
+                    created: 0,
+                    payload: { text: logsResult.text },
+                  },
+                ],
+            { status: 200 }
+          )
+        }
+        return new Response(logsResult.text, { status: logsResult.status })
+      }
+      throw new Error(`Unexpected request: ${method} ${url}`)
+    })
 
     jest
       .mocked(execa)
@@ -75,21 +155,6 @@ describe('deployment lifecycle', () => {
           result = customLogs
         } else if (command === 'mock-cleanup') {
           result = { exitCode: 0, stdout: '', stderr: '' }
-        } else if (command === 'vercel' && Array.isArray(args)) {
-          switch (args[0]) {
-            case '--version':
-            case 'link':
-              result = { exitCode: 0, stdout: '', stderr: '' }
-              break
-            case 'deploy':
-              result = deployResult
-              break
-            case 'inspect':
-              result = logs
-              break
-            default:
-              throw new Error('Unexpected Vercel command')
-          }
         } else {
           throw new Error('Unexpected subprocess')
         }
@@ -121,9 +186,26 @@ describe('deployment lifecycle', () => {
   }
 
   function successfulDeployment() {
-    deployResult.exitCode = 0
-    logs = { exitCode: 0, stdout: '', stderr: ids }
-    customLogs = logs
+    deployOutcome = { kind: 'ready' }
+    logsResult = { status: 200, text: ids }
+    deployResult = { exitCode: 0, stdout: deploymentUrl, stderr: '' }
+    customLogs = { exitCode: 0, stdout: '', stderr: ids }
+  }
+
+  function deploymentCreations() {
+    return jest
+      .mocked(fetch)
+      .mock.calls.filter(
+        ([input, init]) =>
+          String(input).includes('/v13/deployments') &&
+          (init?.method ?? 'GET') === 'POST'
+      )
+  }
+
+  function buildLogFetches() {
+    return jest
+      .mocked(fetch)
+      .mock.calls.filter(([input]) => String(input).includes('/events'))
   }
 
   it('skipStart leaves deployment to the test body, where failures can be asserted', async () => {
@@ -164,58 +246,65 @@ describe('deployment lifecycle', () => {
 
   it('collects failed build logs before start rejects, without requiring build IDs', async () => {
     const next = await instance()
-    deployResult.stderr = 'Build command failed\n'
-    await expect(next.start()).rejects.toThrow(deployResult.stderr)
-    expect(next.cliOutput).not.toContain(deployResult.stderr)
+    deployOutcome = {
+      kind: 'not-ready',
+      readyState: 'ERROR',
+      errorMessage: 'Build command failed',
+    }
+    await expect(next.start()).rejects.toThrow('Failed to deploy project')
+    expect(next.cliOutput).not.toContain('Build command failed')
     expect(next.cliOutput).toContain(diagnostic)
     expect(next.buildId).toBeUndefined()
     expect(next.url).toBe(deploymentUrl + '/')
-    expect(execa).toHaveBeenCalledWith(
-      'vercel',
-      expect.arrayContaining(['inspect', '--logs', deploymentUrl + '/']),
-      expect.anything()
-    )
+    expect(
+      buildLogFetches().some(([input]) =>
+        String(input).includes('/v2/deployments/dpl_fixture/events')
+      )
+    ).toBe(true)
   })
 
   it('uses one build transcript without hiding repeated compiler diagnostics', async () => {
     const next = await instance()
-    deployResult.stderr = `${diagnostic}\n${diagnostic}\n`
-    logs.stderr = `2026-09-18T19:00:00.000Z  ${diagnostic}\n2026-09-18T19:00:00.001Z  ${diagnostic}\n`
+    logsResult = { status: 200, text: `${diagnostic}\n${diagnostic}\n` }
     await expect(next.start()).rejects.toThrow('Failed to deploy project')
     expect(next.cliOutput).toBe(`${diagnostic}\n${diagnostic}\n`)
   })
 
-  it('retains CLI diagnostics when fetched build logs are empty', async () => {
+  it('retains the deployment error when fetched build logs are empty', async () => {
     const next = await instance()
-    deployResult.stderr = 'Build command failed'
-    logs.stderr = ''
-    await expect(next.start()).rejects.toThrow(deployResult.stderr)
-    expect(next.cliOutput).toContain(deployResult.stderr)
+    deployOutcome = {
+      kind: 'not-ready',
+      readyState: 'ERROR',
+      errorMessage: 'Build command failed',
+    }
+    logsResult = { status: 200, text: '' }
+    await expect(next.start()).rejects.toThrow('Build command failed')
+    expect(next.cliOutput).toContain('Build command failed')
   })
 
-  it('retains CLI diagnostics when failure happens before a deployment URL is returned', async () => {
+  it('retains the API error when failure happens before a deployment is created', async () => {
     const next = await instance()
-    deployResult.stdout = ''
-    deployResult.stderr = 'Unauthorized'
+    deployOutcome = { kind: 'request-error', status: 401, body: 'Unauthorized' }
     await expect(next.start()).rejects.toThrow('Failed to deploy project')
     expect(next.cliOutput).toBe('Unauthorized')
-    expect(execa).not.toHaveBeenCalledWith(
-      'vercel',
-      expect.arrayContaining(['inspect']),
-      expect.anything()
-    )
+    expect(buildLogFetches()).toHaveLength(0)
   })
 
   it('does not treat a canceled deployment as a successful start', async () => {
     const next = await instance()
-    logs.stderr = 'Deployment canceled'
+    deployOutcome = {
+      kind: 'not-ready',
+      readyState: 'CANCELED',
+      errorMessage: '',
+    }
+    logsResult = { status: 200, text: 'Deployment canceled' }
     await expect(next.start()).rejects.toThrow('Failed to deploy project')
     expect(next.cliOutput).toContain('Deployment canceled')
   })
 
   it('retains the deployment error if fetching its logs fails', async () => {
     const next = await instance()
-    logs = { exitCode: 2, stdout: '', stderr: 'Invalid arguments' }
+    logsResult = { status: 500, text: 'Invalid arguments' }
     await expect(next.start()).rejects.toMatchObject({
       message: expect.stringContaining('Failed to deploy project'),
       cause: expect.objectContaining({
@@ -238,9 +327,7 @@ describe('deployment lifecycle', () => {
     const next = await instance()
     await Promise.all([next.start(), next.start()])
     await next.start()
-    expect(
-      jest.mocked(execa).mock.calls.filter(([, args]) => args?.[0] === 'deploy')
-    ).toHaveLength(1)
+    expect(deploymentCreations()).toHaveLength(1)
   })
 
   it('can retry a failed start without retaining stale failure logs', async () => {
@@ -250,9 +337,7 @@ describe('deployment lifecycle', () => {
     await next.start()
     expect(next.cliOutput).not.toContain(diagnostic)
     expect(next.buildId).toBe('build-id')
-    expect(
-      jest.mocked(execa).mock.calls.filter(([, args]) => args?.[0] === 'deploy')
-    ).toHaveLength(2)
+    expect(deploymentCreations()).toHaveLength(2)
   })
 
   it('defers custom deployment scripts and exposes their failed build logs', async () => {
@@ -295,12 +380,11 @@ describe('deployment lifecycle', () => {
     await next.start()
     expect(next.url).toBe(deploymentUrl + '/')
     expect(next.buildId).toBe('build-id')
-    expect(execa).toHaveBeenCalledTimes(1)
-    expect(execa).toHaveBeenCalledWith(
-      'vercel',
-      ['inspect', '--logs', deploymentUrl + '/'],
-      expect.anything()
-    )
+    expect(
+      buildLogFetches().some(([input]) =>
+        String(input).includes('/v2/deployments/fixture.vercel.app/events')
+      )
+    ).toBe(true)
   })
 
   it('does not run deployment cleanup when start was never called', async () => {
@@ -312,6 +396,7 @@ describe('deployment lifecycle', () => {
 
   it('retains logs when attaching to an existing failed deployment', async () => {
     process.env.NEXT_TEST_DEPLOY_URL = deploymentUrl
+    logsResult = { status: 500, text: diagnostic }
     const next = await instance()
     await expect(next.start()).rejects.toThrow(
       'Failed to get build output logs'
