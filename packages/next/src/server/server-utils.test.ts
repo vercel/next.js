@@ -1,3 +1,4 @@
+import { parseUrl } from '../shared/lib/router/utils/parse-url'
 import { getServerUtils } from './server-utils'
 
 describe('getParamsFromRouteMatches', () => {
@@ -69,6 +70,41 @@ describe('getParamsFromRouteMatches', () => {
       'nxtPslug=hello-world&nxtPrest=im-the/rest'
     )
     expect(params).toEqual({ slug: 'hello-world', rest: ['im-the', 'rest'] })
+  })
+})
+
+describe('handleRewrites', () => {
+  it('does not mutate the original URL or query', () => {
+    const { handleRewrites } = getServerUtils({
+      page: '/destination',
+      basePath: '',
+      rewrites: {
+        beforeFiles: [
+          {
+            source: '/source',
+            destination: '/destination?added=value&shared=updated',
+          },
+        ],
+      },
+      i18n: undefined,
+      pageIsDynamic: false,
+      caseSensitive: false,
+    })
+    const parsedUrl = parseUrl('/source?keep=yes&shared=one&shared=two')
+    const shared = parsedUrl.query.shared
+    const originalUrl = structuredClone(parsedUrl)
+
+    const { rewrittenParsedUrl } = handleRewrites(
+      {} as Parameters<typeof handleRewrites>[0],
+      parsedUrl
+    )
+
+    expect(parsedUrl).toEqual(originalUrl)
+    expect(parsedUrl.query.shared).toBe(shared)
+    expect(rewrittenParsedUrl).toMatchObject({
+      pathname: '/destination',
+      query: { keep: 'yes', shared: 'updated', added: 'value' },
+    })
   })
 })
 
