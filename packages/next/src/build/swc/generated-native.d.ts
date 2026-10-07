@@ -791,6 +791,11 @@ export interface TraceMemorySummary {
   peak: number
   /** Highest memory-pressure byte in the range (0 = no pressure). */
   maxPressure: number
+  /**
+   * Largest process memory footprint (RSS) in bytes in the range (0 = not
+   * reported by the platform).
+   */
+  maxFootprint: number
 }
 
 /** Options for `query_trace_spans`. */
@@ -954,10 +959,12 @@ export interface TraceSpanInfo {
    * fields instead.
    *
    * Each entry is `[ts_offset_from_span_start_in_ticks, bytes, pressure,
-   * active_worker_threads]`: `bytes` is TurboMalloc memory usage,
+   * footprint, active_worker_threads]`: `bytes` is TurboMalloc memory usage,
    * `pressure` is the memory-pressure byte (0 = no pressure, higher = more
-   * pressure), and `active_worker_threads` counts non-parked Tokio scheduler
-   * workers. `100 ticks = 1 µs`. Capped and downsampled by the store.
+   * pressure), `footprint` is the process memory footprint (RSS) in bytes
+   * (0 = not reported by the platform), and `active_worker_threads` counts
+   * non-parked Tokio scheduler workers. `100 ticks = 1 µs`. Capped and
+   * downsampled by the store.
    */
   memorySamples: Array<Array<number>>
   /**

@@ -75,7 +75,10 @@ fn reads_active_workers_and_exposes_them_in_span_queries() {
             },
         );
         assert_eq!(result.spans.len(), 1);
-        assert_eq!(result.spans[0].memory_samples, vec![(1000, 1234, 7, 2)]);
+        assert_eq!(
+            result.spans[0].memory_samples,
+            vec![(1000, 1234, 7, 5555, 2)]
+        );
     }
 }
 
