@@ -17,9 +17,9 @@ const devContextPrototype = Context.prototype as TurbopackDevContext
  */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
-// Assign browser's module cache and runtime modules to shared HMR state
-devModuleCache = new Map()
-devContextPrototype.c = devModuleCache
+devContextPrototype.c = moduleCache
+
+// Assign browser's runtime modules to shared HMR state
 runtimeModules = new Set()
 
 // Set flag to indicate we use ModuleWithDirection
@@ -91,7 +91,7 @@ function getOrInstantiateRuntimeModule(
   moduleId: ModuleId
 ): HotModule {
   return (
-    getCachedModule(devModuleCache, moduleId) ??
+    getCachedModule(moduleCache, moduleId) ??
     instantiateModule(moduleId, SourceType.Runtime, chunkPath)
   )
 }
@@ -113,7 +113,7 @@ const getOrInstantiateModuleFromParent: GetOrInstantiateModuleFromParent<
     sourceModule.children.push(id)
   }
 
-  const module = getCachedModule(devModuleCache, id)
+  const module = getCachedModule(moduleCache, id)
   if (module) {
     if (module.parents.indexOf(sourceModule.id) === -1) {
       module.parents.push(sourceModule.id)

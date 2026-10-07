@@ -78,6 +78,7 @@ function Context(
   this.e = exports
 }
 const contextPrototype = Context.prototype as TurbopackBaseContext<Module>
+contextPrototype.M = moduleFactories
 
 type ModuleContextMap = Record<ModuleId, ModuleContextEntry>
 

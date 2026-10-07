@@ -2,8 +2,8 @@
  * Hooks that every development runtime defines for `instantiateModule` in
  * `hmr-runtime.ts`.
  *
- * They are only declared here, so a runtime that doesn't define one fails with a
- * `ReferenceError` on the first module instead of calling `undefined`.
+ * function hoisting will make them available to callers, and failure to
+ * define them will just manifest as ReferenceErrors.
  */
 
 /**

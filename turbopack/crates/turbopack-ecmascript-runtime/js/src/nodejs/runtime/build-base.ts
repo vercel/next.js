@@ -7,8 +7,6 @@
  * Uses ModuleWithDirection and simple module instantiation without HMR support.
  */
 
-// moduleCache is declared in runtime-base.ts and moduleFactories in runtime-utils.ts
-
 // this is read in runtime-utils.ts so it creates a module with direction for hmr
 createModuleWithDirectionFlag = true
 
@@ -20,15 +18,12 @@ interface TurbopackNodeBuildContext
   C: typeof clearChunkCache
 }
 
-// moduleCache only holds ModuleWithDirection objects in this runtime, see
-// createModuleWithDirectionFlag above
-const moduleCacheWithDirection = moduleCache as ModuleCache<ModuleWithDirection>
+const moduleCache: ModuleCache<ModuleWithDirection> = new Map()
 
 const nodeContextPrototype = Context.prototype as TurbopackNodeBuildContext
 
 nodeContextPrototype.q = exportUrl
-nodeContextPrototype.M = moduleFactories
-nodeContextPrototype.c = moduleCacheWithDirection
+nodeContextPrototype.c = moduleCache
 nodeContextPrototype.R = resolvePathFromModule
 nodeContextPrototype.C = clearChunkCache
 
@@ -80,7 +75,7 @@ function getOrInstantiateModuleFromParent(
   sourceModule: ModuleWithDirection
 ): ModuleWithDirection {
   return (
-    getCachedModule(moduleCacheWithDirection, id) ??
+    getCachedModule(moduleCache, id) ??
     instantiateModule(id, SourceType.Parent, sourceModule.id)
   )
 }
@@ -104,7 +99,7 @@ function getOrInstantiateRuntimeModule(
   moduleId: ModuleId
 ): ModuleWithDirection {
   return (
-    getCachedModule(moduleCacheWithDirection, moduleId) ??
+    getCachedModule(moduleCache, moduleId) ??
     instantiateRuntimeModule(chunkPath, moduleId)
   )
 }

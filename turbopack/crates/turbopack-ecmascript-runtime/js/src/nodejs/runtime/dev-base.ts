@@ -9,11 +9,6 @@
  * Uses HotModule and shared HMR logic for hot module replacement support.
  */
 
-// Cast the module cache to HotModule for development mode
-// (hmr-runtime.ts declares devModuleCache as `let` variable expecting assignment)
-// This is safe because HotModule extends Module
-devModuleCache = moduleCache as ModuleCache<HotModule>
-
 // this is read in runtime-utils.ts so it creates a module with direction for hmr
 createModuleWithDirectionFlag = true
 
@@ -33,8 +28,7 @@ const nodeDevContextPrototype =
   Context.prototype as TurbopackNodeDevBuildContext
 
 nodeDevContextPrototype.q = exportUrl
-nodeDevContextPrototype.M = moduleFactories
-nodeDevContextPrototype.c = devModuleCache
+nodeDevContextPrototype.c = moduleCache
 nodeDevContextPrototype.R = resolvePathFromModule
 nodeDevContextPrototype.C = clearChunkCache
 
@@ -68,6 +62,7 @@ markDevModulesLoaded = true
 function interceptDevModuleExecution(
   _module: HotModule
 ): (() => void) | undefined {
+  // There are no react refresh hooks server side so this is a no-op
   return undefined
 }
 
@@ -98,7 +93,7 @@ function getOrInstantiateRuntimeModule(
   moduleId: ModuleId
 ): HotModule {
   return (
-    getCachedModule(devModuleCache, moduleId) ??
+    getCachedModule(moduleCache, moduleId) ??
     instantiateRuntimeModule(chunkPath, moduleId)
   )
 }
@@ -113,9 +108,9 @@ function getOrInstantiateModuleFromParent(
   sourceModule: HotModule
 ): HotModule {
   // Track parent-child relationship, even when the cached module errored
-  trackModuleImport(sourceModule, id, devModuleCache.get(id))
+  trackModuleImport(sourceModule, id, moduleCache.get(id))
 
-  const module = getCachedModule(devModuleCache, id)
+  const module = getCachedModule(moduleCache, id)
   if (module) {
     return module
   }

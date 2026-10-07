@@ -19,10 +19,8 @@ type HotModuleFactoryFunction = ModuleFactoryFunction<
 
 /**
  * The development module cache shared across the runtime.
- * Browser runtime declares this directly.
- * Node.js runtime assigns globalThis.__turbopack_module_cache__ to this.
  */
-let devModuleCache: ModuleCache<HotModule>
+const moduleCache: ModuleCache<HotModule> = new Map()
 
 /**
  * Module IDs that are instantiated as part of the runtime of a chunk.
@@ -168,7 +166,7 @@ function getAffectedModuleEffects(
       }
     }
 
-    const module = devModuleCache.get(moduleId)
+    const module = moduleCache.get(moduleId)
     const hotState = moduleHotState.get(module)!
 
     if (
@@ -201,7 +199,7 @@ function getAffectedModuleEffects(
     }
 
     for (const parentId of module.parents) {
-      const parent = devModuleCache.get(parentId)
+      const parent = moduleCache.get(parentId)
 
       if (!parent) {
         continue
@@ -468,7 +466,7 @@ function computeOutdatedSelfAcceptedModules(
     errorHandler: true | Function
   }[] = []
   for (const moduleId of outdatedModules) {
-    const module = devModuleCache.get(moduleId)
+    const module = moduleCache.get(moduleId)
     const hotState = moduleHotState.get(module)
     if (module && hotState?.selfAccepted && !hotState.selfInvalidated) {
       outdatedSelfAcceptedModules.push({
@@ -484,11 +482,11 @@ function computeOutdatedSelfAcceptedModules(
  * Disposes of an instance of a module.
  * Runs hot.dispose handlers and manages persistent hot data.
  *
- * NOTE: mode = "replace" will not remove modules from devModuleCache.
+ * NOTE: mode = "replace" will not remove modules from moduleCache.
  * This must be done in a separate step afterwards.
  */
 function disposeModule(moduleId: ModuleId, mode: 'clear' | 'replace') {
-  const module = devModuleCache.get(moduleId)
+  const module = moduleCache.get(moduleId)
   if (!module) {
     return
   }
@@ -518,7 +516,7 @@ function disposeModule(moduleId: ModuleId, mode: 'clear' | 'replace') {
   // It will be added back once the module re-instantiates and imports its
   // children again.
   for (const childId of module.children) {
-    const child = devModuleCache.get(childId)
+    const child = moduleCache.get(childId)
     if (!child) {
       continue
     }
@@ -531,7 +529,7 @@ function disposeModule(moduleId: ModuleId, mode: 'clear' | 'replace') {
 
   switch (mode) {
     case 'clear':
-      devModuleCache.delete(module.id)
+      moduleCache.delete(module.id)
       moduleHotData.delete(module.id)
       break
     case 'replace':
@@ -564,11 +562,11 @@ function disposePhase(
   // We also want to keep track of previous parents of the outdated modules.
   const outdatedModuleParents = new Map<ModuleId, Array<ModuleId>>()
   for (const moduleId of outdatedModules) {
-    const oldModule = devModuleCache.get(moduleId)
+    const oldModule = moduleCache.get(moduleId)
     if (oldModule) {
       outdatedModuleParents.set(moduleId, oldModule.parents)
     }
-    devModuleCache.delete(moduleId)
+    moduleCache.delete(moduleId)
   }
 
   // Remove outdated dependencies from parent module's children list.
@@ -576,7 +574,7 @@ function disposePhase(
   // but the parent stays alive. We remove the old child reference so it
   // gets re-added when the child re-imports.
   for (const [parentId, deps] of outdatedDependencies) {
-    const module = devModuleCache.get(parentId)
+    const module = moduleCache.get(parentId)
     if (module) {
       for (const dep of deps) {
         const idx = module.children.indexOf(dep)
@@ -595,12 +593,8 @@ function disposePhase(
 /**
  * Instantiates a module in development mode.
  *
- * Every frame between an import and the imported module's evaluation is
- * repeated once per level of an import chain, which limits how deep that chain
- * can get before the stack overflows. So this calls the module factory
- * directly, and the setup lives in `createDevModule` and the
- * `interceptDevModuleExecution`/`createDevModuleContext` hooks (see
- * `dev-runtime-hooks.d.ts`), which all return before the factory runs.
+ * This calls the module factory directly, and allows different runtimes to supply hooks via
+ * `interceptDevModuleExecution`/`createDevModuleContext` hooks.
  */
 function instantiateModule(
   moduleId: ModuleId,
@@ -679,7 +673,7 @@ function createDevModule(
   module.parents = parents
   module.hot = hot
 
-  devModuleCache.set(moduleId, module)
+  moduleCache.set(moduleId, module)
   moduleHotState.set(module, hotState)
   return module
 }
@@ -842,7 +836,7 @@ function applyPhase(
   // This runs BEFORE re-instantiating self-accepted modules, matching
   // webpack's behavior.
   for (const [parentId, deps] of outdatedDependencies) {
-    const module = devModuleCache.get(parentId)
+    const module = moduleCache.get(parentId)
     if (!module) continue
 
     const hotState = moduleHotState.get(module)
@@ -905,7 +899,7 @@ function applyPhase(
     } catch (err) {
       if (typeof errorHandler === 'function') {
         try {
-          errorHandler(err, { moduleId, module: devModuleCache.get(moduleId) })
+          errorHandler(err, { moduleId, module: moduleCache.get(moduleId) })
         } catch (err2) {
           reportError(err2)
           reportError(err)

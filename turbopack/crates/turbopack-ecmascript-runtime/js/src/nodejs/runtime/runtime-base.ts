@@ -14,8 +14,6 @@ process.env.TURBOPACK = '1'
 
 const url = require('url') as typeof import('url')
 
-const moduleCache: ModuleCache<Module> = new Map()
-
 /**
  * Returns an absolute path to the given module's id.
  */
@@ -23,7 +21,8 @@ function resolvePathFromModule(
   this: TurbopackBaseContext<Module>,
   moduleId: string
 ): string {
-  const exported = this.r(moduleId)
+  const exported = getOrInstantiateModuleFromParent(moduleId, this.m)
+    .exports as Exports
   const exportedPath = exported?.default ?? exported
   if (typeof exportedPath !== 'string') {
     return exported as any
