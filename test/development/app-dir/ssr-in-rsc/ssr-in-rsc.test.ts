@@ -149,7 +149,9 @@ describe('react-dom/server in React Server environment', () => {
        Error: You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.
            Learn more: https://nextjs.org/docs/app/building-your-application/rendering
        > 3 | import ReactDOMServerEdgeDefault from 'react-dom/server'
-           | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+           | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+       You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.
+       Learn more: https://nextjs.org/docs/app/building-your-application/rendering",
          "stack": [],
        }
       `)
