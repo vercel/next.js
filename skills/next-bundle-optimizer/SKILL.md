@@ -10,7 +10,7 @@ description: >
 
 ## 1. Set the scope
 
-Analyze the whole app by default, covering all routes and shared client dependencies. Narrow the scope only when the user specifies a route, dependency, feature or other subset. Choose **audit** or **fix** mode. Audit is the default: generate analyzer artifacts and report candidates while leaving application source, dependencies and lockfiles unchanged. Fix mode requires an explicit request to change the app. Ask before changing visible behavior, timing, compatibility or a trust boundary. For a route's static App Shell, use `next-cache-components-optimizer`; for navigation prefetch work, use `next-partial-prefetching-optimizer`.
+Analyze the whole app by default, covering all routes and shared client dependencies. Narrow the scope only when the user specifies a route, dependency, feature or other subset. Choose **audit** or **fix** mode. Audit is the default: generate analyzer artifacts and report candidates while leaving application source, dependencies and lockfiles unchanged. Fix mode requires an explicit request to change the app. Ask before changing visible behavior, timing, compatibility or a trust boundary. For a route's static App Shell, use [`next-cache-components-optimizer`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-optimizer); install it first if unavailable (`npx skills add https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-optimizer`). For navigation prefetch work, use [`next-partial-prefetching-optimizer`](https://github.com/vercel/next.js/tree/canary/skills/next-partial-prefetching-optimizer); install it first if unavailable (`npx skills add https://github.com/vercel/next.js/tree/canary/skills/next-partial-prefetching-optimizer`).
 
 **Done:** the whole-app or user-specified scope, mode and intended behavior are recorded. A request to capture or export data is audit mode, not permission to fix.
 
@@ -79,7 +79,7 @@ For lazy interaction features, duplicate packages, server-rendered display work 
 
 ## 5. Verify one change — fix mode only
 
-Make one small, cohesive change. Capture/export an after snapshot with a new name and compare the **same analysis scope, output class and metric** with the baseline. For whole-app analysis, account for changes across all routes, including shared dependencies. Run relevant behavior tests and type-check; use `next-dev-loop` when verifying the edit in the running app.
+Make one small, cohesive change. Capture/export an after snapshot with a new name and compare the **same analysis scope, output class and metric** with the baseline. For whole-app analysis, account for changes across all routes, including shared dependencies. Run relevant behavior tests and type-check; use [`next-dev-loop`](https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop) when verifying the edit in the running app, and install it first if unavailable (`npx skills add https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop`).
 
 **Done:** retain the change only when the scoped metric improves and the intended behavior passes its checks. Revert a change that fails either condition. If checks are blocked, report the unverified edit and blocker rather than accepting it. Record the accepted after snapshot as the next baseline before another edit.
 
