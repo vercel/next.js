@@ -39,6 +39,7 @@ import {
   MetadataOnlyRequestTree,
 } from './segment-cache/cache'
 import { discoverKnownRoute } from './segment-cache/optimistic-routes'
+import { Completeness } from './segment-cache/types'
 import type { NormalizedSearch } from './segment-cache/cache-key'
 import type { CacheMap } from './segment-cache/cache-map'
 import {
@@ -1137,7 +1138,8 @@ function createRenderTreeForSegment(
       case EntryStatus.Fulfilled: {
         // Happy path: a cache hit
         cachedRsc = segmentEntry.rsc
-        isCachedRscPartial = segmentEntry.isPartial
+        isCachedRscPartial =
+          segmentEntry.completeness !== Completeness.FullyComplete
         cachedVaryParams = segmentEntry.varyParams
         break
       }
@@ -1157,11 +1159,11 @@ function createRenderTreeForSegment(
         // do yet another request to fill in the remaining data, creating
         // a waterfall.
         //
-        // The one exception is if this segment is being fetched with via
-        // prefetch={true} (i.e. the "force stale" or "full" strategy). If so,
-        // we can assume the response will be full. This field is set to `false`
-        // for such segments.
-        isCachedRscPartial = segmentEntry.isPartial
+        // The exception is a request we expect to return the segment fully
+        // complete, like a legacy prefetch. If so, we can assume the response
+        // will have nothing left to request.
+        isCachedRscPartial =
+          segmentEntry.completeness !== Completeness.FullyComplete
         break
       }
       case EntryStatus.Empty:
