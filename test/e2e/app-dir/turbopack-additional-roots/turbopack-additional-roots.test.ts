@@ -146,7 +146,7 @@ describe('turbopack additional roots', () => {
       expect(crossRootSymlinks).toMatchInlineSnapshot(`
        [
          {
-           "additionalRoot": "linkedPackages",
+           "additionalRoot": "@linkedPackages",
            "file": "../../node_modules/sibling-639f6b1f4617eee0",
            "target": "node_modules/sibling",
          },
@@ -159,7 +159,7 @@ describe('turbopack additional roots', () => {
              "node_modules/sibling/index.js",
              "node_modules/sibling/package.json",
            ],
-           "name": "linkedPackages",
+           "name": "@linkedPackages",
            "path": "<temporary-root>",
            "symlinks": [],
          },
@@ -194,7 +194,7 @@ describe('turbopack additional roots', () => {
 
       const target = path.join(
         'next_additional_roots',
-        'linkedPackages',
+        '@linkedPackages',
         'node_modules',
         'sibling'
       )
@@ -266,7 +266,7 @@ describe('turbopack additional roots', () => {
         const stagedRoot = path.join(
           standaloneDirectory,
           'next_additional_roots',
-          'linkedPackages'
+          '@linkedPackages'
         )
         expect(
           await fs.pathExists(

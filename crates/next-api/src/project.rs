@@ -105,7 +105,9 @@ use turbopack_nodejs::{NodeJsChunkingContext, fs::NodeModulesPathMatcher};
 
 pub use crate::additional_roots::AdditionalRootConfig;
 use crate::{
-    additional_roots::{AdditionalDiskFileSystem, create_additional_root_file_systems},
+    additional_roots::{
+        AdditionalDiskFileSystem, BuiltinRootsConfig, create_additional_root_file_systems,
+    },
     aggregate_hmr::ServerHmrChunkLists,
     app::{AppProject, OptionAppProject},
     empty::EmptyEndpoint,
@@ -473,6 +475,13 @@ async fn prepare_project_container_state(
         .and_then(|value| value.as_str())
         .unwrap_or(".next");
 
+    let builtin_roots = BuiltinRootsConfig {
+        detect_global_virtual_store: config_json
+            .pointer("/experimental/turbopackDetectGlobalVirtualStore")
+            .and_then(|value| value.as_bool())
+            .unwrap_or(false),
+    };
+
     let watcher_config = DiskWatcherConfig {
         poll_interval: options.watch.poll_interval,
         report_invalidation_reason: true,
@@ -543,7 +552,9 @@ async fn prepare_project_container_state(
     let additional_roots = create_additional_root_file_systems(
         container_vc,
         configured_additional_roots,
+        builtin_roots,
         &project_root,
+        &project_path,
         watcher_config,
         map,
         config_path,

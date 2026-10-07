@@ -17,8 +17,9 @@ use turbo_tasks_fs::{
 };
 use turbopack_core::issue::{Issue, IssueSeverity, IssueStage, PlainIssue, StyledString};
 
-use crate::project::{
-    ProjectContainer, additional_root_path_operation, disk_file_system_operation,
+use crate::{
+    global_virtual_store::find_global_virtual_store,
+    project::{ProjectContainer, additional_root_path_operation, disk_file_system_operation},
 };
 
 /// A named additional filesystem root.
@@ -38,6 +39,38 @@ pub struct AdditionalRootConfig {
     pub key: RcStr,
     pub path: RcStr,
     pub ignore_if_missing: bool,
+}
+
+/// A root that is detected automatically, rather than configured in `next.config.js`.
+#[turbo_tasks::task_input]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Hash, OperationValue, Serialize, Deserialize, Encode, Decode,
+)]
+pub(crate) enum BuiltinRootKind {
+    /// See [`find_global_virtual_store`].
+    GlobalVirtualStore,
+}
+
+impl BuiltinRootKind {
+    /// The [`DiskFileSystem`] name. Unlike configured roots, this does not have an `@` prefix, so
+    /// it cannot collide with them.
+    fn name(self) -> RcStr {
+        match self {
+            Self::GlobalVirtualStore => rcstr!("gvs"),
+        }
+    }
+
+    fn label(self) -> RcStr {
+        match self {
+            Self::GlobalVirtualStore => rcstr!("package manager global virtual store"),
+        }
+    }
+
+    fn config_option(self) -> RcStr {
+        match self {
+            Self::GlobalVirtualStore => rcstr!("experimental.turbopackDetectGlobalVirtualStore"),
+        }
+    }
 }
 
 #[turbo_tasks::task_input]
@@ -116,27 +149,65 @@ pub(crate) struct AdditionalDiskFileSystem {
 
 /// Constructed file systems and issues for the configured additional roots.
 pub(crate) struct AdditionalRootsInitialization {
+    /// Keyed by the [`DiskFileSystem`] name: `@{key}` for configured roots, or a bare name (e.g.
+    /// `gvs`) for builtin roots.
     pub roots_by_name: FxIndexMap<RcStr, AdditionalDiskFileSystem>,
     pub issues: Vec<ReadRef<PlainIssue>>,
+}
+
+/// Options controlling which builtin roots are automatically detected.
+pub(crate) struct BuiltinRootsConfig {
+    /// See [`find_global_virtual_store`].
+    pub detect_global_virtual_store: bool,
 }
 
 pub(crate) async fn create_additional_root_file_systems(
     container: ResolvedVc<ProjectContainer>,
     additional_roots: Vec<AdditionalRootConfig>,
+    builtin_roots: BuiltinRootsConfig,
     project_root: &RcStr,
+    project_path: &RcStr,
     watcher_config: DiskWatcherConfig,
     map: OperationVc<DiskFileSystemMap>,
     issue_path: FileSystemPath,
 ) -> Result<AdditionalRootsInitialization> {
     let mut overlapping_check = OverlappingRootCheck::new(project_root.clone());
     let mut configured_names: FxIndexMap<RcStr, RcStr> = FxIndexMap::default();
-    let mut roots_by_name = FxIndexMap::default();
+    // `(file system name, canonical path)` pairs
+    let mut accepted_roots: Vec<(RcStr, RcStr)> = Vec::new();
     let mut issues: Vec<ReadRef<PlainIssue>> = Vec::new();
-    for additional_root in additional_roots {
+
+    // Builtin roots are checked after configured roots, so that a configured root covering the
+    // same location takes precedence.
+    let builtin_roots = builtin_roots
+        .detect_global_virtual_store
+        .then(|| find_global_virtual_store(Path::new(&**project_root), project_path))
+        .flatten()
+        .map(|path| {
+            let kind = BuiltinRootKind::GlobalVirtualStore;
+            (
+                Some(kind),
+                AdditionalRootConfig {
+                    key: kind.name(),
+                    path,
+                    ignore_if_missing: true,
+                },
+            )
+        });
+
+    // builtin roots are configured after user roots, in the case of conflicts, user-configured
+    // roots take precedence
+    let all_roots = additional_roots
+        .into_iter()
+        .map(|root| (None, root))
+        .chain(builtin_roots);
+
+    for (builtin, additional_root) in all_roots {
         let mut push_issue = async |reason: AdditionalRootIssueReason| -> Result<()> {
             if let Some(issue) = &*additional_root_issue_operation(
                 container,
                 issue_path.clone(),
+                builtin,
                 additional_root.key.clone(),
                 additional_root.path.clone(),
                 reason,
@@ -149,20 +220,24 @@ pub(crate) async fn create_additional_root_file_systems(
             Ok(())
         };
 
-        if let Err(reason) = validate_additional_root_name(&additional_root.key) {
-            push_issue(AdditionalRootIssueReason::InvalidName(reason)).await?;
-            continue;
-        }
+        // Built-in roots don't need name validation, additional roots are namespaced (@-prefixed)
+        // to avoid collisions with built-in roots
+        if builtin.is_none() {
+            if let Err(reason) = validate_additional_root_name(&additional_root.key) {
+                push_issue(AdditionalRootIssueReason::InvalidName(reason)).await?;
+                continue;
+            }
 
-        let folded_name = RcStr::from(additional_root.key.to_ascii_lowercase());
-        if let Some(existing_key) = configured_names.get(&folded_name) {
-            push_issue(AdditionalRootIssueReason::NameCollision {
-                existing_key: existing_key.clone(),
-            })
-            .await?;
-            continue;
+            let folded_name = RcStr::from(additional_root.key.to_ascii_lowercase());
+            if let Some(existing_key) = configured_names.get(&folded_name) {
+                push_issue(AdditionalRootIssueReason::NameCollision {
+                    existing_key: existing_key.clone(),
+                })
+                .await?;
+                continue;
+            }
+            configured_names.insert(folded_name, additional_root.key.clone());
         }
-        configured_names.insert(folded_name, additional_root.key.clone());
 
         let canonical = match canonicalize_to_rcstr(Path::new(&*additional_root.path)) {
             Ok(canonical) => canonical,
@@ -175,6 +250,13 @@ pub(crate) async fn create_additional_root_file_systems(
                 continue;
             }
         };
+        // A virtual store inside the project root (e.g. the default `node_modules/.pnpm`) is not a
+        // global virtual store, and doesn't need an additional root.
+        if builtin == Some(BuiltinRootKind::GlobalVirtualStore)
+            && Path::new(&*canonical).starts_with(&**project_root)
+        {
+            continue;
+        }
         if let Err((overlapping_key, overlapping_path)) =
             overlapping_check.insert(Some(additional_root.key.clone()), canonical.clone())
         {
@@ -185,19 +267,28 @@ pub(crate) async fn create_additional_root_file_systems(
             .await?;
             continue;
         }
+        let name = match builtin {
+            Some(kind) => kind.name(),
+            None => RcStr::from(format!("@{}", additional_root.key)),
+        };
+        accepted_roots.push((name, canonical));
+    }
+
+    let mut roots_by_name = FxIndexMap::default();
+    for (name, canonical) in accepted_roots {
         // We're not inside a turbo-task function: Call an operation to create a cell for us. We
-        // pass the `ProjectContainer` and a key, which both have a stable identity, this reduces
+        // pass the `ProjectContainer` and a name, which both have a stable identity, this reduces
         // invalidations when additional roots are added or removed.
-        let canonical_root = additional_root_path_operation(container, additional_root.key.clone());
+        let canonical_root = additional_root_path_operation(container, name.clone());
         let operation = disk_file_system_operation(
-            RcStr::from(format!("@{}", additional_root.key)),
+            name.clone(),
             canonical_root,
             Vec::new(),
             watcher_config,
             map,
         );
         roots_by_name.insert(
-            additional_root.key,
+            name,
             AdditionalDiskFileSystem {
                 canonical_path: canonical,
                 file_system: operation,
@@ -246,12 +337,14 @@ fn validate_additional_root_name(name: &str) -> Result<(), AdditionalRootInvalid
 async fn additional_root_issue_operation(
     container: ResolvedVc<ProjectContainer>,
     path: FileSystemPath,
+    builtin: Option<BuiltinRootKind>,
     key: RcStr,
     configured_path: RcStr,
     reason: AdditionalRootIssueReason,
 ) -> Result<Vc<OptionalAdditionalRootIssue>> {
     let issue = AdditionalRootIssue {
         path,
+        builtin,
         key,
         configured_path,
         reason,
@@ -306,6 +399,8 @@ impl OverlappingRootCheck {
 #[turbo_tasks::value(shared)]
 struct AdditionalRootIssue {
     path: FileSystemPath,
+    /// `None` for roots configured in `next.config.js`.
+    builtin: Option<BuiltinRootKind>,
     key: RcStr,
     configured_path: RcStr,
     reason: AdditionalRootIssueReason,
@@ -333,14 +428,39 @@ impl Issue for AdditionalRootIssue {
     }
 
     async fn description(&self) -> Result<Option<StyledString>> {
-        Ok(Some(StyledString::Line(vec![
-            StyledString::Text(rcstr!("The additional root ")),
-            StyledString::Code(self.configured_path.clone()),
-            StyledString::Text(rcstr!(" configured as ")),
-            StyledString::Code(self.key.clone()),
-            StyledString::Text(rcstr!(" is invalid: ")),
-            self.reason.description(),
-        ])))
+        let description = if let Some(builtin) = self.builtin {
+            StyledString::Stack(vec![
+                StyledString::Line(vec![
+                    StyledString::Text(rcstr!("The detected ")),
+                    StyledString::Text(builtin.label()),
+                    StyledString::Text(rcstr!(" ")),
+                    StyledString::Code(self.configured_path.clone()),
+                    StyledString::Text(rcstr!(" cannot be used as the additional root ")),
+                    StyledString::Code(builtin.name()),
+                    StyledString::Text(rcstr!(": ")),
+                    self.reason.description(),
+                ]),
+                StyledString::Line(vec![
+                    StyledString::Text(rcstr!("To disable this additional root, set ")),
+                    StyledString::Code(builtin.config_option()),
+                    StyledString::Text(rcstr!(" to ")),
+                    StyledString::Code(rcstr!("false")),
+                    StyledString::Text(rcstr!(" in ")),
+                    StyledString::Code(rcstr!("next.config.js")),
+                    StyledString::Text(rcstr!(".")),
+                ]),
+            ])
+        } else {
+            StyledString::Line(vec![
+                StyledString::Text(rcstr!("The additional root ")),
+                StyledString::Code(self.configured_path.clone()),
+                StyledString::Text(rcstr!(" configured as ")),
+                StyledString::Code(self.key.clone()),
+                StyledString::Text(rcstr!(" is invalid: ")),
+                self.reason.description(),
+            ])
+        };
+        Ok(Some(description))
     }
 }
 
