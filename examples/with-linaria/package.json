@@ -6,18 +6,17 @@
     "start": "next start"
   },
   "dependencies": {
-    "@linaria/core": "^6.2.0",
-    "@linaria/react": "^6.2.1",
+    "@linaria/core": "^6.3.0",
+    "@linaria/react": "^6.3.0",
+    "@wyw-in-js/babel-preset": "^0.6.0",
     "next": "latest",
-    "next-linaria": "1.0.1-beta",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "next-with-linaria": "^0.8.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
   },
   "devDependencies": {
-    "@linaria/babel-preset": "^5.0.4",
-    "@linaria/webpack-loader": "^5.0.4",
-    "@types/node": "^22.10.1",
-    "@types/react": "^18.3.12",
-    "typescript": "^5.7.2"
+    "@types/node": "^22.14.0",
+    "@types/react": "^19.1.0",
+    "typescript": "^5.8.3"
   }
 }
