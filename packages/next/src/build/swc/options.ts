@@ -519,6 +519,8 @@ export function getLoaderSWCOptions({
       }
     : {}
 
+  const { targets: userTargets, ...restEnvOptions } = swcEnvOptions ?? {}
+
   let options: any
   if (isServer) {
     options = {
@@ -533,9 +535,11 @@ export function getLoaderSWCOptions({
       preferEsm: !!esm,
       isPageFile,
       env: {
+        ...restEnvOptions,
         targets: {
           // Targets the current version of Node.js
           node: process.versions.node,
+          ...(userTargets ?? {}),
         },
       },
     }
