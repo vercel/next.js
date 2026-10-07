@@ -294,6 +294,7 @@ export class ClientReferenceManifestPlugin {
       manifest.entryCSSFiles[chunkEntryName] = entrypoint
         .getFiles()
         .filter((f) => !f.startsWith('static/css/pages/') && f.endsWith('.css'))
+        .sort() // Sort CSS files to ensure consistent order between dev and build
         .map((file) => {
           const source = compilation.getAsset(file)!.source.source()
           if (
