@@ -127,6 +127,10 @@ async function exportPageImpl(
     // When true, attempt to run build-time instant validation for this export path.
     _runInstantValidation: runInstantValidation = false,
 
+    // Metadata used to reproduce staged fallback semantics during build-time
+    // Instant Validation.
+    _buildValidationMetadata: buildValidationMetadata,
+
     // When true, a fallback shell for this path could later be upgraded to a
     // concrete version (it has a `generateStaticParams` candidate param).
     _isFallbackUpgradeable: isFallbackUpgradeable = false,
@@ -307,6 +311,9 @@ async function exportPageImpl(
     serveStreamingMetadata: true,
     allowEmptyStaticShell,
     runInstantValidation,
+    buildValidationMetadata: runInstantValidation
+      ? buildValidationMetadata
+      : undefined,
     isFallbackUpgradeable,
     notFoundParams,
     experimental: {
