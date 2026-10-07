@@ -127,12 +127,12 @@ describe('create-next-app prompts', () => {
           const pkg = JSON.parse(
             readFileSync(join(cwd, projectName, 'package.json'), 'utf8')
           )
-          expect(Boolean(pkg.devDependencies.typescript)).toBe(typescript)
-          expect(Boolean(pkg.devDependencies.tailwindcss)).toBe(false)
+          expect(Boolean(pkg.devDependencies?.typescript)).toBe(typescript)
+          expect(Boolean(pkg.devDependencies?.tailwindcss)).toBe(false)
           expect(
-            Boolean(pkg.devDependencies['babel-plugin-react-compiler'])
+            Boolean(pkg.devDependencies?.['babel-plugin-react-compiler'])
           ).toBe(reactCompiler)
-          expect(pkg.devDependencies.eslint).toBeUndefined()
+          expect(pkg.devDependencies?.eslint).toBeUndefined()
           projectFilesShouldExist({
             cwd,
             projectName,
