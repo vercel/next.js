@@ -958,10 +958,10 @@ impl BatchedInvalidations {
         // If this path has no reader, we should not add it to the batch, and we should not extend
         // the batch schedule
         let is_relevant = |batch: &Self, path: &Path, parent: Option<&Path>, recursive: bool| {
-            // fast-path: The path or parent is already in the batch, assume it is relevant
-            if batch.paths.contains_key(path)
-                || parent.is_some_and(|parent| batch.paths.contains_key(parent))
-            {
+            // fast-path: The path is already in the batch, assume it is relevant. The parent being
+            // in the batch is not enough: `mark_parent_dir` adds parents without checking that
+            // their listing is tracked.
+            if batch.paths.contains_key(path) {
                 return true;
             }
             // slow-path: Lock the invalidator maps, and see if they contain the path
