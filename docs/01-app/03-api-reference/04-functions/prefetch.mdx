@@ -33,10 +33,12 @@ export default nextConfig
 With Partial Prefetching enabled, Next.js loads server-rendered output in stages, before and during a client navigation. These are the route's [navigation stages](/docs/app/glossary#navigation-stages):
 
 1. A default `<Link>` loads the App Shell, which holds the part of the route that does not depend on the URL.
-2. An optional [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch) can also load content that depends on the link's URL.
+2. An optional [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch), or [`router.prefetch(href, { kind: 'full' })`](/docs/app/api-reference/functions/use-router), can also load content that depends on the link's URL.
 3. When the user follows the link, the navigation renders the rest of the route.
 
 During runtime rendering, awaiting `prefetch()` keeps content out of the App Shell, so it renders during a per-link prefetch or navigation. Static prerenders can still include the content.
+
+Calling `router.prefetch(href)` without `kind: 'full'` requests only the App Shell under Partial Prefetching. It does not render content below `await prefetch()`.
 
 To keep content out of per-link prefetches as well, so it renders only on the navigation, use [`navigation()`](/docs/app/api-reference/functions/navigation).
 
