@@ -224,6 +224,19 @@ In the `app` directory, nested folders define route structure. Each folder repre
 
 However, even though route structure is defined through folders, a route is **not publicly accessible** until a `page.js` or `route.js` file is added to a route segment.
 
+> **Good to know**: When working with multiple special files (like `page.js`, `layout.js`, etc.), you can customize how they appear in your IDE's editor tabs. For example, in VS Code or Cursor, add this to `settings.json`:
+>
+> ```jsonc
+> {
+>   "workbench.editor.customLabels.patterns": {
+>     "**/app/**/{page,layout,loading,error,not-found,global-error,route,template,default}.{js,jsx,ts,tsx}": "${dirname}/${filename}.${extname}",
+>     "**/index.{js,jsx,ts,tsx}": "${dirname}/index.${extname}",
+>   },
+> }
+> ```
+>
+> This will display tabs as `dashboard/page.tsx` instead of just `page.tsx`, making it easier to distinguish between files.
+
 <Image
   alt="A diagram showing how a route is not publicly accessible until a page.js or route.js file is added to a route segment."
   srcLight="/docs/light/project-organization-not-routable.png"
