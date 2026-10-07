@@ -1,0 +1,106 @@
+---
+title: No Invalid Head Children
+---
+
+> Prevent usage of invalid HTML elements inside `next/head`.
+
+## Why This Error Occurred
+
+You have used an invalid HTML element as a direct child of the `next/head` component.
+
+The `<Head>` component from `next/head` only supports the following HTML elements as children:
+
+- `<title>`
+- `<meta>`
+- `<link>`
+- `<script>`
+- `<style>`
+- `<base>`
+- `<noscript>`
+
+Using other elements like `<html>`, `<body>`, `<div>`, `<span>`, or any other body-level elements inside `<Head>` can cause the browser to incorrectly parse your page. This often results in the confusing "next-head-count is missing" error at runtime because the browser moves invalid `<head>` elements into the `<body>`, breaking Next.js's internal tracking mechanism.
+
+## Possible Ways to Fix It
+
+### Remove invalid elements from Head
+
+If you have elements that don't belong in `<head>`, move them outside of the `<Head>` component.
+
+**Before**
+
+```jsx filename="pages/index.js"
+import Head from 'next/head'
+
+export default function Page() {
+  return (
+    <Head>
+      <title>My Page</title>
+      <html lang="en" />
+      <div>This should not be here</div>
+    </Head>
+  )
+}
+```
+
+**After**
+
+```jsx filename="pages/index.js"
+import Head from 'next/head'
+
+export default function Page() {
+  return (
+    <>
+      <Head>
+        <title>My Page</title>
+      </Head>
+      <div>Content goes in the body</div>
+    </>
+  )
+}
+```
+
+### Setting the lang attribute
+
+If you need to set the `lang` attribute on the `<html>` element, use a [Custom Document](/docs/pages/building-your-application/routing/custom-document):
+
+```jsx filename="pages/_document.js"
+import { Html, Head, Main, NextScript } from 'next/document'
+
+export default function Document() {
+  return (
+    <Html lang="en">
+      <Head />
+      <body>
+        <Main />
+        <NextScript />
+      </body>
+    </Html>
+  )
+}
+```
+
+### Setting body attributes
+
+If you need to set attributes on the `<body>` element, also use a Custom Document:
+
+```jsx filename="pages/_document.js"
+import { Html, Head, Main, NextScript } from 'next/document'
+
+export default function Document() {
+  return (
+    <Html>
+      <Head />
+      <body className="my-body-class">
+        <Main />
+        <NextScript />
+      </body>
+    </Html>
+  )
+}
+```
+
+## Useful Links
+
+- [next/head](/docs/pages/api-reference/components/head)
+- [Custom Document](/docs/pages/building-your-application/routing/custom-document)
+- [MDN: head element](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/head)
