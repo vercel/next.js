@@ -336,7 +336,12 @@ function createStaticPrerenderParams(
         )
       }
 
-      if (isEmptyParams(underlyingParams)) {
+      // An optional catch-all with no value isn't a property of the params
+      // object, but reading it is still a param read, so the route has params.
+      if (
+        isEmptyParams(underlyingParams) &&
+        optionalCatchAllParamName === null
+      ) {
         // This route has no params.
         return makeUntrackedParams(userspaceParams)
       }
@@ -356,6 +361,7 @@ function createStaticPrerenderParams(
         // by delaying them to the static stage. However, root params are allowed in shells,
         // so if all the params are root params, they can be included as well.
         if (
+          optionalCatchAllParamName !== null ||
           !allParamsAreRootParams(underlyingParams, prerenderStore.rootParams)
         ) {
           const staticParamsStage =
@@ -423,13 +429,18 @@ function createRuntimePrerenderParams(
     )
   }
 
-  if (isEmptyParams(underlyingParams)) {
+  // An absent optional catch-all is still a param (see
+  // createStaticPrerenderParams).
+  if (isEmptyParams(underlyingParams) && optionalCatchAllParamName === null) {
     // This route has no params.
     return makeUntrackedParams(userspaceParams)
   }
 
   // Root params are allowed in shells, so we allow them to resolve without a delay.
-  if (allParamsAreRootParams(underlyingParams, workUnitStore.rootParams)) {
+  if (
+    optionalCatchAllParamName === null &&
+    allParamsAreRootParams(underlyingParams, workUnitStore.rootParams)
+  ) {
     return makeUntrackedParams(userspaceParams)
   }
 
@@ -496,6 +507,7 @@ function createRenderParamsForPage(
       stagedRendering,
       asyncApiPromises,
       underlyingParams,
+      optionalCatchAllParamName,
       userspaceParams
     )
   }
@@ -521,6 +533,7 @@ function createStagedRenderParams(
   stagedRendering: NonNullable<RequestStore['stagedRendering']>,
   asyncApiPromises: NonNullable<RequestStore['asyncApiPromises']>,
   underlyingParams: Params,
+  optionalCatchAllParamName: string | null,
   userspaceParams: Params
 ) {
   const promise = createStagedRenderParamsImpl(
@@ -528,6 +541,7 @@ function createStagedRenderParams(
     stagedRendering,
     asyncApiPromises,
     underlyingParams,
+    optionalCatchAllParamName,
     userspaceParams
   )
   if (process.env.NODE_ENV === 'development') {
@@ -547,11 +561,13 @@ function createStagedRenderParamsImpl(
   asyncApiPromises: NonNullable<RequestStore['asyncApiPromises']>,
   /** The actual param values, without any instrumentation */
   underlyingParams: Params,
+  /** An optional catch-all param with no value, which is still a param */
+  optionalCatchAllParamName: string | null,
   /** The params object to return to userspace, possibly wrapped in a proxy */
   userspaceParams: Params
 ) {
   // If the route has no params, they should resolve immediately.
-  if (isEmptyParams(underlyingParams)) {
+  if (isEmptyParams(underlyingParams) && optionalCatchAllParamName === null) {
     return makeUntrackedParams(userspaceParams)
   }
 
@@ -570,7 +586,10 @@ function createStagedRenderParamsImpl(
 
   // If we're rendering with shells, even static params must be delayed to exclude them from the shell.
   // However, root params are allowed in shells, so if all the params are root params, they can be included as well.
-  if (!allParamsAreRootParams(underlyingParams, workUnitStore.rootParams)) {
+  if (
+    optionalCatchAllParamName !== null ||
+    !allParamsAreRootParams(underlyingParams, workUnitStore.rootParams)
+  ) {
     // For a dynamic request we generally want to recover a static shell,
     // so static params can resolve in the static stage, because session
     // shells are handled with a separate render.
