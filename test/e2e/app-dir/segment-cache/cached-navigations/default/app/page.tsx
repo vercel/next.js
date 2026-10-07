@@ -38,11 +38,6 @@ export default function Home() {
             Go to prefetch=partial page
           </Link>
         </li>
-        <li>
-          <Link href="/prefetch-eager" prefetch={false}>
-            Go to prefetch=unstable_eager page
-          </Link>
-        </li>
       </ul>
     </main>
   )
