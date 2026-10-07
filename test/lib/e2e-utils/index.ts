@@ -20,6 +20,7 @@ import {
   findLazyForceSkip,
   ungatedHook,
 } from '../gate/runtime'
+import { setTimeout } from 'timers/promises'
 
 export type { NextInstance }
 export type { Playwright } from '../browsers/playwright'
@@ -397,13 +398,18 @@ export function nextTestSetup(
     !options.skipStart && !isNextDeploy && hasLazyForceGate(describeGates)
 
   let next: NextInstance | undefined
+  // Tracked separately from `next` so afterAll can still reach the instance
+  // when the beforeAll hook is aborted (e.g. it hits the jest hook timeout)
+  // before the assignment happens.
+  let pendingSetup: Promise<NextInstance> | undefined
   if (!skipped) {
     // `ungatedHook`: this hook makes the lazy `@force-gate` skip decision, so
     // it must run even (especially) when that decision is "skip".
     beforeAll(
       ungatedHook(async () => {
         if (!buildForceGated) {
-          next = await createNext(options)
+          pendingSetup = createNext(options)
+          next = await pendingSetup
           return
         }
         // Try to decide the force-gate against the *source* fixture first,
@@ -444,7 +450,8 @@ export function nextTestSetup(
         // Set the fixture up (so its config is resolvable) without building, then
         // resolve the force-gate. If it's false, skip the build entirely — the
         // inherited gate makes every test force-pass, so nothing touches `next`.
-        const instance = await createNext({ ...options, skipStart: true })
+        pendingSetup = createNext({ ...options, skipStart: true })
+        const instance = await pendingSetup
         next = instance
         const config = await instance.getResolvedConfig()
         const forceSkip = findLazyForceSkip(describeGates, config)
@@ -467,10 +474,22 @@ export function nextTestSetup(
     // otherwise the fixture leaks into the next describe's gate decisions.
     afterAll(
       ungatedHook(async () => {
-        // Gracefully destroy the instance if `createNext` success.
-        // If next instance is not available, it's likely beforeAll hook failed and unnecessarily throws another error
-        // by attempting to destroy on undefined.
-        await next?.destroy()
+        // If the beforeAll hook was aborted (e.g. it hit the jest hook
+        // timeout), `next` is never assigned even though createNext may have
+        // registered an instance — and started a deployment for deploy-mode
+        // tests — in the background. Wait a bounded grace for setup so the
+        // instance can be destroyed here, and fall back to the registered
+        // instance when setup still hasn't finished. The grace must stay
+        // well under the jest hook timeout so teardown itself doesn't time
+        // out; deploy instances get their own (longer) grace inside
+        // destroy() to let an in-flight deployment settle first.
+        if (!next && pendingSetup) {
+          await Promise.race([
+            pendingSetup.catch(() => {}),
+            setTimeout(30 * 1000),
+          ])
+        }
+        await (next ?? nextInstance)?.destroy()
         // The early force-skip path registers a config source without an
         // instance (an instance clears itself on destroy).
         if (!next) clearFixture()

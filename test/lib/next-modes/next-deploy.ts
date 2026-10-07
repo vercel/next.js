@@ -21,6 +21,13 @@ export class NextDeployInstance extends NextInstance {
   private _writtenHostsLine: string | null = null
   private _restoreDnsLookup: (() => void) | null = null
   private _startPromise: Promise<void> | undefined
+  // Deploy timing instrumentation. Token/slug are only captured on the
+  // Vercel CLI deploy path; the custom-script path has no API context.
+  private _deployStartedAt: number | undefined
+  private _deployEndedAt: number | undefined
+  private _deployTimingsReported: boolean = false
+  private _vercelToken: string | undefined
+  private _vercelTeamSlug: string | undefined
 
   constructor(opts: NextInstanceOpts) {
     super(opts)
@@ -139,6 +146,11 @@ export class NextDeployInstance extends NextInstance {
       error.cause = cause
     }
 
+    // Report timings for the failed deployment as well, so queue time and
+    // build time can be distinguished on build failures. No-ops on the
+    // custom-script path, which has no Vercel API context.
+    await this.fetchDeploymentTimings()
+
     // Preserve the instance and its logs for callers that catch start().
     // Failed builds do not produce the successful-build ID markers.
     throw error
@@ -235,6 +247,89 @@ export class NextDeployInstance extends NextInstance {
     require('console').log(
       `Got buildId: ${this._buildId}, deploymentId: ${this._deploymentId}, supportsImmutableAssets: ${this._supportsImmutableAssets}`
     )
+  }
+
+  /**
+   * Reports how long the deployment spent uploading, queued, and building,
+   * split from the Vercel deployment lifecycle timestamps (`createdAt`,
+   * `buildingAt`, `ready`). Instrumentation only: this must never fail a
+   * test, so every failure is logged and swallowed. Also safe to call when
+   * the deployment errored or is still queued — whatever timestamps exist
+   * are reported.
+   */
+  private async fetchDeploymentTimings(): Promise<void> {
+    if (this._deployTimingsReported) {
+      return
+    }
+    this._deployTimingsReported = true
+
+    try {
+      if (!this._vercelToken || !this._vercelTeamSlug) {
+        return
+      }
+      // The v13 endpoint accepts a deployment ID or its URL host.
+      const idOrUrl = this._deploymentId ?? this._parsedUrl?.host
+      if (!idOrUrl) {
+        return
+      }
+
+      const apiUrl = new URL(
+        `https://api.vercel.com/v13/deployments/${encodeURIComponent(idOrUrl)}`
+      )
+      apiUrl.searchParams.set('slug', this._vercelTeamSlug)
+      const res = await fetch(apiUrl, {
+        headers: { authorization: `Bearer ${this._vercelToken}` },
+      })
+      if (!res.ok) {
+        require('console').warn(
+          `[deploy-timing] Failed to fetch deployment ${idOrUrl}: ${res.status} ${res.statusText}`
+        )
+        return
+      }
+
+      const deployment: {
+        createdAt?: number
+        buildingAt?: number
+        ready?: number
+        readyState?: string
+      } = await res.json()
+
+      const toSeconds = (ms: number) => `${(ms / 1000).toFixed(1)}s`
+      const segments: string[] = []
+      if (this._deployStartedAt && deployment.createdAt) {
+        segments.push(
+          `upload=${toSeconds(deployment.createdAt - this._deployStartedAt)}`
+        )
+      }
+      if (deployment.createdAt && deployment.buildingAt) {
+        segments.push(
+          `queued=${toSeconds(deployment.buildingAt - deployment.createdAt)}`
+        )
+      } else if (deployment.createdAt && !deployment.buildingAt) {
+        segments.push('queued=unknown (build never started)')
+      }
+      if (deployment.buildingAt && deployment.ready) {
+        segments.push(
+          `build=${toSeconds(deployment.ready - deployment.buildingAt)}`
+        )
+      }
+      if (deployment.ready && this._deployEndedAt) {
+        segments.push(
+          `cli-overhead=${toSeconds(this._deployEndedAt - deployment.ready)}`
+        )
+      }
+      if (this._deployStartedAt) {
+        segments.push(
+          `total=${toSeconds((this._deployEndedAt ?? Date.now()) - this._deployStartedAt)}`
+        )
+      }
+
+      require('console').log(
+        `[deploy-timing] ${idOrUrl} state=${deployment.readyState ?? 'unknown'} ${segments.join(' ')}`
+      )
+    } catch (err) {
+      require('console').warn(`[deploy-timing] Failed to report timings`, err)
+    }
   }
 
   private async fetchBuildLogsUntilComplete(
@@ -401,6 +496,11 @@ export class NextDeployInstance extends NextInstance {
         ? projectEnv.TURBOPACK_TEST_TOKEN
         : projectEnv.TEST_TOKEN
 
+    // Captured for fetchDeploymentTimings, which reads the deployment's
+    // lifecycle timestamps from the Vercel API after the deploy settles.
+    this._vercelTeamSlug = TEST_TEAM_NAME
+    this._vercelToken = TEST_TOKEN
+
     // If the team name is available in the environment, use it as the scope.
     if (TEST_TEAM_NAME) {
       vercelFlags.push('--scope', TEST_TEAM_NAME)
@@ -505,6 +605,7 @@ export class NextDeployInstance extends NextInstance {
       additionalEnv.push(`NEXT_ENABLE_ADAPTER=0`)
     }
 
+    this._deployStartedAt = Date.now()
     const deployment = execa(
       'vercel',
       [
@@ -533,6 +634,7 @@ export class NextDeployInstance extends NextInstance {
     // Keep showing deployment progress while also retaining failure output.
     deployment.stderr?.pipe(process.stderr)
     const deployRes = await deployment
+    this._deployEndedAt = Date.now()
 
     if (deployRes.exitCode !== 0) {
       await this.throwDeploymentError(
@@ -578,6 +680,7 @@ export class NextDeployInstance extends NextInstance {
     )
 
     this.parseIdsFromCliOutput()
+    await this.fetchDeploymentTimings()
   }
 
   private async writeFixtureConfiguration(
@@ -974,6 +1077,26 @@ export class NextDeployInstance extends NextInstance {
   }
 
   public async destroy() {
+    // If teardown runs while a deployment is still in flight — e.g. the
+    // beforeAll hook hit the jest timeout, after which afterAll still runs —
+    // give it a bounded grace to finish so the deployment can be identified
+    // and its timings reported. Cleanup then proceeds either way. The grace
+    // must stay well under the jest hook timeout so teardown itself doesn't
+    // time out.
+    if (this._startPromise && !this._deployEndedAt) {
+      await Promise.race([
+        this._startPromise.catch(() => {}),
+        setTimeout(90 * 1000),
+      ])
+      if (this._deployEndedAt) {
+        await this.fetchDeploymentTimings()
+      } else {
+        require('console').log(
+          '[deploy-timing] Deployment still in flight after teardown grace; timings unavailable'
+        )
+      }
+    }
+
     // Run custom cleanup script if provided
     const customCleanupScriptPath =
       process.env.NEXT_TEST_CLEANUP_SCRIPT_PATH?.trim()
