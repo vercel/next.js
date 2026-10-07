@@ -609,3 +609,39 @@ If you're doing an audit of a Next.js project, here are a few things we recommen
 - **`"use server"` files:** Are the Action arguments validated in the action or inside the Data Access Layer? Is the user re-authorized inside the action? Does the action check ownership of the resource (authorization, not just authentication)? Are return values filtered to only what the client needs? Is database access delegated to a `server-only` Data Access Layer?
 - **`/[param]/.`** Folders with brackets are user input. Are params validated?
 - **`proxy.ts` and `route.ts`:** Have a lot of power. Spend extra time auditing these using traditional techniques. Perform Penetration Testing or Vulnerability Scanning regularly or in alignment with your team's software development lifecycle.
+
+
+## Secure use of `use cache` with authentication
+
+When using the `use cache` directive, never trust client-provided identifiers (such as an `accountId` passed as a parameter). An attacker can call the cached server function directly with any ID and retrieve cached data for other users.
+
+### Insecure pattern — do not use
+
+```ts filename="app/lib/data.ts" switcher
+// INSECURE: accountId comes from the client and is not re-validated server-side
+export async function getAccountData(accountId: string) {
+  'use cache'
+  return db.account.findUnique({ where: { id: accountId } })
+}
+```
+
+### Secure pattern — always re-authenticate inside the cached function
+
+```ts filename="app/lib/data.ts" switcher
+import { getCurrentUser } from './auth'
+
+// SECURE: Re-authenticate inside the cached function; never trust client-provided IDs
+export async function getMyAccountData() {
+  'use cache'
+
+  const user = await getCurrentUser()
+  if (!user) {
+    throw new Error('Unauthorized')
+  }
+
+  // Use the server-verified user ID, not one from the client
+  return db.account.findUnique({ where: { id: user.id } })
+}
+```
+
+> **Security warning:** Never trust client-provided IDs in `use cache` functions. Always re-authenticate server-side inside the cached function and derive the resource identity from the verified session. See the [Data Access Layer](#data-access-layer) section for the recommended centralized auth pattern.

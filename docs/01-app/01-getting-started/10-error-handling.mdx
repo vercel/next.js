@@ -433,3 +433,132 @@ export default function GlobalError({ error, retry }) {
   )
 }
 ```
+
+
+## Handling expected HTTP errors (401, 403)
+
+The `error.js` boundary catches **all** unhandled exceptions, including expected ones like `401 Unauthorized` or `403 Forbidden`. To handle these differently from unexpected server errors, use Next.js built-in helpers instead of relying on the error boundary.
+
+### Using `unauthorized()` and `forbidden()`
+
+Next.js provides helpers that throw typed responses and render dedicated route files.
+
+> **Good to know**: [`unauthorized()`](/docs/app/api-reference/functions/unauthorized) and [`forbidden()`](/docs/app/api-reference/functions/forbidden) are experimental. To use them, enable the [`authInterrupts`](/docs/app/api-reference/config/next-config-js/authInterrupts) configuration option in your `next.config.js` file:
+>
+> ```ts filename="next.config.ts" switcher
+> import type { NextConfig } from 'next'
+>
+> const nextConfig: NextConfig = {
+>   experimental: {
+>     authInterrupts: true,
+>   },
+> }
+>
+> export default nextConfig
+> ```
+>
+> ```js filename="next.config.js" switcher
+> module.exports = {
+>   experimental: {
+>     authInterrupts: true,
+>   },
+> }
+> ```
+
+```ts filename="app/dashboard/page.tsx" switcher
+import { unauthorized, forbidden } from 'next/navigation'
+import { getCurrentUser } from '@/lib/auth'
+
+export default async function DashboardPage() {
+  const user = await getCurrentUser()
+
+  if (!user) {
+    unauthorized() // Renders app/unauthorized.tsx
+  }
+
+  if (!user.isAdmin) {
+    forbidden() // Renders app/forbidden.tsx
+  }
+
+  return <Dashboard />
+}
+```
+
+Create dedicated files to render custom UI for each case:
+
+```tsx filename="app/unauthorized.tsx" switcher
+export default function Unauthorized() {
+  return (
+    <main>
+      <h1>401 - Unauthorized</h1>
+      <p>You must be signed in to view this page.</p>
+    </main>
+  )
+}
+```
+
+```tsx filename="app/forbidden.tsx" switcher
+export default function Forbidden() {
+  return (
+    <main>
+      <h1>403 - Forbidden</h1>
+      <p>You do not have permission to access this page.</p>
+    </main>
+  )
+}
+```
+
+This keeps auth/permission errors out of your `error.js` boundary entirely, giving each error type its own UI.
+
+## Production error message censorship
+
+In production, Next.js replaces Server Component error messages with a generic `"Internal Server Error"` before sending them to the client. This prevents accidental leakage of sensitive server-side details, but it means you must log errors server-side to debug them.
+
+### Logging full errors with `onRequestError`
+
+Use the `onRequestError` export in `instrumentation.ts` to capture the full error before it is censored:
+
+```ts filename="instrumentation.ts" switcher
+import { type Instrumentation } from 'next'
+
+export const onRequestError: Instrumentation.onRequestError = async (
+  err,
+  request,
+  context
+) => {
+  // err is typed as unknown — narrow it before reading properties
+  const message = err instanceof Error ? err.message : String(err)
+  const digest =
+    typeof err === 'object' && err !== null && 'digest' in err
+      ? String(err.digest)
+      : undefined
+
+  // Send the full error to your observability service (e.g. Sentry, Datadog)
+  await fetch('https://your-logging-service.example/errors', {
+    method: 'POST',
+    body: JSON.stringify({ message, digest, request, context }),
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
+```
+
+> **Good to know:** `onRequestError` receives the full error before client-side censorship, so you always have the real message server-side even when the client sees only `"Internal Server Error"`. See the [instrumentation API reference](/docs/app/api-reference/file-conventions/instrumentation) for the full type signature.
+
+### Passing user-facing error messages safely
+
+If you need to return an error message to the client (e.g. form validation failures), model it as a return value from a Server Action — do not throw:
+
+```ts filename="app/actions.ts" switcher
+'use server'
+
+// Return errors as values — do not throw for expected client-visible errors
+export async function submitForm(formData: FormData) {
+  const email = formData.get('email')
+  if (!email) {
+    return { error: 'Email is required' }
+  }
+  // ...
+}
+```
+
+Thrown errors from Server Components in production will always produce a generic client-facing message. Use `onRequestError` for server-side observability and return values for user-facing messages.
