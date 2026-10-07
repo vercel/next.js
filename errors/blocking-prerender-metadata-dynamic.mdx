@@ -68,25 +68,23 @@ This fix does not apply to [`connection()`](/docs/app/api-reference/functions/co
 
 Mark the function as cacheable. The metadata is evaluated once per cache window and reused.
 
-```jsx filename="app/blog/[slug]/page.js"
+```jsx filename="app/page.js"
 import { cms } from './cms'
 
-export async function generateMetadata({ params }) {
+export async function generateMetadata() {
   'use cache'
-  const { slug } = await params
-  const { title } = await cms.getPageData(slug)
+  const { title } = await cms.getPageData('home')
   return { title }
 }
 
-async function getPageText(slug) {
+async function getPageText() {
   'use cache'
-  const { text } = await cms.getPageData(slug)
+  const { text } = await cms.getPageData('home')
   return text
 }
 
-export default async function Page({ params }) {
-  const { slug } = await params
-  const text = await getPageText(slug)
+export default async function Page() {
+  const text = await getPageText()
   return <article>{text}</article>
 }
 ```
@@ -97,15 +95,14 @@ Learn more: [Caching with `use cache`](/docs/app/api-reference/directives/use-ca
 
 When you publish new content and want the metadata to refresh, tag the entry with [`cacheTag`](/docs/app/api-reference/functions/cacheTag). Invalidate from a Server Action with [`updateTag`](/docs/app/api-reference/functions/updateTag) (read-your-own-writes: the next request waits for fresh data) or from a Route Handler with [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag).
 
-```jsx filename="app/blog/[slug]/page.js"
+```jsx filename="app/page.js"
 import { cacheTag } from 'next/cache'
 import { cms } from './cms'
 
-export async function generateMetadata({ params }) {
+export async function generateMetadata() {
   'use cache'
-  const { slug } = await params
-  cacheTag(`meta-${slug}`)
-  const { title } = await cms.getPageData(slug)
+  cacheTag('site-metadata')
+  const { title } = await cms.getPageData('home')
   return { title }
 }
 ```
@@ -119,7 +116,8 @@ Freshness depends on the cache configuration. The metadata stays the same until 
 ### Gotchas
 
 - [`use cache`](/docs/app/api-reference/directives/use-cache) can't be combined with [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers) in the same scope. Inside a cached function, you can't call request-bound APIs. If the metadata needs a request-bound value (a session token to call a protected API), read it outside the cached scope and pass it as an argument, or use [Mark the route as dynamic](#mark-the-route-as-dynamic) instead.
-- If the metadata function reads `params`, the params become part of the cache key automatically. Each unique param set gets its own cached metadata entry.
+- If cached metadata also reads `params`, each param value becomes part of the cache key. This fixes the uncached data access, but it does not make URL data available during prerendering.
+- For full-route prerendering, use [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) to provide the route params. With [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) enabled, generated params are still URL data for the App Shell shared across links. Follow [Runtime data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-runtime) to handle that case.
 
 ## Mark the route as dynamic
 

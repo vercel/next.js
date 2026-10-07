@@ -22,7 +22,7 @@ kind: error
   come back here for the specific fix.
 </div>
 
-During [prerendering](/docs/app/glossary#prerendering), [`generateMetadata()`](/docs/app/api-reference/functions/generate-metadata) or file-based metadata read a per-request value ([`cookies()`](/docs/app/api-reference/functions/cookies), [`headers()`](/docs/app/api-reference/functions/headers), [`params`](/docs/app/api-reference/file-conventions/page#params-optional), [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional)). With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, Next.js expects metadata to be prerenderable when the rest of the route is. This route's metadata is blocked, but the rest of its content can be prerendered.
+During [prerendering](/docs/app/glossary#prerendering), [`generateMetadata()`](/docs/app/api-reference/functions/generate-metadata) or file-based metadata read data that was unavailable to that prerender. This includes request data from [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers), and URL data from [`params`](/docs/app/api-reference/file-conventions/page#params-optional) or [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional). With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, Next.js expects metadata to be prerenderable when the rest of the route is. This route's metadata is blocked, but the rest of its content can be prerendered.
 
 A [`use cache`](/docs/app/api-reference/directives/use-cache) scope is also treated as runtime data when its [`expire`](/docs/app/api-reference/functions/cacheLife#expire) is under five minutes, [`stale`](/docs/app/api-reference/functions/cacheLife#stale) is under 30 seconds, or [`revalidate`](/docs/app/api-reference/functions/cacheLife#revalidate) is `0`.
 
@@ -58,7 +58,7 @@ For errors in the page body rather than metadata, see [Next.js encountered runti
 
 ## Use static metadata
 
-Choose this fix when the metadata values are known at build time and don't change per request. Replace [`generateMetadata()`](/docs/app/api-reference/functions/generate-metadata) with a static [`metadata`](/docs/app/api-reference/functions/generate-metadata#the-metadata-object) export. The metadata is evaluated once during the build and included in every prerender.
+Choose this fix when the metadata can be generated during full-route prerendering and doesn't need request-specific data. Use a static [`metadata`](/docs/app/api-reference/functions/generate-metadata#the-metadata-object) export when the same values apply to every request for the segment. For metadata that varies by route param, provide the params with [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params).
 
 ### Patterns
 
@@ -84,23 +84,39 @@ Learn more: [Static metadata](/docs/app/api-reference/functions/generate-metadat
 When metadata varies by route param (a blog post title, a product name), pair [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) with [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata). Each param set is prerendered with its own metadata at build time.
 
 ```jsx filename="app/blog/[slug]/page.js"
+import { cms } from './cms'
+
 export function generateStaticParams() {
   return [{ slug: 'hello-world' }, { slug: 'nextjs-16' }]
 }
 
-export async function generateMetadata({ params }) {
+async function getPost(slug) {
   'use cache'
+  return cms.getPost(slug)
+}
+
+export async function generateMetadata({ params }) {
   const { slug } = await params
   const post = await getPost(slug)
   return { title: post.title }
 }
+
+export default async function Page({ params }) {
+  const { slug } = await params
+  const post = await getPost(slug)
+  return <article>{post.content}</article>
+}
 ```
+
+The `generateStaticParams` function makes the listed `params` available during full-route prerendering. The `use cache` directive handles the separate uncached data access in `getPost()`. Caching the data does not make runtime params static.
+
+With [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) enabled, generated params are still URL data for the App Shell shared across links. This pattern cannot include parameterized metadata in that shared prefetch. If the metadata must vary by `params`, use [Mark the route as dynamic](#mark-the-route-as-dynamic).
 
 Learn more: [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params).
 
 ### Trade-off
 
-Static metadata can't reflect per-request values like the visitor's locale, A/B bucket, or personalized title. If you need request-time metadata, use [Mark the route as dynamic](#mark-the-route-as-dynamic).
+Prerendered metadata can vary across params returned by `generateStaticParams`, but it can't reflect per-request values like the visitor's locale, A/B bucket, or personalized title. If you need request-time metadata, use [Mark the route as dynamic](#mark-the-route-as-dynamic).
 
 ### Gotchas
 
