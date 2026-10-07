@@ -48,8 +48,9 @@ export default defineRule({
           // @ts-expect-error - `node.argument` could be a `JSXElement` which has property `children`
           const headComponents = node.argument.children.filter(
             (childrenNode) =>
+              'openingElement' in childrenNode &&
               childrenNode.openingElement &&
-              childrenNode.openingElement.name &&
+              childrenNode.openingElement.name.type === 'JSXIdentifier' &&
               childrenNode.openingElement.name.name === 'Head'
           )
 
