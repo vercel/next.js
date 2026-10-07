@@ -152,7 +152,7 @@ export default async function createUser(formData: FormData) {
   // Return early if the form data is invalid
   if (!validatedFields.success) {
     return {
-      errors: validatedFields.error.flatten().fieldErrors,
+      errors: z.flattenError(validatedFields.error).fieldErrors,
     }
   }
 
@@ -179,7 +179,7 @@ export default async function createUser(formData) {
   // Return early if the form data is invalid
   if (!validatedFields.success) {
     return {
-      errors: validatedFields.error.flatten().fieldErrors,
+      errors: z.flattenError(validatedFields.error).fieldErrors,
     }
   }
 
