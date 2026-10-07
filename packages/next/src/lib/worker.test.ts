@@ -125,3 +125,63 @@ describe('lib/worker color propagation', () => {
     expect(latestForkEnv?.FORCE_COLOR).toBeUndefined()
   })
 })
+
+describe('lib/worker memory options', () => {
+  const originalEnv = { ...process.env }
+
+  const restoreEnv = () => {
+    for (const key of Object.keys(process.env)) {
+      delete process.env[key]
+    }
+    Object.assign(process.env, originalEnv)
+  }
+
+  afterEach(() => {
+    restoreEnv()
+    jest.resetModules()
+    latestForkEnv = undefined
+  })
+
+  it('sets --max-old-space-size when maxOldSpaceSize is provided', () => {
+    const { Worker } = require('./worker') as typeof import('./worker')
+
+    const worker = new Worker(__filename, {
+      ...noopOptions,
+      isolatedMemory: true,
+      maxOldSpaceSize: 2048,
+    })
+    worker.close()
+
+    expect(latestForkEnv?.NODE_OPTIONS).toContain('--max-old-space-size=2048')
+  })
+
+  it('strips inherited --max-old-space-size with isolatedMemory', () => {
+    process.env.NODE_OPTIONS = '--max-old-space-size=4096'
+
+    const { Worker } = require('./worker') as typeof import('./worker')
+
+    const worker = new Worker(__filename, {
+      ...noopOptions,
+      isolatedMemory: true,
+    })
+    worker.close()
+
+    expect(latestForkEnv?.NODE_OPTIONS).not.toContain('max-old-space-size')
+  })
+
+  it('maxOldSpaceSize overrides an inherited NODE_OPTIONS value', () => {
+    process.env.NODE_OPTIONS = '--max-old-space-size=4096'
+
+    const { Worker } = require('./worker') as typeof import('./worker')
+
+    const worker = new Worker(__filename, {
+      ...noopOptions,
+      isolatedMemory: true,
+      maxOldSpaceSize: 1024,
+    })
+    worker.close()
+
+    expect(latestForkEnv?.NODE_OPTIONS).toContain('--max-old-space-size=1024')
+    expect(latestForkEnv?.NODE_OPTIONS).not.toContain('4096')
+  })
+})
