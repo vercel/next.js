@@ -54,9 +54,16 @@ type PlatformTaskScript =
 
 function getPackageVersion(packageName: string) {
   try {
-    return require(`${packageName}/package.json`).version
+    const resolvedPath = require.resolve(`${packageName}/package.json`, {
+      paths: [process.cwd()],
+    })
+    return require(resolvedPath).version
   } catch {
-    return 'N/A'
+    try {
+      return require(`${packageName}/package.json`).version
+    } catch {
+      return 'N/A'
+    }
   }
 }
 
