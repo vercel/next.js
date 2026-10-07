@@ -1126,6 +1126,7 @@ function createRenderTreeForSegment(
   let cachedRsc: React.ReactNode | null = null
   let isCachedRscPartial: boolean = true
   let cachedVaryParams: VaryParams | null = null
+  let pendingEntry: ReturnType<typeof waitForSegmentCacheEntry> | null = null
 
   const segmentEntry = readSegmentCacheEntryForNavigation(
     now,
@@ -1145,9 +1146,11 @@ function createRenderTreeForSegment(
       case EntryStatus.Pending: {
         // We haven't received data for this segment yet, but there's already
         // an in-progress request. Since it's extremely likely to arrive
-        // before the dynamic data response, we might as well use it.
-        const promiseForFulfilledEntry = waitForSegmentCacheEntry(segmentEntry)
-        cachedRsc = promiseForFulfilledEntry.then((entry) =>
+        // before the dynamic data response, we might as well use it. (If the
+        // segment is partial, see prefetchRscFromPendingEntry for what happens
+        // when the request settles without data for it.)
+        pendingEntry = waitForSegmentCacheEntry(segmentEntry)
+        cachedRsc = pendingEntry.then((entry) =>
           entry !== null ? entry.rsc : null
         )
         // The entry's data hasn't arrived, and neither has the source of the
@@ -1179,7 +1182,12 @@ function createRenderTreeForSegment(
   if (
     process.env.__NEXT_OPTIMISTIC_ROUTING &&
     tree.segment === HEAD_REQUEST_KEY &&
-    isCachedRscPartial
+    isCachedRscPartial &&
+    // If the head's prefetch is still in flight, wait for it instead. Its
+    // data (including the title) is usually available before the dynamic
+    // response, and the empty placeholder would clear the document title
+    // in the meantime.
+    segmentEntry?.status !== EntryStatus.Pending
   ) {
     // TODO: When optimistic routing is enabled, don't block on waiting for
     // the viewport to resolve. This is a temporary workaround until Vary
@@ -1222,8 +1230,11 @@ function createRenderTreeForSegment(
     if (isCachedRscPartial) {
       // The seed data may still be streaming in, so it's worth showing the
       // partial cached state in the meantime.
-      prefetchRsc = cachedRsc
       rsc = seedRsc
+      prefetchRsc =
+        pendingEntry !== null
+          ? prefetchRscFromPendingEntry(pendingEntry, rsc)
+          : cachedRsc
       varyParams = seedVaryParams
     } else {
       // We already have a completely cached segment. Ignore the seed data,
@@ -1243,8 +1254,11 @@ function createRenderTreeForSegment(
       //
       // Create a pending promise that we can later write to when the
       // data arrives from the server.
-      prefetchRsc = cachedRsc
       rsc = createDeferredRsc()
+      prefetchRsc =
+        pendingEntry !== null
+          ? prefetchRscFromPendingEntry(pendingEntry, rsc)
+          : cachedRsc
       varyParams = null
     } else {
       // The data is fully cached.
@@ -1273,6 +1287,21 @@ function createRenderTreeForSegment(
     // single type. Or at least CacheNode and DeferredRsc.
     needsDynamicRequest: doesSegmentNeedDynamicRequest,
   }
+}
+
+function prefetchRscFromPendingEntry(
+  pendingEntry: ReturnType<typeof waitForSegmentCacheEntry>,
+  rsc: React.ReactNode
+): React.ReactNode {
+  // The partial state to show while a segment's prefetch is still in flight.
+  //
+  // The request may settle without data for this segment. For example, a
+  // LoadingBoundary prefetch marks every uncached segment as pending, but the
+  // server stops rendering at the first loading boundary. A plain promise that
+  // resolves to `null` would render as an empty segment, with no loading
+  // state. So in that case, fall back to the final data: the LayoutRouter
+  // suspends on it, showing the nearest loading boundary until it arrives.
+  return pendingEntry.then((entry) => (entry !== null ? entry.rsc : rsc))
 }
 
 function createCacheNode(

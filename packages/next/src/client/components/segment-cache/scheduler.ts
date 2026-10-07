@@ -1059,6 +1059,19 @@ function pingRootRouteTree(
               ? FetchStrategy.Full
               : fetchStrategy
           )
+          if (fetchStrategy === FetchStrategy.LoadingBoundary) {
+            // The head is requested as Full so the server includes it, but
+            // the response is still a prefetch, and the head may come back
+            // partial. Don't apply the Pending-Full convention (see
+            // upgradeToPendingSegment): a navigation that happens while this
+            // request is in flight would treat the head as complete and omit
+            // it from its own request, and the document title would never
+            // arrive.
+            const pendingHead = spawnedEntries.get(head.requestKey)
+            if (pendingHead !== undefined) {
+              pendingHead.isPartial = true
+            }
+          }
           const dynamicRequestTree = diffRouteTreeAgainstCurrent(
             now,
             task,
