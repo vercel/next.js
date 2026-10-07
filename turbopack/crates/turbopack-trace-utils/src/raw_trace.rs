@@ -1,6 +1,6 @@
 use std::{
     borrow::Cow,
-    cell::Cell,
+    cell::{Cell, RefCell, RefMut},
     fmt::Write,
     marker::PhantomData,
     sync::atomic::{AtomicU64, Ordering},
@@ -65,6 +65,16 @@ fn get_id<S: Subscriber + for<'a> LookupSpan<'a>>(
         .id
 }
 
+/// The maximum gap between an `Exit` and the next `Enter` of the same span for which both rows
+/// are omitted. `entered` is how long the span was entered before the `Exit`.
+///
+/// Omitting the rows makes the trace show the span as entered during the gap, so its self time
+/// gains the gap. This is bounded to 1µs (the timestamp resolution) or 0.1% of the preceding
+/// entered interval of the span (which includes time spent in nested spans).
+fn max_exit_enter_gap(entered: u64) -> u64 {
+    (entered / 1000).max(1)
+}
+
 /// A tracing layer that writes raw trace data to a writer. We store data using the [`TraceRow`],
 /// serialized with [`postcard`].
 pub struct RawTraceLayer<S: Subscriber + for<'a> LookupSpan<'a>> {
@@ -74,11 +84,39 @@ pub struct RawTraceLayer<S: Subscriber + for<'a> LookupSpan<'a>> {
     memory: bool,
     /// Reads the allocation counters of the current thread. Only replaced in tests.
     allocation_counters: fn() -> Allocations,
-    /// The allocation counters of each thread at the time they were last reported, together
-    /// with the id of the thread. Slots of [`ThreadLocal`] are reused by new threads after a
-    /// thread exited, so the counters are only used when the thread id matches.
-    reported_allocations: ThreadLocal<Cell<(u64, Option<Allocations>)>>,
+    /// Returns the current timestamp in microseconds since `start`. Only replaced in tests.
+    clock: fn(Instant) -> u64,
+    threads: ThreadLocal<RefCell<ThreadState>>,
     _phantom: PhantomData<fn(S)>,
+}
+
+/// Per-thread state of the [`RawTraceLayer`].
+#[derive(Default)]
+struct ThreadState {
+    /// The thread this state belongs to. Slots of [`ThreadLocal`] are reused by new threads
+    /// after a thread exited, so the state is reset when this doesn't match.
+    thread_id: u64,
+    /// The allocation counters of the thread at the time they were last reported.
+    reported_allocations: Option<Allocations>,
+    /// The spans currently entered on this thread, with the timestamp of the Enter callback
+    /// (even if the row was omitted).
+    entered: Vec<(u64, u64)>,
+    /// The last `Exit` row written on this thread. It can be removed again when it's followed
+    /// by an `Enter` of the same span shortly after, see [`max_exit_enter_gap`].
+    last_exit: Option<LastExit>,
+    /// The marker for the next `Exit` row, see [`crate::trace_writer::WriteGuard::mark_row`].
+    next_marker: u64,
+}
+
+#[derive(Clone, Copy)]
+struct LastExit {
+    marker: u64,
+    id: u64,
+    ts: u64,
+    /// The maximum timestamp of an `Enter` for which this `Exit` can be omitted.
+    max_enter_ts: u64,
+    /// [`ThreadState::reported_allocations`] before the `Exit` row was written.
+    reported_allocations_before: Option<Allocations>,
 }
 
 fn thread_allocation_counters() -> Allocations {
@@ -105,9 +143,26 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> RawTraceLayer<S> {
             next_id: AtomicU64::new(1),
             memory,
             allocation_counters: thread_allocation_counters,
-            reported_allocations: ThreadLocal::new(),
+            clock: |start| start.elapsed().as_micros() as u64,
+            threads: ThreadLocal::new(),
             _phantom: PhantomData,
         }
+    }
+
+    fn now(&self) -> u64 {
+        (self.clock)(self.start)
+    }
+
+    /// Returns the state of the current thread, which has the id `thread_id`.
+    fn thread_state(&self, thread_id: u64) -> RefMut<'_, ThreadState> {
+        let mut state = self.threads.get_or_default().borrow_mut();
+        if state.thread_id != thread_id {
+            *state = ThreadState {
+                thread_id,
+                ..Default::default()
+            };
+        }
+        state
     }
 
     fn write(&self, data: TraceRow<'_>) {
@@ -115,6 +170,30 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> RawTraceLayer<S> {
         let guard = self.trace_writer.start_write();
         postcard::serialize_with_flavor(&data, WriteGuardFlavor { guard }).unwrap();
         TurboMalloc::reset_allocation_counters(start);
+    }
+
+    /// Writes a row and marks it with `marker`, so that it can be removed by the next write on
+    /// this thread. See [`crate::trace_writer::WriteGuard::mark_row`].
+    fn write_marked(&self, data: TraceRow<'_>, marker: u64) {
+        let start = TurboMalloc::allocation_counters();
+        let mut guard = self.trace_writer.start_write();
+        guard.mark_row(marker);
+        postcard::serialize_with_flavor(&data, WriteGuardFlavor { guard }).unwrap();
+        TurboMalloc::reset_allocation_counters(start);
+    }
+
+    /// Removes the last row written on this thread, if it is still in the thread local buffer
+    /// and is marked with `marker`. Returns `true` when it was removed.
+    fn remove_last_row(&self, marker: u64) -> bool {
+        let start = TurboMalloc::allocation_counters();
+        let mut guard = self.trace_writer.start_write();
+        let removed = guard.last_row_marker() == Some(marker);
+        if removed {
+            guard.remove_last_row();
+        }
+        drop(guard);
+        TurboMalloc::reset_allocation_counters(start);
+        removed
     }
 
     fn maybe_report_memory_sample(&self, ts: u64) {
@@ -160,17 +239,12 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> RawTraceLayer<S> {
     }
 
     /// Returns the allocations to attach to an Enter/Exit row: what the current thread
-    /// (de)allocated since its previous report. Returns `None` when memory isn't tracked, on
-    /// the first report of a thread (which only establishes the baseline), and when nothing
-    /// was (de)allocated since the previous report.
-    fn allocations(&self, thread_id: u64) -> Option<Allocations> {
-        if !self.memory {
-            return None;
-        }
-        let current = (self.allocation_counters)();
-        let reported = self.reported_allocations.get_or_default();
-        let (reported_thread_id, previous) = reported.replace((thread_id, Some(current)));
-        let previous = previous.filter(|_| reported_thread_id == thread_id)?;
+    /// (de)allocated since its previous report, given the `current` counters of the thread.
+    /// Returns `None` when memory isn't tracked, on the first report of a thread (which only
+    /// establishes the baseline), and when nothing was (de)allocated since the previous report.
+    fn allocations(state: &mut ThreadState, current: Option<Allocations>) -> Option<Allocations> {
+        let current = current?;
+        let previous = state.reported_allocations.replace(current)?;
         let delta = Allocations {
             allocations: current.allocations.saturating_sub(previous.allocations),
             allocation_count: current
@@ -192,7 +266,7 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for RawTraceLayer<S> {
         id: &span::Id,
         ctx: tracing_subscriber::layer::Context<'_, S>,
     ) {
-        let ts = self.start.elapsed().as_micros() as u64;
+        let ts = self.now();
         let mut values = ValuesVisitor::new();
         attrs.values().record(&mut values);
         let external_id = self
@@ -217,7 +291,7 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for RawTraceLayer<S> {
     }
 
     fn on_close(&self, id: span::Id, ctx: tracing_subscriber::layer::Context<'_, S>) {
-        let ts = self.start.elapsed().as_micros() as u64;
+        let ts = self.now();
         self.write(TraceRow::End {
             ts,
             id: get_id(ctx, &id),
@@ -225,34 +299,96 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for RawTraceLayer<S> {
     }
 
     fn on_enter(&self, id: &span::Id, ctx: tracing_subscriber::layer::Context<'_, S>) {
-        let ts = self.start.elapsed().as_micros() as u64;
+        // Allocations made by the tracing itself are excluded from the counters.
+        let malloc_counters = TurboMalloc::allocation_counters();
+        let current = self.memory.then(self.allocation_counters);
+        let ts = self.now();
         let thread_id = thread::current().id().as_u64().into();
-        if self.memory {
-            self.maybe_report_memory_sample(ts);
+        let id = get_id(ctx, id);
+        let enter_allocations = {
+            let mut state = self.thread_state(thread_id);
+            state.entered.push((id, ts));
+            // An `Exit` directly followed by an `Enter` of the same span (almost) at the same
+            // time has (almost) no effect on the trace data, so both rows can be omitted. This is
+            // common for async spans, which are exited and entered again on every poll.
+            if let Some(last_exit) = state.last_exit.take()
+                && last_exit.id == id
+                && last_exit.ts <= ts
+                && ts <= last_exit.max_enter_ts
+                // Nothing (de)allocated since the exit, otherwise the `Enter` would need to
+                // report it for the span that was running in between
+                && state.reported_allocations == current
+                && self.remove_last_row(last_exit.marker)
+            {
+                // What the span (de)allocated before the removed `Exit` is reported with the next
+                // row of this thread instead. The span is on top of the stack again at that
+                // point, so it's still attributed to it.
+                state.reported_allocations = last_exit.reported_allocations_before;
+                None
+            } else {
+                Some(Self::allocations(&mut state, current))
+            }
+        };
+        // `None` when the rows were omitted
+        if let Some(allocations) = enter_allocations {
+            if self.memory {
+                self.maybe_report_memory_sample(ts);
+            }
+            self.write(TraceRow::Enter {
+                ts,
+                id,
+                thread_id,
+                allocations,
+            });
         }
-        let allocations = self.allocations(thread_id);
-        self.write(TraceRow::Enter {
-            ts,
-            id: get_id(ctx, id),
-            thread_id,
-            allocations,
-        });
+        TurboMalloc::reset_allocation_counters(malloc_counters);
     }
 
     fn on_exit(&self, id: &span::Id, ctx: tracing_subscriber::layer::Context<'_, S>) {
-        let ts = self.start.elapsed().as_micros() as u64;
+        // Allocations made by the tracing itself are excluded from the counters.
+        let malloc_counters = TurboMalloc::allocation_counters();
+        let current = self.memory.then(self.allocation_counters);
+        let ts = self.now();
         let thread_id = thread::current().id().as_u64().into();
-        let allocations = self.allocations(thread_id);
-        self.write(TraceRow::Exit {
-            ts,
-            id: get_id(ctx, id),
-            thread_id,
-            allocations,
-        });
+        let id = get_id(ctx, id);
+        let (allocations, marker) = {
+            let mut state = self.thread_state(thread_id);
+            // The actual time of the matching Enter on this thread, even if its row was omitted
+            let enter_ts = match state
+                .entered
+                .iter()
+                .rposition(|&(entered, _)| entered == id)
+            {
+                Some(index) => state.entered.remove(index).1,
+                None => ts,
+            };
+            let reported_allocations_before = state.reported_allocations;
+            let allocations = Self::allocations(&mut state, current);
+            let marker = state.next_marker;
+            state.next_marker = marker.wrapping_add(1);
+            state.last_exit = Some(LastExit {
+                marker,
+                id,
+                ts,
+                max_enter_ts: ts.saturating_add(max_exit_enter_gap(ts.saturating_sub(enter_ts))),
+                reported_allocations_before,
+            });
+            (allocations, marker)
+        };
+        self.write_marked(
+            TraceRow::Exit {
+                ts,
+                id,
+                thread_id,
+                allocations,
+            },
+            marker,
+        );
+        TurboMalloc::reset_allocation_counters(malloc_counters);
     }
 
     fn on_event(&self, event: &tracing::Event<'_>, ctx: tracing_subscriber::layer::Context<'_, S>) {
-        let ts = self.start.elapsed().as_micros() as u64;
+        let ts = self.now();
         let mut values = ValuesVisitor::new();
         event.record(&mut values);
         self.write(TraceRow::Event {
@@ -369,6 +505,25 @@ pub(crate) mod tests {
                 deallocation_count: 0,
             })
         };
+        /// Fake time of the current thread, controlled by the test.
+        static FAKE_TIME: Cell<u64> = const { Cell::new(0) };
+        /// How much the fake time advances on every read. Tests can set it to 0 to freeze it.
+        static FAKE_TIME_STEP: Cell<u64> = const { Cell::new(1) };
+    }
+
+    fn fake_clock(_start: std::time::Instant) -> u64 {
+        let step = FAKE_TIME_STEP.with(|s| s.get());
+        FAKE_TIME.with(|t| {
+            let time = t.get();
+            t.set(time + step);
+            time
+        })
+    }
+
+    /// Freezes the fake time of the current thread at `time`.
+    fn freeze_time(time: u64) {
+        FAKE_TIME.with(|t| t.set(time));
+        FAKE_TIME_STEP.with(|s| s.set(0));
     }
 
     fn fake_allocation_counters() -> Allocations {
@@ -413,10 +568,12 @@ pub(crate) mod tests {
     /// returns the complete trace file content. Allocation counters are read from the fake
     /// counters controlled by [`fake_allocate`] and [`fake_deallocate`].
     pub(crate) fn capture(options: RawTraceLayerOptions, f: impl FnOnce()) -> Vec<u8> {
+        FAKE_TIME_STEP.with(|s| s.set(1));
         let buffer = SharedBuffer::default();
         let (trace_writer, guard) = TraceWriter::new(buffer.clone());
         let mut layer = RawTraceLayer::with_options(trace_writer, options);
         layer.allocation_counters = fake_allocation_counters;
+        layer.clock = fake_clock;
         let subscriber = Registry::default().with(layer);
         tracing::subscriber::with_default(subscriber, f);
         // Flushes all buffers and waits for the writer thread to finish.
@@ -534,8 +691,193 @@ pub(crate) mod tests {
         assert_eq!(rows.len(), 4);
     }
 
+    /// Returns the Enter/Exit rows as `(kind, span id, ts)` tuples.
+    fn enter_exit_rows(rows: &[TraceRow<'_>]) -> Vec<(&'static str, u64, u64)> {
+        rows.iter()
+            .filter_map(|row| match row {
+                TraceRow::Enter { id, ts, .. } => Some(("enter", *id, *ts)),
+                TraceRow::Exit { id, ts, .. } => Some(("exit", *id, *ts)),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// Enters and exits the same span twice.
+    fn reenter_span(between: impl FnOnce()) {
+        let span = tracing::info_span!("span");
+        drop(span.enter());
+        between();
+        drop(span.enter());
+    }
+
+    fn assert_not_elided(rows: &[TraceRow<'_>]) {
+        let kinds: Vec<_> = enter_exit_rows(rows).iter().map(|r| r.0).collect();
+        assert_eq!(kinds, vec!["enter", "exit", "enter", "exit"]);
+    }
+
     #[test]
-    fn resets_allocation_baseline_when_a_thread_slot_is_reused() {
+    fn elides_exit_enter_pair_of_same_span_at_same_timestamp() {
+        for memory in [true, false] {
+            let data = capture(RawTraceLayerOptions { memory }, || {
+                freeze_time(10);
+                reenter_span(|| {});
+            });
+            let rows = decode(&data);
+            assert_eq!(
+                enter_exit_rows(&rows),
+                vec![("enter", 1, 10), ("exit", 1, 10)],
+                "memory: {memory}"
+            );
+            assert_eq!(rows.len(), 4, "memory: {memory}");
+        }
+    }
+
+    #[test]
+    fn keeps_exit_enter_pair_with_larger_gap() {
+        let data = capture(RawTraceLayerOptions::default(), || {
+            freeze_time(10);
+            // Entered for 0µs, so only a gap of up to 1µs is allowed
+            reenter_span(|| freeze_time(12));
+        });
+        assert_not_elided(&decode(&data));
+    }
+
+    #[test]
+    fn elides_exit_enter_pair_with_1us_gap() {
+        let data = capture(RawTraceLayerOptions::default(), || {
+            freeze_time(10);
+            reenter_span(|| freeze_time(11));
+        });
+        assert_eq!(
+            enter_exit_rows(&decode(&data)),
+            vec![("enter", 1, 10), ("exit", 1, 11)]
+        );
+    }
+
+    /// Enters a span at `enter`, exits it at `exit`, enters it again at `reenter` and exits it
+    /// at `reenter + 1000`.
+    fn reenter_at(enter: u64, exit: u64, reenter: u64) -> Vec<(&'static str, u64, u64)> {
+        let data = capture(RawTraceLayerOptions::default(), || {
+            freeze_time(enter);
+            let span = tracing::info_span!("span");
+            let guard = span.enter();
+            freeze_time(exit);
+            drop(guard);
+            freeze_time(reenter);
+            let guard = span.enter();
+            freeze_time(reenter + 1000);
+            drop(guard);
+        });
+        enter_exit_rows(&decode(&data))
+    }
+
+    #[test]
+    fn elides_exit_enter_pair_with_gap_up_to_a_thousandth_of_the_entered_duration() {
+        assert_eq!(
+            reenter_at(0, 3000, 3003),
+            vec![("enter", 1, 0), ("exit", 1, 4003)]
+        );
+        assert_eq!(
+            reenter_at(0, 3000, 3004),
+            vec![
+                ("enter", 1, 0),
+                ("exit", 1, 3000),
+                ("enter", 1, 3004),
+                ("exit", 1, 4004)
+            ]
+        );
+    }
+
+    #[test]
+    fn chained_elisions_use_the_actual_entered_duration() {
+        let data = capture(RawTraceLayerOptions::default(), || {
+            freeze_time(0);
+            let span = tracing::info_span!("span");
+            for (enter, exit) in [(0, 2000), (2002, 3000), (3002, 4000)] {
+                freeze_time(enter);
+                let guard = span.enter();
+                freeze_time(exit);
+                drop(guard);
+            }
+        });
+        assert_eq!(
+            enter_exit_rows(&decode(&data)),
+            vec![
+                // The first gap of 2µs is allowed after 2000µs
+                ("enter", 1, 0),
+                // The second gap of 2µs is not allowed after 998µs
+                ("exit", 1, 3000),
+                ("enter", 1, 3002),
+                ("exit", 1, 4000)
+            ]
+        );
+    }
+
+    #[test]
+    fn keeps_exit_enter_pair_of_different_spans() {
+        let data = capture(RawTraceLayerOptions::default(), || {
+            freeze_time(10);
+            let a = tracing::info_span!("a");
+            let b = tracing::info_span!("b");
+            drop(a.enter());
+            drop(b.enter());
+        });
+        assert_not_elided(&decode(&data));
+    }
+
+    #[test]
+    fn keeps_exit_enter_pair_with_allocations_in_between() {
+        let data = capture(RawTraceLayerOptions::default(), || {
+            freeze_time(10);
+            reenter_span(|| fake_allocate(8, 1));
+        });
+        let rows = decode(&data);
+        assert_not_elided(&rows);
+        // The allocation is reported with the `Enter`, for whatever ran before
+        assert_eq!(
+            enter_exit_allocations(&rows)[2],
+            (
+                "enter",
+                Some(Allocations {
+                    allocations: 8,
+                    allocation_count: 1,
+                    deallocations: 0,
+                    deallocation_count: 0,
+                })
+            )
+        );
+    }
+
+    #[test]
+    fn keeps_exit_enter_pair_with_row_in_between() {
+        let data = capture(RawTraceLayerOptions::default(), || {
+            freeze_time(10);
+            reenter_span(|| tracing::info!("event"));
+        });
+        let rows = decode(&data);
+        assert_not_elided(&rows);
+        assert_eq!(count(&rows, |r| matches!(r, TraceRow::Event { .. })), 1);
+    }
+
+    #[test]
+    fn keeps_exit_enter_pair_on_different_threads() {
+        let data = capture(RawTraceLayerOptions::default(), || {
+            freeze_time(10);
+            let span = tracing::info_span!("span");
+            drop(span.enter());
+            let dispatch = tracing::dispatcher::get_default(|d| d.clone());
+            std::thread::scope(|scope| {
+                scope.spawn(|| {
+                    freeze_time(10);
+                    tracing::dispatcher::with_default(&dispatch, || drop(span.enter()));
+                });
+            });
+        });
+        assert_not_elided(&decode(&data));
+    }
+
+    #[test]
+    fn resets_state_when_a_thread_slot_is_reused() {
         let data = capture(RawTraceLayerOptions::default(), || {
             let span = tracing::info_span!("span");
             let dispatch = tracing::dispatcher::get_default(|d| d.clone());
@@ -543,16 +885,18 @@ pub(crate) mod tests {
             for i in 1..=2 {
                 std::thread::scope(|scope| {
                     scope.spawn(|| {
+                        freeze_time(10);
                         fake_allocate(1000 * i, 1);
                         tracing::dispatcher::with_default(&dispatch, || drop(span.enter()));
                     });
                 });
             }
         });
-        // Each thread reports its own baseline (`None`) first instead of the difference to the
-        // counters of the other thread.
+        let rows = decode(&data);
+        // Neither elided across threads nor diffed against the other thread's counters: each
+        // thread reports its own baseline (`None`) first.
         assert_eq!(
-            enter_exit_allocations(&decode(&data)),
+            enter_exit_allocations(&rows),
             vec![
                 ("enter", None),
                 ("exit", None),
@@ -560,5 +904,110 @@ pub(crate) mod tests {
                 ("exit", None)
             ]
         );
+        let threads: Vec<_> = rows
+            .iter()
+            .filter_map(|row| match row {
+                TraceRow::Enter { thread_id, .. } => Some(*thread_id),
+                _ => None,
+            })
+            .collect();
+        assert_ne!(threads[0], threads[1]);
+    }
+
+    #[test]
+    fn uses_the_enter_of_the_same_thread_for_the_entered_duration() {
+        let data = capture(RawTraceLayerOptions::default(), || {
+            let span = tracing::info_span!("span");
+            let dispatch = tracing::dispatcher::get_default(|d| d.clone());
+            // The span is entered at 0 on this thread and at 2900 on another thread
+            freeze_time(0);
+            let guard = span.enter();
+            std::thread::scope(|scope| {
+                scope.spawn(|| {
+                    freeze_time(2900);
+                    tracing::dispatcher::with_default(&dispatch, || {
+                        let _guard = span.enter();
+                        freeze_time(2950);
+                    });
+                });
+            });
+            freeze_time(3000);
+            drop(guard);
+            // A gap of 3µs is allowed after 3000µs entered on this thread
+            freeze_time(3003);
+            drop(span.enter());
+        });
+        let rows = decode(&data);
+        let mut by_thread: Vec<(u64, Vec<(&str, u64)>)> = Vec::new();
+        for row in &rows {
+            let (kind, thread, ts) = match row {
+                TraceRow::Enter { thread_id, ts, .. } => ("enter", *thread_id, *ts),
+                TraceRow::Exit { thread_id, ts, .. } => ("exit", *thread_id, *ts),
+                _ => continue,
+            };
+            match by_thread.iter_mut().find(|(t, _)| *t == thread) {
+                Some((_, rows)) => rows.push((kind, ts)),
+                None => by_thread.push((thread, vec![(kind, ts)])),
+            }
+        }
+        let mut by_thread: Vec<_> = by_thread.into_iter().map(|(_, rows)| rows).collect();
+        by_thread.sort();
+        assert_eq!(
+            by_thread,
+            vec![
+                // This thread: the re-enter is omitted
+                vec![("enter", 0), ("exit", 3003)],
+                // The other thread
+                vec![("enter", 2900), ("exit", 2950)],
+            ]
+        );
+    }
+
+    #[test]
+    fn elision_preserves_allocations_of_the_exited_span() {
+        let run = |freeze: bool| {
+            let data = capture(RawTraceLayerOptions::default(), || {
+                freeze_time(10);
+                let span = tracing::info_span!("span");
+                let guard = span.enter();
+                fake_allocate(50, 1);
+                drop(guard);
+                if !freeze {
+                    // Too large to be elided
+                    freeze_time(12);
+                }
+                let guard = span.enter();
+                fake_allocate(7, 1);
+                fake_deallocate(3, 1);
+                drop(guard);
+            });
+            let rows = decode(&data);
+            let rows_count = enter_exit_rows(&rows).len();
+            // All allocations happen inside of the span, so the total of all reports is what
+            // is attributed to the span.
+            let total = enter_exit_allocations(&rows)
+                .into_iter()
+                .filter_map(|(_, allocations)| allocations)
+                .fold(Allocations::default(), |a, b| Allocations {
+                    allocations: a.allocations + b.allocations,
+                    allocation_count: a.allocation_count + b.allocation_count,
+                    deallocations: a.deallocations + b.deallocations,
+                    deallocation_count: a.deallocation_count + b.deallocation_count,
+                });
+            (rows_count, total)
+        };
+        let (elided_rows, elided_total) = run(true);
+        let (rows, total) = run(false);
+        assert_eq!((elided_rows, rows), (2, 4));
+        assert_eq!(
+            elided_total,
+            Allocations {
+                allocations: 57,
+                allocation_count: 2,
+                deallocations: 3,
+                deallocation_count: 1,
+            }
+        );
+        assert_eq!(elided_total, total);
     }
 }
