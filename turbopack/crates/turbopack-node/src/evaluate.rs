@@ -557,7 +557,7 @@ async fn pull_operation<T: EvaluateContext>(
     evaluate_context: &T,
     state: &mut T::State,
 ) -> Result<Option<String>> {
-    let _guard = duration_span!("Node.js evaluation");
+    let _guard = duration_span!("Node.js evaluation", blocking = false);
 
     loop {
         let recv_result = operation.recv().await;

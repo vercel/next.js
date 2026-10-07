@@ -276,6 +276,7 @@ impl TurboBackingStorage {
                                 meta,
                                 data,
                                 task_type_hash,
+                                ..
                             } => {
                                 let key = IntKey::new(*task_id);
                                 let key = key.as_ref();

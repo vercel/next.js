@@ -14,6 +14,7 @@ use turbopack_trace_utils::{
     exit::ExitHandler,
     filter_layer::FilterLayer,
     raw_trace::RawTraceLayer,
+    tokio_workers,
     trace_writer::TraceWriter,
     tracing_presets::{
         TRACING_OVERVIEW_TARGETS, TRACING_TURBO_TASKS_TARGETS, TRACING_TURBOPACK_TARGETS,
@@ -40,8 +41,12 @@ pub struct Arguments {
 static ALLOC: TurboMalloc = TurboMalloc;
 
 fn main() {
+    tokio_workers::set_worker_threads(tokio_workers::default_worker_threads());
     let mut rt = tokio::runtime::Builder::new_multi_thread();
-    rt.enable_all().disable_lifo_slot();
+    rt.enable_all()
+        .disable_lifo_slot()
+        .on_thread_park(tokio_workers::park)
+        .on_thread_unpark(tokio_workers::unpark);
 
     let args = Arguments::parse();
     rt.build().unwrap().block_on(main_inner(args)).unwrap();
