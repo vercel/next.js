@@ -604,7 +604,7 @@ Streaming enables [selective hydration](https://react.dev/reference/react-dom/cl
 
 ### Early resource discovery
 
-The static shell includes `<link>` and `<script>` tags in the very first HTML chunk. The browser discovers and starts fetching CSS, JavaScript, and fonts immediately, while the server is still generating content. Resources are fetched during server think time rather than after it.
+The static shell includes `<link>` and `<script>` tags in the very first HTML chunk. The browser discovers and starts fetching CSS, JavaScript, and fonts immediately, while the server is still generating content. With Cache Components, Next.js sends this shell even when it contains no visible UI, so resource loading can start before request-time rendering finishes.
 
 In the [dashboard example](#parallel-streaming-with-sibling-boundaries) above, the `<h1>` renders in the shell (good for LCP), each data section streams independently behind its own Suspense boundary (good for INP since hydration is split), and the skeleton fallbacks reserve space (good for CLS).
 

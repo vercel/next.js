@@ -98,7 +98,7 @@ Each error identifies the component that would block navigation. The fix is usua
 
 `instant = false` only changes validation. It does not disable prerendering or streaming.
 
-If a route sends a static shell before its blocking work finishes, the response starts with a `200` status. Calls to [`redirect()`](/docs/app/api-reference/functions/redirect) or [`notFound()`](/docs/app/api-reference/functions/not-found) after that point cannot change the status. Run checks that require a `3xx` or `4xx` status before streaming begins. See [Status codes](/docs/app/api-reference/file-conventions/loading#status-codes).
+If a route sends a static shell before its blocking work finishes, the response starts with a `200` status. Calls to [`redirect()`](/docs/app/api-reference/functions/redirect) or [`notFound()`](/docs/app/api-reference/functions/not-found) after that point cannot change the status. To guarantee a `3xx` or `4xx` response, run the check before the page renders, such as in [Proxy](/docs/app/api-reference/file-conventions/proxy). See [The HTTP contract](/docs/app/guides/streaming#the-http-contract) for details.
 
 ## How `instant` differs from `ensureStatic`
 
