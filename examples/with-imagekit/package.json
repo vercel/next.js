@@ -1,0 +1,29 @@
+{
+  "name": "with-imagekit-1",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "imagekit": "^6.0.0",
+    "imagekitio-next": "^1.0.1",
+    "next": "15.1.5",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-responsive-masonry": "^2.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/react-responsive-masonry": "^2.6.0",
+    "postcss": "^8",
+    "prop-types": "^15.8.1",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5"
+  }
+}
