@@ -1,3 +1,6 @@
+// The static tokens are still used by the weekly project-reset cron and the
+// release deploy tests. The PR deploy tests instead use a short-lived access
+// token vended by vercel/authenticate-cli-action in the workflow.
 export const TEST_PROJECT_NAME = 'vtest314-e2e-tests'
 export const TEST_TEAM_NAME = process.env.VERCEL_TEST_TEAM
 export const TEST_TOKEN = process.env.VERCEL_TEST_TOKEN
@@ -34,11 +37,8 @@ async function fetchWithRetry(
   options = {},
   { maxRetries = 5, acceptableStatuses = [], operationName = 'Request' } = {}
 ) {
-  let lastError
-  let response
-
   for (let attempt = 0; attempt < maxRetries; attempt++) {
-    response = await fetch(url, options)
+    const response = await fetch(url, options)
 
     // Check if response is acceptable
     if (response.ok || acceptableStatuses.includes(response.status)) {
@@ -52,19 +52,23 @@ async function fetchWithRetry(
       console.log(
         `${operationName} failed with status ${response.status} (attempt ${attempt + 1}/${maxRetries}), waiting ${delay}ms before retrying...`
       )
-      lastError = `${operationName} failed. Got status: ${response.status}, ${errorText}`
       await new Promise((resolve) => setTimeout(resolve, delay))
-      continue
+    } else {
+      // Last attempt failed, capture error
+      throw new Error(`${operationName} failed: ${await response.text()}`, {
+        cause: {
+          url: response.url,
+          status: response.status,
+          statusText: response.statusText,
+          headers: JSON.stringify(
+            Object.fromEntries(response.headers.entries())
+          ),
+        },
+      })
     }
-
-    // Last attempt failed, capture error
-    lastError = `${operationName} failed. Got status: ${
-      response.status
-    }, ${await response.text()}`
   }
 
-  // All retries exhausted
-  throw new Error(lastError)
+  throw new Error('Unreachable code reached in fetchWithRetry')
 }
 
 export async function resetProject({

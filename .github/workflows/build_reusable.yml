@@ -105,6 +105,14 @@ on:
         required: false
         type: string
         default: 'yes'
+      vercelDeployTeamId:
+        description: >-
+          Canonical Vercel team ID (team_...) that deploy tests authenticate
+          against. When set, a short-lived access token is vended via OIDC
+          before afterBuild runs. Leave empty for jobs that do not deploy.
+        required: false
+        type: string
+        default: ''
 env:
   # Newest @napi-rs/cli that runs on Node.js 20.9.0 (NODE_LTS_VERSION below):
   # 3.5.0+ depends on @inquirer/prompts 8, whose @inquirer/core 11 requires
@@ -144,11 +152,8 @@ env:
   NEXT_TEST_JOB: 1
   # Per-job memoization of passed test files.
   NEXT_TEST_PASSED_FILE: .next-test-passed.txt
-  VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
   VERCEL_TEST_TEAM: vtest314-next-e2e-tests
-  VERCEL_ADAPTER_TEST_TOKEN: ${{ secrets.VERCEL_ADAPTER_TEST_TOKEN }}
   VERCEL_ADAPTER_TEST_TEAM: vtest314-next-adapter-e2e-tests
-  VERCEL_TURBOPACK_TEST_TOKEN: ${{ secrets.VERCEL_TURBOPACK_TEST_TOKEN }}
   VERCEL_TURBOPACK_TEST_TEAM: vtest314-next-turbo-e2e-tests
   PREVIEW_BUILDS_ACCESS: ${{ vars.PREVIEW_BUILDS_ACCESS }}
   NEXT_TEST_PREVIEW_BUILDS_BASE_URL: ${{ vars.PREVIEW_BUILDS_BASE_URL }}
@@ -437,6 +442,14 @@ jobs:
 
       - name: Wait for background setup steps
         wait-all:
+
+      # Exports VERCEL_TOKEN for the test process running in afterBuild. The
+      # job needs `id-token: write` (granted by the caller) for the exchange.
+      - name: Vend Vercel access token for deploy tests
+        if: ${{ inputs.vercelDeployTeamId != '' }}
+        uses: vercel/authenticate-cli-action@cec4e78ed4686ab05721608393617a31147f082b
+        with:
+          team: ${{ inputs.vercelDeployTeamId }}
 
       - run: ${{ inputs.afterBuild }}
         id: after-build
