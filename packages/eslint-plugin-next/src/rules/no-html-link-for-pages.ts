@@ -8,6 +8,7 @@ import {
   normalizeURL,
   execOnce,
   getUrlFromAppDirectory,
+  DEFAULT_PAGE_EXTENSIONS,
 } from '../utils/url'
 
 const pagesDirWarning = execOnce((pagesDirs) => {
@@ -20,7 +21,21 @@ const pagesDirWarning = execOnce((pagesDirs) => {
 // Cache for fs.existsSync lookup.
 // Prevent multiple blocking IO requests that have already been calculated.
 const fsExistsSyncCache = {}
+const fsReadFileSyncCache = {}
+const pageExtensionsCache = {}
 
+// Supported next.config file types
+const nextConfigFiles = [
+  'next.config.js',
+  'next.config.mjs',
+  'next.config.cjs',
+  'next.config.ts',
+  'next.config.mts',
+  'next.config.cts',
+]
+
+// Cache for fs.existsSync lookup.
+// Prevent multiple blocking IO requests that have already been calculated.
 const memoize = <T = any>(fn: (...args: any[]) => T) => {
   const cache = {}
   return (...args: any[]): T => {
@@ -30,6 +45,69 @@ const memoize = <T = any>(fn: (...args: any[]) => T) => {
     }
     return cache[key]
   }
+}
+
+// Parse pageExtensions from config content
+const parsePageExtensions = (nextConfigContents: string) => {
+  const pageExtensionsMatch = nextConfigContents.match(
+    /\bpageExtensions\s*:\s*\[([\s\S]*?)\]/
+  )
+  if (!pageExtensionsMatch) return
+
+  const extensions = []
+  const extensionRegex = /(['"`])((?:\\.|(?!\1)[\s\S])*)\1/g
+  let extensionMatch
+
+  while ((extensionMatch = extensionRegex.exec(pageExtensionsMatch[1]))) {
+    const extension = extensionMatch[2].trim().replace(/^\./, '')
+    if (extension.length > 0) {
+      extensions.push(extension)
+    }
+  }
+
+  if (extensions.length === 0) return
+  return Array.from(new Set(extensions))
+}
+
+// Get page extensions from config files in root directories
+const getPageExtensions = (rootDirs: string[]) => {
+  const discoveredPageExtensions = rootDirs.flatMap((rootDir) => {
+    if (pageExtensionsCache[rootDir] !== undefined) {
+      return pageExtensionsCache[rootDir]
+    }
+
+    let pageExtensions = DEFAULT_PAGE_EXTENSIONS
+
+    for (const nextConfigFile of nextConfigFiles) {
+      const nextConfigPath = path.join(rootDir, nextConfigFile)
+      if (fsExistsSyncCache[nextConfigPath] === undefined) {
+        fsExistsSyncCache[nextConfigPath] = fs.existsSync(nextConfigPath)
+      }
+      if (!fsExistsSyncCache[nextConfigPath]) continue
+
+      if (fsReadFileSyncCache[nextConfigPath] === undefined) {
+        fsReadFileSyncCache[nextConfigPath] = fs.readFileSync(
+          nextConfigPath,
+          'utf8'
+        )
+      }
+
+      const configuredPageExtensions = parsePageExtensions(
+        fsReadFileSyncCache[nextConfigPath]
+      )
+      if (configuredPageExtensions) {
+        pageExtensions = configuredPageExtensions
+      }
+      break
+    }
+
+    pageExtensionsCache[rootDir] = pageExtensions
+    return pageExtensions
+  })
+
+  return discoveredPageExtensions.length > 0
+    ? Array.from(new Set(discoveredPageExtensions))
+    : DEFAULT_PAGE_EXTENSIONS
 }
 
 const cachedGetUrlFromPagesDirectories = memoize(getUrlFromPagesDirectories)
@@ -107,8 +185,18 @@ export default defineRule({
       return {}
     }
 
-    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs)
-    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs)
+    const pageExtensions = getPageExtensions(rootDirs)
+
+    const pageUrls = cachedGetUrlFromPagesDirectories(
+      '/',
+      foundPagesDirs,
+      pageExtensions
+    )
+    const appDirUrls = cachedGetUrlFromAppDirectory(
+      '/',
+      foundAppDirs,
+      pageExtensions
+    )
     const allUrlRegex = [...pageUrls, ...appDirUrls]
 
     return {
