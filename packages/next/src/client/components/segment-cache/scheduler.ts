@@ -860,9 +860,9 @@ function pingRootRouteTree(
 
       // A task's fetch strategy gets set to `PPR` for any "auto" prefetch.
       // If it turned out that the route isn't PPR-enabled, we need to use `LoadingBoundary` instead.
-      // We don't need to do this for runtime prefetches, because those are only available in
-      // `cacheComponents`, where every route is PPR.
-      let fetchStrategy: FetchStrategy
+      let fetchStrategy:
+        | PrefetchTaskFetchStrategy
+        | FetchStrategy.LoadingBoundary
       if (tree.prefetchHints & PrefetchHint.SubtreeHasPartialPrefetching) {
         // If Partial Prefetching is enabled anywhere on the target route,
         // ignore the fetch strategy and switch to unified strategy used by
@@ -1027,7 +1027,6 @@ function pingRootRouteTree(
           return PrefetchTaskExitStatus.Done
         }
         case FetchStrategy.Full:
-        case FetchStrategy.PPRRuntime:
         case FetchStrategy.LoadingBoundary: {
           if (task.phase === PrefetchPhase.Shell) {
             // Shell phase only does work on routes that use the PPR strategy
@@ -1177,23 +1176,10 @@ function shouldSegmentAttemptStaticRequest(
 }
 
 /**
- * The runtime counterpart of a pass's static walk strategy: the strategy the
- * batched runtime request uses if this walk deopts. Each phase has exactly one
- * — the Shell phase escalates to a shell-scoped runtime request
- * (RuntimeShell), the Speculative phase to a per-link concrete
- * runtime prefetch.
- */
-function getRuntimeStrategyForWalk(
-  staticWalkStrategy: FetchStrategy.PPR | FetchStrategy.StaticShell
-): FetchStrategy.RuntimeShell | FetchStrategy.PPRRuntime {
-  return staticWalkStrategy === FetchStrategy.StaticShell
-    ? FetchStrategy.RuntimeShell
-    : FetchStrategy.PPRRuntime
-}
-
-/**
  * Whether this phase's runtime request would return more content for a
- * fulfilled entry than the entry already holds.
+ * fulfilled entry than the entry already holds. The Shell phase escalates to
+ * a shell-scoped runtime request (RuntimeShell), the Speculative phase to a
+ * per-link concrete runtime prefetch (PPRRuntime).
  *
  * An entry records the tier its CONTENT achieved, not the one it was requested
  * at, and that tier spans both axes — so a static response that needed no
@@ -1208,7 +1194,9 @@ function wouldRuntimeRequestProvideMore(
 ): boolean {
   return canNewFetchStrategyProvideMoreContent(
     entry.fetchStrategy,
-    getRuntimeStrategyForWalk(staticWalkStrategy)
+    staticWalkStrategy === FetchStrategy.StaticShell
+      ? FetchStrategy.RuntimeShell
+      : FetchStrategy.PPRRuntime
   )
 }
 
@@ -1598,10 +1586,7 @@ function diffRouteTreeAgainstCurrent(
   oldTree: RouteTree<CacheNode>,
   newTree: RouteTree<null>,
   spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry>,
-  fetchStrategy:
-    | FetchStrategy.Full
-    | FetchStrategy.PPRRuntime
-    | FetchStrategy.LoadingBoundary
+  fetchStrategy: FetchStrategy.Full | FetchStrategy.LoadingBoundary
 ): FlightRouterState {
   // This is a single recursive traversal that does multiple things:
   // - Finds the segments that differ from the current route, comparing each
@@ -1659,10 +1644,7 @@ function diffSegmentAgainstCurrent(
   oldTree: RouteTree<CacheNode> | undefined,
   newTree: RouteTree<null>,
   spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry>,
-  fetchStrategy:
-    | FetchStrategy.Full
-    | FetchStrategy.PPRRuntime
-    | FetchStrategy.LoadingBoundary
+  fetchStrategy: FetchStrategy.Full | FetchStrategy.LoadingBoundary
 ): FlightRouterState {
   if (oldTree !== undefined && doesRouteStructureMatch(oldTree, newTree)) {
     // This segment is already part of the current route.
@@ -1715,19 +1697,6 @@ function diffSegmentAgainstCurrent(
       }
       // There's no loading boundary within this tree. Bail out.
       return convertRouteTreeToFlightRouterState(newTree)
-    }
-    case FetchStrategy.PPRRuntime: {
-      // This is a runtime prefetch. Fetch all cacheable data in the tree,
-      // not just the static PPR shell.
-      return pingRouteTreeAndIncludeDynamicData(
-        now,
-        task,
-        route,
-        newTree,
-        false,
-        spawnedEntries,
-        fetchStrategy
-      )
     }
     case FetchStrategy.Full: {
       // This is a "full" prefetch. Fetch all the data in the tree, both
