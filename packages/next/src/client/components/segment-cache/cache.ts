@@ -2756,6 +2756,36 @@ export async function fetchSegmentPrefetchesUsingRuntimeRequest(
     const isFullResponsePartial =
       completeness === Completeness.CacheComplete && response.isPartial
 
+    let entriesToFulfill: Map<
+      SegmentRequestKey,
+      PendingSegmentCacheEntry
+    > | null = spawnedEntries
+    if (
+      completeness === Completeness.CacheComplete &&
+      serverData.u !== undefined &&
+      readFulfilledValue(serverData.u, false, /* rejectedValue */ true) ===
+        true &&
+      (prefetchStageResponse?.u === undefined ||
+        readFulfilledValue(
+          prefetchStageResponse.u,
+          false,
+          /* rejectedValue */ true
+        ) === true)
+    ) {
+      // We sent a runtime request, but got back a static prerender that
+      // still needs runtime data (for example, the server served a stale
+      // prerender). Asking again won't get us more, so treat it as a failed
+      // attempt. We still write the payload, but we reject the spawned
+      // entries, and their backoff limits how often we retry. This check
+      // matches how writeServerResponseIntoCache records a static payload's
+      // completeness, so if you change one, change the other.
+      rejectSegmentEntriesIfStillPending(
+        spawnedEntries,
+        now + REJECTION_BACKOFF_MS
+      )
+      entriesToFulfill = null
+    }
+
     // Aside from writing the data into the cache, this also returns the
     // entries that were fulfilled, so we can streamingly update their sizes
     // in the LRU as more data comes in (legacy full responses, which
@@ -2779,7 +2809,7 @@ export async function fetchSegmentPrefetchesUsingRuntimeRequest(
       staleAt,
       isFullResponsePartial,
       null,
-      spawnedEntries,
+      entriesToFulfill,
       bufferedResponseSize,
       task.segmentCacheMap
     )
