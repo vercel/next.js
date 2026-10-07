@@ -1048,6 +1048,10 @@ export function overwriteRevalidatingSegmentCacheEntry(
  * deciding whether an entry at a more specific keypath may be evicted because
  * it shadows a just-inserted candidate (see `evictShadowingSegmentEntries`).
  *
+ * When exactly one of the two entries is non-partial, it wins, whatever
+ * strategy fetched it: it has nothing left to fetch. Otherwise the entry
+ * fetched with the more specific strategy wins.
+ *
  * Note that "less/more specific" in the comments below refers to fetch
  * strategy content tiers (how much content a strategy can produce), not the
  * vary-path specificity the eviction docs are concerned with.
@@ -1064,18 +1068,18 @@ function isExistingSegmentEntryPreferred(
     // in favor of an entry with nothing in it.)
     return false
   }
+  if (existingEntry.isPartial !== candidateEntry.isPartial) {
+    return !existingEntry.isPartial
+  }
+  // We fetched the new segment using a different, less specific fetch
+  // strategy than the segment we already have in the cache, so it can't have
+  // more content.
   return (
-    // We fetched the new segment using a different, less specific fetch
-    // strategy than the segment we already have in the cache, so it can't
-    // have more content.
-    (candidateEntry.fetchStrategy !== existingEntry.fetchStrategy &&
-      !canNewFetchStrategyProvideMoreContent(
-        existingEntry.fetchStrategy,
-        candidateEntry.fetchStrategy
-      )) ||
-    // The existing entry isn't partial, but the new one is.
-    // (TODO: can this be true if `candidateEntry.fetchStrategy >= existingEntry.fetchStrategy`?)
-    (!existingEntry.isPartial && candidateEntry.isPartial)
+    candidateEntry.fetchStrategy !== existingEntry.fetchStrategy &&
+    !canNewFetchStrategyProvideMoreContent(
+      existingEntry.fetchStrategy,
+      candidateEntry.fetchStrategy
+    )
   )
 }
 
