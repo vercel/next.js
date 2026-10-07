@@ -276,8 +276,12 @@ function hasType(node: tsModule.Declaration): boolean {
     }
   }
 
-  // For all other cases, check if the node has a type annotation
-  return !!node.type
+  // For all other cases, check if the node has a type annotation or a
+  // `satisfies` clause.
+  return (
+    !!node.type ||
+    (!!node.initializer && ts.isSatisfiesExpression(node.initializer))
+  )
 }
 
 export default metadata
