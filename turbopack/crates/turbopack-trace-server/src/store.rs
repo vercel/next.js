@@ -398,12 +398,13 @@ impl Store {
     /// start/end).
     ///
     /// When the raw slice exceeds `MAX_MEMORY_SAMPLES`, each merged group
-    /// takes the timestamp, memory value and worker count of its max-memory
-    /// sample, while pressure and footprint are the max over the whole group
+    /// takes the timestamp and memory value of its max-memory sample, while
+    /// pressure, footprint and worker count are the max over the whole group
     /// (each column is maxed independently). Per group the peak of each signal
     /// is what matters, and this keeps the values identical to those returned
-    /// by [`Self::memory_pressure_samples_for_range`] and
-    /// [`Self::memory_footprint_samples_for_range`].
+    /// by [`Self::memory_pressure_samples_for_range`],
+    /// [`Self::memory_footprint_samples_for_range`] and
+    /// [`Self::active_worker_threads_samples_for_range`].
     pub fn memory_samples_for_range_with_ts(
         &self,
         start: Timestamp,
@@ -420,22 +421,25 @@ impl Store {
         }
 
         // Merge groups of N samples: timestamp and memory come from the
-        // max-memory sample, pressure and footprint are column maxes.
+        // max-memory sample, pressure, footprint and workers are column maxes.
         let n = count.div_ceil(MAX_MEMORY_SAMPLES);
         slice
             .chunks(n)
             .map(|chunk| {
-                let (ts, mem, _, _, workers) =
-                    *chunk.iter().max_by_key(|(_, mem, ..)| *mem).unwrap();
+                let (ts, mem, ..) = *chunk.iter().max_by_key(|(_, mem, ..)| *mem).unwrap();
                 let pressure = chunk.iter().map(|(_, _, p, ..)| *p).max().unwrap();
                 let footprint = chunk.iter().map(|(_, _, _, f, _)| *f).max().unwrap();
+                let workers = chunk.iter().map(|(.., w)| *w).max().unwrap();
                 (ts, mem, pressure, footprint, workers)
             })
             .collect()
     }
 
-    /// Returns worker counts from the same max-memory samples selected by
-    /// [`Self::memory_samples_for_range`], in the same order.
+    /// Returns up to `MAX_MEMORY_SAMPLES` active worker thread counts in the
+    /// range `[start, end]`, with the same length and group boundaries as
+    /// [`Self::memory_samples_for_range`]. Each group is downsampled by taking
+    /// the maximum worker count, matching
+    /// [`Self::memory_samples_for_range_with_ts`].
     pub fn active_worker_threads_samples_for_range(
         &self,
         start: Timestamp,
@@ -653,7 +657,7 @@ mod tests {
     }
 
     #[test]
-    fn downsampling_keeps_worker_count_from_max_memory_sample() {
+    fn downsampled_worker_counts_align_with_memory_groups() {
         let mut store = Store::new();
         for i in 0..=MAX_MEMORY_SAMPLES {
             store.add_memory_sample(Timestamp::from_micros(i as u64), i as u64, 3, 0, 1);
@@ -880,10 +884,10 @@ mod tests {
     }
 
     #[test]
-    fn downsampled_memory_samples_use_column_max_for_pressure_and_footprint() {
+    fn downsampled_memory_samples_use_column_max_for_pressure_footprint_and_workers() {
         let mut store = Store::new();
         // Two samples per group: the first has the higher TurboMalloc memory,
-        // the second has the higher pressure and footprint.
+        // the second has the higher pressure, footprint and worker count.
         for group in 0..MAX_MEMORY_SAMPLES as u64 {
             store.add_memory_sample(Timestamp::from_micros(group * 2), 1000 + group, 1, 10, 1);
             store.add_memory_sample(
@@ -891,7 +895,7 @@ mod tests {
                 1,
                 50,
                 5000 + group,
-                1,
+                8,
             );
         }
 
@@ -900,24 +904,28 @@ mod tests {
         let memory = store.memory_samples_for_range(start, end);
         let pressure = store.memory_pressure_samples_for_range(start, end);
         let footprint = store.memory_footprint_samples_for_range(start, end);
+        let workers = store.active_worker_threads_samples_for_range(start, end);
 
         assert_eq!(with_ts.len(), MAX_MEMORY_SAMPLES);
         assert_eq!(memory.len(), MAX_MEMORY_SAMPLES);
         assert_eq!(pressure.len(), MAX_MEMORY_SAMPLES);
         assert_eq!(footprint.len(), MAX_MEMORY_SAMPLES);
+        assert_eq!(workers.len(), MAX_MEMORY_SAMPLES);
 
-        for (i, (ts, mem, p, f, _)) in with_ts.into_iter().enumerate() {
+        for (i, (ts, mem, p, f, w)) in with_ts.into_iter().enumerate() {
             let group = i as u64;
             // Timestamp and memory come from the group's max-memory sample.
             assert_eq!(ts, Timestamp::from_micros(group * 2));
             assert_eq!(mem, 1000 + group);
-            // Pressure and footprint are the max over the group.
+            // Pressure, footprint and workers are the max over the group.
             assert_eq!(p, 50);
             assert_eq!(f, 5000 + group);
+            assert_eq!(w, 8);
             // All query paths agree.
             assert_eq!(mem, memory[i]);
             assert_eq!(p, pressure[i]);
             assert_eq!(f, footprint[i]);
+            assert_eq!(w, workers[i]);
         }
     }
 }

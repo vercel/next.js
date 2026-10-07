@@ -19,6 +19,7 @@ use crate::{
 #[derive(Serialize, Debug)]
 #[serde(tag = "type")]
 #[serde(rename_all = "kebab-case")]
+#[allow(clippy::large_enum_variant)] // Short-lived message, serialized right away
 pub enum ServerToClientMessage {
     ViewLine {
         #[serde(flatten)]
