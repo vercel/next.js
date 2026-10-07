@@ -1522,13 +1522,24 @@ async function generateRuntimePrefetchResult(
     requestStore.resumeDataCache ?? undefined
   )
 
-  const mode: RuntimePrerenderMode =
-    stage === AppStage.Shell
-      ? { type: 'session-shell-only' }
-      : {
-          type: 'rewindable-session-shell',
-          stageByteLengthsDeferred: createPromiseWithResolvers(),
-        }
+  let mode: RuntimePrerenderMode
+  switch (stage) {
+    case AppStage.Shell:
+      mode = { type: 'session-shell-only' }
+      break
+    case AppStage.Prefetch:
+      mode = {
+        type: 'rewindable-session-shell',
+        stageByteLengthsDeferred: createPromiseWithResolvers(),
+      }
+      break
+    case AppStage.Navigation:
+      mode = {
+        type: 'navigation',
+        stageByteLengthsDeferred: createPromiseWithResolvers(),
+      }
+      break
+  }
 
   await prospectiveRuntimeServerPrerender(
     ctx,

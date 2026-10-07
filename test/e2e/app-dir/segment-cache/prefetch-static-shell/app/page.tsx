@@ -56,6 +56,14 @@ export default function Page() {
               </LinkAccordion>
             </li>
             <li>
+              <LinkAccordion
+                href="/params-used-after-navigation/1"
+                prefetch="navigation"
+              >
+                Param 1 (prefetch=navigation)
+              </LinkAccordion>
+            </li>
+            <li>
               <Link href="/params-used-after-navigation/2" prefetch={false}>
                 Param 2 (unprefetched)
               </Link>
@@ -108,6 +116,14 @@ export default function Page() {
         <li>
           <LinkAccordion href="/uses-runtime-after-navigation" prefetch={true}>
             Uses runtime APIs after navigation() (prefetch=true)
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion
+            href="/uses-runtime-after-navigation"
+            prefetch="navigation"
+          >
+            Uses runtime APIs after navigation() (prefetch=navigation)
           </LinkAccordion>
         </li>
         <li>
@@ -280,6 +296,16 @@ export default function Page() {
           </LinkAccordion>
         </li>
         <li>
+          <LinkAccordion
+            href="/ensure-static/shell/uses-cookies"
+            prefetch="navigation"
+          >
+            Page with <code>ensureStatic = "shell"</code> that uses cookies
+            (prefetch="navigation")
+          </LinkAccordion>
+        </li>
+
+        <li>
           <LinkAccordion href="/ensure-static/prefetch/uses-cookies">
             Page with <code>ensureStatic = "prefetch"</code> that uses cookies
           </LinkAccordion>
@@ -291,6 +317,15 @@ export default function Page() {
           >
             Page with <code>ensureStatic = "prefetch"</code> that uses cookies
             (prefetch=true)
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion
+            href="/ensure-static/prefetch/uses-cookies"
+            prefetch="navigation"
+          >
+            Page with <code>ensureStatic = "prefetch"</code> that uses cookies
+            (prefetch="navigation")
           </LinkAccordion>
         </li>
       </ul>
@@ -311,17 +346,34 @@ export default function Page() {
       </li>
       <li>
         <LinkAccordion
+          href="/ensure-static/navigation/prerendered-1"
+          prefetch="navigation"
+        >
+          prerendered param 1 (prefetch="navigation")
+        </LinkAccordion>
+      </li>
+      <li>
+        <LinkAccordion
           href="/ensure-static/navigation/not-prerendered-1"
           prefetch={true}
         >
           not-prerendered param 1 (prefetch=true)
         </LinkAccordion>
       </li>
+      <li>
+        <LinkAccordion
+          href="/ensure-static/navigation/not-prerendered-2"
+          prefetch="navigation"
+        >
+          not-prerendered param 2 (prefetch=navigation)
+        </LinkAccordion>
+      </li>
+
       {/* Used for manual testing of on-demand prerenders */}
       <DynamicLinkAccordion
         hrefPattern="/ensure-static/navigation/not-prerendered-{counter}"
         placeholder="{counter}"
-        initialCount={2}
+        initialCount={3}
       />
     </main>
   )
