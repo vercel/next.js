@@ -119,6 +119,106 @@ Disallow: /
 Sitemap: https://acme.com/sitemap.xml
 ```
 
+### Content Signals
+
+[Content Signals](https://contentsignals.org/) declare how crawlers may use content after they access it: search indexing, AI input (RAG / grounding), and AI training. Use them together with `Allow` / `Disallow`.
+
+Set `contentSignal` on the robots file for a site-wide default, or on a rule (optionally with `path`) for per-link or per-user-agent signals. `true` becomes `yes`, `false` becomes `no`. Omitted keys express no preference.
+
+```ts filename="app/robots.ts" switcher
+import type { MetadataRoute } from 'next'
+
+export default function robots(): MetadataRoute.Robots {
+  return {
+    rules: {
+      userAgent: '*',
+      allow: '/',
+      disallow: '/private/',
+    },
+    contentSignal: { search: true, aiInput: true, aiTrain: false },
+    sitemap: 'https://acme.com/sitemap.xml',
+  }
+}
+```
+
+```js filename="app/robots.js" switcher
+export default function robots() {
+  return {
+    rules: {
+      userAgent: '*',
+      allow: '/',
+      disallow: '/private/',
+    },
+    contentSignal: { search: true, aiInput: true, aiTrain: false },
+    sitemap: 'https://acme.com/sitemap.xml',
+  }
+}
+```
+
+Output:
+
+```txt
+User-Agent: *
+Content-Signal: search=yes, ai-input=yes, ai-train=no
+Allow: /
+Disallow: /private/
+
+Sitemap: https://acme.com/sitemap.xml
+```
+
+Path-specific (per-link) signals:
+
+```ts filename="app/robots.ts" switcher
+import type { MetadataRoute } from 'next'
+
+export default function robots(): MetadataRoute.Robots {
+  return {
+    rules: {
+      userAgent: '*',
+      allow: '/',
+      disallow: '/projects',
+    },
+    contentSignal: [
+      { path: '/blog', search: true, aiTrain: false, aiInput: true },
+      { path: '/about', search: true },
+      { path: '/projects', search: true, aiTrain: false, aiInput: false },
+    ],
+  }
+}
+```
+
+```js filename="app/robots.js" switcher
+export default function robots() {
+  return {
+    rules: {
+      userAgent: '*',
+      allow: '/',
+      disallow: '/projects',
+    },
+    contentSignal: [
+      { path: '/blog', search: true, aiTrain: false, aiInput: true },
+      { path: '/about', search: true },
+      { path: '/projects', search: true, aiTrain: false, aiInput: false },
+    ],
+  }
+}
+```
+
+Output:
+
+```txt
+User-Agent: *
+Content-Signal: /blog search=yes, ai-input=yes, ai-train=no
+Content-Signal: /about search=yes
+Content-Signal: /projects search=yes, ai-input=no, ai-train=no
+Allow: /
+Disallow: /projects
+```
+
+A rule-level `contentSignal` replaces the file-level default for that user-agent group. Keys are replaced rather than merged. `contentSignal: {}` emits no `Content-Signal` line for that group. Set `contentSignalsPolicy: true` to prepend the CC0 policy comment from [contentsignals.org](https://contentsignals.org/).
+
+> **Good to know**: Content Signals are usage preferences. Honor depends on the crawler. Combine them with `Allow` / `Disallow` and, where needed, bot controls.
+
 ### Non-standard directives
 
 Some search engines support directives that aren't part of the [Robots Exclusion Standard](https://en.wikipedia.org/wiki/Robots.txt#Standard), such as `Request-Rate` (Seznam) or `Clean-param` (Yandex). Pass these through the `other` field on a rule. Keys preserve their casing and array values emit one line per entry, scoped to the rule's `User-Agent` block.
@@ -175,6 +275,16 @@ Request-Rate: 10/1m
 ### Robots object
 
 ```tsx
+type ContentSignal = {
+  search?: boolean
+  aiInput?: boolean
+  aiTrain?: boolean
+}
+
+type ContentSignalRule = ContentSignal & {
+  path?: string | string[]
+}
+
 type Robots = {
   rules:
     | {
@@ -182,6 +292,7 @@ type Robots = {
         allow?: string | string[]
         disallow?: string | string[]
         crawlDelay?: number
+        contentSignal?: ContentSignal | ContentSignalRule | ContentSignalRule[]
         other?: Record<string, string | number | Array<string | number>>
       }
     | Array<{
@@ -189,8 +300,11 @@ type Robots = {
         allow?: string | string[]
         disallow?: string | string[]
         crawlDelay?: number
+        contentSignal?: ContentSignal | ContentSignalRule | ContentSignalRule[]
         other?: Record<string, string | number | Array<string | number>>
       }>
+  contentSignal?: ContentSignal | ContentSignalRule | ContentSignalRule[]
+  contentSignalsPolicy?: boolean
   sitemap?: string | string[]
   host?: string
 }
@@ -198,7 +312,8 @@ type Robots = {
 
 ## Version History
 
-| Version   | Changes                                                    |
-| --------- | ---------------------------------------------------------- |
-| `v16.3.0` | Added `other` field for non-standard per-agent directives. |
-| `v13.3.0` | `robots` introduced.                                       |
+| Version   | Changes                                                                                              |
+| --------- | ---------------------------------------------------------------------------------------------------- |
+| `v16.4.0` | Added `contentSignal` and `contentSignalsPolicy` for [Content Signals](https://contentsignals.org/). |
+| `v16.3.0` | Added `other` field for non-standard per-agent directives.                                           |
+| `v13.3.0` | `robots` introduced.                                                                                 |
