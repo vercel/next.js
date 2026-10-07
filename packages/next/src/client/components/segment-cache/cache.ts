@@ -3501,21 +3501,14 @@ function writeSegmentDataIntoCache(
   // Decide whether to re-key the entry under a more generic vary path based on
   // which params the segment actually depends on.
   //
-  // Skip re-keying for Full prefetches: as of today, `varyParams` tracking only
-  // works within the static stage portion of a response. A Full prefetch
-  // response covers all stages, and we can't track params during the dynamic
-  // stage without dead-locking the Flight stream, so the server-reported set is
-  // incomplete and can't be trusted for the full response. Re-keying with an
-  // untrustworthy set could replace concrete params with Fallback and let
-  // unrelated URLs read each other's content from the cache.
-  //
   // Key the entry by which params the server said this segment depends on
   // (judged by the payload's CONTENT: contentFetchStrategy differs from
   // fetchStrategy exactly when a shell request's response turned out to
   // carry more — the coincident case). Reusing one copy across param values
   // is the point of the shell, but it requires knowing the content doesn't
   // depend on those params, and the server's report is the direct evidence
-  // of that.
+  // of that. This holds for every fetch strategy, Full included: if a report
+  // is wrong, the fix belongs on the server.
   //
   // Without that report, assume every param varies — a response without a
   // shell/full split is also what a page fully prerendered at concrete
@@ -3531,11 +3524,7 @@ function writeSegmentDataIntoCache(
   // evidence the key derivation below trusts, under the same condition, with
   // the same correction; otherwise null, and consumers assume every param.
   let recordedVaryParams: VaryParams | null = null
-  if (
-    process.env.__NEXT_VARY_PARAMS &&
-    payloadStrategy !== FetchStrategy.Full &&
-    segmentVaryParams !== null
-  ) {
+  if (process.env.__NEXT_VARY_PARAMS && segmentVaryParams !== null) {
     // Read the reported set now, when the key is chosen. The payload is fully
     // buffered by the time it's written, so the source has settled; a read of
     // null means the report is unavailable and every param varies.

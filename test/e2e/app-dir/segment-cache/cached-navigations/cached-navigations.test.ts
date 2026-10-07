@@ -1406,6 +1406,39 @@ describe('cached navigations', () => {
     })
   })
 
+  it('does not reuse a full prefetch for a different param that is read after connection()', async () => {
+    let page: Playwright.Page
+    const browser = await next.browser('/dynamic-param', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page)
+
+    // Full prefetch of /dynamic-param/a. The page reads the param only after
+    // connection(), so the read happens in the dynamic part of the response.
+    await act(
+      async () => {
+        await browser
+          .elementByCss('input[data-link-accordion="/dynamic-param/a"]')
+          .click()
+      },
+      { includes: 'Param: a' }
+    )
+
+    // Navigating to /dynamic-param/b must not be served from a's prefetch.
+    await act(
+      async () => {
+        await browser
+          .elementByCss('input[data-link-accordion="/dynamic-param/b"]')
+          .click()
+        await browser.elementByCss('a[href="/dynamic-param/b"]').click()
+      },
+      { includes: 'Param: b' }
+    )
+    expect(await browser.elementById('dynamic-param').text()).toBe('Param: b')
+  })
+
   // A `prefetch` config that enables Partial Prefetching ('partial') also opts
   // the route into runtime Cached Navigations, even though this fixture does
   // not set the global `partialPrefetching` flag.
