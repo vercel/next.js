@@ -434,6 +434,7 @@ The generated `.cpuprofile` files can be opened in Chrome DevTools (Performance 
 
 | Version   | Changes                                                                         |
 | --------- | ------------------------------------------------------------------------------- |
+| `v16.4.0` | Add the `next analyze export` command.                                          |
 | `v16.1.0` | Add the `next upgrade` command                                                  |
 | `v16.1.0` | Add the `next experimental-analyze` command                                     |
 | `v16.0.0` | The JS bundle size metrics have been removed from `next build`                  |
