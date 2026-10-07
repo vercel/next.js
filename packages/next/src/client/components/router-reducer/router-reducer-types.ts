@@ -141,11 +141,18 @@ export interface ServerPatchAction {
  * PrefetchKind defines the type of prefetching that should be done.
  * - `auto` - if the page is dynamic, prefetch the page data partially, if static prefetch the page data fully.
  * - `full` - prefetch the page data fully.
+ * - `shell` - the same as `auto`, named after the stage it prefetches.
+ * - `prefetch` - the same as `full`, named after the stage it prefetches.
+ * - `navigation` - prefetch up to where `navigation()` resolves. Without
+ *   Partial Prefetching, this is the same as `full`.
  */
 
 export enum PrefetchKind {
   AUTO = 'auto',
   FULL = 'full',
+  SHELL = 'shell',
+  PREFETCH = 'prefetch',
+  NAVIGATION = 'navigation',
 }
 
 export interface PushRef {
