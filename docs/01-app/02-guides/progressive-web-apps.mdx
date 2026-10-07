@@ -577,6 +577,29 @@ self.addEventListener('notificationclick', function (event) {
 })
 ```
 
+#### Using a Service Worker with TypeScript
+
+If you prefer TypeScript, you can write your service worker in TypeScript
+and compile it to JavaScript as part of your build process, since browsers
+only support JavaScript service workers.
+
+Create a TypeScript service worker file:
+
+```ts
+// service-worker.ts
+self.addEventListener('push', (event) => {
+  if (event.data) {
+    const data = event.data.json()
+    event.waitUntil(
+      self.registration.showNotification(data.title, {
+        body: data.body,
+        icon: data.icon,
+      })
+    )
+  }
+})
+```
+
 This service worker supports custom images and notifications. It handles incoming push events and notification clicks.
 
 - You can set custom icons for notifications using the `icon` and `badge` properties.
