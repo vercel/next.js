@@ -7,7 +7,10 @@ import { getFormattedNodeOptionsWithoutInspect } from '../../server/lib/utils'
  * The URL will have a trailing slash.
  * @default https://registry.npmjs.org/
  */
-export function getRegistry(baseDir: string = process.cwd()) {
+export function getRegistry(baseDir: string = process.cwd()): {
+  registry: string
+  authToken?: string
+} {
   const pkgManager = getPkgManager(baseDir)
   // Since `npm config` command fails in npm workspace to prevent workspace config conflicts,
   // add `--no-workspaces` flag to run under the context of the root project only.
@@ -39,5 +42,31 @@ export function getRegistry(baseDir: string = process.cwd()) {
     })
   }
 
-  return registry
+  // Read auth token for this registry from .npmrc, if configured.
+  let authToken: string | undefined
+  try {
+    const parsed = new URL(registry)
+    let scope = `//${parsed.host}${parsed.pathname}`
+    if (!scope.endsWith('/')) scope += '/'
+
+    const output = execSync(
+      `${pkgManager} config get "${scope}:_authToken" ${resolvedFlags}`,
+      {
+        env: {
+          ...process.env,
+          NODE_OPTIONS: getFormattedNodeOptionsWithoutInspect(),
+        },
+      }
+    )
+      .toString()
+      .trim()
+
+    if (output && output !== 'undefined') {
+      authToken = output
+    }
+  } catch {
+    // Auth token is not required — proceed without it
+  }
+
+  return { registry, authToken }
 }
