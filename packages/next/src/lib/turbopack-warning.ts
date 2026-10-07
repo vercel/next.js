@@ -154,7 +154,7 @@ export async function validateTurboNextConfig({
 
    NOTE: your \`webpack\` config may have been added by a configuration plugin.
 
-   To configure Turbopack, see https://nextjs.org/docs/app/api-reference/next-config-js/turbopack
+   To configure Turbopack, see https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack
 
    TIP: Many applications work fine under Turbopack with no configuration,
    if that is the case for you, you can silence this error by passing the
