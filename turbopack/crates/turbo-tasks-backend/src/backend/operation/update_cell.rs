@@ -5,7 +5,7 @@ use smallvec::SmallVec;
 #[cfg(feature = "task_dirty_cause")]
 use turbo_tasks::TaskDirtyCause;
 use turbo_tasks::{
-    CellId, FxIndexMap, TaskId, TypedSharedReference, ValueTypePersistence,
+    CellId, FxIndexMap, SharedReference, TaskId, TypedSharedReference, ValueTypePersistence,
     backend::{CellContent, CellHash, VerificationMode},
     registry,
 };
@@ -27,9 +27,9 @@ use crate::{
 pub fn update_mutable_cell(
     task_id: TaskId,
     cell: CellId,
-    content: Option<turbo_tasks::SharedReference>,
+    content: Option<SharedReference>,
     ctx: &mut ExecuteContext<'_>,
-) -> Option<turbo_tasks::SharedReference> {
+) -> Option<SharedReference> {
     let mut task = ctx.task(task_id, TaskDataCategory::All);
     let mut dependents: FxIndexMap<TaskId, SmallVec<[Option<u64>; 2]>> = FxIndexMap::default();
     for dependent in task.iter_cell_dependents().filter(|r| r.cell == cell) {
