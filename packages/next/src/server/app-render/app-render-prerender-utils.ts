@@ -176,6 +176,12 @@ export class ReplayableNodeStream {
     const bufferedChunks = this._chunks.slice()
     let bufferIndex = 0
     let bufferDrained = false
+    // Chunks that arrive after this replay stream was created but before its
+    // buffer was drained. They must not be pushed eagerly: the buffered chunks
+    // are delivered from _read() (see the comment above), so an eager push
+    // would deliver a newer chunk before the buffered ones — out of order.
+    const pendingChunks: Uint8Array[] = []
+    let sourceEnded = false
     const isDone = this._done
     const sourceError = this._error
 
@@ -187,7 +193,11 @@ export class ReplayableNodeStream {
             this.push(bufferedChunks[i])
           }
           bufferIndex = bufferedChunks.length
-          if (isDone) {
+          for (const chunk of pendingChunks) {
+            this.push(chunk)
+          }
+          pendingChunks.length = 0
+          if (isDone || sourceEnded) {
             this.push(null)
           }
         }
@@ -205,10 +215,19 @@ export class ReplayableNodeStream {
 
     const subscriber: ReplayableStreamSubscriber = {
       onChunk: (chunk) => {
-        stream.push(chunk)
+        if (bufferDrained) {
+          stream.push(chunk)
+        } else {
+          pendingChunks.push(chunk)
+        }
       },
       onEnd: () => {
-        stream.push(null)
+        if (bufferDrained) {
+          stream.push(null)
+        } else {
+          // The end is delivered once the buffer is drained in _read().
+          sourceEnded = true
+        }
       },
       onError: (err) => {
         stream.destroy(err)
