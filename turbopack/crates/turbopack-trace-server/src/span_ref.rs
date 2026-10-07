@@ -138,6 +138,7 @@ impl<'a> SpanRef<'a> {
                     self_time: SpanEventSelfTimeRef {
                         store: self.store,
                         self_time,
+                        generation: self.span.time_data.self_time_events_generation,
                     },
                 },
                 SpanEvent::Child { index, .. } => SpanEventRef::Child {
@@ -234,6 +235,7 @@ impl<'a> SpanRef<'a> {
 
     pub fn corrected_self_time(&self) -> Timestamp {
         let store = self.store;
+        let generation = self.span.time_data.self_time_events_generation;
         *self.time_data().corrected_self_time.get_or_init(|| {
             let mut self_time = self
                 .span
@@ -242,7 +244,12 @@ impl<'a> SpanRef<'a> {
                 .filter_map(|event: &'a SpanEvent| {
                     if let SpanEvent::SelfTime(self_time) = event {
                         return Some(
-                            SpanEventSelfTimeRef { store, self_time }.corrected_self_time(),
+                            SpanEventSelfTimeRef {
+                                store,
+                                self_time,
+                                generation,
+                            }
+                            .corrected_self_time(),
                         );
                     }
                     None
@@ -504,6 +511,8 @@ impl Debug for SpanRef<'_> {
 pub struct SpanEventSelfTimeRef<'a> {
     store: &'a Store,
     self_time: &'a SpanEventSelfTime,
+    /// `self_time_events_generation` of the owning span.
+    generation: u64,
 }
 
 impl<'a> SpanEventSelfTimeRef<'a> {
@@ -516,16 +525,20 @@ impl<'a> SpanEventSelfTimeRef<'a> {
     }
 
     pub fn corrected_self_time(&self) -> Timestamp {
-        *self.self_time.corrected_self_time.get_or_init(|| {
-            // `duration` is `NonZeroU64`, so zero-duration events are filtered
-            // at construction time (see `SpanEvent::self_time`).
-            let end = self.self_time.end();
-            let duration = Timestamp::from_value(self.self_time.duration.get());
-            self.store.set_max_self_time_lookup(end);
-            self.store.self_time_tree.as_ref().map_or(duration, |tree| {
-                tree.lookup_range_corrected_time(self.self_time.start, end)
-            })
-        })
+        if let Some(value) = self.self_time.cached_corrected_self_time(self.generation) {
+            return value;
+        }
+        // `duration` is `NonZeroU64`, so zero-duration events are filtered
+        // at construction time (see `SpanEvent::self_time`).
+        let end = self.self_time.end();
+        let duration = Timestamp::from_value(self.self_time.duration.get());
+        self.store.set_max_self_time_lookup(end);
+        let value = self.store.self_time_tree.as_ref().map_or(duration, |tree| {
+            tree.lookup_range_corrected_time(self.self_time.start, end)
+        });
+        self.self_time
+            .set_corrected_self_time(self.generation, value);
+        value
     }
 }
 
