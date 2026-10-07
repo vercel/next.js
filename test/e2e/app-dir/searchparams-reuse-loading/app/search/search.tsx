@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 export function Search() {
   let router = useRouter()
 
-  function search(event: React.SubmitEvent<HTMLFormElement>) {
+  function search(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
     let input = event.currentTarget.q.value
