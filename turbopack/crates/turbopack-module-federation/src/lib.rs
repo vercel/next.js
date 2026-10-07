@@ -20,6 +20,7 @@
 
 pub mod embed;
 pub mod options;
+pub mod resolve;
 pub mod source;
 
 pub use embed::{embed_fs, module_federation_runtime_import_map};
@@ -27,6 +28,7 @@ pub use options::{
     Expose, ModuleFederationOptions, ModuleFederationResolveMode, Remote, RemoteExternal,
     SharedModule, SharedVersion,
 };
+pub use resolve::module_federation_import_map;
 pub use source::{
     OptionModuleFederationSource, container_entry_source, host_provider_source,
     module_federation_chunk_loading_global, remote_proxy_source, shared_consumer_source,
