@@ -1,22 +1,34 @@
 import type {
+  TraceMemorySummary,
   TraceSpanInfo,
   TraceSpanSampleSeries,
 } from '../../build/swc/generated-native'
 
 /** Public MCP shape: summaries always, value arrays only on explicit request. */
-type JsonSpanInfo = Omit<
-  TraceSpanInfo,
-  'memorySamples' | 'sampleSeries' | 'children'
-> &
+type JsonSpanInfo = Omit<TraceSpanInfo, 'sampleSeries' | 'children'> &
   Partial<TraceSpanSampleSeries> & { children: JsonSpanInfo[] }
 
 export function serializeTraceSpan(span: TraceSpanInfo): JsonSpanInfo {
-  const { memorySamples: _summaryRows, sampleSeries, children, ...info } = span
+  const { sampleSeries, children, ...info } = span
   return {
     ...info,
     ...sampleSeries,
     children: children.map(serializeTraceSpan),
   }
+}
+
+export function renderMemorySummary(
+  summary: TraceMemorySummary | undefined,
+  formatBytes: (bytes: number) => string
+): string | null {
+  if (!summary) return null
+  const delta = summary.end - summary.start
+  const deltaSign = delta >= 0 ? '+' : '-'
+  return (
+    `samples=${summary.count}, peak=${formatBytes(summary.peak)}, min=${formatBytes(summary.min)}, ` +
+    `start=${formatBytes(summary.start)}, end=${formatBytes(summary.end)}, ` +
+    `Δ=${deltaSign}${formatBytes(Math.abs(delta))}, maxPressure=${summary.maxPressure}`
+  )
 }
 
 export function renderSampleSeriesMarkdown(

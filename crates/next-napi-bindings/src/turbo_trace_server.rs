@@ -81,7 +81,7 @@ pub struct TraceSpanInfo {
     /// Average corrected duration across spans in the group.
     pub avg_corrected_duration: Option<i64>,
     /// Raw span ID of the group's example span, whose `cpuDuration`,
-    /// `correctedDuration` and `memorySamples` are the ones reported here.
+    /// `correctedDuration`, `memorySummary` and `sampleSeries` are reported here.
     /// First in execution order — *not* the largest, so it can badly understate
     /// a group's allocations. Use `heaviestSpanId` for those.
     pub first_span_id: Option<String>,
@@ -91,8 +91,9 @@ pub struct TraceSpanInfo {
     /// Total bytes allocated by this span and all its children.
     ///
     /// For aggregated groups this is the group total, unlike `cpuDuration`,
-    /// `correctedDuration` and `memorySamples`, which describe the example span
-    /// only. Every allocation field below follows this field, not those.
+    /// `correctedDuration`, `memorySummary` and `sampleSeries`, which describe
+    /// the example span only. Every allocation field below follows this field,
+    /// not those.
     pub allocations: i64,
     /// Total bytes deallocated by this span and all its children.
     /// Group total for aggregated spans.
@@ -130,26 +131,19 @@ pub struct TraceSpanInfo {
     /// Number of allocation operations by this span itself, excluding children.
     /// Group total for aggregated spans.
     pub self_allocation_count: i64,
-    /// Process samples recorded while this span (or its example span, for
-    /// aggregated groups) was live.
+    /// Summary of TurboMalloc readings while this span (or its example span,
+    /// for aggregated groups) was live; absent when its range holds none.
     ///
     /// **Process-wide, not per-span.** One global series is sliced by the
-    /// span's time range, so spans that overlap in time report identical values
-    /// no matter what each allocated. Rank concurrent work by the allocation
-    /// fields instead.
-    ///
-    /// Each entry is `[ts_offset_from_span_start_in_ticks, bytes, pressure,
-    /// active_worker_threads]`: `bytes` is TurboMalloc memory usage,
-    /// `pressure` is the memory-pressure byte (0 = no pressure, higher = more
-    /// pressure), and `active_worker_threads` counts non-parked Tokio scheduler
-    /// workers. `100 ticks = 1 µs`. Capped and downsampled by the store.
-    pub memory_samples: Vec<Vec<i64>>,
-    /// Summary of `memorySamples`; absent when the span's range holds none.
-    /// Unlike the allocation counters these are absolute live-heap readings, so
+    /// span's time range, so overlapping ranges report the same readings no
+    /// matter what each allocated. Rank concurrent work by allocation fields;
     /// `peak` is the figure to quote for memory actually in use.
+    ///
+    /// Computed from at most 200 temporary peak-memory rows, independently
+    /// of whether or how many sample values are requested.
     pub memory_summary: Option<TraceMemorySummary>,
     /// Requested value arrays; absent unless `samples` was supplied.
-    /// MCP flattens this internal object and omits the legacy tuples above.
+    /// MCP flattens this internal object to the four optional value arrays.
     pub sample_series: Option<TraceSpanSampleSeries>,
     /// Descendants of this span, populated only when `depth > 1`.
     pub children: Vec<TraceSpanInfo>,
@@ -157,6 +151,8 @@ pub struct TraceSpanInfo {
 
 /// Requested process/global value series. Captured memory/pressure/workers
 /// are grouped by recorded timestamps; concurrency uses equal-time segments.
+/// Memory is TurboMalloc live bytes, pressure is the recorded pressure byte,
+/// and workers are non-parked Tokio scheduler workers (not the blocking pool).
 #[napi(object)]
 pub struct TraceSpanSampleSeries {
     pub memory_samples: Vec<i64>,
@@ -229,13 +225,6 @@ fn convert_span(s: turbopack_trace_server::SpanInfo) -> TraceSpanInfo {
         self_deallocations: s.self_deallocations as i64,
         self_persistent_allocations: s.self_persistent_allocations as i64,
         self_allocation_count: s.self_allocation_count as i64,
-        memory_samples: s
-            .memory_samples
-            .into_iter()
-            .map(|(ts, mem, pressure, workers)| {
-                vec![ts, mem as i64, pressure as i64, workers as i64]
-            })
-            .collect(),
         memory_summary: s.memory_summary.map(|m| TraceMemorySummary {
             count: m.count as u32,
             start: m.start as i64,

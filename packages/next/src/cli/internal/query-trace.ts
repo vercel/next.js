@@ -8,19 +8,7 @@
  * Usage: next internal query-trace [options]
  */
 
-import { InvalidArgumentError } from 'next/dist/compiled/commander'
-
 const DEFAULT_MCP_PORT = 5748 // Keep in sync with turbo-trace-server.ts
-
-export function parseTraceSampleCount(value: string): number {
-  const count = Number(value)
-  if (!/^\d+$/.test(value) || !Number.isSafeInteger(count) || count < 0) {
-    throw new InvalidArgumentError(
-      'Sample count must be a nonnegative safe integer.'
-    )
-  }
-  return count
-}
 
 interface QueryTraceOptions {
   port: number | undefined

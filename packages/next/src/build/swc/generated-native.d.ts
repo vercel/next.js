@@ -881,7 +881,7 @@ export interface TraceSpanInfo {
   avgCorrectedDuration?: number
   /**
    * Raw span ID of the group's example span, whose `cpuDuration`,
-   * `correctedDuration` and `memorySamples` are the ones reported here.
+   * `correctedDuration`, `memorySummary` and `sampleSeries` are reported here.
    * First in execution order — *not* the largest, so it can badly understate
    * a group's allocations. Use `heaviestSpanId` for those.
    */
@@ -895,8 +895,9 @@ export interface TraceSpanInfo {
    * Total bytes allocated by this span and all its children.
    *
    * For aggregated groups this is the group total, unlike `cpuDuration`,
-   * `correctedDuration` and `memorySamples`, which describe the example span
-   * only. Every allocation field below follows this field, not those.
+   * `correctedDuration`, `memorySummary` and `sampleSeries`, which describe
+   * the example span only. Every allocation field below follows this field,
+   * not those.
    */
   allocations: number
   /**
@@ -950,30 +951,21 @@ export interface TraceSpanInfo {
    */
   selfAllocationCount: number
   /**
-   * Process samples recorded while this span (or its example span, for
-   * aggregated groups) was live.
+   * Summary of TurboMalloc readings while this span (or its example span,
+   * for aggregated groups) was live; absent when its range holds none.
    *
    * **Process-wide, not per-span.** One global series is sliced by the
-   * span's time range, so spans that overlap in time report identical values
-   * no matter what each allocated. Rank concurrent work by the allocation
-   * fields instead.
-   *
-   * Each entry is `[ts_offset_from_span_start_in_ticks, bytes, pressure,
-   * active_worker_threads]`: `bytes` is TurboMalloc memory usage,
-   * `pressure` is the memory-pressure byte (0 = no pressure, higher = more
-   * pressure), and `active_worker_threads` counts non-parked Tokio scheduler
-   * workers. `100 ticks = 1 µs`. Capped and downsampled by the store.
-   */
-  memorySamples: Array<Array<number>>
-  /**
-   * Summary of `memorySamples`; absent when the span's range holds none.
-   * Unlike the allocation counters these are absolute live-heap readings, so
+   * span's time range, so overlapping ranges report the same readings no
+   * matter what each allocated. Rank concurrent work by allocation fields;
    * `peak` is the figure to quote for memory actually in use.
+   *
+   * Computed from at most 200 temporary peak-memory rows, independently
+   * of whether or how many sample values are requested.
    */
   memorySummary?: TraceMemorySummary
   /**
    * Requested value arrays; absent unless `samples` was supplied.
-   * MCP flattens this internal object and omits the legacy tuples above.
+   * MCP flattens this internal object to the four optional value arrays.
    */
   sampleSeries?: TraceSpanSampleSeries
   /** Descendants of this span, populated only when `depth > 1`. */
@@ -983,6 +975,8 @@ export interface TraceSpanInfo {
 /**
  * Requested process/global value series. Captured memory/pressure/workers
  * are grouped by recorded timestamps; concurrency uses equal-time segments.
+ * Memory is TurboMalloc live bytes, pressure is the recorded pressure byte,
+ * and workers are non-parked Tokio scheduler workers (not the blocking pool).
  */
 export interface TraceSpanSampleSeries {
   memorySamples: Array<number>

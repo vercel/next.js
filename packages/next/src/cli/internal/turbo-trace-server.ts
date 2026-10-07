@@ -3,6 +3,7 @@ import z from 'next/dist/compiled/zod'
 import { loadBindings } from '../../build/swc'
 import type { TraceSpanInfo } from '../../build/swc/generated-native'
 import {
+  renderMemorySummary,
   renderSampleSeriesMarkdown,
   serializeTraceSpan,
 } from './trace-query-result'
@@ -85,20 +86,6 @@ function renderAllocationsMarkdown(span: TraceSpanInfo): string {
   return md
 }
 
-function summarizeMemorySamples(span: TraceSpanInfo): string | null {
-  const summary = span.memorySummary
-  if (!summary) return null
-  const delta = summary.end - summary.start
-  const deltaSign = delta >= 0 ? '+' : '-'
-  const workers = span.memorySamples.map((s) => s[3])
-  return (
-    `samples=${summary.count}, peak=${formatBytes(summary.peak)}, min=${formatBytes(summary.min)}, ` +
-    `start=${formatBytes(summary.start)}, end=${formatBytes(summary.end)}, ` +
-    `Δ=${deltaSign}${formatBytes(Math.abs(delta))}, maxPressure=${summary.maxPressure}, ` +
-    `activeWorkerThreads=${Math.min(...workers)}–${Math.max(...workers)}`
-  )
-}
-
 /**
  * Render a single span (or aggregated span group) as a markdown section.
  *
@@ -153,9 +140,9 @@ function renderSpanMarkdown(
     md += renderAllocationsMarkdown(span)
   }
 
-  const memSummary = summarizeMemorySamples(span)
+  const memSummary = renderMemorySummary(span.memorySummary, formatBytes)
   if (memSummary) {
-    md += `\n**Process samples (TurboMalloc live bytes, memory pressure, active Tokio workers):** ${memSummary}\n`
+    md += `\n**Process samples (TurboMalloc live bytes, memory pressure):** ${memSummary}\n`
   }
 
   md += renderSampleSeriesMarkdown(span.sampleSeries, formatBytes)

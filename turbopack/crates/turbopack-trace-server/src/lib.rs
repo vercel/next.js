@@ -48,7 +48,7 @@ mod viewer;
 )]
 type FxIndexMap<K, V> = indexmap::IndexMap<K, V, BuildHasherDefault<FxHasher>>;
 
-/// Maximum number of process sample rows used for legacy query summaries.
+/// Maximum number of process sample rows used for independent query summaries.
 const MAX_MEMORY_SUMMARY_SAMPLES: usize = 200;
 
 /// Starts the trace server on a background thread and returns the store
@@ -131,6 +131,8 @@ pub struct QueryOptions {
 
 /// Requested value series for a span's elapsed range. Captured samples and
 /// equal-duration concurrency segments do not share a timestamp grid.
+/// Memory is TurboMalloc live bytes, pressure is the recorded pressure byte,
+/// and workers are non-parked Tokio scheduler workers (not the blocking pool).
 pub struct SpanSampleSeries {
     pub memory_samples: Vec<u64>,
     pub memory_pressure_samples: Vec<u8>,
@@ -180,7 +182,7 @@ pub struct SpanInfo {
     /// Average corrected_duration across all spans in the group.
     pub avg_corrected_duration: Option<u64>,
     /// Raw span ID of the group's example span, whose `cpu_duration`,
-    /// `corrected_duration` and `memory_samples` are the ones reported above.
+    /// `corrected_duration`, `memory_summary` and `sample_series` are reported here.
     /// First in execution order — *not* the largest, so it can badly understate
     /// a group's allocations. Use `heaviest_span_id` for those.
     pub first_span_id: Option<String>,
@@ -190,8 +192,9 @@ pub struct SpanInfo {
     /// Total bytes allocated by this span and all its children.
     ///
     /// For aggregated groups this is the group total, unlike `cpu_duration`,
-    /// `corrected_duration` and `memory_samples`, which describe the example
-    /// span only. Every allocation field below follows this field, not those.
+    /// `corrected_duration`, `memory_summary` and `sample_series`, which describe
+    /// the example span only. Every allocation field below follows this field,
+    /// not those.
     pub allocations: u64,
     /// Total bytes deallocated by this span and all its children.
     /// Group total for aggregated spans.
@@ -230,28 +233,20 @@ pub struct SpanInfo {
     /// Number of allocation operations by this span itself, excluding children.
     /// Group total for aggregated spans.
     pub self_allocation_count: u64,
-    /// Process samples recorded while this span (or its example span, for
-    /// aggregated groups) was live.
+    /// Summary of TurboMalloc readings while this span (or its example span,
+    /// for aggregated groups) was live. `None` when its range holds none.
     ///
-    /// **Process-wide, not per-span.** There is one global sample series, and a
-    /// span's samples are just the slice covering its time range, so spans that
-    /// overlap in time report identical values no matter what each allocated.
-    /// Rank concurrent work by the allocation fields; use these for absolute
-    /// memory over a span that dominates its window.
+    /// **Process-wide, not per-span.** One global series is sliced by the
+    /// span's time range, so overlapping ranges report the same readings no
+    /// matter what each allocated. Rank concurrent work by allocation fields;
+    /// use this summary for absolute memory over a span dominating its window.
     ///
-    /// Each tuple is `(ts_offset_from_span_start_in_ticks, bytes, pressure,
-    /// active_worker_threads)`. `bytes` is TurboMalloc memory usage;
-    /// `pressure` is the memory-pressure byte (0 = no pressure, higher =
-    /// more pressure), and `active_worker_threads` counts non-parked Tokio
-    /// scheduler workers. `100 ticks = 1 µs`. The offset is within the span.
-    ///
-    /// The query caller caps the series at `MAX_MEMORY_SUMMARY_SAMPLES`; when
-    /// more samples exist, groups are merged by picking the group's max-memory
-    /// sample, retaining its timestamp, pressure and worker count.
-    pub memory_samples: Vec<(i64, u64, u8, u64)>,
-    /// Summary of `memory_samples`. `None` when the span's range holds none.
+    /// The query caller summarizes at most `MAX_MEMORY_SUMMARY_SAMPLES`
+    /// temporary rows, selecting each group's peak-memory row. This is
+    /// independent of whether or how many sample values are requested.
     pub memory_summary: Option<MemorySummary>,
-    /// Opt-in series independent of the legacy, 200-row summary inputs above.
+    /// Opt-in process/global value series for this span's elapsed range
+    /// (the example span's range for aggregated groups).
     pub sample_series: Option<SpanSampleSeries>,
     /// Descendants of this span, populated only when `QueryOptions::depth` is
     /// greater than 1. Sorted and aggregated the same way as this level.
@@ -280,7 +275,7 @@ pub struct MemorySummary {
 
 impl MemorySummary {
     /// Summarize a sample series, or `None` if it is empty.
-    fn from_samples(samples: &[(i64, u64, u8, u64)]) -> Option<Self> {
+    fn from_samples(samples: &[(Timestamp, u64, u8, u64)]) -> Option<Self> {
         let (_, first_bytes, first_pressure, _) = *samples.first()?;
         let mut summary = MemorySummary {
             count: samples.len(),
@@ -513,14 +508,13 @@ fn sort_spans(items: &mut [Located<SpanRef<'_>>], sort: SortMode) {
     }
 }
 
-/// Memory samples recorded while `span` was live, offset from its start.
-fn memory_samples_for(store: &store::Store, span: &SpanRef<'_>) -> Vec<(i64, u64, u8, u64)> {
-    let span_start = *span.start() as i64;
-    store
-        .memory_samples_for_range_with_ts(span.start(), span.end(), MAX_MEMORY_SUMMARY_SAMPLES)
-        .into_iter()
-        .map(|(ts, mem, pressure, workers)| ((*ts as i64) - span_start, mem, pressure, workers))
-        .collect()
+/// Summarize temporary process rows independently of requested sample values.
+fn memory_summary_for(store: &store::Store, span: &SpanRef<'_>) -> Option<MemorySummary> {
+    MemorySummary::from_samples(&store.memory_samples_for_range_with_ts(
+        span.start(),
+        span.end(),
+        MAX_MEMORY_SUMMARY_SAMPLES,
+    ))
 }
 
 fn sample_series_for(store: &store::Store, span: &SpanRef<'_>, limit: usize) -> SpanSampleSeries {
@@ -557,8 +551,7 @@ fn build_graph_span_info(
         .max_by_key(|span| span.total_persistent_allocations())
         .map(|span| span.index.to_string());
 
-    let memory_samples = memory_samples_for(store, &first);
-    let memory_summary = MemorySummary::from_samples(&memory_samples);
+    let memory_summary = memory_summary_for(store, &first);
 
     let children = if depth > 1 {
         let mut located_children: Vec<_> = graph_children(&graph)
@@ -609,7 +602,6 @@ fn build_graph_span_info(
         self_deallocations: graph.self_deallocations(),
         self_persistent_allocations: graph.self_persistent_allocations(),
         self_allocation_count: graph.self_allocation_count(),
-        memory_samples,
         memory_summary,
         sample_series: samples.map(|limit| sample_series_for(store, &first, limit)),
         children,
@@ -628,8 +620,7 @@ fn build_raw_span_info(
     let Located { item: span, id } = located;
     let (cat, title) = span.nice_name();
 
-    let memory_samples = memory_samples_for(store, &span);
-    let memory_summary = MemorySummary::from_samples(&memory_samples);
+    let memory_summary = memory_summary_for(store, &span);
 
     let children = if depth > 1 {
         let mut located_children: Vec<_> = span
@@ -675,7 +666,6 @@ fn build_raw_span_info(
         self_deallocations: span.self_deallocations(),
         self_persistent_allocations: span.self_persistent_allocations(),
         self_allocation_count: span.self_allocation_count(),
-        memory_samples,
         memory_summary,
         sample_series: samples.map(|limit| sample_series_for(store, &span, limit)),
         children,
@@ -1443,7 +1433,11 @@ mod tests {
 
     #[test]
     fn memory_summary_reports_peak_not_last() {
-        let samples = [(0i64, 100u64, 0u8, 2u64), (1, 900, 3, 1), (2, 200, 1, 3)];
+        let samples = [
+            (Timestamp::from_micros(0), 100, 0, 2),
+            (Timestamp::from_micros(1), 900, 3, 1),
+            (Timestamp::from_micros(2), 200, 1, 3),
+        ];
         let summary = MemorySummary::from_samples(&samples).expect("samples present");
         assert_eq!(summary.count, 3);
         assert_eq!(summary.start, 100);

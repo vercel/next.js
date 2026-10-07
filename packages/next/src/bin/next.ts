@@ -35,7 +35,6 @@ import type {
 import type { NextBuildOptions } from '../cli/next-build.js'
 import type { NextTypegenOptions } from '../cli/next-typegen.js'
 import type { NextPostBuildOptions } from '../cli/next-post-build.js'
-import { parseTraceSampleCount } from '../cli/internal/query-trace'
 import { ensureProfilesDir } from '../lib/profiles-dir'
 import type { NextRequestInsightsOptions } from '../cli/next-request-insights.js'
 
@@ -844,7 +843,15 @@ internal
     new Option(
       '--samples <N>',
       'Include up to N memory, pressure, active Tokio worker, and concurrency values per span. Omit for summaries only; 0 returns empty arrays.'
-    ).argParser(parseTraceSampleCount)
+    ).argParser((value: string) => {
+      const count = Number(value)
+      if (!/^\d+$/.test(value) || !Number.isSafeInteger(count) || count < 0) {
+        throw new InvalidArgumentError(
+          'Sample count must be a nonnegative safe integer.'
+        )
+      }
+      return count
+    })
   )
   .addHelpText('after', ({ command }) => {
     const port = (command.opts() as { port?: number }).port ?? 5748
