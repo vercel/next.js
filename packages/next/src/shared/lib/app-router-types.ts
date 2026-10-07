@@ -531,18 +531,19 @@ type NavigationFlightResponseBase = {
    * TransportSegmentData). */
   s?: AsyncIterable<number>
   /**
-   * stageByteLengths - The byte offset where each stage ends, in stage order
-   * starting with the shell. A stage is listed only when a later stage added
-   * bytes; an unlisted stage ends at the end of the response, and so does the
-   * last stage, which is never listed. Absent when the response wasn't
-   * staged.
+   * stageByteLengths - Where each stage ends in the response, in bytes,
+   * indexed by AppStage: first the shell, then the prefetch stage. We only
+   * list a stage if a later stage added more bytes. Otherwise the stage ends
+   * at the end of the response, like the navigation stage always does.
+   * Absent if the response wasn't staged. Live renders only list the shell.
    *
-   * Decoding the response up to a stage's offset reads it as of that stage.
-   * The shell prefix is the shell variant of every segment (param-dependent
-   * content reduced to still-pending references). In a per-segment prefetch
-   * response the offsets are the segment response's own, measured against a
-   * staged decode of the page. The resolution row flushes past every offset,
-   * so a truncated decode reads it as pending, which is harmless.
+   * If you decode the response up to one of these offsets, you get the
+   * response as it was at the end of that stage. We use the shell's prefix
+   * as the shell for every segment. We only decode the prefetch stage's
+   * prefix to read its `u`, to find out whether anything up to that point
+   * read runtime data. A per-segment prefetch response lists its own
+   * offsets. The row that resolves this list always comes after every
+   * offset, so a prefix reads it as pending, which is fine.
    */
   a?: Promise<Array<number>>
   /**
