@@ -26,7 +26,57 @@ use crate::{
 /// 10ms in microseconds
 const MEMORY_SAMPLE_INTERVAL_US: u64 = 10_000;
 
+/// 1000ms in microseconds. Reading the process memory footprint is a syscall
+/// (or a `/proc` read on Linux), so it is refreshed less often than the other
+/// memory sample values; samples in between repeat the last reading.
+const MEMORY_FOOTPRINT_SAMPLE_INTERVAL_US: u64 = 1_000_000;
+
 static GLOBAL_LAST_MEMORY_SAMPLE: AtomicU64 = AtomicU64::new(0);
+
+static MEMORY_FOOTPRINT_THROTTLE: FootprintThrottle = FootprintThrottle::new();
+
+/// Caches the process memory footprint and refreshes it at most once per
+/// [`MEMORY_FOOTPRINT_SAMPLE_INTERVAL_US`].
+struct FootprintThrottle {
+    /// Timestamp of the last claimed read, or [`FootprintThrottle::NEVER`].
+    last_read_ts: AtomicU64,
+    /// The most recently read value (`0` until the first read completes).
+    value: AtomicU64,
+}
+
+impl FootprintThrottle {
+    const NEVER: u64 = u64::MAX;
+
+    const fn new() -> Self {
+        Self {
+            last_read_ts: AtomicU64::new(Self::NEVER),
+            value: AtomicU64::new(0),
+        }
+    }
+
+    /// Returns the footprint for a sample at `ts`. Calls `read` only when no
+    /// read happened yet or the last one is at least
+    /// [`MEMORY_FOOTPRINT_SAMPLE_INTERVAL_US`] old, and only if this caller
+    /// wins the claim on `last_read_ts`. All other callers (including
+    /// concurrent ones while a read is in progress) get the cached value.
+    fn get(&self, ts: u64, read: impl FnOnce() -> u64) -> u64 {
+        let last = self.last_read_ts.load(Ordering::Relaxed);
+        if last != Self::NEVER && ts.saturating_sub(last) < MEMORY_FOOTPRINT_SAMPLE_INTERVAL_US {
+            return self.value.load(Ordering::Relaxed);
+        }
+        if self
+            .last_read_ts
+            .compare_exchange(last, ts, Ordering::Relaxed, Ordering::Relaxed)
+            .is_err()
+        {
+            // Another caller claimed this read.
+            return self.value.load(Ordering::Relaxed);
+        }
+        let value = read();
+        self.value.store(value, Ordering::Relaxed);
+        value
+    }
+}
 
 thread_local! {
     static THREAD_LOCAL_LAST_MEMORY_SAMPLE: Cell<u64> = const { Cell::new(0) };
@@ -126,9 +176,11 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> RawTraceLayer<S> {
                 THREAD_LOCAL_LAST_MEMORY_SAMPLE.with(|tl| tl.set(ts));
                 let memory = TurboMalloc::memory_usage() as u64;
                 let memory_pressure = TurboMalloc::memory_pressure().unwrap_or(0);
-                let memory_footprint = TurboMalloc::memory_footprint()
-                    .map(|v| v as u64)
-                    .unwrap_or(0);
+                let memory_footprint = MEMORY_FOOTPRINT_THROTTLE.get(ts, || {
+                    TurboMalloc::memory_footprint()
+                        .map(|v| v as u64)
+                        .unwrap_or(0)
+                });
                 self.write(TraceRow::MemorySample {
                     ts,
                     memory,
@@ -318,14 +370,23 @@ impl Visit for ValuesVisitor {
 #[cfg(test)]
 pub(crate) mod tests {
     use std::{
+        cell::Cell,
         io::{self, Write},
-        sync::{Arc, Mutex},
+        sync::{
+            Arc, Barrier, Mutex,
+            atomic::{AtomicUsize, Ordering},
+        },
+        thread,
+        time::Duration,
     };
 
     use tracing_subscriber::{Registry, layer::SubscriberExt};
 
     use crate::{
-        raw_trace::{RawTraceLayer, RawTraceLayerOptions},
+        raw_trace::{
+            FootprintThrottle, MEMORY_FOOTPRINT_SAMPLE_INTERVAL_US, RawTraceLayer,
+            RawTraceLayerOptions,
+        },
         trace_writer::TraceWriter,
         tracing::TraceRow,
     };
@@ -409,5 +470,88 @@ pub(crate) mod tests {
             )),
             0
         );
+    }
+
+    #[test]
+    fn footprint_is_read_at_most_once_per_interval() {
+        let throttle = FootprintThrottle::new();
+        let reads = Cell::new(0);
+        let read = |value: u64| {
+            reads.set(reads.get() + 1);
+            value
+        };
+
+        // The very first sample reads, even at ts 0.
+        assert_eq!(throttle.get(0, || read(100)), 100);
+        assert_eq!(reads.get(), 1);
+
+        // Within the interval the cached value is reused.
+        assert_eq!(throttle.get(10_000, || read(200)), 100);
+        assert_eq!(
+            throttle.get(MEMORY_FOOTPRINT_SAMPLE_INTERVAL_US - 1, || read(300)),
+            100
+        );
+        assert_eq!(reads.get(), 1);
+
+        // Once the interval has elapsed it reads again.
+        assert_eq!(
+            throttle.get(MEMORY_FOOTPRINT_SAMPLE_INTERVAL_US, || read(400)),
+            400
+        );
+        assert_eq!(reads.get(), 2);
+        assert_eq!(
+            throttle.get(MEMORY_FOOTPRINT_SAMPLE_INTERVAL_US + 10_000, || read(500)),
+            400
+        );
+        assert_eq!(reads.get(), 2);
+    }
+
+    #[test]
+    fn concurrent_caller_during_a_read_gets_cached_value() {
+        let throttle = FootprintThrottle::new();
+        assert_eq!(throttle.get(0, || 100), 100);
+
+        // While the claimed read for the next interval is in progress, another
+        // caller (simulated by a nested call) must not read and gets the
+        // previous value.
+        let ts = MEMORY_FOOTPRINT_SAMPLE_INTERVAL_US;
+        let value = throttle.get(ts, || {
+            let nested = throttle.get(ts + 10_000, || panic!("must not read concurrently"));
+            assert_eq!(nested, 100);
+            200
+        });
+        assert_eq!(value, 200);
+        assert_eq!(throttle.get(ts + 20_000, || panic!("cached")), 200);
+    }
+
+    #[test]
+    fn simultaneous_first_calls_read_once() {
+        const THREADS: usize = 8;
+        let throttle = FootprintThrottle::new();
+        let reads = AtomicUsize::new(0);
+        let barrier = Barrier::new(THREADS);
+
+        let values: Vec<u64> = thread::scope(|scope| {
+            let handles: Vec<_> = (0..THREADS)
+                .map(|_| {
+                    scope.spawn(|| {
+                        barrier.wait();
+                        throttle.get(0, || {
+                            reads.fetch_add(1, Ordering::Relaxed);
+                            // Keep the read in progress while the others race.
+                            thread::sleep(Duration::from_millis(20));
+                            100
+                        })
+                    })
+                })
+                .collect();
+            handles.into_iter().map(|h| h.join().unwrap()).collect()
+        });
+
+        assert_eq!(reads.load(Ordering::Relaxed), 1);
+        // The winner gets the fresh value; losers get the (initially 0) cache.
+        assert!(values.iter().all(|&v| v == 0 || v == 100), "{values:?}");
+        assert!(values.contains(&100), "{values:?}");
+        assert_eq!(throttle.get(10_000, || panic!("cached")), 100);
     }
 }
