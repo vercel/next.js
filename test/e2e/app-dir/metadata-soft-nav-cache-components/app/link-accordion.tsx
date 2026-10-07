@@ -3,6 +3,8 @@
 import Link, { type LinkProps } from 'next/link'
 import { useState } from 'react'
 
+const productHandles = ['alpha', 'gamma', 'delta', 'epsilon', 'zeta', 'eta']
+
 export function LinkAccordion({
   href,
   children,
@@ -28,6 +30,44 @@ export function LinkAccordion({
       ) : (
         `${children} (link is hidden)`
       )}
+    </>
+  )
+}
+
+export function ProductLinks() {
+  const [areVisible, setAreVisible] = useState(false)
+  const [isBetaVisible, setIsBetaVisible] = useState(false)
+
+  return (
+    <>
+      <input
+        type="checkbox"
+        checked={areVisible}
+        onChange={() => setAreVisible(!areVisible)}
+        data-product-links
+      />
+      <input
+        type="checkbox"
+        checked={isBetaVisible}
+        onChange={() => setIsBetaVisible(!isBetaVisible)}
+        data-beta-link
+      />
+      {areVisible ? (
+        <ul>
+          {productHandles.map((handle) => (
+            <li key={handle}>
+              <Link href={`/products/${handle}`}>{handle}</Link>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        'product links are hidden'
+      )}
+      {isBetaVisible ? (
+        <Link href="/products/beta" prefetch={false}>
+          beta
+        </Link>
+      ) : null}
     </>
   )
 }
