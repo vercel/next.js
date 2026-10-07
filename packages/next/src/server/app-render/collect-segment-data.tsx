@@ -179,11 +179,11 @@ export async function collectSegmentData(
   // whole response, and undefined if the render wasn't staged. The prefetch
   // length is undefined if nothing comes after the prefetch stage.
   //
-  // And it tells us whether the render accessed runtime data (cookies,
-  // headers, fallback params, searchParams, ...): the settled value of the
-  // page's embedded access flag (its `u` field). Conservatively true when
-  // the page carries no flag (legacy render paths) or the decode fails.
+  // And it tells us whether the render read runtime data, like cookies or
+  // headers (its `u` field). If the page doesn't say, or the decode fails,
+  // we assume it did.
   let pageShellByteLength: number | null | undefined = undefined
+  let pagePrefetchByteLength: number | undefined = undefined
   let runtimeDataAccessed = true
   try {
     const pagePayload: InitialRSCPayload = await createFromReadableStream(
@@ -199,8 +199,9 @@ export async function collectSegmentData(
     // The whole buffer is here, so `a` has resolved. If the shell isn't
     // listed, it ends at the end of the response.
     if (pagePayload.a !== undefined) {
-      const stageByteLengths = await pagePayload.a
-      pageShellByteLength = stageByteLengths[0] ?? null
+      const [shellByteLength, prefetchByteLength] = await pagePayload.a
+      pageShellByteLength = shellByteLength ?? null
+      pagePrefetchByteLength = prefetchByteLength
     }
     if (pagePayload.u !== undefined) {
       // Every byte of the page buffer is present, so the flag's row (if the
@@ -217,19 +218,23 @@ export async function collectSegmentData(
 
   // Every segment response for the page shares one decode of the page data.
   // We feed that decode in stages so each segment response can measure where
-  // its own shell ends. First we give it the page's shell, and when `release`
-  // resolves, we give it the rest. Each segment response counts its bytes at
-  // the release (see renderSegmentPrefetch).
+  // its own stages end. First we give it the page's shell. When `release`
+  // resolves, we give it the rest of the prefetch stage, and when
+  // `prefetchRelease` resolves, we give it everything else. Each segment
+  // response counts its bytes at each release (see renderSegmentPrefetch).
   //
-  // The release resolves to true when the page's shell is the whole response.
-  // Then so is every segment's, so none of them lists it. In that case there's
-  // nothing to stage, so we decode everything at once. If the page wasn't
-  // staged at all, there's no release, and no segment response sends `a`.
+  // A release resolves to true when the page has nothing past that stage.
+  // Then no segment response does either, so none of them lists it. If the
+  // shell is the whole page, there's nothing to stage, so we decode
+  // everything at once. If the page wasn't staged at all, there's no release,
+  // and no segment response sends `a`.
   const release = createPromiseWithResolvers<boolean>()
+  const prefetchRelease = createPromiseWithResolvers<boolean>()
   let shellStageRelease: Promise<boolean> | null = release.promise
   let pageDataStream: ReadableStream<Uint8Array>
   if (typeof pageShellByteLength === 'number') {
     const prefixLength = pageShellByteLength
+    const prefetchPrefixLength = pagePrefetchByteLength
     pageDataStream = new ReadableStream<Uint8Array>({
       async start(controller) {
         // The shell byte prefix decodes to the page's shell variant:
@@ -237,22 +242,37 @@ export async function collectSegmentData(
         // stays a pending reference until the release enqueues the rest.
         controller.enqueue(fullPageDataBuffer.subarray(0, prefixLength))
         await release.promise
-        controller.enqueue(fullPageDataBuffer.subarray(prefixLength))
+        if (typeof prefetchPrefixLength === 'number') {
+          // Enqueue up to the end of the prefetch stage, and hold the rest
+          // until the second release.
+          controller.enqueue(
+            fullPageDataBuffer.subarray(prefixLength, prefetchPrefixLength)
+          )
+          await prefetchRelease.promise
+          controller.enqueue(fullPageDataBuffer.subarray(prefetchPrefixLength))
+        } else {
+          controller.enqueue(fullPageDataBuffer.subarray(prefixLength))
+        }
         // Intentionally never closed, like createUnclosingPrefetchStream:
         // the page stream may hold references that never resolve (dynamic
         // holes), and Flight errors if the stream closes while any are pending.
       },
     })
+    if (typeof prefetchPrefixLength !== 'number') {
+      prefetchRelease.resolve(true)
+    }
   } else if (pageShellByteLength === null) {
     pageDataStream = createUnclosingPrefetchStream(
       streamFromBuffer(fullPageDataBuffer)
     )
     release.resolve(true)
+    prefetchRelease.resolve(true)
   } else {
     pageDataStream = createUnclosingPrefetchStream(
       streamFromBuffer(fullPageDataBuffer)
     )
     shellStageRelease = null
+    prefetchRelease.resolve(true)
   }
 
   // Create an abort controller that we'll use to stop the stream.
@@ -291,6 +311,7 @@ export async function collectSegmentData(
         isUpgradeableISRFallback={isUpgradeableISRFallback}
         runtimeDataAccessed={runtimeDataAccessed}
         shellStageRelease={shellStageRelease}
+        prefetchStageRelease={prefetchRelease.promise}
       />,
       clientModules,
       {
@@ -322,6 +343,15 @@ export async function collectSegmentData(
     // TODO: I don't think it's really necessary to unblock the spawned tasks.
     // It's fine if they hang indefinitely; the tasks will be garbage collected.
     release.resolve(false)
+
+    // Then the last stage: once every render has flushed what the rest of the
+    // prefetch stage unblocked, give them everything else. We wait two tasks
+    // because the renders don't schedule their work until the bytes from the
+    // first release are decoded. (Does nothing if the release already
+    // resolved true.)
+    await waitAtLeastOneReactRenderTask()
+    await waitAtLeastOneReactRenderTask()
+    prefetchRelease.resolve(false)
   }
 
   // Write the route tree to a special `/_tree` segment.
@@ -458,6 +488,8 @@ export async function collectPrefetchHints(
   // responses are byte-identical in shape to the real ones — the point of
   // measuring. Pre-resolving false is the "nothing staged" release.
   const shellStageRelease = Promise.resolve(false)
+  // Same for the prefetch stage: no response lists where it ends.
+  const prefetchStageRelease = Promise.resolve(true)
 
   // This is the pass that COMPUTES the hints, so the spine hints here can't
   // be the final merged values the real pass emits — use the best available
@@ -490,7 +522,8 @@ export async function collectPrefetchHints(
     // Fallback-ness doesn't affect size, so pass false.
     false,
     needsRuntimeRequest,
-    shellStageRelease
+    shellStageRelease,
+    prefetchStageRelease
   )
   const headGzipSize = await getGzipSize(headBuffer)
 
@@ -515,7 +548,8 @@ export async function collectPrefetchHints(
     headInlineState,
     rootVaryParamsIterable,
     needsRuntimeRequest,
-    shellStageRelease
+    shellStageRelease,
+    prefetchStageRelease
   )
 
   if (!headInlineState.inlined) {
@@ -574,7 +608,8 @@ async function collectPrefetchHintsImpl(
   headInlineState: { inlined: boolean },
   rootVaryParamsIterable: VaryParamsIterable | null,
   needsRuntimeRequest: Promise<boolean>,
-  shellStageRelease: Promise<boolean>
+  shellStageRelease: Promise<boolean>,
+  prefetchStageRelease: Promise<boolean>
 ): Promise<{
   node: PrefetchHints
   // Total inlined bytes accumulated along the deepest accepting path in this
@@ -615,7 +650,8 @@ async function collectPrefetchHintsImpl(
       // Size-measurement pass only; fallback-ness is irrelevant here.
       false,
       needsRuntimeRequest,
-      shellStageRelease
+      shellStageRelease,
+      prefetchStageRelease
     )
     currentGzipSize = await getGzipSize(buffer)
   }
@@ -695,7 +731,8 @@ async function collectPrefetchHintsImpl(
         headInlineState,
         rootVaryParamsIterable,
         needsRuntimeRequest,
-        shellStageRelease
+        shellStageRelease,
+        prefetchStageRelease
       )
 
       if (slots === null) {
@@ -862,6 +899,7 @@ async function PrefetchTreeData({
   isUpgradeableISRFallback,
   runtimeDataAccessed,
   shellStageRelease,
+  prefetchStageRelease,
 }: {
   isClientParamParsingEnabled: boolean
   pageDataStream: ReadableStream<Uint8Array>
@@ -875,6 +913,7 @@ async function PrefetchTreeData({
   isUpgradeableISRFallback: boolean
   runtimeDataAccessed: boolean
   shellStageRelease: Promise<boolean> | null
+  prefetchStageRelease: Promise<boolean>
 }): Promise<PrefetchFlightResponse | null> {
   // We're currently rendering a Flight response for the route tree prefetch.
   // Inside this component, decode the Flight stream for the whole page. This is
@@ -959,7 +998,8 @@ async function PrefetchTreeData({
     rootVaryParamsIterable,
     isUpgradeableISRFallback,
     needsRuntimeRequest,
-    shellStageRelease
+    shellStageRelease,
+    prefetchStageRelease
   )
 
   // Spawn a task to produce a prefetch response for the "head" segment,
@@ -979,7 +1019,8 @@ async function PrefetchTreeData({
           clientModules,
           isUpgradeableISRFallback,
           needsRuntimeRequest,
-          shellStageRelease
+          shellStageRelease,
+          prefetchStageRelease
         )
       )
     )
@@ -1014,7 +1055,8 @@ function collectSegmentDataImpl(
   rootVaryParamsIterable: VaryParamsIterable | null,
   isUpgradeableISRFallback: boolean,
   needsRuntimeRequest: Promise<boolean>,
-  shellStageRelease: Promise<boolean> | null
+  shellStageRelease: Promise<boolean> | null,
+  prefetchStageRelease: Promise<boolean>
 ): PartialTransportNode {
   // Union the hints already embedded in the page payload's tree with the
   // separately-computed build-time hints. During the initial build, the
@@ -1104,7 +1146,8 @@ function collectSegmentDataImpl(
             clientModules,
             isUpgradeableISRFallback,
             needsRuntimeRequest,
-            shellStageRelease
+            shellStageRelease,
+            prefetchStageRelease
           )
         )
       )
@@ -1152,7 +1195,8 @@ function collectSegmentDataImpl(
         rootVaryParamsIterable,
         isUpgradeableISRFallback,
         needsRuntimeRequest,
-        shellStageRelease
+        shellStageRelease,
+        prefetchStageRelease
       )
       if (slots === undefined) {
         slots = new Map()
@@ -1189,7 +1233,9 @@ function collectSegmentDataImpl(
  * time the page stream is decoded, so it can't be recovered from the settled
  * values. Instead the response is serialized against a staged decode of the
  * page (the caller drip-feeds it in two stages): the shell rows flush first,
- * and the byte count when the rest is released is the boundary.
+ * and the byte count when the rest is released is the boundary. If the page
+ * has anything past its prefetch stage, the caller holds that back too, and
+ * the byte count at that release is where the prefetch stage ends.
  *
  * Uses the streaming renderer, not `prerender`, because the boundary must be
  * observed mid-stream — `prerender` only exposes its prelude once finished.
@@ -1216,7 +1262,8 @@ async function renderSegmentPrefetch(
   isUpgradeableISRFallback: boolean,
   needsRuntimeRequest: Promise<boolean>,
   // Null when the page wasn't staged; the response then sends no `a`.
-  shellStageRelease: Promise<boolean> | null
+  shellStageRelease: Promise<boolean> | null,
+  prefetchStageRelease: Promise<boolean>
 ): Promise<[SegmentRequestKey, Buffer]> {
   const streamInfoStage = createPromiseWithResolvers<void>()
 
@@ -1359,21 +1406,30 @@ async function renderSegmentPrefetch(
   // prefix has flushed, so this is the shell's byte length.
   const byteLengthAfterShellStage = totalByteLength
 
-  // Wait one task for the rest of the segment data (past the page's own shell
-  // boundary) to flush, per the timing rule: one macrotask after the release
-  // enqueues it into the input decode, the render has emitted all of it.
+  // Same for the prefetch stage, at the second release. If the page has
+  // nothing past its prefetch stage, `a` doesn't list it.
+  const prefetchIsFullResponse = await prefetchStageRelease
+  const byteLengthAfterPrefetchStage = totalByteLength
+
+  // Wait one task for the rest of the segment data to flush. One task after a
+  // release gives the decode more bytes, the render has emitted everything
+  // they unblocked.
   await waitAtLeastOneReactRenderTask()
 
-  // Resolve `a`: no boundary when the page said its shell is the whole
-  // response (shellIsFullResponse) — then so is every segment's. Otherwise
-  // list the measured boundary, even if no segment *content* follows it: the
-  // stage-dependent metadata (`staleTime`, `needsRuntimeRequest`) always
-  // lands its post-shell values and completion rows after this point, so a
-  // truncated decode is meaningful for every segment of a staged page.
+  // Now we can resolve `a`. If the page's shell is the whole response, so is
+  // every segment's, and we list nothing. Otherwise we list what we measured,
+  // even when no segment content comes after it. Values like the stale time
+  // and `needsRuntimeRequest` always resolve after this point, so a prefix
+  // still reads them as of the shell. The prefetch stage works the same way.
   if (shellIsFullResponse) {
     stageByteLengths.resolve([])
-  } else {
+  } else if (prefetchIsFullResponse) {
     stageByteLengths.resolve([byteLengthAfterShellStage])
+  } else {
+    stageByteLengths.resolve([
+      byteLengthAfterShellStage,
+      byteLengthAfterPrefetchStage,
+    ])
   }
 
   // Now write the stream metadata (`a`, the `isPartial` promises, and a

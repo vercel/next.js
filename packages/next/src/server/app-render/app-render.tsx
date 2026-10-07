@@ -9730,8 +9730,9 @@ async function prerenderToStream(
           // which is scheduled in a (fast) immediate, so we do this in a separate task
           // (fast immediates will be drained at the end of the task, so in the next task we know we're done flushing)
 
-          // List where the shell ends, if new chunks were emitted after
-          // unblocking link data or navigation().
+          // If anything was emitted after the shell, list where the shell
+          // ends. Then, if anything was emitted after `navigation()` resolved,
+          // list where the prefetch stage ends.
           // NOTE: we must capture this *before* resolving staleTime/varyParams,
           // which always emit new static chunks.
           const stageByteLengths: Array<number> = []
@@ -9745,6 +9746,17 @@ async function prerenderToStream(
                 0
               )
             )
+            if (
+              collectedChunksByStage[RenderStage.Static].length >
+              collectedChunksByStage[RenderStage.PrefetchStatic].length
+            ) {
+              stageByteLengths.push(
+                collectedChunksByStage[RenderStage.PrefetchStatic].reduce(
+                  (acc, chunk) => acc + chunk.byteLength,
+                  0
+                )
+              )
+            }
           }
 
           // Now that the prerendering is complete, we know the final stale
