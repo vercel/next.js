@@ -417,6 +417,10 @@ export class NextDeployInstance extends NextInstance {
     // the flag is enough to force plain-URL output for both link and deploy.
     vercelFlags.push('--non-interactive=false')
 
+    if (process.env.RUNNER_DEBUG === '1') {
+      vercelFlags.push('--debug')
+    }
+
     // If the token is available in the environment, use it as the token in the
     // environment.
     if (TEST_TOKEN) {
