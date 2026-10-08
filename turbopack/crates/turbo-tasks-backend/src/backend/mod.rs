@@ -1645,12 +1645,12 @@ impl TurboTasksBackend {
             && let Err(err) =
                 self.snapshot_and_persist(Span::current().into(), SnapshotReason::Stop, turbo_tasks)
         {
-            eprintln!("Persisting failed during shutdown: {err:?}");
+            // We don't treat this as a failure, just warn that the cache is broken and keep going.
+            eprintln!("WARNING: Saving the filesystem cache failed:\n    {err:#}");
         }
         self.storage.drop_contents();
-        if let Err(err) = self.backing_storage.shutdown() {
-            println!("Shutting down failed: {err}");
-        }
+        // Do final cleanup, this is best effort and unfailable
+        self.backing_storage.shutdown();
     }
 
     #[allow(unused_variables)]
