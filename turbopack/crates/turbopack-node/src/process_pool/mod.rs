@@ -1,5 +1,7 @@
 use std::{
     collections::VecDeque,
+    error::Error,
+    fmt::Display,
     future::Future,
     mem::take,
     path::{Path, PathBuf},
@@ -84,6 +86,39 @@ impl PartialEq for NodeJsPoolProcess {
 }
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
+
+/// Exit code used by the child process when it cannot connect to the port we
+/// listen on (see `js/src/child_process/index.ts`).
+const CONNECT_FAILED_EXIT_CODE: i32 = 69;
+
+/// The Node.js child process exited because it could not connect back to us
+/// over the loopback interface. This is not a bug in the evaluated code and
+/// retrying will not help, it usually means a sandbox blocks local networking.
+#[derive(Debug)]
+pub struct NodeJsConnectError {
+    /// The error output of the child process, which contains the reason the
+    /// connection failed.
+    pub stderr: String,
+}
+
+impl Display for NodeJsConnectError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "The Node.js child process could not connect to the parent process\n{}",
+            self.stderr
+        )
+    }
+}
+
+impl Error for NodeJsConnectError {}
+
+impl NodeJsConnectError {
+    /// Finds a [`NodeJsConnectError`] anywhere in the cause chain of `err`.
+    pub fn find(err: &anyhow::Error) -> Option<&Self> {
+        err.chain().find_map(|cause| cause.downcast_ref::<Self>())
+    }
+}
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 struct OutputEntry {
@@ -380,6 +415,9 @@ impl NodeJsPoolProcess {
                 match status {
                     Ok(status) => {
                         let (stdout, stderr) = get_output(&mut child).await?;
+                        if status.code() == Some(CONNECT_FAILED_EXIT_CODE) {
+                            return Err(NodeJsConnectError { stderr }.into());
+                        }
                         bail!("node process exited before we could connect to it with {status}\nProcess output:\n{stdout}\nProcess error output:\n{stderr}");
                     }
                     Err(err) => {
