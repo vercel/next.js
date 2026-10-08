@@ -190,6 +190,8 @@ These are combined into:
 - `/tops/[product]`, `/shorts/[product]`: category header rendered, product shows fallback
 - `/[category]/[product]`: both show fallback
 
+The build output classifies each generated pathname separately from the fallback route pattern. A route pattern can use `◐` because it serves an App Shell for unlisted params. The paths returned by `generateStaticParams` can use `○` when Next.js prerenders them in full. If the route table collapses generated paths into `[+N more paths]`, the summary row uses their shared symbol. See [Reading the build output](/docs/app/guides/building#reading-the-build-output) for the complete symbol reference.
+
 ### At runtime
 
 A visitor navigates to `/tops/tee`. Both params were prerendered. They get a fully static page.
