@@ -121,7 +121,7 @@ describe('Telemetry delivery', () => {
     process.env = originalEnv
   })
 
-  it('delivers recorded events with a native AbortSignal', async () => {
+  it('delivers recorded telemetry over HTTP', async () => {
     const requests: Array<{
       method: string | undefined
       contentType: string | undefined
