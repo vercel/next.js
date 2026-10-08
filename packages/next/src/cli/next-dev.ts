@@ -30,7 +30,7 @@ import uploadTrace from '../trace/upload-trace'
 import { initialEnv } from '@next/env'
 import { fork } from 'child_process'
 import type { ChildProcess } from 'child_process'
-import type { UpgradeContext, UpgradeReminder } from '../lib/upgrade/nudge'
+import type { UpgradeContext, UpgradeReminder } from '../next-upgrade/nudge'
 import {
   closedUpgradeMenu,
   createPromptOutput,
@@ -271,7 +271,7 @@ const nextDev = async (
   dir = getProjectDir(process.env.NEXT_PRIVATE_DEV_DIR || directory)
   warnMissingReactDependencies(dir)
 
-  const { shouldPromptForUpgrade } = await import('../lib/upgrade/nudge.js')
+  const { shouldPromptForUpgrade } = await import('../next-upgrade/nudge.js')
   const humanUpgrade = await shouldPromptForUpgrade()
   const allowedUpgradeRetries = new Set<string>()
   async function offerUpgrade(

@@ -229,7 +229,7 @@ export async function initialize(opts: {
       process.env.__NEXT_AGENT_UPGRADE_FORCE_DEVTOOLS_FOR_TESTING === '1'
     ) {
       const { nudgeUpgrade, getUpgradeContext, assessUpgrade } =
-        require('../../lib/upgrade/nudge') as typeof import('../../lib/upgrade/nudge')
+        require('../../next-upgrade/nudge') as typeof import('../../next-upgrade/nudge')
       const upgradeContext = getUpgradeContext(developmentConfig)
       const installedVersion = process.env.__NEXT_VERSION || 'unknown'
       const policy = upgradeContext.experimental.agentUpgrade

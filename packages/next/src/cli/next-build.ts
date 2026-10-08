@@ -27,7 +27,7 @@ import {
   reassertRawMode,
   showUpgradeMenu,
 } from '../lib/upgrade/prompt-output'
-import type { UpgradeContext } from '../lib/upgrade/nudge'
+import type { UpgradeContext } from '../next-upgrade/nudge'
 import { fork } from 'child_process'
 import { once } from 'events'
 import os from 'os'
@@ -206,7 +206,7 @@ async function shouldBuildInChild() {
   ) {
     return false
   }
-  const { shouldPromptForUpgrade } = await import('../lib/upgrade/nudge.js')
+  const { shouldPromptForUpgrade } = await import('../next-upgrade/nudge.js')
   return shouldPromptForUpgrade()
 }
 

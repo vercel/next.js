@@ -1262,7 +1262,7 @@ export default async function build(
         process.env.__NEXT_AGENT_UPGRADE
       ) {
         const { nudgeUpgrade, getUpgradeContext } =
-          require('../lib/upgrade/nudge') as typeof import('../lib/upgrade/nudge')
+          require('../next-upgrade/nudge') as typeof import('../next-upgrade/nudge')
         const upgradeContext = getUpgradeContext(config)
         if (
           process.env.NEXT_PRIVATE_UPGRADE_BUILD_CHILD === '1' &&
