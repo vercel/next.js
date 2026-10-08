@@ -268,6 +268,26 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
       expect(key1.keyRoute).not.toBe(key2.keyRoute)
       expect(key1.dataRoute).not.toBe(key2.dataRoute)
     })
+
+    it('should share a durable cache entry between an App Page and an API route', async () => {
+      await next.stop()
+      await next.start()
+
+      try {
+        const page = await next.render$('/page-api')
+        const pageValue = page('#page-api-data').text()
+        expect(pageValue).not.toBeEmpty()
+
+        const response = await next.fetch('/page-api/api')
+        expect(response.status).toBe(200)
+        expect(await response.text()).toBe(pageValue)
+
+        const secondPage = await next.render$('/page-api')
+        expect(secondPage('#page-api-data').text()).toBe(pageValue)
+      } finally {
+        await next.stop()
+      }
+    })
   }
 )
 
