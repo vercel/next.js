@@ -301,14 +301,6 @@ impl<'l> WriteGuard<'l> {
         encoded
     }
 
-    /// Writes a [`TraceRow::TimestampBase`] row with the absolute timestamp `ts`, unless the
-    /// buffer already contains one. Must be called before the row itself is written.
-    pub fn ensure_timestamp_base(&mut self, ts: u64) {
-        if self.buffer().timestamps.needs_base() {
-            self.encode_timestamp(ts);
-        }
-    }
-
     /// Marks exactly what `write` writes with this guard as a row with `marker`. As long as
     /// nothing else is written on this thread and the row wasn't sent to the writer thread in
     /// between, it can be removed again with [`WriteGuard::remove_last_row`].

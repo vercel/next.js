@@ -191,10 +191,10 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> RawTraceLayer<S> {
     }
 
     /// Replaces the absolute timestamp of `data` (if it has one) with its serialized form, and
-    /// writes a [`TraceRow::TimestampBase`] before it when the buffer doesn't contain one yet.
+    /// writes a [`TraceRow::TimestampBase`] before it when one is needed, see
+    /// [`WriteGuard::encode_timestamp`].
     fn encode_timestamp(&self, guard: &mut WriteGuard<'_>, data: &mut TraceRow<'_>) {
         if let Some(ts) = data.timestamp_mut() {
-            guard.ensure_timestamp_base(*ts);
             *ts = guard.encode_timestamp(*ts);
         }
     }

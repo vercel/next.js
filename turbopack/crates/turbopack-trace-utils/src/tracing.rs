@@ -145,12 +145,6 @@ pub struct TimestampEncoder {
 }
 
 impl TimestampEncoder {
-    /// Whether the next timestamp needs a [`TraceRow::TimestampBase`] row, because no timestamp
-    /// was encoded yet.
-    pub fn needs_base(&self) -> bool {
-        self.last.is_none()
-    }
-
     /// Returns the value to serialize for the absolute timestamp `ts`, and, if needed, the
     /// timestamp of a [`TraceRow::TimestampBase`] row that has to be written before it.
     ///
