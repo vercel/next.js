@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import type { PageInfo } from 'next/dist/build/utils'
 
 // This suite only asserts `next build` output, so it is start-mode only.
 // @force-gate start
@@ -21,6 +22,67 @@ describe('build output - truncated generated paths', () => {
   ├ ○ /blog/post-2
   └ ○ [+10 more paths]`
     )
+  })
+
+  it('marks duration-sorted collapsed generated paths as static', async () => {
+    const routePattern = '/blog/[...slug]'
+    const generatedPaths = Array.from(
+      { length: 12 },
+      (_, index) => `/blog/post-${index + 1}`
+    )
+    const childRoutes = [routePattern, ...generatedPaths]
+    const parentPageInfo = createPageInfo({
+      hasPostponed: true,
+      ssgPageRoutes: childRoutes,
+      ssgPageDurations: childRoutes.map((_, index) =>
+        index === 1 ? 1_000 : 0
+      ),
+    })
+    const pageInfos = new Map<string, PageInfo>([
+      [routePattern, parentPageInfo],
+      ...generatedPaths.map(
+        (route) =>
+          [
+            route,
+            createPageInfo({
+              isStatic: true,
+              hasPostponed: false,
+              isDynamicAppRoute: false,
+            }),
+          ] as const
+      ),
+    ])
+    const messages: string[] = []
+    const originalLog = console.log
+
+    try {
+      console.log = (...args: unknown[]) => messages.push(args.join(' '))
+
+      let printTreeView: typeof import('next/dist/build/utils').printTreeView
+      jest.isolateModules(() => {
+        printTreeView = require('next/dist/build/utils').printTreeView
+      })
+
+      await printTreeView!({ pages: [], app: [routePattern] }, pageInfos, {
+        pageExtensions: ['tsx'],
+        buildManifest: {} as any,
+        middlewareManifest: {
+          version: 3,
+          sortedMiddleware: [],
+          middleware: {},
+          functions: {},
+        },
+        functionsConfigManifest: { version: 1, functions: {} },
+        useStaticPages404: false,
+        hasGSPAndRevalidateZero: new Set(),
+      })
+    } finally {
+      console.log = originalLog
+    }
+
+    const output = messages.join('\n')
+    expect(output).toContain(`├ ◐ ${routePattern}`)
+    expect(output).toContain('└ ○ [+6 more paths]')
   })
 
   it('prerenders all generated paths completely and statically', async () => {
@@ -64,4 +126,21 @@ function getTreeView(cliOutput: string): string {
   }
 
   return lines.join('\n').trim()
+}
+
+function createPageInfo(overrides: Partial<PageInfo>): PageInfo {
+  return {
+    originalAppPath: '/blog/[...slug]/page',
+    isStatic: false,
+    isSSG: true,
+    isRoutePPREnabled: true,
+    isEnsureStaticPage: true,
+    ssgPageRoutes: null,
+    initialCacheControl: undefined,
+    pageDuration: undefined,
+    ssgPageDurations: undefined,
+    runtime: undefined,
+    isDynamicAppRoute: true,
+    ...overrides,
+  }
 }
