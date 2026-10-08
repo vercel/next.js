@@ -78,6 +78,12 @@ fn max_exit_enter_gap(entered: u64) -> u64 {
     (entered / 1000).max(1)
 }
 
+/// The absolute timestamp `ts` as stored in the `ts` field of a [`TraceRow`]. Microseconds since
+/// the start of tracing don't exceed `i64::MAX` in practice, larger values are clamped.
+fn row_ts(ts: u64) -> i64 {
+    i64::try_from(ts).unwrap_or(i64::MAX)
+}
+
 /// A tracing layer that writes raw trace data to a writer. We store data using the [`TraceRow`],
 /// serialized with [`postcard`], with timestamps encoded as described in the docs of
 /// [`TraceRow`].
@@ -195,7 +201,8 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> RawTraceLayer<S> {
     /// [`WriteGuard::encode_timestamp`].
     fn encode_timestamp(&self, guard: &mut WriteGuard<'_>, data: &mut TraceRow<'_>) {
         if let Some(ts) = data.timestamp_mut() {
-            *ts = guard.encode_timestamp(*ts);
+            let absolute = u64::try_from(*ts).expect("absolute timestamps are not negative");
+            *ts = guard.encode_timestamp(absolute);
         }
     }
 
@@ -239,7 +246,7 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> RawTraceLayer<S> {
                 let memory = TurboMalloc::memory_usage() as u64;
                 let memory_pressure = TurboMalloc::memory_pressure().unwrap_or(0);
                 self.write(TraceRow::MemorySample {
-                    ts,
+                    ts: row_ts(ts),
                     memory,
                     memory_pressure,
                     active_worker_threads: active_worker_threads() as u64,
@@ -291,7 +298,7 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for RawTraceLayer<S> {
             .extensions_mut()
             .insert(RawTraceLayerExtension { id: external_id });
         self.write(TraceRow::Start {
-            ts,
+            ts: row_ts(ts),
             id: external_id,
             parent: if attrs.is_contextual() {
                 ctx.current_span().id().map(|p| get_id(ctx, p))
@@ -307,7 +314,7 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for RawTraceLayer<S> {
     fn on_close(&self, id: span::Id, ctx: tracing_subscriber::layer::Context<'_, S>) {
         let ts = self.now();
         self.write(TraceRow::End {
-            ts,
+            ts: row_ts(ts),
             id: get_id(ctx, &id),
         });
     }
@@ -356,7 +363,7 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for RawTraceLayer<S> {
         // `None` when the rows were omitted
         if let Some(allocations) = enter_allocations {
             self.write(TraceRow::Enter {
-                ts,
+                ts: row_ts(ts),
                 id,
                 thread_id,
                 allocations,
@@ -385,7 +392,7 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for RawTraceLayer<S> {
         };
         self.write_marked(
             TraceRow::Exit {
-                ts,
+                ts: row_ts(ts),
                 id,
                 thread_id,
                 allocations,
@@ -400,7 +407,7 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for RawTraceLayer<S> {
         let mut values = ValuesVisitor::new();
         event.record(&mut values);
         self.write(TraceRow::Event {
-            ts,
+            ts: row_ts(ts),
             parent: if event.is_contextual() {
                 ctx.current_span().id().map(|p| get_id(ctx, p))
             } else {
@@ -698,10 +705,14 @@ pub(crate) mod tests {
             match row {
                 TraceRow::Enter {
                     thread_id, ts, id, ..
-                } if *id != backwards_id => per_thread.entry(*thread_id).or_default().0.push(*ts),
+                } if *id != backwards_id => {
+                    per_thread.entry(*thread_id).or_default().0.push(*ts as u64)
+                }
                 TraceRow::Exit {
                     thread_id, ts, id, ..
-                } if *id != backwards_id => per_thread.entry(*thread_id).or_default().1.push(*ts),
+                } if *id != backwards_id => {
+                    per_thread.entry(*thread_id).or_default().1.push(*ts as u64)
+                }
                 _ => {}
             }
         }
@@ -822,8 +833,8 @@ pub(crate) mod tests {
     fn enter_exit_rows(rows: &[TraceRow<'_>]) -> Vec<(&'static str, u64, u64)> {
         rows.iter()
             .filter_map(|row| match row {
-                TraceRow::Enter { id, ts, .. } => Some(("enter", *id, *ts)),
-                TraceRow::Exit { id, ts, .. } => Some(("exit", *id, *ts)),
+                TraceRow::Enter { id, ts, .. } => Some(("enter", *id, *ts as u64)),
+                TraceRow::Exit { id, ts, .. } => Some(("exit", *id, *ts as u64)),
                 _ => None,
             })
             .collect()
@@ -962,7 +973,7 @@ pub(crate) mod tests {
         let samples: Vec<_> = rows
             .iter()
             .filter_map(|row| match row {
-                TraceRow::MemorySample { ts, .. } => Some(*ts),
+                TraceRow::MemorySample { ts, .. } => Some(*ts as u64),
                 _ => None,
             })
             .collect();
@@ -1133,8 +1144,8 @@ pub(crate) mod tests {
         let mut by_thread: Vec<(u64, Vec<(&str, u64)>)> = Vec::new();
         for row in &rows {
             let (kind, thread, ts) = match row {
-                TraceRow::Enter { thread_id, ts, .. } => ("enter", *thread_id, *ts),
-                TraceRow::Exit { thread_id, ts, .. } => ("exit", *thread_id, *ts),
+                TraceRow::Enter { thread_id, ts, .. } => ("enter", *thread_id, *ts as u64),
+                TraceRow::Exit { thread_id, ts, .. } => ("exit", *thread_id, *ts as u64),
                 _ => continue,
             };
             match by_thread.iter_mut().find(|(t, _)| *t == thread) {

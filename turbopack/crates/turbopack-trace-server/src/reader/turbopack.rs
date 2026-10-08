@@ -116,7 +116,7 @@ impl TurbopackFormat {
                 target,
                 values,
             } => {
-                let ts = Timestamp::from_micros(ts);
+                let ts = Timestamp::from_micros(ts as u64);
                 let name = self.interner.intern_cow(name);
                 let target = self.interner.intern_cow(target);
                 let values = self.intern_span_args(values);
@@ -163,7 +163,7 @@ impl TurbopackFormat {
                 if let Some(allocations) = allocations {
                     self.add_allocations(store, thread_id, allocations);
                 }
-                let ts = Timestamp::from_micros(ts);
+                let ts = Timestamp::from_micros(ts as u64);
                 let stack = self.thread_stacks.entry(thread_id).or_default();
                 if let Some(&parent) = stack.last() {
                     if let Some(parent_start) = self.self_time_started.remove(&(parent, thread_id))
@@ -197,7 +197,7 @@ impl TurbopackFormat {
                 if let Some(allocations) = allocations {
                     self.add_allocations(store, thread_id, allocations);
                 }
-                let ts = Timestamp::from_micros(ts);
+                let ts = Timestamp::from_micros(ts as u64);
                 let stack = self.thread_stacks.entry(thread_id).or_default();
                 if let Some(pos) = stack.iter().rev().position(|&x| x == id) {
                     let stack_index = stack.len() - pos - 1;
@@ -218,7 +218,7 @@ impl TurbopackFormat {
                 }
             }
             TraceRow::Event { ts, parent, values } => {
-                let ts = Timestamp::from_micros(ts);
+                let ts = Timestamp::from_micros(ts as u64);
                 // Pull `duration` and `name` out of the typed values during
                 // interning
                 let mut duration = Timestamp::ZERO;
@@ -263,7 +263,7 @@ impl TurbopackFormat {
                 memory_pressure,
                 active_worker_threads,
             } => {
-                let ts = Timestamp::from_micros(ts);
+                let ts = Timestamp::from_micros(ts as u64);
                 store.add_memory_sample(ts, memory, memory_pressure, active_worker_threads);
             }
             // Already applied by the timestamp decoder when the row was read
@@ -456,6 +456,7 @@ impl TraceFormat for TurbopackFormat {
                 Ok((mut row, remaining)) => {
                     bytes_read += buffer.len() - remaining.len();
                     buffer = remaining;
+                    // Decoded timestamps are absolute and never negative
                     self.timestamps.decode(&mut row)?;
                     rows.push(row);
                 }

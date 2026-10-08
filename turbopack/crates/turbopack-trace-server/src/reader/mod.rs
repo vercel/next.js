@@ -438,8 +438,9 @@ mod tests {
             bytes.extend(postcard::to_stdvec(&row).unwrap());
         };
         for id in first_id..first_id + count {
+            let ts = id as i64;
             push(TraceRow::Start {
-                ts: id,
+                ts,
                 id,
                 parent: (id != 1).then_some(1),
                 name: Cow::Borrowed("span"),
@@ -447,19 +448,19 @@ mod tests {
                 values: Vec::new(),
             });
             push(TraceRow::Enter {
-                ts: id,
+                ts,
                 id,
                 thread_id: 1,
                 allocations: None,
             });
             push(TraceRow::Exit {
-                ts: id + 1,
+                ts: ts + 1,
                 id,
                 thread_id: 1,
                 allocations: None,
             });
             if id != 1 {
-                push(TraceRow::End { ts: id + 1, id });
+                push(TraceRow::End { ts: ts + 1, id });
             }
         }
         bytes

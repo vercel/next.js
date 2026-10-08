@@ -292,7 +292,7 @@ impl<'l> WriteGuard<'l> {
     /// [`TraceRow::TimestampBase`] row first, when one is needed. Must be called before the row
     /// itself is written (inside the callback of [`WriteGuard::mark`] for a marked row), and only
     /// once per row.
-    pub fn encode_timestamp(&mut self, ts: u64) -> u64 {
+    pub fn encode_timestamp(&mut self, ts: u64) -> i64 {
         let buffer = self.buffer();
         let (base, encoded) = buffer.timestamps.encode(ts);
         if let Some(ts) = base {
@@ -485,7 +485,7 @@ mod tests {
         rows.iter()
             .map(|row| match row {
                 TraceRow::TimestampBase { ts } => ("base", *ts),
-                TraceRow::End { ts, .. } => ("end", *ts),
+                TraceRow::End { ts, .. } => ("end", *ts as u64),
                 _ => unreachable!(),
             })
             .collect()
@@ -503,9 +503,9 @@ mod tests {
             timeline(&rows),
             [("base", 100), ("end", 100), ("end", 105), ("end", 103)]
         );
-        // zigzag(+5) and zigzag(-2) on the wire
+        // The signed deltas +5 and -2 on the wire
         let (_, rest): (TraceRow<'_>, _) = postcard::take_from_bytes(&data).unwrap();
-        let wire: Vec<u64> = {
+        let wire: Vec<i64> = {
             let mut rest = rest;
             let mut wire = Vec::new();
             while !rest.is_empty() {
@@ -517,7 +517,7 @@ mod tests {
             }
             wire
         };
-        assert_eq!(wire, [0, 10, 3]);
+        assert_eq!(wire, [0, 5, -2]);
     }
 
     #[test]
@@ -580,14 +580,26 @@ mod tests {
             write_end(&mut writer.start_write(), u64::MAX);
             write_end(&mut writer.start_write(), u64::MAX - 1);
         });
+        // Not decoded, since these absolute timestamps don't fit into the `ts` fields
+        let mut rest = data.as_slice();
+        let mut wire = Vec::new();
+        while !rest.is_empty() {
+            let (row, r): (TraceRow<'_>, _) = postcard::take_from_bytes(rest).unwrap();
+            wire.push(match row {
+                TraceRow::TimestampBase { ts } => ("base", i128::from(ts)),
+                TraceRow::End { ts, .. } => ("end", i128::from(ts)),
+                _ => unreachable!(),
+            });
+            rest = r;
+        }
         assert_eq!(
-            timeline(&decode_rows(&data)),
+            wire,
             [
                 ("base", 0),
                 ("end", 0),
-                ("base", u64::MAX),
-                ("end", u64::MAX),
-                ("end", u64::MAX - 1)
+                ("base", i128::from(u64::MAX)),
+                ("end", 0),
+                ("end", -1)
             ]
         );
     }
@@ -610,7 +622,7 @@ mod tests {
             .iter()
             .map(|row| match row {
                 TraceRow::TimestampBase { ts } => ("base", *ts),
-                TraceRow::End { ts, .. } => ("end", *ts),
+                TraceRow::End { ts, .. } => ("end", *ts as u64),
                 TraceRow::Record { .. } => ("record", 0),
                 _ => unreachable!(),
             })
@@ -669,7 +681,7 @@ mod tests {
             .iter()
             .filter_map(|row| match row {
                 TraceRow::TimestampBase { ts } => Some(("base", *ts)),
-                TraceRow::End { ts, .. } => Some(("end", *ts)),
+                TraceRow::End { ts, .. } => Some(("end", *ts as u64)),
                 _ => None,
             })
             .collect();

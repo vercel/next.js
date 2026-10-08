@@ -99,7 +99,7 @@ fn start(
     blocking: Option<bool>,
 ) -> TraceRow<'static> {
     TraceRow::Start {
-        ts,
+        ts: ts as i64,
         id,
         parent,
         name: name.into(),
@@ -124,7 +124,7 @@ fn duration_event(
         values.push(("blocking".into(), TraceValue::Bool(blocking)));
     }
     TraceRow::Event {
-        ts,
+        ts: ts as i64,
         parent: Some(1),
         values,
     }

@@ -10,22 +10,23 @@ use serde::{Deserialize, Serialize};
 /// # Timestamps
 ///
 /// Timestamps are microseconds since the start of tracing. To keep the trace file small, the
-/// `ts` fields of all rows except [`TraceRow::TimestampBase`] are serialized as the difference to
-/// the timestamp of the previous row with a timestamp in the trace stream, as a zigzag encoded
-/// signed number (`0, -1, 1, -2, 2, ...` are encoded as `0, 1, 2, 3, 4, ...`). The differences
-/// can be negative, since rows are not necessarily in timestamp order. A
+/// `ts` fields of all rows except [`TraceRow::TimestampBase`] are serialized as the signed
+/// difference to the timestamp of the previous row with a timestamp in the trace stream (postcard
+/// zigzag encodes signed numbers, so small differences in both directions take few bytes). The
+/// differences can be negative, since rows are not necessarily in timestamp order. A
 /// [`TraceRow::TimestampBase`] row sets an absolute timestamp that the next difference refers to.
 /// The writer writes one before the first row with a timestamp in every thread local buffer, so
 /// the rows of each buffer can be decoded no matter where the buffer ends up in the file.
 ///
 /// Writers use a [`TimestampEncoder`] and readers a [`TimestampDecoder`] on every row in stream
-/// order to convert between these differences and absolute timestamps.
+/// order to convert between these differences and absolute timestamps. Outside of the serialized
+/// form, the `ts` fields hold absolute timestamps, which are never negative.
 #[derive(Debug, Serialize, Deserialize)]
 pub enum TraceRow<'a> {
     /// A new span has been started, but not entered yet.
     Start {
         /// Timestamp
-        ts: u64,
+        ts: i64,
         /// Unique id for this span.
         id: u64,
         /// Id of the parent span, if any.
@@ -43,14 +44,14 @@ pub enum TraceRow<'a> {
     /// A span has ended. The id might be reused in future.
     End {
         /// Timestamp
-        ts: u64,
+        ts: i64,
         /// Unique id for this span. Must be created by a `Start` event before.
         id: u64,
     },
     /// A span has been entered. This means it is spending CPU time now.
     Enter {
         /// Timestamp
-        ts: u64,
+        ts: i64,
         /// Unique id for this span. Must be created by a `Start` event before.
         id: u64,
         /// The thread id of the thread that entered the span.
@@ -62,7 +63,7 @@ pub enum TraceRow<'a> {
     /// A span has been exited. This means it is not spending CPU time anymore.
     Exit {
         /// Timestamp
-        ts: u64,
+        ts: i64,
         /// Unique id for this span. Must be entered by a `Enter` event before.
         id: u64,
         /// The thread id of the thread that exits the span.
@@ -74,7 +75,7 @@ pub enum TraceRow<'a> {
     /// A event has happened for some span.
     Event {
         /// Timestamp
-        ts: u64,
+        ts: i64,
         /// Id of the parent span, if any.
         parent: Option<u64>,
         /// A list of key-value pairs for all attributes of the event.
@@ -92,7 +93,7 @@ pub enum TraceRow<'a> {
     /// A snapshot of process memory and non-idle Tokio scheduler workers.
     MemorySample {
         /// Timestamp
-        ts: u64,
+        ts: i64,
         /// Memory usage in bytes (from TurboMalloc::memory_usage())
         memory: u64,
         /// OS memory pressure in `0..=100` (from
@@ -113,7 +114,7 @@ pub enum TraceRow<'a> {
 impl TraceRow<'_> {
     /// The timestamp of this row, if it has one. This doesn't include
     /// [`TraceRow::TimestampBase`], which only defines the base for other timestamps.
-    pub fn timestamp_mut(&mut self) -> Option<&mut u64> {
+    pub fn timestamp_mut(&mut self) -> Option<&mut i64> {
         match self {
             TraceRow::Start { ts, .. }
             | TraceRow::End { ts, .. }
@@ -124,14 +125,6 @@ impl TraceRow<'_> {
             TraceRow::Record { .. } | TraceRow::TimestampBase { .. } => None,
         }
     }
-}
-
-fn zigzag_encode(value: i64) -> u64 {
-    ((value << 1) ^ (value >> 63)) as u64
-}
-
-fn zigzag_decode(value: u64) -> i64 {
-    ((value >> 1) as i64) ^ -((value & 1) as i64)
 }
 
 /// Converts absolute timestamps into the serialized form of the trace stream. See "Timestamps" in
@@ -150,22 +143,23 @@ impl TimestampEncoder {
     ///
     /// A base is needed for the first timestamp, and when the difference to the previous
     /// timestamp doesn't fit into an `i64`.
-    pub fn encode(&mut self, ts: u64) -> (Option<u64>, u64) {
+    pub fn encode(&mut self, ts: u64) -> (Option<u64>, i64) {
         let delta = self
             .last
             .and_then(|last| i64::try_from(i128::from(ts) - i128::from(last)).ok());
         self.last = Some(ts);
         match delta {
-            Some(delta) => (None, zigzag_encode(delta)),
-            None => (Some(ts), zigzag_encode(0)),
+            Some(delta) => (None, delta),
+            None => (Some(ts), 0),
         }
     }
 
-    /// Converts the timestamp of `row` (if it has one) in place and returns the
+    /// Converts the absolute timestamp of `row` (if it has one) in place and returns the
     /// [`TraceRow::TimestampBase`] row that has to be written before it, if needed.
     pub fn encode_row(&mut self, row: &mut TraceRow<'_>) -> Option<TraceRow<'static>> {
         let ts = row.timestamp_mut()?;
-        let (base, encoded) = self.encode(*ts);
+        let absolute = u64::try_from(*ts).expect("absolute timestamps are not negative");
+        let (base, encoded) = self.encode(absolute);
         *ts = encoded;
         base.map(|ts| TraceRow::TimestampBase { ts })
     }
@@ -176,7 +170,8 @@ impl TimestampEncoder {
 pub enum TimestampDecodeError {
     /// A row with a timestamp came before any [`TraceRow::TimestampBase`].
     MissingBase,
-    /// Applying a timestamp difference over- or underflowed.
+    /// Applying a timestamp difference over- or underflowed, or the absolute timestamp doesn't
+    /// fit into the `i64` of a `ts` field.
     Overflow,
 }
 
@@ -218,9 +213,9 @@ impl TimestampDecoder {
         if let Some(ts) = row.timestamp_mut() {
             let last = self.last.ok_or(TimestampDecodeError::MissingBase)?;
             let decoded = last
-                .checked_add_signed(zigzag_decode(*ts))
+                .checked_add_signed(*ts)
                 .ok_or(TimestampDecodeError::Overflow)?;
-            *ts = decoded;
+            *ts = i64::try_from(decoded).map_err(|_| TimestampDecodeError::Overflow)?;
             self.last = Some(decoded);
         }
         Ok(())
@@ -299,19 +294,20 @@ impl TraceValue<'_> {
 mod tests {
     use crate::tracing::{TimestampDecodeError, TimestampDecoder, TimestampEncoder, TraceRow};
 
-    fn end(ts: u64) -> TraceRow<'static> {
+    fn end(ts: i64) -> TraceRow<'static> {
         TraceRow::End { ts, id: 1 }
     }
 
-    fn ts_of(row: &TraceRow<'_>) -> u64 {
+    fn ts_of(row: &TraceRow<'_>) -> i64 {
         match row {
-            TraceRow::End { ts, .. } | TraceRow::TimestampBase { ts } => *ts,
+            TraceRow::End { ts, .. } => *ts,
+            TraceRow::TimestampBase { ts } => i64::try_from(*ts).unwrap(),
             _ => unreachable!(),
         }
     }
 
     /// Encodes the rows like the trace writer does (base rows included) and decodes them again.
-    fn round_trip(timestamps: &[u64]) -> (Vec<TraceRow<'static>>, Vec<u64>) {
+    fn round_trip(timestamps: &[i64]) -> (Vec<TraceRow<'static>>, Vec<i64>) {
         let mut encoder = TimestampEncoder::default();
         let mut encoded = Vec::new();
         for &ts in timestamps {
@@ -340,23 +336,42 @@ mod tests {
         let timestamps = [1000, 1005, 1003, 1003, 2000, 0, 7];
         let (encoded, decoded) = round_trip(&timestamps);
         assert_eq!(decoded, timestamps);
-        // One base row at the start, the rows hold zigzag encoded deltas
+        // One base row at the start, the rows hold the signed deltas
         assert!(matches!(encoded[0], TraceRow::TimestampBase { ts: 1000 }));
-        let deltas: Vec<u64> = encoded[1..].iter().map(ts_of).collect();
-        assert_eq!(deltas, [0, 10, 3, 0, 1994, 3999, 14]);
+        let deltas: Vec<i64> = encoded[1..].iter().map(ts_of).collect();
+        assert_eq!(deltas, [0, 5, -2, 0, 997, -2000, 7]);
+    }
+
+    /// postcard zigzag encodes the signed deltas, so they are serialized exactly like the
+    /// unsigned zigzag values used before.
+    #[test]
+    fn deltas_are_serialized_as_zigzag_varints() {
+        fn zigzag(value: i64) -> u64 {
+            ((value << 1) ^ (value >> 63)) as u64
+        }
+        for delta in [0, 1, -1, 5, -2, 1994, -3999, i64::MIN, i64::MAX] {
+            let mut expected = postcard::to_stdvec(&TraceRow::End { ts: 0, id: 7 }).unwrap();
+            // The variant index, then the varint of `ts`, then `id`
+            expected.splice(1..2, postcard::to_stdvec(&zigzag(delta)).unwrap());
+            assert_eq!(
+                postcard::to_stdvec(&TraceRow::End { ts: delta, id: 7 }).unwrap(),
+                expected,
+                "delta {delta}"
+            );
+        }
     }
 
     #[test]
     fn out_of_range_delta_starts_a_new_base() {
-        let timestamps = [0, u64::MAX, u64::MAX - 1, 0];
-        let (encoded, decoded) = round_trip(&timestamps);
-        assert_eq!(decoded, timestamps);
-        let bases: Vec<u64> = encoded
-            .iter()
-            .filter(|row| matches!(row, TraceRow::TimestampBase { .. }))
-            .map(ts_of)
+        let mut encoder = TimestampEncoder::default();
+        let encoded: Vec<_> = [0, u64::MAX, u64::MAX - 1, 0]
+            .into_iter()
+            .map(|ts| encoder.encode(ts))
             .collect();
-        assert_eq!(bases, [0, u64::MAX, 0]);
+        assert_eq!(
+            encoded,
+            [(Some(0), 0), (Some(u64::MAX), 0), (None, -1), (Some(0), 0)]
+        );
     }
 
     #[test]
@@ -404,18 +419,34 @@ mod tests {
         decoder
             .decode(&mut TraceRow::TimestampBase { ts: u64::MAX - 1 })
             .unwrap();
-        // zigzag(+5)
         assert_eq!(
-            decoder.decode(&mut end(10)),
+            decoder.decode(&mut end(5)),
             Err(TimestampDecodeError::Overflow)
         );
         let mut decoder = TimestampDecoder::default();
         decoder
             .decode(&mut TraceRow::TimestampBase { ts: 1 })
             .unwrap();
-        // zigzag(-2)
         assert_eq!(
-            decoder.decode(&mut end(3)),
+            decoder.decode(&mut end(-2)),
+            Err(TimestampDecodeError::Overflow)
+        );
+    }
+
+    /// Absolute timestamps are stored in the `i64` of the `ts` fields.
+    #[test]
+    fn decoder_rejects_timestamps_beyond_i64() {
+        let mut decoder = TimestampDecoder::default();
+        decoder
+            .decode(&mut TraceRow::TimestampBase {
+                ts: i64::MAX as u64,
+            })
+            .unwrap();
+        let mut row = end(0);
+        decoder.decode(&mut row).unwrap();
+        assert_eq!(ts_of(&row), i64::MAX);
+        assert_eq!(
+            decoder.decode(&mut end(1)),
             Err(TimestampDecodeError::Overflow)
         );
     }
