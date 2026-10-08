@@ -291,7 +291,7 @@ export async function spawnNextUpgrade(
       })
 
       const { handoffUpgrade } =
-        require('../lib/upgrade/harness') as typeof import('../lib/upgrade/harness')
+        require('../next-upgrade/cli/agent/handoff') as typeof import('../next-upgrade/cli/agent/handoff')
 
       // Delivery is observable here; completing the upgrade belongs to the agent.
       failureStage = 'handoff'
