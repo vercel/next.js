@@ -1,5 +1,6 @@
 import type { MetadataRoute } from '../../../../lib/metadata/types/metadata-interface'
 import { resolveArray } from '../../../../lib/metadata/generate/utils'
+import { workUnitAsyncStorage } from '../../../../server/app-render/work-unit-async-storage.external'
 
 // convert robots data to txt string
 export function resolveRobots(data: MetadataRoute.Robots): string {
@@ -173,4 +174,29 @@ export function resolveRouteData(
     return resolveManifest(data as MetadataRoute.Manifest)
   }
   return ''
+}
+
+/**
+ * Response headers for dynamic text metadata routes (robots, sitemap, manifest).
+ *
+ * While prerendering, `Cache-Control` is left unset so it can be derived from
+ * the route's `revalidate`/`expire` like any other prerendered route handler.
+ * Otherwise the response is dynamic and has to be revalidated on every request.
+ */
+export function getMetadataRouteHeaders(
+  contentType: string
+): Record<string, string> {
+  const headers: Record<string, string> = { 'Content-Type': contentType }
+
+  const workUnitStore = workUnitAsyncStorage.getStore()
+  switch (workUnitStore?.type) {
+    case 'prerender':
+    case 'prerender-runtime':
+    case 'prerender-legacy':
+      break
+    default:
+      headers['Cache-Control'] = 'public, max-age=0, must-revalidate'
+  }
+
+  return headers
 }

@@ -225,11 +225,9 @@ async fn dynamic_text_route_source(path: FileSystemPath) -> Result<Vc<Box<dyn So
         r#"
             import {{ NextResponse }} from 'next/server'
             import handler from {resource_path}
-            import {{ resolveRouteData }} from
-'next/dist/build/webpack/loaders/metadata/resolve-route-data'
+            import {{ getMetadataRouteHeaders, resolveRouteData }} from 'next/dist/build/webpack/loaders/metadata/resolve-route-data'
 
             const contentType = {content_type}
-            const cacheControl = {cache_control}
             const fileType = {file_type}
 
             if (typeof handler !== 'function') {{
@@ -241,10 +239,7 @@ async fn dynamic_text_route_source(path: FileSystemPath) -> Result<Vc<Box<dyn So
               const content = resolveRouteData(data, fileType)
 
               return new NextResponse(content, {{
-                headers: {{
-                  'Content-Type': contentType,
-                  'Cache-Control': cacheControl,
-                }},
+                headers: getMetadataRouteHeaders(contentType),
               }})
             }}
 
@@ -253,7 +248,6 @@ async fn dynamic_text_route_source(path: FileSystemPath) -> Result<Vc<Box<dyn So
         resource_path = StringifyJs(&format!("./{}", path.file_name())),
         content_type = StringifyJs(&content_type),
         file_type = StringifyJs(&stem),
-        cache_control = StringifyJs(CACHE_HEADER_REVALIDATE),
     };
 
     let file = File::from(code);
@@ -276,10 +270,9 @@ async fn dynamic_sitemap_route_with_generate_source(
         r#"
             import {{ NextResponse }} from 'next/server'
             import {{ default as handler, generateSitemaps }} from {resource_path}
-            import {{ resolveRouteData }} from 'next/dist/build/webpack/loaders/metadata/resolve-route-data'
+            import {{ getMetadataRouteHeaders, resolveRouteData }} from 'next/dist/build/webpack/loaders/metadata/resolve-route-data'
 
             const contentType = {content_type}
-            const cache_control = {cache_control}
             const fileType = {file_type}
 
             if (typeof handler !== 'function') {{
@@ -317,10 +310,7 @@ async fn dynamic_sitemap_route_with_generate_source(
                 const content = resolveRouteData(data, fileType)
 
                 return new NextResponse(content, {{
-                    headers: {{
-                        'Content-Type': contentType,
-                        'Cache-Control': cache_control,
-                    }},
+                    headers: getMetadataRouteHeaders(contentType),
                 }})
             }}
 
@@ -342,7 +332,6 @@ async fn dynamic_sitemap_route_with_generate_source(
         resource_path = StringifyJs(&format!("./{}", path.file_name())),
         content_type = StringifyJs(&content_type),
         file_type = StringifyJs(&stem),
-        cache_control = StringifyJs(CACHE_HEADER_REVALIDATE),
     };
 
     let file = File::from(code);
@@ -365,10 +354,9 @@ async fn dynamic_sitemap_route_without_generate_source(
         r#"
             import {{ NextResponse }} from 'next/server'
             import {{ default as handler }} from {resource_path}
-            import {{ resolveRouteData }} from 'next/dist/build/webpack/loaders/metadata/resolve-route-data'
+            import {{ getMetadataRouteHeaders, resolveRouteData }} from 'next/dist/build/webpack/loaders/metadata/resolve-route-data'
 
             const contentType = {content_type}
-            const cacheControl = {cache_control}
             const fileType = {file_type}
 
             if (typeof handler !== 'function') {{
@@ -380,10 +368,7 @@ async fn dynamic_sitemap_route_without_generate_source(
                 const content = resolveRouteData(data, fileType)
 
                 return new NextResponse(content, {{
-                    headers: {{
-                        'Content-Type': contentType,
-                        'Cache-Control': cacheControl,
-                    }},
+                    headers: getMetadataRouteHeaders(contentType),
                 }})
             }}
 
@@ -392,7 +377,6 @@ async fn dynamic_sitemap_route_without_generate_source(
         resource_path = StringifyJs(&format!("./{}", path.file_name())),
         content_type = StringifyJs(&content_type),
         file_type = StringifyJs(&stem),
-        cache_control = StringifyJs(CACHE_HEADER_REVALIDATE),
     };
 
     let file = File::from(code);

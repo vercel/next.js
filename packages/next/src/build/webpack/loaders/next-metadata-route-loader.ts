@@ -132,7 +132,7 @@ async function getDynamicTextRouteCode(
 /* dynamic asset route */
 import { NextResponse } from 'next/server'
 import handler from ${JSON.stringify(resourcePath)}
-import { resolveRouteData } from 'next/dist/build/webpack/loaders/metadata/resolve-route-data'
+import { getMetadataRouteHeaders, resolveRouteData } from 'next/dist/build/webpack/loaders/metadata/resolve-route-data'
 
 const contentType = ${JSON.stringify(getContentType(resourcePath))}
 const fileType = ${JSON.stringify(getFilenameAndExtension(resourcePath).name)}
@@ -145,10 +145,7 @@ export async function GET() {
   const content = resolveRouteData(data, fileType)
 
   return new NextResponse(content, {
-    headers: {
-      'Content-Type': contentType,
-      'Cache-Control': ${JSON.stringify(CACHE_HEADERS.REVALIDATE)},
-    },
+    headers: getMetadataRouteHeaders(contentType),
   })
 }
 `
@@ -255,7 +252,7 @@ async function getSingleSitemapRouteCode(
 /* single sitemap route */
 import { NextResponse } from 'next/server'
 import { default as handler } from ${JSON.stringify(resourcePath)}
-import { resolveRouteData } from 'next/dist/build/webpack/loaders/metadata/resolve-route-data'
+import { getMetadataRouteHeaders, resolveRouteData } from 'next/dist/build/webpack/loaders/metadata/resolve-route-data'
 
 const contentType = ${JSON.stringify(getContentType(resourcePath))}
 const fileType = ${JSON.stringify(getFilenameAndExtension(resourcePath).name)}
@@ -268,10 +265,7 @@ export async function GET() {
   const content = resolveRouteData(data, fileType)
 
   return new NextResponse(content, {
-    headers: {
-      'Content-Type': contentType,
-      'Cache-Control': ${JSON.stringify(CACHE_HEADERS.REVALIDATE)},
-    },
+    headers: getMetadataRouteHeaders(contentType),
   })
 }
 `
@@ -285,7 +279,7 @@ async function getDynamicSitemapRouteCode(
 /* dynamic sitemap route with generateSitemaps */
 import { NextResponse } from 'next/server'
 import { default as handler, generateSitemaps } from ${JSON.stringify(resourcePath)}
-import { resolveRouteData } from 'next/dist/build/webpack/loaders/metadata/resolve-route-data'
+import { getMetadataRouteHeaders, resolveRouteData } from 'next/dist/build/webpack/loaders/metadata/resolve-route-data'
 
 const contentType = ${JSON.stringify(getContentType(resourcePath))}
 const fileType = ${JSON.stringify(getFilenameAndExtension(resourcePath).name)}
@@ -325,10 +319,7 @@ export async function GET(_, ctx) {
   const content = resolveRouteData(data, fileType)
 
   return new NextResponse(content, {
-    headers: {
-      'Content-Type': contentType,
-      'Cache-Control': ${JSON.stringify(CACHE_HEADERS.REVALIDATE)},
-    },
+    headers: getMetadataRouteHeaders(contentType),
   })
 }
 

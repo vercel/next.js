@@ -6,6 +6,7 @@ import { check, getDistDir } from 'next-test-utils'
 const CACHE_HEADERS = {
   NONE: 'no-cache, no-store',
   REVALIDATE: 'public, max-age=0, must-revalidate',
+  STATIC: 's-maxage=31536000',
 }
 
 const hashRegex = /\?\w+/
@@ -18,13 +19,20 @@ describe('app dir - metadata dynamic routes', () => {
     },
   })
 
+  // Prerendered text metadata routes derive `Cache-Control` from their
+  // `revalidate` like other route handlers, dynamic ones are always revalidated.
+  const prerenderedCacheControl = (cacheControl: string) =>
+    isNextStart ? cacheControl : CACHE_HEADERS.REVALIDATE
+
   describe('robots.txt', () => {
     it('should handle robots.[ext] dynamic routes', async () => {
       const res = await next.fetch('/robots.txt')
       const text = await res.text()
 
       expect(res.headers.get('content-type')).toContain('text/plain')
-      expect(res.headers.get('cache-control')).toBe(CACHE_HEADERS.REVALIDATE)
+      expect(res.headers.get('cache-control')).toBe(
+        prerenderedCacheControl(CACHE_HEADERS.STATIC)
+      )
 
       expect(text).toMatchInlineSnapshot(`
         "User-Agent: Googlebot
@@ -48,7 +56,9 @@ describe('app dir - metadata dynamic routes', () => {
       const text = await res.text()
 
       expect(res.headers.get('content-type')).toBe('application/xml')
-      expect(res.headers.get('cache-control')).toBe(CACHE_HEADERS.REVALIDATE)
+      expect(res.headers.get('cache-control')).toBe(
+        prerenderedCacheControl(CACHE_HEADERS.STATIC)
+      )
 
       expect(text).toMatchInlineSnapshot(`
              "<?xml version="1.0" encoding="UTF-8"?>
@@ -85,6 +95,16 @@ describe('app dir - metadata dynamic routes', () => {
         const { status } = await fetchSitemap(id, false)
         expect(status).toBe(404)
       }
+    })
+
+    it('should derive cache-control from revalidate in sitemap', async () => {
+      const res = await next.fetch('/revalidate/sitemap.xml')
+      expect(res.status).toBe(200)
+      expect(res.headers.get('cache-control')).toBe(
+        prerenderedCacheControl(
+          's-maxage=3600, stale-while-revalidate=31532400'
+        )
+      )
     })
 
     it('should 404 for non-existing id from generateImageMetadata', async () => {
@@ -191,7 +211,9 @@ describe('app dir - metadata dynamic routes', () => {
       expect(res.headers.get('content-type')).toContain(
         'application/manifest+json'
       )
-      expect(res.headers.get('cache-control')).toBe(CACHE_HEADERS.REVALIDATE)
+      expect(res.headers.get('cache-control')).toBe(
+        prerenderedCacheControl(CACHE_HEADERS.STATIC)
+      )
 
       expect(json).toMatchObject({
         name: 'Next.js App',
@@ -562,6 +584,7 @@ describe('app dir - metadata dynamic routes', () => {
          "/metadata-base/unset/twitter-image.png",
          "/opengraph-image",
          "/opengraph-image-1ow20b",
+         "/revalidate/sitemap.xml",
          "/robots.txt",
          "/sitemap",
          "/sitemap-image/sitemap.xml",
