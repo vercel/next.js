@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import { connection } from 'next/server'
-import { getDate } from './logic'
+import { getDate } from '../logic'
 
 async function getData() {
   'use cache: remote'
