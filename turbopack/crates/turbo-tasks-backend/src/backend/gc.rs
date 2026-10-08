@@ -268,13 +268,18 @@ impl TurboTasksBackend {
                 // Drop the whole cell payload. This recovers most of the RAM while persistence
                 // writes the tombstone.
                 drop(task.take_cell_data());
-                task.set_deleted(true);
                 if task.new_task() {
+                    task.set_deleted(true);
+                    // Never persisted: nothing on disk to tombstone. Once clean and deleted the
+                    // task ignores further modifications, so eviction can drop it at once.
                     task.discard_modifications_for_gc_new_task();
                 } else {
-                    // Persisted ensure it is marked modified so the next snapshot tombstones it.
+                    // Persisted: ensure it is marked modified so the next snapshot tombstones it.
                     // It is almost certainly already marked modified, so this is mostly a no-op.
+                    // Track before setting `deleted`: a deleted task with nothing pending ignores
+                    // modifications.
                     let _ = task.track_modification(SpecificTaskDataCategory::Meta, "gc_deleted");
+                    task.set_deleted(true);
                 }
                 drop(task); // drop the lock so edge cleanup can run
                 stats.collected += 1;

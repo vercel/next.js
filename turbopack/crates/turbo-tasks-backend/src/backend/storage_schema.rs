@@ -477,7 +477,8 @@ pub enum UnevictableReason {
     InProgress,
     /// Modified flags are set, or data/meta has not been restored yet.
     Modified,
-    /// Deleted flag was set but the prior GC pass didn't run to completion.
+    /// GC deleted the task but its tombstone has not been persisted yet, e.g. because the GC pass
+    /// was interrupted and abandoned its snapshot.
     MarkedForDeletion,
     /// The task is transient
     Transient,

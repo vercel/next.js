@@ -451,10 +451,7 @@ impl TurboTasksBackend {
                 return TestSnapshotOutcome::default();
             }
         };
-        let gc_interrupted = gc_outcome
-            .as_ref()
-            .is_some_and(|(_, result)| result.interrupted);
-        let eviction_counts = self.storage.evict_after_snapshot(None, gc_interrupted);
+        let eviction_counts = self.storage.evict_after_snapshot(None);
         TestSnapshotOutcome {
             had_new_data,
             eviction_counts,
@@ -3146,7 +3143,7 @@ impl TurboTasksBackend {
                                 fresh_idle = true;
                                 continue 'outer;
                             }
-                            Ok(Some((snapshot_start, new_data, gc_outcome))) => {
+                            Ok(Some((snapshot_start, new_data, _gc_outcome))) => {
                                 // if we see 'new_data' then the next idle transition is 'fresh'
                                 fresh_idle = new_data;
                                 is_first = false;
@@ -3193,11 +3190,7 @@ impl TurboTasksBackend {
                                     // when enabled we should expect it to reclaim substantial
                                     // memory so racing with execution is as likely to save time as
                                     // cost it.
-                                    let gc_interrupted = gc_outcome
-                                        .as_ref()
-                                        .is_some_and(|(_, result)| result.interrupted);
-                                    self.storage
-                                        .evict_after_snapshot(background_span.id(), gc_interrupted);
+                                    self.storage.evict_after_snapshot(background_span.id());
                                     true
                                 } else {
                                     false

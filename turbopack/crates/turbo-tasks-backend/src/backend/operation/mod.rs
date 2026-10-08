@@ -2514,7 +2514,7 @@ mod cell_data_tracking_tests {
         // Run the post-snapshot eviction sweep: the task is clean (not modified),
         // so data is eligible to drop, but the Skip+never value is retained as
         // residue. The entry stays in the map with the value still present.
-        storage.evict_after_snapshot(None, false);
+        storage.evict_after_snapshot(None);
 
         let g = guard_for(&storage, task_id);
         assert!(

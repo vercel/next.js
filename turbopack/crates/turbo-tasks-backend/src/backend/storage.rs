@@ -745,14 +745,10 @@ impl Storage {
     ///
     /// Must be called when NOT in snapshot mode (i.e., after `end_snapshot()`).
     ///
-    /// `gc_interrupted` is whether the preceding GC pass was interrupted. An interrupted pass
-    /// abandons the snapshot that would write the tombstones for the tasks it collected, so those
-    /// tasks are kept resident until a later snapshot writes them.
-    pub fn evict_after_snapshot(
-        &self,
-        parent_span: Option<Id>,
-        gc_interrupted: bool,
-    ) -> EvictionCounts {
+    /// A GC-deleted task is dropped once nothing about it is pending: its tombstone was persisted,
+    /// or it was never persisted at all. One whose tombstone is still pending stays resident, as
+    /// after an interrupted GC pass, which abandons the snapshot that would have written it.
+    pub fn evict_after_snapshot(&self, parent_span: Option<Id>) -> EvictionCounts {
         let span = tracing::trace_span!(
             parent: parent_span,
             "evict_after_snapshot",
@@ -802,17 +798,16 @@ impl Storage {
                     return true;
                 }
                 if task.flags.deleted() {
-                    // The snapshot this pass abandoned was the one that would tombstone this task.
-                    // Its neighbours' halves of the torn-down edges still reach disk with the next
-                    // snapshot, so dropping it now would leave its last snapshot live on disk, to
-                    // be restored later as a live task with dangling edges.
-                    if gc_interrupted {
+                    // Its tombstone is still pending. Its neighbours' halves of the torn-down
+                    // edges reach disk with the next snapshot, so dropping it now would leave its
+                    // last snapshot live on disk, to be restored later as a live task with
+                    // dangling edges.
+                    if task.flags.any_modified() {
                         evicted.unevictable_reasons
                             [UnevictableReason::MarkedForDeletion.index()] += 1;
                         return true;
                     }
-                    // Otherwise every GC'd task was tombstoned during the snapshot (or was never
-                    // persisted), so we can drop it fully now.
+                    // Tombstoned, or never persisted: nothing on disk to protect.
                     if let Some(task_type) = task.get_persistent_task_type() {
                         remove_from_task_cache(
                             &mut evicted,
@@ -984,6 +979,17 @@ impl StorageWriteGuard<'_> {
             self.inner.key()
         );
         if self.inner.flags.is_modified(category) {
+            return TrackOutcome::NoChange;
+        }
+        // A GC-deleted task with nothing pending was either tombstoned already or never persisted.
+        // Neither needs another write: the snapshot would only repeat the tombstone, and a
+        // never-persisted task has nothing on disk. Staying clean is what lets eviction drop it
+        // without waiting for a snapshot. A task captured by the running snapshot still tracks, so
+        // copy-on-write keeps working.
+        if self.inner.flags.deleted()
+            && !self.inner.flags.any_modified()
+            && !self.inner.flags.any_snapshot_pending()
+        {
             return TrackOutcome::NoChange;
         }
         #[cfg(feature = "trace_task_modification")]
@@ -1327,7 +1333,7 @@ mod tests {
 
     use super::{
         SnapshotGuard, SnapshotShard, SpecificTaskDataCategory, Storage, StorageOptions,
-        TaskDataCategory, TaskStorage, TrackOutcome, encode_task_contents,
+        TaskDataCategory, TaskStorage, TrackOutcome, UnevictableReason, encode_task_contents,
     };
     use crate::{
         backend::snapshot_coordinator::SnapshotCoordinator, backing_storage::SnapshotItem,
@@ -1349,6 +1355,54 @@ mod tests {
         let task = storage.access_mut(task_id);
         assert_eq!(task.gc_transient_ref_count(), 1);
         assert!(!task.gc_collectible());
+    }
+
+    /// A never-persisted task that GC deleted stays clean when its neighbours' teardown touches it
+    /// again, so eviction drops it even though no snapshot ran.
+    // `evict_after_snapshot` uses `parallel::map_collect`, which requires a multi-threaded runtime.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn gc_deleted_new_task_ignores_modifications_and_is_evicted() {
+        let storage = Storage::new(StorageOptions::for_tests());
+        let task_id = non_transient_task(1);
+        storage.initialize_new_task(task_id, None);
+        {
+            let mut guard = storage.access_mut(task_id);
+            guard.flags.set_deleted(true);
+            guard.discard_modifications_for_gc_new_task();
+            assert!(matches!(
+                guard.track_modification(SpecificTaskDataCategory::Data, "teardown"),
+                TrackOutcome::NoChange
+            ));
+            assert!(!guard.flags.any_modified());
+        }
+
+        storage.evict_after_snapshot(None);
+        assert!(storage.with_task(task_id, |_| ()).is_none());
+    }
+
+    /// A persisted task that GC deleted keeps its tombstone pending until a snapshot writes it, so
+    /// eviction must leave it resident, as after an interrupted GC pass.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn gc_deleted_task_with_pending_tombstone_survives_eviction() {
+        let storage = Storage::new(StorageOptions::for_tests());
+        let task_id = non_transient_task(1);
+        {
+            let mut guard = storage.access_mut(task_id);
+            let _ = guard.track_modification(SpecificTaskDataCategory::Meta, "gc_deleted");
+            guard.flags.set_deleted(true);
+            // Teardown after the delete still tracks while the tombstone is pending.
+            assert!(!matches!(
+                guard.track_modification(SpecificTaskDataCategory::Data, "teardown"),
+                TrackOutcome::NoChange
+            ));
+        }
+
+        let counts = storage.evict_after_snapshot(None);
+        assert!(storage.with_task(task_id, |_| ()).is_some());
+        assert_eq!(
+            counts.unevictable_reasons[UnevictableReason::MarkedForDeletion.index()],
+            1
+        );
     }
 
     /// A process fn that returns a non-empty SnapshotItem so the iterator doesn't

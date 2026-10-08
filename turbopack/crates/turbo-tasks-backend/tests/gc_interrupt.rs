@@ -89,6 +89,21 @@ async fn snapshot_while_busy(tt: &Arc<TurboTasks<TurboTasksBackend>>) -> TestSna
     outcome
 }
 
+/// Runs [`TurboTasksBackend::snapshot_and_evict_for_testing`] until its GC pass completes. Work
+/// left over from the previous step can still be settling and interrupt the first attempt.
+fn snapshot_until_complete(tt: &Arc<TurboTasks<TurboTasksBackend>>) {
+    for _ in 0..10 {
+        if !tt
+            .backend()
+            .snapshot_and_evict_for_testing(tt)
+            .gc_interrupted()
+        {
+            return;
+        }
+    }
+    panic!("no GC pass completed in 10 attempts");
+}
+
 /// A waiter blocked for the whole pass must not interrupt it while the floor is unmet.
 ///
 /// This *provokes* the interleaving rather than forcing it: the spawned operation may park on the
@@ -218,11 +233,7 @@ async fn gc_interrupted_pass_keeps_collected_tasks_until_tombstoned() {
     let mut interrupted_collections = 0usize;
     for round in 1..=ROUNDS {
         build_generation(&tt, gen_value).await;
-        let persisted = tt.backend().snapshot_and_evict_for_testing(&tt);
-        assert!(
-            !persisted.gc_interrupted(),
-            "round {round}: nothing was waiting, so this pass must complete"
-        );
+        snapshot_until_complete(&tt);
 
         gen_value += 1;
         build_generation(&tt, gen_value).await;
@@ -241,10 +252,8 @@ async fn gc_interrupted_pass_keeps_collected_tasks_until_tombstoned() {
         "no interrupted pass collected anything in {ROUNDS} rounds, so this test proved nothing"
     );
 
-    // Nothing else is running, so this pass completes and its snapshot tombstones whatever the
-    // interrupted passes left pending.
-    let settle = tt.backend().snapshot_and_evict_for_testing(&tt);
-    assert!(!settle.gc_interrupted());
+    // A completing pass's snapshot tombstones whatever the interrupted passes left pending.
+    snapshot_until_complete(&tt);
 
     // Revisit every generation, collecting the one we leave each time. A stale task restored from
     // disk is reconnected here, and collecting it again walks its dangling child edges.
