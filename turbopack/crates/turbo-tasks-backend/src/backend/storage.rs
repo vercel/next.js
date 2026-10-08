@@ -533,9 +533,10 @@ impl Storage {
                                 "found a modified transient task: {key:?}"
                             );
                         }
-                        // Unmodified entries are not part of the snapshot. Remove and free them
-                        // now so the table we move out below holds only modified entries.
-                        modified_task
+                        // Unmodified entries are not part of the snapshot, and neither are deleted
+                        // tasks that were never persisted. Remove and free them now so the table we
+                        // move out below holds only entries to persist.
+                        modified_task && !is_deleted_new_task(task)
                     });
                     if shard_guard.is_empty() {
                         // The shard held only unmodified entries, which we've now erased and freed.
@@ -548,6 +549,14 @@ impl Storage {
                 } else {
                     let mut modified = Vec::with_capacity(modified_count as usize);
                     for (key, task) in shard_guard.iter_mut() {
+                        if is_deleted_new_task(task) {
+                            // Nothing on disk to write or tombstone. The shard's count was already
+                            // reset above, so clearing the flags is all the bookkeeping needed;
+                            // eviction frees the entry.
+                            task.flags.set_meta_modified(false);
+                            task.flags.set_data_modified(false);
+                            continue;
+                        }
                         // Only check modified flags — transient tasks never have modified flags set
                         // (track_modification guards against it), so this naturally excludes them.
                         // new_task always comes with modified flags (set_persistent_task_type calls
@@ -569,8 +578,10 @@ impl Storage {
                             modified.push(*key);
                         }
                     }
-                    // modified_count > 0 (we returned early otherwise), so this is never empty.
-                    debug_assert!(!modified.is_empty());
+                    // Empty when every modified task in the shard was a deleted new task.
+                    if modified.is_empty() {
+                        return None;
+                    }
                     ShardWork::Keep(modified)
                 }
             };
@@ -798,11 +809,19 @@ impl Storage {
                     return true;
                 }
                 if task.flags.deleted() {
-                    // Its tombstone is still pending. Its neighbours' halves of the torn-down
-                    // edges reach disk with the next snapshot, so dropping it now would leave its
-                    // last snapshot live on disk, to be restored later as a live task with
-                    // dangling edges.
-                    if task.flags.any_modified() {
+                    if task.flags.new_task() {
+                        // Never persisted, so nothing on disk to protect. It is still counted as
+                        // modified if no snapshot skipped it since, e.g. after an interrupted GC
+                        // pass.
+                        if task.flags.any_modified() {
+                            self.shard_modified_counts[self.shard_index(task_id)]
+                                .fetch_sub(1, Ordering::Relaxed);
+                        }
+                    } else if task.flags.any_modified() {
+                        // Its tombstone is still pending. Its neighbours' halves of the torn-down
+                        // edges reach disk with the next snapshot, so dropping it now would leave
+                        // its last snapshot live on disk, to be restored later as a live task with
+                        // dangling edges.
                         evicted.unevictable_reasons
                             [UnevictableReason::MarkedForDeletion.index()] += 1;
                         return true;
@@ -981,17 +1000,6 @@ impl StorageWriteGuard<'_> {
         if self.inner.flags.is_modified(category) {
             return TrackOutcome::NoChange;
         }
-        // A GC-deleted task with nothing pending was either tombstoned already or never persisted.
-        // Neither needs another write: the snapshot would only repeat the tombstone, and a
-        // never-persisted task has nothing on disk. Staying clean is what lets eviction drop it
-        // without waiting for a snapshot. A task captured by the running snapshot still tracks, so
-        // copy-on-write keeps working.
-        if self.inner.flags.deleted()
-            && !self.inner.flags.any_modified()
-            && !self.inner.flags.any_snapshot_pending()
-        {
-            return TrackOutcome::NoChange;
-        }
         #[cfg(feature = "trace_task_modification")]
         let _span = tracing::trace_span!("mark_modified", name).entered();
         // If the in-progress snapshot captured this task and hasn't persisted it yet, freeze the
@@ -1067,26 +1075,6 @@ impl StorageWriteGuard<'_> {
                 }
             }
         }
-    }
-
-    /// Clears all modified/new flags for a GC-collected task that was **never persisted**
-    /// (`new_task`).
-    pub fn discard_modifications_for_gc_new_task(&mut self) {
-        debug_assert!(
-            !self.storage.snapshot_mode(),
-            "discard_modifications_for_gc_new_task must run before the snapshot starts"
-        );
-        debug_assert!(
-            self.inner.flags.new_task(),
-            "only a never-persisted (new_task) collected task may be discarded this way"
-        );
-        if self.inner.flags.any_modified() {
-            let shard_idx = self.storage.shard_index(self.inner.key());
-            self.storage.shard_modified_counts[shard_idx].fetch_sub(1, Ordering::Relaxed);
-        }
-        self.inner.flags.set_meta_modified(false);
-        self.inner.flags.set_data_modified(false);
-        self.inner.flags.set_new_task(false);
     }
 }
 
@@ -1290,12 +1278,18 @@ where
     }
 }
 
+/// Whether `task` was collected by GC before it was ever persisted. It has nothing on disk, so the
+/// snapshot skips it and eviction drops it.
+fn is_deleted_new_task(task: &TaskStorage) -> bool {
+    task.flags.deleted() && task.flags.new_task()
+}
+
 /// Consistency check for a task the snapshot iterators are about to yield. Runs here rather than
 /// in `encode_snapshot_item`, which copy-on-write may call in the middle of an operation.
 fn debug_assert_persistable(inner: &TaskStorage) {
     debug_assert!(
-        !(inner.flags.deleted() && inner.flags.new_task()),
-        "a scanned GC-deleted task must be persisted; new tasks are discarded by GC"
+        !is_deleted_new_task(inner),
+        "a scanned GC-deleted task must be persisted; the capture skips never-persisted ones"
     );
 }
 
@@ -1357,27 +1351,65 @@ mod tests {
         assert!(!task.gc_collectible());
     }
 
-    /// A never-persisted task that GC deleted stays clean when its neighbours' teardown touches it
-    /// again, so eviction drops it even though no snapshot ran.
+    /// A never-persisted task that GC deleted has nothing on disk, so eviction drops it even while
+    /// it is still modified (no snapshot ran, as after an interrupted GC pass) and releases its
+    /// modified count.
     // `evict_after_snapshot` uses `parallel::map_collect`, which requires a multi-threaded runtime.
     #[tokio::test(flavor = "multi_thread")]
-    async fn gc_deleted_new_task_ignores_modifications_and_is_evicted() {
+    async fn gc_deleted_new_task_is_evicted_while_modified() {
         let storage = Storage::new(StorageOptions::for_tests());
         let task_id = non_transient_task(1);
-        storage.initialize_new_task(task_id, None);
         {
             let mut guard = storage.access_mut(task_id);
+            guard.flags.set_new_task(true);
+            let _ = guard.track_modification(SpecificTaskDataCategory::Data, "teardown");
             guard.flags.set_deleted(true);
-            guard.discard_modifications_for_gc_new_task();
-            assert!(matches!(
-                guard.track_modification(SpecificTaskDataCategory::Data, "teardown"),
-                TrackOutcome::NoChange
-            ));
-            assert!(!guard.flags.any_modified());
         }
+        let shard = storage.shard_index(&task_id);
+        assert_eq!(
+            storage.shard_modified_counts[shard].load(Ordering::Relaxed),
+            1
+        );
 
         storage.evict_after_snapshot(None);
         assert!(storage.with_task(task_id, |_| ()).is_none());
+        assert_eq!(
+            storage.shard_modified_counts[shard].load(Ordering::Relaxed),
+            0
+        );
+    }
+
+    /// A snapshot skips a never-persisted task that GC deleted: there is nothing on disk to write
+    /// or tombstone. A shard holding only such tasks yields nothing.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn snapshot_skips_gc_deleted_new_task() {
+        let storage = Storage::new(StorageOptions::for_tests());
+        let task_id = non_transient_task(1);
+        {
+            let mut guard = storage.access_mut(task_id);
+            guard.flags.set_new_task(true);
+            let _ = guard.track_modification(SpecificTaskDataCategory::Data, "teardown");
+            guard.flags.set_deleted(true);
+        }
+
+        let (snapshot_guard, has_modifications) = storage.start_snapshot();
+        assert!(has_modifications);
+        let shards = take_snapshot(
+            &storage,
+            snapshot_guard,
+            &dummy_process,
+            &noop_inspect,
+            false,
+        );
+        assert_eq!(shards.into_iter().flatten().count(), 0);
+
+        let guard = storage.access_mut(task_id);
+        assert!(!guard.flags.any_modified());
+        assert!(!guard.flags.any_snapshot_pending());
+        assert_eq!(
+            storage.shard_modified_counts[storage.shard_index(&task_id)].load(Ordering::Relaxed),
+            0
+        );
     }
 
     /// A persisted task that GC deleted keeps its tombstone pending until a snapshot writes it, so
@@ -1390,11 +1422,6 @@ mod tests {
             let mut guard = storage.access_mut(task_id);
             let _ = guard.track_modification(SpecificTaskDataCategory::Meta, "gc_deleted");
             guard.flags.set_deleted(true);
-            // Teardown after the delete still tracks while the tombstone is pending.
-            assert!(!matches!(
-                guard.track_modification(SpecificTaskDataCategory::Data, "teardown"),
-                TrackOutcome::NoChange
-            ));
         }
 
         let counts = storage.evict_after_snapshot(None);

@@ -1474,10 +1474,8 @@ impl TurboTasksBackend {
         let task_count = task_snapshots.len();
 
         if task_snapshots.is_empty() && gc_roots_to_persist.is_none() {
-            // This should be impossible — if we got here, modified_count was nonzero or gc_roots
-            // was present, and every modification that increments the count also failed
-            // during encoding.
-            std::hint::cold_path();
+            // Every modified task was a GC-deleted task that was never persisted, so there is
+            // nothing to write.
             return Ok(Some((snapshot_time, false, gc_outcome)));
         }
 
