@@ -151,6 +151,34 @@ return new ImageResponse(
       filename: `some/non-metadata-route-image.tsx`,
       errors: [{ message, type: 'JSXOpeningElement' }],
     },
+    // TODO: This documents a bug. The metadata route exemption is derived from
+    // a path that is only made relative to the ESLint `cwd`, so an `app`
+    // directory that does not sit directly under the `cwd` (e.g. a workspace
+    // of a monorepo linted from the repository root) is not recognized as an
+    // app directory, and the `<img>` that `ImageResponse` requires is still
+    // reported. Once the metadata route is detected from the route path
+    // itself, this case should move to `valid`.
+    {
+      code: `\
+import { ImageResponse } from "next/og";
+
+export default function Image() {
+  return new ImageResponse(
+    (
+      <img
+        alt="avatar"
+        style={{ borderRadius: "100%" }}
+        width="100%"
+        height="100%"
+        src="https://example.com/image.png"
+      />
+    )
+  );
+}
+`,
+      filename: `apps/web/app/opengraph-image.tsx`,
+      errors: [{ message, type: 'JSXOpeningElement' }],
+    },
   ],
 }
 
