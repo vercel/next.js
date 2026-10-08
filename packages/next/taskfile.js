@@ -53,8 +53,9 @@ export async function copy_docs(task, opts) {
 
   // Keep upgrade workflow instructions outside the public docs bundle.
   await task
-    .source(join(__dirname, 'src/lib/upgrade/*.md'))
-    .target('dist/lib/upgrade')
+    .source(join(__dirname, 'src/next-upgrade/cli/agent/guides/*.md'))
+    .target('dist/next-upgrade/cli/agent/guides')
+    .target('dist/esm/next-upgrade/cli/agent/guides')
 }
 
 export async function copy_styled_jsx_assets(task, opts) {

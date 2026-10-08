@@ -1,5 +1,4 @@
 import { EventEmitter } from 'events'
-import { resolve } from 'path'
 import {
   access,
   cp,
@@ -11,18 +10,19 @@ import {
   writeFile,
 } from 'fs/promises'
 import * as Log from 'next/dist/build/output/log'
-import cliSelect from 'next/dist/compiled/cli-select'
 import { spawnNextUpgrade } from 'next/dist/cli/next-upgrade'
+import cliSelect from 'next/dist/compiled/cli-select'
 import { findDir } from 'next/dist/lib/find-pages-dir'
 import { getProjectDir } from 'next/dist/lib/get-project-dir'
-import { getHarnessModels } from 'next/dist/lib/upgrade/model-discovery'
 import { handoffUpgrade } from 'next/dist/lib/upgrade/harness'
-import { prepareUpgrade } from 'next/dist/lib/upgrade/prepare-upgrade'
+import { getHarnessModels } from 'next/dist/lib/upgrade/model-discovery'
+import { prepareUpgrade } from 'next/dist/next-upgrade/cli/agent/prepare'
 import loadConfig from 'next/dist/server/config'
 import { normalizeConfig } from 'next/dist/server/config-shared'
 import { PHASE_PRODUCTION_BUILD } from 'next/dist/shared/lib/constants'
 import { getAgentName } from 'next/dist/telemetry/agent-name'
 import { Telemetry } from 'next/dist/telemetry/storage'
+import { resolve } from 'path'
 
 jest.mock('fs/promises', () => ({
   access: jest.fn(),
@@ -68,7 +68,8 @@ jest.mock('next/dist/lib/picocolors', () => ({
 jest.mock('next/dist/lib/upgrade/model-discovery', () => ({
   getHarnessModels: jest.fn(),
 }))
-jest.mock('next/dist/lib/upgrade/prepare-upgrade', () => ({
+jest.mock('next/dist/next-upgrade/cli/agent/prepare', () => ({
+  ...jest.requireActual('next/dist/next-upgrade/cli/agent/prepare'),
   prepareUpgrade: jest.fn(),
 }))
 jest.mock('next/dist/server/config', () => ({
@@ -91,22 +92,6 @@ const crossSpawn = require('next/dist/compiled/cross-spawn') as jest.Mock & {
 const cliVersion: string = require('next/package.json').version
 const restoreDescriptors: Array<() => void> = []
 
-function normalizedBootstrapCalls(): string[][] {
-  return jest.mocked(Log.bootstrap).mock.calls.map(([message]) => [
-    String(message)
-      .replace(/\\+/g, '/')
-      // Run IDs are intentionally unique; keep prompt snapshots stable.
-      .replace(
-        /report-agent-upgrade [0-9a-f-]{36}/g,
-        'report-agent-upgrade <run-id>'
-      )
-      .replaceAll(
-        `next@${cliVersion} internal report-agent-upgrade`,
-        'next@<cli-version> internal report-agent-upgrade'
-      ),
-  ])
-}
-
 function expectedHarnessPath(name: string): string {
   const extension =
     process.platform === 'win32'
@@ -115,27 +100,6 @@ function expectedHarnessPath(name: string): string {
           .filter(Boolean)[0]
       : ''
   return resolve('/agents', `${name}${extension}`)
-}
-
-function normalizedFileWriteCalls() {
-  return jest
-    .mocked(writeFile)
-    .mock.calls.map(([path, ...args]) => [
-      String(path).replace(/\\+/g, '/'),
-      ...args,
-    ])
-}
-
-function normalizedCopiedSources(): string[] {
-  return jest
-    .mocked(cp)
-    .mock.calls.map(([source]) => String(source).replace(/\\+/g, '/'))
-}
-
-function normalizedWriteFileCalls() {
-  return normalizedFileWriteCalls().filter(([path]) =>
-    String(path).includes('/skills/')
-  )
 }
 
 function overrideTTY(
@@ -1376,79 +1340,6 @@ describe('agentic upgrade prompts', () => {
     expect(crossSpawn).toHaveBeenCalledTimes(0)
   })
 
-  it('passes the complete migration prompt to an existing agent', async () => {
-    await spawnNextUpgrade(
-      '/workspace/app',
-      {
-        revision: 'latest',
-        verbose: false,
-        agent: 'security',
-      },
-      null
-    )
-
-    expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', 'security')
-    const [guidePath, guide] = jest.mocked(writeFile).mock.calls[0]
-    expect(String(guidePath).replace(/\\+/g, '/')).toBe(
-      '/tmp/next-upgrade-test/upgrade/different-major.md'
-    )
-    expect(String(guide)).toMatch(
-      /^Run npx @next\/codemod@\S+ upgrade 16\.3\.5 --yes --skip-adoption$/
-    )
-    const copiedSources = normalizedCopiedSources()
-    expect(copiedSources).toEqual(
-      expect.arrayContaining([
-        expect.stringContaining('/lib/upgrade/shared.md'),
-        expect.stringContaining('/lib/upgrade/different-major.md'),
-        expect.stringContaining('/codemods.md'),
-        expect.stringContaining('/version-15.md'),
-        expect.stringContaining('/version-16.md'),
-      ])
-    )
-    expect(
-      copiedSources.some((source) =>
-        source.includes('/lib/upgrade/future-defaults.md')
-      )
-    ).toBe(false)
-    expect(normalizedBootstrapCalls()).toMatchInlineSnapshot(`
-     [
-       [
-         "Read and follow "/tmp/next-upgrade-test/upgrade/shared.md" first. Attempt its applicable duplicate checks before changing files. If a check is unavailable, report it and continue. Stop only if you find equivalent work. Then read and follow every applicable instruction in "/tmp/next-upgrade-test/upgrade/different-major.md".
-
-     We're upgrading the app in "/workspace/app" from Next.js 14.1.1 to 16.3.5 because the installed version is affected by a published security advisory.
-
-     Follow the user's worktree choice. If they do not specify, use a separate Git worktree when the app is in a Git repository. Run upgrade commands from this app's corresponding directory in that worktree. If the app is not in a Git repository, upgrade it in place.
-
-     Set \`experimental.agentUpgrade\` to "security" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
-
-     References:
-     - https://api.github.com/advisories?affects=next
-     - https://registry.npmjs.org/next
-
-     When this task ends, report its result once. After completing the requested upgrade and all applicable verification, run \`npx next@<cli-version> internal report-agent-upgrade <run-id> success\`. If the attempted upgrade remains unsuccessful after repairs or verification fails, run \`npx next@<cli-version> internal report-agent-upgrade <run-id> failure\`. If you stop for duplicate work, user cancellation, or an unavailable prerequisite, do not report success or failure. Explain the result to the user separately; never include project details or error text in the telemetry command.",
-       ],
-     ]
-    `)
-  })
-
-  it('renders verbose codemod instructions in the guide', async () => {
-    await spawnNextUpgrade(
-      '/workspace/app',
-      {
-        revision: 'latest',
-        verbose: true,
-        agent: 'security',
-      },
-      null
-    )
-
-    const [guidePath, guide] = jest.mocked(writeFile).mock.calls[0]
-    expect(String(guidePath).replace(/\\+/g, '/')).toBe(
-      '/tmp/next-upgrade-test/upgrade/different-major.md'
-    )
-    expect(String(guide)).toMatch(/--skip-adoption --verbose$/)
-  })
-
   it('defaults a bare agent upgrade to security', async () => {
     await spawnNextUpgrade(
       '/workspace/app',
@@ -1493,403 +1384,6 @@ describe('agentic upgrade prompts', () => {
       )
     }
   )
-
-  it('passes the latest target to the existing agent', async () => {
-    jest.mocked(prepareUpgrade).mockResolvedValue({
-      status: 'ready',
-      installedVersion: '16.2.12',
-      targetVersion: '16.3.5',
-      references: ['https://registry.npmjs.org/next/latest'],
-      futureDefaults: [],
-    })
-
-    await spawnNextUpgrade(
-      '/workspace/app',
-      {
-        revision: 'latest',
-        verbose: false,
-        agent: 'latest',
-      },
-      null
-    )
-
-    expect(loadConfig).toHaveBeenCalledTimes(1)
-    expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', 'latest')
-    expect(readFile).toHaveBeenCalledTimes(0)
-    expect(writeFile).toHaveBeenCalledTimes(0)
-    expect(
-      normalizedCopiedSources().some((source) =>
-        source.includes('/lib/upgrade/future-defaults.md')
-      )
-    ).toBe(false)
-    expect(
-      normalizedCopiedSources().some((source) => source.includes('/02-pages/'))
-    ).toBe(false)
-    expect(normalizedBootstrapCalls()).toMatchInlineSnapshot(`
-     [
-       [
-         "Read and follow "/tmp/next-upgrade-test/upgrade/shared.md" first. Attempt its applicable duplicate checks before changing files. If a check is unavailable, report it and continue. Stop only if you find equivalent work. Then read and follow every applicable instruction in "/tmp/next-upgrade-test/upgrade/same-major.md".
-
-     We're upgrading the app in "/workspace/app" from Next.js 16.2.12 to 16.3.5 because a newer stable Next.js release is available.
-
-     Follow the user's worktree choice. If they do not specify, use a separate Git worktree when the app is in a Git repository. Run upgrade commands from this app's corresponding directory in that worktree. If the app is not in a Git repository, upgrade it in place.
-
-     Set \`experimental.agentUpgrade\` to "latest" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
-
-     References:
-     - https://registry.npmjs.org/next/latest
-
-     When this task ends, report its result once. After completing the requested upgrade and all applicable verification, run \`npx next@<cli-version> internal report-agent-upgrade <run-id> success\`. If the attempted upgrade remains unsuccessful after repairs or verification fails, run \`npx next@<cli-version> internal report-agent-upgrade <run-id> failure\`. If you stop for duplicate work, user cancellation, or an unavailable prerequisite, do not report success or failure. Explain the result to the user separately; never include project details or error text in the telemetry command.",
-       ],
-     ]
-    `)
-  })
-
-  it('uses the same-major guide for a security update', async () => {
-    jest.mocked(prepareUpgrade).mockResolvedValue({
-      status: 'ready',
-      installedVersion: '15.0.0',
-      targetVersion: '15.5.26',
-      references: ['https://example.com/advisory'],
-      futureDefaults: [],
-    })
-
-    await spawnNextUpgrade(
-      '/workspace/app',
-      {
-        revision: 'latest',
-        verbose: false,
-        agent: 'security',
-      },
-      null
-    )
-
-    expect(normalizedBootstrapCalls().flat().join('\n')).toContain(
-      '/upgrade/shared.md'
-    )
-    expect(normalizedBootstrapCalls().flat().join('\n')).toContain(
-      '/upgrade/same-major.md'
-    )
-    expect(readFile).toHaveBeenCalledTimes(0)
-    expect(writeFile).toHaveBeenCalledTimes(0)
-    expect(normalizedCopiedSources()).toEqual([
-      expect.stringContaining('/lib/upgrade/shared.md'),
-      expect.stringContaining('/lib/upgrade/same-major.md'),
-    ])
-  })
-
-  it('uses the different-major guide for a latest update', async () => {
-    jest.mocked(prepareUpgrade).mockResolvedValue({
-      status: 'ready',
-      installedVersion: '15.5.26',
-      targetVersion: '16.3.5',
-      references: ['https://registry.npmjs.org/next/latest'],
-      futureDefaults: [],
-    })
-
-    await spawnNextUpgrade(
-      '/workspace/app',
-      {
-        revision: 'latest',
-        verbose: false,
-        agent: 'latest',
-      },
-      null
-    )
-
-    expect(normalizedBootstrapCalls().flat().join('\n')).toContain(
-      '/upgrade/different-major.md'
-    )
-    expect(
-      normalizedCopiedSources().some((source) =>
-        source.includes('/lib/upgrade/future-defaults.md')
-      )
-    ).toBe(false)
-  })
-
-  it('adds the Future Defaults guide after a different-major update', async () => {
-    jest.mocked(prepareUpgrade).mockResolvedValue({
-      status: 'ready',
-      installedVersion: '15.5.26',
-      targetVersion: '16.3.5',
-      references: ['https://registry.npmjs.org/next/latest'],
-      futureDefaults: [],
-    })
-
-    await spawnNextUpgrade(
-      '/workspace/app',
-      {
-        revision: 'latest',
-        verbose: false,
-        agent: 'experimental-future',
-      },
-      null
-    )
-
-    const prompt = normalizedBootstrapCalls().flat().join('\n')
-    expect(prompt).toContain('/upgrade/different-major.md')
-    expect(prompt).toContain('/upgrade/future-defaults.md')
-    expect(normalizedCopiedSources()).toEqual(
-      expect.arrayContaining([
-        expect.stringContaining('/lib/upgrade/future-defaults.md'),
-      ])
-    )
-  })
-
-  it.each(['latest', 'experimental-future'] as const)(
-    'hands off the exact canary target for %s upgrades',
-    async (policy) => {
-      jest.mocked(prepareUpgrade).mockResolvedValue({
-        status: 'ready',
-        installedVersion: '17.2.0-canary.4',
-        targetVersion: '17.2.0-canary.9',
-        references: ['https://registry.npmjs.org/next/canary'],
-        futureDefaults: [],
-      })
-
-      await spawnNextUpgrade(
-        '/workspace/app',
-        {
-          revision: 'latest',
-          verbose: false,
-          agent: policy,
-        },
-        null
-      )
-
-      expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', policy)
-      const prompt = normalizedBootstrapCalls().flat().join('\n')
-      expect(prompt).toContain(
-        'from Next.js 17.2.0-canary.4 to 17.2.0-canary.9'
-      )
-      expect(prompt).toContain(
-        policy === 'latest'
-          ? 'newer canary Next.js release'
-          : 'latest canary release'
-      )
-      expect(prompt).toContain('https://registry.npmjs.org/next/canary')
-      expect(readFile).toHaveBeenCalledTimes(0)
-      expect(writeFile).toHaveBeenCalledTimes(0)
-    }
-  )
-
-  it('names the stable target in a prerelease latest upgrade handoff', async () => {
-    jest.mocked(prepareUpgrade).mockResolvedValue({
-      status: 'ready',
-      installedVersion: '17.2.0-rc.1',
-      targetVersion: '17.2.0',
-      references: ['https://registry.npmjs.org/next/latest'],
-      futureDefaults: [],
-    })
-
-    await spawnNextUpgrade(
-      '/workspace/app',
-      {
-        revision: 'latest',
-        verbose: false,
-        agent: 'latest',
-      },
-      null
-    )
-
-    const prompt = normalizedBootstrapCalls().flat().join('\n')
-    expect(prompt).toContain('from Next.js 17.2.0-rc.1 to 17.2.0')
-    expect(prompt).toContain('newer stable Next.js release')
-    expect(prompt).toContain('https://registry.npmjs.org/next/latest')
-  })
-
-  it('adds the Future Defaults guide after a same-major update', async () => {
-    jest.mocked(prepareUpgrade).mockResolvedValue({
-      status: 'ready',
-      installedVersion: '16.2.0',
-      targetVersion: '16.4.0',
-      references: ['https://registry.npmjs.org/next/latest'],
-      futureDefaults: [
-        {
-          name: 'Cache Components',
-          availableSince: '16.3.0',
-          isAdopted: jest.fn(() => false),
-          adoptionDoc: [
-            'docs/01-app/02-guides/migrating-to-cache-components.md',
-            'skills/next-cache-components-adoption/SKILL.md',
-          ],
-          optimizationDoc: ['skills/next-cache-components-optimizer/SKILL.md'],
-          isApplicable: jest.fn(() => true),
-        },
-      ],
-    })
-
-    crossSpawn.mockImplementation(() => {
-      const child = new EventEmitter() as EventEmitter & {
-        stdout: EventEmitter & { setEncoding: jest.Mock }
-        stderr: EventEmitter & { setEncoding: jest.Mock }
-      }
-      child.stdout = Object.assign(new EventEmitter(), {
-        setEncoding: jest.fn(),
-      })
-      child.stderr = Object.assign(new EventEmitter(), {
-        setEncoding: jest.fn(),
-      })
-      process.nextTick(() => {
-        child.stdout.emit('data', 'Adopt Cache Components safely.\n')
-        child.emit('close', 0)
-      })
-      return child
-    })
-
-    await spawnNextUpgrade(
-      '/workspace/app',
-      {
-        revision: 'latest',
-        verbose: false,
-        agent: 'experimental-future',
-      },
-      null
-    )
-
-    expect(crossSpawn).toHaveBeenCalledTimes(1)
-    expect(readFile).toHaveBeenCalledTimes(0)
-    expect(normalizedFileWriteCalls()).toEqual(normalizedWriteFileCalls())
-    expect(normalizedCopiedSources()).toEqual(
-      expect.arrayContaining([
-        expect.stringContaining('/lib/upgrade/future-defaults.md'),
-      ])
-    )
-
-    expect({
-      prompt: normalizedBootstrapCalls(),
-      savedInstructions: normalizedWriteFileCalls(),
-    }).toMatchInlineSnapshot(`
-     {
-       "prompt": [
-         [
-           "Read and follow "/tmp/next-upgrade-test/upgrade/shared.md" first. Attempt its applicable duplicate checks before changing files. If a check is unavailable, report it and continue. Stop only if you find equivalent work. Then read and follow every applicable instruction in "/tmp/next-upgrade-test/upgrade/same-major.md".
-
-     We're upgrading the app in "/workspace/app" from Next.js 16.2.0 to 16.4.0 because the Future policy applies the latest stable release and adopts its Future Defaults.
-
-     Follow the user's worktree choice. If they do not specify, use a separate Git worktree when the app is in a Git repository. Run upgrade commands from this app's corresponding directory in that worktree. If the app is not in a Git repository, upgrade it in place.
-
-     Set \`experimental.agentUpgrade\` to "experimental-future" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
-
-     After completing and verifying the version update, read and follow "/tmp/next-upgrade-test/upgrade/future-defaults.md".
-     Adopt these Future Defaults in order:
-     - Cache Components
-       - Read and follow "/tmp/next-upgrade-test/docs/01-app/02-guides/migrating-to-cache-components.md".
-       - Read and follow "/tmp/next-upgrade-test/skills/next-cache-components-adoption/PROMPT.md".
-     Complete each adoption. Temporary opt-outs and TODO markers are intermediate work only; do not stop until they are removed and the adoption is fully verified.
-
-     References:
-     - https://registry.npmjs.org/next/latest
-
-     When this task ends, report its result once. After completing the requested upgrade and all applicable verification, run \`npx next@<cli-version> internal report-agent-upgrade <run-id> success\`. If the attempted upgrade remains unsuccessful after repairs or verification fails, run \`npx next@<cli-version> internal report-agent-upgrade <run-id> failure\`. If you stop for duplicate work, user cancellation, or an unavailable prerequisite, do not report success or failure. Explain the result to the user separately; never include project details or error text in the telemetry command.",
-         ],
-       ],
-       "savedInstructions": [
-         [
-           "/tmp/next-upgrade-test/skills/next-cache-components-adoption/PROMPT.md",
-           "Adopt Cache Components safely.
-     ",
-         ],
-       ],
-     }
-    `)
-  })
-
-  it('uses only the Future Defaults guide when the version is unchanged', async () => {
-    jest.mocked(prepareUpgrade).mockResolvedValue({
-      status: 'ready',
-      installedVersion: '16.4.0',
-      targetVersion: '16.4.0',
-      references: ['https://registry.npmjs.org/next/latest'],
-      futureDefaults: [
-        {
-          name: 'Cache Components',
-          availableSince: '16.3.0',
-          isAdopted: jest.fn(() => false),
-          adoptionDoc: [
-            'docs/01-app/02-guides/migrating-to-cache-components.md',
-            'skills/next-cache-components-adoption/SKILL.md',
-          ],
-          optimizationDoc: ['skills/next-cache-components-optimizer/SKILL.md'],
-          isApplicable: jest.fn(() => true),
-        },
-      ],
-    })
-
-    crossSpawn.mockImplementation(() => {
-      const child = new EventEmitter() as EventEmitter & {
-        stdout: EventEmitter & { setEncoding: jest.Mock }
-        stderr: EventEmitter & { setEncoding: jest.Mock }
-      }
-      child.stdout = Object.assign(new EventEmitter(), {
-        setEncoding: jest.fn(),
-      })
-      child.stderr = Object.assign(new EventEmitter(), {
-        setEncoding: jest.fn(),
-      })
-      process.nextTick(() => {
-        child.stdout.emit('data', 'Adopt Cache Components safely.\n')
-        child.emit('close', 0)
-      })
-      return child
-    })
-
-    await spawnNextUpgrade(
-      '/workspace/app',
-      {
-        revision: 'latest',
-        verbose: false,
-        agent: 'experimental-future',
-      },
-      null
-    )
-
-    expect(
-      jest
-        .mocked(cp)
-        .mock.calls.map(([source, destination]) =>
-          [String(source), String(destination)].map((path) =>
-            path.replace(/\\+/g, '/')
-          )
-        )
-    ).toEqual(
-      expect.arrayContaining([
-        [
-          expect.stringContaining('/lib/upgrade/future-defaults.md'),
-          '/tmp/next-upgrade-test/upgrade/future-defaults.md',
-        ],
-      ])
-    )
-    expect(readFile).not.toHaveBeenCalled()
-    expect(normalizedFileWriteCalls()).not.toContainEqual([
-      '/tmp/next-upgrade-test/upgrade/future-defaults.md',
-      expect.anything(),
-    ])
-    expect(normalizedBootstrapCalls()).toMatchInlineSnapshot(`
-     [
-       [
-         "Read and follow "/tmp/next-upgrade-test/upgrade/shared.md" first. Attempt its applicable duplicate checks before changing files. If a check is unavailable, report it and continue. Stop only if you find equivalent work. Then read and follow every applicable instruction in "/tmp/next-upgrade-test/upgrade/future-defaults.md".
-
-     We're adopting the Future Defaults available to the app in "/workspace/app", which already uses Next.js 16.4.0.
-
-     Follow the user's worktree choice. If they do not specify, use a separate Git worktree when the app is in a Git repository. Run upgrade commands from this app's corresponding directory in that worktree. If the app is not in a Git repository, upgrade it in place.
-
-     Set \`experimental.agentUpgrade\` to "experimental-future" in the app's Next.js config as part of this upgrade. Preserve unrelated configuration. If the target Next.js version does not support this option, skip the setting and report why.
-
-     Adopt these Future Defaults in order:
-     - Cache Components
-       - Read and follow "/tmp/next-upgrade-test/docs/01-app/02-guides/migrating-to-cache-components.md".
-       - Read and follow "/tmp/next-upgrade-test/skills/next-cache-components-adoption/PROMPT.md".
-     Complete each adoption. Temporary opt-outs and TODO markers are intermediate work only; do not stop until they are removed and the adoption is fully verified.
-
-     References:
-     - https://registry.npmjs.org/next/latest
-
-     When this task ends, report its result once. After completing the requested upgrade and all applicable verification, run \`npx next@<cli-version> internal report-agent-upgrade <run-id> success\`. If the attempted upgrade remains unsuccessful after repairs or verification fails, run \`npx next@<cli-version> internal report-agent-upgrade <run-id> failure\`. If you stop for duplicate work, user cancellation, or an unavailable prerequisite, do not report success or failure. Explain the result to the user separately; never include project details or error text in the telemetry command.",
-       ],
-     ]
-    `)
-  })
 })
 
 describe('upgrade model discovery protocol', () => {

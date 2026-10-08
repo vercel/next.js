@@ -1,16 +1,21 @@
+import { interopDefault } from '../../../lib/interop-default'
 import {
   getUpgradeAssessment,
   type UpgradePreparation,
-} from '../../next-upgrade/shared/check-upgrade'
+} from '../../shared/check-upgrade'
 
+import { resetEnv } from '@next/env'
 import { readFile } from 'fs/promises'
 import { createRequire } from 'module'
-import { join } from 'path'
-import { resetEnv } from '@next/env'
 import semver from 'next/dist/compiled/semver'
-import loadConfig from '../../server/config'
-import { PHASE_INFO } from '../../shared/lib/constants'
-import { getPendingFutureDefaults } from '../../next-upgrade/shared/future-defaults'
+import { join } from 'path'
+import loadConfig from '../../../server/config'
+import { normalizeConfig } from '../../../server/config-shared'
+import {
+  PHASE_INFO,
+  PHASE_PRODUCTION_BUILD,
+} from '../../../shared/lib/constants'
+import { getPendingFutureDefaults } from '../../shared/future-defaults'
 
 export async function prepareUpgrade(
   directory: string,
@@ -67,4 +72,13 @@ export async function prepareUpgrade(
   }
 
   return { ...upgrade, futureDefaults: pendingFutureDefaults }
+}
+
+export async function loadAgentUpgradeConfig(directory: string) {
+  // Read and normalize the app's config without validating legacy options
+  // against the current Next.js schema.
+  const rawConfig = await loadConfig(PHASE_PRODUCTION_BUILD, directory, {
+    rawConfig: true,
+  })
+  return normalizeConfig(PHASE_PRODUCTION_BUILD, interopDefault(rawConfig))
 }

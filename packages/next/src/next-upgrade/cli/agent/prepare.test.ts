@@ -1,15 +1,15 @@
-import { mkdtemp, mkdir, rm, writeFile } from 'fs/promises'
+import { mkdir, mkdtemp, rm, writeFile } from 'fs/promises'
+import semver from 'next/dist/compiled/semver'
 import { tmpdir } from 'os'
 import { join } from 'path'
-import semver from 'next/dist/compiled/semver'
+import loadConfig from '../../../server/config'
 import {
   getLatestUpgradeVersion,
   getUpgradeAssessment,
-} from '../../packages/next/src/next-upgrade/shared/check-upgrade'
-import { prepareUpgrade } from 'next/dist/lib/upgrade/prepare-upgrade'
-import loadConfig from 'next/dist/server/config'
+} from '../../shared/check-upgrade'
+import { prepareUpgrade } from './prepare'
 
-jest.mock('next/dist/server/config', () => ({
+jest.mock('../../../server/config', () => ({
   __esModule: true,
   default: jest.fn(),
 }))
@@ -427,7 +427,7 @@ describe('prepare latest upgrade', () => {
     ['preview', '17.2.0-preview.1'],
   ])(
     'selects stable latest for a %s installation',
-    async (channel, installed) => {
+    async (_channel, installed) => {
       const target = '17.2.0'
       const directory = await createApp(installed)
       mockLatestVersion(target)
