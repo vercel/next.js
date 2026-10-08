@@ -485,6 +485,9 @@ export async function printTreeView(
               route: `[+${remaining} more paths]`,
               duration: 0,
               avgDuration,
+              symbol: getSharedRouteSymbol(
+                remainingRoutes.map(({ route }) => route)
+              ),
             })
           }
         } else {
