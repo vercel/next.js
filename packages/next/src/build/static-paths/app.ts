@@ -739,7 +739,11 @@ export async function generateRouteStaticParams(
   // Early return if no segments to process
   if (segments.length === 0) return []
 
-  const implicitTags = await getImplicitTags(store.page, store.page, null)
+  const implicitTags = await getImplicitTags(
+    store.page,
+    normalizeAppPath(store.page),
+    null
+  )
 
   // Use iterative processing with a work queue to avoid recursion overhead
   interface WorkItem {
@@ -990,7 +994,7 @@ export async function buildAppStaticPaths({
           type: 'build-time-generator',
           functionName: 'unstable_generateParamMatching',
           phase: 'render',
-          implicitTags: await getImplicitTags(page, page, null),
+          implicitTags: await getImplicitTags(store.page, page, null),
           // Matching configuration does not receive concrete parameter values.
           rootParams: {},
         }
