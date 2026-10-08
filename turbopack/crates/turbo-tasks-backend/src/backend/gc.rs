@@ -261,7 +261,7 @@ impl TurboTasksBackend {
                     return ControlFlow::Continue(());
                 }
 
-                let old_edges = capture_all_edges(&task);
+                let old_edges = capture_all_edges(task_id, &task);
                 // Clear `immutable` defensively so `resurrect_deleted` can mark the task dirty if
                 // it needs to
                 task.set_immutable(false);

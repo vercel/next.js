@@ -2464,18 +2464,26 @@ impl TurboTasksBackend {
             // Here at completion, we clean up only the OUTDATED deps (the "before" snapshot).
             // Using iter_* (active) instead would incorrectly clean up deps that are still valid,
             // breaking dependency tracking.
-            old_edges.extend(
-                task.iter_outdated_cell_dependencies()
-                    .map(OutdatedEdge::CellDependency),
-            );
+            old_edges.extend(task.iter_outdated_cell_dependencies().map(|cell| {
+                OutdatedEdge::CellDependency {
+                    dependent: task_id,
+                    cell,
+                }
+            }));
             old_edges.extend(
                 task.iter_outdated_cell_dependencies_hashed()
-                    .map(|(r, k)| OutdatedEdge::HashedCellDependency(r, k)),
+                    .map(|(cell, key)| OutdatedEdge::HashedCellDependency {
+                        dependent: task_id,
+                        cell,
+                        key,
+                    }),
             );
-            old_edges.extend(
-                task.iter_outdated_output_dependencies()
-                    .map(OutdatedEdge::OutputDependency),
-            );
+            old_edges.extend(task.iter_outdated_output_dependencies().map(|output_task| {
+                OutdatedEdge::OutputDependency {
+                    dependent: task_id,
+                    output_task,
+                }
+            }));
             old_edges.extend(
                 task.iter_outdated_collectibles_dependencies()
                     .map(OutdatedEdge::CollectiblesDependency),
@@ -3495,7 +3503,7 @@ impl TurboTasksBackend {
                 activeness_state.all_clean_event.notify(usize::MAX);
             }
             // Remove all the outgoing edges of this task.
-            let old_edges = capture_all_edges(&task);
+            let old_edges = capture_all_edges(task_id, &task);
             drop(task);
 
             if !old_edges.is_empty() {

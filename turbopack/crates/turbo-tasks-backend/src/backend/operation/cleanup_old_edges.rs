@@ -23,51 +23,89 @@ use crate::{
 pub enum OutdatedEdge {
     Child(TaskId),
     Collectible(CollectibleRef, i32),
-    CellDependency(CellRef),
-    HashedCellDependency(CellRef, u64),
-    OutputDependency(TaskId),
+    /// `dependent` reads `cell`. Cleanup removes both halves of the edge, whichever side it was
+    /// captured from.
+    CellDependency {
+        dependent: TaskId,
+        cell: CellRef,
+    },
+    HashedCellDependency {
+        dependent: TaskId,
+        cell: CellRef,
+        key: u64,
+    },
+    /// `dependent` reads the output of `output_task`.
+    OutputDependency {
+        dependent: TaskId,
+        output_task: TaskId,
+    },
     CollectiblesDependency(CollectiblesRef),
-    /// Reverse cell and output edges: some other task reads a cell of the task being deleted by GC.
-    /// Not modeled as a reversed `CellDependency` since the cleanup is assymetric, one side is
-    /// being deleted so we just tear down the other side.
-    CellDependentOfDeleted(CellRef),
-    HashedCellDependentOfDeleted(CellRef, u64),
-    OutputDependentOfDeleted(TaskId),
 }
 
-/// Captures *every* edge incident to a task -- both directions -- as [`OutdatedEdge`]s.
-pub fn capture_all_edges(task: &impl TaskStorageAccessors) -> Vec<OutdatedEdge> {
+/// Captures *every* edge incident to `task_id` -- both directions -- as [`OutdatedEdge`]s.
+pub fn capture_all_edges(task_id: TaskId, task: &impl TaskStorageAccessors) -> Vec<OutdatedEdge> {
     let mut old_edges: Vec<OutdatedEdge> = Vec::new();
     old_edges.extend(task.iter_children().map(OutdatedEdge::Child));
-    old_edges.extend(
-        task.iter_output_dependencies()
-            .map(OutdatedEdge::OutputDependency),
-    );
+    old_edges.extend(task.iter_output_dependencies().map(|output_task| {
+        OutdatedEdge::OutputDependency {
+            dependent: task_id,
+            output_task,
+        }
+    }));
     old_edges.extend(
         task.iter_cell_dependencies()
-            .map(OutdatedEdge::CellDependency),
+            .map(|cell| OutdatedEdge::CellDependency {
+                dependent: task_id,
+                cell,
+            }),
     );
-    old_edges.extend(
-        task.iter_cell_dependencies_hashed()
-            .map(|(r, k)| OutdatedEdge::HashedCellDependency(r, k)),
-    );
+    old_edges.extend(task.iter_cell_dependencies_hashed().map(|(cell, key)| {
+        OutdatedEdge::HashedCellDependency {
+            dependent: task_id,
+            cell,
+            key,
+        }
+    }));
     old_edges.extend(
         task.iter_collectibles_dependencies()
             .map(OutdatedEdge::CollectiblesDependency),
     );
-    // Reverse direction: the edges *into* this task.
-    old_edges.extend(
-        task.iter_cell_dependents()
-            .map(OutdatedEdge::CellDependentOfDeleted),
-    );
-    old_edges.extend(
-        task.iter_cell_dependents_hashed()
-            .map(|(r, k)| OutdatedEdge::HashedCellDependentOfDeleted(r, k)),
-    );
-    old_edges.extend(
-        task.iter_output_dependent()
-            .map(OutdatedEdge::OutputDependentOfDeleted),
-    );
+    // Reverse direction: the edges *into* this task. A stored dependent entry names the dependent
+    // in `CellRef.task` and this task's cell in `CellRef.cell`.
+    old_edges.extend(task.iter_cell_dependents().map(
+        |CellRef {
+             task: dependent,
+             cell,
+         }| OutdatedEdge::CellDependency {
+            dependent,
+            cell: CellRef {
+                task: task_id,
+                cell,
+            },
+        },
+    ));
+    old_edges.extend(task.iter_cell_dependents_hashed().map(
+        |(
+            CellRef {
+                task: dependent,
+                cell,
+            },
+            key,
+        )| OutdatedEdge::HashedCellDependency {
+            dependent,
+            cell: CellRef {
+                task: task_id,
+                cell,
+            },
+            key,
+        },
+    ));
+    old_edges.extend(task.iter_output_dependent().map(|dependent| {
+        OutdatedEdge::OutputDependency {
+            dependent,
+            output_task: task_id,
+        }
+    }));
     old_edges
 }
 
@@ -229,59 +267,68 @@ fn cleanup_old_edges_inner(
                     AggregatedDataUpdate::new().collectibles_update(collectibles),
                 ));
             }
-            OutdatedEdge::CellDependency(forward) => {
-                let CellRef {
-                    task: cell_task_id,
-                    cell,
-                } = forward;
+            // Both halves are removed, whichever side the edge was captured from. When GC collects
+            // the producer, leaving its reverse entry behind would outlive a resurrection of the
+            // producer, and the dependent's later collection would no longer see the edge. The
+            // dependent's `outdated_*` entry goes too: if it is mid-execution, its completion
+            // would otherwise try to clean up an edge to a deleted task. On the completion path
+            // clearing it is harmless: those edges come from the outdated set and were not
+            // re-read.
+            OutdatedEdge::CellDependency { dependent, cell } => {
                 {
-                    let mut task = ctx.task(cell_task_id, TaskDataCategory::Data);
+                    let mut task = ctx.task(cell.task, TaskDataCategory::Data);
                     task.remove_cell_dependents(&CellRef {
-                        task: task_id,
-                        cell,
+                        task: dependent,
+                        cell: cell.cell,
                     });
                 }
                 {
-                    let mut task = ctx.task(task_id, TaskDataCategory::Data);
-                    task.remove_cell_dependencies(&forward);
+                    let mut task = ctx.task(dependent, TaskDataCategory::Data);
+                    task.remove_cell_dependencies(&cell);
+                    task.remove_outdated_cell_dependencies(&cell);
                 }
             }
-            OutdatedEdge::HashedCellDependency(forward, key) => {
-                // ame as above but in the `_hashed` sets.
-                let CellRef {
-                    task: cell_task_id,
-                    cell,
-                } = forward;
+            OutdatedEdge::HashedCellDependency {
+                dependent,
+                cell,
+                key,
+            } => {
+                // Same as above but in the `_hashed` sets.
                 {
-                    let mut task = ctx.task(cell_task_id, TaskDataCategory::Data);
+                    let mut task = ctx.task(cell.task, TaskDataCategory::Data);
                     task.remove_cell_dependents_hashed(&(
                         CellRef {
-                            task: task_id,
-                            cell,
+                            task: dependent,
+                            cell: cell.cell,
                         },
                         key,
                     ));
                 }
                 {
-                    let mut task = ctx.task(task_id, TaskDataCategory::Data);
-                    task.remove_cell_dependencies_hashed(&(forward, key));
+                    let mut task = ctx.task(dependent, TaskDataCategory::Data);
+                    task.remove_cell_dependencies_hashed(&(cell, key));
+                    task.remove_outdated_cell_dependencies_hashed(&(cell, key));
                 }
             }
-            OutdatedEdge::OutputDependency(output_task_id) => {
+            OutdatedEdge::OutputDependency {
+                dependent,
+                output_task,
+            } => {
                 #[cfg(feature = "trace_task_output_dependencies")]
                 let _span = tracing::trace_span!(
                     "remove output dependency",
-                    task = %output_task_id,
-                    dependent_task = %task_id
+                    task = %output_task,
+                    dependent_task = %dependent
                 )
                 .entered();
                 {
-                    let mut task = ctx.task(output_task_id, TaskDataCategory::Data);
-                    task.remove_output_dependent(&task_id);
+                    let mut task = ctx.task(output_task, TaskDataCategory::Data);
+                    task.remove_output_dependent(&dependent);
                 }
                 {
-                    let mut task = ctx.task(task_id, TaskDataCategory::Data);
-                    task.remove_output_dependencies(&output_task_id);
+                    let mut task = ctx.task(dependent, TaskDataCategory::Data);
+                    task.remove_output_dependencies(&output_task);
+                    task.remove_outdated_output_dependencies(&output_task);
                 }
             }
             OutdatedEdge::CollectiblesDependency(CollectiblesRef {
@@ -299,49 +346,6 @@ fn cleanup_old_edges_inner(
                         task: dependent_task_id,
                     });
                 }
-            }
-            // Handle reverse edges, we remove these when `task_id` is being
-            // deleted. The reverse dependents must exist. We also don't bother
-            // removing cell_dependents from `task_id` since that task is being
-            // deleted.
-            //
-            // These dependents are 'stale' and will likely be deleted soon, so they
-            // are not dirtied. Removing their forward edge ensures that when they are deleted they
-            // don't panic trying to remove their dependencies (since they have already been
-            // deleted).
-            OutdatedEdge::CellDependentOfDeleted(CellRef {
-                task: dependent_task_id,
-                cell,
-            }) => {
-                // Orientation flip: the stored entry names the dependent, the
-                // forward entry we remove names `task_id`.
-                let forward = CellRef {
-                    task: task_id,
-                    cell,
-                };
-                let mut task = ctx.task(dependent_task_id, TaskDataCategory::Data);
-                task.remove_cell_dependencies(&forward);
-                task.remove_outdated_cell_dependencies(&forward);
-            }
-            OutdatedEdge::HashedCellDependentOfDeleted(
-                CellRef {
-                    task: dependent_task_id,
-                    cell,
-                },
-                key,
-            ) => {
-                let forward = CellRef {
-                    task: task_id,
-                    cell,
-                };
-                let mut task = ctx.task(dependent_task_id, TaskDataCategory::Data);
-                task.remove_cell_dependencies_hashed(&(forward, key));
-                task.remove_outdated_cell_dependencies_hashed(&(forward, key));
-            }
-            OutdatedEdge::OutputDependentOfDeleted(dependent_task_id) => {
-                let mut task = ctx.task(dependent_task_id, TaskDataCategory::Data);
-                task.remove_output_dependencies(&task_id);
-                task.remove_outdated_output_dependencies(&task_id);
             }
         }
     }
