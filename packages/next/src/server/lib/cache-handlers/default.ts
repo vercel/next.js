@@ -232,12 +232,17 @@ export function createDefaultCacheHandler(maxSize: number): CacheHandler {
 
           if (durations.expire !== undefined) {
             updates.expired = now + durations.expire * 1000 // Convert seconds to ms
+            updates.revalidatedAt = now
           }
 
           tagsManifest.set(tag, updates)
         } else {
           // Update expired field for immediate expiration (default behavior when no durations provided)
-          tagsManifest.set(tag, { ...existingEntry, expired: now })
+          tagsManifest.set(tag, {
+            ...existingEntry,
+            expired: now,
+            revalidatedAt: now,
+          })
         }
       }
     },

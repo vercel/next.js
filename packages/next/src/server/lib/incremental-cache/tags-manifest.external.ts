@@ -3,6 +3,12 @@ import type { Timestamp } from '../cache-handlers/types'
 export interface TagManifestEntry {
   stale?: number
   expired?: number
+  /**
+   * When the revalidation that set `expired` happened. `expired` only applies
+   * to entries created before then, since entries created later already
+   * reflect that revalidation.
+   */
+  revalidatedAt?: number
 }
 
 // We share the tags manifest between the "use cache" handlers and the previous
@@ -16,11 +22,9 @@ export const areTagsExpired = (tags: string[], timestamp: Timestamp) => {
 
     if (typeof expiredAt === 'number') {
       const now = performance.timeOrigin + performance.now()
-      // For immediate expiration (expiredAt <= now) and tag was invalidated after entry was created
-      // OR for future expiration that has now passed (expiredAt > timestamp && expiredAt <= now)
-      const isImmediatelyExpired = expiredAt <= now && expiredAt > timestamp
+      const revalidatedAt = entry?.revalidatedAt ?? expiredAt
 
-      if (isImmediatelyExpired) {
+      if (expiredAt <= now && revalidatedAt > timestamp) {
         return true
       }
     }
