@@ -67,10 +67,10 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "scheduler": "0.28.0-canary-d75b0697-20261006"
+    "scheduler": "0.28.0-canary-b618bbb4-20261007"
   },
   "peerDependencies": {
-    "react": "19.3.0-canary-d75b0697-20261006"
+    "react": "19.3.0-canary-b618bbb4-20261007"
   },
   "browser": {
     "./server.js": "./server.browser.js",
