@@ -31,6 +31,21 @@ export const enum PrefetchPriority {
   Background = 0,
 }
 
+/**
+ * How far a link asks to be prefetched, in the app's public stages (not the
+ * server's render stages). Each stage includes everything before it.
+ */
+export const enum AppStage {
+  // The app shell: shared by every link to the route, so param-dependent
+  // content is reduced to fallbacks.
+  Shell = 0,
+  // Up to where `prefetch()` resolves.
+  Prefetch = 1,
+  // Up to where `navigation()` resolves: what a navigation renders,
+  // minus dynamic holes.
+  Navigation = 2,
+}
+
 export const enum FetchStrategy {
   // Deliberately ordered so we can easily compare two segments
   // and determine if one segment is "more specific" than another
