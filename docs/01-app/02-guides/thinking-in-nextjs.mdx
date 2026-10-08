@@ -1,0 +1,767 @@
+---
+title: Thinking in Next.js
+nav_title: Thinking in Next.js
+description: A way of thinking about App Router apps as one component tree where each piece declares where its data comes from, what gets reused, and what stays in the browser.
+related:
+  title: Related
+  description: Continue learning about the App Router model.
+  links:
+    - app/getting-started/caching
+    - app/guides/streaming
+    - app/getting-started/server-and-client-components
+    - app/guides/server-actions
+    - app/guides/prefetching
+    - app/guides/adopting-partial-prefetching
+    - app/guides/runtime-prefetching
+    - app/guides/instant-navigation
+    - app/guides/offline-support
+---
+
+In React, you break a UI into components and let data flow through the tree. [Thinking in React](https://react.dev/learn/thinking-in-react) builds that habit by starting from a mockup, rendering a static version, then adding the changing pieces.
+
+In Next.js, the same tree carries a parallel set of questions. Where does the data come from? What can render before the request, what depends on the request, and what gets reused for the next visitor or the next click? The work still happens in one component tree, but that tree now crosses server and client boundaries.
+
+When those decisions line up, the app gets the features of a [single-page app](https://developer.mozilla.org/en-US/docs/Glossary/SPA) that make navigation feel instant. Content is ready on click, and work is reused instead of recomputed.
+
+## Start with the mockup
+
+The mock app is a tiny projects dashboard. Each viewer starts on a project list, opens a project, then opens a deployment log. They can also search, pin favorites, and trigger a redeploy from the project page.
+
+The designer hands over mockups for three routes.
+
+<Image
+  alt="Three route cards labeled /projects, /projects/compass, and /projects/compass/deployments/compass-jx9q3, each split into top bar, sidebar, and content sections."
+  srcLight="/docs/guides/thinking-in-nextjs/designer-mockups-light-cropped.png"
+  srcDark="/docs/guides/thinking-in-nextjs/designer-mockups-dark-cropped.png"
+  width={1600}
+  height={452}
+/>
+
+The data has three shapes:
+
+| Type         | Notes                                                                            |
+| ------------ | -------------------------------------------------------------------------------- |
+| `Project`    | One per project. Status is `production`, `building`, `paused`, or `failed`.      |
+| `Deployment` | Newest first. Status is `ready`, `building`, `failed`, `queued`, or `cancelled`. |
+| `LogLine`    | A timestamped line with a message. The build log is an ordered list of these.    |
+
+The breakdown follows one decision at a time:
+
+1. Break the UI into a component hierarchy.
+2. Build a static version with JSX.
+3. Fetch data where it is used.
+4. Stream dynamic content.
+5. Mutate data.
+6. Add client interactivity.
+7. Cache reusable work.
+
+Each step picks one or two examples from the mockup to walk through in detail. The same patterns apply to every other section in the route, and each step ends with a link to that step's source if you want to see how the rest of the page was filled in.
+
+## Step 1: Break the UI into a component hierarchy
+
+Draw a box around each section of the mockup and give it a name. Each repeating piece of data becomes one component, with one `ProjectCard` per `Project`, one row per `Deployment`, and one row per `LogLine`.
+
+| Section                 | Component                                               |
+| ----------------------- | ------------------------------------------------------- |
+| Frame around every page | `ProjectsLayout`                                        |
+| Top bar                 | `Header`                                                |
+| Sidebar pinned projects | `PinnedProjects`                                        |
+| Sidebar recent deploys  | `RecentDeploys`                                         |
+| Project list            | `ProjectGrid`, containing one `ProjectCard` per project |
+| Project tile            | `ProjectCard`                                           |
+| Project page header     | `ProjectHeader`                                         |
+| Deployments list        | `Deployments`                                           |
+| Build page header       | `DeploymentHeader`                                      |
+| Build logs              | `BuildLogs`                                             |
+
+The route shape lines up with the table and with the App Router file tree:
+
+```txt
+app/projects/
+├── layout.tsx                          ← ProjectsLayout
+├── page.tsx                            ← ProjectsPage
+├── [id]/
+│   ├── page.tsx                        ← ProjectDetailPage
+│   └── deployments/[deployId]/
+│       └── page.tsx                    ← DeploymentDetailPage
+```
+
+[`layout.tsx`](/docs/app/api-reference/file-conventions/layout) wraps every URL under `/projects` and keeps the top bar, sidebar, and layout grid mounted across navigations. [`page.tsx`](/docs/app/api-reference/file-conventions/page) renders the main column for one URL, and the layout inserts it as `{children}`. On each layout/page pair, the choice is what stays mounted across the route and what swaps with the URL.
+
+The route now has names and boundaries. Before data enters the picture, those boxes can render from plain JSX.
+
+## Step 2: Build a static version with JSX
+
+Render each section from inline mock data:
+
+```tsx filename="app/projects/page.tsx"
+const projects = [
+  {
+    id: 'compass',
+    name: 'compass',
+    description: 'Routing service for the platform.',
+  },
+  { id: 'feather', name: 'feather', description: 'Edge image transforms.' },
+  // ...
+]
+
+function ProjectsPage() {
+  return projects.map((p) => <ProjectCard key={p.id} project={p} />)
+}
+
+function ProjectCard({ project }) {
+  return (
+    <article>
+      <h3>{project.name}</h3>
+      <p>{project.description}</p>
+    </article>
+  )
+}
+```
+
+With only local JSX and no browser-only behavior, [`layout.tsx`](/docs/app/api-reference/file-conventions/layout) and [`page.tsx`](/docs/app/api-reference/file-conventions/page) can stay as [React Server Components](/docs/app/glossary#server-component). They render the HTML without shipping component JavaScript for these sections.
+
+Because every value is known up front, `next build` can [prerender](/docs/app/glossary#prerendering) the route as static HTML:
+
+```txt
+Route (app)
+┌ ○ /
+└ ○ /projects
+
+○  (Static)  prerendered as static content
+```
+
+The `○` next to `/projects` is what to look for. The HTML is produced once at [build time](/docs/app/glossary#build-time) and reused on every request.
+
+Try the demo. The refresh button replays the load. The route paints in one shot, with nothing to wait for.
+
+<Demo
+  src="https://thinking-in-nextjs-02-static-jsx.labs.vercel.dev/projects"
+  title="Step 2: Build a static version with JSX"
+/>
+
+The same HTML serves every viewer.
+
+Source: [`steps/02-static-jsx`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/02-static-jsx).
+
+## Step 3: Fetch data where it is used
+
+Replace the mock arrays with real reads. Where in the tree should those reads happen?
+
+One option is to fetch everything at the top of the page and pass values down. That's the [loader pattern](https://reactrouter.com/start/data/data-loading) from React Router and Remix, and it works. The trade-off is that it couples unrelated sections. The header waits on the deployments list, the page has to know what every child needs, and adding a new section means changing the page even though it doesn't use that data.
+
+In the App Router, a Server Component can `await` directly, so the same instinct doesn't have to land in the same place. Each component can read what it needs, right next to the JSX that uses it:
+
+```tsx filename="features/projects/components/ProjectHeader.tsx"
+export async function ProjectHeader({ id }: { id: string }) {
+  const project = await getProject(id)
+  return (
+    <>
+      <BackLink href="/projects" label="Back to projects" />
+      <header>{/* ... render project details ... */}</header>
+    </>
+  )
+}
+```
+
+Co-locating the read with the JSX that uses it is the same instinct as [`useEffect`](https://react.dev/reference/react/useEffect) or a query library, except a Server Component can `await` the read directly, with no client state to manage.
+
+The page awaits `params` and passes each component the identifier it needs:
+
+```tsx filename="app/projects/[id]/page.tsx"
+export default async function ProjectDetailPage({
+  params,
+}: PageProps<'/projects/[id]'>) {
+  const { id } = await params
+  return (
+    <>
+      <ProjectHeader id={id} />
+      <Deployments projectId={id} />
+    </>
+  )
+}
+```
+
+The read runs on the server, and the component gets the data back before it renders. The query itself doesn't live in the component file. Component files describe shape, query files describe access. Pulling the read into a [data access layer](/docs/app/guides/data-security#data-access-layer) keeps one place to add the auth check, the cache annotation (Step 7), or a future migration. Two components that need the same data import the same function instead of two slightly different inline queries:
+
+```tsx filename="features/projects/projects-queries.ts" highlight={3}
+import { cache } from 'react'
+
+export const getProjects = cache(async ({ query }) => {
+  await connection()
+  await delay(1000)
+  return db.project.findMany({ where: matches(query) })
+})
+```
+
+> **Note**: [Request-time APIs](/docs/app/glossary#request-time-apis) like `cookies()`, `headers()`, `searchParams`, and uncached `fetch()` mark a component as dynamic on their own. A raw database query doesn't, so until Step 7 adds caching, [`await connection()`](/docs/app/api-reference/functions/connection) at the top of each read is the explicit signal that the call is dynamic.
+
+React's [`cache`](https://react.dev/reference/react/cache) runs each call once per render, so two components asking for the same data share one read.
+
+> **The same applies to:** every other read. `getProject`, `getDeployments`, `getDeployment`, `getBuildLog`, `getPinnedIds`, and `getCurrentUser` all live in their domain's `*-queries.ts` file and follow the same shape.
+
+For search, a plain GET form posts to `/projects?q=…`, and `ProjectGrid` reads [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) to render the filtered list.
+
+Refresh the demo. The route waits on the slowest read before any of it paints, even the parts that don't depend on it. Try the search bar, and the grid filters via `?q=` in the URL on each submit.
+
+<Demo
+  src="https://thinking-in-nextjs-03-fetch-data.labs.vercel.dev/projects"
+  title="Step 3: Fetch data where it is used"
+/>
+
+`next build` no longer prerenders the route. The `ƒ` marker shows it's gone dynamic now that every render runs server-side reads:
+
+```txt
+Route (app)
+┌ ○ /
+└ ƒ /projects
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+```
+
+Every section blocks the response until the slowest one finishes.
+
+Source: [`steps/03-fetch-data`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/03-fetch-data).
+
+## Step 4: Stream dynamic content
+
+Why should the rest of the page wait for the slowest read? Each async component already fetches independently. Can the page _render_ each one independently too, so the layout paints right away and the sections fill in as their data resolves?
+
+React's [`<Suspense>`](https://react.dev/reference/react/Suspense) is what makes that possible. Wrap each async component in a boundary, give it a fallback, and the page sends the surrounding layout immediately while each section streams in as its data resolves. See [Streaming](/docs/app/guides/streaming) for the full pattern.
+
+On the project detail page, that looks like this:
+
+```tsx filename="app/projects/[id]/page.tsx" highlight={5,8}
+export default async function ProjectDetailPage({
+  params,
+}: PageProps<'/projects/[id]'>) {
+  const { id } = await params
+  return (
+    <>
+      <Suspense fallback={<ProjectHeaderSkeleton />}>
+        <ProjectHeader id={id} />
+      </Suspense>
+      <Suspense fallback={<DeploymentsSkeleton />}>
+        <Deployments projectId={id} />
+      </Suspense>
+    </>
+  )
+}
+```
+
+Each async component can export its own skeleton from the same file:
+
+```tsx filename="features/projects/components/ProjectHeader.tsx"
+export async function ProjectHeader({ id }: { id: string }) {
+  const project = await getProject(id)
+  return (/* … render project details … */)
+}
+
+export function ProjectHeaderSkeleton() {
+  return <header>{/* … skeleton placeholders … */}</header>
+}
+```
+
+The skeleton should mirror the real component's layout, same heights and gaps, so the page doesn't shift when the content resolves. Co-located with the component, it can't drift out of sync.
+
+> **The same applies to:** every async component in the route. `Deployments`, `BuildLogs`, `PinnedProjects`, `RecentDeploys`, and `ViewerAvatar` each wrap in a `<Suspense>` boundary and export a sibling skeleton.
+
+Try the demo. The layout and skeletons paint immediately, and each section fills in as its read resolves.
+
+<Demo
+  src="https://thinking-in-nextjs-04-streaming.labs.vercel.dev/projects"
+  title="Step 4: Stream dynamic content"
+/>
+
+On `/projects`, the timing reads roughly:
+
+- **0 ms**: Layout and skeletons sent. The header and search form land immediately, with fallbacks for the avatar, pinned section, recent deploys, and grid.
+- **500 ms**: Avatar resolves.
+- **1000 ms**: Pinned section and grid resolve.
+- **1500 ms**: Recent deploys resolves last.
+
+The pattern holds at every level in the tree. `BuildLogs` already sits behind the page's `<Suspense fallback={<BuildLogsSkeleton />}>`, but the in-progress branch has its own live read. We can nest another boundary so the log frame renders first and the live rows stream behind it:
+
+```tsx filename="features/deployments/components/BuildLogs.tsx" highlight={6-8}
+export async function BuildLogs({ deployId }: { deployId: string }) {
+  const deployment = await getDeployment(deployId)
+  return (
+    <BuildLogsShell>
+      {deployment.status === 'building' ? (
+        <Suspense fallback={<LiveLogSkeleton />}>
+          <LiveLogStream deployId={deployId} />
+        </Suspense>
+      ) : (
+        <CompletedLogStream deployId={deployId} />
+      )}
+    </BuildLogsShell>
+  )
+}
+```
+
+Streaming fixes the initial render. While sections stream, the shared layout UI stays interactive, so a click can start the next navigation even while another section is still filling in.
+
+Source: [`steps/04-streaming`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/04-streaming).
+
+## Step 5: Mutate data
+
+Reads are covered. How does a click that creates a deployment or pins a project get from the browser back to the database?
+
+An HTML form is the natural shape. The browser already knows how to submit one over the network, and the write can run on the server with no extra wiring. A [Route Handler](/docs/app/glossary#route-handler) would work too, but the route ends up with a separate endpoint for one button.
+
+We can keep the write next to the component that triggers it by adding a colocated React [Server Function](/docs/app/glossary#server-function), marked with [`'use server'`](/docs/app/api-reference/directives/use-server):
+
+```tsx filename="features/deployments/deployments-actions.ts" highlight={1,7}
+'use server'
+
+import { refresh } from 'next/cache'
+
+export async function triggerDeploy(projectId) {
+  await requireSession()
+  await db.deployment.create({ projectId })
+  refresh()
+}
+```
+
+React's [`<form action>`](https://react.dev/reference/react-dom/components/form#form) connects the form to the Server Function. Submitting it makes a [Remote Procedure Call (RPC)](https://en.wikipedia.org/wiki/Remote_procedure_call) to the server, so the arguments and return values have to be serializable. Strings, numbers, arrays, and plain objects can cross. Functions and class instances cannot.
+
+```tsx highlight={1}
+<form action={triggerDeploy.bind(null, projectId)}>
+  <button type="submit">Deploy</button>
+</form>
+```
+
+This is the smallest version of a working form, enough to prove the data flow. The button doesn't show pending state yet, but that comes later.
+
+The browser posts the form, the server runs the write, and React renders the response. [`refresh`](/docs/app/api-reference/functions/refresh) reruns the route's dynamic reads so the new deployment shows up in the list and recent-deploys section.
+
+> **Note**: A Server Function is an exposed endpoint, so anything it touches needs the same auth checks and input validation a public API would get. The labs gate every write with `requireSession()` and skip the broader story to keep the focus on the data flow. The [Server Actions guide](/docs/app/guides/server-actions) covers the broader API, and [How to Think About Security in Next.js](https://nextjs.org/blog/security-nextjs-server-components-actions) is the reference to read before shipping.
+
+> **The same applies to:** every other write. `addPin` and `removePin` follow the same shape, `'use server'` + a write + `refresh()`, in `features/projects/pinned-actions.ts`.
+
+Submit the deploy form, then open the new `building` row to see the build log fill in the lines that have run so far. Refresh a few seconds later and a few more have arrived. Pin and unpin a project to see the pin state flip after each round trip.
+
+<Demo
+  src="https://thinking-in-nextjs-05-mutations.labs.vercel.dev/projects"
+  title="Step 5: Mutate data"
+/>
+
+The server-side flow works. The buttons and search field still feel slow.
+
+Source: [`steps/05-mutations`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/05-mutations).
+
+## Step 6: Add client interactivity
+
+Every click still waits for a full server round trip. The pin doesn't flip until the server confirms, the deploy button sits unresponsive, and search submits the whole form.
+
+Where should the client boundary go? The instinct from client-first React is to put [`'use client'`](/docs/app/api-reference/directives/use-client) at the page level, but that pulls the entire subtree into the browser. The boundary can go on the leaf instead. The [Server and Client Components](/docs/app/getting-started/server-and-client-components) guide covers the model in depth.
+
+| Control         | Updates on        | Needs client |
+| --------------- | ----------------- | ------------ |
+| Pin button      | click             | yes          |
+| Search field    | each keystroke    | yes          |
+| Deploy button   | click             | yes          |
+| In-progress log | every few seconds | yes          |
+
+Only those four controls need [`'use client'`](/docs/app/glossary#use-client-directive).
+
+The pin button is the clearest case. React's [`useOptimistic`](https://react.dev/reference/react/useOptimistic) can flip the label on click, then settle on the server's confirmed value.
+
+The pin button needs to know whether the project is already pinned, which means it needs `getPinnedIds()`. The instinct from loader-driven apps is to hoist that read up to the page and pass the resolved value down through every card. That re-couples the page to data it doesn't use, and every card re-renders when the result changes.
+
+A Server Component can hand a **promise** down instead. The server starts the read once, each card forwards the promise to its own pin button, and only the button reads it. The read is shared, the loading is local, and the page never sees the result:
+
+```tsx filename="app/projects/page.tsx" highlight={4,9}
+async function ProjectGrid({ searchParams }) {
+  const { q } = await searchParams
+  const projects = await getProjects({ query: q })
+  const pinnedIdsPromise = getPinnedIds()
+  return projects.map((project) => (
+    <ProjectCard
+      key={project.id}
+      project={project}
+      pinnedIdsPromise={pinnedIdsPromise}
+    />
+  ))
+}
+```
+
+The boundary can go around the button alone:
+
+```tsx
+<header className="flex …">
+  {/* icon, title, meta from `project` (synchronous) */}
+  <Suspense fallback={<ProjectPinSkeleton />}>
+    <ProjectPin projectId={project.id} pinnedIdsPromise={pinnedIdsPromise} />
+  </Suspense>
+</header>
+```
+
+Inside the client component:
+
+```tsx filename="features/projects/components/ProjectPin.tsx" highlight={1,6,9}
+'use client'
+
+import { use, useOptimistic } from 'react'
+
+function ProjectPin({ projectId, pinnedIdsPromise }) {
+  const pinnedIds = use(pinnedIdsPromise)
+  const isPinned = pinnedIds.includes(projectId)
+
+  const [optimistic, setOptimistic] = useOptimistic(isPinned)
+
+  return (
+    <form
+      action={async () => {
+        const wasPinned = optimistic
+        setOptimistic(!wasPinned)
+        await (wasPinned ? removePin(projectId) : addPin(projectId))
+      }}
+    >
+      <button type="submit">{optimistic ? 'Pinned' : 'Pin'}</button>
+    </form>
+  )
+}
+```
+
+Search keeps the same server read from `searchParams`. The client input pushes the next URL as the user types via [`useRouter`](/docs/app/api-reference/functions/use-router) and [`useSearchParams`](/docs/app/api-reference/functions/use-search-params):
+
+```tsx filename="features/projects/components/SearchBar.tsx" highlight={9,18}
+'use client'
+
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useTransition } from 'react'
+
+function SearchBar() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const [isPending, startTransition] = useTransition()
+
+  return (
+    <form
+      action="/projects"
+      method="get"
+      role="search"
+      onSubmit={(event) => event.preventDefault()}
+    >
+      {isPending ? <Spinner /> : <SearchIcon />}
+      <input
+        type="search"
+        name="q"
+        defaultValue={searchParams.get('q') ?? ''}
+        onChange={(event) => {
+          const next = event.target.value
+          startTransition(() => {
+            router.push(next ? `/projects?q=${next}` : '/projects')
+          })
+        }}
+      />
+    </form>
+  )
+}
+```
+
+Deploy follows the same shape as pin, only the button needs pending state instead of optimistic state. Wrap the Server Function call in [`useTransition`](https://react.dev/reference/react/useTransition) and read `pending` while the click is in flight:
+
+```tsx filename="features/deployments/components/DeployButton.tsx" highlight={6,9-10}
+'use client'
+
+import { useTransition } from 'react'
+
+function DeployButton({ projectId }) {
+  const [pending, startTransition] = useTransition()
+  return (
+    <form action={() => startTransition(() => triggerDeploy(projectId))}>
+      <button type="submit" disabled={pending}>
+        {pending ? <Spinner /> : 'Deploy'}
+      </button>
+    </form>
+  )
+}
+```
+
+The live log needs a timer instead of a click. A small poller beside `<LiveLogStream>` refreshes the route while the deployment is building:
+
+```tsx filename="features/deployments/components/BuildLogPoller.tsx" highlight={1,9}
+'use client'
+
+import { useRouter } from 'next/navigation'
+import { useEffect } from 'react'
+
+export function BuildLogPoller({ intervalMs = 4000 }) {
+  const router = useRouter()
+  useEffect(() => {
+    const id = setInterval(() => router.refresh(), intervalMs)
+    return () => clearInterval(id)
+  }, [router, intervalMs])
+  return null
+}
+```
+
+Each refresh re-runs the live log read, and the new rows render under the cursor. The same shape works anywhere the UI needs to reflect server state without a user action: a notification badge, a vote count, a deployment status. Drop a `<Poller>` next to the section that should re-fetch.
+
+Polling is fine for low-frequency updates. For truly real-time data, the leaf needs to do its own subscribing, typically a Server-Sent Events stream or a WebSocket connection inside the client component.
+
+Try the demo. Pin a project and watch the button flip immediately, then type in the search bar to see the URL update on each keystroke. Open a project, click Deploy, and watch the build log grow on its own.
+
+<Demo
+  src="https://thinking-in-nextjs-06-client-boundaries.labs.vercel.dev/projects"
+  title="Step 6: Add client interactivity"
+/>
+
+The sidebar catches up once the server confirms the pin. Four leaf components run in the browser; everything else stayed on the server. Navigation still reruns every server read from scratch.
+
+Source: [`steps/06-client-boundaries`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/06-client-boundaries).
+
+## Step 7: Cache reusable work
+
+Client Components fixed input feedback. Why does the route still flash skeletons every time someone clicks into a different project? The reads run from scratch on every navigation, even when the data hasn't changed. Caching is what closes that gap, without moving the data model into the browser.
+
+### Enable Cache Components
+
+[`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) enables caching at the component and function level. In a real app you'd turn this on from the start. The full story is in [Caching](/docs/app/getting-started/caching), which is worth reading once before reaching for the directives below.
+
+```ts filename="next.config.ts" highlight={4}
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  cacheComponents: true,
+}
+
+export default nextConfig
+```
+
+With it on, data fetching stays **dynamic by default**. If a read blocks the static shell from prerendering, the dev overlay flags it with three choices:
+
+- **Stream** it by adding a `<Suspense>` fallback.
+- **Cache** it when the result can be reused, covered next.
+- **Block** the route when you knowingly want the whole route to wait.
+
+For route params specifically, [`generateStaticParams`](/docs/app/api-reference/functions/generateStaticParams) is a fourth option: prerender each page at build time so the param values are baked in.
+
+Because each component already fetches its own data and pages already place deliberate `<Suspense>` boundaries, only a few spots need fixing. The dev overlay flags `await params` at the top of the detail pages: it blocks the whole route from [Partial Prerendering](/docs/app/glossary#partial-prerendering-ppr) because nothing above it can be served until the request arrives. The page can switch to `.then()` instead, keeping the page function synchronous and moving the params resolution inside a `<Suspense>` boundary:
+
+```tsx filename="app/projects/[id]/page.tsx" highlight={4}
+export default function ProjectDetailPage({
+  params,
+}: PageProps<'/projects/[id]'>) {
+  return (
+    <Suspense
+      fallback={
+        <>
+          <ProjectHeaderSkeleton />
+          <DeploymentsSkeleton />
+        </>
+      }
+    >
+      {params.then(({ id }) => (
+        <>
+          <Suspense fallback={<ProjectHeaderSkeleton />}>
+            <ProjectHeader id={id} />
+          </Suspense>
+          <Suspense fallback={<DeploymentsSkeleton />}>
+            <Deployments projectId={id} />
+          </Suspense>
+        </>
+      ))}
+    </Suspense>
+  )
+}
+```
+
+On this route the projects come from a database that changes at runtime, so the pages stay dynamic and `generateStaticParams` doesn't apply.
+
+With that fixed, `next build` can separate a [static shell](/docs/app/glossary#static-shell) from sections that stream at request time. The [Partial Prerendering](/docs/app/glossary#partial-prerendering-ppr) marker (`◐`) confirms it:
+
+```txt
+Route (app)
+┌ ○ /
+└ ◐ /projects
+
+○  (Static)             prerendered as static content
+◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
+```
+
+### Marking reads as cacheable
+
+For each read, ask one question. _Would the next viewer see the same thing?_ Most of these reads would.
+
+| UI piece                          | Reusable?       |
+| --------------------------------- | --------------- |
+| `ProjectGrid`, `ProjectHeader`    | Yes             |
+| `Deployments`, `DeploymentHeader` | Yes             |
+| `RecentDeploys`                   | Yes             |
+| `BuildLogs`, completed build      | Yes             |
+| `BuildLogs`, in-progress build    | No, live        |
+| `ViewerAvatar`                    | Yes, per viewer |
+| `PinnedProjects`                  | Yes, per viewer |
+
+Mark a reusable read with [`'use cache'`](/docs/app/glossary#use-cache-directive), plus a lifetime and tags so mutations can refresh the right entries later:
+
+```tsx filename="features/projects/projects-queries.ts" highlight={2,4}
+async function getProject(id) {
+  'use cache'
+  cacheLife('hours')
+  cacheTag('projects', `project-${id}`)
+
+  return db.project.find({ where: byId(id) })
+}
+```
+
+The function's arguments form the cache key. Calls with different ids end up as separate entries, kept for as long as `cacheLife` declares. The per-id tag gives one project its own handle; the broader `projects` tag covers the list. The rest of the reusable reads (`getProjects`, `getCompletedBuildLog`, `getDeployments`) follow the same shape: pick a lifetime, name the tags.
+
+Some reads are reusable but only for one viewer. `getPinnedIds` reads the current user's pins, so the cache has to be keyed by user. The trick is to split the read in two so the inner half can cache by a plain `userId` argument:
+
+```tsx filename="features/projects/projects-queries.ts" highlight={2,4}
+const getPinnedIdsForUser = cache(async (userId) => {
+  'use cache'
+  cacheLife({ stale: 60 })
+  cacheTag(`pinned-${userId}`)
+
+  return db.pin.list({ userId })
+})
+
+export const getPinnedIds = cache(async () => {
+  const { id: userId } = await getCurrentUser()
+  return getPinnedIdsForUser(userId)
+})
+```
+
+Request values like [`cookies()`](/docs/app/api-reference/functions/cookies), [`headers()`](/docs/app/api-reference/functions/headers), and `searchParams` stay outside plain `'use cache'` functions. Read them first, then pass values in as arguments. When there's nothing to lift out, [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private) is the variant that runs per viewer and can read request values directly:
+
+```tsx filename="features/user/auth-queries.ts" highlight={2-3}
+export const getCurrentUser = cache(async () => {
+  'use cache: private'
+  cacheLife({ stale: 60 })
+
+  const session = (await cookies()).get('session')?.value
+  return session ? JSON.parse(session) : DEFAULT_USER
+})
+```
+
+> **Note**: A third variant, [`'use cache: remote'`](/docs/app/api-reference/directives/use-cache-remote), backs a durable shared cache across server instances. See the [Cache Components](/docs/app/getting-started/caching) intro for the full comparison.
+
+A cached read with no per-request input can join the static shell. `RecentDeploys` is the example here, so its `<Suspense>` boundary in the layout can be removed and the rendered HTML ships with the shell.
+
+After `'use cache'` backs those reads, [`refresh()`](/docs/app/api-reference/functions/refresh) reruns dynamic work but leaves cached entries in place. To invalidate the right entries after a write, call [`updateTag`](/docs/app/api-reference/functions/updateTag) from the Server Function for whichever reads changed:
+
+```tsx filename="features/deployments/deployments-actions.ts" highlight={6,8-9}
+'use server'
+
+import { updateTag } from 'next/cache'
+
+async function triggerDeploy(projectId) {
+  await requireSession()
+  await db.deployment.create({ projectId })
+  updateTag(`deployments-${projectId}`)
+  updateTag('recent-deployments')
+}
+```
+
+Each write follows the same shape: run the write, then `updateTag` the reads it changed.
+
+Click into a project, then back to the list, then into a deployment. The sidebar's recent-deploys list paints with the static shell on every click. The other sections still flash a fallback before resolving, because their cache keys depend on a real request and only get filled once one arrives.
+
+<Demo
+  src="https://thinking-in-nextjs-07-caching.labs.vercel.dev/projects"
+  title="Step 7: Cache reusable work"
+/>
+
+The cache is set up, but the visible paint hasn't changed for sections waiting on a request. The missing piece is shipping work ahead of the click so the next page is ready by the time the user gets there.
+
+### Prefetch a shell per route
+
+Historically, `<Link>` fired a prefetch request for every distinct destination in the viewport. A grid with a thousand profile cards meant a thousand prefetches — most of them wasted on content the user would never reach.
+
+Each route now has an [App Shell](/docs/app/glossary#app-shell): the cached parts of the page that can be served without a request, plus suspense fallbacks for everything that streams. The shell is the same for every link to the same route, so it doesn't have to be fetched per link. [Partial Prefetching](/docs/app/glossary#partial-prefetching) is the prefetch model that takes advantage of this — one shell per route, cached for the session, regardless of how many links point at it.
+
+Turn it on alongside `cacheComponents`:
+
+```ts filename="next.config.ts" highlight={5}
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  cacheComponents: true,
+  partialPrefetching: true,
+}
+
+export default nextConfig
+```
+
+For an existing app where flipping the global flag at once isn't realistic, the [Adopting Partial Prefetching guide](/docs/app/guides/adopting-partial-prefetching) covers opting routes in one at a time with `export const prefetch = 'partial'`.
+
+To see what each route's shell looks like, the **Navigation Inspector** in the Next.js DevTools pauses navigations at the shell so you can see exactly what's available instantly before dynamic content streams in. Use it as a feedback loop while placing `<Suspense>` boundaries: too much fallback, and the shell ships skeletons where it could ship real UI; too little, and the route can't prerender at all.
+
+### Prefetch more than the shell
+
+Sometimes the shell isn't enough. The project detail page is the example here: the project metadata and deployments list are cached, and would feel snappier if they landed with the click instead of streaming in.
+
+For a `<Link>` whose destination has worth-shipping cached content, opt in with the [`prefetch`](/docs/app/api-reference/components/link#prefetch) prop:
+
+```tsx
+<Link href={`/projects/${project.id}`} prefetch>
+  {project.name}
+</Link>
+```
+
+This prefetches the shell **plus** whatever's cached down the tree — anything synchronous or marked `'use cache'`. Dynamic data (cookies, headers, `searchParams`) still streams in after the navigation.
+
+This is per-link, not per-route. A different `<Link>` to the same destination can leave `prefetch` off; the cost only applies where the prop is set.
+
+### Prefetch runtime data
+
+Some destinations need request-time data to render anything useful — search results depend on `?q=`, the project page reads the viewer's cookies for pin state. By default `<Link prefetch>` skips that data, since prefetching it for every link would be expensive.
+
+To extend per-link prefetching to request-time cached content, opt the destination segment into [runtime prefetching](/docs/app/guides/runtime-prefetching) with the [`prefetch`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) segment export:
+
+```tsx filename="app/projects/page.tsx" highlight={3}
+import { Suspense } from 'react'
+
+export const prefetch = 'allow-runtime'
+
+export default function ProjectsPage({ searchParams }) {
+  return (
+    <section>
+      <Suspense fallback={<ProjectGridSkeleton />}>
+        <ProjectGrid searchParams={searchParams} />
+      </Suspense>
+    </section>
+  )
+}
+```
+
+Each page declares its own choice. On this app, `/projects` opts in for the avatar and pinned section (cookies) and the grid (`?q=`). `/projects/[id]` and `/projects/[id]/deployments/[deployId]` opt in for cookies and `params`. Other pages stay on the default static prefetch.
+
+Runtime prefetch only sticks if the destination reads are cached. Without `'use cache'` and tags on those reads, the prefetched output has no entry to reuse and the next click rerenders from scratch. The reads above already carry tags and lifetimes, so prefetched output has a stable slot in the [Client Cache](/docs/app/glossary#client-cache).
+
+As links scroll into view, the prefetches show up as ordinary fetches — one per route, not one per link:
+
+```txt
+Name                                          Status  Type   Size      Time
+projects/[id]                                 200     fetch  12.4 KB    84 ms
+projects/[id]/deployments/[deployId]          200     fetch  18.2 KB   112 ms
+```
+
+Each row is a per-request render of the destination's runtime-cacheable content, stored in the Client Cache and reused across every link to that route for the session. Before prefetch finishes, the fallback still appears. After it finishes, the section is already in the cache.
+
+Click between projects fast and the fallback paints. Wait a beat before clicking, and the section is already prefetched.
+
+<Demo
+  src="https://thinking-in-nextjs.labs.vercel.dev/projects"
+  title="Step 7: Cache reusable work"
+/>
+
+When prefetch finishes before the click, the destination renders real markup instead of skeletons. The `<Suspense>` boundaries stay in place because they still guard reads that need a real request.
+
+Every route the prefetch pass touched is cached in the browser, so subsequent navigations work even over a flaky connection. [Offline support](/docs/app/guides/offline-support) covers the broader story for apps that go fully offline.
+
+Three layers combine for instant navigation. `<Suspense>` handles the first visit, `'use cache'` builds an App Shell that `<Link>` ships by default, and per-link `prefetch` (with `prefetch = 'allow-runtime'` where personalized) fills the cached parts of that shell before the click. Each layer has a cost, so apply them where smoother repeat navigation is worth the server work and the browser memory.
+
+Source: [`steps/07-caching`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/07-caching) and [`steps/08-prefetching`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/08-prefetching).
+
+## Where to go from here
+
+Try it on a route in your own codebase. For each section on the page, ask the same questions this guide asks. Where does the data come from? What can stream? What can be cached, and for how long? What needs to run in the browser?
+
+Each step's source is under `steps/` in the [example repo](https://github.com/vercel-labs/thinking-in-nextjs). The production mirror is at [thinking-in-nextjs.labs.vercel.dev](https://thinking-in-nextjs.labs.vercel.dev/).
