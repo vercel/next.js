@@ -234,8 +234,6 @@ pub struct WriteGuard<'l> {
     // Safety: The buffer must not be None
     buffer: MutexGuard<'l, Option<TraceInfoBuffer>>,
     trace_writer: &'l TraceWriter,
-    /// The offset in the buffer where the row written with this guard starts.
-    row_start: usize,
     /// The marker of the previous row of this thread, if it's still in the buffer.
     last_row_marker: Option<u64>,
 }
@@ -248,13 +246,11 @@ impl<'l> WriteGuard<'l> {
         // Safety: The buffer must not be None, so we initialize it here
         let buffer_ref = buffer
             .get_or_insert_with(|| trace_writer.get_empty_buffer(THREAD_LOCAL_INITIAL_BUFFER_SIZE));
-        let row_start = buffer_ref.buffer.len();
         // Every write consumes the marker, so it's only available to the very next write.
         let last_row_marker = buffer_ref.last_row_marker.take();
         Self {
             buffer,
             trace_writer,
-            row_start,
             last_row_marker,
         }
     }
@@ -272,15 +268,15 @@ impl<'l> WriteGuard<'l> {
         self.buffer().extend(data);
     }
 
-    /// Marks the row written with this guard with `marker`. The next write on this thread can
-    /// retrieve it with [`WriteGuard::last_row_marker`] and remove the row again with
+    /// Marks the row that is written next with this guard with `marker`, so it must be called
+    /// before anything of that row is written. The next write on this thread can retrieve it with
+    /// [`WriteGuard::last_row_marker`] and remove the row again with
     /// [`WriteGuard::remove_last_row`], as long as the row wasn't sent to the writer thread in
     /// between.
     pub fn mark_row(&mut self, marker: u64) {
-        let row_start = self.row_start;
         let buffer = self.buffer();
         buffer.last_row_marker = Some(marker);
-        buffer.last_row_start = row_start;
+        buffer.last_row_start = buffer.buffer.len();
     }
 
     /// Returns the marker of the previous row written on this thread, when that row was marked
@@ -298,16 +294,8 @@ impl<'l> WriteGuard<'l> {
             self.last_row_marker.take().is_some(),
             "The last row is not marked or not in the buffer anymore"
         );
-        let row_start = self.row_start;
         let buffer = self.buffer();
-        assert_eq!(
-            buffer.buffer.len(),
-            row_start,
-            "Something was written already"
-        );
-        let last_row_start = buffer.last_row_start;
-        buffer.buffer.truncate(last_row_start);
-        self.row_start = last_row_start;
+        buffer.buffer.truncate(buffer.last_row_start);
     }
 }
 
@@ -360,6 +348,23 @@ mod tests {
         let data = with_writer(|writer| {
             writer.start_write().extend(b"aa");
             let mut guard = writer.start_write();
+            guard.mark_row(1);
+            guard.extend(b"bbb");
+            drop(guard);
+            let mut guard = writer.start_write();
+            assert_eq!(guard.last_row_marker(), Some(1));
+            guard.remove_last_row();
+            guard.extend(b"c");
+        });
+        assert_eq!(data, b"aac");
+    }
+
+    /// The mark covers what is written after `mark_row`, not what this guard wrote before.
+    #[test]
+    fn marks_from_the_current_position() {
+        let data = with_writer(|writer| {
+            let mut guard = writer.start_write();
+            guard.extend(b"aa");
             guard.mark_row(1);
             guard.extend(b"bbb");
             drop(guard);

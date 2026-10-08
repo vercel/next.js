@@ -81,7 +81,7 @@ cargo run --bin turbo-trace-size --release -- /path/to/your/trace-turbopack.bin 
 
 ### Omitted Exit and Enter rows
 
-To keep trace files small, an `Exit` of a span that is followed by an `Enter` of the same span on the same thread shortly after is omitted together with that `Enter`. That's common for async spans, which are exited and entered again on every poll. This only happens when nothing was (de)allocated in between and the gap is at most 1µs or 0.1% of the time the span was entered before. The viewer shows the span as entered during these gaps, so its self time can be slightly too large.
+To keep trace files small, an `Exit` of a span that is followed by an `Enter` of the same span on the same thread shortly after is omitted together with that `Enter`. That's common for async spans, which are exited and entered again on every poll. This only happens when nothing was (de)allocated in between and the gap is at most 1µs or 0.1% of the time since the last `Enter` on that thread (for nested spans, that can be later than the span's own `Enter`, which only makes the allowed gap smaller). The viewer shows the span as entered during these gaps, so its self time can be slightly too large.
 
 [turbo-trace-viewer]: https://turbo-trace-viewer.vercel.app/
 [youtube-tutorial]: https://www.youtube.com/watch?v=PGO2szAye7A

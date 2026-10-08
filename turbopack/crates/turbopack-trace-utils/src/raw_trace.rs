@@ -66,11 +66,14 @@ fn get_id<S: Subscriber + for<'a> LookupSpan<'a>>(
 }
 
 /// The maximum gap between an `Exit` and the next `Enter` of the same span for which both rows
-/// are omitted. `entered` is how long the span was entered before the `Exit`.
+/// are omitted. `entered` is the time between the last `Enter` on the thread (of any span) and the
+/// `Exit`.
 ///
 /// Omitting the rows makes the trace show the span as entered during the gap, so its self time
 /// gains the gap. This is bounded to 1µs (the timestamp resolution) or 0.1% of the preceding
-/// entered interval of the span (which includes time spent in nested spans).
+/// entered interval (which includes time spent in nested spans). For nested spans, the last
+/// `Enter` on the thread can be of a nested span, which is later than the span's own `Enter`, so
+/// that only makes the allowed gap smaller.
 fn max_exit_enter_gap(entered: u64) -> u64 {
     (entered / 1000).max(1)
 }
@@ -98,9 +101,9 @@ struct ThreadState {
     thread_id: u64,
     /// The allocation counters of the thread at the time they were last reported.
     reported_allocations: Option<Allocations>,
-    /// The spans currently entered on this thread, with the timestamp of the Enter callback
-    /// (even if the row was omitted).
-    entered: Vec<(u64, u64)>,
+    /// The timestamp of the last Enter callback on this thread, of any span (even if the row was
+    /// omitted). See [`max_exit_enter_gap`].
+    last_enter_ts: Option<u64>,
     /// The last `Exit` row written on this thread. It can be removed again when it's followed
     /// by an `Enter` of the same span shortly after, see [`max_exit_enter_gap`].
     last_exit: Option<LastExit>,
@@ -113,8 +116,6 @@ struct LastExit {
     marker: u64,
     id: u64,
     ts: u64,
-    /// The maximum timestamp of an `Enter` for which this `Exit` can be omitted.
-    max_enter_ts: u64,
     /// [`ThreadState::reported_allocations`] before the `Exit` row was written.
     reported_allocations_before: Option<Allocations>,
 }
@@ -307,14 +308,19 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for RawTraceLayer<S> {
         let id = get_id(ctx, id);
         let enter_allocations = {
             let mut state = self.thread_state(thread_id);
-            state.entered.push((id, ts));
+            let last_enter_ts = state.last_enter_ts.replace(ts);
             // An `Exit` directly followed by an `Enter` of the same span (almost) at the same
             // time has (almost) no effect on the trace data, so both rows can be omitted. This is
             // common for async spans, which are exited and entered again on every poll.
             if let Some(last_exit) = state.last_exit.take()
                 && last_exit.id == id
                 && last_exit.ts <= ts
-                && ts <= last_exit.max_enter_ts
+                && ts
+                    <= last_exit.ts.saturating_add(max_exit_enter_gap(
+                        last_exit
+                            .ts
+                            .saturating_sub(last_enter_ts.unwrap_or(last_exit.ts)),
+                    ))
                 // Nothing (de)allocated since the exit, otherwise the `Enter` would need to
                 // report it for the span that was running in between
                 && state.reported_allocations == current
@@ -353,15 +359,6 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for RawTraceLayer<S> {
         let id = get_id(ctx, id);
         let (allocations, marker) = {
             let mut state = self.thread_state(thread_id);
-            // The actual time of the matching Enter on this thread, even if its row was omitted
-            let enter_ts = match state
-                .entered
-                .iter()
-                .rposition(|&(entered, _)| entered == id)
-            {
-                Some(index) => state.entered.remove(index).1,
-                None => ts,
-            };
             let reported_allocations_before = state.reported_allocations;
             let allocations = Self::allocations(&mut state, current);
             let marker = state.next_marker;
@@ -370,7 +367,6 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for RawTraceLayer<S> {
                 marker,
                 id,
                 ts,
-                max_enter_ts: ts.saturating_add(max_exit_enter_gap(ts.saturating_sub(enter_ts))),
                 reported_allocations_before,
             });
             (allocations, marker)
@@ -809,6 +805,42 @@ pub(crate) mod tests {
                 ("exit", 1, 3000),
                 ("enter", 1, 3002),
                 ("exit", 1, 4000)
+            ]
+        );
+    }
+
+    /// The entered duration for the allowed gap is measured from the last `Enter` on the thread,
+    /// regardless of the span. For nested spans that's shorter than the span's own entered time,
+    /// so the allowed gap only shrinks.
+    #[test]
+    fn measures_the_gap_from_the_last_enter_on_the_thread() {
+        let data = capture(RawTraceLayerOptions::default(), || {
+            let outer = tracing::info_span!("outer");
+            let inner = tracing::info_span!("inner");
+            freeze_time(0);
+            let outer_guard = outer.enter();
+            freeze_time(2000);
+            let inner_guard = inner.enter();
+            freeze_time(2500);
+            drop(inner_guard);
+            freeze_time(3000);
+            drop(outer_guard);
+            // Entered for 3000µs since its own `Enter`, but only 1000µs since the last `Enter` on
+            // this thread, so the gap of 2µs is not allowed
+            freeze_time(3002);
+            let outer_guard = outer.enter();
+            freeze_time(4002);
+            drop(outer_guard);
+        });
+        assert_eq!(
+            enter_exit_rows(&decode(&data)),
+            vec![
+                ("enter", 1, 0),
+                ("enter", 2, 2000),
+                ("exit", 2, 2500),
+                ("exit", 1, 3000),
+                ("enter", 1, 3002),
+                ("exit", 1, 4002)
             ]
         );
     }
