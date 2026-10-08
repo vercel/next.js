@@ -301,16 +301,10 @@ impl<'l> WriteGuard<'l> {
         encoded
     }
 
-    /// Whether the buffer doesn't contain a [`TraceRow::TimestampBase`] row yet.
-    pub fn needs_timestamp_base(&mut self) -> bool {
-        self.buffer().timestamps.needs_base()
-    }
-
     /// Writes a [`TraceRow::TimestampBase`] row with the absolute timestamp `ts`, unless the
-    /// buffer already contains one. Rows without a timestamp call this before they are written,
-    /// so that every buffer starts with a base. Must be called before the row itself is written.
+    /// buffer already contains one. Must be called before the row itself is written.
     pub fn ensure_timestamp_base(&mut self, ts: u64) {
-        if self.needs_timestamp_base() {
+        if self.buffer().timestamps.needs_base() {
             self.encode_timestamp(ts);
         }
     }
@@ -611,7 +605,6 @@ mod tests {
         let data = with_writer(|writer| {
             write_end(&mut writer.start_write(), 100);
             let mut guard = writer.start_write();
-            guard.ensure_timestamp_base(5000);
             let record = TraceRow::Record {
                 id: 1,
                 values: Vec::new(),
@@ -638,10 +631,9 @@ mod tests {
     }
 
     #[test]
-    fn buffer_starting_with_a_row_without_timestamp_gets_a_base() {
+    fn buffer_starting_with_a_row_without_timestamp_has_no_base_before_it() {
         let data = with_writer(|writer| {
             let mut guard = writer.start_write();
-            guard.ensure_timestamp_base(50);
             let record = TraceRow::Record {
                 id: 1,
                 values: Vec::new(),
@@ -651,8 +643,9 @@ mod tests {
             write_end(&mut writer.start_write(), 60);
         });
         let rows = decode_rows(&data);
-        assert!(matches!(rows[0], TraceRow::TimestampBase { ts: 50 }));
-        assert!(matches!(rows[1], TraceRow::Record { .. }));
+        // The base is written before the first row with a timestamp
+        assert!(matches!(rows[0], TraceRow::Record { .. }));
+        assert!(matches!(rows[1], TraceRow::TimestampBase { ts: 60 }));
         assert!(matches!(rows[2], TraceRow::End { ts: 60, .. }));
         assert_eq!(rows.len(), 3);
     }

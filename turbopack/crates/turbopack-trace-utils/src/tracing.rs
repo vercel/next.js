@@ -15,8 +15,8 @@ use serde::{Deserialize, Serialize};
 /// signed number (`0, -1, 1, -2, 2, ...` are encoded as `0, 1, 2, 3, 4, ...`). The differences
 /// can be negative, since rows are not necessarily in timestamp order. A
 /// [`TraceRow::TimestampBase`] row sets an absolute timestamp that the next difference refers to.
-/// The writer starts every thread local buffer with one, so the rows of each buffer can be
-/// decoded no matter where the buffer ends up in the file.
+/// The writer writes one before the first row with a timestamp in every thread local buffer, so
+/// the rows of each buffer can be decoded no matter where the buffer ends up in the file.
 ///
 /// Writers use a [`TimestampEncoder`] and readers a [`TimestampDecoder`] on every row in stream
 /// order to convert between these differences and absolute timestamps.

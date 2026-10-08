@@ -190,14 +190,12 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> RawTraceLayer<S> {
         TurboMalloc::reset_allocation_counters(start);
     }
 
-    /// Replaces the absolute timestamp of `data` with its serialized form. Rows without a
-    /// timestamp get a [`TraceRow::TimestampBase`] written before them when they would be the
-    /// first row in the buffer, so that every buffer starts with a base.
+    /// Replaces the absolute timestamp of `data` (if it has one) with its serialized form, and
+    /// writes a [`TraceRow::TimestampBase`] before it when the buffer doesn't contain one yet.
     fn encode_timestamp(&self, guard: &mut WriteGuard<'_>, data: &mut TraceRow<'_>) {
         if let Some(ts) = data.timestamp_mut() {
+            guard.ensure_timestamp_base(*ts);
             *ts = guard.encode_timestamp(*ts);
-        } else if guard.needs_timestamp_base() {
-            guard.ensure_timestamp_base(self.now());
         }
     }
 
@@ -720,7 +718,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn buffer_starting_with_a_record_has_a_timestamp_base() {
+    fn buffer_starting_with_a_record_gets_a_base_before_its_first_timestamp() {
         // Just below the threshold where the buffer is sent to the writer thread
         let fill = crate::trace_writer::THREAD_LOCAL_INITIAL_BUFFER_SIZE * 2 / 3;
         let data = capture(RawTraceLayerOptions::default(), || {
@@ -741,7 +739,9 @@ pub(crate) mod tests {
                 _ => "other",
             })
             .collect();
-        assert_eq!(kinds, ["base", "start", "record", "base", "record", "end"]);
+        // The second buffer starts with the Record, which has no timestamp, so its base is only
+        // written before the End row
+        assert_eq!(kinds, ["base", "start", "record", "record", "base", "end"]);
     }
 
     #[test]

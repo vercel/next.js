@@ -90,7 +90,7 @@ To keep trace files small, an `Exit` of a span that is followed by an `Enter` of
 
 ### Timestamps
 
-Timestamps are stored as the (signed) difference to the previous timestamp in the trace file, which needs fewer bytes than absolute timestamps and compresses better. The trace is written in chunks per thread, and every chunk starts with a `TimestampBase` row that contains an absolute timestamp, so every chunk can be decoded on its own.
+Timestamps are stored as the (signed) difference to the previous timestamp in the trace file, which needs fewer bytes than absolute timestamps and compresses better. The trace is written in chunks per thread, and in every chunk a `TimestampBase` row with an absolute timestamp comes before the first row with a timestamp, so every chunk can be decoded on its own.
 
 [turbo-trace-viewer]: https://turbo-trace-viewer.vercel.app/
 [youtube-tutorial]: https://www.youtube.com/watch?v=PGO2szAye7A
