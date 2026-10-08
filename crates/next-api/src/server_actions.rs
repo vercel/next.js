@@ -36,16 +36,21 @@ use turbo_tasks_hash::{HashAlgorithm, deterministic_hash};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        ChunkItem, ChunkItemExt, ChunkableModule, ChunkingContext, EvaluatableAsset, ModuleId,
+        ChunkGroupResult, ChunkItem, ChunkItemExt, ChunkableModule, ChunkingConfigs,
+        ChunkingContext, EntryChunkGroupResult, EvaluatableAsset, HmrChunkListSource, MinifyType,
+        ModuleId, SourceMapSourceType, UnusedReferences, UrlBehavior, WorkerConfigurationOptions,
+        availability_info::AvailabilityInfo, chunk_id_strategy::ModuleIdStrategy,
     },
     context::AssetContext,
+    environment::{ChunkLoading, Environment},
     file_source::FileSource,
     ident::AssetIdent,
     module::{Module, Modules},
     module_graph::{
         GraphTraversalAction, ModuleGraph, ModuleGraphLayer, async_module_info::AsyncModulesInfo,
+        binding_usage_info::ModuleExportUsage, chunk_group_info::ChunkGroup,
     },
-    output::{OutputAsset, OutputAssetsReference},
+    output::{OutputAsset, OutputAssets, OutputAssetsReference},
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::ModulePart,
     virtual_source::VirtualSource,
@@ -281,6 +286,13 @@ impl Asset for ServerActionManifestAsset {
             root_param_dependencies: Option<ReadRef<Vec<RcStr>>>,
         }
 
+        // Keep module ids in the hashed factory independent of the rest of the build.
+        let chunking_context_for_content_hash = ResolvedVc::upcast(
+            UseCacheContentHashChunkingContext::new(*self.chunking_context)
+                .to_resolved()
+                .await?,
+        );
+
         let action_metadata: Vec<(&str, ActionMetadata<'_>)> = actions_value
             .iter()
             .map(async |(hash_id, (_layer, meta, module))| {
@@ -301,7 +313,7 @@ impl Asset for ServerActionManifestAsset {
                         compute_subtree_content_hash(
                             *self.module_graph,
                             **module,
-                            *self.chunking_context,
+                            *chunking_context_for_content_hash,
                             hash_salt,
                             modules_to_ignore
                                 .expect("cache metadata collection requires module exclusions"),
@@ -1066,6 +1078,250 @@ fn extract_type_from_server_reference_id(id: &str) -> ServerReferenceType {
         ServerReferenceType::UseCache
     } else {
         ServerReferenceType::ServerAction
+    }
+}
+
+#[turbo_tasks::value]
+struct UseCacheContentHashChunkingContext {
+    inner: ResolvedVc<Box<dyn ChunkingContext>>,
+}
+
+#[turbo_tasks::value_impl]
+impl UseCacheContentHashChunkingContext {
+    #[turbo_tasks::function]
+    pub fn new(inner: ResolvedVc<Box<dyn ChunkingContext>>) -> Vc<Self> {
+        Self { inner }.cell()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ChunkingContext for UseCacheContentHashChunkingContext {
+    #[turbo_tasks::function]
+    fn name(&self) -> Vc<RcStr> {
+        Vc::cell(rcstr!("UseCacheContentHashChunkingContext"))
+    }
+
+    #[turbo_tasks::function]
+    fn root_path(&self) -> Vc<FileSystemPath> {
+        self.inner.root_path()
+    }
+
+    #[turbo_tasks::function]
+    fn output_root(&self) -> Vc<FileSystemPath> {
+        self.inner.output_root()
+    }
+
+    #[turbo_tasks::function]
+    fn output_root_to_root_path(&self) -> Vc<RcStr> {
+        self.inner.output_root_to_root_path()
+    }
+
+    #[turbo_tasks::function]
+    fn environment(&self) -> Vc<Environment> {
+        self.inner.environment()
+    }
+
+    #[turbo_tasks::function]
+    fn chunk_root_path(&self) -> Vc<FileSystemPath> {
+        self.inner.chunk_root_path()
+    }
+
+    #[turbo_tasks::function]
+    async fn chunk_path(
+        &self,
+        asset: Option<Vc<Box<dyn Asset>>>,
+        ident: Vc<AssetIdent>,
+        prefix: Option<RcStr>,
+        extension: RcStr,
+    ) -> Vc<FileSystemPath> {
+        self.inner.chunk_path(asset, ident, prefix, extension)
+    }
+
+    #[turbo_tasks::function]
+    async fn asset_url(&self, ident: FileSystemPath, tag: Option<RcStr>) -> Vc<RcStr> {
+        self.inner.asset_url(ident, tag)
+    }
+
+    #[turbo_tasks::function]
+    fn service_worker_scope_base_path(&self) -> Vc<RcStr> {
+        self.inner.service_worker_scope_base_path()
+    }
+
+    #[turbo_tasks::function]
+    fn reference_chunk_source_maps(&self, chunk: Vc<Box<dyn OutputAsset>>) -> Vc<bool> {
+        self.inner.reference_chunk_source_maps(chunk)
+    }
+
+    #[turbo_tasks::function]
+    fn reference_module_source_maps(&self, module: Vc<Box<dyn Module>>) -> Vc<bool> {
+        self.inner.reference_module_source_maps(module)
+    }
+
+    #[turbo_tasks::function]
+    async fn asset_path(
+        self: Vc<Self>,
+        _content: Vc<AssetContent>,
+        _original_asset_ident: Vc<AssetIdent>,
+        _tag: Option<RcStr>,
+    ) -> Result<Vc<FileSystemPath>> {
+        bail!("asset_path should not be called in UseCacheContentHashChunkingContext");
+    }
+
+    #[turbo_tasks::function]
+    fn url_behavior(&self, tag: Option<RcStr>) -> Vc<UrlBehavior> {
+        self.inner.url_behavior(tag)
+    }
+
+    #[turbo_tasks::function]
+    fn chunking_configs(&self) -> Vc<ChunkingConfigs> {
+        self.inner.chunking_configs()
+    }
+
+    #[turbo_tasks::function]
+    fn source_map_source_type(&self) -> Vc<SourceMapSourceType> {
+        self.inner.source_map_source_type()
+    }
+
+    #[turbo_tasks::function]
+    fn is_nested_async_availability_enabled(&self) -> Vc<bool> {
+        self.inner.is_nested_async_availability_enabled()
+    }
+
+    #[turbo_tasks::function]
+    fn is_module_merging_enabled(&self) -> Vc<bool> {
+        self.inner.is_module_merging_enabled()
+    }
+
+    #[turbo_tasks::function]
+    fn is_dynamic_chunk_content_loading_enabled(&self) -> Vc<bool> {
+        self.inner.is_dynamic_chunk_content_loading_enabled()
+    }
+
+    #[turbo_tasks::function]
+    pub fn minify_type(&self) -> Vc<MinifyType> {
+        self.inner.minify_type()
+    }
+
+    #[turbo_tasks::function]
+    fn should_use_absolute_url_references(&self) -> Vc<bool> {
+        self.inner.should_use_absolute_url_references()
+    }
+
+    #[turbo_tasks::function]
+    async fn chunk_group(
+        self: ResolvedVc<Self>,
+        _ident: Vc<AssetIdent>,
+        _chunk_group: ChunkGroup,
+        _module_graph: ResolvedVc<ModuleGraph>,
+        _availability_info: AvailabilityInfo,
+    ) -> Result<Vc<ChunkGroupResult>> {
+        bail!("Should never be called");
+    }
+
+    #[turbo_tasks::function]
+    async fn evaluated_chunk_group(
+        self: ResolvedVc<Self>,
+        _ident: Vc<AssetIdent>,
+        _chunk_group: ChunkGroup,
+        _module_graph: ResolvedVc<ModuleGraph>,
+        _extra_chunks: Vc<OutputAssets>,
+        _input_availability_info: AvailabilityInfo,
+    ) -> Result<Vc<ChunkGroupResult>> {
+        bail!("Should never be called");
+    }
+
+    #[turbo_tasks::function]
+    async fn hmr_chunk_list(
+        self: Vc<Self>,
+        _ident: Vc<AssetIdent>,
+        _chunks: Vc<OutputAssets>,
+        _source: HmrChunkListSource,
+    ) -> Result<Vc<OutputAssets>> {
+        bail!("Should never be called");
+    }
+
+    #[turbo_tasks::function]
+    async fn entry_chunk_group(
+        self: ResolvedVc<Self>,
+        _path: FileSystemPath,
+        _chunk_group: ChunkGroup,
+        _module_graph: ResolvedVc<ModuleGraph>,
+        _extra_chunks: Vc<OutputAssets>,
+        _extra_referenced_assets: Vc<OutputAssets>,
+        _availability_info: AvailabilityInfo,
+    ) -> Result<Vc<EntryChunkGroupResult>> {
+        bail!("Should never be called");
+    }
+
+    #[turbo_tasks::function]
+    fn chunk_item_id_strategy(&self) -> Vc<ModuleIdStrategy> {
+        // Intentionally make this return only paths to
+        // 1. more stable module IDs even as the short numeric ones might change
+        // 2. ensure that app-rsc and app-route codegen reference the same module ids (=paths) in
+        //    imports
+        ModuleIdStrategy::new_path_only()
+    }
+
+    #[turbo_tasks::function]
+    async fn async_loader_chunk_item(
+        &self,
+        module: Vc<Box<dyn ChunkableModule>>,
+        module_graph: Vc<ModuleGraph>,
+        availability_info: AvailabilityInfo,
+    ) -> Vc<Box<dyn ChunkItem>> {
+        self.inner
+            .async_loader_chunk_item(module, module_graph, availability_info)
+    }
+
+    #[turbo_tasks::function]
+    async fn standalone_chunk(
+        &self,
+        chunk_item: Vc<Box<dyn ChunkItem>>,
+    ) -> Vc<Box<dyn OutputAsset>> {
+        self.inner.standalone_chunk(chunk_item)
+    }
+
+    #[turbo_tasks::function]
+    async fn async_loader_chunk_item_ident(
+        &self,
+        module: Vc<Box<dyn ChunkableModule>>,
+    ) -> Vc<AssetIdent> {
+        self.inner.async_loader_chunk_item_ident(module)
+    }
+
+    #[turbo_tasks::function]
+    async fn module_export_usage(
+        self: Vc<Self>,
+        _module: ResolvedVc<Box<dyn Module>>,
+    ) -> Vc<ModuleExportUsage> {
+        // Intentionally empty for more stable hashes
+        ModuleExportUsage::unknown()
+    }
+
+    #[turbo_tasks::function]
+    fn unused_references(self: Vc<Self>) -> Vc<UnusedReferences> {
+        // Intentionally empty for more stable hashes
+        Vc::cell(Default::default())
+    }
+
+    #[turbo_tasks::function]
+    async fn debug_ids_enabled(&self) -> Vc<bool> {
+        self.inner.debug_ids_enabled()
+    }
+
+    #[turbo_tasks::function]
+    fn worker_configuration_options(&self) -> Vc<WorkerConfigurationOptions> {
+        self.inner.worker_configuration_options()
+    }
+
+    #[turbo_tasks::function]
+    async fn worker_entrypoint(&self) -> Vc<Box<dyn OutputAsset>> {
+        self.inner.worker_entrypoint()
+    }
+
+    #[turbo_tasks::function]
+    fn chunk_loading(&self) -> Vc<ChunkLoading> {
+        self.inner.chunk_loading()
     }
 }
 
