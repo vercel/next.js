@@ -2,7 +2,8 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use rustc_hash::FxHashMap;
 use turbo_tasks::{
-    NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, turbobail,
+    NonLocalValue, ResolvedVc, ValueToString, ValueToStringRef, Vc, debug::ValueDebugFormat,
+    turbobail,
 };
 use turbo_tasks_hash::hash_xxh3_hash64;
 
@@ -15,6 +16,7 @@ pub struct ModuleIds(FxHashMap<ResolvedVc<AssetIdent>, ModuleId>);
 #[derive(Default, Clone, PartialEq, Eq, ValueDebugFormat, NonLocalValue, Encode, Decode)]
 pub enum ModuleIdFallback {
     Error,
+    Path,
     #[default]
     Ident,
 }
@@ -24,6 +26,18 @@ pub enum ModuleIdFallback {
 pub struct ModuleIdStrategy {
     pub module_id_map: Option<ResolvedVc<ModuleIds>>,
     pub fallback: ModuleIdFallback,
+}
+
+#[turbo_tasks::value_impl]
+impl ModuleIdStrategy {
+    #[turbo_tasks::function]
+    pub fn new_path_only() -> Vc<Self> {
+        Self {
+            module_id_map: None,
+            fallback: ModuleIdFallback::Path,
+        }
+        .cell()
+    }
 }
 
 impl ModuleIdStrategy {
@@ -60,6 +74,9 @@ impl ModuleIdStrategy {
                 }
 
                 turbobail!("ModuleId not found for ident: {}", ident);
+            }
+            ModuleIdFallback::Path => {
+                Ok(ModuleId::String(ident.await?.path.to_string_ref().await?))
             }
             ModuleIdFallback::Ident => Ok(ModuleId::String(ident.to_string().owned().await?)),
         }
