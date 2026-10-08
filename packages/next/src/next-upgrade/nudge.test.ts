@@ -143,7 +143,7 @@ describe('upgrade policy dispatch', () => {
       if (descriptor) {
         Object.defineProperty(stream, 'isTTY', descriptor)
       } else {
-        delete stream.isTTY
+        Reflect.deleteProperty(stream, 'isTTY')
       }
     }
     if (terminal === undefined) {

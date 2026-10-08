@@ -1,17 +1,16 @@
-import { spawn } from 'child_process'
+import { ChildProcess, spawn } from 'child_process'
 import { processEnv, resetEnv, updateInitialEnv } from '@next/env'
-import { EventEmitter } from 'events'
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises'
-import * as Log from 'next/dist/build/output/log'
-import { findDir } from 'next/dist/lib/find-pages-dir'
-import { getProjectDir } from 'next/dist/lib/get-project-dir'
-import { prepareUpgrade } from 'next/dist/next-upgrade/cli/agent/prepare'
-import { runUpgrade, spawnNextUpgrade } from 'next/dist/next-upgrade/cli/run'
-import loadConfig from 'next/dist/server/config'
-import { normalizeConfig } from 'next/dist/server/config-shared'
-import { PHASE_PRODUCTION_BUILD } from 'next/dist/shared/lib/constants'
-import { getAgentName } from 'next/dist/telemetry/agent-name'
-import { Telemetry } from 'next/dist/telemetry/storage'
+import * as Log from '../../build/output/log'
+import { findDir } from '../../lib/find-pages-dir'
+import { getProjectDir } from '../../lib/get-project-dir'
+import { prepareUpgrade } from './agent/prepare'
+import { runUpgrade, spawnNextUpgrade } from './run'
+import loadConfig from '../../server/config'
+import { normalizeConfig } from '../../server/config-shared'
+import { PHASE_PRODUCTION_BUILD } from '../../shared/lib/constants'
+import { getAgentName } from '../../telemetry/agent-name'
+import { Telemetry } from '../../telemetry/storage'
 
 jest.mock('child_process', () => ({
   ...jest.requireActual('child_process'),
@@ -27,11 +26,11 @@ jest.mock('fs/promises', () => ({
   stat: jest.fn(),
   writeFile: jest.fn(),
 }))
-jest.mock('next/dist/build/spinner', () => ({
+jest.mock('../../build/spinner', () => ({
   __esModule: true,
   default: jest.fn(),
 }))
-jest.mock('next/dist/build/output/log', () => ({
+jest.mock('../../build/output/log', () => ({
   bootstrap: jest.fn(),
   error: jest.fn(),
   info: jest.fn(),
@@ -44,42 +43,43 @@ jest.mock('next/dist/compiled/cli-select', () => ({
 jest.mock('next/dist/compiled/cross-spawn', () =>
   Object.assign(jest.fn(), { sync: jest.fn() })
 )
-jest.mock('next/dist/lib/find-pages-dir', () => ({
+jest.mock('../../lib/find-pages-dir', () => ({
   findDir: jest.fn(),
 }))
-jest.mock('next/dist/lib/get-project-dir', () => ({
+jest.mock('../../lib/get-project-dir', () => ({
   getProjectDir: jest.fn(),
 }))
-jest.mock('next/dist/lib/helpers/get-npx-command', () => ({
+jest.mock('../../lib/helpers/get-npx-command', () => ({
   getNpxCommand: () => 'npx',
 }))
-jest.mock('next/dist/lib/picocolors', () => ({
+jest.mock('../../lib/picocolors', () => ({
   bold: (text: string) => text,
   cyan: (text: string) => text,
   dim: (text: string) => text,
 }))
-jest.mock('next/dist/next-upgrade/cli/agent/prepare', () => ({
-  ...jest.requireActual('next/dist/next-upgrade/cli/agent/prepare'),
+jest.mock('./agent/prepare', () => ({
+  ...jest.requireActual('./agent/prepare'),
   prepareUpgrade: jest.fn(),
 }))
-jest.mock('next/dist/server/config', () => ({
+jest.mock('../../server/config', () => ({
   __esModule: true,
   default: jest.fn(),
 }))
-jest.mock('next/dist/server/config-shared', () => ({
+jest.mock('../../server/config-shared', () => ({
   normalizeConfig: jest.fn(),
 }))
-jest.mock('next/dist/telemetry/agent-name', () => ({
+jest.mock('../../telemetry/agent-name', () => ({
   getAgentName: jest.fn(),
 }))
-jest.mock('next/dist/telemetry/storage', () => ({
+jest.mock('../../telemetry/storage', () => ({
   Telemetry: jest.fn(),
 }))
 const createSpinner = (
-  require('next/dist/build/spinner') as typeof import('next/dist/build/spinner')
+  require('../../build/spinner') as typeof import('../../build/spinner')
 ).default as jest.Mock
-const crossSpawn =
+const crossSpawn = jest.mocked(
   require('next/dist/compiled/cross-spawn') as typeof import('next/dist/compiled/cross-spawn')
+)
 const cliVersion: string = require('next/package.json').version
 
 describe('upgrade CLI execution', () => {
@@ -100,6 +100,7 @@ describe('upgrade CLI execution', () => {
           flush: jest.fn().mockResolvedValue([]),
         }) as never
     )
+    process.env.__NEXT_VERSION = cliVersion
     process.env.__NEXT_UPGRADE_USE_CURRENT_CLI = '1'
     process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION = cliVersion
     global.fetch = jest.fn()
@@ -259,7 +260,7 @@ describe('upgrade CLI execution', () => {
         .mocked(global.fetch)
         .mockResolvedValue(new Response(JSON.stringify({ version })))
       crossSpawn.mockImplementation(() => {
-        const child = new EventEmitter()
+        const child = new ChildProcess()
         process.nextTick(() => child.emit('close', 42, null))
         return child
       })
@@ -384,18 +385,18 @@ describe('upgrade CLI execution', () => {
     async (policy) => {
       const directory = '/workspace/app'
       process.env.__NEXT_AGENT_UPGRADE = policy
-      process.env.__NEXT_VERSION = '16.4.0-preview-test'
+      process.env.__NEXT_VERSION = cliVersion
       processEnv([], directory)
       updateInitialEnv({
         __NEXT_AGENT_UPGRADE: policy,
-        __NEXT_VERSION: '16.4.0-preview-test',
+        __NEXT_VERSION: cliVersion,
       })
       jest.mocked(prepareUpgrade).mockImplementationOnce(async () => {
         expect(process.env.__NEXT_AGENT_UPGRADE).toBeUndefined()
         // Future upgrade preparation reloads config and resets the environment.
         resetEnv()
         expect(process.env.__NEXT_AGENT_UPGRADE).toBeUndefined()
-        expect(process.env.__NEXT_VERSION).toBe('16.4.0-preview-test')
+        expect(process.env.__NEXT_VERSION).toBe(cliVersion)
         return { status: 'unaffected', reason: 'Already current.' }
       })
       await runUpgrade(directory, policy, null)
@@ -404,8 +405,8 @@ describe('upgrade CLI execution', () => {
   )
 
   it('delegates manual upgrades to codemod and preserves its exit code', async () => {
-    const child = new EventEmitter()
-    jest.mocked(spawn).mockReturnValue(child as never)
+    const child = new ChildProcess()
+    jest.mocked(spawn).mockReturnValue(child)
     await spawnNextUpgrade(
       '/workspace/app',
       { revision: '16.4.0', verbose: true, agent: undefined },

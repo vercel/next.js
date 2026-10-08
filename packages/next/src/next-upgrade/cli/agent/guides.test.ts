@@ -1,4 +1,5 @@
-import { EventEmitter } from 'events'
+import { ChildProcess } from 'child_process'
+import { PassThrough } from 'stream'
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises'
 import type { UpgradePreparation } from '../../shared/check-upgrade'
 import { prepareUpgradeGuides } from './guides'
@@ -19,8 +20,9 @@ jest.mock('../../../lib/helpers/get-npx-command', () => ({
   getNpxCommand: () => 'npx',
 }))
 jest.mock('next/dist/compiled/cross-spawn', () => jest.fn())
-const crossSpawn =
+const crossSpawn = jest.mocked(
   require('next/dist/compiled/cross-spawn') as typeof import('next/dist/compiled/cross-spawn')
+)
 const cliVersion: string = require('next/package.json').version
 let preparedUpgrade: Extract<UpgradePreparation, { status: 'ready' }>
 let renderPrompt: (worktree: boolean | null) => string
@@ -368,15 +370,9 @@ describe('agent upgrade guides', () => {
     }
 
     crossSpawn.mockImplementation(() => {
-      const child = new EventEmitter() as EventEmitter & {
-        stdout: EventEmitter & { setEncoding: jest.Mock }
-        stderr: EventEmitter & { setEncoding: jest.Mock }
-      }
-      child.stdout = Object.assign(new EventEmitter(), {
-        setEncoding: jest.fn(),
-      })
-      child.stderr = Object.assign(new EventEmitter(), {
-        setEncoding: jest.fn(),
+      const child = Object.assign(new ChildProcess(), {
+        stdout: new PassThrough(),
+        stderr: new PassThrough(),
       })
       process.nextTick(() => {
         child.stdout.emit('data', 'Adopt Cache Components safely.\n')
@@ -466,15 +462,9 @@ describe('agent upgrade guides', () => {
     }
 
     crossSpawn.mockImplementation(() => {
-      const child = new EventEmitter() as EventEmitter & {
-        stdout: EventEmitter & { setEncoding: jest.Mock }
-        stderr: EventEmitter & { setEncoding: jest.Mock }
-      }
-      child.stdout = Object.assign(new EventEmitter(), {
-        setEncoding: jest.fn(),
-      })
-      child.stderr = Object.assign(new EventEmitter(), {
-        setEncoding: jest.fn(),
+      const child = Object.assign(new ChildProcess(), {
+        stdout: new PassThrough(),
+        stderr: new PassThrough(),
       })
       process.nextTick(() => {
         child.stdout.emit('data', 'Adopt Cache Components safely.\n')

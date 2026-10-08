@@ -1,4 +1,4 @@
-import { EventEmitter } from 'events'
+import { ChildProcess } from 'child_process'
 import { access, stat } from 'fs/promises'
 import cliSelect from 'next/dist/compiled/cli-select'
 import { resolve as resolvePath } from 'path'
@@ -28,8 +28,15 @@ jest.mock('../../../lib/picocolors', () => ({
   dim: (text: string) => text,
 }))
 jest.mock('./model-discovery', () => ({ getHarnessModels: jest.fn() }))
-const crossSpawn =
+const crossSpawn = jest.mocked(
   require('next/dist/compiled/cross-spawn') as typeof import('next/dist/compiled/cross-spawn')
+)
+// Use the promise overload; handoff only consumes the selected id.
+const select = jest.mocked(
+  cliSelect as (
+    options: Parameters<typeof cliSelect>[0]
+  ) => Promise<{ id: string | number }>
+)
 const restoreDescriptors: Array<() => void> = []
 function expectedHarnessPath(name: string): string {
   const extension =
@@ -50,7 +57,7 @@ function overrideTTY(
     if (descriptor) {
       Object.defineProperty(target, 'isTTY', descriptor)
     } else {
-      delete target.isTTY
+      Reflect.deleteProperty(target, 'isTTY')
     }
   })
   Object.defineProperty(target, 'isTTY', {
@@ -89,6 +96,10 @@ describe('agent upgrade handoff', () => {
     )
     crossSpawn.sync.mockReturnValue({
       status: 0,
+      signal: null,
+      pid: 1,
+      output: [],
+      stderr: Buffer.alloc(0),
       stdout:
         '  --approve-for-me  Route approval requests through automatic review\n  --permission-mode <mode>  Permission mode to use for the session\n                                        (choices: "acceptEdits", "auto", "manual")',
     })
@@ -114,11 +125,11 @@ describe('agent upgrade handoff', () => {
     jest.mocked(getAgentName).mockResolvedValue(null)
     jest.mocked(access).mockResolvedValue(undefined)
     jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
-    jest.mocked(cliSelect).mockRejectedValue(undefined)
+    select.mockRejectedValue(undefined)
 
     await handoffUpgrade('Prepared upgrade prompt.', '/workspace/app', null)
 
-    const selectOptions = jest.mocked(cliSelect).mock.calls[0][0]
+    const selectOptions = select.mock.calls[0][0]
     expect({
       progress: jest.mocked(Log.info).mock.calls,
       prompt: jest.mocked(Log.bootstrap).mock.calls,
@@ -187,7 +198,7 @@ describe('agent upgrade handoff', () => {
       throw Object.assign(new Error('not found'), { code: 'ENOENT' })
     })
     jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
-    jest.mocked(cliSelect).mockRejectedValue(undefined)
+    select.mockRejectedValue(undefined)
 
     await handoffUpgrade('Prepared upgrade prompt.', '/workspace/app', null)
 
@@ -232,15 +243,14 @@ describe('agent upgrade handoff', () => {
       jest.mocked(getAgentName).mockResolvedValue(null)
       jest.mocked(access).mockResolvedValue(undefined)
       jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
-      jest
-        .mocked(cliSelect)
-        .mockResolvedValueOnce({ id: agent } as never)
-        .mockResolvedValueOnce({ id: model } as never)
-        .mockResolvedValueOnce({ id: effort } as never)
-        .mockResolvedValueOnce({ id: 'yes' } as never)
-        .mockResolvedValueOnce({ id: 'no' } as never)
+      select
+        .mockResolvedValueOnce({ id: agent })
+        .mockResolvedValueOnce({ id: model })
+        .mockResolvedValueOnce({ id: effort })
+        .mockResolvedValueOnce({ id: 'yes' })
+        .mockResolvedValueOnce({ id: 'no' })
       crossSpawn.mockImplementation(() => {
-        const child = new EventEmitter()
+        const child = new ChildProcess()
         process.nextTick(() => {
           child.emit('spawn')
           child.emit('close', 0, null)
@@ -265,7 +275,7 @@ describe('agent upgrade handoff', () => {
         ],
         { cwd: '/workspace/app', stdio: 'inherit' }
       )
-      const modelMenu = jest.mocked(cliSelect).mock.calls[1][0]
+      const modelMenu = select.mock.calls[1][0]
       expect(modelMenu.values).toEqual(
         agent === 'codex'
           ? {
@@ -279,20 +289,20 @@ describe('agent upgrade handoff', () => {
               fable: 'Claude Fable (latest)',
             }
       )
-      const effortMenu = jest.mocked(cliSelect).mock.calls[2][0]
+      const effortMenu = select.mock.calls[2][0]
       expect(Object.keys(effortMenu.values)).toEqual(
         agent === 'claude'
           ? ['default', 'low', 'medium', 'high', 'max']
           : ['default', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra']
       )
       expect(effortMenu.defaultValue).toBe(0)
-      const permissionMenu = jest.mocked(cliSelect).mock.calls[3][0]
+      const permissionMenu = select.mock.calls[3][0]
       expect(permissionMenu.values).toEqual({
         yes: 'Yes',
         no: 'No, ask for approval',
       })
       expect(permissionMenu.defaultValue).toBe(0)
-      expect(jest.mocked(cliSelect).mock.calls[4][0].values).toEqual({
+      expect(select.mock.calls[4][0].values).toEqual({
         yes: 'Yes',
         no: 'No',
       })
@@ -301,7 +311,7 @@ describe('agent upgrade handoff', () => {
         .mock.calls.map(([value]) => String(value))
       expect(questions.filter((value) => value.startsWith('  ❯ '))).toEqual([
         `  ❯ Continue with ${agent === 'codex' ? 'Codex' : 'Claude Code'}`,
-        `  ❯ ${modelMenu.values[model]}`,
+        `  ❯ ${(modelMenu.values as Record<string, string>)[model]}`,
         `  ❯ ${effort}`,
         '  ❯ Yes',
         '  ❯ No',
@@ -326,15 +336,14 @@ describe('agent upgrade handoff', () => {
     jest.mocked(getAgentName).mockResolvedValue(null)
     jest.mocked(access).mockResolvedValue(undefined)
     jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
-    jest
-      .mocked(cliSelect)
-      .mockResolvedValueOnce({ id: 'codex' } as never)
-      .mockResolvedValueOnce({ id: 'gpt-5.6-terra' } as never)
-      .mockResolvedValueOnce({ id: 'default' } as never)
-      .mockResolvedValueOnce({ id: 'yes' } as never)
-      .mockResolvedValueOnce({ id: 'no' } as never)
+    select
+      .mockResolvedValueOnce({ id: 'codex' })
+      .mockResolvedValueOnce({ id: 'gpt-5.6-terra' })
+      .mockResolvedValueOnce({ id: 'default' })
+      .mockResolvedValueOnce({ id: 'yes' })
+      .mockResolvedValueOnce({ id: 'no' })
     crossSpawn.mockImplementation(() => {
-      const child = new EventEmitter()
+      const child = new ChildProcess()
       process.nextTick(() => child.emit('close', 0, null))
       return child
     })
@@ -372,27 +381,26 @@ describe('agent upgrade handoff', () => {
         isDefault: true,
       },
     ])
-    jest
-      .mocked(cliSelect)
+    select
       .mockResolvedValueOnce({ id: 'codex' })
       .mockResolvedValueOnce({ id: 'future-model' })
       .mockResolvedValueOnce({ id: 'high' })
       .mockResolvedValueOnce({ id: 'yes' })
       .mockResolvedValueOnce({ id: 'no' })
     crossSpawn.mockImplementation(() => {
-      const child = new EventEmitter()
+      const child = new ChildProcess()
       process.nextTick(() => child.emit('close', 0, null))
       return child
     })
     await handoffUpgrade('Upgrade prompt', '/workspace/app', null)
-    expect(jest.mocked(cliSelect).mock.calls[1][0]).toMatchObject({
+    expect(select.mock.calls[1][0]).toMatchObject({
       values: {
         'future-model': 'Future — For upgrades',
         'recommended-model': 'Recommended',
       },
       defaultValue: 1,
     })
-    expect(jest.mocked(cliSelect).mock.calls[2][0].values).toEqual({
+    expect(select.mock.calls[2][0].values).toEqual({
       default: 'Model default',
       high: 'high',
     })
@@ -414,8 +422,7 @@ describe('agent upgrade handoff', () => {
       jest.mocked(access).mockResolvedValue(undefined)
       jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
       jest.mocked(getHarnessModels).mockResolvedValue([])
-      jest
-        .mocked(cliSelect)
+      select
         .mockResolvedValueOnce({ id: agent })
         .mockResolvedValueOnce({ id: 'yes' })
         .mockRejectedValueOnce(undefined)
@@ -424,7 +431,7 @@ describe('agent upgrade handoff', () => {
         .mockResolvedValueOnce({ id: 'yes' })
         .mockResolvedValueOnce({ id: 'no' })
       crossSpawn.mockImplementation(() => {
-        const child = new EventEmitter()
+        const child = new ChildProcess()
         process.nextTick(() => child.emit('close', 0, null))
         return child
       })
@@ -461,8 +468,7 @@ describe('agent upgrade handoff', () => {
         isDefault: true,
       },
     ])
-    jest
-      .mocked(cliSelect)
+    select
       .mockResolvedValueOnce({ id: 'claude' })
       .mockResolvedValueOnce({ id: 'default' })
       .mockRejectedValueOnce(undefined)
@@ -470,12 +476,12 @@ describe('agent upgrade handoff', () => {
       .mockResolvedValueOnce({ id: 'yes' })
       .mockResolvedValueOnce({ id: 'no' })
     crossSpawn.mockImplementation(() => {
-      const child = new EventEmitter()
+      const child = new ChildProcess()
       process.nextTick(() => child.emit('close', 0, null))
       return child
     })
     await handoffUpgrade('Upgrade prompt', '/workspace/app', null)
-    expect(jest.mocked(cliSelect).mock.calls[3][0].values).toEqual({
+    expect(select.mock.calls[3][0].values).toEqual({
       default: 'Default',
     })
     expect(crossSpawn).toHaveBeenCalledWith(
@@ -511,8 +517,7 @@ describe('agent upgrade handoff', () => {
           )
         })
     )
-    jest
-      .mocked(cliSelect)
+    select
       .mockImplementationOnce(async () => {
         expect(
           jest.mocked(getHarnessModels).mock.calls.map(([name]) => name)
@@ -536,7 +541,7 @@ describe('agent upgrade handoff', () => {
       .mockResolvedValueOnce({ id: 'no' })
     crossSpawn.mockImplementation(() => {
       expect(cancelled).toContain('claude')
-      const child = new EventEmitter()
+      const child = new ChildProcess()
       process.nextTick(() => child.emit('close', 0, null))
       return child
     })
@@ -568,9 +573,8 @@ describe('agent upgrade handoff', () => {
             )
           })
       )
-      if (choice === 'copy')
-        jest.mocked(cliSelect).mockResolvedValueOnce({ id: 'copy' })
-      else jest.mocked(cliSelect).mockRejectedValueOnce(undefined)
+      if (choice === 'copy') select.mockResolvedValueOnce({ id: 'copy' })
+      else select.mockRejectedValueOnce(undefined)
       await handoffUpgrade('Upgrade prompt', '/workspace/app', null)
       expect(cancelled).toEqual(['codex', 'claude'])
       expect(crossSpawn).not.toHaveBeenCalled()
@@ -585,7 +589,7 @@ describe('agent upgrade handoff', () => {
     jest.mocked(access).mockResolvedValue(undefined)
     jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
     jest.mocked(getHarnessModels).mockResolvedValue(null)
-    jest.mocked(cliSelect).mockResolvedValueOnce({ id: 'codex' })
+    select.mockResolvedValueOnce({ id: 'codex' })
     expect(await handoffUpgrade('Upgrade prompt', '/workspace/app', null)).toBe(
       'cancelled'
     )
@@ -624,17 +628,16 @@ describe('agent upgrade handoff', () => {
     jest.mocked(getAgentName).mockResolvedValue(null)
     jest.mocked(access).mockResolvedValue(undefined)
     jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
-    jest
-      .mocked(cliSelect)
-      .mockResolvedValueOnce({ id: agent } as never)
+    select
+      .mockResolvedValueOnce({ id: agent })
       .mockResolvedValueOnce({
         id: agent === 'codex' ? 'gpt-5.6-terra' : 'opus',
       } as never)
-      .mockResolvedValueOnce({ id: 'high' } as never)
-      .mockResolvedValueOnce({ id: useAuto } as never)
-      .mockResolvedValueOnce({ id: 'no' } as never)
+      .mockResolvedValueOnce({ id: 'high' })
+      .mockResolvedValueOnce({ id: useAuto })
+      .mockResolvedValueOnce({ id: 'no' })
     crossSpawn.mockImplementation(() => {
-      const child = new EventEmitter()
+      const child = new ChildProcess()
       process.nextTick(() => child.emit('close', 0, null))
       return child
     })
@@ -664,16 +667,22 @@ describe('agent upgrade handoff', () => {
     jest.mocked(access).mockResolvedValue(undefined)
     jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
     crossSpawn.sync.mockImplementation(() => {
-      return { status: 0, stdout: '  --ask-for-approval <APPROVAL_POLICY>' }
+      return {
+        status: 0,
+        signal: null,
+        pid: 1,
+        output: [],
+        stderr: Buffer.alloc(0),
+        stdout: '  --ask-for-approval <APPROVAL_POLICY>',
+      }
     })
-    jest
-      .mocked(cliSelect)
-      .mockResolvedValueOnce({ id: 'codex' } as never)
-      .mockResolvedValueOnce({ id: 'gpt-5.6-terra' } as never)
-      .mockResolvedValueOnce({ id: 'high' } as never)
-      .mockResolvedValueOnce({ id: 'no' } as never)
+    select
+      .mockResolvedValueOnce({ id: 'codex' })
+      .mockResolvedValueOnce({ id: 'gpt-5.6-terra' })
+      .mockResolvedValueOnce({ id: 'high' })
+      .mockResolvedValueOnce({ id: 'no' })
     crossSpawn.mockImplementation(() => {
-      const child = new EventEmitter()
+      const child = new ChildProcess()
       process.nextTick(() => child.emit('close', 0, null))
       return child
     })
@@ -685,7 +694,7 @@ describe('agent upgrade handoff', () => {
       ['--help'],
       expect.objectContaining({ encoding: 'utf8' })
     )
-    expect(jest.mocked(cliSelect).mock.calls[3][0].values).toEqual({
+    expect(select.mock.calls[3][0].values).toEqual({
       yes: 'Yes',
       no: 'No',
     })
@@ -715,17 +724,20 @@ describe('agent upgrade handoff', () => {
     jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
     crossSpawn.sync.mockReturnValue({
       status: 0,
+      signal: null,
+      pid: 1,
+      output: [],
+      stderr: Buffer.alloc(0),
       stdout:
         '  --permission-mode <mode>  Permission mode to use for the session\n                                        (choices: "default", "acceptEdits", "plan", "dontAsk", "bypassPermissions")',
     })
-    jest
-      .mocked(cliSelect)
-      .mockResolvedValueOnce({ id: 'claude' } as never)
-      .mockResolvedValueOnce({ id: 'opus' } as never)
-      .mockResolvedValueOnce({ id: 'high' } as never)
-      .mockResolvedValueOnce({ id: 'no' } as never)
+    select
+      .mockResolvedValueOnce({ id: 'claude' })
+      .mockResolvedValueOnce({ id: 'opus' })
+      .mockResolvedValueOnce({ id: 'high' })
+      .mockResolvedValueOnce({ id: 'no' })
     crossSpawn.mockImplementation(() => {
-      const child = new EventEmitter()
+      const child = new ChildProcess()
       process.nextTick(() => child.emit('close', 0, null))
       return child
     })
@@ -737,7 +749,7 @@ describe('agent upgrade handoff', () => {
       ['--help'],
       expect.objectContaining({ encoding: 'utf8' })
     )
-    expect(jest.mocked(cliSelect).mock.calls[3][0].values).toEqual({
+    expect(select.mock.calls[3][0].values).toEqual({
       yes: 'Yes',
       no: 'No',
     })
@@ -763,11 +775,10 @@ describe('agent upgrade handoff', () => {
     jest.mocked(getAgentName).mockResolvedValue(null)
     jest.mocked(access).mockResolvedValue(undefined)
     jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
-    jest
-      .mocked(cliSelect)
-      .mockResolvedValueOnce({ id: 'codex' } as never)
-      .mockResolvedValueOnce({ id: 'gpt-5.6-terra' } as never)
-      .mockResolvedValueOnce({ id: 'high' } as never)
+    select
+      .mockResolvedValueOnce({ id: 'codex' })
+      .mockResolvedValueOnce({ id: 'gpt-5.6-terra' })
+      .mockResolvedValueOnce({ id: 'high' })
       .mockImplementationOnce(() => {
         process.stdin.emit('keypress', '\u0003', { name: 'c', ctrl: true })
         return Promise.reject(undefined)
@@ -786,8 +797,7 @@ describe('agent upgrade handoff', () => {
     jest.mocked(getAgentName).mockResolvedValue(null)
     jest.mocked(access).mockResolvedValue(undefined)
     jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
-    jest
-      .mocked(cliSelect)
+    select
       .mockResolvedValueOnce({ id: 'codex' })
       .mockResolvedValueOnce({ id: 'gpt-5.6-terra' })
       .mockResolvedValueOnce({ id: 'high' })
@@ -802,7 +812,7 @@ describe('agent upgrade handoff', () => {
       .mockResolvedValueOnce({ id: 'yes' })
       .mockResolvedValueOnce({ id: 'no' })
     crossSpawn.mockImplementation(() => {
-      const child = new EventEmitter()
+      const child = new ChildProcess()
       process.nextTick(() => child.emit('close', 0, null))
       return child
     })
@@ -811,10 +821,10 @@ describe('agent upgrade handoff', () => {
 
     expect(jest.mocked(getHarnessModels).mock.calls).toHaveLength(2)
     expect(
-      crossSpawn.sync.mock.calls.filter(([, args]) => args[0] === '--help')
+      crossSpawn.sync.mock.calls.filter(([, args]) => args?.[0] === '--help')
     ).toHaveLength(1)
-    expect(jest.mocked(cliSelect).mock.calls[7][0].defaultValue).toBe(1)
-    expect(jest.mocked(cliSelect).mock.calls[9][0].defaultValue).toBe(0)
+    expect(select.mock.calls[7][0].defaultValue).toBe(1)
+    expect(select.mock.calls[9][0].defaultValue).toBe(0)
     expect(
       jest
         .mocked(Log.bootstrap)
@@ -852,8 +862,7 @@ describe('agent upgrade handoff', () => {
     jest.mocked(getAgentName).mockResolvedValue(null)
     jest.mocked(access).mockResolvedValue(undefined)
     jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
-    jest
-      .mocked(cliSelect)
+    select
       .mockResolvedValueOnce({ id: 'codex' })
       .mockResolvedValueOnce({ id: 'gpt-5.6-terra' })
       .mockResolvedValueOnce({ id: 'ultra' })
@@ -866,14 +875,14 @@ describe('agent upgrade handoff', () => {
       .mockResolvedValueOnce({ id: 'yes' })
       .mockResolvedValueOnce({ id: 'no' })
     crossSpawn.mockImplementation(() => {
-      const child = new EventEmitter()
+      const child = new ChildProcess()
       process.nextTick(() => child.emit('close', 0, null))
       return child
     })
 
     await handoffUpgrade('Upgrade prompt', '/workspace/app', null)
 
-    expect(jest.mocked(cliSelect).mock.calls[8][0].defaultValue).toBe(0)
+    expect(select.mock.calls[8][0].defaultValue).toBe(0)
     expect(crossSpawn).toHaveBeenCalledWith(
       expectedHarnessPath('claude'),
       ['--model', 'opus', '--permission-mode', 'auto', 'Upgrade prompt'],
@@ -888,8 +897,7 @@ describe('agent upgrade handoff', () => {
     jest.mocked(getAgentName).mockResolvedValue(null)
     jest.mocked(access).mockResolvedValue(undefined)
     jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
-    jest
-      .mocked(cliSelect)
+    select
       .mockResolvedValueOnce({ id: 'claude' })
       .mockResolvedValueOnce({ id: 'opus' })
       .mockResolvedValueOnce({ id: 'high' })
@@ -898,7 +906,7 @@ describe('agent upgrade handoff', () => {
       .mockResolvedValueOnce({ id: 'yes' })
       .mockResolvedValueOnce({ id: 'no' })
     crossSpawn.mockImplementation(() => {
-      const child = new EventEmitter()
+      const child = new ChildProcess()
       process.nextTick(() => child.emit('close', 0, null))
       return child
     })
@@ -906,7 +914,7 @@ describe('agent upgrade handoff', () => {
     await handoffUpgrade('Upgrade prompt', '/workspace/app', null)
 
     expect(
-      crossSpawn.sync.mock.calls.filter(([, args]) => args[0] === '--help')
+      crossSpawn.sync.mock.calls.filter(([, args]) => args?.[0] === '--help')
     ).toHaveLength(1)
     expect(crossSpawn).toHaveBeenCalledWith(
       expectedHarnessPath('claude'),
@@ -931,10 +939,16 @@ describe('agent upgrade handoff', () => {
     jest.mocked(access).mockResolvedValue(undefined)
     jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
     crossSpawn.sync.mockImplementation(() => {
-      return { status: 0, stdout: '  --ask-for-approval <APPROVAL_POLICY>' }
+      return {
+        status: 0,
+        signal: null,
+        pid: 1,
+        output: [],
+        stderr: Buffer.alloc(0),
+        stdout: '  --ask-for-approval <APPROVAL_POLICY>',
+      }
     })
-    jest
-      .mocked(cliSelect)
+    select
       .mockResolvedValueOnce({ id: 'codex' })
       .mockResolvedValueOnce({ id: 'gpt-5.6-terra' })
       .mockResolvedValueOnce({ id: 'high' })
@@ -942,7 +956,7 @@ describe('agent upgrade handoff', () => {
       .mockResolvedValueOnce({ id: 'max' })
       .mockResolvedValueOnce({ id: 'no' })
     crossSpawn.mockImplementation(() => {
-      const child = new EventEmitter()
+      const child = new ChildProcess()
       process.nextTick(() => child.emit('close', 0, null))
       return child
     })
@@ -950,9 +964,9 @@ describe('agent upgrade handoff', () => {
     await handoffUpgrade('Upgrade prompt', '/workspace/app', null)
 
     expect(
-      crossSpawn.sync.mock.calls.filter(([, args]) => args[0] === '--help')
+      crossSpawn.sync.mock.calls.filter(([, args]) => args?.[0] === '--help')
     ).toHaveLength(1)
-    expect(jest.mocked(cliSelect).mock.calls[4][0].values).toEqual({
+    expect(select.mock.calls[4][0].values).toEqual({
       default: 'Model default',
       low: 'low',
       medium: 'medium',
@@ -997,17 +1011,23 @@ describe('agent upgrade handoff', () => {
     jest.mocked(access).mockResolvedValue(undefined)
     jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
     crossSpawn.sync.mockImplementation(() => {
-      return { status: 0, stdout: '  --approve-for-me' }
+      return {
+        status: 0,
+        signal: null,
+        pid: 1,
+        output: [],
+        stderr: Buffer.alloc(0),
+        stdout: '  --approve-for-me',
+      }
     })
-    jest
-      .mocked(cliSelect)
-      .mockResolvedValueOnce({ id: 'codex' } as never)
-      .mockResolvedValueOnce({ id: 'gpt-5.6-terra' } as never)
-      .mockResolvedValueOnce({ id: 'high' } as never)
-      .mockResolvedValueOnce({ id: 'yes' } as never)
-      .mockResolvedValueOnce({ id: 'yes' } as never)
+    select
+      .mockResolvedValueOnce({ id: 'codex' })
+      .mockResolvedValueOnce({ id: 'gpt-5.6-terra' })
+      .mockResolvedValueOnce({ id: 'high' })
+      .mockResolvedValueOnce({ id: 'yes' })
+      .mockResolvedValueOnce({ id: 'yes' })
     crossSpawn.mockImplementation(() => {
-      const child = new EventEmitter()
+      const child = new ChildProcess()
       process.nextTick(() => child.emit('close', 0, null))
       return child
     })

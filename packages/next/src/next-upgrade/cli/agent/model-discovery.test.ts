@@ -3,12 +3,14 @@ jest.mock('../../../build/output/log', () => ({
   warn: jest.fn(),
   error: jest.fn(),
 }))
-import { EventEmitter } from 'events'
+import { ChildProcess } from 'child_process'
+import { PassThrough } from 'stream'
 import { getHarnessModels } from './model-discovery'
 
 jest.mock('next/dist/compiled/cross-spawn', () => jest.fn())
-const crossSpawn =
+const crossSpawn = jest.mocked(
   require('next/dist/compiled/cross-spawn') as typeof import('next/dist/compiled/cross-spawn')
+)
 
 describe('upgrade model discovery protocol', () => {
   const discover = getHarnessModels
@@ -16,8 +18,8 @@ describe('upgrade model discovery protocol', () => {
   function probe(
     onRequest: (message: any, respond: (value: unknown) => void) => void
   ) {
-    const child = Object.assign(new EventEmitter(), {
-      stdin: Object.assign(new EventEmitter(), {
+    const child = Object.assign(new ChildProcess(), {
+      stdin: Object.assign(new PassThrough(), {
         write: jest.fn((line: string) => {
           onRequest(JSON.parse(line), (value) => {
             const json = JSON.stringify(value) + '\n'
@@ -28,8 +30,8 @@ describe('upgrade model discovery protocol', () => {
         }),
         end: jest.fn(),
       }),
-      stdout: Object.assign(new EventEmitter(), { setEncoding: jest.fn() }),
-      stderr: new EventEmitter(),
+      stdout: new PassThrough(),
+      stderr: new PassThrough(),
       kill: jest.fn((_signal: string) => {
         process.nextTick(() => child.emit('close', null, 'SIGTERM'))
         return true
