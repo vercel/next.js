@@ -92,16 +92,7 @@ async function main() {
     return
   }
 
-  // Deploy tests build remotely at Vercel; the runner mostly waits on I/O,
-  // so run more of them concurrently (same as the deploy test jobs in
-  // test_e2e_deploy_release.yml).
-  const RUN_TESTS_ARGS = [
-    'run-tests.js',
-    '-c',
-    testMode === 'deploy' ? '8' : '1',
-    '--retries',
-    '0',
-  ]
+  const RUN_TESTS_ARGS = ['run-tests.js', '-c', '1', '--retries', '0']
   // Only override the test version for deploy tests, as they need to run against
   // the artifacts for the pull request. Otherwise, we don't need to specify this property,
   // as tests will run against the local version of Next.js.
