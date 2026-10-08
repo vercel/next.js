@@ -1520,9 +1520,7 @@ async function generateRuntimePrefetchResult(
   )
 
   const mode: RuntimePrerenderMode = isShellPrefetch
-    ? {
-        type: 'session-shell-only',
-      }
+    ? { type: 'session-shell-only' }
     : {
         type: 'rewindable-session-shell',
         shellByteLengthDeferred: createPromiseWithResolvers(),
@@ -1743,9 +1741,7 @@ function prependIsPartialByteToChunks(
 }
 
 type RuntimePrerenderMode =
-  | {
-      type: 'session-shell-only'
-    }
+  | { type: 'session-shell-only' }
   | {
       type: 'rewindable-session-shell'
       shellByteLengthDeferred: PromiseWithResolvers<number | null>
@@ -1886,6 +1882,10 @@ async function finalRuntimeServerPrerender(
     }
   }
 
+  // Whether resolving link data unblocked new content. We check this right
+  // after the PrefetchRuntime stage, before anything later is flushed.
+  let didLinkDataUnblockNewContent = false
+
   await runInSequentialTasks(
     async () => {
       stageController.advanceStage(RenderStage.ShellStatic)
@@ -1942,19 +1942,9 @@ async function finalRuntimeServerPrerender(
     () => {
       if (checkUnexpectedAbort()) return
 
-      if ('shellByteLengthDeferred' in mode) {
-        // If advancing to the PrefetchRuntime stage didn't unblock new content,
-        // then the result does not depend on link data and can be used as a shell (indicated via `null`).
-        // Otherwise, send a byte length to indicate where the shell content ends.
-        const didLinkDataUnblockNewContent =
-          stageByteLengths[RenderStage.PrefetchRuntime] >
-          stageByteLengths[RenderStage.ShellRuntime]
-        mode.shellByteLengthDeferred.resolve(
-          didLinkDataUnblockNewContent
-            ? stageByteLengths[RenderStage.ShellRuntime]
-            : null
-        )
-      }
+      didLinkDataUnblockNewContent =
+        stageByteLengths[RenderStage.PrefetchRuntime] >
+        stageByteLengths[RenderStage.ShellRuntime]
     },
     () => {
       if (checkUnexpectedAbort()) return
@@ -1968,6 +1958,28 @@ async function finalRuntimeServerPrerender(
       // Finish the accumulators. We need to wait for Flight to flush the result into the stream,
       // which is scheduled in a (fast) immediate, so we do this in a separate task
       // (fast immediates will be drained at the end of the task, so in the next task we know we're done flushing)
+
+      // An aborted render emits no more chunks, so there's no offset to send.
+      if (
+        'shellByteLengthDeferred' in mode &&
+        !finalServerController.signal.aborted
+      ) {
+        // If neither link data nor `navigation()` unblocked new content, then
+        // the result can be used as a shell (indicated via `null`). Otherwise,
+        // send a byte length to indicate where the shell content ends.
+        // NOTE: we must capture this *before* closing the accumulators below,
+        // which emit new rows. If the render stopped before the
+        // NavigationRuntime stage, that stage's count is the same as
+        // PrefetchRuntime's.
+        const didNavigationUnblockNewContent =
+          stageByteLengths[RenderStage.NavigationRuntime] >
+          stageByteLengths[RenderStage.PrefetchRuntime]
+        mode.shellByteLengthDeferred.resolve(
+          didLinkDataUnblockNewContent || didNavigationUnblockNewContent
+            ? stageByteLengths[RenderStage.ShellRuntime]
+            : null
+        )
+      }
 
       staleTimeIterable.close()
       finishAccumulatingVaryParams(varyParamsAccumulator)
