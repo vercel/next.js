@@ -1,4 +1,3 @@
-import os from 'os'
 import path from 'path'
 import dns from 'dns'
 import execa from 'execa'
@@ -422,26 +421,20 @@ export class NextDeployInstance extends NextInstance {
     }
 
     // If the token is available in the environment, use it as the token in the
-    // environment.
+    // environment. The CLI reads `VERCEL_TOKEN` (since vercel@50.12.1) and then
+    // neither reads nor writes the shared `auth.json`, which keeps parallel
+    // test jobs from racing on a non-atomically written credentials file.
     if (TEST_TOKEN) {
-      vercelEnv.TOKEN = TEST_TOKEN
+      vercelEnv.VERCEL_TOKEN = TEST_TOKEN
     }
 
-    // create auth file in CI
+    // validate auth is configured in CI
     if (process.env.NEXT_TEST_JOB) {
       if (!TEST_TOKEN && !TEST_TEAM_NAME) {
         throw new Error(
           'Missing TEST_TOKEN and TEST_TEAM_NAME environment variables for CI'
         )
       }
-
-      const vcConfigDir = path.join(os.homedir(), '.vercel')
-      await fs.ensureDir(vcConfigDir)
-      await fs.writeFile(
-        path.join(vcConfigDir, 'auth.json'),
-        JSON.stringify({ token: TEST_TOKEN })
-      )
-      vercelFlags.push('--global-config', vcConfigDir)
     }
 
     require('console').log(`Linking project at ${this.testDir}`)
