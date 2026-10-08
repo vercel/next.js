@@ -15,10 +15,13 @@ const WRITE_BUFFER_SIZE: usize = 100 * 1024 * 1024;
 
 struct TraceInfoBuffer {
     buffer: Vec<u8>,
-    /// The marker of the last row written to the buffer, see [`WriteGuard::mark_row`].
+    /// The marker of the last marked row in the buffer, see [`WriteGuard::mark`].
     last_row_marker: Option<u64>,
-    /// The offset where the last row starts in `buffer`, if it was marked.
+    /// The offset where the last marked row starts in `buffer`.
     last_row_start: usize,
+    /// The offset where the last marked row ends in `buffer`. It's only still the last row in
+    /// the buffer when this is the length of the buffer.
+    last_row_end: usize,
 }
 
 impl TraceInfoBuffer {
@@ -27,6 +30,7 @@ impl TraceInfoBuffer {
             buffer: Vec::with_capacity(capacity),
             last_row_marker: None,
             last_row_start: 0,
+            last_row_end: 0,
         }
     }
 
@@ -42,6 +46,7 @@ impl TraceInfoBuffer {
         self.buffer.clear();
         self.last_row_marker = None;
         self.last_row_start = 0;
+        self.last_row_end = 0;
     }
 }
 
@@ -234,8 +239,6 @@ pub struct WriteGuard<'l> {
     // Safety: The buffer must not be None
     buffer: MutexGuard<'l, Option<TraceInfoBuffer>>,
     trace_writer: &'l TraceWriter,
-    /// The marker of the previous row of this thread, if it's still in the buffer.
-    last_row_marker: Option<u64>,
 }
 
 impl<'l> WriteGuard<'l> {
@@ -244,14 +247,11 @@ impl<'l> WriteGuard<'l> {
         trace_writer: &'l TraceWriter,
     ) -> Self {
         // Safety: The buffer must not be None, so we initialize it here
-        let buffer_ref = buffer
+        buffer
             .get_or_insert_with(|| trace_writer.get_empty_buffer(THREAD_LOCAL_INITIAL_BUFFER_SIZE));
-        // Every write consumes the marker, so it's only available to the very next write.
-        let last_row_marker = buffer_ref.last_row_marker.take();
         Self {
             buffer,
             trace_writer,
-            last_row_marker,
         }
     }
 
@@ -268,34 +268,29 @@ impl<'l> WriteGuard<'l> {
         self.buffer().extend(data);
     }
 
-    /// Marks the row that is written next with this guard with `marker`, so it must be called
-    /// before anything of that row is written. The next write on this thread can retrieve it with
-    /// [`WriteGuard::last_row_marker`] and remove the row again with
-    /// [`WriteGuard::remove_last_row`], as long as the row wasn't sent to the writer thread in
-    /// between.
-    pub fn mark_row(&mut self, marker: u64) {
+    /// Marks exactly what `write` writes with this guard as a row with `marker`. As long as
+    /// nothing else is written on this thread and the row wasn't sent to the writer thread in
+    /// between, it can be removed again with [`WriteGuard::remove_last_row`].
+    pub fn mark(&mut self, marker: u64, write: impl FnOnce(&mut Self)) {
+        let start = self.buffer().buffer.len();
+        write(self);
         let buffer = self.buffer();
         buffer.last_row_marker = Some(marker);
-        buffer.last_row_start = buffer.buffer.len();
+        buffer.last_row_start = start;
+        buffer.last_row_end = buffer.buffer.len();
     }
 
-    /// Returns the marker of the previous row written on this thread, when that row was marked
-    /// and is still in the thread local buffer. That means it was the last row written by this
-    /// thread and it can be removed with [`WriteGuard::remove_last_row`].
-    pub fn last_row_marker(&self) -> Option<u64> {
-        self.last_row_marker
-    }
-
-    /// Removes the previous row written on this thread from the buffer. Must only be called
-    /// when [`WriteGuard::last_row_marker`] returned `Some` and before anything was written
-    /// with this guard.
-    pub fn remove_last_row(&mut self) {
-        assert!(
-            self.last_row_marker.take().is_some(),
-            "The last row is not marked or not in the buffer anymore"
-        );
+    /// Removes the last row written on this thread, if it was marked with `marker` by
+    /// [`WriteGuard::mark`] and is still at the end of the thread local buffer. Returns whether
+    /// it was removed.
+    pub fn remove_last_row(&mut self, marker: u64) -> bool {
         let buffer = self.buffer();
+        if buffer.last_row_marker != Some(marker) || buffer.last_row_end != buffer.buffer.len() {
+            return false;
+        }
+        buffer.last_row_marker = None;
         buffer.buffer.truncate(buffer.last_row_start);
+        true
     }
 }
 
@@ -347,44 +342,58 @@ mod tests {
     fn removes_marked_last_row() {
         let data = with_writer(|writer| {
             writer.start_write().extend(b"aa");
+            writer.start_write().mark(1, |guard| guard.extend(b"bbb"));
             let mut guard = writer.start_write();
-            guard.mark_row(1);
-            guard.extend(b"bbb");
-            drop(guard);
-            let mut guard = writer.start_write();
-            assert_eq!(guard.last_row_marker(), Some(1));
-            guard.remove_last_row();
+            assert!(guard.remove_last_row(1));
             guard.extend(b"c");
         });
         assert_eq!(data, b"aac");
     }
 
-    /// The mark covers what is written after `mark_row`, not what this guard wrote before.
+    /// The mark covers exactly what is written in the callback, not what this guard wrote
+    /// before or after it.
     #[test]
-    fn marks_from_the_current_position() {
+    fn marks_only_the_callback() {
         let data = with_writer(|writer| {
             let mut guard = writer.start_write();
             guard.extend(b"aa");
-            guard.mark_row(1);
-            guard.extend(b"bbb");
+            guard.mark(1, |guard| guard.extend(b"bbb"));
             drop(guard);
             let mut guard = writer.start_write();
-            assert_eq!(guard.last_row_marker(), Some(1));
-            guard.remove_last_row();
+            assert!(guard.remove_last_row(1));
             guard.extend(b"c");
         });
         assert_eq!(data, b"aac");
+
+        let data = with_writer(|writer| {
+            let mut guard = writer.start_write();
+            guard.mark(1, |guard| guard.extend(b"a"));
+            guard.extend(b"b");
+            drop(guard);
+            assert!(!writer.start_write().remove_last_row(1));
+        });
+        assert_eq!(data, b"ab");
     }
 
     #[test]
-    fn marker_is_consumed_by_the_next_write() {
+    fn requires_a_matching_marker() {
         let data = with_writer(|writer| {
-            let mut guard = writer.start_write();
-            guard.mark_row(1);
-            guard.extend(b"a");
-            drop(guard);
+            writer.start_write().mark(1, |guard| guard.extend(b"a"));
+            assert!(!writer.start_write().remove_last_row(2));
+            // The row is still marked
+            assert!(writer.start_write().remove_last_row(1));
+            // Already removed
+            assert!(!writer.start_write().remove_last_row(1));
+        });
+        assert_eq!(data, b"");
+    }
+
+    #[test]
+    fn marker_is_invalidated_by_the_next_write() {
+        let data = with_writer(|writer| {
+            writer.start_write().mark(1, |guard| guard.extend(b"a"));
             writer.start_write().extend(b"b");
-            assert_eq!(writer.start_write().last_row_marker(), None);
+            assert!(!writer.start_write().remove_last_row(1));
         });
         assert_eq!(data, b"ab");
     }
@@ -395,12 +404,9 @@ mod tests {
         let fill = THREAD_LOCAL_INITIAL_BUFFER_SIZE * 2 / 3 - 10;
         let data = with_writer(|writer| {
             writer.start_write().extend(&vec![0; fill]);
-            let mut guard = writer.start_write();
-            guard.mark_row(1);
             // This exceeds the threshold, so the buffer is sent when the guard is dropped
-            guard.extend(&[1; 20]);
-            drop(guard);
-            assert_eq!(writer.start_write().last_row_marker(), None);
+            writer.start_write().mark(1, |guard| guard.extend(&[1; 20]));
+            assert!(!writer.start_write().remove_last_row(1));
         });
         assert_eq!(data.len(), fill + 20);
     }
@@ -408,11 +414,8 @@ mod tests {
     #[test]
     fn removing_the_only_row_leaves_an_empty_buffer() {
         let data = with_writer(|writer| {
-            let mut guard = writer.start_write();
-            guard.mark_row(1);
-            guard.extend(b"a");
-            drop(guard);
-            writer.start_write().remove_last_row();
+            writer.start_write().mark(1, |guard| guard.extend(b"a"));
+            assert!(writer.start_write().remove_last_row(1));
         });
         assert_eq!(data, b"");
     }

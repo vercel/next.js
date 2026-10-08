@@ -66,14 +66,14 @@ fn get_id<S: Subscriber + for<'a> LookupSpan<'a>>(
 }
 
 /// The maximum gap between an `Exit` and the next `Enter` of the same span for which both rows
-/// are omitted. `entered` is the time between the last `Enter` on the thread (of any span) and the
-/// `Exit`.
+/// are omitted. `entered` is the time between the last `Enter` row written on the thread (of any
+/// span, omitted `Enter` rows don't count) and the `Exit`.
 ///
 /// Omitting the rows makes the trace show the span as entered during the gap, so its self time
 /// gains the gap. This is bounded to 1µs (the timestamp resolution) or 0.1% of the preceding
-/// entered interval (which includes time spent in nested spans). For nested spans, the last
-/// `Enter` on the thread can be of a nested span, which is later than the span's own `Enter`, so
-/// that only makes the allowed gap smaller.
+/// entered interval (which includes time spent in nested spans and earlier omitted gaps). For
+/// nested spans, the last `Enter` on the thread can be of a nested span, which is later than the
+/// span's own `Enter`, so that only makes the allowed gap smaller.
 fn max_exit_enter_gap(entered: u64) -> u64 {
     (entered / 1000).max(1)
 }
@@ -101,19 +101,17 @@ struct ThreadState {
     thread_id: u64,
     /// The allocation counters of the thread at the time they were last reported.
     reported_allocations: Option<Allocations>,
-    /// The timestamp of the last Enter callback on this thread, of any span (even if the row was
-    /// omitted). See [`max_exit_enter_gap`].
+    /// The timestamp of the last `Enter` row written on this thread, of any span. Omitted `Enter`
+    /// rows don't update it. See [`max_exit_enter_gap`].
     last_enter_ts: Option<u64>,
     /// The last `Exit` row written on this thread. It can be removed again when it's followed
-    /// by an `Enter` of the same span shortly after, see [`max_exit_enter_gap`].
+    /// by an `Enter` of the same span shortly after, see [`max_exit_enter_gap`]. The row is
+    /// marked with the span id, see [`crate::trace_writer::WriteGuard::mark`].
     last_exit: Option<LastExit>,
-    /// The marker for the next `Exit` row, see [`crate::trace_writer::WriteGuard::mark_row`].
-    next_marker: u64,
 }
 
 #[derive(Clone, Copy)]
 struct LastExit {
-    marker: u64,
     id: u64,
     ts: u64,
     /// [`ThreadState::reported_allocations`] before the `Exit` row was written.
@@ -168,18 +166,21 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> RawTraceLayer<S> {
 
     fn write(&self, data: TraceRow<'_>) {
         let start = TurboMalloc::allocation_counters();
-        let guard = self.trace_writer.start_write();
-        postcard::serialize_with_flavor(&data, WriteGuardFlavor { guard }).unwrap();
+        let mut guard = self.trace_writer.start_write();
+        postcard::serialize_with_flavor(&data, WriteGuardFlavor { guard: &mut guard }).unwrap();
+        drop(guard);
         TurboMalloc::reset_allocation_counters(start);
     }
 
     /// Writes a row and marks it with `marker`, so that it can be removed by the next write on
-    /// this thread. See [`crate::trace_writer::WriteGuard::mark_row`].
+    /// this thread. See [`crate::trace_writer::WriteGuard::mark`].
     fn write_marked(&self, data: TraceRow<'_>, marker: u64) {
         let start = TurboMalloc::allocation_counters();
         let mut guard = self.trace_writer.start_write();
-        guard.mark_row(marker);
-        postcard::serialize_with_flavor(&data, WriteGuardFlavor { guard }).unwrap();
+        guard.mark(marker, |guard| {
+            postcard::serialize_with_flavor(&data, WriteGuardFlavor { guard }).unwrap()
+        });
+        drop(guard);
         TurboMalloc::reset_allocation_counters(start);
     }
 
@@ -188,10 +189,7 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> RawTraceLayer<S> {
     fn remove_last_row(&self, marker: u64) -> bool {
         let start = TurboMalloc::allocation_counters();
         let mut guard = self.trace_writer.start_write();
-        let removed = guard.last_row_marker() == Some(marker);
-        if removed {
-            guard.remove_last_row();
-        }
+        let removed = guard.remove_last_row(marker);
         drop(guard);
         TurboMalloc::reset_allocation_counters(start);
         removed
@@ -308,7 +306,6 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for RawTraceLayer<S> {
         let id = get_id(ctx, id);
         let enter_allocations = {
             let mut state = self.thread_state(thread_id);
-            let last_enter_ts = state.last_enter_ts.replace(ts);
             // An `Exit` directly followed by an `Enter` of the same span (almost) at the same
             // time has (almost) no effect on the trace data, so both rows can be omitted. This is
             // common for async spans, which are exited and entered again on every poll.
@@ -319,12 +316,13 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for RawTraceLayer<S> {
                     <= last_exit.ts.saturating_add(max_exit_enter_gap(
                         last_exit
                             .ts
-                            .saturating_sub(last_enter_ts.unwrap_or(last_exit.ts)),
+                            .saturating_sub(state.last_enter_ts.unwrap_or(last_exit.ts)),
                     ))
                 // Nothing (de)allocated since the exit, otherwise the `Enter` would need to
                 // report it for the span that was running in between
                 && state.reported_allocations == current
-                && self.remove_last_row(last_exit.marker)
+                // The `Exit` row is marked with the span id
+                && self.remove_last_row(id)
             {
                 // What the span (de)allocated before the removed `Exit` is reported with the next
                 // row of this thread instead. The span is on top of the stack again at that
@@ -332,14 +330,16 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for RawTraceLayer<S> {
                 state.reported_allocations = last_exit.reported_allocations_before;
                 None
             } else {
+                state.last_enter_ts = Some(ts);
                 Some(Self::allocations(&mut state, current))
             }
         };
+        // After the `Exit` row was removed, as the sample would be the last row otherwise
+        if self.memory {
+            self.maybe_report_memory_sample(ts);
+        }
         // `None` when the rows were omitted
         if let Some(allocations) = enter_allocations {
-            if self.memory {
-                self.maybe_report_memory_sample(ts);
-            }
             self.write(TraceRow::Enter {
                 ts,
                 id,
@@ -357,19 +357,16 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for RawTraceLayer<S> {
         let ts = self.now();
         let thread_id = thread::current().id().as_u64().into();
         let id = get_id(ctx, id);
-        let (allocations, marker) = {
+        let allocations = {
             let mut state = self.thread_state(thread_id);
             let reported_allocations_before = state.reported_allocations;
             let allocations = Self::allocations(&mut state, current);
-            let marker = state.next_marker;
-            state.next_marker = marker.wrapping_add(1);
             state.last_exit = Some(LastExit {
-                marker,
                 id,
                 ts,
                 reported_allocations_before,
             });
-            (allocations, marker)
+            allocations
         };
         self.write_marked(
             TraceRow::Exit {
@@ -378,7 +375,7 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for RawTraceLayer<S> {
                 thread_id,
                 allocations,
             },
-            marker,
+            id,
         );
         TurboMalloc::reset_allocation_counters(malloc_counters);
     }
@@ -784,8 +781,10 @@ pub(crate) mod tests {
         );
     }
 
+    /// An omitted `Enter` doesn't count as the last `Enter` on the thread, so the entered duration
+    /// for the allowed gap keeps growing over chained elisions.
     #[test]
-    fn chained_elisions_use_the_actual_entered_duration() {
+    fn chained_elisions_measure_from_the_last_written_enter() {
         let data = capture(RawTraceLayerOptions::default(), || {
             freeze_time(0);
             let span = tracing::info_span!("span");
@@ -799,14 +798,41 @@ pub(crate) mod tests {
         assert_eq!(
             enter_exit_rows(&decode(&data)),
             vec![
-                // The first gap of 2µs is allowed after 2000µs
+                // The first gap of 2µs is allowed after 2000µs, the second one after 3000µs
+                // (measured from the `Enter` at 0, not the omitted one at 2002)
                 ("enter", 1, 0),
-                // The second gap of 2µs is not allowed after 998µs
-                ("exit", 1, 3000),
-                ("enter", 1, 3002),
                 ("exit", 1, 4000)
             ]
         );
+    }
+
+    /// Memory samples are taken on every `Enter`, even when its row is omitted.
+    #[test]
+    fn reports_memory_samples_when_the_enter_is_omitted() {
+        // Far beyond the timestamps of the other tests, as the last sample time is global
+        const START: u64 = 1 << 50;
+        let data = capture(RawTraceLayerOptions::default(), || {
+            let span = tracing::info_span!("span");
+            freeze_time(START);
+            let guard = span.enter();
+            freeze_time(START + 100_000);
+            drop(guard);
+            // An omitted `Enter`, long after the sample on the first `Enter`
+            drop(span.enter());
+        });
+        let rows = decode(&data);
+        assert_eq!(
+            enter_exit_rows(&rows),
+            vec![("enter", 1, START), ("exit", 1, START + 100_000)]
+        );
+        let samples: Vec<_> = rows
+            .iter()
+            .filter_map(|row| match row {
+                TraceRow::MemorySample { ts, .. } => Some(*ts),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(samples, vec![START, START + 100_000]);
     }
 
     /// The entered duration for the allowed gap is measured from the last `Enter` on the thread,
