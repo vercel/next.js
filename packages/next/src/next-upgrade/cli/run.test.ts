@@ -1,16 +1,22 @@
+import { spawn } from 'child_process'
+import { processEnv, resetEnv, updateInitialEnv } from '@next/env'
 import { EventEmitter } from 'events'
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises'
 import * as Log from 'next/dist/build/output/log'
-import { spawnNextUpgrade } from 'next/dist/cli/next-upgrade'
 import { findDir } from 'next/dist/lib/find-pages-dir'
 import { getProjectDir } from 'next/dist/lib/get-project-dir'
 import { prepareUpgrade } from 'next/dist/next-upgrade/cli/agent/prepare'
+import { runUpgrade, spawnNextUpgrade } from 'next/dist/next-upgrade/cli/run'
 import loadConfig from 'next/dist/server/config'
 import { normalizeConfig } from 'next/dist/server/config-shared'
 import { PHASE_PRODUCTION_BUILD } from 'next/dist/shared/lib/constants'
 import { getAgentName } from 'next/dist/telemetry/agent-name'
 import { Telemetry } from 'next/dist/telemetry/storage'
 
+jest.mock('child_process', () => ({
+  ...jest.requireActual('child_process'),
+  spawn: jest.fn(),
+}))
 jest.mock('fs/promises', () => ({
   access: jest.fn(),
   cp: jest.fn(),
@@ -69,13 +75,15 @@ jest.mock('next/dist/telemetry/agent-name', () => ({
 jest.mock('next/dist/telemetry/storage', () => ({
   Telemetry: jest.fn(),
 }))
-const createSpinner = require('next/dist/build/spinner').default as jest.Mock
-const crossSpawn = require('next/dist/compiled/cross-spawn') as jest.Mock & {
-  sync: jest.Mock
-}
+const createSpinner = (
+  require('next/dist/build/spinner') as typeof import('next/dist/build/spinner')
+).default as jest.Mock
+const crossSpawn =
+  require('next/dist/compiled/cross-spawn') as typeof import('next/dist/compiled/cross-spawn')
 const cliVersion: string = require('next/package.json').version
 
-describe('agentic upgrade prompts', () => {
+describe('upgrade CLI execution', () => {
+  const originalNextVersion = process.env.__NEXT_VERSION
   const originalPath = process.env.PATH
   const originalUseCurrentCli = process.env.__NEXT_UPGRADE_USE_CURRENT_CLI
   const originalExpectedCliVersion =
@@ -140,6 +148,11 @@ describe('agentic upgrade prompts', () => {
       process.env.__NEXT_UPGRADE_USE_CURRENT_CLI = originalUseCurrentCli
     }
 
+    if (originalNextVersion === undefined) {
+      delete process.env.__NEXT_VERSION
+    } else {
+      process.env.__NEXT_VERSION = originalNextVersion
+    }
     process.exitCode = originalExitCode
     global.fetch = originalFetch
     if (originalExpectedCliVersion === undefined) {
@@ -366,4 +379,44 @@ describe('agentic upgrade prompts', () => {
       )
     }
   )
+  it.each(['security', 'latest', 'experimental-future'] as const)(
+    'runs an explicitly requested %s upgrade',
+    async (policy) => {
+      const directory = '/workspace/app'
+      process.env.__NEXT_AGENT_UPGRADE = policy
+      process.env.__NEXT_VERSION = '16.4.0-preview-test'
+      processEnv([], directory)
+      updateInitialEnv({
+        __NEXT_AGENT_UPGRADE: policy,
+        __NEXT_VERSION: '16.4.0-preview-test',
+      })
+      jest.mocked(prepareUpgrade).mockImplementationOnce(async () => {
+        expect(process.env.__NEXT_AGENT_UPGRADE).toBeUndefined()
+        // Future upgrade preparation reloads config and resets the environment.
+        resetEnv()
+        expect(process.env.__NEXT_AGENT_UPGRADE).toBeUndefined()
+        expect(process.env.__NEXT_VERSION).toBe('16.4.0-preview-test')
+        return { status: 'unaffected', reason: 'Already current.' }
+      })
+      await runUpgrade(directory, policy, null)
+      expect(prepareUpgrade).toHaveBeenCalledWith(directory, policy)
+    }
+  )
+
+  it('delegates manual upgrades to codemod and preserves its exit code', async () => {
+    const child = new EventEmitter()
+    jest.mocked(spawn).mockReturnValue(child as never)
+    await spawnNextUpgrade(
+      '/workspace/app',
+      { revision: '16.4.0', verbose: true, agent: undefined },
+      null
+    )
+    expect(spawn).toHaveBeenCalledWith(
+      'npx',
+      ['@next/codemod@canary', 'upgrade', '16.4.0', '--verbose'],
+      { stdio: 'inherit', cwd: '/workspace/app' }
+    )
+    child.emit('close', 19)
+    expect(process.exitCode).toBe(19)
+  })
 })

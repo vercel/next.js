@@ -1,32 +1,21 @@
+import { processEnv, updateInitialEnv } from '@next/env'
 import { execFileSync } from 'child_process'
 import { mkdir, mkdtemp, rm } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
-import { processEnv, resetEnv, updateInitialEnv } from '@next/env'
 
+import { warn } from 'next/dist/build/output/log'
+import Conf from 'next/dist/compiled/conf'
 import {
   assessUpgrade,
   getUpgradeContext,
   nudgeUpgrade,
-  runUpgrade,
   shouldPromptForUpgrade,
 } from 'next/dist/lib/upgrade/nudge'
 import { promptUpgrade } from 'next/dist/lib/upgrade/prompt'
-import Conf from 'next/dist/compiled/conf'
-import { getAgentName } from 'next/dist/telemetry/agent-name'
 import { getUpgradeAssessment } from 'next/dist/next-upgrade/shared/check-upgrade'
-import { warn } from 'next/dist/build/output/log'
-import { spawnNextUpgrade } from 'next/dist/cli/next-upgrade'
 import { defaultConfig } from 'next/dist/server/config-shared'
-
-jest.mock('next/dist/cli/next-upgrade', () => ({
-  spawnNextUpgrade: jest.fn(),
-}))
-jest.mock(
-  '../../packages/next/src/cli/next-upgrade.js',
-  () => jest.requireMock('next/dist/cli/next-upgrade'),
-  { virtual: true }
-)
+import { getAgentName } from 'next/dist/telemetry/agent-name'
 
 // Read source so version cases run before the package build inlines __NEXT_VERSION.
 jest.mock('next/dist/lib/upgrade/nudge', () =>
@@ -870,36 +859,6 @@ describe('human upgrade nudge', () => {
       expect(getUpgradeAssessment).not.toHaveBeenCalled()
       jest.mocked(getAgentName).mockResolvedValue('codex')
       await expect(run(policy)).resolves.toBeUndefined()
-    }
-  )
-
-  it.each(['security', 'latest', 'experimental-future'] as const)(
-    'runs an explicitly requested %s upgrade',
-    async (policy) => {
-      process.env.__NEXT_AGENT_UPGRADE = policy
-      process.env.__NEXT_VERSION = '16.4.0-preview-test'
-      processEnv([], directory)
-      updateInitialEnv({
-        __NEXT_AGENT_UPGRADE: policy,
-        __NEXT_VERSION: '16.4.0-preview-test',
-      })
-      jest.mocked(spawnNextUpgrade).mockImplementationOnce(async () => {
-        expect(process.env.__NEXT_AGENT_UPGRADE).toBeUndefined()
-        // Future upgrade preparation reloads config and resets the environment.
-        resetEnv()
-        expect(process.env.__NEXT_AGENT_UPGRADE).toBeUndefined()
-        expect(process.env.__NEXT_VERSION).toBe('16.4.0-preview-test')
-      })
-      await runUpgrade(directory, policy, null)
-      expect(spawnNextUpgrade).toHaveBeenCalledWith(
-        directory,
-        {
-          revision: 'latest',
-          verbose: false,
-          agent: policy,
-        },
-        null
-      )
     }
   )
 

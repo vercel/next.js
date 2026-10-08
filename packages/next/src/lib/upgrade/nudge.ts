@@ -10,19 +10,18 @@ import { createHash, randomUUID } from 'crypto'
 import { mkdir, readFile, realpath, rename, rm, writeFile } from 'fs/promises'
 import { basename, dirname, join, relative, resolve } from 'path'
 import { promisify } from 'util'
-import { updateInitialEnv } from '@next/env'
 
 import * as Log from '../../build/output/log'
+import { isCI } from '../../server/ci-info'
 import type { NextConfigComplete } from '../../server/config-shared'
-import type { Telemetry } from '../../telemetry/storage'
+import { getAgentName } from '../../telemetry/agent-name'
 import {
   eventAgentUpgradeNudgeDecision,
   eventAgentUpgradeNudgeShown,
   eventAgentUpgradePolicyDetected,
 } from '../../telemetry/events/agent-upgrade'
+import type { Telemetry } from '../../telemetry/storage'
 import type { UpgradeAction } from './prompt'
-import { getAgentName } from '../../telemetry/agent-name'
-import { isCI } from '../../server/ci-info'
 
 type NudgeOptions = {
   directory: string
@@ -441,25 +440,6 @@ async function nudgeUpgradeForHuman(
     }
   }
   return action
-}
-
-export async function runUpgrade(
-  directory: string,
-  policy: NudgeKind,
-  nudgeId: string | null
-) {
-  // The agent's dev/build commands must not trigger this explicit request again.
-  delete process.env.__NEXT_AGENT_UPGRADE
-  updateInitialEnv({ __NEXT_AGENT_UPGRADE: undefined })
-  const { spawnNextUpgrade } = await import('../../cli/next-upgrade.js')
-
-  // Human Update actions invoke the CLI directly, so their ID does not need an env var.
-  await spawnNextUpgrade(
-    directory,
-    { revision: 'latest', verbose: false, agent: policy },
-    nudgeId ? { id: nudgeId, recipient: 'human' } : null
-  )
-  return process.exitCode ?? 0
 }
 
 export async function shouldPromptForUpgrade(): Promise<boolean> {

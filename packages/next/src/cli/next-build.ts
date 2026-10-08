@@ -289,7 +289,7 @@ async function buildInChild(): Promise<never> {
           for (const signal of signals) {
             process.off(signal, onSignal)
           }
-          const { runUpgrade } = await import('../lib/upgrade/nudge.js')
+          const { runUpgrade } = await import('../next-upgrade/cli/run.js')
           const exitCode = await runUpgrade(dir, result.policy, result.nudgeId)
           await flushUpgradeTelemetry()
           // A build that failed still fails the command.

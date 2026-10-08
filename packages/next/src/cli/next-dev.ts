@@ -271,9 +271,7 @@ const nextDev = async (
   dir = getProjectDir(process.env.NEXT_PRIVATE_DEV_DIR || directory)
   warnMissingReactDependencies(dir)
 
-  const { shouldPromptForUpgrade, runUpgrade } = await import(
-    '../lib/upgrade/nudge.js'
-  )
+  const { shouldPromptForUpgrade } = await import('../lib/upgrade/nudge.js')
   const humanUpgrade = await shouldPromptForUpgrade()
   const allowedUpgradeRetries = new Set<string>()
   async function offerUpgrade(
@@ -317,6 +315,7 @@ const nextDev = async (
       process.off('SIGINT', onInterrupt)
       process.off('SIGTERM', onTerminate)
       process.off('SIGHUP', onHangup)
+      const { runUpgrade } = await import('../next-upgrade/cli/run.js')
       const exitCode = await runUpgrade(dir, result.policy, result.nudgeId)
       await flushUpgradeTelemetry()
       process.exit(exitCode)

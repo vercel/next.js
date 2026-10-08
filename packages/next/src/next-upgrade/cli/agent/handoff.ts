@@ -8,7 +8,7 @@ import spawn from 'next/dist/compiled/cross-spawn'
 
 import * as Log from '../../../build/output/log'
 import { bold, cyan, dim } from '../../../lib/picocolors'
-import { runChildProcess } from '../../../lib/upgrade/run-child-process'
+import { runChildProcess } from '../run-child-process'
 import { getAgentName } from '../../../telemetry/agent-name'
 import type { AgentUpgradeHandoffMethod } from '../../../telemetry/events/agent-upgrade'
 import { getHarnessModels, type UpgradeModel } from './model-discovery'
