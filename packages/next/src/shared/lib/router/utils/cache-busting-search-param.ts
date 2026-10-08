@@ -1,4 +1,9 @@
 import { hexHash } from '../../hash'
+import type {
+  NEXT_ROUTER_PREFETCH_STATIC,
+  NEXT_ROUTER_PREFETCH_RUNTIME_PREFETCH,
+  NEXT_ROUTER_PREFETCH_RUNTIME_SHELL,
+} from '../../../../client/components/app-router-headers'
 
 const CACHE_BUSTING_SEARCH_PARAM_DIGEST_BYTES = 12
 const textEncoder = new TextEncoder()
@@ -22,7 +27,12 @@ function normalizeCacheBustingInput(
 }
 
 function createCacheBustingSearchParamInput(
-  prefetchHeader: '1' | '2' | '3' | '0' | undefined,
+  prefetchHeader:
+    | typeof NEXT_ROUTER_PREFETCH_STATIC
+    | typeof NEXT_ROUTER_PREFETCH_RUNTIME_PREFETCH
+    | typeof NEXT_ROUTER_PREFETCH_RUNTIME_SHELL
+    | '0'
+    | undefined,
   segmentPrefetchHeader: string | string[] | undefined,
   stateTreeHeader: string | string[] | undefined,
   nextUrlHeader: string | string[] | undefined
@@ -58,7 +68,12 @@ async function computeCacheBustingSearchParamFromInput(
 }
 
 export async function computeCacheBustingSearchParam(
-  prefetchHeader: '1' | '2' | '3' | '0' | undefined,
+  prefetchHeader:
+    | typeof NEXT_ROUTER_PREFETCH_STATIC
+    | typeof NEXT_ROUTER_PREFETCH_RUNTIME_PREFETCH
+    | typeof NEXT_ROUTER_PREFETCH_RUNTIME_SHELL
+    | '0'
+    | undefined,
   segmentPrefetchHeader: string | string[] | undefined,
   stateTreeHeader: string | string[] | undefined,
   nextUrlHeader: string | string[] | undefined
@@ -77,7 +92,12 @@ export async function computeCacheBustingSearchParam(
 }
 
 export function computeLegacyCacheBustingSearchParam(
-  prefetchHeader: '1' | '2' | '3' | '0' | undefined,
+  prefetchHeader:
+    | typeof NEXT_ROUTER_PREFETCH_STATIC
+    | typeof NEXT_ROUTER_PREFETCH_RUNTIME_PREFETCH
+    | typeof NEXT_ROUTER_PREFETCH_RUNTIME_SHELL
+    | '0'
+    | undefined,
   segmentPrefetchHeader: string | string[] | undefined,
   stateTreeHeader: string | string[] | undefined,
   nextUrlHeader: string | string[] | undefined

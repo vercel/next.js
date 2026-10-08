@@ -82,6 +82,7 @@ import {
   NEXT_ROUTER_STALE_TIME_HEADER,
   NEXT_URL,
 } from '../../client/components/app-router-headers'
+import { AppStage } from '../../client/components/segment-cache/types'
 import { createMetadataContext } from '../../lib/metadata/metadata-context'
 import {
   createRequestStore as createRequestStoreFromInputs,
@@ -1478,7 +1479,8 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
 async function generateRuntimePrefetchResult(
   ctx: AppRenderContext,
   requestStore: RequestStore,
-  isShellPrefetch: boolean
+  // The stage the runtime prefetch asks for.
+  stage: AppStage
 ): Promise<RenderResult> {
   const { workStore, renderOpts, htmlRequestId, requestId } = ctx
   const {
@@ -1523,12 +1525,13 @@ async function generateRuntimePrefetchResult(
     requestStore.resumeDataCache ?? undefined
   )
 
-  const mode: RuntimePrerenderMode = isShellPrefetch
-    ? { type: 'session-shell-only' }
-    : {
-        type: 'rewindable-session-shell',
-        stageByteLengthsDeferred: createPromiseWithResolvers(),
-      }
+  const mode: RuntimePrerenderMode =
+    stage === AppStage.Shell
+      ? { type: 'session-shell-only' }
+      : {
+          type: 'rewindable-session-shell',
+          stageByteLengthsDeferred: createPromiseWithResolvers(),
+        }
 
   await prospectiveRuntimeServerPrerender(
     ctx,
@@ -1556,9 +1559,9 @@ async function generateRuntimePrefetchResult(
       // A runtime shell render stops at the shell stage, so the shell ends
       // at the end of the response.
       stageByteLengthsPromise:
-        mode.type === 'rewindable-session-shell'
-          ? mode.stageByteLengthsDeferred.promise
-          : Promise.resolve([]),
+        mode.type === 'session-shell-only'
+          ? Promise.resolve([])
+          : mode.stageByteLengthsDeferred.promise,
     }),
     prerenderResumeDataCache,
     rootParams,
@@ -2950,8 +2953,7 @@ async function renderAppPage(
     isHmrRefresh,
     isPrefetchRequest,
     isRSCRequest,
-    isRuntimePrefetchRequest,
-    isAppShellPrefetchRequest,
+    runtimePrefetchStage,
     isRouteTreePrefetchRequest,
   } = parsedRequestHeaders
   const isPossibleActionRequest = ctx.isPossibleServerAction
@@ -2996,8 +2998,7 @@ async function renderAppPage(
     !cacheComponents &&
     !isPossibleActionRequest &&
     !isPrefetchRequest &&
-    !isRuntimePrefetchRequest &&
-    !isAppShellPrefetchRequest &&
+    runtimePrefetchStage === null &&
     !isRouteTreePrefetchRequest
       ? setIsrStatus
       : undefined
@@ -3014,12 +3015,12 @@ async function renderAppPage(
 
   // MARK: RSC request
   if (isRSCRequest) {
-    if (isRuntimePrefetchRequest) {
+    if (runtimePrefetchStage !== null) {
       // MARK: RSC runtimePrefetch
       return generateRuntimePrefetchResult(
         ctx,
         requestStore,
-        isAppShellPrefetchRequest
+        runtimePrefetchStage
       )
     } else {
       if (
