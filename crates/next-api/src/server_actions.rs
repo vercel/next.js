@@ -29,7 +29,7 @@ use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TryFlatJoinIterExt,
-    TryJoinIterExt, ValueToString, Vc, turbofmt,
+    TryJoinIterExt, ValueToStringRef, Vc, turbofmt,
 };
 use turbo_tasks_fs::{self, File, FileContent, FileSystemPath, rope::RopeBuilder};
 use turbo_tasks_hash::{HashAlgorithm, deterministic_hash};
@@ -361,7 +361,7 @@ impl Asset for ServerActionManifestAsset {
                         .is_async(self.chunk_item.module().to_resolved().await?)
                         .await?,
                     durability: data.as_ref().map(|d| ActionManifestWorkerEntryDurability {
-                        code_hash: d.ident_code_hash.as_str(),
+                        code_hash: d.path_code_hash.as_str(),
                         runtime_env_vars_read: d.runtime_env_vars_read.as_slice(),
                         runtime_env_vars_existence: d.runtime_env_vars_existence.as_slice(),
                     }),
@@ -419,7 +419,7 @@ pub async fn to_rsc_context(
 #[derive(Debug)]
 struct ModulesInformation {
     /// The combined code hash of all modules in the subgraph.
-    pub ident_code_hash: RcStr,
+    pub path_code_hash: RcStr,
     /// The merged and deduplicated list of all runtime env vars read in the subgraph.
     pub runtime_env_vars_read: Vec<RcStr>,
     /// The merged and deduplicated list of runtime env vars used only checked for set/falsy/truthy
@@ -567,13 +567,22 @@ async fn compute_subtree_content_hash(
         if *PRINT_USE_CACHE_SUBTREE {
             println!(
                 "Modules in subtree for {}:\n{}",
-                entry.ident().await?.path,
+                entry.ident_string().await?,
                 data.iter()
                     .map(async |(m, data)| {
                         Ok(format!(
-                            "  '{}': {} with env: {}",
-                            m.ident_string().await?,
-                            data.ident_code_hash,
+                            "  '{}': {}{}{}",
+                            m.ident().await?.path.to_string_ref().await?,
+                            data.path_code_hash,
+                            if data
+                                .env_var_info
+                                .as_ref()
+                                .is_some_and(|e| !e.runtime.is_empty())
+                            {
+                                " with env: "
+                            } else {
+                                ""
+                            },
                             data.env_var_info
                                 .as_ref()
                                 .map(|e| {
@@ -601,7 +610,7 @@ async fn compute_subtree_content_hash(
         let mut runtime_env_vars = FxIndexMap::default();
 
         for (_m, data) in &data {
-            hashes.push(&data.ident_code_hash);
+            hashes.push(&data.path_code_hash);
             if let Some(env) = &data.env_var_info {
                 for (name, mode) in &env.runtime {
                     match mode {
@@ -635,7 +644,7 @@ async fn compute_subtree_content_hash(
         runtime_existence.sort_unstable();
         anyhow::Ok(
             ModulesInformation {
-                ident_code_hash: hash,
+                path_code_hash: hash,
                 runtime_env_vars_read: runtime_read,
                 runtime_env_vars_existence: runtime_existence,
             }
@@ -660,7 +669,7 @@ async fn compute_subtree_content_hash(
 #[turbo_tasks::value]
 #[derive(Debug)]
 struct ModuleInformation {
-    pub ident_code_hash: RcStr,
+    pub path_code_hash: RcStr,
     pub env_var_info: Option<ReadRef<EnvVarInfo>>,
 }
 
@@ -674,7 +683,7 @@ async fn module_hash(
 ) -> Result<Vc<ModuleInformation>> {
     let ident = m.ident();
     let ident_value = ident.await?;
-    let ident_str = ident.to_string().await?;
+    let ident_str = &ident_value.path.to_string_ref().await?;
 
     if cfg!(debug_assertions)
         && (ident_str
@@ -697,7 +706,7 @@ async fn module_hash(
             None
         };
 
-    let ident_code_hash = if let Some(placeable_module) =
+    let path_code_hash = if let Some(placeable_module) =
         ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(m)
         && !ident_value
             .layer
@@ -739,7 +748,7 @@ async fn module_hash(
     };
 
     Ok(ModuleInformation {
-        ident_code_hash,
+        path_code_hash,
         env_var_info,
     }
     .cell())
