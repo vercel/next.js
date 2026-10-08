@@ -36,9 +36,9 @@ describe('dynamicParams: false in minimal mode', () => {
   })
 
   it('leaves revalidate-if-generated admission to the platform cache', async () => {
-    const { previewModeId } = JSON.parse(
-      await next.readFile('.next/server/preview-props.json')
-    )
+    const { previewModeId } = (
+      await next.readJSON('.next/prerender-manifest.json')
+    ).preview
     const response = await next.fetch('/products/platform-revalidation', {
       headers: {
         'x-matched-path': '/products/[slug]',
