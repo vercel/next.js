@@ -1,3 +1,5 @@
+mod path_locks;
+
 use std::{
     fs,
     sync::{Arc, mpsc::channel},
@@ -103,6 +105,6 @@ fn bench_rope_iteration(c: &mut Criterion) {
 criterion_group!(
     name = benches;
     config = Criterion::default();
-    targets = bench_file_watching, bench_rope_iteration
+    targets = bench_file_watching, bench_rope_iteration, path_locks::overhead
 );
 criterion_main!(benches);

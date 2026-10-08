@@ -97,33 +97,29 @@ impl CompilationEventQueue {
             drop(history);
 
             if deliver {
-                // Send to all active receivers of the same message type
-                if let Some(mut type_subscribers) = subscribers.get_mut(&EventChannelType::Type(
-                    message_clone.type_name().to_owned(),
-                )) {
-                    let mut removal_indices = Vec::new();
-                    for (ix, sender) in type_subscribers.iter().enumerate() {
+                for channel_type in [
+                    EventChannelType::Type(message_clone.type_name().to_owned()),
+                    EventChannelType::Global,
+                ] {
+                    // Snapshot the senders before awaiting backpressure. Holding a DashMap
+                    // guard across an await can block a runtime worker when another delivery
+                    // or subscription needs the same shard.
+                    let senders = subscribers
+                        .get(&channel_type)
+                        .map(|channels| channels.clone())
+                        .unwrap_or_default();
+                    let mut has_closed_sender = false;
+                    for sender in senders {
                         if sender.send(message_clone.clone()).await.is_err() {
-                            removal_indices.push(ix);
+                            has_closed_sender = true;
                         }
                     }
-
-                    for ix in removal_indices.iter().rev() {
-                        type_subscribers.remove(*ix);
-                    }
-                }
-
-                // Send to all global message subscribers
-                if let Some(mut all_channel) = subscribers.get_mut(&EventChannelType::Global) {
-                    let mut removal_indices = Vec::new();
-                    for (ix, sender) in all_channel.iter_mut().enumerate() {
-                        if sender.send(message_clone.clone()).await.is_err() {
-                            removal_indices.push(ix);
+                    if has_closed_sender {
+                        if let Some(mut channels) = subscribers.get_mut(&channel_type) {
+                            // Do not remove by snapshot indices: subscriptions may have been
+                            // added or removed while we were delivering the event.
+                            channels.retain(|sender| !sender.is_closed());
                         }
-                    }
-
-                    for ix in removal_indices.iter().rev() {
-                        all_channel.remove(*ix);
                     }
                 }
             }
@@ -183,8 +179,11 @@ impl CompilationEventQueue {
                     }
                 }
 
-                for event in event_history.lock().await.iter() {
-                    if event_types.contains(&event.type_name().to_string()) {
+                // History is bounded; clone it rather than holding the lock while a slow
+                // receiver drains its channel.
+                let history = event_history.lock().await.clone();
+                for event in history.iter() {
+                    if event_types.iter().any(|ty| ty == event.type_name()) {
                         let _ = tx_clone.send(event.clone()).await;
                     }
                 }
@@ -195,7 +194,10 @@ impl CompilationEventQueue {
                     global_subscribers.push(tx_clone.clone());
                 }
 
-                for event in event_history.lock().await.iter() {
+                // History is bounded; clone it rather than holding the lock while a slow
+                // receiver drains its channel.
+                let history = event_history.lock().await.clone();
+                for event in history.iter() {
                     let _ = tx_clone.send(event.clone()).await;
                 }
             }
@@ -428,6 +430,129 @@ mod tests {
         let event = rx2.recv().await.unwrap();
         assert_eq!(event.message(), "test in 1ms");
         assert!(rx2.recv().await.is_none());
+    }
+
+    // A current-thread runtime makes accidental blocking shard locks observable: the
+    // receiver must be able to run while multiple deliveries wait for channel capacity.
+    #[tokio::test]
+    async fn test_backpressured_deliveries_do_not_block_worker() {
+        let queue = CompilationEventQueue::default();
+        let (tx, mut rx) = mpsc::channel(1);
+        let event = Arc::new(TimingEvent::new("test".to_string(), Duration::ZERO));
+        tx.send(event.clone() as Arc<dyn CompilationEvent>)
+            .await
+            .unwrap();
+        queue
+            .subscribers
+            .get_mut(&EventChannelType::Global)
+            .unwrap()
+            .push(tx);
+
+        queue.send(event.clone()).unwrap();
+        queue.send(event).unwrap();
+        // Both delivery tasks should reach the backpressured send without blocking
+        // the runtime. The original implementation deadlocks on the second task.
+        tokio::task::yield_now().await;
+        assert_eq!(queue.event_history.lock().await.len(), 2);
+        for _ in 0..3 {
+            rx.recv().await.unwrap();
+        }
+        queue.flush_and_close().await;
+        assert!(rx.recv().await.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_closed_receiver_is_pruned_without_removing_live_subscriber() {
+        let queue = CompilationEventQueue::default();
+        let (tx, rx) = mpsc::channel(1);
+        drop(rx);
+        let (live_tx, mut live_rx) = mpsc::channel(1);
+        queue
+            .subscribers
+            .get_mut(&EventChannelType::Global)
+            .unwrap()
+            .extend([tx, live_tx]);
+        queue
+            .send(Arc::new(TimingEvent::new(
+                "test".to_string(),
+                Duration::ZERO,
+            )))
+            .unwrap();
+        live_rx.recv().await.unwrap();
+        assert_eq!(
+            queue
+                .subscribers
+                .get(&EventChannelType::Global)
+                .unwrap()
+                .len(),
+            1
+        );
+        queue.flush_and_close().await;
+        assert!(live_rx.recv().await.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_filtered_history_replay_after_close() {
+        let queue = CompilationEventQueue::default();
+        queue
+            .send(Arc::new(TimingEvent::new(
+                "timing".to_string(),
+                Duration::ZERO,
+            )))
+            .unwrap();
+        queue
+            .send(Arc::new(DiagnosticEvent::new(
+                Severity::Warning,
+                "diagnostic".to_string(),
+            )))
+            .unwrap();
+        queue.flush_and_close().await;
+
+        let mut rx = queue.subscribe(Some(vec!["TimingEvent".to_string()]));
+        assert_eq!(rx.recv().await.unwrap().type_name(), "TimingEvent");
+        assert!(rx.recv().await.is_none());
+        let mut rx = queue.subscribe(Some(vec!["NoSuchEvent".to_string()]));
+        assert!(rx.recv().await.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_backpressured_replay_does_not_lock_history() {
+        let queue = CompilationEventQueue::default();
+        let event: Arc<dyn CompilationEvent> =
+            Arc::new(TimingEvent::new("test".to_string(), Duration::ZERO));
+        // Hold the history lock until the subscription is registered and its
+        // channel is full, forcing replay to wait for the receiver.
+        let mut history = queue.event_history.lock().await;
+        history.push_back(event.clone());
+        let rx = queue.subscribe(None);
+        let sender = loop {
+            let sender = queue
+                .subscribers
+                .get(&EventChannelType::Global)
+                .unwrap()
+                .first()
+                .cloned();
+            if let Some(sender) = sender {
+                break sender;
+            }
+            tokio::task::yield_now().await;
+        };
+        for _ in 0..MAX_QUEUE_SIZE {
+            sender.send(event.clone()).await.unwrap();
+        }
+        drop(history);
+        tokio::task::yield_now().await;
+        queue.send(event).unwrap();
+        tokio::task::yield_now().await;
+        let history_len = tokio::time::timeout(Duration::from_secs(1), async {
+            queue.event_history.lock().await.len()
+        })
+        .await
+        .unwrap();
+        assert_eq!(history_len, 2);
+        drop(sender);
+        drop(rx);
+        queue.flush_and_close().await;
     }
 
     #[test]
