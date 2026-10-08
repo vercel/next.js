@@ -2,6 +2,8 @@
 
 Runs `next upgrade --agent` unattended with Claude Code or Codex. If the agent commits a verified upgrade, the action opens a draft pull request for it.
 
+The easiest way to set this up is to run `next upgrade --ci` in your app. It asks a few questions, then has your local coding agent write the workflow.
+
 ## Usage
 
 ```yaml

@@ -20,12 +20,36 @@ const CODEX_APPROVAL_ARGS = [
   'on-request',
 ] as const
 
+export type UpgradeHarnessName = 'codex' | 'claude'
+
 type UpgradeHarness = {
-  name: 'codex' | 'claude'
+  name: UpgradeHarnessName
   path: string
 }
 
 type UpgradePrompt = string | ((useWorktree: boolean | null) => string)
+
+// A choice resolves to a value, `undefined` to go back, or `null` to cancel.
+type Choice<T> = T | null | undefined
+
+export type HandoffSelection = {
+  harness: UpgradeHarnessName
+  model: string | null
+  effort: string
+}
+
+// Each handoff shares agent, model, effort, and permission selection, then
+// supplies its own final stages and prompts.
+export type HandoffFlow = {
+  // Names the prompt in messages, e.g. "upgrade prompt".
+  promptName: string
+  // The prompt for runs that cannot ask questions.
+  printPrompt: (existingAgent: string | null) => string
+  // The prompt to copy for another agent. `firstPrompt` is set when Esc cancels.
+  copyPrompt: (firstPrompt: boolean) => Promise<Choice<string>>
+  // The final stages after permission selection, resolving to the prompt.
+  finish: (selection: HandoffSelection) => Promise<Choice<string>>
+}
 
 function resolvePrompt(
   prompt: UpgradePrompt,
@@ -34,7 +58,7 @@ function resolvePrompt(
   return typeof prompt === 'string' ? prompt : prompt(useWorktree)
 }
 
-async function chooseOption(
+export async function chooseOption(
   question: string,
   values: Record<string, string>,
   defaultValue: number,
@@ -96,7 +120,7 @@ async function chooseWorktree(): Promise<boolean | null | undefined> {
   throw new Error(`Unknown worktree choice: ${choice}`)
 }
 
-function getHarnessDisplayName(name: UpgradeHarness['name']): string {
+export function getHarnessDisplayName(name: UpgradeHarnessName): string {
   return name === 'codex' ? 'Codex' : 'Claude Code'
 }
 
@@ -215,7 +239,8 @@ async function chooseHarness(
 
 function copyUpgradePrompt(
   prompt: string,
-  noHarness: boolean
+  noHarness: boolean,
+  promptName: string
 ): AgentUpgradeHandoffMethod {
   const commands =
     process.platform === 'darwin'
@@ -240,8 +265,8 @@ function copyUpgradePrompt(
     if (!result.error && result.status === 0) {
       Log.info(
         noHarness
-          ? 'No supported coding agent found. The upgrade prompt was copied to your clipboard.'
-          : 'Upgrade prompt copied. Paste it into your coding agent.'
+          ? `No supported coding agent found. The ${promptName} was copied to your clipboard.`
+          : `${capitalize(promptName)} copied. Paste it into your coding agent.`
       )
       return 'copied_prompt'
     }
@@ -249,11 +274,15 @@ function copyUpgradePrompt(
 
   Log.info(
     noHarness
-      ? 'No supported coding agent found. Copy this upgrade prompt:'
-      : 'Could not access the clipboard. Copy this upgrade prompt:'
+      ? `No supported coding agent found. Copy this ${promptName}:`
+      : `Could not access the clipboard. Copy this ${promptName}:`
   )
   Log.bootstrap(prompt)
   return 'printed_prompt'
+}
+
+function capitalize(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1)
 }
 
 function launchHarness(
@@ -301,17 +330,44 @@ export async function handoffUpgrade(
       ) => void)
     | null
 ): Promise<'handed_off' | 'cancelled' | 'failed'> {
+  return runHandoff(
+    {
+      promptName: 'upgrade prompt',
+      printPrompt: () => resolvePrompt(prompt, null),
+      copyPrompt: async () => resolvePrompt(prompt, null),
+      finish: async () => {
+        const choice = await chooseWorktree()
+        return choice === null || choice === undefined
+          ? choice
+          : resolvePrompt(prompt, choice)
+      },
+    },
+    directory,
+    onHandoff
+  )
+}
+
+export async function runHandoff(
+  flow: HandoffFlow,
+  directory: string,
+  onHandoff:
+    | ((
+        method: AgentUpgradeHandoffMethod,
+        selectedAgentProduct: string | null
+      ) => void)
+    | null
+): Promise<'handed_off' | 'cancelled' | 'failed'> {
   // Existing agents keep their session and permissions.
   const existingAgent = await getAgentName()
   if (existingAgent) {
-    Log.bootstrap(resolvePrompt(prompt, null))
+    Log.bootstrap(flow.printPrompt(existingAgent))
     onHandoff?.('existing_agent', existingAgent)
     return 'handed_off'
   }
 
   if (!process.stdin.isTTY || !process.stdout.isTTY) {
-    Log.info('Copy this upgrade prompt into your coding agent:')
-    Log.bootstrap(resolvePrompt(prompt, null))
+    Log.info(`Copy this ${flow.promptName} into your coding agent:`)
+    Log.bootstrap(flow.printPrompt(null))
     onHandoff?.('printed_prompt', null)
     return 'handed_off'
   }
@@ -320,7 +376,11 @@ export async function handoffUpgrade(
   const installed = await findHarnesses()
 
   if (installed.length === 0) {
-    const method = copyUpgradePrompt(resolvePrompt(prompt, null), true)
+    const copied = await flow.copyPrompt(true)
+    if (typeof copied !== 'string') {
+      return cancelHandoff()
+    }
+    const method = copyUpgradePrompt(copied, true, flow.promptName)
     onHandoff?.(method, null)
     return 'handed_off'
   }
@@ -338,7 +398,7 @@ export async function handoffUpgrade(
   }
 
   try {
-    let stage: 'harness' | 'model' | 'effort' | 'permission' | 'worktree' =
+    let stage: 'harness' | 'model' | 'effort' | 'permission' | 'finish' =
       'harness'
     let harness: UpgradeHarness | undefined
     let model: UpgradeModel | undefined
@@ -347,7 +407,6 @@ export async function handoffUpgrade(
     let approvalPermissionArgs: string[] = []
     let permissionArgs: string[] = []
     let useAuto = true
-    let useWorktree = true
     const previousModelStage = () =>
       model ? (model.efforts.length > 0 ? 'effort' : 'model') : 'harness'
     let codexAutoReview: boolean | undefined
@@ -359,7 +418,14 @@ export async function handoffUpgrade(
       if (stage === 'harness') {
         const choice = await chooseHarness(installed, harness?.name)
         if (choice === 'copy') {
-          const method = copyUpgradePrompt(resolvePrompt(prompt, null), false)
+          const copied = await flow.copyPrompt(false)
+          if (copied === null) {
+            break
+          }
+          if (copied === undefined) {
+            continue
+          }
+          const method = copyUpgradePrompt(copied, false, flow.promptName)
           onHandoff?.(method, null)
           return 'handed_off'
         }
@@ -461,7 +527,7 @@ export async function handoffUpgrade(
             dim('Auto permission mode is unavailable; using approval requests.')
           )
           permissionArgs = approvalPermissionArgs
-          stage = 'worktree'
+          stage = 'finish'
         }
       } else if (stage === 'permission') {
         const permissionChoice = await chooseOption(
@@ -478,17 +544,20 @@ export async function handoffUpgrade(
         }
         useAuto = permissionChoice === 'yes'
         permissionArgs = useAuto ? autoPermissionArgs! : approvalPermissionArgs
-        stage = 'worktree'
+        stage = 'finish'
       } else {
-        const choice = await chooseWorktree()
-        if (choice === null) {
+        const finalPrompt = await flow.finish({
+          harness: harness!.name,
+          model: model?.id ?? null,
+          effort: effort!,
+        })
+        if (finalPrompt === null) {
           break
         }
-        if (choice === undefined) {
+        if (finalPrompt === undefined) {
           stage = autoPermissionArgs ? 'permission' : previousModelStage()
           continue
         }
-        useWorktree = choice
         Log.bootstrap(
           `  Continuing with ${cyan(bold(getHarnessDisplayName(harness!.name)))}...\n`
         )
@@ -499,7 +568,7 @@ export async function handoffUpgrade(
         try {
           process.exitCode = await launchHarness(
             harness!,
-            resolvePrompt(prompt, useWorktree),
+            finalPrompt,
             directory,
             model?.id ?? null,
             effort!,
@@ -515,10 +584,14 @@ export async function handoffUpgrade(
       }
     }
 
-    Log.bootstrap(`  ${dim('Upgrade cancelled.')}\n`)
-    process.exitCode = 1
-    return 'cancelled'
+    return cancelHandoff()
   } finally {
     await stopDiscovery()
   }
+}
+
+function cancelHandoff(): 'cancelled' {
+  Log.bootstrap(`  ${dim('Upgrade cancelled.')}\n`)
+  process.exitCode = 1
+  return 'cancelled'
 }

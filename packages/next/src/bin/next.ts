@@ -650,6 +650,12 @@ program
       'Upgrade with an agent to security, latest, or experimental-future. Defaults to security.'
     ).conflicts('revision')
   )
+  .addOption(
+    new Option(
+      '--ci',
+      'Set up a GitHub Action that runs agent upgrades on a schedule and opens draft pull requests.'
+    ).conflicts('revision')
+  )
   // Keep nudge attribution available to agents without exposing it in public help.
   .addOption(new Option('--internal-nudge-id <id>').hideHelp())
   .action(async (directory, options) => {

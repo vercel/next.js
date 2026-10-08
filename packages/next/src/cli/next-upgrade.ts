@@ -32,6 +32,7 @@ type NextUpgradeOptions = {
   revision: string
   verbose: boolean
   agent: boolean | string | undefined
+  ci?: boolean
 }
 
 const UUID_PATTERN =
@@ -175,6 +176,11 @@ export async function spawnNextUpgrade(
   nudgeSource: { id: string; recipient: 'human' | 'agent' } | null
 ) {
   let baseDir = resolvePath(directory || '.')
+
+  if (options.ci) {
+    await setupCIUpgrade(directory, options)
+    return
+  }
 
   if (options.agent) {
     // Match dev/build's telemetry storage, including custom output directories in CI.
@@ -682,4 +688,54 @@ export async function reportAgentUpgradeAgentResult(
   })
   await telemetry.record(eventAgentUpgradeAgentResult({ runId, result }))
   await telemetry.flush()
+}
+
+async function setupCIUpgrade(
+  directory: string | undefined,
+  options: NextUpgradeOptions
+) {
+  if (options.agent) {
+    Log.error('`--ci` cannot be combined with `--agent`.')
+    process.exitCode = 1
+    return
+  }
+
+  try {
+    const baseDir = getProjectDir(directory, false)
+    warnMissingReactDependencies(baseDir)
+    const config = await loadAgentUpgradeConfig(baseDir)
+
+    // A workspace root must not set up upgrades for an unspecified app.
+    if (!findDir(baseDir, 'app') && !findDir(baseDir, 'pages')) {
+      throw new Error(
+        'No Next.js app found in this directory. Run the command from an app directory or pass its path:\n\n' +
+          'next upgrade [directory] --ci'
+      )
+    }
+
+    const configuredPolicy = config.experimental?.agentUpgrade
+    const nextVersion = process.env.__NEXT_VERSION
+    if (!nextVersion) {
+      throw new Error('Could not determine the Next.js version.')
+    }
+
+    const { handoffCISetup } =
+      require('../lib/upgrade/ci-setup') as typeof import('../lib/upgrade/ci-setup')
+    await handoffCISetup({
+      directory: baseDir,
+      nextVersion,
+      defaultPolicy:
+        configuredPolicy === 'security' ||
+        configuredPolicy === 'latest' ||
+        configuredPolicy === 'experimental-future'
+          ? configuredPolicy
+          : 'security',
+    })
+  } catch (error) {
+    Log.error(
+      'Could not set up the upgrade workflow:',
+      error instanceof Error ? error.message : error
+    )
+    process.exitCode = 1
+  }
 }
