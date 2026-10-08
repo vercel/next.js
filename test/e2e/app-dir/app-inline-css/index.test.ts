@@ -16,6 +16,15 @@ describe('app dir - css - experimental inline css', () => {
       expect(await p.getComputedCss('color')).toBe('rgb(255, 255, 0)') // yellow
     })
 
+    it('should include the inlined root layout styles only once in the RSC payload', async () => {
+      const html = await next.render('/')
+
+      // Once in the <style> tag for SSR and once in the RSC payload. The
+      // global-error styles must not re-emit the root layout's stylesheet.
+      // https://github.com/vercel/next.js/issues/98079
+      expect(html.match(/var\(--font-1\)/g)).toHaveLength(2)
+    })
+
     it('should not return rsc payload with inlined style as a dynamic client nav', async () => {
       const rscPayload = await (
         await next.fetch(`/a?${NEXT_RSC_UNION_QUERY}`, {
