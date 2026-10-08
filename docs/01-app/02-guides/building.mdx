@@ -276,7 +276,7 @@ Route (app)
   ├ ◐ /products/[id]    # Fallback row
   ├ ◐ /products/1       # Product content streams into the static shell
   ├ ◐ /products/2
-  └ ◐ /products/3
+  └ ◐ [+10 more paths]
 
 ○  (Static)             prerendered as static content
 ◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
@@ -340,15 +340,13 @@ Route (app)
   ├ ◐ /products/[id]    # Fallback row
   ├ ○ /products/1       # Full HTML prerender
   ├ ○ /products/2
-  └ ○ /products/3
+  └ ○ [+10 more paths]
 
 ○  (Static)             prerendered as static content
 ◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
 ```
 
 The `/products/[id]` fallback represents product IDs not returned by `generateStaticParams`. It stays `◐` because the build does not know every product ID. On the first visit to an unlisted product, [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching) serves the `loading.js` fallback immediately while Next.js renders the page for that ID and stores it in the [ISR cache](/docs/app/glossary#incremental-static-regeneration-isr). Later visits receive the completed page instead of the fallback. See [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components) for the complete upgrade flow.
-
-When there are more prerendered paths than fit in the table, Next.js prints a short list ending with `[+N more paths]`. The summary row uses the hidden paths' shared symbol when they all have the same rendering classification. For example, `○ [+10 more paths]` means all 10 hidden paths are fully static, even if the fallback row for the route pattern uses `◐`. When hidden paths have different classifications, the summary row uses the route pattern's symbol.
 
 Routes that contain cached functions or components can also show `Revalidate` and `Expire` columns. A route reports the shortest `revalidate` and `expire` across all the caches it contains. Caches use the [`default` profile](/docs/app/api-reference/functions/cacheLife#preset-cache-profiles) when there is no explicit [`cacheLife`](/docs/app/api-reference/functions/cacheLife) call. A `/products` listing page that renders the same cached data produces this output:
 
@@ -361,7 +359,7 @@ Route (app)           Revalidate  Expire
   ├ ◐ /products/[id]
   ├ ○ /products/1            15m      1y
   ├ ○ /products/2            15m      1y
-  └ ○ /products/3            15m      1y
+  └ ○ [+10 more paths]
 ```
 
 The default [`use cache` profile](/docs/app/api-reference/functions/cacheLife#preset-cache-profiles) revalidates after 15 minutes. The route's default [`expireTime`](/docs/app/api-reference/config/next-config-js/expireTime) is one year, so the table shows `15m` and `1y`. You can configure both values in `next.config.ts`.
