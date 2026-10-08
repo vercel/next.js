@@ -14,6 +14,9 @@ import { readFulfilledValue } from '../../../shared/lib/rsc-transport'
 import {
   NEXT_DID_POSTPONE_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
+  NEXT_ROUTER_PREFETCH_STATIC,
+  NEXT_ROUTER_PREFETCH_RUNTIME_PREFETCH,
+  NEXT_ROUTER_PREFETCH_RUNTIME_SHELL,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_ROUTER_STALE_TIME_HEADER,
   NEXT_ROUTER_STATE_TREE_HEADER,
@@ -1836,7 +1839,7 @@ export async function fetchRouteOnCacheMiss(
 
   const headers: RequestHeaders = {
     [RSC_HEADER]: '1',
-    [NEXT_ROUTER_PREFETCH_HEADER]: '1',
+    [NEXT_ROUTER_PREFETCH_HEADER]: NEXT_ROUTER_PREFETCH_STATIC,
     [NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]: segmentPath,
   }
   if (nextUrl !== null) {
@@ -2216,7 +2219,7 @@ async function fetchAndWritePerSegmentPrefetchResponse(
 
   const headers: RequestHeaders = {
     [RSC_HEADER]: '1',
-    [NEXT_ROUTER_PREFETCH_HEADER]: '1',
+    [NEXT_ROUTER_PREFETCH_HEADER]: NEXT_ROUTER_PREFETCH_STATIC,
     [NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]: normalizedRequestKey,
   }
   if (nextUrl !== null) {
@@ -2639,7 +2642,7 @@ export async function fetchSegmentPrefetchesUsingRuntimeRequest(
   if (completeness === Completeness.FullyComplete) {
     if (stage === AppStage.Shell) {
       // The legacy loading-boundary prefetch.
-      headers[NEXT_ROUTER_PREFETCH_HEADER] = '1'
+      headers[NEXT_ROUTER_PREFETCH_HEADER] = NEXT_ROUTER_PREFETCH_STATIC
     } else {
       // We omit the prefetch header from a legacy full prefetch because it's
       // essentially just a navigation request that happens ahead of time —
@@ -2647,10 +2650,10 @@ export async function fetchSegmentPrefetchesUsingRuntimeRequest(
     }
   } else if (stage === AppStage.Shell) {
     // A runtime prefetch of the shell.
-    headers[NEXT_ROUTER_PREFETCH_HEADER] = '3'
+    headers[NEXT_ROUTER_PREFETCH_HEADER] = NEXT_ROUTER_PREFETCH_RUNTIME_SHELL
   } else {
     // A runtime prefetch up to the prefetch stage.
-    headers[NEXT_ROUTER_PREFETCH_HEADER] = '2'
+    headers[NEXT_ROUTER_PREFETCH_HEADER] = NEXT_ROUTER_PREFETCH_RUNTIME_PREFETCH
   }
 
   try {
