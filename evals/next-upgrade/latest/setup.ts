@@ -4,7 +4,7 @@ import { setupUpgradeScenario } from '../security/setup'
 
 export async function setupLatest(sandbox: Sandbox) {
   const fixture = process.env.NEXT_UPGRADE_EVAL_CASE
-  const target = '16.3.5'
+  const target = '16.4.0'
   const scenarios: Record<
     string,
     { target: string; installedVersion: string | undefined }
