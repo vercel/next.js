@@ -8,7 +8,7 @@ use std::{
 use anyhow::Result;
 use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_rcstr::{RcStr, RcStrInterning, rcstr};
-use turbopack_trace_utils::tracing::{Allocations, TraceRow, TraceValue};
+use turbopack_trace_utils::tracing::{Allocations, TimestampDecoder, TraceRow, TraceValue};
 
 use super::TraceFormat;
 use crate::{
@@ -68,6 +68,8 @@ pub struct TurbopackFormat {
     thread_stacks: FxHashMap<u64, Vec<u64>>,
     self_time_started: FxHashMap<(u64, u64), Timestamp>,
     interner: RcStrInterning,
+    /// Resolves the timestamps of the rows, which are relative to each other in the stream.
+    timestamps: TimestampDecoder,
 }
 
 impl TurbopackFormat {
@@ -86,6 +88,7 @@ impl TurbopackFormat {
             thread_stacks: FxHashMap::with_capacity_and_hasher(64, Default::default()),
             self_time_started: FxHashMap::with_capacity_and_hasher(256, Default::default()),
             interner: RcStrInterning::new(),
+            timestamps: TimestampDecoder::default(),
         }
     }
 
@@ -263,6 +266,8 @@ impl TurbopackFormat {
                 let ts = Timestamp::from_micros(ts);
                 store.add_memory_sample(ts, memory, memory_pressure, active_worker_threads);
             }
+            // Already applied by the timestamp decoder when the row was read
+            TraceRow::TimestampBase { .. } => {}
         }
     }
 
@@ -448,9 +453,10 @@ impl TraceFormat for TurbopackFormat {
         let mut bytes_read = 0;
         loop {
             match postcard::take_from_bytes(buffer) {
-                Ok((row, remaining)) => {
+                Ok((mut row, remaining)) => {
                     bytes_read += buffer.len() - remaining.len();
                     buffer = remaining;
+                    self.timestamps.decode(&mut row)?;
                     rows.push(row);
                 }
                 Err(err) => {
@@ -503,11 +509,12 @@ impl<T> DerefMut for ClearOnDrop<'_, T> {
 mod tests {
     use std::{borrow::Cow, sync::Arc};
 
-    use turbopack_trace_utils::tracing::{Allocations, TraceRow};
+    use turbopack_trace_utils::tracing::{Allocations, TimestampEncoder, TraceRow};
 
     use crate::{
         reader::{TraceFormat, turbopack::TurbopackFormat},
         store_container::StoreContainer,
+        timestamp::Timestamp,
     };
 
     fn start(id: u64, parent: Option<u64>, name: &'static str) -> TraceRow<'static> {
@@ -530,13 +537,26 @@ mod tests {
         })
     }
 
+    /// Serializes the rows like the trace writer does: with delta encoded timestamps and a
+    /// [`TraceRow::TimestampBase`] row before the first one.
+    fn encode(rows: &[TraceRow<'_>]) -> Vec<u8> {
+        let mut encoder = TimestampEncoder::default();
+        let mut data = Vec::new();
+        for row in rows {
+            let bytes = postcard::to_stdvec(row).unwrap();
+            let mut row: TraceRow<'_> = postcard::from_bytes(&bytes).unwrap();
+            if let Some(base) = encoder.encode_row(&mut row) {
+                data.extend(postcard::to_stdvec(&base).unwrap());
+            }
+            data.extend(postcard::to_stdvec(&row).unwrap());
+        }
+        data
+    }
+
     /// Reads the rows (without header) and returns the self allocations, allocation counts and
     /// deallocations of the spans with the given names.
     fn read(rows: &[TraceRow<'_>], names: &[&str]) -> Vec<(u64, u64, u64)> {
-        let mut data = Vec::new();
-        for row in rows {
-            data.extend(postcard::to_stdvec(row).unwrap());
-        }
+        let data = encode(rows);
         let store = Arc::new(StoreContainer::new());
         let mut format = TurbopackFormat::new(store.clone());
         let mut reuse = TurbopackFormat::create_reused();
@@ -557,6 +577,64 @@ mod tests {
                 )
             })
             .collect()
+    }
+
+    #[test]
+    fn decodes_timestamps_across_incremental_reads() {
+        let rows = [
+            TraceRow::Start {
+                ts: 10,
+                id: 1,
+                parent: None,
+                name: Cow::Borrowed("split"),
+                target: Cow::Borrowed(""),
+                values: Vec::new(),
+            },
+            TraceRow::Enter {
+                ts: 15,
+                id: 1,
+                thread_id: 1,
+                allocations: None,
+            },
+            TraceRow::Exit {
+                ts: 25,
+                id: 1,
+                thread_id: 1,
+                allocations: None,
+            },
+            TraceRow::End { ts: 30, id: 1 },
+        ];
+        let data = encode(&rows);
+        let base_len = postcard::to_stdvec(&TraceRow::TimestampBase { ts: 10 })
+            .unwrap()
+            .len();
+        let store = Arc::new(StoreContainer::new());
+        let mut format = TurbopackFormat::new(store.clone());
+        let mut reuse = TurbopackFormat::create_reused();
+        // The first read only contains the base row, the second read the rest
+        let read = TraceFormat::read(&mut format, &data[..base_len], &mut reuse).unwrap();
+        assert_eq!(read, base_len);
+        let read = TraceFormat::read(&mut format, &data[base_len..], &mut reuse).unwrap();
+        assert_eq!(read, data.len() - base_len);
+        let store = store.read();
+        let span = (0..store.spans.len())
+            .filter_map(|i| store.spans.get(i))
+            .find(|span| &*span.name == "split")
+            .unwrap();
+        assert_eq!(span.start, Timestamp::from_micros(10));
+        // Entered from 15 to 25
+        assert_eq!(span.time_data.self_time, Timestamp::from_micros(10));
+        assert_eq!(span.time_data.self_end, Timestamp::from_micros(25));
+        assert!(span.is_complete);
+    }
+
+    #[test]
+    fn rejects_timestamps_without_base() {
+        let data = postcard::to_stdvec(&TraceRow::End { ts: 4, id: 1 }).unwrap();
+        let store = Arc::new(StoreContainer::new());
+        let mut format = TurbopackFormat::new(store);
+        let mut reuse = TurbopackFormat::create_reused();
+        assert!(TraceFormat::read(&mut format, &data, &mut reuse).is_err());
     }
 
     #[test]

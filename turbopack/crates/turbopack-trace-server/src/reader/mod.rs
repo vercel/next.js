@@ -419,16 +419,24 @@ impl TraceReader {
 mod tests {
     use std::{borrow::Cow, io::Write, time::Duration};
 
-    use turbopack_trace_utils::tracing::TraceRow;
+    use turbopack_trace_utils::tracing::{TimestampEncoder, TraceRow};
 
     use super::*;
 
     const TIMEOUT: Duration = Duration::from_secs(30);
 
-    /// Serialized rows for `count` child spans of a root span, plus the root span itself.
+    /// Serialized rows for `count` child spans of a root span, plus the root span itself. Like a
+    /// buffer of the trace writer, the timestamps are delta encoded after a
+    /// [`TraceRow::TimestampBase`].
     fn span_rows(first_id: u64, count: u64) -> Vec<u8> {
         let mut bytes = Vec::new();
-        let mut push = |row: TraceRow<'_>| bytes.extend(postcard::to_stdvec(&row).unwrap());
+        let mut encoder = TimestampEncoder::default();
+        let mut push = |mut row: TraceRow<'_>| {
+            if let Some(base) = encoder.encode_row(&mut row) {
+                bytes.extend(postcard::to_stdvec(&base).unwrap());
+            }
+            bytes.extend(postcard::to_stdvec(&row).unwrap());
+        };
         for id in first_id..first_id + count {
             push(TraceRow::Start {
                 ts: id,

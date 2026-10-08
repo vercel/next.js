@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use turbopack_trace_utils::tracing::{TraceRow, TraceValue};
+use turbopack_trace_utils::tracing::{TimestampEncoder, TraceRow, TraceValue};
 
 use crate::{
     QueryOptions, SortMode, query_spans,
@@ -42,16 +42,7 @@ fn reads_active_workers_and_exposes_them_in_span_queries() {
         },
         TraceRow::End { ts: 30, id: 1 },
     ];
-    let mut bytes = Vec::new();
-    for row in rows {
-        bytes.extend(postcard::to_stdvec(&row).unwrap());
-    }
-    assert_eq!(
-        format
-            .read(&bytes, &mut TurbopackFormat::create_reused())
-            .unwrap(),
-        bytes.len()
-    );
+    ingest(&mut format, &rows);
 
     let samples = store
         .read()
@@ -79,11 +70,19 @@ fn reads_active_workers_and_exposes_them_in_span_queries() {
     }
 }
 
+/// Serializes the rows like the trace writer does for one buffer (with delta encoded timestamps
+/// and a [`TraceRow::TimestampBase`] before the first timestamp) and reads them.
 fn ingest(format: &mut TurbopackFormat, rows: &[TraceRow<'_>]) {
-    let bytes: Vec<_> = rows
-        .iter()
-        .flat_map(|row| postcard::to_stdvec(row).unwrap())
-        .collect();
+    let mut encoder = TimestampEncoder::default();
+    let mut bytes = Vec::new();
+    for row in rows {
+        let row_bytes = postcard::to_stdvec(row).unwrap();
+        let mut row: TraceRow<'_> = postcard::from_bytes(&row_bytes).unwrap();
+        if let Some(base) = encoder.encode_row(&mut row) {
+            bytes.extend(postcard::to_stdvec(&base).unwrap());
+        }
+        bytes.extend(postcard::to_stdvec(&row).unwrap());
+    }
     assert_eq!(
         format
             .read(&bytes, &mut TurbopackFormat::create_reused())

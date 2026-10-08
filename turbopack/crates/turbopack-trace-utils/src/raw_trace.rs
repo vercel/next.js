@@ -20,7 +20,7 @@ use turbo_tasks_malloc::TurboMalloc;
 use crate::{
     flavor::WriteGuardFlavor,
     tokio_workers::active_worker_threads,
-    trace_writer::TraceWriter,
+    trace_writer::{TraceWriter, WriteGuard},
     tracing::{Allocations, TraceRow, TraceValue},
 };
 
@@ -79,7 +79,8 @@ fn max_exit_enter_gap(entered: u64) -> u64 {
 }
 
 /// A tracing layer that writes raw trace data to a writer. We store data using the [`TraceRow`],
-/// serialized with [`postcard`].
+/// serialized with [`postcard`], with timestamps encoded as described in the docs of
+/// [`TraceRow`].
 pub struct RawTraceLayer<S: Subscriber + for<'a> LookupSpan<'a>> {
     trace_writer: TraceWriter,
     start: Instant,
@@ -164,9 +165,12 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> RawTraceLayer<S> {
         state
     }
 
-    fn write(&self, data: TraceRow<'_>) {
+    /// Writes a row. Its timestamp (if any) is absolute and gets encoded here, see "Timestamps" in
+    /// the docs of [`TraceRow`].
+    fn write(&self, mut data: TraceRow<'_>) {
         let start = TurboMalloc::allocation_counters();
         let mut guard = self.trace_writer.start_write();
+        self.encode_timestamp(&mut guard, &mut data);
         postcard::serialize_with_flavor(&data, WriteGuardFlavor { guard: &mut guard }).unwrap();
         drop(guard);
         TurboMalloc::reset_allocation_counters(start);
@@ -174,14 +178,27 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> RawTraceLayer<S> {
 
     /// Writes a row and marks it with `marker`, so that it can be removed by the next write on
     /// this thread. See [`crate::trace_writer::WriteGuard::mark`].
-    fn write_marked(&self, data: TraceRow<'_>, marker: u64) {
+    fn write_marked(&self, mut data: TraceRow<'_>, marker: u64) {
         let start = TurboMalloc::allocation_counters();
         let mut guard = self.trace_writer.start_write();
+        // The `TimestampBase` row written for the row is part of the mark
         guard.mark(marker, |guard| {
+            self.encode_timestamp(guard, &mut data);
             postcard::serialize_with_flavor(&data, WriteGuardFlavor { guard }).unwrap()
         });
         drop(guard);
         TurboMalloc::reset_allocation_counters(start);
+    }
+
+    /// Replaces the absolute timestamp of `data` with its serialized form. Rows without a
+    /// timestamp get a [`TraceRow::TimestampBase`] written before them when they would be the
+    /// first row in the buffer, so that every buffer starts with a base.
+    fn encode_timestamp(&self, guard: &mut WriteGuard<'_>, data: &mut TraceRow<'_>) {
+        if let Some(ts) = data.timestamp_mut() {
+            *ts = guard.encode_timestamp(*ts);
+        } else if guard.needs_timestamp_base() {
+            guard.ensure_timestamp_base(self.now());
+        }
     }
 
     /// Removes the last row written on this thread, if it is still in the thread local buffer
@@ -485,7 +502,7 @@ pub(crate) mod tests {
     use crate::{
         raw_trace::{RawTraceLayer, RawTraceLayerOptions},
         trace_writer::TraceWriter,
-        tracing::{Allocations, TraceRow},
+        tracing::{Allocations, TimestampDecoder, TraceRow},
     };
 
     thread_local! {
@@ -574,14 +591,26 @@ pub(crate) mod tests {
         Arc::try_unwrap(buffer.0).unwrap().into_inner().unwrap()
     }
 
-    /// Decodes the rows of a trace file, skipping the header.
+    /// Decodes the rows of a trace file, skipping the header. Timestamps are resolved to absolute
+    /// values and the [`TraceRow::TimestampBase`] rows are omitted.
     pub(crate) fn decode(data: &[u8]) -> Vec<TraceRow<'_>> {
+        decode_all(data)
+            .into_iter()
+            .filter(|row| !matches!(row, TraceRow::TimestampBase { .. }))
+            .collect()
+    }
+
+    /// Decodes all rows of a trace file including [`TraceRow::TimestampBase`] rows, skipping the
+    /// header. Timestamps are resolved to absolute values.
+    pub(crate) fn decode_all(data: &[u8]) -> Vec<TraceRow<'_>> {
         let header = b"TRACEv0";
         assert!(data.starts_with(header), "missing trace header");
         let mut remaining = &data[header.len()..];
+        let mut decoder = TimestampDecoder::default();
         let mut rows = Vec::new();
         while !remaining.is_empty() {
-            let (row, rest) = postcard::take_from_bytes(remaining).unwrap();
+            let (mut row, rest) = postcard::take_from_bytes(remaining).unwrap();
+            decoder.decode(&mut row).unwrap();
             rows.push(row);
             remaining = rest;
         }
@@ -608,6 +637,111 @@ pub(crate) mod tests {
                 _ => None,
             })
             .collect()
+    }
+
+    #[test]
+    fn timestamps_round_trip_across_threads_and_buffers() {
+        let data = capture(RawTraceLayerOptions::default(), || {
+            // Time going backwards produces negative deltas
+            freeze_time(1000);
+            let span = tracing::info_span!("backwards");
+            let guard = span.enter();
+            freeze_time(400);
+            drop(guard);
+            drop(span);
+            let dispatch = tracing::dispatcher::get_default(|d| d.clone());
+            std::thread::scope(|scope| {
+                for _ in 0..2 {
+                    scope.spawn(|| {
+                        tracing::dispatcher::with_default(&dispatch, || {
+                            // Enough rows to fill and send several thread local buffers
+                            for i in 0..40_000u64 {
+                                let span = tracing::info_span!("loop", i);
+                                let _guard = span.enter();
+                            }
+                        })
+                    });
+                }
+            });
+        });
+        let all_rows = decode_all(&data);
+        let bases = count(&all_rows, |r| matches!(r, TraceRow::TimestampBase { .. }));
+        assert!(bases > 3, "expected multiple buffers, got {bases} bases");
+        let rows = decode(&data);
+
+        // The span on the main thread has exactly the frozen timestamps
+        let backwards_id = rows
+            .iter()
+            .find_map(|row| match row {
+                TraceRow::Start { id, name, ts, .. } if name == "backwards" => {
+                    assert_eq!(*ts, 1000);
+                    Some(*id)
+                }
+                _ => None,
+            })
+            .unwrap();
+        let backwards: Vec<_> = rows
+            .iter()
+            .filter_map(|row| match row {
+                TraceRow::Enter { id, ts, .. } if *id == backwards_id => Some(("enter", *ts)),
+                TraceRow::Exit { id, ts, .. } if *id == backwards_id => Some(("exit", *ts)),
+                TraceRow::End { id, ts } if *id == backwards_id => Some(("end", *ts)),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(backwards, [("enter", 1000), ("exit", 400), ("end", 400)]);
+
+        // The fake clock of each spawned thread starts at 0 and advances by 1 on every read. Each
+        // loop iteration reads it once for each of its Start, Enter, Exit and End rows, so the
+        // Enter and Exit rows of iteration `i` have the timestamps `4 * i + 1` and `4 * i + 2`.
+        let mut per_thread: std::collections::HashMap<u64, (Vec<u64>, Vec<u64>)> =
+            Default::default();
+        for row in &rows {
+            match row {
+                TraceRow::Enter {
+                    thread_id, ts, id, ..
+                } if *id != backwards_id => per_thread.entry(*thread_id).or_default().0.push(*ts),
+                TraceRow::Exit {
+                    thread_id, ts, id, ..
+                } if *id != backwards_id => per_thread.entry(*thread_id).or_default().1.push(*ts),
+                _ => {}
+            }
+        }
+        assert_eq!(per_thread.len(), 2);
+        let expected_enter: Vec<u64> = (0..40_000).map(|i| 4 * i + 1).collect();
+        let expected_exit: Vec<u64> = (0..40_000).map(|i| 4 * i + 2).collect();
+        for (mut enter, mut exit) in per_thread.into_values() {
+            // Buffers of a thread can end up in the file in any order
+            enter.sort_unstable();
+            exit.sort_unstable();
+            assert!(enter == expected_enter, "unexpected Enter timestamps");
+            assert!(exit == expected_exit, "unexpected Exit timestamps");
+        }
+    }
+
+    #[test]
+    fn buffer_starting_with_a_record_has_a_timestamp_base() {
+        // Just below the threshold where the buffer is sent to the writer thread
+        let fill = crate::trace_writer::THREAD_LOCAL_INITIAL_BUFFER_SIZE * 2 / 3;
+        let data = capture(RawTraceLayerOptions::default(), || {
+            let span = tracing::info_span!("recorded", value = tracing::field::Empty);
+            // This Record exceeds the threshold, so the buffer is sent after it
+            span.record("value", "x".repeat(fill));
+            // The next Record is the first row of a new buffer
+            span.record("value", "small");
+        });
+        let rows = decode_all(&data);
+        let kinds: Vec<_> = rows
+            .iter()
+            .map(|row| match row {
+                TraceRow::TimestampBase { .. } => "base",
+                TraceRow::Start { .. } => "start",
+                TraceRow::Record { .. } => "record",
+                TraceRow::End { .. } => "end",
+                _ => "other",
+            })
+            .collect();
+        assert_eq!(kinds, ["base", "start", "record", "base", "record", "end"]);
     }
 
     #[test]
