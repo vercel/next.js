@@ -12,7 +12,7 @@ import { warnMissingReactDependencies } from '../lib/warn-missing-react-dependen
 import { getNpxCommand } from '../lib/helpers/get-npx-command'
 import { interopDefault } from '../lib/interop-default'
 import { dim } from '../lib/picocolors'
-import type { UpgradeDocument } from '../lib/upgrade/future-defaults'
+import type { UpgradeDocument } from '../next-upgrade/shared/future-defaults'
 import { runChildProcess } from '../lib/upgrade/run-child-process'
 import { getAgentName } from '../telemetry/agent-name'
 import {

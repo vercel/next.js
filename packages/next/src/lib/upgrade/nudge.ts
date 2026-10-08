@@ -1,3 +1,10 @@
+import semver from 'next/dist/compiled/semver'
+import {
+  getUpgradeReminder,
+  type UpgradeReminder,
+} from '../../next-upgrade/shared/check-upgrade'
+export type { UpgradeReminder } from '../../next-upgrade/shared/check-upgrade'
+
 import { execFile } from 'child_process'
 import { createHash, randomUUID } from 'crypto'
 import { mkdir, readFile, realpath, rename, rm, writeFile } from 'fs/promises'
@@ -13,10 +20,8 @@ import {
   eventAgentUpgradeNudgeShown,
   eventAgentUpgradePolicyDetected,
 } from '../../telemetry/events/agent-upgrade'
-import semver from 'next/dist/compiled/semver'
 import type { UpgradeAction } from './prompt'
 import { getAgentName } from '../../telemetry/agent-name'
-import { getPendingFutureDefaults } from './future-defaults'
 import { isCI } from '../../server/ci-info'
 
 type NudgeOptions = {
@@ -145,19 +150,6 @@ export type UpgradeContext = Pick<
   experimental: { agentUpgrade: NudgeKind | false }
 }
 
-export type UpgradeReminder = {
-  policy: NudgeKind
-  installedVersion: string
-} & (
-  | {
-      kind: 'security'
-      reference: string | null
-      targetVersion: string
-    }
-  | { kind: 'latest'; latestVersion: string | null; names: string[] }
-  | { kind: 'experimental-future'; targetVersion: string; names: string[] }
-)
-
 export function getUpgradeContext(config: NextConfigComplete): UpgradeContext {
   return {
     distDir: config.distDir,
@@ -202,11 +194,8 @@ export async function assessUpgrade(
   if (!semver.valid(installedVersion)) {
     return null
   }
-  const {
-    getPrereleaseChannel,
-    getUpgradeAssessment,
-    getLatestUpgradeVersion,
-  } = require('./prepare-upgrade') as typeof import('./prepare-upgrade')
+  const { getPrereleaseChannel, getUpgradeAssessment } =
+    require('../../next-upgrade/shared/check-upgrade') as typeof import('../../next-upgrade/shared/check-upgrade')
   if (
     semver.prerelease(installedVersion) &&
     !getPrereleaseChannel(installedVersion)
@@ -226,65 +215,14 @@ export async function assessUpgrade(
     )
     return null
   }
-  const { upgrade } = assessment
-  if (upgrade.status !== 'ready') {
-    // TODO: Record affected and upgrade.status in telemetry so we can see when
-    // an advisory applies but no ready target was available to nudge.
-    return null
-  }
-  if (assessment.affected) {
-    return {
-      kind: 'security',
-      policy,
-      installedVersion,
-      reference: assessment.reference,
-      targetVersion: upgrade.targetVersion,
-    }
-  }
-  if (policy === 'security' || stopBefore === 'latest') {
-    return null
-  }
-  const latestVersion = getLatestUpgradeVersion(
+  return getUpgradeReminder(
+    directory,
+    config,
     installedVersion,
-    upgrade.targetVersion
+    assessment,
+    stopBefore,
+    forceVersionReminder
   )
-  if (
-    latestVersion ||
-    (forceVersionReminder && upgrade.targetVersion !== installedVersion)
-  ) {
-    return {
-      kind: 'latest',
-      policy,
-      installedVersion,
-      latestVersion: upgrade.targetVersion,
-      names:
-        policy === 'experimental-future'
-          ? getPendingFutureDefaults(
-              directory,
-              config,
-              upgrade.targetVersion
-            ).map((entry) => entry.name)
-          : [],
-    }
-  }
-
-  if (
-    policy !== 'experimental-future' ||
-    stopBefore === 'experimental-future'
-  ) {
-    return null
-  }
-  const pending = getPendingFutureDefaults(directory, config, installedVersion)
-  if (pending.length === 0) {
-    return null
-  }
-  return {
-    kind: 'experimental-future',
-    policy,
-    installedVersion,
-    targetVersion: upgrade.targetVersion,
-    names: pending.map((entry) => entry.name),
-  }
 }
 
 async function nudgeUpgradeForAgent(

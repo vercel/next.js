@@ -2455,6 +2455,8 @@ export async function next_compile(task, opts) {
       'pages_esm',
       'lib',
       'lib_esm',
+      'next_upgrade',
+      'next_upgrade_esm',
       'client',
       'client_esm',
       'diagnostics',
@@ -2508,6 +2510,21 @@ export async function lib_esm(task, opts) {
     .source('src/lib/**/!(*.test).+(js|ts|tsx|json|jsonc)')
     .swc('server', { dev: opts.dev, esm: true })
     .target('dist/esm/lib')
+}
+
+// Keep upgrade tooling separate from runtime bundles and omit colocated tests.
+export async function next_upgrade(task, opts) {
+  await task
+    .source('src/next-upgrade/**/!(*.test).+(js|ts|tsx|json)')
+    .swc('server', { dev: opts.dev })
+    .target('dist/next-upgrade')
+}
+
+export async function next_upgrade_esm(task, opts) {
+  await task
+    .source('src/next-upgrade/**/!(*.test).+(js|ts|tsx|json)')
+    .swc('server', { dev: opts.dev, esm: true })
+    .target('dist/esm/next-upgrade')
 }
 
 export async function server(task, opts) {
@@ -2815,6 +2832,11 @@ export default async function (task) {
   await task.watch('src/client', 'client', opts)
   await task.watch('src/client', 'client_esm', opts)
   await task.watch('src/diagnostics', 'diagnostics', opts)
+  await task.watch(
+    'src/next-upgrade',
+    ['next_upgrade', 'next_upgrade_esm'],
+    opts
+  )
   await task.watch('src/lib', 'lib', opts)
   await task.watch('src/lib', 'lib_esm', opts)
   await task.watch('src/cli', 'cli', opts)

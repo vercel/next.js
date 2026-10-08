@@ -14,7 +14,7 @@ import {
 import { promptUpgrade } from 'next/dist/lib/upgrade/prompt'
 import Conf from 'next/dist/compiled/conf'
 import { getAgentName } from 'next/dist/telemetry/agent-name'
-import { getUpgradeAssessment } from 'next/dist/lib/upgrade/prepare-upgrade'
+import { getUpgradeAssessment } from 'next/dist/next-upgrade/shared/check-upgrade'
 import { warn } from 'next/dist/build/output/log'
 import { spawnNextUpgrade } from 'next/dist/cli/next-upgrade'
 import { defaultConfig } from 'next/dist/server/config-shared'
@@ -35,8 +35,8 @@ jest.mock('next/dist/lib/upgrade/nudge', () =>
 jest.mock('../../packages/next/src/telemetry/agent-name', () =>
   jest.requireMock('next/dist/telemetry/agent-name')
 )
-jest.mock('../../packages/next/src/lib/upgrade/prepare-upgrade', () =>
-  jest.requireMock('next/dist/lib/upgrade/prepare-upgrade')
+jest.mock('../../packages/next/src/next-upgrade/shared/check-upgrade', () =>
+  jest.requireMock('next/dist/next-upgrade/shared/check-upgrade')
 )
 jest.mock('../../packages/next/src/build/output/log', () =>
   jest.requireMock('next/dist/build/output/log')
@@ -45,12 +45,13 @@ jest.mock('../../packages/next/src/build/output/log', () =>
 jest.mock('next/dist/telemetry/agent-name', () => ({
   getAgentName: jest.fn(),
 }))
-jest.mock('next/dist/lib/upgrade/prepare-upgrade', () => ({
+jest.mock('next/dist/next-upgrade/shared/check-upgrade', () => ({
+  ...jest.requireActual('next/dist/next-upgrade/shared/check-upgrade'),
   getPrereleaseChannel: jest.requireActual(
-    'next/dist/lib/upgrade/prepare-upgrade'
+    'next/dist/next-upgrade/shared/check-upgrade'
   ).getPrereleaseChannel,
   getLatestUpgradeVersion: jest.requireActual(
-    'next/dist/lib/upgrade/prepare-upgrade'
+    'next/dist/next-upgrade/shared/check-upgrade'
   ).getLatestUpgradeVersion,
   getUpgradeAssessment: jest.fn(),
 }))
@@ -422,51 +423,6 @@ describe('security upgrade nudge', () => {
     await expect(run('build')).resolves.toBeUndefined()
   })
 })
-describe('latest nudge release selection', () => {
-  const { getLatestUpgradeVersion: readLatestUpgradeVersion } =
-    jest.requireActual<typeof import('next/dist/lib/upgrade/prepare-upgrade')>(
-      'next/dist/lib/upgrade/prepare-upgrade'
-    )
-
-  afterEach(() => {
-    jest.restoreAllMocks()
-  })
-
-  it.each<[string, string, string | null]>([
-    ['15.5.9', '16.0.0', '16.0.0'],
-    ['16.0.9', '16.1.0', '16.1.0'],
-    ['16.1.0', '16.1.1', null],
-    ['16.1.1', '16.1.1', null],
-    ['16.2.0', '16.1.1', null],
-    ['16.1.0', '17.0.0-canary.1', null],
-    ['16.1.0-canary.1', '16.1.0', null],
-    ['16.0.0-canary.1', '16.1.0', null],
-    ['17.2.0-canary.4', '17.2.0-canary.9', null],
-    ['17.2.0-canary.9', '17.2.0-canary.10', null],
-    ['17.2.0-canary.4', '17.2.1-canary.0', null],
-    ['17.2.0-canary.4', '17.3.0-canary.0', '17.3.0-canary.0'],
-    ['17.2.0-canary.4', '18.0.0-canary.0', '18.0.0-canary.0'],
-    ['17.2.0-canary.4', '17.2.0-canary.4', null],
-    ['17.2.0-canary.4', '17.1.0-canary.99', null],
-    ['17.2.0-canary.4', '17.3.0-rc.1', null],
-    ['17.2.0-rc.1', '17.3.0', '17.3.0'],
-    ['17.2.0-rc.1', '17.2.0', '17.2.0'],
-    ['17.2.0-rc.1', '17.2.0-rc.2', null],
-    ['17.2.0-beta.1', '17.2.0', '17.2.0'],
-    ['17.2.0-beta.1', '18.0.0-beta.1', null],
-    ['17.2.0-preview.1', '17.2.0', '17.2.0'],
-    ['17.2.0-rc.1', '17.3.0-rc.1', null],
-    ['17.2.0-beta.1', '17.3.0-beta.1', null],
-    ['17.2.0-preview.1', '17.3.0-preview.1', null],
-    ['17.2.0-rc.1', '17.3.0-beta.1', null],
-    ['16.4.0-preview-84cee7e6-20260917', '17.0.0', null],
-  ])(
-    'selects an eligible latest reminder for %s → %s',
-    async (installed, latest, expected) => {
-      expect(readLatestUpgradeVersion(installed, latest)).toBe(expected)
-    }
-  )
-})
 
 describe('latest upgrade nudge', () => {
   beforeEach(() => {
@@ -657,17 +613,6 @@ describe('composed future nudge', () => {
     mockUpgrade()
   })
 
-  it('does not offer defaults before stable availability on canary', async () => {
-    const version = '16.3.0-canary.1'
-    await expect(
-      assessUpgrade(
-        directory,
-        config('experimental-future', { cacheComponents: false }),
-        version
-      )
-    ).resolves.toBeNull()
-  })
-
   it('offers available defaults on canary without a version reminder', async () => {
     await expect(
       assessUpgrade(
@@ -682,16 +627,6 @@ describe('composed future nudge', () => {
       targetVersion: '16.4.0',
       names: ['Cache Components'],
     })
-  })
-
-  it('does not remind about defaults already adopted on canary', async () => {
-    await expect(
-      assessUpgrade(
-        directory,
-        config('experimental-future', { cacheComponents: true }),
-        '16.4.0-canary.1'
-      )
-    ).resolves.toBeNull()
   })
 
   it('offers canary Future adoption when advisory assessment is skipped', async () => {
@@ -729,28 +664,6 @@ describe('composed future nudge', () => {
       targetVersion: '16.4.0',
       names: ['Cache Components'],
     })
-  })
-
-  it('does not offer Cache Components to a Pages-only app', async () => {
-    await rm(join(directory, 'app'), { recursive: true })
-    await mkdir(join(directory, 'pages'))
-    await expect(
-      assessUpgrade(
-        directory,
-        config('experimental-future', { cacheComponents: false }),
-        '16.4.0'
-      )
-    ).resolves.toBeNull()
-  })
-
-  it('stays silent when all available Future Defaults are adopted', async () => {
-    await expect(
-      assessUpgrade(
-        directory,
-        config('experimental-future', { cacheComponents: true }),
-        '16.4.0'
-      )
-    ).resolves.toBeNull()
   })
 
   it('stops for a required latest upgrade before Future Defaults', async () => {

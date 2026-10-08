@@ -1,6 +1,6 @@
 import type { NextConfigComplete } from '../../server/config-shared'
 import semver from 'next/dist/compiled/semver'
-import { findDir } from '../find-pages-dir'
+import { findDir } from '../../lib/find-pages-dir'
 
 export type UpgradeDocument = `docs/${string}.md` | `skills/${string}/SKILL.md`
 
