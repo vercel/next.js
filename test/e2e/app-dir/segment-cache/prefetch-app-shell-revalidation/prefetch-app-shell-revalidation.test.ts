@@ -264,19 +264,15 @@ describe('App Shell revalidation', () => {
             )
           }
         }, [
-          // The navigation request *also* incorrectly returns the (partial) static prerender
-          // result, which does not contain cookies.
           {
             includes:
               'Static page that conditionally uses cookies in the shell',
           },
-          { includes: 'Cookie data', block: 'reject' },
+          { includes: 'Cookie data' },
         ])
 
-        // The navigation response was partial, so decoding the payload errors with
-        // with "Connection Closed" and crashes the page.
-        expect(await browser.elementById('__next_error__').text()).toContain(
-          'This page couldn’t load'
+        expect(await browser.elementById('cookie-data').text()).toEqual(
+          'Cookie data'
         )
       }
     })
