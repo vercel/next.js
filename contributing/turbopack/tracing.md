@@ -15,6 +15,12 @@ It supports [the following special preset values][presets]:
 
 Alternatively, any directives syntax supported by [`tracing_subscriber::filter::EnvFilter`][directives] can be used.
 
+Additionally, these flags can be added to the comma-separated list (e.g. `NEXT_TURBOPACK_TRACING=1,no-memory,gz`):
+
+- **`gz`:** Compress the trace file with gzip (fast compression level).
+- **`gz-best`:** Compress the trace file with gzip (best compression level).
+- **`no-memory`:** Don't track memory. Skips the per-thread allocation counters and the process memory samples, which make up a large part of the trace file size. Allocation and memory value modes in the viewer will be empty.
+
 > [!WARNING]
 > A normal Next.js canary/stable release only includes the info level tracing. This is the tracing level intended for user-facing tracing.
 >
@@ -61,6 +67,17 @@ And there are different value modes:
 - **Allocations:** How many allocations were made during the span.
 - **Deallocated Memory:** How much memory was deallocated during the span.
 - **Persistently Allocated Memory:** How much memory was allocated but not deallocated during the span. It survives the span.
+
+## Trace file size
+
+To see what takes up the space in a trace file, use `turbo-trace-size`. It breaks the file down by row type (`Start`, `Enter`, `Exit`, `AllocationCounters`, ...), by span name, by attribute key and shows how many bytes are spent on repeated strings. Raw, gzip and zstd compressed files are supported. All sizes refer to the decompressed trace stream.
+
+```sh
+cargo run --bin turbo-trace-size --release -- /path/to/your/trace-turbopack.bin
+
+# show more entries in the per span name and per attribute key tables
+cargo run --bin turbo-trace-size --release -- /path/to/your/trace-turbopack.bin --top 100
+```
 
 [turbo-trace-viewer]: https://turbo-trace-viewer.vercel.app/
 [youtube-tutorial]: https://www.youtube.com/watch?v=PGO2szAye7A

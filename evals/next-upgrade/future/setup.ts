@@ -7,15 +7,15 @@ export async function setupFuture(sandbox: Sandbox) {
   const scenarios: Record<string, { source: string; target: string }> = {
     'future-cache-components': {
       source: '13.5.11',
-      target: '16.3.5',
+      target: '16.4.0',
     },
     'future-cache-components-same-version': {
-      source: '16.3.5',
-      target: '16.3.5',
+      source: '16.4.0',
+      target: '16.4.0',
     },
     'future-cache-components-nudge': {
-      source: '16.3.5',
-      target: '16.3.5',
+      source: '16.4.0',
+      target: '16.4.0',
     },
   }
   const scenario = fixture ? scenarios[fixture] : undefined

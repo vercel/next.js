@@ -482,11 +482,10 @@ impl Store {
             span.time_data.total_time.take();
             span.time_data.corrected_self_time.take();
             span.time_data.corrected_total_time.take();
-            for event in span.events.iter_mut_unordered() {
-                if let SpanEvent::SelfTime(self_time) = event {
-                    self_time.corrected_self_time.take();
-                }
-            }
+            // Invalidates the cached corrected self time of all self-time events of this span
+            // in O(1). Iterating the events here made loading quadratic for spans with many
+            // events, as this runs for every batch read from the trace file.
+            span.time_data.self_time_events_generation += 1;
             span.totals.take();
             span.extra.take();
         }
@@ -546,7 +545,10 @@ impl Store {
 
 #[cfg(test)]
 mod tests {
+    use std::thread;
+
     use super::*;
+    use crate::span_ref::SpanEventRef;
 
     #[test]
     fn blocking_total_time_preserves_ranges_and_counted_children() {
@@ -644,5 +646,175 @@ mod tests {
                 .active_worker_threads_samples_for_range(Timestamp::from_micros(202), end)
                 .is_empty()
         );
+    }
+
+    fn ts(micros: u64) -> Timestamp {
+        Timestamp::from_micros(micros)
+    }
+
+    fn add_span(store: &mut Store, parent: Option<SpanIndex>, start: u64) -> SpanIndex {
+        store.add_span(
+            parent,
+            ts(start),
+            RcStr::default(),
+            RcStr::from("span"),
+            SpanArgs::new(),
+            &mut FxHashSet::default(),
+        )
+    }
+
+    /// Adds a self time and drops the resulting outdated spans, so tests control exactly
+    /// which spans get invalidated.
+    fn add_self_time_without_invalidation(
+        store: &mut Store,
+        span: SpanIndex,
+        start: u64,
+        end: u64,
+    ) {
+        store.add_self_time(span, ts(start), ts(end), &mut FxHashSet::default());
+    }
+
+    fn invalidate(store: &mut Store, spans: &[SpanIndex]) {
+        store.invalidate_outdated_spans(&spans.iter().copied().collect());
+    }
+
+    /// Corrected self times of the self-time events of `span`.
+    fn event_corrected_self_times(store: &Store, span: SpanIndex) -> Vec<Timestamp> {
+        corrected_self_times_of(SpanRef {
+            span: &store.spans[span.get()],
+            store,
+            index: span.get(),
+        })
+    }
+
+    fn corrected_self_times_of(span: SpanRef<'_>) -> Vec<Timestamp> {
+        span.events()
+            .filter_map(|event| match event {
+                SpanEventRef::SelfTime { self_time } => Some(self_time.corrected_self_time()),
+                SpanEventRef::Child { .. } => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn corrected_self_time_cached_until_invalidated() {
+        let mut store = Store::new();
+        let a = add_span(&mut store, None, 0);
+        add_self_time_without_invalidation(&mut store, a, 0, 10);
+        invalidate(&mut store, &[a]);
+        assert_eq!(event_corrected_self_times(&store, a), vec![ts(10)]);
+
+        // A concurrent self time halves the corrected self time of `a`...
+        let b = add_span(&mut store, None, 0);
+        add_self_time_without_invalidation(&mut store, b, 0, 10);
+        invalidate(&mut store, &[b]);
+        assert_eq!(event_corrected_self_times(&store, b), vec![ts(5)]);
+        // ...but `a` was not invalidated, so its cached value is still used.
+        assert_eq!(event_corrected_self_times(&store, a), vec![ts(10)]);
+
+        invalidate(&mut store, &[a]);
+        assert_eq!(event_corrected_self_times(&store, a), vec![ts(5)]);
+    }
+
+    #[test]
+    fn invalidation_propagates_to_ancestors() {
+        let mut store = Store::new();
+        let grandparent = add_span(&mut store, None, 0);
+        let parent = add_span(&mut store, Some(grandparent), 0);
+        let child = add_span(&mut store, Some(parent), 0);
+        add_self_time_without_invalidation(&mut store, grandparent, 0, 10);
+        add_self_time_without_invalidation(&mut store, parent, 10, 20);
+        add_self_time_without_invalidation(&mut store, child, 20, 30);
+        invalidate(&mut store, &[grandparent, parent, child]);
+        for span in [grandparent, parent, child] {
+            assert_eq!(event_corrected_self_times(&store, span), vec![ts(10)]);
+        }
+
+        // Concurrent self time in an unrelated span, overlapping all three self times.
+        let other = add_span(&mut store, None, 0);
+        add_self_time_without_invalidation(&mut store, other, 0, 30);
+        for span in [grandparent, parent, child] {
+            assert_eq!(event_corrected_self_times(&store, span), vec![ts(10)]);
+        }
+
+        // Invalidating only the child invalidates its ancestors too.
+        invalidate(&mut store, &[child]);
+        for span in [grandparent, parent, child] {
+            assert_eq!(event_corrected_self_times(&store, span), vec![ts(5)]);
+        }
+    }
+
+    #[test]
+    fn invalidation_always_includes_root() {
+        let mut store = Store::new();
+        // The public API never adds self time to the root span (its index is 0), but its
+        // self-time event caches must still be invalidated like any other span's.
+        store.spans[0]
+            .events
+            .push(SpanEvent::self_time(ts(0), ts(10)).unwrap());
+        let a = add_span(&mut store, None, 0);
+        add_self_time_without_invalidation(&mut store, a, 0, 10);
+        invalidate(&mut store, &[a]);
+        assert_eq!(corrected_self_times_of(store.root_span()), vec![ts(10)]);
+
+        // A second concurrent self time halves the corrected time of the root's event, which
+        // is only picked up once the root is invalidated.
+        let b = add_span(&mut store, None, 0);
+        add_self_time_without_invalidation(&mut store, b, 0, 10);
+        assert_eq!(corrected_self_times_of(store.root_span()), vec![ts(10)]);
+
+        // Invalidating any span invalidates the root.
+        let child = add_span(&mut store, Some(a), 20);
+        invalidate(&mut store, &[child]);
+        assert_eq!(corrected_self_times_of(store.root_span()), vec![ts(5)]);
+    }
+
+    /// Builds a store with many overlapping self times.
+    fn overlapping_store() -> (Store, Vec<SpanIndex>) {
+        let mut store = Store::new();
+        let mut spans = Vec::new();
+        let mut outdated = FxHashSet::default();
+        for i in 0..200u64 {
+            let parent = spans.get((i / 10) as usize).copied();
+            let span = add_span(&mut store, parent, i);
+            for j in 0..5 {
+                let start = (i * 7 + j * 13) % 500;
+                store.add_self_time(span, ts(start), ts(start + 20 + i % 30), &mut outdated);
+            }
+            spans.push(span);
+        }
+        store.invalidate_outdated_spans(&outdated);
+        (store, spans)
+    }
+
+    #[test]
+    fn concurrent_corrected_self_time_matches_serial() {
+        let (serial_store, spans) = overlapping_store();
+        let serial: Vec<_> = spans
+            .iter()
+            .map(|&span| event_corrected_self_times(&serial_store, span))
+            .collect();
+
+        let (store, spans) = overlapping_store();
+        thread::scope(|scope| {
+            let handles: Vec<_> = (0..8)
+                .map(|offset| {
+                    let store = &store;
+                    let spans = &spans;
+                    scope.spawn(move || {
+                        // Each thread visits the spans in a different order.
+                        let mut result = vec![Vec::new(); spans.len()];
+                        for i in 0..spans.len() {
+                            let i = (i + offset * 25) % spans.len();
+                            result[i] = event_corrected_self_times(store, spans[i]);
+                        }
+                        result
+                    })
+                })
+                .collect();
+            for handle in handles {
+                assert_eq!(handle.join().unwrap(), serial);
+            }
+        });
     }
 }
