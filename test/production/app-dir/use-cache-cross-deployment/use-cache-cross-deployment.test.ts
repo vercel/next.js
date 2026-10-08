@@ -371,9 +371,6 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
       })
     })
 
-    // Different chunk-assigned import IDs currently produce different code
-    // hashes for the same cached implementation in App Pages and API routes.
-    // @force-gate FIXME
     it('should share a durable cache entry between an App Page and an API route', async () => {
       await next.stop()
       await next.start()
