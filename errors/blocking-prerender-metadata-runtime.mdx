@@ -110,7 +110,7 @@ export default async function Page({ params }) {
 
 The `generateStaticParams` function makes the listed `params` available during full-route prerendering. The `use cache` directive handles the separate uncached data access in `getPost()`. Caching the data does not make runtime params static.
 
-With [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) enabled, generated params are still URL data for the App Shell shared across links. This pattern cannot include parameterized metadata in that shared prefetch. If the metadata must vary by `params`, use [Mark the route as dynamic](#mark-the-route-as-dynamic).
+With [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) enabled, generated non-root params are URL data and are not available in the App Shell shared across links. Generated root params, such as a locale segment above the root layout, remain available when the `params` object contains no non-root params. If the metadata must vary by a non-root param, use [Mark the route as dynamic](#mark-the-route-as-dynamic).
 
 Learn more: [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params).
 
