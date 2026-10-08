@@ -7,7 +7,7 @@ use std::{
     ptr::drop_in_place,
     sync::{
         Arc,
-        atomic::{AtomicUsize, Ordering},
+        atomic::{AtomicBool, AtomicUsize, Ordering},
     },
     task::{Context, Poll},
     time::{Duration, Instant},
@@ -111,6 +111,19 @@ impl<T> PartialOrd for HeapItem<T> {
 struct Queues<T: Claimable> {
     /// Holds `Recomputation` (heap max) and `Invalidation{..}` (ordered by leaf distance).
     heap: Mutex<BinaryHeap<HeapItem<T>>>,
+    /// Whether `heap` has any entry (tombstones included), so [`Queues::pop`] can skip the heap
+    /// mutex entirely while the heap is empty, which is the common case in a from-scratch build
+    /// where nearly all traffic is `Initial`.
+    ///
+    /// It is only ever written while holding the `heap` lock, so under the lock it always equals
+    /// `!heap.is_empty()`. Outside the lock it may be stale, which is fine:
+    /// - A stale `true` only costs an unnecessary lock.
+    /// - A `false` can't hide a push that `pop` is required to observe. A push that must be
+    ///   observed (see the liveness argument in [`PriorityRunner::schedule`]) is sequenced before
+    ///   a releasing `active_workers` RMW that the popping thread acquires. So its `true` store is
+    ///   visible to `pop`'s load (release on the store, acquire on the load), and a later `false`
+    ///   can only be stored after that very entry was popped off the heap again.
+    heap_non_empty: AtomicBool,
     /// The lock-free band for the dominant `Initial` traffic. Every item here has priority
     /// `TaskPriority::Initial`, so the FIFO order is the priority order.
     initial: ConcurrentQueue<Slot<T>>,
@@ -126,6 +139,7 @@ impl<T: Claimable> Queues<T> {
     fn new() -> Self {
         Self {
             heap: Mutex::new(BinaryHeap::new()),
+            heap_non_empty: AtomicBool::new(false),
             initial: ConcurrentQueue::unbounded(),
             claimable: FxDashMap::default(),
             #[cfg(feature = "inline_execution_stats")]
@@ -158,28 +172,18 @@ impl<T: Claimable> Queues<T> {
                 let _ = self.initial.push(slot);
             }
             TaskPriority::Recomputation | TaskPriority::Invalidation { .. } => {
-                self.heap.lock().push(HeapItem { priority, slot });
+                let mut heap = self.heap.lock();
+                heap.push(HeapItem { priority, slot });
+                self.heap_non_empty.store(true, Ordering::Release);
             }
         }
     }
 
     /// Pop the highest-priority task in exact band order: the heap's max first (`Recomputation`,
     /// then `Invalidation` by lowest leaf distance), then `Initial`. Tombstones of claimed items
-    /// are skipped.
+    /// are skipped. The heap mutex is only taken when the heap is non-empty.
     fn pop(&self) -> Option<(TaskPriority, T)> {
-        let popped = {
-            let mut heap = self.heap.lock();
-            let mut popped = None;
-            while let Some(HeapItem { slot, .. }) = heap.pop() {
-                let entry = slot.lock().take();
-                if let Some(entry) = entry {
-                    popped = Some((slot, entry));
-                    break;
-                }
-            }
-            shrink_amortized(&mut heap);
-            popped
-        };
+        let popped = self.pop_heap();
         let popped = popped.or_else(|| {
             while let Ok(slot) = self.initial.pop() {
                 let entry = slot.lock().take();
@@ -192,6 +196,28 @@ impl<T: Claimable> Queues<T> {
         let (slot, (priority, task)) = popped?;
         self.unindex(&slot, &task);
         Some((priority, task))
+    }
+
+    /// Pops the heap's max item, skipping tombstones, without taking the heap mutex when the heap
+    /// is empty (see [`Queues::heap_non_empty`]).
+    fn pop_heap(&self) -> Option<(Slot<T>, (TaskPriority, T))> {
+        if !self.heap_non_empty.load(Ordering::Acquire) {
+            return None;
+        }
+        let mut heap = self.heap.lock();
+        let mut popped = None;
+        while let Some(HeapItem { slot, .. }) = heap.pop() {
+            let entry = slot.lock().take();
+            if let Some(entry) = entry {
+                popped = Some((slot, entry));
+                break;
+            }
+        }
+        if heap.is_empty() {
+            self.heap_non_empty.store(false, Ordering::Relaxed);
+        }
+        shrink_amortized(&mut heap);
+        popped
     }
 
     /// Removes the claim index entry of a popped item, but only when it still points at this item.
@@ -1176,6 +1202,80 @@ mod tests {
             &["inv-d1", "inv-d3", "inv-d5", "initial-a", "initial-b"]
         );
         assert!(q.is_empty());
+    }
+
+    /// With an empty heap, popping does not acquire the heap mutex, but still drains `Initial`.
+    #[test]
+    fn test_empty_heap_pop_does_not_wait_for_heap_lock() {
+        let (runner, executed) = queueing_runner::<u32>();
+        runner.schedule(&executed, 1, TaskPriority::Initial);
+        let heap_guard = runner.queue.heap.lock();
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let popper = {
+            let runner = runner.clone();
+            let executed = executed.clone();
+            std::thread::spawn(move || {
+                let popped = runner.pop_future_from_worker(&executed).is_some();
+                sender.send(popped).unwrap();
+            })
+        };
+        let popped = receiver.recv_timeout(Duration::from_secs(1));
+        drop(heap_guard);
+        popper.join().unwrap();
+        assert_eq!(
+            popped,
+            Ok(true),
+            "pop must not acquire the heap lock while the heap is empty"
+        );
+        assert_eq!(*executed.lock(), vec![1]);
+    }
+
+    /// `heap_non_empty` tracks whether the heap has entries (tombstones included) across drains
+    /// and refills, so `pop` only skips the heap lock while the heap really is empty.
+    #[test]
+    fn test_heap_flag_drain_refill_with_tombstones() {
+        let (runner, executed) = queueing_runner::<u32>();
+        let flag = || runner.queue.heap_non_empty.load(Ordering::Acquire);
+        assert!(!flag());
+
+        // `Initial` items never touch the heap or the flag.
+        runner.schedule(&executed, 0, TaskPriority::Initial);
+        assert!(!flag());
+        assert_eq!(drain(&runner, &executed), vec![0]);
+        assert!(!flag());
+
+        for _ in 0..3 {
+            runner.schedule(&executed, 1, TaskPriority::Recomputation);
+            runner.schedule(&executed, 2, prio(2));
+            runner.schedule(&executed, 3, TaskPriority::Initial);
+            assert!(flag());
+
+            // A claimed heap item leaves a tombstone behind, which still counts as an entry.
+            assert!(runner.claim(&executed, &1).is_some());
+            assert!(runner.claim(&executed, &2).is_some());
+            assert!(flag(), "tombstones are still heap entries");
+            executed.lock().clear();
+
+            // Popping skips both tombstones, empties the heap and clears the flag, then falls
+            // through to the `Initial` band.
+            assert!(runner.pop_future_from_worker(&executed).is_some());
+            assert_eq!(*executed.lock(), vec![3]);
+            executed.lock().clear();
+            assert!(!flag());
+            assert!(runner.queue.is_empty());
+
+            // Refill: the flag is set again and the heap is used again.
+            runner.schedule(&executed, 4, prio(4));
+            runner.schedule(&executed, 5, prio(5));
+            assert!(flag());
+            assert!(runner.pop_future_from_worker(&executed).is_some());
+            assert!(flag(), "one entry is still left");
+            assert!(runner.pop_future_from_worker(&executed).is_some());
+            assert!(!flag());
+            assert_eq!(*executed.lock(), vec![5, 4]);
+            executed.lock().clear();
+            assert!(runner.pop_future_from_worker(&executed).is_none());
+        }
     }
 
     /// Claims find items in both bands, and claiming leaves the band order of the remaining items
