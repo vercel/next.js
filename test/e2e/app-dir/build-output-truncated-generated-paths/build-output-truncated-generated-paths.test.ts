@@ -13,18 +13,13 @@ describe('build output - truncated generated paths', () => {
 
   beforeAll(() => next.build())
 
-  // TODO(#64): The `[+N more paths]` summary row inherits the pageInfo of the
-  // route pattern instead of the generated paths it stands for, so it is
-  // printed with the Partial Prerender symbol (◐) even though all of the
-  // collapsed paths are fully static (○). The two individually listed paths
-  // show the correct symbol. This asserts the current (incorrect) output.
-  it('marks the collapsed generated paths as Partial Prerender', async () => {
+  it('marks the collapsed generated paths as static', async () => {
     expect(getTreeView(next.cliOutput)).toContain(
       `└   /blog/[...slug]
   ├ ◐ /blog/[...slug]
   ├ ○ /blog/post-1
   ├ ○ /blog/post-2
-  └ ◐ [+10 more paths]`
+  └ ○ [+10 more paths]`
     )
   })
 
