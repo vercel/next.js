@@ -41,6 +41,7 @@ import {
   FetchStrategy,
   type PrefetchTaskFetchStrategy,
   PrefetchPriority,
+  AppStage,
 } from './types'
 import {
   segmentCacheMap,
@@ -311,8 +312,7 @@ export type IncludeDynamicData = null | 'full' | 'dynamic'
  * @param key The RouteCacheKey to prefetch.
  * @param renderTreeAtTimeOfPrefetch The active render tree and head, and
  * their vary paths
- * @param fetchStrategy Whether to prefetch dynamic data, in addition to
- * static data. This is used by `<Link prefetch={true}>`.
+ * @param prefetchStage The stage the link asks to be prefetched up to.
  * @param navigationLockPrefetch Testing API only. Non-null when this prefetch
  * drives a locked navigation (from `ensurePrefetchThenNavigate`); carries that
  * navigation's "wait for prefetch to fulfill" state. Null otherwise.
@@ -320,7 +320,7 @@ export type IncludeDynamicData = null | 'full' | 'dynamic'
 export function schedulePrefetchTask(
   key: RouteCacheKey,
   renderTreeAtTimeOfPrefetch: RootRouteTree<CacheNode>,
-  fetchStrategy: PrefetchTaskFetchStrategy,
+  prefetchStage: AppStage,
   priority: PrefetchPriority,
   onInvalidate: null | (() => void),
   navigationLockPrefetch: NavigationLockPrefetch | null
@@ -352,7 +352,7 @@ export function schedulePrefetchTask(
     hasBackgroundWork: false,
     hasPendingResponses: false,
     spawnedRuntimePrefetches: null,
-    fetchStrategy,
+    fetchStrategy: getFetchStrategyForStage(prefetchStage),
     sortId: sortIdCounter++,
     isCanceled: false,
     fallbackRetryStatus: EntryStatus.Empty,
@@ -379,6 +379,22 @@ export function schedulePrefetchTask(
   return task
 }
 
+// A link asks for a stage. For now we turn it into a fetch strategy: the
+// shell uses the per-segment strategy, and anything more uses a full
+// prefetch.
+function getFetchStrategyForStage(stage: AppStage): PrefetchTaskFetchStrategy {
+  switch (stage) {
+    case AppStage.Shell:
+      return FetchStrategy.PPR
+    case AppStage.Prefetch:
+    case AppStage.Navigation:
+      return FetchStrategy.Full
+    default:
+      stage satisfies never
+      return FetchStrategy.PPR
+  }
+}
+
 export function cancelPrefetchTask(task: PrefetchTask): void {
   // Remove the prefetch task from the queue. If the task already completed,
   // then this is a no-op.
@@ -394,7 +410,7 @@ export function cancelPrefetchTask(task: PrefetchTask): void {
 export function reschedulePrefetchTask(
   task: PrefetchTask,
   renderTreeAtTimeOfPrefetch: RootRouteTree<CacheNode>,
-  fetchStrategy: PrefetchTaskFetchStrategy,
+  prefetchStage: AppStage,
   priority: PrefetchPriority
 ): void {
   // Bump the prefetch task to the top of the queue, as if it were a fresh
@@ -422,7 +438,7 @@ export function reschedulePrefetchTask(
     task === mostRecentlyHoveredLink ? PrefetchPriority.Intent : priority
 
   task.renderTreeAtTimeOfPrefetch = renderTreeAtTimeOfPrefetch
-  task.fetchStrategy = fetchStrategy
+  task.fetchStrategy = getFetchStrategyForStage(prefetchStage)
 
   trackMostRecentlyHoveredLink(task)
 
