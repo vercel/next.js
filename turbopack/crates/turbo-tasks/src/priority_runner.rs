@@ -7,7 +7,7 @@ use std::{
     ptr::drop_in_place,
     sync::{
         Arc,
-        atomic::{AtomicBool, AtomicUsize, Ordering},
+        atomic::{AtomicBool, AtomicUsize, Ordering, fence},
     },
     task::{Context, Poll},
     time::{Duration, Instant},
@@ -50,6 +50,9 @@ pub trait Claimable {
     /// [`PriorityRunner::schedule`] hands to a worker directly never enters the queue.
     fn claim_key(&self) -> Self::Key;
 }
+
+/// The capacity the heap starts with and shrinks back to once it is empty.
+const HEAP_MIN_CAPACITY: usize = 128;
 
 /// A heap band entry: the key of a queued item in [`Queue::claimable`], at the priority it was
 /// queued with.
@@ -94,6 +97,11 @@ impl<P: Ord, K> PartialOrd for HeapItem<P, K> {
 /// pop only takes an item whose priority matches the band entry's, so a stale entry never takes an
 /// item queued again with another priority. With the *same* priority it may take it early, which
 /// only reorders equal-priority items; every queued item still executes at most once.
+///
+/// Lock ordering: [`Queue::pop`] takes `claimable` shard locks while holding the `heap` mutex (to
+/// resolve popped heap entries). Nothing takes the `heap` mutex while holding a `claimable` shard
+/// lock: [`Queue::push`] finishes its `claimable` insert before it locks the heap, and
+/// [`Queue::claim`] only touches `claimable`. So the order is always `heap`, then `claimable`.
 struct Queue<P, T: Claimable> {
     /// The lowest priority, see [`Executor::LOWEST_PRIORITY`].
     lowest_priority: P,
@@ -105,13 +113,17 @@ struct Queue<P, T: Claimable> {
     /// mutex entirely while the heap is empty, which is the common case.
     ///
     /// Only written while holding the `heap` lock. A stale `true` only costs an unnecessary lock.
-    /// A stale `false` can't hide a push that `pop` must observe: such a push is sequenced
-    /// before a releasing `active_workers` RMW that the popping thread acquires (see
-    /// [`PriorityRunner::schedule`]), so its `true` store (release) is visible to `pop`'s load
-    /// (acquire), and `false` is only stored again once that entry was popped.
+    /// A stale `false` can't hide a push that `pop` must observe: the push's `true` store is
+    /// sequenced before the scheduler's `SeqCst` fence, and a retiring worker's re-checking `pop`
+    /// is sequenced after its own fence (see [`PriorityRunner::schedule`]), so either that `pop`
+    /// observes the `true` (or a later store), or the scheduler re-checks itself. `false` is only
+    /// stored again once the heap was drained under the lock.
     heap_non_empty: AtomicBool,
     /// The queued items with their priority, by claim key. An item is removed when it is popped or
     /// claimed, and replaced when another item with the same key is pushed.
+    ///
+    /// Its shard locks may be taken while holding the `heap` mutex, never the other way around
+    /// (see the lock ordering on [`Queue`]).
     claimable: FxDashMap<T::Key, (P, T)>,
     /// How many items were ever pushed. Diagnostics only, see [`PriorityRunner::total_queued`].
     #[cfg(feature = "inline_execution_stats")]
@@ -123,7 +135,7 @@ impl<P: Clone + Ord, T: Claimable> Queue<P, T> {
         Self {
             lowest_priority,
             lowest: ConcurrentQueue::unbounded(),
-            heap: Mutex::new(BinaryHeap::new()),
+            heap: Mutex::new(BinaryHeap::with_capacity(HEAP_MIN_CAPACITY)),
             heap_non_empty: AtomicBool::new(false),
             claimable: FxDashMap::default(),
             #[cfg(feature = "inline_execution_stats")]
@@ -172,11 +184,9 @@ impl<P: Clone + Ord, T: Claimable> Queue<P, T> {
             }
             if heap.is_empty() {
                 self.heap_non_empty.store(false, Ordering::Relaxed);
-            }
-            // Amortized shrinking, with a lower bound to avoid frequent reallocations.
-            let len = heap.len();
-            if heap.capacity() > len * 3 && heap.capacity() > 128 {
-                heap.shrink_to(len.next_power_of_two().max(128));
+                // The heap is expected to run empty regularly, so that is the only point where
+                // it gives back memory, down to the initial capacity.
+                heap.shrink_to(HEAP_MIN_CAPACITY);
             }
             if popped.is_some() {
                 return popped;
@@ -254,13 +264,16 @@ impl<
     }
 
     pub fn schedule(self: &Arc<Self>, execute_context: &Arc<C>, task: T, priority: P) {
-        // Scheduling is correct without a single covering lock because the liveness happens-before
-        // edge lives on `active_workers`: it is the one variable both `schedule` and every retiring
-        // worker always touch. (It cannot live on the queue's own atomics — a retiring worker
-        // checks the bands sequentially and non-atomically, so a push into a band it
-        // already checked has no edge forcing it to be observed. The old single-mutex
-        // design got the edge from the queue lock instead.) This is why every
-        // `active_workers` op uses `AcqRel`/`Acquire`, not `Relaxed`.
+        // Scheduling is correct without a single covering lock. The liveness argument is a
+        // store-buffering pattern between a scheduler and a retiring worker: the scheduler pushes
+        // and then reads `active_workers`; a retiring worker decrements `active_workers` and then
+        // re-checks the queue (see `decrease_active_workers`). At least one of them must observe
+        // the other's write, or the pushed task could be stranded with no live worker.
+        // Acquire/release alone doesn't guarantee that, so both sides put a `SeqCst` fence between
+        // their write and their read: whichever fence comes first in the total order of `SeqCst`
+        // fences, the other side's read observes the write before it. (It cannot rely on the
+        // queue's own atomics instead — a retiring worker checks the bands sequentially, so a push
+        // into a band it already checked has no edge forcing it to be observed.)
         //
         // [`claim`](Self::claim) takes work out of the queue without being a worker, but that only
         // ever leaves less work behind, so it cannot strand anything.
@@ -279,28 +292,25 @@ impl<
                 let future = self.executor.execute(execute_context, task, priority);
                 WorkerFuture::spawn(future, execute_context.clone(), self.clone());
             } else {
-                // Lost the race, the pool filled up between the load and the RMW. Enqueue the task;
-                // `decrease_active_workers`'s `fetch_sub` both undoes our increment and is the
-                // releasing RMW sequenced after the push (reduces to the saturated case below).
+                // Lost the race, the pool filled up between the load and the RMW. Enqueue the task
+                // and give the slot back like a retiring worker would: `decrease_active_workers`
+                // undoes our increment and re-checks the queue, so it is covered by the same
+                // argument as any retiring worker.
                 let replaced = self.queue.push(priority, task);
                 self.decrease_active_workers(execute_context);
                 self.discard_replaced(execute_context, replaced);
             }
         } else {
             // Saturated (the dominant hot path). Push the task for an existing worker to pick up,
-            // then perform *one* value-preserving releasing RMW on `active_workers`, sequenced
-            // after the push. It must be an RMW (not a store+load): an `AcqRel` RMW
-            // joins the release sequence on `active_workers`' modification order, so
-            // whichever retiring worker's acquiring `fetch_sub` reads down that
-            // sequence synchronizes-with this push and is guaranteed to observe it in
-            // its final `queue.pop()`.
+            // then re-read `active_workers` behind a `SeqCst` fence (see above). The fence keeps
+            // this hot path from writing to the shared `active_workers` cache line.
             let replaced = self.queue.push(priority, task);
-            let active_workers = self.active_workers.fetch_add(0, Ordering::AcqRel);
+            fence(Ordering::SeqCst);
+            let active_workers = self.active_workers.load(Ordering::Relaxed);
             if active_workers < self.target_workers {
-                // Capacity opened up between our `load` and this RMW (a worker retired
-                // concurrently). The retiring worker may have already popped an
-                // empty queue, so re-check here to ensure our just-pushed task is
-                // not stranded with no live worker.
+                // Capacity opened up since our first `load` (a worker retired concurrently). The
+                // retiring worker may have already popped an empty queue, so re-check here to
+                // ensure our just-pushed task is not stranded with no live worker.
                 self.spawn_worker_if_work_available(execute_context, false);
             }
             self.discard_replaced(execute_context, replaced);
@@ -346,15 +356,18 @@ impl<
     ///
     /// This re-check is load-bearing for liveness: it is the path that re-spawns a worker for a
     /// task that was enqueued (rather than directly spawned) by `schedule` while the pool was
-    /// saturated. The `fetch_sub` uses `AcqRel`, so the decrement that drives the count below
-    /// `target_workers` acquires every `queue.push` released before an earlier counter op in the
-    /// (total-ordered) decrement sequence — guaranteeing `spawn_worker_if_work_available` observes
-    /// such a push. With `Relaxed` this edge would not exist and the task could be stranded.
+    /// saturated. The `SeqCst` fence between the decrement and the re-check pairs with the fence in
+    /// `schedule` (see the comment there): either this re-check observes the push, or the
+    /// scheduler observes the decrement and re-checks itself. Every way a worker gives up its
+    /// count goes through here. Two decrements (or a scheduler that lost the reservation race and
+    /// a retiring worker) are also ordered by `active_workers`' modification order, as both are
+    /// `AcqRel` RMWs.
     fn decrease_active_workers(self: &Arc<Self>, execute_context: &Arc<C>) {
         // If the active workers became lower we might have free
         // capacity now, so we try to spawn a new worker if
         // there is work available.
         let active_workers = self.active_workers.fetch_sub(1, Ordering::AcqRel) - 1;
+        fence(Ordering::SeqCst);
         if active_workers < self.target_workers {
             self.spawn_worker_if_work_available(execute_context, false);
         }
@@ -1194,6 +1207,30 @@ mod tests {
         assert!(q.is_empty());
     }
 
+    /// The heap starts with capacity for 128 entries, keeps its capacity while it still has
+    /// entries, and only shrinks back to 128 once it became empty.
+    #[test]
+    fn heap_only_shrinks_when_empty() {
+        let q: Queue<u32, u32> = Queue::new(0);
+        assert!(q.heap.lock().capacity() >= 128);
+
+        for task in 0..1000 {
+            assert!(q.push(1, task).is_none());
+        }
+        let grown = q.heap.lock().capacity();
+        assert!(grown >= 1000);
+
+        // Draining most of the heap doesn't shrink it.
+        for _ in 0..990 {
+            assert!(q.pop().is_some());
+        }
+        assert_eq!(q.heap.lock().capacity(), grown);
+
+        // Draining it completely shrinks it to 128.
+        while q.pop().is_some() {}
+        assert_eq!(q.heap.lock().capacity(), 128);
+    }
+
     /// With an empty heap, popping does not acquire the heap mutex, but still drains the lowest
     /// band.
     #[test]
@@ -1806,20 +1843,20 @@ mod tests {
         });
     }
 
-    /// Targeted regression test for the *single-RMW saturated path* of `schedule`.
+    /// Targeted regression test for the *saturated path* of `schedule` (push, `SeqCst` fence,
+    /// `load`).
     ///
     /// With a single worker thread and `target_workers == 1`, every task scheduled while the sole
-    /// worker is busy takes the saturated branch (`push` + one value-preserving releasing RMW), and
-    /// every schedule races the sole worker's retirement. This maximally exercises the case where
-    /// the worker's acquiring `fetch_sub` is ordered *before* the scheduler's releasing
-    /// `fetch_add(0)`: the scheduler must then observe the count drop below target and rescue
-    /// the pushed task via `spawn_worker_if_work_available`. A single stranded task leaves
-    /// `completed` short and the outer timeout fails the test.
+    /// worker is busy takes the saturated branch, and every schedule races the sole worker's
+    /// retirement (`fetch_sub`, `SeqCst` fence, re-check). This maximally exercises the case where
+    /// the worker's fence comes *before* the scheduler's: the scheduler must then observe the count
+    /// drop below target and rescue the pushed task via `spawn_worker_if_work_available`. A single
+    /// stranded task leaves `completed` short and the outer timeout fails the test.
     ///
     /// The lowest-priority variant pins every push to the lock-free band so the liveness edge is
-    /// carried purely by `active_workers`, not incidentally by the heap mutex.
+    /// carried purely by the fences and `active_workers`, not incidentally by the heap mutex.
     #[test]
-    fn stress_single_rmw_saturated_edge() {
+    fn stress_saturated_schedule_vs_retiring_worker() {
         use std::sync::atomic::{AtomicUsize, Ordering};
 
         struct Ctx {
@@ -1870,7 +1907,7 @@ mod tests {
                 assert_eq!(ctx.completed.load(Ordering::Acquire), expected);
             })
             .await
-            .expect("timed out — a task was stranded on the single-RMW saturated path");
+            .expect("timed out — a task was stranded on the saturated schedule path");
         });
     }
 }
