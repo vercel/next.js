@@ -959,7 +959,7 @@ export async function buildAppStaticPaths({
   const afterRunner = new AfterRunner()
 
   const store = createWorkStore({
-    page,
+    page: ComponentMod.routeModule.definition.page,
     renderOpts: {
       incrementalCache,
       cacheLifeProfiles,
