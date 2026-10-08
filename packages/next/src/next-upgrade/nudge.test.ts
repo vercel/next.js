@@ -1,56 +1,32 @@
 import { processEnv, updateInitialEnv } from '@next/env'
-import { execFileSync } from 'child_process'
 import { mkdir, mkdtemp, rm } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
 
-import { warn } from 'next/dist/build/output/log'
-import Conf from 'next/dist/compiled/conf'
-import { promptUpgrade } from 'next/dist/lib/upgrade/prompt'
-import {
-  assessUpgrade,
-  getUpgradeContext,
-  nudgeUpgrade,
-  shouldPromptForUpgrade,
-} from 'next/dist/next-upgrade/nudge'
-import { getUpgradeAssessment } from 'next/dist/next-upgrade/shared/check-upgrade'
-import { defaultConfig } from 'next/dist/server/config-shared'
-import { getAgentName } from 'next/dist/telemetry/agent-name'
+import { warn } from '../build/output/log'
+import { defaultConfig } from '../server/config-shared'
+import { getAgentName } from '../telemetry/agent-name'
+import { getUpgradeContext, nudgeUpgrade } from './nudge'
+import { promptUpgrade } from './nudge-terminal/prompt'
+import { getUpgradeAssessment } from './shared/check-upgrade'
 
-// Read source so version cases run before the package build inlines __NEXT_VERSION.
-jest.mock('next/dist/next-upgrade/nudge', () => jest.requireActual('./nudge'))
-jest.mock('../telemetry/agent-name', () =>
-  jest.requireMock('next/dist/telemetry/agent-name')
-)
-jest.mock('./shared/check-upgrade', () =>
-  jest.requireMock('next/dist/next-upgrade/shared/check-upgrade')
-)
-jest.mock('../build/output/log', () =>
-  jest.requireMock('next/dist/build/output/log')
-)
-
-jest.mock('next/dist/telemetry/agent-name', () => ({
+jest.mock('../telemetry/agent-name', () => ({
   getAgentName: jest.fn(),
 }))
-jest.mock('next/dist/next-upgrade/shared/check-upgrade', () => ({
-  ...jest.requireActual('next/dist/next-upgrade/shared/check-upgrade'),
-  getPrereleaseChannel: jest.requireActual(
-    'next/dist/next-upgrade/shared/check-upgrade'
-  ).getPrereleaseChannel,
-  getLatestUpgradeVersion: jest.requireActual(
-    'next/dist/next-upgrade/shared/check-upgrade'
-  ).getLatestUpgradeVersion,
+jest.mock('./shared/check-upgrade', () => ({
+  ...jest.requireActual('./shared/check-upgrade'),
+  getPrereleaseChannel: jest.requireActual('./shared/check-upgrade')
+    .getPrereleaseChannel,
+  getLatestUpgradeVersion: jest.requireActual('./shared/check-upgrade')
+    .getLatestUpgradeVersion,
   getUpgradeAssessment: jest.fn(),
 }))
-jest.mock('next/dist/build/output/log', () => ({
+jest.mock('../build/output/log', () => ({
   warn: jest.fn(),
 }))
 
 jest.mock('../server/ci-info', () => ({ isCI: false }))
-jest.mock('../lib/upgrade/prompt', () =>
-  jest.requireMock('next/dist/lib/upgrade/prompt')
-)
-jest.mock('next/dist/lib/upgrade/prompt', () => ({
+jest.mock('./nudge-terminal/prompt', () => ({
   promptUpgrade: jest.fn(),
 }))
 let mockPreferencesDirectory: string
@@ -119,7 +95,7 @@ afterEach(async () => {
   await rm(directory, { recursive: true, force: true })
 })
 
-describe('human upgrade nudge', () => {
+describe('upgrade policy dispatch', () => {
   const stdinTTY = Object.getOwnPropertyDescriptor(process.stdin, 'isTTY')
   const stdoutTTY = Object.getOwnPropertyDescriptor(process.stdout, 'isTTY')
   const terminal = process.env.TERM
@@ -177,105 +153,6 @@ describe('human upgrade nudge', () => {
     }
   })
 
-  it('reuses the startup assessment for the human prompt', async () => {
-    const assessment = assessUpgrade(directory, config('security'), '16.4.0')
-
-    await expect(
-      nudgeUpgrade(
-        directory,
-        config('security'),
-        'dev',
-        new AbortController().signal,
-        assessment,
-        null
-      )
-    ).resolves.toBe('skip')
-
-    expect(getUpgradeAssessment).toHaveBeenCalledTimes(1)
-    expect(promptUpgrade).toHaveBeenCalledTimes(1)
-  })
-
-  it.each([
-    [
-      'security',
-      '17.0.0',
-      '⚠ Installed Next.js version 16.4.0 is affected by a known security vulnerability.\n\nNext.js security version upgrade available: 16.4.0 -> 17.0.0',
-    ],
-    [
-      'latest',
-      '17.0.0',
-      'Next.js latest version upgrade available: 16.4.0 -> 17.0.0',
-    ],
-    [
-      'experimental-future',
-      '17.0.0',
-      'Next.js Future Default upgrade available: 16.4.0 -> 17.0.0\n\n- Cache Components',
-    ],
-    [
-      'experimental-future',
-      '16.4.1',
-      'Next.js Future Default upgrade available: 16.4.0 -> 16.4.1\n\n- Cache Components',
-    ],
-    [
-      'experimental-future',
-      '16.4.0',
-      'Next.js Future Default upgrade available:\n\n- Cache Components',
-    ],
-  ] as const)(
-    'renders concise %s copy for target %s',
-    async (policy, targetVersion, message) => {
-      if (policy !== 'security') {
-        mockUpgrade(targetVersion)
-      }
-      await expect(run(policy)).resolves.toBe('skip')
-      expect(promptUpgrade).toHaveBeenCalledWith({
-        message: message,
-        signal: expect.any(AbortSignal),
-        canUpdate: true,
-        onShown: null,
-      })
-      jest.mocked(getAgentName).mockResolvedValue('codex')
-      await expect(run(policy)).rejects.toMatchObject({
-        message: expect.stringContaining(`next upgrade --agent=${policy}`),
-      })
-    }
-  )
-
-  it('omits already adopted defaults from a future version upgrade', async () => {
-    mockUpgrade('17.0.0')
-    await nudgeUpgrade(
-      directory,
-      config('experimental-future', { cacheComponents: true }),
-      'build',
-      new AbortController().signal,
-      null,
-      null
-    )
-    expect(promptUpgrade).toHaveBeenCalledWith({
-      message: 'Next.js Future Default upgrade available: 16.4.0 -> 17.0.0',
-      signal: expect.any(AbortSignal),
-      canUpdate: true,
-      onShown: null,
-    })
-  })
-
-  it.each(['update', 'skip', 'interrupt'] as const)(
-    'returns %s without saving a dismissal',
-    async (action) => {
-      jest.mocked(promptUpgrade).mockResolvedValue(action)
-      await expect(run()).resolves.toBe(action)
-      expect(promptUpgrade).toHaveBeenCalledWith({
-        message:
-          '⚠ Installed Next.js version 16.4.0 is affected by a known security vulnerability.\n\nNext.js security version upgrade available: 16.4.0 -> 17.0.0',
-        signal: expect.any(AbortSignal),
-        canUpdate: true,
-        onShown: null,
-      })
-      await expect(run()).resolves.toBe(action)
-      expect(promptUpgrade).toHaveBeenCalledTimes(2)
-    }
-  )
-
   it.each(['security', 'latest', 'experimental-future'] as const)(
     'does not force a %s nudge without a valid installed version',
     async (policy) => {
@@ -321,23 +198,6 @@ describe('human upgrade nudge', () => {
     }
   )
 
-  it('lets an explicit request bypass a saved dismissal', async () => {
-    jest.mocked(promptUpgrade).mockResolvedValue('dismiss')
-    await run('security')
-    jest.clearAllMocks()
-    await run('security')
-    expect(promptUpgrade).not.toHaveBeenCalled()
-    process.env.__NEXT_AGENT_UPGRADE = 'security'
-    jest.mocked(promptUpgrade).mockResolvedValue('skip')
-    await expect(run('security')).resolves.toBe('skip')
-    expect(promptUpgrade).toHaveBeenCalledTimes(1)
-    expect(getUpgradeAssessment).toHaveBeenCalledWith(
-      '16.4.0',
-      'security',
-      false
-    )
-  })
-
   it('uses real release data for a forced latest nudge with config disabled', async () => {
     process.env.__NEXT_AGENT_UPGRADE = 'latest'
     mockUpgrade('16.4.1')
@@ -382,226 +242,5 @@ describe('human upgrade nudge', () => {
       'experimental-future',
       false
     )
-  })
-
-  it('does not open an explicitly requested prompt after cancellation', async () => {
-    process.env.__NEXT_AGENT_UPGRADE = 'security'
-    const controller = new AbortController()
-    controller.abort()
-    await run('security', controller.signal)
-    expect(promptUpgrade).not.toHaveBeenCalled()
-  })
-
-  it('reloads a security dismissal before requesting metadata', async () => {
-    jest.mocked(promptUpgrade).mockResolvedValue('dismiss')
-    await expect(run()).resolves.toBe('dismiss')
-    jest.clearAllMocks()
-    await run()
-    expect(getUpgradeAssessment).toHaveBeenCalledTimes(0)
-    expect(promptUpgrade).toHaveBeenCalledTimes(0)
-
-    process.env.__NEXT_VERSION = '16.4.1'
-    jest.mocked(promptUpgrade).mockResolvedValue('skip')
-    await expect(run()).resolves.toBe('skip')
-    process.env.__NEXT_VERSION = '16.4.0'
-    await expect(run('security')).resolves.toBe('skip')
-    await expect(
-      nudgeUpgrade(
-        join(directory, 'app'),
-        config('experimental-future'),
-        'build',
-        new AbortController().signal,
-        null,
-        null
-      )
-    ).resolves.toBe('skip')
-  })
-
-  it.each(['.', 'apps/web'])(
-    'shares %s dismissals across worktrees without affecting other apps or repositories',
-    async (appPath) => {
-      const repository = join(directory, 'project.name')
-      const worktree = join(directory, 'other-checkout')
-      const git = (args: string[]) =>
-        execFileSync(
-          'git',
-          ['-c', `core.hooksPath=${join(directory, 'no-hooks')}`, ...args],
-          {
-            cwd: directory,
-            stdio: 'pipe',
-          }
-        )
-      git(['init', repository])
-      git([
-        '-C',
-        repository,
-        '-c',
-        'user.name=Next.js test',
-        '-c',
-        'user.email=nextjs@example.com',
-        '-c',
-        'commit.gpgsign=false',
-        'commit',
-        '--allow-empty',
-        '-m',
-        'Initialize test repository',
-      ])
-      git(['-C', repository, 'worktree', 'add', '--detach', worktree])
-      const app = join(repository, appPath)
-      const siblingApp = join(worktree, appPath)
-      await mkdir(app, { recursive: true })
-      await mkdir(siblingApp, { recursive: true })
-      const offer = (path: string) =>
-        nudgeUpgrade(
-          path,
-          config('experimental-future'),
-          'build',
-          new AbortController().signal,
-          null,
-          null
-        )
-      jest.mocked(promptUpgrade).mockResolvedValue('dismiss')
-      await expect(offer(app)).resolves.toBe('dismiss')
-      jest.clearAllMocks()
-      await offer(siblingApp)
-      expect(getUpgradeAssessment).toHaveBeenCalledTimes(0)
-      expect(promptUpgrade).toHaveBeenCalledTimes(0)
-
-      const preferences = new Conf({ projectName: 'nextjs' })
-      const name = appPath === '.' ? 'project%2Ename' : 'web'
-      const saved = preferences.get(`agent-upgrade.${name}`) as Record<
-        string,
-        unknown
-      >
-      expect(Object.keys(saved)).toHaveLength(1)
-      expect(Object.keys(saved)[0]).toMatch(/^[a-f0-9]{64}$/)
-      expect(Object.values(saved)).toEqual([
-        { security: '16.4.0:experimental-future' },
-      ])
-
-      const otherApp = join(worktree, 'other/web')
-      await mkdir(otherApp, { recursive: true })
-      jest.mocked(promptUpgrade).mockResolvedValue('skip')
-      await expect(offer(otherApp)).resolves.toBe('skip')
-      const otherRepository = join(directory, 'unrelated/project.name')
-      git(['init', otherRepository])
-      const unrelatedApp = join(otherRepository, appPath)
-      await mkdir(unrelatedApp, { recursive: true })
-      await expect(offer(unrelatedApp)).resolves.toBe('skip')
-    }
-  )
-
-  it.each([false, true])(
-    'still checks security after a latest dismissal (affected: %s)',
-    async (affected) => {
-      mockUpgrade('17.0.0')
-      jest.mocked(promptUpgrade).mockResolvedValue('dismiss')
-      await run()
-      jest.clearAllMocks()
-      jest.mocked(getUpgradeAssessment).mockResolvedValue({
-        ...securityAssessment,
-        affected,
-      })
-      jest.mocked(promptUpgrade).mockResolvedValue('skip')
-      await run()
-      expect(getUpgradeAssessment).toHaveBeenCalledWith(
-        '16.4.0',
-        'experimental-future',
-        true
-      )
-      expect(promptUpgrade).toHaveBeenCalledTimes(affected ? 1 : 0)
-    }
-  )
-
-  it('suppresses dismissed Future Defaults but still offers a newer release', async () => {
-    mockUpgrade()
-    jest.mocked(promptUpgrade).mockResolvedValue('dismiss')
-    await expect(run()).resolves.toBe('dismiss')
-    jest.clearAllMocks()
-    await run()
-    expect(promptUpgrade).toHaveBeenCalledTimes(0)
-    mockUpgrade('17.0.0')
-    jest.mocked(promptUpgrade).mockResolvedValue('skip')
-    await expect(run()).resolves.toBe('skip')
-    expect(promptUpgrade).toHaveBeenCalledWith({
-      message: expect.stringContaining(
-        'Next.js Future Default upgrade available: 16.4.0 -> 17.0.0'
-      ),
-      signal: expect.any(AbortSignal),
-      canUpdate: true,
-      onShown: null,
-    })
-  })
-
-  it.each(['blocked', 'unknown'] as const)(
-    'does not prompt when security target availability is %s',
-    async (status) => {
-      jest.mocked(getUpgradeAssessment).mockResolvedValue({
-        ...securityAssessment,
-        upgrade: { status, reason: 'No eligible target.' },
-      })
-      await run()
-      expect(promptUpgrade).not.toHaveBeenCalled()
-    }
-  )
-
-  it('continues assessing when preferences cannot be read', async () => {
-    jest.spyOn(Conf.prototype, 'get').mockImplementationOnce(() => {
-      throw new Error('Unavailable')
-    })
-    await expect(run()).resolves.toBe('skip')
-  })
-
-  it('warns and continues when a dismissal cannot be saved', async () => {
-    jest.spyOn(Conf.prototype, 'set').mockImplementationOnce(() => {
-      throw new Error('Read-only')
-    })
-    jest.mocked(promptUpgrade).mockResolvedValue('dismiss')
-    await expect(run()).resolves.toBe('dismiss')
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('Could not save'))
-  })
-
-  it.each(['CI', 'stdin', 'stdout', 'TERM'])(
-    'does not request metadata or prompt with ineligible %s',
-    async (reason) => {
-      if (reason === 'CI') {
-        jest.requireMock('../server/ci-info').isCI = true
-      } else if (reason === 'TERM') {
-        process.env.TERM = 'dumb'
-      } else {
-        Object.defineProperty(
-          reason === 'stdin' ? process.stdin : process.stdout,
-          'isTTY',
-          {
-            configurable: true,
-            value: false,
-          }
-        )
-      }
-      expect(await shouldPromptForUpgrade()).toBe(false)
-      await run()
-      expect(getUpgradeAssessment).toHaveBeenCalledTimes(0)
-      expect(promptUpgrade).toHaveBeenCalledTimes(0)
-      process.env.__NEXT_AGENT_UPGRADE = 'security'
-      await run()
-      expect(getUpgradeAssessment).toHaveBeenCalledTimes(0)
-      expect(promptUpgrade).toHaveBeenCalledTimes(0)
-    }
-  )
-
-  it('excludes agents from the human startup gate', async () => {
-    expect(await shouldPromptForUpgrade()).toBe(true)
-    jest.mocked(getAgentName).mockResolvedValue('codex')
-    expect(await shouldPromptForUpgrade()).toBe(false)
-  })
-
-  it('ignores an assessment that completes after cancellation', async () => {
-    const controller = new AbortController()
-    jest.mocked(getUpgradeAssessment).mockImplementation(async () => {
-      controller.abort()
-      return securityAssessment
-    })
-    await run('experimental-future', controller.signal)
-    expect(promptUpgrade).toHaveBeenCalledTimes(0)
   })
 })

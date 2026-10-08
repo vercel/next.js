@@ -26,7 +26,7 @@ import {
   getPromptOutputEnv,
   reassertRawMode,
   showUpgradeMenu,
-} from '../lib/upgrade/prompt-output'
+} from '../next-upgrade/nudge-terminal/output'
 import type { UpgradeContext } from '../next-upgrade/nudge'
 import { fork } from 'child_process'
 import { once } from 'events'

@@ -227,7 +227,6 @@ export async function collectBuildTraces({
         '**/node_modules/webpack5/**/*',
         '**/next/dist/server/lib/route-resolver*',
         // Upgrade workflows are CLI-only and are not needed by production servers.
-        '**/next/dist/lib/upgrade/**/*',
         '**/next/dist/next-upgrade/**/*',
         // The testmode interceptors bundle reads its HTTP parser WASM with a
         // dynamic path, making nft trace the bundle's whole directory. Test
