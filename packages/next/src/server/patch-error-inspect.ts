@@ -184,6 +184,7 @@ function prepareUnsourcemappedStackTrace(
   for (let i = 0; i < structuredStackTrace.length; i++) {
     stack += '\n    at ' + structuredStackTrace[i].toString()
   }
+  // Record where the real stack frames start
   try {
     // Non-enumerable so that it doesn't show up when inspecting the error.
     Object.defineProperty(error, STACK_FRAMES_START, {
@@ -204,15 +205,21 @@ function prepareUnsourcemappedStackTrace(
  * with "webpack"/"turbopack").
  */
 function getUnparsedStackFrames(error: Error, errorName: string): string {
-  const stack = String(error.stack)
+  let stack = String(error.stack)
   const recorded = (error as ErrorWithStackFramesStart)[STACK_FRAMES_START]
   // `error.stack` may have been replaced after we formatted it.
   if (recorded !== undefined && recorded.stack === stack) {
     return stack.slice(recorded.framesStart)
   }
-  const header = errorName + ': ' + error.message
-  if (stack.startsWith(header)) {
-    return stack.slice(header.length)
+  // Errors printing by `prepareUnsourcemappedStackTrace` are `Error: <message>` so attempt to strip that prefix
+  if (stack.startsWith(errorName)) {
+    stack = stack.slice(errorName.length)
+  }
+  if (stack.startsWith(': ')) {
+    stack = stack.slice(': '.length)
+  }
+  if (stack.startsWith(error.message)) {
+    stack = stack.slice(error.message.length)
   }
   return stack
 }
