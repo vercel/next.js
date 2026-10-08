@@ -93,10 +93,10 @@ There are two tiers:
   `turbopackBuild`), plus `FIXME` / `TODO`, which are always false.
 
   Gate on `vercel` rather than `deploy` when the reason is specific to Vercel
-  (its payload limit, image CDN, `x-vercel-*` headers), so other hosts still
-  run the suite: `@force-gate vercel` for a Vercel-only suite,
-  `@force-gate !deploy || vercel` to skip only other hosts, `!vercel` to skip
-  only Vercel.
+  (its payload limit, image CDN, `x-vercel-*` headers), so other platforms
+  still run the suite: `@force-gate vercel` for a Vercel-only suite,
+  `@force-gate !deploy || vercel` to skip only other platforms, `!vercel` to
+  skip only Vercel.
 - **lazy** — a predicate over the fixture's *resolved* `next.config`
   (`cacheComponents`, `ppr`, `prefetchInlining`, `output`, …), read the first
   time a gate asks for it.

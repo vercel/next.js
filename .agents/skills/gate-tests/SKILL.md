@@ -99,10 +99,10 @@ Every name in a pragma must be declared in `test/lib/gate/conditions.ts`
   `prod` and `prefetching` are semantic aliases for `!dev` — prefer the name
   that states _why_ the suite cannot run.
   `vercel` is true only in a deploy run with `NEXT_TEST_DEPLOY_TARGET=vercel`,
-  which our CI sets on every Vercel deploy job. Other hosts run the deploy
-  suites through `NEXT_TEST_DEPLOY_SCRIPT_PATH` to test their adapters, so
-  prefer it over `deploy` when the reason is Vercel-specific:
-  `@force-gate !deploy || vercel` skips only other hosts, `!vercel` skips
+  which our CI sets on every Vercel deploy job. Other platforms run the
+  deploy suites through `NEXT_TEST_DEPLOY_SCRIPT_PATH` to test their
+  adapters, so prefer it over `deploy` when the reason is Vercel-specific:
+  `@force-gate !deploy || vercel` skips only other platforms, `!vercel` skips
   only Vercel.
 - **lazy** — a predicate over the fixture's _resolved_ `next.config`
   (`cacheComponents`, `ppr`, `useOffline`, `output`, …).
