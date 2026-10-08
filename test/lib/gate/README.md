@@ -86,7 +86,7 @@ There are two tiers:
   `turbopack`, `rspack`, `webpack`, `bundler`, `react18`, `wasm`, `linux`,
   `macos`, `windows`, `ci`), semantic aliases for `!dev` that state the reason
   rather than the mode (`prod`, `prefetching`), the deploy host (`vercel`: a
-  deploy run declared as Vercel with `NEXT_TEST_DEPLOY_TARGET=vercel`, as
+  deploy run declared as Vercel with `NEXT_TEST_DEPLOY_TARGET_VERCEL=1`, as
   opposed to another host that deploys through `NEXT_TEST_DEPLOY_SCRIPT_PATH`
   to test its adapter), specialized CI variants
   (`adapter`, `nodeMiddleware`, `standaloneOutput`, `turbopackDev`,

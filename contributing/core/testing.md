@@ -192,7 +192,7 @@ NEXT_TEST_DEPLOY_URL=https://your-deployment.vercel.app pnpm test-deploy-turbo t
 Suites gated on the `vercel` condition (`// @force-gate vercel`, see [`test/lib/gate/README.md`](../../test/lib/gate/README.md)) only run when the deploy is declared as Vercel. CI sets this on every Vercel deploy job; set it yourself when deploying to Vercel locally:
 
 ```sh
-NEXT_TEST_DEPLOY_TARGET=vercel pnpm test-deploy-turbo test/e2e/app-dir/actions/
+NEXT_TEST_DEPLOY_TARGET_VERCEL=1 pnpm test-deploy-turbo test/e2e/app-dir/actions/
 ```
 
 ## Integration testing outside the repository with local builds

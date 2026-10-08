@@ -100,13 +100,13 @@ export const conditions: Record<string, Condition> = {
   // specific to Vercel: `@force-gate vercel` for a Vercel-only suite,
   // `@force-gate !deploy || vercel` to skip only other hosts, `!vercel` to
   // skip only Vercel. The host is declared, not inferred: our CI sets
-  // `NEXT_TEST_DEPLOY_TARGET=vercel` on every job that deploys to Vercel.
+  // `NEXT_TEST_DEPLOY_TARGET_VERCEL=1` on every job that deploys to Vercel.
   vercel: staticCondition(
-    'running against a Vercel deployment (`NEXT_TEST_DEPLOY_TARGET=vercel`); ' +
+    'running against a Vercel deployment (`NEXT_TEST_DEPLOY_TARGET_VERCEL=1`); ' +
       'false outside deploy mode',
     () =>
       getGateTestContext().mode === 'deploy' &&
-      process.env.NEXT_TEST_DEPLOY_TARGET === 'vercel'
+      process.env.NEXT_TEST_DEPLOY_TARGET_VERCEL === '1'
   ),
 
   // Semantic aliases for `!dev`. A gate is a claim about *why* a suite cannot
