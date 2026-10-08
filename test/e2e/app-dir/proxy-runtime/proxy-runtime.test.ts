@@ -57,9 +57,9 @@ function getBuildError(cliOutput: string): string {
       .replace(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z {2}/, '')
       .trim()
 
-    // The command exit status is not compiler output.
+    // Package-manager and Vercel command failures are not compiler output.
     if (
-      /^Error: (?:\[BUILD_UTILS_SPAWN_\d+\] )?Command .* exited with \d+$/.test(
+      /^(?:ELIFECYCLE\s|Error: (?:\[BUILD_UTILS_SPAWN_\d+\] )?Command .* exited with \d+$)/.test(
         line
       )
     ) {
