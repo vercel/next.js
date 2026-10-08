@@ -26,5 +26,5 @@
     "**/*.tsx",
     ".next/dev/types/**/*.ts"
   ],
-  "exclude": ["node_modules", "EVAL.ts"]
+  "exclude": ["node_modules", "EVAL.ts", "__eval__"]
 }

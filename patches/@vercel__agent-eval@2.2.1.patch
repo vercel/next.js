@@ -1,8 +1,21 @@
+diff --git a/dist/index.d.ts b/dist/index.d.ts
+index 2469dbb..32d17d5 100644
+--- a/dist/index.d.ts
++++ b/dist/index.d.ts
+@@ -3,7 +3,7 @@
+  *
+  * Framework for testing AI coding agents in isolated sandboxes.
+  */
+-export type { AgentType, BuiltInAgentType, ModelTier, ModelPolicy, EvalFilter, ValidationMode, BrandConfig, Sandbox, SetupFunction, RunCompleteContext, RunCompleteHook, ExperimentConfig, ResolvedExperimentConfig, EvalFixture, EvalRunResult, EvalRunData, EvalSummary, ProgressEvent, ExperimentResults, FailureType, Classification, } from './lib/types.js';
++export type { AgentType, BuiltInAgentType, ModelTier, ModelPolicy, EvalFilter, ValidationMode, BrandConfig, Sandbox, SetupFunction, SetupResult, RunCompleteContext, RunCompleteHook, ExperimentConfig, ResolvedExperimentConfig, EvalFixture, EvalRunResult, EvalRunData, EvalSummary, ProgressEvent, ExperimentResults, FailureType, Classification, } from './lib/types.js';
+ export { REQUIRED_EVAL_FILES, EXCLUDED_FILES, NATIVE_DEFAULT_MODEL } from './lib/types.js';
+ export { CONFIG_DEFAULTS, validateConfig, resolveConfig, loadConfig, resolveEvalNames, } from './lib/config.js';
+ export { FixtureValidationError, discoverFixtures, validateFixtureFiles, validatePackageJson, loadFixture, loadAllFixtures, getFixtureFiles, readFixtureFiles, copyFixtureFiles, } from './lib/fixture.js';
 diff --git a/dist/lib/agents/plugin/orchestrator.js b/dist/lib/agents/plugin/orchestrator.js
-index 8a95213..8f04f85 100644
+index a2c32ee..087e3c8 100644
 --- a/dist/lib/agents/plugin/orchestrator.js
 +++ b/dist/lib/agents/plugin/orchestrator.js
-@@ -87,8 +87,25 @@ export function resolveJudgeRuntime(def, options) {
+@@ -87,11 +87,28 @@ export function resolveJudgeRuntime(def, options) {
   * Run all install steps for an agent, reproducing the old per-step error wording.
   * Throws on final failure so the caller's catch turns it into an error result.
   */
@@ -31,6 +44,9 @@ index 8a95213..8f04f85 100644
 -            : sandbox.runCommand(step.cmd ?? '', step.args ?? []);
 +            ? sandbox.runShell(step.script ?? '', env)
 +            : sandbox.runCommand(step.cmd ?? '', step.args ?? [], { env });
+         let result = await exec();
+         // Optional single retry (the project `npm install` flakes occasionally).
+         if (result.exitCode !== 0 && step.retryOnce) {
 @@ -109,6 +126,73 @@ async function runInstallSteps(sandbox, def, options) {
          }
      }
@@ -175,17 +191,22 @@ index 8a95213..8f04f85 100644
          const nodeResult = await sandbox.runCommand('node', [RUNNER_PATH, JSON.stringify(input)], { env: runEnv });
          // 8. Read the runner's result (file → marker → throw-on-crash).
          const runnerResult = await readRunnerResult(sandbox, RESULT_PATH, nodeResult);
-@@ -318,7 +417,7 @@ async function runOnce(def, fixturePath, options) {
+@@ -318,9 +417,12 @@ async function runOnce(def, fixturePath, options) {
          // re-invoke the agent in-sandbox (the vitest process inherits it to children).
          // By default the judge is the codegen agent+model; options.judge pins a fixed one
          // (judgeRuntime was resolved at step 4b so its CLI could be installed).
 -        const validationEnv = { ...judgeRuntime.authEnv, ...neutralWorkspace.env };
-+        const validationEnv = { ...judgeRuntime.authEnv, ...neutralWorkspace.env, ...setupResult?.env };
++        const validationEnv = { ...judgeRuntime.authEnv, ...neutralWorkspace.env, ...setupResult?.env, ...setupResult?.validationEnv };
          if (options.validation !== 'none') {
              await sandbox.uploadFiles(testFiles);
++            if (setupResult?.validationFiles) {
++                await sandbox.writeFiles(setupResult.validationFiles);
++            }
              await createVitestConfig(sandbox);
+             await injectTranscriptContext(sandbox, transcript, def.o11yAgentName, options.model);
+             // Judge runtime: ship the eval helper, materialize the raw transcript as a
 diff --git a/dist/lib/sandbox.d.ts b/dist/lib/sandbox.d.ts
-index 8803497..74d79b9 100644
+index 30ccc47..74d79b9 100644
 --- a/dist/lib/sandbox.d.ts
 +++ b/dist/lib/sandbox.d.ts
 @@ -2,7 +2,7 @@
@@ -217,15 +238,8 @@ index 8803497..74d79b9 100644
      private resolveSandboxPath;
      /**
       * Stop and clean up the sandbox.
-@@ -182,4 +188,4 @@ export declare function splitTestFiles(files: SandboxFile[]): {
-  * Verify that no test files exist in the sandbox.
-  */
- export declare function verifyNoTestFiles(sandbox: SandboxManager | DockerSandboxManager): Promise<void>;
--//# sourceMappingURL=sandbox.d.ts.map
-\ No newline at end of file
-+//# sourceMappingURL=sandbox.d.ts.map
 diff --git a/dist/lib/sandbox.js b/dist/lib/sandbox.js
-index fa7f130..9306764 100644
+index 26591c4..12da89d 100644
 --- a/dist/lib/sandbox.js
 +++ b/dist/lib/sandbox.js
 @@ -94,9 +94,12 @@ export class SandboxManager {
@@ -260,17 +274,39 @@ index fa7f130..9306764 100644
      });
  }
  /**
+@@ -374,7 +381,7 @@ export function splitTestFiles(files) {
+     const testFiles = [];
+     for (const file of files) {
+         const name = file.path.split('/').pop() ?? file.path;
+-        if (isTestFilePattern(name)) {
++        if (isTestFilePattern(name) || file.path.split('/').includes('__eval__')) {
+             testFiles.push(file);
+         }
+         else {
+@@ -387,7 +394,7 @@ export function splitTestFiles(files) {
+  * Verify that no test files exist in the sandbox.
+  */
+ export async function verifyNoTestFiles(sandbox) {
+-    const result = await sandbox.runShell("find . -path './node_modules' -prune  -o -name 'EVAL.ts' -print");
++    const result = await sandbox.runShell("find . -path './node_modules' -prune -o \\( -name 'EVAL.ts' -o -name 'EVAL.tsx' -o -name '__eval__' \\) -print");
+     const foundTests = result.stdout.trim();
+     if (foundTests) {
+         throw new Error(`Test files found in sandbox before agent run: ${foundTests}`);
 diff --git a/dist/lib/types.d.ts b/dist/lib/types.d.ts
-index c6e6e93..66ac1c4 100644
+index c6e6e93..909b2c6 100644
 --- a/dist/lib/types.d.ts
 +++ b/dist/lib/types.d.ts
-@@ -65,7 +65,10 @@ export interface Sandbox {
+@@ -65,7 +65,14 @@ export interface Sandbox {
   * Setup function that runs before the agent starts.
   * Receives a sandbox instance for pre-configuration.
   */
 -export type SetupFunction = (sandbox: Sandbox) => Promise<void>;
 +export interface SetupResult {
-+    env: Record<string, string>;
++    env?: Record<string, string>;
++    /** Files restored after the coding agent completes, before validation. */
++    validationFiles?: Record<string, string>;
++    /** Environment values passed only to validation. */
++    validationEnv?: Record<string, string>;
 +}
 +export type SetupFunction = (sandbox: Sandbox) => Promise<SetupResult | void>;
  export interface RunCompleteContext {

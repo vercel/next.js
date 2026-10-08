@@ -1,20 +1,25 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "allowJs": true,
     "strict": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "types": ["node"]
+    "types": ["node", "vitest"]
   },
   "include": [
     "lib",
-    "evals/agent-059-bundle-optimizer-next-dynamic/EVAL.ts",
-    "evals/agent-059-bundle-optimizer-next-dynamic/measure-browser-js.ts",
+    "types",
+    "evals/*/EVAL.ts",
+    "evals/*/__eval__/measure-browser-js.ts",
+    "evals/*/eval-setup.mjs",
     "experiments",
     "next-upgrade/experiments",
     "next-upgrade/lib",
+    "next-upgrade/shared",
+    "next-upgrade/evals/*/EVAL.ts",
     "next-upgrade/security/setup.ts"
   ]
 }

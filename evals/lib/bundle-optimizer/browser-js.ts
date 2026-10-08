@@ -1,33 +1,8 @@
 import assert from 'node:assert/strict'
-import { spawn, spawnSync } from 'node:child_process'
-import { once } from 'node:events'
 import { rm } from 'node:fs/promises'
-import { writeFileSync } from 'node:fs'
-import { createRequire } from 'node:module'
-import { join } from 'node:path'
 import { chromium, expect } from 'playwright/test'
-import type { Browser, Page } from 'playwright/test'
-
-const appRequire = createRequire(join(process.cwd(), 'package.json'))
-
-function startNext(args: string[]) {
-  const child = spawn(
-    process.execPath,
-    [appRequire.resolve('next/dist/bin/next'), ...args],
-    {
-      stdio: ['ignore', 'pipe', 'pipe'],
-      env: {
-        ...process.env,
-        NODE_ENV: 'production',
-        NEXT_TELEMETRY_DISABLED: '1',
-      },
-    }
-  )
-  let output = ''
-  child.stdout.on('data', (data) => (output += data))
-  child.stderr.on('data', (data) => (output += data))
-  return { child, output: () => output }
-}
+import type { Browser, Page, Request } from 'playwright/test'
+import { buildNextApp, startNextServer } from '../next-test-utils.mjs'
 
 export type ScriptRequest = {
   url: string
@@ -67,52 +42,17 @@ export async function withProductionBrowser<T>(
   verify: (browser: Browser, url: string) => Promise<T>
 ): Promise<T> {
   await rm('.next', { recursive: true, force: true })
-  const build = startNext(['build'])
-  const buildTimeout = setTimeout(() => build.child.kill('SIGKILL'), 180_000)
-  try {
-    const [code] = await once(build.child, 'exit')
-    assert.equal(code, 0, build.output())
-  } finally {
-    clearTimeout(buildTimeout)
-  }
-
-  const server = startNext(['start', '--hostname', '127.0.0.1', '--port', '0'])
+  await buildNextApp()
+  const server = await startNextServer()
   let browser: Browser | undefined
   try {
-    let url: string | undefined
-    await expect
-      .poll(
-        async () => {
-          assert.equal(server.child.exitCode, null, server.output())
-          url = server.output().match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]
-          if (!url) return false
-          try {
-            const response = await fetch(url, {
-              signal: AbortSignal.timeout(2000),
-            })
-            await response.arrayBuffer()
-            return response.ok
-          } catch {
-            return false
-          }
-        },
-        { timeout: 30_000 }
-      )
-      .toBe(true)
-    assert(url, 'Missing production server URL')
     browser = await chromium.launch({ headless: true })
-    return await verify(browser, url)
+    return await verify(browser, server.url)
   } finally {
     try {
       await browser?.close()
     } finally {
-      if (server.child.exitCode === null && server.child.signalCode === null) {
-        const exited = once(server.child, 'exit')
-        server.child.kill('SIGTERM')
-        const killTimeout = setTimeout(() => server.child.kill('SIGKILL'), 5000)
-        await exited
-        clearTimeout(killTimeout)
-      }
+      await server.stop()
     }
   }
 }
@@ -143,38 +83,63 @@ export async function withMeasuredPage<T>(
     await cdp.send('Network.enable')
     await cdp.send('Network.setCacheDisabled', { cacheDisabled: true })
     const requests: ScriptRequest[] = []
-    const pending: Promise<void>[] = []
+    const pending = new Set<Promise<void>>()
+    const inFlight = new Set<Request>()
+    let lastActivity = Date.now()
     const errors: string[] = []
     page.on('pageerror', (error) => errors.push(error.message))
-    page.on('requestfailed', (request) => errors.push(request.url()))
+    page.on('request', (request) => {
+      inFlight.add(request)
+      lastActivity = Date.now()
+    })
+    page.on('requestfinished', (request) => {
+      inFlight.delete(request)
+      lastActivity = Date.now()
+    })
+    page.on('requestfailed', (request) => {
+      inFlight.delete(request)
+      lastActivity = Date.now()
+      errors.push(request.url())
+    })
     page.on('response', (response) => {
       if (
         response.request().resourceType() !== 'script' &&
         !/javascript/.test(response.headers()['content-type'] ?? '')
       )
         return
-      pending.push(
-        (async () => {
-          assert.equal(await response.finished(), null, response.url())
-          assert(response.ok(), `Script failed: ${response.url()}`)
-          const sizes = await response.request().sizes()
-          const body = await response.body()
-          requests.push({
-            ...classifyScript(body),
-            url: response.url(),
-            encodedBytes: sizes.responseBodySize,
-            decodedBytes: body.length,
-          })
-        })().catch((error) => {
+      const measured = (async () => {
+        assert.equal(await response.finished(), null, response.url())
+        assert(response.ok(), `Script failed: ${response.url()}`)
+        const sizes = await response.request().sizes()
+        const body = await response.body()
+        requests.push({
+          ...classifyScript(body),
+          url: response.url(),
+          encodedBytes: sizes.responseBodySize,
+          decodedBytes: body.length,
+        })
+      })()
+        .catch((error) => {
           errors.push(error.message)
         })
-      )
+        .finally(() => {
+          pending.delete(measured)
+        })
+      pending.add(measured)
     })
-    const response = await page.goto(url, { waitUntil: 'networkidle' })
+    const response = await page.goto(url, { waitUntil: 'load' })
     assert(response?.ok(), 'Initial navigation failed')
     async function snapshot(): Promise<JavaScriptSummary> {
-      await page.waitForLoadState('networkidle')
-      await Promise.all(pending)
+      // Playwright's navigation load state stays satisfied after interactions.
+      await expect
+        .poll(
+          () =>
+            inFlight.size === 0 &&
+            pending.size === 0 &&
+            Date.now() - lastActivity >= 500,
+          { timeout: 30_000 }
+        )
+        .toBe(true)
       assert.deepEqual(errors, [])
       return summarizeJavaScript(requests)
     }
@@ -206,34 +171,19 @@ export function readBrowserJsMeasurement<
   return measurement
 }
 
-export function runBrowserJsEval<
+export async function runBrowserJsEval<
   Details extends Record<string, unknown> = Record<string, unknown>,
->(budgetBytes: number): BrowserJsEvalResult<Details> {
-  const source = process.env.NEXT_EVAL_BROWSER_JS_SOURCE
+>(
+  budgetBytes: number,
+  measure: () => Promise<BrowserMeasurement<Details>>
+): Promise<BrowserJsEvalResult<Details>> {
   const baseline = process.env.NEXT_EVAL_BROWSER_JS_BEFORE
-  assert(source, 'Missing runner-provided browser measurement')
-  assert(baseline, 'Missing pre-agent browser measurement')
-  const before = readBrowserJsMeasurement<Details>(
-    'NEXT_EVAL_BROWSER_JS:' + baseline
-  )
-  let after = before
-  if (process.env.NEXT_EVAL_BROWSER_JS_PHASE !== 'before') {
-    const measurementPath = join(
-      process.cwd(),
-      '__agent_eval__',
-      'measure-browser-js.mjs'
-    )
-    writeFileSync(measurementPath, source)
-    const result = spawnSync(process.execPath, [measurementPath], {
-      encoding: 'utf8',
-      timeout: 300_000,
-      maxBuffer: 10 * 1024 * 1024,
-      env: process.env,
-    })
-    if (result.error) throw result.error
-    assert.equal(result.status, 0, result.stderr)
-    after = readBrowserJsMeasurement<Details>(result.stdout)
-  }
+  const isBaseline = process.env.NEXT_EVAL_BROWSER_JS_PHASE === 'before'
+  assert(isBaseline || baseline, 'Missing pre-agent browser measurement')
+  const after = await measure()
+  const before = isBaseline
+    ? after
+    : readBrowserJsMeasurement<Details>('NEXT_EVAL_BROWSER_JS:' + baseline)
   const measurement = {
     before,
     after,

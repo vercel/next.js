@@ -1,8 +1,8 @@
 import { beforeAll, expect, test } from 'vitest'
-import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { pathToFileURL } from 'node:url'
-import type * as BrowserJs from '../../lib/bundle-optimizer/browser-js.js'
+import { runBrowserJsEval } from '../../lib/bundle-optimizer/browser-js.js'
+import { measureBrowserJs } from './__eval__/measure-browser-js.js'
 import type {
   BrowserMeasurement as Measurement,
   JavaScriptSummary,
@@ -22,16 +22,10 @@ let after: BrowserMeasurement
 const budgetBytes = 200_000
 
 beforeAll(async () => {
-  const utilsSource = process.env.NEXT_EVAL_BROWSER_JS_UTILS_SOURCE
-  if (!utilsSource) throw new Error('Missing runner-provided browser utilities')
-  const utilsPath = join(process.cwd(), '__agent_eval__', 'browser-js.mjs')
-  mkdirSync(join(process.cwd(), '__agent_eval__'), { recursive: true })
-  writeFileSync(utilsPath, utilsSource)
-  // The SDK restores EVAL.ts after agent edits, but has no pre-validation hook.
-  const { runBrowserJsEval }: typeof BrowserJs = await import(
-    pathToFileURL(utilsPath).href
+  const measured = await runBrowserJsEval<BrowserDetails>(
+    budgetBytes,
+    measureBrowserJs
   )
-  const measured = runBrowserJsEval<BrowserDetails>(budgetBytes)
   before = measured.before
   after = measured.after
 }, 360_000)
@@ -57,44 +51,17 @@ test('preloads the editor on pointer hover', () => {
   expect(after.editor?.preloaded).toBe(true)
 })
 
-function sourceFiles(directory = process.cwd()): string[] {
-  const files: string[] = []
-  for (const entry of readdirSync(directory, { withFileTypes: true })) {
-    if (['.next', 'node_modules'].includes(entry.name)) continue
-    const path = join(directory, entry.name)
-    if (entry.isDirectory()) files.push(...sourceFiles(path))
-    else if (/\.[cm]?[jt]sx?$/.test(entry.name)) files.push(path)
-  }
-  return files
-}
-
-function sourceContents(): string {
-  return ['app', 'components']
-    .flatMap((directory) => sourceFiles(join(process.cwd(), directory)))
-    .map((path) => readFileSync(path, 'utf8'))
+test('imports next/dynamic for the editor async boundary', () => {
+  const sources = ['app', 'components']
+    .flatMap((directory) =>
+      readdirSync(join(process.cwd(), directory), {
+        recursive: true,
+        encoding: 'utf8',
+      })
+        .filter((path) => /\.[cm]?[jt]sx?$/.test(path))
+        .map((path) => join(directory, path))
+    )
+    .map((path) => readFileSync(join(process.cwd(), path), 'utf8'))
     .join('\n')
-}
-
-test('loads the CodeMirror editor through an async boundary', () => {
-  const sources = sourceContents()
-
-  expect(sources).toContain('Open formula editor')
-  expect(sources).toMatch(/@uiw\/react-codemirror/)
-  expect(sources).not.toMatch(
-    /import\s+(?!type\b)[^'";]+from\s*['"].*heavy-editor['"]/
-  )
-  expect(sources).toMatch(/dynamic\s*\(/)
-  expect(sources).toMatch(/import\s*\(\s*['"].*heavy-editor['"]\s*\)/)
-})
-
-test('preserves the click-gated JavaScript editor', () => {
-  const sources = sourceContents()
-
-  expect(sources).toContain('Formula Workspace')
-  expect(sources).toContain('Open formula editor')
-  expect(sources).toContain('revenue - costs')
-  expect(sources).toMatch(/@uiw\/react-codemirror/)
-  expect(sources).toMatch(/@codemirror\/lang-javascript/)
-  expect(sources).toMatch(/useState\s*\(\s*false\s*\)/)
-  expect(sources).toMatch(/\{\s*\w+\s*(?:\?|&&)\s*\(?\s*<\w+/)
+  expect(sources).toMatch(/from\s*['"]next\/dynamic['"]/)
 })

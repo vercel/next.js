@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict'
 import { expect } from 'playwright/test'
 import type { Browser } from 'playwright/test'
-import type { JavaScriptSummary } from '../../lib/bundle-optimizer/browser-js.js'
+import type { JavaScriptSummary } from '../../../lib/bundle-optimizer/browser-js.js'
 import {
   withProductionBrowser,
   withMeasuredPage,
   summarizeJavaScript,
-} from '../../lib/bundle-optimizer/browser-js.js'
+} from '../../../lib/bundle-optimizer/browser-js.js'
 
 async function measureEditor(
   browser: Browser,
@@ -25,6 +25,12 @@ async function measureEditor(
     async (page, snapshot) => {
       await expect(
         page.getByRole('heading', { name: 'Formula Workspace' })
+      ).toBeVisible()
+      await expect(
+        page.getByText(
+          'Build and test a formula before adding it to the dashboard.',
+          { exact: true }
+        )
       ).toBeVisible()
       await expect(page.locator('.cm-content')).toHaveCount(0)
       const loadedInitially = await snapshot()
@@ -54,8 +60,11 @@ async function measureEditor(
       const editor = page.locator('.cm-content')
       await expect(editor).toBeVisible()
       await expect(editor).toHaveText('revenue - costs')
-      await editor.fill('revenue - costs + 1')
-      await expect(editor).toHaveText('revenue - costs + 1')
+      await editor.fill('const profit = revenue - costs + 1')
+      await expect(editor).toHaveText('const profit = revenue - costs + 1')
+      await expect(
+        editor.locator('span').filter({ hasText: /^const$/ })
+      ).toBeVisible()
       const opened = await snapshot()
       assert(
         opened.requests.some((request) => request.editor),
@@ -78,7 +87,6 @@ async function measureEditor(
   )
 }
 
-await withProductionBrowser(async (browser, url) => {
-  const measurement = await measureEditor(browser, url)
-  console.log('NEXT_EVAL_BROWSER_JS:' + JSON.stringify(measurement))
-})
+export function measureBrowserJs() {
+  return withProductionBrowser(measureEditor)
+}
