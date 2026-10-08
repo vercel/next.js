@@ -684,8 +684,7 @@ pub struct TurboTasks<B: Backend + 'static> {
     /// Diagnostics for reads and inline execution, see `TurboTasks::inline_execution_stats`.
     /// Zero-sized without the `inline_execution_stats` feature.
     inline_counters: InlineExecutionCounters,
-    priority_runner:
-        Arc<PriorityRunner<TurboTasks<B>, ScheduledTask, TaskPriority, TurboTasksExecutor>>,
+    priority_runner: Arc<PriorityRunner<TurboTasks<B>, ScheduledTask, TurboTasksExecutor>>,
     start: Mutex<Option<Instant>>,
     aggregated_update: Mutex<(Option<(Duration, usize)>, InvalidationReasonSet)>,
     /// Event that is triggered when currently_scheduled_foreground_jobs becomes non-zero
@@ -1530,7 +1529,7 @@ async fn abort_on_panic<F: Future>(f: F) -> F::Output {
     }
 }
 
-impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboTasksExecutor {
+impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask> for TurboTasksExecutor {
     type Future = impl Future<Output = ()> + Send + 'static;
 
     fn execute(
