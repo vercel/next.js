@@ -249,6 +249,23 @@ describe('app-dir static/dynamic handling', () => {
       })
     })
 
+    it('should cache indefinitely with revalidate false when force-dynamic is used', async () => {
+      const $ = await next.render$(
+        '/force-dynamic-fetch-cache/revalidate-false'
+      )
+      const initialData = $('#data').text()
+      expect(initialData).toBeTruthy()
+
+      await retry(async () => {
+        const $2 = await next.render$(
+          '/force-dynamic-fetch-cache/revalidate-false'
+        )
+        const currentData = $2('#data').text()
+        expect(currentData).toBeTruthy()
+        expect(currentData).toBe(initialData)
+      })
+    })
+
     it('force-dynamic should supercede a "default" cache value', async () => {
       const $ = await next.render$('/force-dynamic-fetch-cache/default-cache')
       const initData = $('#data').text()
