@@ -56,6 +56,12 @@ runs:
         NEXT_UPGRADE_API_KEY: ${{ inputs.api-key }}
       run: node "$GITHUB_ACTION_PATH/run.js" prepare
 
+    # Count the run before installs so early failures are still reported.
+    - name: Report upgrade start
+      shell: bash
+      continue-on-error: true
+      run: node "$GITHUB_ACTION_PATH/run.js" report-started
+
     - name: Validate inputs
       shell: bash
       run: node "$GITHUB_ACTION_PATH/run.js" validate
@@ -85,6 +91,12 @@ runs:
         NEXT_UPGRADE_GITHUB_TOKEN: ${{ inputs.github-token }}
         NODE_OPTIONS: ''
       run: node "$GITHUB_ACTION_PATH/run.js" deliver
+
+    - name: Report upgrade result
+      if: always()
+      shell: bash
+      continue-on-error: true
+      run: node "$GITHUB_ACTION_PATH/run.js" report-result
 
     - name: Clean up
       if: always()

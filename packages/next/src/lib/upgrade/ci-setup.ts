@@ -133,7 +133,8 @@ Keep these constraints even when updating an existing workflow:
 6. Ask the user before committing, pushing, or opening a pull request. With their permission, commit the workflow on a new branch and open a draft pull request.
 7. Finally, tell the user to:
    - Add the \`${secret}\` repository secret (Settings → Secrets and variables → Actions).
-   - Enable "Allow GitHub Actions to create and approve pull requests" (Settings → Actions → General).`
+   - Enable "Allow GitHub Actions to create and approve pull requests" (Settings → Actions → General).
+   - Optionally set \`NEXT_TELEMETRY_DISABLED: 1\` in the workflow \`env\` to opt out of Next.js telemetry.`
 }
 
 export function findGitRoot(directory: string): string | null {

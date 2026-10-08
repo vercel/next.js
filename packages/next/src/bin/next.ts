@@ -748,6 +748,18 @@ internal
     )
   )
 
+// The upgrade GitHub Action reports its own start and outcome.
+internal
+  .command('report-agent-upgrade-action', { hidden: true })
+  .argument('<kind>', 'Either started or result.')
+  .argument('<run-id>', 'The upgrade run UUID.')
+  .argument('[values...]', 'The agent and policy, or the result and stage.')
+  .action((kind: string, runId: string, values: string[]) =>
+    import('../cli/next-upgrade.js').then((mod) =>
+      mod.reportAgentUpgradeAction(kind, runId, values)
+    )
+  )
+
 internal
   .command('agent-feedback-instructions', { hidden: true })
   .option(

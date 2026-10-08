@@ -14,7 +14,7 @@ import yaml from 'js-yaml'
 
 const actionDirectory = resolve(__dirname, '../../packages/next-upgrade/action')
 const lib = require(join(actionDirectory, 'lib.js'))
-
+const UUID = '6f1c1f6e-2f6b-4c1e-9a3b-1d2e3f4a5b6c'
 const MARKER = '<!-- next-upgrade: security; path="." -->'
 const SCOPE = lib.getUpgradeScope('acme/app', 'main', '.')
 const BRANCH = `${SCOPE.branchPrefix}security-16.3.5`
@@ -48,22 +48,25 @@ describe('next upgrade GitHub Action', () => {
       })
     })
 
-    it('orders execution and always cleans up', () => {
+    it('reports the start before installs and the result always', () => {
       const steps: any[] = action.runs.steps
-      expect(
-        steps
-          .filter((step) => step.run)
-          .map((step) => step.run.split(' ').pop())
-      ).toEqual([
-        'prepare',
-        'validate',
-        'install-dependencies',
-        'install-agent',
-        'agent',
-        'deliver',
-        'cleanup',
-      ])
-      expect(steps[steps.length - 1].if).toBe('always()')
+      const index = (command: string) =>
+        steps.findIndex((step) => step.run?.endsWith(` ${command}`))
+
+      expect(index('prepare')).toBeLessThan(index('report-started'))
+      expect(index('report-started')).toBeLessThan(index('validate'))
+      expect(index('validate')).toBeLessThan(index('install-dependencies'))
+      expect(index('install-dependencies')).toBeLessThan(index('install-agent'))
+      expect(index('install-agent')).toBeLessThan(index('agent'))
+      expect(index('agent')).toBeLessThan(index('deliver'))
+      expect(index('deliver')).toBeLessThan(index('report-result'))
+      expect(index('report-result')).toBeLessThan(index('cleanup'))
+      for (const command of ['report-started', 'report-result']) {
+        expect(steps[index(command)]['continue-on-error']).toBe(true)
+      }
+      for (const command of ['report-result', 'cleanup']) {
+        expect(steps[index(command)].if).toBe('always()')
+      }
     })
 
     it('passes inputs through env and keeps the token out of the agent step', () => {
@@ -226,6 +229,7 @@ describe('next upgrade GitHub Action', () => {
         apiKey: 'sk-key',
         model,
         effort,
+        runId: UUID,
         codexHome: '/tmp/codex-home',
         env,
         prompt: 'Upgrade prompt',
@@ -249,6 +253,8 @@ describe('next upgrade GitHub Action', () => {
         HOME: '/home/runner',
         NEXT_TELEMETRY_DISABLED: '1',
         ANTHROPIC_API_KEY: 'sk-key',
+        __NEXT_AGENT_UPGRADE_ORIGIN: 'github_action',
+        __NEXT_AGENT_UPGRADE_CI_RUN_ID: UUID,
       })
     })
 
@@ -274,6 +280,8 @@ describe('next upgrade GitHub Action', () => {
         NEXT_TELEMETRY_DISABLED: '1',
         CODEX_API_KEY: 'sk-key',
         CODEX_HOME: '/tmp/codex-home',
+        __NEXT_AGENT_UPGRADE_ORIGIN: 'github_action',
+        __NEXT_AGENT_UPGRADE_CI_RUN_ID: UUID,
       })
     })
 
@@ -492,6 +500,44 @@ describe('next upgrade GitHub Action', () => {
       GIT_CONFIG_VALUE_2: '',
     })
   })
+
+  describe('reporting', () => {
+    it.each([
+      [{ stage: 'install' }, ['result', UUID, 'failure', 'install']],
+      [{ stage: 'agent' }, ['result', UUID, 'failure', 'agent']],
+      [{ stage: 'result_file' }, ['result', UUID, 'failure', 'result_file']],
+      [{ stage: 'delivery' }, ['result', UUID, 'failure', 'delivery']],
+      [{ stage: undefined }, ['result', UUID, 'failure', 'validation']],
+      [
+        {
+          stage: 'delivery',
+          outcome: { result: 'pr_opened', failureStage: null },
+        },
+        ['result', UUID, 'pr_opened'],
+      ],
+      [
+        {
+          stage: 'result_file',
+          outcome: { result: 'no_update', failureStage: null },
+        },
+        ['result', UUID, 'no_update'],
+      ],
+    ])('maps state %j to %j', (state, args) => {
+      expect(lib.getReportArgs('result', { runId: UUID, ...state })).toEqual(
+        args
+      )
+    })
+
+    it('reports invalid start inputs as empty values', () => {
+      expect(
+        lib.getReportArgs('started', {
+          runId: UUID,
+          agent: 'x',
+          policy: 'latest',
+        })
+      ).toEqual(['started', UUID, '', 'latest'])
+    })
+  })
 })
 
 // Drives run.js end to end against a real Git repository with fake gh and npx.
@@ -645,6 +691,35 @@ if (!process.env.GH_TOKEN) process.exit(1)`
     rmSync(root, { recursive: true, force: true })
   })
 
+  it('reports the start and an early validation failure', () => {
+    expect(step('prepare', { NEXT_UPGRADE_AGENT: 'copilot' }).status).toBe(0)
+    expect(step('report-started').status).toBe(0)
+    const validation = step('validate')
+    expect(validation.status).toBe(1)
+    expect(validation.stdout).toContain('::error::Unsupported agent "copilot"')
+    expect(step('report-result').status).toBe(0)
+
+    const [started, result] = calls('npx')
+    const runId = started[5]
+    expect(started).toEqual([
+      '--yes',
+      'next@16.5.0',
+      'internal',
+      'report-agent-upgrade-action',
+      'started',
+      runId,
+      '',
+      'security',
+    ])
+    expect(runId).toMatch(/^[0-9a-f-]{36}$/)
+    expect(result.slice(4)).toEqual(['result', runId, 'failure', 'validation'])
+
+    expect(step('cleanup').status).toBe(0)
+    expect(() =>
+      readFileSync(join(runnerTemp, 'next-upgrade', 'state.json'))
+    ).toThrow()
+  })
+
   it('pushes the agent branch and opens a draft pull request', () => {
     step('prepare')
     commitUpgrade()
@@ -662,9 +737,7 @@ if (!process.env.GH_TOKEN) process.exit(1)`
       body: `Upgrade.\n\n${MARKER}`,
     })
 
-    const delivery = step('deliver', {
-      NEXT_UPGRADE_GITHUB_TOKEN: 'ghs_token',
-    })
+    const delivery = step('deliver', { NEXT_UPGRADE_GITHUB_TOKEN: 'ghs_token' })
     expect(delivery.stdout).toContain(
       '::notice::Opened draft pull request https://github.com/acme/app/pull/1'
     )
@@ -689,6 +762,11 @@ if (!process.env.GH_TOKEN) process.exit(1)`
       'Upgrade Next.js to 16.3.5',
       '--body-file',
     ])
+
+    step('report-result')
+    expect(
+      calls('npx')[0].slice(4, 5).concat(calls('npx')[0].slice(6))
+    ).toEqual(['result', 'pr_opened'])
   })
 
   it('recognizes an owned pull request with the verified committed tree', () => {
@@ -711,6 +789,8 @@ if (!process.env.GH_TOKEN) process.exit(1)`
     expect(delivery.status).toBe(0)
     expect(delivery.stdout).toContain('https://github.com/acme/app/pull/7')
     expect(calls('gh').map((args) => args[1])).toEqual(['list', 'view'])
+    step('report-result')
+    expect(calls('npx')[0].slice(6)).toEqual(['duplicate_pr'])
   })
 
   it.each([
@@ -763,9 +843,7 @@ const result = spawnSync(${JSON.stringify(realGit)}, args, { stdio: 'inherit', e
 process.exit(result.status === null ? 1 : result.status)`
     )
 
-    const delivery = step('deliver', {
-      NEXT_UPGRADE_GITHUB_TOKEN: 'ghs_token',
-    })
+    const delivery = step('deliver', { NEXT_UPGRADE_GITHUB_TOKEN: 'ghs_token' })
     expect(delivery.status).toBe(1)
     expect(delivery.stdout).toContain('Could not push the upgrade branch.')
     expect(git(remote, 'rev-parse', BRANCH)).toBe(sourceHead)
@@ -773,11 +851,11 @@ process.exit(result.status === null ? 1 : result.status)`
   })
 
   it.each([
-    [{ status: 'no_update' }, 0],
-    [{ status: 'duplicate' }, 1],
-    [{ status: 'failure' }, 1],
-    ['not json', 1],
-  ])('maps agent result %j', (value, status) => {
+    [{ status: 'no_update' }, 0, ['no_update']],
+    [{ status: 'duplicate' }, 1, ['failure', 'result_file']],
+    [{ status: 'failure' }, 1, ['failure', 'agent']],
+    ['not json', 1, ['failure', 'result_file']],
+  ])('maps agent result %j', (value, status, reported) => {
     step('prepare')
     if (typeof value === 'string') {
       writeFileSync(join(runnerTemp, 'next-upgrade', 'result.json'), value)
@@ -787,13 +865,16 @@ process.exit(result.status === null ? 1 : result.status)`
     expect(
       step('deliver', { NEXT_UPGRADE_GITHUB_TOKEN: 'ghs_token' }).status
     ).toBe(status)
-
+    step('report-result')
+    expect(calls('npx')[0].slice(6)).toEqual(reported)
     expect(calls('gh')).toEqual([])
   })
 
   it('fails without a result file', () => {
     step('prepare')
     expect(step('deliver').status).toBe(1)
+    step('report-result')
+    expect(calls('npx')[0].slice(6)).toEqual(['failure', 'result_file'])
   })
 
   it.each([
@@ -842,12 +923,12 @@ process.exit(result.status === null ? 1 : result.status)`
       body: MARKER,
     })
 
-    const delivery = step('deliver', {
-      NEXT_UPGRADE_GITHUB_TOKEN: 'ghs_token',
-    })
+    const delivery = step('deliver', { NEXT_UPGRADE_GITHUB_TOKEN: 'ghs_token' })
     expect(delivery.status).toBe(1)
     expect(delivery.stdout).toContain(error)
     expect(calls('gh').some((args) => args[1] === 'create')).toBe(false)
+    step('report-result')
+    expect(calls('npx')[0].slice(6)).toEqual(['failure', 'delivery'])
   })
 
   it.each([
@@ -875,9 +956,7 @@ process.exit(result.status === null ? 1 : result.status)`
     commitUpgrade()
     mutate()
     writeUpgradeResult(BRANCH)
-    const delivery = step('deliver', {
-      NEXT_UPGRADE_GITHUB_TOKEN: 'ghs_token',
-    })
+    const delivery = step('deliver', { NEXT_UPGRADE_GITHUB_TOKEN: 'ghs_token' })
     expect(delivery.status).toBe(1)
     expect(delivery.stdout).toContain(message)
     expect(git(remote, 'branch', '--list')).toBe('')
@@ -888,9 +967,7 @@ process.exit(result.status === null ? 1 : result.status)`
     git(repo, 'switch', '-q', '-c', BRANCH)
     git(repo, 'commit', '--allow-empty', '-qm', 'Empty')
     writeUpgradeResult(BRANCH)
-    const delivery = step('deliver', {
-      NEXT_UPGRADE_GITHUB_TOKEN: 'ghs_token',
-    })
+    const delivery = step('deliver', { NEXT_UPGRADE_GITHUB_TOKEN: 'ghs_token' })
     expect(delivery.status).toBe(1)
     expect(delivery.stdout).toContain('no changed files')
     expect(git(remote, 'branch', '--list')).toBe('')
@@ -1013,9 +1090,7 @@ process.exit(result.status === null ? 1 : result.status)`
     git(repo, 'push', '-q', remote, `HEAD:refs/heads/${BRANCH}`)
     git(repo, 'switch', '-q', BRANCH)
     writeUpgradeResult(BRANCH)
-    const delivery = step('deliver', {
-      NEXT_UPGRADE_GITHUB_TOKEN: 'ghs_token',
-    })
+    const delivery = step('deliver', { NEXT_UPGRADE_GITHUB_TOKEN: 'ghs_token' })
     expect(delivery.status).toBe(1)
     expect(delivery.stdout).toContain('different work or source history')
     expect(calls('gh').some((args) => args[1] === 'create')).toBe(false)
@@ -1078,7 +1153,8 @@ process.exit(result.status === null ? 1 : result.status)`
     expect(agentEnv.ACTIONS_RUNTIME_TOKEN).toBeUndefined()
     expect(agentEnv.NEXT_UPGRADE_API_KEY).toBeUndefined()
     expect(agentEnv.ANTHROPIC_API_KEY).toBe('sk-key')
-
+    expect(agentEnv.__NEXT_AGENT_UPGRADE_ORIGIN).toBe('github_action')
+    expect(agentEnv.__NEXT_AGENT_UPGRADE_CI_RUN_ID).toMatch(/^[0-9a-f-]{36}$/)
     const [args] = calls('claude')
     expect(args.slice(0, 3)).toEqual([
       '-p',
@@ -1087,11 +1163,13 @@ process.exit(result.status === null ? 1 : result.status)`
     ])
   })
 
-  it('fails when the agent fails', () => {
+  it('reports an agent failure', () => {
     fakeBinary('claude', 'process.exit(3)')
     step('prepare')
     const agent = step('agent')
     expect(agent.status).toBe(1)
     expect(agent.stdout).toContain('The coding agent exited with code 3.')
+    step('report-result')
+    expect(calls('npx')[0].slice(6)).toEqual(['failure', 'agent'])
   })
 })

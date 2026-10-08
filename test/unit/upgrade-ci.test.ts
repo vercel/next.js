@@ -5,7 +5,10 @@ import { tmpdir } from 'os'
 import { join, resolve } from 'path'
 import * as Log from 'next/dist/build/output/log'
 import cliSelect from 'next/dist/compiled/cli-select'
-import { spawnNextUpgrade } from 'next/dist/cli/next-upgrade'
+import {
+  reportAgentUpgradeAction,
+  spawnNextUpgrade,
+} from 'next/dist/cli/next-upgrade'
 import { findDir } from 'next/dist/lib/find-pages-dir'
 import { getProjectDir } from 'next/dist/lib/get-project-dir'
 import {
@@ -14,6 +17,7 @@ import {
   type CISetupInput,
 } from 'next/dist/lib/upgrade/ci-setup'
 import { getHarnessModels } from 'next/dist/lib/upgrade/model-discovery'
+import { prepareUpgrade } from 'next/dist/lib/upgrade/prepare-upgrade'
 import loadConfig from 'next/dist/server/config'
 import { normalizeConfig } from 'next/dist/server/config-shared'
 import { getAgentName } from 'next/dist/telemetry/agent-name'
@@ -80,6 +84,7 @@ const crossSpawn = require('next/dist/compiled/cross-spawn') as jest.Mock & {
 }
 const cliVersion: string = require('next/package.json').version
 const restoreDescriptors: Array<() => void> = []
+const UUID = '6f1c1f6e-2f6b-4c1e-9a3b-1d2e3f4a5b6c'
 
 function overrideTTY(target: NodeJS.ReadStream | NodeJS.WriteStream) {
   const descriptor = Object.getOwnPropertyDescriptor(target, 'isTTY')
@@ -532,5 +537,189 @@ describe('next upgrade --ci onboarding', () => {
       expect.stringContaining('No Next.js app found in this directory.')
     )
     expect(process.exitCode).toBe(1)
+  })
+})
+
+describe('agent upgrade GitHub Action telemetry', () => {
+  const records: Array<{ eventName: string; payload: unknown }> = []
+  const originalExitCode = process.exitCode
+
+  beforeEach(() => {
+    jest.resetAllMocks()
+    records.length = 0
+    process.exitCode = undefined
+    jest.mocked(Telemetry).mockImplementation(
+      () =>
+        ({
+          record: jest.fn((event) => records.push(event)),
+          flush: jest.fn().mockResolvedValue([]),
+        }) as never
+    )
+    jest.mocked(loadConfig).mockRejectedValue(new Error('no deps yet'))
+  })
+
+  afterEach(() => {
+    process.exitCode = originalExitCode
+    delete process.env.__NEXT_AGENT_UPGRADE_ORIGIN
+    delete process.env.__NEXT_AGENT_UPGRADE_CI_RUN_ID
+    delete process.env.__NEXT_AGENT_UPGRADE_RUN_ID
+    delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
+  })
+
+  it.each([
+    [
+      ['started', UUID, ['claude', 'latest']],
+      {
+        eventName: 'NEXT_AGENT_UPGRADE_ACTION_STARTED',
+        payload: {
+          schemaVersion: 1,
+          runId: UUID,
+          agent: 'claude',
+          policy: 'latest',
+        },
+      },
+    ],
+    [
+      ['started', UUID, ['', 'nope']],
+      {
+        eventName: 'NEXT_AGENT_UPGRADE_ACTION_STARTED',
+        payload: { schemaVersion: 1, runId: UUID, agent: null, policy: null },
+      },
+    ],
+    [
+      ['result', UUID, ['pr_opened']],
+      {
+        eventName: 'NEXT_AGENT_UPGRADE_ACTION_RESULT',
+        payload: {
+          schemaVersion: 1,
+          runId: UUID,
+          result: 'pr_opened',
+          failureStage: null,
+        },
+      },
+    ],
+    [
+      ['result', UUID, ['failure', 'install']],
+      {
+        eventName: 'NEXT_AGENT_UPGRADE_ACTION_RESULT',
+        payload: {
+          schemaVersion: 1,
+          runId: UUID,
+          result: 'failure',
+          failureStage: 'install',
+        },
+      },
+    ],
+  ] as const)('records %j', async ([kind, runId, args], event) => {
+    await reportAgentUpgradeAction(kind, runId, [...args])
+    expect(records).toEqual([event])
+  })
+
+  it.each([
+    ['started', 'not-a-uuid', ['claude', 'latest']],
+    ['unknown', UUID, []],
+    ['result', UUID, ['great']],
+    ['result', UUID, ['failure']],
+    ['result', UUID, ['failure', 'somewhere']],
+    ['result', UUID, ['pr_opened', 'install']],
+    ['started', UUID, ['claude', 'latest', 'extra']],
+  ])('ignores invalid report %s %s %j', async (kind, runId, args) => {
+    await expect(
+      reportAgentUpgradeAction(kind, runId, args)
+    ).resolves.toBeUndefined()
+    expect(records).toEqual([])
+    expect(process.exitCode).toBeUndefined()
+  })
+
+  function runAgentUpgrade() {
+    jest.mocked(getProjectDir).mockReturnValue('/workspace/app')
+    jest.mocked(findDir).mockReturnValue('/workspace/app/app')
+    jest.mocked(loadConfig).mockResolvedValue({ default: {} } as never)
+    jest
+      .mocked(normalizeConfig)
+      .mockImplementation(async (_phase, config) => config)
+    jest.mocked(getAgentName).mockResolvedValue('claude')
+    jest.mocked(prepareUpgrade).mockResolvedValue({
+      status: 'unaffected',
+      reason: 'Already current.',
+    })
+    process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION = cliVersion
+    return spawnNextUpgrade(
+      '/workspace/app',
+      { revision: 'latest', verbose: false, agent: 'security' },
+      null
+    )
+  }
+
+  it('attributes --agent runs started by the GitHub Action', async () => {
+    process.env.__NEXT_AGENT_UPGRADE_ORIGIN = 'github_action'
+    process.env.__NEXT_AGENT_UPGRADE_CI_RUN_ID = UUID
+
+    await runAgentUpgrade()
+
+    expect(records[0]).toEqual({
+      eventName: 'NEXT_AGENT_UPGRADE_RUN_STARTED',
+      payload: expect.objectContaining({
+        runId: UUID,
+        origin: 'github_action',
+        agentProduct: 'claude',
+      }),
+    })
+    expect(records[1].payload).toEqual(expect.objectContaining({ runId: UUID }))
+    expect(process.env.__NEXT_AGENT_UPGRADE_ORIGIN).toBeUndefined()
+    expect(process.env.__NEXT_AGENT_UPGRADE_CI_RUN_ID).toBeUndefined()
+  })
+
+  it.each([
+    ['github_action', 'not-a-uuid'],
+    ['somewhere', UUID],
+  ])('falls back for origin %s and run ID %s', async (origin, runId) => {
+    process.env.__NEXT_AGENT_UPGRADE_ORIGIN = origin
+    process.env.__NEXT_AGENT_UPGRADE_CI_RUN_ID = runId
+
+    await runAgentUpgrade()
+
+    expect(records[0].payload).toEqual(
+      expect.objectContaining({ origin: 'agent_manual' })
+    )
+    expect((records[0].payload as { runId: string }).runId).not.toBe(UUID)
+    expect(process.env.__NEXT_AGENT_UPGRADE_ORIGIN).toBeUndefined()
+    expect(process.env.__NEXT_AGENT_UPGRADE_CI_RUN_ID).toBeUndefined()
+  })
+
+  it('passes the GitHub Action run ID to the delegated canary CLI', async () => {
+    process.env.__NEXT_AGENT_UPGRADE_ORIGIN = 'github_action'
+    process.env.__NEXT_AGENT_UPGRADE_CI_RUN_ID = UUID
+    const originalFetch = global.fetch
+    global.fetch = jest
+      .fn()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ version: '99.0.0-canary.0' }))
+      )
+    mockLaunch()
+    try {
+      jest.mocked(getProjectDir).mockReturnValue('/workspace/app')
+      jest.mocked(loadConfig).mockResolvedValue({ default: {} } as never)
+      jest
+        .mocked(normalizeConfig)
+        .mockImplementation(async (_phase, config) => config)
+      jest.mocked(getAgentName).mockResolvedValue('claude')
+
+      await spawnNextUpgrade(
+        '/workspace/app',
+        { revision: 'latest', verbose: false, agent: 'security' },
+        null
+      )
+    } finally {
+      global.fetch = originalFetch
+    }
+
+    const env = crossSpawn.mock.calls[0][2].env
+    expect(env.__NEXT_AGENT_UPGRADE_RUN_ID).toBe(UUID)
+    expect(env.__NEXT_AGENT_UPGRADE_ORIGIN).toBeUndefined()
+    expect(env.__NEXT_AGENT_UPGRADE_CI_RUN_ID).toBeUndefined()
+    expect(records[0].payload).toEqual(
+      expect.objectContaining({ runId: UUID, origin: 'github_action' })
+    )
   })
 })

@@ -16,9 +16,14 @@ import type { UpgradeDocument } from '../lib/upgrade/future-defaults'
 import { runChildProcess } from '../lib/upgrade/run-child-process'
 import { getAgentName } from '../telemetry/agent-name'
 import {
+  eventAgentUpgradeActionResult,
+  eventAgentUpgradeActionStarted,
   eventAgentUpgradeAgentResult,
   eventAgentUpgradeCLIResult,
   eventAgentUpgradeRunStarted,
+  type AgentUpgradeActionAgent,
+  type AgentUpgradeActionFailureStage,
+  type AgentUpgradeActionResult,
   type AgentUpgradeCLIResult,
   type AgentUpgradeHandoffMethod,
   type AgentUpgradePolicy,
@@ -208,13 +213,27 @@ export async function spawnNextUpgrade(
     // Remove it before launching an agent so later upgrades start their own runs.
     const inheritedRunId = process.env.__NEXT_AGENT_UPGRADE_RUN_ID
     delete process.env.__NEXT_AGENT_UPGRADE_RUN_ID
+    // The upgrade GitHub Action attributes the run it starts. Remove both values
+    // so upgrades the agent starts later do not inherit the action's run.
+    const ciOrigin = process.env.__NEXT_AGENT_UPGRADE_ORIGIN
+    const ciRunId = process.env.__NEXT_AGENT_UPGRADE_CI_RUN_ID
+    delete process.env.__NEXT_AGENT_UPGRADE_ORIGIN
+    delete process.env.__NEXT_AGENT_UPGRADE_CI_RUN_ID
+    const githubActionRunId =
+      ciOrigin === 'github_action' &&
+      ciRunId !== undefined &&
+      UUID_PATTERN.test(ciRunId)
+        ? ciRunId
+        : null
     const invalidRunId =
       inheritedRunId !== undefined && !UUID_PATTERN.test(inheritedRunId)
     const invalidNudgeId =
       nudgeSource !== null && !UUID_PATTERN.test(nudgeSource.id)
 
     const runId =
-      inheritedRunId && !invalidRunId ? inheritedRunId : randomUUID()
+      inheritedRunId && !invalidRunId
+        ? inheritedRunId
+        : (githubActionRunId ?? randomUUID())
 
     let resolvedPolicy: AgentUpgradePolicy | null = null
     let failureStage: 'cli' | 'metadata' | 'guide' | 'handoff' = 'cli'
@@ -247,13 +266,15 @@ export async function spawnNextUpgrade(
       if (!inheritedRunId || invalidRunId) {
         const agentProduct = await getAgentName()
         const nudge = invalidRunId || invalidNudgeId ? null : nudgeSource
-        const origin = nudge
-          ? nudge.recipient === 'agent'
-            ? 'agent_nudge'
-            : 'human_nudge'
-          : agentProduct
-            ? 'agent_manual'
-            : 'human_manual'
+        const origin = githubActionRunId
+          ? 'github_action'
+          : nudge
+            ? nudge.recipient === 'agent'
+              ? 'agent_nudge'
+              : 'human_nudge'
+            : agentProduct
+              ? 'agent_manual'
+              : 'human_manual'
         telemetry.record(
           eventAgentUpgradeRunStarted({
             runId,
@@ -738,4 +759,86 @@ async function setupCIUpgrade(
     )
     process.exitCode = 1
   }
+}
+
+const ACTION_AGENTS: readonly AgentUpgradeActionAgent[] = ['claude', 'codex']
+const ACTION_POLICIES: readonly AgentUpgradePolicy[] = [
+  'security',
+  'latest',
+  'experimental-future',
+]
+const ACTION_RESULTS: readonly AgentUpgradeActionResult[] = [
+  'pr_opened',
+  'duplicate_pr',
+  'no_update',
+  'failure',
+]
+const ACTION_FAILURE_STAGES: readonly AgentUpgradeActionFailureStage[] = [
+  'validation',
+  'install',
+  'agent',
+  'result_file',
+  'delivery',
+]
+
+function pick<T extends string>(
+  values: readonly T[],
+  value: string | undefined
+): T | null {
+  return values.find((candidate) => candidate === value) ?? null
+}
+
+// The upgrade GitHub Action reports its own start and outcome. Reporting must
+// never fail the workflow, so invalid input is ignored rather than thrown.
+export async function reportAgentUpgradeAction(
+  kind: string,
+  runId: string,
+  args: string[]
+) {
+  let telemetryEvent:
+    | ReturnType<typeof eventAgentUpgradeActionStarted>
+    | ReturnType<typeof eventAgentUpgradeActionResult>
+    | null = null
+
+  if (UUID_PATTERN.test(runId)) {
+    if (kind === 'started' && args.length <= 2) {
+      telemetryEvent = eventAgentUpgradeActionStarted({
+        runId,
+        agent: pick(ACTION_AGENTS, args[0]),
+        policy: pick(ACTION_POLICIES, args[1]),
+      })
+    } else if (kind === 'result' && args.length <= 2) {
+      const result = pick(ACTION_RESULTS, args[0])
+      const failureStage = pick(ACTION_FAILURE_STAGES, args[1])
+      if (
+        result &&
+        (result === 'failure' ? args.length === 2 && failureStage : !args[1])
+      ) {
+        telemetryEvent = eventAgentUpgradeActionResult({
+          runId,
+          result,
+          failureStage: result === 'failure' ? failureStage : null,
+        })
+      }
+    }
+  }
+
+  if (!telemetryEvent) {
+    return
+  }
+
+  try {
+    // The action may report before dependencies are installed, so config
+    // loading is optional. CI runs use ephemeral telemetry storage either way.
+    let distDir = '.next'
+    try {
+      distDir = (await loadAgentUpgradeConfig(process.cwd())).distDir || distDir
+    } catch {}
+    const telemetry = new Telemetry({
+      distDir: join(process.cwd(), distDir),
+      skipNotify: true,
+    })
+    await telemetry.record(telemetryEvent)
+    await telemetry.flush()
+  } catch {}
 }

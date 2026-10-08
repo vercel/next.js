@@ -6,6 +6,7 @@ export type AgentUpgradeOrigin =
   | 'human_nudge'
   | 'agent_manual'
   | 'agent_nudge'
+  | 'github_action'
 
 export type AgentUpgradeHandoffMethod =
   | 'existing_agent'
@@ -86,4 +87,37 @@ export function eventAgentUpgradeAgentResult(fields: {
   result: 'success' | 'failure'
 }) {
   return event('NEXT_AGENT_UPGRADE_AGENT_RESULT', fields)
+}
+
+export type AgentUpgradeActionAgent = 'claude' | 'codex'
+
+export type AgentUpgradeActionResult =
+  | 'pr_opened'
+  | 'duplicate_pr'
+  | 'no_update'
+  | 'failure'
+
+export type AgentUpgradeActionFailureStage =
+  | 'validation'
+  | 'install'
+  | 'agent'
+  | 'result_file'
+  | 'delivery'
+
+// Count GitHub Action runs before installs so early failures still have a start.
+export function eventAgentUpgradeActionStarted(fields: {
+  runId: string
+  agent: AgentUpgradeActionAgent | null
+  policy: AgentUpgradePolicy | null
+}) {
+  return event('NEXT_AGENT_UPGRADE_ACTION_STARTED', fields)
+}
+
+// The action reports its delivery outcome; CLI and agent events join by runId.
+export function eventAgentUpgradeActionResult(fields: {
+  runId: string
+  result: AgentUpgradeActionResult
+  failureStage: AgentUpgradeActionFailureStage | null
+}) {
+  return event('NEXT_AGENT_UPGRADE_ACTION_RESULT', fields)
 }

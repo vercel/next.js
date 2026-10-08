@@ -6,7 +6,13 @@ const { createHash } = require('crypto')
 const AGENTS = ['claude', 'codex']
 const POLICIES = ['security', 'latest', 'experimental-future']
 const RESULT_STATUSES = ['success', 'failure', 'no_update']
-
+const FAILURE_STAGES = [
+  'validation',
+  'install',
+  'agent',
+  'result_file',
+  'delivery',
+]
 const BRANCH_PREFIX = 'next-upgrade/'
 const MAX_TITLE_LENGTH = 256
 const MAX_BODY_LENGTH = 60000
@@ -183,6 +189,8 @@ Never include secrets in this file.`
 
 function getAgentInvocation(input) {
   const env = sanitizeAgentEnv(input.env)
+  env.__NEXT_AGENT_UPGRADE_ORIGIN = 'github_action'
+  env.__NEXT_AGENT_UPGRADE_CI_RUN_ID = input.runId
 
   const args = []
   if (input.agent === 'claude') {
@@ -345,6 +353,33 @@ function getDeliveryGitEnv(env, { serverUrl, token, emptyHooksPath }) {
   ])
 }
 
+function resolveOutcome(state) {
+  if (state.outcome) {
+    return state.outcome
+  }
+  return {
+    result: 'failure',
+    failureStage: FAILURE_STAGES.includes(state.stage)
+      ? state.stage
+      : 'validation',
+  }
+}
+
+function getReportArgs(kind, state) {
+  if (kind === 'started') {
+    return [
+      'started',
+      state.runId,
+      AGENTS.includes(state.agent) ? state.agent : '',
+      POLICIES.includes(state.policy) ? state.policy : '',
+    ]
+  }
+  const { result, failureStage } = resolveOutcome(state)
+  return result === 'failure'
+    ? ['result', state.runId, result, failureStage]
+    : ['result', state.runId, result]
+}
+
 module.exports = {
   AGENTS,
   POLICIES,
@@ -361,4 +396,6 @@ module.exports = {
   getSafeGitEnv,
   getAuthorizationHeader,
   getDeliveryGitEnv,
+  resolveOutcome,
+  getReportArgs,
 }

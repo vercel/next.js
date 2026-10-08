@@ -3,7 +3,7 @@
 // in action.yml; nothing is interpolated into a shell.
 
 const { spawnSync } = require('child_process')
-
+const { randomUUID } = require('crypto')
 const fs = require('fs')
 const path = require('path')
 
@@ -27,6 +27,12 @@ function readState() {
 function writeState(state) {
   fs.mkdirSync(runDirectory, { recursive: true })
   fs.writeFileSync(statePath, JSON.stringify(state, null, 2))
+}
+
+function updateState(changes) {
+  const state = { ...readState(), ...changes }
+  writeState(state)
+  return state
 }
 
 function run(command, args, options = {}) {
@@ -116,6 +122,8 @@ function prepare() {
 
   fs.rmSync(runDirectory, { recursive: true, force: true })
   writeState({
+    runId: randomUUID(),
+    stage: 'validation',
     agent: env.NEXT_UPGRADE_AGENT,
     policy: env.NEXT_UPGRADE_POLICY,
     nextVersion: env.NEXT_UPGRADE_NEXT_VERSION || 'canary',
@@ -149,7 +157,7 @@ function validate() {
 }
 
 function installDependencies() {
-  const state = readState()
+  const state = updateState({ stage: 'install' })
   const install = lib.getInstallCommand(
     state.appDirectory,
     state.repoRoot,
@@ -182,7 +190,7 @@ function installDependencies() {
 }
 
 function installAgent() {
-  const state = readState()
+  const state = updateState({ stage: 'install' })
   const pkg =
     state.agent === 'codex' ? '@openai/codex' : '@anthropic-ai/claude-code'
   if (run('npm', ['install', '--global', pkg])) {
@@ -203,7 +211,7 @@ function listLocalGitConfigKeys(repoRoot, env = process.env) {
 }
 
 function agent() {
-  const state = readState()
+  const state = updateState({ stage: 'agent' })
 
   // Remove checkout credentials and redirects so the agent cannot use them.
   for (const key of new Set(
@@ -237,6 +245,7 @@ function agent() {
     apiKey: process.env.NEXT_UPGRADE_API_KEY,
     model: process.env.NEXT_UPGRADE_MODEL || null,
     effort: process.env.NEXT_UPGRADE_EFFORT || null,
+    runId: state.runId,
     codexHome,
     env: process.env,
     prompt: lib.buildAgentPrompt({
@@ -260,7 +269,7 @@ function agent() {
 }
 
 function deliver() {
-  const state = readState()
+  const state = updateState({ stage: 'result_file' })
   let text
   try {
     text = fs.readFileSync(resultFile, 'utf8')
@@ -273,13 +282,16 @@ function deliver() {
   }
 
   if (result.status === 'no_update') {
+    updateState({ outcome: { result: 'no_update', failureStage: null } })
     notice('No Next.js upgrade is needed.')
     return
   }
   if (result.status === 'failure') {
+    updateState({ stage: 'agent' })
     fail('The coding agent could not complete and verify the upgrade.')
   }
 
+  updateState({ stage: 'delivery' })
   const { repoRoot, initialHead, scope } = state
   // Every Git command here runs without the token and with hooks and fsmonitor
   // disabled, because the agent controlled the repository until now.
@@ -447,6 +459,7 @@ function deliver() {
     )
   }
   if (matches.length === 1) {
+    updateState({ outcome: { result: 'duplicate_pr', failureStage: null } })
     notice(
       `An open pull request already contains this upgrade: ${matches[0].url}`
     )
@@ -518,8 +531,35 @@ function deliver() {
   if (created.status !== 0) {
     fail('Could not open the draft pull request.')
   }
-
+  updateState({ outcome: { result: 'pr_opened', failureStage: null } })
   notice(`Opened draft pull request ${created.stdout}`)
+}
+
+function report(kind) {
+  // Telemetry is best effort and never changes the job result.
+  try {
+    const state = readState()
+    if (!state || !state.runId) {
+      return
+    }
+    const args = lib.getReportArgs(kind, state)
+    const cwd =
+      state.appDirectory && fs.existsSync(state.appDirectory)
+        ? state.appDirectory
+        : state.repoRoot || process.cwd()
+    const env = lib.sanitizeAgentEnv(process.env)
+    capture(
+      'npx',
+      [
+        '--yes',
+        `next@${state.nextVersion || 'canary'}`,
+        'internal',
+        'report-agent-upgrade-action',
+        ...args,
+      ],
+      { cwd, env, timeout: 180_000 }
+    )
+  } catch {}
 }
 
 function cleanup() {
@@ -533,6 +573,8 @@ const commands = {
   'install-agent': installAgent,
   agent,
   deliver,
+  'report-started': () => report('started'),
+  'report-result': () => report('result'),
   cleanup,
 }
 

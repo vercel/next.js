@@ -160,6 +160,8 @@ To finish the setup:
 
 Each run installs your dependencies and runs `next upgrade --agent` with the selected agent. The agent works without access to the GitHub token. The action then checks for an open pull request with the same upgrade, pushes the agent's branch, and opens a draft pull request. The run passes when no upgrade is needed.
 
+The action reports anonymous telemetry when a run starts and finishes. Reporting is best effort and never changes the run's result. Set `NEXT_TELEMETRY_DISABLED: 1` in the workflow `env` to opt out.
+
 > **Good to know**: The agent runs without approval prompts on the GitHub-hosted runner. Only run the workflow on trusted triggers such as `schedule` and `workflow_dispatch`, and use an API key dedicated to the workflow. See the [action's README](https://github.com/vercel/next.js/tree/canary/packages/next-upgrade/action) for all inputs and the security model.
 
 ## Configure upgrade reminders
