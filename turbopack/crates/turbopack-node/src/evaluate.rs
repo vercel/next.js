@@ -409,7 +409,9 @@ pub async fn custom_evaluate(evaluate_context: impl EvaluateContext) -> Result<V
                         evaluate_context.context_source_for_issue(),
                     ),
                     crash_context: evaluate_context.crash_context_prefix(),
-                    stderr: connect_error.stderr.as_str().into(),
+                    // Connection errors happen first thing on startup, so we shouldn't be too
+                    // worried about this being overly long.
+                    stderr: connect_error.stderr.as_str().trim().into(),
                 }
                 .resolved_cell()
                 .emit();
@@ -834,26 +836,30 @@ impl Issue for NodeJsConnectIssue {
     }
 
     async fn description(&self) -> Result<Option<StyledString>> {
-        let while_evaluating = match &self.crash_context {
-            Some(crash_context) => format!(" while evaluating {crash_context}"),
-            None => String::new(),
+        let mut first_line = vec![StyledString::Text(rcstr!(
+            "Turbopack is configured to run webpack loaders and PostCSS transforms in child \
+             processes that communicate with it over a loopback TCP connection, but the child \
+             process was unable to connect"
+        ))];
+
+        if let Some(crash_context) = &self.crash_context {
+            first_line.push(StyledString::Text(rcstr!(" while evaluating ")));
+            first_line.push(StyledString::Code(crash_context.clone()));
         };
+        first_line.push(StyledString::Text(rcstr!(":")));
         Ok(Some(StyledString::Stack(vec![
-            StyledString::Text(
-                format!(
-                    "Turbopack is configured to run webpack loaders and PostCSS transforms in \
-                     child processes that communicate with it over a loopback TCP connection, but \
-                     the child process was unable to connect{while_evaluating}:"
-                )
-                .into(),
-            ),
-            StyledString::Code(self.stderr.trim().into()),
-            StyledString::Text(rcstr!(
-                "This is likely caused by a sandbox or firewall that blocks connections. Allow \
-                 local connections, or run this code using worker threads by setting \
-                 `experimental.turbopackPluginRuntimeStrategy: 'workerThreads'` in your Next.js \
-                 config."
-            )),
+            StyledString::Line(first_line),
+            StyledString::Code(self.stderr.clone()),
+            StyledString::Line(vec![
+                StyledString::Text(rcstr!(
+                    "This is likely caused by a sandbox or firewall that blocks connections. \
+                     Allow local connections, or run this code using worker threads by setting "
+                )),
+                StyledString::Code(rcstr!(
+                    "experimental.turbopackPluginRuntimeStrategy: 'workerThreads'"
+                )),
+                StyledString::Text(rcstr!(" in your Next.js config.")),
+            ]),
         ])))
     }
 
