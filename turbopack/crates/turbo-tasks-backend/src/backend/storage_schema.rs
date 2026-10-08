@@ -477,6 +477,8 @@ pub enum UnevictableReason {
     InProgress,
     /// Modified flags are set, or data/meta has not been restored yet.
     Modified,
+    /// Deleted flag was set but the prior GC pass didn't run to completion.
+    MarkedForDeletion,
     /// The task is transient
     Transient,
     // Keep `NothingToEvict` last: `COUNT` is derived from its discriminant.
@@ -489,6 +491,7 @@ impl UnevictableReason {
     pub const ALL: [UnevictableReason; Self::COUNT] = [
         UnevictableReason::InProgress,
         UnevictableReason::Modified,
+        UnevictableReason::MarkedForDeletion,
         UnevictableReason::Transient,
         UnevictableReason::NothingToEvict,
     ];
@@ -508,6 +511,7 @@ impl UnevictableReason {
         match self {
             UnevictableReason::InProgress => "skipped_in_progress",
             UnevictableReason::Modified => "skipped_modified",
+            UnevictableReason::MarkedForDeletion => "skipped_marked_for_deletion",
             UnevictableReason::Transient => "skipped_transient",
             UnevictableReason::NothingToEvict => "skipped_nothing_to_evict",
         }

@@ -744,7 +744,15 @@ impl Storage {
     /// - `No`: skip
     ///
     /// Must be called when NOT in snapshot mode (i.e., after `end_snapshot()`).
-    pub fn evict_after_snapshot(&self, parent_span: Option<Id>) -> EvictionCounts {
+    ///
+    /// `gc_interrupted` is whether the preceding GC pass was interrupted. An interrupted pass
+    /// abandons the snapshot that would write the tombstones for the tasks it collected, so those
+    /// tasks are kept resident until a later snapshot writes them.
+    pub fn evict_after_snapshot(
+        &self,
+        parent_span: Option<Id>,
+        gc_interrupted: bool,
+    ) -> EvictionCounts {
         let span = tracing::trace_span!(
             parent: parent_span,
             "evict_after_snapshot",
@@ -793,9 +801,18 @@ impl Storage {
                     evicted.unevictable_reasons[UnevictableReason::Transient.index()] += 1;
                     return true;
                 }
-                // All GC'd tasks were tombstoned during the snapshot (or are not persisted) so we
-                // can drop them fully now.
                 if task.flags.deleted() {
+                    // The snapshot this pass abandoned was the one that would tombstone this task.
+                    // Its neighbours' halves of the torn-down edges still reach disk with the next
+                    // snapshot, so dropping it now would leave its last snapshot live on disk, to
+                    // be restored later as a live task with dangling edges.
+                    if gc_interrupted {
+                        evicted.unevictable_reasons
+                            [UnevictableReason::MarkedForDeletion.index()] += 1;
+                        return true;
+                    }
+                    // Otherwise every GC'd task was tombstoned during the snapshot (or was never
+                    // persisted), so we can drop it fully now.
                     if let Some(task_type) = task.get_persistent_task_type() {
                         remove_from_task_cache(
                             &mut evicted,
