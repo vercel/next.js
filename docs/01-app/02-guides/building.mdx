@@ -228,7 +228,7 @@ The `◐` symbol shows that the route serves a static shell and streams the rema
 
 ### Prerendered product pages
 
-The route now has a segment-wide fallback from `loading.js`. To prerender 12 known product pages, keep `loading.js` and use [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) to provide their IDs:
+The route now has a segment-wide fallback from `loading.js`. To prerender pages for known products, keep `loading.js` and use [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) to provide their IDs:
 
 ```tsx filename="app/products/[id]/page.tsx" switcher
 export async function generateStaticParams() {
