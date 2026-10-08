@@ -3415,6 +3415,14 @@ export default abstract class Server<
           }
         }
 
+        // App Router-only builds don't include the Pages Router `_error`, and
+        // the App Router only has pages for 404 and 500. Any other status, like
+        // the 400 for a malformed URL or the 405 for a POST to a public file,
+        // is sent as is with an empty body instead of turning into a 500.
+        if (hasAppDir) {
+          return { body: RenderResult.EMPTY }
+        }
+
         throw new WrappedBuildError(
           new Error('missing required error components')
         )
