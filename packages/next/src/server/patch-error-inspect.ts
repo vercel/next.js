@@ -442,6 +442,14 @@ function parseAndSourceMap(
   // doesn't implement the name computation correctly.
   const errorName = computeErrorName(error)
 
+  // `error.stack` starts with the message. Only parse what follows it, since
+  // the stack parser would otherwise mistake message lines for frames, e.g. a
+  // line starting with a URL or with "webpack"/"turbopack".
+  const header = errorName + ': ' + error.message
+  if (unparsedStack.startsWith(header)) {
+    unparsedStack = unparsedStack.slice(header.length)
+  }
+
   let idx = unparsedStack.indexOf('react_stack_bottom_frame')
   if (idx !== -1) {
     idx = unparsedStack.lastIndexOf('\n', idx)

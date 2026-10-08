@@ -59,5 +59,7 @@ describe('turbopack css node process connect failure', () => {
     // This is not a Turbopack bug, so don't present it as one.
     expect(cliOutput).not.toContain('TurbopackInternalError')
     expect(cliOutput).not.toContain('https://bugs.nextjs.org/')
+    // Lines of the message must not be mistaken for stack frames.
+    expect(cliOutput).not.toContain('at <unknown>')
   })
 })
