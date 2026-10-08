@@ -7,7 +7,7 @@ const { target } = JSON.parse(
 ) as { target: string }
 
 securityChecks(
-  '16.2.12',
+  '16.3.8',
   target,
   (app) => {
     test('preserves request identity between visitors', async () => {
