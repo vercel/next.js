@@ -58,7 +58,13 @@ function getBuildError(cliOutput: string): string {
       .trim()
 
     // The command exit status is not compiler output.
-    if (/^Error: Command .* exited with \d+$/.test(line)) break
+    if (
+      /^Error: (?:\[BUILD_UTILS_SPAWN_\d+\] )?Command .* exited with \d+$/.test(
+        line
+      )
+    ) {
+      break
+    }
 
     if (capturing) {
       if (line) {
