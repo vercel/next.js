@@ -494,6 +494,19 @@ export async function adapter(
      */
     response = new Response(response.body, response)
 
+    // The proxy does not receive internal search parameters. Preserve the
+    // original RSC cache key on same-origin redirects so the next request is
+    // validated against the URL it is cached under.
+    if (
+      isRSCRequest &&
+      rscHash !== null &&
+      redirectURL.origin === requestURL.origin &&
+      !redirectURL.searchParams.has(NEXT_RSC_UNION_QUERY)
+    ) {
+      redirectURL.searchParams.set(NEXT_RSC_UNION_QUERY, rscHash)
+      response.headers.set('Location', redirectURL.toString())
+    }
+
     if (!process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE) {
       if (redirectURL.host === requestURL.host) {
         redirectURL.buildId = buildId || redirectURL.buildId
