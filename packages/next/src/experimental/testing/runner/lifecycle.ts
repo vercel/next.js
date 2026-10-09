@@ -22,7 +22,7 @@ export interface AttemptContext extends TestContext {
   readonly ancestors?: { id: string; name: string }[]
   readonly mode?: 'run' | 'skip' | 'todo'
   readonly retry: number
-  readonly repeat: 0
+  readonly repeat: number
   onCleanup(cleanup: Cleanup): void
 }
 
@@ -64,7 +64,7 @@ export interface RunnerFailure {
 export interface RunnerCaseResult {
   entryId: string
   caseId: string
-  attempt: { id: string; retry: number; repeat: 0 }
+  attempt: { id: string; retry: number; repeat: number }
   name: string
   testName?: string
   ancestors?: { id: string; name: string }[]
@@ -232,164 +232,152 @@ export async function runCollected(
     const reportingAncestors = ancestors
       .filter((parent) => parent !== root && parent.name)
       .map(({ id, name: suiteName }) => ({ id, name: suiteName }))
-    const attempts = mode === 'run' ? (test.options.retry ?? 0) + 1 : 1
-    for (let retry = 0; retry < attempts; retry++) {
-      const start = Date.now()
-      const errors = [...inheritedErrors]
-      const controller = new AbortController()
-      const cleanups: Cleanup[] = []
-      const finished: { fn: TestBody; timeout?: number }[] = []
-      const failed: { fn: TestBody; timeout?: number }[] = []
-      let invokingListeners = false
-      let sealed = false
-      const onCleanup = (cleanup: Cleanup) => {
-        if (sealed)
-          throw new Error('Cannot register cleanup after the attempt finished.')
-        cleanups.push(cleanup)
-      }
-      const registerListener = (
-        stack: typeof finished,
-        handler: TestBody,
-        timeout?: number
-      ) => {
-        if (sealed) {
-          const error = new Error(
-            `Cannot register a listener after the attempt finished (${context.id}).`
-          )
-          onLateFailure(error)
-          throw error
+    const repeats = mode === 'run' ? (test.options.repeats ?? 0) + 1 : 1
+    for (let repeat = 0; repeat < repeats; repeat++) {
+      const attempts = mode === 'run' ? (test.options.retry ?? 0) + 1 : 1
+      for (let retry = 0; retry < attempts; retry++) {
+        const start = Date.now()
+        const errors = [...inheritedErrors]
+        const controller = new AbortController()
+        const cleanups: Cleanup[] = []
+        const finished: { fn: TestBody; timeout?: number }[] = []
+        const failed: { fn: TestBody; timeout?: number }[] = []
+        let invokingListeners = false
+        let sealed = false
+        const onCleanup = (cleanup: Cleanup) => {
+          if (sealed)
+            throw new Error(
+              'Cannot register cleanup after the attempt finished.'
+            )
+          cleanups.push(cleanup)
         }
-        if (invokingListeners)
-          throw new Error(
-            'Cannot register test listeners inside a test listener.'
+        const registerListener = (
+          stack: typeof finished,
+          handler: TestBody,
+          timeout?: number
+        ) => {
+          if (sealed) {
+            const error = new Error(
+              `Cannot register a listener after the attempt finished (${context.id}).`
+            )
+            onLateFailure(error)
+            throw error
+          }
+          if (invokingListeners)
+            throw new Error(
+              'Cannot register test listeners inside a test listener.'
+            )
+          if (typeof handler !== 'function')
+            throw new TypeError('Test listener requires a callback.')
+          if (
+            timeout !== undefined &&
+            (!Number.isSafeInteger(timeout) || timeout < 0)
           )
-        if (typeof handler !== 'function')
-          throw new TypeError('Test listener requires a callback.')
-        if (
-          timeout !== undefined &&
-          (!Number.isSafeInteger(timeout) || timeout < 0)
+            throw new TypeError(
+              'Test listener timeout must be a non-negative safe integer.'
+            )
+          stack.push({ fn: handler, timeout })
+        }
+        const context: AttemptContext = {
+          id: `${options.runId}/${test.id}/${retry}/${repeat}`,
+          fileId: root.id,
+          testId: test.id,
+          name,
+          testName: test.name,
+          ancestors: reportingAncestors,
+          mode,
+          retry,
+          repeat,
+          signal: controller.signal,
+          onCleanup,
+          onTestFinished: (handler, timeout) =>
+            registerListener(finished, handler, timeout),
+          onTestFailed: (handler, timeout) =>
+            registerListener(failed, handler, timeout),
+        }
+        const caseResult: RunnerCaseResult = {
+          entryId: root.id,
+          caseId: test.id,
+          attempt: { id: context.id, retry, repeat },
+          name,
+          testName: test.name,
+          ancestors: reportingAncestors,
+          mode,
+          status: 'passed',
+          durationMs: 0,
+          errors,
+        }
+        const abort = () => controller.abort(options.signal.reason)
+        options.signal.addEventListener('abort', abort, { once: true })
+        if (options.signal.aborted) abort()
+        const asyncScope = createAsyncScope(
+          { kind: 'attempt', context },
+          onLateFailure
         )
-          throw new TypeError(
-            'Test listener timeout must be a non-negative safe integer.'
-          )
-        stack.push({ fn: handler, timeout })
-      }
-      const context: AttemptContext = {
-        id: `${options.runId}/${test.id}/${retry}/0`,
-        fileId: root.id,
-        testId: test.id,
-        name,
-        testName: test.name,
-        ancestors: reportingAncestors,
-        mode,
-        retry,
-        repeat: 0,
-        signal: controller.signal,
-        onCleanup,
-        onTestFinished: (handler, timeout) =>
-          registerListener(finished, handler, timeout),
-        onTestFailed: (handler, timeout) =>
-          registerListener(failed, handler, timeout),
-      }
-      const caseResult: RunnerCaseResult = {
-        entryId: root.id,
-        caseId: test.id,
-        attempt: { id: context.id, retry, repeat: 0 },
-        name,
-        testName: test.name,
-        ancestors: reportingAncestors,
-        mode,
-        status: 'passed',
-        durationMs: 0,
-        errors,
-      }
-      const abort = () => controller.abort(options.signal.reason)
-      options.signal.addEventListener('abort', abort, { once: true })
-      if (options.signal.aborted) abort()
-      const asyncScope = createAsyncScope(
-        { kind: 'attempt', context },
-        onLateFailure
-      )
-      try {
-        // eslint-disable-next-line no-loop-func -- Awaited scopes serialize attempts and observe shared realm poisoning.
-        await asyncScope.run(async () => {
-          try {
-            if (mode !== 'run') caseResult.status = 'skipped'
-            else if (errors.length) caseResult.status = 'failed'
-            else if (poisoned || options.signal.aborted)
-              caseResult.status = 'cancelled'
-            else {
-              setActive(context)
-              await options.onCaseStart?.(context)
-              let integration: AttemptIntegration | undefined
-              const hookCleanups: Cleanup[] = []
-              const fixtures = fixtureFile.attempt(test.fixtures, {
-                ...context,
-              })
-              const invoke = (fn: Function) =>
-                Object.keys(test.fixtures).length
-                  ? fixtures.invoke(fn)
-                  : fn(context)
-              try {
-                integration = await options.beginAttempt?.(context)
-                for (const parent of ancestors) {
-                  for (const hook of parent.hooks.beforeEach) {
-                    const cleanup = await capture(
-                      'beforeEach',
-                      () => invoke(hook.fn),
-                      errors,
-                      hook.timeout ?? hookTimeout
-                    )
-                    if (typeof cleanup === 'function')
-                      hookCleanups.push(cleanup as Cleanup)
+        try {
+          // eslint-disable-next-line no-loop-func -- Awaited scopes serialize attempts and observe shared realm poisoning.
+          await asyncScope.run(async () => {
+            try {
+              if (mode !== 'run') caseResult.status = 'skipped'
+              else if (errors.length) caseResult.status = 'failed'
+              else if (poisoned || options.signal.aborted)
+                caseResult.status = 'cancelled'
+              else {
+                setActive(context)
+                await options.onCaseStart?.(context)
+                let integration: AttemptIntegration | undefined
+                const hookCleanups: Cleanup[] = []
+                const fixtures = fixtureFile.attempt(test.fixtures, {
+                  ...context,
+                })
+                const invoke = (fn: Function) =>
+                  Object.keys(test.fixtures).length
+                    ? fixtures.invoke(fn)
+                    : fn(context)
+                try {
+                  integration = await options.beginAttempt?.(context)
+                  for (const parent of ancestors) {
+                    for (const hook of parent.hooks.beforeEach) {
+                      const cleanup = await capture(
+                        'beforeEach',
+                        () => invoke(hook.fn),
+                        errors,
+                        hook.timeout ?? hookTimeout
+                      )
+                      if (typeof cleanup === 'function')
+                        hookCleanups.push(cleanup as Cleanup)
+                      if (errors.length) break
+                    }
                     if (errors.length) break
                   }
-                  if (errors.length) break
-                }
-                if (!errors.length && !controller.signal.aborted) {
-                  await capture(
-                    'test',
-                    () => invoke(test.fn!),
-                    errors,
-                    test.options.timeout ?? testTimeout
-                  )
-                }
-              } catch (error) {
-                errors.push({ phase: 'runtime', error })
-              } finally {
-                if (poisoned) controller.abort(new Error('Attempt timed out.'))
-                for (const parent of [...ancestors].reverse()) {
-                  for (const hook of [...parent.hooks.afterEach].reverse()) {
+                  if (!errors.length && !controller.signal.aborted) {
                     await capture(
-                      'afterEach',
-                      () => invoke(hook.fn),
+                      'test',
+                      () => invoke(test.fn!),
                       errors,
-                      hook.timeout ?? hookTimeout
+                      test.options.timeout ?? testTimeout
                     )
                   }
-                }
-                await clean(hookCleanups, errors)
-                await clean(fixtures.cleanups, errors)
-                await clean(cleanups, errors)
-                invokingListeners = true
-                for (const listener of finished.reverse()) {
-                  await capture(
-                    'cleanup',
-                    () => listener.fn(context),
-                    errors,
-                    listener.timeout ?? hookTimeout
-                  )
-                }
-                await clean(cleanups, errors)
-                if (integration?.checkpoint) {
-                  await capture(
-                    'assertion',
-                    () => integration!.checkpoint!(),
-                    errors
-                  )
-                }
-                if (errors.length) {
-                  for (const listener of failed.reverse()) {
+                } catch (error) {
+                  errors.push({ phase: 'runtime', error })
+                } finally {
+                  if (poisoned)
+                    controller.abort(new Error('Attempt timed out.'))
+                  for (const parent of [...ancestors].reverse()) {
+                    for (const hook of [...parent.hooks.afterEach].reverse()) {
+                      await capture(
+                        'afterEach',
+                        () => invoke(hook.fn),
+                        errors,
+                        hook.timeout ?? hookTimeout
+                      )
+                    }
+                  }
+                  await clean(hookCleanups, errors)
+                  await clean(fixtures.cleanups, errors)
+                  await clean(cleanups, errors)
+                  invokingListeners = true
+                  for (const listener of finished.reverse()) {
                     await capture(
                       'cleanup',
                       () => listener.fn(context),
@@ -397,35 +385,81 @@ export async function runCollected(
                       listener.timeout ?? hookTimeout
                     )
                   }
+                  await clean(cleanups, errors)
+                  if (integration?.checkpoint) {
+                    await capture(
+                      'assertion',
+                      () => integration!.checkpoint!(),
+                      errors
+                    )
+                  }
+                  if (errors.length) {
+                    for (const listener of failed.reverse()) {
+                      await capture(
+                        'cleanup',
+                        () => listener.fn(context),
+                        errors,
+                        listener.timeout ?? hookTimeout
+                      )
+                    }
+                  }
+                  await clean(cleanups, errors)
+                  if (integration) {
+                    const scope = integration
+                    await capture('assertion', () => scope.finalize(), errors)
+                    await capture('cleanup', () => scope.dispose(), errors)
+                  }
                 }
-                await clean(cleanups, errors)
-                if (integration) {
-                  const scope = integration
-                  await capture('assertion', () => scope.finalize(), errors)
-                  await capture('cleanup', () => scope.dispose(), errors)
-                }
+                caseResult.status = errors.length
+                  ? 'failed'
+                  : controller.signal.aborted
+                    ? 'cancelled'
+                    : 'passed'
               }
-              caseResult.status = errors.length
-                ? 'failed'
-                : controller.signal.aborted
-                  ? 'cancelled'
-                  : 'passed'
+            } finally {
+              sealed = true
+              controller.abort(new Error('Attempt finished.'))
+              options.signal.removeEventListener('abort', abort)
+              setActive(undefined)
             }
-          } finally {
-            sealed = true
-            controller.abort(new Error('Attempt finished.'))
-            options.signal.removeEventListener('abort', abort)
-            setActive(undefined)
+          })
+        } finally {
+          asyncScope.close()
+        }
+        caseResult.durationMs = Date.now() - start
+        const expectedFailureUnexpectedlyPassed =
+          mode === 'run' &&
+          test.options.fails === true &&
+          caseResult.status === 'passed'
+        if (
+          mode === 'run' &&
+          test.options.fails &&
+          inheritedErrors.length === 0
+        ) {
+          if (expectedFailureUnexpectedlyPassed) {
+            caseResult.status = 'failed'
+            caseResult.errors.push({
+              phase: 'test',
+              error: new Error('Expect test to fail'),
+            })
+          } else if (
+            caseResult.status === 'failed' &&
+            (retry === attempts - 1 || poisoned)
+          ) {
+            caseResult.status = 'passed'
+            caseResult.errors.length = 0
           }
-        })
-      } finally {
-        asyncScope.close()
+        }
+        result.cases.push(caseResult)
+        await options.onCaseEnd?.(caseResult)
+        if (
+          caseResult.status !== 'failed' ||
+          expectedFailureUnexpectedlyPassed ||
+          poisoned ||
+          inheritedErrors.length
+        )
+          break
       }
-      caseResult.durationMs = Date.now() - start
-      result.cases.push(caseResult)
-      await options.onCaseEnd?.(caseResult)
-      if (caseResult.status !== 'failed' || poisoned || inheritedErrors.length)
-        break
     }
   }
 

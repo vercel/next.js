@@ -18,7 +18,7 @@ import {
   resolve,
   sep,
 } from 'path'
-import { printNonFatalIssue } from '../../../build/swc/turbopack-utils'
+import { printNonFatalIssue } from '../../../server/dev/turbopack-utils'
 import { loadBindings } from '../../../build/swc'
 import { createDevTurbopackProject } from '../../../build/swc/dev-project'
 import { createProductionProjectOptions } from '../../../build/swc/production-project'
@@ -218,9 +218,10 @@ export async function createTestCompilerSession(
       signal.throwIfAborted()
       // Native emission reads one strongly consistent output graph, including
       // client assets and source maps. It never copies mutable build filenames.
-      const output = await endpoint.writeToDiskSnapshot(basename(staging))
+      const outputResult = await endpoint.writeToDiskSnapshot(basename(staging))
+      const output = outputResult.value
       signal.throwIfAborted()
-      const diagnostics = output.issues
+      const diagnostics = outputResult.issues
         .filter((issue) =>
           ['bug', 'fatal', 'error', 'warning'].includes(issue.severity)
         )

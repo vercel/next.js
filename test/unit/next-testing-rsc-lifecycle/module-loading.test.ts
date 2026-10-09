@@ -34,8 +34,7 @@ describe('shared module loading installation', () => {
       const trackRead = jest.spyOn(CacheSignal.prototype, 'trackRead')
       installGlobalModuleLoadingHandlers(
         { __next_app__: { require, loadChunk } },
-        cacheComponents,
-        false
+        cacheComponents
       )
       expect(runtime.__next_require__!('component')).toBe(exports)
       expect(runtime.__next_chunk_load__!('chunk')).toBe(chunk)
@@ -61,8 +60,7 @@ describe('shared module loading installation', () => {
           loadChunk: () => chunk,
         },
       },
-      true,
-      false
+      true
     )
     expect(runtime.__next_require__!('component')).toBe('component')
     expect(runtime.__next_chunk_load__!('chunk')).toBe(chunk)

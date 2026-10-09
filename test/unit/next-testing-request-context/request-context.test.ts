@@ -44,7 +44,7 @@ function inputs(visitor: string): Inputs {
     isHmrRefresh: false,
     serverComponentsHmrCache: undefined,
     hmrRefreshHash: undefined,
-    fallbackParams: null,
+    stagedFallbackParams: null,
   }
 }
 

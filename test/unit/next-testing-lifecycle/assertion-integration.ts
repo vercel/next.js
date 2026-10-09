@@ -174,7 +174,6 @@ it('releases the file runtime after a collection failure and rejects unsupported
   await withFile(async (runner) => {
     await runner.collect(async () => {
       assert.throws(() => (vi as any).mock, /does not support vi.mock/)
-      assert.throws(() => (expect as any).soft, /does not support expect.soft/)
       test('new file', () => expect(true).toBe(true))
     })
     assert.equal((await runner.run(options())).cases[0].status, 'passed')
