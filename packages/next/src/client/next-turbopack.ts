@@ -22,20 +22,57 @@ window.next = {
 // for the page loader
 declare let __turbopack_load__: any
 
+type PageChunkData = string | { path: string }
+
+function isChunkScriptInDocument(chunkPath: string): boolean {
+  const expectedPath = '/_next/' + chunkPath
+  return Array.from(document.scripts).some((script) => {
+    if (!script.src) return false
+    try {
+      return new URL(script.src).pathname.endsWith(expectedPath)
+    } catch {
+      return false
+    }
+  })
+}
+
+// Map of page route -> promise that settles once the page's executable chunks
+// finish loading. The route loader consumes these promises in production.
+// Creating the map eagerly also lets the route loader detect Turbopack.
+const turbopackPageChunkPromises = new Map<string, Promise<unknown>>()
+;(self as any).__TURBOPACK_PAGE_CHUNK_PROMISES__ = turbopackPageChunkPromises
+
 initialize({})
   .then(() => {
     // for the page loader
     ;(self as any).__turbopack_load_page_chunks__ = (
       page: string,
-      chunksData: any
+      chunksData: PageChunkData[]
     ) => {
-      const chunkPromises = chunksData.map((c: unknown) =>
-        __turbopack_load__(c)
-      )
+      const chunkLoads = chunksData.map((chunkData) => {
+        const chunkPath =
+          typeof chunkData === 'string' ? chunkData : chunkData.path
+        const shouldDelayTimeout =
+          !chunkPath.endsWith('.css') && !isChunkScriptInDocument(chunkPath)
+        return {
+          shouldDelayTimeout,
+          promise: __turbopack_load__(chunkData),
+        }
+      })
 
-      Promise.all(chunkPromises).catch((err) =>
+      // Preserve loading and error reporting for every chunk. CSS remains
+      // subject to the route timeout, and scripts already in the document do
+      // not represent new page work. Only newly requested executable chunks
+      // postpone that timeout.
+      Promise.all(chunkLoads.map(({ promise }) => promise)).catch((err) =>
         console.error('failed to load chunks for page ' + page, err)
       )
+      const chunksPromise = Promise.all(
+        chunkLoads
+          .filter(({ shouldDelayTimeout }) => shouldDelayTimeout)
+          .map(({ promise }) => promise)
+      ).catch(() => {})
+      turbopackPageChunkPromises.set(page, chunksPromise)
     }
 
     return hydrate()
