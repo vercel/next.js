@@ -1,0 +1,19 @@
+error - [parse] /turbopack/crates/turbopack-tests/tests/snapshot/css/named-container-query/input/style.css:11:28  Parsing CSS source code failed
+       7 |  * is kept in the output. Once lightningcss is fixed, the issue snapshot should
+       8 |  * disappear.
+       9 |  */
+      10 | @supports (container-type: inline-size scroll-state) {
+         +                             v
+      11 +   @container scroll-content {
+         +                             ^
+      12 |     .named-only {
+      13 |       max-width: 100cqw;
+      14 |     }
+      15 |   }
+  
+  Unexpected end of input
+  
+  Import trace:
+    test:
+      ./turbopack/crates/turbopack-tests/tests/snapshot/css/named-container-query/input/style.css
+      ./turbopack/crates/turbopack-tests/tests/snapshot/css/named-container-query/input/index.js

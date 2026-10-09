@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/named-container-query/input/style.css"],"sourcesContent":["/*\n * https://github.com/vercel/next.js/issues/98261\n *\n * A name-only `@container <name>` rule is valid CSS, but with `error_recovery`\n * enabled lightningcss (1.0.0-alpha.72) still warns `EndOfInput` for the empty\n * container condition, which is reported as a parse error issue. The rule itself\n * is kept in the output. Once lightningcss is fixed, the issue snapshot should\n * disappear.\n */\n@supports (container-type: inline-size scroll-state) {\n  @container scroll-content {\n    .named-only {\n      max-width: 100cqw;\n    }\n  }\n}\n\n@container sidebar (min-width: 400px) {\n  .named-with-condition {\n    color: red;\n  }\n}\n\n@container scroll-state(scrollable: top) {\n  .scroll-state {\n    color: blue;\n  }\n}\n"],"names":[],"mappings":"AASA;EACE;IACE;;;;;;AAMJ;EACE;;;;;AAKF;EACE"}}]
+}

@@ -1,0 +1,28 @@
+/*
+ * https://github.com/vercel/next.js/issues/98261
+ *
+ * A name-only `@container <name>` rule is valid CSS, but with `error_recovery`
+ * enabled lightningcss (1.0.0-alpha.72) still warns `EndOfInput` for the empty
+ * container condition, which is reported as a parse error issue. The rule itself
+ * is kept in the output. Once lightningcss is fixed, the issue snapshot should
+ * disappear.
+ */
+@supports (container-type: inline-size scroll-state) {
+  @container scroll-content {
+    .named-only {
+      max-width: 100cqw;
+    }
+  }
+}
+
+@container sidebar (min-width: 400px) {
+  .named-with-condition {
+    color: red;
+  }
+}
+
+@container scroll-state(scrollable: top) {
+  .scroll-state {
+    color: blue;
+  }
+}
