@@ -268,6 +268,26 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
       expect(key1.keyRoute).not.toBe(key2.keyRoute)
       expect(key1.dataRoute).not.toBe(key2.dataRoute)
     })
+
+    it('should share a durable cache entry between an App Page and an API route', async () => {
+      await next.stop()
+      await next.start()
+
+      try {
+        const page = await next.render$('/page-api')
+        const pageValue = page('#page-api-data').text()
+        expect(pageValue).not.toBeEmpty()
+
+        const response = await next.fetch('/page-api/api')
+        expect(response.status).toBe(200)
+        expect(await response.text()).toBe(pageValue)
+
+        const secondPage = await next.render$('/page-api')
+        expect(secondPage('#page-api-data').text()).toBe(pageValue)
+      } finally {
+        await next.stop()
+      }
+    })
   }
 )
 
@@ -351,9 +371,6 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
       })
     })
 
-    // Different chunk-assigned import IDs currently produce different code
-    // hashes for the same cached implementation in App Pages and API routes.
-    // @force-gate FIXME
     it('should share a durable cache entry between an App Page and an API route', async () => {
       await next.stop()
       await next.start()
@@ -369,6 +386,33 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
 
         const secondPage = await next.render$('/page-api')
         expect(secondPage('#page-api-data').text()).toBe(pageValue)
+      } finally {
+        await next.stop()
+      }
+    })
+
+    it('should not share a durable cache entry returning an asset URL between an App Page and an API route', async () => {
+      await next.stop()
+      await next.start()
+
+      try {
+        const page = await next.render$('/page-api-url')
+        const pageValue = page('#page-api-url').text()
+        expect(pageValue).toMatch(/^\/_next\/static\/media\//)
+
+        const response = await next.fetch('/page-api-url/api')
+        expect(response.status).toBe(200)
+        const apiValue = await response.text()
+        expect(apiValue).toMatch(/^file:\/\//)
+        // Even with identical source code and arguments, the asset URL is
+        // resolved in a different chunking context and must not reuse the entry.
+        expect(apiValue).not.toBe(pageValue)
+
+        const secondPage = await next.render$('/page-api-url')
+        expect(secondPage('#page-api-url').text()).toBe(pageValue)
+        const secondResponse = await next.fetch('/page-api-url/api')
+        expect(secondResponse.status).toBe(200)
+        expect(await secondResponse.text()).toBe(apiValue)
       } finally {
         await next.stop()
       }
