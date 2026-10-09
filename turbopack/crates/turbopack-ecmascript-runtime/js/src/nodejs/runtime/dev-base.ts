@@ -38,6 +38,31 @@ nodeDevContextPrototype.c = devModuleCache
 nodeDevContextPrototype.R = resolvePathFromModule
 nodeDevContextPrototype.C = clearChunkCache
 
+if (globalThis.__turbopack_ensure_chunk__ !== undefined) {
+  const chunksBeingEnsured = new Map<ChunkPath, Promise<void>>()
+
+  function loadChunkAsyncOnDemand<TModule extends Module>(
+    this: TurbopackBaseContext<TModule>,
+    chunkData: ChunkData
+  ): Promise<void> {
+    const chunkPath = typeof chunkData === 'string' ? chunkData : chunkData.path
+    const ensureChunk = globalThis.__turbopack_ensure_chunk__
+    if (ensureChunk === undefined || chunkCache.has(chunkPath)) {
+      return loadChunkAsync.call(this, chunkData)
+    }
+
+    const ensured =
+      chunksBeingEnsured.get(chunkPath) ??
+      Promise.resolve()
+        .then(() => ensureChunk(chunkPath))
+        .finally(() => chunksBeingEnsured.delete(chunkPath))
+    chunksBeingEnsured.set(chunkPath, ensured)
+
+    return ensured.then(() => loadChunkAsync.call(this, chunkData))
+  }
+  nodeDevContextPrototype.l = loadChunkAsyncOnDemand
+}
+
 /**
  * Instantiates a module in development mode using shared HMR logic.
  */
@@ -64,7 +89,7 @@ function instantiateModule(
   }
 
   // Node.js: no hooks wrapper, just execute directly
-  const runWithHooks = (module: HotModule, exec: (refresh: any) => void) => {
+  const runWithHooks = (_module: HotModule, exec: (refresh: any) => void) => {
     exec(undefined) // no refresh context
   }
 
@@ -105,7 +130,7 @@ function getOrInstantiateRuntimeModule(
   chunkPath: ChunkPath,
   moduleId: ModuleId
 ): HotModule {
-  const module = devModuleCache[moduleId]
+  const module = devModuleCache.get(moduleId)
 
   if (module) {
     if (module.error) {
@@ -127,9 +152,8 @@ function getOrInstantiateModuleFromParent(
   sourceModule: HotModule
 ): HotModule {
   // Track parent-child relationship
-  trackModuleImport(sourceModule, id, devModuleCache[id])
-
-  const module = devModuleCache[id]
+  const module = devModuleCache.get(id)
+  trackModuleImport(sourceModule, id, module)
 
   if (module) {
     if (module.error) {

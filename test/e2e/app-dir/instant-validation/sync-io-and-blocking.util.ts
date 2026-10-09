@@ -10,7 +10,13 @@ const partialPrefetching = !!process.env.__NEXT_PARTIAL_PREFETCHING
 export function registerSyncIoAndBlockingTests(
   ctx: InstantValidationCaseContext
 ) {
-  const { isNextDev, navigateTo, expectNoDevValidationErrors, prerender } = ctx
+  const {
+    isNextDev,
+    navigateTo,
+    expectNoDevValidationErrors,
+    getInstantInsight,
+    prerender,
+  } = ctx
 
   describe('Sync IO', () => {
     it('sync IO after session data', async () => {
@@ -19,9 +25,8 @@ export function registerSyncIoAndBlockingTests(
           '/suspense-in-root/sync-io/sync-io-after-cookies'
         )
         if (partialPrefetching) {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
-             "code": "E1432",
              "description": "Next.js encountered the unstable value Date.now() while prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -80,9 +85,8 @@ export function registerSyncIoAndBlockingTests(
         const browser = await navigateTo(
           '/suspense-in-root/sync-io/sync-io-after-navigation'
         )
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
          {
-           "code": "E1432",
            "description": "Next.js encountered the unstable value Date.now() while prerendering.",
            "environmentLabel": "Server",
            "label": "Blocking Route",
@@ -139,9 +143,8 @@ export function registerSyncIoAndBlockingTests(
         const browser = await navigateTo(
           '/suspense-in-root/sync-io/sync-io-after-prefetch'
         )
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
          {
-           "code": "E1432",
            "description": "Next.js encountered the unstable value Date.now() while prerendering.",
            "environmentLabel": "Server",
            "label": "Blocking Route",
@@ -178,7 +181,7 @@ export function registerSyncIoAndBlockingTests(
          Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
              at a (app/suspense-in-root/sync-io/sync-io-after-prefetch/page.tsx:27:15)
            25 | async function SyncIOAfterPrefetch() {
-           26 |   await unstable_prefetch()
+           26 |   await prefetch()
          > 27 |   return Date.now()
               |               ^
            28 | }
@@ -199,9 +202,8 @@ export function registerSyncIoAndBlockingTests(
           '/suspense-in-root/sync-io/sync-io-after-cache-with-cookie-input'
         )
         if (partialPrefetching) {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
-             "code": "E1432",
              "description": "Next.js encountered the unstable value Date.now() while prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -269,9 +271,8 @@ export function registerSyncIoAndBlockingTests(
           '/suspense-in-root/sync-io/sync-io-after-cookies-in-generate-metadata'
         )
         if (partialPrefetching) {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
-             "code": "E1432",
              "description": "Next.js encountered the unstable value Date.now() while prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -365,7 +366,7 @@ export function registerSyncIoAndBlockingTests(
           // This page uses a runtime shell, so it can use cookies
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -379,7 +380,6 @@ export function registerSyncIoAndBlockingTests(
                  ],
                },
              ],
-             "code": "E1430",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -462,7 +462,7 @@ export function registerSyncIoAndBlockingTests(
           // This page uses a runtime shell, so it can use cookies
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -476,7 +476,6 @@ export function registerSyncIoAndBlockingTests(
                  ],
                },
              ],
-             "code": "E1430",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -528,7 +527,7 @@ export function registerSyncIoAndBlockingTests(
         const browser = await navigateTo(
           '/suspense-in-root/runtime/invalid-blocking-inside-runtime'
         )
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
          {
            "cause": [
              {
@@ -542,7 +541,6 @@ export function registerSyncIoAndBlockingTests(
                ],
              },
            ],
-           "code": "E1437",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",

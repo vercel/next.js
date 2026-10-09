@@ -10,13 +10,17 @@
 // Junction points are used on Windows. We could use a third-party crate for this if the junction
 // API isn't eventually stabilized.
 #![cfg_attr(windows, feature(junction_point))]
+// `std::os::wasi::fs::symlink_path`, used to create symlinks on wasi, is still unstable.
+#![cfg_attr(target_os = "wasi", feature(wasi_ext))]
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 #![allow(clippy::mutable_key_type)]
 
+mod canonicalized_path_cache;
 mod content;
 mod disk;
 pub mod embed;
 mod error;
+mod fs_map;
 pub mod glob;
 mod globset;
 pub mod invalidation;
@@ -42,9 +46,7 @@ use anyhow::Result;
 use auto_hash_map::AutoMap;
 use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{
-    NonLocalValue, ResolvedVc, ValueToString, Vc, trace::TraceRawVcs, turbobail, turbofmt,
-};
+use turbo_tasks::{NonLocalValue, ResolvedVc, ValueToString, Vc, turbobail, turbofmt};
 
 pub(crate) use crate::{
     content::FileComparison,
@@ -54,12 +56,15 @@ pub(crate) use crate::{
 pub use crate::{
     content::{
         File, FileContent, FileJsonContent, FileLine, FileLinesContent, FileMeta, LinkContent,
-        LinkTarget, Permissions, PersistedFileContent, WriteLinkContent, WriteLinkTarget,
-        WriteLinkTargetType,
+        LinkTarget, Permissions, PersistedFileContent, WriteLinkContent, WriteLinkTargetType,
     },
     disk::{DiskFileSystem, canonicalize_to_rcstr, validate_path_length},
+    fs_map::DiskFileSystemMap,
     null_fs::NullFileSystem,
-    path::{FileSystemPath, FileSystemPathOption, RealPathResult, RealPathResultError, rebase},
+    path::{
+        FileSystemPath, FileSystemPathOption, RealPathError, RealPathErrorType,
+        RealPathWithLinksResult, rebase,
+    },
     read_glob::ReadGlobResult,
     virtual_fs::VirtualFileSystem,
     watcher::{DiskWatcherConfig, DiskWatcherPathMatcher, DiskWatcherRecursiveMode},
@@ -92,7 +97,7 @@ pub trait FileSystem: ValueToString {
     fn metadata(self: Vc<Self>, fs_path: FileSystemPath) -> Vc<FileMeta>;
 }
 
-#[derive(Hash, Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Hash, Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub enum RawDirectoryEntry {
     File,
     Directory,
@@ -101,7 +106,7 @@ pub enum RawDirectoryEntry {
     Other,
 }
 
-#[derive(Hash, Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Hash, Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub enum DirectoryEntry {
     File(FileSystemPath),
     Directory(FileSystemPath),
@@ -120,9 +125,7 @@ impl DirectoryEntry {
             let real_path = match &result.path_result {
                 Ok(path) => path,
                 Err(error) => {
-                    return Ok(DirectoryEntry::Error(
-                        error.as_error_message(symlink, result).await?,
-                    ));
+                    return Ok(DirectoryEntry::Error(RcStr::from(error.to_string())));
                 }
             };
             Ok(match *real_path.get_type().await? {

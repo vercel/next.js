@@ -31,10 +31,7 @@ use next_core::{
 };
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{
-    Completion, FxIndexMap, ResolvedVc, ValueToString, Vc, fxindexmap, fxindexset,
-    trace::TraceRawVcs,
-};
+use turbo_tasks::{Completion, FxIndexMap, ResolvedVc, ValueToString, Vc, fxindexmap, fxindexset};
 use turbo_tasks_fs::{
     self, File, FileContent, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem,
 };
@@ -82,7 +79,10 @@ use crate::{
         get_wasm_paths_from_root, paths_to_bindings, wasm_paths_to_bindings,
     },
     project::Project,
-    route::{Endpoint, EndpointOutput, EndpointOutputPaths, ModuleGraphs, Route, Routes},
+    route::{
+        AnalyzeChunkGroup, AnalyzeChunkGroups, AnalyzeClientEntries, Endpoint, EndpointOutput,
+        EndpointOutputPaths, ModuleGraphs, Route, Routes,
+    },
     service_worker::service_worker_output_assets,
     sri_manifest::get_sri_manifest_asset,
 };
@@ -611,7 +611,7 @@ struct PageEndpoint {
 }
 
 #[turbo_tasks::task_input]
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, TraceRawVcs, Encode, Decode)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, Encode, Decode)]
 enum PageEndpointType {
     Api,
     Html,
@@ -623,7 +623,7 @@ enum PageEndpointType {
 }
 
 #[turbo_tasks::task_input]
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, TraceRawVcs, Encode, Decode)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, Encode, Decode)]
 enum SsrChunkType {
     Page,
     Data,
@@ -631,7 +631,7 @@ enum SsrChunkType {
 }
 
 #[turbo_tasks::task_input]
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Encode, Decode)]
 enum EmitManifests {
     /// Don't emit any manifests
     None,
@@ -979,29 +979,11 @@ impl PageEndpoint {
                 // We only validate the global css imports when there is not a `app` folder at the
                 // root of the project.
                 if project.app_project().await?.is_none() {
-                    // We recreate the app_module here because the one provided from the
-                    // `internal_ssr_chunk_module` is not the same as the one
-                    // provided from the `client_module_graph`. There can be cases where
-                    // the `app_module` is None, and we are processing the `pages/_app.js` file
-                    // as a page rather than the app module.
-                    let app_module = project
-                        .pages_project()
-                        .client_module_context()
-                        .process(
-                            Vc::upcast(FileSource::new(
-                                this.pages_structure.await?.app.file_path().owned().await?,
-                            )),
-                            ReferenceType::Entry(EntryReferenceSubType::Page),
-                        )
-                        .to_resolved()
-                        .await?
-                        .module();
-
                     validate_pages_css_imports(
                         client_module_graph,
                         per_page_module_graph,
                         self.client_module(),
-                        app_module,
+                        this.pages_structure.await?.app.file_path().owned().await?,
                     )
                     .await?;
                 }
@@ -1736,6 +1718,7 @@ impl Endpoint for PageEndpoint {
 
                     EndpointOutputPaths::NodeJs {
                         server_entry_path,
+                        server_hmr_entry_paths: vec![],
                         server_paths,
                         client_paths,
                     }
@@ -1776,6 +1759,59 @@ impl Endpoint for PageEndpoint {
             .pages_project
             .project()
             .client_changed(self.output().client_assets()))
+    }
+
+    #[turbo_tasks::function]
+    async fn analyze_client_entries(self: Vc<Self>) -> Result<Vc<AnalyzeClientEntries>> {
+        let is_html = self.await?.ty == PageEndpointType::Html;
+        let server_modules = vec![self.internal_ssr_chunk_module().await?.ssr_module];
+        Ok(AnalyzeClientEntries {
+            server_modules,
+            bootstrap_modules: if is_html {
+                self.client_evaluatable_assets()
+                    .await?
+                    .iter()
+                    .map(|module| ResolvedVc::upcast(*module))
+                    .collect()
+            } else {
+                vec![]
+            },
+            references: vec![],
+        }
+        .cell())
+    }
+
+    #[turbo_tasks::function]
+    async fn analyze_chunk_groups(self: Vc<Self>) -> Result<Vc<AnalyzeChunkGroups>> {
+        let this = self.await?;
+        if this.ty != PageEndpointType::Html {
+            return Ok(Vc::cell(vec![]));
+        }
+        let client = self.client_chunk_group().await?;
+        let bootstrap = self
+            .client_evaluatable_assets()
+            .await?
+            .first()
+            .map(|module| ResolvedVc::upcast(*module));
+        let workers =
+            service_worker_output_assets(this.pages_project.project(), self.client_module_graph())
+                .to_resolved()
+                .await?;
+        let mut groups = vec![AnalyzeChunkGroup {
+            kind: rcstr!("bootstrap"),
+            trigger: bootstrap,
+            assets: client.assets,
+            pages_html: true,
+        }];
+        if !workers.await?.is_empty() {
+            groups.push(AnalyzeChunkGroup {
+                kind: rcstr!("worker"),
+                trigger: None,
+                assets: workers,
+                pages_html: false,
+            });
+        }
+        Ok(Vc::cell(groups))
     }
 
     #[turbo_tasks::function]

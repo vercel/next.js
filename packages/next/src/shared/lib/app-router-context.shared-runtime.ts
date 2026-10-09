@@ -1,5 +1,7 @@
 'use client'
 
+import type { RouteTree } from '../../client/components/segment-cache/cache'
+
 import type {
   ScrollHandlerRef,
   PrefetchKind,
@@ -94,7 +96,7 @@ export const AppRouterContext = React.createContext<AppRouterInstance | null>(
 )
 export const LayoutRouterContext = React.createContext<{
   parentTree: FlightRouterState
-  parentCacheNode: CacheNode
+  parentRenderTree: RouteTree<CacheNode>
   parentSegmentPath: FlightSegmentPath | null
   parentParams: Params
   parentLoadingData: LoadingModuleData | null

@@ -4,13 +4,13 @@ import { randomUUID } from 'crypto'
 import fs from 'fs-extra'
 import { join } from 'path'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy || !standaloneOutput
 describe('og-api', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: new FileRef(join(__dirname, 'app')),
-    skipDeployment: process.env.TEST_OUTPUT_STANDALONE === 'true',
   })
-
-  if (skipped) return
 
   it('should respond from index', async () => {
     const html = await renderViaHTTP(next.url, '/')

@@ -20,6 +20,24 @@ describe('custom server', () => {
     expect(next.cliOutput).toInclude('Server side error')
   })
 
+  it('updates App Router asset URLs when the custom server changes the prefix', async () => {
+    const localAssets =
+      'script[src^="/_next/static/"], link[href^="/_next/static/"]'
+    const prefixedAssets =
+      'script[src^="https://cdn.example.com/_next/static/"], link[href^="https://cdn.example.com/_next/static/"]'
+
+    const initial = await next.render$('/asset-prefix')
+    expect(initial(localAssets).length).toBeGreaterThan(0)
+    expect(initial(prefixedAssets).length).toBe(0)
+
+    const updated = await next.render$('/asset-prefix?assetPrefix=set')
+    expect(updated(prefixedAssets).length).toBeGreaterThan(0)
+
+    const reset = await next.render$('/asset-prefix?assetPrefix=reset')
+    expect(reset(localAssets).length).toBeGreaterThan(0)
+    expect(reset(prefixedAssets).length).toBe(0)
+  })
+
   describe('with app dir', () => {
     it('should render app with react canary', async () => {
       const $ = await next.render$(`/1`)
@@ -115,6 +133,6 @@ function createCacheSetLogRegExp(id: string) {
   // Expect a requestId, that's provided through ALS, to be present in the log
   // message for the cache handler set call.
   return new RegExp(
-    `set cache \\["[A-Za-z0-9_-]+","(?:[0-9a-f]{2})+",\\[{"id":"${id}"}]\\] requestId: \\d+`
+    `set cache \\["(?:[0-9a-f]{2})+",\\[{"id":"${id}"}\\],\\["[A-Za-z0-9_-]+"(?:,"[^"]+")*\\]\\] requestId: \\d+`
   )
 }

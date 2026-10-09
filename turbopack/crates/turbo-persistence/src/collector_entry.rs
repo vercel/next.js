@@ -145,8 +145,8 @@ impl<K: StoreKey> Entry for CollectorEntry<K> {
         self.key.data.len()
     }
 
-    fn write_key_to(&self, buf: &mut Vec<u8>) {
-        self.key.data.write_to(buf);
+    fn key_bytes(&self) -> &[u8] {
+        self.key.data.as_slice()
     }
 
     fn value(&self) -> EntryValue<'_> {

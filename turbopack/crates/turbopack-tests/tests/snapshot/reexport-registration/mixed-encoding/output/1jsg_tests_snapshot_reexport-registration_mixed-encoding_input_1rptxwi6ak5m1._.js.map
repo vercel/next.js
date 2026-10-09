@@ -1,0 +1,8 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/reexport-registration/mixed-encoding/input/first.js"],"sourcesContent":["const comma = 'comma-value'\nexport const b = 'b-value'\n\nexport { comma as 'has,comma' }\n"],"names":["comma","b"],"mappings":";;;;;;AAAA,MAAMA,QAAQ;AACP,MAAMC,IAAI"}},
+    {"offset": {"line": 17, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/reexport-registration/mixed-encoding/input/index.js"],"sourcesContent":["// The first group contains a comma and needs pair encoding. The second is\n// comma-free and should still use compact encoding in the same registration.\nexport { 'has,comma', b } from './first'\nexport { c } from './second'\n"],"names":[],"mappings":";;;;;;;;AAAA,0EAA0E;AAC1E,6EAA6E;AAC7E;AACA"}},
+    {"offset": {"line": 35, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/reexport-registration/mixed-encoding/input/second.js"],"sourcesContent":["export const c = 'c-value'\n"],"names":["c"],"mappings":";;;;AAAO,MAAMA,IAAI"}}]
+}

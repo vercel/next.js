@@ -14,6 +14,9 @@ use turbo_tasks::{
     ResolvedVc, Vc, duration_span, util::StaticOrArc,
 };
 
+// Route every `reqwest::…` path in this module to the local stand-in on wasm.
+#[cfg(target_family = "wasm")]
+use crate::wasm_reqwest as reqwest;
 use crate::{FetchError, FetchResult, HttpResponse, HttpResponseBody};
 
 const MAX_CLIENTS: usize = 16;
@@ -182,12 +185,17 @@ impl FetchClientConfig {
             }
 
             let response = {
-                let _span = duration_span!("fetch request", url = url_ref);
+                let _span = duration_span!("fetch request", blocking = true, url = url_ref);
                 let mut attempt = 0;
                 loop {
                     let request = builder.try_clone().expect("request should be cloneable");
                     let result = {
-                        let _span = duration_span!("fetch attempt", url = url_ref, attempt);
+                        let _span = duration_span!(
+                            "fetch attempt",
+                            blocking = true,
+                            url = url_ref,
+                            attempt
+                        );
                         request.send().await.and_then(|r| r.error_for_status())
                     };
                     match result {
@@ -210,7 +218,7 @@ impl FetchClientConfig {
             let max_age = parse_cache_control(response.headers());
 
             let body = {
-                let _span = duration_span!("fetch response", url = url_ref);
+                let _span = duration_span!("fetch response", blocking = true, url = url_ref);
                 response.bytes().await?
             }
             .to_vec();

@@ -17,7 +17,7 @@ use turbopack_core::{
 use crate::{
     AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptAnalyzableExt,
     EcmascriptModuleAsset, EcmascriptModuleContent, EcmascriptModuleContentOptions,
-    EcmascriptParsable, MergedEcmascriptModule,
+    EcmascriptParsable, EnvVarInfo, MergedEcmascriptModule,
     chunk::{
         EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
         ecmascript_chunk_item,
@@ -104,6 +104,11 @@ impl EcmascriptAnalyzable for EcmascriptModuleLocalsModule {
     }
 
     #[turbo_tasks::function]
+    fn env_var_info(&self) -> Vc<EnvVarInfo> {
+        self.module.env_var_info()
+    }
+
+    #[turbo_tasks::function]
     fn module_content_without_analysis(
         &self,
         generate_source_map: bool,
@@ -143,6 +148,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleLocalsModule {
             generate_source_map,
             original_source_map: analyze_result.source_map,
             exports,
+            export_registration_mode: None,
             async_module_info,
         }
         .cell())
@@ -179,6 +185,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleLocalsModule {
         let exports = EsmExports {
             exports: FrozenMap::from_unique_sorted_box(exports.into_boxed_slice()),
             star_exports: vec![],
+            mangle_export_names: esm_exports.mangle_export_names,
         }
         .resolved_cell();
         Ok(EcmascriptExports::EsmExports(exports).cell())

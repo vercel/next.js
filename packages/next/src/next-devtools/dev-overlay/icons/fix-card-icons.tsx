@@ -94,6 +94,14 @@ export function FixCardArrowUpIcon() {
   )
 }
 
+export function FixCardCheckIcon() {
+  return (
+    <svg {...ICON_PROPS}>
+      <path d="M5 12l4 4L19 6" />
+    </svg>
+  )
+}
+
 export function FixCardMinusIcon() {
   return (
     <svg {...ICON_PROPS}>
@@ -135,6 +143,25 @@ export function FixCardZapIcon() {
         fillRule="evenodd"
         clipRule="evenodd"
         d="M6.94 2.06 8 1l1.06 1.06 4.88 4.88L15 8l-1.06 1.06-4.88 4.88L8 15l-1.06-1.06-4.88-4.88L1 8l1.06-1.06zM3.12 8 8 12.88 12.88 8 8 3.12z"
+      />
+    </svg>
+  )
+}
+
+export function FixCardRouteIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        fill="currentColor"
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M7.53.72 7 .19 5.94 1.25l.53.53.22.22H3.37a3.38 3.38 0 0 0 0 6.75h9.25a1.88 1.88 0 0 1 0 3.75H4.9a2.5 2.5 0 1 0 0 1.5h7.74a3.37 3.37 0 1 0 0-6.75H3.37a1.88 1.88 0 0 1 0-3.75H6.7l-.22.22-.53.53L7 5.31l.53-.53 1.32-1.32a1 1 0 0 0 0-1.42zM2.5 14.25a1 1 0 1 0 0-2 1 1 0 0 0 0 2m12-11.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0m1.5 0a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0"
       />
     </svg>
   )

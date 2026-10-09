@@ -3,12 +3,13 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry, waitFor } from 'next-test-utils'
 
 describe('Root Optional Catch-all Revalidate', () => {
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // No deploy-specific incompatibility is documented.
+  // @force-gate !deploy
   describe('production mode', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
     })
-    if (skipped) return
 
     const getProps = async (path: string) => {
       const html = await next.render(path)

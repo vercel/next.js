@@ -21,12 +21,16 @@ const cacheHandler = {
   async get(cacheKey, softTags) {
     const pendingPromise = pendingSets.get(cacheKey)
     if (pendingPromise) {
+      console.log('PersistentCacheHandler::get-pending', cacheKey)
       await pendingPromise
     }
 
-    // Simulate some latency when fetching from a remote cache.
-    await setTimeout(200)
-    const entry = store.get(cacheKey)
+    // A slow backend read can return a value captured before revalidation
+    // finishes.
+    const isSlowRead = cacheKey.includes('"slow-read-')
+    const snapshot = isSlowRead ? store.get(cacheKey) : undefined
+    await setTimeout(isSlowRead ? 2000 : 200)
+    const entry = isSlowRead ? snapshot : store.get(cacheKey)
     if (!entry) {
       console.log('PersistentCacheHandler::get', cacheKey, softTags, '-> miss')
       return undefined
@@ -62,6 +66,12 @@ const cacheHandler = {
       // Consume the cloned stream to ensure the entry is fully resolved.
       const reader = clonedValue.getReader()
       while (!(await reader.read()).done) {}
+
+      if (entry.tags.some((tag) => tag.startsWith('write-completion-'))) {
+        console.log('PersistentCacheHandler::set-start', cacheKey)
+        // Simulate a slow cache backend after the entry has been collected.
+        await setTimeout(2000)
+      }
 
       store.set(cacheKey, entry)
       console.log('PersistentCacheHandler::set', cacheKey)

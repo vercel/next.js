@@ -5,13 +5,17 @@ export enum RenderStage {
   Before = 1,
   //
   ShellStatic = 10,
-  PrefetchStatic = 11,
-  NavigationStatic = 12,
-  Static = 13,
+  /** Discrimination-only stage: `prefetch()` in validation renders (static) */
+  PrefetchStatic_prefetchApi = 11,
+  PrefetchStatic = 12,
+  NavigationStatic = 13,
+  Static = 14,
   //
   ShellRuntime = 20,
-  Runtime = 21,
-  NavigationRuntime = 22,
+  /** Discrimination-only stage: `prefetch()` in validation renders (runtime) */
+  PrefetchRuntime_prefetchApi = 21,
+  PrefetchRuntime = 22,
+  NavigationRuntime = 23,
   //
   Dynamic = 30,
   Abandoned = 40,
@@ -24,12 +28,14 @@ export type AdvanceableRenderStage = Exclude<
 
 export const RENDER_STAGE_ADVANCE_ORDER: AdvanceableRenderStage[] = [
   RenderStage.ShellStatic,
+  RenderStage.PrefetchStatic_prefetchApi,
   RenderStage.PrefetchStatic,
   RenderStage.NavigationStatic,
   RenderStage.Static,
   //
   RenderStage.ShellRuntime,
-  RenderStage.Runtime,
+  RenderStage.PrefetchRuntime_prefetchApi,
+  RenderStage.PrefetchRuntime,
   RenderStage.NavigationRuntime,
   //
   RenderStage.Dynamic,
@@ -113,6 +119,11 @@ export class StagedRenderingController {
     }
   }
 
+  /**
+   * Schedules a callback that will execute synchronously when the controller is advanced
+   * to `stage` or past it, before any promises for that stage are resolved.
+   * If the controller is already past `stage`, the callback is executed immediately.
+   * */
   onStage(stage: AdvanceableRenderStage, callback: () => void) {
     addSyncTriggerListener(this.triggers[stage], callback)
   }

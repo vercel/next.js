@@ -53,6 +53,7 @@ export function getResolveRoutes(
     ReturnType<typeof import('./filesystem').setupFsCheck>
   >,
   config: NextConfigRuntime,
+  getAssetPrefix: () => string,
   opts: Parameters<typeof initialize>[0],
   renderServer: RenderServer,
   renderServerOpts: Parameters<RenderServer['initialize']>[0],
@@ -134,6 +135,7 @@ export function getResolveRoutes(
     parsedUrl: NextUrlWithParsedQuery
     matchedOutput?: FsOutput | null
   }> {
+    const assetPrefix = getAssetPrefix()
     let finished = false
     let resHeaders: Record<string, string | string[]> = {}
     let matchedOutput: FsOutput | null = null
@@ -222,11 +224,8 @@ export function getResolveRoutes(
 
       if (config.basePath && pathHasPrefix(normalizedPath, config.basePath)) {
         normalizedPath = removePathPrefix(normalizedPath, config.basePath)
-      } else if (
-        config.assetPrefix &&
-        pathHasPrefix(normalizedPath, config.assetPrefix)
-      ) {
-        normalizedPath = removePathPrefix(normalizedPath, config.assetPrefix)
+      } else if (assetPrefix && pathHasPrefix(normalizedPath, assetPrefix)) {
+        normalizedPath = removePathPrefix(normalizedPath, assetPrefix)
       }
 
       initialLocaleResult = normalizeLocalePath(
@@ -888,12 +887,17 @@ export function getResolveRoutes(
             (!parsedDestination.origin || isAllowedOrigin)
           ) {
             // We set the rewritten path and query headers on the response now
-            // that we know that the it's not an external rewrite.
+            // that we know that the it's not an external rewrite. Mirror the
+            // path in resHeaders because those are applied after route
+            // resolution; otherwise, an earlier Proxy rewrite would overwrite
+            // the final route destination.
             if (parsedUrl.pathname !== parsedDestination.pathname) {
               res.setHeader(
                 NEXT_REWRITTEN_PATH_HEADER,
                 parsedDestination.pathname
               )
+              resHeaders[NEXT_REWRITTEN_PATH_HEADER] =
+                parsedDestination.pathname
             }
             if (parsedUrl.search !== parsedDestination.search) {
               res.setHeader(

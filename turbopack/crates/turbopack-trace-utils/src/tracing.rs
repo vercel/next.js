@@ -100,7 +100,7 @@ pub enum TraceRow<'a> {
         /// Deallocation count
         deallocation_count: u64,
     },
-    /// A snapshot of the process memory usage at a point in time.
+    /// A snapshot of process memory and non-idle Tokio scheduler workers.
     MemorySample {
         /// Timestamp
         ts: u64,
@@ -110,6 +110,8 @@ pub enum TraceRow<'a> {
         /// `TurboMalloc::memory_pressure()`). `0` is used when the current
         /// platform does not report a pressure value.
         memory_pressure: u8,
+        /// Number of non-parked Tokio scheduler worker threads in this process.
+        active_worker_threads: u64,
     },
 }
 

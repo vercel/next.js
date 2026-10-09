@@ -3,13 +3,9 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 describe('get-logs MCP tool', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: path.join(__dirname, 'fixtures', 'log-file-app'),
   })
-
-  if (skipped) {
-    return
-  }
 
   async function callGetLogs(id: string): Promise<string> {
     const response = await fetch(`${next.url}/_next/mcp`, {

@@ -6,58 +6,34 @@ description: Upgrade your Next.js Application from Version 15 to 16.
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
 
-## Use an AI agent (recommended)
+## Use a coding agent (recommended)
 
-An AI coding agent can run the mechanical parts of the upgrade, inspect the diff, fix follow-up breakages, and verify the app. The prompt below asks the agent to read version-matched docs, use the codemods where appropriate, explain important changes, and verify the result. Some runtime verification tools are only available after the app is upgraded.
+Run the latest upgrade CLI from your app's directory:
 
-Give the agent this prompt:
-
-```prompt
-Upgrade this app to Next.js 16.
-
-Before editing code, make sure AGENTS.md points at version-matched Next.js docs. If it is missing or outdated, follow [Set up AI agent docs](/docs/app/guides/upgrading/version-16#set-up-ai-agent-docs), then read AGENTS.md.
-
-Then follow the [Next.js 16 upgrade guide](/docs/app/guides/upgrading/version-16) as the source of truth for the migration. Use the [codemod](/docs/app/guides/upgrading/version-16#using-the-codemod) when you're ready to run the mechanical upgrade.
-
-Briefly explain the upgrade plan in user-facing language before making broad changes. Follow the documented defaults and keep moving unless the guide requires a project-specific decision, the change is destructive, credentials or environment setup are missing, or the correct migration is ambiguous. Keep the migration scoped to the upgrade, inspect the diff, run the relevant checks, and fix remaining breaking changes.
-
-After the app is upgraded, use the runtime verification flow from the [AI Coding Agents guide](/docs/app/guides/ai-agents) to confirm it still works. Prefer the `next-dev-loop` skill when it is available (Next.js 16.3 or later with Turbopack); otherwise fall back to the best available `next dev`, browser, and build checks. Open the key interactive UI states and check the Next dev indicator plus browser and server logs. Summarize what changed, what was verified, and what could not be verified.
-
-Before finishing, repeat the post-upgrade check in [Set up AI agent docs](/docs/app/guides/upgrading/version-16#set-up-ai-agent-docs) so the project is ready for future agent work.
+```bash filename="Terminal"
+npx next@canary upgrade --agent=latest
 ```
+
+The CLI prepares the Next.js 16 migration guides and codemod command for the agent, then asks it to apply the changes and verify the app. See [Upgrade with a coding agent](/docs/app/guides/upgrading/agent-upgrade) for details.
 
 ## Or upgrade manually
 
 Upgrading manually follows a few steps, in order:
 
-1. [Set up AI agent docs](#set-up-ai-agent-docs) if you use an assistant now or want future agent work grounded in version-matched docs.
+1. [Set up AI agent docs](#set-up-ai-agent-docs) if you use a coding agent now or want future agent work grounded in version-matched docs.
 2. [Run the upgrade codemod](#using-the-codemod).
 3. If you prefer not to run the codemod, [install packages manually](#install-packages-manually).
 4. Continue through the breaking changes below, run the relevant checks, and fix any remaining issues.
 
 ## Set up AI agent docs
 
-The prompt above asks the agent to do this before it edits code. You can also prepare the project yourself before starting the upgrade. See the [AI Coding Agents guide](/docs/app/guides/ai-agents) for the full setup.
+Before upgrading, point `AGENTS.md` at version-matched Next.js docs so a coding agent can help with the remaining steps:
 
 ```bash filename="Terminal"
 npx @next/codemod@canary agents-md
 ```
 
-After upgrading, verify `AGENTS.md` still points at the docs for the installed Next.js version. On Next.js 16.2 and later, that should be the bundled docs in `node_modules/next/dist/docs/`. If the pre-upgrade setup downloaded docs into `.next-docs/`, update `AGENTS.md` to point at the bundled docs, then remove `.next-docs/` once nothing references it.
-
-The managed block should look like this:
-
-```md filename="AGENTS.md"
-<!-- BEGIN:nextjs-agent-rules -->
-
-# This is NOT the Next.js you know
-
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
-
-This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
-
-<!-- END:nextjs-agent-rules -->
-```
+After upgrading, check that `AGENTS.md` points at the docs bundled with the installed version in `node_modules/next/dist/docs/`. On Next.js 16.2 and later, `next dev` keeps this block up to date when it detects a coding agent. If the setup downloaded docs into `.next-docs/`, remove that directory once nothing references it. See [Version-matched documentation](/docs/app/guides/ai-agents#version-matched-documentation) for the managed block and setup details.
 
 ## Using the codemod
 
@@ -801,7 +777,9 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
-If you specify a `quality` prop not included in the `image.qualities` array, the quality will be coerced to the closest value in `images.qualities`. For example, given the configuration above, a `quality` prop of 80, is coerced to 75.
+If you specify a `quality` prop not included in the `images.qualities` array, the quality will be coerced to the closest value in `images.qualities`. For example, given the configuration above, a `quality` prop of 80, is coerced to 75.
+
+Review custom image qualities. Add required values to `images.qualities`, and test direct `/_next/image` requests because unsupported `q` values return `400`.
 
 ### Local IP Restriction (Breaking change)
 
@@ -1246,3 +1224,33 @@ For the full migration path, see [Migrating to Cache Components](/docs/app/guide
 ### `unstable_rootParams`
 
 The `unstable_rootParams` function has been removed. Use [`next/root-params`](/docs/app/api-reference/functions/next-root-params) instead.
+
+## Troubleshooting
+
+### Installation fails after upgrading to React 19
+
+- [ ] Follow the [React recovery checklist](/docs/app/guides/upgrading/version-15#installation-fails-after-upgrading-to-react-19).
+
+### Installation fails after upgrading ESLint
+
+Next.js 16 removes `next lint`, but migrating to the ESLint CLI does not require upgrading ESLint. `eslint-config-next@16` requires ESLint 9; an existing compatible lint configuration can use an older version.
+
+- [ ] If an ESLint upgrade causes peer dependency conflicts, restore the previous compatible versions of `eslint`, `eslint-config-next`, and `@next/eslint-plugin-next` (if present), along with the previous lint configuration.
+- [ ] If installation interrupted the upgrade, retry the same exact target with `--skip-eslint-upgrade` to preserve the repaired lint stack and skip the lint codemod. If Next.js already matches the target, install dependencies and complete interrupted migrations individually. Replace `next lint` scripts with ESLint CLI commands compatible with the preserved configuration. Confirm installation and lint pass.
+
+## Review migration checklist
+
+After applying the changes relevant to your app, review these action items before
+you consider the migration complete:
+
+- [ ] The app meets the Node.js, TypeScript, and React requirements in this guide.
+- [ ] Async Request API access and affected callers are migrated. Resolve codemod error comments and `UnsafeUnwrapped` casts; use React `use` for synchronous Client Components where appropriate.
+- [ ] Dynamic metadata image functions and sitemap functions handle their asynchronous parameters, and affected generated URLs work.
+- [ ] Development and build scripts agree with the effective bundler configuration, including plugins, loaders, aliases, and affected Sass imports.
+- [ ] Middleware and proxy changes preserve the required runtime and routing behavior. Edge middleware is not blindly renamed to proxy.
+- [ ] Parallel route slots have appropriate defaults, and direct navigation and reloads retain the intended fallback behavior.
+- [ ] Affected image requests succeed under the documented restrictions and defaults while preserving the intended quality.
+- [ ] Existing cache API calls follow the documented signatures and semantics. React Compiler and Cache Components are not enabled merely to complete the upgrade.
+- [ ] Removed APIs and configuration have no remaining consumers. Runtime configuration replacements preserve server and client visibility and the required evaluation time.
+- [ ] Scripts and CI no longer invoke `next lint`; linting runs separately where the app requires it.
+- [ ] The app's supported checks and affected runtime behavior pass. A green build alone does not close runtime findings.

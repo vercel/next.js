@@ -1,7 +1,6 @@
 // @ts-check
 
 const execa = require('execa')
-const fs = require('fs/promises')
 const semver = require('semver')
 const {
   replayLocalCommitsAsSigned,
@@ -9,6 +8,7 @@ const {
   alignLocalBranchWithSignedCommit,
 } = require('./github-utils/signed-commit')
 const { generateChangelog } = require('./release-changelog')
+const { readReleaseVersion } = require('./release-version')
 
 const REPO_API_PATH = '/repos/vercel/next.js'
 
@@ -23,12 +23,11 @@ async function git(args, options = {}) {
 }
 
 /**
- * Verify the local Lerna release commit has the version tag implied by
- * lerna.json, then return that tag name for GitHub ref creation.
+ * Verify the local release commit has the version tag implied by the version
+ * source of truth, then return that tag name for GitHub ref creation.
  */
 async function getLocalReleaseTagName(commitSha) {
-  const { version } = JSON.parse(await fs.readFile('lerna.json', 'utf8'))
-  const expectedTagName = `v${version}`
+  const expectedTagName = `v${readReleaseVersion()}`
   const tags = String(
     await git(['tag', '--points-at', commitSha], { captureOutput: true })
   )
@@ -38,7 +37,7 @@ async function getLocalReleaseTagName(commitSha) {
 
   if (!tags.includes(expectedTagName)) {
     throw new Error(
-      `Expected local Lerna release commit ${commitSha} to be tagged with ${expectedTagName}; found ${tags.join(
+      `Expected local release commit ${commitSha} to be tagged with ${expectedTagName}; found ${tags.join(
         ', '
       )}`
     )
@@ -48,7 +47,7 @@ async function getLocalReleaseTagName(commitSha) {
 }
 
 /**
- * Return the local Lerna release commit's single parent so the GitHub-created
+ * Return the local release commit's single parent so the GitHub-created
  * commit can replay the same tree change on top of the same base commit.
  */
 async function getSingleParent(commitSha) {
@@ -70,12 +69,12 @@ async function getSingleParent(commitSha) {
 }
 
 /**
- * Replace Lerna's local release commit(s) with equivalent GitHub-signed
+ * Replace the local release commit(s) with equivalent GitHub-signed
  * commits, then move the release tag and current branch in a single branch
  * push.
  *
  * Signs every local commit between the remote base and local HEAD. The release
- * tag is placed on the signed commit that corresponds to the local Lerna
+ * tag is placed on the signed commit that corresponds to the local
  * release commit; the branch is fast-forwarded to the final signed commit.
  *
  * For a normal release this is a single commit (tag == branch head). For an
@@ -83,8 +82,8 @@ async function getSingleParent(commitSha) {
  * version bump (tagged) followed by a revert restoring the canary version — so
  * the tag points at the preview commit while the branch ends on the revert.
  * `options.baseSha` and `options.tagName` let the caller pin both explicitly
- * (required for preview, since after the revert `lerna.json` no longer matches
- * HEAD).
+ * (required for preview, since after the revert the version source of truth no
+ * longer matches HEAD).
  *
  * `options.githubRequest`
  * @param {string} token GitHub API token with repo access
@@ -214,7 +213,7 @@ async function getPreviousReleaseTag(tagCommitSha, newVersion) {
 
 /**
  * List the commits that make up a release, newest range endpoint inclusive,
- * excluding merge commits and the version-bump commits Lerna creates (whose
+ * excluding merge commits and the version-bump commits the release creates (whose
  * title is itself a version like `v16.3.0-canary.62`).
  */
 async function getReleaseCommits(fromTag, tagCommitSha) {

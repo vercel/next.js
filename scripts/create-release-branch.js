@@ -84,13 +84,18 @@ async function main() {
   await execa('git', ['reset', '--hard', tagName], {
     stdio: 'inherit',
   })
-  const lernaPath = path.join(__dirname, '..', 'lerna.json')
-  const existingLerna = JSON.parse(
-    await fs.promises.readFile(lernaPath, 'utf8')
+  // Release branches need to be added here or `scripts/version-bump.js`
+  // refuses to run on them.
+  const releaseBranchesPath = path.join(__dirname, 'release-branches.json')
+  const releaseBranches = JSON.parse(
+    await fs.promises.readFile(releaseBranchesPath, 'utf8')
   )
-  existingLerna.command.publish.allowBranch.push(branchName)
+  releaseBranches.push(branchName)
 
-  await fs.promises.writeFile(lernaPath, JSON.stringify(existingLerna, null, 2))
+  await fs.promises.writeFile(
+    releaseBranchesPath,
+    JSON.stringify(releaseBranches, null, 2) + '\n'
+  )
 
   const buildAndDeployPath = path.join(
     __dirname,
@@ -102,7 +107,11 @@ async function main() {
   const buildAndDeploy = await fs.promises.readFile(buildAndDeployPath, 'utf8')
   await fs.promises.writeFile(
     buildAndDeployPath,
-    buildAndDeploy.replace(/refs\/heads\/canary/g, `refs/heads/${branchName}`)
+    buildAndDeploy
+      // The push trigger is limited to the default branch, same as
+      // build_and_test.yml below, so point it at the release branch as well.
+      .replace(`branches: ['canary']`, `branches: ['${branchName}']`)
+      .replace(/refs\/heads\/canary/g, `refs/heads/${branchName}`)
   )
 
   const buildAndTestPath = path.join(
@@ -116,12 +125,6 @@ async function main() {
   buildAndTest = buildAndTest
     .replace(`['canary']`, `['${branchName}']`)
     .replace(/[\s]{1,}('test-new-tests-.+',)/g, '')
-
-  buildAndTest = buildAndTest.replace(
-    /(^[ \t]*)# test-new-tests-if\n(^[ \t]*)if:.*\n(^[ \t]*)# test-new-tests-end-if/gm,
-    (_, indent1, indent2, indent3) =>
-      `${indent1}# test-new-tests-if\n${indent2}if: false\n${indent3}# test-new-tests-end-if`
-  )
 
   await fs.promises.writeFile(buildAndTestPath, buildAndTest)
 

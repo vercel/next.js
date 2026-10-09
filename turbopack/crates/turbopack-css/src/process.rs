@@ -53,7 +53,7 @@ pub type CssOutput = (ToCssResult, Option<StructuredSourceMap>);
 
 #[turbo_tasks::value(transparent)]
 struct LightningCssTargets(
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(unsafe_ignore)]
     #[bincode(with_serde)]
     pub Targets,
 );
@@ -159,15 +159,13 @@ pub struct UnresolvedUrlReferences(pub Vec<(String, ResolvedVc<UrlAssetReference
 pub enum ParseCssResult {
     Ok {
         code: ResolvedVc<FileContent>,
-
-        #[turbo_tasks(trace_ignore)]
+        #[turbo_tasks(unsafe_ignore)]
         stylesheet: StyleSheet<'static>,
 
         references: ResolvedVc<ModuleReferences>,
 
         url_references: ResolvedVc<UnresolvedUrlReferences>,
-
-        #[turbo_tasks(trace_ignore)]
+        #[turbo_tasks(unsafe_ignore)]
         options: ParserOptions<'static>,
     },
     Unparsable,
@@ -182,11 +180,9 @@ pub enum CssWithPlaceholderResult {
         references: ResolvedVc<ModuleReferences>,
 
         url_references: ResolvedVc<UnresolvedUrlReferences>,
-
-        #[turbo_tasks(trace_ignore)]
+        #[turbo_tasks(unsafe_ignore)]
         exports: Option<FxIndexMap<String, CssModuleExport>>,
-
-        #[turbo_tasks(trace_ignore)]
+        #[turbo_tasks(unsafe_ignore)]
         placeholders: FxHashMap<String, Url<'static>>,
     },
     Unparsable,
@@ -197,7 +193,6 @@ pub enum CssWithPlaceholderResult {
 #[allow(clippy::large_enum_variant)] // This is a turbo-tasks value
 pub enum FinalCssResult {
     Ok {
-        #[turbo_tasks(trace_ignore)]
         output_code: String,
 
         source_map: Option<StructuredSourceMap>,
@@ -369,6 +364,7 @@ pub async fn parse_css(
     ty: CssModuleType,
     environment: Option<ResolvedVc<Environment>>,
     feature_flags: LightningCssFeatureFlags,
+    module_css_debuggable_idents: bool,
 ) -> Result<Vc<ParseCssResult>> {
     let span = tracing::info_span!(
         "parse css",
@@ -394,6 +390,7 @@ pub async fn parse_css(
                             ty,
                             environment,
                             feature_flags,
+                            module_css_debuggable_idents,
                         )
                         .await?
                     }
@@ -466,6 +463,7 @@ async fn process_content(
     ty: CssModuleType,
     environment: Option<ResolvedVc<Environment>>,
     feature_flags: LightningCssFeatureFlags,
+    module_css_debuggable_idents: bool,
 ) -> Result<Vc<ParseCssResult>> {
     #[allow(clippy::needless_lifetimes)]
     fn without_warnings<'i>(config: ParserOptions<'i>) -> ParserOptions<'static> {
@@ -497,13 +495,21 @@ async fn process_content(
         css_modules: match ty {
             CssModuleType::Module => Some(lightningcss::css_modules::Config {
                 pattern: Pattern {
-                    segments: smallvec![
-                        Segment::Name,
-                        Segment::Literal(Cow::Borrowed("__")),
-                        Segment::Hash,
-                        Segment::Literal(Cow::Borrowed("__")),
-                        Segment::Local,
-                    ],
+                    segments: if module_css_debuggable_idents {
+                        smallvec![
+                            Segment::Name,
+                            Segment::Literal(Cow::Borrowed("__")),
+                            Segment::Hash,
+                            Segment::Literal(Cow::Borrowed("__")),
+                            Segment::Local,
+                        ]
+                    } else {
+                        smallvec![
+                            Segment::Hash,
+                            Segment::Literal(Cow::Borrowed("_")),
+                            Segment::Local,
+                        ]
+                    },
                 },
                 dashed_idents: false,
                 grid: false,
@@ -769,7 +775,7 @@ fn generate_css_source_map(
             m.generated_column,
             m.original.map(|v| v.original_line).unwrap_or_default(),
             m.original.map(|v| v.original_column).unwrap_or_default(),
-            Some(0),
+            m.original.map(|v| v.source).or(Some(0)),
             None,
             false,
         );
@@ -869,6 +875,8 @@ mod tests {
         assert_ne!(lint_lightningcss(code), vec![], "lightningcss: {code}");
     }
 
+    // Lightning CSS currently triggers a Miri Stacked Borrows violation in its string parser.
+    #[cfg(not(miri))]
     #[test]
     fn css_module_pure_lint() {
         assert_lint_success(
@@ -997,6 +1005,8 @@ mod tests {
         );
     }
 
+    // Lightning CSS currently triggers a Miri Stacked Borrows violation in its string parser.
+    #[cfg(not(miri))]
     #[test]
     fn strip_bom_lets_lightningcss_parse() {
         let with_bom = "\u{feff}@layer a {}";

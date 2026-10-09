@@ -1,11 +1,10 @@
 import path from 'path'
-import { isNextStart, nextTestSetup } from 'e2e-utils'
+import { isNextDev, nextTestSetup } from 'e2e-utils'
 
 describe('Undefined default export', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: path.join(__dirname),
-    skipStart: isNextStart,
-    skipDeployment: true,
+    skipStart: !isNextDev,
   })
 
   if (isNextDev) {
@@ -14,7 +13,6 @@ describe('Undefined default export', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E45",
          "description": "The default export is not a React Component in "/specific-path/1/page"",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -29,7 +27,6 @@ describe('Undefined default export', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E45",
          "description": "The default export is not a React Component in "/specific-path/2/layout"",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -44,7 +41,6 @@ describe('Undefined default export', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E45",
          "description": "The default export is not a React Component in "/will-not-found/not-found"",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -55,9 +51,8 @@ describe('Undefined default export', () => {
     })
   } else {
     it('errors the build with helpful error messages', async () => {
-      const { cliOutput, exitCode } = await next.build()
-
-      expect(exitCode).toBe(1)
+      await expect(next.start()).rejects.toThrow()
+      const cliOutput = next.cliOutput
 
       expect(cliOutput).toContain(
         `Error occurred prerendering page "/specific-path/1". Read more: https://nextjs.org/docs/messages/prerender-error
@@ -73,6 +68,6 @@ Error: The default export is not a React Component in "/specific-path/2/layout"`
         `Error occurred prerendering page "/will-not-found". Read more: https://nextjs.org/docs/messages/prerender-error
 Error: The default export is not a React Component in "/will-not-found/not-found"`
       )
-    })
+    }, 240_000)
   }
 })

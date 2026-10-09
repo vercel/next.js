@@ -1,0 +1,17 @@
+error - [code gen] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-no-root/input/index.js:8:17  import.meta.glob() does not support patterns absolute from the root of the project here
+       4 | //
+       5 | // The pattern below is deliberately spelled from the root of the filesystem, so
+       6 | // it *would* match `dir/foo.js` if that root were used. It must not.
+       7 | 
+         |                  v----------------
+       8 + const absolute = import.meta.glob(
+       9 +   '/turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-no-root/input/dir/*.js',
+      10 +   { eager: true }
+      11 + )
+         +-^
+      12 | 
+      13 | it('should not match a `/`-rooted pattern', () => {
+      14 |   expect(absolute).toEqual({})
+      15 | })
+  
+  the pattern "/turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-no-root/input/dir/*.js" of import.meta.glob("/turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-no-root/input/dir/*.js") starts with `/`, but there is no directory to resolve it from. Use a pattern relative to the importing file instead.
