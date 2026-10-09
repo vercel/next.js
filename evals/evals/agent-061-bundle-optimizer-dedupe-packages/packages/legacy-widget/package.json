@@ -1,0 +1,9 @@
+{
+  "name": "legacy-widget",
+  "version": "1.0.0",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "dependencies": {
+    "lodash": "4.17.20"
+  }
+}
