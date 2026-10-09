@@ -4,6 +4,7 @@ use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     code_builder::{Code, CodeBuilder},
     context::AssetContext,
+    source_map::SourceMapGeneration,
 };
 
 use crate::{RuntimeType, embed_js::embed_static_code};
@@ -14,40 +15,40 @@ pub async fn get_nodejs_runtime_code(
     asset_context: ResolvedVc<Box<dyn AssetContext>>,
     runtime_type: RuntimeType,
     include_async_module_runtime: bool,
-    generate_source_map: bool,
+    source_map_generation: SourceMapGeneration,
 ) -> Result<Vc<Code>> {
     let asset_context = *asset_context;
 
     let shared_runtime_utils_code = embed_static_code(
         asset_context,
         rcstr!("shared/runtime/runtime-utils.ts"),
-        generate_source_map,
+        source_map_generation,
     );
     let shared_base_external_utils_code = embed_static_code(
         asset_context,
         rcstr!("shared-node/base-externals-utils.ts"),
-        generate_source_map,
+        source_map_generation,
     );
     let shared_node_external_utils_code = embed_static_code(
         asset_context,
         rcstr!("shared-node/node-externals-utils.ts"),
-        generate_source_map,
+        source_map_generation,
     );
     // Runtime base is shared between production and development
     let runtime_base_code = embed_static_code(
         asset_context,
         rcstr!("nodejs/runtime/runtime-base.ts"),
-        generate_source_map,
+        source_map_generation,
     );
 
-    let mut code = CodeBuilder::default();
+    let mut code = CodeBuilder::new(source_map_generation, false);
     code.push_code(&*shared_runtime_utils_code.await?);
     if include_async_module_runtime {
         code.push_code(
             &*embed_static_code(
                 asset_context,
                 rcstr!("shared/runtime/async-module.ts"),
-                generate_source_map,
+                source_map_generation,
             )
             .await?,
         );
@@ -62,7 +63,7 @@ pub async fn get_nodejs_runtime_code(
                 &*embed_static_code(
                     asset_context,
                     rcstr!("nodejs/runtime/build-base.ts"),
-                    generate_source_map,
+                    source_map_generation,
                 )
                 .await?,
             );
@@ -73,7 +74,7 @@ pub async fn get_nodejs_runtime_code(
                 &*embed_static_code(
                     asset_context,
                     rcstr!("shared/runtime/hmr-runtime.ts"),
-                    generate_source_map,
+                    source_map_generation,
                 )
                 .await?,
             );
@@ -83,7 +84,7 @@ pub async fn get_nodejs_runtime_code(
                 &*embed_static_code(
                     asset_context,
                     rcstr!("nodejs/runtime/dev-base.ts"),
-                    generate_source_map,
+                    source_map_generation,
                 )
                 .await?,
             );
@@ -93,7 +94,7 @@ pub async fn get_nodejs_runtime_code(
                 &*embed_static_code(
                     asset_context,
                     rcstr!("nodejs/dev/hmr-client.ts"),
-                    generate_source_map,
+                    source_map_generation,
                 )
                 .await?,
             );
@@ -103,7 +104,7 @@ pub async fn get_nodejs_runtime_code(
                 &*embed_static_code(
                     asset_context,
                     rcstr!("nodejs/dev/dev-nodejs.ts"),
-                    generate_source_map,
+                    source_map_generation,
                 )
                 .await?,
             );

@@ -11,7 +11,7 @@ use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     output::{ExpandedOutputAssets, OptionOutputAsset, OutputAsset},
-    source_map::GenerateSourceMap,
+    source_map::{GenerateSourceMap, SourceMapType},
     version::OptionVersionedContent,
 };
 use turbopack_nodejs::ecmascript::node::entry::chunk_list_content::EcmascriptBuildNodeChunkListContent;
@@ -276,6 +276,7 @@ impl VersionedContentMap {
         self: Vc<Self>,
         path: FileSystemPath,
         section: Option<RcStr>,
+        ty: Vc<SourceMapType>,
     ) -> Result<Vc<FileContent>> {
         let Some(asset) = &*self.get_asset(path.clone()).await? else {
             return Ok(FileContent::NotFound.cell());
@@ -285,9 +286,9 @@ impl VersionedContentMap {
             ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(*asset)
         {
             Ok(if let Some(section) = section {
-                generate_source_map.by_section(section)
+                generate_source_map.by_section(section, ty)
             } else {
-                generate_source_map.generate_source_map()
+                generate_source_map.generate_source_map(ty)
             })
         } else {
             turbobail!("no source map for path {path}");

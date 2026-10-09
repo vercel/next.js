@@ -14,7 +14,7 @@ use turbopack_core::{
     reference_type::ImportContext,
     resolve::origin::ResolveOrigin,
     source::{OptionSource, Source},
-    source_map::GenerateSourceMap,
+    source_map::{GenerateSourceMap, SourceMapType},
 };
 
 use crate::{
@@ -123,7 +123,10 @@ impl ProcessCss for CssModule {
         let this = self.await?;
         let origin_source_map =
             match ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(this.source) {
-                Some(gsm) => gsm.generate_source_map(),
+                Some(gsm) if chunking_context.source_map_generation().await?.full => {
+                    gsm.generate_source_map(SourceMapType::Full.cell())
+                }
+                Some(_) => FileContent::NotFound.cell(),
                 None => FileContent::NotFound.cell(),
             };
         Ok(finalize_css(
@@ -345,6 +348,7 @@ impl CssChunkItem for CssModuleChunkItem {
         if let FinalCssResult::Ok {
             output_code,
             source_map,
+            partial_source_map,
         } = &*result
         {
             Ok(CssChunkItemContent {
@@ -352,6 +356,7 @@ impl CssChunkItem for CssModuleChunkItem {
                 imports,
                 import_context: self.module.await?.import_context,
                 source_map: source_map.clone(),
+                partial_source_map: partial_source_map.clone(),
             }
             .cell())
         } else {
@@ -363,6 +368,7 @@ impl CssChunkItem for CssModuleChunkItem {
                 imports: vec![],
                 import_context: None,
                 source_map: None,
+                partial_source_map: None,
             }
             .cell())
         }

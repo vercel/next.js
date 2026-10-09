@@ -51,6 +51,7 @@ use turbopack_core::{
     reference::all_assets_from_entry,
     reference_type::ReferenceType,
     resolve::options::ConditionValue,
+    source_map::SourceMapGeneration,
 };
 use turbopack_ecmascript::AnalyzeMode;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
@@ -407,7 +408,7 @@ async fn node_file_trace_operation(
                 ..Default::default()
             },
             css: CssOptionsContext {
-                source_maps: None,
+                source_maps: SourceMapGeneration::NONE,
                 enable_raw_css: true,
                 ..Default::default()
             },

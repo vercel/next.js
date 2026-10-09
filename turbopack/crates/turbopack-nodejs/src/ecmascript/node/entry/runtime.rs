@@ -11,7 +11,7 @@ use turbopack_core::{
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
     output::{OutputAsset, OutputAssetsReference, OutputAssetsWithReferenced},
-    source_map::{GenerateSourceMap, SourceMapAsset},
+    source_map::{GenerateSourceMap, SourceMapAsset, SourceMapType},
 };
 use turbopack_ecmascript::utils::StringifyJs;
 use turbopack_ecmascript_runtime::RuntimeType;
@@ -48,10 +48,7 @@ impl EcmascriptBuildNodeRuntimeChunk {
 
         let output_root_to_root_path = this.chunking_context.output_root_to_root_path().await?;
         let output_root = this.chunking_context.output_root().await?;
-        let generate_source_map = *this
-            .chunking_context
-            .reference_chunk_source_maps(Vc::upcast(self))
-            .await?;
+        let source_map_generation = *this.chunking_context.source_map_generation().await?;
         let runtime_path = self.path().await?;
         let runtime_public_path = if let Some(path) = output_root.get_path_to(&runtime_path) {
             path
@@ -59,7 +56,7 @@ impl EcmascriptBuildNodeRuntimeChunk {
             turbobail!("runtime path {runtime_path} is not in output root {output_root}");
         };
 
-        let mut code = CodeBuilder::default();
+        let mut code = CodeBuilder::new(source_map_generation, false);
         let asset_prefix = this.chunking_context.asset_prefix().await?;
         let asset_prefix = asset_prefix.as_deref().unwrap_or("/");
 
@@ -111,7 +108,7 @@ impl EcmascriptBuildNodeRuntimeChunk {
                     asset_context,
                     RuntimeType::Development,
                     this.include_async_module_runtime,
-                    generate_source_map,
+                    source_map_generation,
                 );
                 code.push_code(&*runtime_code.await?);
             }
@@ -120,7 +117,7 @@ impl EcmascriptBuildNodeRuntimeChunk {
                     asset_context,
                     RuntimeType::Production,
                     this.include_async_module_runtime,
-                    generate_source_map,
+                    source_map_generation,
                 );
                 code.push_code(&*runtime_code.await?);
             }
@@ -197,7 +194,14 @@ impl Asset for EcmascriptBuildNodeRuntimeChunk {
         Ok(AssetContent::file(
             FileContent::Content(File::from(
                 self.code()
-                    .to_rope_with_magic_comments(|| self.source_map())
+                    .to_rope_with_magic_comments(
+                        *self
+                            .await?
+                            .chunking_context
+                            .emitted_source_map_type()
+                            .await?,
+                        || self.source_map(),
+                    )
                     .await?,
             ))
             .cell(),
@@ -208,7 +212,7 @@ impl Asset for EcmascriptBuildNodeRuntimeChunk {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptBuildNodeRuntimeChunk {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>) -> Vc<FileContent> {
-        self.code().generate_source_map()
+    fn generate_source_map(self: Vc<Self>, ty: Vc<SourceMapType>) -> Vc<FileContent> {
+        self.code().generate_source_map(ty)
     }
 }

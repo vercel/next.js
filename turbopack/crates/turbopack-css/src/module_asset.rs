@@ -330,21 +330,19 @@ impl EcmascriptChunkPlaceable for EcmascriptCssModule {
             )?;
         }
         code += "});\n";
-        let source_map = *chunking_context
-            .reference_module_source_maps(Vc::upcast(self))
-            .await?;
+        let generation = *chunking_context.source_map_generation().await?;
+        let map = if generation.any() {
+            Some(generate_minimal_source_map(
+                turbofmt!("{}", self.ident()).await?.to_string(),
+                code.clone(),
+            )?)
+        } else {
+            None
+        };
         Ok(EcmascriptChunkItemContent {
-            inner_code: code.clone().into(),
-            // We generate a minimal map for runtime code so that the filename is
-            // displayed in dev tools.
-            source_map: if source_map {
-                Some(generate_minimal_source_map(
-                    turbofmt!("{}", self.ident()).await?.to_string(),
-                    code,
-                )?)
-            } else {
-                None
-            },
+            inner_code: code.into(),
+            source_map: if generation.full { map.clone() } else { None },
+            partial_source_map: if generation.partial { map } else { None },
             options: EcmascriptChunkItemOptions {
                 supports_arrow_functions: *chunking_context
                     .environment()

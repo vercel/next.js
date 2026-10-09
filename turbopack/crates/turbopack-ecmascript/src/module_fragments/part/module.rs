@@ -8,6 +8,7 @@ use turbopack_core::{
     module_graph::ModuleGraph,
     reference::{ModuleReference, ModuleReferences, SingleChunkableModuleReference},
     resolve::{ExportUsage, ModulePart},
+    source_map::SourceMapGeneration,
 };
 
 use crate::{
@@ -64,10 +65,10 @@ impl EcmascriptAnalyzable for EcmascriptModulePartAsset {
     #[turbo_tasks::function]
     fn module_content_without_analysis(
         &self,
-        generate_source_map: bool,
+        source_map_generation: SourceMapGeneration,
     ) -> Vc<EcmascriptModuleContent> {
         self.full_module
-            .module_content_without_analysis(generate_source_map)
+            .module_content_without_analysis(source_map_generation)
     }
 
     #[turbo_tasks::function]
@@ -87,9 +88,7 @@ impl EcmascriptAnalyzable for EcmascriptModulePartAsset {
         let analyze_ref = analyze.await?;
 
         let module_type_result = module.full_module.determine_module_type().await?;
-        let generate_source_map = *chunking_context
-            .reference_module_source_maps(Vc::upcast(*self))
-            .await?;
+        let source_map_generation = *chunking_context.source_map_generation().await?;
         Ok(EcmascriptModuleContentOptions {
             parsed: Some(parsed),
             module: ResolvedVc::upcast(self),
@@ -100,7 +99,7 @@ impl EcmascriptAnalyzable for EcmascriptModulePartAsset {
             part_references: vec![],
             code_generation: analyze_ref.code_generation,
             async_module: analyze_ref.async_module,
-            generate_source_map,
+            source_map_generation,
             original_source_map: analyze_ref.source_map,
             exports: self.get_exports().to_resolved().await?,
             export_registration_mode: None,

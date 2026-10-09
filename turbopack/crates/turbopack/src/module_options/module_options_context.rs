@@ -11,7 +11,7 @@ use turbo_tasks_fs::{
 };
 use turbopack_core::{
     compile_time_info::CompileTimeInfo, condition::ContextCondition, environment::Environment,
-    resolve::options::ImportMapping, source_map::SourceMapType,
+    resolve::options::ImportMapping, source_map::SourceMapGeneration,
 };
 use turbopack_ecmascript::{
     AnalyzeMode, TypeofWindow,
@@ -247,7 +247,7 @@ pub struct ModuleOptionsContext {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct EcmascriptOptionsContext {
     // TODO this should just be handled via CompileTimeInfo FreeVarReferences, but then it
     // (currently) wouldn't be possible to have different replacement values in user code vs
@@ -270,7 +270,7 @@ pub struct EcmascriptOptionsContext {
     /// reference anything and lead to an runtime error instead.
     pub ignore_dynamic_requests: bool,
     /// Specifies how Source Maps are handled.
-    pub source_maps: Option<SourceMapType>,
+    pub source_maps: SourceMapGeneration,
 
     /// Whether to allow accessing exports info via `__webpack_exports_info__`.
     pub enable_exports_info_inlining: bool,
@@ -309,38 +309,8 @@ pub struct EcmascriptOptionsContext {
     pub placeholder_for_future_extensions: (),
 }
 
-impl Default for EcmascriptOptionsContext {
-    fn default() -> Self {
-        Self {
-            enable_typeof_window_inlining: Default::default(),
-            enable_jsx: Default::default(),
-            enable_rust_react_compiler: Default::default(),
-            rust_react_compiler_target: Default::default(),
-            enable_types: Default::default(),
-            enable_typescript_transform: Default::default(),
-            enable_decorators: Default::default(),
-            esm_url_rewrite_behavior: Default::default(),
-            import_externals: Default::default(),
-            ignore_dynamic_requests: Default::default(),
-            source_maps: Some(SourceMapType::Full),
-            enable_exports_info_inlining: Default::default(),
-            enable_import_as_bytes: Default::default(),
-            inline_helpers: Default::default(),
-            infer_module_side_effects: Default::default(),
-            cjs_tree_shaking: Default::default(),
-            mangle_export_names: Default::default(),
-            mangle_via_materialized_namespace_object: Default::default(),
-            cjs_scope_hoisting: Default::default(),
-            cross_module_constants: Default::default(),
-            lazy_compilation: Default::default(),
-            preset_env_config: Default::default(),
-            placeholder_for_future_extensions: Default::default(),
-        }
-    }
-}
-
 #[turbo_tasks::value(shared)]
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct CssOptionsContext {
     /// This skips `GlobalCss` and `ModuleCss` module assets from being
     /// generated in the module graph, generating only `Css` module assets.
@@ -350,7 +320,7 @@ pub struct CssOptionsContext {
     pub enable_raw_css: bool,
 
     /// Specifies how Source Maps are handled.
-    pub source_maps: Option<SourceMapType>,
+    pub source_maps: SourceMapGeneration,
 
     /// Override the conditions for module CSS (doesn't have any effect if `enable_raw_css` is
     /// true). By default (for `None`), it uses
@@ -364,19 +334,6 @@ pub struct CssOptionsContext {
     pub module_css_debuggable_idents: bool,
 
     pub placeholder_for_future_extensions: (),
-}
-
-impl Default for CssOptionsContext {
-    fn default() -> Self {
-        Self {
-            enable_raw_css: Default::default(),
-            source_maps: Some(SourceMapType::Full),
-            module_css_condition: Default::default(),
-            lightningcss_features: Default::default(),
-            module_css_debuggable_idents: Default::default(),
-            placeholder_for_future_extensions: Default::default(),
-        }
-    }
 }
 
 #[turbo_tasks::value_impl]

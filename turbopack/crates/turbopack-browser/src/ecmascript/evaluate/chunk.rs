@@ -18,7 +18,7 @@ use turbopack_core::{
     module::Module,
     module_graph::ModuleGraph,
     output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
-    source_map::{GenerateSourceMap, SourceMapAsset},
+    source_map::{GenerateSourceMap, SourceMapAsset, SourceMapType},
 };
 use turbopack_ecmascript::{
     chunk::{EcmascriptChunkData, EcmascriptChunkPlaceable},
@@ -130,10 +130,7 @@ impl EcmascriptBrowserEvaluateChunk {
     #[turbo_tasks::function]
     pub(crate) async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
         let this = self.await?;
-        let source_maps = *this
-            .chunking_context
-            .reference_chunk_source_maps(Vc::upcast(self))
-            .await?;
+        let source_map_generation = *this.chunking_context.source_map_generation().await?;
 
         let params = self.chunk_group_bootstrap_params().await?;
         // Use the configured chunk loading global variable to store the chunk here.
@@ -159,7 +156,7 @@ impl EcmascriptBrowserEvaluateChunk {
             Either::Right(CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR)
         };
         let mut code = CodeBuilder::new(
-            source_maps,
+            source_map_generation,
             *this.chunking_context.debug_ids_enabled().await?,
         );
         writedoc! {
@@ -204,7 +201,7 @@ impl EcmascriptBrowserEvaluateChunk {
                         this.chunking_context.asset_suffix(),
                         runtime_type,
                         output_root_to_root_path,
-                        source_maps,
+                        source_map_generation,
                         this.chunking_context.chunk_loading_global(),
                         this.chunking_context.cross_origin(),
                         this.chunking_context.chunk_load_retry(),
@@ -225,7 +222,7 @@ impl EcmascriptBrowserEvaluateChunk {
         let mut code = code.build();
 
         if let MinifyType::Minify { mangle } = *this.chunking_context.minify_type().await? {
-            code = minify(code, source_maps, mangle)?;
+            code = minify(code, source_map_generation, mangle)?;
         }
 
         Ok(code.cell())
@@ -316,7 +313,14 @@ impl Asset for EcmascriptBrowserEvaluateChunk {
         Ok(AssetContent::file(
             FileContent::Content(File::from(
                 self.code()
-                    .to_rope_with_magic_comments(|| self.source_map())
+                    .to_rope_with_magic_comments(
+                        *self
+                            .await?
+                            .chunking_context
+                            .emitted_source_map_type()
+                            .await?,
+                        || self.source_map(),
+                    )
                     .await?,
             ))
             .cell(),
@@ -327,8 +331,8 @@ impl Asset for EcmascriptBrowserEvaluateChunk {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptBrowserEvaluateChunk {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>) -> Vc<FileContent> {
-        self.code().generate_source_map()
+    fn generate_source_map(self: Vc<Self>, ty: Vc<SourceMapType>) -> Vc<FileContent> {
+        self.code().generate_source_map(ty)
     }
 }
 

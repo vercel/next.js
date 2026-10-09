@@ -14,6 +14,7 @@ use turbopack_core::{
     reference::ModuleReferences,
     resolve::{ExportUsage, ModulePart},
     source::OptionSource,
+    source_map::SourceMapGeneration,
 };
 
 use crate::{
@@ -189,7 +190,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleRenameModule {
     #[turbo_tasks::function]
     fn module_content_without_analysis(
         &self,
-        _generate_source_map: bool,
+        _source_map_generation: SourceMapGeneration,
     ) -> Result<Vc<EcmascriptModuleContent>> {
         bail!("EcmascriptModuleRenameModule::module_content_without_analysis shouldn't be called");
     }
@@ -215,7 +216,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleRenameModule {
             // The facade module cannot generate source maps, because the inserted references
             // contain spans from the original module, but the facade module itself doesn't have the
             // original module's swc_common::SourceMap in `parsed`.
-            generate_source_map: false,
+            source_map_generation: SourceMapGeneration::NONE,
             original_source_map: None,
             exports: self.get_exports().to_resolved().await?,
             export_registration_mode: None,
