@@ -286,7 +286,10 @@ import type { MetadataErrorType } from '../../lib/metadata/resolve-metadata'
 import isError, { getProperError } from '../../lib/is-error'
 import { createServerInsertedMetadata } from './metadata-insertion/create-server-inserted-metadata'
 import type { ParsedRequestHeaders } from '../route-modules/app-page/parse-request-headers'
-import { executeRevalidates } from '../revalidation-utils'
+import {
+  executeRevalidates,
+  executeRevalidatesOnClose,
+} from '../revalidation-utils'
 import {
   trackPendingChunkLoad,
   trackPendingImport,
@@ -3185,6 +3188,16 @@ async function renderAppPage(
       } else {
         options.waitUntil = revalidatesPromise
       }
+    }
+
+    if (renderOpts.waitUntil) {
+      renderOpts.waitUntil(
+        executeRevalidatesOnClose(workStore, renderOpts.onClose).finally(() => {
+          if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
+            console.log('late revalidates promise finished for:', url.href)
+          }
+        })
+      )
     }
 
     // Create the new render result for the response.

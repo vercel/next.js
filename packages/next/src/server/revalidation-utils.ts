@@ -25,6 +25,27 @@ export async function withExecuteRevalidates<T>(
   }
 }
 
+/** Once the response closes, execute any revalidations added since this was called. */
+export async function executeRevalidatesOnClose(
+  store: WorkStore,
+  onClose: (callback: () => void) => void
+): Promise<void> {
+  let executedRevalidationState = cloneRevalidationState(store)
+  await new Promise<void>((resolve) => onClose(resolve))
+  while (true) {
+    const currentRevalidationState = cloneRevalidationState(store)
+    const maybeRevalidatesPromise = executeRevalidates(
+      store,
+      diffRevalidationState(executedRevalidationState, currentRevalidationState)
+    )
+    if (maybeRevalidatesPromise === false) {
+      return
+    }
+    executedRevalidationState = currentRevalidationState
+    await maybeRevalidatesPromise
+  }
+}
+
 type RevalidationState = Required<
   Pick<
     WorkStore,
