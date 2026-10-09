@@ -26,7 +26,10 @@ use crate::{
             as_exports_define_property, as_module_exports_object_literal,
             define_property_sets_es_module, is_exports_object, is_global, is_module_exports_chain,
         },
-        graph::{ConditionalKind, Effect, EffectArg, EffectsBlock, EvalContext, VarGraph},
+        graph::{
+            ConditionalKind, Effect, EffectArg, EffectsBlock, EvalContext, NamespaceAccess,
+            VarGraph,
+        },
         is_unresolved_id,
     },
     ast_path_trie::{AstPathId, AstPathTrieBuilder},
@@ -2469,6 +2472,10 @@ impl VisitAstPath for Analyzer<'_, '_> {
                     esm_reference_index,
                     export: Some(prop_str.into()),
                     member: None,
+                    // Without the ident's own entry, the path ends at `MemberExpr(Obj)`.
+                    namespace_access: Some(NamespaceAccess::of_member_access(
+                        &ast_path[..ast_path.len() - 1],
+                    )),
                     // point to the MemberExpression instead
                     ast_path: as_parent_path_skip_in(self.arena, ast_path, 1),
                     span: member.span(),
@@ -2487,6 +2494,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
                     esm_reference_index,
                     export: export.map(|e| RcStr::from(e.as_str())),
                     member,
+                    namespace_access: None,
                     ast_path: as_parent_path_in(self.arena, ast_path),
                     span: ident.span(),
                 })
