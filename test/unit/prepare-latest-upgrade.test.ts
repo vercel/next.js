@@ -5,6 +5,7 @@ import semver from 'next/dist/compiled/semver'
 import {
   getLatestUpgradeVersion,
   getUpgradeAssessment,
+  getInstalledNextVersion,
   prepareUpgrade,
 } from 'next/dist/lib/upgrade/prepare-upgrade'
 import loadConfig from 'next/dist/server/config'
@@ -30,6 +31,20 @@ describe('prepare latest upgrade', () => {
     )
     return directory
   }
+
+  it('reads the installed app version again after its dependency changes', async () => {
+    global.fetch = jest.fn()
+    const directory = await createApp('14.1.1')
+    expect(await getInstalledNextVersion(directory)).toBe('14.1.1')
+
+    await writeFile(
+      join(directory, 'node_modules/next/package.json'),
+      JSON.stringify({ version: '16.3.5' })
+    )
+
+    expect(await getInstalledNextVersion(directory)).toBe('16.3.5')
+    expect(global.fetch).not.toHaveBeenCalled()
+  })
 
   function mockLatestVersion(version: string) {
     global.fetch = jest.fn(async (input) => {
