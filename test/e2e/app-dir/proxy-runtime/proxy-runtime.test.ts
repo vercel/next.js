@@ -37,7 +37,7 @@ describe('proxy-runtime', () => {
        4 |
        The exported configuration object in a source file needs to have a very specific format from which some properties can be statically parsed at compiled-time.
        https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config
-       at <unknown> (https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config)"
+       at ignore-listed frames"
       `)
     } else {
       expect(cliOutput).toContain(
