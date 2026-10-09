@@ -232,7 +232,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
         for (name, export) in &esm_exports.exports {
             let name = name.clone();
             match export {
-                EsmExport::LocalBinding(_, liveness) => {
+                EsmExport::LocalBinding(_, liveness, _) => {
                     exports.push((
                         name.clone(),
                         EsmExport::ImportedBinding(
