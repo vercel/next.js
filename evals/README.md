@@ -117,7 +117,7 @@ requires fewer compressed JavaScript response-body bytes than the baseline and a
 rounded byte budget of 200,000 bytes.
 
 The editor must stay unloaded until interaction, preload on pointer hover, and
-remain editable. CodeMirror responses are identified by its
+stay editable. CodeMirror responses are identified by its
 `cm-content` runtime class.
 
 `lib/next-test-utils.mjs` owns production builds and server cleanup.
