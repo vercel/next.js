@@ -93,4 +93,130 @@ describe('force stale', () => {
       }, 'no-requests')
     }
   )
+
+  it(
+    'a prefetch={true} link fetches only the dynamic data that a default ' +
+      'prefetch of the same URL left out',
+    async () => {
+      let act: ReturnType<typeof createRouterAct>
+      const browser = await next.browser('/', {
+        beforePageLoad(p: Playwright.Page) {
+          act = createRouterAct(p)
+        },
+      })
+
+      // Reveal a default link. The prefetch includes the static layout and
+      // the loading state, but not the dynamic page content. (With Cache
+      // Components this is a per-segment static prefetch; without, it's a
+      // prefetch up to the loading boundary.)
+      await act(async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="partially-static-default"]'
+        )
+        await toggle.click()
+      }, [
+        { includes: 'Static layout content' },
+        { includes: 'Partially static page content', block: 'reject' },
+      ])
+
+      // Reveal a prefetch={true} link to the same URL. It requests the
+      // dynamic page content, but not the layout, which is already cached.
+      await act(async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="partially-static-full"]'
+        )
+        await toggle.click()
+      }, [
+        { includes: 'Partially static page content' },
+        { includes: 'Static layout content', block: 'reject' },
+      ])
+
+      // Everything was prefetched, so the navigation makes no requests.
+      await act(async () => {
+        const link = await browser.elementById('partially-static-default')
+        await link.click()
+      }, 'no-requests')
+      expect(await browser.elementById('partially-static-layout').text()).toBe(
+        'Static layout content'
+      )
+      expect(await browser.elementById('partially-static-page').text()).toBe(
+        'Partially static page content'
+      )
+    }
+  )
+
+  it(
+    'a default link does not re-request data already fetched by a ' +
+      'prefetch={true} link to the same URL',
+    async () => {
+      let act: ReturnType<typeof createRouterAct>
+      const browser = await next.browser('/', {
+        beforePageLoad(p: Playwright.Page) {
+          act = createRouterAct(p)
+        },
+      })
+
+      // The prefetch={true} link fetches the whole page, including the
+      // dynamic content.
+      await act(async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="partially-static-full"]'
+        )
+        await toggle.click()
+      }, [
+        { includes: 'Static layout content' },
+        { includes: 'Partially static page content' },
+      ])
+
+      // A default link to the same URL has nothing left to prefetch.
+      await act(async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="partially-static-default"]'
+        )
+        await toggle.click()
+      }, 'no-requests')
+
+      // Navigating from the default link makes no requests either.
+      await act(async () => {
+        const link = await browser.elementById('partially-static-default')
+        await link.click()
+      }, 'no-requests')
+      expect(await browser.elementById('partially-static-page').text()).toBe(
+        'Partially static page content'
+      )
+    }
+  )
+
+  it('back/forward navigations do not make requests', async () => {
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        act = createRouterAct(p)
+      },
+    })
+
+    await act(
+      async () => {
+        const link = await browser.elementById('link-without-prefetch')
+        await link.click()
+      },
+      { includes: 'Dynamic page content' }
+    )
+    expect(await browser.elementById('dynamic-page-content').text()).toBe(
+      'Dynamic page content'
+    )
+
+    // Both pages are restored from the back/forward cache.
+    await act(async () => {
+      await browser.back()
+    }, 'no-requests')
+    await browser.elementById('link-without-prefetch')
+
+    await act(async () => {
+      await browser.forward()
+    }, 'no-requests')
+    expect(await browser.elementById('dynamic-page-content').text()).toBe(
+      'Dynamic page content'
+    )
+  })
 })
