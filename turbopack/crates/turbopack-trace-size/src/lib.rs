@@ -52,7 +52,7 @@ impl RowKind {
         RowKind::TimestampBase,
     ];
 
-    pub fn of(row: &TraceRow<'_>) -> Self {
+    pub fn of<T>(row: &TraceRow<'_, T>) -> Self {
         match row {
             TraceRow::Start { .. } => RowKind::Start,
             TraceRow::End { .. } => RowKind::End,
@@ -301,12 +301,15 @@ impl TraceSizeAnalyzer {
             loop {
                 let remaining = &buffer[start..];
                 match postcard::take_from_bytes::<TraceRow<'_>>(remaining) {
-                    Ok((mut row, rest)) => {
+                    Ok((row, rest)) => {
                         let row_bytes = remaining.len() - rest.len();
-                        if let Err(err) = timestamps.decode(&mut row) {
-                            let offset = self.uncompressed_size - (buffer.len() - start) as u64;
-                            bail!("Invalid trace row at uncompressed offset {offset}: {err}");
-                        }
+                        let row = match timestamps.decode(row) {
+                            Ok(row) => row,
+                            Err(err) => {
+                                let offset = self.uncompressed_size - (buffer.len() - start) as u64;
+                                bail!("Invalid trace row at uncompressed offset {offset}: {err}");
+                            }
+                        };
                         self.add_row(&row, row_bytes as u64);
                         start += row_bytes;
                     }
@@ -326,7 +329,7 @@ impl TraceSizeAnalyzer {
     }
 
     /// Accounts a single decoded row that took `bytes` bytes in the stream.
-    pub fn add_row(&mut self, row: &TraceRow<'_>, bytes: u64) {
+    pub fn add_row(&mut self, row: &TraceRow<'_, u64>, bytes: u64) {
         self.row_kinds[RowKind::of(row) as usize].add(bytes);
         match row {
             TraceRow::Start {
@@ -897,14 +900,16 @@ mod tests {
     use std::borrow::Cow;
 
     use flate2::{Compression as GzLevel, write::GzEncoder};
-    use turbopack_trace_utils::tracing::{Allocations, TimestampEncoder, TraceRow, TraceValue};
+    use turbopack_trace_utils::tracing::{
+        Allocations, DeltaEncodedTimestamp, TimestampEncoder, TraceRow, TraceValue,
+    };
 
     use crate::{
         Compression, NO_SPAN, RowKind, StringKind, TRACE_HEADER, TraceSizeAnalyzer, UNKNOWN_SPAN,
         allocations_size, value_size,
     };
 
-    fn sample_rows() -> Vec<TraceRow<'static>> {
+    fn sample_rows() -> Vec<TraceRow<'static, u64>> {
         vec![
             TraceRow::TimestampBase { ts: 0 },
             TraceRow::Start {
@@ -1006,18 +1011,22 @@ mod tests {
 
     /// Serializes the rows with delta encoded timestamps, like the trace writer. The rows must
     /// start with a [`TraceRow::TimestampBase`]. Returns the data and the size of each row.
-    fn encode(rows: &[TraceRow<'_>]) -> (Vec<u8>, Vec<u64>) {
+    fn encode(rows: &[TraceRow<'_, u64>]) -> (Vec<u8>, Vec<u64>) {
         let mut data = TRACE_HEADER.to_vec();
         let mut sizes = Vec::new();
         let mut encoder = TimestampEncoder::default();
         for row in rows {
+            // A copy of the row, through its serialized form
             let bytes = postcard::to_stdvec(row).unwrap();
-            let mut row: TraceRow<'_> = postcard::from_bytes(&bytes).unwrap();
-            if let TraceRow::TimestampBase { ts } = row {
+            let row: TraceRow<'_, u64> = postcard::from_bytes(&bytes).unwrap();
+            let row: TraceRow<'_> = if let TraceRow::TimestampBase { ts } = row {
                 encoder.encode(ts);
+                TraceRow::TimestampBase { ts }
             } else {
-                assert!(encoder.encode_row(&mut row).is_none(), "missing base row");
-            }
+                let (base, row) = encoder.encode_row(row);
+                assert!(base.is_none(), "missing base row");
+                row
+            };
             let bytes = postcard::to_stdvec(&row).unwrap();
             sizes.push(bytes.len() as u64);
             data.extend_from_slice(&bytes);
@@ -1240,7 +1249,11 @@ mod tests {
     fn fails_on_timestamp_without_base() {
         let mut data = TRACE_HEADER.to_vec();
         let offset = data.len();
-        data.extend(postcard::to_stdvec(&TraceRow::End { ts: 4, id: 1 }).unwrap());
+        let row: TraceRow<'_> = TraceRow::End {
+            ts: DeltaEncodedTimestamp(4),
+            id: 1,
+        };
+        data.extend(postcard::to_stdvec(&row).unwrap());
         let mut analyzer = TraceSizeAnalyzer::new();
         let err = analyzer.analyze_reader(&data[..]).unwrap_err();
         let err = err.to_string();
@@ -1253,7 +1266,7 @@ mod tests {
 
     #[test]
     fn attributes_reused_ids_and_events_without_span() {
-        let rows = vec![
+        let rows: Vec<TraceRow<'_, u64>> = vec![
             TraceRow::TimestampBase { ts: 0 },
             TraceRow::Start {
                 ts: 1,

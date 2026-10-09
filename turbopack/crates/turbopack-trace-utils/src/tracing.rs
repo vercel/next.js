@@ -1,32 +1,44 @@
 use std::{
     borrow::Cow,
+    convert::Infallible,
     fmt::{Display, Formatter},
 };
 
 use serde::{Deserialize, Serialize};
 
+/// A timestamp as serialized in the trace stream: the signed difference in microseconds to the
+/// timestamp of the previous row with a timestamp. See "Timestamps" in the docs of [`TraceRow`].
+///
+/// It is serialized like an `i64` (postcard zigzag encodes it).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct DeltaEncodedTimestamp(pub i64);
+
 /// A raw trace line.
 ///
 /// # Timestamps
 ///
-/// Timestamps are microseconds since the start of tracing. To keep the trace file small, the
-/// `ts` fields of all rows except [`TraceRow::TimestampBase`] are serialized as the signed
-/// difference to the timestamp of the previous row with a timestamp in the trace stream (postcard
-/// zigzag encodes signed numbers, so small differences in both directions take few bytes). The
-/// differences can be negative, since rows are not necessarily in timestamp order. A
-/// [`TraceRow::TimestampBase`] row sets an absolute timestamp that the next difference refers to.
-/// The writer writes one before the first row with a timestamp in every thread local buffer, so
-/// the rows of each buffer can be decoded no matter where the buffer ends up in the file.
+/// Timestamps are microseconds since the start of tracing. `T` is the type of the `ts` fields of
+/// all rows except [`TraceRow::TimestampBase`]:
+///
+/// - `TraceRow<'a>` (`T` = [`DeltaEncodedTimestamp`]) is the serialized form. To keep the trace
+///   file small, every timestamp is the signed difference to the timestamp of the previous row with
+///   a timestamp in the trace stream (postcard zigzag encodes signed numbers, so small differences
+///   in both directions take few bytes). The differences can be negative, since rows are not
+///   necessarily in timestamp order. A [`TraceRow::TimestampBase`] row sets an absolute timestamp
+///   that the next difference refers to. The writer writes one before the first row with a
+///   timestamp in every thread local buffer, so the rows of each buffer can be decoded no matter
+///   where the buffer ends up in the file.
+/// - `TraceRow<'a, u64>` holds absolute timestamps.
 ///
 /// Writers use a [`TimestampEncoder`] and readers a [`TimestampDecoder`] on every row in stream
-/// order to convert between these differences and absolute timestamps. Outside of the serialized
-/// form, the `ts` fields hold absolute timestamps, which are never negative.
+/// order to convert between the two forms.
 #[derive(Debug, Serialize, Deserialize)]
-pub enum TraceRow<'a> {
+pub enum TraceRow<'a, T = DeltaEncodedTimestamp> {
     /// A new span has been started, but not entered yet.
     Start {
         /// Timestamp
-        ts: i64,
+        ts: T,
         /// Unique id for this span.
         id: u64,
         /// Id of the parent span, if any.
@@ -44,14 +56,14 @@ pub enum TraceRow<'a> {
     /// A span has ended. The id might be reused in future.
     End {
         /// Timestamp
-        ts: i64,
+        ts: T,
         /// Unique id for this span. Must be created by a `Start` event before.
         id: u64,
     },
     /// A span has been entered. This means it is spending CPU time now.
     Enter {
         /// Timestamp
-        ts: i64,
+        ts: T,
         /// Unique id for this span. Must be created by a `Start` event before.
         id: u64,
         /// The thread id of the thread that entered the span.
@@ -63,7 +75,7 @@ pub enum TraceRow<'a> {
     /// A span has been exited. This means it is not spending CPU time anymore.
     Exit {
         /// Timestamp
-        ts: i64,
+        ts: T,
         /// Unique id for this span. Must be entered by a `Enter` event before.
         id: u64,
         /// The thread id of the thread that exits the span.
@@ -75,7 +87,7 @@ pub enum TraceRow<'a> {
     /// A event has happened for some span.
     Event {
         /// Timestamp
-        ts: i64,
+        ts: T,
         /// Id of the parent span, if any.
         parent: Option<u64>,
         /// A list of key-value pairs for all attributes of the event.
@@ -93,7 +105,7 @@ pub enum TraceRow<'a> {
     /// A snapshot of process memory and non-idle Tokio scheduler workers.
     MemorySample {
         /// Timestamp
-        ts: i64,
+        ts: T,
         /// Memory usage in bytes (from TurboMalloc::memory_usage())
         memory: u64,
         /// OS memory pressure in `0..=100` (from
@@ -104,17 +116,17 @@ pub enum TraceRow<'a> {
         active_worker_threads: u64,
     },
     /// Sets the absolute timestamp that the `ts` of the next row with a timestamp is relative to.
-    /// See "Timestamps" in the docs of [`TraceRow`].
+    /// See "Timestamps" in the docs of [`TraceRow`]. Only meaningful in the serialized form.
     TimestampBase {
         /// Absolute timestamp
         ts: u64,
     },
 }
 
-impl TraceRow<'_> {
+impl<'a, T> TraceRow<'a, T> {
     /// The timestamp of this row, if it has one. This doesn't include
     /// [`TraceRow::TimestampBase`], which only defines the base for other timestamps.
-    pub fn timestamp_mut(&mut self) -> Option<&mut i64> {
+    pub fn timestamp(&self) -> Option<&T> {
         match self {
             TraceRow::Start { ts, .. }
             | TraceRow::End { ts, .. }
@@ -124,6 +136,77 @@ impl TraceRow<'_> {
             | TraceRow::MemorySample { ts, .. } => Some(ts),
             TraceRow::Record { .. } | TraceRow::TimestampBase { .. } => None,
         }
+    }
+
+    /// Converts the timestamp of this row (if it has one) with `f`, keeping everything else.
+    pub fn map_timestamp<U>(self, f: impl FnOnce(T) -> U) -> TraceRow<'a, U> {
+        let Ok(row) = self.try_map_timestamp(|ts| Ok::<_, Infallible>(f(ts)));
+        row
+    }
+
+    /// Like [`TraceRow::map_timestamp`], but the conversion can fail.
+    pub fn try_map_timestamp<U, E>(
+        self,
+        f: impl FnOnce(T) -> Result<U, E>,
+    ) -> Result<TraceRow<'a, U>, E> {
+        Ok(match self {
+            TraceRow::Start {
+                ts,
+                id,
+                parent,
+                name,
+                target,
+                values,
+            } => TraceRow::Start {
+                ts: f(ts)?,
+                id,
+                parent,
+                name,
+                target,
+                values,
+            },
+            TraceRow::End { ts, id } => TraceRow::End { ts: f(ts)?, id },
+            TraceRow::Enter {
+                ts,
+                id,
+                thread_id,
+                allocations,
+            } => TraceRow::Enter {
+                ts: f(ts)?,
+                id,
+                thread_id,
+                allocations,
+            },
+            TraceRow::Exit {
+                ts,
+                id,
+                thread_id,
+                allocations,
+            } => TraceRow::Exit {
+                ts: f(ts)?,
+                id,
+                thread_id,
+                allocations,
+            },
+            TraceRow::Event { ts, parent, values } => TraceRow::Event {
+                ts: f(ts)?,
+                parent,
+                values,
+            },
+            TraceRow::Record { id, values } => TraceRow::Record { id, values },
+            TraceRow::MemorySample {
+                ts,
+                memory,
+                memory_pressure,
+                active_worker_threads,
+            } => TraceRow::MemorySample {
+                ts: f(ts)?,
+                memory,
+                memory_pressure,
+                active_worker_threads,
+            },
+            TraceRow::TimestampBase { ts } => TraceRow::TimestampBase { ts },
+        })
     }
 }
 
@@ -143,25 +226,30 @@ impl TimestampEncoder {
     ///
     /// A base is needed for the first timestamp, and when the difference to the previous
     /// timestamp doesn't fit into an `i64`.
-    pub fn encode(&mut self, ts: u64) -> (Option<u64>, i64) {
+    pub fn encode(&mut self, ts: u64) -> (Option<u64>, DeltaEncodedTimestamp) {
         let delta = self
             .last
             .and_then(|last| i64::try_from(i128::from(ts) - i128::from(last)).ok());
         self.last = Some(ts);
         match delta {
-            Some(delta) => (None, delta),
-            None => (Some(ts), 0),
+            Some(delta) => (None, DeltaEncodedTimestamp(delta)),
+            None => (Some(ts), DeltaEncodedTimestamp(0)),
         }
     }
 
-    /// Converts the absolute timestamp of `row` (if it has one) in place and returns the
-    /// [`TraceRow::TimestampBase`] row that has to be written before it, if needed.
-    pub fn encode_row(&mut self, row: &mut TraceRow<'_>) -> Option<TraceRow<'static>> {
-        let ts = row.timestamp_mut()?;
-        let absolute = u64::try_from(*ts).expect("absolute timestamps are not negative");
-        let (base, encoded) = self.encode(absolute);
-        *ts = encoded;
-        base.map(|ts| TraceRow::TimestampBase { ts })
+    /// Converts `row` into its serialized form. Also returns the [`TraceRow::TimestampBase`] row
+    /// that has to be written before it, if needed.
+    pub fn encode_row<'a>(
+        &mut self,
+        row: TraceRow<'a, u64>,
+    ) -> (Option<TraceRow<'static>>, TraceRow<'a>) {
+        let mut base = None;
+        let row = row.map_timestamp(|ts| {
+            let (new_base, encoded) = self.encode(ts);
+            base = new_base.map(|ts| TraceRow::TimestampBase { ts });
+            encoded
+        });
+        (base, row)
     }
 }
 
@@ -170,8 +258,7 @@ impl TimestampEncoder {
 pub enum TimestampDecodeError {
     /// A row with a timestamp came before any [`TraceRow::TimestampBase`].
     MissingBase,
-    /// Applying a timestamp difference over- or underflowed, or the absolute timestamp doesn't
-    /// fit into the `i64` of a `ts` field.
+    /// Applying a timestamp difference over- or underflowed `u64`.
     Overflow,
 }
 
@@ -203,22 +290,23 @@ pub struct TimestampDecoder {
 }
 
 impl TimestampDecoder {
-    /// Replaces the serialized timestamp of `row` (if it has one) with the absolute timestamp.
-    /// [`TraceRow::TimestampBase`] rows update the state and are left unchanged.
-    pub fn decode(&mut self, row: &mut TraceRow<'_>) -> Result<(), TimestampDecodeError> {
+    /// Converts `row` from its serialized form into the form with absolute timestamps.
+    /// [`TraceRow::TimestampBase`] rows update the state and are kept.
+    pub fn decode<'a>(
+        &mut self,
+        row: TraceRow<'a>,
+    ) -> Result<TraceRow<'a, u64>, TimestampDecodeError> {
         if let TraceRow::TimestampBase { ts } = row {
-            self.last = Some(*ts);
-            return Ok(());
+            self.last = Some(ts);
         }
-        if let Some(ts) = row.timestamp_mut() {
+        row.try_map_timestamp(|DeltaEncodedTimestamp(delta)| {
             let last = self.last.ok_or(TimestampDecodeError::MissingBase)?;
             let decoded = last
-                .checked_add_signed(*ts)
+                .checked_add_signed(delta)
                 .ok_or(TimestampDecodeError::Overflow)?;
-            *ts = i64::try_from(decoded).map_err(|_| TimestampDecodeError::Overflow)?;
             self.last = Some(decoded);
-        }
-        Ok(())
+            Ok(decoded)
+        })
     }
 }
 
@@ -292,38 +380,60 @@ impl TraceValue<'_> {
 
 #[cfg(test)]
 mod tests {
-    use crate::tracing::{TimestampDecodeError, TimestampDecoder, TimestampEncoder, TraceRow};
+    use crate::tracing::{
+        DeltaEncodedTimestamp, TimestampDecodeError, TimestampDecoder, TimestampEncoder, TraceRow,
+    };
 
-    fn end(ts: i64) -> TraceRow<'static> {
+    fn end(ts: u64) -> TraceRow<'static, u64> {
         TraceRow::End { ts, id: 1 }
     }
 
-    fn ts_of(row: &TraceRow<'_>) -> i64 {
+    fn encoded_end(delta: i64) -> TraceRow<'static> {
+        TraceRow::End {
+            ts: DeltaEncodedTimestamp(delta),
+            id: 1,
+        }
+    }
+
+    fn base(ts: u64) -> TraceRow<'static> {
+        TraceRow::TimestampBase { ts }
+    }
+
+    /// The delta of an encoded `End` row.
+    fn delta_of(row: &TraceRow<'_>) -> i64 {
+        match row {
+            TraceRow::End { ts, .. } => ts.0,
+            _ => unreachable!(),
+        }
+    }
+
+    /// The absolute timestamp of a decoded `End` row.
+    fn ts_of(row: &TraceRow<'_, u64>) -> u64 {
         match row {
             TraceRow::End { ts, .. } => *ts,
-            TraceRow::TimestampBase { ts } => i64::try_from(*ts).unwrap(),
             _ => unreachable!(),
         }
     }
 
     /// Encodes the rows like the trace writer does (base rows included) and decodes them again.
-    fn round_trip(timestamps: &[i64]) -> (Vec<TraceRow<'static>>, Vec<i64>) {
+    fn round_trip(timestamps: &[u64]) -> (Vec<TraceRow<'static>>, Vec<u64>) {
         let mut encoder = TimestampEncoder::default();
         let mut encoded = Vec::new();
         for &ts in timestamps {
-            let mut row = end(ts);
-            if let Some(base) = encoder.encode_row(&mut row) {
-                encoded.push(base);
-            }
+            let (base, row) = encoder.encode_row(end(ts));
+            encoded.extend(base);
             encoded.push(row);
         }
+        // Through the serialized form, like a reader sees it
+        let bytes: Vec<Vec<u8>> = encoded
+            .iter()
+            .map(|row| postcard::to_stdvec(row).unwrap())
+            .collect();
         let mut decoder = TimestampDecoder::default();
         let mut decoded = Vec::new();
-        for mut row in encoded.iter().map(|row| match row {
-            TraceRow::TimestampBase { ts } => TraceRow::TimestampBase { ts: *ts },
-            row => end(ts_of(row)),
-        }) {
-            decoder.decode(&mut row).unwrap();
+        for bytes in &bytes {
+            let row: TraceRow<'_> = postcard::from_bytes(bytes).unwrap();
+            let row = decoder.decode(row).unwrap();
             if !matches!(row, TraceRow::TimestampBase { .. }) {
                 decoded.push(ts_of(&row));
             }
@@ -338,7 +448,7 @@ mod tests {
         assert_eq!(decoded, timestamps);
         // One base row at the start, the rows hold the signed deltas
         assert!(matches!(encoded[0], TraceRow::TimestampBase { ts: 1000 }));
-        let deltas: Vec<i64> = encoded[1..].iter().map(ts_of).collect();
+        let deltas: Vec<i64> = encoded[1..].iter().map(delta_of).collect();
         assert_eq!(deltas, [0, 5, -2, 0, 997, -2000, 7]);
     }
 
@@ -350,11 +460,19 @@ mod tests {
             ((value << 1) ^ (value >> 63)) as u64
         }
         for delta in [0, 1, -1, 5, -2, 1994, -3999, i64::MIN, i64::MAX] {
-            let mut expected = postcard::to_stdvec(&TraceRow::End { ts: 0, id: 7 }).unwrap();
+            let mut expected = postcard::to_stdvec(&TraceRow::End {
+                ts: DeltaEncodedTimestamp(0),
+                id: 7,
+            })
+            .unwrap();
             // The variant index, then the varint of `ts`, then `id`
             expected.splice(1..2, postcard::to_stdvec(&zigzag(delta)).unwrap());
             assert_eq!(
-                postcard::to_stdvec(&TraceRow::End { ts: delta, id: 7 }).unwrap(),
+                postcard::to_stdvec(&TraceRow::End {
+                    ts: DeltaEncodedTimestamp(delta),
+                    id: 7
+                })
+                .unwrap(),
                 expected,
                 "delta {delta}"
             );
@@ -370,21 +488,23 @@ mod tests {
             .collect();
         assert_eq!(
             encoded,
-            [(Some(0), 0), (Some(u64::MAX), 0), (None, -1), (Some(0), 0)]
+            [
+                (Some(0), DeltaEncodedTimestamp(0)),
+                (Some(u64::MAX), DeltaEncodedTimestamp(0)),
+                (None, DeltaEncodedTimestamp(-1)),
+                (Some(0), DeltaEncodedTimestamp(0))
+            ]
         );
     }
 
     #[test]
     fn reset_encoder_writes_a_new_base() {
         let mut encoder = TimestampEncoder::default();
-        let mut row = end(10);
-        assert!(encoder.encode_row(&mut row).is_some());
-        let mut row = end(12);
-        assert!(encoder.encode_row(&mut row).is_none());
+        assert!(encoder.encode_row(end(10)).0.is_some());
+        assert!(encoder.encode_row(end(12)).0.is_none());
         encoder = TimestampEncoder::default();
-        let mut row = end(13);
         assert!(matches!(
-            encoder.encode_row(&mut row),
+            encoder.encode_row(end(13)).0,
             Some(TraceRow::TimestampBase { ts: 13 })
         ));
     }
@@ -393,61 +513,60 @@ mod tests {
     fn rows_without_timestamp_are_unchanged() {
         let mut encoder = TimestampEncoder::default();
         let mut decoder = TimestampDecoder::default();
-        let mut record = TraceRow::Record {
+        let (base, record) = encoder.encode_row(TraceRow::<u64>::Record {
             id: 5,
             values: Vec::new(),
-        };
-        assert!(encoder.encode_row(&mut record).is_none());
-        decoder.decode(&mut record).unwrap();
+        });
+        assert!(base.is_none());
+        let record = decoder.decode(record).unwrap();
         assert!(matches!(record, TraceRow::Record { id: 5, .. }));
         // No base was needed and none is pending: the first timestamp still gets a base.
-        assert!(encoder.encode_row(&mut end(1)).is_some());
+        assert!(encoder.encode_row(end(1)).0.is_some());
+    }
+
+    #[test]
+    fn decoder_keeps_timestamp_bases() {
+        let mut decoder = TimestampDecoder::default();
+        assert!(matches!(
+            decoder.decode(base(42)),
+            Ok(TraceRow::TimestampBase { ts: 42 })
+        ));
+        assert_eq!(ts_of(&decoder.decode(encoded_end(-2)).unwrap()), 40);
     }
 
     #[test]
     fn decoder_requires_a_base() {
         let mut decoder = TimestampDecoder::default();
         assert_eq!(
-            decoder.decode(&mut end(4)),
-            Err(TimestampDecodeError::MissingBase)
+            decoder.decode(encoded_end(4)).unwrap_err(),
+            TimestampDecodeError::MissingBase
         );
     }
 
     #[test]
     fn decoder_detects_overflow() {
         let mut decoder = TimestampDecoder::default();
-        decoder
-            .decode(&mut TraceRow::TimestampBase { ts: u64::MAX - 1 })
-            .unwrap();
+        decoder.decode(base(u64::MAX - 1)).unwrap();
         assert_eq!(
-            decoder.decode(&mut end(5)),
-            Err(TimestampDecodeError::Overflow)
+            decoder.decode(encoded_end(5)).unwrap_err(),
+            TimestampDecodeError::Overflow
         );
         let mut decoder = TimestampDecoder::default();
-        decoder
-            .decode(&mut TraceRow::TimestampBase { ts: 1 })
-            .unwrap();
+        decoder.decode(base(1)).unwrap();
         assert_eq!(
-            decoder.decode(&mut end(-2)),
-            Err(TimestampDecodeError::Overflow)
+            decoder.decode(encoded_end(-2)).unwrap_err(),
+            TimestampDecodeError::Overflow
         );
     }
 
-    /// Absolute timestamps are stored in the `i64` of the `ts` fields.
+    /// Decoded timestamps are `u64`, so they can exceed `i64::MAX`.
     #[test]
-    fn decoder_rejects_timestamps_beyond_i64() {
+    fn decoder_accepts_timestamps_beyond_i64() {
+        let beyond = i64::MAX as u64 + 5;
+        let (_, decoded) = round_trip(&[beyond, beyond + 1, u64::MAX]);
+        assert_eq!(decoded, [beyond, beyond + 1, u64::MAX]);
         let mut decoder = TimestampDecoder::default();
-        decoder
-            .decode(&mut TraceRow::TimestampBase {
-                ts: i64::MAX as u64,
-            })
-            .unwrap();
-        let mut row = end(0);
-        decoder.decode(&mut row).unwrap();
-        assert_eq!(ts_of(&row), i64::MAX);
-        assert_eq!(
-            decoder.decode(&mut end(1)),
-            Err(TimestampDecodeError::Overflow)
-        );
+        decoder.decode(base(i64::MAX as u64)).unwrap();
+        assert_eq!(ts_of(&decoder.decode(encoded_end(5)).unwrap()), beyond);
     }
 }

@@ -72,13 +72,15 @@ fn reads_active_workers_and_exposes_them_in_span_queries() {
 
 /// Serializes the rows like the trace writer does for one buffer (with delta encoded timestamps
 /// and a [`TraceRow::TimestampBase`] before the first timestamp) and reads them.
-fn ingest(format: &mut TurbopackFormat, rows: &[TraceRow<'_>]) {
+fn ingest(format: &mut TurbopackFormat, rows: &[TraceRow<'_, u64>]) {
     let mut encoder = TimestampEncoder::default();
     let mut bytes = Vec::new();
     for row in rows {
+        // A copy of the row, through its serialized form
         let row_bytes = postcard::to_stdvec(row).unwrap();
-        let mut row: TraceRow<'_> = postcard::from_bytes(&row_bytes).unwrap();
-        if let Some(base) = encoder.encode_row(&mut row) {
+        let row: TraceRow<'_, u64> = postcard::from_bytes(&row_bytes).unwrap();
+        let (base, row) = encoder.encode_row(row);
+        if let Some(base) = base {
             bytes.extend(postcard::to_stdvec(&base).unwrap());
         }
         bytes.extend(postcard::to_stdvec(&row).unwrap());
@@ -97,9 +99,9 @@ fn start(
     ts: u64,
     name: &'static str,
     blocking: Option<bool>,
-) -> TraceRow<'static> {
+) -> TraceRow<'static, u64> {
     TraceRow::Start {
-        ts: ts as i64,
+        ts,
         id,
         parent,
         name: name.into(),
@@ -115,7 +117,7 @@ fn duration_event(
     duration: u64,
     name: &'static str,
     blocking: Option<bool>,
-) -> TraceRow<'static> {
+) -> TraceRow<'static, u64> {
     let mut values = vec![
         ("name".into(), TraceValue::String(name.into())),
         ("duration".into(), TraceValue::UInt(duration)),
@@ -124,7 +126,7 @@ fn duration_event(
         values.push(("blocking".into(), TraceValue::Bool(blocking)));
     }
     TraceRow::Event {
-        ts: ts as i64,
+        ts,
         parent: Some(1),
         values,
     }

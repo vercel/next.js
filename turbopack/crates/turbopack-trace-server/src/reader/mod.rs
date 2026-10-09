@@ -431,14 +431,15 @@ mod tests {
     fn span_rows(first_id: u64, count: u64) -> Vec<u8> {
         let mut bytes = Vec::new();
         let mut encoder = TimestampEncoder::default();
-        let mut push = |mut row: TraceRow<'_>| {
-            if let Some(base) = encoder.encode_row(&mut row) {
+        let mut push = |row: TraceRow<'_, u64>| {
+            let (base, row) = encoder.encode_row(row);
+            if let Some(base) = base {
                 bytes.extend(postcard::to_stdvec(&base).unwrap());
             }
             bytes.extend(postcard::to_stdvec(&row).unwrap());
         };
         for id in first_id..first_id + count {
-            let ts = id as i64;
+            let ts = id;
             push(TraceRow::Start {
                 ts,
                 id,

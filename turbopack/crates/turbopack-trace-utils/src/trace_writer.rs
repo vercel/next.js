@@ -5,7 +5,7 @@ use crossbeam_utils::CachePadded;
 use parking_lot::{Mutex, MutexGuard};
 use thread_local::ThreadLocal;
 
-use crate::tracing::{TimestampEncoder, TraceRow};
+use crate::tracing::{DeltaEncodedTimestamp, TimestampEncoder, TraceRow};
 
 type ThreadLocalState = CachePadded<Mutex<Option<TraceInfoBuffer>>>;
 
@@ -61,11 +61,8 @@ impl TraceInfoBuffer {
     }
 
     fn write_timestamp_base(&mut self, ts: u64) {
-        self.buffer = postcard::to_extend(
-            &TraceRow::TimestampBase { ts },
-            std::mem::take(&mut self.buffer),
-        )
-        .unwrap();
+        let row: TraceRow<'_> = TraceRow::TimestampBase { ts };
+        self.buffer = postcard::to_extend(&row, std::mem::take(&mut self.buffer)).unwrap();
     }
 }
 
@@ -292,7 +289,7 @@ impl<'l> WriteGuard<'l> {
     /// [`TraceRow::TimestampBase`] row first, when one is needed. Must be called before the row
     /// itself is written (inside the callback of [`WriteGuard::mark`] for a marked row), and only
     /// once per row.
-    pub fn encode_timestamp(&mut self, ts: u64) -> i64 {
+    pub fn encode_timestamp(&mut self, ts: u64) -> DeltaEncodedTimestamp {
         let buffer = self.buffer();
         let (base, encoded) = buffer.timestamps.encode(ts);
         if let Some(ts) = base {
@@ -462,13 +459,12 @@ mod tests {
     }
 
     /// Decodes rows written as `TraceRow`s and resolves their timestamps.
-    fn decode_rows(mut data: &[u8]) -> Vec<TraceRow<'_>> {
+    fn decode_rows(mut data: &[u8]) -> Vec<TraceRow<'_, u64>> {
         let mut decoder = TimestampDecoder::default();
         let mut rows = Vec::new();
         while !data.is_empty() {
-            let (mut row, rest): (TraceRow<'_>, _) = postcard::take_from_bytes(data).unwrap();
-            decoder.decode(&mut row).unwrap();
-            rows.push(row);
+            let (row, rest): (TraceRow<'_>, _) = postcard::take_from_bytes(data).unwrap();
+            rows.push(decoder.decode(row).unwrap());
             data = rest;
         }
         rows
@@ -481,11 +477,11 @@ mod tests {
         guard.extend(&postcard::to_stdvec(&row).unwrap());
     }
 
-    fn timeline(rows: &[TraceRow<'_>]) -> Vec<(&'static str, u64)> {
+    fn timeline(rows: &[TraceRow<'_, u64>]) -> Vec<(&'static str, u64)> {
         rows.iter()
             .map(|row| match row {
                 TraceRow::TimestampBase { ts } => ("base", *ts),
-                TraceRow::End { ts, .. } => ("end", *ts as u64),
+                TraceRow::End { ts, .. } => ("end", *ts),
                 _ => unreachable!(),
             })
             .collect()
@@ -511,7 +507,7 @@ mod tests {
             while !rest.is_empty() {
                 let (row, r): (TraceRow<'_>, _) = postcard::take_from_bytes(rest).unwrap();
                 if let TraceRow::End { ts, .. } = row {
-                    wire.push(ts);
+                    wire.push(ts.0);
                 }
                 rest = r;
             }
@@ -580,14 +576,13 @@ mod tests {
             write_end(&mut writer.start_write(), u64::MAX);
             write_end(&mut writer.start_write(), u64::MAX - 1);
         });
-        // Not decoded, since these absolute timestamps don't fit into the `ts` fields
         let mut rest = data.as_slice();
         let mut wire = Vec::new();
         while !rest.is_empty() {
             let (row, r): (TraceRow<'_>, _) = postcard::take_from_bytes(rest).unwrap();
             wire.push(match row {
                 TraceRow::TimestampBase { ts } => ("base", i128::from(ts)),
-                TraceRow::End { ts, .. } => ("end", i128::from(ts)),
+                TraceRow::End { ts, .. } => ("end", i128::from(ts.0)),
                 _ => unreachable!(),
             });
             rest = r;
@@ -602,6 +597,16 @@ mod tests {
                 ("end", -1)
             ]
         );
+        assert_eq!(
+            timeline(&decode_rows(&data)),
+            [
+                ("base", 0),
+                ("end", 0),
+                ("base", u64::MAX),
+                ("end", u64::MAX),
+                ("end", u64::MAX - 1)
+            ]
+        );
     }
 
     #[test]
@@ -609,7 +614,7 @@ mod tests {
         let data = with_writer(|writer| {
             write_end(&mut writer.start_write(), 100);
             let mut guard = writer.start_write();
-            let record = TraceRow::Record {
+            let record: TraceRow<'_> = TraceRow::Record {
                 id: 1,
                 values: Vec::new(),
             };
@@ -622,7 +627,7 @@ mod tests {
             .iter()
             .map(|row| match row {
                 TraceRow::TimestampBase { ts } => ("base", *ts),
-                TraceRow::End { ts, .. } => ("end", *ts as u64),
+                TraceRow::End { ts, .. } => ("end", *ts),
                 TraceRow::Record { .. } => ("record", 0),
                 _ => unreachable!(),
             })
@@ -638,7 +643,7 @@ mod tests {
     fn buffer_starting_with_a_row_without_timestamp_has_no_base_before_it() {
         let data = with_writer(|writer| {
             let mut guard = writer.start_write();
-            let record = TraceRow::Record {
+            let record: TraceRow<'_> = TraceRow::Record {
                 id: 1,
                 values: Vec::new(),
             };
@@ -663,7 +668,7 @@ mod tests {
             let mut guard = writer.start_write();
             guard.mark(1, |guard| write_end(guard, 110));
             // A row that exceeds the threshold, so the buffer is sent when the guard is dropped
-            let filler = TraceRow::Record {
+            let filler: TraceRow<'_> = TraceRow::Record {
                 id: 1,
                 values: vec![(
                     "filler".into(),
@@ -681,7 +686,7 @@ mod tests {
             .iter()
             .filter_map(|row| match row {
                 TraceRow::TimestampBase { ts } => Some(("base", *ts)),
-                TraceRow::End { ts, .. } => Some(("end", *ts as u64)),
+                TraceRow::End { ts, .. } => Some(("end", *ts)),
                 _ => None,
             })
             .collect();
