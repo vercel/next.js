@@ -1,0 +1,5 @@
+{
+  "mangleExportNames": true,
+  "removeUnusedImports": true,
+  "removeUnusedExports": true
+}

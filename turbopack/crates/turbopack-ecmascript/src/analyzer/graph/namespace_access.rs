@@ -11,25 +11,25 @@ use swc_core::ecma::{
 };
 use turbo_tasks::NonLocalValue;
 
-/// How a namespace member access such as `ns.f` is used, which decides whether it only needs the
-/// export's value or has to keep going through the namespace object.
+/// How a namespace member access such as `ns.f` is used, which decides whether it can read a
+/// captured local or has to keep going through the namespace.
 ///
 /// Decided during analysis from the position of the access, see [`Self::of_member_access`].
 /// Whether a call needs the namespace also depends on the export, which is only known during code
 /// generation.
 #[derive(Hash, Clone, Copy, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub enum NamespaceAccess {
-    /// A plain read. It only needs the export's value.
+    /// A plain read. It can use a captured local.
     Read,
     /// `ns.f()`, which calls `f` with `ns` as the receiver. The namespace is kept when `f` may
     /// observe `this`.
     Call,
     /// `ns.f = …` and similar. Source-level writes to ESM imports are illegal, but SWC still parses
     /// them. The write has to reach the namespace so that writing to the read-only export still
-    /// throws.
+    /// throws, rather than silently writing to a local.
     ///
-    /// Also `delete ns.f`: `delete <identifier>` is a syntax error in strict code, so the operand
-    /// has to stay a member expression.
+    /// Also `delete ns.f`: `delete <identifier>` is a syntax error in strict code, so a captured
+    /// operand would break the whole chunk.
     Write,
 }
 
@@ -86,7 +86,7 @@ impl NamespaceAccess {
         }
     }
 
-    /// Whether the access has to go through the namespace object rather than only its value, given
+    /// Whether the access has to go through the namespace rather than a captured local, given
     /// whether calling the export could observe `this`.
     pub fn keeps_namespace(self, maybe_uses_this: bool) -> bool {
         match self {

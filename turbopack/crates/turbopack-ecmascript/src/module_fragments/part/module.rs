@@ -4,7 +4,7 @@ use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, EvaluatableAsset},
     ident::AssetIdent,
-    module::{Module, ModuleSideEffects},
+    module::{ExportBindings, Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     reference::{ModuleReference, ModuleReferences, SingleChunkableModuleReference},
     resolve::{ExportUsage, ModulePart},
@@ -24,8 +24,10 @@ use crate::{
     },
     parse::ParseResult,
     references::{
-        FollowExportsResult, analyze_ecmascript_module, esm::FoundExportType,
-        exports::compute_ecmascript_module_exports, follow_reexports,
+        FollowExportsResult, analyze_ecmascript_module,
+        esm::{FoundExportType, export::esm_export_bindings},
+        exports::compute_ecmascript_module_exports,
+        follow_reexports,
     },
     rename::module::EcmascriptModuleRenameModule,
 };
@@ -350,6 +352,12 @@ impl Module for EcmascriptModulePartAsset {
         let analyze = analyze_ecmascript_module(*self.full_module, Some(self.part.clone()));
 
         Ok(analyze.references())
+    }
+
+    /// See [`esm_export_bindings`].
+    #[turbo_tasks::function]
+    async fn export_bindings(self: Vc<Self>) -> Result<Vc<ExportBindings>> {
+        Ok(esm_export_bindings(self.get_exports()).await?.cell())
     }
 
     #[turbo_tasks::function]
