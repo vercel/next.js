@@ -2,10 +2,12 @@ import { afterAll, beforeAll, expect, test, vi } from 'vitest'
 import { execFileSync, spawn, type ChildProcess } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { transcript } from '@vercel/agent-eval/eval'
 
 type SecurityCheckOptions = {
   changedFiles: string[]
   migrationGuides: number[]
+  upgradeType?: 'security' | 'latest'
 }
 
 export function securityChecks(
@@ -160,7 +162,7 @@ export function duplicateSecurityChecks(source: string, target: string) {
     )
     expect(
       records('provider.jsonl').some(({ args }) =>
-        args.some((arg) =>
+        args.some((arg: string) =>
           /^(pr|search)$|refs\/(pull|merge-requests)|\/pulls(?:[/?]|$)/.test(
             arg
           )

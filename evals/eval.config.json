@@ -41,5 +41,11 @@
     "agentFeedback": true,
     "publish": false,
     "timeout": 900
+  },
+  "agent-059-bundle-optimizer-next-dynamic": {
+    "skills": ["next-bundle-optimizer"],
+    "browserJs": true,
+    "publish": false,
+    "timeout": 1800
   }
 }
