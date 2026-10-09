@@ -508,6 +508,13 @@ export default defineConfig([
     },
   },
   {
+    // Standalone entries bundle their libraries; installations only need dist.
+    files: ['packages/next-upgrade/**/*.{js,mjs,ts,tsx}'],
+    rules: {
+      'import/no-extraneous-dependencies': ['error', { devDependencies: true }],
+    },
+  },
+  {
     files: ['packages/**/*.tsx', 'packages/**/*.ts'],
 
     rules: {

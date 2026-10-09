@@ -29,6 +29,14 @@
       "inputs": ["run-tests.js"],
       "outputs": ["test-timings.json"],
       "env": ["KV_REST_API_URL", "KV_REST_API_TOKEN"]
+    },
+    "@next/upgrade#build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"]
+    },
+    "next#build": {
+      "dependsOn": ["^build", "@next/upgrade#build"],
+      "outputs": ["dist/**"]
     }
   },
   "ui": "tui"

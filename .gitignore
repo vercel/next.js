@@ -87,3 +87,5 @@ evals/.tarballs/
 evals/experiments/
 evals/results/
 evals/agent-results.json
+
+/packages/next-upgrade/.build/

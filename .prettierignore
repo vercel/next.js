@@ -1,4 +1,5 @@
 # Build artifacts
+packages/next-upgrade/.build/
 .next/
 .turbo/
 _next/

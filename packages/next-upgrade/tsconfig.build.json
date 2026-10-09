@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "rootDir": "src",
+    "outDir": ".build/types",
+    "types": ["node"]
+  },
+  "include": ["src/index.ts"],
+  "exclude": ["src/**/*.test.ts", "test", "dist", ".build"]
+}

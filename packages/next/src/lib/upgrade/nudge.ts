@@ -16,7 +16,9 @@ import {
 import semver from 'next/dist/compiled/semver'
 import type { UpgradeAction } from './prompt'
 import { getAgentName } from '../../telemetry/agent-name'
-import { getPendingFutureDefaults } from './future-defaults'
+import { getUpgradeReminder } from '../../compiled/next-upgrade'
+import type { UpgradeReminder } from '../../compiled/next-upgrade'
+export type { UpgradeReminder } from '../../compiled/next-upgrade'
 import { isCI } from '../../server/ci-info'
 
 type NudgeOptions = {
@@ -145,19 +147,6 @@ export type UpgradeContext = Pick<
   experimental: { agentUpgrade: NudgeKind | false }
 }
 
-export type UpgradeReminder = {
-  policy: NudgeKind
-  installedVersion: string
-} & (
-  | {
-      kind: 'security'
-      reference: string | null
-      targetVersion: string
-    }
-  | { kind: 'latest'; latestVersion: string | null; names: string[] }
-  | { kind: 'experimental-future'; targetVersion: string; names: string[] }
-)
-
 export function getUpgradeContext(config: NextConfigComplete): UpgradeContext {
   return {
     distDir: config.distDir,
@@ -202,11 +191,8 @@ export async function assessUpgrade(
   if (!semver.valid(installedVersion)) {
     return null
   }
-  const {
-    getPrereleaseChannel,
-    getUpgradeAssessment,
-    getLatestUpgradeVersion,
-  } = require('./prepare-upgrade') as typeof import('./prepare-upgrade')
+  const { getPrereleaseChannel, getUpgradeAssessment } =
+    require('./prepare-upgrade') as typeof import('./prepare-upgrade')
   if (
     semver.prerelease(installedVersion) &&
     !getPrereleaseChannel(installedVersion)
@@ -226,65 +212,15 @@ export async function assessUpgrade(
     )
     return null
   }
-  const { upgrade } = assessment
-  if (upgrade.status !== 'ready') {
-    // TODO: Record affected and upgrade.status in telemetry so we can see when
-    // an advisory applies but no ready target was available to nudge.
-    return null
-  }
-  if (assessment.affected) {
-    return {
-      kind: 'security',
-      policy,
-      installedVersion,
-      reference: assessment.reference,
-      targetVersion: upgrade.targetVersion,
-    }
-  }
-  if (policy === 'security' || stopBefore === 'latest') {
-    return null
-  }
-  const latestVersion = getLatestUpgradeVersion(
-    installedVersion,
-    upgrade.targetVersion
-  )
-  if (
-    latestVersion ||
-    (forceVersionReminder && upgrade.targetVersion !== installedVersion)
-  ) {
-    return {
-      kind: 'latest',
-      policy,
-      installedVersion,
-      latestVersion: upgrade.targetVersion,
-      names:
-        policy === 'experimental-future'
-          ? getPendingFutureDefaults(
-              directory,
-              config,
-              upgrade.targetVersion
-            ).map((entry) => entry.name)
-          : [],
-    }
-  }
-
-  if (
-    policy !== 'experimental-future' ||
-    stopBefore === 'experimental-future'
-  ) {
-    return null
-  }
-  const pending = getPendingFutureDefaults(directory, config, installedVersion)
-  if (pending.length === 0) {
-    return null
-  }
-  return {
-    kind: 'experimental-future',
+  return getUpgradeReminder(
+    directory,
+    config,
     policy,
     installedVersion,
-    targetVersion: upgrade.targetVersion,
-    names: pending.map((entry) => entry.name),
-  }
+    assessment,
+    stopBefore,
+    forceVersionReminder
+  )
 }
 
 async function nudgeUpgradeForAgent(

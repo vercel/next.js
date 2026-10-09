@@ -14,6 +14,7 @@ const customJestConfig = {
   roots: [
     '<rootDir>',
     '<rootDir>/../packages/next/src/',
+    '<rootDir>/../packages/next-upgrade/src/',
     '<rootDir>/../packages/next-codemod/',
     '<rootDir>/../packages/eslint-plugin-internal/',
     '<rootDir>/../packages/font/src/',
@@ -30,6 +31,7 @@ const customJestConfig = {
     // Jest does not normalize/resolve paths in modulePathIgnorePatterns so we can't
     // prefix with <rootDir>/../ like we do in roots.
     'packages/next/src/compiled/',
+    'packages/next-upgrade/dist/',
     '<rootDir>/development/app-dir/non-context-aware-addon/bindings',
     '<rootDir>/development/app-dir/non-context-aware-addon/single-context-addon',
     '<rootDir>/development/app-dir/ssr-in-rsc/internal-pkg/',

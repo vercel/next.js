@@ -422,52 +422,6 @@ describe('security upgrade nudge', () => {
     await expect(run('build')).resolves.toBeUndefined()
   })
 })
-describe('latest nudge release selection', () => {
-  const { getLatestUpgradeVersion: readLatestUpgradeVersion } =
-    jest.requireActual<typeof import('next/dist/lib/upgrade/prepare-upgrade')>(
-      'next/dist/lib/upgrade/prepare-upgrade'
-    )
-
-  afterEach(() => {
-    jest.restoreAllMocks()
-  })
-
-  it.each<[string, string, string | null]>([
-    ['15.5.9', '16.0.0', '16.0.0'],
-    ['16.0.9', '16.1.0', '16.1.0'],
-    ['16.1.0', '16.1.1', null],
-    ['16.1.1', '16.1.1', null],
-    ['16.2.0', '16.1.1', null],
-    ['16.1.0', '17.0.0-canary.1', null],
-    ['16.1.0-canary.1', '16.1.0', null],
-    ['16.0.0-canary.1', '16.1.0', null],
-    ['17.2.0-canary.4', '17.2.0-canary.9', null],
-    ['17.2.0-canary.9', '17.2.0-canary.10', null],
-    ['17.2.0-canary.4', '17.2.1-canary.0', null],
-    ['17.2.0-canary.4', '17.3.0-canary.0', '17.3.0-canary.0'],
-    ['17.2.0-canary.4', '18.0.0-canary.0', '18.0.0-canary.0'],
-    ['17.2.0-canary.4', '17.2.0-canary.4', null],
-    ['17.2.0-canary.4', '17.1.0-canary.99', null],
-    ['17.2.0-canary.4', '17.3.0-rc.1', null],
-    ['17.2.0-rc.1', '17.3.0', '17.3.0'],
-    ['17.2.0-rc.1', '17.2.0', '17.2.0'],
-    ['17.2.0-rc.1', '17.2.0-rc.2', null],
-    ['17.2.0-beta.1', '17.2.0', '17.2.0'],
-    ['17.2.0-beta.1', '18.0.0-beta.1', null],
-    ['17.2.0-preview.1', '17.2.0', '17.2.0'],
-    ['17.2.0-rc.1', '17.3.0-rc.1', null],
-    ['17.2.0-beta.1', '17.3.0-beta.1', null],
-    ['17.2.0-preview.1', '17.3.0-preview.1', null],
-    ['17.2.0-rc.1', '17.3.0-beta.1', null],
-    ['16.4.0-preview-84cee7e6-20260917', '17.0.0', null],
-  ])(
-    'selects an eligible latest reminder for %s → %s',
-    async (installed, latest, expected) => {
-      expect(readLatestUpgradeVersion(installed, latest)).toBe(expected)
-    }
-  )
-})
-
 describe('latest upgrade nudge', () => {
   beforeEach(() => {
     jest.resetAllMocks()

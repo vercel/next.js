@@ -1979,6 +1979,24 @@ importers:
         specifier: 0.13.1
         version: 0.13.1
 
+  packages/next-upgrade:
+    devDependencies:
+      '@types/node':
+        specifier: 20.17.7
+        version: 20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab)
+      '@types/semver':
+        specifier: 7.3.1
+        version: 7.3.1
+      '@vercel/ncc':
+        specifier: 0.38.4
+        version: 0.38.4
+      semver:
+        specifier: 7.3.2
+        version: 7.3.2
+      typescript:
+        specifier: 6.0.2
+        version: 6.0.2
+
   packages/react-refresh-utils:
     devDependencies:
       react-refresh:

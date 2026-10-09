@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "module": "ESNext",
+    "target": "ES2019",
+    "moduleResolution": "bundler",
+    "types": ["node", "jest"],
+    "skipLibCheck": false,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "rootDir": "."
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"],
+  "exclude": ["dist", ".build"]
+}
