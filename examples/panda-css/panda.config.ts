@@ -55,6 +55,8 @@ const globalCss = defineGlobalStyles({
 
 // https://panda-css.com/docs/reference/config
 export default defineConfig({
+  presets: ["@pandacss/preset-base", "@pandacss/preset-panda"],
+
   // Whether to use css reset
   preflight: true,
 
