@@ -17,12 +17,12 @@ export default defineRule({
   },
   create(context) {
     // Get relative path of the file
-    const relativePath = context.filename
-      .replace(path.sep, '/')
-      .replace(context.cwd, '')
-      .replace(/^\//, '')
+    const relativePath = path
+      .relative(context.cwd, context.filename)
+      .split(path.sep)
+      .join('/')
 
-    const isAppDir = /^(src\/)?app\//.test(relativePath)
+    const isAppDir = /(?:^|\/)(?:src\/)?app\//.test(relativePath)
 
     return {
       JSXOpeningElement(node) {
@@ -42,7 +42,9 @@ export default defineRule({
         // e.g. opengraph-image.js, twitter-image.js, icon.js
         if (
           isAppDir &&
-          /\/opengraph-image|twitter-image|icon\.\w+$/.test(relativePath)
+          /(?:^|\/)(?:opengraph-image|twitter-image|icon)\.\w+$/.test(
+            relativePath
+          )
         )
           return
 
