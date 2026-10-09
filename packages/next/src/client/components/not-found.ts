@@ -8,11 +8,12 @@ import {
  * within a route segment as well as inject a tag.
  *
  * `notFound()` can be used in
- * [Server Components](https://nextjs.org/docs/app/building-your-application/rendering/server-components),
+ * [Server and Client Components](https://nextjs.org/docs/app/getting-started/server-and-client-components),
  * [Route Handlers](https://nextjs.org/docs/app/building-your-application/routing/route-handlers), and
  * [Server Actions](https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
  *
- * - In a Server Component, this will insert a `<meta name="robots" content="noindex" />` meta tag and set the status code to 404.
+ * - In a Server or Client Component, this will insert a `<meta name="robots" content="noindex" />` meta tag and render the nearest Not Found boundary.
+ * - The response status is `404` if `notFound()` is called before streaming starts and `200` if streaming has already started.
  * - In a Route Handler or Server Action, it will serve a 404 to the caller.
  *
  * Read more: [Next.js Docs: `notFound`](https://nextjs.org/docs/app/api-reference/functions/not-found)
