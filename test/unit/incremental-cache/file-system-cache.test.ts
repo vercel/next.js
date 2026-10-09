@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import FileSystemCache from 'next/dist/server/lib/incremental-cache/file-system-cache'
+import { tagsManifest } from 'next/dist/server/lib/incremental-cache/tags-manifest.external'
 import { nodeFs } from 'next/dist/server/lib/node-fs-methods'
 import {
   CachedRouteKind,
@@ -380,6 +381,25 @@ describe('FileSystemCache route-scoped build seeds', () => {
 
     expect(await cache.get(key, getContext)).toBeNull()
     await expect(fs.stat(`${join(serverDistDir, key)}.html`)).rejects.toThrow()
+  })
+
+  it('does not postpone an immediate expiration with a longer profile', async () => {
+    const cache = createCache()
+    const tag = 'expire-then-max'
+
+    await cache.revalidateTag(tag, { expire: 0 })
+    const expiredAt = tagsManifest.get(tag)?.expired
+    expect(expiredAt).toBeDefined()
+
+    await cache.revalidateTag(tag, { expire: 3600 })
+    expect(tagsManifest.get(tag)?.expired).toBe(expiredAt)
+
+    // a shorter expiration is still applied after a longer profile
+    const otherTag = 'max-then-expire'
+    await cache.revalidateTag(otherTag, { expire: 3600 })
+    const longExpiredAt = tagsManifest.get(otherTag)?.expired
+    await cache.revalidateTag(otherTag, { expire: 0 })
+    expect(tagsManifest.get(otherTag)?.expired).toBeLessThan(longExpiredAt!)
   })
 
   it('keeps serving the seed when promotion fails before publication', async () => {
