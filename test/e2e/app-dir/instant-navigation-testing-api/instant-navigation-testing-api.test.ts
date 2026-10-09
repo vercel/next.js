@@ -688,8 +688,6 @@ describe('instant-navigation-testing-api', () => {
       })
     })
 
-    // Prerenderable params are not currently handled correctly.
-    // @gate FIXME
     describe('prerenderable params are included in instant shell', () => {
       // Params values that weren't returned from gSP are still prerenderable
       // (or fallback-upgradeable) and should be handled the same way as params
@@ -974,8 +972,6 @@ describe('instant-navigation-testing-api', () => {
     })
   })
 
-  // Prerenderable params are not currently handled correctly.
-  // @gate FIXME
   describe('instant shell contains prerenderable params but excludes dynamic params', () => {
     it('during client navigation', async () => {
       const page = await openPage(next, '/')
