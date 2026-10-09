@@ -194,7 +194,11 @@ function Head({
   const prefetchHead = headRenderTree.data.prefetchRsc
 
   // If no prefetch data is available, then we go straight to rendering `head`.
-  const resolvedPrefetchRsc = prefetchHead !== null ? prefetchHead : head
+  // Don't pass `head` as the initial value in that case. React would still
+  // schedule a deferred render to switch from `head` to `head`, and during
+  // hydration, while the root is suspended on a client chunk, each such render
+  // restarts hydration (https://github.com/react/react/issues/37682).
+  const resolvedPrefetchRsc = prefetchHead !== null ? prefetchHead : undefined
 
   // We use `useDeferredValue` to handle switching between the prefetched and
   // final values. The second argument is returned on initial render, then it
