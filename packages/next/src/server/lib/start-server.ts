@@ -640,6 +640,17 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
     if (
       msg &&
       typeof msg === 'object' &&
+      typeof msg.nextTerminalColumns === 'number'
+    ) {
+      // The CLI's terminal was resized. Code frames read this width.
+      process.env.NEXT_PRIVATE_TERMINAL_COLUMNS = String(
+        msg.nextTerminalColumns
+      )
+      return
+    }
+    if (
+      msg &&
+      typeof msg === 'object' &&
       msg.nextWorkerOptions &&
       process.send
     ) {
