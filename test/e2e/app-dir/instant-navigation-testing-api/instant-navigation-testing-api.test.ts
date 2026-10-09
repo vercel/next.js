@@ -688,8 +688,6 @@ describe('instant-navigation-testing-api', () => {
       })
     })
 
-    // Prerenderable params are not currently handled correctly.
-    // @gate FIXME
     describe('prerenderable params are included in instant shell', () => {
       // Params values that weren't returned from gSP are still prerenderable
       // (or fallback-upgradeable) and should be handled the same way as params
@@ -968,8 +966,6 @@ describe('instant-navigation-testing-api', () => {
     })
   })
 
-  // Prerenderable params are not currently handled correctly.
-  // @gate FIXME
   describe('instant shell contains prerenderable params but excludes dynamic params', () => {
     it('during client navigation', async () => {
       const page = await openPage(next, '/')
@@ -1645,8 +1641,6 @@ describe('instant-navigation-testing-api - partial prefetching (App Shells)', ()
       await testLang('en')
     })
 
-    // Prerenderable params are not currently handled correctly.
-    // @gate FIXME
     it('includes non-prerendered root params in the shell', async () => {
       await testLang('pl')
     })
@@ -1694,12 +1688,11 @@ describe('instant-navigation-testing-api - partial prefetching (App Shells)', ()
         await runtimeContent.waitFor({ state: 'visible' })
         expect(await runtimeContent.textContent()).toContain('Runtime content')
       }
+
       it('includes prerendered params when the link uses prefetch={true} and the page uses runtime data', async () => {
         await testSlug('prerendered')
       })
 
-      // Prerenderable params are not currently handled correctly.
-      // @gate FIXME
       it('includes prerenderable params when the link uses prefetch={true} and the page uses runtime data', async () => {
         await testSlug('not-prerendered')
       })
@@ -1759,8 +1752,8 @@ describe('instant-navigation-testing-api - partial prefetching (App Shells)', ()
         await testLang('en')
       })
 
-      // Prerenderable params are not currently handled correctly.
-      // @gate FIXME
+      // TODO: Prod behavior is inconsistent because the prefetch may return an ISR fallback
+      // @gate dev
       it('includes only prerenderable params for a prefetch-true link', async () => {
         await testLang('pl')
       })
