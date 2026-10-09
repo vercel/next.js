@@ -21,9 +21,14 @@ import { getInstalledNextVersion } from '../lib/upgrade/prepare-upgrade'
 import { runChildProcess } from '../lib/upgrade/run-child-process'
 import { getAgentName } from '../telemetry/agent-name'
 import {
+  eventAgentUpgradeActionResult,
+  eventAgentUpgradeActionStarted,
   eventAgentUpgradeAgentResult,
   eventAgentUpgradeCLIResult,
   eventAgentUpgradeRunStarted,
+  type AgentUpgradeActionAgent,
+  type AgentUpgradeActionFailureStage,
+  type AgentUpgradeActionResult,
   type AgentUpgradeCLIResult,
   type AgentUpgradeHandoffMethod,
   type AgentUpgradePolicy,
@@ -37,6 +42,7 @@ type NextUpgradeOptions = {
   revision: string
   verbose: boolean
   agent: boolean | string | undefined
+  ci?: boolean
 }
 
 const UUID_PATTERN =
@@ -181,6 +187,11 @@ export async function spawnNextUpgrade(
 ) {
   let baseDir = resolvePath(directory || '.')
 
+  if (options.ci) {
+    await setupCIUpgrade(directory, options)
+    return
+  }
+
   if (options.agent) {
     // Match dev/build's telemetry storage, including custom output directories in CI.
     // Retain config errors until after recording the invocation so failed runs still count.
@@ -227,13 +238,27 @@ export async function spawnNextUpgrade(
     // Remove it before launching an agent so later upgrades start their own runs.
     const inheritedRunId = process.env.__NEXT_AGENT_UPGRADE_RUN_ID
     delete process.env.__NEXT_AGENT_UPGRADE_RUN_ID
+    // The upgrade GitHub Action attributes the run it starts. Remove both values
+    // so upgrades the agent starts later do not inherit the action's run.
+    const ciOrigin = process.env.__NEXT_AGENT_UPGRADE_ORIGIN
+    const ciRunId = process.env.__NEXT_AGENT_UPGRADE_CI_RUN_ID
+    delete process.env.__NEXT_AGENT_UPGRADE_ORIGIN
+    delete process.env.__NEXT_AGENT_UPGRADE_CI_RUN_ID
+    const githubActionRunId =
+      ciOrigin === 'github_action' &&
+      ciRunId !== undefined &&
+      UUID_PATTERN.test(ciRunId)
+        ? ciRunId
+        : null
     const invalidRunId =
       inheritedRunId !== undefined && !UUID_PATTERN.test(inheritedRunId)
     const invalidNudgeId =
       nudgeSource !== null && !UUID_PATTERN.test(nudgeSource.id)
 
     const runId =
-      inheritedRunId && !invalidRunId ? inheritedRunId : randomUUID()
+      inheritedRunId && !invalidRunId
+        ? inheritedRunId
+        : (githubActionRunId ?? randomUUID())
 
     let resolvedPolicy: AgentUpgradePolicy | null = null
     let targetVersion: string | null = null
@@ -269,13 +294,15 @@ export async function spawnNextUpgrade(
       if (!inheritedRunId || invalidRunId) {
         const agentProduct = await getAgentName()
         const nudge = invalidRunId || invalidNudgeId ? null : nudgeSource
-        const origin = nudge
-          ? nudge.recipient === 'agent'
-            ? 'agent_nudge'
-            : 'human_nudge'
-          : agentProduct
-            ? 'agent_manual'
-            : 'human_manual'
+        const origin = githubActionRunId
+          ? 'github_action'
+          : nudge
+            ? nudge.recipient === 'agent'
+              ? 'agent_nudge'
+              : 'human_nudge'
+            : agentProduct
+              ? 'agent_manual'
+              : 'human_manual'
         telemetry.record(
           eventAgentUpgradeRunStarted({
             runId,
@@ -732,4 +759,136 @@ export async function reportAgentUpgradeAgentResult(
     eventAgentUpgradeAgentResult({ runId, result, resultVersion })
   )
   await telemetry.flush()
+}
+
+async function setupCIUpgrade(
+  directory: string | undefined,
+  options: NextUpgradeOptions
+) {
+  if (options.agent) {
+    Log.error('`--ci` cannot be combined with `--agent`.')
+    process.exitCode = 1
+    return
+  }
+
+  try {
+    const baseDir = getProjectDir(directory, false)
+    warnMissingReactDependencies(baseDir)
+    const config = await loadAgentUpgradeConfig(baseDir)
+
+    // A workspace root must not set up upgrades for an unspecified app.
+    if (!findDir(baseDir, 'app') && !findDir(baseDir, 'pages')) {
+      throw new Error(
+        'No Next.js app found in this directory. Run the command from an app directory or pass its path:\n\n' +
+          'next upgrade [directory] --ci'
+      )
+    }
+
+    const configuredPolicy = config.experimental?.agentUpgrade
+    const nextVersion = process.env.__NEXT_VERSION
+    if (!nextVersion) {
+      throw new Error('Could not determine the Next.js version.')
+    }
+
+    const { handoffCISetup } =
+      require('../lib/upgrade/ci-setup') as typeof import('../lib/upgrade/ci-setup')
+    await handoffCISetup({
+      directory: baseDir,
+      nextVersion,
+      defaultPolicy:
+        configuredPolicy === 'security' ||
+        configuredPolicy === 'latest' ||
+        configuredPolicy === 'experimental-future'
+          ? configuredPolicy
+          : 'security',
+    })
+  } catch (error) {
+    Log.error(
+      'Could not set up the upgrade workflow:',
+      error instanceof Error ? error.message : error
+    )
+    process.exitCode = 1
+  }
+}
+
+const ACTION_AGENTS: readonly AgentUpgradeActionAgent[] = ['claude', 'codex']
+const ACTION_POLICIES: readonly AgentUpgradePolicy[] = [
+  'security',
+  'latest',
+  'experimental-future',
+]
+const ACTION_RESULTS: readonly AgentUpgradeActionResult[] = [
+  'pr_opened',
+  'duplicate_pr',
+  'no_update',
+  'failure',
+]
+const ACTION_FAILURE_STAGES: readonly AgentUpgradeActionFailureStage[] = [
+  'validation',
+  'install',
+  'agent',
+  'result_file',
+  'delivery',
+]
+
+function pick<T extends string>(
+  values: readonly T[],
+  value: string | undefined
+): T | null {
+  return values.find((candidate) => candidate === value) ?? null
+}
+
+// The upgrade GitHub Action reports its own start and outcome. Reporting must
+// never fail the workflow, so invalid input is ignored rather than thrown.
+export async function reportAgentUpgradeAction(
+  kind: string,
+  runId: string,
+  args: string[]
+) {
+  let telemetryEvent:
+    | ReturnType<typeof eventAgentUpgradeActionStarted>
+    | ReturnType<typeof eventAgentUpgradeActionResult>
+    | null = null
+
+  if (UUID_PATTERN.test(runId)) {
+    if (kind === 'started' && args.length <= 2) {
+      telemetryEvent = eventAgentUpgradeActionStarted({
+        runId,
+        agent: pick(ACTION_AGENTS, args[0]),
+        policy: pick(ACTION_POLICIES, args[1]),
+      })
+    } else if (kind === 'result' && args.length <= 2) {
+      const result = pick(ACTION_RESULTS, args[0])
+      const failureStage = pick(ACTION_FAILURE_STAGES, args[1])
+      if (
+        result &&
+        (result === 'failure' ? args.length === 2 && failureStage : !args[1])
+      ) {
+        telemetryEvent = eventAgentUpgradeActionResult({
+          runId,
+          result,
+          failureStage: result === 'failure' ? failureStage : null,
+        })
+      }
+    }
+  }
+
+  if (!telemetryEvent) {
+    return
+  }
+
+  try {
+    // The action may report before dependencies are installed, so config
+    // loading is optional. CI runs use ephemeral telemetry storage either way.
+    let distDir = '.next'
+    try {
+      distDir = (await loadAgentUpgradeConfig(process.cwd())).distDir || distDir
+    } catch {}
+    const telemetry = new Telemetry({
+      distDir: join(process.cwd(), distDir),
+      skipNotify: true,
+    })
+    await telemetry.record(telemetryEvent)
+    await telemetry.flush()
+  } catch {}
 }

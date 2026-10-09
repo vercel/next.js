@@ -1,0 +1,11 @@
+{
+  "name": "@next/upgrade",
+  "private": true,
+  "version": "16.5.0-canary.2",
+  "description": "Next.js agent upgrade tooling, including the upgrade GitHub Action.",
+  "repository": {
+    "url": "vercel/next.js",
+    "directory": "packages/next-upgrade"
+  },
+  "license": "MIT"
+}

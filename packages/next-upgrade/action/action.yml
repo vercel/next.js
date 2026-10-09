@@ -1,0 +1,104 @@
+name: Next.js agent upgrade
+description: Upgrade a Next.js app with Claude Code or Codex and open a draft pull request.
+author: Vercel
+
+inputs:
+  agent:
+    description: The coding agent that runs the upgrade, "claude" or "codex".
+    required: true
+  api-key:
+    description: The Anthropic (claude) or OpenAI (codex) API key. Pass it from a repository secret.
+    required: true
+  policy:
+    description: The upgrade policy, "security", "latest", or "experimental-future".
+    required: false
+    default: security
+  directory:
+    description: The app directory relative to the repository root.
+    required: false
+    default: .
+  model:
+    description: The agent model. Defaults to the agent's default model.
+    required: false
+    default: ''
+  effort:
+    description: The reasoning effort. Defaults to the model's default effort.
+    required: false
+    default: ''
+  next-version:
+    description: The Next.js CLI version that runs the upgrade.
+    required: false
+    default: canary
+  node-version:
+    description: The Node.js version used for the upgrade.
+    required: false
+    default: lts/*
+  github-token:
+    description: The token used to push the upgrade branch and open the draft pull request. It is never passed to the agent.
+    required: false
+    default: ${{ github.token }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Node.js
+      uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+      with:
+        node-version: ${{ inputs.node-version }}
+
+    - name: Prepare upgrade
+      shell: bash
+      env:
+        NEXT_UPGRADE_AGENT: ${{ inputs.agent }}
+        NEXT_UPGRADE_POLICY: ${{ inputs.policy }}
+        NEXT_UPGRADE_DIRECTORY: ${{ inputs.directory }}
+        NEXT_UPGRADE_NEXT_VERSION: ${{ inputs.next-version }}
+        NEXT_UPGRADE_API_KEY: ${{ inputs.api-key }}
+      run: node "$GITHUB_ACTION_PATH/run.js" prepare
+
+    # Count the run before installs so early failures are still reported.
+    - name: Report upgrade start
+      shell: bash
+      continue-on-error: true
+      run: node "$GITHUB_ACTION_PATH/run.js" report-started
+
+    - name: Validate inputs
+      shell: bash
+      run: node "$GITHUB_ACTION_PATH/run.js" validate
+
+    - name: Install dependencies
+      shell: bash
+      run: node "$GITHUB_ACTION_PATH/run.js" install-dependencies
+
+    - name: Install coding agent
+      shell: bash
+      run: node "$GITHUB_ACTION_PATH/run.js" install-agent
+
+    # The agent never receives the GitHub token.
+    - name: Run upgrade agent
+      shell: bash
+      env:
+        NEXT_UPGRADE_API_KEY: ${{ inputs.api-key }}
+        NEXT_UPGRADE_MODEL: ${{ inputs.model }}
+        NEXT_UPGRADE_EFFORT: ${{ inputs.effort }}
+      run: node "$GITHUB_ACTION_PATH/run.js" agent
+
+    # Runs only after the agent has exited, and never runs repository code.
+    # Step env overrides anything the agent wrote to the job's env file.
+    - name: Open draft pull request
+      shell: bash
+      env:
+        NEXT_UPGRADE_GITHUB_TOKEN: ${{ inputs.github-token }}
+        NODE_OPTIONS: ''
+      run: node "$GITHUB_ACTION_PATH/run.js" deliver
+
+    - name: Report upgrade result
+      if: always()
+      shell: bash
+      continue-on-error: true
+      run: node "$GITHUB_ACTION_PATH/run.js" report-result
+
+    - name: Clean up
+      if: always()
+      shell: bash
+      run: node "$GITHUB_ACTION_PATH/run.js" cleanup

@@ -13,7 +13,7 @@ related:
 
 Use `next upgrade --agent` to have a coding agent upgrade and verify your app. The command determines the target version from the configured policy, prepares the relevant migration guides and Skills, and hands the task to the agent.
 
-The command supports App Router and Pages Router projects. Without `--agent`, [`next upgrade`](/docs/app/api-reference/cli/next#next-upgrade-options) runs the interactive codemod workflow instead.
+The command supports App Router and Pages Router projects. Without `--agent`, [`next upgrade`](/docs/app/api-reference/cli/next#next-upgrade-options) runs the interactive codemod workflow instead. To run agent upgrades on a schedule, see [Run upgrades in GitHub Actions](#run-upgrades-in-github-actions).
 
 ## Start an upgrade
 
@@ -113,6 +113,56 @@ Open the upgrade in a separate Git worktree?
 ```
 
 When you run the command from an existing coding agent, it provides the prepared task to that agent instead. The agent keeps the model, reasoning effort, and permissions already configured for its session.
+
+## Run upgrades in GitHub Actions
+
+Use `next upgrade --ci` to set up a GitHub Actions workflow that runs agent upgrades on a schedule and opens a draft pull request for each verified upgrade:
+
+```bash filename="Terminal"
+npx next@canary upgrade --ci
+```
+
+The command asks which installed agent to use, its model, reasoning effort, and permissions, then the upgrade policy and how often the workflow should run. The selected agent then writes the workflow in your repository and runs the same agent in CI. The command doesn't write the workflow itself. If you copy the prompt for another agent instead, you choose whether Claude Code or Codex runs in CI.
+
+The agent writes a workflow similar to the following, pinned to the commit of the Next.js release you ran:
+
+```yaml filename=".github/workflows/next-upgrade.yml"
+name: Upgrade Next.js
+on:
+  schedule:
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+permissions:
+  contents: write
+  pull-requests: write
+concurrency:
+  group: next-upgrade
+  cancel-in-progress: false
+jobs:
+  upgrade:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: vercel/next.js/packages/next-upgrade/action@<commit SHA> # v<version>
+        with:
+          agent: claude
+          api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          policy: security
+```
+
+To finish the setup:
+
+1. Add the `ANTHROPIC_API_KEY` (Claude Code) or `OPENAI_API_KEY` (Codex) repository secret.
+2. Enable **Allow GitHub Actions to create and approve pull requests** in the repository's Actions settings.
+
+Each run installs your dependencies and runs `next upgrade --agent` with the selected agent. The agent works without access to the GitHub token. The action then checks for an open pull request with the same upgrade, pushes the agent's branch, and opens a draft pull request. The run passes when no upgrade is needed.
+
+The action reports anonymous telemetry when a run starts and finishes. Reporting is best effort and never changes the run's result. Set `NEXT_TELEMETRY_DISABLED: 1` in the workflow `env` to opt out.
+
+> **Good to know**: The agent runs without approval prompts on the GitHub-hosted runner. Only run the workflow on trusted triggers such as `schedule` and `workflow_dispatch`, and use an API key dedicated to the workflow. See the [action's README](https://github.com/vercel/next.js/tree/canary/packages/next-upgrade/action) for all inputs and the security model.
 
 ## Configure upgrade reminders
 
