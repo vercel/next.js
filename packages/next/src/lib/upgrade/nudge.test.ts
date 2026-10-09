@@ -15,7 +15,7 @@ import {
   runUpgrade,
   shouldPromptForUpgrade,
 } from './nudge'
-import { promptUpgrade } from './prompt'
+import { promptUpgrade } from '../../../../next-upgrade/src/nudge/terminal/prompt'
 import { getUpgradeAssessment } from '../../compiled/next-upgrade'
 
 jest.mock('../../telemetry/agent-name', () => ({
@@ -31,10 +31,15 @@ jest.mock('../../build/output/log', () => ({
 }))
 
 jest.mock('../../server/ci-info', () => ({ isCI: false }))
-jest.mock('./prompt', () => ({ promptUpgrade: jest.fn() }))
+jest.mock('../../../../next-upgrade/src/nudge/terminal/prompt', () => ({
+  promptUpgrade: jest.fn(),
+}))
+jest.mock('../../../../next-upgrade/src/shared/log', () => ({
+  warn: jest.requireMock('../../build/output/log').warn,
+}))
 let mockPreferencesDirectory: string
-jest.mock('next/dist/compiled/conf', () => {
-  const ActualConf = jest.requireActual('next/dist/compiled/conf')
+jest.mock('conf', () => {
+  const ActualConf = jest.requireActual('conf')
   return class extends ActualConf {
     constructor(options: object) {
       super({ ...options, cwd: mockPreferencesDirectory })
@@ -42,9 +47,7 @@ jest.mock('next/dist/compiled/conf', () => {
   }
 })
 
-const Conf = jest.requireMock(
-  'next/dist/compiled/conf'
-) as typeof import('next/dist/compiled/conf')
+const Conf = jest.requireMock('conf') as typeof import('conf')
 
 jest.mock('../../cli/next-upgrade', () => ({ spawnNextUpgrade: jest.fn() }))
 jest.mock(

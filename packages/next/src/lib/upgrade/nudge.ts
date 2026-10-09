@@ -1,29 +1,27 @@
-import { execFile } from 'child_process'
-import { createHash, randomUUID } from 'crypto'
-import { realpath } from 'fs/promises'
-import { basename, dirname, relative, resolve } from 'path'
-import { promisify } from 'util'
 import { updateInitialEnv } from '@next/env'
+import semver from 'next/dist/compiled/semver'
+import {
+  claimNudgeRetry,
+  formatAgentNudge,
+  getUpgradeReminder,
+  type UpgradeAction,
+  type UpgradeReminder,
+} from '../../compiled/next-upgrade'
+export type { UpgradeReminder } from '../../compiled/next-upgrade'
+
+import { resolve } from 'path'
+import { randomUUID } from 'crypto'
 
 import * as Log from '../../build/output/log'
+import { isCI } from '../../server/ci-info'
 import type { NextConfigComplete } from '../../server/config-shared'
-import type { Telemetry } from '../../telemetry/storage'
+import { getAgentName } from '../../telemetry/agent-name'
 import {
   eventAgentUpgradeNudgeDecision,
   eventAgentUpgradeNudgeShown,
   eventAgentUpgradePolicyDetected,
 } from '../../telemetry/events/agent-upgrade'
-import semver from 'next/dist/compiled/semver'
-import type { UpgradeAction } from './prompt'
-import { getAgentName } from '../../telemetry/agent-name'
-import {
-  claimNudgeRetry,
-  formatAgentNudge,
-  getUpgradeReminder,
-} from '../../compiled/next-upgrade'
-import type { UpgradeReminder } from '../../compiled/next-upgrade'
-export type { UpgradeReminder } from '../../compiled/next-upgrade'
-import { isCI } from '../../server/ci-info'
+import type { Telemetry } from '../../telemetry/storage'
 
 export type NudgeKind = 'security' | 'latest' | 'experimental-future'
 
@@ -34,46 +32,6 @@ function getRequestedUpgrade() {
     policy === 'experimental-future'
     ? policy
     : null
-}
-
-const allowedRetries = new Set(
-  process.env.NEXT_PRIVATE_WORKER === '1'
-    ? (process.env.NEXT_PRIVATE_ALLOWED_UPGRADE_RETRIES ?? '')
-        .split(',')
-        .filter((identity) => /^[a-f0-9]{64}$/.test(identity))
-    : []
-)
-
-async function allowNudgeRetry(
-  options: { directory: string; distDir: string; command: 'dev' | 'build' },
-  version: string,
-  kind: NudgeKind
-) {
-  const { identity, allowed } = await claimNudgeRetry(
-    options,
-    version,
-    kind,
-    allowedRetries
-  )
-  if (!allowed || allowedRetries.has(identity)) {
-    return allowed
-  }
-  if (options.command === 'dev' && process.env.NEXT_PRIVATE_WORKER === '1') {
-    await new Promise<void>((complete, reject) => {
-      process.send!(
-        { nextUpgradeRetryAllowed: identity },
-        (error: Error | null) => {
-          if (error) {
-            reject(error)
-          } else {
-            complete()
-          }
-        }
-      )
-    })
-  }
-  allowedRetries.add(identity)
-  return true
 }
 
 export type UpgradeContext = Pick<
@@ -160,210 +118,16 @@ export async function assessUpgrade(
   )
 }
 
-async function nudgeUpgradeForAgent(
-  options: { directory: string; distDir: string; command: 'dev' | 'build' },
-  reminder: UpgradeReminder,
-  nudgeId: string,
-  agentProduct: string,
-  telemetry: Telemetry | null,
-  policyEvent: ReturnType<typeof eventAgentUpgradePolicyDetected>
-): Promise<void> {
-  const { summary, message, reference } = formatAgentNudge(reminder, nudgeId)
-  let retryAllowed = false
-  try {
-    retryAllowed = await allowNudgeRetry(
-      options,
-      reminder.installedVersion,
-      reminder.kind
-    )
-  } catch {
-    Log.warn(
-      'Could not prepare an upgrade retry. This command will remain blocked.'
-    )
-  }
-  if (retryAllowed) {
-    telemetry?.record(policyEvent)
-    Log.warn(
-      `${summary} This command is continuing after the upgrade reminder.${reference ? `\nReference: ${reference}` : ''}`
-    )
-    return
-  }
-  // Queue the full nudge once, then send it outside the command that is about to stop.
-  if (telemetry) {
-    try {
-      if (telemetry.isEnabled || process.env.NEXT_TELEMETRY_DEBUG) {
-        telemetry.flushDetached({
-          mode: 'dev',
-          dir: options.directory,
-          distDir: resolve(options.directory, options.distDir),
-          events: [
-            policyEvent,
-            eventAgentUpgradeNudgeShown({
-              nudgeId,
-              recipient: 'agent',
-              agentProduct,
-              sourceCommand: options.command,
-              policy: reminder.policy,
-              nudgeKind: reminder.kind,
-            }),
-          ],
-        })
-      }
-    } catch (error) {
-      Log.warn(`Could not queue upgrade telemetry: ${String(error)}`)
-    }
-  }
-  const error = new Error(message)
-  error.name =
-    reminder.kind === 'security' ? 'SecurityFatalError' : 'UpgradeNudgeError'
-  Object.assign(error, { exitCode: 1 })
-  throw error
-}
-
-async function getUpgradePreferences(directory: string) {
-  const Conf =
-    require('next/dist/compiled/conf') as typeof import('next/dist/compiled/conf')
-  const project = await realpath(directory)
-  let identity = project
-  let projectName = basename(project)
-  try {
-    const { stdout } = await promisify(execFile)(
-      'git',
-      ['rev-parse', '--show-toplevel', '--git-common-dir'],
-      { cwd: project, timeout: 1000 }
-    )
-    const [root, common] = stdout.trimEnd().split('\n')
-    const commonDirectory = await realpath(resolve(project, common))
-    const appPath = relative(await realpath(root), project)
-    // Worktrees share a Git directory, but monorepo apps need separate keys.
-    identity = `${commonDirectory}\0${appPath}`
-    projectName = basename(
-      appPath ||
-        (basename(commonDirectory) === '.git'
-          ? dirname(commonDirectory)
-          : commonDirectory)
-    )
-  } catch {
-    // Apps outside Git (or without Git installed) keep their directory identity.
-  }
-  const hash = createHash('sha256').update(identity).digest('hex')
-  // Conf treats dots as separators, including dots in directory names.
-  const name = encodeURIComponent(projectName).replace(/\./g, '%2E')
-  const key = `agent-upgrade.${name}.${hash}`
-  // Upgrade preferences share Next.js' global config location, not telemetry consent.
-  return { key, preferences: new Conf({ projectName: 'nextjs' }) }
-}
-
 // The terminal test needs a menu in CI and under agents, without the network.
 function isTerminalForcedForTesting(): boolean {
   return process.env.__NEXT_AGENT_UPGRADE_FORCE_TERMINAL_FOR_TESTING === '1'
 }
 
-function canPromptForUpgrade(): boolean {
-  return (
-    (!isCI || isTerminalForcedForTesting()) &&
-    Boolean(process.stdin.isTTY && process.stdout.isTTY) &&
-    process.env.TERM !== 'dumb'
-  )
-}
-
-async function getUpgradeDismissal(
-  directory: string,
-  version: string,
-  policy: NudgeKind
-): Promise<NudgeKind | null> {
-  try {
-    const { key, preferences } = await getUpgradePreferences(directory)
-    for (const kind of ['security', 'latest', 'experimental-future'] as const) {
-      if (preferences.get(`${key}.${kind}`) === `${version}:${policy}`) {
-        return kind
-      }
-    }
-  } catch {
-    // A preferences failure must not prevent assessing or skipping a reminder.
-  }
-  return null
-}
-
-async function nudgeUpgradeForHuman(
-  directory: string,
-  reminder: UpgradeReminder,
-  signal: AbortSignal,
-  onShown: (() => void) | null
-): Promise<UpgradeAction> {
-  if (signal.aborted) {
-    return 'skip'
-  }
-  let message: string
-  if (reminder.kind === 'security') {
-    message = `⚠ Installed Next.js version ${reminder.installedVersion} is affected by a known security vulnerability.`
-    message += `\n\nNext.js security version upgrade available: ${reminder.installedVersion} -> ${reminder.targetVersion}`
-  } else if (reminder.policy === 'experimental-future') {
-    const targetVersion =
-      reminder.kind === 'latest'
-        ? reminder.latestVersion
-        : reminder.targetVersion
-    const versions =
-      targetVersion !== reminder.installedVersion
-        ? ` ${reminder.installedVersion} -> ${targetVersion ?? '[target version]'}`
-        : ''
-    message = `Next.js Future Default upgrade available:${versions}`
-    if (reminder.names.length > 0) {
-      message += `\n\n${reminder.names.map((name) => `- ${name}`).join('\n')}`
-    }
-  } else if (reminder.kind === 'latest') {
-    message = `Next.js latest version upgrade available: ${reminder.installedVersion} -> ${reminder.latestVersion ?? '[target version]'}`
-  } else {
-    return 'skip'
-  }
-  const { promptUpgrade } = require('./prompt') as typeof import('./prompt')
-  const action = await promptUpgrade({
-    message,
-    signal,
-    canUpdate: true,
-    onShown,
-  })
-  if (signal.aborted) {
-    return 'skip'
-  }
-  if (action === 'dismiss') {
-    try {
-      const { key, preferences } = await getUpgradePreferences(directory)
-      preferences.set(
-        `${key}.${reminder.kind}`,
-        `${reminder.installedVersion}:${reminder.policy}`
-      )
-    } catch {
-      Log.warn(
-        'Could not save your upgrade reminder preference. Skipping for this session.'
-      )
-    }
-  }
-  return action
-}
-
-export async function runUpgrade(
-  directory: string,
-  policy: NudgeKind,
-  nudgeId: string | null
-) {
-  // The agent's dev/build commands must not trigger this explicit request again.
-  delete process.env.__NEXT_AGENT_UPGRADE
-  updateInitialEnv({ __NEXT_AGENT_UPGRADE: undefined })
-  const { spawnNextUpgrade } = await import('../../cli/next-upgrade.js')
-
-  // Human Update actions invoke the CLI directly, so their ID does not need an env var.
-  await spawnNextUpgrade(
-    directory,
-    { revision: 'latest', verbose: false, agent: policy },
-    nudgeId ? { id: nudgeId, recipient: 'human' } : null
-  )
-  return process.exitCode ?? 0
-}
-
 export async function shouldPromptForUpgrade(): Promise<boolean> {
+  const { canPromptForUpgrade } =
+    require('../../compiled/next-upgrade') as typeof import('../../compiled/next-upgrade')
   return (
-    canPromptForUpgrade() &&
+    canPromptForUpgrade(isTerminalForcedForTesting(), isCI) &&
     (isTerminalForcedForTesting() || !(await getAgentName()))
   )
 }
@@ -412,7 +176,9 @@ export async function nudgeUpgrade(
     if (!signal || signal.aborted) {
       return
     }
-    if (!canPromptForUpgrade()) {
+    const { canPromptForUpgrade, getUpgradeDismissal } =
+      require('../../compiled/next-upgrade') as typeof import('../../compiled/next-upgrade')
+    if (!canPromptForUpgrade(isTerminalForcedForTesting(), isCI)) {
       return
     }
     if (!requested) {
@@ -480,6 +246,8 @@ export async function nudgeUpgrade(
         }
       : null
 
+    const { nudgeUpgradeForHuman } =
+      require('../../compiled/next-upgrade') as typeof import('../../compiled/next-upgrade')
     const action = await nudgeUpgradeForHuman(
       directory,
       reminder,
@@ -493,4 +261,124 @@ export async function nudgeUpgrade(
     }
     return action
   }
+}
+
+const allowedRetries = new Set(
+  process.env.NEXT_PRIVATE_WORKER === '1'
+    ? (process.env.NEXT_PRIVATE_ALLOWED_UPGRADE_RETRIES ?? '')
+        .split(',')
+        .filter((identity) => /^[a-f0-9]{64}$/.test(identity))
+    : []
+)
+
+// Only Next can transfer an accepted retry to the parent supervising its workers.
+async function allowNudgeRetry(
+  options: { directory: string; distDir: string; command: 'dev' | 'build' },
+  version: string,
+  kind: NudgeKind
+) {
+  const { identity, allowed } = await claimNudgeRetry(
+    options,
+    version,
+    kind,
+    allowedRetries
+  )
+  if (!allowed || allowedRetries.has(identity)) {
+    return allowed
+  }
+  if (options.command === 'dev' && process.env.NEXT_PRIVATE_WORKER === '1') {
+    await new Promise<void>((complete, reject) => {
+      process.send!(
+        { nextUpgradeRetryAllowed: identity },
+        (error: Error | null) => {
+          if (error) {
+            reject(error)
+          } else {
+            complete()
+          }
+        }
+      )
+    })
+  }
+  allowedRetries.add(identity)
+  return true
+}
+
+async function nudgeUpgradeForAgent(
+  options: { directory: string; distDir: string; command: 'dev' | 'build' },
+  reminder: UpgradeReminder,
+  nudgeId: string,
+  agentProduct: string,
+  telemetry: Telemetry | null,
+  policyEvent: ReturnType<typeof eventAgentUpgradePolicyDetected>
+): Promise<void> {
+  const { summary, message, reference } = formatAgentNudge(reminder, nudgeId)
+  let retryAllowed = false
+  try {
+    retryAllowed = await allowNudgeRetry(
+      options,
+      reminder.installedVersion,
+      reminder.kind
+    )
+  } catch {
+    Log.warn(
+      'Could not prepare an upgrade retry. This command will remain blocked.'
+    )
+  }
+  if (retryAllowed) {
+    telemetry?.record(policyEvent)
+    Log.warn(
+      `${summary} This command is continuing after the upgrade reminder.${reference ? `\nReference: ${reference}` : ''}`
+    )
+    return
+  }
+  // Queue the full nudge once, then send it outside the command that is about to stop.
+  if (telemetry) {
+    try {
+      if (telemetry.isEnabled || process.env.NEXT_TELEMETRY_DEBUG) {
+        telemetry.flushDetached({
+          mode: 'dev',
+          dir: options.directory,
+          distDir: resolve(options.directory, options.distDir),
+          events: [
+            policyEvent,
+            eventAgentUpgradeNudgeShown({
+              nudgeId,
+              recipient: 'agent',
+              agentProduct,
+              sourceCommand: options.command,
+              policy: reminder.policy,
+              nudgeKind: reminder.kind,
+            }),
+          ],
+        })
+      }
+    } catch (error) {
+      Log.warn(`Could not queue upgrade telemetry: ${String(error)}`)
+    }
+  }
+  const error = new Error(message)
+  error.name =
+    reminder.kind === 'security' ? 'SecurityFatalError' : 'UpgradeNudgeError'
+  Object.assign(error, { exitCode: 1 })
+  throw error
+}
+
+export async function runUpgrade(
+  directory: string,
+  policy: NudgeKind,
+  nudgeId: string | null
+) {
+  // The agent's dev/build commands must not trigger this explicit request again.
+  delete process.env.__NEXT_AGENT_UPGRADE
+  updateInitialEnv({ __NEXT_AGENT_UPGRADE: undefined })
+  const { spawnNextUpgrade } = await import('../../cli/next-upgrade.js')
+
+  // Human Update actions invoke the CLI directly, so their ID does not need an env var.
+  await spawnNextUpgrade(
+    directory,
+    { revision: 'latest', verbose: false, agent: policy },
+    nudgeId ? { id: nudgeId, recipient: 'human' } : null
+  )
+  return process.exitCode ?? 0
 }

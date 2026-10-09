@@ -1,7 +1,7 @@
+import cliSelect from 'cli-select'
 import { emitKeypressEvents, type Key } from 'readline'
 import { PassThrough } from 'stream'
-import cliSelect from 'next/dist/compiled/cli-select'
-import { bold, cyan } from '../picocolors'
+import { bold, cyan } from '../../shared/picocolors'
 
 export type UpgradeAction = 'update' | 'skip' | 'dismiss' | 'interrupt'
 

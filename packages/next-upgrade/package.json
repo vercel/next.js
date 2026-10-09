@@ -28,7 +28,9 @@
     "@types/semver": "7.3.1",
     "@vercel/ncc": "0.38.4",
     "semver": "7.3.2",
-    "typescript": "6.0.2"
+    "typescript": "6.0.2",
+    "conf": "5.0.0",
+    "cli-select": "1.1.2"
   },
   "engines": {
     "node": ">=20.9.0"

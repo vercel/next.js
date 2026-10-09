@@ -1990,6 +1990,12 @@ importers:
       '@vercel/ncc':
         specifier: 0.38.4
         version: 0.38.4
+      cli-select:
+        specifier: 1.1.2
+        version: 1.1.2
+      conf:
+        specifier: 5.0.0
+        version: 5.0.0
       semver:
         specifier: 7.3.2
         version: 7.3.2

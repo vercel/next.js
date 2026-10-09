@@ -4,7 +4,7 @@ import { Telemetry } from '../../telemetry/storage'
 
 import { once } from 'events'
 import { setTimeout as sleep } from 'timers/promises'
-import { isColorSupported } from '../picocolors'
+import { isColorSupported } from '../../lib/picocolors'
 
 import type { ChildProcess } from 'child_process'
 import type { NudgeKind, UpgradeContext, UpgradeReminder } from './nudge'
