@@ -1,12 +1,12 @@
 ---
 name: backport-pr
 description: >
-  Backport a merged Next.js pull request from canary to a previous release
-  branch such as next-16-2. Use when the user asks to backport, cherry-pick,
-  or open a backport PR from a PR number to an older Next.js version. Covers
-  finding the merged PR commit, creating a backport branch from the target
-  release branch, cherry-picking from canary, validating, and opening the PR
-  with the release branch as the base.
+  Backport a merged Next.js pull request from canary to an LTS release branch
+  (releases/lts/active or releases/lts/maintenance). Use when the user asks to
+  backport, cherry-pick, or open a backport PR from a PR number to an older
+  Next.js version. Covers finding the merged PR commit, creating a backport
+  branch from the target release branch, cherry-picking from canary,
+  validating, and opening the PR with the release branch as the base.
 metadata:
   internal: true
 ---
@@ -18,11 +18,14 @@ branch.
 
 ## Inputs
 
-- Require a PR number and a target release branch, for example `next-16-2`.
+- Require a PR number and a target release branch:
+  `releases/lts/active` (the current major's release line) or
+  `releases/lts/maintenance` (the previous major's), depending on which
+  released line needs the fix.
 - If the target branch is not provided and cannot be inferred confidently from
   the user's request, ask before mutating git state.
-- Treat the target branch as variable; do not hard-code `next-16-2` except when
-  the user explicitly asks for it.
+- Treat the target branch as variable; do not hard-code either LTS branch
+  except when the user explicitly asks for it.
 
 ## Workflow
 
