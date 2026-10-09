@@ -9,13 +9,17 @@ This example contains a simple implementation of [Panda CSS](https://panda-css.c
 - [Config Recipe](https://panda-css.com/docs/recipes/config-recipe) Reusable recipes extracted and generated just-in-time.
 - [Text Styles](https://panda-css.com/docs/theming/text-styles#defining-text-styles) Global text styles for consistent and legible typography.
 
+## Requirements
+
+- [Node.js 22+](https://nodejs.org/) (required by Panda CSS v2)
+
 ## Demo
 
 [https://example-panda-css.vercel.app/](https://example-panda-css.vercel.app/)
 
 ## Deploy your own
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/DIRECTORY_NAME&project-name=DIRECTORY_NAME&repository-name=DIRECTORY_NAME)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/panda-css&project-name=panda-css&repository-name=panda-css)
 
 ## How to use
 
