@@ -3553,6 +3553,12 @@ type RSCInitialPayloadPartialDev = {
   c?: InitialRSCPayload['c']
 }
 
+// The URL the document was created for, in case history changes before
+// hydration. `self.navigation` may be a frame or a global with that name.
+// This must never throw since hydration starts in the same script.
+const historyBootstrapScript =
+  'try{self.__next_h=(typeof Navigation=="function"&&self.navigation instanceof Navigation&&self.navigation.activation&&self.navigation.activation.entry&&self.navigation.activation.entry.url)||location.href}catch(e){}'
+
 async function renderToStream(
   requestStore: RequestStore,
   res: BaseNextResponse,
@@ -3663,6 +3669,10 @@ async function renderToStream(
       (bootstrapScriptContent ? `${bootstrapScriptContent};` : '') +
       (await getInstantTestBootstrapScriptContent())
   }
+
+  bootstrapScriptContent =
+    (bootstrapScriptContent ? `${bootstrapScriptContent};` : '') +
+    historyBootstrapScript
 
   // Create the "render route (app)" span manually so we can keep it open during streaming.
   // This is necessary because errors inside Suspense boundaries are reported asynchronously
@@ -4471,15 +4481,21 @@ async function renderToStream(
       let errorBootstrapScriptContent: string | undefined
       if (process.env.__NEXT_DEV_SERVER) {
         errorBootstrapScriptContent = bootstrapScriptContent
-      } else if (
-        buildManifest.pagesChunkGroupBootstrapParams &&
-        buildManifest.chunkLoadingGlobal
-      ) {
-        errorBootstrapScriptContent = getTurbopackChunkGroupBootstrap(
-          buildManifest.pagesChunkGroupBootstrapParams,
-          buildManifest.chunkLoadingGlobal,
-          [UNDERSCORE_NOT_FOUND_ROUTE_ENTRY]
-        )
+      } else {
+        if (
+          buildManifest.pagesChunkGroupBootstrapParams &&
+          buildManifest.chunkLoadingGlobal
+        ) {
+          errorBootstrapScriptContent = getTurbopackChunkGroupBootstrap(
+            buildManifest.pagesChunkGroupBootstrapParams,
+            buildManifest.chunkLoadingGlobal,
+            [UNDERSCORE_NOT_FOUND_ROUTE_ENTRY]
+          )
+        }
+        errorBootstrapScriptContent =
+          (errorBootstrapScriptContent
+            ? `${errorBootstrapScriptContent};`
+            : '') + historyBootstrapScript
       }
 
       if (process.env.__NEXT_USE_NODE_STREAMS) {
@@ -8999,6 +9015,10 @@ async function prerenderToStream(
       bootstrapScriptContent
   }
 
+  bootstrapScriptContent =
+    (bootstrapScriptContent ? `${bootstrapScriptContent};` : '') +
+    historyBootstrapScript
+
   const { reactServerErrorsByDigest } = workStore
   // We don't report errors during prerendering through our instrumentation hooks
   const reportErrors = !experimental.isRoutePPREnabled
@@ -10359,7 +10379,7 @@ async function prerenderToStream(
       UNDERSCORE_NOT_FOUND_ROUTE_ENTRY
     )
 
-    const errorBootstrapScriptContent =
+    let errorBootstrapScriptContent =
       buildManifest.pagesChunkGroupBootstrapParams &&
       buildManifest.chunkLoadingGlobal
         ? getTurbopackChunkGroupBootstrap(
@@ -10368,6 +10388,9 @@ async function prerenderToStream(
             [UNDERSCORE_NOT_FOUND_ROUTE_ENTRY]
           )
         : undefined
+    errorBootstrapScriptContent =
+      (errorBootstrapScriptContent ? `${errorBootstrapScriptContent};` : '') +
+      historyBootstrapScript
 
     if (cacheComponents) {
       const originalFlightPrerenderResult = reactServerPrerenderResult
