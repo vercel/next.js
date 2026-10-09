@@ -36,6 +36,37 @@ There are a few design patterns that are commonly used with Turbo Tasks:
 
 [Tokio task]: https://tokio.rs/tokio/tutorial/spawning#tasks
 
+## Experimental Mutable Cells
+
+`#[turbo_tasks::value(cell = "mutable", operation)]` opts a persistable,
+non-transparent `Clone + OperationValue` payload into task-owned mutable storage.
+The generated `value.mutable_cell()` returns a [`MutableCell<T>`][crate::MutableCell],
+not a `Vc<T>`; ordinary `.cell()` and `.resolved_cell()` constructors are unavailable
+for this mode. Existing values and `State<T>` users are unchanged.
+
+- `get()` returns an immutable `ReadRef<T>` snapshot and tracks a normal cell dependency;
+  `get_untracked()` returns the same snapshot without an edge.
+- `set(value)` and `update(|value| ...)` require the payload's `PartialEq`, including
+  custom equality implementations. They serialize writers and publish only when
+  the final value differs. Equal results preserve canonical storage without reader
+  invalidation or payload persistence dirtying. `update` edits a private clone;
+  panicking callbacks leave canonical content unchanged.
+- Construction is first-value-wins, including after eviction and persistence restore.
+  One persistent creator task owns the cell; transient/Once Tasks cannot own it.
+  Sharing handles never transfers ownership. Keep a
+  fixed allocation layout. Successful omission retires a slot; index reuse is unsupported.
+- Handles do not root their creator. Keep escaped handles connected to an explicit
+  root or GC pin. Access after collection or retirement returns an error; reacquire
+  handles through the creator after reopening a backend.
+- Methods are synchronous and require a turbo-tasks context and a multi-threaded
+  Tokio runtime. The executing owner cannot call `set` or `update` on its own cell.
+  Cloning, custom equality, and update closures must be short and synchronous, and
+  must not call turbo-tasks, nest cell access, or spawn/wait for task work. Reentrant
+  calls panic even in release builds. Old read snapshots are unchanged after publication.
+
+This is a bounded prototype, not a named state registry, schema-migration API,
+mutable read guard, or multi-cell transaction facility.
+
 ## Task Graph
 
 <figure style="display: flex; flex-direction: column; justify-content: center;">
