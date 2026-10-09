@@ -1253,17 +1253,9 @@ impl TurboTasksBackend {
 
         debug_assert!(self.should_persist());
 
-        // Checking after the exclusion begins ensures no concurrent increments can race.
-        let (snapshot_guard, has_modifications) = self.storage.start_snapshot();
+        let snapshot_guard = self.storage.start_snapshot();
 
         let snapshot_time = Instant::now();
-
-        if !has_modifications && gc_roots_to_persist.is_none() {
-            // No tasks modified since the last snapshot — drop the guard (which
-            // calls end_snapshot) and skip the expensive O(N) scan.
-            drop(snapshot_guard);
-            return Ok(Some((start, false, gc_outcome)));
-        }
 
         #[cfg(feature = "print_cache_item_size")]
         #[derive(Default)]
@@ -1474,9 +1466,8 @@ impl TurboTasksBackend {
         let task_count = task_snapshots.len();
 
         if task_snapshots.is_empty() && gc_roots_to_persist.is_none() {
-            // Rare: the modified counts are out of sync with the modified persistable tasks, which
-            // only happens if every modified task was both new and deleted.
-            std::hint::cold_path();
+            // No task was modified since the last snapshot (or every modified task was both new
+            // and deleted), so there is nothing to write.
             return Ok(Some((snapshot_time, false, gc_outcome)));
         }
 

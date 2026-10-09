@@ -2550,8 +2550,7 @@ mod cell_data_tracking_tests {
             .unwrap()
         };
 
-        let (snapshot_guard, has_modifications) = storage.start_snapshot();
-        assert!(has_modifications);
+        let snapshot_guard = storage.start_snapshot();
         let process =
             |_: TaskId,
              _: &TaskStorage,
@@ -2620,8 +2619,7 @@ mod cell_data_tracking_tests {
             .unwrap()
         };
 
-        let (snapshot_guard, has_modifications) = storage.start_snapshot();
-        assert!(has_modifications);
+        let snapshot_guard = storage.start_snapshot();
         // Encodes the live state, like the backend does for tasks that weren't copied.
         let process = |task_id: TaskId,
                        task: &TaskStorage,
