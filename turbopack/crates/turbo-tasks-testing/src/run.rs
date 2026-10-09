@@ -159,6 +159,13 @@ where
         let start = std::time::Instant::now();
         instance.tt.stop_and_wait().await;
         println!("Stopping TurboTasks took {:?}", start.elapsed());
+        // The eviction closure holds its own reference to the TurboTasks instance.
+        drop(instance.snapshot_and_evict);
+        assert!(Arc::strong_count(&instance.tt) == 1);
+        let start = std::time::Instant::now();
+        drop(instance.tt);
+        println!("Dropping TurboTasks took {:?}", start.elapsed());
+
         if !single_run {
             for _ in 10..20 {
                 let instance = registration.create_turbo_tasks(&name, false);
@@ -170,6 +177,11 @@ where
                 let start = std::time::Instant::now();
                 instance.tt.stop_and_wait().await;
                 println!("Stopping TurboTasks took {:?}", start.elapsed());
+                drop(instance.snapshot_and_evict);
+                assert!(Arc::strong_count(&instance.tt) == 1);
+                let start = std::time::Instant::now();
+                drop(instance.tt);
+                println!("Dropping TurboTasks took {:?}", start.elapsed());
                 assert_eq!(first, third);
             }
         }
