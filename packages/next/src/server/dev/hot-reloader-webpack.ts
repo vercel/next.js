@@ -266,6 +266,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   private reloadAfterInvalidation: boolean = false
   private isSrcDir: boolean
   private cacheStatusesByRequestId = new Map<string, ServerCacheStatus>()
+  private hasVulnerabilityInsight: Promise<boolean>
 
   public serverStats: webpack.Stats | null
   public edgeServerStats: webpack.Stats | null
@@ -290,6 +291,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       resetFetch,
       lockfile,
       onDevServerCleanup,
+      hasVulnerabilityInsight,
     }: {
       config: NextConfigComplete
       isSrcDir: boolean
@@ -304,6 +306,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       resetFetch: () => void
       lockfile: Lockfile | undefined
       onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
+      hasVulnerabilityInsight: Promise<boolean>
     }
   ) {
     this.hasAppRouterEntrypoints = false
@@ -323,6 +326,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     this.telemetry = telemetry
     this.resetFetch = resetFetch
     this.lockfile = lockfile
+    this.hasVulnerabilityInsight = hasVulnerabilityInsight
 
     this.config = config
     this.previewProps = previewProps
@@ -466,7 +470,11 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       }
 
       this.webpackHotMiddleware.onHMR(client, htmlRequestId)
-      this.onDemandEntries?.onHMR(client, () => this.hmrServerError)
+      this.onDemandEntries?.onHMR(
+        client,
+        () => this.hmrServerError,
+        htmlRequestId
+      )
 
       const enableCacheComponents = this.config.cacheComponents
       // Clients with a request ID are inferred App Router clients. If Cache
@@ -754,8 +762,6 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
         config: this.config,
         pagesDir: this.pagesDir,
         rewrites: this.rewrites,
-        originalRewrites: this.config._originalRewrites,
-        originalRedirects: this.config._originalRedirects,
         runWebpackSpan: this.hotReloaderSpan,
         appDir: this.appDir,
         previewProps: this.previewProps,
@@ -817,12 +823,6 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
         afterFiles: [],
         fallback: [],
       },
-      originalRewrites: {
-        beforeFiles: [],
-        afterFiles: [],
-        fallback: [],
-      },
-      originalRedirects: [],
       isDevFallback: true,
       entrypoints: (
         await createEntrypoints({
@@ -1644,7 +1644,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       this.versionInfo,
       this.devtoolsFrontendUrl,
       this.config,
-      initialDevToolsConfig
+      initialDevToolsConfig,
+      this.hasVulnerabilityInsight
     )
 
     let booted = false

@@ -1,5 +1,13 @@
 import * as path from 'node:path'
-import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
+import {
+  cpSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
+import { z } from 'next/dist/compiled/zod'
 
 import {
   getGitBranch,
@@ -7,52 +15,49 @@ import {
   getGitDirty,
   getGitMessage,
 } from '../../lib/helpers/git'
-/**
- * Maximum number of historical snapshots to keep on disk by default. When the
- * history exceeds this number, the oldest snapshots are pruned.
- */
+
 const MAX_HISTORY = 20
 
-/**
- * On-disk metadata captured for each analyze snapshot. Mirrored on the web UI
- * side so the comparison picker can render branch / sha / timestamp labels
- * without re-fetching.
- */
-export interface SnapshotMetadata {
-  /** Snapshot identifier (also the directory name under `history/`). */
-  id: string
-  /** ISO timestamp the snapshot was written. */
-  createdAt: string
-  /** Next.js version string. */
-  nextVersion?: string
-  /** Git branch (or VERCEL_GIT_COMMIT_REF) when available. */
-  gitBranch?: string
-  /** Full git commit SHA when available. */
-  gitSha?: string
-  /** Short (7 char) git commit SHA when available. */
-  gitShortSha?: string
-  /** Whether the working tree had uncommitted changes when the build ran. */
-  gitDirty?: boolean
-  /** First line of the HEAD commit message when available. */
-  gitMessage?: string
-  /** `true` when built with `--app-dir-only`. */
-  appDirOnly?: boolean
-  /** `true` when built with `--no-mangling`. */
-  noMangling?: boolean
-  /** User-supplied baseline name, overriding branch/sha in display. See `--baseline-name`. */
-  baselineName?: string
-  /** Number of routes captured in this snapshot. */
-  routeCount: number
-}
+export const snapshotNameSchema = z
+  .string()
+  .min(1)
+  .refine((name) => {
+    try {
+      encodeURIComponent(name)
+      return true
+    } catch {
+      return false
+    }
+  }, 'Invalid analyzer snapshot name')
 
-/** Index file describing the current "live" build (always present). */
+/** On-disk metadata, mirrored by the analyzer UI. Names are the only snapshot keys. */
+export const snapshotMetadataSchema = z.object({
+  name: snapshotNameSchema,
+  createdAt: z.string().datetime(),
+  nextVersion: z.string().optional(),
+  gitBranch: z.string().optional(),
+  gitSha: z.string().optional(),
+  gitShortSha: z.string().optional(),
+  gitDirty: z.boolean().optional(),
+  gitMessage: z.string().optional(),
+  appDirOnly: z.boolean().optional(),
+  noMangling: z.boolean().optional(),
+  routeCount: z.number().int().nonnegative(),
+})
+export type SnapshotMetadata = z.infer<typeof snapshotMetadataSchema>
+
 export interface CurrentSnapshotIndex {
   metadata: SnapshotMetadata
 }
 
-/** Index file describing all stored historical snapshots, newest first. */
-export interface HistoryIndex {
-  snapshots: SnapshotMetadata[]
+export const historyIndexSchema = z.object({
+  snapshots: z.array(snapshotMetadataSchema),
+})
+export type HistoryIndex = z.infer<typeof historyIndexSchema>
+
+/** Encode names into one portable path segment, including dots and reserved names. */
+export function snapshotDirectory(name: string): string {
+  return `snapshot-${encodeURIComponent(snapshotNameSchema.parse(name))}`
 }
 
 const DATA_DIRNAME = 'data'
@@ -61,160 +66,121 @@ const METADATA_FILENAME = 'metadata.json'
 const HISTORY_INDEX_FILENAME = 'history.json'
 
 interface BuildSnapshotInputs {
-  /** Absolute path to the Next.js project root (the directory containing `next.config.*`). */
   projectDir: string
-  /** Absolute path of the analyzer output directory (`<distDir>/diagnostics/analyze`). */
   analyzeDir: string
-  /** List of route page paths captured in this snapshot. */
   routes: string[]
   appDirOnly?: boolean
   noMangling?: boolean
-  /** User-supplied baseline name to use instead of branch/sha when displaying this snapshot. */
-  baselineName?: string
-  /** Maximum number of historical snapshots to keep. Defaults to `MAX_HISTORY`. */
+  /** An explicit name replaces that retained snapshot; omission generates a unique name. */
+  snapshot?: string
   maxHistory?: number
 }
 
-/**
- * Persists a snapshot of the just-emitted analyze data into the rolling
- * `history/` directory and updates the index so the web UI can list it as a
- * comparison baseline.
- *
- * This is invoked after the data files (`analyze.data`, `modules.data`,
- * `routes.json`) have already been written into `<analyzeDir>/data/`. We:
- *
- * 1. Write a `metadata.json` next to `routes.json` describing the *current*
- *    build (so the UI can label it).
- * 2. Copy `<analyzeDir>/data/` into `<analyzeDir>/history/<id>/` so the same
- *    static-file server can serve historical builds via relative URLs.
- * 3. Rebuild `<analyzeDir>/history/history.json` (newest first) and prune
- *    snapshots beyond `maxHistory`.
- *
- * Failures to capture git metadata (no git, detached HEAD, etc.) are non-fatal
- * — fields are simply omitted.
- */
-export async function writeAnalyzeSnapshot({
+/** Save the current analysis and refresh the rolling, newest-first history. */
+export function writeAnalyzeSnapshot({
   projectDir,
   analyzeDir,
   routes,
   appDirOnly,
   noMangling,
-  baselineName,
+  snapshot,
   maxHistory = MAX_HISTORY,
-}: BuildSnapshotInputs): Promise<SnapshotMetadata> {
+}: BuildSnapshotInputs): SnapshotMetadata {
   const dataDir = path.join(analyzeDir, DATA_DIRNAME)
   const historyDir = path.join(analyzeDir, HISTORY_DIRNAME)
-
-  const gitSha = getGitCommit(projectDir)
-  const gitBranch = getGitBranch(projectDir)
-  const gitDirty = getGitDirty(projectDir)
-  const gitMessage = getGitMessage(projectDir)
-
   const createdAt = new Date()
-  const id = makeSnapshotId(createdAt, gitSha)
+  mkdirSync(historyDir, { recursive: true })
 
-  const metadata: SnapshotMetadata = {
-    id,
-    createdAt: createdAt.toISOString(),
-    nextVersion: process.env.__NEXT_VERSION,
-    gitBranch,
-    gitSha,
-    gitShortSha: gitSha ? gitSha.slice(0, 7) : undefined,
-    gitDirty,
-    gitMessage,
-    appDirOnly,
-    noMangling,
-    baselineName,
-    routeCount: routes.length,
-  }
-
-  // 1. Write metadata.json into the live data directory.
-  await writeFile(
-    path.join(dataDir, METADATA_FILENAME),
-    JSON.stringify(metadata, null, 2)
-  )
-
-  // 2. Snapshot the entire data dir into history/<id>/.
-  const snapshotDir = path.join(historyDir, id)
-  await mkdir(historyDir, { recursive: true })
-  // If the same id already exists (same second + same sha), replace it so the
-  // latest run wins. maxRetries handles transient Windows filesystem locks.
-  await rm(snapshotDir, { recursive: true, force: true, maxRetries: 3 })
-  await cp(dataDir, snapshotDir, { recursive: true })
-
-  // 3. Rebuild the history index.
-  await rewriteHistoryIndex(historyDir, maxHistory)
-
-  return metadata
-}
-
-/**
- * Build the snapshot id from the timestamp and git sha. The format is
- * sortable lexicographically (newest last) which keeps directory listings
- * tidy. Format: `YYYYMMDD-HHMMSS-<shortSha|local>`.
- */
-function makeSnapshotId(date: Date, gitSha: string | undefined): string {
-  const pad = (n: number) => String(n).padStart(2, '0')
-  const ts =
-    `${date.getUTCFullYear()}${pad(date.getUTCMonth() + 1)}${pad(date.getUTCDate())}` +
-    `-${pad(date.getUTCHours())}${pad(date.getUTCMinutes())}${pad(date.getUTCSeconds())}`
-  const sha = gitSha ? gitSha.slice(0, 7) : 'local'
-  return `${ts}-${sha}`
-}
-
-/**
- * Walks `<historyDir>/<id>/metadata.json` for every subdirectory, sorts by
- * `createdAt` (newest first), prunes anything beyond `maxHistory`, and writes
- * the resulting `history.json` index.
- *
- * Snapshots whose metadata file is missing or unreadable are dropped from the
- * index but not deleted from disk (they may still be useful for manual
- * inspection).
- */
-async function rewriteHistoryIndex(
-  historyDir: string,
-  maxHistory: number
-): Promise<HistoryIndex> {
-  let entries: string[] = []
-  try {
-    entries = await readdir(historyDir)
-  } catch {
-    return { snapshots: [] }
-  }
-
-  const snapshots: SnapshotMetadata[] = []
-  for (const entry of entries) {
-    if (entry === HISTORY_INDEX_FILENAME) continue
-    const metadataPath = path.join(historyDir, entry, METADATA_FILENAME)
-    try {
-      const text = await readFile(metadataPath, 'utf8')
-      const parsed = JSON.parse(text) as SnapshotMetadata
-      snapshots.push(parsed)
-    } catch {
-      // Ignore unreadable / non-snapshot entries.
+  let name: string
+  let snapshotDir: string
+  if (snapshot !== undefined) {
+    name = snapshotNameSchema.parse(snapshot)
+    snapshotDir = path.join(historyDir, snapshotDirectory(name))
+    // Replacement must not merge stale files from the previous capture.
+    rmSync(snapshotDir, { recursive: true, force: true, maxRetries: 3 })
+    mkdirSync(snapshotDir)
+  } else {
+    const timestamp = createdAt.toISOString().replace(/[:.]/g, '-')
+    for (let attempt = 0; ; attempt++) {
+      name = attempt === 0 ? timestamp : `${timestamp}-${attempt}`
+      snapshotDir = path.join(historyDir, snapshotDirectory(name))
+      try {
+        // Exclusive reservation prevents timestamp collisions from overwriting data.
+        mkdirSync(snapshotDir)
+        break
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
+      }
     }
   }
 
-  // Newest first.
-  snapshots.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+  const gitSha = getGitCommit(projectDir)
+  const metadata: SnapshotMetadata = {
+    name,
+    createdAt: createdAt.toISOString(),
+    nextVersion: process.env.__NEXT_VERSION,
+    gitBranch: getGitBranch(projectDir),
+    gitSha,
+    gitShortSha: gitSha?.slice(0, 7),
+    gitDirty: getGitDirty(projectDir),
+    gitMessage: getGitMessage(projectDir),
+    appDirOnly,
+    noMangling,
+    routeCount: routes.length,
+  }
 
-  // Prune: anything past the cap is removed from disk.
-  const kept = snapshots.slice(0, maxHistory)
-  const pruned = snapshots.slice(maxHistory)
-  await Promise.all(
-    pruned.map((snapshot) =>
-      rm(path.join(historyDir, snapshot.id), {
-        recursive: true,
-        force: true,
-        maxRetries: 3,
-      })
+  try {
+    writeFileSync(
+      path.join(dataDir, METADATA_FILENAME),
+      JSON.stringify(metadata, null, 2)
+    )
+    cpSync(dataDir, snapshotDir, { recursive: true })
+    rewriteHistoryIndex(historyDir, maxHistory, name)
+    return metadata
+  } catch (error) {
+    rmSync(snapshotDir, { recursive: true, force: true, maxRetries: 3 })
+    throw error
+  }
+}
+
+/** Read valid snapshot metadata, prune old captures, and rebuild the history index. */
+function rewriteHistoryIndex(
+  historyDir: string,
+  maxHistory: number,
+  currentName: string
+): void {
+  const snapshots: SnapshotMetadata[] = []
+  for (const entry of readdirSync(historyDir)) {
+    if (entry === HISTORY_INDEX_FILENAME) continue
+    try {
+      const metadata = snapshotMetadataSchema.parse(
+        JSON.parse(
+          readFileSync(path.join(historyDir, entry, METADATA_FILENAME), 'utf8')
+        )
+      )
+      if (entry === snapshotDirectory(metadata.name)) snapshots.push(metadata)
+    } catch {
+      // Unreadable/non-snapshot directories are not part of the history index.
+    }
+  }
+  snapshots.sort(
+    (a, b) =>
+      b.createdAt.localeCompare(a.createdAt) ||
+      Number(b.name === currentName) - Number(a.name === currentName)
+  )
+  for (const snapshot of snapshots.slice(maxHistory)) {
+    rmSync(path.join(historyDir, snapshotDirectory(snapshot.name)), {
+      recursive: true,
+      force: true,
+      maxRetries: 3,
+    })
+  }
+  writeFileSync(
+    path.join(historyDir, HISTORY_INDEX_FILENAME),
+    JSON.stringify(
+      { snapshots: snapshots.slice(0, maxHistory) } satisfies HistoryIndex,
+      null,
+      2
     )
   )
-
-  const index: HistoryIndex = { snapshots: kept }
-  await writeFile(
-    path.join(historyDir, HISTORY_INDEX_FILENAME),
-    JSON.stringify(index, null, 2)
-  )
-  return index
 }

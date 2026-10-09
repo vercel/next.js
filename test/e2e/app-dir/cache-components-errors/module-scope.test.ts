@@ -1,8 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
-// @force-gate !deploy
 describe('Lazy Module Init', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname + '/fixtures/lazy-module-init',
@@ -41,5 +38,5 @@ describe('Lazy Module Init', () => {
 
     $ = await next.render$('/serial-client-sync-io')
     expect($('#id').text().length).toBeGreaterThan(0)
-  })
+  }, 120_000) // Remote builds and deployments can exceed the default 60s.
 })

@@ -46,9 +46,9 @@ The `/[timezone]` page renders a mostly static shell and, inside it, a `'use cac
 
 - **ISR cache (`cache-handler.js`):** stores the prerendered page entries as JSON under a `nextjs:cache:` prefix, and tracks which keys belong to each tag in a Redis set (`nextjs:tag:<tag>`). `revalidateTag` deletes every key associated with a tag.
 
-- **Remote cache (`remote-cache-handler.js`):** stores each `'use cache: remote'` entry under a `nextjs:use-cache:` prefix (the streamed value is base64-encoded). Tag revalidation is timestamp-based: `updateTags` records `nextjs:use-cache-tag:<tag>` = now, and `getExpiration` reports the latest time so Next treats older entries as stale. Clicking **Revalidate** calls [`updateTag('time-data')`](https://nextjs.org/docs/app/api-reference/functions/updateTag), which regenerates the remote entry.
+- **Remote cache (`remote-cache-handler.js`):** stores each `'use cache: remote'` entry under a `nextjs:use-cache:` prefix (the streamed value is base64-encoded). Tag revalidation is timestamp-based: `updateTags` records `nextjs:use-cache-tag:<tag>` = now. On a hit, `get` compares the entry's own tags (from `cacheTag`) against those timestamps and reports a miss if any is newer, and `getExpiration` reports the latest time for the route's soft tags so Next discards older entries. Clicking **Revalidate** calls [`updateTag('time-data')`](https://nextjs.org/docs/app/api-reference/functions/updateTag), which regenerates the remote entry.
 
-- **Building without Redis:** both handlers skip connecting during `next build` (they check `NEXT_PHASE`) and degrade gracefully when Redis is unavailable, so the app still builds and runs, just without a shared cache.
+- **Building without Redis:** both handlers skip connecting during `next build` (they check `NEXT_PHASE`) and degrade gracefully when Redis is unavailable, so the app still builds and runs, just without a shared cache. Revalidation is the exception: `revalidateTag` and `updateTags` throw while Redis is unavailable, because an invalidation that never reached Redis would be lost, and the old entries would be served again once Redis is back.
 
 - **Redis server setup:** ensure your Redis server is running before starting the app. Configure the connection with `REDIS_URL` (defaults to `redis://localhost:6379`).
 

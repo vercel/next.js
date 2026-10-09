@@ -956,10 +956,13 @@ export async function retry<T>(
   }
 }
 
-export async function waitForRedbox(browser: Playwright) {
+export async function waitForRedbox(
+  browser: Playwright,
+  { waitInMs = 5000 } = {}
+) {
   const redbox = browser.locateRedbox()
   try {
-    await redbox.waitFor({ timeout: 5000 })
+    await redbox.waitFor({ timeout: waitInMs })
   } catch (errorCause) {
     const error = new Error('Expected Redbox but found no visible one.')
     Error.captureStackTrace(error, waitForRedbox)
@@ -2177,6 +2180,30 @@ export function getClientReferenceManifest(
 export const getCacheHeader = (curRes: Response) =>
   // favor generic header
   curRes.headers.get('x-nextjs-cache') || curRes.headers.get('x-vercel-cache')
+
+/**
+ * Asserts that the cache-control header consists of exactly these directives,
+ * in any order.
+ *
+ * @param header The cache-control header to check.
+ * @param directives The directives to expect.
+ */
+export const expectDirectives = (
+  header: string | null,
+  directives: Array<string | RegExp>
+) => {
+  const split = (header ?? '').split(',').map((directive) => directive.trim())
+  expect(split).toEqual(
+    expect.arrayContaining(
+      directives.map((directive) =>
+        directive instanceof RegExp
+          ? expect.stringMatching(directive)
+          : directive
+      )
+    )
+  )
+  expect(split).toHaveLength(directives.length)
+}
 
 export function getDeploymentId(appDir: string, isDev: boolean) {
   let requiredServerFiles: RequiredServerFilesManifest | undefined

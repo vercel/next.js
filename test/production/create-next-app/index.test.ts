@@ -1,5 +1,9 @@
-import { mkdir, writeFile } from 'fs/promises'
+import { mkdir, readFile, writeFile } from 'fs/promises'
 import { join } from 'path'
+import {
+  writeAgentFeedbackFiles,
+  writeAgentFiles,
+} from 'next/dist/server/lib/generate-agent-files'
 import {
   resolveNextTgzFilename,
   run,
@@ -13,6 +17,73 @@ describe('create-next-app', () => {
 
   beforeAll(() => {
     nextTgzFilename = resolveNextTgzFilename()
+  })
+
+  it.each([
+    { flags: ['--ts', '--app'], configFile: 'next.config.ts', enabled: true },
+    { flags: ['--js', '--app'], configFile: 'next.config.mjs', enabled: true },
+    {
+      flags: ['--ts', '--app', '--no-cache-components'],
+      configFile: 'next.config.ts',
+      enabled: false,
+    },
+    {
+      flags: ['--ts', '--no-app'],
+      configFile: 'next.config.ts',
+      enabled: false,
+    },
+    { flags: ['--ts', '--api'], configFile: 'next.config.ts', enabled: true },
+    { flags: ['--js', '--api'], configFile: 'next.config.mjs', enabled: true },
+    {
+      flags: ['--ts', '--api', '--no-cache-components'],
+      configFile: 'next.config.ts',
+      enabled: false,
+    },
+    {
+      flags: ['--js', '--api', '--no-cache-components'],
+      configFile: 'next.config.mjs',
+      enabled: false,
+    },
+  ])(
+    'should set Cache Components to $enabled with $flags',
+    async ({ flags, configFile, enabled }) => {
+      const Conf = require('next/dist/compiled/conf')
+
+      await useTempDir(async (cwd) => {
+        const conf = new Conf({ projectName: 'create-next-app' })
+        conf.clear()
+        const projectName = 'cache-components'
+        const res = await run(
+          [projectName, ...flags, '--skip-install'],
+          nextTgzFilename,
+          { cwd, env: { ...process.env, CI: '1' } }
+        )
+        expect(res.exitCode).toBe(0)
+        const config = await readFile(
+          join(cwd, projectName, configFile),
+          'utf8'
+        )
+        if (enabled) {
+          expect(config).toContain('cacheComponents: true')
+          expect(config).toContain('partialPrefetching: true')
+        } else {
+          expect(config).not.toContain('cacheComponents:')
+          expect(config).not.toContain('partialPrefetching:')
+        }
+      })
+    }
+  )
+
+  it('should list both agent feedback flags in help', async () => {
+    await useTempDir(async (cwd) => {
+      const res = await run(['--help'], nextTgzFilename, {
+        cwd,
+        stdio: 'pipe',
+      })
+
+      expect(res.stdout).toContain('--agent-feedback')
+      expect(res.stdout).toContain('--no-agent-feedback')
+    })
   })
 
   it('should not create if the target directory is not empty', async () => {
@@ -93,7 +164,7 @@ describe('create-next-app', () => {
       }
     })
   })
-  it('should create AGENTS.md and CLAUDE.md with --agents-md flag', async () => {
+  it('should create AGENTS.md with --agents-md flag', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'with-agents-md'
 
@@ -108,6 +179,7 @@ describe('create-next-app', () => {
           '--no-import-alias',
           '--no-react-compiler',
           '--agents-md',
+          '--no-agent-feedback',
           '--skip-install',
           ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
         ],
@@ -120,12 +192,60 @@ describe('create-next-app', () => {
       projectFilesShouldExist({
         cwd,
         projectName,
-        files: ['AGENTS.md', 'CLAUDE.md'],
+        files: ['AGENTS.md'],
       })
+      const agentsMd = await readFile(
+        join(cwd, projectName, 'AGENTS.md'),
+        'utf8'
+      )
+      expect(agentsMd).toContain('<!-- BEGIN:nextjs-agent-rules -->')
+      expect(agentsMd).not.toContain('nextjs-agent-feedback')
     })
   })
 
-  it('should not create AGENTS.md and CLAUDE.md with --no-agents-md flag', async () => {
+  it('should write the agent feedback block to AGENTS.md with --agents-md --agent-feedback', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'with-agents-md-and-feedback'
+
+      const res = await run(
+        [
+          projectName,
+          '--ts',
+          '--app',
+          '--no-linter',
+          '--no-tailwind',
+          '--no-src-dir',
+          '--no-import-alias',
+          '--no-react-compiler',
+          '--agents-md',
+          '--agent-feedback',
+          '--skip-install',
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
+        ],
+        nextTgzFilename,
+        {
+          cwd,
+        }
+      )
+      expect(res.exitCode).toBe(0)
+
+      const projectDir = join(cwd, projectName)
+      const agentsMd = await readFile(join(projectDir, 'AGENTS.md'), 'utf8')
+      const rulesIdx = agentsMd.indexOf('<!-- BEGIN:nextjs-agent-rules -->')
+      const feedbackIdx = agentsMd.indexOf(
+        '<!-- BEGIN:nextjs-agent-feedback -->'
+      )
+      expect(rulesIdx).toBeGreaterThanOrEqual(0)
+      expect(feedbackIdx).toBeGreaterThan(rulesIdx)
+
+      // `next dev` rewrites AGENTS.md when its blocks differ, so the scaffolded
+      // file must match byte-for-byte or the initial commit is immediately dirty.
+      expect(writeAgentFiles(projectDir).agentsMd).toBe('unchanged')
+      expect(writeAgentFeedbackFiles(projectDir).agentsMd).toBe('unchanged')
+    })
+  })
+
+  it('should not create AGENTS.md with --no-agents-md flag', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'without-agents-md'
 
@@ -152,7 +272,43 @@ describe('create-next-app', () => {
       projectFilesShouldNotExist({
         cwd,
         projectName,
-        files: ['AGENTS.md', 'CLAUDE.md'],
+        files: ['AGENTS.md'],
+      })
+    })
+  })
+
+  it('should enable agent feedback with --agent-feedback', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'with-agent-feedback'
+
+      const res = await run(
+        [
+          projectName,
+          '--ts',
+          '--app',
+          '--no-linter',
+          '--no-tailwind',
+          '--no-src-dir',
+          '--no-import-alias',
+          '--no-react-compiler',
+          '--no-agents-md',
+          '--agent-feedback',
+          '--skip-install',
+          ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
+        ],
+        nextTgzFilename,
+        {
+          cwd,
+        }
+      )
+      expect(res.exitCode).toBe(0)
+      expect(
+        await readFile(join(cwd, projectName, 'next.config.ts'), 'utf8')
+      ).toContain('\n  experimental: {\n    agentFeedback: true,\n  },\n')
+      projectFilesShouldNotExist({
+        cwd,
+        projectName,
+        files: ['AGENTS.md'],
       })
     })
   })
@@ -187,8 +343,9 @@ describe('create-next-app', () => {
         "  --eslint                ESLint (use --biome for Biome, --no-eslint for None)
           --no-react-compiler     No React Compiler (use --react-compiler for React Compiler)
           --no-src-dir            No src/ directory (use --src-dir for src/ directory)
-          --no-cache-components   No Cache Components (use --cache-components for Cache Components)
+          --cache-components      Cache Components (use --no-cache-components for No Cache Components)
           --agents-md             AGENTS.md (use --no-agents-md for No AGENTS.md)
+          --no-agent-feedback     No agent feedback (use --agent-feedback for Agent feedback)
           --import-alias          "@/*""
       `)
     })
@@ -210,6 +367,7 @@ describe('create-next-app', () => {
           '--no-react-compiler',
           '--no-cache-components',
           '--no-agents-md',
+          '--no-agent-feedback',
           '--skip-install',
           ...(process.env.NEXT_RSPACK ? ['--rspack'] : []),
         ],
@@ -221,6 +379,9 @@ describe('create-next-app', () => {
       )
       expect(res.exitCode).toBe(0)
       expect(res.stdout).not.toContain('Using defaults for unprovided options')
+      expect(
+        await readFile(join(cwd, projectName, 'next.config.ts'), 'utf8')
+      ).not.toContain('agentFeedback')
     })
   })
 

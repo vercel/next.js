@@ -4,11 +4,15 @@ import {
   getVaryParamsAccumulator,
   workUnitAsyncStorage,
 } from './work-unit-async-storage.external'
+import {
+  SEARCH_PARAMS_VARY_ID,
+  type VaryParamId,
+} from '../../shared/lib/segment-cache/vary-params-decoding'
 
 /**
  * Accumulates vary params for a single segment (or for metadata/rootParams).
  *
- * A VaryParamsAccumulator is an `AsyncIterable<string>` that can be serialized
+ * A VaryParamsAccumulator is an `AsyncIterable<VaryParamId>` that can be serialized
  * by React Flight. As params are accessed during render, each newly-seen param
  * name is `add`ed, which yields it into the Flight stream immediately. After
  * rendering, call `close()` (via `finishAccumulatingVaryParams`) to end the
@@ -29,28 +33,29 @@ import {
  * only instance referenced by more than one segment, and it only ever yields
  * "done", so concurrent iteration of it is safe.
  */
-export class VaryParamsAccumulator implements AsyncIterable<string> {
-  private _resolve: ((result: IteratorResult<string>) => void) | null = null
+export class VaryParamsAccumulator implements AsyncIterable<VaryParamId> {
+  private _resolve: ((result: IteratorResult<VaryParamId>) => void) | null =
+    null
   private _done = false
-  private _buffer: string[] = []
+  private _buffer: VaryParamId[] = []
   // The set of param names already yielded. Doubles as the dedupe guard so the
   // same name is never emitted twice.
-  private _seen: Set<string> = new Set()
+  private _seen: Set<VaryParamId> = new Set()
 
   /**
    * Records that a param was accessed. Yields the name into the stream the
    * first time it's seen; subsequent accesses of the same name are no-ops.
    */
-  add(paramName: string): void {
-    if (this._done || this._seen.has(paramName)) {
+  add(id: VaryParamId): void {
+    if (this._done || this._seen.has(id)) {
       return
     }
-    this._seen.add(paramName)
+    this._seen.add(id)
     if (this._resolve !== null) {
-      this._resolve({ value: paramName, done: false })
+      this._resolve({ value: id, done: false })
       this._resolve = null
     } else {
-      this._buffer.push(paramName)
+      this._buffer.push(id)
     }
   }
 
@@ -67,7 +72,7 @@ export class VaryParamsAccumulator implements AsyncIterable<string> {
     }
   }
 
-  [Symbol.asyncIterator](): AsyncIterator<string> {
+  [Symbol.asyncIterator](): AsyncIterator<VaryParamId> {
     return {
       next: () => {
         if (this._buffer.length > 0) {
@@ -76,7 +81,7 @@ export class VaryParamsAccumulator implements AsyncIterable<string> {
         if (this._done) {
           return Promise.resolve({ value: undefined, done: true })
         }
-        return new Promise<IteratorResult<string>>((resolve) => {
+        return new Promise<IteratorResult<VaryParamId>>((resolve) => {
           this._resolve = resolve
         })
       },
@@ -182,9 +187,9 @@ export function getRootParamsVaryParamsAccumulator(): VaryParamsAccumulator | nu
  */
 export function accumulateVaryParam(
   accumulator: VaryParamsAccumulator,
-  paramName: string
+  id: VaryParamId
 ): void {
-  accumulator.add(paramName)
+  accumulator.add(id)
 }
 
 /**
@@ -261,23 +266,23 @@ export function createVaryingSearchParams(
   // checks, or enumeration — must register as varying. A Proxy is required
   // (rather than per-property getters) so that enumeration of an empty
   // searchParams object still triggers a vary. All accesses bucket into the
-  // single sentinel '?'; the segment is keyed by the whole query string.
+  // single search params id; the segment is keyed by the whole query string.
   // TODO: Split into per-param tracking if the cache key evolves.
   return new Proxy(originalSearchParamsObject, {
     get(target, prop, receiver) {
       if (typeof prop === 'string') {
-        accumulateVaryParam(accumulator, '?')
+        accumulateVaryParam(accumulator, SEARCH_PARAMS_VARY_ID)
       }
       return Reflect.get(target, prop, receiver)
     },
     has(target, prop) {
       if (typeof prop === 'string') {
-        accumulateVaryParam(accumulator, '?')
+        accumulateVaryParam(accumulator, SEARCH_PARAMS_VARY_ID)
       }
       return Reflect.has(target, prop)
     },
     ownKeys(target) {
-      accumulateVaryParam(accumulator, '?')
+      accumulateVaryParam(accumulator, SEARCH_PARAMS_VARY_ID)
       return Reflect.ownKeys(target)
     },
   })

@@ -6,7 +6,6 @@
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 #![feature(ptr_metadata)]
-#![feature(exclusive_wrapper)]
 #![feature(sync_unsafe_cell)]
 #![feature(async_fn_traits)]
 #![feature(impl_trait_in_assoc_type)]
@@ -59,7 +58,6 @@ pub mod task;
 mod task_dirty_cause;
 mod task_execution_reason;
 pub mod task_statistics;
-pub mod trace;
 mod trait_ref;
 mod triomphe_utils;
 pub mod util;
@@ -106,7 +104,7 @@ pub use crate::{
         ScheduleKey, TaskPersistence, TaskPriority, TurboTasks, TurboTasksApi, TurboTasksCallApi,
         Unused, UpdateInfo, dynamic_call, emit, get_serialization_invalidator, mark_finished,
         mark_stateful, mark_top_level_task, prevent_gc, run, run_once, run_once_with_reason,
-        trait_call, turbo_tasks, turbo_tasks_scope, turbo_tasks_weak,
+        trait_call, try_turbo_tasks, turbo_tasks, turbo_tasks_scope, turbo_tasks_weak,
         unmark_top_level_task_may_leak_eventually_consistent_state, with_turbo_tasks,
     },
     mapped_read_ref::MappedReadRef,
@@ -293,7 +291,7 @@ pub use turbo_tasks_macros::value;
 ///
 /// ```ignore
 /// #[turbo_tasks::task_input]
-/// #[derive(Clone, Debug, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
+/// #[derive(Clone, Debug, Hash, PartialEq, Eq, Encode, Decode)]
 /// pub struct MyTaskInput { ... }
 /// ```
 ///
@@ -301,7 +299,7 @@ pub use turbo_tasks_macros::value;
 ///
 /// ```ignore
 /// #[turbo_tasks::task_input(contains_unresolved_vcs)]
-/// #[derive(Clone, Debug, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
+/// #[derive(Clone, Debug, Hash, PartialEq, Eq, Encode, Decode)]
 /// pub struct VcCarrier { vc: Vc<...> }
 /// ```
 pub use turbo_tasks_macros::task_input;

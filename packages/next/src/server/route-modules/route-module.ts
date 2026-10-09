@@ -55,9 +55,17 @@ import { patchSetHeaderWithCookieSupport } from '../lib/patch-set-header'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
 import { isStaticMetadataRoute } from '../../lib/metadata/is-metadata-route'
 import { IncrementalCache } from '../lib/incremental-cache'
-import { initializeCacheHandlers, setCacheHandler } from '../use-cache/handlers'
+import {
+  initializeCacheHandlers,
+  registerCustomCacheHandlers,
+  setCacheHandler,
+} from '../use-cache/handlers'
 import { interopDefault } from '../app-render/interop-default'
 import { RouteKind } from '../route-kind'
+import {
+  getResponseCacheOwner,
+  type ResponseCacheOwner,
+} from '../lib/route-cache-key'
 import type { BaseNextRequest } from '../base-http'
 import type { I18NConfig, NextConfigRuntime } from '../config-shared'
 import ResponseCache, { type ResponseGenerator } from '../response-cache'
@@ -127,6 +135,9 @@ export abstract class RouteModule<
    */
   public readonly definition: Readonly<D>
 
+  /** The canonical source identity shared by cache reads, writes, and metadata. */
+  public readonly cacheOwner: ResponseCacheOwner
+
   /**
    * The shared modules that are exposed and required for the route module.
    */
@@ -146,6 +157,7 @@ export abstract class RouteModule<
   }: RouteModuleOptions<D, U>) {
     this._userland = userland
     this.definition = definition
+    this.cacheOwner = getResponseCacheOwner(definition)
     this.isDev = !!process.env.__NEXT_DEV_SERVER
     this.distDir = distDir
     this.relativeProjectDir = relativeProjectDir
@@ -168,6 +180,18 @@ export abstract class RouteModule<
       ...(revalidate !== undefined ? { revalidate } : {}),
       ...(render404 !== undefined ? { render404 } : {}),
     }
+  }
+
+  public getAssetPrefixForRender(
+    routerServerContext: RouterServerContext[string] | undefined,
+    configuredAssetPrefix: string
+  ): string {
+    // A running NextServer owns overrides from app.setAssetPrefix().
+    if (routerServerContext && routerServerContext.getAssetPrefix) {
+      return routerServerContext.getAssetPrefix()
+    }
+    // Direct route invocations use the configured prefix.
+    return configuredAssetPrefix
   }
 
   public normalizeUrl(
@@ -453,35 +477,34 @@ export abstract class RouteModule<
       const { cacheMaxMemorySize, cacheHandlers } = nextConfig
       if (!cacheHandlers) return
 
-      // If we've already initialized the cache handlers interface, don't do it
-      // again.
-      if (!initializeCacheHandlers(cacheMaxMemorySize)) return
+      initializeCacheHandlers(cacheMaxMemorySize)
+      await registerCustomCacheHandlers(async () => {
+        for (const [kind, handler] of Object.entries(cacheHandlers)) {
+          if (!handler) continue
 
-      for (const [kind, handler] of Object.entries(cacheHandlers)) {
-        if (!handler) continue
+          const { formatDynamicImportPath } =
+            require('../../lib/format-dynamic-import-path') as typeof import('../../lib/format-dynamic-import-path')
 
-        const { formatDynamicImportPath } =
-          require('../../lib/format-dynamic-import-path') as typeof import('../../lib/format-dynamic-import-path')
+          const { join } = require('node:path') as typeof import('node:path')
+          const absoluteProjectDir = join(
+            /* turbopackIgnore: true */
+            process.cwd(),
+            getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
+          )
 
-        const { join } = require('node:path') as typeof import('node:path')
-        const absoluteProjectDir = join(
-          /* turbopackIgnore: true */
-          process.cwd(),
-          getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
-        )
-
-        setCacheHandler(
-          kind,
-          interopDefault(
-            await dynamicImportEsmDefault(
-              formatDynamicImportPath(
-                `${absoluteProjectDir}/${this.distDir}`,
-                handler
+          setCacheHandler(
+            kind,
+            interopDefault(
+              await dynamicImportEsmDefault(
+                formatDynamicImportPath(
+                  `${absoluteProjectDir}/${this.distDir}`,
+                  handler
+                )
               )
             )
           )
-        )
-      }
+        }
+      })
     }
   }
 
@@ -536,6 +559,7 @@ export abstract class RouteModule<
         previewProps,
         prerenderManifest,
         CurCacheHandler: CacheHandler,
+        locales: nextConfig.i18n?.locales,
       })
 
       // we need to expose this on globalThis as the app-render
@@ -1093,7 +1117,6 @@ export abstract class RouteModule<
     } catch (_) {}
 
     resolvedPathname = removeTrailingSlash(resolvedPathname)
-    addRequestMeta(req, 'resolvedPathname', resolvedPathname)
 
     let deploymentId
     if (nextConfig.experimental?.runtimeServerDeploymentId) {
@@ -1138,7 +1161,10 @@ export abstract class RouteModule<
   public getResponseCache(req: IncomingMessage | BaseNextRequest) {
     if (!this.responseCache) {
       const minimalMode = getRequestMeta(req, 'minimalMode') ?? false
-      this.responseCache = new ResponseCache(minimalMode)
+      this.responseCache = new ResponseCache({
+        minimalMode,
+        route: this.cacheOwner,
+      })
     }
     return this.responseCache
   }

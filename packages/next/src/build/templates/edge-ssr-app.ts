@@ -22,11 +22,14 @@ import type { NextFetchEvent } from '../../server/web/spec-extension/fetch-event
 import type {
   AppPageRouteHandlerContext,
   AppPageRouteModule,
+  DevRenderContext,
+  RouteMatch,
 } from '../../server/route-modules/app-page/module.compiled'
 import type { AppPageRenderResultMetadata } from '../../server/render-result'
 import type RenderResult from '../../server/render-result'
 import { getIsPossibleServerAction } from '../../server/lib/server-action-request-meta'
 import { getBotType } from '../../shared/lib/router/utils/is-bot'
+import { shouldServeStreamingMetadata } from '../../server/lib/streaming-metadata'
 import { interopDefault } from '../../lib/interop-default'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { checkIsOnDemandRevalidate } from '../../server/api-utils'
@@ -34,6 +37,11 @@ import { CloseController } from '../../server/web/web-on-close'
 import { parseMaxPostponedStateSize } from '../../shared/lib/size-limit'
 import { toNodeOutgoingHttpHeaders } from '../../server/web/utils'
 import type { RequestMeta } from '../../server/request-meta'
+import { createDevRenderContext } from '../../server/route-modules/app-page/dev-render-context'
+import {
+  parseRequestHeaders,
+  type ParsedRequestHeaders,
+} from '../../server/route-modules/app-page/parse-request-headers'
 
 declare const incrementalCacheHandler: any
 // OPTIONAL_IMPORT:incrementalCacheHandler
@@ -100,7 +108,8 @@ async function requestHandler(
   // INJECT_RAW:cacheHandlerRegistration
 
   const isPossibleServerAction = getIsPossibleServerAction(req)
-  const botType = getBotType(req.headers.get('User-Agent') || '')
+  const userAgent = req.headers.get('User-Agent') || ''
+  const botType = getBotType(userAgent)
   const { isOnDemandRevalidate } = checkIsOnDemandRevalidate(
     req.headers,
     previewProps
@@ -108,10 +117,17 @@ async function requestHandler(
 
   const closeController = new CloseController()
 
-  const renderContext: AppPageRouteHandlerContext = {
+  const routeMatch: RouteMatch = { resolvedPathname }
+  const dev: DevRenderContext | undefined = createDevRenderContext(baseReq)
+  const renderContextBase: Omit<
+    AppPageRouteHandlerContext,
+    'parsedRequestHeaders'
+  > = {
     page: normalizedSrcPage,
+    routeMatch,
     query,
     params,
+    dev,
 
     sharedContext: {
       buildId,
@@ -131,7 +147,10 @@ async function requestHandler(
       params,
       page: srcPage,
       postponed: undefined,
-      serveStreamingMetadata: true,
+      serveStreamingMetadata: shouldServeStreamingMetadata(
+        userAgent,
+        nextConfig.htmlLimitedBots
+      ),
       supportsDynamicResponse: true,
       buildManifest,
       nextFontManifest,
@@ -216,12 +235,7 @@ async function requestHandler(
       },
       onAfterTaskError: () => {},
 
-      onInstrumentationRequestError: (
-        error,
-        _request,
-        errorContext,
-        silenceLog
-      ) =>
+      onInstrumentationRequestError: (error, errorContext, silenceLog) =>
         pageRouteModule.onRequestError(
           baseReq,
           error,
@@ -315,6 +329,20 @@ async function requestHandler(
 
   const invokeRender = async (span?: Span): Promise<Response> => {
     try {
+      const parsedRequestHeaders: ParsedRequestHeaders = parseRequestHeaders(
+        baseReq.headers,
+        {
+          isRoutePPREnabled:
+            renderContextBase.renderOpts.experimental.isRoutePPREnabled ===
+            true,
+          previewModeId:
+            renderContextBase.renderOpts.previewProps?.previewModeId,
+        }
+      )
+      const renderContext: AppPageRouteHandlerContext = {
+        ...renderContextBase,
+        parsedRequestHeaders,
+      }
       const result = await pageRouteModule
         .render(baseReq, baseRes, renderContext)
         .finally(() => {

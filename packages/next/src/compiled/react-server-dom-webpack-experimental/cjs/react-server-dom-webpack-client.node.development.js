@@ -11,6 +11,12 @@
 "use strict";
 "production" !== process.env.NODE_ENV &&
   (function () {
+    function createStringDecoder() {
+      return new util.TextDecoder("utf-8", {
+        ignoreBOM:
+          0 < arguments.length && void 0 !== arguments[0] ? arguments[0] : !1
+      });
+    }
     function checkEvalAvailabilityOnceDev() {
       if (!hasConfirmedEval) {
         hasConfirmedEval = !0;
@@ -512,16 +518,28 @@
               ));
         if (null === value) return null;
         if ("object" === typeof value) {
+          originalValue = knownServerObjectReferences.get(value);
+          if (void 0 !== originalValue) {
+            key = writtenObjects.get(value);
+            if (void 0 !== key)
+              if (modelRoot === value) modelRoot = null;
+              else return key;
+            key = JSON.stringify({ id: originalValue }, resolveToJSON);
+            null === formData && (formData = new FormData());
+            var refId = nextPartId++;
+            formData.set(formFieldPrefix + refId, key);
+            key = "$H" + refId.toString(16);
+            writtenObjects.set(value, key);
+            return key;
+          }
           switch (value.$$typeof) {
             case REACT_ELEMENT_TYPE:
-              if (void 0 !== temporaryReferences && -1 === key.indexOf(":")) {
-                var parentReference = writtenObjects.get(this);
-                if (void 0 !== parentReference)
-                  return (
-                    temporaryReferences.set(parentReference + ":" + key, value),
-                    "$T"
-                  );
-              }
+              if (
+                void 0 !== temporaryReferences &&
+                -1 === key.indexOf(":") &&
+                ((refId = writtenObjects.get(this)), void 0 !== refId)
+              )
+                return temporaryReferences.set(refId + ":" + key, value), "$T";
               if (void 0 !== temporaryReferences && modelRoot === value)
                 return (modelRoot = null), "$T";
               throw Error(
@@ -534,9 +552,9 @@
               null === formData && (formData = new FormData());
               pendingParts++;
               try {
-                parentReference = init(originalValue);
+                refId = init(originalValue);
                 var lazyId = nextPartId++,
-                  partJSON = serializeModel(parentReference, lazyId);
+                  partJSON = serializeModel(refId, lazyId);
                 formData.append(formFieldPrefix + lazyId, partJSON);
                 return "$" + lazyId.toString(16);
               } catch (x) {
@@ -547,7 +565,7 @@
                 ) {
                   pendingParts++;
                   var _lazyId = nextPartId++;
-                  parentReference = function () {
+                  refId = function () {
                     try {
                       var _partJSON2 = serializeModel(value, _lazyId),
                         _data = formData;
@@ -558,7 +576,7 @@
                       reject(reason);
                     }
                   };
-                  x.then(parentReference, parentReference);
+                  x.then(refId, refId);
                   return "$" + _lazyId.toString(16);
                 }
                 reject(x);
@@ -567,11 +585,11 @@
                 pendingParts--;
               }
           }
-          parentReference = writtenObjects.get(value);
+          refId = writtenObjects.get(value);
           if ("function" === typeof value.then) {
-            if (void 0 !== parentReference)
+            if (void 0 !== refId)
               if (modelRoot === value) modelRoot = null;
-              else return parentReference;
+              else return refId;
             null === formData && (formData = new FormData());
             pendingParts++;
             var promiseId = nextPartId++;
@@ -594,17 +612,17 @@
             }, reject);
             return key;
           }
-          if (void 0 !== parentReference)
+          if (void 0 !== refId)
             if (modelRoot === value) modelRoot = null;
-            else return parentReference;
+            else return refId;
           else
             -1 === key.indexOf(":") &&
-              ((parentReference = writtenObjects.get(this)),
-              void 0 !== parentReference &&
-                ((parentReference = parentReference + ":" + key),
-                writtenObjects.set(value, parentReference),
+              ((refId = writtenObjects.get(this)),
+              void 0 !== refId &&
+                ((refId = refId + ":" + key),
+                writtenObjects.set(value, refId),
                 void 0 !== temporaryReferences &&
-                  temporaryReferences.set(parentReference, value)));
+                  temporaryReferences.set(refId, value)));
           if (isArrayImpl(value)) return value;
           if (value instanceof FormData) {
             null === formData && (formData = new FormData());
@@ -619,26 +637,26 @@
           if (value instanceof Map)
             return (
               (key = nextPartId++),
-              (parentReference = serializeModel(Array.from(value), key)),
+              (refId = serializeModel(Array.from(value), key)),
               null === formData && (formData = new FormData()),
-              formData.append(formFieldPrefix + key, parentReference),
+              formData.append(formFieldPrefix + key, refId),
               "$Q" + key.toString(16)
             );
           if (value instanceof Set)
             return (
               (key = nextPartId++),
-              (parentReference = serializeModel(Array.from(value), key)),
+              (refId = serializeModel(Array.from(value), key)),
               null === formData && (formData = new FormData()),
-              formData.append(formFieldPrefix + key, parentReference),
+              formData.append(formFieldPrefix + key, refId),
               "$W" + key.toString(16)
             );
           if (value instanceof ArrayBuffer)
             return (
               (key = new Blob([value])),
-              (parentReference = nextPartId++),
+              (refId = nextPartId++),
               null === formData && (formData = new FormData()),
-              formData.append(formFieldPrefix + parentReference, key),
-              "$A" + parentReference.toString(16)
+              formData.append(formFieldPrefix + refId, key),
+              "$A" + refId.toString(16)
             );
           if (value instanceof Int8Array)
             return serializeTypedArray("O", value);
@@ -670,33 +688,29 @@
               formData.append(formFieldPrefix + key, value),
               "$B" + key.toString(16)
             );
-          if ((parentReference = getIteratorFn(value)))
+          if ((refId = getIteratorFn(value)))
             return (
-              (parentReference = parentReference.call(value)),
-              parentReference === value
+              (refId = refId.call(value)),
+              refId === value
                 ? ((key = nextPartId++),
-                  (parentReference = serializeModel(
-                    Array.from(parentReference),
-                    key
-                  )),
+                  (refId = serializeModel(Array.from(refId), key)),
                   null === formData && (formData = new FormData()),
-                  formData.append(formFieldPrefix + key, parentReference),
+                  formData.append(formFieldPrefix + key, refId),
                   "$i" + key.toString(16))
-                : Array.from(parentReference)
+                : Array.from(refId)
             );
           if (
             "function" === typeof ReadableStream &&
             value instanceof ReadableStream
           )
             return serializeReadableStream(value);
-          parentReference = value[ASYNC_ITERATOR];
-          if ("function" === typeof parentReference)
-            return serializeAsyncIterable(value, parentReference.call(value));
-          parentReference = getPrototypeOf(value);
+          refId = value[ASYNC_ITERATOR];
+          if ("function" === typeof refId)
+            return serializeAsyncIterable(value, refId.call(value));
+          refId = getPrototypeOf(value);
           if (
-            parentReference !== ObjectPrototype$1 &&
-            (null === parentReference ||
-              null !== getPrototypeOf(parentReference))
+            refId !== ObjectPrototype$1 &&
+            (null === refId || null !== getPrototypeOf(refId))
           ) {
             if (void 0 === temporaryReferences)
               throw Error(
@@ -718,11 +732,11 @@
                 )
               : isSimpleObject(value)
                 ? Object.getOwnPropertySymbols &&
-                  ((parentReference = Object.getOwnPropertySymbols(value)),
-                  0 < parentReference.length &&
+                  ((refId = Object.getOwnPropertySymbols(value)),
+                  0 < refId.length &&
                     console.error(
                       "Only plain objects can be passed to Server Functions from the Client. Objects with symbol properties like %s are not supported.%s",
-                      parentReference[0].description,
+                      refId[0].description,
                       describeObjectForErrorMessage(this, key)
                     ))
                 : console.error(
@@ -741,30 +755,27 @@
         if ("number" === typeof value) return serializeNumber(value);
         if ("undefined" === typeof value) return "$undefined";
         if ("function" === typeof value) {
-          parentReference = knownServerReferences.get(value);
-          if (void 0 !== parentReference) {
+          refId = knownServerReferences.get(value);
+          if (void 0 !== refId) {
             key = writtenObjects.get(value);
             if (void 0 !== key) return key;
             key = JSON.stringify(
-              { id: parentReference.id, bound: parentReference.bound },
+              { id: refId.id, bound: refId.bound },
               resolveToJSON
             );
             null === formData && (formData = new FormData());
-            parentReference = nextPartId++;
-            formData.set(formFieldPrefix + parentReference, key);
-            key = "$h" + parentReference.toString(16);
+            refId = nextPartId++;
+            formData.set(formFieldPrefix + refId, key);
+            key = "$h" + refId.toString(16);
             writtenObjects.set(value, key);
             return key;
           }
           if (
             void 0 !== temporaryReferences &&
             -1 === key.indexOf(":") &&
-            ((parentReference = writtenObjects.get(this)),
-            void 0 !== parentReference)
+            ((refId = writtenObjects.get(this)), void 0 !== refId)
           )
-            return (
-              temporaryReferences.set(parentReference + ":" + key, value), "$T"
-            );
+            return temporaryReferences.set(refId + ":" + key, value), "$T";
           throw Error(
             "Client Functions cannot be passed directly to Server Functions. Only Functions passed from the Server can be passed back again."
           );
@@ -773,12 +784,9 @@
           if (
             void 0 !== temporaryReferences &&
             -1 === key.indexOf(":") &&
-            ((parentReference = writtenObjects.get(this)),
-            void 0 !== parentReference)
+            ((refId = writtenObjects.get(this)), void 0 !== refId)
           )
-            return (
-              temporaryReferences.set(parentReference + ":" + key, value), "$T"
-            );
+            return temporaryReferences.set(refId + ":" + key, value), "$T";
           throw Error(
             "Symbols cannot be passed to a Server Function without a temporary reference set. Pass a TemporaryReferenceSet to the options." +
               describeObjectForErrorMessage(this, key)
@@ -2631,6 +2639,14 @@
       );
       return null;
     }
+    function loadServerObjectReference(response, metaData) {
+      response = metaData.$$reference;
+      if (void 0 !== response) return response;
+      response = metaData.id;
+      var reference = new Proxy({}, serverObjectReferenceProxyHandlers);
+      knownServerObjectReferences.set(reference, response);
+      return (metaData.$$reference = reference);
+    }
     function resolveLazy(value) {
       for (
         ;
@@ -2967,6 +2983,17 @@
               key,
               loadServerReference
             );
+          case "H":
+            return (
+              (ref = value.slice(2)),
+              getOutlinedModel(
+                response,
+                ref,
+                parentObject,
+                key,
+                loadServerObjectReference
+              )
+            );
           case "T":
             parentObject = "$" + value.slice(2);
             response = response._tempRefs;
@@ -3134,7 +3161,7 @@
       this._encodeFormAction = encodeFormAction;
       this._nonce = nonce;
       this._chunks = chunks;
-      this._stringDecoder = new util.TextDecoder();
+      this._stringDecoder = createStringDecoder(!0);
       this._closed = !1;
       this._closedReason = null;
       this._allowPartialStream = allowPartialStream;
@@ -5307,8 +5334,45 @@
       CLIENT_REFERENCE_TAG = Symbol.for("react.client.reference"),
       ObjectPrototype$1 = Object.prototype,
       knownServerReferences = new WeakMap(),
+      knownServerObjectReferences = new WeakMap(),
       boundCache = new WeakMap(),
       fakeServerFunctionIdx = 0,
+      serverObjectReferenceProxyHandlers = {
+        get: function (target, name) {
+          switch (name) {
+            case "$$typeof":
+              return target.$$typeof;
+            case "name":
+              return;
+            case "displayName":
+              return;
+            case "defaultProps":
+              return;
+            case "_debugInfo":
+              return;
+            case ASYNC_ITERATOR:
+              return;
+            case "toJSON":
+              return;
+            case Symbol.toPrimitive:
+              return Object.prototype[Symbol.toPrimitive];
+            case Symbol.toStringTag:
+              return Object.prototype[Symbol.toStringTag];
+            case "then":
+              return;
+          }
+          throw Error(
+            "Cannot access " +
+              String(name) +
+              " on the client. You cannot read a Server Reference to an object on the client. You can only pass it back to the server."
+          );
+        },
+        set: function () {
+          throw Error(
+            "Cannot assign to a Server Reference to an object on the client."
+          );
+        }
+      },
       FunctionBind = Function.prototype.bind,
       ArraySlice = Array.prototype.slice,
       v8FrameRegExp =

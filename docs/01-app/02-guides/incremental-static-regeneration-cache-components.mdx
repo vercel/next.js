@@ -52,7 +52,7 @@ We'll build a product catalog with category layouts and product detail pages usi
 
 ### Prepare your routes
 
-Use [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) to define which param values to prerender. When rendering these routes, the param values are known at build time. The prerender process builds a static shell until it hits runtime APIs or uncached data. See [Prerendering](/docs/app/getting-started/caching#prerendering) for more details.
+Use [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) to define which param values to prerender. When rendering these routes, the param values are known at build time. The prerender process builds a static shell until it reaches a [Request-time API](/docs/app/glossary#request-time-apis) or uncached data. See [Prerendering](/docs/app/getting-started/caching#prerendering) for more details.
 
 The category layout prerenders two categories:
 
@@ -121,7 +121,9 @@ async function ProductDetails(props: PageProps<'/[category]/[product]'>) {
 
   return (
     <>
-      <Link href={`/${category}`}>&larr; Back to products</Link>
+      <Link href={`/${category}`} prefetch={true}>
+        &larr; Back to products
+      </Link>
       <h2>{data.name}</h2>
       <p>${data.price}</p>
       <p>{data.description}</p>
@@ -174,7 +176,7 @@ export async function getPopularProducts(category: string) {
 }
 ```
 
-If your components access runtime APIs like `cookies` or `headers`, wrap them in `<Suspense>`. Their fallback UI is included in the static shell instead.
+If a component accesses a Request-time API such as `cookies()` or `headers()`, wrap it in `<Suspense>`. During prerendering, Next.js includes the nearest fallback in the static shell. To keep the component out of a `<Link prefetch={true}>` as well, await [`navigation()`](/docs/app/api-reference/functions/navigation) before the request-time access. See [Keep the prefetch static](/docs/app/guides/optimizing-prefetching#keep-the-prefetch-static).
 
 ### At build time
 
@@ -198,16 +200,22 @@ The first visit to `/shoes/basketball-shoes`. Neither param was prerendered. Nex
 
 After the first visit, Next.js renders these routes in the background with the now-known params. The next visitor to the same URLs gets the upgraded result.
 
-A prefetch counts as that first visit. When a [`<Link>`](/docs/app/api-reference/components/link) to an unlisted URL enters the viewport, or you call [`router.prefetch`](/docs/app/api-reference/functions/use-router), Next.js starts the background upgrade before the click, so navigation lands on the upgraded result.
+When a [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch) to an unlisted URL enters the viewport, Next.js starts the background upgrade before the click, just as a first visit would, so navigation lands on the upgraded result.
+
+Links to these pages need `prefetch={true}`. A default `<Link>` prefetches only the App Shell, which links to the same route share.
 
 > **Good to know**: The App Shell for unlisted params is served from Next.js 16.3. Earlier versions wait for a full server render before sending the response.
+
+### Wait for complete static output
+
+For an unlisted parameter, [`ensureStatic = 'navigation'`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#navigation) makes the first request wait for the complete static page. Without this requirement, Next.js can return a prerendered fallback while it generates the page in the background. Next.js stores the completed page for later requests.
 
 ### What the upgrade produces
 
 After the first visit, Next.js renders the page in the background with the known params and tries to push the static boundary as far down the component tree as possible:
 
 - If every data access is cached and all params are resolved, the upgrade produces a **fully static page**.
-- If all params are resolved but the render still hits uncached data or runtime APIs (`cookies`, `headers`) wrapped in `<Suspense>` boundaries, the upgrade produces a **cached page with those fallbacks**. The uncached or runtime parts stream in at request time.
+- If all params are resolved but the render still reaches uncached data or Request-time APIs (`cookies()`, `headers()`) wrapped in `<Suspense>` boundaries, the upgrade produces a **cached page with those fallbacks**. The uncached or request-specific parts stream in at request time.
 - Params are resolved in route order. A param value not returned by `generateStaticParams` stays unresolved and prevents any deeper params from upgrading.
 
 ## Choosing what to prerender
@@ -219,6 +227,8 @@ Instead, use [`generateStaticParams`](/docs/app/api-reference/functions/generate
 ## Coming from the Pages Router
 
 If you are migrating from the Pages Router:
+
+{/* <!-- TODO(param-matching): Map all these to the appropriate param matching API value. --> */}
 
 - `fallback: true` in `getStaticPaths` maps to Cache Components with Partial Prefetching. Visitors get a `<Suspense>` fallback instantly, and Next.js stores the completed route for subsequent visits.
 - [`fallback: 'blocking'`](https://nextjs.org/docs/pages/api-reference/functions/get-static-paths#fallback-blocking) maps to Cache Components without Partial Prefetching. Await `params` outside `<Suspense>` so the first request waits for the completed route, which Next.js then stores for subsequent visits.

@@ -28,7 +28,10 @@ import type { NextTelemetryOptions } from '../cli/next-telemetry.js'
 import type { NextStartOptions } from '../cli/next-start.js'
 import type { NextInfoOptions } from '../cli/next-info.js'
 import type { NextDevOptions } from '../cli/next-dev.js'
-import type { NextAnalyzeOptions } from '../cli/next-analyze.js'
+import type {
+  NextAnalyzeOptions,
+  NextAnalyzeExportOptions,
+} from '../cli/next-analyze.js'
 import type { NextBuildOptions } from '../cli/next-build.js'
 import type { NextTypegenOptions } from '../cli/next-typegen.js'
 import type { NextPostBuildOptions } from '../cli/next-post-build.js'
@@ -75,17 +78,6 @@ if (
 
 process.env.NEXT_PRIVATE_START_TIME = Date.now().toString()
 
-for (const dependency of ['react', 'react-dom']) {
-  try {
-    // When 'npm link' is used it checks the clone location. Not the project.
-    require.resolve(dependency)
-  } catch (err) {
-    console.warn(
-      `The module '${dependency}' was not found. Next.js requires that you include it in 'dependencies' of your 'package.json'. To add it, run 'npm install ${dependency}'`
-    )
-  }
-}
-
 class NextRootCommand extends Command {
   createCommand(name: string) {
     const command = new Command(name)
@@ -94,8 +86,12 @@ class NextRootCommand extends Command {
       const commandName = event.name()
       const defaultEnv = commandName === 'dev' ? 'development' : 'production'
       const standardEnv = ['production', 'development', 'test']
+      // `next build` reruns itself as a child to show the upgrade menu. The
+      // parent already warned, and it sets NODE_ENV for --debug-prerender.
+      const isUpgradeBuildChild =
+        process.env.NEXT_PRIVATE_UPGRADE_BUILD_CHILD === '1'
 
-      if (process.env.NODE_ENV) {
+      if (process.env.NODE_ENV && !isUpgradeBuildChild) {
         const isNotStandard = !standardEnv.includes(process.env.NODE_ENV)
         const shouldWarnCommands =
           process.env.NODE_ENV === 'development'
@@ -109,10 +105,16 @@ class NextRootCommand extends Command {
         }
       }
 
-      ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
-      ;(process.env as any).NEXT_RUNTIME = 'nodejs'
+      // The upgrade harness may run both dev and production checks. Preserve
+      // its caller's environment instead of forcing all child commands into
+      // production mode merely because they were launched through this CLI.
+      if (commandName !== 'upgrade' || !event.getOptionValue('agent')) {
+        ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
+        ;(process.env as any).NEXT_RUNTIME = 'nodejs'
+      }
 
       if (
+        !isUpgradeBuildChild &&
         process.platform === 'darwin' &&
         process.arch === 'x64' &&
         os.cpus().some((cpu) => cpu.model.includes('Apple'))
@@ -158,6 +160,13 @@ function parseValidInspectAddress(value: string): DebugAddress {
 
 const program = new NextRootCommand()
 
+// Commander needs positional options on both ancestors (program and analyze)
+// to keep identically named capture/export flags local after the subcommand.
+// Leave option parsing for the rest of the CLI unchanged.
+program.enablePositionalOptions(
+  process.argv[2] === 'analyze' || process.argv[2] === 'experimental-analyze'
+)
+
 program
   .name('next')
   .description(
@@ -186,10 +195,8 @@ program
       'If no directory is provided, the current directory will be used.'
     )}`
   )
-  .option(
-    '--experimental-analyze',
-    'Analyze bundle output. Only compatible with Turbopack.'
-  )
+  .option('--analyze', 'Analyze bundle output. Only compatible with Turbopack.')
+  .addOption(new Option('--experimental-analyze').hideHelp())
   .option('-d, --debug', 'Enables a more verbose build output.')
   .option(
     '--debug-prerender',
@@ -271,8 +278,11 @@ program
   })
   .usage('[directory] [options]')
 
-program
-  .command('experimental-analyze')
+const analyzeCommand = program
+  .command('analyze')
+  .alias('experimental-analyze')
+  .enablePositionalOptions()
+  .version(program.version()!, '-v, --version', 'Outputs the Next.js version.')
   .description(
     'Analyze production bundle output with an interactive web ui. Does not produce an application build. Only compatible with Turbopack.'
   )
@@ -286,8 +296,8 @@ program
   .option('--profile', 'Enables production profiling for React.')
   .option('--experimental-app-only', 'Analyzes only App Router routes.')
   .option(
-    '--baseline-name <name>',
-    'Name this baseline in the snapshot metadata, overriding branch/sha in the comparison UI.'
+    '--snapshot <name>',
+    'Save a named snapshot, replacing an existing capture with that name.'
   )
   .option(
     '-o, --output',
@@ -304,8 +314,9 @@ program
       .env('PORT')
   )
   .action((directory: string, options: NextAnalyzeOptions) => {
-    return import('../cli/next-analyze.js')
-      .then((mod) => mod.nextAnalyze(options, directory))
+    const { nextAnalyze } =
+      require('../cli/next-analyze.js') as typeof import('../cli/next-analyze.js')
+    return nextAnalyze(options, directory)
       .then(() => {
         if (options.output) {
           // The Next.js process is held open by something on the event loop. Exit manually like the `build` command does.
@@ -313,6 +324,62 @@ program
           process.exit(0)
         }
       })
+      .catch((error) => {
+        console.error(error)
+        process.exit(1)
+      })
+  })
+
+analyzeCommand
+  .command('export')
+  .version(program.version()!, '-v, --version', 'Outputs the Next.js version.')
+  .description(
+    'Stream a saved analyzer graph as JSON Lines without building or serving.'
+  )
+  .argument(
+    '[directory]',
+    `The application directory containing the saved analysis. ${italic(
+      'If no directory is provided, the current directory will be used.'
+    )}`
+  )
+  .option(
+    '--snapshot <name>',
+    'Select a saved snapshot by name (defaults to latest).'
+  )
+  .option('--route <route>', 'Filter graph records to a route.')
+  .option(
+    '--dist-dir <directory>',
+    'Read from an explicitly chosen build directory (defaults to .next).'
+  )
+  .action(async (directory: string, options: NextAnalyzeExportOptions) => {
+    try {
+      // Reject explicit capture/server options before the subcommand, but
+      // ignore defaults and inherited PORT. Options after export are local.
+      const captureOptions = [
+        ['output', '--output'],
+        ['profile', '--profile'],
+        ['experimentalAppOnly', '--experimental-app-only'],
+        ['mangling', '--no-mangling'],
+        ['port', '--port'],
+        ['snapshot', '--snapshot'],
+      ]
+      const offending = captureOptions
+        .filter(([key]) => analyzeCommand.getOptionValueSource(key) === 'cli')
+        .map(([, flag]) => flag)
+      if (offending.length > 0) {
+        throw new Error(
+          `next analyze export cannot use capture/server options before export: ${offending.join(', ')}`
+        )
+      }
+      const { nextAnalyzeExport } =
+        require('../cli/next-analyze.js') as typeof import('../cli/next-analyze.js')
+      nextAnalyzeExport(options, directory)
+      // The synchronous exporter has completed every fd write, including slow pipes.
+      process.exit(0)
+    } catch (error) {
+      console.error(error)
+      process.exit(1)
+    }
   })
 
 program
@@ -554,6 +621,7 @@ program
 const nextVersion = process.env.__NEXT_VERSION || 'unknown'
 program
   .command('upgrade')
+  .aliases(['update', 'up'])
   .description(
     'Upgrade Next.js apps to desired versions with a single command.'
   )
@@ -576,9 +644,23 @@ program
           : 'latest'
   )
   .option('--verbose', 'Verbose output', false)
+  .addOption(
+    new Option(
+      '--agent [type]',
+      'Upgrade with an agent to security, latest, or experimental-future. Defaults to security.'
+    ).conflicts('revision')
+  )
+  // Keep nudge attribution available to agents without exposing it in public help.
+  .addOption(new Option('--internal-nudge-id <id>').hideHelp())
   .action(async (directory, options) => {
     const mod = await import('../cli/next-upgrade.js')
-    mod.spawnNextUpgrade(directory, options)
+    await mod.spawnNextUpgrade(
+      directory,
+      options,
+      options.internalNudgeId !== undefined
+        ? { id: options.internalNudgeId, recipient: 'agent' }
+        : null
+    )
   })
 
 program
@@ -649,6 +731,29 @@ const internal = program
     'Internal debugging commands. Use with caution. Not covered by semver.'
   )
 
+// Agents use the pinned CLI to report completion after the upgrade has changed dependencies.
+internal
+  .command('report-agent-upgrade', { hidden: true })
+  .argument('<run-id>', 'The upgrade run UUID.')
+  .argument('<result>', 'The agent-reported success or failure result.')
+  .action((runId: string, result: string) =>
+    import('../cli/next-upgrade.js').then((mod) =>
+      mod.reportAgentUpgradeAgentResult(runId, result)
+    )
+  )
+
+internal
+  .command('agent-feedback-instructions', { hidden: true })
+  .option(
+    '--dry-run',
+    'Print report preview URLs without opening the review form.'
+  )
+  .action((options: { dryRun?: boolean }) =>
+    import('../cli/internal/agent-feedback-instructions.js').then((mod) =>
+      mod.agentFeedbackInstructionsCli(options)
+    )
+  )
+
 internal
   .command('trace')
   .alias('turbo-trace-server')
@@ -701,17 +806,38 @@ internal
   .addOption(
     new Option(
       '--sort <mode>',
-      'Sort mode: "value" for corrected duration descending, "name" for alphabetical.'
-    ).choices(['value', 'name'])
+      'Sort mode: "value" for corrected duration descending, "name" for alphabetical, "allocations" for total allocated bytes descending, "persistent-allocations" for persistentAllocations descending.'
+    ).choices(['value', 'name', 'allocations', 'persistent-allocations'])
   )
   .addOption(
-    new Option('--search <search>', 'Substring filter on span name/category.')
+    new Option(
+      '--search <search>',
+      'Substring filter on span name/category. Searches the whole subtree below --parent.'
+    )
+  )
+  .addOption(
+    new Option(
+      '--max-depth <depth>',
+      'Levels to descend for --search and --depth (default 32, also the cap).'
+    ).argParser(parseValidPositiveInteger)
+  )
+  .addOption(
+    new Option(
+      '--depth <depth>',
+      'Levels of descendants to nest inline under each span (default 1).'
+    ).argParser(parseValidPositiveInteger)
   )
   .addOption(new Option('--json', 'Output as JSON instead of markdown.'))
   .addOption(
     new Option('--page <page>', 'Page number (1-based, default 1).').argParser(
       parseValidPositiveInteger
     )
+  )
+  .addOption(
+    new Option(
+      '--page-size <size>',
+      'Spans per page (default 20, max 500).'
+    ).argParser(parseValidPositiveInteger)
   )
   .addHelpText('after', ({ command }) => {
     const port = (command.opts() as { port?: number }).port ?? 5748

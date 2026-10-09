@@ -19,17 +19,18 @@ describe.each([
   const tlsOpts =
     useHttps === 'true' ? { rejectUnauthorized: false } : undefined
 
+  // These tests start a custom Next.js server (server.js),
+  // which is not supported in deploy mode.
+  // @force-gate !deploy
   describe('with dynamic assetPrefix', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
       startCommand: 'node server.js',
       serverReadyPattern: /- Local:/,
       env: { USE_HTTPS: useHttps, NODE_ENV: sharedNodeEnv },
       dependencies: sharedDeps,
-      skipDeployment: true,
       disableAutoSkewProtection: true,
     })
-    if (skipped) return
 
     it('should render the custom 404 page for an unmatched request', async () => {
       const response = await fetchViaRawHttp(
@@ -155,8 +156,12 @@ describe.each([
       )
     })
   })
-  ;(isNextDev ? describe.skip : describe)('with generateEtags enabled', () => {
-    const { next, skipped } = nextTestSetup({
+  // These tests start a custom Next.js server (server.js),
+  // which is not supported in deploy mode.
+  // @force-gate !deploy
+  // @force-gate !dev
+  describe('with generateEtags enabled', () => {
+    const { next } = nextTestSetup({
       files: __dirname,
       startCommand: 'node server.js',
       serverReadyPattern: /- Local:/,
@@ -166,10 +171,8 @@ describe.each([
         NODE_ENV: sharedNodeEnv,
       },
       dependencies: sharedDeps,
-      skipDeployment: true,
       disableAutoSkewProtection: true,
     })
-    if (skipped) return
 
     it('response includes etag header', async () => {
       const response = await fetchViaRawHttp(next.url, '/', tlsOpts)
@@ -177,8 +180,11 @@ describe.each([
     })
   })
 
+  // These tests start a custom Next.js server (server.js),
+  // which is not supported in deploy mode.
+  // @force-gate !deploy
   describe('with generateEtags disabled', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
       startCommand: 'node server.js',
       serverReadyPattern: /- Local:/,
@@ -188,10 +194,8 @@ describe.each([
         NODE_ENV: sharedNodeEnv,
       },
       dependencies: sharedDeps,
-      skipDeployment: true,
       disableAutoSkewProtection: true,
     })
-    if (skipped) return
 
     it('response does not include etag header', async () => {
       const response = await fetchViaRawHttp(next.url, '/', tlsOpts)
@@ -200,17 +204,19 @@ describe.each([
   })
 
   if (useHttps === 'false') {
-    ;(isNextDev ? describe : describe.skip)('HMR with custom server', () => {
-      const { next, skipped } = nextTestSetup({
+    // These tests start a custom Next.js server (server.js),
+    // which is not supported in deploy mode.
+    // @force-gate !deploy
+    // @force-gate dev
+    describe('HMR with custom server', () => {
+      const { next } = nextTestSetup({
         files: __dirname,
         startCommand: 'node server.js',
         serverReadyPattern: /- Local:/,
         env: { USE_HTTPS: useHttps, NODE_ENV: sharedNodeEnv },
         dependencies: sharedDeps,
-        skipDeployment: true,
         disableAutoSkewProtection: true,
       })
-      if (skipped) return
 
       it('Should support HMR when rendering with /index pathname', async () => {
         const browser = await next.browser('/test-index-hmr')
@@ -245,17 +251,18 @@ describe.each([
     })
   }
 
+  // These tests start a custom Next.js server (server.js),
+  // which is not supported in deploy mode.
+  // @force-gate !deploy
   describe('Error when rendering without starting slash', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
       startCommand: 'node server.js',
       serverReadyPattern: /- Local:/,
       env: { USE_HTTPS: useHttps, NODE_ENV: sharedNodeEnv },
       dependencies: sharedDeps,
-      skipDeployment: true,
       disableAutoSkewProtection: true,
     })
-    if (skipped) return
     ;(isNextDev ? it : it.skip)('should warn in development mode', async () => {
       const cliOutputBefore = next.cliOutput.length
       const html = await renderViaRawHTTP(next.url, '/no-slash', tlsOpts)
@@ -278,8 +285,11 @@ describe.each([
     })
   })
 
+  // These tests start a custom Next.js server (server.js),
+  // which is not supported in deploy mode.
+  // @force-gate !deploy
   describe('with a custom fetch polyfill', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
       startCommand: 'node server.js',
       serverReadyPattern: /- Local:/,
@@ -288,10 +298,8 @@ describe.each([
         NODE_ENV: sharedNodeEnv,
       },
       dependencies: sharedDeps,
-      skipDeployment: true,
       disableAutoSkewProtection: true,
     })
-    if (skipped) return
 
     it('should serve internal file from render', async () => {
       const html = await renderViaRawHTTP(
@@ -303,17 +311,18 @@ describe.each([
     })
   })
 
+  // These tests start a custom Next.js server (server.js),
+  // which is not supported in deploy mode.
+  // @force-gate !deploy
   describe('unhandled rejection', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
       startCommand: 'node server.js',
       serverReadyPattern: /- Local:/,
       env: { USE_HTTPS: useHttps, NODE_ENV: sharedNodeEnv },
       dependencies: sharedDeps,
-      skipDeployment: true,
       disableAutoSkewProtection: true,
     })
-    if (skipped) return
 
     it('stderr should include error message and stack trace', async () => {
       const cliOutputBefore = next.cliOutput.length
@@ -330,17 +339,18 @@ describe.each([
     })
   })
 
+  // These tests start a custom Next.js server (server.js),
+  // which is not supported in deploy mode.
+  // @force-gate !deploy
   describe('legacy NextCustomServer methods', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
       startCommand: 'node server.js',
       serverReadyPattern: /- Local:/,
       env: { USE_HTTPS: useHttps, NODE_ENV: sharedNodeEnv },
       dependencies: sharedDeps,
-      skipDeployment: true,
       disableAutoSkewProtection: true,
     })
-    if (skipped) return
 
     it('NextCustomServer.renderToHTML', async () => {
       const rawHTML = await renderViaRawHTTP(

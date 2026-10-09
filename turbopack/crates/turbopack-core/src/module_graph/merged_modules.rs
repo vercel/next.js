@@ -534,7 +534,9 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                 if parent_info.is_some_and(|(_, r)| {
                     matches!(
                         r.binding_usage.export,
-                        ExportUsage::All | ExportUsage::PartialNamespaceObject(_)
+                        ExportUsage::All
+                            | ExportUsage::PartialNamespaceObject(_)
+                            | ExportUsage::Passthrough { .. }
                     )
                 }) {
                     // This module needs to be exposed:

@@ -3,7 +3,7 @@ name: build-and-deploy
 
 on:
   push:
-    branches: ['canary']
+    branches: ['canary', 'releases/lts/active', 'releases/lts/maintenance']
     # Run on release tags so publishing is driven by the tag push rather than
     # the release-commit branch push (see the deploy-target step).
     tags:
@@ -68,8 +68,8 @@ jobs:
           corepack enable
       - name: Determine deploy target
         # 'force-preview' performs a full preview build but only if acknowledged i.e. workflow_dispatch
-        # 'automated-preview' for pushes on branches other than 'canary' for integration testing.
-        # 'staging' for canary branch since that will eventually be published i.e. become the production build.
+        # 'automated-preview' for pushes on branches other than the publishable ones for integration testing.
+        # 'staging' for canary and the LTS branches since those will eventually be published i.e. become the production build.
         id: deploy-target
         run: |
           RELEASE_VERSION="$(node ./scripts/check-is-release.js 2> /dev/null || :)"
@@ -108,7 +108,9 @@ jobs:
               fi
               echo "release_environment=$RELEASE_ENVIRONMENT" >> $GITHUB_OUTPUT
             fi
-          elif [ ''"${GIT_REF}"'' == 'refs/heads/canary' ]
+          elif [[ ''"${GIT_REF}"'' == 'refs/heads/canary' ||
+                  ''"${GIT_REF}"'' == 'refs/heads/releases/lts/active' ||
+                  ''"${GIT_REF}"'' == 'refs/heads/releases/lts/maintenance' ]]
           then
             echo "value=staging" >> $GITHUB_OUTPUT
           elif [ '${{ github.event_name }}' == 'workflow_dispatch' ]

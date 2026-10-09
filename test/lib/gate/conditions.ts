@@ -13,8 +13,9 @@
  * ## The two tiers
  *
  * **`staticCondition`** — the value is known before any test runs (run mode,
- * bundler, React version). These are the only conditions `@force-gate` accepts,
- * because a real Jest skip has to be decided while tests are being collected.
+ * bundler, operating system, React version). These are the only conditions
+ * `@force-gate` accepts, because a real Jest skip has to be decided while tests
+ * are being collected.
  *
  * **`lazyCondition`** — a predicate over the *resolved* `next.config` of the
  * fixture the suite booted (`NextInstance.getResolvedConfig()`). The value is
@@ -131,11 +132,27 @@ export const conditions: Record<string, Condition> = {
     'using the wasm SWC binary (`NEXT_TEST_WASM`)',
     () => getGateTestContext().wasm
   ),
+  linux: staticCondition(
+    'running on Linux',
+    () => process.platform === 'linux'
+  ),
+  macos: staticCondition(
+    'running on macOS',
+    () => process.platform === 'darwin'
+  ),
+  windows: staticCondition(
+    'running on Windows',
+    () => process.platform === 'win32'
+  ),
   ci: staticCondition('running in CI (`NEXT_TEST_CI`)', () =>
     Boolean(process.env.NEXT_TEST_CI)
   ),
   adapter: staticCondition('running the adapter test variant', () =>
     Boolean(process.env.NEXT_ENABLE_ADAPTER === '1')
+  ),
+  nodeMiddleware: staticCondition(
+    'running the Node.js middleware test variant (`TEST_NODE_MIDDLEWARE`)',
+    () => Boolean(process.env.TEST_NODE_MIDDLEWARE)
   ),
   standaloneOutput: staticCondition(
     'running the standalone-output test variant (`TEST_OUTPUT_STANDALONE`)',
@@ -162,6 +179,10 @@ export const conditions: Record<string, Condition> = {
   cacheComponents: lazyCondition(
     'Cache Components are enabled for the fixture',
     (config) => config.cacheComponents
+  ),
+  partialPrefetchingGlobal: lazyCondition(
+    'Partial Prefetching is enabled globally for the fixture (does not check `export const prefetch = "partial"`)',
+    (config) => config.partialPrefetching
   ),
   ppr: lazyCondition(
     'partial prerendering is enabled (implied by `cacheComponents`)',

@@ -18,7 +18,11 @@ import os from 'os'
 import { exec } from 'child_process'
 import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
-import { getMemoryRestartStats, RESTART_EXIT_CODE } from './utils'
+import {
+  blockOnOutputWrites,
+  getMemoryRestartStats,
+  RESTART_EXIT_CODE,
+} from './utils'
 import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
 import {
@@ -26,11 +30,13 @@ import {
   PHASE_DEVELOPMENT_SERVER,
 } from '../../shared/lib/constants'
 import {
-  ensureAgentRulesForDev,
   getEnvInfo,
   logExperimentalInfo,
   logStartInfo,
+  syncAgentFeedbackForDev,
+  syncAgentRulesForDev,
 } from './app-info-log'
+import type { AgentFilesResult } from './generate-agent-files'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import {
   type Span,
@@ -43,6 +49,7 @@ import { isIPv6 } from './is-ipv6'
 import { AsyncCallbackSet } from './async-callback-set'
 import type { NextServer } from '../next'
 import { durationToString } from '../../build/duration-to-string'
+import { isCI } from '../ci-info'
 
 const debug = setupDebug('next:start-server')
 let startServerSpan: Span | undefined
@@ -444,7 +451,12 @@ export async function startServer(
                   // Use flushDetached to avoid blocking process exit
                   // Each process writes to a unique file (_events_${pid}.json)
                   // to avoid race conditions with the parent process
-                  telemetry.flushDetached('dev', dir)
+                  telemetry.flushDetached({
+                    mode: 'dev',
+                    dir,
+                    distDir: null,
+                    events: null,
+                  })
                 }
               } catch (_) {
                 // Ignore telemetry errors during cleanup
@@ -508,29 +520,35 @@ export async function startServer(
             partialPrefetching: initResult.partialPrefetching,
           })
 
-          // Auto-generate AGENTS.md / CLAUDE.md when an AI coding agent
-          // is detected but the managed agent-rules block is missing.
-          // Gated on `agentRules` in next.config (default true).
-          if (initResult.agentRules !== false) {
-            const result = await ensureAgentRulesForDev(dir)
-            if (result) {
-              const generated: string[] = []
-              if (
-                result.agentsMd === 'created' ||
-                result.agentsMd === 'updated'
-              )
-                generated.push('AGENTS.md')
-              if (
-                result.claudeMd === 'created' ||
-                result.claudeMd === 'updated'
-              )
-                generated.push('CLAUDE.md')
-              if (generated.length > 0) {
-                Log.event(
-                  `Generated ${generated.join(' and ')} for AI agents. Set \`agentRules: false\` in next.config to disable.`
-                )
-              }
-            }
+          logAgentFileSync(
+            await syncAgentRulesForDev(dir, initResult.agentRules !== false),
+            (files) =>
+              `Generated ${files} for AI agents. Set \`agentRules: false\` in next.config to disable.`,
+            (files) =>
+              `Removed agent rules from ${files} because \`agentRules\` is disabled.`
+          )
+
+          if (!isCI) {
+            const { traceGlobals } =
+              require('../../trace/shared') as typeof import('../../trace/shared')
+            const telemetry = traceGlobals.get('telemetry') as
+              | InstanceType<typeof import('../../telemetry/storage').Telemetry>
+              | undefined
+            const agentFeedbackConfigured = initResult.agentFeedback === true
+            const telemetryEnabled = telemetry?.isEnabled === true
+
+            logAgentFileSync(
+              await syncAgentFeedbackForDev(
+                dir,
+                agentFeedbackConfigured && telemetryEnabled
+              ),
+              (files) =>
+                `Generated agent feedback instructions in ${files}. Set \`experimental.agentFeedback: false\` in next.config to disable.`,
+              (files) =>
+                agentFeedbackConfigured
+                  ? `Removed agent feedback instructions from ${files} because Next.js Telemetry is disabled.`
+                  : `Removed agent feedback instructions from ${files} because \`experimental.agentFeedback\` is disabled.`
+            )
           }
         }
 
@@ -614,6 +632,10 @@ export async function startServer(
 }
 
 if (process.env.NEXT_PRIVATE_WORKER && process.send) {
+  // Output is piped to the CLI to hold it while the upgrade menu is open.
+  if (process.env.NEXT_PRIVATE_PROMPT_OUTPUT === '1') {
+    blockOnOutputWrites()
+  }
   process.addListener('message', async (msg: any) => {
     if (
       msg &&
@@ -675,4 +697,28 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
     }
   })
   process.send({ nextWorkerReady: true })
+}
+
+/**
+ * Report which agent files a managed-block sync touched. Silent when the sync
+ * was a no-op so every `next dev` start doesn't mention the files.
+ */
+function logAgentFileSync(
+  result: AgentFilesResult | null,
+  generatedMessage: (files: string) => string,
+  removedMessage: (files: string) => string
+): void {
+  if (!result) return
+
+  const generated: string[] = []
+  const removed: string[] = []
+  for (const [file, action] of [['AGENTS.md', result.agentsMd]] as const) {
+    if (action === 'created' || action === 'updated') {
+      generated.push(file)
+    } else if (action === 'removed') {
+      removed.push(file)
+    }
+  }
+  if (generated.length > 0) Log.event(generatedMessage(generated.join(' and ')))
+  if (removed.length > 0) Log.event(removedMessage(removed.join(' and ')))
 }

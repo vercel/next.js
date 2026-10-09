@@ -2,6 +2,8 @@ use std::{borrow::Cow, collections::BTreeMap, io::Write, sync::LazyLock};
 
 use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
+use either::Either;
+use itertools::Itertools;
 use next_core::{
     get_next_package,
     next_client_reference::{CssClientReferenceModule, EcmascriptClientReferenceModule},
@@ -9,6 +11,7 @@ use next_core::{
         ActionLayer, ActionManifestModuleId, ActionManifestWorkerEntry,
         ActionManifestWorkerEntryDurability, ServerReferenceManifest,
     },
+    root_param_getters_path,
     util::NextRuntime,
 };
 use swc_core::{
@@ -26,7 +29,7 @@ use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TryFlatJoinIterExt,
-    TryJoinIterExt, ValueToString, Vc, trace::TraceRawVcs, turbofmt,
+    TryJoinIterExt, ValueToString, Vc, turbofmt,
 };
 use turbo_tasks_fs::{self, File, FileContent, FileSystemPath, rope::RopeBuilder};
 use turbo_tasks_hash::{HashAlgorithm, deterministic_hash};
@@ -48,7 +51,7 @@ use turbopack_core::{
     virtual_source::VirtualSource,
 };
 use turbopack_ecmascript::{
-    EcmascriptAnalyzable, EcmascriptParsable, EnvVarInfo,
+    EcmascriptAnalyzable, EcmascriptParsable, EnvVarAccessMode, EnvVarInfo,
     chunk::{EcmascriptChunkItem, EcmascriptChunkItemExt, EcmascriptChunkPlaceable},
     module_fragments::part::module::EcmascriptModulePartAsset,
     parse::ParseResult,
@@ -237,6 +240,9 @@ impl Asset for ServerActionManifestAsset {
         let durable_use_cache_entries = *next_config
             .enable_durable_use_cache_entries(self.project.next_mode())
             .await?;
+        let static_root_param_tracking_enabled = *next_config
+            .enable_use_cache_static_root_param_tracking(self.project.next_mode())
+            .await?;
         let hash_salt = next_config.output_hash_salt();
 
         let loader_id = self.chunk_item.id().await?;
@@ -265,30 +271,14 @@ impl Asset for ServerActionManifestAsset {
         // - next/dist/shared/lib/image-config-context.shared-runtime
         // - next/dist/shared/lib/router-context.shared-runtime
         // - next/dist/shared/lib/server-inserted-html.shared-runtime
-        let app_project = self.project.app_project().await?.unwrap();
-        let next_dir = get_next_package(self.project.project_path().owned().await?).await?;
-        let source_to_ignore = FileSource::new(
-            next_dir.join("dist/server/route-modules/app-page/module.compiled.js")?,
-        );
-        let modules_to_ignore = Vc::cell(
-            [
-                app_project.rsc_module_context(),
-                app_project.route_module_context(),
-            ]
-            .iter()
-            .map(|c| {
-                c.process(Vc::upcast(source_to_ignore), ReferenceType::Undefined)
-                    .module()
-                    .to_resolved()
-            })
-            .try_join()
-            .await?,
-        );
+        let modules_to_ignore = (durable_use_cache_entries || static_root_param_tracking_enabled)
+            .then(|| get_use_cache_modules_to_ignore(*self.project));
 
         struct ActionMetadata<'a> {
             exported_name: &'a str,
             filename: Cow<'a, str>,
             data: Option<ReadRef<ModulesInformation>>,
+            root_param_dependencies: Option<ReadRef<Vec<RcStr>>>,
         }
 
         let action_metadata: Vec<(&str, ActionMetadata<'_>)> = actions_value
@@ -313,7 +303,24 @@ impl Asset for ServerActionManifestAsset {
                             **module,
                             *self.chunking_context,
                             hash_salt,
-                            modules_to_ignore,
+                            modules_to_ignore
+                                .expect("cache metadata collection requires module exclusions"),
+                        )
+                        .await?,
+                    )
+                } else {
+                    None
+                };
+                let root_param_dependencies = if static_root_param_tracking_enabled
+                    && extract_type_from_server_reference_id(hash_id)
+                        == ServerReferenceType::UseCache
+                {
+                    Some(
+                        collect_root_param_dependencies_from_graph(
+                            *self.module_graph,
+                            **module,
+                            modules_to_ignore
+                                .expect("cache metadata collection requires module exclusions"),
                         )
                         .await?,
                     )
@@ -327,6 +334,7 @@ impl Asset for ServerActionManifestAsset {
                         exported_name: &meta.name,
                         filename,
                         data,
+                        root_param_dependencies,
                     },
                 ))
             })
@@ -340,6 +348,7 @@ impl Asset for ServerActionManifestAsset {
                 exported_name,
                 filename,
                 data,
+                root_param_dependencies,
             },
         ) in &action_metadata
         {
@@ -353,8 +362,12 @@ impl Asset for ServerActionManifestAsset {
                         .await?,
                     durability: data.as_ref().map(|d| ActionManifestWorkerEntryDurability {
                         code_hash: d.ident_code_hash.as_str(),
-                        runtime_env_vars: d.runtime_env_vars.as_slice(),
+                        runtime_env_vars_read: d.runtime_env_vars_read.as_slice(),
+                        runtime_env_vars_existence: d.runtime_env_vars_existence.as_slice(),
                     }),
+                    root_param_dependencies: root_param_dependencies
+                        .as_ref()
+                        .map(|names| names.as_slice()),
                 },
             );
 
@@ -405,10 +418,109 @@ pub async fn to_rsc_context(
 #[turbo_tasks::value]
 #[derive(Debug)]
 struct ModulesInformation {
-    /// The combined code hash of all modules in the subgraph
+    /// The combined code hash of all modules in the subgraph.
     pub ident_code_hash: RcStr,
-    /// The merged and deduplicated list of all runtime env vars referenced in the subgraph
-    pub runtime_env_vars: Vec<RcStr>,
+    /// The merged and deduplicated list of all runtime env vars read in the subgraph.
+    pub runtime_env_vars_read: Vec<RcStr>,
+    /// The merged and deduplicated list of runtime env vars used only checked for set/falsy/truthy
+    /// in the subgraph.
+    pub runtime_env_vars_existence: Vec<RcStr>,
+}
+
+#[turbo_tasks::function]
+async fn get_use_cache_modules_to_ignore(project: ResolvedVc<Project>) -> Result<Vc<Modules>> {
+    let app_project = project.app_project().await?.unwrap();
+    let next_dir = get_next_package(project.project_path().owned().await?).await?;
+    let source_to_ignore =
+        FileSource::new(next_dir.join("dist/server/route-modules/app-page/module.compiled.js")?);
+    Ok(Vc::cell(
+        [
+            app_project.rsc_module_context(),
+            app_project.route_module_context(),
+        ]
+        .iter()
+        .map(|c| {
+            c.process(Vc::upcast(source_to_ignore), ReferenceType::Undefined)
+                .module()
+                .to_resolved()
+        })
+        .try_join()
+        .await?,
+    ))
+}
+
+fn collect_cache_modules(
+    graph: &ModuleGraph,
+    entry: ResolvedVc<Box<dyn Module>>,
+    ignored: &[ResolvedVc<Box<dyn Module>>],
+) -> Result<FxIndexSet<ResolvedVc<Box<dyn Module>>>> {
+    let mut modules = FxIndexSet::default();
+    graph.traverse_edges_dfs(
+        std::iter::once(entry),
+        &mut (),
+        |_, target, _| {
+            if ignored.contains(&target) {
+                return Ok(GraphTraversalAction::Exclude);
+            }
+            if ResolvedVc::try_downcast_type::<CssClientReferenceModule>(target).is_some() {
+                // CSS client references do not execute code on the server.
+                return Ok(GraphTraversalAction::Exclude);
+            }
+            if ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(target).is_some() {
+                // Include the proxy, but do not traverse client
+                // implementations.
+                modules.insert(target);
+                return Ok(GraphTraversalAction::Exclude);
+            }
+            modules.insert(target);
+            Ok(GraphTraversalAction::Continue)
+        },
+        |_, _, _| Ok(()),
+        true,
+    )?;
+    Ok(modules)
+}
+
+// Returns the sorted root param dependencies from this cache module's graph. A
+// callable received at runtime can read other root params. The runtime must
+// check reads against this list when it uses the list for upfront cache keys.
+#[turbo_tasks::function]
+async fn collect_root_param_dependencies_from_graph(
+    module_graph: ResolvedVc<ModuleGraph>,
+    entry: ResolvedVc<Box<dyn Module>>,
+    modules_to_ignore: Vc<Modules>,
+) -> Result<Vc<Vec<RcStr>>> {
+    let span = tracing::info_span!(
+        "collect use-cache root param dependencies",
+        entry = display(entry.ident_string().await?)
+    );
+    async {
+        let graph = module_graph.await?;
+        let ignored = modules_to_ignore.await?;
+        let modules = collect_cache_modules(&graph, entry, &ignored)?;
+        let getters_path = root_param_getters_path().await?;
+        let mut names = modules
+            .iter()
+            .map(async |module| {
+                let ident = module.ident().await?;
+                if let Some(filename) = getters_path.get_path_to(&ident.path)
+                    && let Some(name) = filename.strip_suffix(".js")
+                    && !name.is_empty()
+                    && !name.contains('/')
+                {
+                    Ok(Some(RcStr::from(name)))
+                } else {
+                    Ok(None)
+                }
+            })
+            .try_flat_join()
+            .await?;
+        names.sort_unstable();
+        names.dedup();
+        anyhow::Ok(Vc::cell(names))
+    }
+    .instrument(span)
+    .await
 }
 
 #[turbo_tasks::function]
@@ -428,70 +540,7 @@ async fn compute_subtree_content_hash(
         let async_module_info = module_graph.async_module_info();
 
         let modules_to_ignore = modules_to_ignore.await?;
-        let mut modules = FxIndexSet::default();
-        module_graph_value.traverse_edges_dfs(
-            std::iter::once(entry),
-            /* state */ &mut (),
-            /* visit_preorder */
-            |_, target, _| {
-                if modules_to_ignore.contains(&target) {
-                    Ok(GraphTraversalAction::Exclude)
-                } else if ResolvedVc::try_downcast_type::<CssClientReferenceModule>(target)
-                    .is_some()
-                {
-                    // Don't include the module at all. There is nothing that executes on the server
-                    Ok(GraphTraversalAction::Exclude)
-                } else if ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(target)
-                    .is_some()
-                {
-                    // Include the client reference proxy module, but not the referenced client
-                    // modules themselves.
-                    modules.insert(target);
-                    Ok(GraphTraversalAction::Exclude)
-                } else {
-                    modules.insert(target);
-                    Ok(GraphTraversalAction::Continue)
-                }
-            },
-            /* visit_postorder */ |_, _, _| Ok(()),
-            /* include_traced */ true,
-        )?;
-
-        static PRINT_USE_CACHE_SUBTREE: LazyLock<bool> = LazyLock::new(|| {
-            std::env::var_os("TURBOPACK_PRINT_USE_CACHE_SUBTREE")
-                .is_some_and(|v| v == "1" || v == "true")
-        });
-        if *PRINT_USE_CACHE_SUBTREE {
-            println!(
-                "Modules in subtree for {}:\n{}",
-                entry.ident().await?.path,
-                modules
-                    .iter()
-                    .map(async |m| {
-                        let data = module_hash(
-                            *module_graph,
-                            chunking_context,
-                            async_module_info,
-                            **m,
-                            hash_salt,
-                        )
-                        .await?;
-                        Ok(format!(
-                            "  '{}': {} with env: {}",
-                            m.ident_string().await?,
-                            data.ident_code_hash,
-                            data.env_var_info
-                                .as_ref()
-                                .map(|e| e.runtime.clone())
-                                .unwrap_or_default()
-                                .join(",")
-                        ))
-                    })
-                    .try_join()
-                    .await?
-                    .join("\n")
-            );
-        }
+        let modules = collect_cache_modules(&module_graph_value, entry, &modules_to_ignore)?;
 
         let data = modules
             .into_iter()
@@ -511,22 +560,84 @@ async fn compute_subtree_content_hash(
             .try_join()
             .await?;
 
+        static PRINT_USE_CACHE_SUBTREE: LazyLock<bool> = LazyLock::new(|| {
+            std::env::var_os("TURBOPACK_PRINT_USE_CACHE_SUBTREE")
+                .is_some_and(|v| v == "1" || v == "true")
+        });
+        if *PRINT_USE_CACHE_SUBTREE {
+            println!(
+                "Modules in subtree for {}:\n{}",
+                entry.ident().await?.path,
+                data.iter()
+                    .map(async |(m, data)| {
+                        Ok(format!(
+                            "  '{}': {} with env: {}",
+                            m.ident_string().await?,
+                            data.ident_code_hash,
+                            data.env_var_info
+                                .as_ref()
+                                .map(|e| {
+                                    e.runtime
+                                        .iter()
+                                        .map(|(name, mode)| match mode {
+                                            EnvVarAccessMode::Read => format!("read {name}"),
+                                            EnvVarAccessMode::Existence => {
+                                                format!("exists {name}")
+                                            }
+                                        })
+                                        .collect::<Vec<_>>()
+                                })
+                                .unwrap_or_default()
+                                .join(",")
+                        ))
+                    })
+                    .try_join()
+                    .await?
+                    .join("\n")
+            );
+        }
+
         let mut hashes = Vec::with_capacity(data.len());
-        let mut runtime_env_vars = FxIndexSet::default();
+        let mut runtime_env_vars = FxIndexMap::default();
 
         for (_m, data) in &data {
             hashes.push(&data.ident_code_hash);
             if let Some(env) = &data.env_var_info {
-                runtime_env_vars.extend(env.runtime.iter());
+                for (name, mode) in &env.runtime {
+                    match mode {
+                        EnvVarAccessMode::Read => {
+                            // Overwrite
+                            runtime_env_vars.insert(name.clone(), EnvVarAccessMode::Read);
+                        }
+                        EnvVarAccessMode::Existence => {
+                            // Keep EnvVarAccessMode::Read if it already exists
+                            runtime_env_vars
+                                .entry(name.clone())
+                                .or_insert(EnvVarAccessMode::Existence);
+                        }
+                    }
+                }
             }
         }
 
         let hash = deterministic_hash("", hashes, HashAlgorithm::Xxh3Hash128Hex).into();
+        let (mut runtime_read, mut runtime_existence): (Vec<_>, Vec<_>) =
+            runtime_env_vars.into_iter().partition_map(|(name, mode)| {
+                if mode == EnvVarAccessMode::Read {
+                    Either::Left(name)
+                } else {
+                    Either::Right(name)
+                }
+            });
 
+        // Sort for more stable return values (less invalidation)
+        runtime_read.sort_unstable();
+        runtime_existence.sort_unstable();
         anyhow::Ok(
             ModulesInformation {
                 ident_code_hash: hash,
-                runtime_env_vars: runtime_env_vars.into_iter().cloned().collect(),
+                runtime_env_vars_read: runtime_read,
+                runtime_env_vars_existence: runtime_existence,
             }
             .cell(),
         )
@@ -605,10 +716,10 @@ async fn module_hash(
         } else {
             None
         };
-        let code = chunk_item.code(async_info);
+        let factory = chunk_item.code(async_info).await?;
         RcStr::from(deterministic_hash(
             "",
-            (ident_str, code.source_code_hash().await?),
+            (ident_str, factory.code.to_code().source_code_hash().await?),
             HashAlgorithm::Xxh3Hash128Hex,
         ))
     } else {
@@ -654,7 +765,7 @@ impl ServerActionInfoRaw {
 }
 
 /// Simplified action entry for storage in turbo_tasks values
-#[derive(Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub struct ActionEntry {
     pub name: String,
 }
@@ -849,7 +960,7 @@ fn is_turbopack_internal_var(with: &Option<Box<ObjectLit>>) -> bool {
 }
 
 /// Action metadata including name and source path
-#[derive(Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub struct ActionMeta {
     pub name: String,
     /// The original source file path (from entry_path in the action comment)

@@ -10,18 +10,17 @@ use turbo_tasks::{
 
 use crate::backend::{
     operation::{
-        AggregationUpdateJob, AggregationUpdateQueue, ChildExecuteContext, ExecuteContext,
-        Operation, TaskGuard, aggregation_update::InnerOfUppersHasNewFollowersJob,
-        get_aggregation_number, get_uppers, invalidate::make_task_dirty_internal,
-        is_aggregating_node,
+        AggregationUpdateJob, AggregationUpdateQueue, ExecuteContext, TaskGuard,
+        aggregation_update::InnerOfUppersHasNewFollowersJob, get_aggregation_number, get_uppers,
+        invalidate::make_task_dirty_internal, is_aggregating_node,
     },
     storage_schema::TaskStorageAccessors,
 };
 
 pub fn connect_children(
-    ctx: &mut impl ExecuteContext<'_>,
+    ctx: &mut ExecuteContext<'_>,
     parent_task_id: TaskId,
-    mut parent_task: impl TaskGuard,
+    mut parent_task: TaskGuard<'_>,
     new_children: FxHashSet<TaskId>,
     parent_has_active_count: bool,
     should_track_activeness: bool,
@@ -47,7 +46,7 @@ pub fn connect_children(
     drop(parent_task);
 
     fn process_new_children(
-        ctx: &mut impl ExecuteContext<'_>,
+        ctx: &mut ExecuteContext<'_>,
         new_follower_ids: SmallVec<[TaskId; 4]>,
         upper_ids: Option<SmallVec<[TaskId; 4]>>,
         parent_task_id: TaskId,
@@ -60,8 +59,7 @@ pub fn connect_children(
 
         // Single pass over the newly-connected children, two things per child under one guard:
         //
-        // 1. Bump the child-side parent reference count. it is important to do this before any
-        //    suspend points persistence/GC cannot run
+        // 1. Bump the child-side parent reference count before graph propagation.
         //
         // 2. Make any child that has not produced output yet dirty, so it gets scheduled and
         //    computes.
@@ -71,12 +69,16 @@ pub fn connect_children(
             "connect_children parent_count + dirty",
             |mut child, ctx| {
                 // Bump before `make_task_dirty_internal`, which consumes the guard.
-                if !child.id().is_transient() {
-                    if parent_is_transient {
-                        child.update_and_get_transient_ref_count(1);
-                    } else {
-                        child.update_and_get_parent_count(1);
-                    }
+                //
+                // `parent_count` is the *durable* count, so it may only track an edge that will
+                // itself be persisted: a persistent parent holding a persistent child. Every
+                // other combination is session-only and belongs in `transient_ref_count` --
+                // including a transient child, whose incoming edges can never outlive the
+                // session no matter what kind of parent holds them.
+                if parent_is_transient || child.id().is_transient() {
+                    child.update_and_get_transient_ref_count(1);
+                } else {
+                    child.update_and_get_parent_count(1);
                 }
                 if !child.has_output() {
                     make_task_dirty_internal(
@@ -147,21 +149,19 @@ pub fn connect_children(
             });
         }
 
+        #[cfg(any(
+            feature = "trace_task_completion",
+            feature = "trace_aggregation_update_stats"
+        ))]
+        let _span =
+            tracing::trace_span!("connect new children", stats = tracing::field::Empty).entered();
+        #[cfg(feature = "trace_aggregation_update_stats")]
         {
-            #[cfg(any(
-                feature = "trace_task_completion",
-                feature = "trace_aggregation_update_stats"
-            ))]
-            let _span = tracing::trace_span!("connect new children", stats = tracing::field::Empty)
-                .entered();
-            #[cfg(feature = "trace_aggregation_update_stats")]
-            {
-                let stats = queue.execute_with_stats(ctx);
-                _span.record("stats", tracing::field::debug(stats));
-            }
-            #[cfg(not(feature = "trace_aggregation_update_stats"))]
-            queue.execute(ctx);
+            let stats = queue.execute_with_stats(ctx);
+            _span.record("stats", tracing::field::debug(stats));
         }
+        #[cfg(not(feature = "trace_aggregation_update_stats"))]
+        queue.execute(ctx);
     }
 
     // Connecting a child varies a lot, but it's in the range of 10-30µs.
