@@ -42,7 +42,6 @@ use crate::{
     format::FormattingMode,
     internal_assets_for_source_mapping,
     pool_stats::PoolStatsSnapshot,
-    process_pool::NodeJsConnectError,
     source_map::StructuredError,
 };
 
@@ -296,6 +295,37 @@ async fn common_node_env(env: Vc<Box<dyn ProcessEnv>>) -> Result<Vc<EnvMap>> {
         }
     }
     Ok(Vc::cell(filtered))
+}
+
+/// A Node.js process could not connect back to us over the loopback interface.
+///
+/// Backends return this from [`EvaluateOperation::operation`] so that it can be
+/// reported as an actionable issue. This is not a bug in the evaluated code and
+/// retrying will not help, it usually means a sandbox blocks local networking.
+#[derive(Debug)]
+pub struct NodeJsConnectError {
+    /// The error output of the child process, which contains the reason the
+    /// connection failed.
+    pub stderr: String,
+}
+
+impl std::fmt::Display for NodeJsConnectError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "The Node.js child process could not connect to the parent process\n{}",
+            self.stderr
+        )
+    }
+}
+
+impl std::error::Error for NodeJsConnectError {}
+
+impl NodeJsConnectError {
+    /// Finds a [`NodeJsConnectError`] anywhere in the cause chain of `err`.
+    pub fn find(err: &anyhow::Error) -> Option<&Self> {
+        err.chain().find_map(|cause| cause.downcast_ref::<Self>())
+    }
 }
 
 struct PoolErrorHandler;
