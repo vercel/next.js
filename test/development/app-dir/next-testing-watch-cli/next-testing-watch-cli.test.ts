@@ -4,12 +4,54 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { promisify } from 'util'
+import { pathToFileURL } from 'url'
 import config from './next.test.config.json'
 
 const exec = promisify(execFile)
 
 describe('next-testing-watch-cli', () => {
   const { next } = nextTestSetup({ files: __dirname, skipStart: true })
+
+  it.each(['keyboard', 'interrupt'])(
+    'restores a real terminal after public watch %s interactions',
+    async (mode) => {
+      const auditDir = await mkdtemp(join(tmpdir(), 'next-testing-pty-'))
+      try {
+        const { stdout } = await exec(
+          'python3',
+          [
+            join(next.testDir, 'terminal-driver.py'),
+            process.execPath,
+            join(next.testDir, 'node_modules/next/dist/bin/next'),
+            mode,
+          ],
+          {
+            cwd: next.testDir,
+            env: {
+              ...process.env,
+              NODE_ENV: 'development',
+              NODE_OPTIONS: [
+                process.env.NODE_OPTIONS,
+                `--require=${join(next.testDir, 'native-audit.cjs')}`,
+                `--import=${JSON.stringify(pathToFileURL(join(__dirname, '../../../e2e/app-dir/next-testing-package/result-events.cjs')).href)}`,
+              ]
+                .filter(Boolean)
+                .join(' '),
+              NEXT_TEST_EVENT_AUDIT: join(auditDir, 'events.jsonl'),
+              NEXT_TEST_NATIVE_AUDIT: join(auditDir, 'native.jsonl'),
+            },
+            timeout: 170000,
+            maxBuffer: 10 * 1024 * 1024,
+          }
+        )
+        expect(stdout).toContain(
+          mode === 'keyboard' ? 'PTY_WATCH_VERIFIED=' : 'PTY_INTERRUPT_VERIFIED'
+        )
+      } finally {
+        await rm(auditDir, { recursive: true, force: true })
+      }
+    }
+  )
 
   it.each(['hang', 'leak'])(
     'bounds a public CLI %s and reclaims its recorded detached descendant',

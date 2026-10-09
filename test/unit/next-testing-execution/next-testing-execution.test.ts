@@ -41,9 +41,15 @@ describe('compiler-owned mock activation in the real file worker', () => {
     { marked: false, expose: true, status: 'passed' },
     { marked: true, expose: true, status: 'passed' },
     { marked: true, expose: false, status: 'failed' },
+    {
+      marked: false,
+      expose: true,
+      status: 'passed',
+      testNamePattern: '^no match$',
+    },
   ])(
     'handles marker=$marked and runtime=$expose',
-    async ({ marked, expose, status }) => {
+    async ({ marked, expose, status, testNamePattern }) => {
       const rootDir = mkdtempSync(path.join(tmpdir(), 'next-worker-marker-'))
       try {
         copyFileSync(
@@ -93,6 +99,7 @@ describe('compiler-owned mock activation in the real file worker', () => {
             setupFiles: [],
             testTimeout: 1000,
             hookTimeout: 1000,
+            testNamePattern,
             fileTimeout: 5000,
           },
           cacheScope: { type: 'file', directory: path.join(rootDir, 'cache') },
@@ -113,6 +120,22 @@ describe('compiler-owned mock activation in the real file worker', () => {
         expect(messages.find((message) => message.type === 'complete')).toEqual(
           { type: 'complete', result: expect.objectContaining({ status }) }
         )
+        if (testNamePattern) {
+          expect(
+            messages.some(
+              (message) =>
+                message.type === 'event' && message.event.type === 'case-start'
+            )
+          ).toBe(false)
+          expect(
+            messages.some(
+              (message) =>
+                message.type === 'event' &&
+                message.event.type === 'case-end' &&
+                message.event.status === 'skipped'
+            )
+          ).toBe(true)
+        }
         if (!expose)
           expect(JSON.stringify(messages)).toContain(
             'missing its module mocking runtime'
@@ -189,6 +212,7 @@ describe('Next test process ownership', () => {
     'reclaims inherited descendant output pipes on %s',
     async (mode) => {
       const controller = new AbortController()
+      const reporterError = new Error('descendant reporter failed')
       let descendant: number | undefined
       let readyAt = performance.now()
       try {
@@ -201,12 +225,16 @@ describe('Next test process ownership', () => {
             descendant = (message as { descendant: number }).descendant
             readyAt = performance.now()
             if (mode === 'cancel') controller.abort()
-            if (mode === 'reporter')
-              throw new Error('descendant reporter failed')
+            if (mode === 'reporter') throw reporterError
           },
         })
         if (mode === 'reporter') {
-          await expect(completion).rejects.toThrow('descendant reporter failed')
+          const failure = await completion.catch((error) => error)
+          // Show unexpected cleanup errors rather than only an aggregate's
+          // generic message, while still requiring exactly the reporter error.
+          expect(
+            failure instanceof AggregateError ? failure.errors : [failure]
+          ).toEqual([reporterError])
         } else {
           const result = await completion
           expect(result.reason).toBe(

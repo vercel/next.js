@@ -62,10 +62,10 @@ export const testCapabilities = {
     snapshots: {
       default: 'read-only',
       update:
-        'explicit one-shot; staged child bytes and successful authoritative parent exit/cleanup commit',
+        'explicit one-shot or watch u command; staged child bytes and successful authoritative parent exit/cleanup commit',
       unchecked: 'always preserve; no pruning',
       noFinalSnapshotAssertions: 'no write plan or normalization',
-      unsupported: ['browser updates', 'watch updates'],
+      unsupported: ['browser updates', 'automatic watch updates'],
     },
     unsupported: [
       'concurrent/sequential/parameterized/failing/repeated/shuffled test modifiers',
@@ -133,12 +133,12 @@ export const testCapabilities = {
     watch: {
       supported: true,
       scope:
-        'Route-less development Node/RSC on POSIX; fresh runs with conservative full invalidation and owned process cleanup.',
+        'Route-less development Node/RSC on POSIX; fresh runs with conservative full invalidation, owned process cleanup, live terminal progress, and interactive rerun, filter, snapshot update, and quit commands.',
     },
     snapshotUpdate: {
       supported: true,
       scope:
-        'Explicit one-shot Node/RSC update after successful authoritative worker exit and cleanup; unchecked snapshots are preserved.',
+        'Explicit one-shot or watch u command for Node/RSC after successful authoritative worker and generation exit and cleanup; unchecked snapshots are preserved.',
     },
     production: {
       supported: true,

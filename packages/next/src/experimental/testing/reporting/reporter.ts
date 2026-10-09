@@ -28,6 +28,7 @@
 import { isAbsolute, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { stripVTControlCharacters } from 'node:util'
+import { createTestTerminal, type TestTerminal } from './terminal'
 import type {
   CaseResult,
   FileResult,
@@ -51,6 +52,8 @@ export interface TestReporterOptions {
   isTTY?: boolean
   columns?: number
   fileCount?: number
+  terminal?: TestTerminal
+  onError?: (error: unknown) => void
 }
 
 function badge(
@@ -68,14 +71,18 @@ function badge(
 
 export function formatWatchStatus(
   status: 'passed' | 'failed',
-  color = false
+  color = false,
+  interactive = false
 ): string {
   const label = status === 'passed' ? 'PASS' : 'FAIL'
   const message =
     status === 'passed'
       ? 'Waiting for file changes...'
       : 'Tests failed. Watching for file changes...'
-  return `${badge(label, status === 'passed' ? 42 : 41, color)} ${color ? `\x1b[${status === 'passed' ? 32 : 31}m${message}\x1b[39m` : message}\n`
+  const hint = interactive
+    ? '       press h to show help, press q to quit\n'
+    : ''
+  return `${badge(label, status === 'passed' ? 42 : 41, color)} ${color ? `\x1b[${status === 'passed' ? 32 : 31}m${message}\x1b[39m` : message}\n${color && hint ? `\x1b[2m${hint}\x1b[22m` : hint}`
 }
 
 function counts(): ResultCounts {
@@ -161,6 +168,15 @@ export function createTestReporter(options: TestReporterOptions) {
   const attempts = new Map<string, CaseResult>()
   const caseNames = new Map<string, string>()
   const activeAttempts = new Set<string>()
+  const activeCases = new Map<
+    string,
+    Extract<ResultEvent, { type: 'case-start' }>
+  >()
+  let timer: ReturnType<typeof setInterval> | undefined
+  let progressStartedAt: number | undefined
+  let disposed = false
+  let redrawError: { error: unknown } | undefined
+  const terminal = options.terminal ?? createTestTerminal(options)
   const diagnostics: Extract<ResultEvent, { type: 'diagnostic' }>[] = []
   let diagnosticErrors = 0
   let warnings = 0
@@ -173,11 +189,9 @@ export function createTestReporter(options: TestReporterOptions) {
   const paint = (code: number, value: string) =>
     color ? `\x1b[${code}m${value}\x1b[0m` : value
   const write = (text: string) =>
-    options.write(color ? text : stripVTControlCharacters(text))
+    terminal.write(color ? text : stripVTControlCharacters(text))
   const writeError = (text: string) =>
-    (options.writeError ?? options.write)(
-      color ? text : stripVTControlCharacters(text)
-    )
+    terminal.write(color ? text : stripVTControlCharacters(text), 'stderr')
   const statusColor = (status: ResultStatus) =>
     status === 'failed' ? 31 : status === 'passed' ? 32 : 33
   const symbol = (status: ResultStatus, file = false) =>
@@ -415,7 +429,44 @@ export function createTestReporter(options: TestReporterOptions) {
     }
   }
 
-  function onEvent(input: ResultEvent): void {
+  function dispose() {
+    if (disposed) return
+    disposed = true
+    clearInterval(timer)
+    timer = undefined
+    if (options.terminal) terminal.render([])
+    else terminal.dispose()
+  }
+
+  function renderProgress() {
+    if (!options.isTTY || disposed || progressStartedAt === undefined) return
+    const summary = getSummary()
+    const active = [...entries.keys()].filter((id) => !files.has(id))
+    const lines: string[] = ['']
+    for (const id of active.slice(0, 3)) {
+      lines.push(` ❯ ${fileLabel(id)} [running]`)
+      const test = [...activeCases.values()].find((item) => item.entryId === id)
+      if (test) lines.push(`   › ${test.name}`)
+    }
+    if (active.length > 3)
+      lines.push(` … ${active.length - 3} more files running`)
+    const liveState = (state: ResultCounts, total: number) => {
+      const parts = (['failed', 'passed', 'skipped', 'cancelled'] as const)
+        .filter((status) => state[status] || status === 'passed')
+        .map((status) => `${state[status]} ${status}`)
+      return `${parts.join(' | ')} (${total})`
+    }
+    lines.push(
+      '',
+      ` Test Files ${liveState(summary.files, Math.max(options.fileCount ?? 0, entries.size))}`,
+      `      Tests ${liveState(summary.cases, cases.size)}`,
+      `   Start at ${new Date(startedAt!).toTimeString().split(' ')[0]}`,
+      `   Duration ${formatDuration(Date.now() - progressStartedAt)}`
+    )
+    terminal.render(lines)
+  }
+
+  function consumeEvent(input: ResultEvent): void {
     if (input.version !== 1)
       throw new Error('Unsupported test result event version')
     if (runId !== undefined && input.runId !== runId)
@@ -428,6 +479,25 @@ export function createTestReporter(options: TestReporterOptions) {
     switch (event.type) {
       case 'run-start':
         startedAt = event.timestamp
+        progressStartedAt = Date.now()
+        if (options.isTTY) {
+          timer = setInterval(() => {
+            try {
+              renderProgress()
+            } catch (error) {
+              redrawError = { error }
+              try {
+                dispose()
+              } catch {}
+              try {
+                options.onError?.(error)
+              } catch {
+                // The next event rethrows the original redraw failure.
+              }
+            }
+          }, 100)
+          timer.unref?.()
+        }
         write(
           `\n${badge(options.rerun ? 'RERUN' : options.watch ? 'DEV' : 'RUN', options.watch || options.rerun ? 44 : 46, color)} ${paint(2, `Next.js${options.version ? ` v${options.version}` : ''}`)} ${paint(2, projectDir)}\n\n`
         )
@@ -437,6 +507,7 @@ export function createTestReporter(options: TestReporterOptions) {
         break
       case 'case-start':
         activeAttempts.add(attemptKey(event))
+        activeCases.set(attemptKey(event), event)
         caseNames.set(caseKey(event), event.name)
         break
       case 'case-end': {
@@ -444,6 +515,7 @@ export function createTestReporter(options: TestReporterOptions) {
         if (attempts.has(key))
           throw new Error(`Duplicate attempt result: ${context(event)}`)
         activeAttempts.delete(key)
+        activeCases.delete(key)
         attempts.set(key, event)
         caseNames.set(caseKey(event), event.name)
         const keyForRepeat = JSON.stringify([
@@ -487,6 +559,7 @@ export function createTestReporter(options: TestReporterOptions) {
       }
       case 'run-end': {
         ended = event
+        dispose()
         const summary = getSummary()
         printFailures()
         if (summary.status === 'cancelled')
@@ -539,8 +612,27 @@ export function createTestReporter(options: TestReporterOptions) {
     }
   }
 
+  function onEvent(input: ResultEvent): void {
+    if (redrawError) throw redrawError.error
+    try {
+      terminal.suspend()
+      consumeEvent(input)
+      renderProgress()
+      terminal.resume()
+    } catch (error) {
+      try {
+        dispose()
+      } catch {}
+      try {
+        terminal.resume()
+      } catch {}
+      throw error
+    }
+  }
+
   return {
     onEvent,
+    dispose,
     getSummary,
     /** Includes every retry's errors, output and artifact paths in arrival order. */
     getEvents: (): ResultEvent[] => structuredClone(events),

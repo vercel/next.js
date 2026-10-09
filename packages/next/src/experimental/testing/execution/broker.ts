@@ -11,6 +11,7 @@ import type {
 } from '../reporting/events'
 import { serializeDiagnostic } from '../reporting/diagnostics'
 import { executeWithEnvironment } from './execute'
+import type { SnapshotUpdate } from '../assertions/snapshots'
 
 type SerializableOptions = Omit<
   ExecuteTestOptions,
@@ -53,6 +54,12 @@ export type ExecutionBrokerResponse =
 export function createExecutionBrokerHost(options: {
   signal: AbortSignal
   send(message: ExecutionBrokerResponse): Promise<void>
+  /** Explicit parent authorization; plans are committed after generation cleanup. */
+  onSnapshotUpdates?: (
+    entryId: string,
+    file: string,
+    updates: SnapshotUpdate[]
+  ) => Promise<void>
 }) {
   const active = new Map<
     string,
@@ -135,7 +142,7 @@ export function createExecutionBrokerHost(options: {
         try {
           if (
             message.options.coverage ||
-            message.options.updateSnapshots ||
+            (message.options.updateSnapshots && !options.onSnapshotUpdates) ||
             message.options.browser ||
             message.artifact.profile.environment === 'browser'
           ) {
@@ -158,7 +165,15 @@ export function createExecutionBrokerHost(options: {
                 }).catch(() => {})
               },
             },
-            { ...message.env }
+            { ...message.env },
+            options.onSnapshotUpdates
+              ? (file, updates) =>
+                  options.onSnapshotUpdates!(
+                    message.artifact.entryId,
+                    file,
+                    updates
+                  )
+              : undefined
           )
           executing = false
           // Ordered delivery keeps all output/cleanup events before the result.

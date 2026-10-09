@@ -26,7 +26,11 @@ export const execute: ExecuteTest = (artifact, options) =>
 export async function executeWithEnvironment(
   artifact: CompiledTestArtifact,
   options: ExecuteTestOptions,
-  environment: NodeJS.ProcessEnv
+  environment: NodeJS.ProcessEnv,
+  deferSnapshotUpdates?: (
+    file: string,
+    updates: SnapshotUpdate[]
+  ) => Promise<void>
 ): Promise<FileResult> {
   const started = performance.now()
   const { onEvent, onCoverage, signal, ...workerOptions } = options
@@ -47,9 +51,8 @@ export async function executeWithEnvironment(
     revision: artifact.revision,
   })
   if (options.testNamePattern !== undefined) {
-    throw new Error(
-      'Name filtering is not supported by this execution host yet.'
-    )
+    // Validate before starting a worker or evaluating application code.
+    new RegExp(options.testNamePattern)
   }
   if (
     options.updateSnapshots &&
@@ -186,9 +189,13 @@ export async function executeWithEnvironment(
     !signal.aborted
   ) {
     try {
-      await commitSnapshotUpdates(options.entry.file, snapshotUpdates, {
-        signal,
-      })
+      if (deferSnapshotUpdates) {
+        await deferSnapshotUpdates(options.entry.file, snapshotUpdates)
+      } else {
+        await commitSnapshotUpdates(options.entry.file, snapshotUpdates, {
+          signal,
+        })
+      }
     } catch (error) {
       if (signal.aborted && error === signal.reason) {
         result = { ...result, status: 'cancelled' }
