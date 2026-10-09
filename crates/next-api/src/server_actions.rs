@@ -269,6 +269,7 @@ impl Asset for ServerActionManifestAsset {
         // - next/dist/shared/lib/head-manager-context.shared-runtime
         // - next/dist/shared/lib/hooks-client-context.shared-runtime
         // - next/dist/shared/lib/image-config-context.shared-runtime
+        // - next/dist/shared/lib/inlined-css-context.shared-runtime
         // - next/dist/shared/lib/router-context.shared-runtime
         // - next/dist/shared/lib/server-inserted-html.shared-runtime
         let modules_to_ignore = (durable_use_cache_entries || static_root_param_tracking_enabled)
