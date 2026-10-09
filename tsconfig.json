@@ -35,6 +35,7 @@
     "scripts/**/*.cjs",
     "scripts/**/*.mjs",
     "scripts/**/*.ts",
+    "turbopack/crates/turbopack-node/js/src/loader-runner.d.ts",
     "turbo/**/*.ts",
     "evals/next-upgrade/runner/**/*.ts",
     "evals/next-upgrade/verifier/verify.ts"
