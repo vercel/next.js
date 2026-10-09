@@ -97,8 +97,7 @@ async fn main_inner(args: Arguments) -> Result<()> {
             .context("Unable to create .turbopack directory")
             .unwrap();
         let trace_file = internal_dir.join("trace.log");
-        let trace_writer = std::fs::File::create(trace_file).unwrap();
-        let (trace_writer, guard) = TraceWriter::new(trace_writer);
+        let (trace_writer, guard) = TraceWriter::new(trace_file, Default::default()).unwrap();
         let subscriber = subscriber.with(RawTraceLayer::new(trace_writer));
 
         exit_handler

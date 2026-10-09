@@ -41,7 +41,6 @@ bincode = { workspace = true }
 console-subscriber = { workspace = true, optional = true }
 dhat = { workspace = true, optional = true }
 flate2 = { workspace = true }
-zstd = { workspace = true }
 futures-util = { workspace = true }
 owo-colors = { workspace = true }
 napi = { workspace = true }

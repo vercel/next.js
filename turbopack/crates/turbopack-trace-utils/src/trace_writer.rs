@@ -1,9 +1,43 @@
-use std::{debug_assert, io::Write, sync::Arc, thread::JoinHandle, time::Duration};
+use std::{
+    debug_assert,
+    io::{self, Write},
+    num::NonZeroU64,
+    path::Path,
+    sync::Arc,
+    thread::JoinHandle,
+    time::Duration,
+};
 
 use crossbeam_channel::{Receiver, RecvTimeoutError, Sender, TryRecvError, bounded, unbounded};
 use crossbeam_utils::CachePadded;
+use flate2::{Compression, write::GzEncoder};
 use parking_lot::{Mutex, MutexGuard};
 use thread_local::ThreadLocal;
+
+mod file;
+
+use crate::trace_writer::file::TraceFileWriter;
+pub use crate::trace_writer::file::parse_split_size;
+
+/// Compression format and level for trace file output.
+#[derive(Clone, Copy, Debug)]
+pub enum TraceWriterCompression {
+    /// Gzip with the given compression level.
+    Gzip(Compression),
+    /// Zstd with the given compression level.
+    Zstd(i32),
+}
+
+/// Options for the trace file output. Defaults to a single, uncompressed file.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct TraceWriterOptions {
+    /// Maximum bytes per output part. Parts append `.00000`, `.00001`, etc. to the file path.
+    /// Concatenate them in numeric order to reconstruct the trace stream.
+    pub split_size: Option<NonZeroU64>,
+    /// Compression format and level. When splitting, the size limit applies to compressed bytes,
+    /// including compression finalization.
+    pub compression: Option<TraceWriterCompression>,
+}
 
 type ThreadLocalState = CachePadded<Mutex<Option<TraceInfoBuffer>>>;
 
@@ -58,6 +92,26 @@ pub struct TraceWriter {
 }
 
 impl TraceWriter {
+    /// Create a non-blocking file writer with optional byte-stream splitting and compression.
+    /// The parent directory must already exist. Keep the guard alive until tracing ends; dropping
+    /// it drains buffered data and finalizes compression. Output parts are not standalone traces.
+    pub fn new(
+        path: impl AsRef<Path>,
+        options: TraceWriterOptions,
+    ) -> io::Result<(Self, TraceWriterGuard)> {
+        let writer = TraceFileWriter::new(path.as_ref(), options.split_size)?;
+        Ok(match options.compression {
+            Some(TraceWriterCompression::Gzip(level)) => {
+                Self::from_writer(GzEncoder::new(writer, level))
+            }
+            Some(TraceWriterCompression::Zstd(level)) => {
+                // Complete the zstd frame when the background writer drops its sink on exit.
+                Self::from_writer(zstd::Encoder::new(writer, level)?.auto_finish())
+            }
+            None => Self::from_writer(writer),
+        })
+    }
+
     /// This is a non-blocking writer that writes a file in a background thread.
     /// This is inspired by tracing-appender non_blocking, but has some
     /// differences:
@@ -66,7 +120,9 @@ impl TraceWriter {
     /// * It uses an unbounded channel to avoid slowing down the application at all (memory) cost.
     /// * It issues less writes by buffering the data into chunks of `WRITE_BUFFER_SIZE`, when
     ///   possible.
-    pub fn new<W: Write + Send + 'static>(mut writer: W) -> (Self, TraceWriterGuard) {
+    pub(crate) fn from_writer<W: Write + Send + 'static>(
+        mut writer: W,
+    ) -> (Self, TraceWriterGuard) {
         let (data_tx, data_rx) = unbounded::<Option<TraceInfoBuffer>>();
         let (return_tx, return_rx) = bounded::<TraceInfoBuffer>(1024);
         let thread_locals: Arc<ThreadLocal<ThreadLocalState>> = Default::default();
@@ -330,7 +386,7 @@ mod tests {
 
     fn with_writer(f: impl FnOnce(&TraceWriter)) -> Vec<u8> {
         let buffer = SharedBuffer::default();
-        let (writer, guard) = TraceWriter::new(buffer.clone());
+        let (writer, guard) = TraceWriter::from_writer(buffer.clone());
         f(&writer);
         drop(writer);
         drop(guard);

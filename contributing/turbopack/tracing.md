@@ -43,7 +43,7 @@ NEXT_TURBOPACK_TRACING=1 NEXT_TURBOPACK_TRACING_SPLIT=100m pnpm next dev
 
 This writes `.next-profiles/trace-turbopack.bin.00000`, `.next-profiles/trace-turbopack.bin.00001`, and so on, each at most 100,000,000 bytes. If `NEXT_TURBOPACK_TRACING_PATH` is set, its value is used as the filename prefix instead.
 
-The files are byte-stream parts, not independently readable traces. Concatenate them in numeric order before using the viewer or other trace tools. When `gz` or `gz-best` is enabled, the limit applies to compressed bytes; concatenate the parts before decompressing or viewing. `NEXT_TURBOPACK_TRACE_SERVER` is skipped with a notice in split mode because the live server expects a single trace file.
+The files are byte-stream parts, not independently readable traces. Concatenate them in numeric order before using the viewer or other trace tools. When gzip or zstd compression is enabled, the limit applies to compressed bytes; concatenate the parts before decompressing or viewing. `NEXT_TURBOPACK_TRACE_SERVER` is skipped with a notice in split mode because the live server expects a single trace file.
 
 Use a fresh output prefix or remove old parts before starting another capture: like `split`, this does not remove higher-numbered files left over from an earlier, larger trace.
 

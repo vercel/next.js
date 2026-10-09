@@ -563,7 +563,7 @@ pub(crate) mod tests {
     pub(crate) fn capture(options: RawTraceLayerOptions, f: impl FnOnce()) -> Vec<u8> {
         FAKE_TIME_STEP.with(|s| s.set(1));
         let buffer = SharedBuffer::default();
-        let (trace_writer, guard) = TraceWriter::new(buffer.clone());
+        let (trace_writer, guard) = TraceWriter::from_writer(buffer.clone());
         let mut layer = RawTraceLayer::with_options(trace_writer, options);
         layer.allocation_counters = fake_allocation_counters;
         layer.clock = fake_clock;

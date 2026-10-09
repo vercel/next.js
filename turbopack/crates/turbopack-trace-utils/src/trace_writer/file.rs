@@ -6,7 +6,7 @@ use std::{
 };
 
 /// Parse a positive byte count with an optional decimal k, m, or g suffix.
-pub(crate) fn parse_split_size(value: &str) -> Option<NonZeroU64> {
+pub fn parse_split_size(value: &str) -> Option<NonZeroU64> {
     let (digits, multiplier) = match value.as_bytes().last() {
         Some(b'k') => (&value[..value.len() - 1], 1_000),
         Some(b'm') => (&value[..value.len() - 1], 1_000_000),
@@ -104,9 +104,9 @@ mod tests {
     };
 
     use flate2::{Compression, read::GzDecoder, write::GzEncoder};
-    use turbopack_trace_utils::trace_writer::TraceWriter;
 
     use super::{TraceFileWriter, parse_split_size, part_path};
+    use crate::trace_writer::{TraceWriter, TraceWriterCompression, TraceWriterOptions};
 
     struct TestDir(PathBuf);
 
@@ -288,8 +288,14 @@ mod tests {
         for size in [1, 7, 16] {
             let dir = TestDir::new();
             let path = dir.path();
-            let sink = TraceFileWriter::new(&path, NonZeroU64::new(size)).unwrap();
-            let (writer, guard) = TraceWriter::new(sink);
+            let (writer, guard) = TraceWriter::new(
+                &path,
+                TraceWriterOptions {
+                    split_size: NonZeroU64::new(size),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
             {
                 let mut buffer = writer.start_write();
                 buffer.extend(b"buffered trace data");
@@ -301,10 +307,85 @@ mod tests {
     }
 
     #[test]
+    fn configured_writer_preserves_raw_gzip_and_zstd_streams() {
+        let data: Vec<u8> = (0..4096).map(|i| (i * 37) as u8).collect();
+        let mut expected = b"TRACEv0".to_vec();
+        expected.extend_from_slice(&data);
+        for compression in [
+            None,
+            Some(TraceWriterCompression::Gzip(Compression::fast())),
+            Some(TraceWriterCompression::Gzip(Compression::best())),
+            Some(TraceWriterCompression::Zstd(1)),
+            Some(TraceWriterCompression::Zstd(3)),
+            Some(TraceWriterCompression::Zstd(19)),
+        ] {
+            for split_size in [
+                None,
+                NonZeroU64::new(1),
+                NonZeroU64::new(7),
+                NonZeroU64::new(100),
+            ] {
+                let dir = TestDir::new();
+                let path = dir.path();
+                let options = TraceWriterOptions {
+                    split_size,
+                    compression,
+                };
+                let (writer, guard) = TraceWriter::new(&path, options).unwrap();
+                {
+                    let mut buffer = writer.start_write();
+                    buffer.extend(&data);
+                }
+                drop(guard);
+                let output = if let Some(size) = split_size {
+                    read_parts(&path, size.get()).0
+                } else {
+                    assert_eq!(fs::read_dir(&dir.0).unwrap().count(), 1);
+                    fs::read(&path).unwrap()
+                };
+                let decoded = match compression {
+                    Some(TraceWriterCompression::Gzip(_)) => {
+                        let mut decoded = Vec::new();
+                        GzDecoder::new(output.as_slice())
+                            .read_to_end(&mut decoded)
+                            .unwrap();
+                        decoded
+                    }
+                    Some(TraceWriterCompression::Zstd(_)) => {
+                        zstd::decode_all(output.as_slice()).unwrap()
+                    }
+                    None => output,
+                };
+                assert_eq!(decoded, expected);
+            }
+        }
+    }
+
+    #[test]
+    fn configured_writer_defaults_to_one_uncompressed_file() {
+        let dir = TestDir::new();
+        let path = dir.path();
+        let (writer, guard) = TraceWriter::new(&path, TraceWriterOptions::default()).unwrap();
+        writer.start_write().extend(b"trace data");
+        drop(guard);
+        assert_eq!(fs::read(&path).unwrap(), b"TRACEv0trace data");
+        assert_eq!(fs::read_dir(&dir.0).unwrap().count(), 1);
+    }
+
+    #[test]
     fn missing_output_directory_is_reported() {
         let dir = TestDir::new();
         let path = dir.0.join("missing/trace.bin");
-        assert!(TraceFileWriter::new(&path, NonZeroU64::new(7)).is_err());
-        assert!(TraceFileWriter::new(&path, None).is_err());
+        assert!(TraceWriter::new(&path, TraceWriterOptions::default()).is_err());
+        assert!(
+            TraceWriter::new(
+                &path,
+                TraceWriterOptions {
+                    split_size: NonZeroU64::new(7),
+                    compression: Some(TraceWriterCompression::Gzip(Compression::fast())),
+                }
+            )
+            .is_err()
+        );
     }
 }
