@@ -37,7 +37,6 @@ describe('non-root-project-monorepo', () => {
     buildCommand: 'pnpm build',
     startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
     installCommand: 'pnpm i',
-    env: { ENABLE_EXPERIMENTAL_COREPACK: '1' },
   })
 
   function sourceFileUrl(file: string) {

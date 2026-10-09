@@ -1,14 +1,12 @@
 import { nextTestSetup } from 'e2e-utils'
 
-// vercel.json uses pnpm so file: dependencies are installed inside node_modules.
-// npm links them to fixture source, which is transpiled without transpilePackages.
+// pnpm installs file: dependencies inside node_modules. npm would link them to
+// fixture source, which is transpiled without transpilePackages.
 describe('transpile-packages-typescript-foreign', () => {
   describe('without transpilePackages', () => {
     const { next, isNextDev } = nextTestSetup({
       files: __dirname,
       skipStart: true,
-      // Use the fixture's packageManager version rather than Vercel's default pnpm.
-      env: { ENABLE_EXPERIMENTAL_COREPACK: '1' },
       dependencies: {
         pkg: `file:./pkg`,
       },
@@ -44,7 +42,6 @@ Module parse failed: Unexpected token`)
   describe('with transpilePackages', () => {
     const { next } = nextTestSetup({
       files: __dirname,
-      env: { ENABLE_EXPERIMENTAL_COREPACK: '1' },
       dependencies: {
         pkg: `file:./pkg`,
       },
