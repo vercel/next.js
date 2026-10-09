@@ -533,6 +533,11 @@ export function setHooks(newHooks: typeof hooks) {
 }
 
 function handleSocketMessage(msg: ServerMessage) {
+  if (msg.type === 'subscribed') {
+    // Readiness must not clear real issues or manufacture a Fast Refresh cycle.
+    triggerUpdate(msg)
+    return
+  }
   sortIssues(msg.issues)
 
   handleIssues(msg)
