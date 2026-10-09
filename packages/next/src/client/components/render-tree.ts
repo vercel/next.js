@@ -1787,6 +1787,7 @@ async function fetchMissingDynamicData(
         now,
         result.flightResponse,
         result.isResponsePartial,
+        result.responseChunks,
         dynamicRequestTree,
         result.renderedSearch,
         map
