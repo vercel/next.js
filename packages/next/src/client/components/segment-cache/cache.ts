@@ -45,6 +45,7 @@ import {
   getFulfilledRouteVaryPath,
   getFulfilledSegmentVaryPath,
   getSegmentVaryPathForRequest,
+  getStaticSegmentVaryPathForRequest,
   getShellSegmentVaryPath,
   cloneVaryPathWithNewSearchParams,
   getPartialVaryPath,
@@ -931,44 +932,40 @@ export function readOrCreateSegmentCacheEntry(
   // The map the calling task operates in (`PrefetchTask.segmentCacheMap`,
   // captured when the task was scheduled).
   map: CacheMap<SegmentCacheEntry>,
-  fetchStrategy: FetchStrategy,
-  tree: RouteTree<RSCSegmentData | null>
+  // The vary path to read from (see getSegmentVaryPathForRequest). A shell
+  // prefetch reads from the shell vary path, because that's where its request
+  // writes. If it read from the concrete path, it might find a deeper entry
+  // for this URL and check the wrong one. Everything else reads from the
+  // concrete path, which still finds entries stored under a more generic key.
+  varyPath: VaryPath,
+  // The vary path to store a new entry under, which is the request's own.
+  varyPathForRequest: VaryPath
 ): SegmentCacheEntry {
-  // A shell walk asks for the shell, so it reads at the shell vary path,
-  // where its request writes. The concrete path could return a deeper entry
-  // for this URL, and the walk would judge the wrong entry. Other walks read
-  // at the concrete path, which also reaches entries stored at a more
-  // generic key through Fallback matching.
   const existingEntry = getFromCacheMap(
     now,
     getCurrentSegmentCacheVersion(),
     map,
-    fetchStrategy === FetchStrategy.StaticShell ||
-      fetchStrategy === FetchStrategy.RuntimeShell
-      ? tree.shellVaryPath
-      : tree.varyPath,
+    varyPath,
     false,
     false
   )
   if (existingEntry !== null) {
     return existingEntry
   }
-  return insertEmptySegmentCacheEntry(now, map, fetchStrategy, tree)
+  return insertEmptySegmentCacheEntry(now, map, varyPathForRequest)
 }
 
 /**
  * Creates an empty segment cache entry and inserts it into the cache, keyed
- * at the vary path a request made with the given fetch strategy is stored
- * under. The stale time is set to a default value; the actual stale time will
- * be set when the entry is fulfilled with data from the server response.
+ * at the vary path the request's pending entry is stored under. The stale time
+ * is set to a default value; the actual stale time will be set when the entry
+ * is fulfilled with data from the server response.
  */
 function insertEmptySegmentCacheEntry(
   now: number,
   map: CacheMap<SegmentCacheEntry>,
-  fetchStrategy: FetchStrategy,
-  tree: RouteTree<RSCSegmentData | null>
+  varyPathForRequest: VaryPath
 ): EmptySegmentCacheEntry {
-  const varyPathForRequest = getSegmentVaryPathForRequest(fetchStrategy, tree)
   const emptyEntry = createDetachedSegmentCacheEntry(now)
   const isRevalidation = false
   setInCacheMap(map, varyPathForRequest, emptyEntry, isRevalidation)
@@ -979,8 +976,10 @@ export function readOrCreateRevalidatingSegmentEntry(
   now: number,
   // The map the calling task operates in (`PrefetchTask.segmentCacheMap`).
   map: CacheMap<SegmentCacheEntry>,
-  fetchStrategy: FetchStrategy,
-  tree: RouteTree<RSCSegmentData | null>
+  // The vary path to read from; see readOrCreateSegmentCacheEntry.
+  varyPath: VaryPath,
+  // Where to store the revalidation: the request's own vary path.
+  varyPathForRequest: VaryPath
 ): SegmentCacheEntry {
   // This function is called when we've already confirmed that a particular
   // segment is cached, but we want to perform another request anyway in case it
@@ -1009,22 +1008,13 @@ export function readOrCreateRevalidatingSegmentEntry(
   // return a less generic entry upon revalidation. For now, though, this isn't
   // a concern because the keypath is based solely on the prefetch strategy,
   // not on data contained in the response.
-  // Read at the same vary path as readOrCreateSegmentCacheEntry.
-  const existingEntry = readRevalidatingSegmentCacheEntry(
-    now,
-    map,
-    fetchStrategy === FetchStrategy.StaticShell ||
-      fetchStrategy === FetchStrategy.RuntimeShell
-      ? tree.shellVaryPath
-      : tree.varyPath
-  )
+  const existingEntry = readRevalidatingSegmentCacheEntry(now, map, varyPath)
   if (existingEntry !== null) {
     return existingEntry
   }
   // Create a pending entry and add it to the cache. The stale time is set to a
   // default value; the actual stale time will be set when the entry is
   // fulfilled with data from the server response.
-  const varyPathForRequest = getSegmentVaryPathForRequest(fetchStrategy, tree)
   const pendingEntry = createDetachedSegmentCacheEntry(now)
   const isRevalidation = true
   setInCacheMap(map, varyPathForRequest, pendingEntry, isRevalidation)
@@ -1035,15 +1025,14 @@ export function overwriteRevalidatingSegmentCacheEntry(
   now: number,
   // The map the calling task operates in (`PrefetchTask.segmentCacheMap`).
   map: CacheMap<SegmentCacheEntry>,
-  fetchStrategy: FetchStrategy,
-  tree: RouteTree<RSCSegmentData | null>
+  // Where to store the revalidation: the request's own vary path.
+  varyPathForRequest: VaryPath
 ) {
   // This function is called when we've already decided to replace an existing
   // revalidation entry. Create a new entry and write it into the cache,
   // overwriting the previous value. The stale time is set to a default value;
   // the actual stale time will be set when the entry is fulfilled with data
   // from the server response.
-  const varyPathForRequest = getSegmentVaryPathForRequest(fetchStrategy, tree)
   const pendingEntry = createDetachedSegmentCacheEntry(now)
   const isRevalidation = true
   setInCacheMap(map, varyPathForRequest, pendingEntry, isRevalidation)
@@ -1058,6 +1047,10 @@ export function overwriteRevalidatingSegmentCacheEntry(
  * whether an upsert may replace the entry at its own keypath, and when
  * deciding whether an entry at a more specific keypath may be evicted because
  * it shadows a just-inserted candidate (see `evictShadowingSegmentEntries`).
+ *
+ * When exactly one of the two entries is non-partial, it wins, whatever
+ * strategy fetched it: it has nothing left to fetch. Otherwise the entry
+ * fetched with the more specific strategy wins.
  *
  * Note that "less/more specific" in the comments below refers to fetch
  * strategy content tiers (how much content a strategy can produce), not the
@@ -1075,18 +1068,18 @@ function isExistingSegmentEntryPreferred(
     // in favor of an entry with nothing in it.)
     return false
   }
+  if (existingEntry.isPartial !== candidateEntry.isPartial) {
+    return !existingEntry.isPartial
+  }
+  // We fetched the new segment using a different, less specific fetch
+  // strategy than the segment we already have in the cache, so it can't have
+  // more content.
   return (
-    // We fetched the new segment using a different, less specific fetch
-    // strategy than the segment we already have in the cache, so it can't
-    // have more content.
-    (candidateEntry.fetchStrategy !== existingEntry.fetchStrategy &&
-      !canNewFetchStrategyProvideMoreContent(
-        existingEntry.fetchStrategy,
-        candidateEntry.fetchStrategy
-      )) ||
-    // The existing entry isn't partial, but the new one is.
-    // (TODO: can this be true if `candidateEntry.fetchStrategy >= existingEntry.fetchStrategy`?)
-    (!existingEntry.isPartial && candidateEntry.isPartial)
+    candidateEntry.fetchStrategy !== existingEntry.fetchStrategy &&
+    !canNewFetchStrategyProvideMoreContent(
+      existingEntry.fetchStrategy,
+      candidateEntry.fetchStrategy
+    )
   )
 }
 
@@ -3575,11 +3568,22 @@ function writeSegmentDataIntoCache(
   // keying (this is load-bearing for entries spawned as revalidations:
   // without the re-key they'd stay in their Revalidation slot forever,
   // invisible to canonical reads, and the partial entry that prompted the
-  // revalidation would keep serving navigations).
-  const canonicalVaryPath =
-    fulfilledVaryPath !== null
-      ? fulfilledVaryPath
-      : getSegmentVaryPathForRequest(payloadStrategy, tree)
+  // revalidation would keep serving navigations). Only a Full or PPRRuntime
+  // response can vary on search params.
+  let canonicalVaryPath: VaryPath
+  if (fulfilledVaryPath !== null) {
+    canonicalVaryPath = fulfilledVaryPath
+  } else if (
+    payloadStrategy === FetchStrategy.Full ||
+    payloadStrategy === FetchStrategy.PPRRuntime
+  ) {
+    canonicalVaryPath = getSegmentVaryPathForRequest(payloadStrategy, tree)
+  } else {
+    canonicalVaryPath = getStaticSegmentVaryPathForRequest(
+      payloadStrategy,
+      tree
+    )
+  }
 
   // We should only write into cache entries that are owned by us. Or create
   // a new one and write into that. We must never write over an entry that was

@@ -214,19 +214,16 @@ export function getSegmentVaryPathForRequest<TData>(
   tree: RouteTree<TData>
 ): VaryPath {
   // This is used for storing pending requests in the cache. We want to choose
-  // the most generic vary path based on the strategy used to fetch it, i.e.
-  // static/PPR versus runtime prefetching, so that it can be reused as much
-  // as possible.
+  // the most generic vary path based on the strategy used to fetch it, so
+  // that it can be reused as much as possible.
   //
   // We may be able to re-key the response to something even more generic once
   // we receive it — for example, if the server tells us that the response
   // doesn't vary on a particular param — but even before we send the request,
-  // we know some params are reusable based on the fetch strategy alone. For
-  // example, a static prefetch will never vary on search params.
+  // we know some params are reusable based on the fetch strategy alone.
   //
   // The original vary path with all the params filled in is stored on the
-  // route tree object. We will clone this one to create a new vary path
-  // where certain params are replaced with Fallback.
+  // route tree object. The shell vary path is precomputed there too.
   //
   // This result of this function is not stored anywhere. It's only used to
   // access the cache a single time.
@@ -234,8 +231,6 @@ export function getSegmentVaryPathForRequest<TData>(
   // TODO: Rather than create a new list object just to access the cache, the
   // plan is to add the concept of a "vary mask". This will represent all the
   // params that can be treated as Fallback. (Or perhaps the inverse.)
-  const originalVaryPath = tree.varyPath
-
   if (
     fetchStrategy === FetchStrategy.RuntimeShell ||
     fetchStrategy === FetchStrategy.StaticShell
@@ -249,36 +244,43 @@ export function getSegmentVaryPathForRequest<TData>(
     // params keep their concrete value).
     return tree.shellVaryPath
   }
+  return tree.varyPath
+}
 
+/**
+ * The vary path a pending entry is stored under when its response never
+ * varies on search params: every strategy except Full and PPRRuntime. Like
+ * getSegmentVaryPathForRequest, except that the entry can be reused across
+ * all possible search param values.
+ */
+export function getStaticSegmentVaryPathForRequest<TData>(
+  fetchStrategy: FetchStrategy,
+  tree: RouteTree<TData>
+): VaryPath {
+  if (
+    fetchStrategy === FetchStrategy.RuntimeShell ||
+    fetchStrategy === FetchStrategy.StaticShell
+  ) {
+    return tree.shellVaryPath
+  }
   // The vary path includes a search params entry only when the segment varies
   // on search params.
+  const originalVaryPath = tree.varyPath
   const searchParamsVaryPath = originalVaryPath.parent
   if (
     searchParamsVaryPath !== null &&
     searchParamsVaryPath.id === SEARCH_PARAMS_VARY_ID
   ) {
-    // Only a runtime prefetch will include search params in the vary path.
-    // Static prefetches never include search params, so they can be reused
-    // across all possible search param values.
-    const doesVaryOnSearchParams =
-      fetchStrategy === FetchStrategy.Full ||
-      fetchStrategy === FetchStrategy.PPRRuntime
-
-    if (!doesVaryOnSearchParams) {
-      // The response from the the server will not vary on search params.
-      // Rebuild the vary path with the search params replaced by Fallback.
-      //
-      // requestKey -> searchParams -> pathParams
-      //               ^ This part gets replaced with Fallback
-      return finalizeVaryPath(
-        originalVaryPath.value,
-        Fallback,
-        getPartialVaryPath(originalVaryPath)
-      )
-    }
+    // Rebuild the vary path with the search params replaced by Fallback.
+    //
+    // requestKey -> searchParams -> pathParams
+    //               ^ This part gets replaced with Fallback
+    return finalizeVaryPath(
+      originalVaryPath.value,
+      Fallback,
+      getPartialVaryPath(originalVaryPath)
+    )
   }
-
-  // The request does vary on search params. We don't need to modify anything.
   return originalVaryPath
 }
 

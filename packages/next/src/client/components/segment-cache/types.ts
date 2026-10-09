@@ -71,7 +71,4 @@ export const enum FetchStrategy {
  * until we complete the initial tree prefetch request, so we use `PPR` to signal both cases
  * and adjust it based on the route when actually fetching.
  * */
-export type PrefetchTaskFetchStrategy =
-  | FetchStrategy.PPR
-  | FetchStrategy.PPRRuntime
-  | FetchStrategy.Full
+export type PrefetchTaskFetchStrategy = FetchStrategy.PPR | FetchStrategy.Full
