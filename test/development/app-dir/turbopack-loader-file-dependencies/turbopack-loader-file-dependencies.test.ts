@@ -1,13 +1,38 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'fs'
+import { tmpdir } from 'os'
+import { join } from 'path'
 
 describe('turbopack-loader-file-dependencies', () => {
+  const nativeDependencyDirectory = mkdtempSync(
+    join(realpathSync(tmpdir()), 'loader-build-dependency-')
+  )
+  const nativeDependency = join(nativeDependencyDirectory, 'addon.node')
+  writeFileSync(nativeDependency, 'native-one')
+
   const { next } = nextTestSetup({
     files: __dirname,
+    env: {
+      // Do not let optional loader dependencies resolve from the repository's pnpm installation.
+      NODE_PATH: '',
+      DYNAMIC_BUILD_DEPENDENCY: './tracking/dynamic.js',
+      NATIVE_BUILD_DEPENDENCY: nativeDependency,
+    },
     dependencies: {
       'build-dependency-esm-package': 'file:./build-dependency-esm-package',
       'build-dependency-package': 'file:./build-dependency-package',
+      'directory-only-package': 'file:./directory-only-package',
+      'tracking-package': 'file:./tracking-package',
+      postcss: '8.5.28',
+      'postcss-loader': '8.2.1',
+      stylus: '0.64.0',
+      'stylus-loader': '9.0.0',
     },
+  })
+
+  afterAll(() => {
+    rmSync(nativeDependencyDirectory, { recursive: true, force: true })
   })
 
   it('should update when the dependency file changes', async () => {
@@ -25,6 +50,15 @@ describe('turbopack-loader-file-dependencies', () => {
       const newText = $2('p').text()
       expect(newText).not.toBe(initialText)
     })
+  })
+
+  it('does not warn for a loaded native dependency outside the configured roots', async () => {
+    const outputIndex = next.cliOutput.length
+    const $ = await next.render$('/native')
+    expect($('p').text()).toBe('native-one')
+    expect(next.cliOutput.slice(outputIndex)).not.toMatch(
+      /Unable to resolve webpack loader build dependency|Resolver error/
+    )
   })
 
   it('should update when a missing dependency is created', async () => {
@@ -59,6 +93,58 @@ describe('turbopack-loader-file-dependencies', () => {
         }, 10000)
       }
     )
+  })
+
+  it('should support build dependencies from postcss-loader', async () => {
+    const $ = await next.render$('/')
+    expect($('#postcss-output').text()).toContain('postcss-one')
+  })
+
+  // @force-gate turbopack
+  it('updates when a postcss-loader build dependency changes', async () => {
+    await next.render$('/')
+    await next.patchFile(
+      'utils/postcss-build-dependency.txt',
+      'postcss-two',
+      async () => {
+        await retry(async () => {
+          const $ = await next.render$('/')
+          expect($('#postcss-output').text()).toContain('postcss-two')
+        })
+      }
+    )
+  })
+
+  it('should support build dependencies from stylus-loader', async () => {
+    const $ = await next.render$('/')
+    expect($('#stylus-output').text()).toContain('stylus-value')
+  })
+
+  it('loads an edited stylus-loader plugin after restarting the dev server', async () => {
+    const $ = await next.render$('/')
+    expect($('#stylus-output').text()).toContain('stylus-value')
+    // Stylus uses import(), whose Node module cache requires a fresh process.
+    await next.stop()
+    await next.patchFile(
+      'stylus-build-dependency-plugin.js',
+      (content) => content.replace('stylus-value', 'stylus-two'),
+      async () => {
+        await next.start()
+        try {
+          await retry(async () => {
+            const $ = await next.render$('/')
+            expect($('#stylus-output').text()).toContain('stylus-two')
+          })
+        } finally {
+          await next.stop()
+        }
+      }
+    )
+    await next.start()
+    await retry(async () => {
+      const $ = await next.render$('/')
+      expect($('#stylus-output').text()).toContain('stylus-value')
+    })
   })
 
   // @force-gate turbopack
@@ -143,5 +229,135 @@ describe('turbopack-loader-file-dependencies', () => {
         }, 10000)
       }
     )
+  })
+
+  it('resolves a package directory build dependency', async () => {
+    const $ = await next.render$('/package-directory')
+    expect($('p').text()).toContain(
+      'package directory build dependency: directory-one'
+    )
+  })
+
+  // @force-gate turbopack
+  it('updates a directory-only package build dependency', async () => {
+    await next.render$('/package-directory')
+    await next.patchFile(
+      'node_modules/directory-only-package/data.txt',
+      'directory-two',
+      async () => {
+        await retry(async () => {
+          const $ = await next.render$('/package-directory')
+          expect($('p').text()).toContain(
+            'package directory build dependency: directory-two'
+          )
+        })
+      }
+    )
+  })
+
+  // @force-gate turbopack
+  it('updates when a cached transitive loader dependency changes', async () => {
+    const $ = await next.render$('/tracking')
+    expect($('p').text()).toContain('cached: transitive-one')
+    await next.patchFile(
+      'tracking-value.js',
+      "module.exports = 'transitive-two'",
+      async () => {
+        await retry(async () => {
+          const $ = await next.render$('/tracking')
+          expect($('p').text()).toContain('cached: transitive-two')
+        })
+      }
+    )
+  })
+
+  // @force-gate turbopack
+  it('updates when an uncached build dependency import changes', async () => {
+    const $ = await next.render$('/tracking')
+    expect($('p').text()).toContain('uncached: uncached-one')
+    await next.patchFile(
+      'tracking/uncached-value.js',
+      "module.exports = 'uncached-two'",
+      async () => {
+        await retry(async () => {
+          const $ = await next.render$('/tracking')
+          expect($('p').text()).toContain('uncached: uncached-two')
+        })
+      }
+    )
+  })
+
+  it('loads an edited dynamic CommonJS build dependency after restarting the dev server', async () => {
+    const $ = await next.render$('/dynamic')
+    expect($('p').text()).toContain('dynamic: dynamic-one')
+    // Runtime-selected modules are not part of the loader's static pool-invalidation graph.
+    await next.stop()
+    await next.patchFile(
+      'tracking/dynamic-value.js',
+      "module.exports = 'dynamic-two'",
+      async () => {
+        await next.start()
+        try {
+          await retry(async () => {
+            const $ = await next.render$('/dynamic')
+            expect($('p').text()).toContain('dynamic: dynamic-two')
+          })
+        } finally {
+          await next.stop()
+        }
+      }
+    )
+    await next.start()
+    await retry(async () => {
+      const $ = await next.render$('/dynamic')
+      expect($('p').text()).toContain('dynamic: dynamic-one')
+    })
+  })
+
+  // @force-gate turbopack
+  it('updates when a higher-priority CommonJS candidate is created', async () => {
+    const $ = await next.render$('/tracking')
+    expect($('p').text()).toContain('candidate: js-one')
+    await next.patchFile(
+      'tracking/candidate',
+      "module.exports = 'extensionless-two'",
+      async () => {
+        await retry(async () => {
+          const $ = await next.render$('/tracking')
+          expect($('p').text()).toContain('candidate: extensionless-two')
+        })
+      }
+    )
+  })
+
+  // @force-gate turbopack
+  it('updates when a nearer CommonJS package is created', async () => {
+    const $ = await next.render$('/tracking')
+    expect($('p').text()).toContain('package: package-one')
+    await next.patchFile(
+      'tracking/node_modules/tracking-package/value.js',
+      "module.exports = 'nearer-two'",
+      async () => {
+        await retry(async () => {
+          const $ = await next.render$('/tracking')
+          expect($('p').text()).toContain('package: nearer-two')
+        })
+      }
+    )
+  })
+
+  // @force-gate turbopack
+  it('warns without failing for unresolved module and package-directory dependencies', async () => {
+    const outputIndex = next.cliOutput.length
+    const $ = await next.render$('/unresolved')
+    expect($('p').text()).toContain('unresolved dependency warning')
+    await retry(() => {
+      const output = next.cliOutput.slice(outputIndex)
+      expect(output).toContain(
+        'Unable to resolve webpack loader build dependency'
+      )
+      expect(output).toContain('missing-build-dependency-package')
+      expect(output).toContain('missing-build-dependency-module')
+    })
   })
 })
