@@ -41,8 +41,8 @@ pub enum TraceRow<'a> {
         id: u64,
         /// The thread id of the thread that entered the span.
         thread_id: u64,
-        /// The allocation counters of the thread right before the span was entered, if memory
-        /// is tracked. See [`Allocations`].
+        /// What the thread (de)allocated since its previous Enter/Exit row, if anything and if
+        /// memory is tracked. See [`Allocations`].
         allocations: Option<Allocations>,
     },
     /// A span has been exited. This means it is not spending CPU time anymore.
@@ -53,8 +53,8 @@ pub enum TraceRow<'a> {
         id: u64,
         /// The thread id of the thread that exits the span.
         thread_id: u64,
-        /// The allocation counters of the thread right before the span was exited, if memory
-        /// is tracked. See [`Allocations`].
+        /// What the thread (de)allocated since its previous Enter/Exit row, if anything and if
+        /// memory is tracked. See [`Allocations`].
         allocations: Option<Allocations>,
     },
     /// A event has happened for some span.
@@ -90,14 +90,15 @@ pub enum TraceRow<'a> {
     },
 }
 
-/// The per-thread allocation counters, as attached to [`TraceRow::Enter`] and
+/// The (de)allocations of a thread, as attached to [`TraceRow::Enter`] and
 /// [`TraceRow::Exit`].
 ///
-/// The counters are cumulative for the thread (allocations made by the tracing
-/// itself are excluded). The difference to the previous counters of the same
-/// thread is what was (de)allocated in between. Readers attribute it to the span
-/// on top of the thread's span stack before the row is applied: for `Enter`, the
-/// span that was running before (if any), for `Exit`, the span that is exited.
+/// These are the (de)allocations of the thread since its previous `Enter` or
+/// `Exit` row (allocations made by the tracing itself are excluded). A row
+/// without allocations means that nothing was (de)allocated, or that memory
+/// isn't tracked. Readers attribute them to the span on top of the thread's
+/// span stack before the row is applied: for `Enter`, the span that was running
+/// before (if any), for `Exit`, the span that is exited.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Allocations {
     /// Allocated bytes

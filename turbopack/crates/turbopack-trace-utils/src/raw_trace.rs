@@ -8,6 +8,7 @@ use std::{
     time::Instant,
 };
 
+use thread_local::ThreadLocal;
 use tracing::{
     Subscriber,
     field::{Visit, display},
@@ -73,6 +74,10 @@ pub struct RawTraceLayer<S: Subscriber + for<'a> LookupSpan<'a>> {
     memory: bool,
     /// Reads the allocation counters of the current thread. Only replaced in tests.
     allocation_counters: fn() -> Allocations,
+    /// The allocation counters of each thread at the time they were last reported, together
+    /// with the id of the thread. Slots of [`ThreadLocal`] are reused by new threads after a
+    /// thread exited, so the counters are only used when the thread id matches.
+    reported_allocations: ThreadLocal<Cell<(u64, Option<Allocations>)>>,
     _phantom: PhantomData<fn(S)>,
 }
 
@@ -100,6 +105,7 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> RawTraceLayer<S> {
             next_id: AtomicU64::new(1),
             memory,
             allocation_counters: thread_allocation_counters,
+            reported_allocations: ThreadLocal::new(),
             _phantom: PhantomData,
         }
     }
@@ -153,9 +159,29 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> RawTraceLayer<S> {
         }
     }
 
-    /// Returns the allocation counters to attach to an Enter/Exit row, if memory is tracked.
-    fn allocations(&self) -> Option<Allocations> {
-        self.memory.then(self.allocation_counters)
+    /// Returns the allocations to attach to an Enter/Exit row: what the current thread
+    /// (de)allocated since its previous report. Returns `None` when memory isn't tracked, on
+    /// the first report of a thread (which only establishes the baseline), and when nothing
+    /// was (de)allocated since the previous report.
+    fn allocations(&self, thread_id: u64) -> Option<Allocations> {
+        if !self.memory {
+            return None;
+        }
+        let current = (self.allocation_counters)();
+        let reported = self.reported_allocations.get_or_default();
+        let (reported_thread_id, previous) = reported.replace((thread_id, Some(current)));
+        let previous = previous.filter(|_| reported_thread_id == thread_id)?;
+        let delta = Allocations {
+            allocations: current.allocations.saturating_sub(previous.allocations),
+            allocation_count: current
+                .allocation_count
+                .saturating_sub(previous.allocation_count),
+            deallocations: current.deallocations.saturating_sub(previous.deallocations),
+            deallocation_count: current
+                .deallocation_count
+                .saturating_sub(previous.deallocation_count),
+        };
+        (delta != Allocations::default()).then_some(delta)
     }
 }
 
@@ -204,7 +230,7 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for RawTraceLayer<S> {
         if self.memory {
             self.maybe_report_memory_sample(ts);
         }
-        let allocations = self.allocations();
+        let allocations = self.allocations(thread_id);
         self.write(TraceRow::Enter {
             ts,
             id: get_id(ctx, id),
@@ -216,7 +242,7 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for RawTraceLayer<S> {
     fn on_exit(&self, id: &span::Id, ctx: tracing_subscriber::layer::Context<'_, S>) {
         let ts = self.start.elapsed().as_micros() as u64;
         let thread_id = thread::current().id().as_u64().into();
-        let allocations = self.allocations();
+        let allocations = self.allocations(thread_id);
         self.write(TraceRow::Exit {
             ts,
             id: get_id(ctx, id),
@@ -435,26 +461,60 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn attaches_allocation_counters_to_enter_and_exit() {
-        let mut at_enter = Allocations::default();
-        let mut at_exit = Allocations::default();
+    fn attaches_allocation_deltas_to_enter_and_exit() {
         let data = capture(RawTraceLayerOptions::default(), || {
             fake_allocate(10, 1);
-            let span = tracing::info_span!("test span");
-            at_enter = fake_allocation_counters();
+            let span = tracing::info_span!("first");
             let guard = span.enter();
             fake_allocate(100, 2);
             fake_deallocate(5, 1);
-            at_exit = fake_allocation_counters();
+            drop(guard);
+            fake_deallocate(1, 1);
+            let span = tracing::info_span!("second");
+            let guard = span.enter();
+            drop(guard);
+            fake_allocate(3, 1);
+            let guard = span.enter();
             drop(guard);
         });
         let rows = decode(&data);
         assert_eq!(
             enter_exit_allocations(&rows),
-            vec![("enter", Some(at_enter)), ("exit", Some(at_exit))]
+            vec![
+                // The first report of the thread is the baseline
+                ("enter", None),
+                (
+                    "exit",
+                    Some(Allocations {
+                        allocations: 200,
+                        allocation_count: 2,
+                        deallocations: 5,
+                        deallocation_count: 1,
+                    })
+                ),
+                (
+                    "enter",
+                    Some(Allocations {
+                        allocations: 0,
+                        allocation_count: 0,
+                        deallocations: 1,
+                        deallocation_count: 1,
+                    })
+                ),
+                // Nothing (de)allocated in between
+                ("exit", None),
+                (
+                    "enter",
+                    Some(Allocations {
+                        allocations: 3,
+                        allocation_count: 1,
+                        deallocations: 0,
+                        deallocation_count: 0,
+                    })
+                ),
+                ("exit", None),
+            ]
         );
-        assert_eq!(at_exit.allocations - at_enter.allocations, 200);
-        assert_eq!(at_exit.deallocation_count - at_enter.deallocation_count, 1);
     }
 
     #[test]
@@ -472,5 +532,33 @@ pub(crate) mod tests {
             0
         );
         assert_eq!(rows.len(), 4);
+    }
+
+    #[test]
+    fn resets_allocation_baseline_when_a_thread_slot_is_reused() {
+        let data = capture(RawTraceLayerOptions::default(), || {
+            let span = tracing::info_span!("span");
+            let dispatch = tracing::dispatcher::get_default(|d| d.clone());
+            // Sequential threads reuse the same thread local slot
+            for i in 1..=2 {
+                std::thread::scope(|scope| {
+                    scope.spawn(|| {
+                        fake_allocate(1000 * i, 1);
+                        tracing::dispatcher::with_default(&dispatch, || drop(span.enter()));
+                    });
+                });
+            }
+        });
+        // Each thread reports its own baseline (`None`) first instead of the difference to the
+        // counters of the other thread.
+        assert_eq!(
+            enter_exit_allocations(&decode(&data)),
+            vec![
+                ("enter", None),
+                ("exit", None),
+                ("enter", None),
+                ("exit", None)
+            ]
+        );
     }
 }
