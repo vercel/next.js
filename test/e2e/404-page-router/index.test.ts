@@ -38,20 +38,14 @@ module.exports = {
 // It currently avoids creating five deployments rather than documenting an incompatibility.
 // @force-gate !deploy
 describe('404-page-router', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: {
       pages: new FileRef(path.join(__dirname, 'app/pages')),
       components: new FileRef(path.join(__dirname, 'app/components')),
     },
     skipStart: true,
-    // TODO: investigate condensing these tests to avoid 5 separate deploys for this one test
-    skipDeployment: true,
     patchFileDelay: 500,
   })
-
-  if (skipped) {
-    return
-  }
 
   describe.each(table)(
     '404-page-router with basePath of $basePath and i18n of $i18n and middleware $middleware',
