@@ -456,7 +456,6 @@ jobs:
 
       - name: Wait for pnpm cache copy
         wait: copy-pnpm-cache
-        if: ${{ runner.os == 'Linux' && inputs.skipInstallBuild != 'yes' }}
 
       - name: Fetch test timings via turbo
         background: true
