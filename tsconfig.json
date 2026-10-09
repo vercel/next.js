@@ -37,6 +37,7 @@
     "scripts/**/*.cjs",
     "scripts/**/*.mjs",
     "scripts/**/*.ts",
+    "turbopack/crates/turbopack-node/js/src/loader-runner.d.ts",
     "turbo/**/*.ts"
   ],
   "exclude": ["scripts/minimal-server.js"]
