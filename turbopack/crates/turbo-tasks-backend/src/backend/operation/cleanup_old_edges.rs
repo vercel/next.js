@@ -88,7 +88,7 @@ pub fn cleanup_old_edges(
     task_id: TaskId,
     outdated: Vec<OutdatedEdge>,
     queue: AggregationUpdateQueue,
-    ctx: &mut ExecuteContext<'_>,
+    ctx: &ExecuteContext<'_>,
 ) -> Stats {
     cleanup_old_edges_inner(task_id, outdated, queue, ctx, false).0
 }
@@ -101,7 +101,7 @@ pub fn cleanup_old_edges(
 pub fn cleanup_old_edges_deletions_only(
     task_id: TaskId,
     outdated: Vec<OutdatedEdge>,
-    ctx: &mut ExecuteContext<'_>,
+    ctx: &ExecuteContext<'_>,
 ) -> DeferredCleanup {
     let (_, stopped) = cleanup_old_edges_inner(
         task_id,
@@ -118,7 +118,7 @@ fn cleanup_old_edges_inner(
     task_id: TaskId,
     mut outdated: Vec<OutdatedEdge>,
     mut queue: AggregationUpdateQueue,
-    ctx: &mut ExecuteContext<'_>,
+    ctx: &ExecuteContext<'_>,
     stop_when_only_rebalance_remains: bool,
 ) -> (Stats, Option<DeferredCleanup>) {
     while let Some(edge) = outdated.pop() {

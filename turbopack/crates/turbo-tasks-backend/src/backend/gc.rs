@@ -250,7 +250,7 @@ impl TurboTasksBackend {
                     GcJob::Collect(task_id) => task_id,
                 };
                 let collector = |child_id| spawner.spawn(GcJob::Collect(child_id));
-                let mut ctx = ExecuteContext::new_for_gc(self, turbo_tasks, phase, &collector);
+                let ctx = ExecuteContext::new_for_gc(self, turbo_tasks, phase, &collector);
                 // `All` restores Data so `capture_all_edges` below can read the
                 // Data-category dependency sets. The recheck itself only needs Meta.
                 let mut task = ctx.task(task_id, TaskDataCategory::All);
@@ -287,7 +287,7 @@ impl TurboTasksBackend {
                 // Delete outgoing edges but don't update the aggregation graph yet.
                 // To avoid accidentally rebalancing on deleted tasks due to racing deletions,
                 // we defer all rebalancing to the end
-                let deferred = cleanup_old_edges_deletions_only(task_id, old_edges, &mut ctx);
+                let deferred = cleanup_old_edges_deletions_only(task_id, old_edges, &ctx);
                 result.deferred_balance_edges.extend(deferred.balance_edges);
                 ControlFlow::Continue(())
             },
@@ -306,10 +306,10 @@ impl TurboTasksBackend {
         let deferred = std::mem::take(&mut result.deferred_balance_edges);
         if !deferred.is_empty() {
             let noop_collector = |_task_id| {};
-            let mut ctx = ExecuteContext::new_for_gc(self, turbo_tasks, phase, &noop_collector);
+            let ctx = ExecuteContext::new_for_gc(self, turbo_tasks, phase, &noop_collector);
             let mut queue = AggregationUpdateQueue::new();
-            queue.extend_balance_edges(deferred, &mut ctx);
-            while !queue.process(&mut ctx) {}
+            queue.extend_balance_edges(deferred, &ctx);
+            while !queue.process(&ctx) {}
         }
 
         // Collect all active roots
@@ -398,7 +398,7 @@ impl TurboTasksBackend {
         // We expect this call to come from outside a turbo-task context, at least sometimes
         // So be defensive about conostructing a context.  If we get none then we are shutting down
         // and it is too late for ref-counting.
-        let Some(mut ctx) = self.try_execute_context(turbo_tasks) else {
+        let Some(ctx) = self.try_execute_context(turbo_tasks) else {
             return;
         };
         // Technically we only need to manipulate transient data so meta is overkill. But the task

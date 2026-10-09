@@ -101,6 +101,11 @@ impl TaskLockCounter {
     }
 }
 
+/// Task access and graph services for an operation.
+///
+/// Task guards borrow this context, keeping its operation and shutdown protection alive until
+/// they are released. Services use shared access so they remain available while a guard is held;
+/// task lock acquisition is still restricted by the debug-only lock counter.
 pub struct ExecuteContext<'e> {
     backend: &'e TurboTasksBackend,
     turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
@@ -169,11 +174,11 @@ impl<'e> ExecuteContext<'e> {
     }
 
     fn open_task(
-        &mut self,
+        &self,
         task_id: TaskId,
         category: TaskDataCategory,
         access: TaskAccess,
-    ) -> Option<TaskGuard<'e>> {
+    ) -> Option<TaskGuard<'_>> {
         self.task_lock_counter.acquire();
 
         let mut task = self.backend.storage.access_entry_mut(task_id);
@@ -399,15 +404,15 @@ impl<'e> ExecuteContext<'e> {
     /// a bug in the backend, which is expected to abort, and it gets no such care: one that runs in
     /// Phase 1a can leave restores this batch has already claimed with their restoring bits set,
     /// and any thread waiting on those tasks then waits forever.
-    fn prepare_tasks_with_callback(
-        &mut self,
+    fn prepare_tasks_with_callback<'ctx>(
+        &'ctx self,
         task_ids: impl IntoIterator<Item = (TaskId, TaskDataCategory)>,
         reason: &'static str,
         mut prepared_task_callback: impl FnMut(
-            &mut Self,
+            &'ctx Self,
             TaskId,
             TaskDataCategory,
-            StorageWriteGuard<'e>,
+            StorageWriteGuard<'ctx>,
         ),
     ) {
         #[cfg(feature = "trace_prepare_tasks")]
@@ -899,7 +904,7 @@ impl<'e> ExecuteContext<'e> {
     ///
     /// A transient task (or any task, without backing storage) is restored from creation and never
     /// evicted, so one that is not restored exists nowhere. See `ExecuteContext::open_task`.
-    pub fn task(&mut self, task_id: TaskId, category: TaskDataCategory) -> TaskGuard<'e> {
+    pub fn task(&self, task_id: TaskId, category: TaskDataCategory) -> TaskGuard<'_> {
         self.open_task(task_id, category, TaskAccess::MustExist)
             .expect("a MustExist open either yields a task or panics")
     }
@@ -908,11 +913,7 @@ impl<'e> ExecuteContext<'e> {
     ///
     /// Gone covers a missing requested category as well as a soft-deleted task: the caller cannot
     /// tell those apart, since only the timing of the next eviction separates them.
-    pub fn try_task(
-        &mut self,
-        task_id: TaskId,
-        category: TaskDataCategory,
-    ) -> Option<TaskGuard<'e>> {
+    pub fn try_task(&self, task_id: TaskId, category: TaskDataCategory) -> Option<TaskGuard<'_>> {
         self.open_task(task_id, category, TaskAccess::AllowMissing)
     }
 
@@ -924,7 +925,7 @@ impl<'e> ExecuteContext<'e> {
     /// This creates *storage for* an already-minted `TaskId`; it does not mint one. Compare
     /// `TurboTasksBackend::get_or_create_task`, which takes a function and arguments and returns a
     /// `TaskId` (reusing one if the task is already cached).
-    pub fn task_or_create(&mut self, task_id: TaskId, category: TaskDataCategory) -> TaskGuard<'e> {
+    pub fn task_or_create(&self, task_id: TaskId, category: TaskDataCategory) -> TaskGuard<'_> {
         self.open_task(task_id, category, TaskAccess::MaybeCreate)
             .expect("a MaybeCreate open always yields a task")
     }
@@ -934,7 +935,7 @@ impl<'e> ExecuteContext<'e> {
     ///
     /// Like [`Self::task`], a missing requested category makes the task invalid and panics.
     pub fn prepare_tasks(
-        &mut self,
+        &self,
         task_ids: impl IntoIterator<Item = (TaskId, TaskDataCategory)>,
         reason: &'static str,
     ) {
@@ -942,12 +943,12 @@ impl<'e> ExecuteContext<'e> {
     }
 
     /// Opens each task like [`Self::task`] (so every task must already exist), batching the reads
-    /// from persistent storage.
-    pub fn for_each_task(
-        &mut self,
+    /// from persistent storage. The callback's guard and context share the caller's context borrow.
+    pub fn for_each_task<'ctx>(
+        &'ctx self,
         task_ids: impl IntoIterator<Item = (TaskId, TaskDataCategory)>,
         reason: &'static str,
-        mut func: impl FnMut(TaskGuard<'e>, &mut Self),
+        mut func: impl FnMut(TaskGuard<'ctx>, &'ctx Self),
     ) {
         let task_lock_counter = self.task_lock_counter.clone();
         self.prepare_tasks_with_callback(task_ids, reason, |this, task_id, _category, task| {
@@ -961,11 +962,11 @@ impl<'e> ExecuteContext<'e> {
         });
     }
 
-    pub fn for_each_task_meta(
-        &mut self,
+    pub fn for_each_task_meta<'ctx>(
+        &'ctx self,
         task_ids: impl IntoIterator<Item = TaskId>,
         reason: &'static str,
-        func: impl FnMut(TaskGuard<'e>, &mut Self),
+        func: impl FnMut(TaskGuard<'ctx>, &'ctx Self),
     ) {
         self.for_each_task(
             task_ids.into_iter().map(|id| (id, TaskDataCategory::Meta)),
@@ -974,11 +975,11 @@ impl<'e> ExecuteContext<'e> {
         )
     }
 
-    pub fn for_each_task_all(
-        &mut self,
+    pub fn for_each_task_all<'ctx>(
+        &'ctx self,
         task_ids: impl IntoIterator<Item = TaskId>,
         reason: &'static str,
-        func: impl FnMut(TaskGuard<'e>, &mut Self),
+        func: impl FnMut(TaskGuard<'ctx>, &'ctx Self),
     ) {
         self.for_each_task(
             task_ids.into_iter().map(|id| (id, TaskDataCategory::All)),
@@ -991,11 +992,11 @@ impl<'e> ExecuteContext<'e> {
     /// read/mutate an edge between them). Both ids are opened `MustExist` — an edge only exists
     /// between already-materialized tasks.
     pub fn task_pair(
-        &mut self,
+        &self,
         task_id1: TaskId,
         task_id2: TaskId,
         category: TaskDataCategory,
-    ) -> (TaskGuard<'e>, TaskGuard<'e>) {
+    ) -> (TaskGuard<'_>, TaskGuard<'_>) {
         self.task_lock_counter.acquire_multiple(2);
 
         // `task_pair` is always a `MustExist` open (both endpoints of an existing edge). Each task
@@ -1044,7 +1045,7 @@ impl<'e> ExecuteContext<'e> {
         )
     }
 
-    pub fn schedule_task(&self, task: &TaskGuard<'e>, parent_priority: TaskPriority) {
+    pub fn schedule_task(&self, task: &TaskGuard<'_>, parent_priority: TaskPriority) {
         let priority = schedule_priority(task, parent_priority);
         self.turbo_tasks.schedule(task.id(), priority);
     }
@@ -1059,7 +1060,7 @@ impl<'e> ExecuteContext<'e> {
     /// be a transition to collectibility.
     ///
     /// Only effective in a GC context.
-    pub fn note_maybe_collectible(&mut self, task: &TaskGuard<'_>) {
+    pub fn note_maybe_collectible(&self, task: &TaskGuard<'_>) {
         if let Some(collector) = self.gc_collectible
             && task.is_gc_collectible()
         {
@@ -1088,7 +1089,7 @@ impl<'e> ExecuteContext<'e> {
     ///
     /// Accepts exploded components so the caller does not need to box the argument before calling.
     pub fn task_by_type(
-        &mut self,
+        &self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
         arg: &dyn DynTaskInputs,
@@ -1772,7 +1773,7 @@ mod must_exist_tests {
         let tt = backend();
         let present = persistent(1);
         resident(&tt, present, TaskDataCategory::All);
-        let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+        let ctx = ExecuteContext::new(tt.backend(), &tt);
         let _ = ctx.task_pair(
             TaskId::new(TRANSIENT_TASK_BIT | 2).unwrap(),
             present,
@@ -1784,7 +1785,7 @@ mod must_exist_tests {
     #[should_panic(expected = "prepare transient, MustExist")]
     async fn prepare_tasks_rejects_missing_transient() {
         let tt = backend();
-        let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+        let ctx = ExecuteContext::new(tt.backend(), &tt);
         ctx.prepare_tasks(
             [(
                 TaskId::new(TRANSIENT_TASK_BIT | 1).unwrap(),
@@ -1828,7 +1829,7 @@ mod must_exist_tests {
         let missing = persistent(2);
         resident(&tt, present, TaskDataCategory::All);
         let msg = catch_missing_task_panic(|| {
-            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            let ctx = ExecuteContext::new(tt.backend(), &tt);
             let _ = ctx.task_pair(present, missing, TaskDataCategory::Meta);
         });
         assert!(msg.contains("task_pair, MustExist"), "{msg}");
@@ -1843,7 +1844,7 @@ mod must_exist_tests {
         let missing = TaskId::new(TRANSIENT_TASK_BIT | 2).unwrap();
         resident(&tt, present, TaskDataCategory::All);
         let msg = catch_missing_task_panic(|| {
-            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            let ctx = ExecuteContext::new(tt.backend(), &tt);
             let _ = ctx.task_pair(missing, present, TaskDataCategory::All);
         });
         assert!(msg.contains("task_pair, MustExist"), "{msg}");
@@ -1858,7 +1859,7 @@ mod must_exist_tests {
         let (tt, _dir) = persisted_tasks(&[present]);
         let mut seen = Vec::new();
         let msg = catch_missing_task_panic(|| {
-            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            let ctx = ExecuteContext::new(tt.backend(), &tt);
             ctx.for_each_task(
                 [missing, present].map(|id| (id, TaskDataCategory::All)),
                 "prepare missing",
@@ -1936,7 +1937,7 @@ mod must_exist_tests {
         let (tt, _dir) = persisted_tasks(&[ready, disk[0], disk[1]]);
         resident(&tt, ready, TaskDataCategory::All);
         resident(&tt, transient, TaskDataCategory::All);
-        let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+        let ctx = ExecuteContext::new(tt.backend(), &tt);
         let mut seen = Vec::new();
         ctx.for_each_task(
             [disk[0], ready, disk[1], transient].map(|id| (id, TaskDataCategory::All)),
@@ -1971,7 +1972,7 @@ mod must_exist_tests {
         let (sender, receiver) = mpsc::sync_channel(1);
         let worker_tt = tt.clone();
         let worker = std::thread::spawn(move || {
-            let mut ctx = ExecuteContext::new(worker_tt.backend(), &worker_tt);
+            let ctx = ExecuteContext::new(worker_tt.backend(), &worker_tt);
             let panicked = catch_unwind(AssertUnwindSafe(|| {
                 let _ = ctx.task(id, TaskDataCategory::All);
             }))
@@ -2014,7 +2015,7 @@ mod must_exist_tests {
         let listener = tt.backend().storage.restored.listen();
         let worker_tt = tt.clone();
         let worker = std::thread::spawn(move || {
-            let mut ctx = ExecuteContext::new(worker_tt.backend(), &worker_tt);
+            let ctx = ExecuteContext::new(worker_tt.backend(), &worker_tt);
             catch_unwind(AssertUnwindSafe(|| {
                 ctx.prepare_tasks([(id, TaskDataCategory::All)], "wait for peer");
             }))
@@ -2051,7 +2052,7 @@ mod must_exist_tests {
         let missing = persistent(2);
         resident(&tt, present, TaskDataCategory::All);
         for _ in 0..2 {
-            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            let ctx = ExecuteContext::new(tt.backend(), &tt);
             assert!(
                 catch_unwind(AssertUnwindSafe(|| {
                     let _ = ctx.task_pair(present, missing, TaskDataCategory::Meta);
@@ -2077,7 +2078,7 @@ mod must_exist_tests {
         let tt = backend();
         let missing = [persistent(1), persistent(2), persistent(3)];
         for _ in 0..2 {
-            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            let ctx = ExecuteContext::new(tt.backend(), &tt);
             assert!(
                 catch_unwind(AssertUnwindSafe(|| {
                     ctx.prepare_tasks(
