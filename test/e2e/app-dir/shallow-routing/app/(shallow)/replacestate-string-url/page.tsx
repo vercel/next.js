@@ -50,6 +50,22 @@ function InnerPage() {
             previousQuery ? previousQuery + '-added' : 'foo'
           }`
 
+          window.history.replaceState('', '', url)
+        }}
+        id="replace-string-url-string"
+      >
+        Replace searchParam with string data param
+      </button>
+
+      <button
+        onClick={() => {
+          const previousQuery = new URL(window.location.href).searchParams.get(
+            'query'
+          )
+          const url = `?query=${
+            previousQuery ? previousQuery + '-added' : 'foo'
+          }`
+
           window.history.replaceState(undefined, '', url)
         }}
         id="replace-string-url-undefined"
