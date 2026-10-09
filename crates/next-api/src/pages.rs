@@ -747,7 +747,8 @@ impl PageEndpoint {
 
             let ssr_chunk_module = self.internal_ssr_chunk_module().await?;
             // Implements layout segment optimization to compute a graph "chain" for document, app,
-            // page
+            // page. Each layout is its own entry chunk group, as in the whole-app graph (see
+            // `entries`), so `internal_ssr_chunk` chunks it with the same key in every mode.
             let mut graphs = vec![];
             let mut visited_modules = VisitedModules::empty();
             for module in [
@@ -758,7 +759,7 @@ impl PageEndpoint {
             .flatten()
             {
                 let graph = SingleModuleGraph::new_with_entries_visited_intern(
-                    GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Shared(module)]),
+                    GraphEntries::from_chunk_groups(vec![layout_chunk_group_entry(module)]),
                     visited_modules,
                     should_trace,
                     should_read_binding_usage,
@@ -1026,9 +1027,10 @@ impl PageEndpoint {
                     name = display(layout.ident().to_string().await?)
                 );
                 async {
+                    // Registered as an entry group by `layout_chunk_group_entry`.
                     let chunk_group = chunking_context.chunk_group(
                         layout.ident(),
-                        smallvec![ChunkGroup::Shared(layout)],
+                        smallvec![ChunkGroup::Entry(vec![layout])],
                         ssr_module_graph,
                         current_chunk_group.await?.availability_info,
                     );
@@ -1645,6 +1647,20 @@ pub struct InternalSsrChunkModule {
     pub regions: Option<Vec<RcStr>>,
 }
 
+/// The chunk group a Pages layout segment (`_document` or `_app`) is registered as.
+///
+/// A layout is an entry group of its own, like the standalone `/_document` and `/_app`
+/// endpoints register their module, so the graph never has to choose between a shared and an
+/// entry group for the same module and `internal_ssr_chunk` can always chunk it as
+/// `ChunkGroup::Entry(vec![layout])`. Default heuristics keep a page's clusters off the layout
+/// groups shared between pages.
+fn layout_chunk_group_entry(layout: ResolvedVc<Box<dyn Module>>) -> ChunkGroupEntry {
+    ChunkGroupEntry::Entry {
+        modules: vec![layout],
+        heuristics: EntryHeuristics::default(),
+    }
+}
+
 #[turbo_tasks::value_impl]
 impl Endpoint for PageEndpoint {
     #[turbo_tasks::function]
@@ -1837,7 +1853,7 @@ impl Endpoint for PageEndpoint {
         let modules = shared_entries
             .into_iter()
             .flatten()
-            .map(ChunkGroupEntry::Shared)
+            .map(layout_chunk_group_entry)
             .chain(std::iter::once(ChunkGroupEntry::Entry {
                 modules: vec![ssr_chunk_module.ssr_module],
                 heuristics: heuristics.clone(),
