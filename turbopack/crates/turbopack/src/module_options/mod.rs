@@ -250,6 +250,7 @@ impl ModuleOptions {
                     mangle_via_materialized_namespace_object,
                     cjs_scope_hoisting,
                     cross_module_constants,
+                    inline_constant_exports,
                     lazy_compilation,
                     ref preset_env_config,
                     ..
@@ -349,6 +350,7 @@ impl ModuleOptions {
             mangle_via_materialized_namespace_object,
             cjs_scope_hoisting,
             cross_module_constants,
+            inline_constant_exports,
             lazy_compilation,
             ..Default::default()
         };

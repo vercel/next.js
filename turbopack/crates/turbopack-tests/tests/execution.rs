@@ -285,6 +285,8 @@ struct TestOptions {
     #[serde(default = "default_true")]
     cross_module_constants: bool,
     #[serde(default)]
+    inline_constant_exports: bool,
+    #[serde(default)]
     cjs_scope_hoisting: bool,
     #[serde(default)]
     minify: bool,
@@ -324,6 +326,7 @@ impl Default for TestOptions {
             mangle_via_materialized_namespace_object: default_true(),
             cjs_scope_hoisting: false,
             cross_module_constants: true,
+            inline_constant_exports: false,
             infer_module_side_effects: default_true(),
             minify: false,
             production_chunking: false,
@@ -496,6 +499,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
                     .mangle_via_materialized_namespace_object,
                 cjs_scope_hoisting: options.cjs_scope_hoisting,
                 cross_module_constants: options.cross_module_constants,
+                inline_constant_exports: options.inline_constant_exports,
                 infer_module_side_effects: options.infer_module_side_effects,
                 ..Default::default()
             },

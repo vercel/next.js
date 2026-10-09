@@ -1,0 +1,21 @@
+error - [analysis] /turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-shared-analysis/input/other.js:6:0  Export NON_CONSTANT is not a constant
+  
+       2 | 
+       3 | export default 'dev'
+       4 | export const UPPER = 'x'
+       5 | export const lower = 'y'
+         + v------------------------------------------v
+       6 + export const NON_CONSTANT = globalThis.value
+         + ^------------------------------------------^
+       7 | 
+  
+  It was analyzed to be FreeVar(globalThis)["value"]
+  
+  It has to be a constant because the module contains use turbopack: constants or was imported with with {turbopackConstants: 'true'}
+  
+  
+  
+  Import trace:
+    test:
+      ./turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-shared-analysis/input/other.js
+      ./turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-shared-analysis/input/index.js
