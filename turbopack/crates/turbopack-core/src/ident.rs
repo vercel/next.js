@@ -343,12 +343,26 @@ impl AssetIdent {
         name += &expected_extension;
         Ok(Vc::cell(name.into()))
     }
+
+    /// Like .to_string() but with `layer` overwritten to None.
+    #[turbo_tasks::function]
+    pub async fn to_string_without_layer(&self) -> Result<Vc<RcStr>> {
+        let mut ident_without_layer = self.clone();
+        ident_without_layer.layer = None;
+        Ok(Vc::cell(ident_without_layer.to_string_ref().await?))
+    }
 }
 
 #[turbo_tasks::value_impl]
 impl ValueToString for AssetIdent {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<Vc<RcStr>> {
+        Ok(Vc::cell(self.to_string_ref().await?))
+    }
+}
+
+impl ValueToStringRef for AssetIdent {
+    async fn to_string_ref(&self) -> Result<RcStr> {
         // The query string/fragment is either empty or non-empty starting with
         // `?` so we can just concat
         let mut s = turbofmt!("{}{}{}", self.path, self.query, self.fragment)
@@ -402,7 +416,7 @@ impl ValueToString for AssetIdent {
             }
         }
 
-        Ok(Vc::cell(s.into()))
+        Ok(s.into())
     }
 }
 

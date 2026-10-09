@@ -1259,7 +1259,7 @@ impl ChunkingContext for UseCacheContentHashChunkingContext {
         // 1. more stable module IDs even as the short numeric ones might change
         // 2. ensure that app-rsc and app-route codegen reference the same module ids (=paths) in
         //    imports
-        ModuleIdStrategy::new_path_only()
+        ModuleIdStrategy::new_ident_without_layer()
     }
 
     #[turbo_tasks::function]
