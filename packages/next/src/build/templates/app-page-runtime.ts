@@ -1252,7 +1252,17 @@ export function createAppPageEntrypoint({
             !didRespond &&
             !isDraftMode &&
             pageIsDynamic &&
-            (isProduction || !isPrerendered)
+            (isProduction || !isPrerendered) &&
+            // Exception: When debugging a static shell, we want to fill in all
+            // prerenderable params.
+            // - In production, we only serve a fallback result if the page has
+            //   non-prerenderable params, and otherwise do a concrete prerender instead.
+            // - In dev, we use this codepath to generate all debug prerenders of pages
+            //   with params.
+            // TODO: the flow/structure here is very convoluted
+            (isDebugStaticShell && isProduction
+              ? remainingFallbackRouteParams.length > 0
+              : true)
           ) {
             // When cacheComponents is enabled, we can use the fallback
             // response if the request is not a dynamic RSC request because the
@@ -1265,7 +1275,7 @@ export function createAppPageEntrypoint({
                 ? !isDynamicRSCRequest
                 : !isRSCRequest)
             ) {
-              const cacheKey =
+              let fallbackCacheKey =
                 isProduction && typeof prerenderInfo?.fallback === 'string'
                   ? prerenderInfo.fallback
                   : normalizedSrcPage
@@ -1276,9 +1286,25 @@ export function createAppPageEntrypoint({
                 // entry — the authoritative set computed at build time by
                 // `buildAppStaticPaths`.
                 if (prerenderInfo?.fallbackRouteParams) {
-                  fallbackRouteParams = createOpaqueFallbackRouteParams(
-                    prerenderInfo.fallbackRouteParams
-                  )
+                  // If we're debugging a static shell and some of the fallback params are prerenderable,
+                  // make them concrete to simulate a scenario where they've already been prerendered.
+                  // Only non-prerenderable params stay as fallbacks.
+                  if (isDebugStaticShell && fallbackPathname !== null) {
+                    fallbackRouteParams = createOpaqueFallbackRouteParams(
+                      remainingFallbackRouteParams
+                    )
+                    const keyWithAllPrerenderableParams =
+                      buildCompletedShellCacheKey(
+                        fallbackPathname,
+                        remainingFallbackRouteParams,
+                        params
+                      )
+                    fallbackCacheKey = keyWithAllPrerenderableParams
+                  } else {
+                    fallbackRouteParams = createOpaqueFallbackRouteParams(
+                      prerenderInfo.fallbackRouteParams
+                    )
+                  }
                 } else if (isDebugFallbackShell) {
                   fallbackRouteParams = getFallbackRouteParams(
                     normalizedSrcPage,
@@ -1331,7 +1357,7 @@ export function createAppPageEntrypoint({
               // We use the response cache here to handle the revalidation and
               // management of the fallback shell.
               const fallbackResponse = await routeModule.handleResponse({
-                cacheKey,
+                cacheKey: fallbackCacheKey,
                 req,
                 nextConfig,
                 routeKind: RouteKind.APP_PAGE,
@@ -1617,7 +1643,12 @@ export function createAppPageEntrypoint({
               hasPlaceholderFallbackRouteParams ||
               (isDebugStaticShell && !isPrerendered)) &&
             fallbackRouteParamsForRender
-              ? createOpaqueFallbackRouteParams(fallbackRouteParamsForRender)
+              ? isDebugStaticShell &&
+                prerenderInfo &&
+                prerenderInfo.fallbackRouteParams
+                ? // For static shell debugging, we fill in all in prerenderable params
+                  createOpaqueFallbackRouteParams(remainingFallbackRouteParams)
+                : createOpaqueFallbackRouteParams(fallbackRouteParamsForRender)
               : // For intermediate shells where some params are resolved and
                 // others still have placeholders, use the filtered subset so the
                 // prerender suspends only for the unresolved params.
