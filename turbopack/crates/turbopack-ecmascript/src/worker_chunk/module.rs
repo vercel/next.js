@@ -135,11 +135,10 @@ impl WorkerLoaderModule {
 
     /// The worker's chunk group.
     ///
-    /// For **web workers** this is built with `self.availability_info` (the availability of the
-    /// chunk group that created this loader) rather than `AvailabilityInfo::root()`. That is
-    /// what unrolls a self-referencing worker: the worker's own chunk group rediscovers the
-    /// worker reference and creates a nested `WorkerLoaderModule` whose availability already
-    /// contains the worker entry module, so the nested chunk group's traversal excludes it and
+    /// A **web worker** launched by a page starts with root availability and contains all the
+    /// factories it needs; it does not import any page chunks. A worker launched by another
+    /// worker inherits that worker's availability. When a self-spawning worker rediscovers its
+    /// own reference, the nested loader sees the worker entry as available and its chunk group
     /// emits no regular chunks — breaking the
     /// `chunk content -> chunk path -> chunk content` await cycle.
     ///
@@ -148,8 +147,8 @@ impl WorkerLoaderModule {
     /// already available. An async loader can call `parentImport(id)` because it
     /// runs in the same runtime as the factory; a worker gets a fresh realm and
     /// still needs its evaluate chunk to instantiate the entry module. The
-    /// factories for already-available modules reach the worker via the
-    /// preloaded chunk URLs that `createWorker` passes along.
+    /// factories for modules already available in the *parent worker* reach the child worker
+    /// via preloaded chunk URLs that `createWorker` passes along.
     ///
     /// For **Node worker threads** the availability is always root (normalized in
     /// [`Self::new`]) and the entry chunk is self-contained; recursion terminates through

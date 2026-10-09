@@ -102,13 +102,11 @@ const availableModuleChunks: Map<ChunkPath, Promise<any> | true> = new Map()
 // Paths of every JS chunk whose module factories have been installed into this
 // runtime instance (page, worker, …), in registration order.
 //
-// Web workers get a fresh runtime realm, so module factories cannot be handed to
-// them directly (functions are not structured-cloneable). Instead `createWorker`
-// passes this list along with the worker's own chunks, and the worker re-imports
-// them — cheap, because the browser has them cached already. This is what lets
-// worker chunk groups use normal (nested) availability info instead of
-// `AvailabilityInfo::root()`, which is what breaks the self-referencing-worker
-// chunking cycle.
+// Nested web workers get a fresh runtime realm, so module factories cannot be
+// handed to them directly (functions are not structured-cloneable). `createWorker`
+// passes this list along only when one worker starts another: the child re-imports
+// its parent's chunks because its chunk group inherits the parent's availability.
+// A worker created by a page has a self-contained chunk group instead.
 const loadedJsChunkPaths: Set<ChunkPath> = new Set()
 
 function registerLoadedJsChunk(chunk: ChunkPath | ChunkScript): void {
