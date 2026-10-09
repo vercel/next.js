@@ -1015,6 +1015,7 @@ export function createAppPageEntrypoint({
               inlineCss: Boolean(nextConfig.experimental.inlineCss),
               prefetchInlining:
                 nextConfig.experimental.prefetchInlining ?? false,
+              authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
               reactBrowserBailout: Boolean(
                 nextConfig.experimental.reactBrowserBailout
               ),

@@ -66,7 +66,6 @@ turbo-bincode = { workspace = true }
 turbo-rcstr = { workspace = true }
 turbo-esregex = { workspace = true }
 turbo-tasks = { workspace = true }
-turbo-tasks-bytes = { workspace = true }
 turbo-tasks-env = { workspace = true }
 turbo-tasks-fetch = { workspace = true }
 turbo-tasks-fs = { workspace = true }

@@ -25,7 +25,7 @@ test('leaves the Future policy and installed version unchanged', () => {
   const manifest = JSON.parse(readFileSync('package.json', 'utf8'))
   const config = readFileSync('next.config.js', 'utf8')
 
-  expect(manifest.dependencies.next).toBe('16.3.5')
+  expect(manifest.dependencies.next).toBe('16.4.0')
   expect(config).toMatch(/agentUpgrade\s*:\s*['"]experimental-future['"]/)
 })
 

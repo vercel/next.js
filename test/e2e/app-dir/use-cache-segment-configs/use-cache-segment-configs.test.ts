@@ -187,7 +187,14 @@ function getBuildOutput(cliOutput: string, isNextDeploy: boolean): string {
 
   for (const line of cliOutput.split('\n')) {
     // The command exit status and inspect metadata are not compiler output.
-    if (isNextDeploy && /^Error: Command .* exited with \d+$/.test(line)) break
+    if (
+      isNextDeploy &&
+      /^Error: (?:\[BUILD_UTILS_SPAWN_\d+\] )?Command .* exited with \d+$/.test(
+        line
+      )
+    ) {
+      break
+    }
     if (!skipLines) {
       if (line.includes('__next_edge_ssr_entry__')) {
         lines.push(

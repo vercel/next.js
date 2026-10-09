@@ -78,7 +78,7 @@ use turbopack_ecmascript_hmr_protocol::{ClientUpdateInstruction, Issue, Resource
 use turbopack_trace_utils::{
     exit::{ExitHandler, ExitReceiver},
     filter_layer::FilterLayer,
-    raw_trace::RawTraceLayer,
+    raw_trace::{RawTraceLayer, RawTraceLayerOptions},
     trace_writer::TraceWriter,
 };
 use url::Url;
@@ -470,6 +470,7 @@ pub fn project_new<'env>(
         GzipBest,
     }
     let mut compress = Compression::None;
+    let mut raw_trace_options = RawTraceLayerOptions::default();
     if let Some(mut trace) = trace {
         let trace_path_override = std::env::var_os("NEXT_TURBOPACK_TRACING_PATH")
             .filter(|v| !v.is_empty())
@@ -515,6 +516,10 @@ pub fn project_new<'env>(
                         compress = Compression::GzipBest;
                         return None;
                     }
+                    "no-memory" => {
+                        raw_trace_options.memory = false;
+                        return None;
+                    }
                     _ => Cow::Borrowed(item),
                 })
             })
@@ -558,7 +563,8 @@ pub fn project_new<'env>(
                 TraceWriter::new(trace_writer)
             }
         };
-        let subscriber = subscriber.with(RawTraceLayer::new(trace_writer));
+        let subscriber =
+            subscriber.with(RawTraceLayer::with_options(trace_writer, raw_trace_options));
 
         exit.on_exit(async move {
             tokio::task::spawn_blocking(move || drop(trace_writer_guard))

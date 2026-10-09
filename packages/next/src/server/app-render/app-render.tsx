@@ -1883,6 +1883,17 @@ async function finalRuntimeServerPrerender(
   const onUnexpectedAbort = () => {
     resultIsPartial = true
 
+    const syncInterruptReason = serverDynamicTracking.syncDynamicErrorWithStack
+    if (syncInterruptReason) {
+      console.error(syncInterruptReason)
+    } else {
+      console.error(
+        new InvariantError(
+          'A runtime prerender was aborted synchronously, but Next.js could not determine the reason.'
+        )
+      )
+    }
+
     // FIXME(NAR-810): If we're already aborted due to Sync IO, there should be no need to
     // finish the accumulators. However, it seems like in `--debug-prerender`
     // the stream will stay open if we don't close the iterable here.
@@ -2120,6 +2131,7 @@ async function getRSCPayload(
     rootLayoutIncluded: false,
     missingSlots,
     preloadCallbacks,
+    authInterrupts: ctx.renderOpts.experimental.authInterrupts,
     MetadataOutlet,
     isPrerendering,
     hintTree: hints,

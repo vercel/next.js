@@ -109,7 +109,7 @@ function createModuleWithDirection(id) {
         children: []
     };
 }
-const BindingTag_Accessor = 0;
+const BindingTag_Value = 0;
 /**
  * Terminates a module's group of entries in an {@link EsmReexports} list.
  */ const REEXPORT_GROUP_END = 0;
@@ -125,9 +125,19 @@ const BindingTag_Accessor = 0;
     let i = 0;
     while(i < bindings.length){
         const propName = bindings[i++];
-        if (bindings[i] === BindingTag_Accessor && typeof bindings[i + 1] === 'function') {
-            i++;
-            const getterFn = bindings[i++];
+        const tagOrFunction = bindings[i++];
+        if (typeof tagOrFunction === 'number') {
+            if (tagOrFunction === BindingTag_Value) {
+                defineProp(exports, propName, {
+                    value: bindings[i++],
+                    enumerable: true,
+                    writable: false
+                });
+            } else {
+                throw new Error(`unexpected tag: ${tagOrFunction}`);
+            }
+        } else {
+            const getterFn = tagOrFunction;
             if (typeof bindings[i] === 'function') {
                 const setterFn = bindings[i++];
                 defineProp(exports, propName, {
@@ -141,12 +151,6 @@ const BindingTag_Accessor = 0;
                     enumerable: true
                 });
             }
-        } else {
-            defineProp(exports, propName, {
-                value: bindings[i++],
-                enumerable: true,
-                writable: false
-            });
         }
     }
     // The properties defined above are already non-configurable and
@@ -265,9 +269,8 @@ function appendReexportBinding(bindings, exportedName, namespace, importedName) 
     if (descriptor) {
         if ('value' in descriptor) {
             // Code generation only routes immutable imported bindings through this helper, so a data
-            // descriptor is a constant export and can be captured once. Values are untagged; only
-            // accessors carry a tag.
-            bindings.push(exportedName, descriptor.value);
+            // descriptor is a constant export and can be captured once.
+            bindings.push(exportedName, BindingTag_Value, descriptor.value);
             return;
         }
         if (descriptor.get) {
@@ -278,12 +281,12 @@ function appendReexportBinding(bindings, exportedName, namespace, importedName) 
             // and the CommonJS/dynamic-namespace paths create arrows in `createGetter` and
             // `getOwnPropertyDescriptor`. The destination can therefore reuse the exact function instead
             // of allocating another wrapper getter.
-            bindings.push(exportedName, BindingTag_Accessor, descriptor.get);
+            bindings.push(exportedName, descriptor.get);
             return;
         }
     }
     // Dynamic/proxy/inherited CommonJS edge cases may not expose a usable own descriptor.
-    bindings.push(exportedName, BindingTag_Accessor, ()=>namespace[importedName]);
+    bindings.push(exportedName, ()=>namespace[importedName]);
 }
 function ensureDynamicExports(module, exports) {
     let reexportedObjects = REEXPORTED_OBJECTS.get(module);
@@ -438,10 +441,9 @@ function createGetter(obj, key) {
     let defaultLocation = -1;
     for(let current = raw; (typeof current === 'object' || typeof current === 'function') && !LEAF_PROTOTYPES.includes(current); current = getProto(current)){
         for (const key of Object.getOwnPropertyNames(current)){
-            bindings.push(key, BindingTag_Accessor, createGetter(raw, key));
+            bindings.push(key, createGetter(raw, key));
             if (defaultLocation === -1 && key === 'default') {
-                // The index of the tag, so that the tag and the getter can be replaced together below.
-                defaultLocation = bindings.length - 2;
+                defaultLocation = bindings.length - 1;
             }
         }
     }
@@ -449,12 +451,11 @@ function createGetter(obj, key) {
     // we should set the `default` getter if the imported module is a `.cjs file`
     if (!(allowExportDefault && defaultLocation >= 0)) {
         // Replace the binding with one for the namespace itself in order to preserve iteration order.
-        // Values are untagged, so `raw` is bound directly even when it is itself a function.
         if (defaultLocation >= 0) {
-            // Replace the tag and getter with the value
-            bindings.splice(defaultLocation, 2, raw);
+            // Replace the getter with the value
+            bindings.splice(defaultLocation, 1, BindingTag_Value, raw);
         } else {
-            bindings.push('default', raw);
+            bindings.push('default', BindingTag_Value, raw);
         }
     }
     esm(ns, bindings);
