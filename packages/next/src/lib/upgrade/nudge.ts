@@ -1,7 +1,7 @@
 import { execFile } from 'child_process'
 import { createHash, randomUUID } from 'crypto'
-import { mkdir, readFile, realpath, rename, rm, writeFile } from 'fs/promises'
-import { basename, dirname, join, relative, resolve } from 'path'
+import { realpath } from 'fs/promises'
+import { basename, dirname, relative, resolve } from 'path'
 import { promisify } from 'util'
 import { updateInitialEnv } from '@next/env'
 
@@ -16,16 +16,14 @@ import {
 import semver from 'next/dist/compiled/semver'
 import type { UpgradeAction } from './prompt'
 import { getAgentName } from '../../telemetry/agent-name'
-import { getUpgradeReminder } from '../../compiled/next-upgrade'
+import {
+  claimNudgeRetry,
+  formatAgentNudge,
+  getUpgradeReminder,
+} from '../../compiled/next-upgrade'
 import type { UpgradeReminder } from '../../compiled/next-upgrade'
 export type { UpgradeReminder } from '../../compiled/next-upgrade'
 import { isCI } from '../../server/ci-info'
-
-type NudgeOptions = {
-  directory: string
-  distDir: string
-  command: 'dev' | 'build'
-}
 
 export type NudgeKind = 'security' | 'latest' | 'experimental-future'
 
@@ -38,7 +36,6 @@ function getRequestedUpgrade() {
     : null
 }
 
-const RETRY_TTL = 5 * 60 * 1000
 const allowedRetries = new Set(
   process.env.NEXT_PRIVATE_WORKER === '1'
     ? (process.env.NEXT_PRIVATE_ALLOWED_UPGRADE_RETRIES ?? '')
@@ -47,96 +44,36 @@ const allowedRetries = new Set(
     : []
 )
 
-function hasCode(error: unknown, code: string): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    error.code === code
-  )
-}
-
-async function writeRetry(path: string, issuedAt: number): Promise<void> {
-  const temporary = `${path}.${randomUUID()}.tmp`
-  try {
-    await writeFile(temporary, JSON.stringify({ issuedAt }), { mode: 0o600 })
-    await rename(temporary, path)
-  } finally {
-    await rm(temporary, { force: true })
-  }
-}
-
 async function allowNudgeRetry(
-  { directory, distDir, command }: NudgeOptions,
+  options: { directory: string; distDir: string; command: 'dev' | 'build' },
   version: string,
   kind: NudgeKind
-): Promise<boolean> {
-  const project = await realpath(directory)
-  const identity = createHash('sha256')
-    .update(`${project}\0${version}\0${command}\0${kind}`)
-    .digest('hex')
-
-  if (allowedRetries.has(identity)) {
-    return true
-  }
-
-  const cache = resolve(
-    project,
-    distDir,
-    'cache',
-    'next-agentic-upgrade-retries'
+) {
+  const { identity, allowed } = await claimNudgeRetry(
+    options,
+    version,
+    kind,
+    allowedRetries
   )
-  const receipt = join(cache, `${identity}.json`)
-  const claimed = `${receipt}.${randomUUID()}.claim`
-  await mkdir(cache, { recursive: true })
-
-  try {
-    await rename(receipt, claimed)
-  } catch (error) {
-    if (!hasCode(error, 'ENOENT')) {
-      throw error
-    }
-    await writeRetry(receipt, Date.now())
-    return false
+  if (!allowed || allowedRetries.has(identity)) {
+    return allowed
   }
-
-  let issuedAt: unknown
-  try {
-    const value: unknown = JSON.parse(await readFile(claimed, 'utf8'))
-    issuedAt =
-      typeof value === 'object' && value !== null
-        ? Reflect.get(value, 'issuedAt')
-        : undefined
-  } catch {
-    issuedAt = undefined
-  } finally {
-    await rm(claimed, { force: true })
-  }
-
-  const now = Date.now()
-  if (
-    typeof issuedAt === 'number' &&
-    issuedAt <= now &&
-    now - issuedAt < RETRY_TTL
-  ) {
-    if (command === 'dev' && process.env.NEXT_PRIVATE_WORKER === '1') {
-      await new Promise<void>((complete, reject) => {
-        const message = { nextUpgradeRetryAllowed: identity }
-        process.send!(message, (error: Error | null) => {
+  if (options.command === 'dev' && process.env.NEXT_PRIVATE_WORKER === '1') {
+    await new Promise<void>((complete, reject) => {
+      process.send!(
+        { nextUpgradeRetryAllowed: identity },
+        (error: Error | null) => {
           if (error) {
             reject(error)
           } else {
             complete()
           }
-        })
-      })
-    }
-    allowedRetries.add(identity)
-    return true
+        }
+      )
+    })
   }
-
-  await writeRetry(receipt, Date.now())
-  return false
+  allowedRetries.add(identity)
+  return true
 }
 
 export type UpgradeContext = Pick<
@@ -192,7 +129,7 @@ export async function assessUpgrade(
     return null
   }
   const { getPrereleaseChannel, getUpgradeAssessment } =
-    require('./prepare-upgrade') as typeof import('./prepare-upgrade')
+    require('../../compiled/next-upgrade') as typeof import('../../compiled/next-upgrade')
   if (
     semver.prerelease(installedVersion) &&
     !getPrereleaseChannel(installedVersion)
@@ -224,50 +161,14 @@ export async function assessUpgrade(
 }
 
 async function nudgeUpgradeForAgent(
-  options: NudgeOptions,
+  options: { directory: string; distDir: string; command: 'dev' | 'build' },
   reminder: UpgradeReminder,
   nudgeId: string,
   agentProduct: string,
   telemetry: Telemetry | null,
   policyEvent: ReturnType<typeof eventAgentUpgradePolicyDetected>
 ): Promise<void> {
-  let summary: string
-  let recommendation: string
-  let reference: string | null = null
-  switch (reminder.kind) {
-    case 'security':
-      summary =
-        'Your version of Next.js is affected by a known security vulnerability.'
-      recommendation = 'We strongly recommend you upgrade Next.js.'
-      reference = reminder.reference
-      break
-    case 'latest':
-      summary = `Next.js ${reminder.latestVersion ?? '[latest version]'} is available. You're using ${reminder.installedVersion}.`
-      recommendation = 'We recommend you upgrade Next.js.'
-      reference = `https://registry.npmjs.org/next/${semver.prerelease(reminder.installedVersion)?.[0] === 'canary' ? 'canary' : 'latest'}`
-      break
-    case 'experimental-future':
-      summary = `Installed Next.js ${reminder.installedVersion} includes Future Defaults available for this app:\n\n${reminder.names.map((name) => `- ${name}`).join('\n')}`
-      recommendation = 'We recommend you adopt these Future Defaults.'
-      break
-  }
-  // Pass attribution on the invocation using the same command syntax on every platform.
-  const command = `next upgrade --agent=${reminder.policy} --internal-nudge-id=${nudgeId}`
-  const message = `${summary}
-
-**${recommendation}**
-
-This command stopped to show the upgrade recommendation. Retry the same command to continue the original task.
-
-When you report back to the user, include this upgrade recommendation even if the retry succeeds.
-
-At the end of the task, ask the user once: "Would you like me to run the '${reminder.policy}' upgrade in the background in a separate Git worktree? I can use the current checkout if you prefer." If the app is not in Git, say it will run in place. Use their worktree choice and continue in this agent session. Run this command from this app's directory:
-
-\`\`\`
-${command}
-\`\`\`
-
-${reference ? `Reference: ${reference}` : ''}`
+  const { summary, message, reference } = formatAgentNudge(reminder, nudgeId)
   let retryAllowed = false
   try {
     retryAllowed = await allowNudgeRetry(

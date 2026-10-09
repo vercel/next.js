@@ -1,70 +1,37 @@
 import { execFileSync } from 'child_process'
+import { spawnNextUpgrade } from '../../cli/next-upgrade'
+import { processEnv, resetEnv, updateInitialEnv } from '@next/env'
 import { mkdir, mkdtemp, rm } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
-import { processEnv, resetEnv, updateInitialEnv } from '@next/env'
 
+import { warn } from '../../build/output/log'
+import { defaultConfig } from '../../server/config-shared'
+import { getAgentName } from '../../telemetry/agent-name'
 import {
   assessUpgrade,
   getUpgradeContext,
   nudgeUpgrade,
   runUpgrade,
   shouldPromptForUpgrade,
-} from 'next/dist/lib/upgrade/nudge'
-import { promptUpgrade } from 'next/dist/lib/upgrade/prompt'
-import Conf from 'next/dist/compiled/conf'
-import { getAgentName } from 'next/dist/telemetry/agent-name'
-import { getUpgradeAssessment } from 'next/dist/lib/upgrade/prepare-upgrade'
-import { warn } from 'next/dist/build/output/log'
-import { spawnNextUpgrade } from 'next/dist/cli/next-upgrade'
-import { defaultConfig } from 'next/dist/server/config-shared'
+} from './nudge'
+import { promptUpgrade } from './prompt'
+import { getUpgradeAssessment } from '../../compiled/next-upgrade'
 
-jest.mock('next/dist/cli/next-upgrade', () => ({
-  spawnNextUpgrade: jest.fn(),
-}))
-jest.mock(
-  '../../packages/next/src/cli/next-upgrade.js',
-  () => jest.requireMock('next/dist/cli/next-upgrade'),
-  { virtual: true }
-)
-
-// Read source so version cases run before the package build inlines __NEXT_VERSION.
-jest.mock('next/dist/lib/upgrade/nudge', () =>
-  jest.requireActual('../../packages/next/src/lib/upgrade/nudge')
-)
-jest.mock('../../packages/next/src/telemetry/agent-name', () =>
-  jest.requireMock('next/dist/telemetry/agent-name')
-)
-jest.mock('../../packages/next/src/lib/upgrade/prepare-upgrade', () =>
-  jest.requireMock('next/dist/lib/upgrade/prepare-upgrade')
-)
-jest.mock('../../packages/next/src/build/output/log', () =>
-  jest.requireMock('next/dist/build/output/log')
-)
-
-jest.mock('next/dist/telemetry/agent-name', () => ({
+jest.mock('../../telemetry/agent-name', () => ({
   getAgentName: jest.fn(),
 }))
-jest.mock('next/dist/lib/upgrade/prepare-upgrade', () => ({
-  getPrereleaseChannel: jest.requireActual(
-    'next/dist/lib/upgrade/prepare-upgrade'
-  ).getPrereleaseChannel,
-  getLatestUpgradeVersion: jest.requireActual(
-    'next/dist/lib/upgrade/prepare-upgrade'
-  ).getLatestUpgradeVersion,
+// Exercise the package source graph so renderer and preference mocks stay shared.
+jest.mock('../../compiled/next-upgrade', () => ({
+  ...jest.requireActual('../../../../next-upgrade/src'),
   getUpgradeAssessment: jest.fn(),
 }))
-jest.mock('next/dist/build/output/log', () => ({
+jest.mock('../../build/output/log', () => ({
   warn: jest.fn(),
 }))
 
-jest.mock('../../packages/next/src/server/ci-info', () => ({ isCI: false }))
-jest.mock('../../packages/next/src/lib/upgrade/prompt', () =>
-  jest.requireMock('next/dist/lib/upgrade/prompt')
-)
-jest.mock('next/dist/lib/upgrade/prompt', () => ({
-  promptUpgrade: jest.fn(),
-}))
+jest.mock('../../server/ci-info', () => ({ isCI: false }))
+jest.mock('./prompt', () => ({ promptUpgrade: jest.fn() }))
 let mockPreferencesDirectory: string
 jest.mock('next/dist/compiled/conf', () => {
   const ActualConf = jest.requireActual('next/dist/compiled/conf')
@@ -75,6 +42,16 @@ jest.mock('next/dist/compiled/conf', () => {
   }
 })
 
+const Conf = jest.requireMock(
+  'next/dist/compiled/conf'
+) as typeof import('next/dist/compiled/conf')
+
+jest.mock('../../cli/next-upgrade', () => ({ spawnNextUpgrade: jest.fn() }))
+jest.mock(
+  '../../cli/next-upgrade.js',
+  () => jest.requireMock('../../cli/next-upgrade'),
+  { virtual: true }
+)
 function mockUpgrade(targetVersion = process.env.__NEXT_VERSION || '16.4.0') {
   const canary = process.env.__NEXT_VERSION?.includes('-canary.')
   jest.mocked(getUpgradeAssessment).mockResolvedValue({
@@ -340,11 +317,11 @@ describe('security upgrade nudge', () => {
       jest.isolateModules(() => {
         restartedNudge = jest.requireActual<{
           nudgeUpgrade: typeof nudgeUpgrade
-        }>('../../packages/next/src/lib/upgrade/nudge').nudgeUpgrade
+        }>('./nudge').nudgeUpgrade
         jest
           .mocked(
-            jest.requireMock<typeof import('next/dist/telemetry/agent-name')>(
-              'next/dist/telemetry/agent-name'
+            jest.requireMock<typeof import('../../telemetry/agent-name')>(
+              '../../telemetry/agent-name'
             ).getAgentName
           )
           .mockResolvedValue('codex')
@@ -366,11 +343,11 @@ describe('security upgrade nudge', () => {
       jest.isolateModules(() => {
         newSessionNudge = jest.requireActual<{
           nudgeUpgrade: typeof nudgeUpgrade
-        }>('../../packages/next/src/lib/upgrade/nudge').nudgeUpgrade
+        }>('./nudge').nudgeUpgrade
         jest
           .mocked(
-            jest.requireMock<typeof import('next/dist/telemetry/agent-name')>(
-              'next/dist/telemetry/agent-name'
+            jest.requireMock<typeof import('../../telemetry/agent-name')>(
+              '../../telemetry/agent-name'
             ).getAgentName
           )
           .mockResolvedValue('codex')
@@ -754,7 +731,7 @@ describe('human upgrade nudge', () => {
   beforeEach(() => {
     jest.resetAllMocks()
     mockPreferencesDirectory = join(directory, 'preferences')
-    jest.requireMock('../../packages/next/src/server/ci-info').isCI = false
+    jest.requireMock('../../server/ci-info').isCI = false
     for (const stream of [process.stdin, process.stdout]) {
       Object.defineProperty(stream, 'isTTY', {
         configurable: true,
@@ -776,7 +753,7 @@ describe('human upgrade nudge', () => {
       if (descriptor) {
         Object.defineProperty(stream, 'isTTY', descriptor)
       } else {
-        delete stream.isTTY
+        Reflect.deleteProperty(stream, 'isTTY')
       }
     }
     if (terminal === undefined) {
@@ -1204,7 +1181,7 @@ describe('human upgrade nudge', () => {
     'does not request metadata or prompt with ineligible %s',
     async (reason) => {
       if (reason === 'CI') {
-        jest.requireMock('../../packages/next/src/server/ci-info').isCI = true
+        jest.requireMock('../../server/ci-info').isCI = true
       } else if (reason === 'TERM') {
         process.env.TERM = 'dumb'
       } else {
