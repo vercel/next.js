@@ -58,18 +58,62 @@ function createIpc<TIncoming, TOutgoing>(
   }
 
   let state: State = { type: 'waiting' }
-  let buffer: Buffer = Buffer.alloc(0)
+  // Received chunks that have not been consumed yet. We keep them as a list
+  // (instead of concatenating on every `data` event) so that assembling a
+  // packet that arrives in many chunks copies each byte only once.
+  const chunks: Buffer[] = []
+  let bufferedLength = 0
+
+  /**
+   * Removes the first `length` bytes from `chunks` and returns them.
+   * The caller must ensure that `bufferedLength >= length`.
+   */
+  function takeBytes(length: number): Buffer {
+    if (length === 0) {
+      return Buffer.alloc(0)
+    }
+    bufferedLength -= length
+    const first = chunks[0]
+    if (first.length >= length) {
+      // Fast path: the bytes are contained in the first chunk, no copy needed.
+      if (first.length === length) {
+        chunks.shift()
+      } else {
+        chunks[0] = first.subarray(length)
+      }
+      return first.subarray(0, length)
+    }
+    const result = Buffer.allocUnsafe(length)
+    let offset = 0
+    let consumed = 0
+    while (offset < length) {
+      const chunk = chunks[consumed]
+      const remaining = length - offset
+      if (chunk.length <= remaining) {
+        chunk.copy(result, offset)
+        offset += chunk.length
+        consumed++
+      } else {
+        chunk.copy(result, offset, 0, remaining)
+        chunks[consumed] = chunk.subarray(remaining)
+        offset += remaining
+      }
+    }
+    chunks.splice(0, consumed)
+    return result
+  }
+
   socket.once('connect', () => {
     socket.setNoDelay(true)
     socket.on('data', (chunk) => {
-      buffer = Buffer.concat([buffer, chunk])
+      chunks.push(chunk)
+      bufferedLength += chunk.length
 
       loop: while (true) {
         switch (state.type) {
           case 'waiting': {
-            if (buffer.length >= 4) {
-              const length = buffer.readUInt32BE(0)
-              buffer = buffer.subarray(4)
+            if (bufferedLength >= 4) {
+              const length = takeBytes(4).readUInt32BE(0)
               state = { type: 'packet', length }
             } else {
               break loop
@@ -77,9 +121,8 @@ function createIpc<TIncoming, TOutgoing>(
             break
           }
           case 'packet': {
-            if (buffer.length >= state.length) {
-              const packet = buffer.subarray(0, state.length)
-              buffer = buffer.subarray(state.length)
+            if (bufferedLength >= state.length) {
+              const packet = takeBytes(state.length)
               state = { type: 'waiting' }
               pushPacket(packet)
             } else {
