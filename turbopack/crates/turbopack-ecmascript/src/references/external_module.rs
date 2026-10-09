@@ -187,17 +187,23 @@ impl CachedExternalModule {
                     writeln!(code, "var mod;")?;
                     writeln!(code, "try {{")?;
 
-                    // First load the URL
+                    // Skip loading when another mechanism already installed the global.
                     writeln!(
                         code,
-                        "  await {TURBOPACK_LOAD_BY_URL}({});",
+                        "  if (!Object.prototype.hasOwnProperty.call(globalThis, {})) {{",
+                        StringifyJs(variable_name)
+                    )?;
+                    writeln!(
+                        code,
+                        "    await {TURBOPACK_LOAD_BY_URL}({}, true);",
                         StringifyJs(url)
                     )?;
+                    writeln!(code, "  }}")?;
 
                     // Then get the variable from global with existence check
                     writeln!(
                         code,
-                        "  if (typeof global[{}] === 'undefined') {{",
+                        "  if (!Object.prototype.hasOwnProperty.call(globalThis, {})) {{",
                         StringifyJs(variable_name)
                     )?;
                     writeln!(
@@ -208,7 +214,7 @@ impl CachedExternalModule {
                         StringifyJs(url)
                     )?;
                     writeln!(code, "  }}")?;
-                    writeln!(code, "  mod = global[{}];", StringifyJs(variable_name))?;
+                    writeln!(code, "  mod = globalThis[{}];", StringifyJs(variable_name))?;
 
                     // Catch and re-throw errors with more context
                     writeln!(code, "}} catch (error) {{")?;
