@@ -12,6 +12,7 @@ warning - [resolve] /turbopack/crates/turbopack-tests/tests/execution/turbopack/
       13 | }
       14 | 
   
+  This request is too dynamic to resolve at build time. If it's only known at runtime, opt out of bundling with `require(/* turbopackIgnore: true */ path)`.
   
   
   | It was not possible to find the requested file.
