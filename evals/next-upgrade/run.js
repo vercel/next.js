@@ -457,8 +457,9 @@ async function runCase(name, context) {
   return trials
 }
 
-// Persist authoritative results and summarize the complete parallel batch.
-function report(output, summary) {
+// Keep successes brief. Print each affected case's authoritative verdicts and
+// native log once, after parallel work settles, with workflow commands disabled.
+function report(output, cases, summary) {
   const { trials, preparationMs, totalMs } = summary
   fs.writeFileSync(
     path.join(output, 'summary.json'),
@@ -467,6 +468,34 @@ function report(output, summary) {
   console.log(
     `Upgrade evals: ${trials.filter((trial) => trial.status === 'passed').length}/${trials.length} passed`
   )
+  for (const name of cases) {
+    const caseTrials = trials.filter((trial) => trial.case === name)
+    const failures = caseTrials.filter((trial) => trial.status !== 'passed')
+    const runnerFailed = caseTrials.some((trial) => trial.exitCode !== 0)
+    if (!failures.length && !runnerFailed) {
+      continue
+    }
+    console.log(`::group::${name}: failed or invalid eval diagnostics`)
+    const token = crypto.randomBytes(16).toString('hex')
+    console.log(`::stop-commands::${token}`)
+    try {
+      for (const trial of failures) {
+        console.log(redact(JSON.stringify(trial, null, 2)))
+      }
+      if (!failures.length) {
+        console.log(
+          `Case runner exited unsuccessfully: ${caseTrials[0].exitCode}`
+        )
+      }
+      const log = path.join(output, `${name}.log`)
+      if (fs.existsSync(log)) {
+        console.log(redact(fs.readFileSync(log, 'utf8')))
+      }
+    } finally {
+      console.log(`::${token}::`)
+      console.log('::endgroup::')
+    }
+  }
   if (process.env.GITHUB_STEP_SUMMARY) {
     fs.appendFileSync(
       process.env.GITHUB_STEP_SUMMARY,
@@ -687,7 +716,7 @@ async function main() {
     trials.sort((a, b) =>
       `${a.case}/${a.agent}`.localeCompare(`${b.case}/${b.agent}`)
     )
-    report(output, {
+    report(output, cases, {
       sourceRevision: inputs.sourceRevision,
       preparationMs,
       totalMs: Date.now() - started,
