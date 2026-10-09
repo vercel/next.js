@@ -7,6 +7,10 @@ describe('proxy-runtime', () => {
     skipStart: true,
   })
 
+  // `getBuildError()` stops capturing at Vercel's
+  // `Error: Command "..." exited with N` line. Other hosts don't print it, so
+  // anything they log after the build error would end up in the snapshot.
+  // @force-gate !deploy || vercel
   it('should error when proxy file has runtime config export', async () => {
     let cliOutput: string
 
