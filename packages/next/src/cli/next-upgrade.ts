@@ -11,7 +11,7 @@ import { getProjectDir } from '../lib/get-project-dir'
 import { warnMissingReactDependencies } from '../lib/warn-missing-react-dependencies'
 import { getNpxCommand } from '../lib/helpers/get-npx-command'
 import {
-  detectPkgManager,
+  getPkgManager,
   type PackageManager,
 } from '../lib/helpers/get-pkg-manager'
 import { interopDefault } from '../lib/interop-default'
@@ -199,19 +199,20 @@ export async function spawnNextUpgrade(
       configuredPolicy = config.experimental?.agentUpgrade
 
       // Capture the app and runtime before delegation or an agent changes dependencies.
-      packageManager = detectPkgManager(baseDir)
+      packageManager = getPkgManager(baseDir)
       const [manager, version] =
         process.env.npm_config_user_agent?.split(' ')[0].split('/') ?? []
       if (manager === packageManager && version) {
         packageManagerVersion = valid(version)
       }
-      fromVersion = await getInstalledNextVersion(baseDir).catch((error) => {
+      try {
+        fromVersion = await getInstalledNextVersion(baseDir)
+      } catch (error) {
         Log.warn(
           'Could not determine the app version for upgrade telemetry:',
           error instanceof Error ? error.message : error
         )
-        return null
-      })
+      }
     } catch (error) {
       configError = error
     }

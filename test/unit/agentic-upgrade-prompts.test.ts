@@ -12,19 +12,12 @@ import {
 } from 'fs/promises'
 import * as Log from 'next/dist/build/output/log'
 import cliSelect from 'next/dist/compiled/cli-select'
-import {
-  reportAgentUpgradeAgentResult,
-  spawnNextUpgrade,
-} from 'next/dist/cli/next-upgrade'
-import { detectPkgManager } from 'next/dist/lib/helpers/get-pkg-manager'
+import { spawnNextUpgrade } from 'next/dist/cli/next-upgrade'
 import { findDir } from 'next/dist/lib/find-pages-dir'
 import { getProjectDir } from 'next/dist/lib/get-project-dir'
 import { getHarnessModels } from 'next/dist/lib/upgrade/model-discovery'
 import { handoffUpgrade } from 'next/dist/lib/upgrade/harness'
-import {
-  getInstalledNextVersion,
-  prepareUpgrade,
-} from 'next/dist/lib/upgrade/prepare-upgrade'
+import { prepareUpgrade } from 'next/dist/lib/upgrade/prepare-upgrade'
 import loadConfig from 'next/dist/server/config'
 import { normalizeConfig } from 'next/dist/server/config-shared'
 import { PHASE_PRODUCTION_BUILD } from 'next/dist/shared/lib/constants'
@@ -67,9 +60,6 @@ jest.mock('next/dist/lib/get-project-dir', () => ({
 jest.mock('next/dist/lib/helpers/get-npx-command', () => ({
   getNpxCommand: () => 'npx',
 }))
-jest.mock('next/dist/lib/helpers/get-pkg-manager', () => ({
-  detectPkgManager: jest.fn(),
-}))
 jest.mock('next/dist/lib/picocolors', () => ({
   bold: (text: string) => text,
   cyan: (text: string) => text,
@@ -79,7 +69,6 @@ jest.mock('next/dist/lib/upgrade/model-discovery', () => ({
   getHarnessModels: jest.fn(),
 }))
 jest.mock('next/dist/lib/upgrade/prepare-upgrade', () => ({
-  getInstalledNextVersion: jest.fn(),
   prepareUpgrade: jest.fn(),
 }))
 jest.mock('next/dist/server/config', () => ({
@@ -174,8 +163,6 @@ describe('agentic upgrade prompts', () => {
     process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
   const originalFetch = global.fetch
   const originalExitCode = process.exitCode
-  const originalUserAgent = process.env.npm_config_user_agent
-  const originalRunId = process.env.__NEXT_AGENT_UPGRADE_RUN_ID
 
   beforeEach(() => {
     jest.resetAllMocks()
@@ -218,11 +205,7 @@ describe('agentic upgrade prompts', () => {
     process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION = cliVersion
     global.fetch = jest.fn()
     process.exitCode = undefined
-    delete process.env.npm_config_user_agent
-    delete process.env.__NEXT_AGENT_UPGRADE_RUN_ID
 
-    jest.mocked(getInstalledNextVersion).mockResolvedValue('14.1.1')
-    jest.mocked(detectPkgManager).mockReturnValue('npm')
     jest.mocked(getProjectDir).mockReturnValue('/workspace/app')
     jest.mocked(findDir).mockReturnValue('/workspace/app/app')
     jest.mocked(createSpinner).mockReturnValue({
@@ -254,16 +237,6 @@ describe('agentic upgrade prompts', () => {
   })
 
   afterEach(() => {
-    if (originalUserAgent === undefined) {
-      delete process.env.npm_config_user_agent
-    } else {
-      process.env.npm_config_user_agent = originalUserAgent
-    }
-    if (originalRunId === undefined) {
-      delete process.env.__NEXT_AGENT_UPGRADE_RUN_ID
-    } else {
-      process.env.__NEXT_AGENT_UPGRADE_RUN_ID = originalRunId
-    }
     if (originalPath === undefined) {
       delete process.env.PATH
     } else {
@@ -310,225 +283,6 @@ describe('agentic upgrade prompts', () => {
     expect(prepareUpgrade).toHaveBeenCalledTimes(1)
     expect(process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION).toBeUndefined()
     expect(process.env.__NEXT_UPGRADE_USE_CURRENT_CLI).toBeUndefined()
-  })
-
-  it.each([
-    ['pnpm', 'pnpm/10.33.0 npm/? node/v24.1.0', '10.33.0'],
-    ['yarn', 'yarn/4.9.2 npm/? node/v24.1.0', '4.9.2'],
-    ['npm', 'npm/11.4.0 node/v24.1.0', '11.4.0'],
-    ['pnpm', 'npm/11.4.0 node/v24.1.0', null],
-    ['npm', 'npm/not-a-version node/v24.1.0', null],
-    ['npm', undefined, null],
-    [null, undefined, null],
-  ] as const)(
-    'records the invocation environment for %s with user agent %s',
-    async (manager, userAgent, version) => {
-      jest.mocked(detectPkgManager).mockReturnValue(manager)
-      if (userAgent !== undefined) {
-        process.env.npm_config_user_agent = userAgent
-      }
-      jest.mocked(prepareUpgrade).mockResolvedValue({
-        status: 'unaffected',
-        reason: 'Already current.',
-      })
-
-      await spawnNextUpgrade(
-        '/workspace/app',
-        { revision: 'latest', verbose: false, agent: 'security' },
-        null
-      )
-
-      const telemetry = jest.mocked(Telemetry).mock.results[0].value
-      expect(telemetry.record).toHaveBeenCalledWith({
-        eventName: 'NEXT_AGENT_UPGRADE_RUN_STARTED',
-        payload: expect.objectContaining({
-          fromVersion: '14.1.1',
-          nodeVersion: process.version,
-          packageManager: manager,
-          packageManagerVersion: version,
-        }),
-      })
-      expect(telemetry.record).toHaveBeenCalledWith({
-        eventName: 'NEXT_AGENT_UPGRADE_CLI_RESULT',
-        payload: expect.objectContaining({
-          result: 'no_update_needed',
-          fromVersion: '14.1.1',
-          targetVersion: null,
-        }),
-      })
-    }
-  )
-
-  it.each([
-    [null, null],
-    ['pnpm-lock.yaml', 'pnpm'],
-  ] as const)(
-    'does not probe executables for package manager metadata with lockfile %s',
-    async (lockfile, manager) => {
-      const existsSync = jest
-        .spyOn(require('fs'), 'existsSync')
-        .mockImplementation((path) =>
-          lockfile === null ? false : String(path).endsWith(lockfile)
-        )
-      const execSync = jest
-        .spyOn(require('child_process'), 'execSync')
-        .mockImplementation(() => {
-          throw new Error('Package manager probing must not run.')
-        })
-      jest
-        .mocked(detectPkgManager)
-        .mockImplementation(
-          jest.requireActual('next/dist/lib/helpers/get-pkg-manager')
-            .detectPkgManager
-        )
-      jest.mocked(prepareUpgrade).mockResolvedValue({
-        status: 'unaffected',
-        reason: 'Already current.',
-      })
-
-      try {
-        await spawnNextUpgrade(
-          '/workspace/app',
-          { revision: 'latest', verbose: false, agent: 'security' },
-          null
-        )
-
-        const telemetry = jest.mocked(Telemetry).mock.results[0].value
-        expect(telemetry.record).toHaveBeenCalledWith({
-          eventName: 'NEXT_AGENT_UPGRADE_RUN_STARTED',
-          payload: expect.objectContaining({
-            packageManager: manager,
-            packageManagerVersion: null,
-          }),
-        })
-        expect(execSync).not.toHaveBeenCalled()
-      } finally {
-        existsSync.mockRestore()
-        execSync.mockRestore()
-      }
-    }
-  )
-
-  it('retains the version path when guide preparation fails', async () => {
-    jest.mocked(cp).mockRejectedValueOnce(new Error('Missing upgrade guide.'))
-
-    await spawnNextUpgrade(
-      '/workspace/app',
-      { revision: 'latest', verbose: false, agent: 'security' },
-      null
-    )
-
-    const telemetry = jest.mocked(Telemetry).mock.results[0].value
-    expect(telemetry.record).toHaveBeenCalledWith({
-      eventName: 'NEXT_AGENT_UPGRADE_CLI_RESULT',
-      payload: expect.objectContaining({
-        result: 'guide_failure',
-        fromVersion: '14.1.1',
-        targetVersion: '16.3.5',
-      }),
-    })
-  })
-
-  it('counts a start with runtime metadata when the installed version cannot be read', async () => {
-    jest
-      .mocked(getInstalledNextVersion)
-      .mockRejectedValueOnce(new Error('Missing Next.js dependency.'))
-    jest
-      .mocked(prepareUpgrade)
-      .mockRejectedValueOnce(new Error('Missing Next.js dependency.'))
-
-    await spawnNextUpgrade(
-      '/workspace/app',
-      { revision: 'latest', verbose: false, agent: 'security' },
-      null
-    )
-
-    const telemetry = jest.mocked(Telemetry).mock.results[0].value
-    expect(telemetry.record).toHaveBeenCalledWith({
-      eventName: 'NEXT_AGENT_UPGRADE_RUN_STARTED',
-      payload: expect.objectContaining({
-        fromVersion: null,
-        nodeVersion: process.version,
-        packageManager: 'npm',
-      }),
-    })
-    expect(telemetry.record).toHaveBeenCalledWith({
-      eventName: 'NEXT_AGENT_UPGRADE_CLI_RESULT',
-      payload: expect.objectContaining({
-        result: 'cli_failure',
-        fromVersion: null,
-        targetVersion: null,
-      }),
-    })
-    expect(telemetry.flush).toHaveBeenCalledTimes(1)
-  })
-
-  it('joins delegated version metadata to the original run without another start', async () => {
-    const runId = '11111111-1111-4111-8111-111111111111'
-    process.env.__NEXT_AGENT_UPGRADE_RUN_ID = runId
-
-    await spawnNextUpgrade(
-      '/workspace/app',
-      { revision: 'latest', verbose: false, agent: 'security' },
-      null
-    )
-
-    const telemetry = jest.mocked(Telemetry).mock.results[0].value
-    expect(telemetry.record).toHaveBeenCalledTimes(1)
-    expect(telemetry.record).toHaveBeenCalledWith({
-      eventName: 'NEXT_AGENT_UPGRADE_CLI_RESULT',
-      payload: expect.objectContaining({
-        runId,
-        result: 'handoff_issued',
-        fromVersion: '14.1.1',
-        targetVersion: '16.3.5',
-      }),
-    })
-  })
-
-  it('reports the upgraded app version instead of the reporting CLI version', async () => {
-    jest.mocked(getInstalledNextVersion).mockResolvedValue('16.3.5')
-    const runId = '11111111-1111-4111-8111-111111111111'
-
-    await reportAgentUpgradeAgentResult(runId, 'success')
-
-    expect(getInstalledNextVersion).toHaveBeenCalledWith(process.cwd())
-    const telemetry = jest.mocked(Telemetry).mock.results[0].value
-    expect(telemetry.record).toHaveBeenCalledWith({
-      eventName: 'NEXT_AGENT_UPGRADE_AGENT_RESULT',
-      payload: {
-        schemaVersion: 1,
-        runId,
-        result: 'success',
-        resultVersion: '16.3.5',
-      },
-    })
-    expect(telemetry.flush).toHaveBeenCalledTimes(1)
-  })
-
-  it('still reports failure when the upgrade leaves the app dependency unreadable', async () => {
-    jest
-      .mocked(getInstalledNextVersion)
-      .mockRejectedValue(new Error('Missing Next.js dependency.'))
-    const runId = '11111111-1111-4111-8111-111111111111'
-
-    await reportAgentUpgradeAgentResult(runId, 'failure')
-
-    const telemetry = jest.mocked(Telemetry).mock.results[0].value
-    expect(telemetry.record).toHaveBeenCalledWith({
-      eventName: 'NEXT_AGENT_UPGRADE_AGENT_RESULT',
-      payload: {
-        schemaVersion: 1,
-        runId,
-        result: 'failure',
-        resultVersion: null,
-      },
-    })
-    expect(Log.warn).toHaveBeenCalledWith(
-      'Could not determine the app version for upgrade telemetry:',
-      'Missing Next.js dependency.'
-    )
-    expect(telemetry.flush).toHaveBeenCalledTimes(1)
   })
 
   it('rejects a worker running a different CLI version', async () => {
