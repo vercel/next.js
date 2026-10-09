@@ -93,5 +93,13 @@ describe('app dir - css - experimental inline css', () => {
       expect(res.status).toBe(200)
       expect(res.headers.get('content-type')).toContain('font')
     })
+
+    it('should not include the root layout stylesheets in the global error styles', async () => {
+      const html = await next.render('/')
+
+      // The root layout's stylesheets are expected to be inlined twice: once
+      // in a <style> tag for SSR, and once in the RSC payload.
+      expect(html.match(/--root-layout-css-marker/g)).toHaveLength(2)
+    })
   })
 })
