@@ -42,6 +42,7 @@ import {
 } from '../../server/app-render/work-unit-async-storage.external'
 import type { ImplicitTags } from '../../server/lib/implicit-tags'
 import { getImplicitTags } from '../../server/lib/implicit-tags'
+import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import {
   throwIncompleteStaticParamsErrorInStaticRoute,
   throwMissingGspErrorInStaticRoute,
@@ -687,20 +688,20 @@ async function callGenerateStaticParams(
 
   if (!Array.isArray(generatedParams)) {
     throw new Error(
-      `Invalid value returned from generateStaticParams for "${page}". Expected an array, but received type ${getValueType(generatedParams)}. See more info here: https://nextjs.org/docs/messages/generate-static-params`
+      `Invalid value returned from generateStaticParams for "${normalizeAppPath(page)}". Expected an array, but received type ${getValueType(generatedParams)}. See more info here: https://nextjs.org/docs/messages/generate-static-params`
     )
   }
 
   if (isStaticExport && generatedParams.length === 0) {
     throw new Error(
-      `Page "${page}" returned an empty array from "generateStaticParams()". With "output: export", at least one route must be generated. See more info here: https://nextjs.org/docs/messages/generate-static-params`
+      `Page "${normalizeAppPath(page)}" returned an empty array from "generateStaticParams()". With "output: export", at least one route must be generated. See more info here: https://nextjs.org/docs/messages/generate-static-params`
     )
   }
 
   for (const [index, params] of generatedParams.entries()) {
     if (!isPlainObject(params)) {
       throw new Error(
-        `Invalid value at index ${index} returned from generateStaticParams for "${page}". Expected an object, but received type ${getValueType(params)}. See more info here: https://nextjs.org/docs/messages/generate-static-params`
+        `Invalid value at index ${index} returned from generateStaticParams for "${normalizeAppPath(page)}". Expected an object, but received type ${getValueType(params)}. See more info here: https://nextjs.org/docs/messages/generate-static-params`
       )
     }
   }
@@ -738,7 +739,11 @@ export async function generateRouteStaticParams(
   // Early return if no segments to process
   if (segments.length === 0) return []
 
-  const implicitTags = await getImplicitTags(store.page, store.page, null)
+  const implicitTags = await getImplicitTags(
+    store.page,
+    normalizeAppPath(store.page),
+    null
+  )
 
   // Use iterative processing with a work queue to avoid recursion overhead
   interface WorkItem {
@@ -959,7 +964,7 @@ export async function buildAppStaticPaths({
   const afterRunner = new AfterRunner()
 
   const store = createWorkStore({
-    page,
+    page: ComponentMod.routeModule.definition.page,
     renderOpts: {
       incrementalCache,
       cacheLifeProfiles,
@@ -989,7 +994,7 @@ export async function buildAppStaticPaths({
           type: 'build-time-generator',
           functionName: 'unstable_generateParamMatching',
           phase: 'render',
-          implicitTags: await getImplicitTags(page, page, null),
+          implicitTags: await getImplicitTags(store.page, page, null),
           // Matching configuration does not receive concrete parameter values.
           rootParams: {},
         }
