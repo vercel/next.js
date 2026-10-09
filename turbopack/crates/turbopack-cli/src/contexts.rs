@@ -13,7 +13,6 @@ use turbopack::{
 };
 use turbopack_browser::react_refresh::assert_can_resolve_react_refresh;
 use turbopack_core::{
-    chunk::SourceMapsType,
     compile_time_defines,
     compile_time_info::{CompileTimeDefines, CompileTimeInfo},
     condition::ContextCondition,
@@ -22,6 +21,7 @@ use turbopack_core::{
     free_var_references,
     ident::Layer,
     resolve::options::ImportMap,
+    source_map::SourceMapType,
 };
 use turbopack_node::{
     execution_context::ExecutionContext, transforms::postcss::PostCssTransformOptions,
@@ -93,7 +93,7 @@ async fn get_client_module_options_context(
     execution_context: ResolvedVc<ExecutionContext>,
     env: ResolvedVc<Environment>,
     node_env: Vc<NodeEnv>,
-    source_maps_type: SourceMapsType,
+    source_maps_type: Option<SourceMapType>,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let is_dev = matches!(*node_env.await?, NodeEnv::Development);
     let module_options_context = ModuleOptionsContext {
@@ -148,7 +148,7 @@ pub fn get_client_asset_context(
     execution_context: Vc<ExecutionContext>,
     compile_time_info: Vc<CompileTimeInfo>,
     node_env: Vc<NodeEnv>,
-    source_maps_type: SourceMapsType,
+    source_maps_type: Option<SourceMapType>,
 ) -> Vc<Box<dyn AssetContext>> {
     let resolve_options_context =
         get_client_resolve_options_context(project_path.clone(), node_env);

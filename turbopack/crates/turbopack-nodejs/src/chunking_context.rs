@@ -12,8 +12,7 @@ use turbopack_core::{
         AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkItemOrBatchWithAsyncModuleInfo,
         ChunkItemWithAsyncModuleInfo, ChunkType, ChunkableModule, ChunkingConfig, ChunkingConfigs,
         ChunkingContext, ContentHashing, EntryChunkGroupResult, EvaluatableAsset, MinifyType,
-        SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
-        WorkerConfigurationOptions,
+        SourceMapSourceType, UnusedReferences, UrlBehavior, WorkerConfigurationOptions,
         availability_info::AvailabilityInfo,
         chunk_group::{MakeChunkGroupResult, make_chunk_group},
         chunk_id_strategy::ModuleIdStrategy,
@@ -27,6 +26,7 @@ use turbopack_core::{
         chunk_group_info::ChunkGroup,
     },
     output::{OutputAsset, OutputAssets},
+    source_map::SourceMapType,
 };
 use turbopack_ecmascript::{
     async_chunk::module::AsyncLoaderModule,
@@ -81,7 +81,7 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
-    pub fn source_maps(mut self, source_maps: SourceMapsType) -> Self {
+    pub fn source_maps(mut self, source_maps: Option<SourceMapType>) -> Self {
         self.chunking_context.source_maps_type = source_maps;
         self
     }
@@ -230,7 +230,7 @@ pub struct NodeJsChunkingContext {
     /// Whether to minify resulting chunks
     minify_type: MinifyType,
     /// Whether to generate source maps
-    source_maps_type: SourceMapsType,
+    source_maps_type: Option<SourceMapType>,
     /// Whether to use manifest chunks for lazy compilation
     manifest_chunks: bool,
     /// The strategy to use for generating module ids
@@ -288,7 +288,7 @@ impl NodeJsChunkingContext {
                 environment,
                 runtime_type,
                 minify_type: MinifyType::NoMinify,
-                source_maps_type: SourceMapsType::Full,
+                source_maps_type: Some(SourceMapType::Full),
                 manifest_chunks: false,
                 source_map_source_type: SourceMapSourceType::TurbopackUri,
                 module_id_strategy: None,
@@ -488,20 +488,12 @@ impl ChunkingContext for NodeJsChunkingContext {
 
     #[turbo_tasks::function]
     fn reference_chunk_source_maps(&self, _chunk: Vc<Box<dyn OutputAsset>>) -> Vc<bool> {
-        Vc::cell(match self.source_maps_type {
-            SourceMapsType::Full => true,
-            SourceMapsType::Partial => true,
-            SourceMapsType::None => false,
-        })
+        Vc::cell(self.source_maps_type.is_some())
     }
 
     #[turbo_tasks::function]
     fn reference_module_source_maps(&self, _module: Vc<Box<dyn Module>>) -> Vc<bool> {
-        Vc::cell(match self.source_maps_type {
-            SourceMapsType::Full => true,
-            SourceMapsType::Partial => true,
-            SourceMapsType::None => false,
-        })
+        Vc::cell(self.source_maps_type.is_some())
     }
 
     #[turbo_tasks::function]

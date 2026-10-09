@@ -15,8 +15,8 @@ use turbopack::{
 };
 use turbopack_core::{
     chunk::{
-        AssetSuffix, ChunkingConfig, MangleType, MinifyType, SourceMapSourceType, SourceMapsType,
-        UnusedReferences, UrlBehavior, chunk_id_strategy::ModuleIdStrategy,
+        AssetSuffix, ChunkingConfig, MangleType, MinifyType, SourceMapSourceType, UnusedReferences,
+        UrlBehavior, chunk_id_strategy::ModuleIdStrategy,
     },
     compile_time_defines,
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReferences},
@@ -25,6 +25,7 @@ use turbopack_core::{
     module_graph::{
         binding_usage_info::OptionBindingUsageInfo, style_groups::StyleGroupsAlgorithm,
     },
+    source_map::OptionSourceMapType,
     target::CompileTarget,
 };
 use turbopack_css::chunk::CssChunkType;
@@ -1024,7 +1025,7 @@ pub struct ServerChunkingContextOptions {
     pub export_usage: Vc<OptionBindingUsageInfo>,
     pub unused_references: Vc<UnusedReferences>,
     pub minify: Vc<bool>,
-    pub source_maps: Vc<SourceMapsType>,
+    pub source_maps: Vc<OptionSourceMapType>,
     pub no_mangling: Vc<bool>,
     pub scope_hoisting: Vc<bool>,
     pub nested_async_chunking: Vc<bool>,

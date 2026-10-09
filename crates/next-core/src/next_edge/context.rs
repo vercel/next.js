@@ -7,8 +7,7 @@ use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
     chunk::{
         AssetSuffix, ChunkingConfig, ChunkingContext, CrossOrigin, MangleType, MinifyType,
-        SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
-        chunk_id_strategy::ModuleIdStrategy,
+        SourceMapSourceType, UnusedReferences, UrlBehavior, chunk_id_strategy::ModuleIdStrategy,
     },
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences},
     environment::{EdgeWorkerEnvironment, Environment, ExecutionEnvironment, NodeJsVersion},
@@ -17,6 +16,7 @@ use turbopack_core::{
     module_graph::{
         binding_usage_info::OptionBindingUsageInfo, style_groups::StyleGroupsAlgorithm,
     },
+    source_map::OptionSourceMapType,
 };
 use turbopack_css::chunk::CssChunkType;
 use turbopack_ecmascript::chunk::EcmascriptChunkType;
@@ -182,7 +182,7 @@ pub struct EdgeChunkingContextOptions {
     pub export_usage: Vc<OptionBindingUsageInfo>,
     pub unused_references: Vc<UnusedReferences>,
     pub turbo_minify: Vc<bool>,
-    pub turbo_source_maps: Vc<SourceMapsType>,
+    pub turbo_source_maps: Vc<OptionSourceMapType>,
     pub no_mangling: Vc<bool>,
     pub scope_hoisting: Vc<bool>,
     pub nested_async_chunking: Vc<bool>,

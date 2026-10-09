@@ -26,7 +26,6 @@ use turbopack::{
     },
 };
 use turbopack_core::{
-    chunk::SourceMapsType,
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
@@ -302,7 +301,7 @@ async fn node_file_trace_operation(
                 ..Default::default()
             },
             css: CssOptionsContext {
-                source_maps: SourceMapsType::None,
+                source_maps: None,
                 enable_raw_css: true,
                 ..Default::default()
             },
