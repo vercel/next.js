@@ -1,20 +1,18 @@
 import { Suspense } from 'react'
 
-export function generateStaticParams() {
-  return [{ slug: 'prerendered' }]
-}
-
-export default function StaticParamsPage({
+export default function UngeneratedParamsPage({
   params,
 }: {
   params: Promise<{ slug: string }>
 }) {
   return (
     <div>
-      <h1 data-testid="static-params-title">Static Params Page</h1>
+      <h1 data-testid="ungenerated-params-title">
+        Ungenerated Params Runtime Page
+      </h1>
       <Suspense
         fallback={
-          <div data-testid="static-params-fallback">Loading params...</div>
+          <div data-testid="ungenerated-params-fallback">Loading params...</div>
         }
       >
         <ParamContent params={params} />
@@ -26,5 +24,5 @@ export default function StaticParamsPage({
 async function ParamContent({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
 
-  return <div data-testid="static-param-value">slug: {slug}</div>
+  return <div data-testid="ungenerated-param-value">slug: {slug}</div>
 }

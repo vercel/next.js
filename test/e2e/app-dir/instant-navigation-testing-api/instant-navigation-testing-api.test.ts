@@ -87,6 +87,19 @@ async function openPage(
   return page
 }
 
+/** `<TaggedLink>`, i.e. `<Link>` with an extra attribute to allow matching by prefetch kind */
+const linkSelector = ({
+  prefetch,
+  href,
+}: {
+  prefetch: 'auto' | true
+  href: string
+}) => `a[href="${href}"][data-prefetch="${prefetch}"]`
+
+/** An `<a>` tag (not `TaggedLink`) */
+const plainLinkSelector = ({ href }: { href: string }) =>
+  `a[href="${href}"]:not([data-prefetch])`
+
 afterEach(async () => {
   if (activeBrowser) {
     // Console-error checking targets production minified React errors (e.g. a
@@ -109,7 +122,7 @@ describe('instant-navigation-testing-api', () => {
     const page = await openPage(next, '/')
 
     await instant(page, async () => {
-      await page.click('#link-to-target')
+      await page.click(linkSelector({ href: '/target-page', prefetch: 'auto' }))
 
       // The loading shell appears immediately, without waiting for dynamic data
       const loadingShell = page.locator('[data-testid="loading-shell"]')
@@ -135,46 +148,6 @@ describe('instant-navigation-testing-api', () => {
     expect(navigationRequests.length).toBe(navigationsAtUnlock)
   })
 
-  it('renders runtime-prefetched content instantly during navigation', async () => {
-    const page = await openPage(next, '/')
-
-    await instant(page, async () => {
-      await page.click('#link-to-runtime-prefetch')
-
-      // Content that depends on search params appears immediately because
-      // it was included in the runtime prefetch
-      const searchParamValue = page.locator(
-        '[data-testid="search-param-value"]'
-      )
-      await searchParamValue.waitFor({ state: 'visible' })
-      expect(await searchParamValue.textContent()).toContain(
-        'myParam: testValue'
-      )
-
-      // The loading state for dynamic content is visible
-      const innerLoading = page.locator('[data-testid="inner-loading"]')
-      await innerLoading.waitFor({ state: 'visible' })
-      expect(await innerLoading.textContent()).toContain(
-        'Loading dynamic content...'
-      )
-
-      // Dynamic content has not streamed in yet
-      const dynamicContent = page.locator('[data-testid="dynamic-content"]')
-      expect(await dynamicContent.count()).toBe(0)
-    })
-
-    // After exiting the instant scope, dynamic content streams in
-    const dynamicContent = page.locator('[data-testid="dynamic-content"]')
-    await dynamicContent.waitFor({ state: 'visible' })
-    expect(await dynamicContent.textContent()).toContain(
-      'Dynamic content loaded'
-    )
-
-    // Search param content remains visible
-    const searchParamValue = page.locator('[data-testid="search-param-value"]')
-    expect(await searchParamValue.textContent()).toContain('myParam: testValue')
-  })
-
   // Navigate deeper under the lock. Loading `/blocking-fallback/en` commits the
   // parent layout (which owns the only <Suspense> boundary) and the landing
   // page. `/blocking-fallback/en/s1` is a fallback route (`[scope]` has no
@@ -194,7 +167,12 @@ describe('instant-navigation-testing-api', () => {
       .waitFor({ state: 'visible' })
 
     await instant(page, async () => {
-      await page.click('#to-blocking-scope')
+      await page.click(
+        linkSelector({
+          href: '/blocking-fallback/en/s1',
+          prefetch: 'auto',
+        })
+      )
 
       const secret = page.locator('[data-testid="blocking-secret"]')
       // Poll past the point where the navigation previously committed,
@@ -231,7 +209,9 @@ describe('instant-navigation-testing-api', () => {
     const page = await openPage(next, '/')
 
     await instant(page, async () => {
-      await page.click('#link-to-full-prefetch')
+      await page.click(
+        linkSelector({ href: '/full-prefetch-target', prefetch: true })
+      )
 
       // With prefetch={true}, the dynamic content is included in the prefetch
       // response, so it appears immediately without a loading state
@@ -283,7 +263,7 @@ describe('instant-navigation-testing-api', () => {
     let ranCallback = false
     await instant(page, async () => {
       ranCallback = true
-      await page.click('#link-to-target')
+      await page.click(linkSelector({ href: '/target-page', prefetch: 'auto' }))
       const loadingShell = page.locator('[data-testid="loading-shell"]')
       await loadingShell.waitFor({ state: 'visible' })
     })
@@ -317,14 +297,18 @@ describe('instant-navigation-testing-api', () => {
       await Promise.all([
         instant(page, async () => {
           ranFirst = true
-          await page.click('#link-to-target')
+          await page.click(
+            linkSelector({ href: '/target-page', prefetch: 'auto' })
+          )
           await page
             .locator('[data-testid="loading-shell"]')
             .waitFor({ state: 'visible' })
         }),
         instant(otherPage, async () => {
           ranSecond = true
-          await otherPage.click('#link-to-target')
+          await otherPage.click(
+            linkSelector({ href: '/target-page', prefetch: 'auto' })
+          )
           await otherPage
             .locator('[data-testid="loading-shell"]')
             .waitFor({ state: 'visible' })
@@ -384,7 +368,7 @@ describe('instant-navigation-testing-api', () => {
 
     await instant(page, async () => {
       // Navigate using a plain anchor (triggers full page load)
-      await page.click('#plain-link-to-target')
+      await page.click(plainLinkSelector({ href: '/target-page' }))
 
       // The loading shell appears, but dynamic content is blocked
       const loadingShell = page.locator('[data-testid="loading-shell"]')
@@ -418,7 +402,7 @@ describe('instant-navigation-testing-api', () => {
       await homeTitle.waitFor({ state: 'visible' })
 
       // Navigate via plain anchor (MPA navigation)
-      await page.click('#plain-link-to-target')
+      await page.click(plainLinkSelector({ href: '/target-page' }))
 
       // The loading shell appears, but dynamic content is blocked
       const loadingShell = page.locator('[data-testid="loading-shell"]')
@@ -447,7 +431,7 @@ describe('instant-navigation-testing-api', () => {
       await homeTitle.waitFor({ state: 'visible' })
 
       // Second MPA navigation: go to target page
-      await page.click('#plain-link-to-target')
+      await page.click(plainLinkSelector({ href: '/target-page' }))
 
       // Static shell is visible
       const loadingShell = page.locator('[data-testid="loading-shell"]')
@@ -462,7 +446,7 @@ describe('instant-navigation-testing-api', () => {
       await homeTitle.waitFor({ state: 'visible' })
 
       // Fourth MPA navigation: go to target page again
-      await page.click('#plain-link-to-target')
+      await page.click(plainLinkSelector({ href: '/target-page' }))
 
       // Still shows shell, dynamic content still blocked
       await loadingShell.waitFor({ state: 'visible' })
@@ -504,7 +488,9 @@ describe('instant-navigation-testing-api', () => {
       })
 
       await instant(page, async () => {
-        await page.click('#link-to-cookies-page')
+        await page.click(
+          linkSelector({ href: '/cookies-page', prefetch: 'auto' })
+        )
 
         const title = page.locator('[data-testid="cookies-page-title"]')
         await title.waitFor({ state: 'visible' })
@@ -527,7 +513,9 @@ describe('instant-navigation-testing-api', () => {
       })
 
       await instant(page, async () => {
-        await page.click('#link-to-cookies-with-param')
+        await page.click(
+          linkSelector({ href: '/cookies-with-param/x', prefetch: 'auto' })
+        )
 
         const title = page.locator('[data-testid="cookies-param-title"]')
         await title.waitFor({ state: 'visible' })
@@ -554,7 +542,7 @@ describe('instant-navigation-testing-api', () => {
       })
 
       await instant(page, async () => {
-        await page.click('#plain-link-to-cookies-page')
+        await page.click(plainLinkSelector({ href: '/cookies-page' }))
 
         const title = page.locator('[data-testid="cookies-page-title"]')
         await title.waitFor({ state: 'visible' })
@@ -588,7 +576,12 @@ describe('instant-navigation-testing-api', () => {
       const page = await openPage(next, '/')
 
       await instant(page, async () => {
-        await page.click('#link-to-search-params')
+        await page.click(
+          linkSelector({
+            href: '/search-params-page?foo=bar',
+            prefetch: 'auto',
+          })
+        )
 
         // Static page title is visible
         const title = page.locator('[data-testid="search-params-title"]')
@@ -617,7 +610,9 @@ describe('instant-navigation-testing-api', () => {
       const page = await openPage(next, '/')
 
       await instant(page, async () => {
-        await page.click('#plain-link-to-search-params')
+        await page.click(
+          plainLinkSelector({ href: '/search-params-page?foo=bar' })
+        )
 
         // Static page title is visible
         const title = page.locator('[data-testid="search-params-title"]')
@@ -644,20 +639,25 @@ describe('instant-navigation-testing-api', () => {
   })
 
   describe('statically generated params are included in instant shell', () => {
-    it('includes statically generated param values in instant shell during client navigation', async () => {
+    it('during client navigation', async () => {
       const page = await openPage(next, '/')
 
       await instant(page, async () => {
-        await page.click('#link-to-static-params')
+        await page.click(
+          linkSelector({
+            href: '/static-params/prerendered',
+            prefetch: 'auto',
+          })
+        )
 
         // Static page title is visible
         const title = page.locator('[data-testid="static-params-title"]')
         await title.waitFor({ state: 'visible' })
 
-        // Param value IS in the shell (slug 'hello' is in generateStaticParams)
+        // Param value IS in the shell (slug 'prerendered' is in generateStaticParams)
         const paramValue = page.locator('[data-testid="static-param-value"]')
         await paramValue.waitFor({ state: 'visible' })
-        expect(await paramValue.textContent()).toContain('slug: hello')
+        expect(await paramValue.textContent()).toContain('slug: prerendered')
 
         // Suspense fallback is NOT visible
         const fallback = page.locator('[data-testid="static-params-fallback"]')
@@ -665,24 +665,91 @@ describe('instant-navigation-testing-api', () => {
       })
     })
 
-    it('includes statically generated param values in instant shell during page load', async () => {
+    it('during page load', async () => {
       const page = await openPage(next, '/')
 
       await instant(page, async () => {
-        await page.click('#plain-link-to-static-params')
+        await page.click(
+          plainLinkSelector({ href: '/static-params/prerendered' })
+        )
 
         // Static page title is visible
         const title = page.locator('[data-testid="static-params-title"]')
         await title.waitFor({ state: 'visible' })
 
-        // Param value IS in the shell (slug 'hello' is in generateStaticParams)
+        // Param value IS in the shell (slug 'prerendered' is in generateStaticParams)
         const paramValue = page.locator('[data-testid="static-param-value"]')
         await paramValue.waitFor({ state: 'visible' })
-        expect(await paramValue.textContent()).toContain('slug: hello')
+        expect(await paramValue.textContent()).toContain('slug: prerendered')
 
         // Suspense fallback is NOT visible
         const fallback = page.locator('[data-testid="static-params-fallback"]')
         expect(await fallback.count()).toBe(0)
+      })
+    })
+
+    // Prerenderable params are not currently handled correctly.
+    // @gate FIXME
+    describe('prerenderable params are included in instant shell', () => {
+      // Params values that weren't returned from gSP are still prerenderable
+      // (or fallback-upgradeable) and should be handled the same way as params
+      // that were returned from gSP.
+
+      it('during client navigation', async () => {
+        const page = await openPage(next, '/')
+
+        await instant(page, async () => {
+          await page.click(
+            linkSelector({
+              href: '/static-params/not-prerendered',
+              prefetch: 'auto',
+            })
+          )
+
+          // Static page title is visible
+          const title = page.locator('[data-testid="static-params-title"]')
+          await title.waitFor({ state: 'visible' })
+
+          // Param value IS in the shell (despite the slug 'not-prerendered' not being in generateStaticParams)
+          const paramValue = page.locator('[data-testid="static-param-value"]')
+          await paramValue.waitFor({ state: 'visible' })
+          expect(await paramValue.textContent()).toContain(
+            'slug: not-prerendered'
+          )
+
+          // Suspense fallback is NOT visible
+          const fallback = page.locator(
+            '[data-testid="static-params-fallback"]'
+          )
+          expect(await fallback.count()).toBe(0)
+        })
+      })
+
+      it('during page load', async () => {
+        const page = await openPage(next, '/')
+
+        await instant(page, async () => {
+          await page.click(
+            plainLinkSelector({ href: '/static-params/not-prerendered' })
+          )
+
+          // Static page title is visible
+          const title = page.locator('[data-testid="static-params-title"]')
+          await title.waitFor({ state: 'visible' })
+
+          // Param value IS in the shell (despite the slug 'not-prerendered' not being in generateStaticParams)
+          const paramValue = page.locator('[data-testid="static-param-value"]')
+          await paramValue.waitFor({ state: 'visible' })
+          expect(await paramValue.textContent()).toContain(
+            'slug: not-prerendered'
+          )
+
+          // Suspense fallback is NOT visible
+          const fallback = page.locator(
+            '[data-testid="static-params-fallback"]'
+          )
+          expect(await fallback.count()).toBe(0)
+        })
       })
     })
   })
@@ -700,19 +767,24 @@ describe('instant-navigation-testing-api', () => {
       const page = await openPage(next, '/')
 
       await instant(page, async () => {
-        await page.click('#link-to-ungenerated-params')
-
-        // Suspense fallback is visible in the instant shell
-        const fallback = page.locator(
-          '[data-testid="ungenerated-params-fallback"]'
+        await page.click(
+          linkSelector({
+            href: '/ungenerated-params/anything',
+            prefetch: 'auto',
+          })
         )
-        await fallback.waitFor({ state: 'visible' })
 
         // The resolved param value must not be present in the shell
         const paramValue = page.locator(
           '[data-testid="ungenerated-param-value"]'
         )
         expect(await paramValue.count()).toBe(0)
+
+        // Suspense fallback is visible in the instant shell
+        const fallback = page.locator(
+          '[data-testid="ungenerated-params-fallback"]'
+        )
+        await fallback.waitFor({ state: 'visible' })
       })
 
       // After the instant scope exits, the param value streams in normally
@@ -725,23 +797,25 @@ describe('instant-navigation-testing-api', () => {
       const page = await openPage(next, '/')
 
       await instant(page, async () => {
-        await page.click('#plain-link-to-ungenerated-params')
+        await page.click(
+          plainLinkSelector({ href: '/ungenerated-params/anything' })
+        )
 
         // Static page title is visible
         const title = page.locator('[data-testid="ungenerated-params-title"]')
         await title.waitFor({ state: 'visible' })
-
-        // Suspense fallback is visible
-        const fallback = page.locator(
-          '[data-testid="ungenerated-params-fallback"]'
-        )
-        await fallback.waitFor({ state: 'visible' })
 
         // The resolved param value must not be present in the shell
         const paramValue = page.locator(
           '[data-testid="ungenerated-param-value"]'
         )
         expect(await paramValue.count()).toBe(0)
+
+        // Suspense fallback is visible
+        const fallback = page.locator(
+          '[data-testid="ungenerated-params-fallback"]'
+        )
+        await fallback.waitFor({ state: 'visible' })
       })
 
       // After exiting instant scope, the param value streams in
@@ -756,21 +830,25 @@ describe('instant-navigation-testing-api', () => {
       const page = await openPage(next, '/')
 
       // Hover over the link to trigger an intent prefetch, then wait for it.
-      await page.hover('#link-to-ungenerated-params')
+      await page.hover(
+        linkSelector({
+          href: '/ungenerated-params/anything',
+          prefetch: 'auto',
+        })
+      )
       await page.waitForTimeout(3000)
 
       await instant(page, async () => {
-        await page.click('#link-to-ungenerated-params')
+        await page.click(
+          linkSelector({
+            href: '/ungenerated-params/anything',
+            prefetch: 'auto',
+          })
+        )
 
         // Static page title is visible
         const title = page.locator('[data-testid="ungenerated-params-title"]')
         await title.waitFor({ state: 'visible' })
-
-        // Suspense fallback is visible
-        const fallback = page.locator(
-          '[data-testid="ungenerated-params-fallback"]'
-        )
-        await fallback.waitFor({ state: 'visible' })
 
         // Param value is NOT in the shell, even though a hover prefetch ran
         // before the instant lock was acquired
@@ -778,35 +856,18 @@ describe('instant-navigation-testing-api', () => {
           '[data-testid="ungenerated-param-value"]'
         )
         expect(await paramValue.count()).toBe(0)
+
+        // Suspense fallback is visible
+        const fallback = page.locator(
+          '[data-testid="ungenerated-params-fallback"]'
+        )
+        await fallback.waitFor({ state: 'visible' })
       })
 
       // After exiting instant scope, the param value streams in
       const paramValue = page.locator('[data-testid="ungenerated-param-value"]')
       await paramValue.waitFor({ state: 'visible' })
       expect(await paramValue.textContent()).toContain('slug: anything')
-    })
-  })
-
-  it('does include dynamic route params in the instant shell when runtime prefetching is enabled', async () => {
-    const page = await openPage(next, '/')
-
-    await instant(page, async () => {
-      await page.click('#link-to-ungenerated-params-runtime')
-
-      // The param value IS in the shell because the route opts into runtime
-      // prefetching, so the prefetch resolves `slug` rather than returning
-      // the generic fallback.
-      const paramValue = page.locator(
-        '[data-testid="ungenerated-param-runtime-value"]'
-      )
-      await paramValue.waitFor({ state: 'visible' })
-      expect(await paramValue.textContent()).toContain('slug: anything')
-
-      // Suspense fallback is NOT visible
-      const fallback = page.locator(
-        '[data-testid="ungenerated-params-runtime-fallback"]'
-      )
-      expect(await fallback.count()).toBe(0)
     })
   })
 
@@ -820,87 +881,192 @@ describe('instant-navigation-testing-api', () => {
   // and the request-time `connection()` sibling both stay deferred behind their
   // Suspense fallbacks. Because the route can never runtime-prefetch, `slug` is
   // deferred here.
-  it('shows only the static param in the instant shell on a normal navigation to a mixed route', async () => {
-    const page = await openPage(next, '/')
+  describe('instant shell contains statically generated params but excludes dynamic params', () => {
+    it('during client navigation', async () => {
+      const page = await openPage(next, '/')
 
-    await instant(page, async () => {
-      await page.click('#link-to-mixed-params')
+      await instant(page, async () => {
+        await page.click(
+          linkSelector({
+            href: '/mixed-params/en/anything',
+            prefetch: 'auto',
+          })
+        )
 
-      // The covered `lang` comes from the static shell.
-      const lang = page.locator('[data-testid="mixed-lang"]')
-      await lang.waitFor({ state: 'visible' })
-      expect(await lang.textContent()).toContain('lang: en')
+        // The covered `lang` comes from the static shell.
+        // `{ lang: "en" }` was returned from `generateStaticParams`,
+        // so this param is already prerendered.
+        const lang = page.locator('[data-testid="mixed-lang"]')
+        await lang.waitFor({ state: 'visible' })
+        expect(await lang.textContent()).toContain('lang: en')
 
-      // The uncovered `slug` is a fallback param and there is no runtime
-      // prefetch, so it stays on its Suspense fallback and its value is absent.
-      await page
-        .locator('[data-testid="mixed-slug-fallback"]')
-        .waitFor({ state: 'visible' })
-      expect(
-        await page.locator('[data-testid="mixed-slug-value"]').count()
-      ).toBe(0)
+        // The uncovered `slug` is a fallback param and there is no runtime
+        // prefetch, so it stays on its Suspense fallback and its value is absent.
+        expect(
+          await page.locator('[data-testid="mixed-slug-value"]').count()
+        ).toBe(0)
+        await page
+          .locator('[data-testid="mixed-slug-fallback"]')
+          .waitFor({ state: 'visible' })
 
-      // The request-time `connection()` sibling likewise stays on its fallback
-      // and must not leak into the instant scope.
-      await page
-        .locator('[data-testid="mixed-dynamic-fallback"]')
-        .waitFor({ state: 'visible' })
-      expect(
-        await page.locator('[data-testid="mixed-dynamic-value"]').count()
-      ).toBe(0)
-    })
+        // The request-time `connection()` sibling likewise stays on its fallback
+        // and must not leak into the instant scope.
+        expect(
+          await page.locator('[data-testid="mixed-dynamic-value"]').count()
+        ).toBe(0)
+        await page
+          .locator('[data-testid="mixed-dynamic-fallback"]')
+          .waitFor({ state: 'visible' })
+      })
 
-    // After the lock releases, the uncovered `slug` and the request-time
-    // content stream in.
-    const slug = page.locator('[data-testid="mixed-slug-value"]')
-    await slug.waitFor({ state: 'visible' })
-    expect(await slug.textContent()).toContain('slug: anything')
-    await page
-      .locator('[data-testid="mixed-dynamic-value"]')
-      .waitFor({ state: 'visible' })
-  })
-
-  // With `prefetch` on the link, the runtime prefetch ('2') resolves ALL
-  // params, so inside the instant scope both `lang` (static shell) and `slug`
-  // (runtime prefetch) are shown, while the genuinely request-time
-  // `connection()` sibling stays deferred until the lock releases.
-  it('resolves the covered param from the static shell and the uncovered param from the runtime prefetch in a mixed route', async () => {
-    const page = await openPage(next, '/')
-
-    await instant(page, async () => {
-      await page.click('#link-to-mixed-params-runtime')
-
-      // The generateStaticParams-covered `lang` comes from the static shell.
-      const lang = page.locator('[data-testid="mixed-lang"]')
-      await lang.waitFor({ state: 'visible' })
-      expect(await lang.textContent()).toContain('lang: en')
-
-      // The uncovered `slug` is resolved by the runtime prefetch and surfaces
-      // inside the instant scope.
+      // After the lock releases, the uncovered `slug` and the request-time
+      // content stream in.
       const slug = page.locator('[data-testid="mixed-slug-value"]')
       await slug.waitFor({ state: 'visible' })
       expect(await slug.textContent()).toContain('slug: anything')
-
-      // The request-time dynamic sibling stays on its fallback under the lock.
       await page
-        .locator('[data-testid="mixed-dynamic-fallback"]')
+        .locator('[data-testid="mixed-dynamic-value"]')
         .waitFor({ state: 'visible' })
-      expect(
-        await page.locator('[data-testid="mixed-dynamic-value"]').count()
-      ).toBe(0)
     })
 
-    // After the lock releases, the request-time content streams in while both
-    // params remain visible.
-    await page
-      .locator('[data-testid="mixed-dynamic-value"]')
-      .waitFor({ state: 'visible' })
-    expect(
-      await page.locator('[data-testid="mixed-lang"]').textContent()
-    ).toContain('lang: en')
-    expect(
-      await page.locator('[data-testid="mixed-slug-value"]').textContent()
-    ).toContain('slug: anything')
+    it('during initial load', async () => {
+      const page = await openPage(next, '/')
+
+      await instant(page, async () => {
+        await page.click(
+          plainLinkSelector({ href: '/mixed-params/en/anything' })
+        )
+
+        // The covered `lang` comes from the static shell.
+        // `{ lang: "en" }` was returned from `generateStaticParams`,
+        // so this param is already prerendered.
+        const lang = page.locator('[data-testid="mixed-lang"]')
+        await lang.waitFor({ state: 'visible' })
+        expect(await lang.textContent()).toContain('lang: en')
+
+        // The uncovered `slug` is a fallback param and there is no runtime
+        // prefetch, so it stays on its Suspense fallback and its value is absent.
+        expect(
+          await page.locator('[data-testid="mixed-slug-value"]').count()
+        ).toBe(0)
+        await page
+          .locator('[data-testid="mixed-slug-fallback"]')
+          .waitFor({ state: 'visible' })
+
+        // The request-time `connection()` sibling likewise stays on its fallback
+        // and must not leak into the instant scope.
+        expect(
+          await page.locator('[data-testid="mixed-dynamic-value"]').count()
+        ).toBe(0)
+        await page
+          .locator('[data-testid="mixed-dynamic-fallback"]')
+          .waitFor({ state: 'visible' })
+      })
+
+      // After the lock releases, the uncovered `slug` and the request-time
+      // content stream in.
+      const slug = page.locator('[data-testid="mixed-slug-value"]')
+      await slug.waitFor({ state: 'visible' })
+      expect(await slug.textContent()).toContain('slug: anything')
+      await page
+        .locator('[data-testid="mixed-dynamic-value"]')
+        .waitFor({ state: 'visible' })
+    })
+  })
+
+  // Prerenderable params are not currently handled correctly.
+  // @gate FIXME
+  describe('instant shell contains prerenderable params but excludes dynamic params', () => {
+    it('during client navigation', async () => {
+      const page = await openPage(next, '/')
+
+      await instant(page, async () => {
+        await page.click(
+          linkSelector({
+            href: '/mixed-params/pl/anything',
+            prefetch: 'auto',
+          })
+        )
+
+        // The covered `lang` comes from the static shell.
+        // `{ lang: "pl" }` was NOT returned from `generateStaticParams`,
+        // so it has not been prerendered yet, but it is still statically prerenderable.
+        const lang = page.locator('[data-testid="mixed-lang"]')
+        await lang.waitFor({ state: 'visible' })
+        expect(await lang.textContent()).toContain('lang: pl')
+
+        // The uncovered `slug` is a fallback param and there is no runtime
+        // prefetch, so it stays on its Suspense fallback and its value is absent.
+        expect(
+          await page.locator('[data-testid="mixed-slug-value"]').count()
+        ).toBe(0)
+        await page
+          .locator('[data-testid="mixed-slug-fallback"]')
+          .waitFor({ state: 'visible' })
+
+        // The request-time `connection()` sibling likewise stays on its fallback
+        // and must not leak into the instant scope.
+        expect(
+          await page.locator('[data-testid="mixed-dynamic-value"]').count()
+        ).toBe(0)
+        await page
+          .locator('[data-testid="mixed-dynamic-fallback"]')
+          .waitFor({ state: 'visible' })
+      })
+
+      // After the lock releases, the uncovered `slug` and the request-time
+      // content stream in.
+      const slug = page.locator('[data-testid="mixed-slug-value"]')
+      await slug.waitFor({ state: 'visible' })
+      expect(await slug.textContent()).toContain('slug: anything')
+      await page
+        .locator('[data-testid="mixed-dynamic-value"]')
+        .waitFor({ state: 'visible' })
+    })
+
+    it('during initial load', async () => {
+      const page = await openPage(next, '/')
+
+      await instant(page, async () => {
+        await page.click(
+          plainLinkSelector({ href: '/mixed-params/pl/anything' })
+        )
+
+        // The covered `lang` comes from the static shell.
+        // `{ lang: "pl" }` was NOT returned from `generateStaticParams`,
+        // so it has not been prerendered yet, but it is still statically prerenderable.
+        const lang = page.locator('[data-testid="mixed-lang"]')
+        await lang.waitFor({ state: 'visible' })
+        expect(await lang.textContent()).toContain('lang: pl')
+
+        // The uncovered `slug` is a fallback param and there is no runtime
+        // prefetch, so it stays on its Suspense fallback and its value is absent.
+        expect(
+          await page.locator('[data-testid="mixed-slug-value"]').count()
+        ).toBe(0)
+        await page
+          .locator('[data-testid="mixed-slug-fallback"]')
+          .waitFor({ state: 'visible' })
+
+        // The request-time `connection()` sibling likewise stays on its fallback
+        // and must not leak into the instant scope.
+        expect(
+          await page.locator('[data-testid="mixed-dynamic-value"]').count()
+        ).toBe(0)
+        await page
+          .locator('[data-testid="mixed-dynamic-fallback"]')
+          .waitFor({ state: 'visible' })
+      })
+
+      // After the lock releases, the uncovered `slug` and the request-time
+      // content stream in.
+      const slug = page.locator('[data-testid="mixed-slug-value"]')
+      await slug.waitFor({ state: 'visible' })
+      expect(await slug.textContent()).toContain('slug: anything')
+      await page
+        .locator('[data-testid="mixed-dynamic-value"]')
+        .waitFor({ state: 'visible' })
+    })
   })
 
   it('subsequent navigations after instant scope are not locked', async () => {
@@ -915,7 +1081,7 @@ describe('instant-navigation-testing-api', () => {
 
     // After exiting the instant scope, navigations work normally again
     // Client-side navigation should load dynamic content
-    await page.click('#link-to-target')
+    await page.click(linkSelector({ href: '/target-page', prefetch: 'auto' }))
     const dynamicContent = page.locator('[data-testid="dynamic-content"]')
     await dynamicContent.waitFor({ state: 'visible' })
     expect(await dynamicContent.textContent()).toContain(
@@ -1054,7 +1220,9 @@ describe('instant-navigation-testing-api', () => {
     const page = await openPage(next, '/')
 
     await instant(page, async () => {
-      await page.click('#link-to-client-fetch')
+      await page.click(
+        linkSelector({ href: '/client-fetch-page', prefetch: 'auto' })
+      )
 
       // The page title appears (it's a client component, rendered immediately)
       const title = page.locator('[data-testid="client-fetch-title"]')
@@ -1079,7 +1247,7 @@ describe('instant-navigation-testing-api', () => {
     const page = await openPage(next, '/')
 
     await instant(page, async () => {
-      await page.click('#plain-link-to-client-fetch')
+      await page.click(plainLinkSelector({ href: '/client-fetch-page' }))
 
       // The page title appears
       const title = page.locator('[data-testid="client-fetch-title"]')
@@ -1105,7 +1273,9 @@ describe('instant-navigation-testing-api', () => {
       const page = await openPage(next, '/')
 
       await instant(page, async () => {
-        await page.click('#link-to-client-fetch')
+        await page.click(
+          linkSelector({ href: '/client-fetch-page', prefetch: 'auto' })
+        )
 
         // The out-of-band fetch to /api/data is blocked by the lock
         const loading = page.locator('[data-testid="fetched-data-loading"]')
@@ -1251,29 +1421,153 @@ describe('instant-navigation-testing-api - partial prefetching (App Shells)', ()
     disableAutoSkewProtection: true,
   })
 
+  it('includes search params in the instant shell', async () => {
+    const page = await openPage(next, '/')
+
+    await instant(page, async () => {
+      await page.click(
+        linkSelector({
+          href: '/search-params?myParam=testValue',
+          prefetch: true,
+        })
+      )
+
+      // Content that depends on search params appears immediately because
+      // it was included in the runtime prefetch
+      const searchParamValue = page.locator(
+        '[data-testid="search-param-value"]'
+      )
+      await searchParamValue.waitFor({ state: 'visible' })
+      expect(await searchParamValue.textContent()).toContain(
+        'myParam: testValue'
+      )
+
+      // The loading state for dynamic content is visible
+      const innerLoading = page.locator('[data-testid="inner-loading"]')
+      await innerLoading.waitFor({ state: 'visible' })
+      expect(await innerLoading.textContent()).toContain(
+        'Loading dynamic content...'
+      )
+
+      // Dynamic content has not streamed in yet
+      const dynamicContent = page.locator('[data-testid="dynamic-content"]')
+      expect(await dynamicContent.count()).toBe(0)
+    })
+
+    // After exiting the instant scope, dynamic content streams in
+    const dynamicContent = page.locator('[data-testid="dynamic-content"]')
+    await dynamicContent.waitFor({ state: 'visible' })
+    expect(await dynamicContent.textContent()).toContain(
+      'Dynamic content loaded'
+    )
+
+    // Search param content remains visible
+    const searchParamValue = page.locator('[data-testid="search-param-value"]')
+    expect(await searchParamValue.textContent()).toContain('myParam: testValue')
+  })
+
+  it('includes dynamic route params in the instant shell', async () => {
+    const page = await openPage(next, '/')
+
+    await instant(page, async () => {
+      await page.click(
+        linkSelector({
+          href: '/ungenerated-params/anything',
+          prefetch: true,
+        })
+      )
+
+      // The param value IS in the shell because the route opts into runtime
+      // prefetching, so the prefetch resolves `slug` rather than returning
+      // the generic fallback.
+      const paramValue = page.locator('[data-testid="ungenerated-param-value"]')
+      await paramValue.waitFor({ state: 'visible' })
+      expect(await paramValue.textContent()).toContain('slug: anything')
+
+      // Suspense fallback is NOT visible
+      const fallback = page.locator(
+        '[data-testid="ungenerated-params-fallback"]'
+      )
+      expect(await fallback.count()).toBe(0)
+    })
+  })
+
+  // With `prefetch` on the link, the runtime prefetch resolves ALL
+  // params, so inside the instant scope both `lang` (static) and `slug`
+  // (runtime) are shown, while the uncached `connection()` sibling stays
+  // deferred until the lock releases.
+  it('includes both static params and dynamic params for a prefetch-true link', async () => {
+    const page = await openPage(next, '/')
+
+    await instant(page, async () => {
+      await page.click(
+        linkSelector({
+          href: '/mixed-params/en/anything',
+          prefetch: true,
+        })
+      )
+
+      // Params are included
+      const lang = page.locator('[data-testid="mixed-lang"]')
+      await lang.waitFor({ state: 'visible' })
+      expect(await lang.textContent()).toContain('lang: en')
+
+      const slug = page.locator('[data-testid="mixed-slug-value"]')
+      await slug.waitFor({ state: 'visible' })
+      expect(await slug.textContent()).toContain('slug: anything')
+
+      // Dynamic data is excluded
+      await page
+        .locator('[data-testid="mixed-dynamic-fallback"]')
+        .waitFor({ state: 'visible' })
+      expect(
+        await page.locator('[data-testid="mixed-dynamic-value"]').count()
+      ).toBe(0)
+    })
+
+    // After the lock releases, the dynamic content streams in while both
+    // params remain visible.
+    await page
+      .locator('[data-testid="mixed-dynamic-value"]')
+      .waitFor({ state: 'visible' })
+    expect(
+      await page.locator('[data-testid="mixed-lang"]').textContent()
+    ).toContain('lang: en')
+    expect(
+      await page.locator('[data-testid="mixed-slug-value"]').textContent()
+    ).toContain('slug: anything')
+  })
+
   // Under Partial Prefetching with App Shells, an auto (partial) prefetch only
   // warms the shell — the concrete-param entry is not speculatively
   // prefetched. The testing lock simulates that warm cache: a navigation may
   // only match the shell entry, never an entry that varies on concrete route
   // params, even if such an entry happens to be warm in the cache (here, from a
   // sibling prefetch={true} link). Without the restriction, the navigation
-  // would match the warm `slug: hello` entry and show it instantly.
+  // would match the warm `slug: prerendered` entry and show it instantly.
   it('restricts navigation to the shell even when a concrete-param entry is warm', async () => {
     const page = await openPage(next, '/')
 
-    // Warm both entries for /dynamic-params/hello:
+    // Warm both entries for /static-params/prerendered:
     //  - the prefetch={true} sibling link does a speculative (whole-route)
-    //    prefetch, warming the concrete slug=hello segment entry, and
+    //    prefetch, warming the concrete slug=prerendered segment entry, and
     //  - the default link does a partial prefetch, warming the shell entry
     //    (params -> Fallback) that the restricted navigation should render.
-    await page.hover('#full-link')
-    await page.hover('#partial-link')
+    await page.hover(
+      linkSelector({ href: '/static-params/prerendered', prefetch: true })
+    )
+    await page.hover(
+      linkSelector({ href: '/static-params/prerendered', prefetch: 'auto' })
+    )
     await page.waitForTimeout(3000)
 
     await instant(page, async () => {
       // Navigate via the default (partial) link. Even though the concrete
-      // slug=hello entry is warm, the lock restricts the read to the shell.
-      await page.click('#partial-link')
+      // slug=prerendered entry is warm, the lock restricts the read to the
+      // shell.
+      await page.click(
+        linkSelector({ href: '/static-params/prerendered', prefetch: 'auto' })
+      )
 
       // A shell boundary is shown — either the route-level loading.tsx or the
       // page's inner Suspense fallback — proving the navigation rendered the
@@ -1291,23 +1585,25 @@ describe('instant-navigation-testing-api - partial prefetching (App Shells)', ()
     // After the instant scope exits, the concrete value streams in normally.
     const paramValue = page.locator('[data-testid="param-value"]')
     await paramValue.waitFor({ state: 'visible' })
-    expect(await paramValue.textContent()).toContain('slug: hello')
+    expect(await paramValue.textContent()).toContain('slug: prerendered')
   })
 
-  // A prefetch={true} link triggers a speculative (whole-route) prefetch, so
+  // A prefetch={true} link triggers a speculative prefetch, so
   // the concrete-param entry IS prefetched. In that case the lock must NOT
   // restrict to the shell — the navigation is allowed to match the concrete
   // entry, since that's what a warm cache would actually contain.
-  it('allows matching concrete params when the link uses prefetch={true}', async () => {
+  it('includes static params when the link uses prefetch={true}', async () => {
     const page = await openPage(next, '/')
 
     await instant(page, async () => {
-      await page.click('#full-link')
+      await page.click(
+        linkSelector({ href: '/static-params/prerendered', prefetch: true })
+      )
 
       // The concrete param value is matched and shown instantly.
       const paramValue = page.locator('[data-testid="param-value"]')
       await paramValue.waitFor({ state: 'visible' })
-      expect(await paramValue.textContent()).toContain('slug: hello')
+      expect(await paramValue.textContent()).toContain('slug: prerendered')
 
       // The Suspense fallback (shell) is NOT shown.
       const fallback = page.locator('[data-testid="params-fallback"]')
@@ -1344,7 +1640,9 @@ describe('instant-navigation-testing-api - blocking routes (dev only)', () => {
       .waitFor({ state: 'visible' })
 
     await instant(page, async () => {
-      await page.click('#link-to-blocking-cookies')
+      await page.click(
+        linkSelector({ href: '/blocking-cookies/x', prefetch: 'auto' })
+      )
 
       const cookieValue = page.locator('[data-testid="blocking-cookie-value"]')
       // Poll past the point where a leak previously committed (~10s), breaking

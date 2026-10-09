@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import { TaggedLink as Link } from './components'
 
 export default function HomePage() {
   return (
@@ -6,9 +6,7 @@ export default function HomePage() {
       <h1 data-testid="home-title">Instant Navigation API Test (blocking)</h1>
       <ul>
         <li>
-          <Link href="/blocking-cookies/x" id="link-to-blocking-cookies">
-            Go to blocking cookies page
-          </Link>
+          <Link href="/blocking-cookies/x">Go to blocking cookies page</Link>
         </li>
       </ul>
     </div>
