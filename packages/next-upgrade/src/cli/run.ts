@@ -1,4 +1,4 @@
-import { spawn } from 'child_process'
+import spawn from 'cross-spawn'
 import { randomUUID } from 'crypto'
 import { join, resolve as resolvePath } from 'path'
 import * as Log from '../shared/log'

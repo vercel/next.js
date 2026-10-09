@@ -1,5 +1,6 @@
 import { execFileSync, spawnSync } from 'child_process'
 import {
+  chmodSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -9,7 +10,7 @@ import {
   writeFileSync,
 } from 'fs'
 import { tmpdir } from 'os'
-import { join, resolve } from 'path'
+import { delimiter, join, resolve } from 'path'
 import { installNext } from './install-next'
 import { execPackageManager } from './package-manager'
 
@@ -111,6 +112,43 @@ describe('published upgrade package', () => {
     )
   })
 
+  it('delegates a manual upgrade to codemod and preserves the actual exit status', () => {
+    const runner = join(directory, 'runner')
+    mkdirSync(runner)
+    const script = join(runner, 'capture.js')
+    const result = join(directory, 'command.json')
+    writeFileSync(
+      script,
+      `require('fs').writeFileSync(process.env.UPGRADE_TEST_COMMAND_PATH, JSON.stringify(process.argv.slice(2))); process.exit(19)\n`
+    )
+    const executable = join(
+      runner,
+      process.platform === 'win32' ? 'npx.cmd' : 'npx'
+    )
+    writeFileSync(
+      executable,
+      process.platform === 'win32'
+        ? `@"${process.execPath}" "${script}" %*\r\n`
+        : `#!/bin/sh\nexec "${process.execPath}" "${script}" "$@"\n`
+    )
+    chmodSync(executable, 0o755)
+    const child = spawnSync(process.execPath, [bin, '--revision', '16.4.0'], {
+      cwd: directory,
+      env: {
+        ...env,
+        PATH: `${runner}${delimiter}${env.PATH}`,
+        UPGRADE_TEST_COMMAND_PATH: result,
+      },
+      encoding: 'utf8',
+    })
+    expect(child.status).toBe(19)
+    expect(JSON.parse(readFileSync(result, 'utf8'))).toEqual([
+      '--yes',
+      '@next/codemod@canary',
+      'upgrade',
+      '16.4.0',
+    ])
+  })
   it('prepares a packed agent handoff with app-installed Next and an independently resolved codemod', () => {
     mkdirSync(join(directory, 'app'))
     mkdirSync(join(directory, 'tmp'))
