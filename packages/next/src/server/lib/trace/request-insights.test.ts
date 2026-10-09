@@ -2,6 +2,7 @@ import {
   clearRequestInsightsForTest,
   getRequestInsightsSnapshot,
   recordRequestInsightFetch,
+  registerRequestInsightsExporter,
   subscribeRequestInsights,
 } from './request-insights'
 import { recordSpan } from './span-store'
@@ -20,6 +21,7 @@ function restoreEnv(name: string, value: string | undefined) {
 describe('request insights', () => {
   beforeEach(() => {
     process.env.__NEXT_DEV_SERVER = '1'
+    registerRequestInsightsExporter()
   })
 
   afterEach(() => {
