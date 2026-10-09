@@ -231,16 +231,42 @@ describe('query-trace samples', () => {
       series,
       (value) => `${value / 1024} KB`
     )
-    expect(md).toContain('| 1 | 1 KB |')
-    expect(md).toContain('| 2 | 80% |')
-    expect(md).toContain('| 1 | 2 |')
-    expect(md).toContain('| 1 | 1.25 |')
-    expect(md).toContain('| 2 | 0.00 |')
-    expect(md).toContain('Indices are not shared timestamps')
-    expect(md).toContain('Active Tokio workers')
+    expect(md).toBe(
+      '\nSample indices are not shared timestamps.\n' +
+        'Memory (TurboMalloc live bytes) samples: 1 KB 2 KB\n' +
+        'Memory pressure samples: 7% 80%\n' +
+        'Active Tokio workers samples: 2 1\n' +
+        'Concurrency samples: 1.25 0.00\n'
+    )
+    expect(md).not.toContain('|')
   })
 
-  it('does not print sample tables for omitted or zero details', () => {
+  it('prints none for empty metrics when another metric has values', () => {
+    expect(
+      renderSampleSeriesMarkdown(
+        { ...emptySeries, concurrencySamples: [2.75] },
+        String
+      )
+    ).toBe(
+      '\nSample indices are not shared timestamps.\n' +
+        'Memory (TurboMalloc live bytes) samples: none\n' +
+        'Memory pressure samples: none\n' +
+        'Active Tokio workers samples: none\n' +
+        'Concurrency samples: 2.75\n'
+    )
+  })
+
+  it('prints every returned value without an extra presentation cap', () => {
+    const values = Array.from({ length: 300 }, (_, index) => index)
+    expect(
+      renderSampleSeriesMarkdown(
+        { ...emptySeries, activeWorkerThreadsSamples: values },
+        String
+      )
+    ).toContain(`Active Tokio workers samples: ${values.join(' ')}\n`)
+  })
+
+  it('does not print sample lines for omitted or zero details', () => {
     expect(renderSampleSeriesMarkdown(undefined, String)).toBe('')
     expect(renderSampleSeriesMarkdown(emptySeries, String)).toBe('')
   })

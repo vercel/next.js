@@ -139,8 +139,8 @@ pub struct TraceSpanInfo {
     /// matter what each allocated. Rank concurrent work by allocation fields;
     /// `peak` is the figure to quote for memory actually in use.
     ///
-    /// Computed from at most 200 temporary peak-memory rows, independently
-    /// of whether or how many sample values are requested.
+    /// Computed directly from all captured readings in the span's range,
+    /// independently of whether or how many sample values are requested.
     pub memory_summary: Option<TraceMemorySummary>,
     /// Requested value arrays; absent unless `samples` was supplied.
     /// MCP flattens this internal object to the four optional value arrays.
@@ -164,8 +164,8 @@ pub struct TraceSpanSampleSeries {
 /// Aggregate view of a span's TurboMalloc memory samples.
 #[napi(object)]
 pub struct TraceMemorySummary {
-    /// Number of samples in the span's range, after downsampling.
-    pub count: u32,
+    /// Number of captured readings in the span's range, without downsampling.
+    pub count: i64,
     /// Live bytes at the first sample in the range.
     pub start: i64,
     /// Live bytes at the last sample in the range.
@@ -226,7 +226,7 @@ fn convert_span(s: turbopack_trace_server::SpanInfo) -> TraceSpanInfo {
         self_persistent_allocations: s.self_persistent_allocations as i64,
         self_allocation_count: s.self_allocation_count as i64,
         memory_summary: s.memory_summary.map(|m| TraceMemorySummary {
-            count: m.count as u32,
+            count: m.count as i64,
             start: m.start as i64,
             end: m.end as i64,
             min: m.min as i64,

@@ -779,7 +779,7 @@ export declare function teardownTraceSubscriber(
 
 /** Aggregate view of a span's TurboMalloc memory samples. */
 export interface TraceMemorySummary {
-  /** Number of samples in the span's range, after downsampling. */
+  /** Number of captured readings in the span's range, without downsampling. */
   count: number
   /** Live bytes at the first sample in the range. */
   start: number
@@ -959,8 +959,8 @@ export interface TraceSpanInfo {
    * matter what each allocated. Rank concurrent work by allocation fields;
    * `peak` is the figure to quote for memory actually in use.
    *
-   * Computed from at most 200 temporary peak-memory rows, independently
-   * of whether or how many sample values are requested.
+   * Computed directly from all captured readings in the span's range,
+   * independently of whether or how many sample values are requested.
    */
   memorySummary?: TraceMemorySummary
   /**
