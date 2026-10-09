@@ -167,6 +167,7 @@ declare module 'react-server-dom-webpack/server.edge' {
             columnNumber: number
           ) => boolean)
         | undefined
+      identifierPrefix?: string
       onError?: (error: unknown) => void
       signal?: AbortSignal
       debugChannel?: { readable?: ReadableStream; writable?: WritableStream }
@@ -239,6 +240,7 @@ declare module 'react-server-dom-webpack/server.node' {
             columnNumber: number
           ) => boolean)
         | undefined
+      identifierPrefix?: string
       onError?: (error: unknown) => void
       // React's Node API expects debugChannel to be a Node.js Writable
       // (has .write()), Duplex (has .read()), or WebSocket (has .send()).
