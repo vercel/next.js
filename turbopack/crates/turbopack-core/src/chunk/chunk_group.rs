@@ -313,16 +313,23 @@ async fn chunk_group_content_operation(
         collecting_modules: FxIndexSet::default(),
     };
 
+    let chunk_group_info = module_graph.chunk_group_info();
+    let chunk_group_indices = chunk_groups
+        .iter()
+        .map(async |chunk_group| Ok(*chunk_group_info.get_index_of(chunk_group.key()).await?))
+        .try_join()
+        .await?;
+    let chunk_group_info = chunk_group_info.await?;
     let available_modules = match availability_info.available_modules() {
         Some(available_modules) => Some(available_modules.snapshot().await?),
         None => None,
     };
 
-    // The entries of all groups, in list order. An entry shared by several groups is traversed
-    // once.
-    let entries = chunk_groups
+    // The ordered entries of all groups, in list order. An entry shared by several groups is
+    // traversed once.
+    let entries = chunk_group_indices
         .iter()
-        .flat_map(|chunk_group| chunk_group.entries())
+        .flat_map(|&index| module_batches_graph.get_ordered_entries(&chunk_group_info, index))
         .collect::<FxIndexSet<_>>()
         .into_iter()
         .map(|entry| module_batches_graph.get_entry_index(entry))
