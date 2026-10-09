@@ -50,11 +50,6 @@ export async function copy_docs(task, opts) {
   await task
     .source(join(__dirname, 'src/agent-feedback/protocol.md'))
     .target('dist/agent-feedback')
-
-  // Keep upgrade workflow instructions outside the public docs bundle.
-  await task
-    .source(join(__dirname, 'src/lib/upgrade/*.md'))
-    .target('dist/lib/upgrade')
 }
 
 export async function copy_styled_jsx_assets(task, opts) {
@@ -1123,13 +1118,6 @@ export async function ncc_ci_info(task, opts) {
     .source(relative(__dirname, require.resolve('ci-info')))
     .ncc({ packageName: 'ci-info', externals })
     .target('src/compiled/ci-info')
-}
-externals['cli-select'] = 'next/dist/compiled/cli-select'
-export async function ncc_cli_select(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('cli-select')))
-    .ncc({ packageName: 'cli-select', externals })
-    .target('src/compiled/cli-select')
 }
 externals['commander'] = 'next/dist/compiled/commander'
 export async function ncc_commander(task, opts) {
@@ -2272,7 +2260,7 @@ export async function precompile(task, opts) {
   )
 }
 
-// Build the upgrade library before refreshing Next's integration bundle.
+// Build the standalone package before refreshing Next's integration bundle.
 export async function ncc_next_upgrade() {
   await execa('pnpm', ['--filter=@next/upgrade', 'build'], { cwd: __dirname })
   // NCC tasks run in parallel; copy without reusing Taskr's stream.
@@ -2337,7 +2325,6 @@ export async function ncc(task, opts) {
         'ncc_babel_bundle',
         'ncc_bytes',
         'ncc_ci_info',
-        'ncc_cli_select',
         'ncc_comment_json',
         'ncc_compression',
         'ncc_conf',
@@ -2504,7 +2491,7 @@ export async function bin(task, opts) {
 
 export async function cli(task, opts) {
   await task
-    .source('src/cli/**/*.+(js|ts|tsx)')
+    .source('src/cli/**/!(*.test).+(js|ts|tsx)')
     .swc('server', { dev: opts.dev })
     .target('dist/cli')
 }

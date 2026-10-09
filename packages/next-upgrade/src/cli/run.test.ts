@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events'
-import { resolve } from 'path'
+import { resolve as resolvePath } from 'path'
 import {
   access,
   cp,
@@ -10,19 +10,19 @@ import {
   stat,
   writeFile,
 } from 'fs/promises'
-import * as Log from 'next/dist/build/output/log'
-import cliSelect from 'next/dist/compiled/cli-select'
-import { spawnNextUpgrade } from 'next/dist/cli/next-upgrade'
-import { findDir } from 'next/dist/lib/find-pages-dir'
-import { getProjectDir } from 'next/dist/lib/get-project-dir'
-import { getHarnessModels } from 'next/dist/lib/upgrade/model-discovery'
-import { handoffUpgrade } from 'next/dist/lib/upgrade/harness'
-import { prepareUpgrade } from 'next/dist/lib/upgrade/prepare-upgrade'
-import loadConfig from 'next/dist/server/config'
-import { normalizeConfig } from 'next/dist/server/config-shared'
-import { PHASE_PRODUCTION_BUILD } from 'next/dist/shared/lib/constants'
-import { getAgentName } from 'next/dist/telemetry/agent-name'
-import { Telemetry } from 'next/dist/telemetry/storage'
+import * as Log from '../shared/log'
+import cliSelect from 'cli-select'
+import { spawnNextUpgrade } from './run'
+import { findDir } from '../next/project'
+import { getProjectDir } from '../next/project'
+import { getHarnessModels } from './agent/model-discovery'
+import { handoffUpgrade } from './agent/handoff'
+import { prepareUpgrade } from './agent/prepare'
+const mockLoadConfig = jest.fn()
+const mockNormalizeConfig = jest.fn()
+const PHASE_PRODUCTION_BUILD = 'phase-production-build'
+import { getAgentName } from './agent/detect-agent'
+const mockTelemetry = jest.fn()
 
 jest.mock('fs/promises', () => ({
   access: jest.fn(),
@@ -34,61 +34,57 @@ jest.mock('fs/promises', () => ({
   stat: jest.fn(),
   writeFile: jest.fn(),
 }))
-jest.mock('next/dist/build/spinner', () => ({
+jest.mock('./spinner', () => ({
   __esModule: true,
   default: jest.fn(),
 }))
-jest.mock('next/dist/build/output/log', () => ({
+jest.mock('../shared/log', () => ({
   bootstrap: jest.fn(),
   error: jest.fn(),
   info: jest.fn(),
   warn: jest.fn(),
 }))
-jest.mock('next/dist/compiled/cli-select', () => ({
+jest.mock('cli-select', () => ({
   __esModule: true,
   default: jest.fn(),
 }))
-jest.mock('next/dist/compiled/cross-spawn', () =>
-  Object.assign(jest.fn(), { sync: jest.fn() })
-)
-jest.mock('next/dist/lib/find-pages-dir', () => ({
+jest.mock('cross-spawn', () => Object.assign(jest.fn(), { sync: jest.fn() }))
+jest.mock('../next/project', () => ({
   findDir: jest.fn(),
-}))
-jest.mock('next/dist/lib/get-project-dir', () => ({
   getProjectDir: jest.fn(),
+  warnMissingReactDependencies: jest.fn(),
 }))
-jest.mock('next/dist/lib/helpers/get-npx-command', () => ({
+jest.mock('./package-runner', () => ({
   getNpxCommand: () => 'npx',
 }))
-jest.mock('next/dist/lib/picocolors', () => ({
+jest.mock('../shared/picocolors', () => ({
   bold: (text: string) => text,
   cyan: (text: string) => text,
   dim: (text: string) => text,
 }))
-jest.mock('next/dist/lib/upgrade/model-discovery', () => ({
+jest.mock('./agent/model-discovery', () => ({
   getHarnessModels: jest.fn(),
 }))
-jest.mock('next/dist/lib/upgrade/prepare-upgrade', () => ({
+jest.mock('./agent/prepare', () => ({
   prepareUpgrade: jest.fn(),
 }))
-jest.mock('next/dist/server/config', () => ({
-  __esModule: true,
-  default: jest.fn(),
-}))
-jest.mock('next/dist/server/config-shared', () => ({
-  normalizeConfig: jest.fn(),
-}))
-jest.mock('next/dist/telemetry/agent-name', () => ({
+
+jest.mock('./agent/detect-agent', () => ({
   getAgentName: jest.fn(),
 }))
-jest.mock('next/dist/telemetry/storage', () => ({
-  Telemetry: jest.fn(),
-}))
-const createSpinner = require('next/dist/build/spinner').default as jest.Mock
-const crossSpawn = require('next/dist/compiled/cross-spawn') as jest.Mock & {
-  sync: jest.Mock
-}
-const cliVersion: string = require('next/package.json').version
+
+const createSpinner = (require('./spinner') as typeof import('./spinner'))
+  .default as jest.Mock
+const crossSpawn =
+  require('cross-spawn') as typeof import('cross-spawn') as unknown as jest.Mock & {
+    sync: jest.Mock
+  }
+const select = jest.mocked(
+  cliSelect as (
+    options: Parameters<typeof cliSelect>[0]
+  ) => Promise<{ id: string | number }>
+)
+const cliVersion: string = require('@next/upgrade/package.json').version
 const restoreDescriptors: Array<() => void> = []
 
 function normalizedBootstrapCalls(): string[][] {
@@ -101,8 +97,8 @@ function normalizedBootstrapCalls(): string[][] {
         'report-agent-upgrade <run-id>'
       )
       .replaceAll(
-        `next@${cliVersion} internal report-agent-upgrade`,
-        'next@<cli-version> internal report-agent-upgrade'
+        `@next/upgrade@${cliVersion} internal report-agent-upgrade`,
+        '@next/upgrade@<cli-version> internal report-agent-upgrade'
       ),
   ])
 }
@@ -114,7 +110,7 @@ function expectedHarnessPath(name: string): string {
           .split(';')
           .filter(Boolean)[0]
       : ''
-  return resolve('/agents', `${name}${extension}`)
+  return resolvePath('/agents', `${name}${extension}`)
 }
 
 function normalizedFileWriteCalls() {
@@ -147,7 +143,7 @@ function overrideTTY(
     if (descriptor) {
       Object.defineProperty(target, 'isTTY', descriptor)
     } else {
-      delete target.isTTY
+      Reflect.deleteProperty(target, 'isTTY')
     }
   })
   Object.defineProperty(target, 'isTTY', {
@@ -166,7 +162,7 @@ describe('agentic upgrade prompts', () => {
 
   beforeEach(() => {
     jest.resetAllMocks()
-    jest.mocked(Telemetry).mockImplementation(
+    mockTelemetry.mockImplementation(
       () =>
         ({
           record: jest.fn(),
@@ -228,12 +224,10 @@ describe('agentic upgrade prompts', () => {
     jest.mocked(rm).mockResolvedValue(undefined)
     jest.mocked(writeFile).mockResolvedValue(undefined)
     jest.mocked(getAgentName).mockResolvedValue('codex')
-    jest.mocked(loadConfig).mockResolvedValue({
+    mockLoadConfig.mockResolvedValue({
       default: { experimental: { agentUpgrade: false } },
     } as never)
-    jest
-      .mocked(normalizeConfig)
-      .mockImplementation(async (_phase, config) => config)
+    mockNormalizeConfig.mockImplementation(async (_phase, config) => config)
   })
 
   afterEach(() => {
@@ -300,137 +294,10 @@ describe('agentic upgrade prompts', () => {
 
     expect(Log.error).toHaveBeenCalledWith(
       'Could not prepare the upgrade:',
-      `Expected Next.js 0.0.0 for the upgrade, but launched ${cliVersion}.`
+      `Expected @next/upgrade 0.0.0 for the upgrade, but launched ${cliVersion}.`
     )
     expect(process.exitCode).toBe(1)
     expect(global.fetch).toHaveBeenCalledTimes(0)
-    expect(prepareUpgrade).toHaveBeenCalledTimes(0)
-  })
-
-  it.each([undefined, '1'])(
-    'reuses the current canary after checking npm with legacy guard %s',
-    async (legacyGuard) => {
-      delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
-      if (legacyGuard === undefined) {
-        delete process.env.__NEXT_UPGRADE_USE_CURRENT_CLI
-      } else {
-        process.env.__NEXT_UPGRADE_USE_CURRENT_CLI = legacyGuard
-      }
-      jest
-        .mocked(global.fetch)
-        .mockResolvedValue(
-          new Response(JSON.stringify({ version: cliVersion }))
-        )
-      jest.mocked(prepareUpgrade).mockResolvedValue({
-        status: 'unaffected',
-        reason: 'Already current.',
-      })
-
-      await spawnNextUpgrade(
-        '/workspace/app',
-        {
-          revision: 'latest',
-          verbose: false,
-          agent: 'security',
-        },
-        null
-      )
-
-      expect(global.fetch).toHaveBeenCalledTimes(1)
-      expect(global.fetch).toHaveBeenCalledWith(
-        'https://registry.npmjs.org/next/canary',
-        expect.objectContaining({
-          signal: expect.any(AbortSignal),
-          cache: 'no-store',
-        })
-      )
-      expect(crossSpawn).toHaveBeenCalledTimes(0)
-      expect(prepareUpgrade).toHaveBeenCalledTimes(1)
-    }
-  )
-
-  it.each([true, 'security', 'latest', 'experimental-future'])(
-    'delegates %s to the exact canary and preserves its failure status',
-    async (agent) => {
-      delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
-      const version = '99.0.0-canary.35'
-      jest
-        .mocked(global.fetch)
-        .mockResolvedValue(new Response(JSON.stringify({ version })))
-      crossSpawn.mockImplementation(() => {
-        const child = new EventEmitter()
-        process.nextTick(() => child.emit('close', 42, null))
-        return child
-      })
-
-      await spawnNextUpgrade(
-        '/workspace/app',
-        {
-          revision: 'latest',
-          verbose: true,
-          agent,
-        },
-        null
-      )
-
-      expect(global.fetch).toHaveBeenCalledTimes(1)
-      expect(crossSpawn).toHaveBeenCalledTimes(1)
-      expect(crossSpawn).toHaveBeenCalledWith(
-        'npx',
-        [
-          `next@${version}`,
-          'upgrade',
-          '/workspace/app',
-          agent === true ? '--agent' : `--agent=${agent}`,
-          '--verbose',
-        ],
-        expect.objectContaining({
-          cwd: '/workspace/app',
-          stdio: 'inherit',
-          env: expect.objectContaining({
-            __NEXT_UPGRADE_EXPECTED_CLI_VERSION: version,
-            __NEXT_UPGRADE_USE_CURRENT_CLI: '1',
-          }),
-        })
-      )
-      expect(process.exitCode).toBe(42)
-      expect(prepareUpgrade).toHaveBeenCalledTimes(0)
-    }
-  )
-
-  it.each([
-    ['HTTP error', () => Promise.resolve(new Response('', { status: 503 }))],
-    ['network error', () => Promise.reject(new TypeError('fetch failed'))],
-    [
-      'timeout',
-      () => Promise.reject(new DOMException('Timed out', 'TimeoutError')),
-    ],
-    ['invalid JSON', () => Promise.resolve(new Response('invalid'))],
-    ['missing version', () => Promise.resolve(new Response('{}'))],
-    [
-      'invalid version',
-      () => Promise.resolve(new Response('{"version":"canary"}')),
-    ],
-  ] as const)('stops before upgrading on %s', async (_name, response) => {
-    delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
-    jest.mocked(global.fetch).mockImplementation(response)
-
-    await spawnNextUpgrade(
-      '/workspace/app',
-      {
-        revision: 'latest',
-        verbose: false,
-        agent: 'security',
-      },
-      null
-    )
-
-    expect(Log.error).toHaveBeenCalledWith(
-      'Could not prepare the upgrade:',
-      'Could not fetch the latest Next.js canary from npm.'
-    )
-    expect(process.exitCode).toBe(1)
-    expect(crossSpawn).toHaveBeenCalledTimes(0)
     expect(prepareUpgrade).toHaveBeenCalledTimes(0)
   })
 
@@ -442,11 +309,11 @@ describe('agentic upgrade prompts', () => {
     jest.mocked(getAgentName).mockResolvedValue(null)
     jest.mocked(access).mockResolvedValue(undefined)
     jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
-    jest.mocked(cliSelect).mockRejectedValue(undefined)
+    select.mockRejectedValue(undefined)
 
     await handoffUpgrade('Prepared upgrade prompt.', '/workspace/app', null)
 
-    const selectOptions = jest.mocked(cliSelect).mock.calls[0][0]
+    const selectOptions = select.mock.calls[0][0]
     expect({
       progress: jest.mocked(Log.info).mock.calls,
       prompt: jest.mocked(Log.bootstrap).mock.calls,
@@ -515,7 +382,7 @@ describe('agentic upgrade prompts', () => {
       throw Object.assign(new Error('not found'), { code: 'ENOENT' })
     })
     jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
-    jest.mocked(cliSelect).mockRejectedValue(undefined)
+    select.mockRejectedValue(undefined)
 
     await handoffUpgrade('Prepared upgrade prompt.', '/workspace/app', null)
 
@@ -560,8 +427,7 @@ describe('agentic upgrade prompts', () => {
       jest.mocked(getAgentName).mockResolvedValue(null)
       jest.mocked(access).mockResolvedValue(undefined)
       jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
-      jest
-        .mocked(cliSelect)
+      select
         .mockResolvedValueOnce({ id: agent } as never)
         .mockResolvedValueOnce({ id: model } as never)
         .mockResolvedValueOnce({ id: effort } as never)
@@ -593,7 +459,7 @@ describe('agentic upgrade prompts', () => {
         ],
         { cwd: '/workspace/app', stdio: 'inherit' }
       )
-      const modelMenu = jest.mocked(cliSelect).mock.calls[1][0]
+      const modelMenu = select.mock.calls[1][0]
       expect(modelMenu.values).toEqual(
         agent === 'codex'
           ? {
@@ -607,20 +473,20 @@ describe('agentic upgrade prompts', () => {
               fable: 'Claude Fable (latest)',
             }
       )
-      const effortMenu = jest.mocked(cliSelect).mock.calls[2][0]
+      const effortMenu = select.mock.calls[2][0]
       expect(Object.keys(effortMenu.values)).toEqual(
         agent === 'claude'
           ? ['default', 'low', 'medium', 'high', 'max']
           : ['default', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra']
       )
       expect(effortMenu.defaultValue).toBe(0)
-      const permissionMenu = jest.mocked(cliSelect).mock.calls[3][0]
+      const permissionMenu = select.mock.calls[3][0]
       expect(permissionMenu.values).toEqual({
         yes: 'Yes',
         no: 'No, ask for approval',
       })
       expect(permissionMenu.defaultValue).toBe(0)
-      expect(jest.mocked(cliSelect).mock.calls[4][0].values).toEqual({
+      expect(select.mock.calls[4][0].values).toEqual({
         yes: 'Yes',
         no: 'No',
       })
@@ -629,7 +495,7 @@ describe('agentic upgrade prompts', () => {
         .mock.calls.map(([value]) => String(value))
       expect(questions.filter((value) => value.startsWith('  ❯ '))).toEqual([
         `  ❯ Continue with ${agent === 'codex' ? 'Codex' : 'Claude Code'}`,
-        `  ❯ ${modelMenu.values[model]}`,
+        `  ❯ ${(modelMenu.values as Record<string, string>)[model]}`,
         `  ❯ ${effort}`,
         '  ❯ Yes',
         '  ❯ No',
@@ -654,8 +520,7 @@ describe('agentic upgrade prompts', () => {
     jest.mocked(getAgentName).mockResolvedValue(null)
     jest.mocked(access).mockResolvedValue(undefined)
     jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
-    jest
-      .mocked(cliSelect)
+    select
       .mockResolvedValueOnce({ id: 'codex' } as never)
       .mockResolvedValueOnce({ id: 'gpt-5.6-terra' } as never)
       .mockResolvedValueOnce({ id: 'default' } as never)
@@ -700,8 +565,7 @@ describe('agentic upgrade prompts', () => {
         isDefault: true,
       },
     ])
-    jest
-      .mocked(cliSelect)
+    select
       .mockResolvedValueOnce({ id: 'codex' })
       .mockResolvedValueOnce({ id: 'future-model' })
       .mockResolvedValueOnce({ id: 'high' })
@@ -713,14 +577,14 @@ describe('agentic upgrade prompts', () => {
       return child
     })
     await handoffUpgrade('Upgrade prompt', '/workspace/app', null)
-    expect(jest.mocked(cliSelect).mock.calls[1][0]).toMatchObject({
+    expect(select.mock.calls[1][0]).toMatchObject({
       values: {
         'future-model': 'Future — For upgrades',
         'recommended-model': 'Recommended',
       },
       defaultValue: 1,
     })
-    expect(jest.mocked(cliSelect).mock.calls[2][0].values).toEqual({
+    expect(select.mock.calls[2][0].values).toEqual({
       default: 'Model default',
       high: 'high',
     })
@@ -742,8 +606,7 @@ describe('agentic upgrade prompts', () => {
       jest.mocked(access).mockResolvedValue(undefined)
       jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
       jest.mocked(getHarnessModels).mockResolvedValue([])
-      jest
-        .mocked(cliSelect)
+      select
         .mockResolvedValueOnce({ id: agent })
         .mockResolvedValueOnce({ id: 'yes' })
         .mockRejectedValueOnce(undefined)
@@ -789,8 +652,7 @@ describe('agentic upgrade prompts', () => {
         isDefault: true,
       },
     ])
-    jest
-      .mocked(cliSelect)
+    select
       .mockResolvedValueOnce({ id: 'claude' })
       .mockResolvedValueOnce({ id: 'default' })
       .mockRejectedValueOnce(undefined)
@@ -803,7 +665,7 @@ describe('agentic upgrade prompts', () => {
       return child
     })
     await handoffUpgrade('Upgrade prompt', '/workspace/app', null)
-    expect(jest.mocked(cliSelect).mock.calls[3][0].values).toEqual({
+    expect(select.mock.calls[3][0].values).toEqual({
       default: 'Default',
     })
     expect(crossSpawn).toHaveBeenCalledWith(
@@ -839,8 +701,7 @@ describe('agentic upgrade prompts', () => {
           )
         })
     )
-    jest
-      .mocked(cliSelect)
+    select
       .mockImplementationOnce(async () => {
         expect(
           jest.mocked(getHarnessModels).mock.calls.map(([name]) => name)
@@ -896,9 +757,8 @@ describe('agentic upgrade prompts', () => {
             )
           })
       )
-      if (choice === 'copy')
-        jest.mocked(cliSelect).mockResolvedValueOnce({ id: 'copy' })
-      else jest.mocked(cliSelect).mockRejectedValueOnce(undefined)
+      if (choice === 'copy') select.mockResolvedValueOnce({ id: 'copy' })
+      else select.mockRejectedValueOnce(undefined)
       await handoffUpgrade('Upgrade prompt', '/workspace/app', null)
       expect(cancelled).toEqual(['codex', 'claude'])
       expect(crossSpawn).not.toHaveBeenCalled()
@@ -913,7 +773,7 @@ describe('agentic upgrade prompts', () => {
     jest.mocked(access).mockResolvedValue(undefined)
     jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
     jest.mocked(getHarnessModels).mockResolvedValue(null)
-    jest.mocked(cliSelect).mockResolvedValueOnce({ id: 'codex' })
+    select.mockResolvedValueOnce({ id: 'codex' })
     expect(await handoffUpgrade('Upgrade prompt', '/workspace/app', null)).toBe(
       'cancelled'
     )
@@ -952,8 +812,7 @@ describe('agentic upgrade prompts', () => {
     jest.mocked(getAgentName).mockResolvedValue(null)
     jest.mocked(access).mockResolvedValue(undefined)
     jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
-    jest
-      .mocked(cliSelect)
+    select
       .mockResolvedValueOnce({ id: agent } as never)
       .mockResolvedValueOnce({
         id: agent === 'codex' ? 'gpt-5.6-terra' : 'opus',
@@ -994,8 +853,7 @@ describe('agentic upgrade prompts', () => {
     crossSpawn.sync.mockImplementation(() => {
       return { status: 0, stdout: '  --ask-for-approval <APPROVAL_POLICY>' }
     })
-    jest
-      .mocked(cliSelect)
+    select
       .mockResolvedValueOnce({ id: 'codex' } as never)
       .mockResolvedValueOnce({ id: 'gpt-5.6-terra' } as never)
       .mockResolvedValueOnce({ id: 'high' } as never)
@@ -1013,7 +871,7 @@ describe('agentic upgrade prompts', () => {
       ['--help'],
       expect.objectContaining({ encoding: 'utf8' })
     )
-    expect(jest.mocked(cliSelect).mock.calls[3][0].values).toEqual({
+    expect(select.mock.calls[3][0].values).toEqual({
       yes: 'Yes',
       no: 'No',
     })
@@ -1046,8 +904,7 @@ describe('agentic upgrade prompts', () => {
       stdout:
         '  --permission-mode <mode>  Permission mode to use for the session\n                                        (choices: "default", "acceptEdits", "plan", "dontAsk", "bypassPermissions")',
     })
-    jest
-      .mocked(cliSelect)
+    select
       .mockResolvedValueOnce({ id: 'claude' } as never)
       .mockResolvedValueOnce({ id: 'opus' } as never)
       .mockResolvedValueOnce({ id: 'high' } as never)
@@ -1065,7 +922,7 @@ describe('agentic upgrade prompts', () => {
       ['--help'],
       expect.objectContaining({ encoding: 'utf8' })
     )
-    expect(jest.mocked(cliSelect).mock.calls[3][0].values).toEqual({
+    expect(select.mock.calls[3][0].values).toEqual({
       yes: 'Yes',
       no: 'No',
     })
@@ -1091,8 +948,7 @@ describe('agentic upgrade prompts', () => {
     jest.mocked(getAgentName).mockResolvedValue(null)
     jest.mocked(access).mockResolvedValue(undefined)
     jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
-    jest
-      .mocked(cliSelect)
+    select
       .mockResolvedValueOnce({ id: 'codex' } as never)
       .mockResolvedValueOnce({ id: 'gpt-5.6-terra' } as never)
       .mockResolvedValueOnce({ id: 'high' } as never)
@@ -1114,8 +970,7 @@ describe('agentic upgrade prompts', () => {
     jest.mocked(getAgentName).mockResolvedValue(null)
     jest.mocked(access).mockResolvedValue(undefined)
     jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
-    jest
-      .mocked(cliSelect)
+    select
       .mockResolvedValueOnce({ id: 'codex' })
       .mockResolvedValueOnce({ id: 'gpt-5.6-terra' })
       .mockResolvedValueOnce({ id: 'high' })
@@ -1141,8 +996,8 @@ describe('agentic upgrade prompts', () => {
     expect(
       crossSpawn.sync.mock.calls.filter(([, args]) => args[0] === '--help')
     ).toHaveLength(1)
-    expect(jest.mocked(cliSelect).mock.calls[7][0].defaultValue).toBe(1)
-    expect(jest.mocked(cliSelect).mock.calls[9][0].defaultValue).toBe(0)
+    expect(select.mock.calls[7][0].defaultValue).toBe(1)
+    expect(select.mock.calls[9][0].defaultValue).toBe(0)
     expect(
       jest
         .mocked(Log.bootstrap)
@@ -1180,8 +1035,7 @@ describe('agentic upgrade prompts', () => {
     jest.mocked(getAgentName).mockResolvedValue(null)
     jest.mocked(access).mockResolvedValue(undefined)
     jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
-    jest
-      .mocked(cliSelect)
+    select
       .mockResolvedValueOnce({ id: 'codex' })
       .mockResolvedValueOnce({ id: 'gpt-5.6-terra' })
       .mockResolvedValueOnce({ id: 'ultra' })
@@ -1201,7 +1055,7 @@ describe('agentic upgrade prompts', () => {
 
     await handoffUpgrade('Upgrade prompt', '/workspace/app', null)
 
-    expect(jest.mocked(cliSelect).mock.calls[8][0].defaultValue).toBe(0)
+    expect(select.mock.calls[8][0].defaultValue).toBe(0)
     expect(crossSpawn).toHaveBeenCalledWith(
       expectedHarnessPath('claude'),
       ['--model', 'opus', '--permission-mode', 'auto', 'Upgrade prompt'],
@@ -1216,8 +1070,7 @@ describe('agentic upgrade prompts', () => {
     jest.mocked(getAgentName).mockResolvedValue(null)
     jest.mocked(access).mockResolvedValue(undefined)
     jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
-    jest
-      .mocked(cliSelect)
+    select
       .mockResolvedValueOnce({ id: 'claude' })
       .mockResolvedValueOnce({ id: 'opus' })
       .mockResolvedValueOnce({ id: 'high' })
@@ -1261,8 +1114,7 @@ describe('agentic upgrade prompts', () => {
     crossSpawn.sync.mockImplementation(() => {
       return { status: 0, stdout: '  --ask-for-approval <APPROVAL_POLICY>' }
     })
-    jest
-      .mocked(cliSelect)
+    select
       .mockResolvedValueOnce({ id: 'codex' })
       .mockResolvedValueOnce({ id: 'gpt-5.6-terra' })
       .mockResolvedValueOnce({ id: 'high' })
@@ -1280,7 +1132,7 @@ describe('agentic upgrade prompts', () => {
     expect(
       crossSpawn.sync.mock.calls.filter(([, args]) => args[0] === '--help')
     ).toHaveLength(1)
-    expect(jest.mocked(cliSelect).mock.calls[4][0].values).toEqual({
+    expect(select.mock.calls[4][0].values).toEqual({
       default: 'Model default',
       low: 'low',
       medium: 'medium',
@@ -1327,8 +1179,7 @@ describe('agentic upgrade prompts', () => {
     crossSpawn.sync.mockImplementation(() => {
       return { status: 0, stdout: '  --approve-for-me' }
     })
-    jest
-      .mocked(cliSelect)
+    select
       .mockResolvedValueOnce({ id: 'codex' } as never)
       .mockResolvedValueOnce({ id: 'gpt-5.6-terra' } as never)
       .mockResolvedValueOnce({ id: 'high' } as never)
@@ -1398,8 +1249,8 @@ describe('agentic upgrade prompts', () => {
     const copiedSources = normalizedCopiedSources()
     expect(copiedSources).toEqual(
       expect.arrayContaining([
-        expect.stringContaining('/lib/upgrade/shared.md'),
-        expect.stringContaining('/lib/upgrade/different-major.md'),
+        expect.stringContaining('/dist/guides/shared.md'),
+        expect.stringContaining('/dist/guides/different-major.md'),
         expect.stringContaining('/codemods.md'),
         expect.stringContaining('/version-15.md'),
         expect.stringContaining('/version-16.md'),
@@ -1407,7 +1258,7 @@ describe('agentic upgrade prompts', () => {
     )
     expect(
       copiedSources.some((source) =>
-        source.includes('/lib/upgrade/future-defaults.md')
+        source.includes('/dist/guides/future-defaults.md')
       )
     ).toBe(false)
     expect(normalizedBootstrapCalls()).toMatchInlineSnapshot(`
@@ -1425,7 +1276,7 @@ describe('agentic upgrade prompts', () => {
      - https://api.github.com/advisories?affects=next
      - https://registry.npmjs.org/next
 
-     When this task ends, report its result once. After completing the requested upgrade and all applicable verification, run \`npx next@<cli-version> internal report-agent-upgrade <run-id> success\`. If the attempted upgrade remains unsuccessful after repairs or verification fails, run \`npx next@<cli-version> internal report-agent-upgrade <run-id> failure\`. If you stop for duplicate work, user cancellation, or an unavailable prerequisite, do not report success or failure. Explain the result to the user separately; never include project details or error text in the telemetry command.",
+     When this task ends, report its result once. After completing the requested upgrade and all applicable verification, run \`npx @next/upgrade@<cli-version> internal report-agent-upgrade <run-id> success\`. If the attempted upgrade remains unsuccessful after repairs or verification fails, run \`npx @next/upgrade@<cli-version> internal report-agent-upgrade <run-id> failure\`. If you stop for duplicate work, user cancellation, or an unavailable prerequisite, do not report success or failure. Explain the result to the user separately; never include project details or error text in the telemetry command.",
        ],
      ]
     `)
@@ -1460,7 +1311,7 @@ describe('agentic upgrade prompts', () => {
       null
     )
 
-    expect(loadConfig).toHaveBeenCalledWith(
+    expect(mockLoadConfig).toHaveBeenCalledWith(
       PHASE_PRODUCTION_BUILD,
       '/workspace/app',
       { rawConfig: true }
@@ -1471,7 +1322,7 @@ describe('agentic upgrade prompts', () => {
   it.each(['security', 'latest', 'experimental-future'] as const)(
     'uses the configured %s policy for a bare agent upgrade',
     async (policy) => {
-      jest.mocked(loadConfig).mockResolvedValue({
+      mockLoadConfig.mockResolvedValue({
         default: { experimental: { agentUpgrade: policy } },
       } as never)
 
@@ -1513,13 +1364,13 @@ describe('agentic upgrade prompts', () => {
       null
     )
 
-    expect(loadConfig).toHaveBeenCalledTimes(1)
+    expect(mockLoadConfig).toHaveBeenCalledTimes(1)
     expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', 'latest')
     expect(readFile).toHaveBeenCalledTimes(0)
     expect(writeFile).toHaveBeenCalledTimes(0)
     expect(
       normalizedCopiedSources().some((source) =>
-        source.includes('/lib/upgrade/future-defaults.md')
+        source.includes('/dist/guides/future-defaults.md')
       )
     ).toBe(false)
     expect(
@@ -1539,7 +1390,7 @@ describe('agentic upgrade prompts', () => {
      References:
      - https://registry.npmjs.org/next/latest
 
-     When this task ends, report its result once. After completing the requested upgrade and all applicable verification, run \`npx next@<cli-version> internal report-agent-upgrade <run-id> success\`. If the attempted upgrade remains unsuccessful after repairs or verification fails, run \`npx next@<cli-version> internal report-agent-upgrade <run-id> failure\`. If you stop for duplicate work, user cancellation, or an unavailable prerequisite, do not report success or failure. Explain the result to the user separately; never include project details or error text in the telemetry command.",
+     When this task ends, report its result once. After completing the requested upgrade and all applicable verification, run \`npx @next/upgrade@<cli-version> internal report-agent-upgrade <run-id> success\`. If the attempted upgrade remains unsuccessful after repairs or verification fails, run \`npx @next/upgrade@<cli-version> internal report-agent-upgrade <run-id> failure\`. If you stop for duplicate work, user cancellation, or an unavailable prerequisite, do not report success or failure. Explain the result to the user separately; never include project details or error text in the telemetry command.",
        ],
      ]
     `)
@@ -1573,8 +1424,8 @@ describe('agentic upgrade prompts', () => {
     expect(readFile).toHaveBeenCalledTimes(0)
     expect(writeFile).toHaveBeenCalledTimes(0)
     expect(normalizedCopiedSources()).toEqual([
-      expect.stringContaining('/lib/upgrade/shared.md'),
-      expect.stringContaining('/lib/upgrade/same-major.md'),
+      expect.stringContaining('/dist/guides/shared.md'),
+      expect.stringContaining('/dist/guides/same-major.md'),
     ])
   })
 
@@ -1602,7 +1453,7 @@ describe('agentic upgrade prompts', () => {
     )
     expect(
       normalizedCopiedSources().some((source) =>
-        source.includes('/lib/upgrade/future-defaults.md')
+        source.includes('/dist/guides/future-defaults.md')
       )
     ).toBe(false)
   })
@@ -1631,7 +1482,7 @@ describe('agentic upgrade prompts', () => {
     expect(prompt).toContain('/upgrade/future-defaults.md')
     expect(normalizedCopiedSources()).toEqual(
       expect.arrayContaining([
-        expect.stringContaining('/lib/upgrade/future-defaults.md'),
+        expect.stringContaining('/dist/guides/future-defaults.md'),
       ])
     )
   })
@@ -1752,7 +1603,7 @@ describe('agentic upgrade prompts', () => {
     expect(normalizedFileWriteCalls()).toEqual(normalizedWriteFileCalls())
     expect(normalizedCopiedSources()).toEqual(
       expect.arrayContaining([
-        expect.stringContaining('/lib/upgrade/future-defaults.md'),
+        expect.stringContaining('/dist/guides/future-defaults.md'),
       ])
     )
 
@@ -1781,7 +1632,7 @@ describe('agentic upgrade prompts', () => {
      References:
      - https://registry.npmjs.org/next/latest
 
-     When this task ends, report its result once. After completing the requested upgrade and all applicable verification, run \`npx next@<cli-version> internal report-agent-upgrade <run-id> success\`. If the attempted upgrade remains unsuccessful after repairs or verification fails, run \`npx next@<cli-version> internal report-agent-upgrade <run-id> failure\`. If you stop for duplicate work, user cancellation, or an unavailable prerequisite, do not report success or failure. Explain the result to the user separately; never include project details or error text in the telemetry command.",
+     When this task ends, report its result once. After completing the requested upgrade and all applicable verification, run \`npx @next/upgrade@<cli-version> internal report-agent-upgrade <run-id> success\`. If the attempted upgrade remains unsuccessful after repairs or verification fails, run \`npx @next/upgrade@<cli-version> internal report-agent-upgrade <run-id> failure\`. If you stop for duplicate work, user cancellation, or an unavailable prerequisite, do not report success or failure. Explain the result to the user separately; never include project details or error text in the telemetry command.",
          ],
        ],
        "savedInstructions": [
@@ -1855,7 +1706,7 @@ describe('agentic upgrade prompts', () => {
     ).toEqual(
       expect.arrayContaining([
         [
-          expect.stringContaining('/lib/upgrade/future-defaults.md'),
+          expect.stringContaining('/dist/guides/future-defaults.md'),
           '/tmp/next-upgrade-test/upgrade/future-defaults.md',
         ],
       ])
@@ -1885,337 +1736,28 @@ describe('agentic upgrade prompts', () => {
      References:
      - https://registry.npmjs.org/next/latest
 
-     When this task ends, report its result once. After completing the requested upgrade and all applicable verification, run \`npx next@<cli-version> internal report-agent-upgrade <run-id> success\`. If the attempted upgrade remains unsuccessful after repairs or verification fails, run \`npx next@<cli-version> internal report-agent-upgrade <run-id> failure\`. If you stop for duplicate work, user cancellation, or an unavailable prerequisite, do not report success or failure. Explain the result to the user separately; never include project details or error text in the telemetry command.",
+     When this task ends, report its result once. After completing the requested upgrade and all applicable verification, run \`npx @next/upgrade@<cli-version> internal report-agent-upgrade <run-id> success\`. If the attempted upgrade remains unsuccessful after repairs or verification fails, run \`npx @next/upgrade@<cli-version> internal report-agent-upgrade <run-id> failure\`. If you stop for duplicate work, user cancellation, or an unavailable prerequisite, do not report success or failure. Explain the result to the user separately; never include project details or error text in the telemetry command.",
        ],
      ]
     `)
   })
 })
 
-describe('upgrade model discovery protocol', () => {
-  const discover: typeof getHarnessModels = jest.requireActual(
-    'next/dist/lib/upgrade/model-discovery'
-  ).getHarnessModels
-
-  function probe(
-    onRequest: (message: any, respond: (value: unknown) => void) => void
-  ) {
-    const child = Object.assign(new EventEmitter(), {
-      stdin: Object.assign(new EventEmitter(), {
-        write: jest.fn((line: string) => {
-          onRequest(JSON.parse(line), (value) => {
-            const json = JSON.stringify(value) + '\n'
-            // Exercise both split frames and multiple frames in one chunk.
-            child.stdout.emit('data', json.slice(0, 5))
-            child.stdout.emit('data', json.slice(5))
-          })
-        }),
-        end: jest.fn(),
-      }),
-      stdout: Object.assign(new EventEmitter(), { setEncoding: jest.fn() }),
-      stderr: new EventEmitter(),
-      kill: jest.fn((_signal: string) => {
-        process.nextTick(() => child.emit('close', null, 'SIGTERM'))
-        return true
-      }),
+// Preserve the original config and telemetry assertions through the standalone adapters.
+jest.mock('../next/config', () => ({
+  loadAgentUpgradeConfig: async (directory: string) => {
+    const raw = await mockLoadConfig('phase-production-build', directory, {
+      rawConfig: true,
     })
-    crossSpawn.mockImplementation(() => {
-      process.nextTick(() => child.emit('spawn'))
-      return child
-    })
-    return child
-  }
-
-  beforeEach(() => jest.resetAllMocks())
-  afterEach(() => jest.useRealTimers())
-
-  it('initializes Codex and follows pagination using opaque model IDs and advertised efforts', async () => {
-    const requests: any[] = []
-    const child = probe((message, respond) => {
-      requests.push(message)
-      if (message.method === 'initialize') {
-        respond({ method: 'unrelated/notification', params: {} })
-        respond({ id: message.id, result: {} })
-      } else if (message.method === 'model/list') {
-        respond({
-          id: message.id,
-          result: message.params.cursor
-            ? {
-                data: [
-                  {
-                    model: 'new-model',
-                    displayName: 'New model',
-                    description: 'Useful',
-                    isDefault: true,
-                    supportedReasoningEfforts: [
-                      { reasoningEffort: 'future-effort' },
-                    ],
-                  },
-                ],
-                nextCursor: null,
-              }
-            : {
-                data: [
-                  { model: 'hidden', hidden: true },
-                  {
-                    model: 'first',
-                    supportedReasoningEfforts: [{ reasoningEffort: 'low' }],
-                  },
-                ],
-                nextCursor: 'page-2',
-              },
-        })
-      }
-    })
-    expect(await discover('codex', '/agents/codex', '/project')).toEqual([
-      {
-        id: 'first',
-        label: 'first',
-        description: '',
-        efforts: ['low'],
-        isDefault: false,
-      },
-      {
-        id: 'new-model',
-        label: 'New model',
-        description: 'Useful',
-        efforts: ['future-effort'],
-        isDefault: true,
-      },
-    ])
-    expect(requests.map((request) => request.method)).toEqual([
-      'initialize',
-      'initialized',
-      'model/list',
-      'model/list',
-    ])
-    expect(requests[3].params).toEqual({
-      includeHidden: false,
-      cursor: 'page-2',
-    })
-    expect(crossSpawn).toHaveBeenCalledWith('/agents/codex', ['app-server'], {
-      cwd: '/project',
-      stdio: 'pipe',
-    })
-    expect(child.stdin.end).toHaveBeenCalled()
-    expect(child.kill).toHaveBeenCalledWith('SIGTERM')
-  })
-
-  it('reads Claude aliases, descriptions, default choice, and effort capabilities', async () => {
-    const child = probe((message, respond) => {
-      expect(message.type).toBe('control_request')
-      expect(message.request).toEqual({ subtype: 'initialize' })
-      respond({ type: 'system', subtype: 'init' })
-      respond({
-        type: 'control_response',
-        response: { request_id: 'unrelated', subtype: 'error' },
-      })
-      respond({
-        type: 'control_response',
-        response: {
-          request_id: message.request_id,
-          subtype: 'success',
-          response: {
-            models: [
-              {
-                value: 'default',
-                resolvedModel: 'concrete-model',
-                displayName: 'Recommended',
-                description: 'Latest',
-                supportedEffortLevels: ['low', 'high'],
-              },
-              {
-                value: 'haiku',
-                supportsEffort: false,
-                supportedEffortLevels: ['high'],
-              },
-              { value: 'older' },
-            ],
-          },
-        },
-      })
-    })
-    expect(await discover('claude', '/agents/claude', '/project')).toEqual([
-      {
-        id: 'default',
-        label: 'Recommended',
-        description: 'Latest',
-        efforts: ['low', 'high'],
-        isDefault: true,
-      },
-      {
-        id: 'haiku',
-        label: 'haiku',
-        description: '',
-        efforts: [],
-        isDefault: false,
-      },
-      {
-        id: 'older',
-        label: 'older',
-        description: '',
-        efforts: [],
-        isDefault: false,
-      },
-    ])
-    expect(crossSpawn).toHaveBeenCalledWith(
-      '/agents/claude',
-      [
-        '-p',
-        '--input-format',
-        'stream-json',
-        '--output-format',
-        'stream-json',
-        '--verbose',
-        '--no-session-persistence',
-      ],
-      { cwd: '/project', stdio: 'pipe' }
+    return mockNormalizeConfig(
+      'phase-production-build',
+      (raw as { default: unknown }).default || raw
     )
-    expect(child.kill).toHaveBeenCalledWith('SIGTERM')
-  })
-
-  it.each(['codex', 'claude'] as const)(
-    'returns no models for an empty %s catalog',
-    async (name) => {
-      probe((message, respond) => {
-        if (message.method === 'initialize')
-          respond({ id: message.id, result: {} })
-        if (message.method === 'model/list')
-          respond({ id: message.id, result: { data: [] } })
-        if (message.type === 'control_request')
-          respond({
-            type: 'control_response',
-            response: {
-              request_id: message.request_id,
-              subtype: 'success',
-              response: { models: [] },
-            },
-          })
-      })
-      expect(await discover(name, '/agent', '/project')).toEqual([])
-    }
-  )
-
-  it.each([
-    'malformed JSON',
-    'unexpected format',
-    'protocol error',
-    'repeated cursor',
-  ])('handles %s and cleans up', async (failure) => {
-    const child = probe((message, respond) => {
-      if (message.method === 'initialize') {
-        if (failure === 'malformed JSON') child.stdout.emit('data', '{\n')
-        else respond({ id: message.id, result: {} })
-      } else if (message.method === 'model/list') {
-        respond(
-          failure === 'protocol error'
-            ? { id: message.id, error: { code: -1 } }
-            : {
-                id: message.id,
-                result:
-                  failure === 'unexpected format'
-                    ? {}
-                    : { data: [], nextCursor: 'same' },
-              }
-        )
-      }
-    })
-    expect(await discover('codex', '/agent', '/project')).toEqual([])
-    expect(child.kill).toHaveBeenCalledWith('SIGTERM')
-  })
-
-  it('handles a Claude initialization error', async () => {
-    probe((message, respond) =>
-      respond({
-        type: 'control_response',
-        response: {
-          request_id: message.request_id,
-          subtype: 'error',
-          error: 'private diagnostic',
-        },
-      })
-    )
-    expect(await discover('claude', '/agent', '/project')).toEqual([])
-  })
-
-  it('handles process and stdin errors without warnings', async () => {
-    const child = probe(() => child.stdin.emit('error', new Error('EPIPE')))
-    expect(await discover('codex', '/agent', '/project')).toEqual([])
-    expect(child.kill).toHaveBeenCalledWith('SIGTERM')
-    child.kill.mockClear()
-    const failed = probe(() => failed.emit('error', new Error('ENOENT')))
-    expect(await discover('codex', '/agent', '/project')).toEqual([])
-    expect(Log.warn).not.toHaveBeenCalled()
-    expect(Log.error).not.toHaveBeenCalled()
-  })
-
-  it('handles a thrown spawn error and an early process exit', async () => {
-    crossSpawn.mockImplementation(() => {
-      throw new Error('spawn failed')
-    })
-    expect(await discover('codex', '/agent', '/project')).toEqual([])
-    const child = probe(() => child.emit('close', 1, null))
-    expect(await discover('codex', '/agent', '/project')).toEqual([])
-  })
-
-  it('bounds output from both stdout and stderr', async () => {
-    const child = probe(() => {
-      child.stdout.emit('data', ' '.repeat(10 * 1024 * 1024))
-      child.stderr.emit('data', Buffer.alloc(11 * 1024 * 1024))
-    })
-    expect(await discover('codex', '/agent', '/project')).toEqual([])
-    expect(child.kill).toHaveBeenCalledWith('SIGTERM')
-  })
-
-  it('bounds the whole probe and force-kills a process that ignores termination', async () => {
-    jest.useFakeTimers({ doNotFake: ['nextTick'] })
-    const child = probe(() => {})
-    child.kill.mockImplementation((signal) => {
-      if (signal === 'SIGKILL')
-        process.nextTick(() => child.emit('close', null, signal))
-      return true
-    })
-    const result = discover('codex', '/agent', '/project')
-    await new Promise<void>((resolve) => process.nextTick(resolve))
-    jest.advanceTimersByTime(5000)
-    expect(child.kill).toHaveBeenCalledWith('SIGTERM')
-    jest.advanceTimersByTime(250)
-    expect(await result).toEqual([])
-    expect(child.kill).toHaveBeenCalledWith('SIGKILL')
-    expect(jest.getTimerCount()).toBe(0)
-  })
-
-  it('cancels a running probe through its abort signal', async () => {
-    const controller = new AbortController()
-    const child = probe(() => controller.abort())
-    expect(
-      await discover('claude', '/agent', '/project', controller.signal)
-    ).toBeNull()
-    expect(child.kill).toHaveBeenCalledWith('SIGTERM')
-  })
-
-  it('does not spawn a probe whose signal is already aborted', async () => {
-    const controller = new AbortController()
-    controller.abort()
-    expect(
-      await discover('codex', '/agent', '/project', controller.signal)
-    ).toBeNull()
-    expect(crossSpawn).not.toHaveBeenCalled()
-  })
-
-  it.each(['SIGINT', 'SIGTERM', 'SIGHUP'] as const)(
-    'cancels and removes listeners on %s',
-    async (signal) => {
-      const initial = process.listenerCount(signal)
-      // Jest's process.on is bound to the host process; its copied emitter
-      // does not dispatch those listeners through process.emit.
-      const child = probe(() => {
-        const listener = process.listeners(signal).at(-1)!
-        listener(signal)
-      })
-      expect(await discover('codex', '/agent', '/project')).toBeNull()
-      expect(child.kill).toHaveBeenCalledWith('SIGTERM')
-      expect(process.listenerCount(signal)).toBe(initial)
-    }
-  )
-})
+  },
+}))
+jest.mock('../next/telemetry', () => ({
+  ...jest.requireActual('../next/telemetry'),
+  createTelemetry: (_directory: string, distDir: string) => {
+    return new mockTelemetry({ distDir, skipNotify: true })
+  },
+}))

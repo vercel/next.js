@@ -1254,6 +1254,9 @@ importers:
       '@next/swc':
         specifier: workspace:*
         version: link:../next-swc
+      '@next/upgrade':
+        specifier: workspace:*
+        version: link:../next-upgrade
       '@opentelemetry/api':
         specifier: 1.6.0
         version: 1.6.0
@@ -1470,9 +1473,6 @@ importers:
       ci-info:
         specifier: watson/ci-info#f43f6a1cefff47fb361c88cf4b943fdbcaafe540
         version: https://codeload.github.com/watson/ci-info/tar.gz/f43f6a1cefff47fb361c88cf4b943fdbcaafe540
-      cli-select:
-        specifier: 1.1.2
-        version: 1.1.2
       client-only:
         specifier: 0.0.1
         version: 0.0.1
@@ -1981,24 +1981,48 @@ importers:
 
   packages/next-upgrade:
     devDependencies:
+      '@types/cross-spawn':
+        specifier: 6.0.0
+        version: 6.0.0
+      '@types/debug':
+        specifier: 4.1.5
+        version: 4.1.5
       '@types/node':
         specifier: 20.17.7
         version: 20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab)
       '@types/semver':
         specifier: 7.3.1
         version: 7.3.1
+      '@vercel/detect-agent':
+        specifier: 1.2.3
+        version: 1.2.3
       '@vercel/ncc':
         specifier: 0.38.4
         version: 0.38.4
       cli-select:
         specifier: 1.1.2
         version: 1.1.2
+      commander:
+        specifier: 12.1.0
+        version: 12.1.0
       conf:
         specifier: 5.0.0
         version: 5.0.0
+      cross-spawn:
+        specifier: 7.0.3
+        version: 7.0.3
+      debug:
+        specifier: 4.1.1
+        version: 4.1.1
+      ora:
+        specifier: 4.0.4
+        version: 4.0.4
       semver:
         specifier: 7.3.2
         version: 7.3.2
+      tsx:
+        specifier: 4.19.2
+        version: 4.19.2
       typescript:
         specifier: 6.0.2
         version: 6.0.2

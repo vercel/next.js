@@ -242,7 +242,6 @@
     "busboy": "1.6.0",
     "bytes": "3.1.1",
     "ci-info": "watson/ci-info#f43f6a1cefff47fb361c88cf4b943fdbcaafe540",
-    "cli-select": "1.1.2",
     "client-only": "0.0.1",
     "commander": "12.1.0",
     "comment-json": "3.0.3",
@@ -358,7 +357,8 @@
     "write-file-atomic": "7.0.1",
     "ws": "8.2.3",
     "zod": "3.25.76",
-    "zod-validation-error": "3.4.0"
+    "zod-validation-error": "3.4.0",
+    "@next/upgrade": "workspace:*"
   },
   "keywords": [
     "react",

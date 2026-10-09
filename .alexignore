@@ -4,3 +4,4 @@ examples/
 .claude/
 AGENTS.md
 packages/next/dist/docs/
+packages/next-upgrade/dist/docs/

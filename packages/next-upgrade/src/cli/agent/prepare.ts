@@ -1,23 +1,13 @@
-import { readFile } from 'fs/promises'
-import { createRequire } from 'module'
-import { join } from 'path'
-import { resetEnv } from '@next/env'
-import semver from 'next/dist/compiled/semver'
-import loadConfig from '../../server/config'
-import { PHASE_INFO } from '../../shared/lib/constants'
-import { getPendingFutureDefaults } from './future-defaults'
-
-// Keep CLI preparation in Next while sharing policy and release checks.
 import {
   getUpgradeAssessment,
   type UpgradePreparation,
-} from '../../compiled/next-upgrade'
-export {
-  getUpgradeAssessment,
-  getLatestUpgradeVersion,
-  getPrereleaseChannel,
-  type UpgradeAssessment,
-} from '../../compiled/next-upgrade'
+} from '../../shared/check-upgrade'
+
+import { readFile } from 'fs/promises'
+import { requireFromProject } from '../../next/project'
+import semver from 'semver'
+import { loadFutureConfig } from '../../next/config'
+import { getPendingFutureDefaults } from '../../shared/future-defaults'
 
 export async function prepareUpgrade(
   directory: string,
@@ -34,7 +24,7 @@ export async function prepareUpgrade(
   }
 
   // Resolve from the app: the invoking canary is only the upgrade tooling.
-  const requireFromApp = createRequire(join(directory, 'package.json'))
+  const requireFromApp = requireFromProject(directory)
   const installedNext = JSON.parse(
     await readFile(requireFromApp.resolve('next/package.json'), 'utf8')
   ) as {
@@ -54,9 +44,7 @@ export async function prepareUpgrade(
     return upgrade
   }
 
-  const config = await loadConfig(PHASE_INFO, directory, {
-    silent: true,
-  }).finally(resetEnv)
+  const config = await loadFutureConfig(directory)
   const pendingFutureDefaults = getPendingFutureDefaults(
     directory,
     config,

@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto'
-import spawn from 'next/dist/compiled/cross-spawn'
-import createDebug from 'next/dist/compiled/debug'
+import spawn from 'cross-spawn'
+import createDebug from 'debug'
 
 const debug = createDebug('next:upgrade')
 

@@ -1,4 +1,3 @@
-import { updateInitialEnv } from '@next/env'
 import semver from 'next/dist/compiled/semver'
 import {
   claimNudgeRetry,
@@ -362,23 +361,4 @@ async function nudgeUpgradeForAgent(
     reminder.kind === 'security' ? 'SecurityFatalError' : 'UpgradeNudgeError'
   Object.assign(error, { exitCode: 1 })
   throw error
-}
-
-export async function runUpgrade(
-  directory: string,
-  policy: NudgeKind,
-  nudgeId: string | null
-) {
-  // The agent's dev/build commands must not trigger this explicit request again.
-  delete process.env.__NEXT_AGENT_UPGRADE
-  updateInitialEnv({ __NEXT_AGENT_UPGRADE: undefined })
-  const { spawnNextUpgrade } = await import('../../cli/next-upgrade.js')
-
-  // Human Update actions invoke the CLI directly, so their ID does not need an env var.
-  await spawnNextUpgrade(
-    directory,
-    { revision: 'latest', verbose: false, agent: policy },
-    nudgeId ? { id: nudgeId, recipient: 'human' } : null
-  )
-  return process.exitCode ?? 0
 }

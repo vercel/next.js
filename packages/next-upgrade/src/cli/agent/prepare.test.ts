@@ -1,18 +1,15 @@
 import { mkdir, mkdtemp, rm, writeFile } from 'fs/promises'
-import semver from 'next/dist/compiled/semver'
+import semver from 'semver'
 import { tmpdir } from 'os'
 import { join } from 'path'
-import loadConfig from 'next/dist/server/config'
+import { loadFutureConfig as loadConfig } from '../../next/config'
 import {
   getLatestUpgradeVersion,
   getUpgradeAssessment,
-} from 'next/dist/lib/upgrade/prepare-upgrade'
-import { prepareUpgrade } from 'next/dist/lib/upgrade/prepare-upgrade'
+} from '../../shared/check-upgrade'
+import { prepareUpgrade } from './prepare'
 
-jest.mock('next/dist/server/config', () => ({
-  __esModule: true,
-  default: jest.fn(),
-}))
+jest.mock('../../next/config', () => ({ loadFutureConfig: jest.fn() }))
 
 describe('prepare latest upgrade', () => {
   const directories: string[] = []

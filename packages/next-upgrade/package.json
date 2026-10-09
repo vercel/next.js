@@ -1,7 +1,7 @@
 {
   "name": "@next/upgrade",
   "version": "16.5.0-canary.3",
-  "description": "Shared Next.js upgrade checks and reminders",
+  "description": "Upgrade Next.js apps from the terminal or with an agent",
   "repository": {
     "type": "git",
     "url": "https://github.com/vercel/next.js",
@@ -21,7 +21,8 @@
   },
   "scripts": {
     "build": "node scripts/build.mjs",
-    "typescript": "tsc --noEmit"
+    "typescript": "tsc --noEmit",
+    "pack-for-isolated-tests": "pnpm pack --out ./packed.tgz"
   },
   "devDependencies": {
     "@types/node": "20.14.2",
@@ -29,10 +30,21 @@
     "@vercel/ncc": "0.38.4",
     "semver": "7.3.2",
     "typescript": "6.0.2",
-    "conf": "5.0.0",
-    "cli-select": "1.1.2"
+    "@types/cross-spawn": "6.0.0",
+    "@types/debug": "4.1.5",
+    "@vercel/detect-agent": "1.2.3",
+    "cli-select": "1.1.2",
+    "commander": "12.1.0",
+    "cross-spawn": "7.0.3",
+    "debug": "4.1.1",
+    "ora": "4.0.4",
+    "tsx": "4.19.2",
+    "conf": "5.0.0"
   },
   "engines": {
     "node": ">=20.9.0"
+  },
+  "bin": {
+    "next-upgrade": "./dist/bin/next-upgrade.js"
   }
 }

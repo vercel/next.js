@@ -32,6 +32,12 @@
     },
     "@next/upgrade#build": {
       "dependsOn": ["^build"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "../../docs/01-app/02-guides/upgrading/*.mdx",
+        "../../docs/02-pages/02-guides/upgrading/*.mdx",
+        "../../docs/01-app/02-guides/migrating-to-cache-components.mdx"
+      ],
       "outputs": ["dist/**"]
     },
     "next#build": {

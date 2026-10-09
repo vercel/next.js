@@ -3,15 +3,15 @@ import { access, stat } from 'fs/promises'
 import { delimiter, resolve } from 'path'
 import type { Key } from 'readline'
 
-import cliSelect from 'next/dist/compiled/cli-select'
-import spawn from 'next/dist/compiled/cross-spawn'
+import cliSelect from 'cli-select'
+import spawn from 'cross-spawn'
 
-import * as Log from '../../build/output/log'
-import { getAgentName } from '../../telemetry/agent-name'
-import type { AgentUpgradeHandoffMethod } from '../../telemetry/events/agent-upgrade'
-import { bold, cyan, dim } from '../picocolors'
+import * as Log from '../../shared/log'
+import { bold, cyan, dim } from '../../shared/picocolors'
+import { runChildProcess } from '../run-child-process'
+import { getAgentName } from './detect-agent'
+import type { AgentUpgradeHandoffMethod } from '../../next/telemetry'
 import { getHarnessModels, type UpgradeModel } from './model-discovery'
-import { runChildProcess } from './run-child-process'
 
 const CODEX_APPROVAL_ARGS = [
   '--sandbox',

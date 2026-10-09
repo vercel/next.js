@@ -39,6 +39,7 @@ describe('agent upgrade terminal', () => {
     dependencies: {
       // The first release with Linux prebuilds, so CI does not compile it.
       'node-pty': '1.2.0-beta.15',
+      '@next/upgrade': 'workspace:*',
     },
     packageJson: {
       pnpm: {
@@ -78,10 +79,14 @@ describe('agent upgrade terminal', () => {
     // Show a deterministic human menu even under an agent or CI.
     env.__NEXT_AGENT_UPGRADE_FORCE_TERMINAL_FOR_TESTING = '1'
 
-    // Pin the upgrade to this locally built Next.js CLI. This skips npm's
-    // canary lookup and reaches the security guard deterministically.
-    env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION =
-      require('next/package.json').version
+    // Bootstrap metadata and the package runner use this fixture's packed candidate.
+    env.NODE_OPTIONS = [
+      env.NODE_OPTIONS,
+      '--require',
+      path.join(next.testDir, 'upgrade-hook.cjs'),
+    ]
+      .filter(Boolean)
+      .join(' ')
 
     // An undefined value removes the variable.
     for (const [key, value] of Object.entries(envOverrides)) {

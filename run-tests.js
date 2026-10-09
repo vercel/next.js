@@ -243,7 +243,9 @@ async function retryKVOperation(operation, operationName, maxRetries = 3) {
 const testFilters = {
   development: new RegExp('^(test/(development|e2e))'),
   production: new RegExp('^(test/(production|e2e))'),
-  unit: new RegExp('^(test/unit|packages/.*/src|packages/next-codemod)'),
+  unit: new RegExp(
+    '^(test/unit|packages/.*/src|packages/next-codemod|packages/next-upgrade/test)'
+  ),
   e2e: 'test/e2e/',
 }
 
