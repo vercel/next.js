@@ -225,15 +225,18 @@ pub struct SpanInfo {
     /// memory over a span that dominates its window.
     ///
     /// Each tuple is `(ts_offset_from_span_start_in_ticks, bytes, pressure,
-    /// active_worker_threads)`. `bytes` is TurboMalloc memory usage;
-    /// `pressure` is the memory-pressure byte (0 = no pressure, higher =
-    /// more pressure), and `active_worker_threads` counts non-parked Tokio
-    /// scheduler workers. `100 ticks = 1 µs`. The offset is within the span.
+    /// footprint, active_worker_threads)`. `bytes` is TurboMalloc memory
+    /// usage; `pressure` is the memory-pressure byte (0 = no pressure, higher
+    /// = more pressure); `footprint` is the process memory footprint (RSS) in
+    /// bytes (0 = not reported by the platform); and `active_worker_threads`
+    /// counts non-parked Tokio scheduler workers. `100 ticks = 1 µs`. The
+    /// offset is within the span.
     ///
     /// The store caps the series at `MAX_MEMORY_SAMPLES`; when more samples
-    /// exist, groups are merged by picking the group's max-memory sample,
-    /// retaining its timestamp, pressure and worker count.
-    pub memory_samples: Vec<(i64, u64, u8, u64)>,
+    /// exist in the range, consecutive groups are merged: the timestamp and
+    /// value come from the group's max-memory sample, while pressure,
+    /// footprint and worker count are each the max over the group.
+    pub memory_samples: Vec<(i64, u64, u8, u64, u64)>,
     /// Summary of `memory_samples`. `None` when the span's range holds none.
     pub memory_summary: Option<MemorySummary>,
     /// Descendants of this span, populated only when `QueryOptions::depth` is
@@ -259,12 +262,15 @@ pub struct MemorySummary {
     pub peak: u64,
     /// Highest memory-pressure byte seen in the range (0 = no pressure).
     pub max_pressure: u8,
+    /// Largest process memory footprint (RSS) in bytes seen in the range
+    /// (0 = not reported by the platform).
+    pub max_footprint: u64,
 }
 
 impl MemorySummary {
     /// Summarize a sample series, or `None` if it is empty.
-    fn from_samples(samples: &[(i64, u64, u8, u64)]) -> Option<Self> {
-        let (_, first_bytes, first_pressure, _) = *samples.first()?;
+    fn from_samples(samples: &[(i64, u64, u8, u64, u64)]) -> Option<Self> {
+        let (_, first_bytes, first_pressure, first_footprint, _) = *samples.first()?;
         let mut summary = MemorySummary {
             count: samples.len(),
             start: first_bytes,
@@ -272,11 +278,13 @@ impl MemorySummary {
             min: first_bytes,
             peak: first_bytes,
             max_pressure: first_pressure,
+            max_footprint: first_footprint,
         };
-        for &(_, bytes, pressure, _) in &samples[1..] {
+        for &(_, bytes, pressure, footprint, _) in &samples[1..] {
             summary.min = summary.min.min(bytes);
             summary.peak = summary.peak.max(bytes);
             summary.max_pressure = summary.max_pressure.max(pressure);
+            summary.max_footprint = summary.max_footprint.max(footprint);
         }
         Some(summary)
     }
@@ -497,12 +505,14 @@ fn sort_spans(items: &mut [Located<SpanRef<'_>>], sort: SortMode) {
 }
 
 /// Memory samples recorded while `span` was live, offset from its start.
-fn memory_samples_for(store: &store::Store, span: &SpanRef<'_>) -> Vec<(i64, u64, u8, u64)> {
+fn memory_samples_for(store: &store::Store, span: &SpanRef<'_>) -> Vec<(i64, u64, u8, u64, u64)> {
     let span_start = *span.start() as i64;
     store
         .memory_samples_for_range_with_ts(span.start(), span.end())
         .into_iter()
-        .map(|(ts, mem, pressure, workers)| ((*ts as i64) - span_start, mem, pressure, workers))
+        .map(|(ts, mem, pressure, footprint, workers)| {
+            ((*ts as i64) - span_start, mem, pressure, footprint, workers)
+        })
         .collect()
 }
 
@@ -1258,7 +1268,11 @@ mod tests {
 
     #[test]
     fn memory_summary_reports_peak_not_last() {
-        let samples = [(0i64, 100u64, 0u8, 2u64), (1, 900, 3, 1), (2, 200, 1, 3)];
+        let samples = [
+            (0i64, 100u64, 0u8, 5000u64, 2u64),
+            (1, 900, 3, 4000, 1),
+            (2, 200, 1, 7000, 3),
+        ];
         let summary = MemorySummary::from_samples(&samples).expect("samples present");
         assert_eq!(summary.count, 3);
         assert_eq!(summary.start, 100);
@@ -1266,6 +1280,8 @@ mod tests {
         assert_eq!(summary.min, 100);
         assert_eq!(summary.peak, 900);
         assert_eq!(summary.max_pressure, 3);
+        // Footprint is maxed independently of the memory peak.
+        assert_eq!(summary.max_footprint, 7000);
         assert!(MemorySummary::from_samples(&[]).is_none());
     }
 

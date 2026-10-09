@@ -258,10 +258,17 @@ impl TurbopackFormat {
                 ts,
                 memory,
                 memory_pressure,
+                memory_footprint,
                 active_worker_threads,
             } => {
                 let ts = Timestamp::from_micros(ts);
-                store.add_memory_sample(ts, memory, memory_pressure, active_worker_threads);
+                store.add_memory_sample(
+                    ts,
+                    memory,
+                    memory_pressure,
+                    memory_footprint,
+                    active_worker_threads,
+                );
             }
         }
     }

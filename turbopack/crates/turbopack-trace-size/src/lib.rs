@@ -973,6 +973,7 @@ mod tests {
                 ts: 1000,
                 memory: 1 << 30,
                 memory_pressure: 200,
+                memory_footprint: 1 << 31,
                 active_worker_threads: 3,
             },
             // Rows of other threads can be written before the `Start` of their span
