@@ -110,15 +110,16 @@ Fixtures opt into before/after JavaScript measurements with `"browserJs": true`
 in `eval.config.json`. The runner adds measurement hooks only to experiments
 containing those fixtures.
 
-The dynamic-editor bundle-optimizer fixture measures cold Turbopack production
-loads in headless Chromium before and after the agent runs. It uses
+The dynamic-editor and Markdown bundle-optimizer fixtures measure cold Turbopack
+production loads in headless Chromium before and after the agent runs. Each uses
 plain `next build`, disabled browser caching, and fresh browser contexts. Passing
 requires fewer compressed JavaScript response-body bytes than the baseline and a
-rounded byte budget of 200,000 bytes.
+rounded byte budget: 200,000 bytes for the editor and 150,000 bytes for Markdown.
 
 The editor must stay unloaded until interaction, preload on pointer hover, and
 remain editable. CodeMirror responses are identified by its
-`cm-content` runtime class.
+`cm-content` runtime class. Markdown must preserve the rendered headings, bulleted
+list, and highlighted JavaScript code block.
 
 `lib/next-test-utils.mjs` owns production builds and server cleanup.
 Shared utilities in `lib/bundle-optimizer/browser-js.ts` handle browser cleanup,
