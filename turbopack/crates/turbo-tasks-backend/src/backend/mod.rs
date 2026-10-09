@@ -1474,9 +1474,8 @@ impl TurboTasksBackend {
         let task_count = task_snapshots.len();
 
         if task_snapshots.is_empty() && gc_roots_to_persist.is_none() {
-            // This should be impossible — if we got here, modified_count was nonzero or gc_roots
-            // was present, and every modification that increments the count also failed
-            // during encoding.
+            // Rare: the modified counts are out of sync with the modified persistable tasks, which
+            // only happens if every modified task was both new and deleted.
             std::hint::cold_path();
             return Ok(Some((snapshot_time, false, gc_outcome)));
         }
@@ -2461,18 +2460,26 @@ impl TurboTasksBackend {
             // Here at completion, we clean up only the OUTDATED deps (the "before" snapshot).
             // Using iter_* (active) instead would incorrectly clean up deps that are still valid,
             // breaking dependency tracking.
-            old_edges.extend(
-                task.iter_outdated_cell_dependencies()
-                    .map(OutdatedEdge::CellDependency),
-            );
+            old_edges.extend(task.iter_outdated_cell_dependencies().map(|cell| {
+                OutdatedEdge::CellDependency {
+                    dependent: task_id,
+                    cell,
+                }
+            }));
             old_edges.extend(
                 task.iter_outdated_cell_dependencies_hashed()
-                    .map(|(r, k)| OutdatedEdge::HashedCellDependency(r, k)),
+                    .map(|(cell, key)| OutdatedEdge::HashedCellDependency {
+                        dependent: task_id,
+                        cell,
+                        key,
+                    }),
             );
-            old_edges.extend(
-                task.iter_outdated_output_dependencies()
-                    .map(OutdatedEdge::OutputDependency),
-            );
+            old_edges.extend(task.iter_outdated_output_dependencies().map(|output_task| {
+                OutdatedEdge::OutputDependency {
+                    dependent: task_id,
+                    output_task,
+                }
+            }));
             old_edges.extend(
                 task.iter_outdated_collectibles_dependencies()
                     .map(OutdatedEdge::CollectiblesDependency),
