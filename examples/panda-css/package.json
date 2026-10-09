@@ -4,8 +4,7 @@
     "prepare": "panda codegen",
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "lint": "eslint ."
+    "start": "next start"
   },
   "dependencies": {
     "next": "latest",
