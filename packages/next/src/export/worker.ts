@@ -172,7 +172,7 @@ async function exportPageImpl(
   if (isDynamic && page !== nonLocalizedPath) {
     const normalizedPage = isAppDir ? normalizeAppPath(page) : page
 
-    params = getParams(normalizedPage, isAppDir ? path : updatedPath)
+    params = getParams(normalizedPage, updatedPath)
   }
 
   const { req, res } = createRequestResponseMocks({ url: updatedPath })
