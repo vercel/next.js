@@ -9,7 +9,7 @@ use crate::{
     backend::{
         TaskDataCategory,
         operation::{
-            AggregatedDataUpdate, ExecuteContext,
+            AggregatedDataUpdate, ExecuteContext, TaskGuard,
             aggregation_update::{
                 AggregationUpdateJob, AggregationUpdateQueue, InnerOfUppersLostFollowersJob,
                 get_aggregation_number, get_uppers, is_aggregating_node,
@@ -42,8 +42,9 @@ pub enum OutdatedEdge {
     CollectiblesDependency(CollectiblesRef),
 }
 
-/// Captures *every* edge incident to `task_id` -- both directions -- as [`OutdatedEdge`]s.
-pub fn capture_all_edges(task_id: TaskId, task: &impl TaskStorageAccessors) -> Vec<OutdatedEdge> {
+/// Captures *every* edge incident to `task` -- both directions -- as [`OutdatedEdge`]s.
+pub fn capture_all_edges(task: &TaskGuard<'_>) -> Vec<OutdatedEdge> {
+    let task_id = task.id();
     let mut old_edges: Vec<OutdatedEdge> = Vec::new();
     old_edges.extend(task.iter_children().map(OutdatedEdge::Child));
     old_edges.extend(task.iter_output_dependencies().map(|output_task| {
@@ -267,13 +268,6 @@ fn cleanup_old_edges_inner(
                     AggregatedDataUpdate::new().collectibles_update(collectibles),
                 ));
             }
-            // Both halves are removed, whichever side the edge was captured from. When GC collects
-            // the producer, leaving its reverse entry behind would outlive a resurrection of the
-            // producer, and the dependent's later collection would no longer see the edge. The
-            // dependent's `outdated_*` entry goes too: if it is mid-execution, its completion
-            // would otherwise try to clean up an edge to a deleted task. On the completion path
-            // clearing it is harmless: those edges come from the outdated set and were not
-            // re-read.
             OutdatedEdge::CellDependency { dependent, cell } => {
                 {
                     let mut task = ctx.task(cell.task, TaskDataCategory::Data);

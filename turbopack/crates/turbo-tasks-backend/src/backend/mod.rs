@@ -1474,8 +1474,9 @@ impl TurboTasksBackend {
         let task_count = task_snapshots.len();
 
         if task_snapshots.is_empty() && gc_roots_to_persist.is_none() {
-            // Every modified task was a GC-deleted task that was never persisted, so there is
-            // nothing to write.
+            // Rare: the modified counts are out of sync with the modified persistable tasks, which
+            // only happens if every modified task was both new and deleted.
+            std::hint::cold_path();
             return Ok(Some((snapshot_time, false, gc_outcome)));
         }
 
@@ -3494,7 +3495,7 @@ impl TurboTasksBackend {
                 activeness_state.all_clean_event.notify(usize::MAX);
             }
             // Remove all the outgoing edges of this task.
-            let old_edges = capture_all_edges(task_id, &task);
+            let old_edges = capture_all_edges(&task);
             drop(task);
 
             if !old_edges.is_empty() {

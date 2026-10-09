@@ -548,13 +548,17 @@ impl Storage {
                     ShardWork::Drain(std::mem::take(&mut *shard_guard).into_iter())
                 } else {
                     let mut modified = Vec::with_capacity(modified_count as usize);
+                    let mut skipped_deleted_new = 0u64;
                     for (key, task) in shard_guard.iter_mut() {
                         if is_deleted_new_task(task) {
                             // Nothing on disk to write or tombstone. The shard's count was already
                             // reset above, so clearing the flags is all the bookkeeping needed;
                             // eviction frees the entry.
-                            task.flags.set_meta_modified(false);
-                            task.flags.set_data_modified(false);
+                            if task.flags.any_modified() {
+                                skipped_deleted_new += 1;
+                                task.flags.set_meta_modified(false);
+                                task.flags.set_data_modified(false);
+                            }
                             continue;
                         }
                         // Only check modified flags — transient tasks never have modified flags set
@@ -580,6 +584,11 @@ impl Storage {
                     }
                     // Empty when every modified task in the shard was a deleted new task.
                     if modified.is_empty() {
+                        debug_assert_eq!(
+                            skipped_deleted_new, modified_count,
+                            "a shard with no persistable modified tasks must only have counted \
+                             deleted new tasks"
+                        );
                         return None;
                     }
                     ShardWork::Keep(modified)
@@ -755,10 +764,6 @@ impl Storage {
     /// - `No`: skip
     ///
     /// Must be called when NOT in snapshot mode (i.e., after `end_snapshot()`).
-    ///
-    /// A GC-deleted task is dropped once nothing about it is pending: its tombstone was persisted,
-    /// or it was never persisted at all. One whose tombstone is still pending stays resident, as
-    /// after an interrupted GC pass, which abandons the snapshot that would have written it.
     pub fn evict_after_snapshot(&self, parent_span: Option<Id>) -> EvictionCounts {
         let span = tracing::trace_span!(
             parent: parent_span,

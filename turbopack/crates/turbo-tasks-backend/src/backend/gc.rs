@@ -261,7 +261,7 @@ impl TurboTasksBackend {
                     return ControlFlow::Continue(());
                 }
 
-                let old_edges = capture_all_edges(task_id, &task);
+                let old_edges = capture_all_edges(&task);
                 // Clear `immutable` defensively so `resurrect_deleted` can mark the task dirty if
                 // it needs to
                 task.set_immutable(false);
@@ -269,13 +269,11 @@ impl TurboTasksBackend {
                 // writes the tombstone.
                 drop(task.take_cell_data());
                 task.set_deleted(true);
-                // A never-persisted task has nothing on disk to tombstone: the snapshot skips it
-                // and eviction drops it, whatever its modified flags say.
-                if !task.new_task() {
-                    // Persisted: ensure it is marked modified so the next snapshot tombstones it.
-                    // It is almost certainly already marked modified, so this is mostly a no-op.
-                    let _ = task.track_modification(SpecificTaskDataCategory::Meta, "gc_deleted");
-                }
+                // Safety check: ensure the task is marked modified so the next snapshot tombstones
+                // it. This is almost certainly redundant, since `set_immutable`, `take_cell_data`
+                // and the edge removal below all track modifications. A never-persisted task is
+                // skipped by the snapshot and dropped by eviction whatever its flags say.
+                let _ = task.track_modification(SpecificTaskDataCategory::Meta, "gc_deleted");
                 drop(task); // drop the lock so edge cleanup can run
                 stats.collected += 1;
                 stats.edges_deleted += old_edges.len();

@@ -1616,8 +1616,6 @@ impl<'a> TaskGuard<'a> {
         self.category = access;
     }
 
-    /// Clears all modified/new flags for a GC-collected task that was **never persisted**
-    /// (`new_task`).
     pub fn invalidate_serialization(&mut self) {
         // TODO this causes race conditions, since we never know when a value is changed. We can't
         // "snapshot" the value correctly.
