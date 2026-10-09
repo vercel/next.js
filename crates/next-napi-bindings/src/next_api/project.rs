@@ -87,6 +87,7 @@ use crate::{
     next_api::{
         analyze::{WriteAnalyzeResult, write_analyze_data_with_issues_operation},
         endpoint::ExternalEndpoint,
+        trace_writer::{TraceFileWriter, parse_split_size},
         turbopack_ctx::{
             MemoryEvictionMode, NapiNextTurbopackCallbacks, NapiNextTurbopackCallbacksJsObject,
             NapiTurbopackGcOptions, NextTurboTasks, NextTurbopackContext, create_turbo_tasks,
@@ -474,6 +475,17 @@ pub fn project_new<'env>(
     let mut compress = Compression::None;
     let mut raw_trace_options = RawTraceLayerOptions::default();
     if let Some(mut trace) = trace {
+        let split_size = std::env::var_os("NEXT_TURBOPACK_TRACING_SPLIT")
+            .map(|value| {
+                value.to_str().and_then(parse_split_size).ok_or_else(|| {
+                    napi::Error::from_reason(
+                        "Invalid NEXT_TURBOPACK_TRACING_SPLIT: expected a positive integer byte \
+                         count, optionally followed by k, m, or g (powers of 1000)"
+                            .to_owned(),
+                    )
+                })
+            })
+            .transpose()?;
         let trace_path_override = std::env::var_os("NEXT_TURBOPACK_TRACING_PATH")
             .filter(|v| !v.is_empty())
             .map(PathBuf::from);
@@ -499,7 +511,17 @@ pub fn project_new<'env>(
 
         println!("Turbopack tracing enabled with targets: {trace}");
         println!("  Note that this might have a small performance impact.");
-        println!("  Trace output will be written to {}", trace_file.display());
+        if let Some(size) = split_size {
+            println!(
+                "  Trace output will be split into files of at most {size} bytes: {}.00000, \
+                 {}.00001, ...",
+                trace_file.display(),
+                trace_file.display()
+            );
+            println!("  Concatenate the parts in numeric order before viewing the trace.");
+        } else {
+            println!("  Trace output will be written to {}", trace_file.display());
+        }
 
         trace = trace
             .split(",")
@@ -561,18 +583,14 @@ pub fn project_new<'env>(
                 )
             })
             .unwrap();
+        let trace_writer = TraceFileWriter::new(&trace_file, split_size).unwrap();
         let (trace_writer, trace_writer_guard) = match compress {
-            Compression::None => {
-                let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
-                TraceWriter::new(trace_writer)
-            }
+            Compression::None => TraceWriter::new(trace_writer),
             Compression::GzipFast => {
-                let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
                 let trace_writer = GzEncoder::new(trace_writer, flate2::Compression::fast());
                 TraceWriter::new(trace_writer)
             }
             Compression::GzipBest => {
-                let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
                 let trace_writer = GzEncoder::new(trace_writer, flate2::Compression::best());
                 TraceWriter::new(trace_writer)
             }
@@ -596,10 +614,17 @@ pub fn project_new<'env>(
 
         let trace_server = std::env::var("NEXT_TURBOPACK_TRACE_SERVER").ok();
         if trace_server.is_some() {
-            thread::spawn(move || {
-                turbopack_trace_server::start_turbopack_trace_server(trace_file, None);
-            });
-            println!("Turbopack trace server started. View trace at https://trace.nextjs.org");
+            if split_size.is_some() {
+                println!(
+                    "Turbopack trace server skipped: NEXT_TURBOPACK_TRACING_SPLIT is enabled. \
+                     Concatenate the parts before viewing the trace."
+                );
+            } else {
+                thread::spawn(move || {
+                    turbopack_trace_server::start_turbopack_trace_server(trace_file, None);
+                });
+                println!("Turbopack trace server started. View trace at https://trace.nextjs.org");
+            }
         }
 
         subscriber.init();

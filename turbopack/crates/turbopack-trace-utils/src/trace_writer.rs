@@ -96,7 +96,7 @@ impl TraceWriter {
         }
 
         let handle: std::thread::JoinHandle<()> = std::thread::spawn(move || {
-            let _ = writer.write(b"TRACEv0");
+            let _ = writer.write_all(b"TRACEv0");
             let mut buf = Vec::with_capacity(WRITE_BUFFER_SIZE);
             let mut stolen_buffers = Vec::new();
             let mut should_exit = false;
