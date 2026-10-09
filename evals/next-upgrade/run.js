@@ -43,10 +43,13 @@ async function prepareToolchain(directory, signal) {
     return stopping
   }
   // Stop the VM and unblock preparation even if installation never settles.
-  const aborted = Promise.withResolvers()
+  let rejectAbort
+  const aborted = new Promise((_, reject) => {
+    rejectAbort = reject
+  })
   const cancel = () => {
     stop().catch((error) => console.error('Toolchain teardown failed:', error))
-    aborted.reject(signal.reason)
+    rejectAbort(signal.reason)
   }
   signal.addEventListener('abort', cancel, { once: true })
   try {
@@ -63,7 +66,7 @@ async function prepareToolchain(directory, signal) {
           '@anthropic-ai/claude-code@2.1.293',
         ],
       }),
-      aborted.promise,
+      aborted,
     ])
     signal.throwIfAborted()
     if (install.exitCode !== 0) {
@@ -74,7 +77,7 @@ async function prepareToolchain(directory, signal) {
         cmd: 'sh',
         args: ['-c', 'codex --version && claude --version && node --version'],
       }),
-      aborted.promise,
+      aborted,
     ])
     signal.throwIfAborted()
     if (versions.exitCode !== 0) {

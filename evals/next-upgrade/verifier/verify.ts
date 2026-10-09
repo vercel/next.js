@@ -28,10 +28,13 @@ export async function prepareVerifier(signal: AbortSignal) {
     return stopping
   }
   // Keep setup cancellable while browser or package installation is blocked.
-  const aborted = Promise.withResolvers<never>()
+  let rejectAbort: (reason: unknown) => void
+  const aborted = new Promise<never>((_, reject) => {
+    rejectAbort = reject
+  })
   const cancel = () => {
     stop().catch((error) => console.error('Verifier teardown failed:', error))
-    aborted.reject(signal.reason)
+    rejectAbort(signal.reason)
   }
   signal.addEventListener('abort', cancel, { once: true })
   try {
@@ -45,18 +48,18 @@ export async function prepareVerifier(signal: AbortSignal) {
           dependencies: { vitest: '3.1.3', '@playwright/test': '1.51.1' },
         }),
       }),
-      aborted.promise,
+      aborted,
     ])
     signal.throwIfAborted()
     const install = await Promise.race([
       sandbox.runCommand('npm', ['install', '--no-audit', '--no-fund']),
-      aborted.promise,
+      aborted,
     ])
     signal.throwIfAborted()
     if (install.exitCode !== 0) {
       throw new Error(`Verifier tooling install failed: ${install.stderr}`)
     }
-    await Promise.race([installPlaywright(sandbox), aborted.promise])
+    await Promise.race([installPlaywright(sandbox), aborted])
     signal.throwIfAborted()
     const snapshot = await sandbox.snapshot({ expiration: 86400000 })
     if (signal.aborted) {
