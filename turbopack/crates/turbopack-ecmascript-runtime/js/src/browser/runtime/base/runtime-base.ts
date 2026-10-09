@@ -84,6 +84,12 @@ interface RuntimeBackend {
    * Returns the same Promise for the same chunk URL.
    */
   loadChunkCached: (sourceType: SourceType, chunkUrl: ChunkUrl) => Promise<void>
+  /**
+   * Paths of chunks the backend considers loaded outside of `registerChunk`/
+   * `registerLoadedChunk` (e.g. stylesheets already present in the initial HTML,
+   * which never go through the chunk loader). Called on demand; not cached.
+   */
+  getExtraLoadedChunkPaths?: () => ChunkPath[]
 }
 
 interface DevRuntimeBackend {
@@ -116,22 +122,8 @@ function unregisterLoadedChunk(chunkPath: ChunkPath): void {
 // Runtime primitive exposed as `__turbopack_get_loaded_chunk_paths__`.
 function getLoadedChunkPaths(): ChunkPath[] {
   const paths = new Set(loadedChunkPaths)
-  if (typeof document !== 'undefined') {
-    // Initial stylesheets can be inserted directly by the HTML before the
-    // runtime starts; they never go through the chunk loader.
-    for (const link of document.querySelectorAll<HTMLLinkElement>(
-      'link[rel="stylesheet"][href]'
-    )) {
-      const href = link.getAttribute('href')
-      if (
-        href &&
-        link.sheet &&
-        href.startsWith(RUNTIME_CHUNK_BASE_PATH) &&
-        isCss(href as ChunkUrl)
-      ) {
-        paths.add(chunkUrlToPath(href as ChunkUrl))
-      }
-    }
+  for (const path of BACKEND.getExtraLoadedChunkPaths?.() ?? []) {
+    paths.add(path)
   }
   return Array.from(paths)
 }

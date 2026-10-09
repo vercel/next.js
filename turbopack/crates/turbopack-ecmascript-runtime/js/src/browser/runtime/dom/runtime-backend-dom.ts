@@ -35,6 +35,27 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
 
 ;(() => {
   BACKEND = {
+    getExtraLoadedChunkPaths() {
+      if (typeof document === 'undefined') return []
+
+      // Initial stylesheets can be inserted directly by the HTML before the
+      // runtime starts; they never go through the chunk loader.
+      const paths: ChunkPath[] = []
+      for (const link of document.querySelectorAll<HTMLLinkElement>(
+        'link[rel="stylesheet"][href]'
+      )) {
+        const href = link.getAttribute('href')
+        if (
+          href &&
+          link.sheet &&
+          href.startsWith(RUNTIME_CHUNK_BASE_PATH) &&
+          isCss(href as ChunkUrl)
+        ) {
+          paths.push(chunkUrlToPath(href as ChunkUrl))
+        }
+      }
+      return paths
+    },
     async registerChunk(chunk, params) {
       // `chunk` is `undefined` for an inlined entry-only registration, which has no source chunk.
       let chunkPath: ChunkPath | undefined
