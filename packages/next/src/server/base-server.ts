@@ -100,6 +100,10 @@ import {
   NEXT_REQUEST_ID_HEADER,
   NEXT_RSC_UNION_QUERY,
   NEXT_ROUTER_PREFETCH_HEADER,
+  NEXT_ROUTER_PREFETCH_STATIC,
+  NEXT_ROUTER_PREFETCH_RUNTIME_PREFETCH,
+  NEXT_ROUTER_PREFETCH_RUNTIME_SHELL,
+  NEXT_ROUTER_PREFETCH_RUNTIME_NAVIGATION,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_URL,
   NEXT_ROUTER_STATE_TREE_HEADER,
@@ -2430,17 +2434,18 @@ export default abstract class Server<
       const prefetchHeaderValue = headers[NEXT_ROUTER_PREFETCH_HEADER]
       const routerPrefetch =
         prefetchHeaderValue !== undefined
-          ? // We only recognize '1', '2', and '3'. Strip all other values here.
-            prefetchHeaderValue === '1' ||
-            prefetchHeaderValue === '2' ||
-            prefetchHeaderValue === '3'
+          ? // We only recognize the values we send. Strip all others here.
+            prefetchHeaderValue === NEXT_ROUTER_PREFETCH_STATIC ||
+            prefetchHeaderValue === NEXT_ROUTER_PREFETCH_RUNTIME_PREFETCH ||
+            prefetchHeaderValue === NEXT_ROUTER_PREFETCH_RUNTIME_SHELL ||
+            prefetchHeaderValue === NEXT_ROUTER_PREFETCH_RUNTIME_NAVIGATION
             ? prefetchHeaderValue
             : undefined
           : // For runtime prefetches, we always perform a dynamic request,
             // so we don't expect the header to be stripped by an intermediate layer.
             // This should only happen for static prefetches, so we only handle those here.
             getRequestMeta(req, 'isPrefetchRSCRequest')
-            ? '1'
+            ? NEXT_ROUTER_PREFETCH_STATIC
             : undefined
 
       const segmentPrefetchRSCRequest =

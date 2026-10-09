@@ -28,7 +28,8 @@ const APP_SHELL_PREFETCH_VALUE = '3'
 // - 'runtime': dynamic prefetch requests, issued by
 //   `fetchSegmentPrefetchesUsingRuntimeRequest` in the client. These carry a
 //   FlightRouterState request tree and a `next-router-prefetch` header value
-//   of '2' (FetchStrategy.PPRRuntime) or '3' (FetchStrategy.RuntimeShell).
+//   of '2' (up to the prefetch stage), '3' (the shell), or '4' (up to the
+//   navigation stage).
 //   The other strategies used by that path — LoadingBoundary ('1') and Full
 //   (no prefetch header) — send the same headers as plain prefetches and
 //   navigations respectively, so they cannot be demonstrably classified and
@@ -37,6 +38,7 @@ const APP_SHELL_PREFETCH_VALUE = '3'
 //   prefetches. Expectations that specify a `kind` never claim these.
 const NEXT_ROUTER_SEGMENT_PREFETCH_HEADER = 'next-router-segment-prefetch'
 const PPR_RUNTIME_PREFETCH_VALUE = '2'
+const NAVIGATION_RUNTIME_PREFETCH_VALUE = '4'
 
 type ResponseKind = 'static' | 'runtime'
 
@@ -92,9 +94,9 @@ type ExpectedResponseConfig = {
  *   the kind of prefetch request that produced them: 'static' matches only
  *   per-segment static prefetches (those with a `next-router-segment-prefetch`
  *   request header), and 'runtime' matches only dynamic prefetch requests
- *   (those with a `next-router-prefetch` header value of '2' (PPRRuntime) or
- *   '3' (RuntimeShell)). If omitted, any router response can satisfy the
- *   expectation. Note that App Shell (RuntimeShell) responses are excluded
+ *   (those with a `next-router-prefetch` header value of '2' (up to the
+ *   prefetch stage), '3' (the shell), or '4' (up to the navigation stage)).
+ *   If omitted, any router response can satisfy the expectation. Note that App Shell (RuntimeShell) responses are excluded
  *   from assertion logic by default, so a `kind: 'runtime'` expectation that
  *   should match an App Shell response additionally requires passing
  *   `includeAppShellRequests: true` to `createRouterAct`.
@@ -339,7 +341,9 @@ export function createRouterAct(
           kind = 'static'
         } else if (
           headers[NEXT_ROUTER_PREFETCH_HEADER] === PPR_RUNTIME_PREFETCH_VALUE ||
-          headers[NEXT_ROUTER_PREFETCH_HEADER] === APP_SHELL_PREFETCH_VALUE
+          headers[NEXT_ROUTER_PREFETCH_HEADER] === APP_SHELL_PREFETCH_VALUE ||
+          headers[NEXT_ROUTER_PREFETCH_HEADER] ===
+            NAVIGATION_RUNTIME_PREFETCH_VALUE
         ) {
           kind = 'runtime'
         }

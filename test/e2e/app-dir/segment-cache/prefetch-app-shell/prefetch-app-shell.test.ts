@@ -591,6 +591,61 @@ describe('App Shell prefetching', () => {
         'Post body for speculative-1'
       )
     })
+
+    it('includes navigation() in a runtime prefetch of the navigation stage', async () => {
+      let page: Playwright.Page
+      const browser = await next.browser('/', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      const act = createRouterAct(page, { includeAppShellRequests: true })
+
+      // Reveal the LinkAccordion for /runtime-navigation/speculative-2. The
+      // link asks for the navigation stage, so after the shell request, the
+      // runtime prefetch includes the navigation-gated content.
+      await act(async () => {
+        await browser
+          .elementByCss(
+            'input[data-link-accordion="/runtime-navigation/speculative-2"]'
+          )
+          .click()
+      }, [
+        { includes: 'App shell for navigation', kind: 'runtime' }, // Shell
+        { includes: 'Navigation content', kind: 'runtime' }, // Speculative
+        // Dynamic content is never prefetched.
+        { includes: 'Post body for speculative-2', block: 'reject' },
+      ])
+
+      await act(async () => {
+        // Navigate to the prefetched route.
+        await browser
+          .elementByCss('a[href="/runtime-navigation/speculative-2"]')
+          .click()
+
+        // While the navigation response is blocked (we're still in the `act`
+        // block), the prefetched content should already be visible.
+        expect(await browser.elementById('param-value').text()).toEqual(
+          'Post speculative-2'
+        )
+        // The navigation-gated content is included.
+        expect(await browser.locator('#navigation-loading').count()).toBe(0)
+        expect(await browser.elementByCss('#navigation-content').text()).toBe(
+          'Navigation content'
+        )
+        // Dynamic content is not included.
+        expect(await browser.locator('#dynamic-content').count()).toBe(0)
+        expect(await browser.elementByCss('#dynamic-loading').text()).toBe(
+          'Loading dynamic content...'
+        )
+      })
+
+      // After the outer act unblocks the navigation, the dynamic content
+      // streams in.
+      expect(await browser.elementById('dynamic-content').text()).toEqual(
+        'Post body for speculative-2'
+      )
+    })
   })
 
   describe('prefetch()', () => {
