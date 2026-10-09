@@ -514,12 +514,10 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
     {
       children: [PAGE_SEGMENT_KEY, {}, notFoundTreeComponents, null],
     },
-    // Always include global-error so that getGlobalErrorStyles can access it.
-    // When global-not-found is present, use full components.
-    // Otherwise, only include global-error module.
-    hasGlobalNotFound
-      ? components
-      : { 'global-error': components['global-error'] },
+    // Keep the root components: this tree is rendered as a full HTML document,
+    // so the not-found page needs the root layout like an unmatched URL gets,
+    // and getGlobalErrorStyles needs global-error.
+    components,
     null, // staticSiblings
   ]
 }
