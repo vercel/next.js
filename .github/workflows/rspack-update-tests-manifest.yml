@@ -7,6 +7,9 @@ on:
     - cron: '0 7 * * *'
   workflow_dispatch:
 
+env:
+  COREPACK_VERSION: 0.34.7
+
 jobs:
   update_dev_manifest:
     name: Update and upload Rspack development test manifest
@@ -49,7 +52,7 @@ jobs:
 
       - name: Setup corepack
         run: |
-          npm i -g corepack@0.31
+          npm i -g "corepack@${COREPACK_VERSION}"
           corepack enable
 
       - name: Install dependencies
@@ -112,7 +115,7 @@ jobs:
 
       - name: Setup corepack
         run: |
-          npm i -g corepack@0.31
+          npm i -g "corepack@${COREPACK_VERSION}"
           corepack enable
 
       - name: Install dependencies
