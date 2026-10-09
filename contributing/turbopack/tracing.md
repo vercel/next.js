@@ -15,11 +15,16 @@ It supports [the following special preset values][presets]:
 
 Alternatively, any directives syntax supported by [`tracing_subscriber::filter::EnvFilter`][directives] can be used.
 
-Additionally, these flags can be added to the comma-separated list (e.g. `NEXT_TURBOPACK_TRACING=1,no-memory,gz`):
+Additionally, these flags can be added to the comma-separated list (e.g. `NEXT_TURBOPACK_TRACING=1,no-memory,zstd`):
 
+- **`zstd`:** Compress the trace file with zstd (level 3). Recommended: it needs about the same CPU time as `gz`, but produces files about 25% smaller.
+- **`zstd-fast`:** Compress the trace file with zstd (level 1). Needs the least CPU time of all compression options, and the files are still smaller than with `gz`.
+- **`zstd-best`:** Compress the trace file with zstd (level 19).
 - **`gz`:** Compress the trace file with gzip (fast compression level).
 - **`gz-best`:** Compress the trace file with gzip (best compression level).
 - **`no-memory`:** Don't track memory. Skips the per-thread allocation counters and the process memory samples, which make up a large part of the trace file size. Allocation and memory value modes in the viewer will be empty.
+
+When multiple compression flags are given, the last one is used. Compression runs on the background thread that writes the trace file. `zstd-best` and `gz-best` compress much slower than the other options and can fall behind on large traces (e.g. the `turbo-tasks` preset). The trace data waiting to be compressed is kept in memory, and the process waits for the remaining data to be written before it exits.
 
 > [!WARNING]
 > A normal Next.js canary/stable release only includes the info level tracing. This is the tracing level intended for user-facing tracing.

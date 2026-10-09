@@ -468,6 +468,8 @@ pub fn project_new<'env>(
         None,
         GzipFast,
         GzipBest,
+        /// zstd with the given compression level
+        Zstd(i32),
     }
     let mut compress = Compression::None;
     let mut raw_trace_options = RawTraceLayerOptions::default();
@@ -516,6 +518,18 @@ pub fn project_new<'env>(
                         compress = Compression::GzipBest;
                         return None;
                     }
+                    "zstd" => {
+                        compress = Compression::Zstd(3);
+                        return None;
+                    }
+                    "zstd-fast" => {
+                        compress = Compression::Zstd(1);
+                        return None;
+                    }
+                    "zstd-best" => {
+                        compress = Compression::Zstd(19);
+                        return None;
+                    }
                     "no-memory" => {
                         raw_trace_options.memory = false;
                         return None;
@@ -560,6 +574,14 @@ pub fn project_new<'env>(
             Compression::GzipBest => {
                 let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
                 let trace_writer = GzEncoder::new(trace_writer, flate2::Compression::best());
+                TraceWriter::new(trace_writer)
+            }
+            Compression::Zstd(level) => {
+                let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
+                // `auto_finish` completes the zstd frame when the trace writer drops it on exit.
+                let trace_writer = zstd::Encoder::new(trace_writer, level)
+                    .unwrap()
+                    .auto_finish();
                 TraceWriter::new(trace_writer)
             }
         };
