@@ -331,7 +331,14 @@ export function generateAgentsMdIndex(data: AgentsMdIndexData): string {
   const parts: string[] = []
 
   parts.push('[Next.js Docs Index]')
-  parts.push(`root: ${docsPath}`)
+  // The root path must be relative to the output file's directory, not the
+  // cwd, so the index resolves correctly when --output points elsewhere
+  // (e.g. ../../AGENTS.md from a monorepo app).
+  const outputDir = path.dirname(outputFile || 'AGENTS.md')
+  const rootRelative = path.relative(outputDir, docsPath).replace(/\\/g, '/')
+  parts.push(
+    `root: ${rootRelative.startsWith('.') ? rootRelative : `./${rootRelative}`}`
+  )
   parts.push(
     'STOP. What you remember about Next.js is WRONG for this project. Always search docs and read before any task.'
   )
