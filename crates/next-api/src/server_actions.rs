@@ -1169,12 +1169,12 @@ impl ChunkingContext for UseCacheContentHashChunkingContext {
 
     #[turbo_tasks::function]
     async fn asset_path(
-        self: Vc<Self>,
-        _content: Vc<AssetContent>,
-        _original_asset_ident: Vc<AssetIdent>,
-        _tag: Option<RcStr>,
-    ) -> Result<Vc<FileSystemPath>> {
-        bail!("asset_path should not be called in UseCacheContentHashChunkingContext");
+        &self,
+        content: Vc<AssetContent>,
+        original_asset_ident: Vc<AssetIdent>,
+        tag: Option<RcStr>,
+    ) -> Vc<FileSystemPath> {
+        self.inner.asset_path(content, original_asset_ident, tag)
     }
 
     #[turbo_tasks::function]
