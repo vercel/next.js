@@ -44,10 +44,19 @@ export default function Page() {
 - `router.push(href: string, { scroll: boolean, transitionTypes: string[] })`: Perform a client-side navigation to the provided route. Adds a new entry into the [browser's history stack](https://developer.mozilla.org/docs/Web/API/History_API). The optional `transitionTypes` are passed to [`React.addTransitionType`](https://react.dev/reference/react/addTransitionType) inside the navigation Transition.
 - `router.replace(href: string, { scroll: boolean, transitionTypes: string[] })`: Perform a client-side navigation to the provided route without adding a new entry into the browser’s history stack. The optional `transitionTypes` are passed to [`React.addTransitionType`](https://react.dev/reference/react/addTransitionType) inside the navigation Transition.
 - `router.refresh()`: Refresh the current route. Making a new request to the server, re-fetching data requests, and re-rendering Server Components. The client will merge the updated React Server Component payload without losing unaffected client-side React (e.g. `useState`) or browser state (e.g. scroll position). This clears the [Client Cache](/docs/app/glossary#client-cache) for the current route, but does **not** invalidate the server-side cache. Use [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath) or [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) to invalidate server-side cached data.
-- `router.prefetch(href: string, options?: { onInvalidate?: () => void })`: [Prefetch](/docs/app/getting-started/linking-and-navigating#prefetching) the provided route for faster client-side transitions. The optional `onInvalidate` callback is called when the [prefetched data becomes stale](/docs/app/guides/prefetching#extending-or-ejecting-link).
+- `router.prefetch(href: string, options?: { kind?: 'auto' | 'full', onInvalidate?: () => void })`: [Prefetch](/docs/app/getting-started/linking-and-navigating#prefetching) the provided route for faster client-side transitions. The optional `kind` controls how much of the route to prefetch. The optional `onInvalidate` callback is called when the [prefetched data becomes stale](/docs/app/guides/prefetching#extending-or-ejecting-link).
 - `router.back()`: Navigate back to the previous route in the browser’s history stack.
 - `router.forward()`: Navigate forwards to the next page in the browser’s history stack.
 - `router.bfcacheId`: An opaque string identifier scoped to the current route segment. It changes when the surrounding segment is freshly created by a push or replace navigation, and stays the same for back/forward navigations, `router.refresh()`, and search-param- or hash-only navigations. See [`bfcacheId`](#bfcacheid) below for details.
+
+With [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), `kind` selects the navigation stage to request:
+
+| `kind`              | Prefetched content                                                                                                                                                                                                         |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Omitted or `'auto'` | The route's [App Shell](/docs/app/glossary#app-shell), matching a default [`<Link>`](/docs/app/api-reference/components/link).                                                                                             |
+| `'full'`            | The App Shell and the per-link stage, matching [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch). This includes content below [`await prefetch()`](/docs/app/api-reference/functions/prefetch). |
+
+Neither value includes content deferred with [`await navigation()`](/docs/app/api-reference/functions/navigation). That content renders when navigation begins.
 
 > **Good to know**:
 >
