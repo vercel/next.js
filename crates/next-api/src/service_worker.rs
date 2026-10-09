@@ -11,7 +11,7 @@ use turbopack_core::{
     module::Module,
     module_graph::{
         ModuleGraph, SingleModuleGraph,
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry, EntryHeuristics},
+        chunk_group_info::{ChunkGroupEntry, ChunkGroupKey, EntryHeuristics},
     },
     output::{OutputAsset, OutputAssets},
     reference_type::{EntryReferenceSubType, ReferenceType},
@@ -126,7 +126,7 @@ async fn service_worker_chunk(
                 .join("static")?
                 .join("service-worker")?
                 .join(&filename)?,
-            ChunkGroup::Entry(vec![module]),
+            ChunkGroupKey::Entry(vec![module]),
             own_graph,
             /* extra_chunks */ OutputAssets::empty(),
             /* extra_referenced_chunks */ OutputAssets::empty(),

@@ -18,7 +18,7 @@ use crate::{
     ident::AssetIdent,
     module::Module,
     module_graph::{
-        ModuleGraph, binding_usage_info::ModuleExportUsage, chunk_group_info::ChunkGroup,
+        ModuleGraph, binding_usage_info::ModuleExportUsage, chunk_group_info::ChunkGroupKey,
         module_batches::BatchingConfig, style_groups::StyleGroupsAlgorithm,
     },
     output::{
@@ -474,15 +474,19 @@ pub trait ChunkingContext {
         chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
     ) -> Vc<Box<dyn OutputAsset>>;
 
-    /// Chunks `chunk_groups` together as one chunk group, in a single task.
+    /// Chunks the chunk groups identified by `chunk_groups` together as one chunk group, in a
+    /// single task.
     ///
+    /// The groups must be registered in `module_graph`'s
+    /// [`ChunkGroupInfo`](crate::module_graph::chunk_group_info::ChunkGroupInfo); their contents
+    /// (e.g. the entries of a merged group) are looked up there, so callers only name the groups.
     /// The modules of all groups are collected once each and chunked together, and the resulting
     /// availability includes every group. `chunk_groups` must not be empty.
     #[turbo_tasks::function]
     fn chunk_group(
         self: Vc<Self>,
         ident: Vc<AssetIdent>,
-        chunk_groups: SmallVec<[ChunkGroup; 1]>,
+        chunk_groups: SmallVec<[ChunkGroupKey; 1]>,
         module_graph: Vc<ModuleGraph>,
         availability_info: AvailabilityInfo,
     ) -> Vc<ChunkGroupResult>;
@@ -499,7 +503,7 @@ pub trait ChunkingContext {
     fn evaluated_chunk_group(
         self: Vc<Self>,
         ident: Vc<AssetIdent>,
-        chunk_group: ChunkGroup,
+        chunk_group: ChunkGroupKey,
         module_graph: Vc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,
         availability_info: AvailabilityInfo,
@@ -528,7 +532,7 @@ pub trait ChunkingContext {
     fn entry_chunk_group(
         self: Vc<Self>,
         path: FileSystemPath,
-        chunk_group: ChunkGroup,
+        chunk_group: ChunkGroupKey,
         module_graph: Vc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,
         extra_referenced_assets: Vc<OutputAssets>,
@@ -568,7 +572,7 @@ pub trait ChunkingContextExt {
     fn root_chunk_group(
         self: Vc<Self>,
         ident: Vc<AssetIdent>,
-        chunk_group: ChunkGroup,
+        chunk_group: ChunkGroupKey,
         module_graph: Vc<ModuleGraph>,
     ) -> Vc<ChunkGroupResult>
     where
@@ -577,7 +581,7 @@ pub trait ChunkingContextExt {
     fn root_chunk_group_assets(
         self: Vc<Self>,
         ident: Vc<AssetIdent>,
-        chunk_group: ChunkGroup,
+        chunk_group: ChunkGroupKey,
         module_graph: Vc<ModuleGraph>,
     ) -> Vc<OutputAssetsWithReferenced>
     where
@@ -586,7 +590,7 @@ pub trait ChunkingContextExt {
     fn evaluated_chunk_group_assets(
         self: Vc<Self>,
         ident: Vc<AssetIdent>,
-        chunk_group: ChunkGroup,
+        chunk_group: ChunkGroupKey,
         module_graph: Vc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,
         availability_info: AvailabilityInfo,
@@ -597,7 +601,7 @@ pub trait ChunkingContextExt {
     fn entry_chunk_group_asset(
         self: Vc<Self>,
         path: FileSystemPath,
-        chunk_group: ChunkGroup,
+        chunk_group: ChunkGroupKey,
         module_graph: Vc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,
         extra_referenced_assets: Vc<OutputAssets>,
@@ -609,7 +613,7 @@ pub trait ChunkingContextExt {
     fn root_entry_chunk_group(
         self: Vc<Self>,
         path: FileSystemPath,
-        chunk_group: ChunkGroup,
+        chunk_group: ChunkGroupKey,
         module_graph: Vc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,
         extra_referenced_assets: Vc<OutputAssets>,
@@ -620,7 +624,7 @@ pub trait ChunkingContextExt {
     fn root_entry_chunk_group_asset(
         self: Vc<Self>,
         path: FileSystemPath,
-        chunk_group: ChunkGroup,
+        chunk_group: ChunkGroupKey,
         module_graph: Vc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,
         extra_referenced_assets: Vc<OutputAssets>,
@@ -631,7 +635,7 @@ pub trait ChunkingContextExt {
     fn chunk_group_assets(
         self: Vc<Self>,
         ident: Vc<AssetIdent>,
-        chunk_group: ChunkGroup,
+        chunk_group: ChunkGroupKey,
         module_graph: Vc<ModuleGraph>,
         availability_info: AvailabilityInfo,
     ) -> Vc<OutputAssetsWithReferenced>
@@ -650,7 +654,7 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
     fn root_chunk_group(
         self: Vc<Self>,
         ident: Vc<AssetIdent>,
-        chunk_group: ChunkGroup,
+        chunk_group: ChunkGroupKey,
         module_graph: Vc<ModuleGraph>,
     ) -> Vc<ChunkGroupResult> {
         self.chunk_group(
@@ -664,7 +668,7 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
     fn root_chunk_group_assets(
         self: Vc<Self>,
         ident: Vc<AssetIdent>,
-        chunk_group: ChunkGroup,
+        chunk_group: ChunkGroupKey,
         module_graph: Vc<ModuleGraph>,
     ) -> Vc<OutputAssetsWithReferenced> {
         root_chunk_group_assets(
@@ -678,7 +682,7 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
     fn evaluated_chunk_group_assets(
         self: Vc<Self>,
         ident: Vc<AssetIdent>,
-        chunk_group: ChunkGroup,
+        chunk_group: ChunkGroupKey,
         module_graph: Vc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,
         availability_info: AvailabilityInfo,
@@ -696,7 +700,7 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
     fn entry_chunk_group_asset(
         self: Vc<Self>,
         path: FileSystemPath,
-        chunk_group: ChunkGroup,
+        chunk_group: ChunkGroupKey,
         module_graph: Vc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,
         extra_referenced_assets: Vc<OutputAssets>,
@@ -716,7 +720,7 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
     fn root_entry_chunk_group(
         self: Vc<Self>,
         path: FileSystemPath,
-        chunk_group: ChunkGroup,
+        chunk_group: ChunkGroupKey,
         module_graph: Vc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,
         extra_referenced_assets: Vc<OutputAssets>,
@@ -734,7 +738,7 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
     fn root_entry_chunk_group_asset(
         self: Vc<Self>,
         path: FileSystemPath,
-        chunk_group: ChunkGroup,
+        chunk_group: ChunkGroupKey,
         module_graph: Vc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,
         extra_referenced_assets: Vc<OutputAssets>,
@@ -753,7 +757,7 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
     fn chunk_group_assets(
         self: Vc<Self>,
         ident: Vc<AssetIdent>,
-        chunk_group: ChunkGroup,
+        chunk_group: ChunkGroupKey,
         module_graph: Vc<ModuleGraph>,
         availability_info: AvailabilityInfo,
     ) -> Vc<OutputAssetsWithReferenced> {
@@ -816,7 +820,7 @@ async fn relative_path_from_chunk_root_to_project_root(
 fn root_chunk_group_assets(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     ident: Vc<AssetIdent>,
-    chunk_group: ChunkGroup,
+    chunk_group: ChunkGroupKey,
     module_graph: Vc<ModuleGraph>,
 ) -> Vc<OutputAssetsWithReferenced> {
     chunking_context
@@ -828,7 +832,7 @@ fn root_chunk_group_assets(
 fn evaluated_chunk_group_assets(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     ident: Vc<AssetIdent>,
-    chunk_group: ChunkGroup,
+    chunk_group: ChunkGroupKey,
     module_graph: Vc<ModuleGraph>,
     extra_chunks: Vc<OutputAssets>,
     availability_info: AvailabilityInfo,
@@ -848,7 +852,7 @@ fn evaluated_chunk_group_assets(
 async fn entry_chunk_group_asset(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     path: FileSystemPath,
-    chunk_group: ChunkGroup,
+    chunk_group: ChunkGroupKey,
     module_graph: Vc<ModuleGraph>,
     extra_chunks: Vc<OutputAssets>,
     extra_referenced_assets: Vc<OutputAssets>,
@@ -871,7 +875,7 @@ async fn entry_chunk_group_asset(
 fn chunk_group_assets(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     ident: Vc<AssetIdent>,
-    chunk_group: ChunkGroup,
+    chunk_group: ChunkGroupKey,
     module_graph: Vc<ModuleGraph>,
     availability_info: AvailabilityInfo,
 ) -> Vc<OutputAssetsWithReferenced> {
