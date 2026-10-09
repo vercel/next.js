@@ -104,7 +104,7 @@ export class ClientComponentLoadTracker {
 }
 
 export function wrapClientComponentLoader(
-  ComponentMod: AppPageModule
+  ComponentMod: Pick<AppPageModule, '__next_app__'>
 ): AppPageModule['__next_app__'] {
   if (!('performance' in globalThis)) {
     return ComponentMod.__next_app__

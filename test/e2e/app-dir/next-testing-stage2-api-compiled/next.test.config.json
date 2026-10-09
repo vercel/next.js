@@ -1,0 +1,11 @@
+{
+  "compatibility": "vitest",
+  "projects": [
+    {
+      "name": "api",
+      "environment": "node",
+      "mode": "development",
+      "include": ["cases/*.case.ts"]
+    }
+  ]
+}

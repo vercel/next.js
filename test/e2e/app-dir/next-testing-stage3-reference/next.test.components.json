@@ -1,0 +1,16 @@
+{
+  "compatibility": "vitest",
+  "projects": [
+    {
+      "name": "components",
+      "environment": "browser",
+      "mode": "development",
+      "include": ["cases/components.case.mjs"],
+      "browserFixtures": [
+        { "id": "subject", "module": "components/subject.tsx" }
+      ],
+      "testTimeout": 60000,
+      "fileTimeout": 180000
+    }
+  ]
+}

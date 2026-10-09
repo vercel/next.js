@@ -1,0 +1,14 @@
+{
+  "name": "next-testing-static-mocks-fixture",
+  "private": true,
+  "exports": {
+    ".": {
+      "react-server": "./conditions/rsc.js",
+      "node": {
+        "development": "./conditions/node-development.js",
+        "default": "./conditions/node.js"
+      },
+      "default": "./conditions/default.js"
+    }
+  }
+}

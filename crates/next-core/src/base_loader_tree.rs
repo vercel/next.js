@@ -111,6 +111,7 @@ impl BaseLoaderTreeBuilder {
         module_type: AppDirModuleType,
         path: FileSystemPath,
         position: u32,
+        source: Option<ResolvedVc<Box<dyn Source>>>,
     ) -> Result<String> {
         let name = module_type.name();
         let i = self.unique_number();
@@ -119,7 +120,11 @@ impl BaseLoaderTreeBuilder {
         self.create_module_getter_declaration(position, &identifier, &format!("MODULE_{i}"));
 
         let module = self
-            .process_source(Vc::upcast(FileSource::new(path.clone())))
+            .process_source(
+                source
+                    .map(|source| *source)
+                    .unwrap_or_else(|| Vc::upcast(FileSource::new(path.clone()))),
+            )
             .to_resolved()
             .await?;
 

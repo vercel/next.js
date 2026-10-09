@@ -1,0 +1,81 @@
+{
+  "coordinator": "01a0a9ab-91b9-75c0-8598-4658b78268e6",
+  "model": "gpt-6-astra",
+  "thinking": "medium",
+  "baseline": "/tmp/next-testing-stage2-baseline.json",
+  "tasks": [
+    {
+      "code": "I2",
+      "title": "Next testing stage 2: Contracts and CLI",
+      "threadId": "01a0aadd-5486-7e11-b81d-28e870bb5dd2",
+      "clientThreadId": "client-new-thread:0de515df-82c8-4b04-ba4a-c2551343705b",
+      "hostId": "local",
+      "status": "Accepted: contracts, public CLI commands and precise capability inventory.",
+      "completion": "accepted"
+    },
+    {
+      "code": "A2",
+      "title": "Next testing stage 2: Compiler integration",
+      "threadId": "01a0aadd-546a-7900-8566-d3b9ac41ca81",
+      "clientThreadId": "client-new-thread:fe1b411b-36a4-4e37-8ef9-1ee27184dfc0",
+      "hostId": "local",
+      "status": "Accepted: compiled setup, mock graph integration and clean diagnostics on the final d484 native.",
+      "completion": "accepted"
+    },
+    {
+      "code": "B2",
+      "title": "Next testing stage 2: Execution and setup",
+      "threadId": "01a0aadd-546a-7900-8566-d3d79571045f",
+      "clientThreadId": "client-new-thread:ae55a816-75f1-41c5-a56a-d95ddb2a0334",
+      "hostId": "local",
+      "status": "Accepted: setup execution, safe snapshot commits, broker ownership, cancellation and mock lifecycle isolation.",
+      "completion": "accepted"
+    },
+    {
+      "code": "C2",
+      "title": "Next testing stage 2: API compatibility",
+      "threadId": "01a0aadd-b099-7100-a4e0-8849a9b088cc",
+      "clientThreadId": "client-new-thread:4a4cfb35-1ffa-478a-acf9-a0fe439d32ba",
+      "hostId": "local",
+      "status": "Accepted: supported authoring APIs, hooks, fixtures, assertions, spies, snapshots and public declarations.",
+      "completion": "accepted"
+    },
+    {
+      "code": "G2",
+      "title": "Next testing stage 2: Module mocking",
+      "threadId": "01a0aadd-b6e5-7db0-bd3c-914763a9698e",
+      "clientThreadId": "client-new-thread:197fcf30-abec-4491-aaca-98a112f51ad0",
+      "hostId": "local",
+      "status": "Accepted: compiler-transformed static Node factory mocks, original imports, async factories and explicit unsupported-input errors.",
+      "completion": "accepted"
+    },
+    {
+      "code": "J2",
+      "title": "Next testing stage 2: Watch and incremental runs",
+      "threadId": "01a0aadd-b6ea-7fa0-8a1c-399624be343e",
+      "clientThreadId": "client-new-thread:0a809b56-ffcb-4fa6-866b-80dbb7121934",
+      "hostId": "local",
+      "status": "Accepted: public Node/RSC watch, conservative invalidation, file discovery, recovery and cancellation.",
+      "completion": "accepted"
+    },
+    {
+      "code": "P2",
+      "title": "Next testing stage 2: Package adoption",
+      "threadId": "01a0aadd-b6e6-77c2-80eb-d00abd5d831a",
+      "clientThreadId": "client-new-thread:81d74391-ceb1-46d6-98c0-b6fa63941b2d",
+      "hostId": "local",
+      "status": "Accepted: clean packed installation, strict public JS/TS types, actual mock runtime, clean expected failures and verified worker cleanup.",
+      "completion": "accepted"
+    }
+  ],
+  "validation": {
+    "code": "L",
+    "title": "Next testing L: Independent validation",
+    "threadId": "01a0a9e8-f26e-77e2-9e82-543690ff0b72",
+    "hostId": "local",
+    "status": "Accepted: independent combined build/types/compiler/runtime/watch/default/production checks plus final read-only packed-consumer evidence audit.",
+    "completion": "accepted"
+  },
+  "status": "Stage two accepted: compiled setup, supported Vitest APIs, explicit snapshot updates, static Node mocks, Node/RSC watch and external package adoption.",
+  "completion": "accepted"
+}
