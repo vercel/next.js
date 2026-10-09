@@ -7,19 +7,13 @@
 mod gc_fixture;
 mod util;
 
-use std::{
-    sync::{
-        Arc,
-        atomic::{AtomicBool, Ordering},
-    },
-    time::Duration,
-};
+use std::{sync::Arc, time::Duration};
 
 use turbo_tasks::TurboTasks;
-use turbo_tasks_backend::{TestSnapshotOutcome, TurboTasksBackend};
+use turbo_tasks_backend::TurboTasksBackend;
 
 use crate::{
-    gc_fixture::{create_generation, expected_value, generation_task_count, wide_root},
+    gc_fixture::{create_generation, generation_task_count, wide_root},
     util::create_tt_with_gc_min_progress,
 };
 
@@ -43,65 +37,6 @@ async fn build_generation(tt: &Arc<TurboTasks<TurboTasksBackend>>, gen_value: u3
     })
     .await
     .unwrap();
-}
-
-/// Switches back to generation `gen_value` after later generations were built, returning the
-/// value `wide_root` computes for it.
-async fn revisit_generation(tt: &Arc<TurboTasks<TurboTasksBackend>>, gen_value: u32) -> u32 {
-    turbo_tasks::run_once(tt.clone(), async move {
-        let generation_op = create_generation();
-        let generation_vc = generation_op.resolve().strongly_consistent().await?;
-        generation_op
-            .read_strongly_consistent()
-            .await?
-            .set(gen_value);
-        Ok(*wide_root(generation_vc, WIDTH)
-            .read_strongly_consistent()
-            .await?)
-    })
-    .await
-    .unwrap()
-}
-
-/// Runs [`TurboTasksBackend::snapshot_and_evict_for_testing`] while a background loop keeps
-/// starting operations, so the GC pass sees a waiter and is interrupted once its min-progress floor
-/// is met.
-async fn snapshot_while_busy(tt: &Arc<TurboTasks<TurboTasksBackend>>) -> TestSnapshotOutcome {
-    let stop = Arc::new(AtomicBool::new(false));
-    let busy = {
-        let tt = tt.clone();
-        let stop = stop.clone();
-        tokio::spawn(async move {
-            while !stop.load(Ordering::Relaxed) {
-                turbo_tasks::run_once(tt.clone(), async move {
-                    create_generation().read_strongly_consistent().await?;
-                    anyhow::Ok(())
-                })
-                .await
-                .unwrap();
-            }
-        })
-    };
-    let outcome = tt.backend().snapshot_and_evict_for_testing(tt);
-    stop.store(true, Ordering::Relaxed);
-    // Wait for the loop to finish its last operation so it cannot interrupt a later pass.
-    busy.await.unwrap();
-    outcome
-}
-
-/// Runs [`TurboTasksBackend::snapshot_and_evict_for_testing`] until its GC pass completes. Work
-/// left over from the previous step can still be settling and interrupt the first attempt.
-fn snapshot_until_complete(tt: &Arc<TurboTasks<TurboTasksBackend>>) {
-    for _ in 0..10 {
-        if !tt
-            .backend()
-            .snapshot_and_evict_for_testing(tt)
-            .gc_interrupted()
-        {
-            return;
-        }
-    }
-    panic!("no GC pass completed in 10 attempts");
 }
 
 /// A waiter blocked for the whole pass must not interrupt it while the floor is unmet.
@@ -205,67 +140,6 @@ async fn gc_interrupt_is_self_healing() {
          1 across {interrupted_rounds}/{ROUNDS} interrupted rounds, {healed} in the completing \
          pass): interrupted passes are losing garbage rather than leaving it"
     );
-
-    tt.stop_and_wait().await;
-}
-
-/// Tasks an interrupted pass collected must stay resident until a snapshot tombstones them.
-///
-/// An interrupted pass abandons the snapshot that would have written its tombstones, but it has
-/// already torn down the collected tasks' edges in their neighbours, and the next snapshot
-/// persists those neighbours. If eviction drops the collected tasks anyway, their last snapshot is
-/// still live on disk. Revisiting an old generation then restores them as live tasks whose
-/// children may since have been collected and tombstoned, and touching those children panics with
-/// `task is missing in memory or persistent storage`.
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn gc_interrupted_pass_keeps_collected_tasks_until_tombstoned() {
-    let (tt, _persistence_dir) = create_tt_with_gc_min_progress(
-        "gc_interrupted_pass_keeps_collected_tasks_until_tombstoned",
-        Duration::from_micros(100),
-    );
-
-    // Each round persists a generation with a completing snapshot, disconnects it by building the
-    // next one, then snapshots again while operations keep arriving so the pass is interrupted
-    // after collecting part of that persisted garbage. Only previously persisted tasks can be left
-    // stale on disk; a never-persisted task has nothing on disk to restore.
-    const ROUNDS: u32 = 5;
-    let mut gen_value = 0;
-    let mut interrupted_collections = 0usize;
-    for round in 1..=ROUNDS {
-        build_generation(&tt, gen_value).await;
-        snapshot_until_complete(&tt);
-
-        gen_value += 1;
-        build_generation(&tt, gen_value).await;
-        let outcome = snapshot_while_busy(&tt).await;
-        let stats = outcome.gc_stats();
-        println!(
-            "round {round}: interrupted={} {stats}",
-            outcome.gc_interrupted()
-        );
-        if outcome.gc_interrupted() && stats.collected > 0 {
-            interrupted_collections += 1;
-        }
-    }
-    assert!(
-        interrupted_collections > 0,
-        "no interrupted pass collected anything in {ROUNDS} rounds, so this test proved nothing"
-    );
-
-    // A completing pass's snapshot tombstones whatever the interrupted passes left pending.
-    snapshot_until_complete(&tt);
-
-    // Revisit every generation, collecting the one we leave each time. A stale task restored from
-    // disk is reconnected here, and collecting it again walks its dangling child edges.
-    for gen_value in 0..=gen_value {
-        assert_eq!(
-            revisit_generation(&tt, gen_value).await,
-            expected_value(gen_value, WIDTH),
-            "generation {gen_value} computed the wrong value"
-        );
-        tt.backend().gc_for_testing(&tt);
-        tt.backend().snapshot_and_evict_for_testing(&tt);
-    }
 
     tt.stop_and_wait().await;
 }

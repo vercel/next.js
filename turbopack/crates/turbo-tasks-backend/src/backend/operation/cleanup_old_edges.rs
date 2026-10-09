@@ -73,34 +73,26 @@ pub fn capture_all_edges(task: &TaskGuard<'_>) -> Vec<OutdatedEdge> {
     );
     // Reverse direction: the edges *into* this task. A stored dependent entry names the dependent
     // in `CellRef.task` and this task's cell in `CellRef.cell`.
-    old_edges.extend(task.iter_cell_dependents().map(
-        |CellRef {
-             task: dependent,
-             cell,
-         }| OutdatedEdge::CellDependency {
-            dependent,
+    old_edges.extend(
+        task.iter_cell_dependents()
+            .map(|entry| OutdatedEdge::CellDependency {
+                dependent: entry.task,
+                cell: CellRef {
+                    task: task_id,
+                    cell: entry.cell,
+                },
+            }),
+    );
+    old_edges.extend(task.iter_cell_dependents_hashed().map(|(entry, key)| {
+        OutdatedEdge::HashedCellDependency {
+            dependent: entry.task,
             cell: CellRef {
                 task: task_id,
-                cell,
-            },
-        },
-    ));
-    old_edges.extend(task.iter_cell_dependents_hashed().map(
-        |(
-            CellRef {
-                task: dependent,
-                cell,
+                cell: entry.cell,
             },
             key,
-        )| OutdatedEdge::HashedCellDependency {
-            dependent,
-            cell: CellRef {
-                task: task_id,
-                cell,
-            },
-            key,
-        },
-    ));
+        }
+    }));
     old_edges.extend(task.iter_output_dependent().map(|dependent| {
         OutdatedEdge::OutputDependency {
             dependent,

@@ -35,7 +35,7 @@ use crate::{
             cleanup_old_edges_deletions_only,
         },
         snapshot_coordinator::SnapshotPhase,
-        storage::{SpecificTaskDataCategory, TaskDataCategory},
+        storage::TaskDataCategory,
         storage_schema::TaskStorageAccessors,
     },
     backing_storage::SnapshotItem,
@@ -269,11 +269,6 @@ impl TurboTasksBackend {
                 // writes the tombstone.
                 drop(task.take_cell_data());
                 task.set_deleted(true);
-                // Safety check: ensure the task is marked modified so the next snapshot tombstones
-                // it. This is almost certainly redundant, since `set_immutable`, `take_cell_data`
-                // and the edge removal below all track modifications. A never-persisted task is
-                // skipped by the snapshot and dropped by eviction whatever its flags say.
-                let _ = task.track_modification(SpecificTaskDataCategory::Meta, "gc_deleted");
                 drop(task); // drop the lock so edge cleanup can run
                 stats.collected += 1;
                 stats.edges_deleted += old_edges.len();

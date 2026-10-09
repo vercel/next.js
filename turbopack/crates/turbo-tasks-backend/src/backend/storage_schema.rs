@@ -235,7 +235,8 @@ struct TaskStorageSchema {
     pub new_task: bool,
 
     /// GC soft-deletion marker. Set by the garbage collector when a task is marked for deletion.
-    #[field(storage = "flag", category = "transient")]
+    /// `meta` simply to ensure that setting/clearing it tracks a modification.
+    #[field(storage = "flag", category = "meta")]
     deleted: bool,
 
     // =========================================================================
