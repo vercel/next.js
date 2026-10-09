@@ -199,7 +199,7 @@ jobs:
         NEXT_TEST_DEPLOY_SCRIPT_PATH="${{ github.event.inputs.deployScriptPath || '' }}" \
         NEXT_TEST_DEPLOY_LOGS_SCRIPT_PATH="${{ github.event.inputs.deployLogsScriptPath || '' }}" \
         NEXT_TEST_CLEANUP_SCRIPT_PATH="${{ github.event.inputs.cleanupScriptPath || '' }}" \
-        node run-tests.js --timings --require-timings -g ${{ matrix.group }} -c 2 --type e2e
+        node run-tests.js --timings --require-timings -g ${{ matrix.group }} -c 8 --type e2e
       testTimingsArtifact: 'test-timings'
       skipNativeBuild: 'yes'
       skipNativeInstall: 'no'
@@ -251,7 +251,7 @@ jobs:
         NEXT_TEST_DEPLOY_SCRIPT_PATH="${{ github.event.inputs.deployScriptPath || '' }}" \
         NEXT_TEST_DEPLOY_LOGS_SCRIPT_PATH="${{ github.event.inputs.deployLogsScriptPath || '' }}" \
         NEXT_TEST_CLEANUP_SCRIPT_PATH="${{ github.event.inputs.cleanupScriptPath || '' }}" \
-        node run-tests.js --timings --require-timings -g ${{ matrix.group }} -c 2 --type e2e
+        node run-tests.js --timings --require-timings -g ${{ matrix.group }} -c 8 --type e2e
       testTimingsArtifact: 'test-timings'
       skipNativeBuild: 'yes'
       skipNativeInstall: 'no'
@@ -300,7 +300,7 @@ jobs:
         VERCEL_CLI_VERSION="${{ github.event.inputs.vercelCliVersion || 'vercel@latest' }}" \
         VERCEL_FORCE_BUILD_IN_HIVE="${{ github.event.inputs.forceBuildInHive || '' }}" \
         VERCEL_BUILD_CONTAINER_VERSION="${{ github.event.inputs.buildContainerVersion || '' }}" \
-        node run-tests.js --timings --require-timings -g ${{ matrix.group }} -c 2 --type e2e
+        node run-tests.js --timings --require-timings -g ${{ matrix.group }} -c 8 --type e2e
       testTimingsArtifact: 'test-timings'
       skipNativeBuild: 'yes'
       skipNativeInstall: 'no'
