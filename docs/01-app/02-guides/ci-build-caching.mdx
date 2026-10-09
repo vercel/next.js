@@ -88,6 +88,11 @@ with:
     ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-
 ```
 
+## Buddy
+
+Buddy.Works requires no additional configuration for Next.js build caching. The entire project directory is automatically [cached](https://buddy.works/docs/pipelines/cache) between pipeline runs, including  `.next/cache`
+
+
 ## Bitbucket Pipelines
 
 Add or merge the following into your `bitbucket-pipelines.yml` at the top level (same level as `pipelines`):
