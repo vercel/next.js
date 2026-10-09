@@ -35,7 +35,8 @@ pnpm eval:upgrade security-same-major --dry
 pnpm eval:upgrade security-same-major
 ```
 
-Run each of the six cases once for twelve trials, or select one harness with
+Run all six cases in parallel with `pnpm eval:upgrade --all` for twelve trials,
+or select one harness for individual cases with
 `NEXT_UPGRADE_EVAL_EXPERIMENT=codex` or `claude`. List/dry modes do no remote work.
 The runner loads root `.env.local` without overwriting inherited values. Only
 `VERCEL_OIDC_TOKEN` is required; refresh it before expiry. Never commit or print
@@ -78,4 +79,6 @@ failures and rerun after correcting an evaluator defect.
 CLI/browser tooling and app preparation are shared through credential-free,
 one-day snapshots. Agent credentials are written only into individual forks.
 Owned snapshots and temporary fixtures are cleaned up after execution; native
-cancellation completes capture and teardown before batch cleanup.
+cancellation completes capture and teardown before runner cleanup. CI retains
+tooling snapshot IDs in its cache after uncancelled runs, including eval failures.
+CI installs the pinned Vercel CLI only when pulling its OIDC token.

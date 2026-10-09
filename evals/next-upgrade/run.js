@@ -3,7 +3,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const crypto = require('node:crypto')
 const { execFileSync, spawn } = require('node:child_process')
-const { config: loadEnvironment } = require('dotenv')
+const { config: loadEnvironment, parse } = require('dotenv')
 const { packPackage } = require('../lib/pack')
 require('tsx/cjs')
 const { loadCase, materialize } = require('./runner/fixture.ts')
@@ -28,28 +28,55 @@ function redact(value) {
 
 // Batch preparation uses the same pinned tools as standalone runs, before any
 // agent credential files are written into a fork.
-async function prepareToolchain(directory) {
+async function prepareToolchain(directory, signal) {
   const { Sandbox } = require('@vercel/sandbox')
-  const vm = await Sandbox.create({ runtime: 'node24', timeout: 600000 })
+  const vm = await Sandbox.create({
+    runtime: 'node24',
+    timeout: 600000,
+    signal,
+  })
+  let stopping = null
+  const stop = () => {
+    if (!stopping) {
+      stopping = Promise.resolve().then(() => vm.stop())
+    }
+    return stopping
+  }
+  // Stop the VM and unblock preparation even if installation never settles.
+  const aborted = Promise.withResolvers()
+  const cancel = () => {
+    stop().catch((error) => console.error('Toolchain teardown failed:', error))
+    aborted.reject(signal.reason)
+  }
+  signal.addEventListener('abort', cancel, { once: true })
   try {
-    const install = await vm.runCommand({
-      cmd: 'npm',
-      args: [
-        'install',
-        '--global',
-        '--no-audit',
-        '--no-fund',
-        '@openai/codex@0.161.0',
-        '@anthropic-ai/claude-code@2.1.293',
-      ],
-    })
+    signal.throwIfAborted()
+    const install = await Promise.race([
+      vm.runCommand({
+        cmd: 'npm',
+        args: [
+          'install',
+          '--global',
+          '--no-audit',
+          '--no-fund',
+          '@openai/codex@0.161.0',
+          '@anthropic-ai/claude-code@2.1.293',
+        ],
+      }),
+      aborted.promise,
+    ])
+    signal.throwIfAborted()
     if (install.exitCode !== 0) {
       throw new Error(`Toolchain install failed: ${await install.stderr()}`)
     }
-    const versions = await vm.runCommand({
-      cmd: 'sh',
-      args: ['-c', 'codex --version && claude --version && node --version'],
-    })
+    const versions = await Promise.race([
+      vm.runCommand({
+        cmd: 'sh',
+        args: ['-c', 'codex --version && claude --version && node --version'],
+      }),
+      aborted.promise,
+    ])
+    signal.throwIfAborted()
     if (versions.exitCode !== 0) {
       throw new Error('Toolchain version preflight failed')
     }
@@ -57,9 +84,15 @@ async function prepareToolchain(directory) {
       path.join(directory, 'toolchain.txt'),
       await versions.stdout()
     )
-    return await vm.snapshot({ expiration: 86400000 })
+    const snapshot = await vm.snapshot({ expiration: 86400000 })
+    if (signal.aborted) {
+      await snapshot.delete()
+      signal.throwIfAborted()
+    }
+    return snapshot
   } finally {
-    await vm.stop()
+    signal.removeEventListener('abort', cancel)
+    await stop()
   }
 }
 
@@ -99,21 +132,6 @@ async function runNative(command, args, options) {
     clearTimeout(timer)
     process.off('SIGINT', cancel)
     process.off('SIGTERM', cancel)
-  }
-}
-
-// Reject mismatched prepared inputs before allocating any remote resources.
-function validatePreparedCandidate(provenance, expected) {
-  for (const field of ['sourceRevision', 'originalVersion', 'nextSha256']) {
-    if (provenance[field] !== expected[field]) {
-      throw new Error(`Prepared stable candidate has mismatched ${field}`)
-    }
-  }
-  if (
-    provenance.declaredVersion !== '16.5.0' ||
-    provenance.compiledVersion !== 'Next.js v16.5.0'
-  ) {
-    throw new Error('Prepared stable candidate has the wrong build identity')
   }
 }
 
@@ -246,110 +264,323 @@ function preflight() {
   }
 }
 
-async function main() {
-  const args = process.argv.slice(2)
-  const cases = fs.readdirSync(path.join(__dirname, 'cases')).sort()
-  if (args.length === 1 && args[0] === '--list') {
-    console.log(cases.join('\n'))
-    return
+// CI needs the CLI only to exchange the linked project's token for an OIDC
+// token. Keep its private env file ephemeral and mask the result before export.
+function authenticateCI() {
+  for (const name of [
+    'VERCEL_PROJECT_ID',
+    'VERCEL_TEAM_ID',
+    'VERCEL_TOKEN',
+    'GITHUB_ENV',
+  ]) {
+    if (!process.env[name]) {
+      throw new Error(`Missing CI authentication variable: ${name}`)
+    }
   }
-  const [name, flag] = args
-  if (!cases.includes(name) || args.length > 2 || (flag && flag !== '--dry')) {
-    throw new Error(
-      `Select one case (${cases.join(', ')}), optionally with --dry`
+  const directory = path.join(__dirname, '.work')
+  fs.mkdirSync(directory, { recursive: true })
+  const temporary = fs.mkdtempSync(path.join(directory, 'auth-'))
+  const file = path.join(temporary, 'credentials.env')
+  const mask = process.umask(0o077)
+  try {
+    execFileSync(
+      'vercel',
+      [
+        'env',
+        'pull',
+        file,
+        '--yes',
+        '--environment=development',
+        '--scope',
+        process.env.VERCEL_TEAM_ID,
+        '--project',
+        process.env.VERCEL_PROJECT_ID,
+        '--token',
+        process.env.VERCEL_TOKEN,
+      ],
+      { cwd: root, stdio: 'inherit' }
     )
+    const token = parse(fs.readFileSync(file)).VERCEL_OIDC_TOKEN
+    if (!token || /[\r\n]/.test(token)) {
+      throw new Error('Vercel did not provide a single-line OIDC token')
+    }
+    console.log(`::add-mask::${token}`)
+    fs.appendFileSync(process.env.GITHUB_ENV, `VERCEL_OIDC_TOKEN=${token}\n`)
+  } finally {
+    process.umask(mask)
+    fs.rmSync(temporary, { recursive: true, force: true })
   }
+}
+
+// Cache only credential-free tooling; candidate packages and delivered source
+// stay specific to this run. Missing or expiring remote IDs need replacements.
+function snapshotKey() {
+  const digest = crypto.createHash('sha256')
+  for (const file of [
+    'pnpm-lock.yaml',
+    'evals/next-upgrade/run.js',
+    'evals/next-upgrade/verifier/verify.ts',
+    'evals/lib/setup.ts',
+    'patches/@vercel__agent-eval@2.2.1.patch',
+  ]) {
+    digest.update(file).update(fs.readFileSync(path.join(root, file)))
+  }
+  return digest.digest('hex')
+}
+
+async function reusableSnapshot(id) {
+  if (!id) {
+    return null
+  }
+  const { Snapshot, APIError } = require('@vercel/sandbox')
+  let snapshot
+  try {
+    snapshot = await Snapshot.get({ snapshotId: id })
+  } catch (error) {
+    if (!(error instanceof APIError) || error.response.status !== 404) {
+      throw error
+    }
+    console.log(`Cached snapshot ${id} is missing; preparing a replacement`)
+    return null
+  }
+  if (
+    snapshot.status !== 'created' ||
+    !snapshot.expiresAt ||
+    snapshot.expiresAt.getTime() < Date.now() + 3600000
+  ) {
+    console.log(
+      `Cached snapshot ${id} is unavailable or near expiry; preparing a replacement`
+    )
+    return null
+  }
+  return snapshot
+}
+
+// Each native process owns one fixture and independent agent forks. Inputs and
+// trusted graders are shared locally; authoritative evidence stays per case.
+async function runCase(name, context) {
+  const { id, work, output, experiments, inputs, packages, snapshots, all } =
+    context
+  const runId = all ? `${id}.${name}` : id
+  const runRoot = path.join(work, name)
+  const retained = all ? path.join(__dirname, 'results', runId) : output
   const scenario = loadCase(name)
-  const harness = process.env.NEXT_UPGRADE_EVAL_EXPERIMENT
-  if (harness && !['codex', 'claude'].includes(harness)) {
-    throw new Error('Select codex or claude')
-  }
-  if (flag === '--dry') {
-    console.log(name)
-    return
-  }
-  loadEnvironment({ path: path.join(root, '.env.local'), override: false })
-  loadEnvironment({ path: path.join(root, '.env'), override: false })
-  preflight()
-  const id =
-    process.env.NEXT_UPGRADE_EVAL_RUN_ID ??
-    `${Date.now()}-${crypto.randomBytes(3).toString('hex')}`
-  if (!/^[a-zA-Z0-9][a-zA-Z0-9.-]*$/.test(id)) {
-    throw new Error('Invalid run ID')
-  }
-  const runRoot = path.join(__dirname, '.work', id)
-  const retained = path.join(__dirname, 'results', id)
-  const nextTarball = path.join(runRoot, 'tarballs/next.tgz')
-  const codemodTarball = path.join(runRoot, 'tarballs/codemod.tgz')
-  const trusted = path.join(retained, 'trusted')
-  const experiments = harness ? [harness] : ['codex', 'claude']
-  const sourceRevision = execFileSync('git', ['rev-parse', 'HEAD'], {
-    cwd: root,
-    encoding: 'utf8',
-  }).trim()
-  const originalVersion = JSON.parse(
-    fs.readFileSync(path.join(root, 'packages/next/package.json'))
-  ).version
-  fs.mkdirSync(path.join(runRoot, 'tarballs'), { recursive: true })
+  const nextTarball =
+    scenario.kind === 'nudge' ? packages.stable : packages.next
   fs.mkdirSync(path.join(retained, 'results'), { recursive: true })
-  // Native agent-eval writes directly into retained results. No second result
-  // tree or transcript copying is needed when the temporary fixtures are removed.
+  materialize(name, runRoot)
   fs.symlinkSync(
     path.join(retained, 'results'),
     path.join(runRoot, 'results'),
     'dir'
   )
-  let snapshot
-  let verifierSnapshot
-  let candidateBuild = null
+  const { loadFixture } = await import('@vercel/agent-eval')
+  loadFixture(path.join(runRoot, 'evals'), name)
+  fs.mkdirSync(path.join(runRoot, 'experiments'))
+  for (const experiment of experiments) {
+    fs.writeFileSync(
+      path.join(runRoot, 'experiments', `${experiment}.ts`),
+      `import { upgradeExperiment } from ${JSON.stringify(path.join(__dirname, 'runner/experiment.ts'))}\nexport default upgradeExperiment('${experiment === 'codex' ? 'codex' : 'claude-code'}')\n`
+    )
+  }
+  fs.writeFileSync(
+    path.join(retained, 'inputs.json'),
+    JSON.stringify(
+      {
+        sourceRevision: inputs.sourceRevision,
+        case: name,
+        scenario,
+        experiments,
+        candidateBuild: scenario.kind === 'nudge' ? inputs.stable : null,
+        nextSha256:
+          scenario.kind === 'nudge'
+            ? inputs.stable.nextSha256
+            : inputs['next.tgz'],
+        codemodSha256: inputs['codemod.tgz'],
+      },
+      null,
+      2
+    )
+  )
+  const log = fs.openSync(path.join(output, `${name}.log`), 'w')
+  const started = Date.now()
+  let exitCode
   try {
-    const prepared = process.env.NEXT_UPGRADE_EVAL_PACKAGES
-    if (prepared) {
-      const provenance = JSON.parse(
-        fs.readFileSync(path.join(prepared, 'packages.json'), 'utf8')
-      )
-      if (provenance.sourceRevision !== sourceRevision) {
-        throw new Error('Prepared packages have mismatched source revision')
+    if (context.cancelled()) {
+      throw new Error('Cancelled before case execution')
+    }
+    exitCode = await runNative(
+      path.join(root, 'node_modules/.bin/agent-eval'),
+      ['run', ...experiments, '--force', '--ack-failures'],
+      {
+        cwd: runRoot,
+        stdio: ['ignore', log, log],
+        env: {
+          ...process.env,
+          AGENT_EVAL_HANDLE_SIGNALS: '1',
+          NEXT_UPGRADE_EVAL_CASE: name,
+          NEXT_UPGRADE_EVAL_RUN_ROOT: runRoot,
+          NEXT_UPGRADE_EVAL_RESULTS: retained,
+          NEXT_UPGRADE_EVAL_TRUSTED_ROOT: path.join(output, 'trusted'),
+          NEXT_UPGRADE_EVAL_NEXT_TARBALL: nextTarball,
+          NEXT_UPGRADE_EVAL_CODEMOD_TARBALL: packages.codemod,
+          NEXT_UPGRADE_EVAL_NATIVE_BINDING_VERSION: inputs.originalVersion,
+          AGENT_EVAL_PREPARE_FIXTURE_ONCE: '1',
+          AGENT_EVAL_SANDBOX_SNAPSHOT_ID: snapshots.toolchain,
+          NEXT_UPGRADE_EVAL_VERIFIER_SNAPSHOT_ID: snapshots.verifier,
+        },
       }
-      for (const file of ['next.tgz', 'codemod.tgz']) {
-        if (hash(path.join(prepared, file)) !== provenance[file]) {
-          throw new Error(`Prepared package checksum mismatch: ${file}`)
+    )
+  } finally {
+    fs.closeSync(log)
+  }
+  const trials = experiments.map((agent) => {
+    const file = path.join(retained, 'evidence', agent, 'verdict.json')
+    const verdict = fs.existsSync(file)
+      ? JSON.parse(fs.readFileSync(file, 'utf8'))
+      : {
+          status: 'invalid',
+          reason: 'Missing authoritative verdict; inspect case log',
         }
-      }
+    return {
+      case: name,
+      agent,
+      runId,
+      exitCode,
+      durationMs: Date.now() - started,
+      ...verdict,
     }
-    if (scenario.kind === 'nudge') {
-      const stable = process.env.NEXT_UPGRADE_EVAL_STABLE_TARBALL
-      if (stable) {
-        fs.copyFileSync(stable, nextTarball)
-        candidateBuild = JSON.parse(
-          fs.readFileSync(
-            path.join(path.dirname(stable), 'stable-provenance.json'),
-            'utf8'
+  })
+  console.log(
+    `${name}: ${trials.map((trial) => `${trial.agent}=${trial.status}`).join(', ')}`
+  )
+  return trials
+}
+
+// Persist authoritative results and summarize the complete parallel batch.
+function report(output, summary) {
+  const { trials, preparationMs, totalMs } = summary
+  fs.writeFileSync(
+    path.join(output, 'summary.json'),
+    redact(JSON.stringify(summary, null, 2))
+  )
+  console.log(
+    `Upgrade evals: ${trials.filter((trial) => trial.status === 'passed').length}/${trials.length} passed`
+  )
+  if (process.env.GITHUB_STEP_SUMMARY) {
+    fs.appendFileSync(
+      process.env.GITHUB_STEP_SUMMARY,
+      `## Upgrade evals\n\nPreparation: ${Math.round(preparationMs / 1000)}s; total: ${Math.round(totalMs / 1000)}s.\n\n| Case | Agent | Result | Case duration |\n| --- | --- | --- | --- |\n` +
+        trials
+          .map(
+            (trial) =>
+              `| ${trial.case} | ${trial.agent} | ${trial.status} | ${Math.round((trial.durationMs ?? 0) / 1000)}s |`
           )
-        )
-        validatePreparedCandidate(candidateBuild, {
-          sourceRevision,
-          originalVersion,
-          nextSha256: hash(nextTarball),
-        })
-      } else {
-        candidateBuild = buildStableCandidate(runRoot, nextTarball)
-      }
-    } else if (prepared) {
-      fs.copyFileSync(path.join(prepared, 'next.tgz'), nextTarball)
-    } else {
-      packPackage(path.join(root, 'packages/next'), nextTarball)
+          .join('\n') +
+        '\n'
+    )
+  }
+  process.exitCode =
+    summary.cancelled ||
+    trials.some((trial) => trial.status !== 'passed' || trial.exitCode !== 0)
+      ? 1
+      : 0
+}
+
+async function main() {
+  const args = process.argv.slice(2)
+  const available = fs.readdirSync(path.join(__dirname, 'cases')).sort()
+  if (args.length === 1 && args[0] === '--list') {
+    console.log(available.join('\n'))
+    return
+  }
+  if (args.length === 1 && args[0] === '--cache-key') {
+    console.log(`${new Date().toISOString().slice(0, 10)}-${snapshotKey()}`)
+    return
+  }
+  if (args.length === 1 && args[0] === '--ci-auth') {
+    authenticateCI()
+    return
+  }
+  const all = args.includes('--all')
+  const cases = all ? available : args.filter((arg) => arg !== '--dry')
+  if (
+    (all && args.some((arg) => !['--all', '--dry'].includes(arg))) ||
+    cases.length === 0 ||
+    new Set(cases).size !== cases.length ||
+    cases.some((name) => !available.includes(name))
+  ) {
+    throw new Error(
+      `Select a case (${available.join(', ')}) or --all, optionally with --dry`
+    )
+  }
+  const harness = process.env.NEXT_UPGRADE_EVAL_EXPERIMENT
+  if (harness && (!['codex', 'claude'].includes(harness) || all)) {
+    throw new Error(
+      '--all runs both agents; select codex or claude only for individual cases'
+    )
+  }
+  const experiments = harness ? [harness] : ['codex', 'claude']
+  if (args.includes('--dry')) {
+    console.log(
+      JSON.stringify(
+        cases.flatMap((name) =>
+          experiments.map((agent) => ({ case: name, agent }))
+        ),
+        null,
+        2
+      )
+    )
+    return
+  }
+  loadEnvironment({ path: path.join(root, '.env.local'), override: false })
+  loadEnvironment({ path: path.join(root, '.env'), override: false })
+  preflight()
+  const id = `${Date.now()}-${crypto.randomBytes(3).toString('hex')}`
+  const work = path.join(__dirname, '.work', id)
+  const output = path.join(__dirname, 'results', id)
+  fs.mkdirSync(path.join(work, 'packages'), { recursive: true })
+  fs.mkdirSync(output, { recursive: true })
+  const started = Date.now()
+  let cancelled = false
+  const preparation = new AbortController()
+  const cancel = () => {
+    cancelled = true
+    preparation.abort(new Error('Cancelled during preparation'))
+  }
+  process.on('SIGINT', cancel)
+  process.on('SIGTERM', cancel)
+  const owned = []
+  let cacheWritten = false
+  try {
+    // Pack once and build a stable identity once. Every case uses these immutable
+    // inputs directly, eliminating the second runner and its env handoff.
+    const packages = {
+      next: path.join(work, 'packages/next.tgz'),
+      codemod: path.join(work, 'packages/codemod.tgz'),
+      stable: path.join(work, 'packages/stable-next.tgz'),
     }
-    if (prepared) {
-      fs.copyFileSync(path.join(prepared, 'codemod.tgz'), codemodTarball)
-    } else {
-      packPackage(path.join(root, 'packages/next-codemod'), codemodTarball)
+    packPackage(path.join(root, 'packages/next'), packages.next)
+    packPackage(path.join(root, 'packages/next-codemod'), packages.codemod)
+    const inputs = {
+      sourceRevision: execFileSync('git', ['rev-parse', 'HEAD'], {
+        cwd: root,
+        encoding: 'utf8',
+      }).trim(),
+      originalVersion: JSON.parse(
+        fs.readFileSync(path.join(root, 'packages/next/package.json'))
+      ).version,
+      'next.tgz': hash(packages.next),
+      'codemod.tgz': hash(packages.codemod),
+      stable: cases.some((name) => loadCase(name).kind === 'nudge')
+        ? buildStableCandidate(work, packages.stable)
+        : null,
     }
-    materialize(name, runRoot)
-    const { loadFixture } = await import('@vercel/agent-eval')
-    loadFixture(path.join(runRoot, 'evals'), name)
-    // Freeze the trusted grader once alongside the native evidence. The agent
-    // receives only its starting app, prompt and withheld EVAL.ts entry.
+    fs.writeFileSync(
+      path.join(output, 'inputs.json'),
+      JSON.stringify(inputs, null, 2)
+    )
+    const trusted = path.join(output, 'trusted')
     for (const folder of ['verifier', 'cases']) {
       fs.cpSync(path.join(__dirname, folder), path.join(trusted, folder), {
         recursive: true,
@@ -359,97 +590,170 @@ async function main() {
       path.join(__dirname, 'apps/member-dashboard/behavior.spec.ts'),
       path.join(trusted, 'apps/member-dashboard/behavior.spec.ts')
     )
-    fs.mkdirSync(path.join(runRoot, 'experiments'))
-    for (const experiment of experiments) {
+
+    // Cache misses prepare tooling in parallel; authentication/service errors
+    // remain invalid runs. Track new snapshots until cancellation is ruled out.
+    const cacheFile = process.env.NEXT_UPGRADE_EVAL_SNAPSHOT_CACHE
+    const key = snapshotKey()
+    const cached =
+      cacheFile && fs.existsSync(cacheFile)
+        ? JSON.parse(fs.readFileSync(cacheFile, 'utf8'))
+        : null
+    const snapshots = {}
+    const restored = {}
+    const prepared = await Promise.allSettled(
+      [
+        ['toolchain', () => prepareToolchain(output, preparation.signal)],
+        ...(cases.some((name) => loadCase(name).kind === 'direct')
+          ? [
+              [
+                'verifier',
+                () =>
+                  require('./verifier/verify.ts').prepareVerifier(
+                    preparation.signal
+                  ),
+              ],
+            ]
+          : []),
+      ].map(async ([name, prepare]) => {
+        const previous =
+          cached?.key === key ? await reusableSnapshot(cached[name]) : null
+        preparation.signal.throwIfAborted()
+        restored[name] = Boolean(previous)
+        const snapshot = previous ?? (await prepare())
+        snapshots[name] = snapshot.snapshotId
+        if (!previous) {
+          owned.push(() => snapshot.delete())
+        }
+      })
+    )
+    const errors = prepared
+      .filter((item) => item.status === 'rejected')
+      .map((item) => item.reason)
+    if (errors.length) {
+      throw new global.AggregateError(errors, 'Snapshot preparation failed')
+    }
+    if (cancelled) {
+      throw new Error('Cancelled during preparation')
+    }
+    if (cacheFile) {
+      fs.mkdirSync(path.dirname(cacheFile), { recursive: true })
       fs.writeFileSync(
-        path.join(runRoot, 'experiments', `${experiment}.ts`),
-        `import { upgradeExperiment } from ${JSON.stringify(path.join(__dirname, 'runner/experiment.ts'))}\nexport default upgradeExperiment('${experiment === 'codex' ? 'codex' : 'claude-code'}')\n`
+        cacheFile,
+        JSON.stringify({ key, ...snapshots }, null, 2)
       )
+      cacheWritten = true
+      if (process.env.GITHUB_OUTPUT) {
+        fs.appendFileSync(
+          process.env.GITHUB_OUTPUT,
+          `snapshots-created=${Object.values(restored).includes(false)}\n`
+        )
+      }
     }
-    if (!process.env.AGENT_EVAL_SANDBOX_SNAPSHOT_ID) {
-      snapshot = await prepareToolchain(retained)
-    }
-    if (
-      scenario.kind === 'direct' &&
-      !process.env.NEXT_UPGRADE_EVAL_VERIFIER_SNAPSHOT_ID
-    ) {
-      verifierSnapshot = await require('./verifier/verify.ts').prepareVerifier()
-    }
+    const preparationMs = Date.now() - started
     fs.writeFileSync(
-      path.join(retained, 'inputs.json'),
+      path.join(output, 'infrastructure.json'),
       JSON.stringify(
-        {
-          sourceRevision,
-          case: name,
-          scenario,
-          experiments,
-          candidateBuild,
-          nextSha256: hash(nextTarball),
-          codemodSha256: hash(codemodTarball),
-        },
+        { snapshots, restored, preparationMs, cacheExpiresWithinHours: 24 },
         null,
         2
       )
     )
-    process.exitCode = await runNative(
-      path.join(root, 'node_modules/.bin/agent-eval'),
-      ['run', ...experiments, '--force', '--ack-failures'],
-      {
-        cwd: runRoot,
-        stdio: 'inherit',
-        env: {
-          ...process.env,
-          AGENT_EVAL_HANDLE_SIGNALS: '1',
-          NEXT_UPGRADE_EVAL_CASE: name,
-          NEXT_UPGRADE_EVAL_RUN_ROOT: runRoot,
-          NEXT_UPGRADE_EVAL_RESULTS: retained,
-          NEXT_UPGRADE_EVAL_TRUSTED_ROOT: trusted,
-          NEXT_UPGRADE_EVAL_NEXT_TARBALL: nextTarball,
-          NEXT_UPGRADE_EVAL_CODEMOD_TARBALL: codemodTarball,
-          NEXT_UPGRADE_EVAL_NATIVE_BINDING_VERSION: originalVersion,
-          AGENT_EVAL_PREPARE_FIXTURE_ONCE: '1',
-          AGENT_EVAL_SANDBOX_SNAPSHOT_ID:
-            snapshot?.snapshotId ?? process.env.AGENT_EVAL_SANDBOX_SNAPSHOT_ID,
-          NEXT_UPGRADE_EVAL_VERIFIER_SNAPSHOT_ID:
-            verifierSnapshot?.snapshotId ??
-            process.env.NEXT_UPGRADE_EVAL_VERIFIER_SNAPSHOT_ID,
-        },
-      }
+    const completed = await Promise.allSettled(
+      cases.map((name) =>
+        runCase(name, {
+          id,
+          work,
+          output,
+          experiments,
+          inputs,
+          packages,
+          snapshots,
+          all: cases.length > 1,
+          cancelled: () => cancelled,
+        })
+      )
     )
-    if (fs.readdirSync(path.join(retained, 'results')).length === 0) {
-      throw new Error('Native runner produced no trial evidence')
-    }
+    const trials = completed.flatMap((result, index) =>
+      result.status === 'fulfilled'
+        ? result.value
+        : experiments.map((agent) => ({
+            case: cases[index],
+            agent,
+            status: 'invalid',
+            reason: redact(String(result.reason)),
+          }))
+    )
+    trials.sort((a, b) =>
+      `${a.case}/${a.agent}`.localeCompare(`${b.case}/${b.agent}`)
+    )
+    report(output, {
+      sourceRevision: inputs.sourceRevision,
+      preparationMs,
+      totalMs: Date.now() - started,
+      cancelled,
+      trials,
+    })
   } catch (error) {
     fs.writeFileSync(
-      path.join(retained, 'setup-error.json'),
-      redact(JSON.stringify({ status: 'invalid', error: String(error) }))
+      path.join(output, 'setup-error.json'),
+      redact(
+        JSON.stringify(
+          {
+            status: 'invalid',
+            error: String(error),
+            causes:
+              error instanceof global.AggregateError
+                ? error.errors.map(String)
+                : [],
+          },
+          null,
+          2
+        )
+      )
     )
     throw error
   } finally {
-    await cleanupOwned([
-      ...(snapshot ? [() => snapshot.delete()] : []),
-      ...(verifierSnapshot ? [() => verifierSnapshot.delete()] : []),
-      async () => fs.rmSync(runRoot, { recursive: true, force: true }),
-    ])
-    console.log(`Retained results: ${retained}`)
+    // CI saves even on an eval failure, but skips cancellation. Restored snapshots
+    // are never ours to delete; new ones remain owned until this check.
+    if (cacheWritten && !cancelled) {
+      owned.length = 0
+    }
+    let retained = true
+    try {
+      await cleanupOwned([
+        () => {
+          const log = path.join(work, 'stable-build.log')
+          if (fs.existsSync(log)) {
+            try {
+              fs.copyFileSync(log, path.join(output, 'stable-build.log'))
+            } catch (error) {
+              retained = false
+              throw error
+            }
+          }
+        },
+        ...owned,
+      ])
+    } finally {
+      if (retained) {
+        fs.rmSync(work, { recursive: true, force: true })
+      }
+      process.off('SIGINT', cancel)
+      process.off('SIGTERM', cancel)
+    }
+    console.log(`Retained results: ${output}`)
   }
 }
+
 if (require.main === module) {
   main().catch((error) => {
-    console.error(
-      redact(error instanceof Error ? error.message : String(error))
-    )
+    console.error(redact(String(error)))
+    if (error instanceof global.AggregateError) {
+      for (const cause of error.errors) {
+        console.error(redact(String(cause)))
+      }
+    }
     process.exitCode = 1
   })
-}
-module.exports = {
-  main,
-  validatePreparedCandidate,
-  cleanupOwned,
-  buildStableCandidate,
-  prepareToolchain,
-  runNative,
-  preflight,
-  hash,
-  redact,
 }

@@ -14,51 +14,98 @@ export type Verdict = {
 
 // Prepare only trusted tools. Forking this credential-free snapshot saves browser
 // setup time while each delivered app still gets its own clean verifier VM.
-export async function prepareVerifier() {
+export async function prepareVerifier(signal: AbortSignal) {
   const sandbox = await SandboxManager.create({
     backend: 'vercel',
     runtime: 'node24',
     timeout: 600000,
   })
+  let stopping: Promise<void> | null = null
+  const stop = () => {
+    if (!stopping) {
+      stopping = Promise.resolve().then(() => sandbox.stop())
+    }
+    return stopping
+  }
+  // Keep setup cancellable while browser or package installation is blocked.
+  const aborted = Promise.withResolvers<never>()
+  const cancel = () => {
+    stop().catch((error) => console.error('Verifier teardown failed:', error))
+    aborted.reject(signal.reason)
+  }
+  signal.addEventListener('abort', cancel, { once: true })
   try {
+    signal.throwIfAborted()
     sandbox.setWorkingDirectory('/vercel/sandbox/verify')
-    await sandbox.writeFiles({
-      'package.json': JSON.stringify({
-        private: true,
-        type: 'module',
-        dependencies: { vitest: '3.1.3', '@playwright/test': '1.51.1' },
+    await Promise.race([
+      sandbox.writeFiles({
+        'package.json': JSON.stringify({
+          private: true,
+          type: 'module',
+          dependencies: { vitest: '3.1.3', '@playwright/test': '1.51.1' },
+        }),
       }),
-    })
-    const install = await sandbox.runCommand('npm', [
-      'install',
-      '--no-audit',
-      '--no-fund',
+      aborted.promise,
     ])
+    signal.throwIfAborted()
+    const install = await Promise.race([
+      sandbox.runCommand('npm', ['install', '--no-audit', '--no-fund']),
+      aborted.promise,
+    ])
+    signal.throwIfAborted()
     if (install.exitCode !== 0) {
       throw new Error(`Verifier tooling install failed: ${install.stderr}`)
     }
-    await installPlaywright(sandbox)
-    return await sandbox.snapshot({ expiration: 86400000 })
+    await Promise.race([installPlaywright(sandbox), aborted.promise])
+    signal.throwIfAborted()
+    const snapshot = await sandbox.snapshot({ expiration: 86400000 })
+    if (signal.aborted) {
+      await snapshot.delete()
+      signal.throwIfAborted()
+    }
+    return snapshot
   } finally {
-    await sandbox.stop()
+    signal.removeEventListener('abort', cancel)
+    await stop()
   }
 }
 
 // The verifier receives only exported source and trusted tests. No Gateway key,
 // agent state, cached build, node_modules, or mutable app test code is transferred.
+let verifierCancelled = false
+
 export async function verifyTree(
   tree: DeliveredTree,
   name: string,
   directory: string
 ): Promise<Verdict> {
+  if (verifierCancelled) {
+    throw new Error('App verification cancelled')
+  }
   const trusted = process.env.NEXT_UPGRADE_EVAL_TRUSTED_ROOT ?? suite
-  const sandbox = await SandboxManager.create({
-    backend: 'vercel',
-    runtime: 'node24',
-    timeout: 1200000,
-    snapshotId: process.env.NEXT_UPGRADE_EVAL_VERIFIER_SNAPSHOT_ID,
-  })
+  let sandbox: SandboxManager | null = null
+  const cleanup: { pending: Promise<PromiseSettledResult<void>[]> | null } = {
+    pending: null,
+  }
+  const cancel = () => {
+    verifierCancelled = true
+    if (sandbox && !cleanup.pending) {
+      // Observe cleanup immediately, then report any rejection in finally.
+      cleanup.pending = Promise.allSettled([sandbox.stop()])
+    }
+  }
+  process.on('SIGINT', cancel)
+  process.on('SIGTERM', cancel)
   try {
+    sandbox = await SandboxManager.create({
+      backend: 'vercel',
+      runtime: 'node24',
+      timeout: 1200000,
+      snapshotId: process.env.NEXT_UPGRADE_EVAL_VERIFIER_SNAPSHOT_ID,
+    })
+    if (verifierCancelled) {
+      throw new Error('App verification cancelled during VM creation')
+    }
     const files = Object.entries(tree.files).map(([path, data]) => {
       if (
         path.startsWith('/') ||
@@ -150,7 +197,20 @@ export async function verifyTree(
           : 'Delivered app failed required checks',
     }
   } finally {
-    await sandbox.stop()
+    try {
+      if (!cleanup.pending && sandbox) {
+        cleanup.pending = Promise.allSettled([sandbox.stop()])
+      }
+      if (cleanup.pending) {
+        const [result] = await cleanup.pending
+        if (result.status === 'rejected') {
+          throw result.reason
+        }
+      }
+    } finally {
+      process.off('SIGINT', cancel)
+      process.off('SIGTERM', cancel)
+    }
   }
 }
 
