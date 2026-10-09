@@ -1,0 +1,11 @@
+{
+  "projects": [
+    {
+      "name": "unit",
+      "environment": "node",
+      "include": ["specs/*.ts"],
+      "setupFiles": ["setup.ts"],
+      "fileTimeout": 30000
+    }
+  ]
+}

@@ -25,6 +25,7 @@ pub struct MockFileSystem {
     pub invalidator_map: InvalidatorMap,
     pub dir_invalidator_map: InvalidatorMap,
     pub invalidation_lock: RwLock<()>,
+    pub before_invalidation: Mutex<Option<tokio::sync::oneshot::Sender<()>>>,
     pub run_counts: Mutex<FxHashMap<Arc<PathBuf>, u64>>,
     /// Tracked reads wait for a read lock on this before reading. Tests can hold the write lock to
     /// delay re-executions of invalidated reads, e.g. to simulate a filesystem change happening
@@ -51,6 +52,7 @@ impl MockFileSystem {
             invalidator_map: InvalidatorMap::new(),
             dir_invalidator_map: InvalidatorMap::new(),
             invalidation_lock: RwLock::new(()),
+            before_invalidation: Mutex::new(None),
             run_counts: Mutex::new(FxHashMap::default()),
             read_gate: RwLock::new(()),
             transient_handle: TransientInstance::new(MockFsHandle(weak.clone())),
@@ -132,6 +134,9 @@ impl DiskFileSystemWatcherApi for MockFileSystem {
     }
 
     fn invalidation_lock(&self) -> &RwLock<()> {
+        if let Some(started) = self.before_invalidation.lock().unwrap().take() {
+            let _ = started.send(());
+        }
         &self.invalidation_lock
     }
 

@@ -1,0 +1,29 @@
+{
+  "compatibility": "vitest",
+  "projects": [
+    {
+      "name": "node",
+      "environment": "node",
+      "mode": "development",
+      "include": ["cases/node-*.case.*", "cases/alias.case.ts"],
+      "testTimeout": 60000,
+      "fileTimeout": 180000
+    },
+    {
+      "name": "rsc",
+      "environment": "rsc",
+      "mode": "development",
+      "include": ["cases/rsc-*.case.*"],
+      "testTimeout": 60000,
+      "fileTimeout": 180000
+    },
+    {
+      "name": "browser",
+      "environment": "browser",
+      "mode": "development",
+      "include": ["cases/browser-*.case.*"],
+      "testTimeout": 60000,
+      "fileTimeout": 180000
+    }
+  ]
+}
