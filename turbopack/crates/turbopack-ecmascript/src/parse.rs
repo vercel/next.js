@@ -178,7 +178,7 @@ pub enum ParseResult {
 ///
 /// `original_source_maps_complete` indicates whether the `original_source_maps` cover the whole
 /// map, i.e. whether every module that ended up in `mappings` had an original sourcemap.
-#[instrument(level = "info", name = "generate source map", skip_all)]
+#[instrument(level = "trace", name = "generate source map", skip_all)]
 pub fn generate_js_source_map<'a>(
     files_map: &impl Files,
     mappings: Vec<(BytePos, LineCol)>,
@@ -283,7 +283,7 @@ pub async fn parse(
     loose_errors: bool,
     inline_helpers: bool,
 ) -> Result<Vc<ParseResult>> {
-    let span = tracing::info_span!(
+    let span = tracing::trace_span!(
         "parse ecmascript",
         name = display(source.ident().to_string().await?),
         ty = display(&ty)
