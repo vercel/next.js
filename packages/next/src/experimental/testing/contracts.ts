@@ -9,6 +9,7 @@ import type {
 } from './coverage/types'
 import type { WorkStoreContext } from '../../server/async-storage/work-store'
 import type { NextConfigComplete } from '../../server/config-shared'
+import type { SnapshotUpdate } from './assertions/snapshots'
 
 /** Requested Next compilation context, not a replacement compiler configuration. */
 export interface TestProfile {
@@ -122,6 +123,8 @@ interface CompiledTestArtifactBase<
   entryId: string
   profile: TestProfile & { environment: Environment }
   revision: string
+  /** Exact entry source bytes observed when this immutable revision was emitted. */
+  sourceHash?: string
   rootDir: string
   /** Emitted entry path relative to rootDir. */
   entryPath: string
@@ -188,6 +191,8 @@ export interface ExecuteTestOptions {
   setupFiles: string[]
   /** Explicit update for this run only. Omitted/false must never write snapshots. */
   updateSnapshots?: boolean
+  /** Parent-only staging callback; the outer resource owner authorizes commit. */
+  onSnapshotUpdates?: (file: string, updates: SnapshotUpdate[]) => Promise<void>
   testNamePattern?: string
   testTimeout: number
   hookTimeout: number

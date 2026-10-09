@@ -8,6 +8,20 @@ import config from './next.test.config.json'
 
 const original =
   '// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`selected snapshot 1`] = `"previous"`;\n\nexports[`skipped snapshot 1`] = `"preserved"`;\n\nexports[`unrelated 1`] = `"unrelated"`;\n'
+const spec = (profile: 'node' | 'rsc') => `${
+  profile === 'rsc' ? "import 'server-only'\n" : ''
+}import { expect, test } from 'vitest'
+
+test('selected snapshot', () => {
+  expect('updated').toMatchSnapshot()
+  expect({ inline: '${profile}' }).toMatchInlineSnapshot()
+  expect('raw ${profile}').toMatchFileSnapshot('./${profile}.raw.txt')
+  if (process.env.NEXT_TEST_UPDATE_FAIL === '1')
+    throw new Error('Failure after staged snapshot')
+})
+
+test.skip('skipped snapshot', () => expect('ignored').toMatchSnapshot())
+`
 
 describe('next-testing-update-cli', () => {
   const { next } = nextTestSetup({ files: __dirname, skipStart: true })
@@ -21,8 +35,13 @@ describe('next-testing-update-cli', () => {
     await mkdir(join(next.testDir, 'specs', '__snapshots__'), {
       recursive: true,
     })
-    for (const profile of ['node', 'rsc'])
+    for (const profile of ['node', 'rsc'] as const) {
+      await next.patchFile(`specs/${profile}.mjs`, spec(profile))
       await writeFile(snapshot(profile), original)
+      await rm(join(next.testDir, 'specs', `${profile}.raw.txt`), {
+        force: true,
+      })
+    }
   })
   afterEach(async () => {
     await rm(auditDir, { recursive: true, force: true })
@@ -104,6 +123,15 @@ describe('next-testing-update-cli', () => {
       expect(source).toContain('exports[`selected snapshot 1`] = `"updated"`')
       expect(source).toContain('exports[`skipped snapshot 1`] = `"preserved"`')
       expect(source).toContain('exports[`unrelated 1`] = `"unrelated"`')
+      expect(
+        await readFile(join(next.testDir, 'specs', `${profile}.mjs`), 'utf8')
+      ).toContain(`inline: "${profile}"`)
+      expect(
+        await readFile(
+          join(next.testDir, 'specs', `${profile}.raw.txt`),
+          'utf8'
+        )
+      ).toBe(`raw ${profile}`)
     }
   })
 
@@ -118,10 +146,71 @@ describe('next-testing-update-cli', () => {
       expect(result.natives.length).toBeGreaterThan(0)
       for (const name of ['node', 'rsc'])
         expect(await readFile(snapshot(name), 'utf8')).toBe(original)
+      expect(
+        await readFile(join(next.testDir, 'specs', `${profile}.mjs`), 'utf8')
+      ).toBe(spec(profile as 'node' | 'rsc'))
+      await expect(
+        readFile(join(next.testDir, 'specs', `${profile}.raw.txt`), 'utf8')
+      ).rejects.toMatchObject({ code: 'ENOENT' })
     }
   )
 
-  it('rejects mixed browser selection and incompatible switches before any snapshot changes', async () => {
+  it.each(['node', 'rsc'] as const)(
+    'updates external, inline, and raw snapshots in a production %s profile',
+    async (profile) => {
+      await next.patchFile(
+        'next.test.config.json',
+        JSON.stringify({
+          projects: [
+            {
+              name: profile,
+              environment: profile,
+              mode: 'production',
+              include: [`specs/${profile}.mjs`],
+            },
+          ],
+        })
+      )
+      const result = await run(['--run', '--update'])
+      expect(result.code).toBe(0)
+      expect(await readFile(snapshot(profile), 'utf8')).toContain('`"updated"`')
+      expect(
+        await readFile(join(next.testDir, 'specs', `${profile}.mjs`), 'utf8')
+      ).toContain(`inline: "${profile}"`)
+      expect(
+        await readFile(
+          join(next.testDir, 'specs', `${profile}.raw.txt`),
+          'utf8'
+        )
+      ).toBe(`raw ${profile}`)
+    }
+  )
+
+  it('updates browser-driver snapshots after its owned resources close', async () => {
+    await next.patchFile(
+      'next.test.config.json',
+      JSON.stringify({
+        projects: [
+          {
+            name: 'browser',
+            environment: 'browser',
+            include: ['specs/node.mjs'],
+          },
+        ],
+      })
+    )
+    const result = await run(['--run', '--update'])
+    expect(result.code).toBe(0)
+    expect(await readFile(snapshot('node'), 'utf8')).toContain('`"updated"`')
+    expect(
+      await readFile(join(next.testDir, 'specs/node.mjs'), 'utf8')
+    ).toContain('inline: "node"')
+    expect(
+      await readFile(join(next.testDir, 'specs/node.raw.txt'), 'utf8')
+    ).toBe('raw node')
+  })
+
+  it('rejects incompatible update switches before any snapshot changes', async () => {
     await next.patchFile(
       'next.test.config.json',
       JSON.stringify({
@@ -136,15 +225,12 @@ describe('next-testing-update-cli', () => {
       })
     )
     for (const args of [
-      ['--update'],
       ['--list', '--update'],
       ['--watch', '--update'],
     ]) {
       const result = await run(args)
       expect(result.code).toBe(1)
-      expect(result.output).toMatch(
-        /Browser snapshot updates|cannot be combined/
-      )
+      expect(result.output).toMatch(/cannot be combined/)
       expect(result.natives).toEqual([])
       for (const name of ['node', 'rsc'])
         expect(await readFile(snapshot(name), 'utf8')).toBe(original)

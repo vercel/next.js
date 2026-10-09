@@ -11,6 +11,6 @@ it('runs stage two API conformance against built Next in a fresh realm', async (
   ]).catch((error) => {
     throw new Error([error.message, error.stdout, error.stderr].join('\n'))
   })
-  expect(stdout).toContain('# tests 15')
+  expect(stdout).toContain('# tests 16')
   expect(stdout).toContain('# fail 0')
 }, 30000)

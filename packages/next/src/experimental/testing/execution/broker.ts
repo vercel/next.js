@@ -15,7 +15,7 @@ import type { SnapshotUpdate } from '../assertions/snapshots'
 
 type SerializableOptions = Omit<
   ExecuteTestOptions,
-  'signal' | 'onEvent' | 'onCoverage'
+  'signal' | 'onEvent' | 'onCoverage' | 'onSnapshotUpdates'
 >
 
 export type ExecutionBrokerRequest =

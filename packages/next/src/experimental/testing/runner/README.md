@@ -31,10 +31,12 @@ explicitly unsupported in this increment.
 Other modifiers/options fail explicitly, including concurrent, sequential,
 parameterized, failing, repeated, and shuffled tests; async suites; around hooks;
 and type assertions. The facade exposes D's `expect` runtime
-and `vi.fn`, `vi.spyOn`, `vi.isMockFunction`, `vi.clearAllMocks`, `vi.resetAllMocks`,
-and `vi.restoreAllMocks`. Module mocking, `expect.soft`, `expect.poll`, and custom
-snapshot serializers remain explicitly unsupported. Unsupported named exports fail
-during compilation. There is no fallback to the actual Vitest runtime.
+and the verified spy, global/environment stub, and fake-timer subset on `vi`.
+`expect.soft`, `expect.poll`, and attempt-owned custom snapshot serializers are
+supported. Polling and every runner/parent deadline retain captured real timers,
+so a case's fake clock cannot stall scheduling, cancellation, or cleanup.
+Unsupported named exports fail during compilation. There is no fallback to the
+actual Vitest runtime.
 
 The attempt context is the sole identity and resource owner for each retry. It
 provides a signal and LIFO cleanup registration, which rejects registration after
@@ -42,7 +44,13 @@ sealing. Assertion integration begins before setup, finalizes after teardown, an
 disposes before sealing. Raw failures remain local to the realm; the execution
 host serializes C-originated case callbacks through the reporting contract. The
 assertion runtime initializes before setup/spec collection and finishes during
-file disposal, including collection failures. Snapshot I/O is read-only by default. Explicit updates stage bytes only; the execution parent commits after clean worker exit and cleanup. Every unchecked snapshot is preserved, including skipped, focused-out, absent and partially exercised tests. Pruning, inline snapshots and custom snapshot environments are not public update capabilities. Spies
+file disposal, including collection failures. Snapshot I/O is read-only by default.
+Explicit external, inline, and raw updates stage a coordinated byte set only; the
+execution parent commits after clean worker exit and cleanup. Inline writes also
+require the source hash captured across compilation, so a concurrent edit refuses
+the entire plan. Every unchecked snapshot is preserved, including skipped,
+focused-out, absent and partially exercised tests. Pruning and custom snapshot
+environments are not public update capabilities. Spies
 created by an attempt are restored and calls cleared after that attempt; file and
 suite-hook spies survive across cases and are restored at file disposal. This
 does not implement Vitest's configurable mock reset defaults.
@@ -82,9 +90,10 @@ the bounded Next implementation; it does not advertise the entire Vitest API.
 | Listener context | Receives the same supported `TestContext` as the test. Full Vitest task/result introspection is not implemented. The pinned implementation passes context, despite its older documentation example destructuring `errors`. |
 | Listener registration | Registration from another finished/failed listener is rejected. Retained asynchronous scope guards remain active. Listener timeouts poison the realm and prevent retries/following execution. |
 | Assertion lifecycle | A checkpoint captures pending assertions/count errors after finished listeners, before failure listeners. Listener assertions remain active and their pending failures finalize once. This retains Next's existing after-teardown count timing; Vitest's runner checks counts before `afterEach`. Final assertion/spy disposal errors fail the attempt but do not re-enter failure listeners. |
-| Snapshot update | Explicit one-shot update or watch `u` command; child stages bytes and parent owns the final-success commit after worker cleanup and, in watch mode, generation cleanup. Failed collection, final cases, cleanup, cancellation and known late failures cannot release a write plan. Failed retries may be superseded by a successful final retry. Files with no snapshots in final selected attempts do not produce normalization writes. |
-| Snapshot retention | All unchecked keys survive. No stale-entry pruning, even for full selection. Parent validates the default path and original bytes and uses atomic replacement; concurrent edits detected before replacement reject the update. |
-| Deferred APIs | Concurrent/parameterized/failing tests, fake timers, soft/poll assertions, inline/raw snapshots, custom serializers and broad task introspection remain unsupported. Static module mocking is separately compiler-gated; an untransformed `vi.mock` remains rejected. |
+| Snapshot update | Explicit one-shot update supports route-less development/production Node, RSC, and browser profiles; watch `u` supports development Node/RSC. The child stages coordinated external, inline, and raw bytes. The parent owns final-success commit after worker cleanup and, for browser files, after browser/server disposal. Failed collection, final cases, cleanup, cancellation and known late failures cannot release a write plan. Failed retries may be superseded by a successful final retry. Files with no snapshots in final selected attempts do not produce normalization writes. |
+| Snapshot retention | All unchecked keys survive. No stale-entry pruning, even for full selection. Parent validates contained paths, the compiled inline-source hash, and every original byte before staging and again before replacement; concurrent edits reject the coordinated update. |
+| Assertion utilities | `expect.soft`, awaited `expect.poll`, attempt-owned serializers, global/environment stubs, and the documented fake-timer subset are restored at attempt disposal. Runner deadlines and polling use captured real time. |
+| Deferred APIs | Concurrent/parameterized/failing tests, broad timer compatibility, custom snapshot environments and broad task introspection remain unsupported. Static module mocking is separately compiler-gated; an untransformed `vi.mock` remains rejected. |
 
 `test/unit/next-testing-stage2-api` uses built `next/dist` modules in a fresh
 process to check these components. Actual setup compilation and the authoritative

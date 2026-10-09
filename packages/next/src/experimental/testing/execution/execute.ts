@@ -33,7 +33,8 @@ export async function executeWithEnvironment(
   ) => Promise<void>
 ): Promise<FileResult> {
   const started = performance.now()
-  const { onEvent, onCoverage, signal, ...workerOptions } = options
+  const { onEvent, onCoverage, onSnapshotUpdates, signal, ...workerOptions } =
+    options
   if (options.coverage && options.updateSnapshots) {
     throw new Error('Coverage and snapshot updates cannot run together')
   }
@@ -53,15 +54,6 @@ export async function executeWithEnvironment(
   if (options.testNamePattern !== undefined) {
     // Validate before starting a worker or evaluating application code.
     new RegExp(options.testNamePattern)
-  }
-  if (
-    options.updateSnapshots &&
-    (artifact.profile.mode !== 'development' ||
-      artifact.profile.environment === 'browser')
-  ) {
-    throw new Error(
-      'Snapshot updates require a development Node or RSC profile'
-    )
   }
   if (
     (artifact.profile.environment === 'browser') !==
@@ -189,11 +181,13 @@ export async function executeWithEnvironment(
     !signal.aborted
   ) {
     try {
-      if (deferSnapshotUpdates) {
-        await deferSnapshotUpdates(options.entry.file, snapshotUpdates)
+      const defer = deferSnapshotUpdates ?? onSnapshotUpdates
+      if (defer) {
+        await defer(options.entry.file, snapshotUpdates)
       } else {
         await commitSnapshotUpdates(options.entry.file, snapshotUpdates, {
           signal,
+          sourceHash: artifact.sourceHash,
         })
       }
     } catch (error) {

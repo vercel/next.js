@@ -4,6 +4,8 @@ export * as spies from '@vitest/spy'
 export type { Mock, MockInstance } from '@vitest/spy'
 export {
   SnapshotClient,
+  addSerializer,
+  getSerializers,
   type SnapshotStateOptions,
   type SnapshotResult,
 } from '@vitest/snapshot'
