@@ -1126,16 +1126,16 @@ export class NextInstance {
       patchedContent = content
     }
 
-    let originalPath: string | undefined
+    let backupPath: string | undefined
     if (!newFile && runWithTempContent) {
-      originalPath = `${outputPath}.${randomBytes(4).toString('hex')}.bak`
+      backupPath = `${outputPath}.${randomBytes(4).toString('hex')}.bak`
     }
 
     // Never modify files in place: pnpm installs hard links, so a patch could
     // corrupt its shared store and affect other fixtures. Keep the original
     // inode for temporary patches and write the replacement as a new file.
-    if (originalPath) {
-      renameSync(outputPath, originalPath)
+    if (backupPath) {
+      renameSync(outputPath, backupPath)
     } else if (!newFile) {
       rmSync(outputPath, { force: true })
     }
@@ -1151,8 +1151,8 @@ export class NextInstance {
     } finally {
       if (runWithTempContent) {
         rmSync(outputPath, { force: true })
-        if (originalPath) {
-          renameSync(originalPath, outputPath)
+        if (backupPath) {
+          renameSync(backupPath, outputPath)
         }
       }
     }
