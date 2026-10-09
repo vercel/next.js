@@ -3,7 +3,8 @@ name: build-and-deploy
 
 on:
   push:
-    branches: ['canary', 'releases/lts/active', 'releases/lts/maintenance']
+    branches:
+      ['canary', 'releases/lts/active', 'releases/lts/maintenance', 'next-*-*']
     # Run on release tags so publishing is driven by the tag push rather than
     # the release-commit branch push (see the deploy-target step).
     tags:
@@ -110,7 +111,8 @@ jobs:
             fi
           elif [[ ''"${GIT_REF}"'' == 'refs/heads/canary' ||
                   ''"${GIT_REF}"'' == 'refs/heads/releases/lts/active' ||
-                  ''"${GIT_REF}"'' == 'refs/heads/releases/lts/maintenance' ]]
+                  ''"${GIT_REF}"'' == 'refs/heads/releases/lts/maintenance' ||
+                  ''"${GIT_REF}"'' == refs/heads/next-*-* ]]
           then
             echo "value=staging" >> $GITHUB_OUTPUT
           elif [ '${{ github.event_name }}' == 'workflow_dispatch' ]

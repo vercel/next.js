@@ -18,13 +18,17 @@ branch.
 
 ## Inputs
 
-- Require a PR number and a target release branch:
-  `releases/lts/active` (the current major's release line) or
-  `releases/lts/maintenance` (the previous major's), depending on which
-  released line needs the fix.
+- Require a PR number and a target release branch. Almost always the target
+  is one of the LTS branches: `releases/lts/active` (the current major's
+  release line) or `releases/lts/maintenance` (the previous major's). Only in
+  exceptionally rare circumstances — a fix for an older minor line that
+  neither LTS branch supports anymore — is the target a non-LTS branch
+  (`next-<major>-<minor>`, which any maintainer can create by pushing a
+  branch from that line's last tag).
 - If the target branch is not provided and cannot be inferred confidently from
-  the user's request, ask before mutating git state.
-- Treat the target branch as variable; do not hard-code either LTS branch
+  the user's request, ask before mutating git state — and default to an LTS
+  branch unless the user explicitly names an old minor line.
+- Treat the target branch as variable; do not hard-code a specific branch
   except when the user explicitly asks for it.
 
 ## Workflow
