@@ -111,7 +111,7 @@ describe('published upgrade package', () => {
     )
   })
 
-  it('prepares a packed agent handoff with app-installed Next and the CLI-version codemod', () => {
+  it('prepares a packed agent handoff with app-installed Next and an independently resolved codemod', () => {
     mkdirSync(join(directory, 'app'))
     mkdirSync(join(directory, 'tmp'))
     const legacyApp = join(directory, 'legacy-next')
@@ -128,6 +128,7 @@ describe('published upgrade package', () => {
       `global.fetch = async (input) => {
       const url = String(input)
       if (url.includes('/security/advisories/bulk')) return Response.json({})
+      if (url === 'https://registry.npmjs.org/@next%2fcodemod/canary') return Response.json({ version: '99.0.0-canary.42' })
       if (url === 'https://registry.npmjs.org/next/latest') return Response.json({ version: '16.4.0', engines: { node: '>=20' } })
       throw new Error('Unexpected metadata request: ' + url)
     }`
@@ -166,9 +167,7 @@ describe('published upgrade package', () => {
         join(directory, 'tmp', guideDirectory, 'upgrade/different-major.md'),
         'utf8'
       )
-    ).toContain(
-      `@next/codemod@${require('../package.json').version} upgrade 16.4.0`
-    )
+    ).toContain('@next/codemod@99.0.0-canary.42 upgrade 16.4.0')
     const report = spawnSync(
       process.execPath,
       [

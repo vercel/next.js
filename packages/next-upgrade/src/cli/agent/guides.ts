@@ -5,7 +5,7 @@ import { tmpdir } from 'os'
 import { dirname, join } from 'path'
 import * as Log from '../../shared/log'
 import createSpinner from '../spinner'
-import { getNpxCommand } from '../package-runner'
+import { getNpxCommand, resolveCodemodVersion } from '../package-runner'
 import type { AgentUpgradePolicy } from '../../next/telemetry'
 import type { UpgradePreparation } from '../../shared/check-upgrade'
 import type { UpgradeDocument } from '../../shared/future-defaults'
@@ -209,10 +209,7 @@ export async function prepareUpgradeGuides({
     }
 
     if (crossesMajor) {
-      const codemodVersion = upgradeVersion
-      if (!codemodVersion) {
-        throw new Error('Could not determine the @next/codemod version.')
-      }
+      const codemodVersion = await resolveCodemodVersion()
       const codemodCommand = `${getNpxCommand(baseDir)} @next/codemod@${codemodVersion} upgrade ${result.targetVersion} --yes --skip-adoption${verbose ? ' --verbose' : ''}`
       const guide = await readFile(guidePath, 'utf8')
       if (!guide.includes(CODEMOD_COMMAND_PLACEHOLDER)) {

@@ -51,3 +51,26 @@ export function getNpxCommand(baseDir: string) {
 
   return command
 }
+
+// Codemods are versioned independently of the upgrade tool and the target app.
+export async function resolveCodemodVersion(): Promise<string> {
+  const response = await fetch(
+    'https://registry.npmjs.org/@next%2fcodemod/canary',
+    {
+      signal: AbortSignal.timeout(10_000),
+      cache: 'no-store',
+      redirect: 'error',
+    }
+  )
+  if (!response.ok) {
+    throw new Error(
+      `Could not fetch the @next/codemod canary: HTTP ${response.status}`
+    )
+  }
+  const { version } = await response.json()
+  const { valid } = await import('semver')
+  if (typeof version !== 'string' || valid(version) !== version) {
+    throw new Error('Could not determine the @next/codemod version.')
+  }
+  return version
+}

@@ -56,6 +56,8 @@ jest.mock('../next/project', () => ({
 }))
 jest.mock('./package-runner', () => ({
   getNpxCommand: () => 'npx',
+  resolveCodemodVersion: async () =>
+    (require('@next/upgrade/package.json') as { version: string }).version,
 }))
 jest.mock('../shared/picocolors', () => ({
   bold: (text: string) => text,
