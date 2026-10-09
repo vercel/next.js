@@ -443,9 +443,22 @@ export async function printTreeView(
         const totalRoutes = pageInfo.ssgPageRoutes.length
         const contSymbol = i === arr.length - 1 ? ' ' : '│'
 
-        // HERE
+        const getRouteSymbol = (route: string) =>
+          getTreeViewSymbol(route, pageInfos.get(route) ?? pageInfo)
+        const getSharedRouteSymbol = (routes: string[]) => {
+          const firstSymbol = routes[0] ? getRouteSymbol(routes[0]) : undefined
 
-        let routes: { route: string; duration: number; avgDuration?: number }[]
+          return routes.every((route) => getRouteSymbol(route) === firstSymbol)
+            ? firstSymbol
+            : undefined
+        }
+
+        let routes: {
+          route: string
+          duration: number
+          avgDuration?: number
+          symbol?: string
+        }[]
         if (pageInfo.ssgPageDurations?.some((d) => d > MIN_DURATION)) {
           const previewPages = totalRoutes === 8 ? 8 : Math.min(totalRoutes, 7)
           const routesWithDuration = pageInfo.ssgPageRoutes
@@ -472,6 +485,9 @@ export async function printTreeView(
               route: `[+${remaining} more paths]`,
               duration: 0,
               avgDuration,
+              symbol: getSharedRouteSymbol(
+                remainingRoutes.map(({ route }) => route)
+              ),
             })
           }
         } else {
@@ -481,17 +497,27 @@ export async function printTreeView(
             .map((route) => ({ route, duration: 0 }))
           if (totalRoutes > previewPages) {
             const remaining = totalRoutes - previewPages
-            routes.push({ route: `[+${remaining} more paths]`, duration: 0 })
+            routes.push({
+              route: `[+${remaining} more paths]`,
+              duration: 0,
+              symbol: getSharedRouteSymbol(
+                pageInfo.ssgPageRoutes.slice(previewPages)
+              ),
+            })
           }
         }
 
         routes.forEach(
-          ({ route, duration, avgDuration }, index, { length }) => {
+          (
+            { route, duration, avgDuration, symbol: sharedSymbol },
+            index,
+            { length }
+          ) => {
             const innerSymbol = index === length - 1 ? '└' : '├'
             // Generated child paths can have more precise metadata than the
-            // parent route pattern, so prefer the child entry when present.
-            const routePageInfo = pageInfos.get(route) ?? pageInfo
-            const routeSymbol = getTreeViewSymbol(route, routePageInfo)
+            // parent route pattern. A summary row can use that metadata only
+            // when all of the collapsed paths have the same symbol.
+            const routeSymbol = sharedSymbol ?? getRouteSymbol(route)
             usedSymbols.add(routeSymbol)
 
             const initialCacheControl =
