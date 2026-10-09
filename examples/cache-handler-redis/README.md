@@ -9,6 +9,13 @@ Both are configured in [`next.config.js`](./next.config.js), which enables `cach
 
 Check out this [repository](https://github.com/ezeparziale/nextjs-k8s) that contains a comprehensive setup for Kubernetes.
 
+## Production community handlers
+
+This example is the no-dependency starting point: both Next.js cache APIs against the `redis` client. For production features such as GET timeouts, request coalescing, in-memory tag maps, key-space notifications, and TLS, community packages include:
+
+- [`@trieb.work/nextjs-turbo-redis-cache`](https://www.npmjs.com/package/@trieb.work/nextjs-turbo-redis-cache) — also available as [`cache-handler-redis-turbo`](../cache-handler-redis-turbo)
+- [`@mrjasonroy/cache-components-cache-handler`](https://github.com/mrjasonroy/cache-components-cache-handler)
+
 ## How to use
 
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
