@@ -1081,6 +1081,10 @@ fn extract_type_from_server_reference_id(id: &str) -> ServerReferenceType {
     }
 }
 
+/// Wrap an inner chunking context and override certain behaviors for use cache content hashing.
+///
+/// Be careful when overriding anything here, to not normalize anything that might actually have a
+/// behavior effect on the use-cache return value.
 #[turbo_tasks::value]
 struct UseCacheContentHashChunkingContext {
     inner: ResolvedVc<Box<dyn ChunkingContext>>,
@@ -1148,8 +1152,14 @@ impl ChunkingContext for UseCacheContentHashChunkingContext {
     }
 
     #[turbo_tasks::function]
-    fn reference_chunk_source_maps(&self, chunk: Vc<Box<dyn OutputAsset>>) -> Vc<bool> {
-        self.inner.reference_chunk_source_maps(chunk)
+    fn reference_chunk_source_maps(
+        self: Vc<Self>,
+        _chunk: Vc<Box<dyn OutputAsset>>,
+    ) -> Result<Vc<bool>> {
+        bail!(
+            "reference_chunk_source_maps should not be called in \
+             UseCacheContentHashChunkingContext"
+        )
     }
 
     #[turbo_tasks::function]
@@ -1173,8 +1183,8 @@ impl ChunkingContext for UseCacheContentHashChunkingContext {
     }
 
     #[turbo_tasks::function]
-    fn chunking_configs(&self) -> Vc<ChunkingConfigs> {
-        self.inner.chunking_configs()
+    fn chunking_configs(self: Vc<Self>) -> Result<Vc<ChunkingConfigs>> {
+        bail!("chunking_configs should not be called in UseCacheContentHashChunkingContext")
     }
 
     #[turbo_tasks::function]
@@ -1183,51 +1193,65 @@ impl ChunkingContext for UseCacheContentHashChunkingContext {
     }
 
     #[turbo_tasks::function]
-    fn is_nested_async_availability_enabled(&self) -> Vc<bool> {
-        self.inner.is_nested_async_availability_enabled()
+    fn is_nested_async_availability_enabled(self: Vc<Self>) -> Result<Vc<bool>> {
+        bail!(
+            "is_nested_async_availability_enabled should not be called in \
+             UseCacheContentHashChunkingContext"
+        )
     }
 
     #[turbo_tasks::function]
-    fn is_module_merging_enabled(&self) -> Vc<bool> {
-        self.inner.is_module_merging_enabled()
+    fn is_module_merging_enabled(self: Vc<Self>) -> Result<Vc<bool>> {
+        bail!(
+            "is_module_merging_enabled should not be called in UseCacheContentHashChunkingContext"
+        )
     }
 
     #[turbo_tasks::function]
-    fn is_dynamic_chunk_content_loading_enabled(&self) -> Vc<bool> {
-        self.inner.is_dynamic_chunk_content_loading_enabled()
+    fn is_dynamic_chunk_content_loading_enabled(self: Vc<Self>) -> Result<Vc<bool>> {
+        bail!(
+            "is_dynamic_chunk_content_loading_enabled should not be called in \
+             UseCacheContentHashChunkingContext"
+        )
     }
 
     #[turbo_tasks::function]
     pub fn minify_type(&self) -> Vc<MinifyType> {
-        self.inner.minify_type()
+        // Intentionally override: we are not performing chunking, so minify_type is only used for
+        // generating less whitespace during AST emitting (which means less data and thus slightly
+        // faster)
+        MinifyType::default().cell()
     }
 
     #[turbo_tasks::function]
-    fn should_use_absolute_url_references(&self) -> Vc<bool> {
-        self.inner.should_use_absolute_url_references()
+    fn should_use_absolute_url_references(self: Vc<Self>) -> Result<Vc<bool>> {
+        bail!(
+            "should_use_absolute_url_references should not be called in \
+             UseCacheContentHashChunkingContext"
+        )
     }
 
     #[turbo_tasks::function]
     async fn chunk_group(
-        self: ResolvedVc<Self>,
+        self: Vc<Self>,
         _ident: Vc<AssetIdent>,
         _chunk_group: ChunkGroup,
         _module_graph: ResolvedVc<ModuleGraph>,
         _availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
-        bail!("Should never be called");
+        bail!("chunk_group should not be called in UseCacheContentHashChunkingContext");
     }
 
     #[turbo_tasks::function]
     async fn evaluated_chunk_group(
-        self: ResolvedVc<Self>,
+        self: Vc<Self>,
         _ident: Vc<AssetIdent>,
         _chunk_group: ChunkGroup,
         _module_graph: ResolvedVc<ModuleGraph>,
         _extra_chunks: Vc<OutputAssets>,
         _input_availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
-        bail!("Should never be called");
+        bail!("evaluated_chunk_group should not be called in UseCacheContentHashChunkingContext");
     }
 
     #[turbo_tasks::function]
@@ -1237,12 +1261,12 @@ impl ChunkingContext for UseCacheContentHashChunkingContext {
         _chunks: Vc<OutputAssets>,
         _source: HmrChunkListSource,
     ) -> Result<Vc<OutputAssets>> {
-        bail!("Should never be called");
+        bail!("hmr_chunk_list should not be called in UseCacheContentHashChunkingContext");
     }
 
     #[turbo_tasks::function]
     async fn entry_chunk_group(
-        self: ResolvedVc<Self>,
+        self: Vc<Self>,
         _path: FileSystemPath,
         _chunk_group: ChunkGroup,
         _module_graph: ResolvedVc<ModuleGraph>,
@@ -1250,7 +1274,7 @@ impl ChunkingContext for UseCacheContentHashChunkingContext {
         _extra_referenced_assets: Vc<OutputAssets>,
         _availability_info: AvailabilityInfo,
     ) -> Result<Vc<EntryChunkGroupResult>> {
-        bail!("Should never be called");
+        bail!("entry_chunk_group should not be called in UseCacheContentHashChunkingContext");
     }
 
     #[turbo_tasks::function]
@@ -1264,21 +1288,20 @@ impl ChunkingContext for UseCacheContentHashChunkingContext {
 
     #[turbo_tasks::function]
     async fn async_loader_chunk_item(
-        &self,
-        module: Vc<Box<dyn ChunkableModule>>,
-        module_graph: Vc<ModuleGraph>,
-        availability_info: AvailabilityInfo,
-    ) -> Vc<Box<dyn ChunkItem>> {
-        self.inner
-            .async_loader_chunk_item(module, module_graph, availability_info)
+        self: Vc<Self>,
+        _module: Vc<Box<dyn ChunkableModule>>,
+        _module_graph: Vc<ModuleGraph>,
+        _availability_info: AvailabilityInfo,
+    ) -> Result<Vc<Box<dyn ChunkItem>>> {
+        bail!("async_loader_chunk_item should not be called in UseCacheContentHashChunkingContext")
     }
 
     #[turbo_tasks::function]
     async fn standalone_chunk(
-        &self,
-        chunk_item: Vc<Box<dyn ChunkItem>>,
-    ) -> Vc<Box<dyn OutputAsset>> {
-        self.inner.standalone_chunk(chunk_item)
+        self: Vc<Self>,
+        _chunk_item: Vc<Box<dyn ChunkItem>>,
+    ) -> Result<Vc<Box<dyn OutputAsset>>> {
+        bail!("standalone_chunk should not be called in UseCacheContentHashChunkingContext")
     }
 
     #[turbo_tasks::function]
@@ -1305,8 +1328,8 @@ impl ChunkingContext for UseCacheContentHashChunkingContext {
     }
 
     #[turbo_tasks::function]
-    async fn debug_ids_enabled(&self) -> Vc<bool> {
-        self.inner.debug_ids_enabled()
+    async fn debug_ids_enabled(self: Vc<Self>) -> Result<Vc<bool>> {
+        bail!("debug_ids_enabled should not be called in UseCacheContentHashChunkingContext")
     }
 
     #[turbo_tasks::function]
