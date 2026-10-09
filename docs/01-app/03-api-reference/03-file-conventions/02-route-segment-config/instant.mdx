@@ -94,6 +94,12 @@ Setting `false` on the root layout disables static shell validation for the enti
 
 Each error identifies the component that would block navigation. The fix is usually to cache the data with `use cache` or wrap it in a `<Suspense>` boundary.
 
+## How `instant = false` affects status codes
+
+`instant = false` only changes validation. It does not disable prerendering or streaming.
+
+If a route sends a static shell before its blocking work finishes, the response starts with a `200` status. Calls to [`redirect()`](/docs/app/api-reference/functions/redirect) or [`notFound()`](/docs/app/api-reference/functions/not-found) after that point cannot change the status. To guarantee a `3xx` or `4xx` response, run the check before the page renders, such as in [Proxy](/docs/app/api-reference/file-conventions/proxy). See [The HTTP contract](/docs/app/guides/streaming#the-http-contract) for details.
+
 ## How `instant` differs from `ensureStatic`
 
 `instant` validates whether a navigation shows UI immediately. [`ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic) requires selected server-rendered output to be static instead of rendered for each request. A route can be fully static and still block a navigation, for example when a Client Component loads data in the browser.
