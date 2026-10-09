@@ -40,12 +40,29 @@ Version bumps are restricted to the release branches listed in
 `scripts/release-branches.json`: `canary` and the two long-lived LTS branches
 `releases/lts/active` (the current major's release line) and
 `releases/lts/maintenance` (the previous major's). The LTS branches are created
-manually, once, and from then on a stable release moves the refs automatically:
+manually, once, and from then on a stable release adjusts the refs
+automatically. The rules are purely version-based — it never matters which
+branch or tag the release was dispatched from:
 
-- `patch`: no ref moves — the release commit already advances the branch it was
-  cut on.
-- `minor`: the new tag is routed by its major against the latest published
-  major (the npm `latest` dist-tag) — equal moves `releases/lts/active` to the
-  tag; latest − 1 moves `releases/lts/maintenance` to the tag.
-- `major`: `releases/lts/maintenance` is moved to where `releases/lts/active`
-  pointed, and `releases/lts/active` is moved to the new tag.
+- The released version is on the latest published major (the npm `latest`
+  dist-tag) and newer than everything published in that line:
+  `releases/lts/active` moves to the new tag.
+- It is on the previous major and newer than everything published in that
+  line: `releases/lts/maintenance` moves to the new tag.
+- It starts a new major: `releases/lts/maintenance` moves to where
+  `releases/lts/active` pointed, and `releases/lts/active` moves to the new
+  tag.
+- Anything older (or a prerelease channel): no refs move. The "newer than
+  everything published in that line" check guards against rewinding a branch
+  to an older version of its line.
+
+### Irregular releases for older minor lines
+
+An older minor line (e.g. 15.4.x, once the 15.x line has moved on) has no
+branch of its own. To cut an irregular release for it, dispatch the
+`Trigger Release` workflow on the line's last tag (e.g. `v15.4.8`). The
+release is then tag-only: the new tag (e.g. `v15.4.9`) is created without
+moving the branch the release was not dispatched on, and the version-based
+rules above still apply — for an old minor line that means no LTS refs move,
+since newer versions of that major are already published. Since such a
+version is below npm `latest`, it is published under the `backport` dist-tag.

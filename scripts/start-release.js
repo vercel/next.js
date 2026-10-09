@@ -171,6 +171,17 @@ async function main() {
   // preview-bump and the revert-to-canary commits are signed on top of.
   const { stdout: baseSha } = await execa('git', ['rev-parse', 'HEAD'])
 
+  // Detached HEAD means the release was triggered on a tag -- the irregular
+  // release path for an older minor line (e.g. v15.4.x) that has no branch of
+  // its own. The version-bump branch gate is lifted; the release commit then
+  // lives only on the new tag (see createGitHubReleaseCommit).
+  const { stdout: currentRef } = await execa('git', [
+    'rev-parse',
+    '--abbrev-ref',
+    'HEAD',
+  ])
+  const isDetachedHead = currentRef.trim() === 'HEAD'
+
   // Preview cuts ad-hoc from canary use an explicit, computed version rather
   // than a semver prerelease bump (see computePreviewVersion).
   const previewVersion = isPreview
@@ -198,8 +209,8 @@ async function main() {
     versionBumpArgs.push('--preid', 'beta')
   }
 
-  if (dryRun) {
-    // So the dry-run can be exercised outside
+  if (dryRun || isDetachedHead) {
+    // So the dry-run and tag-triggered releases can be exercised outside
     // of the release branches scripts/release-branches.json restricts
     // real version bumps to.
     versionBumpArgs.push('--allow-branch', '**')
@@ -255,8 +266,6 @@ async function main() {
 
   if (releaseType === 'stable') {
     await updateLtsBranchRefs(githubToken, {
-      // Validated against SEMVER_TYPES above (stable always requires one).
-      semverType: /** @type {'patch' | 'minor' | 'major'} */ (semverType),
       tagName,
       tagSha: signedTagSha,
       githubRequest: mockRequest,
