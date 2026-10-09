@@ -1,4 +1,5 @@
 use anyhow::Result;
+use smallvec::smallvec;
 use tracing::Instrument;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{
@@ -229,11 +230,11 @@ pub async fn get_app_client_references_chunks(
                                 .clone()
                                 .with_modifier(rcstr!("ssr modules"))
                                 .into_vc(),
-                            ChunkGroup::IsolatedMerged {
+                            smallvec![ChunkGroup::IsolatedMerged {
                                 parent: parent_chunk_group,
                                 merge_tag: ecmascript_client_reference_merge_tag_ssr(),
                                 entries: ssr_modules,
-                            },
+                            }],
                             module_graph,
                             availability_info,
                         ),
@@ -268,11 +269,11 @@ pub async fn get_app_client_references_chunks(
 
                     Some(client_chunking_context.chunk_group(
                         base_ident.with_modifier(rcstr!("client modules")).into_vc(),
-                        ChunkGroup::IsolatedMerged {
+                        smallvec![ChunkGroup::IsolatedMerged {
                             parent: parent_chunk_group,
                             merge_tag: ecmascript_client_reference_merge_tag(),
                             entries: client_modules,
-                        },
+                        }],
                         module_graph,
                         availability_info,
                     ))
