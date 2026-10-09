@@ -95,6 +95,11 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
         promise,
         resolve: () => {
           resolver!.resolved = true
+          // CSS chunks have no module factories and never call registerChunk.
+          // Record them when the stylesheet is available instead.
+          if (isCss(chunkUrl)) {
+            registerLoadedChunk(chunkUrlToPath(chunkUrl))
+          }
           resolve()
         },
         reject: reject!,

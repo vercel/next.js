@@ -2153,6 +2153,8 @@ where
                         } else {
                             ResolveErrorMode::Error
                         };
+                        // Include the createWorker runtime code in the caller's graph; codegen
+                        // passes its exported function to the late worker loader.
                         let helper = if tracing_only {
                             None
                         } else {
@@ -2274,6 +2276,8 @@ where
                     } else {
                         get_traced_project_dirs().await?
                     };
+                    // Include the createWorker runtime code in the caller's graph; codegen
+                    // passes its exported function to the late worker loader.
                     let helper = if tracing_only {
                         None
                     } else {

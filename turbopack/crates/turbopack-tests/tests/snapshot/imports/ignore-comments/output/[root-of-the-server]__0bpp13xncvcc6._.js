@@ -105,7 +105,7 @@ __turbopack_context__.s([
     //     list per group. Loading the worker's own chunks last means its version
     //     wins, so a nested worker gets the correctly-pruned chunk list.
     // They travel in their own params slot — first, since they load first.
-    const preloadChunkPaths = (typeof document === 'undefined' && typeof /*TURBOPACK member replacement*/ __turbopack_context__.G === 'function' ? /*TURBOPACK member replacement*/ __turbopack_context__.G() : []).filter((chunkPath)=>!workerChunkSet.has(chunkPath));
+    const preloadChunkPaths = (typeof importScripts !== 'undefined' ? /*TURBOPACK member replacement*/ __turbopack_context__.G() : []).filter((chunkPath)=>!workerChunkSet.has(chunkPath));
     const chunkUrls = workerChunkPaths.map((chunkPath)=>/*TURBOPACK member replacement*/ __turbopack_context__.h(chunkPath, workerBasePath)).reverse();
     const preloadUrls = preloadChunkPaths.map((chunkPath)=>/*TURBOPACK member replacement*/ __turbopack_context__.h(chunkPath, workerBasePath));
     const params = [
