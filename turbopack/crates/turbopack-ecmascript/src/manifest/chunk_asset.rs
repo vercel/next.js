@@ -114,8 +114,21 @@ impl ManifestAsyncModule {
     #[turbo_tasks::function]
     async fn hmr_chunk_list(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
+        let ident = self.ident();
+        // The same import can have different chunks depending on which modules its parent
+        // already provides. Keep those chunk lists distinct without hashing their contents,
+        // so their paths remain stable when chunks are added or removed during HMR.
+        let ident = if let Some(availability_ident) = this.availability_info.ident().await? {
+            ident
+                .owned()
+                .await?
+                .with_modifier(availability_ident)
+                .into_vc()
+        } else {
+            ident
+        };
         Ok(this.chunking_context.hmr_chunk_list(
-            self.ident(),
+            ident,
             *self.chunk_group().await?.assets,
             HmrChunkListSource::Dynamic,
         ))
