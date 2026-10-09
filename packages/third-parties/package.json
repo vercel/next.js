@@ -9,11 +9,16 @@
     "./google": {
       "types": "./dist/google/index.d.ts",
       "default": "./dist/google/index.js"
+    },
+    "./meta": {
+      "types": "./dist/meta/index.d.ts",
+      "default": "./dist/meta/index.js"
     }
   },
   "files": [
     "dist",
-    "google.d.ts"
+    "google.d.ts",
+    "meta.d.ts"
   ],
   "license": "MIT",
   "scripts": {
