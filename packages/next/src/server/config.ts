@@ -1860,7 +1860,43 @@ function finalizeConfig(
       (config.outputHashSalt ?? '') + config.experimental.outputHashSalt
   }
 
+  return freezeConfigInTestMode(config)
+}
+
+/**
+ * In tests, deeply freezes the loaded config so that any later write throws
+ * where it happens instead of silently changing the config other code reads.
+ * Only plain objects and arrays are frozen: class instances (RegExp, URL, ...)
+ * are left alone because freezing breaks them, e.g. a global RegExp's
+ * `lastIndex`.
+ */
+function freezeConfigInTestMode<T>(config: T): T {
+  if (process.env.__NEXT_TEST_MODE) {
+    deepFreezePlainValues(config, new WeakSet())
+  }
   return config
+}
+
+function deepFreezePlainValues(value: unknown, seen: WeakSet<object>): void {
+  if (value === null || typeof value !== 'object' || seen.has(value)) {
+    return
+  }
+  seen.add(value)
+
+  if (!Array.isArray(value)) {
+    const proto = Object.getPrototypeOf(value)
+    if (proto !== Object.prototype && proto !== null) {
+      return
+    }
+  }
+
+  for (const key of Reflect.ownKeys(value)) {
+    const descriptor = Object.getOwnPropertyDescriptor(value, key)
+    if (descriptor && 'value' in descriptor) {
+      deepFreezePlainValues(descriptor.value, seen)
+    }
+  }
+  Object.freeze(value)
 }
 
 async function applyModifyConfig(
@@ -2046,8 +2082,8 @@ async function loadConfigImpl(
   if (process.env.__NEXT_PRIVATE_STANDALONE_CONFIG) {
     // we don't apply assignDefaults or modifyConfig here as it
     // has already been applied
-    const standaloneConfig = JSON.parse(
-      process.env.__NEXT_PRIVATE_STANDALONE_CONFIG
+    const standaloneConfig = freezeConfigInTestMode(
+      JSON.parse(process.env.__NEXT_PRIVATE_STANDALONE_CONFIG)
     )
 
     // Cache the standalone config
