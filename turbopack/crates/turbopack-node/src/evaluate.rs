@@ -26,7 +26,7 @@ use turbopack_core::{
     module::Module,
     module_graph::{
         GraphEntries, ModuleGraph,
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry, EntryHeuristics},
+        chunk_group_info::{ChunkGroupEntry, ChunkGroupKey, EntryHeuristics},
     },
     output::{OutputAsset, OutputAssets},
     reference_type::{InnerAssets, ReferenceType},
@@ -162,7 +162,7 @@ async fn emit_evaluate_pool_assets_operation(
 
     let bootstrap = chunking_context.root_entry_chunk_group_asset(
         entrypoint.clone(),
-        ChunkGroup::Entry(entries.iter().cloned().map(ResolvedVc::upcast).collect()),
+        ChunkGroupKey::Entry(entries.iter().cloned().map(ResolvedVc::upcast).collect()),
         *module_graph,
         OutputAssets::empty(),
         OutputAssets::empty(),

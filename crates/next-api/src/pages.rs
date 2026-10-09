@@ -54,7 +54,7 @@ use turbopack_core::{
     module_graph::{
         GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
         binding_usage_info::compute_binding_usage_info,
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry, EntryHeuristics},
+        chunk_group_info::{ChunkGroupEntry, ChunkGroupKey, EntryHeuristics},
     },
     output::{OptionOutputAsset, OutputAsset, OutputAssets},
     reference::all_assets_from_entries,
@@ -880,7 +880,7 @@ impl PageEndpoint {
             };
             let client_chunk_group = client_chunking_context.evaluated_chunk_group(
                 AssetIdent::from_path(this.page.await?.base_path.clone()).into_vc(),
-                ChunkGroup::Entry(evaluatable_assets),
+                ChunkGroupKey::Entry(evaluatable_assets),
                 module_graph,
                 OutputAssets::empty(),
                 availability_info,
@@ -1082,7 +1082,7 @@ impl PageEndpoint {
                     // Registered as an entry group by `layout_chunk_group_entry`.
                     let chunk_group = chunking_context.chunk_group(
                         layout.ident(),
-                        smallvec![ChunkGroup::Entry(vec![layout])],
+                        smallvec![ChunkGroupKey::Entry(vec![layout])],
                         ssr_module_graph,
                         current_chunk_group.await?.availability_info,
                     );
@@ -1102,7 +1102,7 @@ impl PageEndpoint {
             if is_edge {
                 let chunk_assets = edge_chunking_context.evaluated_chunk_group_assets(
                     ssr_module.ident(),
-                    ChunkGroup::Entry(vec![ssr_module]),
+                    ChunkGroupKey::Entry(vec![ssr_module]),
                     ssr_module_graph,
                     OutputAssets::empty(),
                     current_chunk_group.await?.availability_info,
@@ -1131,7 +1131,7 @@ impl PageEndpoint {
                 let ssr_entry_chunk = node_chunking_context
                     .entry_chunk_group_asset(
                         ssr_entry_chunk_path,
-                        ChunkGroup::Entry(vec![ssr_module]),
+                        ChunkGroupKey::Entry(vec![ssr_module]),
                         ssr_module_graph,
                         current_chunk_group.primary_assets(),
                         current_chunk_group.referenced_assets(),
@@ -1704,7 +1704,7 @@ pub struct InternalSsrChunkModule {
 /// A layout is an entry group of its own, like the standalone `/_document` and `/_app`
 /// endpoints register their module, so the graph never has to choose between a shared and an
 /// entry group for the same module and `internal_ssr_chunk` can always chunk it as
-/// `ChunkGroup::Entry(vec![layout])`. Default heuristics keep a page's clusters off the layout
+/// `ChunkGroupKey::Entry(vec![layout])`. Default heuristics keep a page's clusters off the layout
 /// groups shared between pages.
 fn layout_chunk_group_entry(layout: ResolvedVc<Box<dyn Module>>) -> ChunkGroupEntry {
     ChunkGroupEntry::Entry {

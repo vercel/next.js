@@ -203,6 +203,17 @@ impl ChunkGroupInfo {
     }
 }
 
+impl ChunkGroupInfo {
+    /// Returns the registered chunk group identified by `key`.
+    ///
+    /// Chunking takes a [`ChunkGroupKey`] and resolves the group here, so a group's contents (e.g.
+    /// the entries of a merged group) always come from the module graph rather than the caller.
+    pub async fn get_chunk_group(self: Vc<Self>, key: ChunkGroupKey) -> Result<ChunkGroup> {
+        let index = *self.get_index_of(key).await?;
+        Ok(self.await?.chunk_groups[index].clone())
+    }
+}
+
 /// Per-entry chunking heuristics.
 #[turbo_tasks::task_input]
 #[derive(Debug, Default, Clone, Hash, PartialEq, Eq, Encode, Decode)]
