@@ -23,6 +23,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  COREPACK_VERSION: 0.34.7
   NAPI_CLI_VERSION: 3.7.2
   TURBO_VERSION: 2.11.7
   # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
@@ -64,7 +65,7 @@ jobs:
           package-manager-cache: false
       - name: Setup corepack
         run: |
-          npm i -g corepack@0.31
+          npm i -g "corepack@${COREPACK_VERSION}"
           corepack enable
       - name: Determine deploy target
         # 'force-preview' performs a full preview build but only if acknowledged i.e. workflow_dispatch
@@ -160,7 +161,7 @@ jobs:
           package-manager-cache: false
       - name: Setup corepack
         run: |
-          npm i -g corepack@0.31
+          npm i -g "corepack@${COREPACK_VERSION}"
           corepack enable
 
       - id: get-store-path
@@ -293,7 +294,7 @@ jobs:
 
       - name: Prepare corepack
         if: ${{ matrix.os != 'windows' }}
-        run: npm i -g corepack@0.31
+        run: npm i -g "corepack@${COREPACK_VERSION}"
 
       - name: Setup corepack
         run: corepack enable
@@ -586,7 +587,7 @@ jobs:
           package-manager-cache: false
       - name: Setup corepack
         run: |
-          npm i -g corepack@0.31
+          npm i -g "corepack@${COREPACK_VERSION}"
           corepack enable
 
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -641,7 +642,7 @@ jobs:
           package-manager-cache: false
       - name: Setup corepack
         run: |
-          npm i -g corepack@0.31
+          npm i -g "corepack@${COREPACK_VERSION}"
           corepack enable
 
       # https://github.com/actions/virtual-environments/issues/1187

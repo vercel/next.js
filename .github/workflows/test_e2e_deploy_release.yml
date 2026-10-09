@@ -80,7 +80,7 @@ jobs:
 
       - name: Setup pnpm
         run: |
-          npm i -g corepack@0.31
+          npm i -g corepack@0.34.7
           corepack enable
 
       - id: nextPackageInfo

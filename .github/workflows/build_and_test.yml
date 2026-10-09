@@ -17,6 +17,7 @@ concurrency:
 # of that workflow. Environment variables are not automatically passed to
 # reusable workflows.
 env:
+  COREPACK_VERSION: 0.34.7
   NODE_MAINTENANCE_VERSION: 20
   NODE_LTS_VERSION: 22
 
@@ -187,7 +188,7 @@ jobs:
 
       - name: Setup pnpm
         run: |
-          npm i -g corepack@0.31
+          npm i -g "corepack@${COREPACK_VERSION}"
           corepack enable
 
       - name: Checkout
@@ -277,7 +278,7 @@ jobs:
           package-manager-cache: false
       - name: Setup corepack
         run: |
-          npm i -g corepack@0.31
+          npm i -g "corepack@${COREPACK_VERSION}"
           corepack enable
       - name: 'Run link checker'
         run: node ./.github/actions/validate-docs-links/dist/index.js
