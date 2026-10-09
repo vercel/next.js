@@ -607,7 +607,16 @@ function makeHangingPromiseWithError<T>(
   error: Error
 ): Promise<T> {
   if (signal.aborted) {
-    return Promise.reject(error)
+    // Same as below: we are fine if no one actually awaits this promise, so we
+    // attach a noop catch handler to suppress the unhandled rejection. This
+    // promise is created already rejected, so unlike the branch below we cannot
+    // rely on the unhandled rejection filter to suppress it later: that filter
+    // reads the AsyncLocalStorage store inside the unhandledRejection handler,
+    // and not every runtime restores the store there (Bun reports a null store),
+    // which would turn this into a spurious prerender error.
+    const rejectedPromise = Promise.reject(error)
+    rejectedPromise.catch(ignoreReject)
+    return rejectedPromise
   } else {
     const hangingPromise = new Promise<T>((_, reject) => {
       const boundRejection = reject.bind(null, error)
