@@ -57,7 +57,6 @@ for (const file of ['mock-js.case.js', 'mock-ts.case.ts'])
 const sentinels = [
   'unexpected-failure-body',
   'unexpected-scope-body',
-  'unexpected-setup',
   'unexpected-nonliteral-body',
 ]
 for (const file of sentinels) assert(!existsSync(join(consumer, file)))
@@ -188,17 +187,14 @@ assert.match(
   readFileSync(join(output, 'failure.log'), 'utf8'),
   /failure\.case\.js:\d+/
 )
-await run('setup-scope', 1, {
-  compilationMessage:
-    'Static module mocks with setup files are not supported yet',
-})
+await run('setup-scope', 0, /setup observes the original graph/, 1)
 await run('rsc-scope', 1, {
   compilationMessage:
     'Static module mocks currently support Node test entries only',
 })
 await run('nonliteral', 1, {
   compilationMessage:
-    'vi.mock target must be a string literal (nonliteral.case.js).',
+    'vi.mock target must be a string literal or literal import() (nonliteral.case.js).',
 })
 await run('after-failures', 0, /unmocked JS file observes original exports/, 1)
 writeFileSync(

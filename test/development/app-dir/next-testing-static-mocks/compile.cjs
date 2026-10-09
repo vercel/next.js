@@ -16,6 +16,8 @@ async function main() {
   const records = []
   try {
     for (const file of process.argv.slice(2)) {
+      const setupFiles =
+        file === 'setup-mock.js' ? [join(process.cwd(), 'setup.js')] : []
       const entry = {
         id: file,
         file: join(process.cwd(), 'specs', file),
@@ -24,10 +26,9 @@ async function main() {
       try {
         const artifact = await compiler.compile(entry, {
           signal: new AbortController().signal,
-          setupFiles:
-            file === 'setup-mock.js' ? [join(process.cwd(), 'setup.js')] : [],
+          setupFiles,
         })
-        records.push({ file, entry, artifact })
+        records.push({ file, entry, artifact, setupFiles })
       } catch (error) {
         records.push({
           file,
@@ -44,7 +45,7 @@ async function main() {
         runId: 'static-mocks',
         projectDir: process.cwd(),
         entry: record.entry,
-        setupFiles: [],
+        setupFiles: record.setupFiles,
         testTimeout: 10000,
         hookTimeout: 10000,
         fileTimeout: 30000,
