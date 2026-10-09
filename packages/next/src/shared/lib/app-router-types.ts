@@ -574,14 +574,6 @@ type NavigationFlightResponseBase = {
    */
   u?: Promise<boolean>
   /**
-   * shellUsedSessionData — present only in runtime-shell prefetch
-   * responses: true if resolving session data unblocked new content in the
-   * shell. Only meaningful where there's a proper session shell.
-   * Promise-encoded so the answer rewinds with a truncated decode.
-   * Currently has no client consumer; emitted for forward compatibility.
-   */
-  w?: Promise<boolean>
-  /**
    * isUpgradeableISRFallback — present (true) iff this is a per-segment
    * prefetch response generated from a fallback shell render (i.e. the page
    * had not yet been prerendered with concrete params, so it was rendered
