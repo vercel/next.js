@@ -1225,7 +1225,9 @@ impl<'a> TaskGuard<'a> {
     #[inline]
     pub fn assert_not_deleted(&self, operation: &str) {
         debug_assert!(
-            !self.deleted(),
+            // Small hack to work around check_access. Technically a 'deleted' flag is never
+            // persisted so it cannot be recovered either.
+            !self.task.flags.deleted(),
             "{operation} on GC-deleted task {} — a resurrection path was missed",
             self.id()
         );
