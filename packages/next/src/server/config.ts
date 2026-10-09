@@ -368,6 +368,10 @@ function assignDefaultsAndValidate(
     delete (userConfig as any).exportTrailingSlash
   }
 
+  // Normalization below writes into nested objects such as `images`. Merge from
+  // a copy so those writes never reach the shared module-level defaults.
+  const defaults = cloneObject(defaultConfig) as typeof defaultConfig
+
   const config = Object.keys(userConfig).reduce<{ [key: string]: any }>(
     (currentConfig, key) => {
       const value = (userConfig as any)[key]
@@ -422,7 +426,7 @@ function assignDefaultsAndValidate(
         })
       }
 
-      const defaultValue = (defaultConfig as Record<string, unknown>)[key]
+      const defaultValue = (defaults as Record<string, unknown>)[key]
 
       if (
         !!value &&
@@ -449,10 +453,10 @@ function assignDefaultsAndValidate(
   ) as NextConfig & { configFileName: string }
 
   const result = {
-    ...defaultConfig,
+    ...defaults,
     ...config,
     experimental: {
-      ...defaultConfig.experimental,
+      ...defaults.experimental,
       ...config.experimental,
     },
   }
@@ -1877,11 +1881,15 @@ async function applyModifyConfig(
         Log.info(`Applying modifyConfig from ${adapterMod.name}`)
       }
 
-      config = await adapterMod.modifyConfig(config, {
-        phase,
-        nextVersion: process.env.__NEXT_VERSION as string,
-        projectDir: dir,
-      })
+      // Copy the result so finalizeConfig never writes into objects the
+      // adapter still holds a reference to.
+      config = cloneObject(
+        await adapterMod.modifyConfig(config, {
+          phase,
+          nextVersion: process.env.__NEXT_VERSION as string,
+          projectDir: dir,
+        })
+      )
     }
   }
   return config
@@ -2076,7 +2084,8 @@ async function loadConfigImpl(
           {
             configOrigin: 'server',
             configFileName,
-            ...customConfig,
+            // Copy so normalization never writes into the caller's objects.
+            ...cloneObject(customConfig),
           },
           silent,
           phase
