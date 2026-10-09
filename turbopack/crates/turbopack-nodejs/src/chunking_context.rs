@@ -13,8 +13,7 @@ use turbopack_core::{
         AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkItemOrBatchWithAsyncModuleInfo,
         ChunkItemWithAsyncModuleInfo, ChunkType, ChunkableModule, ChunkingConfig, ChunkingConfigs,
         ChunkingContext, ContentHashing, EntryChunkGroupResult, EvaluatableAsset, MinifyType,
-        SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
-        WorkerConfigurationOptions,
+        SourceMapSourceType, UnusedReferences, UrlBehavior, WorkerConfigurationOptions,
         availability_info::AvailabilityInfo,
         chunk_group::{MakeChunkGroupResult, make_chunk_group},
         chunk_id_strategy::ModuleIdStrategy,
@@ -28,6 +27,7 @@ use turbopack_core::{
         chunk_group_info::ChunkGroup,
     },
     output::{OutputAsset, OutputAssets},
+    source_map::{OptionSourceMapType, SourceMapGeneration, SourceMapType},
 };
 use turbopack_ecmascript::{
     async_chunk::module::AsyncLoaderModule,
@@ -82,8 +82,15 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
-    pub fn source_maps(mut self, source_maps: SourceMapsType) -> Self {
-        self.chunking_context.source_maps_type = source_maps;
+    /// Retains these maps in addition to the emitted map, regardless of setter order.
+    pub fn source_map_generation(mut self, generation: SourceMapGeneration) -> Self {
+        self.chunking_context.source_map_generation = generation;
+        self
+    }
+
+    /// Selects the emitted map without replacing explicitly requested internal maps.
+    pub fn source_maps(mut self, source_maps: Option<SourceMapType>) -> Self {
+        self.chunking_context.emitted_source_map_ty = source_maps;
         self
     }
 
@@ -181,7 +188,11 @@ impl NodeJsChunkingContextBuilder {
     }
 
     /// Builds the chunking context.
-    pub fn build(self) -> Vc<NodeJsChunkingContext> {
+    pub fn build(mut self) -> Vc<NodeJsChunkingContext> {
+        let emitted =
+            SourceMapGeneration::from_emitted(self.chunking_context.emitted_source_map_ty);
+        self.chunking_context.source_map_generation.full |= emitted.full;
+        self.chunking_context.source_map_generation.partial |= emitted.partial;
         NodeJsChunkingContext::cell(self.chunking_context)
     }
 }
@@ -231,7 +242,8 @@ pub struct NodeJsChunkingContext {
     /// Whether to minify resulting chunks
     minify_type: MinifyType,
     /// Whether to generate source maps
-    source_maps_type: SourceMapsType,
+    emitted_source_map_ty: Option<SourceMapType>,
+    source_map_generation: SourceMapGeneration,
     /// Whether to use manifest chunks for lazy compilation
     manifest_chunks: bool,
     /// The strategy to use for generating module ids
@@ -289,7 +301,8 @@ impl NodeJsChunkingContext {
                 environment,
                 runtime_type,
                 minify_type: MinifyType::NoMinify,
-                source_maps_type: SourceMapsType::Full,
+                emitted_source_map_ty: Some(SourceMapType::Full),
+                source_map_generation: SourceMapGeneration::NONE,
                 manifest_chunks: false,
                 source_map_source_type: SourceMapSourceType::TurbopackUri,
                 module_id_strategy: None,
@@ -394,6 +407,15 @@ impl NodeJsChunkingContext {
 #[turbo_tasks::value_impl]
 impl ChunkingContext for NodeJsChunkingContext {
     #[turbo_tasks::function]
+    fn source_map_generation(&self) -> Vc<SourceMapGeneration> {
+        self.source_map_generation.cell()
+    }
+    #[turbo_tasks::function]
+    fn emitted_source_map_type(&self) -> Vc<OptionSourceMapType> {
+        Vc::cell(self.emitted_source_map_ty)
+    }
+
+    #[turbo_tasks::function]
     fn name(&self) -> Vc<RcStr> {
         Vc::cell(rcstr!("unknown"))
     }
@@ -489,20 +511,7 @@ impl ChunkingContext for NodeJsChunkingContext {
 
     #[turbo_tasks::function]
     fn reference_chunk_source_maps(&self, _chunk: Vc<Box<dyn OutputAsset>>) -> Vc<bool> {
-        Vc::cell(match self.source_maps_type {
-            SourceMapsType::Full => true,
-            SourceMapsType::Partial => true,
-            SourceMapsType::None => false,
-        })
-    }
-
-    #[turbo_tasks::function]
-    fn reference_module_source_maps(&self, _module: Vc<Box<dyn Module>>) -> Vc<bool> {
-        Vc::cell(match self.source_maps_type {
-            SourceMapsType::Full => true,
-            SourceMapsType::Partial => true,
-            SourceMapsType::None => false,
-        })
+        Vc::cell(self.emitted_source_map_ty.is_some())
     }
 
     #[turbo_tasks::function]

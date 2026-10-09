@@ -7,8 +7,7 @@ use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
     chunk::{
         AssetSuffix, ChunkingConfig, ChunkingContext, CrossOrigin, MangleType, MinifyType,
-        SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
-        chunk_id_strategy::ModuleIdStrategy,
+        SourceMapSourceType, UnusedReferences, UrlBehavior, chunk_id_strategy::ModuleIdStrategy,
     },
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences},
     environment::{EdgeWorkerEnvironment, Environment, ExecutionEnvironment, NodeJsVersion},
@@ -17,6 +16,7 @@ use turbopack_core::{
     module_graph::{
         binding_usage_info::OptionBindingUsageInfo, style_groups::StyleGroupsAlgorithm,
     },
+    source_map::{OptionSourceMapType, SourceMapGeneration},
 };
 use turbopack_css::chunk::CssChunkType;
 use turbopack_ecmascript::chunk::EcmascriptChunkType;
@@ -182,7 +182,8 @@ pub struct EdgeChunkingContextOptions {
     pub export_usage: Vc<OptionBindingUsageInfo>,
     pub unused_references: Vc<UnusedReferences>,
     pub turbo_minify: Vc<bool>,
-    pub turbo_source_maps: Vc<SourceMapsType>,
+    pub turbo_source_maps: Vc<OptionSourceMapType>,
+    pub source_map_generation: Vc<SourceMapGeneration>,
     pub no_mangling: Vc<bool>,
     pub scope_hoisting: Vc<bool>,
     pub nested_async_chunking: Vc<bool>,
@@ -211,6 +212,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
         unused_references,
         turbo_minify,
         turbo_source_maps,
+        source_map_generation,
         no_mangling,
         scope_hoisting,
         nested_async_chunking,
@@ -251,6 +253,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
         MinifyType::NoMinify
     })
     .source_maps(*turbo_source_maps.await?)
+    .source_map_generation(*source_map_generation.await?)
     // The edge server runtime is browser-like, so it uses a `BrowserChunkingContext` whose default
     // source map source type is `TurbopackUri` (sources left as `turbopack:///[project]/...`).
     // Match the Node.js server context instead so server stack traces get real file paths:
@@ -307,6 +310,7 @@ pub async fn get_edge_chunking_context(
         unused_references,
         turbo_minify,
         turbo_source_maps,
+        source_map_generation,
         no_mangling,
         scope_hoisting,
         nested_async_chunking,
@@ -364,6 +368,7 @@ pub async fn get_edge_chunking_context(
         MinifyType::NoMinify
     })
     .source_maps(*turbo_source_maps.await?)
+    .source_map_generation(*source_map_generation.await?)
     // The edge server runtime is browser-like, so it uses a `BrowserChunkingContext` whose default
     // source map source type is `TurbopackUri` (sources left as `turbopack:///[project]/...`).
     // Match the Node.js server context instead so server stack traces get real file paths:

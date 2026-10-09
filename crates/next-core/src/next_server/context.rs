@@ -15,8 +15,8 @@ use turbopack::{
 };
 use turbopack_core::{
     chunk::{
-        AssetSuffix, ChunkingConfig, MangleType, MinifyType, SourceMapSourceType, SourceMapsType,
-        UnusedReferences, UrlBehavior, chunk_id_strategy::ModuleIdStrategy,
+        AssetSuffix, ChunkingConfig, MangleType, MinifyType, SourceMapSourceType, UnusedReferences,
+        UrlBehavior, chunk_id_strategy::ModuleIdStrategy,
     },
     compile_time_defines,
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReferences},
@@ -25,6 +25,7 @@ use turbopack_core::{
     module_graph::{
         binding_usage_info::OptionBindingUsageInfo, style_groups::StyleGroupsAlgorithm,
     },
+    source_map::{OptionSourceMapType, SourceMapGeneration},
     target::CompileTarget,
 };
 use turbopack_css::chunk::CssChunkType;
@@ -392,6 +393,7 @@ pub async fn get_server_module_options_context(
     environment: ResolvedVc<Environment>,
     client_environment: ResolvedVc<Environment>,
     enable_tracing: bool,
+    source_map_generation: Vc<SourceMapGeneration>,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let next_mode = mode.await?;
     let mut next_server_rules = get_next_server_transforms_rules(
@@ -536,7 +538,7 @@ pub async fn get_server_module_options_context(
     .flatten()
     .collect();
 
-    let source_maps = *next_config.server_source_maps().await?;
+    let source_maps = *source_map_generation.await?;
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
             enable_typeof_window_inlining: Some(TypeofWindow::Undefined),
@@ -1024,7 +1026,8 @@ pub struct ServerChunkingContextOptions {
     pub export_usage: Vc<OptionBindingUsageInfo>,
     pub unused_references: Vc<UnusedReferences>,
     pub minify: Vc<bool>,
-    pub source_maps: Vc<SourceMapsType>,
+    pub source_maps: Vc<OptionSourceMapType>,
+    pub source_map_generation: Vc<SourceMapGeneration>,
     pub no_mangling: Vc<bool>,
     pub scope_hoisting: Vc<bool>,
     pub nested_async_chunking: Vc<bool>,
@@ -1055,6 +1058,7 @@ pub async fn get_server_chunking_context_with_client_assets(
         unused_references,
         minify,
         source_maps,
+        source_map_generation,
         no_mangling,
         scope_hoisting,
         nested_async_chunking,
@@ -1107,6 +1111,7 @@ pub async fn get_server_chunking_context_with_client_assets(
         MinifyType::NoMinify
     })
     .source_maps(*source_maps.await?)
+    .source_map_generation(*source_map_generation.await?)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
     .unused_references(unused_references.to_resolved().await?)
@@ -1167,6 +1172,7 @@ pub async fn get_server_chunking_context(
         unused_references,
         minify,
         source_maps,
+        source_map_generation,
         no_mangling,
         scope_hoisting,
         nested_async_chunking,
@@ -1223,6 +1229,7 @@ pub async fn get_server_chunking_context(
         MinifyType::NoMinify
     })
     .source_maps(*source_maps.await?)
+    .source_map_generation(*source_map_generation.await?)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
     .unused_references(unused_references.to_resolved().await?)

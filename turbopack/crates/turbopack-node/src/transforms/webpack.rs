@@ -48,7 +48,7 @@ use turbopack_core::{
         resolve,
     },
     source::Source,
-    source_map::{GenerateSourceMap, utils::resolve_source_map_sources},
+    source_map::{GenerateSourceMap, SourceMapType, utils::resolve_source_map_sources},
     source_transform::SourceTransform,
     virtual_source::VirtualSource,
 };
@@ -207,7 +207,10 @@ impl Asset for WebpackLoadersProcessedAsset {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for WebpackLoadersProcessedAsset {
     #[turbo_tasks::function]
-    async fn generate_source_map(self: Vc<Self>) -> Result<Vc<FileContent>> {
+    async fn generate_source_map(
+        self: Vc<Self>,
+        _ty: Vc<SourceMapType>,
+    ) -> Result<Vc<FileContent>> {
         Ok(*self.process().await?.source_map)
     }
 }

@@ -31,7 +31,7 @@ use crate::{
     generated_code_source::GeneratedCodeSource,
     ident::{AssetIdent, Layer},
     source::Source,
-    source_map::{GenerateSourceMap, SourceMap, TokenWithSource},
+    source_map::{GenerateSourceMap, SourceMap, SourceMapType, TokenWithSource},
     source_pos::SourcePos,
 };
 
@@ -663,7 +663,7 @@ async fn source_pos(
         return Ok(None);
     };
 
-    let srcmap = generator.generate_source_map();
+    let srcmap = generator.generate_source_map(SourceMapType::Full.cell());
     let Some(srcmap) = &*SourceMap::new_from_rope_cached(srcmap).await? else {
         return Ok(None);
     };

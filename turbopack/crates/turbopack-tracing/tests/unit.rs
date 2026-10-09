@@ -26,7 +26,6 @@ use turbopack::{
     },
 };
 use turbopack_core::{
-    chunk::SourceMapsType,
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
@@ -36,6 +35,7 @@ use turbopack_core::{
     reference::referenced_modules_and_affecting_sources,
     reference_type::ReferenceType,
     resolve::options::{ConditionValue, ImportMap, ImportMapping},
+    source_map::SourceMapGeneration,
 };
 use turbopack_ecmascript::AnalyzeMode;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
@@ -302,7 +302,7 @@ async fn node_file_trace_operation(
                 ..Default::default()
             },
             css: CssOptionsContext {
-                source_maps: SourceMapsType::None,
+                source_maps: SourceMapGeneration::NONE,
                 enable_raw_css: true,
                 ..Default::default()
             },

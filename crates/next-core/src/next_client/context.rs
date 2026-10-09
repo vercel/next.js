@@ -15,7 +15,7 @@ use turbopack_browser::{
 use turbopack_core::{
     chunk::{
         AssetSuffix, ChunkLoadRetry, ChunkingConfig, ChunkingContext, ContentHashing, CrossOrigin,
-        MangleType, MinifyType, SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
+        MangleType, MinifyType, SourceMapSourceType, UnusedReferences, UrlBehavior,
         chunk_id_strategy::ModuleIdStrategy,
     },
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences},
@@ -26,6 +26,7 @@ use turbopack_core::{
         binding_usage_info::OptionBindingUsageInfo, style_groups::StyleGroupsAlgorithm,
     },
     resolve::{parse::Request, pattern::Pattern},
+    source_map::{OptionSourceMapType, SourceMapGeneration},
 };
 use turbopack_css::chunk::CssChunkType;
 use turbopack_ecmascript::{
@@ -231,6 +232,7 @@ pub async fn get_client_module_options_context(
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     encryption_key: ResolvedVc<RcStr>,
+    source_map_generation: Vc<SourceMapGeneration>,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let next_mode = mode.await?;
     let resolve_options_context = get_client_resolve_options_context(
@@ -336,7 +338,7 @@ pub async fn get_client_module_options_context(
     let enable_postcss_transform = Some(postcss_transform_options.resolved_cell());
     let enable_foreign_postcss_transform = Some(postcss_foreign_transform_options.resolved_cell());
 
-    let source_maps = *next_config.client_source_maps(mode).await?;
+    let source_maps = *source_map_generation.await?;
 
     let preset_env_config = (*next_config.experimental_swc_env_options().await?)
         .as_ref()
@@ -491,7 +493,8 @@ pub struct ClientChunkingContextOptions {
     pub export_usage: Vc<OptionBindingUsageInfo>,
     pub unused_references: Vc<UnusedReferences>,
     pub minify: Vc<bool>,
-    pub source_maps: Vc<SourceMapsType>,
+    pub source_maps: Vc<OptionSourceMapType>,
+    pub source_map_generation: Vc<SourceMapGeneration>,
     pub no_mangling: Vc<bool>,
     pub scope_hoisting: Vc<bool>,
     pub nested_async_chunking: Vc<bool>,
@@ -542,6 +545,7 @@ pub async fn get_client_chunking_context(
         unused_references,
         minify,
         source_maps,
+        source_map_generation,
         no_mangling,
         scope_hoisting,
         nested_async_chunking,
@@ -595,6 +599,7 @@ pub async fn get_client_chunking_context(
         MinifyType::NoMinify
     })
     .source_maps(*source_maps.await?)
+    .source_map_generation(*source_map_generation.await?)
     .asset_base_path(Some(asset_prefix))
     .current_chunk_method(CurrentChunkMethod::DocumentCurrentScript)
     .cross_origin(cross_origin_loading)
@@ -671,7 +676,8 @@ pub struct ServiceWorkerChunkingContextOptions {
     pub output_root_to_root_path: RcStr,
     pub environment: Vc<Environment>,
     pub minify: Vc<bool>,
-    pub source_maps: Vc<SourceMapsType>,
+    pub source_maps: Vc<OptionSourceMapType>,
+    pub source_map_generation: Vc<SourceMapGeneration>,
     pub no_mangling: Vc<bool>,
     pub hash_salt: ResolvedVc<RcStr>,
 }
@@ -688,6 +694,7 @@ pub async fn get_service_worker_chunking_context(
         environment,
         minify,
         source_maps,
+        source_map_generation,
         no_mangling,
         hash_salt,
     } = options;
@@ -713,6 +720,7 @@ pub async fn get_service_worker_chunking_context(
         MinifyType::NoMinify
     })
     .source_maps(*source_maps.await?)
+    .source_map_generation(*source_map_generation.await?)
     .hash_salt(hash_salt)
     .single_chunk()
     .await?;

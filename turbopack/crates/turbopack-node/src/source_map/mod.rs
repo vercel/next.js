@@ -16,7 +16,7 @@ use turbo_tasks_fs::{
 use turbopack_cli_utils::source_context::format_source_context_lines;
 use turbopack_core::{
     PROJECT_FILESYSTEM_NAME_STR, SOURCE_URL_PROTOCOL_STR,
-    source_map::{GenerateSourceMap, SourceMap},
+    source_map::{GenerateSourceMap, SourceMap, SourceMapType},
 };
 use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 
@@ -227,7 +227,7 @@ async fn resolve_source_mapping(
     let Some(generate_source_map) = map.get(file.as_ref()) else {
         return Ok(ResolvedSourceMapping::NoSourceMap);
     };
-    let sm = generate_source_map.generate_source_map();
+    let sm = generate_source_map.generate_source_map(SourceMapType::Full.cell());
     let Some(sm) = &*SourceMap::new_from_rope_cached(sm).await? else {
         return Ok(ResolvedSourceMapping::NoSourceMap);
     };

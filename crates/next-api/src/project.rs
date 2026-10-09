@@ -89,6 +89,7 @@ use turbopack_core::{
     reference::all_assets_from_entries,
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{FindContextFileResult, find_context_file},
+    source_map::{SourceMapGeneration, SourceMapType},
     version::{
         NotFoundVersion, OptionVersionedContent, Update, Version, VersionState, VersionedContent,
     },
@@ -360,6 +361,9 @@ pub struct ProjectOptions {
 
     /// Whether server-side HMR is enabled (disabled with `--no-server-fast-refresh`).
     pub server_hmr: bool,
+
+    /// Retains partial source maps for analysis without changing emitted source maps.
+    pub analyze: bool,
 }
 
 /// The subset of [`ProjectOptions`] that may change without restarting the process. Used by
@@ -912,6 +916,7 @@ impl ProjectContainer {
         let deferred_entries;
         let is_persistent_caching_enabled;
         let server_hmr;
+        let analyze;
         let project_file_system;
         let output_file_system;
         let additional_roots;
@@ -947,6 +952,7 @@ impl ProjectContainer {
             deferred_entries = options.deferred_entries.clone().unwrap_or_default();
             is_persistent_caching_enabled = options.is_persistent_caching_enabled;
             server_hmr = options.server_hmr;
+            analyze = options.analyze;
             project_file_system = file_systems.project_file_system;
             output_file_system = file_systems.output_file_system;
             additional_roots = self.additional_roots_state.get().iter().cloned().collect();
@@ -981,6 +987,7 @@ impl ProjectContainer {
             deferred_entries,
             is_persistent_caching_enabled,
             server_hmr,
+            analyze,
             project_file_system,
             output_file_system,
             additional_roots,
@@ -1003,15 +1010,23 @@ impl ProjectContainer {
     /// Gets a source map for a particular `file_path`. If `dev` mode is disabled, this will always
     /// return [`FileContent::NotFound`].
     #[turbo_tasks::function]
-    pub fn get_source_map(
-        &self,
+    pub async fn get_source_map(
+        self: Vc<Self>,
         file_path: FileSystemPath,
         section: Option<RcStr>,
-    ) -> Vc<FileContent> {
-        if let Some(map) = self.versioned_content_map {
-            map.get_source_map(file_path, section)
+    ) -> Result<Vc<FileContent>> {
+        if let Some(map) = self.await?.versioned_content_map {
+            let project = self.project();
+            let ty = if project.client_source_map_generation().await?.full
+                || project.server_source_map_generation().await?.full
+            {
+                SourceMapType::Full
+            } else {
+                SourceMapType::Partial
+            };
+            Ok(map.get_source_map(file_path, section, ty.cell()))
         } else {
-            FileContent::NotFound.cell()
+            Ok(FileContent::NotFound.cell())
         }
     }
 }
@@ -1087,6 +1102,7 @@ pub struct Project {
 
     /// Whether server-side HMR is enabled (disabled with --no-server-fast-refresh).
     server_hmr: bool,
+    analyze: bool,
 
     project_file_system: OperationVc<DiskFileSystem>,
     output_file_system: OperationVc<DiskFileSystem>,
@@ -1330,6 +1346,23 @@ impl Project {
     #[turbo_tasks::function]
     pub(super) fn no_mangling(&self) -> Vc<bool> {
         Vc::cell(self.no_mangling)
+    }
+
+    #[turbo_tasks::function]
+    pub(super) async fn client_source_map_generation(&self) -> Result<Vc<SourceMapGeneration>> {
+        let mut generation = SourceMapGeneration::from_emitted(
+            *self.next_config.client_source_maps(*self.mode).await?,
+        );
+        generation.partial |= self.analyze;
+        Ok(generation.cell())
+    }
+
+    #[turbo_tasks::function]
+    pub(super) async fn server_source_map_generation(&self) -> Result<Vc<SourceMapGeneration>> {
+        let mut generation =
+            SourceMapGeneration::from_emitted(*self.next_config.server_source_maps().await?);
+        generation.partial |= self.analyze;
+        Ok(generation.cell())
     }
 
     #[turbo_tasks::function]
@@ -1715,6 +1748,7 @@ impl Project {
             unused_references: self.unused_references(),
             minify: self.next_config().turbo_client_minify(self.next_mode()),
             source_maps: self.next_config().client_source_maps(self.next_mode()),
+            source_map_generation: self.client_source_map_generation(),
             no_mangling: self.no_mangling(),
             scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
             nested_async_chunking: self
@@ -1757,6 +1791,7 @@ impl Project {
                 environment: self.client_compile_time_info().environment(),
                 minify: self.next_config().turbo_client_minify(self.next_mode()),
                 source_maps: self.next_config().client_source_maps(self.next_mode()),
+                source_map_generation: self.client_source_map_generation(),
                 no_mangling: self.no_mangling(),
                 hash_salt: self.next_config().output_hash_salt().to_resolved().await?,
             },
@@ -1778,6 +1813,7 @@ impl Project {
                 self.next_mode(),
                 self.next_config(),
                 self.encryption_key(),
+                self.client_source_map_generation(),
             ),
             get_client_resolve_options_context(
                 self.project_path().owned().await?,
@@ -1807,6 +1843,7 @@ impl Project {
             unused_references: self.unused_references(),
             minify: self.next_config().turbo_server_minify(self.next_mode()),
             source_maps: self.next_config().server_source_maps(),
+            source_map_generation: self.server_source_map_generation(),
             no_mangling: self.no_mangling(),
             scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
             nested_async_chunking: self
@@ -1852,6 +1889,7 @@ impl Project {
             unused_references: self.unused_references(),
             turbo_minify: self.next_config().turbo_edge_minify(self.next_mode()),
             turbo_source_maps: self.next_config().server_source_maps(),
+            source_map_generation: self.server_source_map_generation(),
             no_mangling: self.no_mangling(),
             scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
             nested_async_chunking: self
@@ -2246,6 +2284,7 @@ impl Project {
                 self.client_compile_time_info().environment(),
                 // There is no NFT on edge
                 false,
+                self.server_source_map_generation(),
             ),
             get_edge_resolve_options_context(
                 self.project_path().owned().await?,
@@ -2310,6 +2349,7 @@ impl Project {
                 self.server_compile_time_info().environment(),
                 self.client_compile_time_info().environment(),
                 *self.should_write_nft_manifests().await?,
+                self.server_source_map_generation(),
             ),
             get_server_resolve_options_context(
                 self.project_path().owned().await?,
@@ -2426,6 +2466,7 @@ impl Project {
                 self.server_compile_time_info().environment(),
                 self.client_compile_time_info().environment(),
                 *self.should_write_nft_manifests().await?,
+                self.server_source_map_generation(),
             ),
             get_server_resolve_options_context(
                 self.project_path().owned().await?,
@@ -2491,6 +2532,7 @@ impl Project {
                 self.client_compile_time_info().environment(),
                 // There is no NFT on edge
                 false,
+                self.server_source_map_generation(),
             ),
             get_edge_resolve_options_context(
                 self.project_path().owned().await?,

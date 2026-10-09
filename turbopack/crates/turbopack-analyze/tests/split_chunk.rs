@@ -15,7 +15,7 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     code_builder::{Code, CodeBuilder},
     output::{OutputAsset, OutputAssetsReference},
-    source_map::GenerateSourceMap,
+    source_map::{GenerateSourceMap, SourceMapGeneration, SourceMapType},
 };
 
 static REGISTRATION: Registration = register!();
@@ -23,11 +23,24 @@ static REGISTRATION: Registration = register!();
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn split_chunk() {
     run_once(&REGISTRATION, async || {
-        let mut code = CodeBuilder::new(true, false);
+        let mut code = CodeBuilder::new(
+            SourceMapGeneration {
+                full: true,
+                partial: true,
+            },
+            false,
+        );
         code += "Hello world!\n";
         code += "This is a test file.\n";
         code.push_source(
             &Rope::from("Hello world!\n123"),
+            Some(Rope::from(serde_json::to_string_pretty(&json! ({
+                "version": 3,
+                "mappings": "AAAA;AACA",
+                "sources": ["original-source1.js"],
+                "names": [],
+                "sourcesContent": ["console.log('Hello world!');"]
+            }))?)),
             Some(Rope::from(serde_json::to_string_pretty(&json! ({
                 "version": 3,
                 "mappings": "AAAA;AACA",
@@ -42,6 +55,13 @@ async fn split_chunk() {
             Some(Rope::from(serde_json::to_string_pretty(&json! ({
                 "version": 3,
                 "mappings": "AAAA",
+                "sources": ["original-source2.js"],
+                "names": [],
+                "sourcesContent": ["console.log('Middle of file');"]
+            }))?)),
+            Some(Rope::from(serde_json::to_string_pretty(&json! ({
+                "version": 3,
+                "mappings": "AAAA",
                 "sources": ["source2.js"],
                 "names": [],
                 "sourcesContent": ["console.log('Middle of file');"]
@@ -49,6 +69,16 @@ async fn split_chunk() {
         );
         code += "This is the end of the file.\n";
         let code = code.build();
+        let full_map = code.generate_source_map_ref(None, SourceMapType::Full);
+        let partial_map = code.generate_source_map_ref(None, SourceMapType::Partial);
+        assert_ne!(full_map, partial_map);
+        let copied_code = CodeBuilder::from(code.clone()).build();
+        for ty in [SourceMapType::Full, SourceMapType::Partial] {
+            assert_eq!(
+                code.generate_source_map_ref(None, ty),
+                copied_code.generate_source_map_ref(None, ty)
+            );
+        }
 
         let asset = TestAsset {
             code: code.resolved_cell(),
@@ -124,6 +154,56 @@ async fn split_chunk() {
     .unwrap()
 }
 
+#[test]
+fn requested_map_sets_preserve_code_and_maps() -> Result<()> {
+    let full_map = Rope::from(
+        r#"{"version":3,"sources":["original.ts"],"sourcesContent":["original"],"names":[],"mappings":"AAAA"}"#,
+    );
+    let partial_map = Rope::from(
+        r#"{"version":3,"sources":["module.js"],"sourcesContent":["module"],"names":[],"mappings":"AAAA"}"#,
+    );
+    for emitted in [
+        None,
+        Some(SourceMapType::Partial),
+        Some(SourceMapType::Full),
+    ] {
+        let mut outputs = Vec::new();
+        for analyze in [false, true] {
+            let mut generation = SourceMapGeneration::from_emitted(emitted);
+            generation.partial |= analyze;
+            let mut source = CodeBuilder::new(generation, true);
+            source.push_source(
+                &Rope::from("module();\n"),
+                Some(full_map.clone()),
+                Some(partial_map.clone()),
+            );
+            let mut chunk = CodeBuilder::new(generation, true);
+            chunk += "wrapper();\n";
+            chunk.push_code(&source.build());
+            chunk += "footer();\n";
+            let code = CodeBuilder::from(chunk.build()).build();
+            assert!(code.should_generate_debug_id());
+            assert_eq!(
+                code.has_source_map_for(SourceMapType::Full),
+                emitted == Some(SourceMapType::Full)
+            );
+            assert_eq!(
+                code.has_source_map_for(SourceMapType::Partial),
+                analyze || emitted == Some(SourceMapType::Partial)
+            );
+            outputs.push(code);
+        }
+        assert_eq!(outputs[0].source_code(), outputs[1].source_code());
+        if let Some(ty) = emitted {
+            assert_eq!(
+                outputs[0].generate_source_map_ref(None, ty),
+                outputs[1].generate_source_map_ref(None, ty)
+            );
+        }
+    }
+    Ok(())
+}
+
 #[turbo_tasks::value]
 struct TestAsset {
     code: ResolvedVc<Code>,
@@ -157,7 +237,7 @@ impl Asset for TestAsset {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for TestAsset {
     #[turbo_tasks::function]
-    pub fn generate_source_map(&self) -> Vc<FileContent> {
-        self.code.generate_source_map()
+    pub fn generate_source_map(&self, ty: Vc<SourceMapType>) -> Vc<FileContent> {
+        self.code.generate_source_map(ty)
     }
 }

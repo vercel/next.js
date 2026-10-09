@@ -29,15 +29,26 @@ use tracing::instrument;
 use turbopack_core::{
     chunk::MangleType,
     code_builder::{Code, CodeBuilder},
+    source_map::{SourceMapGeneration, SourceMapType},
 };
 
 use crate::parse::{IdentCollector, generate_js_source_map};
 
 #[instrument(level = "info", name = "minify ecmascript code", skip_all)]
-pub fn minify(code: Code, source_maps: bool, mangle: Option<MangleType>) -> Result<Code> {
+pub fn minify(
+    code: Code,
+    generation: SourceMapGeneration,
+    mangle: Option<MangleType>,
+) -> Result<Code> {
     // Pass None for the debug ID so we don't needlessly compute it for the pre-minified content, it
     // will be added by the Code object returned from this function
-    let source_maps = source_maps.then(|| code.generate_source_map_ref(None));
+    let full_map = generation
+        .full
+        .then(|| code.generate_source_map_ref(None, SourceMapType::Full));
+    let partial_map = generation
+        .partial
+        .then(|| code.generate_source_map_ref(None, SourceMapType::Partial));
+    let source_maps = generation.any();
 
     let generate_debug_id = code.should_generate_debug_id();
     let source_code = BytesStr::from_utf8(code.into_source_code().into_bytes())?;
@@ -69,7 +80,7 @@ pub fn minify(code: Code, source_maps: bool, mangle: Option<MangleType>) -> Resu
                     };
 
                     // Collect identifier names for source maps before minification
-                    let source_map_names = if source_maps.is_some() {
+                    let source_map_names = if source_maps {
                         let mut collector = IdentCollector::default();
                         program.visit_with(&mut collector);
                         collector.into_map()
@@ -141,30 +152,31 @@ pub fn minify(code: Code, source_maps: bool, mangle: Option<MangleType>) -> Resu
             })
             .map_err(|e| e.to_pretty_error())?;
 
-        let (src, src_map_buf) = print_program(cm.clone(), program, source_maps.is_some())?;
+        let (src, src_map_buf) = print_program(cm.clone(), program, source_maps)?;
         (src, src_map_buf, source_map_names)
     };
 
-    let mut builder = CodeBuilder::new(source_maps.is_some(), generate_debug_id);
-    if let Some(original_map) = source_maps.as_ref() {
-        src_map_buf.shrink_to_fit();
-        builder.push_source(
-            &src.into(),
-            Some(generate_js_source_map(
-                &*cm,
-                src_map_buf,
-                Some(original_map),
-                true,
-                // We do not inline source contents.
-                // We provide a synthesized value to `cm.new_source_file` above, so it cannot be
-                // the value user expect anyway.
-                false,
-                source_map_names,
-            )?),
-        );
-    } else {
-        builder.push_source(&src.into(), None::<turbo_tasks_fs::rope::Rope>);
-    }
+    src_map_buf.shrink_to_fit();
+    let compose = |original_map: Option<&turbo_tasks_fs::rope::Rope>| -> Result<_> {
+        original_map
+            .map(|original_map| {
+                generate_js_source_map(
+                    &*cm,
+                    src_map_buf.clone(),
+                    Some(original_map),
+                    true,
+                    false,
+                    source_map_names.clone(),
+                )
+            })
+            .transpose()
+    };
+    let mut builder = CodeBuilder::new(generation, generate_debug_id);
+    builder.push_source(
+        &src.into(),
+        compose(full_map.as_ref())?,
+        compose(partial_map.as_ref())?,
+    );
     Ok(builder.build())
 }
 
@@ -203,4 +215,75 @@ fn print_program(
     };
 
     Ok((src, src_map_buf))
+}
+
+#[cfg(test)]
+mod tests {
+    use turbo_tasks_fs::rope::Rope;
+    use turbopack_core::{
+        chunk::MangleType,
+        code_builder::CodeBuilder,
+        source_map::{SourceMapGeneration, SourceMapType},
+    };
+
+    use crate::minify::minify;
+
+    #[test]
+    fn independent_maps_preserve_minified_code() -> anyhow::Result<()> {
+        let source = Rope::from("export function greeting(name) { return 'Hello ' + name; }\n");
+        let full_map = Rope::from(
+            r#"{"version":3,"sources":["original.ts"],"sourcesContent":["original"],"names":[],"mappings":"AAAA"}"#,
+        );
+        let partial_map = Rope::from(
+            r#"{"version":3,"sources":["module.js"],"sourcesContent":["module"],"names":[],"mappings":"AAAA"}"#,
+        );
+        for mangle in [
+            None,
+            Some(MangleType::OptimalSize),
+            Some(MangleType::Deterministic),
+        ] {
+            let mut outputs = Vec::new();
+            for generation in [
+                SourceMapGeneration::NONE,
+                SourceMapGeneration {
+                    full: true,
+                    partial: false,
+                },
+                SourceMapGeneration {
+                    full: false,
+                    partial: true,
+                },
+                SourceMapGeneration {
+                    full: true,
+                    partial: true,
+                },
+            ] {
+                let mut builder = CodeBuilder::new(generation, true);
+                builder.push_source(&source, Some(full_map.clone()), Some(partial_map.clone()));
+                let code = minify(builder.build(), generation, mangle)?;
+                assert_eq!(
+                    code.has_source_map_for(SourceMapType::Full),
+                    generation.full
+                );
+                assert_eq!(
+                    code.has_source_map_for(SourceMapType::Partial),
+                    generation.partial
+                );
+                assert!(code.should_generate_debug_id());
+                outputs.push(code);
+            }
+            for code in &outputs {
+                assert_eq!(code.source_code(), outputs[0].source_code());
+            }
+            for (index, ty, expected_source) in [
+                (1, SourceMapType::Full, "original.ts"),
+                (2, SourceMapType::Partial, "module.js"),
+            ] {
+                let map = outputs[index].generate_source_map_ref(None, ty);
+                assert_eq!(map, outputs[3].generate_source_map_ref(None, ty));
+                assert!(map.to_str()?.contains(expected_source));
+            }
+        }
+        Ok(())
+    }
 }

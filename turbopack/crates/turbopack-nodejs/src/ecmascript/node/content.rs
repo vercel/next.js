@@ -6,7 +6,7 @@ use turbopack_core::{
     chunk::{ChunkingContext, MinifyType},
     code_builder::{Code, CodeBuilder},
     output::OutputAsset,
-    source_map::{GenerateSourceMap, SourceMapAsset},
+    source_map::{GenerateSourceMap, SourceMapAsset, SourceMapType},
     version::{MergeableVersionedContent, Version, VersionedContent, VersionedContentMerger},
 };
 use turbopack_ecmascript::{
@@ -56,12 +56,12 @@ impl EcmascriptNodeChunkContent {
     #[turbo_tasks::function]
     async fn code(&self) -> Result<Vc<Code>> {
         use std::io::Write;
-        let source_maps = *self
-            .chunking_context
-            .reference_chunk_source_maps(*ResolvedVc::upcast(self.chunk))
-            .await?;
+        let source_map_generation = *self.chunking_context.source_map_generation().await?;
 
-        let mut code = CodeBuilder::new(true, *self.chunking_context.debug_ids_enabled().await?);
+        let mut code = CodeBuilder::new(
+            source_map_generation,
+            *self.chunking_context.debug_ids_enabled().await?,
+        );
         let supports_arrow_functions = *self
             .chunking_context
             .environment()
@@ -92,7 +92,7 @@ impl EcmascriptNodeChunkContent {
         let mut code = code.build();
 
         if let MinifyType::Minify { mangle } = *self.chunking_context.minify_type().await? {
-            code = minify(code, source_maps, mangle)?;
+            code = minify(code, source_map_generation, mangle)?;
         }
 
         Ok(code.cell())
@@ -102,8 +102,8 @@ impl EcmascriptNodeChunkContent {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptNodeChunkContent {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>) -> Vc<FileContent> {
-        self.code().generate_source_map()
+    fn generate_source_map(self: Vc<Self>, ty: Vc<SourceMapType>) -> Vc<FileContent> {
+        self.code().generate_source_map(ty)
     }
 }
 
@@ -115,7 +115,10 @@ impl VersionedContent for EcmascriptNodeChunkContent {
         Ok(AssetContent::file(
             FileContent::Content(File::from(
                 self.code()
-                    .to_rope_with_magic_comments(|| *this.source_map)
+                    .to_rope_with_magic_comments(
+                        *this.chunking_context.emitted_source_map_type().await?,
+                        || *this.source_map,
+                    )
                     .await?,
             ))
             .cell(),

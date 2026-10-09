@@ -6,9 +6,7 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack_browser::{BrowserChunkingContext, react_refresh::assert_can_resolve_react_refresh};
 use turbopack_cli_utils::runtime_entry::{RuntimeEntries, RuntimeEntry};
 use turbopack_core::{
-    chunk::{
-        ChunkableModule, ChunkingContext, EvaluatableAsset, SourceMapSourceType, SourceMapsType,
-    },
+    chunk::{ChunkableModule, ChunkingContext, EvaluatableAsset, SourceMapSourceType},
     context::AssetContext,
     environment::Environment,
     file_source::FileSource,
@@ -22,6 +20,7 @@ use turbopack_core::{
         origin::{PlainResolveOrigin, ResolveOrigin},
         parse::Request,
     },
+    source_map::SourceMapType,
 };
 use turbopack_dev_server::{
     html::{DevHtmlAsset, DevHtmlEntry},
@@ -114,7 +113,7 @@ pub async fn create_web_entry_source(
     _env: Vc<Box<dyn ProcessEnv>>,
     eager_compile: bool,
     node_env: Vc<NodeEnv>,
-    source_maps_type: SourceMapsType,
+    source_maps_type: Option<SourceMapType>,
     browserslist_query: RcStr,
 ) -> Result<Vc<Box<dyn ContentSource>>> {
     let compile_time_info = get_client_compile_time_info(browserslist_query, node_env, true);

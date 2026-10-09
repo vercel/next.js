@@ -19,7 +19,10 @@ use turbo_tasks_hash::{DeterministicHash, DeterministicHasher, hash_xxh3_hash128
 use crate::{
     debug_id::generate_debug_id,
     output::OutputAsset,
-    source_map::{GenerateSourceMap, SourceMap, SourceMapAsset, structured::StructuredSourceMap},
+    source_map::{
+        GenerateSourceMap, SourceMap, SourceMapAsset, SourceMapGeneration, SourceMapType,
+        structured::StructuredSourceMap,
+    },
     source_pos::SourcePos,
 };
 
@@ -75,7 +78,8 @@ pub type Mapping = (usize, Option<SectionMap>);
 #[derive(Debug, Clone, Encode, Decode)]
 pub struct Code {
     code: Rope,
-    mappings: Arc<Vec<Mapping>>,
+    full_mappings: Arc<Vec<Mapping>>,
+    partial_mappings: Arc<Vec<Mapping>>,
     should_generate_debug_id: bool,
 }
 
@@ -99,8 +103,15 @@ impl Code {
 
     /// Tests if any code in this Code contains an associated source map.
     pub fn has_source_map(&self) -> bool {
-        !self.mappings.is_empty()
+        !self.full_mappings.is_empty() || !self.partial_mappings.is_empty()
     }
+    pub fn has_source_map_for(&self, ty: SourceMapType) -> bool {
+        match ty {
+            SourceMapType::Full => !self.full_mappings.is_empty(),
+            SourceMapType::Partial => !self.partial_mappings.is_empty(),
+        }
+    }
+
     // Whether this code should have a debug id generated for it
     pub fn should_generate_debug_id(&self) -> bool {
         self.should_generate_debug_id
@@ -120,63 +131,64 @@ impl Code {
     // Formats the code with the source map and debug id comments as
     pub async fn to_rope_with_magic_comments(
         self: Vc<Self>,
+        emitted_source_map_ty: Option<SourceMapType>,
         source_map_path_fn: impl FnOnce() -> Vc<SourceMapAsset>,
     ) -> Result<Rope> {
         let code = self.await?;
-        Ok(
-            if code.has_source_map() || code.should_generate_debug_id() {
-                let mut rope_builder = RopeBuilder::default();
-                let debug_id = self.debug_id().await?;
-                // hand minified version of
-                // ```javascript
-                //  !() => {
-                //    (globalThis ??= {})[new g.Error().stack] = <debug_id>;
-                // }()
-                // ```
-                // But we need to be compatible with older runtimes since this code isn't transpiled
-                // according to a browser list. So we use `var`, `function` and
-                // try-caatch since we cannot rely on `Error.stack` being available.
-                // And finally to ensure it is on one line since that is what the source map
-                // expects.
-                // So like Thanos we have to do it ourselves.
-                if let Some(debug_id) = &*debug_id {
-                    // Test for `globalThis` first since it is available on all platforms released
-                    // since 2018! so it will mostly work
-                    const GLOBALTHIS_EXPR: &str = r#""undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{}"#;
-                    const GLOBAL_VAR_NAME: &str = "_debugIds";
-                    writeln!(
-                        rope_builder,
-                        r#";!function(){{try {{ var e={GLOBALTHIS_EXPR},n=(new e.Error).stack;n&&((e.{GLOBAL_VAR_NAME}|| (e.{GLOBAL_VAR_NAME}={{}}))[n]="{debug_id}")}}catch(e){{}}}}();"#,
-                    )?;
-                }
+        let emit_source_map = emitted_source_map_ty.is_some_and(|ty| code.has_source_map_for(ty));
+        Ok(if emit_source_map || code.should_generate_debug_id() {
+            let mut rope_builder = RopeBuilder::default();
+            let debug_id = self.debug_id().await?;
+            // hand minified version of
+            // ```javascript
+            //  !() => {
+            //    (globalThis ??= {})[new g.Error().stack] = <debug_id>;
+            // }()
+            // ```
+            // But we need to be compatible with older runtimes since this code isn't transpiled
+            // according to a browser list. So we use `var`, `function` and
+            // try-caatch since we cannot rely on `Error.stack` being available.
+            // And finally to ensure it is on one line since that is what the source map
+            // expects.
+            // So like Thanos we have to do it ourselves.
+            if let Some(debug_id) = &*debug_id {
+                // Test for `globalThis` first since it is available on all platforms released
+                // since 2018! so it will mostly work
+                const GLOBALTHIS_EXPR: &str = r#""undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{}"#;
+                const GLOBAL_VAR_NAME: &str = "_debugIds";
+                writeln!(
+                    rope_builder,
+                    r#";!function(){{try {{ var e={GLOBALTHIS_EXPR},n=(new e.Error).stack;n&&((e.{GLOBAL_VAR_NAME}|| (e.{GLOBAL_VAR_NAME}={{}}))[n]="{debug_id}")}}catch(e){{}}}}();"#,
+                )?;
+            }
 
-                rope_builder.concat(&code.code);
-                rope_builder.push_static_bytes(b"\n");
-                // Add debug ID comment if enabled
-                if let Some(debug_id) = &*debug_id {
-                    write!(rope_builder, "\n//# debugId={}", debug_id)?;
-                }
+            rope_builder.concat(&code.code);
+            rope_builder.push_static_bytes(b"\n");
+            // Add debug ID comment if enabled
+            if let Some(debug_id) = &*debug_id {
+                write!(rope_builder, "\n//# debugId={}", debug_id)?;
+            }
 
-                if code.has_source_map() {
-                    let source_map_path = source_map_path_fn().path().await?;
-                    write!(
-                        rope_builder,
-                        "\n//# sourceMappingURL={}",
-                        urlencoding::encode(source_map_path.file_name())
-                    )?;
-                }
-                rope_builder.build()
-            } else {
-                code.code.clone()
-            },
-        )
+            if emit_source_map {
+                let source_map_path = source_map_path_fn().path().await?;
+                write!(
+                    rope_builder,
+                    "\n//# sourceMappingURL={}",
+                    urlencoding::encode(source_map_path.file_name())
+                )?;
+            }
+            rope_builder.build()
+        } else {
+            code.code.clone()
+        })
     }
 }
 
 /// CodeBuilder provides a mutable container to append source code.
 pub struct CodeBuilder {
     code: RopeBuilder,
-    mappings: Option<Vec<Mapping>>,
+    full_mappings: Option<Vec<Mapping>>,
+    partial_mappings: Option<Vec<Mapping>>,
     should_generate_debug_id: bool,
 }
 
@@ -184,17 +196,19 @@ impl Default for CodeBuilder {
     fn default() -> Self {
         Self {
             code: RopeBuilder::default(),
-            mappings: Some(Vec::new()),
+            full_mappings: Some(Vec::new()),
+            partial_mappings: None,
             should_generate_debug_id: false,
         }
     }
 }
 
 impl CodeBuilder {
-    pub fn new(collect_mappings: bool, should_generate_debug_id: bool) -> Self {
+    pub fn new(generation: SourceMapGeneration, should_generate_debug_id: bool) -> Self {
         Self {
             code: RopeBuilder::default(),
-            mappings: collect_mappings.then(Vec::new),
+            full_mappings: generation.full.then(Vec::new),
+            partial_mappings: generation.partial.then(Vec::new),
             should_generate_debug_id,
         }
     }
@@ -203,15 +217,22 @@ impl CodeBuilder {
     /// the default concatenation operation, but it's designed to be used
     /// with the `+=` operator.
     fn push_static_bytes(&mut self, code: &'static [u8]) {
-        self.push_map(None);
+        self.push_map(None, SourceMapType::Full);
+        self.push_map(None, SourceMapType::Partial);
         self.code.push_static_bytes(code);
     }
 
     /// Pushes original user code with an optional source map if one is
     /// available. If it's not, this is no different than pushing Synthetic
     /// code.
-    pub fn push_source<M: Into<SectionMap>>(&mut self, code: &Rope, map: Option<M>) {
-        self.push_map(map.map(Into::into));
+    pub fn push_source<M: Into<SectionMap>>(
+        &mut self,
+        code: &Rope,
+        full_map: Option<M>,
+        partial_map: Option<M>,
+    ) {
+        self.push_map(full_map.map(Into::into), SourceMapType::Full);
+        self.push_map(partial_map.map(Into::into), SourceMapType::Partial);
         self.code += code;
     }
 
@@ -220,25 +241,30 @@ impl CodeBuilder {
     ///
     /// This adjusts the source map to be relative to the new code object
     pub fn push_code(&mut self, prebuilt: &Code) {
-        if let Some((index, _)) = prebuilt.mappings.first() {
-            if *index > 0 {
-                // If the index is positive, then the code starts with a synthetic section. We
-                // may need to push an empty map in order to end the current
-                // section's mappings.
-                self.push_map(None);
+        for (ty, prebuilt_mappings) in [
+            (SourceMapType::Full, &prebuilt.full_mappings),
+            (SourceMapType::Partial, &prebuilt.partial_mappings),
+        ] {
+            if prebuilt_mappings
+                .first()
+                .is_none_or(|(index, _)| *index > 0)
+            {
+                // Synthetic prefixes must end the previous section's mappings.
+                self.push_map(None, ty);
             }
 
             let len = self.code.len();
-            if let Some(mappings) = self.mappings.as_mut() {
+            let mappings = match ty {
+                SourceMapType::Full => &mut self.full_mappings,
+                SourceMapType::Partial => &mut self.partial_mappings,
+            };
+            if let Some(mappings) = mappings.as_mut() {
                 mappings.extend(
-                    prebuilt
-                        .mappings
+                    prebuilt_mappings
                         .iter()
                         .map(|(index, map)| (index + len, map.clone())),
                 );
             }
-        } else {
-            self.push_map(None);
         }
 
         self.code += &prebuilt.code;
@@ -249,8 +275,13 @@ impl CodeBuilder {
     /// original code section. By inserting an empty source map when reaching a
     /// synthetic section directly after an original section, we tell Chrome
     /// that the previous map ended at this point.
-    fn push_map(&mut self, map: Option<SectionMap>) {
-        let Some(mappings) = self.mappings.as_mut() else {
+    fn push_map(&mut self, map: Option<SectionMap>, ty: SourceMapType) {
+        let mappings = match ty {
+            SourceMapType::Full => &mut self.full_mappings,
+            SourceMapType::Partial => &mut self.partial_mappings,
+        };
+
+        let Some(mappings) = mappings.as_mut() else {
             return;
         };
         if map.is_none() && matches!(mappings.last(), None | Some((_, None))) {
@@ -267,15 +298,20 @@ impl CodeBuilder {
 
     /// Tests if any code in this CodeBuilder contains an associated source map.
     pub fn has_source_map(&self) -> bool {
-        self.mappings
+        self.full_mappings
             .as_ref()
             .is_some_and(|mappings| !mappings.is_empty())
+            || self
+                .partial_mappings
+                .as_ref()
+                .is_some_and(|mappings| !mappings.is_empty())
     }
 
     pub fn build(self) -> Code {
         Code {
             code: self.code.build(),
-            mappings: Arc::new(self.mappings.unwrap_or_default()),
+            full_mappings: Arc::new(self.full_mappings.unwrap_or_default()),
+            partial_mappings: Arc::new(self.partial_mappings.unwrap_or_default()),
             should_generate_debug_id: self.should_generate_debug_id,
         }
     }
@@ -295,7 +331,8 @@ impl ops::AddAssign<&'static str> for &mut CodeBuilder {
 
 impl Write for CodeBuilder {
     fn write(&mut self, bytes: &[u8]) -> IoResult<usize> {
-        self.push_map(None);
+        self.push_map(None, SourceMapType::Full);
+        self.push_map(None, SourceMapType::Partial);
         self.code.write(bytes)
     }
 
@@ -306,7 +343,13 @@ impl Write for CodeBuilder {
 
 impl From<Code> for CodeBuilder {
     fn from(code: Code) -> Self {
-        let mut builder = CodeBuilder::default();
+        let mut builder = CodeBuilder::new(
+            SourceMapGeneration {
+                full: !code.full_mappings.is_empty(),
+                partial: !code.partial_mappings.is_empty(),
+            },
+            code.should_generate_debug_id,
+        );
         builder.push_code(&code);
         builder
     }
@@ -323,9 +366,15 @@ impl GenerateSourceMap for Code {
     /// far the simplest way to concatenate the source maps of the multiple
     /// chunk items into a single map file.
     #[turbo_tasks::function]
-    pub async fn generate_source_map(self: ResolvedVc<Self>) -> Result<Vc<FileContent>> {
+    pub async fn generate_source_map(
+        self: ResolvedVc<Self>,
+        ty: Vc<SourceMapType>,
+    ) -> Result<Vc<FileContent>> {
         let debug_id = self.debug_id().owned().await?;
-        Ok(FileContent::Content(File::from(self.await?.generate_source_map_ref(debug_id))).cell())
+        Ok(FileContent::Content(File::from(
+            self.await?.generate_source_map_ref(debug_id, *ty.await?),
+        ))
+        .cell())
     }
 }
 
@@ -355,7 +404,7 @@ impl Code {
 impl Code {
     /// Generates a source map from the code's mappings.
     #[instrument(level = "trace", name = "Code::generate_source_map", skip_all)]
-    pub fn generate_source_map_ref(&self, debug_id: Option<RcStr>) -> Rope {
+    pub fn generate_source_map_ref(&self, debug_id: Option<RcStr>, ty: SourceMapType) -> Rope {
         // A debug id should be passed only if the code should generate a debug id, it is however
         // allowed to turn it off to access intermediate states of the code (e.g. for minification)
         debug_assert!(debug_id.is_none() || self.should_generate_debug_id);
@@ -365,9 +414,13 @@ impl Code {
 
         let mut last_byte_pos = 0;
 
-        let mut sections = Vec::with_capacity(self.mappings.len());
+        let mappings = match ty {
+            SourceMapType::Full => &self.full_mappings,
+            SourceMapType::Partial => &self.partial_mappings,
+        };
+        let mut sections = Vec::with_capacity(mappings.len());
         let mut read = self.code.read();
-        for (byte_pos, map) in self.mappings.iter() {
+        for (byte_pos, map) in mappings.iter() {
             let mut want = byte_pos - last_byte_pos;
             while want > 0 {
                 // `fill_buf` never returns an error.

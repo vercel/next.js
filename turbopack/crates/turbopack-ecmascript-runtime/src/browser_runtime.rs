@@ -9,6 +9,7 @@ use turbopack_core::{
     code_builder::{Code, CodeBuilder},
     context::AssetContext,
     environment::ChunkLoading,
+    source_map::SourceMapGeneration,
 };
 use turbopack_ecmascript::utils::StringifyJs;
 
@@ -39,7 +40,7 @@ pub async fn get_browser_runtime_code(
     asset_suffix: Vc<AssetSuffix>,
     runtime_type: RuntimeType,
     output_root_to_root_path: RcStr,
-    generate_source_map: bool,
+    source_map_generation: SourceMapGeneration,
     chunk_loading_global: Vc<RcStr>,
     cross_origin: Vc<CrossOrigin>,
     chunk_load_retry: Vc<ChunkLoadRetry>,
@@ -53,7 +54,7 @@ pub async fn get_browser_runtime_code(
     let shared_runtime_utils_code = embed_static_code(
         asset_context,
         rcstr!("shared/runtime/runtime-utils.ts"),
-        generate_source_map,
+        source_map_generation,
     );
 
     let mut runtime_base_code = vec!["browser/runtime/base/runtime-base.ts"];
@@ -103,7 +104,7 @@ pub async fn get_browser_runtime_code(
         }
     };
 
-    let mut code: CodeBuilder = CodeBuilder::default();
+    let mut code: CodeBuilder = CodeBuilder::new(source_map_generation, false);
     let relative_root_path = output_root_to_root_path;
     let chunk_base_path = chunk_base_path.await?;
     let chunk_base_path = chunk_base_path.as_ref().map_or_else(|| "", |f| f.as_str());
@@ -235,14 +236,14 @@ pub async fn get_browser_runtime_code(
             &*embed_static_code(
                 asset_context,
                 rcstr!("shared/runtime/async-module.ts"),
-                generate_source_map,
+                source_map_generation,
             )
             .await?,
         );
     }
     for runtime_code in runtime_base_code {
         code.push_code(
-            &*embed_static_code(asset_context, runtime_code.into(), generate_source_map).await?,
+            &*embed_static_code(asset_context, runtime_code.into(), source_map_generation).await?,
         );
     }
 
@@ -251,7 +252,7 @@ pub async fn get_browser_runtime_code(
             &*embed_static_code(
                 asset_context,
                 rcstr!("shared-node/base-externals-utils.ts"),
-                generate_source_map,
+                source_map_generation,
             )
             .await?,
         );
@@ -261,14 +262,14 @@ pub async fn get_browser_runtime_code(
             &*embed_static_code(
                 asset_context,
                 rcstr!("shared-node/node-externals-utils.ts"),
-                generate_source_map,
+                source_map_generation,
             )
             .await?,
         );
     }
     for backend_code in runtime_backend_code {
         code.push_code(
-            &*embed_static_code(asset_context, backend_code.into(), generate_source_map).await?,
+            &*embed_static_code(asset_context, backend_code.into(), source_map_generation).await?,
         );
     }
 
@@ -307,11 +308,11 @@ pub async fn get_browser_runtime_code(
 /// Returns the code for the ECMAScript worker entrypoint bootstrap.
 pub fn get_worker_runtime_code(
     asset_context: Vc<Box<dyn AssetContext>>,
-    generate_source_map: bool,
+    source_map_generation: SourceMapGeneration,
 ) -> Result<Vc<Code>> {
     Ok(embed_static_code(
         asset_context,
         rcstr!("browser/runtime/base/worker-entrypoint.ts"),
-        generate_source_map,
+        source_map_generation,
     ))
 }

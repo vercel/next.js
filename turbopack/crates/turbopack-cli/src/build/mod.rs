@@ -26,7 +26,7 @@ use turbopack_core::{
     asset::Asset,
     chunk::{
         ChunkingConfig, ChunkingContext, ChunkingContextExt, ContentHashing, EvaluatableAsset,
-        MangleType, MinifyType, SourceMapsType, availability_info::AvailabilityInfo,
+        MangleType, MinifyType, availability_info::AvailabilityInfo,
     },
     context::AssetContext,
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
@@ -44,6 +44,7 @@ use turbopack_core::{
         origin::{PlainResolveOrigin, ResolveOrigin},
         parse::Request,
     },
+    source_map::SourceMapType,
 };
 use turbopack_css::chunk::CssChunkType;
 use turbopack_ecmascript::chunk::EcmascriptChunkType;
@@ -71,7 +72,7 @@ pub struct TurbopackBuildBuilder {
     log_level: IssueSeverity,
     show_all: bool,
     log_detail: bool,
-    source_maps_type: SourceMapsType,
+    source_maps_type: Option<SourceMapType>,
     minify_type: MinifyType,
     target: Target,
     scope_hoist: bool,
@@ -90,7 +91,7 @@ impl TurbopackBuildBuilder {
             log_level: IssueSeverity::Warning,
             show_all: false,
             log_detail: false,
-            source_maps_type: SourceMapsType::Full,
+            source_maps_type: Some(SourceMapType::Full),
             minify_type: MinifyType::Minify {
                 mangle: Some(MangleType::OptimalSize),
             },
@@ -124,7 +125,7 @@ impl TurbopackBuildBuilder {
         self
     }
 
-    pub fn source_maps_type(mut self, source_maps_type: SourceMapsType) -> Self {
+    pub fn source_maps_type(mut self, source_maps_type: Option<SourceMapType>) -> Self {
         self.source_maps_type = source_maps_type;
         self
     }
@@ -189,7 +190,7 @@ async fn build_internal(
     root_dir: RcStr,
     entry_requests: Vec<EntryRequest>,
     browserslist_query: RcStr,
-    source_maps_type: SourceMapsType,
+    source_maps_type: Option<SourceMapType>,
     minify_type: MinifyType,
     target: Target,
     scope_hoist: bool,
@@ -596,9 +597,9 @@ pub async fn build(args: &BuildArguments) -> Result<()> {
                 .map_or_else(|| IssueSeverity::Warning, |l| l.0),
         )
         .source_maps_type(if args.no_sourcemap {
-            SourceMapsType::None
+            None
         } else {
-            SourceMapsType::Full
+            Some(SourceMapType::Full)
         })
         .minify_type(if args.no_minify {
             MinifyType::NoMinify
