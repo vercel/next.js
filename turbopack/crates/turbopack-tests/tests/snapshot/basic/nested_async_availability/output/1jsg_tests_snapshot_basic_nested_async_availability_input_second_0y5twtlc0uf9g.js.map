@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/nested_async_availability/input/second.js"],"sourcesContent":["import { shared } from './shared'\n\nexport const second = shared\nexport const loadThird = () => import('./third')\n"],"names":["second","loadThird"],"mappings":";;;;;;AAAA;;AAEO,MAAMA,SAAS,2NAAM;AACrB,MAAMC,YAAY"}}]
+}

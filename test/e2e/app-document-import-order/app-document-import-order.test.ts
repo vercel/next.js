@@ -17,10 +17,6 @@ describe('Root components import order', () => {
     })
   })
 
-  // Turbopack dev chunks `_app` from its own module graph, so its batches (and therefore its
-  // availability info) don't match those in the page's graph, and the shared module is emitted
-  // for both entries.
-  // @gate !(turbopack && dev)
   it('loads modules shared by _app and the page only once', async () => {
     const requests: Set<string> = new Set()
     await next.browser('/', {
