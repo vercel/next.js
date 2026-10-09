@@ -17,9 +17,9 @@ const devContextPrototype = Context.prototype as TurbopackDevContext
  */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
-// Assign browser's module cache and runtime modules to shared HMR state
-devModuleCache = new Map()
-devContextPrototype.c = devModuleCache
+devContextPrototype.c = moduleCache
+
+// Assign browser's runtime modules to shared HMR state
 runtimeModules = new Set()
 
 // Set flag to indicate we use ModuleWithDirection
@@ -90,16 +90,10 @@ function getOrInstantiateRuntimeModule(
   chunkPath: ChunkPath | undefined,
   moduleId: ModuleId
 ): HotModule {
-  const module = devModuleCache.get(moduleId)
-  if (module) {
-    if (module.error) {
-      throw module.error
-    }
-    return module
-  }
-
-  // @ts-ignore
-  return instantiateModule(moduleId, SourceType.Runtime, chunkPath)
+  return (
+    getCachedModule(moduleCache, moduleId) ??
+    instantiateModule(moduleId, SourceType.Runtime, chunkPath)
+  )
 }
 
 /**
@@ -115,17 +109,12 @@ const getOrInstantiateModuleFromParent: GetOrInstantiateModuleFromParent<
     )
   }
 
-  const module = devModuleCache.get(id)
-
   if (sourceModule.children.indexOf(id) === -1) {
     sourceModule.children.push(id)
   }
 
+  const module = getCachedModule(moduleCache, id)
   if (module) {
-    if (module.error) {
-      throw module.error
-    }
-
     if (module.parents.indexOf(sourceModule.id) === -1) {
       module.parents.push(sourceModule.id)
     }
@@ -155,43 +144,6 @@ type DevContextConstructor = {
   ): TurbopackDevContext
 }
 
-function instantiateModule(
-  moduleId: ModuleId,
-  sourceType: SourceType,
-  sourceData: SourceData
-): HotModule {
-  // Browser: creates base HotModule object (hot API added by shared code)
-  const createModuleObjectFn = (id: ModuleId) => {
-    return createModuleObject(id) as HotModule
-  }
-
-  // Browser: creates DevContext with refresh
-  const createContext = (
-    module: HotModule,
-    exports: Exports,
-    refresh: RefreshContext
-  ) => {
-    return new (DevContext as any as DevContextConstructor)(
-      module,
-      exports,
-      refresh
-    )
-  }
-
-  // Use shared instantiation logic (includes hot API setup)
-  return instantiateModuleShared(
-    moduleId,
-    sourceType,
-    sourceData,
-    moduleFactories,
-    devModuleCache,
-    runtimeModules,
-    createModuleObjectFn,
-    createContext,
-    runModuleExecutionHooks
-  )
-}
-
 const DUMMY_REFRESH_CONTEXT = {
   register: (_type: unknown, _id: unknown) => {},
   signature: () => (_type: unknown) => {},
@@ -201,31 +153,40 @@ const DUMMY_REFRESH_CONTEXT = {
 /**
  * NOTE(alexkirsz) Webpack has a "module execution" interception hook that
  * Next.js' React Refresh runtime hooks into to add module context to the
- * refresh registry.
+ * refresh registry. The returned cleanup restores the previous registry.
  */
-function runModuleExecutionHooks(
-  module: HotModule,
-  executeModule: (ctx: RefreshContext) => void
-) {
+function interceptDevModuleExecution(
+  module: HotModule
+): (() => void) | undefined {
   if (typeof globalThis.$RefreshInterceptModuleExecution$ === 'function') {
-    const cleanupReactRefreshIntercept =
-      globalThis.$RefreshInterceptModuleExecution$(module.id)
-    try {
-      executeModule({
-        register: globalThis.$RefreshReg$,
-        signature: globalThis.$RefreshSig$,
-        registerExports: registerExportsAndSetupBoundaryForReactRefresh,
-      })
-    } finally {
-      // Always cleanup the intercept, even if module execution failed.
-      cleanupReactRefreshIntercept()
-    }
-  } else {
-    // If the react refresh hooks are not installed we need to bind dummy functions.
-    // This is expected when running in a Web Worker.  It is also common in some of
-    // our test environments.
-    executeModule(DUMMY_REFRESH_CONTEXT)
+    return globalThis.$RefreshInterceptModuleExecution$(module.id)
   }
+  return undefined
+}
+
+/**
+ * Creates the module's context. When the execution was intercepted,
+ * `$RefreshReg$` and `$RefreshSig$` already belong to this module.
+ */
+function createDevModuleContext(
+  module: HotModule,
+  exports: Exports,
+  intercepted: boolean
+): TurbopackDevContext {
+  return new (DevContext as unknown as DevContextConstructor)(
+    module,
+    exports,
+    intercepted
+      ? {
+          register: globalThis.$RefreshReg$,
+          signature: globalThis.$RefreshSig$,
+          registerExports: registerExportsAndSetupBoundaryForReactRefresh,
+        }
+      : // If the react refresh hooks are not installed we need to bind dummy functions.
+        // This is expected when running in a Web Worker.  It is also common in some of
+        // our test environments.
+        DUMMY_REFRESH_CONTEXT
+  )
 }
 
 /**
@@ -387,8 +348,6 @@ function applyEcmascriptMergedUpdate(update: EcmascriptMergedUpdate) {
     evalModuleEntry: _eval, // browser's eval with source maps
     instantiateModule, // now wraps shared logic
     applyModuleFactoryName,
-    moduleFactories,
-    devModuleCache,
     autoAcceptRootModules: false,
   })
 }
@@ -563,7 +522,6 @@ function registerChunk(registration: ChunkRegistration | RuntimeParams) {
     installCompressedModuleFactories(
       registration as CompressedModuleFactories,
       /* offset= */ 1,
-      moduleFactories,
       (id: ModuleId) => addModuleToChunk(id, chunkPath)
     )
   }
