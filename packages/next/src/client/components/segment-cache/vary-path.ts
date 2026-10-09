@@ -1,4 +1,4 @@
-import { FetchStrategy } from './types'
+import { AppStage } from './types'
 import type {
   NormalizedPathname,
   NormalizedSearch,
@@ -210,17 +210,17 @@ export function getPartialVaryPath(
 }
 
 export function getSegmentVaryPathForRequest<TData>(
-  fetchStrategy: FetchStrategy,
+  stage: AppStage,
   tree: RouteTree<TData>
 ): VaryPath {
   // This is used for storing pending requests in the cache. We want to choose
-  // the most generic vary path based on the strategy used to fetch it, so
-  // that it can be reused as much as possible.
+  // the most generic vary path the request's expected output allows, so that
+  // it can be reused as much as possible.
   //
   // We may be able to re-key the response to something even more generic once
   // we receive it — for example, if the server tells us that the response
   // doesn't vary on a particular param — but even before we send the request,
-  // we know some params are reusable based on the fetch strategy alone.
+  // we know some params are reusable based on the request alone.
   //
   // The original vary path with all the params filled in is stored on the
   // route tree object. The shell vary path is precomputed there too.
@@ -231,36 +231,28 @@ export function getSegmentVaryPathForRequest<TData>(
   // TODO: Rather than create a new list object just to access the cache, the
   // plan is to add the concept of a "vary mask". This will represent all the
   // params that can be treated as Fallback. (Or perhaps the inverse.)
-  if (
-    fetchStrategy === FetchStrategy.RuntimeShell ||
-    fetchStrategy === FetchStrategy.StaticShell
-  ) {
-    // Both shell strategies produce the App Shell variant of a segment —
-    // RuntimeShell via a runtime render with non-root params omitted,
-    // StaticShell by truncating a static per-segment response at the shell
-    // byte boundary. Either way, the resulting entry is reusable across all
-    // concrete values of the non-root params, so we key it at the precomputed
-    // shell vary path (every non-root param substituted with Fallback; root
-    // params keep their concrete value).
+  if (stage === AppStage.Shell) {
+    // The shell reduces param-dependent content to fallbacks, whether a
+    // runtime render produced it or we cut it from a static response. So we
+    // can reuse it for any value of the non-root params, and we key it at the
+    // shell vary path. That's the vary path with every non-root param
+    // replaced by Fallback. Root params keep their values.
     return tree.shellVaryPath
   }
   return tree.varyPath
 }
 
 /**
- * The vary path a pending entry is stored under when its response never
- * varies on search params: every strategy except Full and PPRRuntime. Like
- * getSegmentVaryPathForRequest, except that the entry can be reused across
- * all possible search param values.
+ * The vary path a static request's pending entry is stored under. Like
+ * getSegmentVaryPathForRequest, except that a static request's expected vary
+ * params never include search params (search params are runtime data), so
+ * its entry can be reused across all possible search param values.
  */
 export function getStaticSegmentVaryPathForRequest<TData>(
-  fetchStrategy: FetchStrategy,
+  stage: AppStage,
   tree: RouteTree<TData>
 ): VaryPath {
-  if (
-    fetchStrategy === FetchStrategy.RuntimeShell ||
-    fetchStrategy === FetchStrategy.StaticShell
-  ) {
+  if (stage === AppStage.Shell) {
     return tree.shellVaryPath
   }
   // The vary path includes a search params entry only when the segment varies

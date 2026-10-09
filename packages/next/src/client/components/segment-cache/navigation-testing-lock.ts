@@ -25,10 +25,9 @@ import {
 } from '../../../shared/lib/app-router-types'
 import { NEXT_INSTANT_TEST_COOKIE } from '../app-router-headers'
 import { refreshOnInstantNavigationUnlock } from '../use-action-queue'
-import { needsSpeculativePrefetch } from './scheduler'
 import type { SegmentCacheEntry } from './cache'
 import { createCacheMap, type CacheMap } from './cache-map'
-import type { PrefetchTaskFetchStrategy } from './types'
+import { AppStage } from './types'
 
 type InstantNavCookieState = 'empty' | 'pending' | 'mpa' | 'spa'
 
@@ -543,11 +542,11 @@ export function getCurrentNavigationGate(): Promise<void> | null {
  */
 export function shouldRestrictNavigationToShell(
   rootPrefetchHints: number,
-  linkFetchStrategy: PrefetchTaskFetchStrategy
+  linkPrefetchStage: AppStage
 ): boolean {
   return (
     isNavigationLocked() &&
     (rootPrefetchHints & PrefetchHint.SubtreeHasPartialPrefetching) !== 0 &&
-    !needsSpeculativePrefetch(linkFetchStrategy, rootPrefetchHints)
+    linkPrefetchStage === AppStage.Shell
   )
 }

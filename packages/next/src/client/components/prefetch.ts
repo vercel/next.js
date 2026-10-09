@@ -7,15 +7,11 @@ import { getCurrentAppRouterState } from './app-router-instance'
 import { isJavaScriptURLString } from '../lib/javascript-url'
 import { createCacheKey } from './segment-cache/cache-key'
 import { schedulePrefetchTask } from './segment-cache/scheduler'
-import {
-  FetchStrategy,
-  PrefetchPriority,
-  type PrefetchTaskFetchStrategy,
-} from './segment-cache/types'
+import { AppStage, PrefetchPriority } from './segment-cache/types'
 
 /**
  * The public prefetch operation, exposed through `router.prefetch`. Converts
- * the public options into a fetch strategy, reads the current router state,
+ * the public options into the stage to prefetch up to, reads the current router state,
  * and drives the Segment Cache.
  *
  * Unlike the old implementation, the Segment Cache doesn't store its data in
@@ -38,15 +34,14 @@ export function prefetchRoute(href: string, options?: PrefetchOptions): void {
 
   // We don't currently offer a way to issue a runtime prefetch via `router.prefetch()`.
   // This will be possible when we update its API to not take a PrefetchKind.
-  let fetchStrategy: PrefetchTaskFetchStrategy
+  let prefetchStage: AppStage
   switch (prefetchKind) {
     case PrefetchKind.AUTO: {
-      // We default to PPR. We'll discover whether or not the route supports it with the initial prefetch.
-      fetchStrategy = FetchStrategy.PPR
+      prefetchStage = AppStage.Shell
       break
     }
     case PrefetchKind.FULL: {
-      fetchStrategy = FetchStrategy.Full
+      prefetchStage = AppStage.Prefetch
       break
     }
     default: {
@@ -55,7 +50,7 @@ export function prefetchRoute(href: string, options?: PrefetchOptions): void {
       // we might get an unexpected value from user code.
       // We don't know what they want, but we know they want a prefetch,
       // so use the default.
-      fetchStrategy = FetchStrategy.PPR
+      prefetchStage = AppStage.Shell
     }
   }
 
@@ -63,7 +58,7 @@ export function prefetchRoute(href: string, options?: PrefetchOptions): void {
     href,
     state.nextUrl,
     state.root,
-    fetchStrategy,
+    prefetchStage,
     options?.onInvalidate ?? null
   )
 }
@@ -76,8 +71,7 @@ export function prefetchRoute(href: string, options?: PrefetchOptions): void {
  * Roughly corresponds to the current URL.
  * @param renderTreeAtTimeOfPrefetch - The active render tree and head, and
  * their vary paths.
- * @param fetchStrategy - Whether to prefetch dynamic data, in addition to
- * static data. This is used by `<Link prefetch={true}>`.
+ * @param prefetchStage - The stage to prefetch up to.
  * @param onInvalidate - A callback that will be called when the prefetch cache
  * When called, it signals to the listener that the data associated with the
  * prefetch may have been invalidated from the cache. This is not a live
@@ -92,7 +86,7 @@ export function prefetch(
   href: string,
   nextUrl: string | null,
   renderTreeAtTimeOfPrefetch: RootRouteTree<CacheNode>,
-  fetchStrategy: PrefetchTaskFetchStrategy,
+  prefetchStage: AppStage,
   onInvalidate: null | (() => void)
 ) {
   const url = createPrefetchURL(href)
@@ -104,7 +98,7 @@ export function prefetch(
   schedulePrefetchTask(
     cacheKey,
     renderTreeAtTimeOfPrefetch,
-    fetchStrategy,
+    prefetchStage,
     PrefetchPriority.Default,
     onInvalidate,
     null // navigationLockPrefetch

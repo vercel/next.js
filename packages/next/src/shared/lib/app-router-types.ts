@@ -463,10 +463,10 @@ export type InitialRSCPayload = {
    */
   u?: Promise<boolean>
   /**
-   * shellByteLength - Resolves when the shell stage ends.
-   * If it resolves to null, then the shell is the same as the main response.
-   * */
-  a?: Promise<number | null>
+   * stageByteLengths - Where each stage ends; see
+   * NavigationFlightResponse['a'].
+   */
+  a?: Promise<Array<number>>
   /** runtimePrefetchStream — Embedded runtime prefetch Flight stream. */
   p?: ReadableStream<Uint8Array>
   /**
@@ -531,22 +531,21 @@ type NavigationFlightResponseBase = {
    * TransportSegmentData). */
   s?: AsyncIterable<number>
   /**
-   * shellByteLength - Resolves when the shell stage ends.
-   * If it resolves to null, then the shell is the same as the main response.
+   * stageByteLengths - Where each stage ends in the response, in bytes,
+   * indexed by AppStage: first the shell, then the prefetch stage. We only
+   * list a stage if a later stage added more bytes. Otherwise the stage ends
+   * at the end of the response, like the navigation stage always does.
+   * Absent if the response wasn't staged. Live renders only list the shell.
    *
-   * In a per-segment prefetch response this is the shell byte boundary the
-   * client uses for the shell double-decode: re-decoding the buffered
-   * response truncated at the offset yields the shell variant of every
-   * segment (param-dependent content reduced to still-pending references).
-   * `0` means no shell exists (the page wasn't produced by staged
-   * rendering) — never a valid offset, so it doubles as the "none"
-   * sentinel. The resolution row flushes past the boundary, so a truncated
-   * shell decode reads it as pending, which is harmless. The client's
-   * buffered read leans on the same fact from the other side: 0 read from
-   * an unfulfilled `a` implies a bug — see the shell-extraction comment in
-   * fetchAndWritePerSegmentPrefetchResponse (segment-cache/cache.ts).
+   * If you decode the response up to one of these offsets, you get the
+   * response as it was at the end of that stage. We use the shell's prefix
+   * as the shell for every segment. We only decode the prefetch stage's
+   * prefix to read its `u`, to find out whether anything up to that point
+   * read runtime data. A per-segment prefetch response lists its own
+   * offsets. The row that resolves this list always comes after every
+   * offset, so a prefix reads it as pending, which is fine.
    */
-  a?: Promise<number | null>
+  a?: Promise<Array<number>>
   /**
    * needsRuntimeRequest — presence means the response carries a stage-scoped
    * runtime-data verdict. Per-segment prefetch responses always emit one,
