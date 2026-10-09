@@ -24,8 +24,7 @@ export const getRootDirs = (context: Rule.RuleContext) => {
     rootDirs = processRootDir(rootDir)
   } else if (Array.isArray(rootDir)) {
     rootDirs = rootDir
-      .map((dir) => (typeof dir === 'string' ? processRootDir(dir) : []))
-      .flat()
+      .flatMap((dir) => (typeof dir === 'string' ? processRootDir(dir) : []))
   }
 
   return rootDirs
