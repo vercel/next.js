@@ -30,18 +30,12 @@ import { retry } from 'next-test-utils'
       }
     }
 
-    it('warns about the LCP image even though the painted element is already eager', async () => {
+    it('does not warn when the painted LCP element is eager', async () => {
       const { logs, lcpLoading } = await loadPageAndWaitForLcp('/')
 
       // The element the browser painted as LCP already opts out of lazy loading.
       expect(lcpLoading).toBe('eager')
-
-      // Current (incorrect) behavior: the warning still asks for
-      // `loading="eager"` because a second, lazily loaded <Image> with the same
-      // resolved src overwrote the eager entry in the dev-only LCP map.
-      // A fix should make this warning disappear, which will fail this
-      // assertion and require updating it to `not.toMatch`.
-      expect(logs).toMatch(
+      expect(logs).not.toMatch(
         /Image with src (.*)slow-image(.*) was detected as the Largest Contentful Paint \(LCP\). Please add the `loading="eager"` property/
       )
     })
