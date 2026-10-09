@@ -899,13 +899,15 @@ describe('segment cache - vary params', () => {
     expect(await browser.eval('document.title')).toBe('Query title: 1')
     const initialToken = await browser.elementById('server-token').text()
 
+    // This page is a live render, so nothing from its initial RSC payload was
+    // cached, and revealing the link prefetches the route.
     await act(async () => {
       await browser
         .elementByCss(
           'input[data-link-accordion="/navigation-reuse/metadata-query?x=2"]'
         )
         .click()
-    }, 'no-requests')
+    })
 
     // The head read the query, so it's fetched again.
     await act(
