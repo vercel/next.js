@@ -1,2 +1,2 @@
-/* https://panda-css.com/docs/installation/nextjs#configure-the-entry-css-with-layers */
+/* https://panda-css.com/docs/get-started/nextjs */
 @layer reset, base, tokens, recipes, utilities;
