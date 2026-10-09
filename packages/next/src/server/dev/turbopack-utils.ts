@@ -7,11 +7,11 @@ import type {
   TurbopackResult,
   Endpoint,
   RawEntrypoints,
-  Update as TurbopackUpdate,
   WrittenEndpoint,
 } from '../../build/swc/types'
 import {
   type HmrMessageSentToBrowser,
+  type TurbopackClientUpdate,
   HMR_MESSAGE_SENT_TO_BROWSER,
 } from './hot-reloader-types'
 import * as Log from '../../build/output/log'
@@ -128,7 +128,7 @@ export type ReadyIds = Set<string>
 export type ClientState = {
   clientIssues: EntryIssuesMap
   messages: Map<string, HmrMessageSentToBrowser>
-  turbopackUpdates: TurbopackUpdate[]
+  turbopackUpdates: TurbopackClientUpdate[]
   subscriptions: Map<string, AsyncIterator<any>>
 }
 

@@ -6,6 +6,7 @@ import { join, extname, relative, isAbsolute, sep } from 'path'
 import { fileURLToPath, pathToFileURL } from 'url'
 
 import ws from 'next/dist/compiled/ws'
+import { handleTurbopackHmrSubscription } from './turbopack-hmr-subscription'
 
 import type { OutputState } from '../../build/output/store'
 import type { ActionManifest } from '../../build/webpack/plugins/flight-client-entry-plugin'
@@ -1113,21 +1114,29 @@ export async function createHotReloaderTurbopack(
     const subscription = project!.clientHmrEvents(id)
     state.subscriptions.set(id, subscription)
 
-    // Baseline capture and subscription setup are not atomic, so the first
-    // emission can be a real update. Ignore only the usual issues-only result.
     try {
-      const initial = await subscription.next()
-      if (!initial.done && initial.value.value.type !== 'issues') {
-        processIssues(state.clientIssues, key, initial.value, false, true)
-        sendTurbopackMessage(initial.value.value)
-      }
-
-      for await (const data of subscription) {
-        processIssues(state.clientIssues, key, data, false, true)
-        if (data.value.type !== 'issues') {
-          sendTurbopackMessage(data.value)
+      await handleTurbopackHmrSubscription(
+        subscription,
+        () =>
+          clientStates.get(client) === state &&
+          state.subscriptions.get(id) === subscription,
+        (data) => {
+          processIssues(state.clientIssues, key, data, false, true)
+          if (data.value.type !== 'issues') {
+            sendTurbopackMessage(data.value)
+          }
+        },
+        () => {
+          // Queue behind any real first update, for this client only. Readiness
+          // is not an edit: don't increment the HMR version or flush building.
+          state.turbopackUpdates.push({
+            type: 'subscribed',
+            resource: { path: id },
+            issues: [],
+          })
+          sendEnqueuedMessagesDebounce()
         }
-      }
+      )
     } catch (e) {
       // The client might be using an HMR session from a previous server, tell them
       // to fully reload the page to resolve the issue. We can't use

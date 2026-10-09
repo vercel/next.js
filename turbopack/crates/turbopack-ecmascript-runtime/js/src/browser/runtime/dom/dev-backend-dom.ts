@@ -14,6 +14,163 @@
 
 let DEV_BACKEND: DevRuntimeBackend
 ;(() => {
+  const cssReloads = new Map<string, Promise<void>>()
+  const cancelCssReloads = new Map<string, () => void>()
+  const reconciledCss = new Set<string>()
+  const cssGenerations = new Map<string, number>()
+
+  function cssKey(chunkUrl: ChunkUrl) {
+    return decodeURI(chunkUrl.split('?')[0])
+  }
+
+  function stylesheetLinks(chunkUrl: ChunkUrl) {
+    // Match encoded/decoded URLs and retain query/base-path/asset-suffix behavior.
+    const baseChunkUrl = chunkUrl.split('?')[0]
+    const decodedBaseChunkUrl = decodeURI(baseChunkUrl)
+    return document.querySelectorAll<HTMLLinkElement>(
+      `link[rel=stylesheet][href="${baseChunkUrl}"],link[rel=stylesheet][href^="${baseChunkUrl}?"],link[rel=stylesheet][href="${decodedBaseChunkUrl}"],link[rel=stylesheet][href^="${decodedBaseChunkUrl}?"]`
+    )
+  }
+
+  function reloadCss(chunkUrl: ChunkUrl, initial: boolean) {
+    if (!isCss(chunkUrl)) {
+      return Promise.reject(
+        new Error('The DOM backend can only reload CSS chunks')
+      )
+    }
+    const key = cssKey(chunkUrl)
+    const generation = cssGenerations.get(key)
+    if (initial) {
+      // Shared CSS is reconciled at most once. Do not claim an inactive resource:
+      // another chunk list may become ready after its stylesheet is mounted.
+      if (reconciledCss.has(key) || stylesheetLinks(chunkUrl).length === 0) {
+        return Promise.resolve()
+      }
+      reconciledCss.add(key)
+    }
+
+    // A newer edit must fetch after the older replacement finishes. Otherwise
+    // both loads capture the same previous links, and the older response can win.
+    const previous = cssReloads.get(key)
+    const load = () =>
+      new Promise<void>((resolve, reject) => {
+        const previousLinks = Array.from(stylesheetLinks(chunkUrl))
+        if (
+          initial &&
+          (previousLinks.length === 0 || cssGenerations.get(key) !== generation)
+        ) {
+          resolve()
+          return
+        }
+
+        const original = previousLinks[0]
+        const link = original
+          ? (original.cloneNode(false) as HTMLLinkElement)
+          : document.createElement('link')
+        // The original is owned by the renderer. A temporary loading link must
+        // not become another resource/precedence anchor during navigation.
+        link.removeAttribute('id')
+        link.removeAttribute('data-precedence')
+        link.removeAttribute('data-href')
+        link.rel = 'stylesheet'
+        if (!original) link.crossOrigin = CROSS_ORIGIN
+
+        // Adoption must change the original's URL: assigning an unchanged href
+        // does not start another load or fire a load event in Chromium.
+        // Firefox also won't reload previously loaded CSS (bug 1037506), and
+        // Safari caches CSS when a matching preload exists (WebKit bug 187726).
+        // Keep other query parameters while adding a fresh cache-busting ts.
+        const url = new URL(chunkUrl, location.origin)
+        // Reduced timer precision can drop fast edits; include randomness.
+        url.searchParams.set('ts', `${Date.now()}.${Math.random()}`)
+        // Preserve the raw base, including absolute/protocol-relative asset
+        // prefixes, so adoption and later selectors still match the same URL.
+        link.href = chunkUrl.split('?')[0] + url.search
+
+        let removalObserver: MutationObserver | undefined
+        const cleanup = () => {
+          removalObserver?.disconnect()
+          link.onload = link.onerror = null
+          original?.removeEventListener('load', adopted)
+          original?.removeEventListener('error', adoptionFailed)
+          cancelCssReloads.delete(key)
+        }
+        const cancel = () => {
+          cleanup()
+          link.remove()
+          resolve()
+        }
+        const adopted = () => {
+          cleanup()
+          link.remove()
+          // Keep the renderer's original node, metadata and cascade position.
+          for (const previousLink of previousLinks.slice(1))
+            previousLink.remove()
+          resolve()
+        }
+        const adoptionFailed = () => {
+          cleanup()
+          // The temporary sheet already loaded successfully. Keep it as a
+          // fallback until a later HMR update can recover, unless unmounted.
+          if (!original.isConnected) link.remove()
+          reject(new Error(`Failed to adopt CSS chunk ${chunkUrl}`))
+        }
+        cancelCssReloads.set(key, cancel)
+        link.onerror = () => {
+          cleanup()
+          link.remove()
+          reject(new Error(`Failed to load CSS chunk ${chunkUrl}`))
+        }
+        link.onload = () => {
+          link.onload = link.onerror = null
+          if (!original?.isConnected) {
+            cleanup()
+            // Initial reconciliation must not revive a removed stylesheet.
+            if (initial) link.remove()
+            resolve()
+            return
+          }
+          // Load before retargeting the original to avoid flicker. Adopting the
+          // same URL can still fetch again (e.g. no-store); serialize subsequent
+          // edits until the original finishes, not just the temporary link.
+          // Detaching the original can abort its load without a load/error
+          // event. Release the queue and don't leave initial CSS behind then.
+          removalObserver = new MutationObserver(() => {
+            if (!original.isConnected) {
+              cleanup()
+              if (initial) link.remove()
+              resolve()
+            }
+          })
+          removalObserver.observe(document, { childList: true, subtree: true })
+          original.addEventListener('load', adopted)
+          original.addEventListener('error', adoptionFailed)
+          // Keep the raw relative attribute: later reload/unload selectors use
+          // chunk URLs, whereas link.href expands them to an absolute URL.
+          original.setAttribute('href', link.getAttribute('href')!)
+        }
+
+        if (previousLinks.length === 0) {
+          // Ordinary HMR intentionally re-links an unmounted chunk whose chunk
+          // list still receives a total update. Initial reconciliation skips it.
+          document.head.appendChild(link)
+        } else {
+          previousLinks[0].parentElement!.insertBefore(
+            link,
+            previousLinks[0].nextSibling
+          )
+        }
+      })
+    // A failed load must not poison later updates. Callers report the failure.
+    const promise = previous ? previous.catch(() => {}).then(load) : load()
+    cssReloads.set(key, promise)
+    const clear = () => {
+      if (cssReloads.get(key) === promise) cssReloads.delete(key)
+    }
+    promise.then(clear, clear)
+    return promise
+  }
+
   DEV_BACKEND = {
     unloadChunk(chunkUrl) {
       deleteResolver(chunkUrl)
@@ -25,6 +182,10 @@ let DEV_BACKEND: DevRuntimeBackend
       const decodedBaseChunkUrl = decodeURI(baseChunkUrl)
 
       if (isCss(chunkUrl)) {
+        const key = cssKey(chunkUrl)
+        cssGenerations.set(key, (cssGenerations.get(key) ?? 0) + 1)
+        // Removed links need not fire load/error. Release queued work on unload.
+        cancelCssReloads.get(key)?.()
         const links = document.querySelectorAll(
           `link[href="${baseChunkUrl}"],link[href^="${baseChunkUrl}?"],link[href="${decodedBaseChunkUrl}"],link[href^="${decodedBaseChunkUrl}?"]`
         )
@@ -47,85 +208,8 @@ let DEV_BACKEND: DevRuntimeBackend
       }
     },
 
-    reloadChunk(chunkUrl) {
-      return new Promise<void>((resolve, reject) => {
-        if (!isCss(chunkUrl)) {
-          reject(new Error('The DOM backend can only reload CSS chunks'))
-          return
-        }
-
-        // Strip query string so we match links regardless of cache-busting
-        // params (e.g. ?ts=) that may differ between HMR updates.
-        const baseChunkUrl = chunkUrl.split('?')[0]
-        const decodedBaseChunkUrl = decodeURI(baseChunkUrl)
-        const previousLinks = document.querySelectorAll(
-          `link[rel=stylesheet][href="${baseChunkUrl}"],link[rel=stylesheet][href^="${baseChunkUrl}?"],link[rel=stylesheet][href="${decodedBaseChunkUrl}"],link[rel=stylesheet][href^="${decodedBaseChunkUrl}?"]`
-        )
-
-        const link = document.createElement('link')
-        link.rel = 'stylesheet'
-        link.crossOrigin = CROSS_ORIGIN
-
-        if (
-          navigator.userAgent.includes('Firefox') ||
-          (navigator.userAgent.includes('Safari') &&
-            !navigator.userAgent.includes('Chrome') &&
-            !navigator.userAgent.includes('Chromium'))
-        ) {
-          // Firefox won't reload CSS files that were previously loaded on the
-          // current page: https://bugzilla.mozilla.org/show_bug.cgi?id=1037506
-          //
-          // Safari serves cached CSS when a <link rel=preload> exists for the
-          // same URL: https://bugs.webkit.org/show_bug.cgi?id=187726
-          //
-          // Replace or add a fresh `ts` cache-busting param without
-          // discarding other query parameters that may already be present.
-          const url = new URL(chunkUrl, location.origin)
-          // Reduced timer precision in some browers could lead to an update getting dropped
-          // in Firefox if it happens fast enough (in firefox precision is sometimes 100ms!).
-          // So trust that the server is only updating us when it is important and use a
-          // random number to bust the cache.
-          url.searchParams.set('ts', `${Date.now()}.${Math.random()}`)
-          link.href = url.pathname + url.search
-        } else {
-          link.href = chunkUrl
-        }
-
-        link.onerror = () => {
-          reject()
-        }
-        link.onload = () => {
-          // First load the new CSS, then remove the old ones. This prevents visible
-          // flickering that would happen in-between removing the previous CSS and
-          // loading the new one.
-          for (const previousLink of Array.from(previousLinks))
-            previousLink.remove()
-
-          // CSS chunks do not register themselves, and as such must be marked as
-          // loaded instantly.
-          resolve()
-        }
-
-        if (previousLinks.length === 0) {
-          // The chunk's <link> was already removed from the DOM (the importing
-          // component unmounted via navigation or a `dynamic(ssr: false)`
-          // boundary, so `unloadChunk` removed it), but its chunk list stays
-          // subscribed and can still receive a 'total' update. Mirror the
-          // 'added' branch of `applyChunkListUpdate` and load the fresh
-          // stylesheet instead of rejecting with "No link element found for
-          // chunk" (an unhandledRejection that forced a full page reload).
-          document.head.appendChild(link)
-        } else {
-          // Make sure to insert the new CSS right after the previous one, so that
-          // its precedence is higher.
-          previousLinks[0].parentElement!.insertBefore(
-            link,
-            previousLinks[0].nextSibling
-          )
-        }
-      })
-    },
-
+    reloadChunk: (chunkUrl) => reloadCss(chunkUrl, false),
+    reconcileChunk: (chunkUrl) => reloadCss(chunkUrl, true),
     restart: () => self.location.reload(),
   }
 
