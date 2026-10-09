@@ -1,0 +1,1 @@
+The React Query product is still fresh in the browser when I navigate back, but the route runs its server prefetch again and shows the loading fallback. Fix it without removing the initial server hydration.
