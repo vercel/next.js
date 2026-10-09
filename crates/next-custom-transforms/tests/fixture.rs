@@ -30,8 +30,8 @@ use swc_core::{
     atoms::atom,
     common::{FileName, Mark, SyntaxContext, comments::SingleThreadedComments},
     ecma::{
-        ast::Pass,
-        parser::{EsSyntax, Syntax, TsSyntax},
+        ast::{Expr, ExprStmt, Lit, ModuleDecl, ModuleItem, Pass, Program, Stmt, fn_pass},
+        parser::{EsSyntax, Syntax, TsSyntax, parse_file_as_module},
         transforms::{
             base::resolver,
             react::jsx,
@@ -590,6 +590,102 @@ fn server_actions_fixture(input: PathBuf) {
         },
         &input,
         &output,
+        FixtureTestConfig {
+            module: Some(true),
+            ..Default::default()
+        },
+    );
+}
+
+// Snapshot the decoded implementation modules too, so the import boundary is
+// reviewable without decoding percent-encoded JavaScript and inline source maps.
+#[fixture("tests/fixture/server-actions/server-graph/turbopack/**/input.*")]
+fn cache_fragment_fixture(input: PathBuf) {
+    let expected = match input
+        .parent()
+        .unwrap()
+        .file_name()
+        .unwrap()
+        .to_str()
+        .unwrap()
+    {
+        "cache-imports" | "cache-file" => 2,
+        "cache-closure" => 1,
+        "cache-fallback" => 0,
+        name => panic!("add fragment expectations for {name}"),
+    };
+    test_fixture(
+        Syntax::Typescript(TsSyntax {
+            tsx: true,
+            ..Default::default()
+        }),
+        &|tr| {
+            let unresolved_mark = Mark::new();
+            let cm = tr.cm.clone();
+            (
+                resolver(unresolved_mark, Mark::new(), true),
+                server_actions(
+                    &FileName::Real("/app/item.js".into()),
+                    Some("?test".into()),
+                    server_actions::Config {
+                        is_react_server_layer: true,
+                        is_development: false,
+                        use_cache_enabled: true,
+                        hash_salt: "".into(),
+                        cache_kinds: FxHashSet::from_iter(["x".into()]),
+                    },
+                    tr.comments.as_ref().clone(),
+                    unresolved_mark,
+                    cm.clone(),
+                    Default::default(),
+                    ServerActionsMode::Turbopack,
+                ),
+                fn_pass(move |program| {
+                    let Program::Module(module) = program else {
+                        unreachable!()
+                    };
+                    let mut fragments = Vec::new();
+                    let mut count = 0;
+                    for item in &module.body {
+                        let ModuleItem::ModuleDecl(ModuleDecl::Import(import)) = item else {
+                            continue;
+                        };
+                        let Some(encoded) = import
+                            .src
+                            .value
+                            .as_str()
+                            .and_then(|url| url.strip_prefix("data:text/javascript,"))
+                        else {
+                            continue;
+                        };
+                        let decoded = urlencoding::decode(encoded).unwrap();
+                        assert!(decoded.contains("__next_internal_action_entry_do_not_use__"));
+                        assert!(decoded.contains("/app/item.js"));
+                        assert!(decoded.contains("?test"));
+                        assert!(decoded.contains("sourceMappingURL=data:application/json;base64,"));
+                        let file = cm.new_source_file(FileName::Anon.into(), decoded.into_owned());
+                        let fragment = parse_file_as_module(
+                            &file,
+                            syntax(),
+                            Default::default(),
+                            None,
+                            &mut Vec::new(),
+                        )
+                        .unwrap();
+                        fragments.push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
+                            span: Default::default(),
+                            expr: Box::new(Expr::Lit(Lit::Str(format!("fragment {count}").into()))),
+                        })));
+                        fragments.extend(fragment.body);
+                        count += 1;
+                    }
+                    assert_eq!(count, expected);
+                    module.body = fragments;
+                }),
+            )
+        },
+        &input,
+        &input.parent().unwrap().join("output-fragments.js"),
         FixtureTestConfig {
             module: Some(true),
             ..Default::default()
