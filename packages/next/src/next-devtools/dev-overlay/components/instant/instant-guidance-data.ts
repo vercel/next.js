@@ -502,8 +502,8 @@ const syncMathCards: FixCard[] = [
     link: 'https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client',
     snippets: [
       { text: '"use client"', highlight: true },
-      { text: '// runs in the browser' },
-      { text: 'const id = Math.random()' },
+      { text: 'use(io())' },
+      { text: 'return <Dots seed={Math.random()} />' },
     ],
     copyable: true,
   },
@@ -541,8 +541,8 @@ const syncDateCards: FixCard[] = [
     link: 'https://nextjs.org/docs/messages/blocking-prerender-current-time#render-on-the-client',
     snippets: [
       { text: '"use client"', highlight: true },
-      { text: '// runs in the browser' },
-      { text: 'const t = Date.now()' },
+      { text: 'use(io())' },
+      { text: 'return <Clock time={Date.now()} />' },
     ],
     copyable: true,
   },
@@ -592,8 +592,8 @@ const syncCryptoCards: FixCard[] = [
     link: 'https://nextjs.org/docs/messages/blocking-prerender-crypto#render-on-the-client',
     snippets: [
       { text: '"use client"', highlight: true },
-      { text: '// runs in the browser' },
-      { text: 'const id = crypto.randomUUID()' },
+      { text: 'use(io())' },
+      { text: 'return <Id>{crypto.randomUUID()}</Id>' },
     ],
     copyable: true,
   },

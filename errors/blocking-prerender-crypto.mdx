@@ -55,8 +55,8 @@ Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/
     href="#render-on-the-client"
     snippets={[
       { text: '"use client"', highlight: true },
-      { text: '// runs in the browser' },
-      { text: 'const id = crypto.randomUUID()' },
+      { text: 'use(io())' },
+      { text: 'return <Id>{crypto.randomUUID()}</Id>' },
     ]}
   />
 </FixCardGrid>
@@ -208,11 +208,44 @@ To keep the page prerendered, use a profile with a longer revalidate window such
 
 ## Render on the client
 
-Choose this fix when the generated value belongs to the client experience. A client-only correlation ID for telemetry, a draft-state key in [`localStorage`](https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage), a UI nonce for a confirmation modal. Move the component into a [Client Component](/docs/app/getting-started/server-and-client-components) so the value is produced after hydration.
+Choose this fix when the generated value belongs to the client experience, such as a telemetry ID or draft-state key in [`localStorage`](https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage). Move the value into a [Client Component](/docs/app/getting-started/server-and-client-components), then suspend during static prerendering or compute it after hydration.
 
 ### Patterns
 
-#### Move the component to the client
+#### Suspend static prerendering with `use(io())`
+
+Call [`use(io())`](/docs/app/api-reference/functions/io) before generating the value. It suspends during static prerendering, so the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary renders a fallback. During a dynamic request, `io()` resolves immediately and the server can include the value in the streamed HTML.
+
+```jsx filename="app/draft-key.js"
+'use client'
+
+import { use } from 'react'
+import { io } from 'next/cache'
+
+export function DraftKey() {
+  use(io())
+  return <input type="hidden" value={crypto.randomUUID()} />
+}
+```
+
+Wrap the Client Component from its parent:
+
+```jsx filename="app/page.js"
+import { Suspense } from 'react'
+import { DraftKey } from './draft-key'
+
+export default function Page() {
+  return (
+    <Suspense fallback={null}>
+      <DraftKey />
+    </Suspense>
+  )
+}
+```
+
+Learn more: [`io`](/docs/app/api-reference/functions/io).
+
+#### Compute the value after hydration
 
 Add [`use client`](/docs/app/api-reference/directives/use-client) and call the crypto API inside the component.
 
@@ -239,11 +272,11 @@ Learn more: [Client Components](/docs/app/getting-started/server-and-client-comp
 
 ### Trade-off
 
-The first paint shows the SSR fallback (often `null`), and the value appears only after the browser hydrates the component. That's fine for client-only state but wrong for tokens that have to be in the prerendered HTML. See [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) for techniques that eliminate the flash.
+With `use(io())`, static prerenders contain the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) fallback, while dynamic requests can include the generated value in the streamed HTML. With `useEffect`, the initial render shows the placeholder and the value appears after hydration. See [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) for techniques that eliminate the flash.
 
 ### Gotchas
 
-- A Client Component that calls a crypto API inline during render still trips this error during SSR. See the dedicated [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client) page for the [`<Suspense>`](https://react.dev/reference/react/Suspense) and effect-based recipes.
+- A Client Component that calls a crypto API inline during render without first calling `use(io())` still trips this error during static prerendering. See the dedicated [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client) page for the [`<Suspense>`](https://react.dev/reference/react/Suspense) and effect-based recipes.
 - The browser only ships [Web Crypto](https://developer.mozilla.org/en-US/docs/Web/API/Crypto). Node-only APIs (`crypto.randomBytes`, `crypto.generateKeyPairSync`) are not available on the client.
 
 ## Verifying the fix
