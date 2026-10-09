@@ -3,14 +3,20 @@ const nextConfig = {
   experimental: {
     turbopackModuleFederation: {
       name: 'nextHost',
+      runtimePlugins: [['./runtime-plugin.js', { marker: 'plugin ran' }]],
       remotes: {
         catalog: `catalog@${process.env.MF_REMOTE_ORIGIN}/browser/remoteEntry.js`,
+        fallbackCatalog: [
+          `missingCatalog@${process.env.MF_REMOTE_ORIGIN}/missing/remoteEntry.js`,
+          `catalog@${process.env.MF_REMOTE_ORIGIN}/browser/remoteEntry.js`,
+        ],
         workerCatalog: {
           external: `workerCatalog@${process.env.MF_REMOTE_ORIGIN}/worker/remoteEntry.js`,
           shareScope: 'worker',
         },
       },
       shared: {
+        react: { singleton: true, eager: true, requiredVersion: false },
         'shared-value': {
           import: './shared-value.js',
           shareKey: 'shared-value',

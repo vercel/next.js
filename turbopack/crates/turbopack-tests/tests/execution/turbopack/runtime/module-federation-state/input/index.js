@@ -15,7 +15,7 @@ function createIsolatedRuntime(runtimePath, sourcePath, chunkPath, moduleId) {
   return runtime.m(moduleId).exports
 }
 
-it('isolates module federation state between runtimes', () => {
+it('does not attach federation state to generic Turbopack runtimes', () => {
   const repoRoot = path.resolve(process.cwd(), '../../../../../../../..')
   const runtimePath = path.join(
     repoRoot,
@@ -37,14 +37,8 @@ it('isolates module federation state between runtimes', () => {
       'second-module'
     )
 
-    first.shareScopes.default = { react: {} }
-    first.initScopes.default = ['first']
-    first.remoteInitializations.catalog = Promise.resolve('first')
-
-    expect(second).not.toBe(first)
-    expect(second.shareScopes.default).toBeUndefined()
-    expect(second.initScopes.default).toBeUndefined()
-    expect(second.remoteInitializations.catalog).toBeUndefined()
+    expect(first).toBeUndefined()
+    expect(second).toBeUndefined()
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true })
   }

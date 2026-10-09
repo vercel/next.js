@@ -5,9 +5,13 @@ use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbopack::module_options::{
-    CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, TypescriptTransformOptions,
-    module_options_context::ModuleOptionsContext, side_effect_free_packages_glob,
+use turbopack::{
+    module_federation::FEDERATION_RUNTIME_REQUEST,
+    module_options::{
+        CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions,
+        TypescriptTransformOptions, module_options_context::ModuleOptionsContext,
+        side_effect_free_packages_glob,
+    },
 };
 use turbopack_browser::{
     BrowserChunkingContext, CurrentChunkMethod, react_refresh::assert_can_resolve_react_refresh,
@@ -752,6 +756,19 @@ pub async fn get_client_runtime_entries(
                     .resolved_cell(),
             )
         };
+    }
+
+    let federation = next_config.turbopack_module_federation().await?;
+    if federation.is_enabled() {
+        runtime_entries.push(
+            RuntimeEntry::Request(
+                Request::parse(Pattern::Constant(FEDERATION_RUNTIME_REQUEST.into()))
+                    .to_resolved()
+                    .await?,
+                project_root.join("_")?,
+            )
+            .resolved_cell(),
+        );
     }
 
     if matches!(ty, ClientContextType::App { .. },) {
