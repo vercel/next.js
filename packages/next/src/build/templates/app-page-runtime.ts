@@ -50,7 +50,7 @@ import { setManifestsSingleton } from '../../server/app-render/manifests-singlet
 import { shouldServeStreamingMetadata } from '../../server/lib/streaming-metadata' with { 'turbopack-transition': 'next-server-utility' }
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths' with { 'turbopack-transition': 'next-server-utility' }
 import { parseNormalizedAppRoute } from '../../shared/lib/router/routes/app' with { 'turbopack-transition': 'next-server-utility' }
-import { getIsPossibleServerAction } from '../../server/lib/server-action-request-meta' with { 'turbopack-transition': 'next-server-utility' }
+import { getServerActionRequestMetadata } from '../../server/lib/server-action-request-meta' with { 'turbopack-transition': 'next-server-utility' }
 import {
   RSC_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
@@ -321,7 +321,8 @@ export function createAppPageEntrypoint({
       getRequestMeta(req, 'isRSCRequest') ??
       isRSCRequestHeader(req.headers[RSC_HEADER])
 
-    const isPossibleServerAction = getIsPossibleServerAction(req)
+    const { isPossibleServerAction, isFetchAction } =
+      getServerActionRequestMetadata(req)
 
     // For subresource requests (e.g. images or fonts), return plain text 404
     // instead of rendering the not-found route.
@@ -1442,8 +1443,12 @@ export function createAppPageEntrypoint({
             process.env.NEXT_RUNTIME !== 'edge' &&
             !isMinimalMode &&
             incrementalCache &&
-            // Include both dynamic RSC requests (navigations) and server actions
-            (isDynamicRSCRequest || isPossibleServerAction) &&
+            // Include both dynamic RSC requests (navigations) and fetch server
+            // actions. A form submitted without JavaScript (an MPA action) is
+            // answered with a full HTML document, which resuming from the
+            // postponed state can't produce as it doesn't include the static
+            // shell, so it performs a full dynamic render instead.
+            (isDynamicRSCRequest || isFetchAction) &&
             // We don't typically trigger an on-demand revalidation for dynamic RSC
             // requests, as we're typically revalidating the page in the background
             // instead. However, if the cache entry is stale, we should trigger a
