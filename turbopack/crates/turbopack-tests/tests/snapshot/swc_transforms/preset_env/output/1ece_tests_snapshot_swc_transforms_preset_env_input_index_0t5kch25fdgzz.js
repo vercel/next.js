@@ -1470,9 +1470,16 @@ browserContextPrototype.q = exportUrl;
  * Returns the URL relative to the origin where a chunk can be fetched from.
  */ function getChunkRelativeUrl(chunkPath) {
     var basePath = arguments.length > 1 && arguments[1] !== void 0 ? arguments[1] : RUNTIME_CHUNK_BASE_PATH;
+    // A chunkPath may already carry a query string (e.g. `?dpl=xxx`) when it was
+    // produced by `__turbopack_export_url__`, which appends ASSET_SUFFIX at
+    // module-export time. Split it off so the `?` isn't percent-encoded into the
+    // path and ASSET_SUFFIX isn't appended a second time.
+    var queryIndex = chunkPath.indexOf('?');
+    var pathPart = queryIndex === -1 ? chunkPath : chunkPath.slice(0, queryIndex);
+    var querySuffix = queryIndex === -1 ? ASSET_SUFFIX : chunkPath.slice(queryIndex);
     // Most chunk paths need no escaping.
-    var encodedPath = CHUNK_PATH_NEEDS_ENCODING.test(chunkPath) ? chunkPath.split('/').map(encodeURIComponent).join('/') : chunkPath;
-    return `${basePath}${encodedPath}${ASSET_SUFFIX}`;
+    var encodedPath = CHUNK_PATH_NEEDS_ENCODING.test(pathPart) ? pathPart.split('/').map(encodeURIComponent).join('/') : pathPart;
+    return `${basePath}${encodedPath}${querySuffix}`;
 }
 // Shared runtime primitives consumed by the bundled `createWorker` helper,
 // exposed as `__turbopack_chunk_base_path__` and `__turbopack_chunk_asset_suffix__`.
