@@ -9,7 +9,7 @@ import {
   recordRequestInsightFetch,
 } from './trace/request-insights'
 import { getRequestInsightsIdentity } from './trace/request-insights-identity'
-import { getTracer, SpanKind } from './trace/tracer'
+import { getTracer, SpanKind, SpanStatusCode } from './trace/tracer'
 import {
   CACHE_ONE_YEAR_SECONDS,
   INFINITE_CACHE,
@@ -185,6 +185,14 @@ function trackFetchMetric(
     'next.fetch.cache_status': metric.cacheStatus,
     'next.fetch.cache_reason': metric.cacheReason,
   })
+
+  if (span && metric.status >= 400) {
+    span.setStatus({ code: SpanStatusCode.ERROR })
+    span.setAttribute('error.type', String(metric.status))
+    span.recordException(
+      new Error(`Fetch failed with HTTP status ${metric.status}`)
+    )
+  }
 
   if (isRequestInsightsEnabled()) {
     const requestInsightsIdentity = getRequestInsightsIdentity()
