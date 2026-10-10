@@ -39,6 +39,11 @@ globalThis.fetch = async (input, init) => {
     value = scenario.range
       ? { next: [{ vulnerable_versions: scenario.range }] }
       : {}
+  } else if (url === 'https://registry.npmjs.org/next/canary') {
+    const packages = JSON.parse(
+      readFileSync(join(tools, 'package-runner.json'), 'utf8')
+    )
+    value = { version: packages.upgradeVersion }
   } else if (url === 'https://registry.npmjs.org/next/latest') {
     value = { version: scenario.target, engines: { node: '>=20.9.0' } }
   } else {

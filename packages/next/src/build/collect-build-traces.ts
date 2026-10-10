@@ -228,6 +228,7 @@ export async function collectBuildTraces({
         '**/next/dist/server/lib/route-resolver*',
         // Upgrade workflows are CLI-only and are not needed by production servers.
         '**/next/dist/lib/upgrade/**/*',
+        '**/node_modules/@next/upgrade/**/*',
         // The testmode interceptors bundle reads its HTTP parser WASM with a
         // dynamic path, making nft trace the bundle's whole directory. Test
         // proxying is not supported in standalone output, so keep the parser

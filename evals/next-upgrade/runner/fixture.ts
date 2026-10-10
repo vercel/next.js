@@ -117,7 +117,8 @@ export async function setupFixture(
   const root = process.env.NEXT_UPGRADE_EVAL_RUN_ROOT
   const nextTarball = process.env.NEXT_UPGRADE_EVAL_NEXT_TARBALL
   const codemodTarball = process.env.NEXT_UPGRADE_EVAL_CODEMOD_TARBALL
-  if (!name || !root || !nextTarball || !codemodTarball) {
+  const upgradeTarball = process.env.NEXT_UPGRADE_EVAL_UPGRADE_TARBALL
+  if (!name || !root || !nextTarball || !codemodTarball || !upgradeTarball) {
     throw new Error('Use pnpm eval:upgrade to supply run inputs')
   }
   const scenario = loadCase(name)
@@ -145,6 +146,7 @@ export async function setupFixture(
   await sandbox.writeFiles({
     [join(toolsDirectory, 'next.tgz')]: readFileSync(nextTarball),
     [join(toolsDirectory, 'codemod.tgz')]: readFileSync(codemodTarball),
+    [join(toolsDirectory, 'upgrade.tgz')]: readFileSync(upgradeTarball),
   })
   await run('npm', [
     'install',
@@ -153,6 +155,7 @@ export async function setupFixture(
     '--prefix',
     `${toolsDirectory}/next`,
     `${toolsDirectory}/next.tgz`,
+    `${toolsDirectory}/upgrade.tgz`,
   ])
   await run('npm', [
     'install',
@@ -198,6 +201,10 @@ export async function setupFixture(
     '-p',
     `require('${toolsDirectory}/codemod/node_modules/@next/codemod/package.json').version`,
   ])
+  const upgradeVersion = await run('node', [
+    '-p',
+    `require('${toolsDirectory}/next/node_modules/@next/upgrade/package.json').version`,
+  ])
   const npm = await run('sh', ['-c', 'command -v npm'])
   const npx = await run('sh', ['-c', 'command -v npx'])
   const originalPath = await run('sh', ['-c', 'printf %s "$PATH"'])
@@ -207,6 +214,7 @@ export async function setupFixture(
     [join(toolsDirectory, 'package-runner.json')]: JSON.stringify({
       nextVersion,
       codemodVersion,
+      upgradeVersion,
       npm,
       npx,
       nudge: scenario.kind === 'nudge',
@@ -239,6 +247,7 @@ export async function setupFixture(
       '--no-audit',
       '--no-fund',
       `${toolsDirectory}/next.tgz`,
+      `${toolsDirectory}/upgrade.tgz`,
     ])
     await run('npm', [
       'install',

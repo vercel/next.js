@@ -1,9 +1,53 @@
 {
   "name": "@next/upgrade",
   "version": "16.5.0-canary.7",
-  "private": true,
-  "description": "Next.js upgrade workflow source",
-  "dependencies": {
-    "@next/env": "workspace:*"
+  "description": "Upgrade Next.js apps from the terminal or with an agent",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vercel/next.js",
+    "directory": "packages/next-upgrade"
+  },
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "next-upgrade": "./dist/bin/next-upgrade.js"
+  },
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "dev": "node scripts/build.mjs --watch",
+    "typescript": "tsc --noEmit",
+    "pack-for-isolated-tests": "pnpm pack --out ./packed.tgz"
+  },
+  "devDependencies": {
+    "@next/env": "workspace:*",
+    "@types/cross-spawn": "6.0.0",
+    "@types/debug": "4.1.5",
+    "@types/node": "20.14.2",
+    "@types/semver": "7.3.1",
+    "@vercel/detect-agent": "1.2.3",
+    "@vercel/ncc": "0.38.4",
+    "cli-select": "1.1.2",
+    "commander": "12.1.0",
+    "conf": "5.0.0",
+    "cross-spawn": "7.0.3",
+    "debug": "4.1.1",
+    "ora": "4.0.4",
+    "picocolors": "1.1.1",
+    "semver": "7.3.2",
+    "typescript": "6.0.2"
   }
 }

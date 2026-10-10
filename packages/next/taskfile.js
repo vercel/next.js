@@ -50,11 +50,6 @@ export async function copy_docs(task, opts) {
   await task
     .source(join(__dirname, 'src/agent-feedback/protocol.md'))
     .target('dist/agent-feedback')
-
-  // Keep upgrade workflow instructions outside the public docs bundle.
-  await task
-    .source(join(__dirname, '../next-upgrade/src/cli/agent/guides/*.md'))
-    .target('dist/lib/upgrade')
 }
 
 export async function copy_styled_jsx_assets(task, opts) {
@@ -2498,20 +2493,14 @@ export async function cli(task, opts) {
 
 export async function lib(task, opts) {
   await task
-    .source([
-      'src/lib/**/!(*.test).+(js|ts|tsx|json|jsonc)',
-      '../next-upgrade/src/**/!(*.test).+(js|ts|tsx|json|jsonc)',
-    ])
+    .source('src/lib/**/!(*.test).+(js|ts|tsx|json|jsonc)')
     .swc('server', { dev: opts.dev })
     .target('dist/lib')
 }
 
 export async function lib_esm(task, opts) {
   await task
-    .source([
-      'src/lib/**/!(*.test).+(js|ts|tsx|json|jsonc)',
-      '../next-upgrade/src/**/!(*.test).+(js|ts|tsx|json|jsonc)',
-    ])
+    .source('src/lib/**/!(*.test).+(js|ts|tsx|json|jsonc)')
     .swc('server', { dev: opts.dev, esm: true })
     .target('dist/esm/lib')
 }
@@ -2800,21 +2789,7 @@ export async function generate_types(task, opts) {
 }
 
 export async function copy_types(task) {
-  // Match the runtime layout for Next's entry points and upgrade implementations.
-  await task
-    .source(['dist/types/next/src/**/*', 'dist/types/next-upgrade/src/**/*'])
-    // eslint-disable-next-line require-yield
-    .run({ every: true }, function* (file) {
-      const upgradeSource = join('dist', 'types', 'next-upgrade', 'src')
-      if (file.dir.startsWith(upgradeSource)) {
-        file.dir = join(
-          upgradeSource,
-          'lib/upgrade',
-          relative(upgradeSource, file.dir)
-        )
-      }
-    })
-    .target('dist')
+  await task.source('dist/types/**/*').target('dist')
 }
 
 export default async function (task) {
@@ -2853,7 +2828,6 @@ export default async function (task) {
   await task.watch('src/lib', 'lib', opts)
   await task.watch('src/lib', 'lib_esm', opts)
   await task.watch('src/cli', 'cli', opts)
-  await task.watch('../next-upgrade/src', ['lib', 'lib_esm', 'copy_docs'], opts)
   await task.watch('src/telemetry', 'telemetry', opts)
   await task.watch('src/trace', 'trace', opts)
   await task.watch(

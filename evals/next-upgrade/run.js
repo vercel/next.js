@@ -156,10 +156,14 @@ async function cleanupOwned(tasks) {
 // same revision in an isolated checkout and remove only this invocation's tree.
 function buildStableCandidate(runRoot, destination) {
   const checkout = path.join(runRoot, 'stable-build')
-  const dirty = execFileSync('git', ['diff', 'HEAD', '--', 'packages/next'], {
-    cwd: root,
-    encoding: 'utf8',
-  })
+  const dirty = execFileSync(
+    'git',
+    ['diff', 'HEAD', '--', 'packages/next', 'packages/next-upgrade'],
+    {
+      cwd: root,
+      encoding: 'utf8',
+    }
+  )
   if (dirty) {
     throw new Error(
       'Commit or explicitly prepare the candidate runtime source before a stable-identity build'
@@ -427,6 +431,7 @@ async function runCase(name, context) {
           NEXT_UPGRADE_EVAL_TRUSTED_ROOT: path.join(output, 'trusted'),
           NEXT_UPGRADE_EVAL_NEXT_TARBALL: nextTarball,
           NEXT_UPGRADE_EVAL_CODEMOD_TARBALL: packages.codemod,
+          NEXT_UPGRADE_EVAL_UPGRADE_TARBALL: packages.upgrade,
           NEXT_UPGRADE_EVAL_NATIVE_BINDING_VERSION: inputs.originalVersion,
           AGENT_EVAL_PREPARE_FIXTURE_ONCE: '1',
           AGENT_EVAL_SANDBOX_SNAPSHOT_ID: snapshots.toolchain,
@@ -590,10 +595,12 @@ async function main() {
     const packages = {
       next: path.join(work, 'packages/next.tgz'),
       codemod: path.join(work, 'packages/codemod.tgz'),
+      upgrade: path.join(work, 'packages/upgrade.tgz'),
       stable: path.join(work, 'packages/stable-next.tgz'),
     }
     packPackage(path.join(root, 'packages/next'), packages.next)
     packPackage(path.join(root, 'packages/next-codemod'), packages.codemod)
+    packPackage(path.join(root, 'packages/next-upgrade'), packages.upgrade)
     const inputs = {
       sourceRevision: execFileSync('git', ['rev-parse', 'HEAD'], {
         cwd: root,
@@ -604,6 +611,7 @@ async function main() {
       ).version,
       'next.tgz': hash(packages.next),
       'codemod.tgz': hash(packages.codemod),
+      'upgrade.tgz': hash(packages.upgrade),
       stable: cases.some((name) => loadCase(name).kind === 'nudge')
         ? buildStableCandidate(work, packages.stable)
         : null,
