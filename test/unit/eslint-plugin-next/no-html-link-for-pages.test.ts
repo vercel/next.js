@@ -10,6 +10,7 @@ const withCustomPagesDir = path.join(__dirname, 'with-custom-pages-dir')
 const withNestedPagesDir = path.join(__dirname, 'with-nested-pages-dir')
 const withoutPagesDir = path.join(__dirname, 'without-pages-dir')
 const withAppDir = path.join(__dirname, 'with-app-dir')
+const withLayoutOnlyAppDir = path.join(__dirname, 'with-app-dir-layout-only')
 
 const linters = {
   withoutPages: new Linter({
@@ -18,6 +19,10 @@ const linters = {
   }),
   withApp: new Linter({
     cwd: withAppDir,
+    configType: 'eslintrc',
+  }),
+  withLayoutOnlyApp: new Linter({
+    cwd: withLayoutOnlyAppDir,
     configType: 'eslintrc',
   }),
   withNestedPages: new Linter({
@@ -163,6 +168,21 @@ export class Blah extends Head {
     return (
       <div>
         <a href='/presentation.pdf'>View PDF</a>
+        <h1>Hello title</h1>
+      </div>
+    );
+  }
+}
+`
+
+const validNestedLayoutLinkCode = `
+import Link from 'next/link';
+
+export class Blah extends Head {
+  render() {
+    return (
+      <div>
+        <a href='/nested/layout'>Nested Layout</a>
         <h1>Hello title</h1>
       </div>
     );
@@ -433,6 +453,14 @@ describe('no-html-link-for-pages', function () {
     const report = linters.withApp.verify(validPublicFile, linterConfig, {
       filename: 'foo.js',
     })
+    assert.deepEqual(report, [])
+  })
+  it('valid nested layout file link element with appDir', function () {
+    const report = linters.withLayoutOnlyApp.verify(
+      validNestedLayoutLinkCode,
+      linterConfig,
+      { filename: 'foo.js' }
+    )
     assert.deepEqual(report, [])
   })
   it('invalid static route with appDir', function () {
