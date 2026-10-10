@@ -1,53 +1,61 @@
 ---
-title: Minimum React Version
+title: React Version Support
+description: Learn which React versions are supported by Next.js and how to upgrade.
 ---
 
 ## Why This Error Occurred
 
-Your project is using an old version of `react` or `react-dom` that does not
-meet the suggested minimum version requirement.
+Your project is using a version of `react` or `react-dom` that is unsupported or
+deprecated in your version of Next.js.
 
-Next.js suggests using, at a minimum, `react@18.2.0` and `react-dom@18.2.0`.
-Older versions of `react` and `react-dom` do work with Next.js, however, they do
-not enable all of Next.js' features.
+- React versions earlier than `18.2.0` are unsupported.
+- React 18.2 and later remain supported in Next.js 16, but React 18 support is
+  deprecated.
+- React 19 is recommended for Next.js 16 and will be required in Next.js 17.
 
-For example, the following features are not enabled with old React versions:
+React 19 includes features used by Next.js, such as Actions and improved
+hydration errors. Upgrade `react` and `react-dom` together to keep their versions
+in sync.
 
-- [Fast Refresh](/docs/architecture/fast-refresh): instantly
-  view edits to your app without losing component state
-- Component stack trace in development: see the component tree that lead up to
-  an error
-- Hydration mismatch warnings: trace down discrepancies in your React tree that
-  cause performance problems
-
-This list is not exhaustive, but illustrative in the value of upgrading React!
+If you use TypeScript, upgrade `@types/react` and `@types/react-dom` at the same
+time.
 
 ## Possible Ways to Fix It
 
-**Via npm**
+Upgrade React and its TypeScript types with your package manager:
 
-```bash filename="Terminal"
-npm upgrade react@latest react-dom@latest
+```bash package="npm"
+npm install react@latest react-dom@latest @types/react@latest @types/react-dom@latest
 ```
 
-**Via Yarn**
-
-```bash filename="Terminal"
-yarn add react@latest react-dom@latest
+```bash package="yarn"
+yarn add react@latest react-dom@latest @types/react@latest @types/react-dom@latest
 ```
 
-**Manually** Open your `package.json` and upgrade `react` and `react-dom`:
+```bash package="pnpm"
+pnpm add react@latest react-dom@latest @types/react@latest @types/react-dom@latest
+```
+
+```bash package="bun"
+bun add react@latest react-dom@latest @types/react@latest @types/react-dom@latest
+```
+
+Alternatively, update your `package.json` manually:
 
 ```json filename="package.json"
 {
   "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0"
   }
 }
 ```
 
 ## Useful Links
 
-- [Fast Refresh blog post](/blog/next-9-4#fast-refresh)
-- [Fast Refresh docs](/docs/architecture/fast-refresh)
+- [React 19 upgrade guide](https://react.dev/blog/2024/04/25/react-19-upgrade-guide)
+- [Upgrading Next.js](/docs/app/getting-started/upgrading)

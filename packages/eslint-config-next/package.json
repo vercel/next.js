@@ -1,6 +1,6 @@
 {
   "name": "eslint-config-next",
-  "version": "16.3.0-canary.79",
+  "version": "16.5.0-canary.7",
   "description": "ESLint configuration used by Next.js.",
   "license": "MIT",
   "repository": {
@@ -12,15 +12,15 @@
     "dist"
   ],
   "dependencies": {
-    "@next/eslint-plugin-next": "16.3.0-canary.79",
+    "@next/eslint-plugin-next": "workspace:*",
     "eslint-import-resolver-node": "^0.3.6",
     "eslint-import-resolver-typescript": "^3.5.2",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-jsx-a11y": "^6.10.0",
     "eslint-plugin-react": "^7.37.0",
-    "eslint-plugin-react-hooks": "^7.0.0",
+    "eslint-plugin-react-hooks": "^7.1.0",
     "globals": "16.4.0",
-    "typescript-eslint": "^8.46.0"
+    "typescript-eslint": "^8.56.0"
   },
   "peerDependencies": {
     "eslint": ">=9.0.0",
@@ -34,6 +34,7 @@
   "devDependencies": {
     "@types/eslint": "9.6.1",
     "@types/eslint-plugin-jsx-a11y": "6.10.1",
+    "@types/node": "20.17.7",
     "typescript": "6.0.2"
   },
   "scripts": {

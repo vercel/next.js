@@ -4,7 +4,7 @@ describe(`mdx`, () => {
   const { next } = nextTestSetup({
     files: __dirname,
     dependencies: {
-      '@next/mdx': 'canary',
+      '@next/mdx': 'workspace:*',
       '@mdx-js/loader': '^2.2.1',
     },
   })

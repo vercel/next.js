@@ -274,22 +274,22 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::MAX_LIST_SIZE;
+    use crate::MAX_USEFUL_LINEAR_SCAN;
 
     #[test]
     fn test_auto_set() {
         let mut set = AutoSet::new();
-        for i in 0..MAX_LIST_SIZE * 2 {
+        for i in 0..MAX_USEFUL_LINEAR_SCAN * 2 {
             set.insert(i);
         }
-        for i in 0..MAX_LIST_SIZE * 2 {
+        for i in 0..MAX_USEFUL_LINEAR_SCAN * 2 {
             assert!(set.contains(&i));
         }
-        assert!(!set.contains(&(MAX_LIST_SIZE * 2)));
-        for i in 0..MAX_LIST_SIZE * 2 {
-            assert!(!set.remove(&(MAX_LIST_SIZE * 2)));
+        assert!(!set.contains(&(MAX_USEFUL_LINEAR_SCAN * 2)));
+        for i in 0..MAX_USEFUL_LINEAR_SCAN * 2 {
+            assert!(!set.remove(&(MAX_USEFUL_LINEAR_SCAN * 2)));
             assert!(set.remove(&i));
         }
-        assert!(!set.remove(&(MAX_LIST_SIZE * 2)));
+        assert!(!set.remove(&(MAX_USEFUL_LINEAR_SCAN * 2)));
     }
 }

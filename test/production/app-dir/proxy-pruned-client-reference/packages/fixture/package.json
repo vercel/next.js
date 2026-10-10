@@ -1,0 +1,5 @@
+{
+  "name": "fixture",
+  "type": "module",
+  "sideEffects": false
+}

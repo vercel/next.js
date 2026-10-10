@@ -7,6 +7,9 @@ on:
     - cron: '0 7 * * *'
   workflow_dispatch:
 
+env:
+  COREPACK_VERSION: 0.34.7
+
 jobs:
   update_dev_manifest:
     name: Update and upload Rspack development test manifest
@@ -22,6 +25,7 @@ jobs:
           owner: ${{ github.repository_owner }}
           repositories: next.js
           permission-contents: write
+          permission-pull-requests: write
 
       - name: Get GitHub App user ID
         id: release-app-user
@@ -48,7 +52,7 @@ jobs:
 
       - name: Setup corepack
         run: |
-          npm i -g corepack@0.31
+          npm i -g "corepack@${COREPACK_VERSION}"
           corepack enable
 
       - name: Install dependencies
@@ -62,7 +66,6 @@ jobs:
           RELEASE_GITHUB_TOKEN: ${{ steps.release-app-token.outputs.token }}
           RELEASE_GITHUB_APP_SLUG: ${{ steps.release-app-token.outputs.app-slug }}
           RELEASE_GITHUB_APP_USER_ID: ${{ steps.release-app-user.outputs.user-id }}
-          PR_GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUESTS }}
           BRANCH_NAME: rspack-manifest
           # We need to use `--override` for rspack (but not for turbopack).
           # We don't currently have any CI running on every PR, so it's quite
@@ -85,6 +88,7 @@ jobs:
           owner: ${{ github.repository_owner }}
           repositories: next.js
           permission-contents: write
+          permission-pull-requests: write
 
       - name: Get GitHub App user ID
         id: release-app-user
@@ -111,7 +115,7 @@ jobs:
 
       - name: Setup corepack
         run: |
-          npm i -g corepack@0.31
+          npm i -g "corepack@${COREPACK_VERSION}"
           corepack enable
 
       - name: Install dependencies
@@ -125,7 +129,6 @@ jobs:
           RELEASE_GITHUB_TOKEN: ${{ steps.release-app-token.outputs.token }}
           RELEASE_GITHUB_APP_SLUG: ${{ steps.release-app-token.outputs.app-slug }}
           RELEASE_GITHUB_APP_USER_ID: ${{ steps.release-app-user.outputs.user-id }}
-          PR_GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUESTS }}
           BRANCH_NAME: rspack-manifest
           SCRIPT: test/update-bundler-manifest.js --bundler rspack --test-suite build --override
           PR_TITLE: Update Rspack production test manifest

@@ -16,3 +16,25 @@ module.exports = {
   allowedDevOrigins: ['local-origin.dev', '*.local-origin.dev'],
 }
 ```
+
+Only the [`hostname`](https://developer.mozilla.org/en-US/docs/Web/API/URL/hostname) of the request's `Origin` header is matched against your entries. For a request from `http://local-origin.dev:3000/dashboard?tab=1`, that is `local-origin.dev`. The scheme, the port, the path, and the query string are ignored. Write your entries that way too, without `https://` and without a port.
+
+A no-cors cross-site request, such as a script tag loading a dev asset, sends no `Origin` header. Those are matched on the `Referer` hostname instead.
+
+Entries can also expand, through two wildcards: a `*` stands in for exactly one label of the hostname, and `**` for one or more. That is why the example above lists two entries, one for the bare hostname and one for its subdomains.
+
+| Entry                 | Matches                                             | Does not match                                 |
+| --------------------- | --------------------------------------------------- | ---------------------------------------------- |
+| `local-origin.dev`    | `local-origin.dev`                                  | `team.local-origin.dev`                        |
+| `*.local-origin.dev`  | `team.local-origin.dev`                             | `local-origin.dev`, `team.eu.local-origin.dev` |
+| `**.local-origin.dev` | `team.local-origin.dev`, `team.eu.local-origin.dev` | `local-origin.dev`                             |
+
+Partial replacement is not supported. Write `*.local-origin.dev`, rather than `team-*.local-origin.dev`. Using `**` is only supported at the start of the pattern.
+
+The dev server already allows `localhost`, its subdomains, and the hostname it was started with. Any other hostname needs an entry, such as a tunnel used for remote development:
+
+```js filename="next.config.js"
+module.exports = {
+  allowedDevOrigins: ['*.tunnel.example.com'],
+}
+```

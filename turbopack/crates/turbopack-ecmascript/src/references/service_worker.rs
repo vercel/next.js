@@ -6,8 +6,7 @@ use swc_core::{
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
-    turbofmt,
+    NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, turbofmt,
 };
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
 use turbopack_core::{
@@ -26,13 +25,13 @@ use turbopack_core::{
 };
 
 use crate::{
+    ast_path_trie::{AstPathId, AstPathTrie, AstPathTrieBuilder},
     chunk::{
         EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
         ecmascript_chunk_item,
     },
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
-    references::AstPath,
 };
 
 /// The root-served file name for a service worker registered at `scope`. One worker is supported
@@ -220,9 +219,14 @@ impl ValueToString for ServiceWorkerAssetReference {
 }
 
 impl IntoCodeGenReference for ServiceWorkerAssetReference {
+    fn into_reference(self) -> ResolvedVc<Box<dyn ModuleReference>> {
+        ResolvedVc::upcast(self.resolved_cell())
+    }
+
     fn into_code_gen_reference(
         self,
-        path: AstPath,
+        _trie: &AstPathTrieBuilder,
+        path: AstPathId,
     ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
         let scope = self.scope.clone();
         let reference = self.resolved_cell();
@@ -236,31 +240,64 @@ impl IntoCodeGenReference for ServiceWorkerAssetReference {
     }
 }
 
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode)]
 pub struct ServiceWorkerAssetReferenceCodeGen {
     scope: RcStr,
-    path: AstPath,
+    path: AstPathId,
 }
 
 impl ServiceWorkerAssetReferenceCodeGen {
     pub async fn code_generation(
         &self,
-        _chunking_context: Vc<Box<dyn ChunkingContext>>,
+        trie: &AstPathTrie,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
-        // The worker is served at a fixed, root-scoped URL derived from its `scope`. Rewrite the
-        // `new URL(...)` script argument to that URL string.
-        let url = format!("/{}", service_worker_chunk_filename(&self.scope));
+        // Rewrite `register(...)`'s script argument to the served URL and pin the `{ scope }` the
+        // analyzer resolved, preserving any other options the user passed (such as `type` or
+        // `updateViaCache`). Both are prefixed with the context's base path (e.g. a framework's
+        // `basePath`, provided by the host) so the worker is fetched and scoped under it.
+        //
+        //   register(new URL("./sw", import.meta.url))            // base path ""
+        //     -> register("/_next/static/service-worker/sw.js", { scope: "/" })
+        //   register(new URL("./sw", import.meta.url))            // base path "/base"
+        //     -> register("/base/_next/static/service-worker/sw.js", { scope: "/base" })
+        let base_path = chunking_context.service_worker_scope_base_path().await?;
+        let base_path = base_path.trim_end_matches('/');
+        let url = format!(
+            "{base_path}/_next/static/service-worker/{}",
+            service_worker_chunk_filename(&self.scope)
+        );
+        let scope = match self.scope.as_str() {
+            "/" if base_path.is_empty() => "/".to_string(),
+            "/" => base_path.to_string(),
+            s => format!("{base_path}{s}"),
+        };
 
-        let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
+        let visitor = create_visitor!(trie, self.path, visit_mut_expr, |expr: &mut Expr| {
             let message = if let Expr::Call(call_expr) = expr {
-                match call_expr.args.first_mut() {
-                    Some(ExprOrSpread {
-                        spread: None,
-                        expr: url_expr,
-                    }) => {
-                        **url_expr = Expr::Lit(Lit::Str(url.as_str().into()));
+                match call_expr.args.first() {
+                    Some(ExprOrSpread { spread: None, .. }) => {
+                        let scope_expr = Expr::Lit(Lit::Str(scope.as_str().into()));
+                        let options = match call_expr.args.get(1) {
+                            Some(ExprOrSpread { spread: None, expr }) => quote_expr!(
+                                "({ ...$user, scope: $scope })",
+                                user: Expr = (**expr).clone(),
+                                scope: Expr = scope_expr
+                            ),
+                            _ => quote_expr!(
+                                "({ scope: $scope })",
+                                scope: Expr = scope_expr
+                            ),
+                        };
+                        call_expr.args.truncate(1);
+                        call_expr.args[0] = ExprOrSpread {
+                            spread: None,
+                            expr: Box::new(Expr::Lit(Lit::Str(url.as_str().into()))),
+                        };
+                        call_expr.args.push(ExprOrSpread {
+                            spread: None,
+                            expr: options,
+                        });
                         return;
                     }
                     Some(ExprOrSpread {

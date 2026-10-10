@@ -14,7 +14,6 @@ use tokio_stream::StreamMap;
 use tracing::{Level, instrument};
 use turbo_tasks::{
     NonLocalValue, OperationVc, PrettyPrintError, ReadRef, TransientInstance, TurboTasksApi, Vc,
-    trace::TraceRawVcs,
 };
 use turbo_tasks_fs::json::parse_json_with_source_context;
 use turbopack_core::{issue::IssueReporter, version::Update};
@@ -41,7 +40,7 @@ pub(crate) struct UpdateServer<P: SourceProvider> {
 
 impl<P> UpdateServer<P>
 where
-    P: SourceProvider + NonLocalValue + TraceRawVcs + Clone + Send + Sync,
+    P: SourceProvider + NonLocalValue + Clone + Send + Sync,
 {
     /// Create a new update server with the given websocket and content source.
     pub fn new(source_provider: P, issue_reporter: Vc<Box<dyn IssueReporter>>) -> Self {

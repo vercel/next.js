@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry, findAllTelemetryEvents } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
 // TODO(NAR-423): Migrate to Cache Components.
@@ -24,19 +24,6 @@ describe.skip('ppr', () => {
         expect(next.cliOutput).toContain('◐ /suspense/node')
         expect(next.cliOutput).toContain(' /suspense/node/gsp/[slug]')
         expect(next.cliOutput).toContain(' /suspense/node/nested/[slug]')
-      })
-    })
-
-    describe('telemetry', () => {
-      it('should send ppr feature usage event', async () => {
-        const events = findAllTelemetryEvents(
-          next.cliOutput,
-          'NEXT_BUILD_FEATURE_USAGE'
-        )
-        expect(events).toContainEqual({
-          featureName: 'experimental/ppr',
-          invocationCount: 1,
-        })
       })
     })
   }

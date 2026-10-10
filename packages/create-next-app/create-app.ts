@@ -43,7 +43,9 @@ export async function createApp({
   bundler,
   disableGit,
   reactCompiler,
+  cacheComponents,
   agentsMd,
+  agentFeedback,
 }: {
   appPath: string
   packageManager: PackageManager
@@ -62,7 +64,9 @@ export async function createApp({
   bundler: Bundler
   disableGit?: boolean
   reactCompiler: boolean
+  cacheComponents: boolean
   agentsMd: boolean
+  agentFeedback: boolean
 }): Promise<void> {
   let repoInfo: RepoInfo | undefined
   const mode: TemplateMode = typescript ? 'ts' : 'js'
@@ -255,11 +259,14 @@ export async function createApp({
       skipInstall,
       bundler,
       reactCompiler,
+      cacheComponents,
+      agentFeedback,
     })
   }
 
   if (agentsMd) {
-    generateAgentFiles(root)
+    // Examples don't get `experimental.agentFeedback` written to their config.
+    generateAgentFiles(root, { agentFeedback: !example && agentFeedback })
   }
 
   if (disableGit) {

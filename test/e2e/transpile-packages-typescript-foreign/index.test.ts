@@ -1,25 +1,31 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// pnpm installs file: dependencies inside node_modules. npm would link them to
+// fixture source, which is transpiled without transpilePackages.
 describe('transpile-packages-typescript-foreign', () => {
+  // The build only fails because Vercel reads vercel.json's
+  // `installCommand: "pnpm install"`, which copies the `file:` package into
+  // node_modules. A host that ignores vercel.json may link it instead, and
+  // the build would then succeed.
+  // @force-gate !deploy || vercel
   describe('without transpilePackages', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next, isNextDev } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
       skipStart: true,
       dependencies: {
         pkg: `file:./pkg`,
       },
     })
 
-    if (skipped) {
-      return
-    }
-
     it('should fail', async () => {
-      try {
-        await next.start()
-        await next.render('/')
-      } catch (e) {}
+      if (isNextDev) {
+        try {
+          await next.start()
+          await next.render('/')
+        } catch {}
+      } else {
+        await expect(next.start()).rejects.toThrow()
+      }
 
       if (process.env.IS_TURBOPACK_TEST) {
         expect(next.cliOutput).toContain(`pkg/index.ts
@@ -35,13 +41,12 @@ This module doesn't have an associated type`)
         expect(next.cliOutput).toContain(`pkg/index.ts
 Module parse failed: Unexpected token`)
       }
-    })
+    }, 240_000)
   })
 
   describe('with transpilePackages', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
       dependencies: {
         pkg: `file:./pkg`,
       },
@@ -49,10 +54,6 @@ Module parse failed: Unexpected token`)
         transpilePackages: ['pkg'],
       },
     })
-
-    if (skipped) {
-      return
-    }
 
     it('should work', async () => {
       const $ = await next.render$('/')

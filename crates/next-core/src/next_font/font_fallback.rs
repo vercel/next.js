@@ -4,7 +4,7 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use serde::Deserialize;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, ResolvedVc, Vc};
 
 pub(crate) struct DefaultFallbackFont {
     pub name: RcStr,
@@ -81,7 +81,7 @@ impl FontFallbacks {
 /// An adjustment to be made to a fallback font to approximate the geometry of
 /// the main webfont. Rendered as e.g. `ascent-override: 56.8%;` in the
 /// stylesheet
-#[derive(Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Debug, PartialEq, Deserialize, NonLocalValue, Encode, Decode)]
 pub(crate) struct FontAdjustment {
     pub ascent: f64,
     pub descent: f64,

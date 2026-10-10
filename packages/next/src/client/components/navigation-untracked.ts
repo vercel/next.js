@@ -20,7 +20,6 @@ function hasFallbackRouteParams(): boolean {
     switch (workUnitStore.type) {
       case 'prerender':
       case 'prerender-client':
-      case 'prerender-ppr':
       case 'validation-client':
         const fallbackParams = workUnitStore.fallbackRouteParams
         return fallbackParams ? fallbackParams.size > 0 : false
@@ -30,7 +29,7 @@ function hasFallbackRouteParams(): boolean {
       case 'cache':
       case 'private-cache':
       case 'unstable-cache':
-      case 'generate-static-params':
+      case 'build-time-generator':
         break
       default:
         workUnitStore satisfies never

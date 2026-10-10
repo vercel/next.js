@@ -15,10 +15,9 @@
 0 -> 7 free var = FreeVar(require)
 
 0 -> 8 call = ???*0*("w_r_t")
-- *0* require*1*
-  ⚠️  ignored require
+- *0* FreeVar(require)
+  ⚠️  turbopackIgnore
   ⚠️  This value might have side effects
-- *1* require: The require method from CommonJS
 
 0 -> 9 free var = FreeVar(require)
 
@@ -28,10 +27,9 @@
 0 -> 11 free var = FreeVar(require)
 
 0 -> 12 call = ???*0*("t_r_t")
-- *0* require*1*
-  ⚠️  ignored require
+- *0* FreeVar(require)
+  ⚠️  turbopackIgnore
   ⚠️  This value might have side effects
-- *1* require: The require method from CommonJS
 
 0 -> 13 free var = FreeVar(require)
 
@@ -41,7 +39,6 @@
 0 -> 15 free var = FreeVar(require)
 
 0 -> 16 call = ???*0*("exported_t_r")
-- *0* require*1*
-  ⚠️  ignored require
+- *0* FreeVar(require)
+  ⚠️  turbopackIgnore
   ⚠️  This value might have side effects
-- *1* require: The require method from CommonJS

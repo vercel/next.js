@@ -1,6 +1,7 @@
 import { Suspense } from 'react'
 import { connection } from 'next/server'
 import { RevalidateButton } from './revalidate-button'
+import { fetchRandomWithForceCache } from '../../utils'
 
 async function DynamicContent() {
   // Make the page dynamic/PPR by accessing connection()
@@ -12,10 +13,9 @@ async function DynamicContent() {
 
 export default async function Page() {
   // Use fetch with cache and tags
-  const cachedValue = await fetch(
-    'https://next-data-api-endpoint.vercel.app/api/random',
-    { cache: 'force-cache', next: { tags: ['revalidate-fetch-action-test'] } }
-  ).then((res) => res.text())
+  const cachedValue = await fetchRandomWithForceCache({
+    tag: 'revalidate-fetch-action-test',
+  }).then(async (res) => `fetch-random-${await res.text()}`)
 
   return (
     <div>

@@ -2,7 +2,7 @@
 
 In order to get a reference to the pointed value, you need to `.await` the [`Vc<T>`] to get a [`ReadRef<T>`][`ReadRef`]:
 
-```
+```ignore
 let some_vc: Vc<T>;
 let some_ref: ReadRef<T> = some_vc.await?;
 some_ref.some_method_on_t();
@@ -140,7 +140,6 @@ This is a special case of the synchronous return value of a [`turbo_tasks::funct
 We prevent potentially-local `Vc`s from escaping the lifetime of a function using the [`NonLocalValue`] marker trait alongside some fallback runtime checks. We do this to avoid some ergonomic challenges that would come from using lifetime annotations with `Vc`.
 
 
-[tracing]: crate::trace::TraceRawVcs
 [`ReadRef`]: crate::ReadRef
 [`turbo_tasks::function`]: crate::function
 [monomorphization]: https://doc.rust-lang.org/book/ch10-01-syntax.html#performance-of-code-using-generics

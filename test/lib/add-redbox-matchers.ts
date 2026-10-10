@@ -8,7 +8,6 @@ import {
   getRedboxComponentStack,
   getRedboxDescription,
   getRedboxEnvironmentLabel,
-  getRedboxErrorCode,
   getRedboxSource,
   getRedboxLabel,
   getRedboxTotalErrorCount,
@@ -89,7 +88,6 @@ export interface ErrorSnapshot {
   componentStack?: string
   cause?: SanitizedCauseEntry[]
   aggregateErrors?: SanitizedCauseEntry[]
-  code?: string
   source: string | null
   stack: string[] | null
 }
@@ -196,7 +194,6 @@ async function createErrorSnapshot(
     componentStack,
     cause,
     aggregateErrors,
-    code,
   ] = await Promise.all([
     includeLabel ? getRedboxLabel(browser) : null,
     getRedboxEnvironmentLabel(browser),
@@ -206,7 +203,6 @@ async function createErrorSnapshot(
     getRedboxComponentStack(browser),
     getRedboxCause(browser),
     getRedboxAggregateErrors(browser),
-    getRedboxErrorCode(browser),
   ])
 
   // We don't need to test the codeframe logic everywhere.
@@ -259,10 +255,6 @@ async function createErrorSnapshot(
   // so we hide them from the snapshots unless they are present.
   if (componentStack !== null) {
     snapshot.componentStack = componentStack
-  }
-
-  if (code !== null) {
-    snapshot.code = code
   }
 
   // Error.cause chain is only relevant when present.

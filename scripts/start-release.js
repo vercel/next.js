@@ -1,7 +1,5 @@
 // @ts-check
-const path = require('path')
 const execa = require('execa')
-const fs = require('fs/promises')
 const semver = require('semver')
 const {
   configureGitHubAuth,
@@ -12,7 +10,9 @@ const {
 const {
   createGitHubReleaseCommit,
   createGitHubRelease,
+  updateLtsBranchRefs,
 } = require('./release-github-api')
+const { readReleaseVersion } = require('./release-version')
 
 const SEMVER_TYPES = ['patch', 'minor', 'major']
 
@@ -39,6 +39,11 @@ function createMockGitHubRequest() {
         body ? ` ${formatBody(body)}` : ''
       }`
     )
+
+    // Branch ref lookups (LTS branch moves): a canned commit SHA.
+    if (method === 'GET' && apiPath.includes('/git/ref/heads/')) {
+      return { object: { sha: 'f'.repeat(40), type: 'commit' } }
+    }
 
     // One canned shape covers every consumer: `.sha` (blobs/trees/commits) and
     // `.verification.verified` (commits). Ref writes ignore the return value.
@@ -67,7 +72,7 @@ function createMockGitHubRequest() {
 async function computePreviewVersion(canaryVersion) {
   const parsed = semver.parse(canaryVersion)
   if (!parsed) {
-    throw new Error(`Invalid version in lerna.json: ${canaryVersion}`)
+    throw new Error(`Invalid version: ${canaryVersion}`)
   }
   const canaryBase = `${parsed.major}.${parsed.minor}.${parsed.patch}`
 
@@ -159,17 +164,15 @@ async function main() {
 
   console.log(`Running release-${releaseType}...`)
 
-  const { version: canaryVersion } = JSON.parse(
-    await fs.readFile(path.join(process.cwd(), 'lerna.json'), 'utf-8')
-  )
+  const canaryVersion = readReleaseVersion()
 
-  // The current branch tip, captured before Lerna creates the release
-  // commit(s). For a preview release this is the base that both the
+  // The current branch tip, captured before the version bump creates the
+  // release commit(s). For a preview release this is the base that both the
   // preview-bump and the revert-to-canary commits are signed on top of.
   const { stdout: baseSha } = await execa('git', ['rev-parse', 'HEAD'])
 
   // Preview cuts ad-hoc from canary use an explicit, computed version rather
-  // than a Lerna prerelease bump (see computePreviewVersion).
+  // than a semver prerelease bump (see computePreviewVersion).
   const previewVersion = isPreview
     ? await computePreviewVersion(canaryVersion)
     : null
@@ -185,32 +188,31 @@ async function main() {
     previewVersion ??
     (isCanary || isReleaseCandidate || isBeta ? preleaseType : semverType)
 
-  const lernaArgs = ['lerna', 'version', versionArg]
+  const versionBumpArgs = ['scripts/version-bump.js', versionArg]
 
   if (isCanary) {
-    lernaArgs.push('--preid', 'canary')
+    versionBumpArgs.push('--preid', 'canary')
   } else if (isReleaseCandidate) {
-    lernaArgs.push('--preid', 'rc')
+    versionBumpArgs.push('--preid', 'rc')
   } else if (isBeta) {
-    lernaArgs.push('--preid', 'beta')
+    versionBumpArgs.push('--preid', 'beta')
   }
-
-  lernaArgs.push('--force-publish', '-y', '--no-push')
 
   if (dryRun) {
     // So the dry-run can be exercised outside
-    // of the release branches lerna.json restricts in real publishes.
-    lernaArgs.push('--allow-branch', '**')
+    // of the release branches scripts/release-branches.json restricts
+    // real version bumps to.
+    versionBumpArgs.push('--allow-branch', '**')
   }
 
-  const child = execa('pnpm', lernaArgs, {
+  const child = execa('node', versionBumpArgs, {
     stdio: 'inherit',
   })
 
   await child
 
   if (isPreview) {
-    // Lerna's bump commit (now HEAD, tagged v<previewVersion>) carries the
+    // The bump commit (now HEAD, tagged v<previewVersion>) carries the
     // preview versions. Add a second commit that restores the canary versions
     // so `canary` keeps advancing its own line; the preview tag still points at
     // the bump commit. Both land in a single push (see
@@ -243,10 +245,23 @@ async function main() {
     )
   }
 
-  const { tagName } = await createGitHubReleaseCommit(githubToken, {
-    ...releaseCommitOptions,
-    githubRequest: mockRequest,
-  })
+  const { tagName, sha: signedTagSha } = await createGitHubReleaseCommit(
+    githubToken,
+    {
+      ...releaseCommitOptions,
+      githubRequest: mockRequest,
+    }
+  )
+
+  if (releaseType === 'stable') {
+    await updateLtsBranchRefs(githubToken, {
+      // Validated against SEMVER_TYPES above (stable always requires one).
+      semverType: /** @type {'patch' | 'minor' | 'major'} */ (semverType),
+      tagName,
+      tagSha: signedTagSha,
+      githubRequest: mockRequest,
+    })
+  }
 
   if (isCanary || isReleaseCandidate || isBeta || isPreview) {
     await createGitHubRelease(githubToken, {
