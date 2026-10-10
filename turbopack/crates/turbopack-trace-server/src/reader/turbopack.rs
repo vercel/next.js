@@ -8,7 +8,7 @@ use std::{
 use anyhow::Result;
 use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_rcstr::{RcStr, RcStrInterning, rcstr};
-use turbopack_trace_utils::tracing::{Allocations, TraceRow, TraceValue};
+use turbopack_trace_utils::tracing::{Allocations, TimestampDecoder, TraceRow, TraceValue};
 
 use super::TraceFormat;
 use crate::{
@@ -68,6 +68,8 @@ pub struct TurbopackFormat {
     thread_stacks: FxHashMap<u64, Vec<u64>>,
     self_time_started: FxHashMap<(u64, u64), Timestamp>,
     interner: RcStrInterning,
+    /// Resolves the timestamps of the rows, which are relative to each other in the stream.
+    timestamps: TimestampDecoder,
 }
 
 impl TurbopackFormat {
@@ -86,6 +88,7 @@ impl TurbopackFormat {
             thread_stacks: FxHashMap::with_capacity_and_hasher(64, Default::default()),
             self_time_started: FxHashMap::with_capacity_and_hasher(256, Default::default()),
             interner: RcStrInterning::new(),
+            timestamps: TimestampDecoder::default(),
         }
     }
 
@@ -103,7 +106,7 @@ impl TurbopackFormat {
             .collect()
     }
 
-    fn process(&mut self, store: &mut StoreWriteGuard, row: TraceRow<'_>) {
+    fn process(&mut self, store: &mut StoreWriteGuard, row: TraceRow<'_, u64>) {
         match row {
             TraceRow::Start {
                 ts,
@@ -263,6 +266,8 @@ impl TurbopackFormat {
                 let ts = Timestamp::from_micros(ts);
                 store.add_memory_sample(ts, memory, memory_pressure, active_worker_threads);
             }
+            // Already applied by the timestamp decoder when the row was read
+            TraceRow::TimestampBase { .. } => {}
         }
     }
 
@@ -411,9 +416,9 @@ impl TurbopackFormat {
 }
 
 impl TraceFormat for TurbopackFormat {
-    type Reused = Vec<TraceRow<'static>>;
+    type Reused = Vec<TraceRow<'static, u64>>;
 
-    fn create_reused() -> Vec<TraceRow<'static>> {
+    fn create_reused() -> Vec<TraceRow<'static, u64>> {
         // Pre-allocate for a typical batch size to avoid repeated doubling during initial read.
         Vec::with_capacity(4_096)
     }
@@ -443,15 +448,16 @@ impl TraceFormat for TurbopackFormat {
         let mut reuse = ClearOnDrop(reuse);
         // Safety: The Vec is empty and is cleared on leaving this scope, so it's safe to cast the
         // lifetime of data, since there is no data and data can't leave this function.
-        let rows =
-            unsafe { transmute::<&mut Vec<TraceRow<'_>>, &mut Vec<TraceRow<'_>>>(&mut *reuse) };
+        let rows = unsafe {
+            transmute::<&mut Vec<TraceRow<'_, u64>>, &mut Vec<TraceRow<'_, u64>>>(&mut *reuse)
+        };
         let mut bytes_read = 0;
         loop {
-            match postcard::take_from_bytes(buffer) {
+            match postcard::take_from_bytes::<TraceRow<'_>>(buffer) {
                 Ok((row, remaining)) => {
                     bytes_read += buffer.len() - remaining.len();
                     buffer = remaining;
-                    rows.push(row);
+                    rows.push(self.timestamps.decode(row)?);
                 }
                 Err(err) => {
                     if matches!(err, postcard::Error::DeserializeUnexpectedEnd) {
@@ -503,14 +509,17 @@ impl<T> DerefMut for ClearOnDrop<'_, T> {
 mod tests {
     use std::{borrow::Cow, sync::Arc};
 
-    use turbopack_trace_utils::tracing::{Allocations, TraceRow};
+    use turbopack_trace_utils::tracing::{
+        Allocations, DeltaEncodedTimestamp, TimestampEncoder, TraceRow,
+    };
 
     use crate::{
         reader::{TraceFormat, turbopack::TurbopackFormat},
         store_container::StoreContainer,
+        timestamp::Timestamp,
     };
 
-    fn start(id: u64, parent: Option<u64>, name: &'static str) -> TraceRow<'static> {
+    fn start(id: u64, parent: Option<u64>, name: &'static str) -> TraceRow<'static, u64> {
         TraceRow::Start {
             ts: 0,
             id,
@@ -530,13 +539,28 @@ mod tests {
         })
     }
 
-    /// Reads the rows (without header) and returns the self allocations, allocation counts and
-    /// deallocations of the spans with the given names.
-    fn read(rows: &[TraceRow<'_>], names: &[&str]) -> Vec<(u64, u64, u64)> {
+    /// Serializes the rows like the trace writer does: with delta encoded timestamps and a
+    /// [`TraceRow::TimestampBase`] row before the first one.
+    fn encode(rows: &[TraceRow<'_, u64>]) -> Vec<u8> {
+        let mut encoder = TimestampEncoder::default();
         let mut data = Vec::new();
         for row in rows {
-            data.extend(postcard::to_stdvec(row).unwrap());
+            // A copy of the row, through its serialized form
+            let bytes = postcard::to_stdvec(row).unwrap();
+            let row: TraceRow<'_, u64> = postcard::from_bytes(&bytes).unwrap();
+            let (base, row) = encoder.encode_row(row);
+            if let Some(base) = base {
+                data.extend(postcard::to_stdvec(&base).unwrap());
+            }
+            data.extend(postcard::to_stdvec(&row).unwrap());
         }
+        data
+    }
+
+    /// Reads the rows (without header) and returns the self allocations, allocation counts and
+    /// deallocations of the spans with the given names.
+    fn read(rows: &[TraceRow<'_, u64>], names: &[&str]) -> Vec<(u64, u64, u64)> {
+        let data = encode(rows);
         let store = Arc::new(StoreContainer::new());
         let mut format = TurbopackFormat::new(store.clone());
         let mut reuse = TurbopackFormat::create_reused();
@@ -557,6 +581,67 @@ mod tests {
                 )
             })
             .collect()
+    }
+
+    #[test]
+    fn decodes_timestamps_across_incremental_reads() {
+        let rows: [TraceRow<'_, u64>; 4] = [
+            TraceRow::Start {
+                ts: 10,
+                id: 1,
+                parent: None,
+                name: Cow::Borrowed("split"),
+                target: Cow::Borrowed(""),
+                values: Vec::new(),
+            },
+            TraceRow::Enter {
+                ts: 15,
+                id: 1,
+                thread_id: 1,
+                allocations: None,
+            },
+            TraceRow::Exit {
+                ts: 25,
+                id: 1,
+                thread_id: 1,
+                allocations: None,
+            },
+            TraceRow::End { ts: 30, id: 1 },
+        ];
+        let data = encode(&rows);
+        let base: TraceRow<'_> = TraceRow::TimestampBase { ts: 10 };
+        let base_len = postcard::to_stdvec(&base).unwrap().len();
+        let store = Arc::new(StoreContainer::new());
+        let mut format = TurbopackFormat::new(store.clone());
+        let mut reuse = TurbopackFormat::create_reused();
+        // The first read only contains the base row, the second read the rest
+        let read = TraceFormat::read(&mut format, &data[..base_len], &mut reuse).unwrap();
+        assert_eq!(read, base_len);
+        let read = TraceFormat::read(&mut format, &data[base_len..], &mut reuse).unwrap();
+        assert_eq!(read, data.len() - base_len);
+        let store = store.read();
+        let span = (0..store.spans.len())
+            .filter_map(|i| store.spans.get(i))
+            .find(|span| &*span.name == "split")
+            .unwrap();
+        assert_eq!(span.start, Timestamp::from_micros(10));
+        // Entered from 15 to 25
+        assert_eq!(span.time_data.self_time, Timestamp::from_micros(10));
+        assert_eq!(span.time_data.self_end, Timestamp::from_micros(25));
+        assert!(span.is_complete);
+    }
+
+    #[test]
+    fn rejects_timestamps_without_base() {
+        let row: TraceRow<'_> = TraceRow::End {
+            ts: DeltaEncodedTimestamp(4),
+            id: 1,
+        };
+        let data = postcard::to_stdvec(&row).unwrap();
+        let store = Arc::new(StoreContainer::new());
+        let mut format = TurbopackFormat::new(store);
+        let mut reuse = TurbopackFormat::create_reused();
+        assert!(TraceFormat::read(&mut format, &data, &mut reuse).is_err());
     }
 
     #[test]

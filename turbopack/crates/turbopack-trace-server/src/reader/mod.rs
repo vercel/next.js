@@ -419,19 +419,29 @@ impl TraceReader {
 mod tests {
     use std::{borrow::Cow, io::Write, time::Duration};
 
-    use turbopack_trace_utils::tracing::TraceRow;
+    use turbopack_trace_utils::tracing::{TimestampEncoder, TraceRow};
 
     use super::*;
 
     const TIMEOUT: Duration = Duration::from_secs(30);
 
-    /// Serialized rows for `count` child spans of a root span, plus the root span itself.
+    /// Serialized rows for `count` child spans of a root span, plus the root span itself. Like a
+    /// buffer of the trace writer, the timestamps are delta encoded after a
+    /// [`TraceRow::TimestampBase`].
     fn span_rows(first_id: u64, count: u64) -> Vec<u8> {
         let mut bytes = Vec::new();
-        let mut push = |row: TraceRow<'_>| bytes.extend(postcard::to_stdvec(&row).unwrap());
+        let mut encoder = TimestampEncoder::default();
+        let mut push = |row: TraceRow<'_, u64>| {
+            let (base, row) = encoder.encode_row(row);
+            if let Some(base) = base {
+                bytes.extend(postcard::to_stdvec(&base).unwrap());
+            }
+            bytes.extend(postcard::to_stdvec(&row).unwrap());
+        };
         for id in first_id..first_id + count {
+            let ts = id;
             push(TraceRow::Start {
-                ts: id,
+                ts,
                 id,
                 parent: (id != 1).then_some(1),
                 name: Cow::Borrowed("span"),
@@ -439,19 +449,19 @@ mod tests {
                 values: Vec::new(),
             });
             push(TraceRow::Enter {
-                ts: id,
+                ts,
                 id,
                 thread_id: 1,
                 allocations: None,
             });
             push(TraceRow::Exit {
-                ts: id + 1,
+                ts: ts + 1,
                 id,
                 thread_id: 1,
                 allocations: None,
             });
             if id != 1 {
-                push(TraceRow::End { ts: id + 1, id });
+                push(TraceRow::End { ts: ts + 1, id });
             }
         }
         bytes

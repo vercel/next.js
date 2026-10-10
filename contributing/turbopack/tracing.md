@@ -88,5 +88,9 @@ cargo run --bin turbo-trace-size --release -- /path/to/your/trace-turbopack.bin 
 
 To keep trace files small, an `Exit` of a span that is followed by an `Enter` of the same span on the same thread shortly after is omitted together with that `Enter`. That's common for async spans, which are exited and entered again on every poll. This only happens when nothing was (de)allocated in between and the gap is at most 1µs or 0.1% of the time since the last `Enter` row written on that thread (omitted `Enter` rows don't count; for nested spans, it can be later than the span's own `Enter`, which only makes the allowed gap smaller). The viewer shows the span as entered during these gaps, so its self time can be slightly too large.
 
+### Timestamps
+
+Timestamps are stored as the (signed) difference to the previous timestamp in the trace file, which needs fewer bytes than absolute timestamps and compresses better. The trace is written in chunks per thread, and in every chunk a `TimestampBase` row with an absolute timestamp comes before the first row with a timestamp, so every chunk can be decoded on its own.
+
 [turbo-trace-viewer]: https://turbo-trace-viewer.vercel.app/
 [youtube-tutorial]: https://www.youtube.com/watch?v=PGO2szAye7A
