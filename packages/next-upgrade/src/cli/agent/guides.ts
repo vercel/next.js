@@ -1,6 +1,6 @@
 import { cp, mkdir, rm, writeFile } from 'fs/promises'
 import { dirname, join } from 'path'
-import { getNpxCommand } from 'next/dist/lib/helpers/get-npx-command'
+import { getNpxCommand } from '../package-runner'
 import type { UpgradeDocument } from '../../shared/future-defaults'
 
 const SKILLS_CLI_VERSION = '1.5.26'
@@ -36,8 +36,7 @@ async function prepareUpgradeSkill(
   input: PrepareUpgradeDocumentInput,
   skill: string
 ): Promise<string> {
-  const spawnCommand =
-    require('next/dist/compiled/cross-spawn') as typeof import('next/dist/compiled/cross-spawn')
+  const spawnCommand = require('cross-spawn') as typeof import('cross-spawn')
   const [command, ...runnerArgs] = getNpxCommand(input.directory).split(' ')
   const source =
     `https://github.com/vercel/next.js/tree/v${input.nextVersion}/skills/` +

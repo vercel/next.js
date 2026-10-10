@@ -1,11 +1,8 @@
 import { mkdtemp, mkdir, rm, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
-import semver from 'next/dist/compiled/semver'
-import {
-  getLatestUpgradeVersion,
-  getUpgradeAssessment,
-} from 'next/dist/lib/upgrade/shared/check-upgrade'
+import semver from 'semver'
+import { getLatestUpgradeVersion, getUpgradeAssessment } from './check-upgrade'
 import { prepareUpgrade } from 'next/dist/lib/upgrade/config'
 import loadConfig from 'next/dist/server/config'
 

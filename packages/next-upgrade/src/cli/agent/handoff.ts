@@ -3,11 +3,11 @@ import { access, stat } from 'fs/promises'
 import { delimiter, resolve } from 'path'
 import type { Key } from 'readline'
 
-import cliSelect from 'next/dist/compiled/cli-select'
-import spawn from 'next/dist/compiled/cross-spawn'
+import cliSelect from 'cli-select'
+import spawn from 'cross-spawn'
 
-import * as Log from 'next/dist/build/output/log'
-import { bold, cyan, dim } from 'next/dist/lib/picocolors'
+import * as Log from '../../shared/log'
+import { bold, cyan, dim } from 'picocolors'
 import { getHarnessModels, type UpgradeModel } from './model-discovery'
 import { runChildProcess } from '../run-child-process'
 
@@ -88,8 +88,11 @@ async function chooseWorktree(): Promise<boolean | null | undefined> {
     { yes: 'Yes', no: 'No' },
     0
   )
-  if (choice === null || choice === undefined) {
-    return choice
+  if (choice === null) {
+    return null
+  }
+  if (choice === undefined) {
+    return undefined
   }
   if (choice === 'yes') {
     return true

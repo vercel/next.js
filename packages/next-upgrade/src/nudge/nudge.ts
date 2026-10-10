@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto'
-import * as Log from 'next/dist/build/output/log'
-import semver from 'next/dist/compiled/semver'
+import * as Log from '../shared/log'
+import semver from 'semver'
 import type { UpgradeAction } from './terminal/prompt'
 import type {
   FutureDefaultsConfig,

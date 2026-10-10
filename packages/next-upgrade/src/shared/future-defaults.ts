@@ -1,4 +1,4 @@
-import semver from 'next/dist/compiled/semver'
+import semver from 'semver'
 
 // Upgrade decisions only need the adopted flag and the caller's app lookup.
 export type FutureDefaultsConfig = { cacheComponents: boolean }

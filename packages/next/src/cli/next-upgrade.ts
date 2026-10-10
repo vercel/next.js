@@ -1,5 +1,9 @@
-import { spawnNextUpgrade as runUpgrade } from 'next/dist/lib/upgrade/cli/run'
-import { reportAgentUpgradeAgentResult as reportResult } from 'next/dist/lib/upgrade/cli/report'
+import { dirname, join } from 'path'
+import { getProjectDir } from '../lib/get-project-dir'
+import { findDir } from '../lib/find-pages-dir'
+import { warnMissingReactDependencies } from '../lib/warn-missing-react-dependencies'
+import { spawnNextUpgrade as runUpgrade } from '@next/upgrade'
+import { reportAgentUpgradeAgentResult as reportResult } from '@next/upgrade'
 import { loadAgentUpgradeConfig, prepareUpgrade } from '../lib/upgrade/config'
 import { getAgentName } from '../telemetry/agent-name'
 import { Telemetry } from '../telemetry/storage'
@@ -15,7 +19,15 @@ export function spawnNextUpgrade(
   options: Parameters<typeof runUpgrade>[1],
   nudgeSource: Parameters<typeof runUpgrade>[2]
 ) {
+  const packageRoot = dirname(require.resolve('@next/upgrade/package.json'))
   return runUpgrade(directory, options, nudgeSource, {
+    getProjectDir,
+    findDir,
+    warnMissingReactDependencies,
+    cliPackage: 'next',
+    cliVersion: process.env.__NEXT_VERSION,
+    bundledDocs: join(packageRoot, 'dist/docs'),
+    bundledGuides: join(packageRoot, 'dist/guides'),
     async loadConfig(dir) {
       const config = await loadAgentUpgradeConfig(dir)
       return {

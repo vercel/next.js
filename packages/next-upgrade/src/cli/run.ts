@@ -3,18 +3,12 @@ import { randomUUID } from 'crypto'
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
 import { dirname, join, resolve as resolvePath } from 'path'
-import { major, prerelease, valid } from 'next/dist/compiled/semver'
-import * as Log from 'next/dist/build/output/log'
-import createSpinner from 'next/dist/build/spinner'
-import { findDir } from 'next/dist/lib/find-pages-dir'
-import { getProjectDir } from 'next/dist/lib/get-project-dir'
-import { warnMissingReactDependencies } from 'next/dist/lib/warn-missing-react-dependencies'
-import { getNpxCommand } from 'next/dist/lib/helpers/get-npx-command'
-import {
-  getPkgManager,
-  type PackageManager,
-} from 'next/dist/lib/helpers/get-pkg-manager'
-import { dim } from 'next/dist/lib/picocolors'
+import { major, prerelease, valid } from 'semver'
+import * as Log from '../shared/log'
+import createSpinner from './spinner'
+import { getNpxCommand } from './package-runner'
+import { getPkgManager, type PackageManager } from './package-runner'
+import { dim } from 'picocolors'
 import { getInstalledNextVersion } from '../next/project'
 import { runChildProcess } from './run-child-process'
 import type { AgentUpgradeHandoffMethod } from './agent/handoff'
@@ -106,6 +100,13 @@ export async function spawnNextUpgrade(
   options: NextUpgradeOptions,
   nudgeSource: { id: string; recipient: 'human' | 'agent' } | null,
   dependencies: {
+    getProjectDir(directory: string | undefined, exitOnEnoent: boolean): string
+    warnMissingReactDependencies(directory: string): void
+    findDir(directory: string, name: 'app' | 'pages'): string | null
+    cliPackage: 'next' | '@next/upgrade'
+    cliVersion: string | undefined
+    bundledDocs: string
+    bundledGuides: string
     loadConfig(directory: string): Promise<{
       distDir: string | undefined
       configuredPolicy: unknown
@@ -130,8 +131,8 @@ export async function spawnNextUpgrade(
     let packageManager: PackageManager | null = null
     let packageManagerVersion: string | null = null
     try {
-      baseDir = getProjectDir(directory, false)
-      warnMissingReactDependencies(baseDir)
+      baseDir = dependencies.getProjectDir(directory, false)
+      dependencies.warnMissingReactDependencies(baseDir)
 
       const config = await dependencies.loadConfig(baseDir)
       distDir = config.distDir || '.next'
@@ -244,9 +245,9 @@ export async function spawnNextUpgrade(
 
       if (expectedVersion !== undefined) {
         // Delegated upgrades and evals use their pinned CLI without another lookup.
-        if (process.env.__NEXT_VERSION !== expectedVersion) {
+        if (dependencies.cliVersion !== expectedVersion) {
           throw new Error(
-            `Expected Next.js ${expectedVersion} for the upgrade, but launched ${process.env.__NEXT_VERSION}.`
+            `Expected ${dependencies.cliPackage === 'next' ? 'Next.js' : '@next/upgrade'} ${expectedVersion} for the upgrade, but launched ${dependencies.cliVersion}.`
           )
         }
       } else {
@@ -254,7 +255,7 @@ export async function spawnNextUpgrade(
         failureStage = 'metadata'
         const canaryVersion = await resolveCanaryVersion()
         failureStage = 'cli'
-        if (process.env.__NEXT_VERSION !== canaryVersion) {
+        if (dependencies.cliVersion !== canaryVersion) {
           const [command, ...runnerArgs] = getNpxCommand(baseDir).split(' ')
           const agentArgument =
             typeof options.agent === 'string'
@@ -262,8 +263,7 @@ export async function spawnNextUpgrade(
               : '--agent'
           const args = [
             ...runnerArgs,
-            `next@${canaryVersion}`,
-            'upgrade',
+            `@next/upgrade@${canaryVersion}`,
             baseDir,
             agentArgument,
           ]
@@ -294,7 +294,10 @@ export async function spawnNextUpgrade(
       }
 
       // A workspace root must not launch an upgrade for an unspecified app.
-      if (!findDir(baseDir, 'app') && !findDir(baseDir, 'pages')) {
+      if (
+        !dependencies.findDir(baseDir, 'app') &&
+        !dependencies.findDir(baseDir, 'pages')
+      ) {
         throw new Error(
           'No Next.js app found in this directory. Run the command from an app directory or pass its path:\n\n' +
             `next upgrade [directory] --agent${typeof options.agent === 'string' ? `=${options.agent}` : ''}`
@@ -363,8 +366,8 @@ export async function spawnNextUpgrade(
       // Use the invoking CLI's guides, even when the app runs an older Next.js.
       // Retain them outside the app so dependency changes cannot remove them.
       failureStage = 'guide'
-      const bundledDocs = join(__dirname, '../../../docs')
-      const bundledGuides = join(__dirname, '..')
+      const bundledDocs = dependencies.bundledDocs
+      const bundledGuides = dependencies.bundledGuides
       const runDirectory = await mkdtemp(join(tmpdir(), 'next-upgrade-'))
       const guideName = crossesMajor
         ? 'different-major'
@@ -438,7 +441,7 @@ export async function spawnNextUpgrade(
         }
 
         if (crossesMajor) {
-          const codemodVersion = process.env.__NEXT_VERSION
+          const codemodVersion = dependencies.cliVersion
           if (!codemodVersion) {
             throw new Error('Could not determine the @next/codemod version.')
           }
@@ -531,7 +534,7 @@ export async function spawnNextUpgrade(
         : `We're adopting the Future Defaults available to the app in ${JSON.stringify(baseDir)}, which already uses Next.js ${result.installedVersion}.`
 
       // Use the invoking CLI's reporter even after the app's Next.js package changes.
-      const reportCommand = `${getNpxCommand(baseDir)} next@${process.env.__NEXT_VERSION} internal report-agent-upgrade ${runId}`
+      const reportCommand = `${getNpxCommand(baseDir)} ${dependencies.cliPackage}@${dependencies.cliVersion} internal report-agent-upgrade ${runId}`
       const prompt = (
         useWorktree: boolean | null
       ) => `Read and follow ${JSON.stringify(sharedGuidePath)} first. Attempt its applicable duplicate checks before changing files. If a check is unavailable, report it and continue. Stop only if you find equivalent work. Then read and follow every applicable instruction in ${JSON.stringify(guidePath)}.
@@ -595,8 +598,8 @@ When this task ends, report its result once. After completing the requested upgr
     return
   }
 
-  baseDir = getProjectDir(directory)
-  warnMissingReactDependencies(baseDir)
+  baseDir = dependencies.getProjectDir(directory, true)
+  dependencies.warnMissingReactDependencies(baseDir)
 
   const [upgradeProcessCommand, ...upgradeProcessDefaultArgs] =
     getNpxCommand(baseDir).split(' ')
