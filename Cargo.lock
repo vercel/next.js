@@ -3191,6 +3191,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "imagesize"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "65b27460c2c92b037f3f94c538ed9a3342f3fdf923606781629ccb35f82d042a"
+
+[[package]]
 name = "imgref"
 version = "1.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9856,6 +9862,7 @@ dependencies = [
  "base64 0.22.1",
  "bincode",
  "image",
+ "imagesize",
  "mime",
  "phf 0.11.2",
  "regex",
