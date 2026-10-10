@@ -580,6 +580,20 @@ function registerChunkList(chunkList: ChunkList) {
   const chunkListPath = getPathFromScript(chunkListScript)
   // The "chunk" is also registered to finish the loading in the backend
   BACKEND.registerChunk(chunkListPath as string as ChunkPath)
+  if (typeof chunkListScript !== 'string' && chunkListScript.src) {
+    // A chunk list loaded by URL (e.g. through `__turbopack_load_by_url__`)
+    // waits on the exact URL it was requested with, which can differ from the
+    // URL rebuilt from its path (e.g. in its query string). Like regular
+    // chunks, also finish the load for the script's own `src`.
+    BACKEND.registerChunk(chunkListScript as CurrentScript as ChunkScript)
+  }
+
+  // The same chunk list can be loaded more than once, e.g. by the HTML and
+  // again by URL. A second listener would apply every update twice.
+  if (chunkListChunksMap.has(chunkListPath)) {
+    return
+  }
+
   CHUNK_UPDATE_LISTENERS.push([
     chunkListPath,
     handleApply.bind(null, chunkListPath),
