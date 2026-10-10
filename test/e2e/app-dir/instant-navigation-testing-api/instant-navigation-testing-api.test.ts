@@ -1362,3 +1362,74 @@ describe('instant-navigation-testing-api - blocking routes (dev only)', () => {
     expect(await cookieValue.textContent()).toContain('testCookie: hello')
   })
 })
+
+// Regression coverage for the current (incorrect) behavior of `router.push()`
+// under the instant navigation lock. A `prefetch={true}` link prefetches the
+// whole destination route, including entries that vary on concrete route
+// params, and clicking it commits that prefetched page instantly under the
+// lock. But when the click is intercepted and replayed as a `router.push()` to
+// the exact same href — as page-transition wrappers do — the lock still
+// restricts the navigation to the App Shell, so the prefetched concrete-param
+// content is not committed. The expectations below encode that behavior and
+// should be inverted once `router.push()` is allowed to match the same
+// prefetched entries as a link click.
+describe('instant-navigation-testing-api - router.push after a full prefetch', () => {
+  const { next } = nextTestSetup({
+    files: join(__dirname, 'fixtures', 'router-push-prefetch'),
+    // Skew protection (deployment-id asset versioning) is orthogonal to the
+    // navigation-lock behavior under test.
+    disableAutoSkewProtection: true,
+  })
+
+  it('commits the fully prefetched page when the link is clicked', async () => {
+    const page = await openPage(next, '/')
+    await page
+      .locator('[data-testid="home-title"]')
+      .waitFor({ state: 'visible' })
+
+    await instant(page, async () => {
+      await page.click('#click-link')
+
+      // The concrete param value is matched from the full prefetch and shown
+      // instantly, without a shell boundary.
+      const paramValue = page.locator('[data-testid="param-value"]')
+      await paramValue.waitFor({ state: 'visible' })
+      expect(await paramValue.textContent()).toContain('slug: hello')
+    })
+  })
+
+  it('restricts a router.push to the same fully prefetched href to the shell', async () => {
+    const page = await openPage(next, '/')
+    await page
+      .locator('[data-testid="home-title"]')
+      .waitFor({ state: 'visible' })
+
+    await instant(page, async () => {
+      // The click is cancelled by the fixture and replayed as
+      // `router.push('/dynamic-params/hello')`.
+      await page.click('#push-link')
+
+      // Current behavior: only the shell commits — either the route-level
+      // loading.tsx or the page's inner Suspense fallback.
+      const shell = page.locator(
+        '[data-testid="route-loading"], [data-testid="params-fallback"]'
+      )
+      await shell.first().waitFor({ state: 'visible' })
+
+      // The prefetched concrete param value is not matched, even though the
+      // identical link click above matched it instantly. Poll past the point
+      // where it would appear so that a fix fails this assertion.
+      const paramValue = page.locator('[data-testid="param-value"]')
+      for (let i = 0; i < 6; i++) {
+        await page.waitForTimeout(500)
+        if (await paramValue.count()) break
+      }
+      expect(await paramValue.count()).toBe(0)
+    })
+
+    // After the lock is released the concrete value streams in normally.
+    const paramValue = page.locator('[data-testid="param-value"]')
+    await paramValue.waitFor({ state: 'visible' })
+    expect(await paramValue.textContent()).toContain('slug: hello')
+  })
+})
