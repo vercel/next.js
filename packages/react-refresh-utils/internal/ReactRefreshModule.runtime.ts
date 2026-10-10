@@ -29,6 +29,24 @@ export default function () {
     ) {
       // @ts-ignore __webpack_module__ is global
       var currentExports = __webpack_module__.exports
+      // For async modules (modules with top-level await or importing TLA modules),
+      // module.exports is replaced with a Promise by __webpack_require__.a().
+      // The actual exports are stored in promise[Symbol("webpack exports")].
+      // We need to unwrap them for React Refresh boundary detection.
+      if (
+        currentExports != null &&
+        typeof currentExports === 'object' &&
+        typeof (currentExports as any).then === 'function'
+      ) {
+        var symbols = Object.getOwnPropertySymbols(currentExports)
+        for (var i = 0; i < symbols.length; i++) {
+          var sym = symbols[i]
+          if (String(sym) === 'Symbol(webpack exports)') {
+            currentExports = (currentExports as any)[sym]
+            break
+          }
+        }
+      }
       // @ts-ignore __webpack_module__ is global
       var prevSignature: unknown[] | null =
         __webpack_module__.hot.data?.prevSignature ?? null
