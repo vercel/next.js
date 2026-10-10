@@ -16,6 +16,11 @@ use crate::{
     viewer::{SortMode, Update, ViewLineUpdate, ViewMode, Viewer},
 };
 
+/// Maximum number of recorded process samples sent to the viewer.
+const MAX_MEMORY_SAMPLES: usize = 200;
+/// Maximum number of equal-duration concurrency segments sent to the viewer.
+const MAX_CONCURRENCY_SAMPLES: usize = 200;
+
 #[derive(Serialize, Debug)]
 #[serde(tag = "type")]
 #[serde(rename_all = "kebab-case")]
@@ -295,17 +300,28 @@ fn handle_connection(
                                     current = parent;
                                 }
                                 path.reverse();
-                                let memory_samples =
-                                    store.memory_samples_for_range(span.start(), span.end());
+                                let memory_samples = store.memory_samples_for_range(
+                                    span.start(),
+                                    span.end(),
+                                    MAX_MEMORY_SAMPLES,
+                                );
                                 let memory_pressure_samples = store
-                                    .memory_pressure_samples_for_range(span.start(), span.end());
+                                    .memory_pressure_samples_for_range(
+                                        span.start(),
+                                        span.end(),
+                                        MAX_MEMORY_SAMPLES,
+                                    );
                                 let active_worker_threads_samples = store
                                     .active_worker_threads_samples_for_range(
                                         span.start(),
                                         span.end(),
+                                        MAX_MEMORY_SAMPLES,
                                     );
-                                let concurrency_samples =
-                                    store.concurrency_samples_for_range(span.start(), span.end());
+                                let concurrency_samples = store.concurrency_samples_for_range(
+                                    span.start(),
+                                    span.end(),
+                                    MAX_CONCURRENCY_SAMPLES,
+                                );
                                 ServerToClientMessage::QueryResult {
                                     id,
                                     is_graph,

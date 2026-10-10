@@ -853,9 +853,23 @@ internal
       'Spans per page (default 20, max 500).'
     ).argParser(parseValidPositiveInteger)
   )
+  .addOption(
+    new Option(
+      '--samples <N>',
+      'Include up to N memory, pressure, active Tokio worker, and concurrency values per span. Omit for summaries only; 0 returns empty arrays.'
+    ).argParser((value: string) => {
+      const count = Number(value)
+      if (!/^\d+$/.test(value) || !Number.isSafeInteger(count) || count < 0) {
+        throw new InvalidArgumentError(
+          'Sample count must be a nonnegative safe integer.'
+        )
+      }
+      return count
+    })
+  )
   .addHelpText('after', ({ command }) => {
     const port = (command.opts() as { port?: number }).port ?? 5748
-    return `\nExample:\n  next internal query-trace --port ${port} --parent <id>`
+    return `\nExample:\n  next internal query-trace --port ${port} --parent <id> --samples=200`
   })
   .action((options) =>
     import('../cli/internal/query-trace.js').then((mod) =>

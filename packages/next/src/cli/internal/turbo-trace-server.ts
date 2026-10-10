@@ -2,6 +2,11 @@ import http from 'node:http'
 import z from 'next/dist/compiled/zod'
 import { loadBindings } from '../../build/swc'
 import type { TraceSpanInfo } from '../../build/swc/generated-native'
+import {
+  renderMemorySummary,
+  renderSampleSeriesMarkdown,
+  serializeTraceSpan,
+} from './trace-query-result'
 
 const { McpServer } =
   require('next/dist/compiled/@modelcontextprotocol/sdk/server/mcp') as typeof import('next/dist/compiled/@modelcontextprotocol/sdk/server/mcp')
@@ -81,20 +86,6 @@ function renderAllocationsMarkdown(span: TraceSpanInfo): string {
   return md
 }
 
-function summarizeMemorySamples(span: TraceSpanInfo): string | null {
-  const summary = span.memorySummary
-  if (!summary) return null
-  const delta = summary.end - summary.start
-  const deltaSign = delta >= 0 ? '+' : '-'
-  const workers = span.memorySamples.map((s) => s[3])
-  return (
-    `samples=${summary.count}, peak=${formatBytes(summary.peak)}, min=${formatBytes(summary.min)}, ` +
-    `start=${formatBytes(summary.start)}, end=${formatBytes(summary.end)}, ` +
-    `Δ=${deltaSign}${formatBytes(Math.abs(delta))}, maxPressure=${summary.maxPressure}, ` +
-    `activeWorkerThreads=${Math.min(...workers)}–${Math.max(...workers)}`
-  )
-}
-
 /**
  * Render a single span (or aggregated span group) as a markdown section.
  *
@@ -149,10 +140,12 @@ function renderSpanMarkdown(
     md += renderAllocationsMarkdown(span)
   }
 
-  const memSummary = summarizeMemorySamples(span)
+  const memSummary = renderMemorySummary(span.memorySummary, formatBytes)
   if (memSummary) {
-    md += `\n**Process samples (TurboMalloc live bytes, memory pressure, active Tokio workers):** ${memSummary}\n`
+    md += `\n**Process samples (TurboMalloc live bytes, memory pressure):** ${memSummary}\n`
   }
+
+  md += renderSampleSeriesMarkdown(span.sampleSeries, formatBytes)
 
   if (span.children.length > 0) {
     md += '\n'
@@ -218,15 +211,15 @@ export async function startTurboTraceServerCli(
         '',
         'Allocations: `allocations` / `deallocations` / `allocationCount` and `persistentAllocations`, each with a `self*` counterpart excluding children. Comparing a total to its `self` shows whether a span allocates directly or only through descendants.',
         '',
-        '`persistentAllocations` ranks allocators; it is NOT retained memory. It is allocated-minus-freed per TurboMalloc counters, which never see turbo-tasks cell or cache drops, so a total far above real peak RSS is expected rather than a leak. For absolute memory use `memorySummary` (count/start/end/min/peak/maxPressure, precomputed from `memorySamples`).',
+        '`persistentAllocations` ranks allocators; it is NOT retained memory. It is allocated-minus-freed per TurboMalloc counters, which never see turbo-tasks cell or cache drops, so a total far above real peak RSS is expected rather than a leak. For absolute memory use `memorySummary` (count/start/end/min/peak/maxPressure, computed directly from all captured readings in the span range, independent of requested sample details).',
         '',
         "But live heap is process-wide: a span's samples are just the global series sliced to its time range, so concurrent spans report identical memory however much each allocated. Rank concurrent work by the allocation fields, never by memory.",
         '',
         "Frees are charged to whichever span was on the stack at free time, not the one that allocated. A child with large `selfAllocations` under a parent with large `selfDeallocations` means the parent drops the child's arena — bounded, not leaking. Large `selfPersistentAllocations` with no such counterpart above it is the shape worth suspecting.",
         '',
-        'For aggregated groups every allocation field is a group total, while `cpuDuration`, `correctedDuration` and `memorySamples` describe the example span only. `firstSpanId` is first in execution order; use `heaviestSpanId` to reach the member holding the most bytes.',
+        'For aggregated groups every allocation field is a group total, while `cpuDuration`, `correctedDuration`, `memorySummary` and requested samples describe the example span only. `firstSpanId` is first in execution order; use `heaviestSpanId` to reach the member holding the most bytes.',
         '',
-        'Set `outputType: "json"` for full precision and the raw `memorySamples` entries `[tsOffsetTicks, bytes, pressure, active_worker_threads]` (active_worker_threads excludes parked and blocking-pool threads); markdown is a human summary.',
+        "Set `samples: N` (a nonnegative safe integer, including values above 200) to include up to N values per series: `memorySamples` (TurboMalloc live bytes, not RSS), `memoryPressureSamples` (percent), `activeWorkerThreadsSamples` (non-parked scheduler workers, excluding blocking-pool threads), and `concurrencySamples` (global average self-time concurrency, rounded to hundredths; blocking=true spans do not contribute their own time). Without `samples`, JSON omits all four fields; `samples: 0` includes four empty arrays. Memory/worker rows use each recorded group's peak-memory sample; pressure uses each group's maximum. Concurrency uses equal-time segments, so indices are not shared timestamps. JSON returns number arrays (not the previous timestamped tuples); markdown includes compact formatted sample lines. `memorySummary.count` counts all captured readings in the span range, without downsampling.",
       ].join('\n'),
       inputSchema: {
         parent: z
@@ -270,11 +263,20 @@ export async function startTurboTraceServerCli(
           .number()
           .optional()
           .describe('Spans per page. Default 20, capped at 500.'),
+        samples: z
+          .number()
+          .int()
+          .nonnegative()
+          .max(Number.MAX_SAFE_INTEGER)
+          .optional()
+          .describe(
+            'Maximum values per memory, pressure, active-worker and concurrency series per span. Omit for summaries only; 0 returns empty arrays. Supports counts above 200. Larger values increase response/query cost.'
+          ),
         outputType: z
           .enum(['markdown', 'json'])
           .optional()
           .describe(
-            'Output format. "markdown" (default) returns human-readable markdown. "json" returns structured JSON with all span fields.'
+            'Output format. "markdown" (default) returns human-readable markdown. "json" returns structured timing, allocation and summary fields; sample arrays are included only when samples is supplied.'
           ),
       },
     },
@@ -288,6 +290,7 @@ export async function startTurboTraceServerCli(
         depth: args.depth,
         page: args.page ?? 1,
         pageSize: args.pageSize,
+        samples: args.samples,
       })
 
       const { spans, page, totalPages, totalCount } = result
@@ -297,7 +300,12 @@ export async function startTurboTraceServerCli(
           content: [
             {
               type: 'text',
-              text: JSON.stringify({ spans, page, totalPages, totalCount }),
+              text: JSON.stringify({
+                spans: spans.map(serializeTraceSpan),
+                page,
+                totalPages,
+                totalCount,
+              }),
             },
           ],
         }
