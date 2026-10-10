@@ -418,8 +418,10 @@ jobs:
           PROBE_SOURCE=$(mktemp "$PNPM_STORE_PATH/.hardlink-probe.XXXXXX")
           PROBE_DIR=$(mktemp -d /tmp/pnpm-hardlink-probe.XXXXXX)
           if ln "$PROBE_SOURCE" "$PROBE_DIR/link"; then
-            echo "::error::Hard links from the pnpm store to /tmp work; the fixture store copy should not be needed."
-            exit 1
+            rm -f "$PROBE_SOURCE"
+            rm -rf "$PROBE_DIR"
+            echo "Hard links from the pnpm store to /tmp work; skipping the fixture store copy."
+            exit 0
           fi
           rm -f "$PROBE_SOURCE"
           rm -rf "$PROBE_DIR"
