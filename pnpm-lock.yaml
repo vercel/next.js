@@ -1971,7 +1971,7 @@ importers:
     devDependencies:
       '@napi-rs/cli':
         specifier: 3.7.2
-        version: 3.7.2(@emnapi/runtime@1.9.2)(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(node-addon-api@6.1.0)
+        version: 3.7.2(@emnapi/runtime@1.11.3)(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(node-addon-api@6.1.0)
       cross-env:
         specifier: 6.0.3
         version: 6.0.3
@@ -2006,6 +2006,19 @@ importers:
       prettier:
         specifier: 2.5.1
         version: 2.5.1
+      typescript:
+        specifier: 6.0.2
+        version: 6.0.2
+
+  packages/turbopack:
+    dependencies:
+      zod:
+        specifier: ^4.6.0
+        version: 4.6.2
+    devDependencies:
+      '@napi-rs/cli':
+        specifier: 3.7.2
+        version: 3.7.2(@emnapi/runtime@1.9.2)(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(node-addon-api@6.1.0)
       typescript:
         specifier: 6.0.2
         version: 6.0.2
@@ -17842,6 +17855,9 @@ packages:
   zod@3.25.76:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
 
+  zod@4.6.2:
+    resolution: {integrity: sha512-lh5RCAGFa1Cm2hjtNwLQhSs/AsqdWnTQaBER9fEwN/88pSh7KOtJavtBx/0VlkN/uFd61SwYmljLMDAsHlvzBQ==}
+
   zwitch@1.0.5:
     resolution: {integrity: sha512-V50KMwwzqJV0NpZIZFwfOD5/lyny3WlSzRiXgA0G7VUnRlqttta1L6UQIHzd6EuBY/cHGfwTIck7w1yH6Q5zUw==}
 
@@ -20411,6 +20427,37 @@ snapshots:
       outvariant: 1.4.3
       rettime: 0.11.11
     transitivePeerDependencies:
+      - supports-color
+
+  '@napi-rs/cli@3.7.2(@emnapi/runtime@1.11.3)(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(node-addon-api@6.1.0)':
+    dependencies:
+      '@inquirer/prompts': 8.5.2(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))
+      '@napi-rs/cross-toolchain': 1.0.3
+      '@napi-rs/wasm-tools': 1.1.0
+      '@octokit/rest': 22.0.1
+      clipanion: 4.0.0-rc.4(typanion@3.14.0)
+      colorette: 2.0.20
+      emnapi: 1.11.3(node-addon-api@6.1.0)
+      es-toolkit: 1.50.0
+      js-yaml: 4.2.0
+      obug: 2.1.4
+      semver: 7.8.5
+      typanion: 3.14.0
+    optionalDependencies:
+      '@emnapi/runtime': 1.11.3
+    transitivePeerDependencies:
+      - '@napi-rs/cross-toolchain-arm64-target-aarch64'
+      - '@napi-rs/cross-toolchain-arm64-target-armv7'
+      - '@napi-rs/cross-toolchain-arm64-target-ppc64le'
+      - '@napi-rs/cross-toolchain-arm64-target-s390x'
+      - '@napi-rs/cross-toolchain-arm64-target-x86_64'
+      - '@napi-rs/cross-toolchain-x64-target-aarch64'
+      - '@napi-rs/cross-toolchain-x64-target-armv7'
+      - '@napi-rs/cross-toolchain-x64-target-ppc64le'
+      - '@napi-rs/cross-toolchain-x64-target-s390x'
+      - '@napi-rs/cross-toolchain-x64-target-x86_64'
+      - '@types/node'
+      - node-addon-api
       - supports-color
 
   '@napi-rs/cli@3.7.2(@emnapi/runtime@1.9.2)(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(node-addon-api@6.1.0)':
@@ -26766,8 +26813,8 @@ snapshots:
       '@babel/parser': 7.27.0
       eslint: 9.37.0(jiti@2.6.1)
       hermes-parser: 0.25.1
-      zod: 3.25.76
-      zod-validation-error: 4.0.2(zod@3.25.76)
+      zod: 4.6.2
+      zod-validation-error: 4.0.2(zod@4.6.2)
     transitivePeerDependencies:
       - supports-color
 
@@ -36431,13 +36478,15 @@ snapshots:
     dependencies:
       zod: 3.25.76
 
-  zod-validation-error@4.0.2(zod@3.25.76):
+  zod-validation-error@4.0.2(zod@4.6.2):
     dependencies:
-      zod: 3.25.76
+      zod: 4.6.2
 
   zod@3.24.4: {}
 
   zod@3.25.76: {}
+
+  zod@4.6.2: {}
 
   zwitch@1.0.5: {}
 
