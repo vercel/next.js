@@ -1,3 +1,161 @@
+---
+lockfileVersion: '9.0'
+
+importers:
+
+  .:
+    configDependencies: {}
+    packageManagerDependencies:
+      pnpm:
+        specifier: 12.9.1
+        version: 12.9.1
+
+packages:
+
+  '@pnpm/exe.android-arm64@12.9.1':
+    resolution: {integrity: sha512-Hgm1XdqMTfBC8PdGLL+NjZWv4xyi7D6XNrN9fb24XGYlyTBmUtdCefKnCLmHujShRD8BEO1zqM30SNcKBDLysw==}
+    cpu: [arm64]
+    os: [android]
+
+  '@pnpm/exe.android-x64@12.9.1':
+    resolution: {integrity: sha512-WDGCe6jZRVZP3RC/q6hOkZylkPkIQIi1/GcrR/d/YzbihhAHXCczrk+UYnV5TgbsEnAYO7Cx+2rX3nfhHvy24w==}
+    cpu: [x64]
+    os: [android]
+
+  '@pnpm/exe.darwin-arm64@12.9.1':
+    resolution: {integrity: sha512-+7iiEEBgYN9szPWUnAuN6eOVMTI6Hrki5bcuC9n9xl9tTnT53Tpxpo45Hml+W4IrAU0d+Tmd0sPnVIbX59PD6w==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@pnpm/exe.darwin-x64@12.9.1':
+    resolution: {integrity: sha512-SK7TxJiR12GbJZGffRFHItkc+Mx+99v6xMMJ9/X//8NwWV1wo17a2bwfGI8qZpl17YwsrmPEFOOqhzE1GIlrtQ==}
+    cpu: [x64]
+    os: [darwin]
+
+  '@pnpm/exe.freebsd-x64@12.9.1':
+    resolution: {integrity: sha512-4AjLk6uvTs2iO6wMit2hcxJ2M32xb7OV5SNFk+w6G8/NzcjcMB7ENEpyeXyLiP0kcnp8uaCGUct2NfrLCJ35eQ==}
+    cpu: [x64]
+    os: [freebsd]
+
+  '@pnpm/exe.linux-arm64-musl@12.9.1':
+    resolution: {integrity: sha512-dZL2ES1ckDWM9v+EtxoOklZ0WNdtayooi9iLiDUubopudX3zXPNR2mlrxBRgjbDgECOndQen2SmyxL5eZiBuKw==}
+    cpu: [arm64]
+    os: [linux]
+    libc: [musl]
+
+  '@pnpm/exe.linux-arm64@12.9.1':
+    resolution: {integrity: sha512-cx+uF6xqwEtm7B8NV+1ve0xBg9gcuzQZ5R+0WgOWvKG/h978UljS6BgWs1ipIGuGgUdeVhm3PKmBltXIcczLXA==}
+    cpu: [arm64]
+    os: [linux]
+    libc: [glibc]
+
+  '@pnpm/exe.linux-ppc64@12.9.1':
+    resolution: {integrity: sha512-MpjPsy4XR17zAtLziQZfsN+wveWa/bUJggZtwfo3+SuyRmXnSvVkFD4+v8/3RTWyYaM6mwLUTjZDJ+g3urL+ew==}
+    cpu: [ppc64]
+    os: [linux]
+    libc: [glibc]
+
+  '@pnpm/exe.linux-riscv64@12.9.1':
+    resolution: {integrity: sha512-Oo67TKqqH+Bno+L6X7Xyorwp1QG82zKIkL0vbo1x2kcPTDiyPbdM+d6lIs4+hzeB1KHT5FDoGzZj2dad7Ft+eg==}
+    cpu: [riscv64]
+    os: [linux]
+    libc: [glibc]
+
+  '@pnpm/exe.linux-s390x@12.9.1':
+    resolution: {integrity: sha512-QAD5FRCdW36HfD58BV7DoDm6z8yv+GgSqcUV1+ERwYjpVQuG6ZTpf5o0x3KDas8eTLIW7MLYVdDdlAurWeArEg==}
+    cpu: [s390x]
+    os: [linux]
+    libc: [glibc]
+
+  '@pnpm/exe.linux-x64-musl@12.9.1':
+    resolution: {integrity: sha512-mQDhBsGqcTkrLQM4q5igmRFcr6EAl4UM/FGawY+0CWGcqPpUmYUvDy9LHy80xxkHIWVJ886gvvso2XOjfav1Jw==}
+    cpu: [x64]
+    os: [linux]
+    libc: [musl]
+
+  '@pnpm/exe.linux-x64@12.9.1':
+    resolution: {integrity: sha512-+M5N74hM4fc87AAckxx/UIW+dUnWf2eko+HchJs/NZUxehLhekNyMI/GNaNXlvd+kWR+97XXBD51XRkkNiUtrA==}
+    cpu: [x64]
+    os: [linux]
+    libc: [glibc]
+
+  '@pnpm/exe.win32-arm64@12.9.1':
+    resolution: {integrity: sha512-mI28C2wxobrDi6x1OYhBRyG10hnDq/4sEIyy5RzoX6LB4kLuv6K/d25HOpMwlW20cuM4M72k9NZpOdcmUxMbEA==}
+    cpu: [arm64]
+    os: [win32]
+
+  '@pnpm/exe.win32-x64@12.9.1':
+    resolution: {integrity: sha512-SWoDMT0oD7NrDSIoPpkKD09D9fAQKNjwFZ3lezlCUhAfXxMv70zsfrNT2/P+GoCK2kefXF9OysUZkH1l5vvvfA==}
+    cpu: [x64]
+    os: [win32]
+
+  pnpm@12.9.1:
+    resolution: {integrity: sha512-BrBV//XNINwSeB3hc87TMQzglRvy7GICEaFgRdVETVyTpmMhB2TvKaZTphBFm6A2jw50+E2AxUcjz5Wq57wNbQ==}
+    engines: {node: '>=18.*'}
+    hasBin: true
+
+snapshots:
+
+  '@pnpm/exe.android-arm64@12.9.1':
+    optional: true
+
+  '@pnpm/exe.android-x64@12.9.1':
+    optional: true
+
+  '@pnpm/exe.darwin-arm64@12.9.1':
+    optional: true
+
+  '@pnpm/exe.darwin-x64@12.9.1':
+    optional: true
+
+  '@pnpm/exe.freebsd-x64@12.9.1':
+    optional: true
+
+  '@pnpm/exe.linux-arm64-musl@12.9.1':
+    optional: true
+
+  '@pnpm/exe.linux-arm64@12.9.1':
+    optional: true
+
+  '@pnpm/exe.linux-ppc64@12.9.1':
+    optional: true
+
+  '@pnpm/exe.linux-riscv64@12.9.1':
+    optional: true
+
+  '@pnpm/exe.linux-s390x@12.9.1':
+    optional: true
+
+  '@pnpm/exe.linux-x64-musl@12.9.1':
+    optional: true
+
+  '@pnpm/exe.linux-x64@12.9.1':
+    optional: true
+
+  '@pnpm/exe.win32-arm64@12.9.1':
+    optional: true
+
+  '@pnpm/exe.win32-x64@12.9.1':
+    optional: true
+
+  pnpm@12.9.1:
+    optionalDependencies:
+      '@pnpm/exe.android-arm64': 12.9.1
+      '@pnpm/exe.android-x64': 12.9.1
+      '@pnpm/exe.darwin-arm64': 12.9.1
+      '@pnpm/exe.darwin-x64': 12.9.1
+      '@pnpm/exe.freebsd-x64': 12.9.1
+      '@pnpm/exe.linux-arm64': 12.9.1
+      '@pnpm/exe.linux-arm64-musl': 12.9.1
+      '@pnpm/exe.linux-ppc64': 12.9.1
+      '@pnpm/exe.linux-riscv64': 12.9.1
+      '@pnpm/exe.linux-s390x': 12.9.1
+      '@pnpm/exe.linux-x64': 12.9.1
+      '@pnpm/exe.linux-x64-musl': 12.9.1
+      '@pnpm/exe.win32-arm64': 12.9.1
+      '@pnpm/exe.win32-x64': 12.9.1
+
+---
 lockfileVersion: '9.0'
 
 settings:
@@ -26,42 +184,18 @@ overrides:
 packageExtensionsChecksum: sha256-ylDR55omOZlT4Sfpfh6n7mO2r/cLCmlirAikJ/E/LAw=
 
 patchedDependencies:
-  '@modelcontextprotocol/sdk':
-    hash: 680fe4edb7abd1de29d08cdf217a22506e815a8cc1c2282201d5d47aa3e5da12
-    path: patches/@modelcontextprotocol__sdk.patch
-  '@rspack/core@1.6.7':
-    hash: 4cf28ea116b0e27c7c80b09035905f9d16a7b18d1f2b7d312fc80d42cd57068d
-    path: patches/@rspack__core@1.6.7.patch
-  '@types/node@20.17.7':
-    hash: fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab
-    path: patches/@types__node@20.17.7.patch
-  '@vercel/agent-eval@2.2.1':
-    hash: c453f42ffcf4e7e070b8cba54135cd4788d4df5fdb829e0065f453fd1646e5c1
-    path: patches/@vercel__agent-eval@2.2.1.patch
-  '@vercel/blob':
-    hash: cb53bfa5effb15b3a361e176003df667cadf757b27b7c9b458c2f0fce86ea893
-    path: patches/@vercel__blob.patch
-  '@vercel/og@1.0.1':
-    hash: 3d59af991a9f85bbc368d2891b4e965f10dd11c86b9786e79fc4a362bb01401b
-    path: patches/@vercel__og@1.0.1.patch
-  minizlib@3.1.0:
-    hash: 587688821244aaee46680929cd869947377a284ac1b30c9ae8660a5ea7d2be67
-    path: patches/minizlib@3.1.0.patch
-  playwright-core@1.61.0:
-    hash: 1a56033776b3ac43fe8f35b6c9afa6d9f13a0d5163892f2a31d7661504b93b93
-    path: patches/playwright-core@1.61.0.patch
-  postcss-scss:
-    hash: 88893e632b3e099730dc0ffcc93cf3654b31c277da9e2796e822f6b5aeedc093
-    path: patches/postcss-scss.patch
-  stacktrace-parser@0.1.10:
-    hash: ff70befa8ec032ce77713d8cf9b1cef70ccb047d635eddb4072bc72a6c744522
-    path: patches/stacktrace-parser@0.1.10.patch
-  taskr@1.1.0:
-    hash: 1d0f571943b5d4761d4f2f39723796e402dd317f14a7c714e2021d3f12cc481c
-    path: patches/taskr@1.1.0.patch
-  webpack-sources@3.2.3:
-    hash: 26afc15966a3fc37a3d1d366312a95ce66723513f6a3a720e4166a37147da8bd
-    path: patches/webpack-sources@3.2.3.patch
+  '@modelcontextprotocol/sdk': 680fe4edb7abd1de29d08cdf217a22506e815a8cc1c2282201d5d47aa3e5da12
+  '@rspack/core@1.6.7': 4cf28ea116b0e27c7c80b09035905f9d16a7b18d1f2b7d312fc80d42cd57068d
+  '@types/node@20.17.7': fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab
+  '@vercel/agent-eval@2.2.1': c453f42ffcf4e7e070b8cba54135cd4788d4df5fdb829e0065f453fd1646e5c1
+  '@vercel/blob': cb53bfa5effb15b3a361e176003df667cadf757b27b7c9b458c2f0fce86ea893
+  '@vercel/og@1.0.1': 3d59af991a9f85bbc368d2891b4e965f10dd11c86b9786e79fc4a362bb01401b
+  minizlib@3.1.0: 587688821244aaee46680929cd869947377a284ac1b30c9ae8660a5ea7d2be67
+  playwright-core@1.61.0: 1a56033776b3ac43fe8f35b6c9afa6d9f13a0d5163892f2a31d7661504b93b93
+  postcss-scss: 88893e632b3e099730dc0ffcc93cf3654b31c277da9e2796e822f6b5aeedc093
+  stacktrace-parser@0.1.10: ff70befa8ec032ce77713d8cf9b1cef70ccb047d635eddb4072bc72a6c744522
+  taskr@1.1.0: 1d0f571943b5d4761d4f2f39723796e402dd317f14a7c714e2021d3f12cc481c
+  webpack-sources@3.2.3: 26afc15966a3fc37a3d1d366312a95ce66723513f6a3a720e4166a37147da8bd
 
 importers:
 
@@ -8378,7 +8512,7 @@ packages:
     engines: {node: '>=8'}
 
   ci-info@https://codeload.github.com/watson/ci-info/tar.gz/f43f6a1cefff47fb361c88cf4b943fdbcaafe540:
-    resolution: {tarball: https://codeload.github.com/watson/ci-info/tar.gz/f43f6a1cefff47fb361c88cf4b943fdbcaafe540}
+    resolution: {gitHosted: true, tarball: https://codeload.github.com/watson/ci-info/tar.gz/f43f6a1cefff47fb361c88cf4b943fdbcaafe540}
     version: 2.0.0
 
   cipher-base@1.0.4:

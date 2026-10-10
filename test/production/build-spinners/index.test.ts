@@ -48,14 +48,13 @@ const pagesFiles: File[] = [
 describe('build-spinners', () => {
   const { next } = nextTestSetup({
     skipStart: true,
-    files: {},
+    files: {
+      'pnpm-workspace.yaml': `allowBuilds:
+  node-pty: true
+`,
+    },
     dependencies: {
       'node-pty': '0.10.1',
-    },
-    packageJson: {
-      pnpm: {
-        onlyBuiltDependencies: ['node-pty'],
-      },
     },
   })
 

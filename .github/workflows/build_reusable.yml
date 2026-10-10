@@ -374,9 +374,9 @@ jobs:
           name: next-swc-binary-${{ runner.os }}-${{ runner.arch }}
           path: packages/next-swc/native/next-swc.*.node
 
-      # undo normalize version changes for install/build
+      # Restore manifests and lockfile (undoing normalization) before installing dependencies.
       - run: git checkout .
-        if: ${{ inputs.skipInstallBuild != 'yes' }}
+        if: ${{ inputs.skipInstallBuild != 'yes' || inputs.needsRustJsInstall == 'yes' }}
 
       - name: Get pnpm store directory
         id: get-store-path
