@@ -13,7 +13,6 @@ bench = false
 
 # [NOTE]: Before enable this, ensure this can build all of the target platforms we support.
 avif = ["image/avif"]
-webp = ["image/webp"]
 
 [lints]
 workspace = true
@@ -30,6 +29,7 @@ image = { workspace = true, default-features = false, features = [
   "ico",
   "bmp",
   "tga",
+  "webp",
 ] }
 mime = { workspace = true }
 phf = { workspace = true }
@@ -40,4 +40,3 @@ turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbopack-core = { workspace = true }
-
