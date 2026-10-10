@@ -9,7 +9,7 @@ use crate::{
         Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString,
         resolve::ResolvingIssue,
     },
-    reference_type::ReferenceType,
+    reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType, UrlReferenceSubType},
     resolve::{
         ModuleResolveResult, ResolveErrorMode, ResolveResult, options::ResolveOptions,
         parse::Request,
@@ -152,6 +152,7 @@ async fn emit_resolve_error_issue(
         resolve_options: resolve_options.to_resolved().await?,
         error_message: Some(format!("{}", PrettyPrintError(&err))),
         source,
+        hint: resolve_hint(&reference_type, request).await?,
     }
     .resolved_cell()
     .emit();
@@ -182,10 +183,40 @@ async fn emit_unresolvable_issue(
         resolve_options: resolve_options.to_resolved().await?,
         error_message: None,
         source,
+        hint: resolve_hint(&reference_type, request).await?,
     }
     .resolved_cell()
     .emit();
     Ok(())
+}
+
+/// Suggests a fix for a request that failed because part of it is only known at runtime. Only
+/// covers requests that accept a `turbopackIgnore` comment.
+async fn resolve_hint(
+    reference_type: &ReferenceType,
+    request: Vc<Request>,
+) -> Result<Option<RcStr>> {
+    let example = match reference_type {
+        ReferenceType::Url(UrlReferenceSubType::EcmaScriptNewUrl) => {
+            "new URL(/* turbopackIgnore: true */ url, import.meta.url)"
+        }
+        ReferenceType::EcmaScriptModules(
+            EcmaScriptModulesReferenceSubType::DynamicImport
+            | EcmaScriptModulesReferenceSubType::LazyDynamicImport,
+        ) => "import(/* turbopackIgnore: true */ path)",
+        ReferenceType::CommonJs(_) => "require(/* turbopackIgnore: true */ path)",
+        _ => return Ok(None),
+    };
+    if !request.request_pattern().await?.has_dynamic_parts() {
+        return Ok(None);
+    }
+    Ok(Some(
+        format!(
+            "This request is too dynamic to resolve at build time. If it's only known at runtime, \
+             opt out of bundling with `{example}`."
+        )
+        .into(),
+    ))
 }
 
 pub async fn resolve_error_severity(resolve_options: Vc<ResolveOptions>) -> Result<IssueSeverity> {
