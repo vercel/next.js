@@ -2,7 +2,8 @@
 import { Suspense } from 'react'
 import { foo } from './bar'
 
-// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
+// @next-codemod-ignore Cache Components adoption: this segment temporarily allows blocking.
+// Remove this opt-out after verifying the segment passes validation without it.
 // See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
 export const instant = false;
 

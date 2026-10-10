@@ -1,0 +1,6 @@
+{
+  "name": "bindings",
+  "version": "1.0.0",
+  "description": "Minimal stand-in for the bindings npm package, for tests",
+  "main": "index.js"
+}

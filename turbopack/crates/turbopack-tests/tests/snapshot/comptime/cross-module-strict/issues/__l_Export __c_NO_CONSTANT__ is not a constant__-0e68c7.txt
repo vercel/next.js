@@ -1,0 +1,24 @@
+error - [analysis] /turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-strict/input/other.js:5:0  Export NO_CONSTANT is not a constant
+  
+       1 | 'use turbopack: constants'
+       2 | 
+       3 | export const SOME_VALUE = 'x'
+       4 | 
+         + v---------------------------------------v
+       5 + export const NO_CONSTANT = globalThis.foo
+         + ^---------------------------------------^
+       6 | 
+       7 | export const LONG_STRING =
+       8 |   'abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789'
+       9 | 
+  
+  It was analyzed to be FreeVar(globalThis)["foo"]
+  
+  It has to be a constant because the module contains use turbopack: constants or was imported with with {turbopackConstants: 'true'}
+  
+  
+  
+  Import trace:
+    test:
+      ./turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-strict/input/other.js
+      ./turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-strict/input/index.js

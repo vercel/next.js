@@ -1,7 +1,7 @@
 import type { ReactDOMServerReadableStream } from 'react-dom/server'
 import { getTracer } from '../lib/trace/tracer'
 import { AppRenderSpan } from '../lib/trace/constants'
-import { DetachedPromise } from '../../lib/detached-promise'
+import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
 import {
   scheduleImmediate,
   atLeastOneTask,
@@ -87,6 +87,17 @@ export function streamFromString(str: string): ReadableStream<Uint8Array> {
   })
 }
 
+/**
+ * Creates a stream that delivers `chunk` and then closes.
+ *
+ * The stream is a default stream, and it has to stay one. A byte stream (`type:
+ * 'bytes'`) transfers the buffer of each chunk that it receives, which detaches
+ * `chunk`. A caller that keeps `chunk` to serve more than one read, such as an
+ * in-memory cache handler, loses the data on the first read.
+ *
+ * Every reader receives the same `chunk` instance. A reader that modifies it
+ * changes what later readers see.
+ */
 export function streamFromBuffer(chunk: Buffer): ReadableStream<Uint8Array> {
   return new ReadableStream({
     start(controller) {
@@ -238,7 +249,7 @@ export function createBufferedTransformStream(
 
   let bufferedChunks: Array<Uint8Array> = []
   let bufferByteLength: number = 0
-  let pending: DetachedPromise<void> | undefined
+  let pending: PromiseWithResolvers<void> | undefined
 
   const flush = (controller: TransformStreamDefaultController) => {
     try {
@@ -271,7 +282,7 @@ export function createBufferedTransformStream(
       return
     }
 
-    const detached = new DetachedPromise<void>()
+    const detached = createPromiseWithResolvers<void>()
     pending = detached
 
     scheduleImmediate(() => {
@@ -591,10 +602,10 @@ export function createDeferredSuffixStream(
   suffix: string
 ): TransformStream<Uint8Array, Uint8Array> {
   let flushed = false
-  let pending: DetachedPromise<void> | undefined
+  let pending: PromiseWithResolvers<void> | undefined
 
   const flush = (controller: TransformStreamDefaultController) => {
-    const detached = new DetachedPromise<void>()
+    const detached = createPromiseWithResolvers<void>()
     pending = detached
 
     scheduleImmediate(() => {
@@ -910,7 +921,7 @@ export function chainTransformers<T>(
 
 export type ContinueStreamOptions = {
   inlinedDataStream: ReadableStream<Uint8Array> | undefined
-  isStaticGeneration: boolean
+  waitForAllReady: boolean
   deploymentId: string | undefined
   getServerInsertedHTML: () => Promise<string>
   getServerInsertedMetadata: () => Promise<string>
@@ -926,7 +937,7 @@ export async function continueFizzStream(
   {
     suffix,
     inlinedDataStream,
-    isStaticGeneration,
+    waitForAllReady,
     deploymentId,
     getServerInsertedHTML,
     getServerInsertedMetadata,
@@ -936,8 +947,8 @@ export async function continueFizzStream(
   // Suffix itself might contain close tags at the end, so we need to split it.
   const suffixUnclosed = suffix ? suffix.split(CLOSE_TAG, 1)[0] : null
 
-  if (isStaticGeneration) {
-    // If we're generating static HTML we need to wait for it to resolve before continuing.
+  if (waitForAllReady) {
+    // Wait for all Suspense boundaries to resolve before continuing.
     await renderStream.allReady
   } else {
     // Otherwise, we want to make sure Fizz is done with all microtasky work

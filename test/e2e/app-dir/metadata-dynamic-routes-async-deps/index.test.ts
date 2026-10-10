@@ -4,7 +4,7 @@ describe('app dir - metadata dynamic routes with async deps', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     dependencies: {
-      '@vercel/og': 'latest',
+      '@vercel/og': '1.0.1',
     },
   })
 

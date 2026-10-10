@@ -21,6 +21,9 @@ pub enum TaskDirtyCause {
         collectible_type: TraitTypeId,
     },
     Invalidator,
+    /// Re-dirtied because a GC-soft-deleted task was resurrected by a new connection before its
+    /// hard-delete: its edges were scrubbed, so it must re-execute to rebuild them.
+    Resurrected,
     Unknown,
 }
 
@@ -83,6 +86,7 @@ impl std::fmt::Display for TaskDirtyCause {
                 )
             }
             TaskDirtyCause::Invalidator => write!(f, "invalidator"),
+            TaskDirtyCause::Resurrected => write!(f, "resurrected"),
             TaskDirtyCause::Unknown => write!(f, "unknown"),
         }
     }

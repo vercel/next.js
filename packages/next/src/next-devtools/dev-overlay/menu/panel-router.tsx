@@ -30,6 +30,7 @@ import { useShortcuts } from '../hooks/use-shortcuts'
 import { useUpdateAllPanelPositions } from '../components/devtools-indicator/devtools-indicator'
 import { saveDevToolsConfig } from '../utils/save-devtools-config'
 import { InstantNavsPanel } from '../components/instant-navs/instant-navs-panel'
+import { RequestInsightsPanel } from '../components/request-insights/request-insights-panel'
 import './panel-router.css'
 import { CacheDisabledBody } from '../components/errors/dev-tools-indicator/dev-tools-info/cache-disabled'
 import { ColdCacheBody } from '../components/errors/dev-tools-indicator/dev-tools-info/cold-cache'
@@ -144,6 +145,18 @@ const MenuPanel = () => {
             },
             attributes: {
               'data-instant-nav': true,
+            },
+          },
+        isAppRouter &&
+          !!process.env.__NEXT_REQUEST_INSIGHTS && {
+            title: 'Inspect recent App Router requests.',
+            label: 'Request Insights',
+            value: <ChevronRight />,
+            onClick: () => {
+              setPanel('request-insights')
+            },
+            attributes: {
+              'data-request-insights': true,
             },
           },
         state.cacheIndicator === 'bypass' && {
@@ -354,6 +367,30 @@ export const PanelRouter = () => {
             }
           >
             <InstantNavsPanel />
+          </DynamicPanel>
+        </PanelRoute>
+      )}
+
+      {isAppRouter && !!process.env.__NEXT_REQUEST_INSIGHTS && (
+        <PanelRoute name="request-insights">
+          <DynamicPanel
+            sharePanelSizeGlobally={false}
+            sharePanelPositionGlobally={false}
+            draggable
+            sizeConfig={{
+              kind: 'resizable',
+              maxHeight: '90vh',
+              maxWidth: '90vw',
+              minHeight: 260 / state.scale,
+              minWidth: `min(${560 / state.scale}px, 90vw)`,
+              initialSize: {
+                height: 440 / state.scale,
+                width: 760 / state.scale,
+              },
+            }}
+            header={<DevToolsHeader title="Request Insights" />}
+          >
+            <RequestInsightsPanel />
           </DynamicPanel>
         </PanelRoute>
       )}

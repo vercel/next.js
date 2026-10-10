@@ -10,15 +10,12 @@ compiled/
 # ast-grep snapshots (managed by ast-grep, not prettier)
 .config/ast-grep/rule-tests/__snapshots__/
 
-lerna.json
 test-timings.json
 pnpm-lock.yaml
 
 packages/next/src/bundles/webpack/packages/*.runtime.js
 packages/next/src/bundles/webpack/packages/lazy-compilation-*.js
 packages/next/wasm/@next
-packages/next/errors.json
-
 .github/actions/next-stats-action/.work
 
 crates/**/tests/**/output*

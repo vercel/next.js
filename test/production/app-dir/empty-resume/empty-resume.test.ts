@@ -1,16 +1,29 @@
 import { nextTestSetup } from 'e2e-utils'
 import { createNowRouteMatches } from 'next-test-utils'
 
+// This test synthesizes an adapter invocation using private runtime
+// switches; it does not exercise the deployed platform proxy.
+// @force-gate !deploy
 describe('empty resume', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    // This test synthesizes an adapter invocation using private runtime
-    // switches; it does not exercise the deployed platform proxy.
-    skipDeployment: true,
     env: {
       NEXT_PRIVATE_TEST_HEADERS: '1',
       NEXT_PRIVATE_MINIMAL_MODE: '1',
     },
+  })
+
+  it('preserves the fallback shell for a platform route match', async () => {
+    const slug = 'fallback-shell'
+    const response = await next.fetch(`/dynamic/${slug}`, {
+      headers: {
+        'x-matched-path': '/dynamic/[slug]',
+        'x-now-route-matches': createNowRouteMatches({ slug }).toString(),
+      },
+    })
+
+    expect(response.status).toBe(200)
+    expect(response.headers.get('x-nextjs-postponed')).toBe('1')
   })
 
   it('treats an empty Next-Resume body as a dynamic RSC request', async () => {

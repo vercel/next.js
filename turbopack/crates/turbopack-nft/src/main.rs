@@ -7,12 +7,14 @@ use clap::Parser;
 use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
 use turbo_tasks::TurboTasks;
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
+use turbo_tasks_fs::canonicalize_to_rcstr;
 use turbo_tasks_malloc::TurboMalloc;
 use turbopack_nft::nft::node_file_trace;
 use turbopack_trace_utils::{
     exit::ExitHandler,
     filter_layer::FilterLayer,
     raw_trace::RawTraceLayer,
+    tokio_workers,
     trace_writer::TraceWriter,
     tracing_presets::{
         TRACING_OVERVIEW_TARGETS, TRACING_TURBO_TASKS_TARGETS, TRACING_TURBOPACK_TARGETS,
@@ -39,8 +41,12 @@ pub struct Arguments {
 static ALLOC: TurboMalloc = TurboMalloc;
 
 fn main() {
+    tokio_workers::set_worker_threads(tokio_workers::default_worker_threads());
     let mut rt = tokio::runtime::Builder::new_multi_thread();
-    rt.enable_all().disable_lifo_slot();
+    rt.enable_all()
+        .disable_lifo_slot()
+        .on_thread_park(tokio_workers::park)
+        .on_thread_unpark(tokio_workers::unpark);
 
     let args = Arguments::parse();
     rt.build().unwrap().block_on(main_inner(args)).unwrap();
@@ -89,9 +95,10 @@ async fn main_inner(args: Arguments) -> Result<()> {
         noop_backing_storage(),
     ));
 
+    let project_root = canonicalize_to_rcstr(&current_dir()?)?;
     tt.run_once(async move {
         node_file_trace(
-            current_dir()?.to_str().unwrap().into(),
+            project_root,
             args.entry.into(),
             args.graph,
             args.show_issues,

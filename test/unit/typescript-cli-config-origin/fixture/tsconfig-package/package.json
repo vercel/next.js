@@ -1,0 +1,6 @@
+{
+  "name": "@fixture/tsconfig",
+  "version": "1.0.0",
+  "main": "index.js",
+  "tsconfig": "configs/base.json"
+}

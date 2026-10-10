@@ -8,6 +8,7 @@ import type {
 import {
   createStaticWorker,
   type PrerenderManifest,
+  type PreviewPropsManifest,
   type StaticWorker,
 } from '../build'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
@@ -43,6 +44,7 @@ import {
   APP_PATH_ROUTES_MANIFEST,
   ROUTES_MANIFEST,
   FUNCTIONS_CONFIG_MANIFEST,
+  PREVIEW_PROPS_MANIFEST,
 } from '../shared/lib/constants'
 import loadConfig from '../server/config'
 import type { ExportPathMap } from '../server/config-shared'
@@ -74,6 +76,7 @@ import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import type { Params } from '../server/request/params'
 import { Bundler } from '../lib/bundler'
+import { getBuildDistDir } from './utils'
 
 export class ExportError extends Error {
   code = 'NEXT_EXPORT_ERROR'
@@ -210,7 +213,7 @@ async function exportAppImpl(
       })
     ))
 
-  const distDir = join(dir, nextConfig.distDir)
+  const distDir = join(dir, getBuildDistDir(nextConfig))
   const telemetry = options.buildExport ? null : new Telemetry({ distDir })
 
   if (telemetry) {
@@ -259,6 +262,11 @@ async function exportAppImpl(
   const pagesManifest =
     !options.pages &&
     (require(join(distDir, SERVER_DIRECTORY, PAGES_MANIFEST)) as PagesManifest)
+
+  let previewProps: DeepReadonly<PreviewPropsManifest> | undefined
+  try {
+    previewProps = require(join(distDir, 'server', PREVIEW_PROPS_MANIFEST))
+  } catch {}
 
   let prerenderManifest: DeepReadonly<PrerenderManifest> | undefined
   try {
@@ -390,13 +398,6 @@ async function exportAppImpl(
       )
   }
 
-  // Get the exportPathMap from the config file
-  if (typeof nextConfig.exportPathMap !== 'function') {
-    nextConfig.exportPathMap = async (defaultMap) => {
-      return defaultMap
-    }
-  }
-
   const {
     i18n,
     images: { loader = 'default', unoptimized },
@@ -476,7 +477,7 @@ async function exportAppImpl(
 
   // Start the rendering process
   const renderOpts: WorkerRenderOptsPartial = {
-    previewProps: prerenderManifest?.preview,
+    previewProps,
     isBuildTimePrerendering: true,
     assetPrefix: nextConfig.assetPrefix.replace(/\/$/, ''),
     distDir,
@@ -505,7 +506,6 @@ async function exportAppImpl(
       join(distDir, 'server', `${NEXT_FONT_MANIFEST}.json`)
     ),
     images: nextConfig.images,
-    htmlLimitedBots: nextConfig.htmlLimitedBots.source,
     experimental: {
       clientTraceMetadata: nextConfig.experimental.clientTraceMetadata,
       expireTime: nextConfig.expireTime,
@@ -514,15 +514,22 @@ async function exportAppImpl(
         nextConfig.experimental.clientParamParsingOrigins,
       dynamicOnHover: nextConfig.experimental.dynamicOnHover ?? false,
       optimisticRouting: nextConfig.experimental.optimisticRouting ?? false,
+      parallelRouteMetadata:
+        nextConfig.experimental.parallelRouteMetadata ?? false,
       inlineCss: nextConfig.experimental.inlineCss ?? false,
       prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
       authInterrupts: !!nextConfig.experimental.authInterrupts,
+      reactBrowserBailout: nextConfig.experimental.reactBrowserBailout ?? false,
       useCacheTimeout: nextConfig.experimental.useCacheTimeout,
+      durableUseCacheEntries: Boolean(
+        nextConfig.experimental.durableUseCacheEntries
+      ),
       cachedNavigations: nextConfig.experimental.cachedNavigations ?? false,
-      appShells: nextConfig.experimental.appShells,
       maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
         nextConfig.experimental.maxPostponedStateSize
       ),
+      disableResumeDataCacheCompression:
+        nextConfig.experimental.disableResumeDataCacheCompression ?? false,
       exposeTestingApi:
         nextConfig.experimental.exposeTestingApiInProductionBuild === true,
     },
@@ -537,6 +544,10 @@ async function exportAppImpl(
   const exportPathMap = await span
     .traceChild('run-export-path-map')
     .traceAsyncFn(async () => {
+      if (typeof nextConfig.exportPathMap !== 'function') {
+        return defaultPathMap
+      }
+
       const exportMap = await nextConfig.exportPathMap(defaultPathMap, {
         dev: false,
         dir,
@@ -716,7 +727,7 @@ async function exportAppImpl(
           worker.exportPages({
             buildId,
             deploymentId: nextConfig.deploymentId,
-            clientAssetToken: nextConfig.experimental.supportsImmutableAssets
+            clientAssetToken: nextConfig.supportsImmutableAssets
               ? ''
               : nextConfig.deploymentId,
             exportPaths: batch,
@@ -857,6 +868,14 @@ async function exportAppImpl(
         info.hasPostponed = result.hasPostponed
       }
 
+      if (typeof result.hasPendingUi !== 'undefined') {
+        info.hasPendingUi = result.hasPendingUi
+      }
+
+      if (typeof result.htmlSize !== 'undefined') {
+        info.htmlSize = result.htmlSize
+      }
+
       if (typeof result.hasStaticRsc !== 'undefined') {
         info.hasStaticRsc = result.hasStaticRsc
       }
@@ -882,7 +901,7 @@ async function exportAppImpl(
   }
 
   // Export mode provide static outputs that are not compatible with PPR mode.
-  if (!options.buildExport && nextConfig.experimental.ppr) {
+  if (!options.buildExport && nextConfig.cacheComponents) {
     // TODO: add message
     throw new Error('Invariant: PPR cannot be enabled in export mode')
   }

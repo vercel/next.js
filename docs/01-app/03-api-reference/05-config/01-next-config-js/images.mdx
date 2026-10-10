@@ -156,8 +156,8 @@ export default function gumletLoader({ src, width, quality }) {
 // Docs: https://support.imageengine.io/hc/en-us/articles/360058880672-Directives
 export default function imageengineLoader({ src, width, quality }) {
   const compression = 100 - (quality || 50)
-  const params = [`w_${width}`, `cmpr_${compression}`)]
-  return `https://example.com${src}?imgeng=/${params.join('/')`
+  const params = [`w_${width}`, `cmpr_${compression}`]
+  return `https://example.com${src}?imgeng=/${params.join('/')}`
 }
 ```
 

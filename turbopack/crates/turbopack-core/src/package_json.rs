@@ -4,9 +4,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use serde_json::Value as JsonValue;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{
-    NonLocalValue, ReadRef, ResolvedVc, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
-};
+use turbo_tasks::{NonLocalValue, ReadRef, ResolvedVc, Vc, debug::ValueDebugFormat};
 use turbo_tasks_fs::{FileJsonContent, FileSystemPath};
 
 use super::issue::Issue;
@@ -19,7 +17,7 @@ use crate::{
 /// PackageJson wraps the parsed JSON content of a `package.json` file. The
 /// wrapper is necessary so that we can reference the [FileJsonContent]'s inner
 /// [serde_json::Value] without cloning it.
-#[derive(PartialEq, Eq, ValueDebugFormat, TraceRawVcs, NonLocalValue)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
 pub struct PackageJson(ReadRef<FileJsonContent>);
 
 impl Deref for PackageJson {

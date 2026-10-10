@@ -1,5 +1,3 @@
-import fetch from 'node-fetch'
-
 export const TEST_PROJECT_NAME = 'vtest314-e2e-tests'
 export const TEST_TEAM_NAME = process.env.VERCEL_TEST_TEAM
 export const TEST_TOKEN = process.env.VERCEL_TEST_TOKEN
@@ -9,6 +7,17 @@ export const ADAPTER_TEST_TOKEN = process.env.VERCEL_ADAPTER_TEST_TOKEN
 
 export const TURBOPACK_TEST_TEAM_NAME = process.env.VERCEL_TURBOPACK_TEST_TEAM
 export const TURBOPACK_TEST_TOKEN = process.env.VERCEL_TURBOPACK_TEST_TOKEN
+
+/**
+ * Whether a value read from the environment carries no usable value. An unset
+ * variable reads as `undefined`, while one set to an empty value reads as `''`;
+ * neither can identify a team or authenticate against one.
+ * @param {string | null | undefined} value
+ * @returns {boolean}
+ */
+function isAbsent(value) {
+  return value === undefined || value === null || value === ''
+}
 
 /**
  * Retry a fetch request with exponential backoff
@@ -59,11 +68,25 @@ async function fetchWithRetry(
 }
 
 export async function resetProject({
-  teamId = TEST_TEAM_NAME,
-  projectName = TEST_PROJECT_NAME,
-  token = TEST_TOKEN,
+  teamId,
+  projectName,
+  token,
   disableDeploymentProtection = true,
 }) {
+  // `teamId`, `projectName` and `token` together decide which project gets
+  // deleted and recreated, so all three are deliberately required. Defaulting
+  // any of them meant a caller passing an unset value silently destroyed some
+  // other project instead of the one it meant to reset.
+  if (isAbsent(teamId)) {
+    throw new Error('resetProject requires a teamId.')
+  }
+  if (isAbsent(projectName)) {
+    throw new Error(`resetProject requires a projectName for team ${teamId}.`)
+  }
+  if (isAbsent(token)) {
+    throw new Error(`resetProject requires a token for team ${teamId}.`)
+  }
+
   console.log(`Resetting project ${teamId}/${projectName}`)
   // TODO: error/bail if existing deployments are pending
   await fetchWithRetry(

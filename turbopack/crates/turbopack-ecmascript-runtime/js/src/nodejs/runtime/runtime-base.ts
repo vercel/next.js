@@ -15,7 +15,7 @@ process.env.TURBOPACK = '1'
 const url = require('url') as typeof import('url')
 
 const moduleFactories: ModuleFactories = new Map()
-const moduleCache: ModuleCache<Module> = Object.create(null)
+const moduleCache: ModuleCache<Module> = new Map()
 
 /**
  * Returns an absolute path to the given module's id.

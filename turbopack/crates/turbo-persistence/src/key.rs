@@ -118,11 +118,16 @@ impl<T: KeyBase> KeyBase for &'_ T {
 /// comparison with a byte slice (total order).
 pub trait QueryKey: KeyBase {
     fn cmp(&self, key: &[u8]) -> std::cmp::Ordering;
+    fn eq(&self, key: &[u8]) -> bool;
 }
 
 impl QueryKey for &'_ [u8] {
     fn cmp(&self, key: &[u8]) -> std::cmp::Ordering {
         Ord::cmp(self, &key)
+    }
+
+    fn eq(&self, key: &[u8]) -> bool {
+        PartialEq::eq(*self, key)
     }
 }
 
@@ -130,11 +135,17 @@ impl<const N: usize> QueryKey for [u8; N] {
     fn cmp(&self, key: &[u8]) -> std::cmp::Ordering {
         Ord::cmp(&self[..], key)
     }
+    fn eq(&self, key: &[u8]) -> bool {
+        PartialEq::eq(self, key)
+    }
 }
 
 impl QueryKey for Vec<u8> {
     fn cmp(&self, key: &[u8]) -> std::cmp::Ordering {
         Ord::cmp(&**self, key)
+    }
+    fn eq(&self, key: &[u8]) -> bool {
+        PartialEq::eq(self.as_slice(), key)
     }
 }
 
@@ -142,27 +153,34 @@ impl QueryKey for Box<[u8]> {
     fn cmp(&self, key: &[u8]) -> std::cmp::Ordering {
         Ord::cmp(&**self, key)
     }
+    fn eq(&self, key: &[u8]) -> bool {
+        PartialEq::eq(&**self, key)
+    }
 }
 
 impl QueryKey for u8 {
     fn cmp(&self, key: &[u8]) -> std::cmp::Ordering {
         Ord::cmp(&[*self][..], key)
     }
+    fn eq(&self, key: &[u8]) -> bool {
+        PartialEq::eq(&[*self][..], key)
+    }
 }
 
 impl<A: QueryKey, B: QueryKey> QueryKey for (A, B) {
-    fn cmp(&self, mut key: &[u8]) -> std::cmp::Ordering {
+    fn cmp(&self, key: &[u8]) -> std::cmp::Ordering {
         let (a, b) = self;
         let len = a.len();
         let key_len = key.len();
-        let key_part = &key[..min(key_len, len)];
-        match a.cmp(key_part) {
-            std::cmp::Ordering::Equal => {
-                key = &key[len..];
-                b.cmp(key)
-            }
-            ord => ord,
-        }
+        let (key_part, value_part) = key.split_at(min(key_len, len));
+        a.cmp(key_part).then_with(|| b.cmp(value_part))
+    }
+    fn eq(&self, key: &[u8]) -> bool {
+        let (a, b) = self;
+        let len = a.len();
+        let key_len = key.len();
+        let (key_part, value_part) = &key.split_at(min(key_len, len));
+        a.eq(key_part) && b.eq(value_part)
     }
 }
 
@@ -170,53 +188,48 @@ impl<T: QueryKey> QueryKey for &'_ T {
     fn cmp(&self, key: &[u8]) -> std::cmp::Ordering {
         (*self).cmp(key)
     }
+    fn eq(&self, key: &[u8]) -> bool {
+        (*self).eq(key)
+    }
 }
 
 /// A trait for keys that can be stored in the database. They need to allow hashing and comparison.
 pub trait StoreKey: KeyBase + Ord {
-    fn write_to(&self, buf: &mut Vec<u8>);
+    /// The key's bytes.
+    fn as_slice(&self) -> &[u8];
+
+    fn write_to(&self, buf: &mut Vec<u8>) {
+        buf.extend_from_slice(self.as_slice());
+    }
 }
 
 impl<const N: usize> StoreKey for [u8; N] {
-    fn write_to(&self, buf: &mut Vec<u8>) {
-        buf.extend_from_slice(&self[..]);
+    fn as_slice(&self) -> &[u8] {
+        &self[..]
     }
 }
 
 impl StoreKey for Vec<u8> {
-    fn write_to(&self, buf: &mut Vec<u8>) {
-        buf.extend_from_slice(self);
+    fn as_slice(&self) -> &[u8] {
+        self
     }
 }
 
 impl StoreKey for Box<[u8]> {
-    fn write_to(&self, buf: &mut Vec<u8>) {
-        buf.extend_from_slice(self);
+    fn as_slice(&self) -> &[u8] {
+        self
     }
 }
 
 impl StoreKey for &'_ [u8] {
-    fn write_to(&self, buf: &mut Vec<u8>) {
-        buf.extend_from_slice(self);
-    }
-}
-
-impl StoreKey for u8 {
-    fn write_to(&self, buf: &mut Vec<u8>) {
-        buf.push(*self);
-    }
-}
-
-impl<A: StoreKey, B: StoreKey> StoreKey for (A, B) {
-    fn write_to(&self, buf: &mut Vec<u8>) {
-        self.0.write_to(buf);
-        self.1.write_to(buf);
+    fn as_slice(&self) -> &[u8] {
+        self
     }
 }
 
 impl<T: StoreKey> StoreKey for &'_ T {
-    fn write_to(&self, buf: &mut Vec<u8>) {
-        (*self).write_to(buf);
+    fn as_slice(&self) -> &[u8] {
+        (*self).as_slice()
     }
 }
 

@@ -70,7 +70,7 @@ yarn create jest@latest
 bun create jest@latest
 ```
 
-This will take you through a series of prompts to setup Jest for your project, including automatically creating a `jest.config.ts|js` file.
+This will take you through a series of prompts to set up Jest for your project, including automatically creating a `jest.config.ts|js` file.
 
 Update your config file to use `next/jest`. This transformer has all the necessary configuration options for Jest to work with Next.js:
 

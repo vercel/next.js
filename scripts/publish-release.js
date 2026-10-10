@@ -10,6 +10,7 @@ const {
   getGitHubToken,
   getGitHubTokenMissingMessage,
 } = require('./release-github-auth')
+const { readReleaseVersion } = require('./release-version')
 
 const cwd = process.cwd()
 const dryRun = process.argv.includes('--dry-run')
@@ -22,12 +23,10 @@ const publishRetryDelaySeconds = 15
   }
   const publishSema = new Sema(2)
 
-  const { version } = JSON.parse(
-    await fs.readFile(path.join(cwd, 'lerna.json'), 'utf-8')
-  )
+  const version = readReleaseVersion()
   const parsedVersion = semver.parse(version)
   if (parsedVersion === null) {
-    throw new Error(`Invalid version in lerna.json: ${version}`)
+    throw new Error(`Invalid version: ${version}`)
   }
   const prereleaseChannel = parsedVersion.prerelease[0]
   const isPrerelease = prereleaseChannel != null
@@ -227,6 +226,60 @@ const publishRetryDelaySeconds = 15
     path.join(cwd, 'packages/next/package.json'),
     JSON.stringify(nextPkg, null, 2)
   )
+
+  if (isPrerelease) {
+    // Lerna does not update peerDependencies at version time, and a static
+    // range like "^16.0.0" never satisfies a fresh prerelease version.
+    // Append the release version to any peer dependency on packages published
+    // from this repo so the published prerelease accepts its own version while
+    // keeping the stable ranges.
+    // Stable releases keep their wide ranges untouched so a published package
+    // keeps working with newer Next.js minors.
+    // TODO: Use `|| workspace:*` once pnpm supports that. Only a lone `workspace:*`
+    // works at the moment
+    const pnpmListJson = await execa('pnpm', [
+      '--silent',
+      '--recursive',
+      '--filter',
+      './packages/**',
+      'list',
+      '--depth',
+      '-1',
+      '--json',
+    ])
+    const workspacePackages = JSON.parse(pnpmListJson.stdout)
+    const publishedPackageNames = new Set(
+      workspacePackages
+        .filter((workspacePackage) => !workspacePackage.private)
+        .map((workspacePackage) => workspacePackage.name)
+    )
+
+    for (const workspacePackage of workspacePackages) {
+      if (workspacePackage.private) {
+        continue
+      }
+
+      const packageJsonPath = path.join(workspacePackage.path, 'package.json')
+      const manifest = JSON.parse(await fs.readFile(packageJsonPath, 'utf-8'))
+      const peerDependencies = manifest.peerDependencies ?? {}
+      let updated = false
+
+      for (const dependencyName of Object.keys(peerDependencies)) {
+        if (publishedPackageNames.has(dependencyName)) {
+          peerDependencies[dependencyName] =
+            `${peerDependencies[dependencyName]} || ${version}`
+          updated = true
+        }
+      }
+
+      if (updated) {
+        await fs.writeFile(packageJsonPath, JSON.stringify(manifest, null, 2))
+        console.log(
+          `Appended ${version} to peer dependencies in ${workspacePackage.name}`
+        )
+      }
+    }
+  }
 
   await publish('workspace', [
     '--filter',

@@ -1,28 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Normalize TURBO_API and TURBO_TOKEN: prefer environment values and
-# fall back to Vercel's public API and the secret passed as an action input.
+# Default TURBO_API to Vercel's public API when the workflow does not set it.
 if [ -z "${TURBO_API:-}" ]; then
   export TURBO_API="https://api.vercel.com"
   echo "TURBO_API=${TURBO_API}" >> "$GITHUB_ENV"
 fi
 
-if [ -z "${TURBO_TOKEN:-}" ]; then
-  if [ -n "${INPUT_TURBO_TOKEN:-}" ]; then
-    export TURBO_TOKEN="${INPUT_TURBO_TOKEN}"
-    echo "TURBO_TOKEN=${TURBO_TOKEN}" >> "$GITHUB_ENV"
-  else
-    echo "WARNING: no TURBO_TOKEN available"
-  fi
+# Exported by `vercel/setup-turborepo-remote-cache-action`, and unset entirely
+# when that step was skipped. Bind them so the substring expansions below don't
+# trip `set -u`, which rejects an unset name even in `${var:0:3}`.
+TURBO_TOKEN="${TURBO_TOKEN:-}"
+TURBO_TEAM="${TURBO_TEAM:-}"
+
+if [ -z "$TURBO_TOKEN" ]; then
+  echo "WARNING: no TURBO_TOKEN available"
 fi
 
-if [ -z "${TURBO_TEAM:-}" ]; then
-  export TURBO_TEAM="vtest314-next-adapter-e2e-tests"
-  echo "TURBO_TEAM=${TURBO_TEAM}" >> "$GITHUB_ENV"
-fi
-
-echo "::add-mask::${TURBO_TOKEN:-}"
+echo "::add-mask::${TURBO_TOKEN}"
 echo "Cache endpoint: ${TURBO_API:0:9}..."
 echo "TURBO_TOKEN: ${TURBO_TOKEN:0:3}..."
 echo "TURBO_TEAM: ${TURBO_TEAM}"

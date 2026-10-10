@@ -2,20 +2,21 @@ use std::ops::Deref;
 
 use bincode::{Decode, Encode};
 use serde::Serialize;
+use smallvec::SmallVec;
 use swc_core::{
     common::{DUMMY_SP, SyntaxContext},
-    ecma::{
-        ast::{Expr, Lit, Str},
-        visit::AstParentKind,
-    },
+    ecma::ast::{ComputedPropName, Expr, Lit, MemberProp, ObjectPatProp, Pat, PropName, Str},
 };
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, TaskInput};
 use turbopack_core::{chunk::ModuleId, resolve::pattern::Pattern};
 
-use crate::analyzer::{
-    ConstantNumber, ConstantValue, JsValue, JsValueUrlKind, ModuleValue, WellKnownFunctionKind,
-    WellKnownObjectKind,
+use crate::{
+    analyzer::{
+        ConstantNumber, ConstantValue, JsValue, JsValueUrlKind, ModuleValue, WellKnownFunctionKind,
+        WellKnownObjectKind,
+    },
+    ast_path_trie::AstPathId,
 };
 
 pub fn unparen(expr: &Expr) -> &Expr {
@@ -26,6 +27,42 @@ pub fn unparen(expr: &Expr) -> &Expr {
         return unparen(seq.exprs.last().unwrap());
     }
     expr
+}
+
+/// The statically-known export name read by a member property (`obj.foo` /
+/// `obj["foo"]`), or `None` for a dynamic/computed access.
+pub(crate) fn extract_name_from_member_prop(prop: &MemberProp) -> Option<SmallVec<[RcStr; 1]>> {
+    match prop {
+        MemberProp::Ident(ident) => Some(SmallVec::from_buf([ident.sym.as_str().into()])),
+        MemberProp::Computed(ComputedPropName {
+            expr: Expr::Lit(Lit::Str(s)),
+            ..
+        }) => s.value.as_str().map(|v| SmallVec::from_buf([v.into()])),
+        _ => None,
+    }
+}
+
+/// The statically-known export names bound by an object destructuring pattern
+/// (`const { a, b } = …`), or `None` for a rest element or computed key.
+pub(crate) fn extract_names_from_object_pat(pat: &Pat) -> Option<SmallVec<[RcStr; 1]>> {
+    let Pat::Object(obj_pat) = pat else {
+        return None;
+    };
+    let mut names = SmallVec::new();
+    for prop in &obj_pat.props {
+        match prop {
+            ObjectPatProp::KeyValue(kv) => match &kv.key {
+                PropName::Ident(ident) => names.push(ident.sym.as_str().into()),
+                PropName::Str(s) => names.push(s.value.as_str()?.into()),
+                _ => return None, // computed key, can't determine statically
+            },
+            ObjectPatProp::Assign(assign) => {
+                names.push(assign.key.sym.as_str().into());
+            }
+            ObjectPatProp::Rest(_) => return None, // rest pattern means all exports needed
+        }
+    }
+    Some(names)
 }
 
 /// Converts a js-value into a Pattern for matching resources.
@@ -46,7 +83,7 @@ pub fn js_value_to_pattern(value: &JsValue<'_>) -> Pattern {
             ConstantValue::Null => rcstr!("null"),
             ConstantValue::Num(ConstantNumber(n)) => n.to_string().into(),
             ConstantValue::BigInt(n) => n.to_string().into(),
-            ConstantValue::Regex(box (exp, flags)) => format!("/{exp}/{flags}").into(),
+            ConstantValue::Regex((exp, flags)) => format!("/{exp}/{flags}").into(),
             ConstantValue::Undefined => rcstr!("undefined"),
         }),
         JsValue::Url(v, JsValueUrlKind::Relative) => Pattern::Constant(v.as_rcstr()),
@@ -179,21 +216,13 @@ format_iter!(std::fmt::Pointer);
 format_iter!(std::fmt::UpperExp);
 format_iter!(std::fmt::UpperHex);
 
-#[derive(Clone, PartialEq, Eq, TraceRawVcs, Debug, NonLocalValue, Hash, Encode, Decode)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, NonLocalValue, Hash, Encode, Decode)]
 pub enum AstPathRange {
     /// The ast path to the block or expression.
-    Exact(
-        #[bincode(with_serde)]
-        #[turbo_tasks(trace_ignore)]
-        Vec<AstParentKind>,
-    ),
+    Exact(AstPathId),
     /// The ast path to a expression just before the range in the parent of the
     /// specific ast path.
-    StartAfter(
-        #[bincode(with_serde)]
-        #[turbo_tasks(trace_ignore)]
-        Vec<AstParentKind>,
-    ),
+    StartAfter(AstPathId),
 }
 
 /// Converts a module value (ie an import) to a well known object,
@@ -231,16 +260,13 @@ pub fn module_value_to_well_known_object<'a>(module_value: &ModuleValue) -> Opti
         b"resolve-from" => JsValue::WellKnownFunction(WellKnownFunctionKind::NodeResolveFrom),
         b"@grpc/proto-loader" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProtobufLoader),
         b"fs-extra" => JsValue::WellKnownObject(WellKnownObjectKind::FsExtraModule),
+        b"graceful-fs" => JsValue::WellKnownObject(WellKnownObjectKind::GracefulFsModule),
         _ => return None,
     })
 }
 
-#[derive(Hash, Debug, Clone, Copy, Eq, PartialEq, TraceRawVcs, Encode, Decode)]
-pub struct AstSyntaxContext(
-    #[turbo_tasks(trace_ignore)]
-    #[bincode(with_serde)]
-    SyntaxContext,
-);
+#[derive(Hash, Debug, Clone, Copy, Eq, PartialEq, Encode, Decode)]
+pub struct AstSyntaxContext(#[bincode(with_serde)] SyntaxContext);
 
 impl TaskInput for AstSyntaxContext {
     fn is_transient(&self) -> bool {

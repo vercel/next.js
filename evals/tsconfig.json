@@ -1,11 +1,17 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
     "strict": true,
     "skipLibCheck": true,
-    "noEmit": true
+    "noEmit": true,
+    "types": ["node"]
   },
-  "include": ["lib", "experiments"]
+  "include": [
+    "lib",
+    "experiments",
+    "next-upgrade/runner",
+    "next-upgrade/verifier/verify.ts"
+  ]
 }

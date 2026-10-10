@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "@types/lodash": "4.17.13",
+    "lodash": "4.17.21",
+    "yocto-queue": "1.2.1"
+  }
+}
