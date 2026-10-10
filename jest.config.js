@@ -14,6 +14,7 @@ const customJestConfig = {
   roots: [
     '<rootDir>',
     '<rootDir>/../packages/next/src/',
+    '<rootDir>/../packages/next-upgrade/src/',
     '<rootDir>/../packages/next-codemod/',
     '<rootDir>/../packages/eslint-plugin-internal/',
     '<rootDir>/../packages/font/src/',

@@ -1,0 +1,9 @@
+{
+  "name": "@next/upgrade",
+  "version": "16.5.0-canary.7",
+  "private": true,
+  "description": "Next.js upgrade workflow source",
+  "dependencies": {
+    "@next/env": "workspace:*"
+  }
+}
