@@ -7,6 +7,10 @@ describe('proxy-runtime', () => {
     skipStart: true,
   })
 
+  // `getBuildError()` stops capturing at Vercel's
+  // `Error: Command "..." exited with N` line. Other hosts don't print it, so
+  // anything they log after the build error would end up in the snapshot.
+  // @force-gate !deploy || vercel
   it('should error when proxy file has runtime config export', async () => {
     let cliOutput: string
 
@@ -33,7 +37,7 @@ describe('proxy-runtime', () => {
        4 |
        The exported configuration object in a source file needs to have a very specific format from which some properties can be statically parsed at compiled-time.
        https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config
-       at <unknown> (https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config)"
+       at ignore-listed frames"
       `)
     } else {
       expect(cliOutput).toContain(
@@ -57,8 +61,14 @@ function getBuildError(cliOutput: string): string {
       .replace(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z {2}/, '')
       .trim()
 
-    // The command exit status is not compiler output.
-    if (/^Error: Command .* exited with \d+$/.test(line)) break
+    // Package-manager and Vercel command failures are not compiler output.
+    if (
+      /^(?:ELIFECYCLE\s|Error: (?:\[BUILD_UTILS_SPAWN_\d+\] )?Command .* exited with \d+$)/.test(
+        line
+      )
+    ) {
+      break
+    }
 
     if (capturing) {
       if (line) {

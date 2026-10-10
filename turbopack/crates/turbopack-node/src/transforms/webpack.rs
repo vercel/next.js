@@ -771,6 +771,10 @@ impl EvaluateContext for WebpackLoaderContext {
         self.cwd.clone().cell()
     }
 
+    fn context_source_for_issue(&self) -> ResolvedVc<Box<dyn Source>> {
+        self.context_source_for_issue
+    }
+
     fn keep_alive(&self) -> bool {
         true
     }

@@ -10,6 +10,7 @@ const {
   getGitHubToken,
   getGitHubTokenMissingMessage,
 } = require('./release-github-auth')
+const { readReleaseVersion } = require('./release-version')
 
 const cwd = process.cwd()
 const dryRun = process.argv.includes('--dry-run')
@@ -22,12 +23,10 @@ const publishRetryDelaySeconds = 15
   }
   const publishSema = new Sema(2)
 
-  const { version } = JSON.parse(
-    await fs.readFile(path.join(cwd, 'lerna.json'), 'utf-8')
-  )
+  const version = readReleaseVersion()
   const parsedVersion = semver.parse(version)
   if (parsedVersion === null) {
-    throw new Error(`Invalid version in lerna.json: ${version}`)
+    throw new Error(`Invalid version: ${version}`)
   }
   const prereleaseChannel = parsedVersion.prerelease[0]
   const isPrerelease = prereleaseChannel != null

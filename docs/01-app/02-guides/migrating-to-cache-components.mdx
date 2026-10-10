@@ -6,13 +6,11 @@ related:
   title: Next Steps
   description: Learn about other behavior changes when Cache Components is enabled.
   links:
+    - app/guides/optimizing-the-static-shell
     - app/guides/instant-navigation
-    - app/getting-started/caching
     - app/guides/preserving-ui-state
     - app/guides/incremental-static-regeneration-cache-components
-    - app/guides/authentication-with-cache-components
-    - app/api-reference/functions/generate-static-params
-    - app/api-reference/config/next-config-js/cacheComponents
+    - app/getting-started/caching
 ---
 
 When [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled, route segment configs like `dynamic`, `revalidate`, and `fetchCache` are replaced by [`use cache`](/docs/app/api-reference/directives/use-cache) and [`cacheLife`](/docs/app/api-reference/functions/cacheLife).
@@ -21,7 +19,7 @@ The migration is driven by **instant navigation validation**. With Cache Compone
 
 ## Use the adoption skill (recommended)
 
-The [`next-cache-components-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-adoption) skill drives this migration with a coding agent, one feature at a time, checking in at every feature boundary. It supports two modes:
+The [`next-cache-components-adoption`](/docs/app/guides/ai-agents#next-cache-components-adoption) skill drives this migration with a coding agent, one feature at a time, checking in at every feature boundary. It supports two modes:
 
 - **Incremental.** Opens a single mechanical PR that opts every route out of validation, then ships each feature as a follow-up PR. This automates the [Adopting incrementally](#adopting-incrementally) flow below.
 - **Direct.** Adopts every route in place on one branch.
@@ -175,9 +173,9 @@ export default function Page() {
 
 ## `dynamic = "force-static"`
 
-**Remove the config and keep the route fully prerendered.** Without Cache Components, `dynamic = 'force-static'` forced the route to prerender, cached its data, and made `cookies()`, `headers()`, and `useSearchParams()` return empty values.
+**Remove the config, then make its caching explicit.** Without Cache Components, `dynamic = 'force-static'` forced the route to prerender, cached its data, and made `cookies()`, `headers()`, and `useSearchParams()` return empty values.
 
-Cache uncached data with [`use cache`](/docs/app/api-reference/directives/use-cache) and a suitable [`cacheLife`](/docs/app/api-reference/functions/cacheLife). After removing the config, Request-time APIs read actual request values. Remove those dependencies if the route must remain fully prerendered.
+Cache data that should be reused with [`use cache`](/docs/app/api-reference/directives/use-cache) and a suitable [`cacheLife`](/docs/app/api-reference/functions/cacheLife). After removing the config, Request-time APIs read actual request values. Remove those dependencies if the route must remain fully prerendered.
 
 ```tsx filename="app/page.tsx" switcher
 // Before
@@ -222,12 +220,44 @@ export default async function Page() {
   return <div>...</div>
 }
 ```
+
+### Enforce static output
+
+> **Good to know**: `ensureStatic` is available in Next.js 16.4 and later. This step is optional. Add it only if the route still has a static output requirement after the migration.
+
+To require a completely static route, add [`ensureStatic = 'navigation'`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#navigation) after migrating its caching:
+
+```tsx filename="app/page.tsx" switcher
+export const ensureStatic = 'navigation'
+```
+
+```jsx filename="app/page.js" switcher
+export const ensureStatic = 'navigation'
+```
+
+Unlike `dynamic = 'force-static'`, `ensureStatic` does not make Request-time APIs return empty values. It reports an error if request-specific server work prevents the route from being prerendered. If only the App Shell or per-link prefetch must stay static, choose a less restrictive level. See [Keeping pages static](/docs/app/guides/keeping-pages-static).
 
 ## `dynamic = "error"`
 
 **Remove the config.** Without Cache Components, `dynamic = 'error'` required the route to prerender and treated `fetch` requests as cached by default. It raised an error only when uncached data or a Request-time API prevented prerendering.
 
 After removing the config, `fetch` no longer inherits that cached default. To preserve the route's existing caching behavior, wrap those requests in [`use cache`](/docs/app/api-reference/directives/use-cache) and set their lifetime with [`cacheLife`](/docs/app/api-reference/functions/cacheLife). If the route did not rely on the default, no replacement is needed.
+
+### Enforce static validation
+
+> **Good to know**: `ensureStatic` is available in Next.js 16.4 and later. This step is optional. Add it only if the route still has a static output requirement after the migration.
+
+To require a completely static route, add [`ensureStatic = 'navigation'`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic#navigation) after making the route's caching explicit:
+
+```tsx filename="app/page.tsx" switcher
+export const ensureStatic = 'navigation'
+```
+
+```jsx filename="app/page.js" switcher
+export const ensureStatic = 'navigation'
+```
+
+Use a less restrictive level when only the App Shell or per-link prefetch must stay static. See [Keeping pages static](/docs/app/guides/keeping-pages-static) for how to choose a level.
 
 ## `revalidate`
 

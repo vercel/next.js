@@ -26,8 +26,6 @@ describe('app-dir - server source maps', () => {
     dependencies,
     files: path.join(__dirname, 'fixtures/default'),
     // Deploy tests don't have access to runtime logs.
-    // Use the declared pnpm version on Vercel to install link: dependencies.
-    env: { ENABLE_EXPERIMENTAL_COREPACK: '1' },
   })
 
   it('logged errors have a sourcemapped stack with a codeframe', async () => {
