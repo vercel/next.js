@@ -11,7 +11,6 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
 
 __turbopack_context__.s([
     "a",
-    0,
     ()=>dog,
     (new_dog)=>dog = new_dog
 ]);

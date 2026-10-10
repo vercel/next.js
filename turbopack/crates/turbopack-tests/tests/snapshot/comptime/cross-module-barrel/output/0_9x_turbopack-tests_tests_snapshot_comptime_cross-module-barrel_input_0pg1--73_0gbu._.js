@@ -22,7 +22,6 @@ console.log(("TURBOPACK compile-time value", "barrel"));
 
 __turbopack_context__.s([
     "foo",
-    0,
     ()=>foo
 ]);
 function foo() {

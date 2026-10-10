@@ -1,0 +1,143 @@
+name: next-upgrade-evals
+
+permissions: {}
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - '.github/workflows/next-upgrade-evals.yml'
+      - 'evals/lib/**'
+      - 'evals/next-upgrade/**'
+      - 'patches/@vercel__agent-eval@*.patch'
+      - 'pnpm-lock.yaml'
+      - 'package.json'
+      - 'turbo.json'
+      - 'packages/next/package.json'
+      - 'packages/next/turbo.json'
+      - 'packages/next-codemod/**'
+      - 'packages/next/src/bin/next.ts'
+      - 'packages/next/src/cli/next-upgrade.ts'
+      - 'packages/next/src/cli/next-build.ts'
+      - 'packages/next/src/cli/next-dev.ts'
+      - 'packages/next/src/lib/upgrade/**'
+      - 'packages/next/src/server/config*.ts'
+      - 'docs/01-app/02-guides/upgrading/**'
+      - 'docs/02-pages/02-guides/upgrading/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  eval:
+    name: Run upgrade evals
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          # Evaluate this PR's candidate without merging unreleased base packages.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 22
+          package-manager-cache: false
+
+      - name: Setup pnpm
+        id: store
+        run: |
+          set -euo pipefail
+          corepack enable
+          echo "path=$(pnpm store path)" >> "$GITHUB_OUTPUT"
+
+      # Use the same exact-lockfile store as the existing build workflow.
+      - name: Cache pnpm store
+        id: store-cache
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        timeout-minutes: 5
+        with:
+          path: ${{ steps.store.outputs.path }}
+          key: pnpm-store-root-v1-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Persist preparation before model execution, so a genuine eval failure
+      # does not discard the cache needed by the next run.
+      - name: Save pnpm store
+        if: ${{ steps.store-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        timeout-minutes: 5
+        with:
+          path: ${{ steps.store.outputs.path }}
+          key: pnpm-store-root-v1-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Set up Turborepo remote cache
+        if: ${{ vars.TURBO_TEAM != '' }}
+        uses: vercel/setup-turborepo-remote-cache-action@135046f5efcadb17337d9b29b8d5b4035ae64b10 # v1.0.0
+        with:
+          team: ${{ vars.TURBO_TEAM }}
+
+      # Only the package dependency closure is needed. Published SWC bindings
+      # installed by pnpm execute in Linux Sandboxes; no Rust build is required.
+      - name: Build eval packages
+        id: setup
+        run: |
+          set -euo pipefail
+          pnpm exec turbo run build --filter=next... --filter=@next/codemod... --env-mode=loose --remote-cache-timeout=60
+          echo "key=$(node evals/next-upgrade/run.js --cache-key)" >> "$GITHUB_OUTPUT"
+
+      # Cache only a small manifest of credential-free, one-day remote snapshots.
+      # Daily keys avoid repeatedly restoring IDs after their remote TTL expires.
+      # Unique entries let replacements supersede stale IDs within the same day.
+      - name: Restore Sandbox tooling snapshots
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        timeout-minutes: 5
+        with:
+          path: evals/next-upgrade/.work/cache/snapshots.json
+          key: next-upgrade-snapshots-v2-${{ steps.setup.outputs.key }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            next-upgrade-snapshots-v2-${{ steps.setup.outputs.key }}-
+
+      # Match deploy CI's global CLI installation, retaining our pinned version.
+      - name: Install Vercel CLI
+        run: npm install --global vercel@59.11.0
+
+      - name: Pull Vercel OIDC token
+        env:
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_NEXT_UPGRADE_EVALS_PROJECT_ID }}
+          VERCEL_TEAM_ID: ${{ vars.VERCEL_NEXT_UPGRADE_EVALS_TEAM_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_NEXT_UPGRADE_EVALS_TOKEN }}
+        run: node evals/next-upgrade/run.js --ci-auth
+
+      - name: Run all upgrade evals in parallel
+        id: evals
+        env:
+          NEXT_UPGRADE_EVAL_SNAPSHOT_CACHE: evals/next-upgrade/.work/cache/snapshots.json
+          TURBO_TOKEN: ''
+        run: pnpm eval:upgrade --all
+
+      - name: Save Sandbox tooling snapshots
+        if: ${{ always() && !cancelled() && steps.evals.outputs.snapshots-created == 'true' && hashFiles('evals/next-upgrade/.work/cache/snapshots.json') != '' }}
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        timeout-minutes: 5
+        with:
+          path: evals/next-upgrade/.work/cache/snapshots.json
+          key: next-upgrade-snapshots-v2-${{ steps.setup.outputs.key }}-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Retain transcripts and grading evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: next-upgrade-evals-${{ github.run_id }}-${{ github.run_attempt }}
+          path: evals/next-upgrade/results/
+          if-no-files-found: warn
+          retention-days: 14
