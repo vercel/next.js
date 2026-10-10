@@ -92,5 +92,10 @@ To keep trace files small, an `Exit` of a span that is followed by an `Enter` of
 
 Timestamps are stored as the (signed) difference to the previous timestamp in the trace file, which needs fewer bytes than absolute timestamps and compresses better. The trace is written in chunks per thread, and in every chunk a `TimestampBase` row with an absolute timestamp comes before the first row with a timestamp, so every chunk can be decoded on its own.
 
+### Trace format
+
+A trace file starts with a `TRACEv<version>` header, followed by [postcard] serialized `TraceRow`s (see `turbopack-trace-utils`). The version is bumped on every incompatible change of the format. The trace server and `turbo-trace-size` only read the current version and fail with an error for any other version, so a trace has to be opened with tools built from the same version that captured it.
+
+[postcard]: https://docs.rs/postcard
 [turbo-trace-viewer]: https://turbo-trace-viewer.vercel.app/
 [youtube-tutorial]: https://www.youtube.com/watch?v=PGO2szAye7A
