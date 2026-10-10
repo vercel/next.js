@@ -10,30 +10,33 @@ import {
   nudgeUpgrade,
   runUpgrade,
   shouldPromptForUpgrade,
-} from 'next/dist/lib/upgrade/nudge/nudge'
+} from 'next/dist/lib/upgrade/nudge'
 import { promptUpgrade } from 'next/dist/lib/upgrade/nudge/terminal/prompt'
 import Conf from 'next/dist/compiled/conf'
 import { getAgentName } from 'next/dist/telemetry/agent-name'
 import { getUpgradeAssessment } from 'next/dist/lib/upgrade/shared/check-upgrade'
 import { warn } from 'next/dist/build/output/log'
-import { spawnNextUpgrade } from 'next/dist/lib/upgrade/cli/run'
+import { spawnNextUpgrade } from 'next/dist/cli/next-upgrade'
 import { defaultConfig } from 'next/dist/server/config-shared'
 
-jest.mock('next/dist/lib/upgrade/cli/run', () => ({
+jest.mock('next/dist/cli/next-upgrade', () => ({
   spawnNextUpgrade: jest.fn(),
 }))
 jest.mock(
-  '../cli/run.js',
-  () => jest.requireMock('next/dist/lib/upgrade/cli/run'),
+  '../../../next/src/cli/next-upgrade.js',
+  () => jest.requireMock('next/dist/cli/next-upgrade'),
   { virtual: true }
 )
 
-// Read source so version cases run before the package build inlines __NEXT_VERSION.
-jest.mock('next/dist/lib/upgrade/nudge/nudge', () =>
-  jest.requireActual('./nudge')
+// Read Next's entry point so version cases run before the build inlines __NEXT_VERSION.
+jest.mock('next/dist/lib/upgrade/nudge', () =>
+  jest.requireActual('../../../next/src/lib/upgrade/nudge')
 )
 jest.mock('../../../next/src/telemetry/agent-name', () =>
   jest.requireMock('next/dist/telemetry/agent-name')
+)
+jest.mock('../../../next/src/server/ci-info', () =>
+  jest.requireMock('next/dist/server/ci-info')
 )
 jest.mock('../shared/check-upgrade', () =>
   jest.requireMock('next/dist/lib/upgrade/shared/check-upgrade')
@@ -340,7 +343,7 @@ describe('security upgrade nudge', () => {
       jest.isolateModules(() => {
         restartedNudge = jest.requireActual<{
           nudgeUpgrade: typeof nudgeUpgrade
-        }>('./nudge').nudgeUpgrade
+        }>('../../../next/src/lib/upgrade/nudge').nudgeUpgrade
         jest
           .mocked(
             jest.requireMock<typeof import('next/dist/telemetry/agent-name')>(
@@ -366,7 +369,7 @@ describe('security upgrade nudge', () => {
       jest.isolateModules(() => {
         newSessionNudge = jest.requireActual<{
           nudgeUpgrade: typeof nudgeUpgrade
-        }>('./nudge').nudgeUpgrade
+        }>('../../../next/src/lib/upgrade/nudge').nudgeUpgrade
         jest
           .mocked(
             jest.requireMock<typeof import('next/dist/telemetry/agent-name')>(

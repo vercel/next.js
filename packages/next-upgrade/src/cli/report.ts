@@ -1,14 +1,20 @@
 import { join } from 'path'
 import * as Log from 'next/dist/build/output/log'
-import { eventAgentUpgradeAgentResult } from 'next/dist/telemetry/events/agent-upgrade'
-import { Telemetry } from 'next/dist/telemetry/storage'
-import { loadAgentUpgradeConfig } from '../next/config'
 import { getInstalledNextVersion } from '../next/project'
 import { UUID_PATTERN } from './run'
 
 export async function reportAgentUpgradeAgentResult(
   runId: string,
-  result: string
+  result: string,
+  loadConfig: (directory: string) => Promise<{ distDir: string | undefined }>,
+  createTelemetry: (distDir: string) => {
+    recordAgentResult(fields: {
+      runId: string
+      result: 'success' | 'failure'
+      resultVersion: string | null
+    }): Promise<unknown>
+    flush(): Promise<unknown>
+  }
 ) {
   // Only accept the bounded result and run ID; project details never enter this event.
   if (
@@ -21,11 +27,10 @@ export async function reportAgentUpgradeAgentResult(
   }
 
   // Reuse normal telemetry consent and delivery without starting another upgrade.
-  const config = await loadAgentUpgradeConfig(process.cwd())
-  const telemetry = new Telemetry({
-    distDir: join(process.cwd(), config.distDir || '.next'),
-    skipNotify: true,
-  })
+  const config = await loadConfig(process.cwd())
+  const telemetry = createTelemetry(
+    join(process.cwd(), config.distDir || '.next')
+  )
 
   // Read the upgraded app instead of the pinned reporting CLI; missing dependencies still report a result.
   let resultVersion: string | null = null
@@ -38,8 +43,6 @@ export async function reportAgentUpgradeAgentResult(
     )
   }
 
-  await telemetry.record(
-    eventAgentUpgradeAgentResult({ runId, result, resultVersion })
-  )
+  await telemetry.recordAgentResult({ runId, result, resultVersion })
   await telemetry.flush()
 }
