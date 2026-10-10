@@ -546,9 +546,6 @@ export function generateValidatorFile(
     routesManifest.filePathToRoute
   )
 
-  const hasAppRouteHandlers =
-    Object.keys(routesManifest.appRouteHandlerRoutes).length > 0
-
   // Build type definitions based on what's actually used
   let typeDefinitions = ''
 
@@ -664,7 +661,7 @@ export function generateValidatorFile(
     routeImports.push('ParamMap')
   }
 
-  if (hasAppRouteHandlers) {
+  if (appRouteHandlerValidations) {
     routeImports.push('AppRouteHandlerRoutes')
   }
 
@@ -673,7 +670,7 @@ export function generateValidatorFile(
       ? `import type { ${routeImports.join(', ')} } from "./routes.js"`
       : ''
 
-  const nextRequestImport = hasAppRouteHandlers
+  const nextRequestImport = appRouteHandlerValidations
     ? "import type { NextRequest } from 'next/server.js'\n"
     : ''
 
@@ -793,9 +790,6 @@ export function generateValidatorFileStrict(
     routesManifest.filePathToRoute
   )
 
-  const hasAppRouteHandlers =
-    Object.keys(routesManifest.appRouteHandlerRoutes).length > 0
-
   // Build type definitions based on what's actually used
   let typeDefinitions = ''
 
@@ -911,7 +905,7 @@ export function generateValidatorFileStrict(
     routeImports.push('ParamMap')
   }
 
-  if (hasAppRouteHandlers) {
+  if (appRouteHandlerValidations) {
     routeImports.push('AppRouteHandlerRoutes')
   }
 
@@ -920,7 +914,7 @@ export function generateValidatorFileStrict(
       ? `import type { ${routeImports.join(', ')} } from "./routes.js"`
       : ''
 
-  const nextRequestImport = hasAppRouteHandlers
+  const nextRequestImport = appRouteHandlerValidations
     ? "import type { NextRequest } from 'next/server.js'\n"
     : ''
 
