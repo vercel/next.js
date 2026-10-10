@@ -886,6 +886,20 @@ export interface ExperimentalConfig {
   turbopackScopeHoisting?: boolean
 
   /**
+   * Minify each module factory as it is generated, instead of minifying each finished chunk in
+   * one pass. Defaults to false. Always disabled in development mode, where nothing is minified.
+   *
+   * A chunk is a single top-level statement holding every module factory, so minifying the
+   * finished chunk cannot be split across cores and becomes a serial tail at the end of a build.
+   * Minifying per factory spreads that work across the task pool, and lets each factory's
+   * minified output be cached so an incremental build only re-minifies what changed.
+   *
+   * The trade-off is marginally larger output: optimizations that require seeing every factory
+   * at once are not performed, and each factory's mangled names are chosen independently.
+   */
+  turbopackMinifyBeforeChunking?: boolean
+
+  /**
    * Share the browser runtime across routes in a single `runtime.js` asset and inline the
    * per-route chunk-group bootstrap into the HTML, dropping the per-route runtime. Defaults to
    * true. Only applies to production builds; has no effect in development mode.

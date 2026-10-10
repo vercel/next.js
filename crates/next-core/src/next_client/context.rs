@@ -494,6 +494,7 @@ pub struct ClientChunkingContextOptions {
     pub source_maps: Vc<SourceMapsType>,
     pub no_mangling: Vc<bool>,
     pub scope_hoisting: Vc<bool>,
+    pub minify_before_chunking: Vc<bool>,
     pub nested_async_chunking: Vc<bool>,
     pub shared_runtime: Vc<bool>,
     pub per_page_module_graph: Vc<bool>,
@@ -544,6 +545,7 @@ pub async fn get_client_chunking_context(
         source_maps,
         no_mangling,
         scope_hoisting,
+        minify_before_chunking,
         nested_async_chunking,
         shared_runtime,
         per_page_module_graph,
@@ -656,6 +658,7 @@ pub async fn get_client_chunking_context(
             )
             .chunk_content_hashing(ContentHashing::Direct { length: 13 })
             .module_merging(*scope_hoisting.await?)
+            .minify_before_chunking(*minify_before_chunking.await?)
             .shared_runtime(*shared_runtime.await?);
     }
 

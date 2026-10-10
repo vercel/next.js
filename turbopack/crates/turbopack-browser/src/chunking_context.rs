@@ -57,8 +57,9 @@ pub enum CurrentChunkMethod {
     DocumentCurrentScript,
 }
 
+/// Written in minified form, like the rest of the chunk scaffolding.
 pub const CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR: &str =
-    "typeof document === \"object\" ? document.currentScript : undefined";
+    "\"object\"==typeof document?document.currentScript:void 0";
 
 pub struct BrowserChunkingContextBuilder {
     chunking_context: BrowserChunkingContext,
@@ -139,6 +140,12 @@ impl BrowserChunkingContextBuilder {
 
     pub fn minify_type(mut self, minify_type: MinifyType) -> Self {
         self.chunking_context.minify_type = minify_type;
+        self
+    }
+
+    /// EXPERIMENTAL. See [`ChunkingContext::minify_before_chunking`].
+    pub fn minify_before_chunking(mut self, minify_before_chunking: bool) -> Self {
+        self.chunking_context.minify_before_chunking = minify_before_chunking;
         self
     }
 
@@ -374,6 +381,9 @@ pub struct BrowserChunkingContext {
     runtime_type: RuntimeType,
     /// Whether to minify resulting chunks
     minify_type: MinifyType,
+    /// EXPERIMENTAL: minify each chunk item before the chunk is assembled, rather than minifying
+    /// the finished chunk. See [`ChunkingContext::minify_before_chunking`].
+    minify_before_chunking: bool,
     /// Whether content hashing is enabled for chunk filenames.
     chunk_content_hashing: Option<ContentHashing>,
     /// Content hashing for asset filenames.
@@ -451,6 +461,7 @@ impl BrowserChunkingContext {
                 environment,
                 runtime_type,
                 minify_type: MinifyType::NoMinify,
+                minify_before_chunking: false,
                 chunk_content_hashing: None,
                 asset_content_hashing: ContentHashing::Direct { length: 13 },
                 source_maps_type: SourceMapsType::Full,
@@ -867,6 +878,11 @@ impl ChunkingContext for BrowserChunkingContext {
     #[turbo_tasks::function]
     pub fn minify_type(&self) -> Vc<MinifyType> {
         self.minify_type.cell()
+    }
+
+    #[turbo_tasks::function]
+    fn minify_before_chunking(&self) -> Vc<bool> {
+        Vc::cell(self.minify_before_chunking)
     }
 
     #[turbo_tasks::function]

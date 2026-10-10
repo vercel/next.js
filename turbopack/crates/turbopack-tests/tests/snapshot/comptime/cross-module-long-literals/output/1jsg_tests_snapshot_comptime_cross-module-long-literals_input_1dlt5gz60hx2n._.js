@@ -1,5 +1,4 @@
-(()=>{"use strict";(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1jsg_tests_snapshot_comptime_cross-module-long-literals_input_1dlt5gz60hx2n._.js",
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-long-literals/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
+"use strict";(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/1jsg_tests_snapshot_comptime_cross-module-long-literals_input_1dlt5gz60hx2n._.js","[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-long-literals/input/index.js [test] (ecmascript)",((__turbopack_context__) => {
 "use strict";
 
 __turbopack_context__.s([]);
@@ -27,8 +26,7 @@ if (__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
         throw e;
     })();
 }
-}),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-long-literals/input/other.js [test] (ecmascript)", ((__turbopack_context__) => {
+}),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-long-literals/input/other.js [test] (ecmascript)",((__turbopack_context__) => {
 "use strict";
 
 __turbopack_context__.s([
@@ -51,7 +49,6 @@ const LONG_BIG_NUMBER = 21345672345678345678901234567890n;
 const REGEX = /ab/i;
 const NAN = NaN;
 const INFINITY = Infinity;
-}),
-]);})()
+})]);
 
 //# sourceMappingURL=1jsg_tests_snapshot_comptime_cross-module-long-literals_input_1dlt5gz60hx2n._.js.map

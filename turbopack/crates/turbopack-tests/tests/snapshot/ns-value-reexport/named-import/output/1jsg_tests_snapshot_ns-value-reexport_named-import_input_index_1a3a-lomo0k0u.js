@@ -1,5 +1,4 @@
-(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1jsg_tests_snapshot_ns-value-reexport_named-import_input_index_1a3a-lomo0k0u.js",
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/ns-value-reexport/named-import/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/1jsg_tests_snapshot_ns-value-reexport_named-import_input_index_1a3a-lomo0k0u.js","[project]/turbopack/crates/turbopack-tests/tests/snapshot/ns-value-reexport/named-import/input/index.js [test] (ecmascript)",((__turbopack_context__) => {
 "use strict";
 
 // MERGED MODULE: [project]/turbopack/crates/turbopack-tests/tests/snapshot/ns-value-reexport/named-import/input/index.js [test] (ecmascript)
@@ -42,7 +41,6 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
 ;
 console.log(__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$ns$2d$value$2d$reexport$2f$named$2d$import$2f$input$2f$external$2e$js__$5b$test$5d$__$28$ecmascript$29$__.object(), __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$ns$2d$value$2d$reexport$2f$named$2d$import$2f$input$2f$external$2e$js__$5b$test$5d$__$28$ecmascript$29$__1.string(), __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$ns$2d$value$2d$reexport$2f$named$2d$import$2f$input$2f$external$2e$js__$5b$test$5d$__$28$ecmascript$29$__2.defaultLocale);
 __turbopack_context__.s([], "[project]/turbopack/crates/turbopack-tests/tests/snapshot/ns-value-reexport/named-import/input/index.js [test] (ecmascript)");
-}),
-]);
+})]);
 
 //# sourceMappingURL=1jsg_tests_snapshot_ns-value-reexport_named-import_input_index_1a3a-lomo0k0u.js.map

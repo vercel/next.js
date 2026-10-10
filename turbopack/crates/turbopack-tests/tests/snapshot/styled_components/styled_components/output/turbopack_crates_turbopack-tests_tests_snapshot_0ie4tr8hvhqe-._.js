@@ -1,10 +1,4 @@
-(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/turbopack_crates_turbopack-tests_tests_snapshot_0ie4tr8hvhqe-._.js",
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/node_modules/styled-components/index.js [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
-
-"purposefully empty stub";
-"styled-components/index.js";
-}),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/styled_components/styled_components/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/turbopack_crates_turbopack-tests_tests_snapshot_0ie4tr8hvhqe-._.js","[project]/turbopack/crates/turbopack-tests/tests/snapshot/styled_components/styled_components/input/index.js [test] (ecmascript)",((__turbopack_context__) => {
 "use strict";
 
 __turbopack_context__.s([]);
@@ -17,7 +11,10 @@ const MyButton = __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$cr
   background: blue;
 `;
 console.log(MyButton);
-}),
-]);
+}),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/node_modules/styled-components/index.js [test] (ecmascript)",((__turbopack_context__, module, exports) => {
+
+"purposefully empty stub";
+"styled-components/index.js";
+})]);
 
 //# sourceMappingURL=turbopack_crates_turbopack-tests_tests_snapshot_0ie4tr8hvhqe-._.js.map
