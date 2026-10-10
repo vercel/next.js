@@ -131,6 +131,9 @@ async function exportPageImpl(
     // concrete version (it has a `generateStaticParams` candidate param).
     _isFallbackUpgradeable: isFallbackUpgradeable = false,
 
+    // When true, the Resume Data Cache of this path seeds a fallback shell.
+    _isRDCSeed: isRDCSeed = false,
+
     // Pull the original query out.
     query: originalQuery = {},
   } = exportPath
@@ -340,6 +343,7 @@ async function exportPageImpl(
       fileWriter,
       sharedContext,
       routeMatch,
+      isRDCSeed,
       routeCache
     )
   } else {

@@ -1737,6 +1737,15 @@ export type ExportPathMap = {
      * @internal
      */
     _isFallbackUpgradeable?: boolean
+
+    /**
+     * When true, the Resume Data Cache filled by the prerender of this export
+     * path seeds the prerender of a fallback shell in the final phase, so it's
+     * sent back from the export worker.
+     *
+     * @internal
+     */
+    _isRDCSeed?: boolean
   }
 }
 
