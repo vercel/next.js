@@ -11,11 +11,11 @@ import {
   runUpgrade,
   shouldPromptForUpgrade,
 } from 'next/dist/lib/upgrade/nudge'
-import { promptUpgrade } from 'next/dist/lib/upgrade/nudge/terminal/prompt'
-import Conf from 'next/dist/compiled/conf'
+import { promptUpgrade } from './terminal/prompt'
+import Conf from 'conf'
 import { getAgentName } from 'next/dist/telemetry/agent-name'
-import { getUpgradeAssessment } from 'next/dist/lib/upgrade/shared/check-upgrade'
-import { warn } from 'next/dist/build/output/log'
+import { getUpgradeAssessment } from '../shared/check-upgrade'
+import { warn } from '../shared/log'
 import { spawnNextUpgrade } from 'next/dist/cli/next-upgrade'
 import { defaultConfig } from 'next/dist/server/config-shared'
 
@@ -38,39 +38,31 @@ jest.mock('../../../next/src/telemetry/agent-name', () =>
 jest.mock('../../../next/src/server/ci-info', () =>
   jest.requireMock('next/dist/server/ci-info')
 )
-jest.mock('../shared/check-upgrade', () =>
-  jest.requireMock('next/dist/lib/upgrade/shared/check-upgrade')
-)
 jest.mock('../../../next/src/build/output/log', () =>
-  jest.requireMock('next/dist/build/output/log')
+  jest.requireMock('../shared/log')
 )
 
 jest.mock('next/dist/telemetry/agent-name', () => ({
   getAgentName: jest.fn(),
 }))
-jest.mock('next/dist/lib/upgrade/shared/check-upgrade', () => ({
-  getPrereleaseChannel: jest.requireActual(
-    'next/dist/lib/upgrade/shared/check-upgrade'
-  ).getPrereleaseChannel,
-  getLatestUpgradeVersion: jest.requireActual(
-    'next/dist/lib/upgrade/shared/check-upgrade'
-  ).getLatestUpgradeVersion,
+jest.mock('../shared/check-upgrade', () => ({
+  getPrereleaseChannel: jest.requireActual('../shared/check-upgrade')
+    .getPrereleaseChannel,
+  getLatestUpgradeVersion: jest.requireActual('../shared/check-upgrade')
+    .getLatestUpgradeVersion,
   getUpgradeAssessment: jest.fn(),
 }))
-jest.mock('next/dist/build/output/log', () => ({
+jest.mock('../shared/log', () => ({
   warn: jest.fn(),
 }))
 
 jest.mock('next/dist/server/ci-info', () => ({ isCI: false }))
-jest.mock('./terminal/prompt', () =>
-  jest.requireMock('next/dist/lib/upgrade/nudge/terminal/prompt')
-)
-jest.mock('next/dist/lib/upgrade/nudge/terminal/prompt', () => ({
+jest.mock('./terminal/prompt', () => ({
   promptUpgrade: jest.fn(),
 }))
 let mockPreferencesDirectory: string
-jest.mock('next/dist/compiled/conf', () => {
-  const ActualConf = jest.requireActual('next/dist/compiled/conf')
+jest.mock('conf', () => {
+  const ActualConf = jest.requireActual('conf')
   return class extends ActualConf {
     constructor(options: object) {
       super({ ...options, cwd: mockPreferencesDirectory })
@@ -427,9 +419,9 @@ describe('security upgrade nudge', () => {
 })
 describe('latest nudge release selection', () => {
   const { getLatestUpgradeVersion: readLatestUpgradeVersion } =
-    jest.requireActual<
-      typeof import('next/dist/lib/upgrade/shared/check-upgrade')
-    >('next/dist/lib/upgrade/shared/check-upgrade')
+    jest.requireActual<typeof import('../shared/check-upgrade')>(
+      '../shared/check-upgrade'
+    )
 
   afterEach(() => {
     jest.restoreAllMocks()

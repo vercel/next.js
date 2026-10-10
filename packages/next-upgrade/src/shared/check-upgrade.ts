@@ -1,4 +1,4 @@
-import semver from 'next/dist/compiled/semver'
+import semver from 'semver'
 import type { FutureDefaultEntry } from './future-defaults'
 
 export type UpgradePreparation =

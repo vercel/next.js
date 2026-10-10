@@ -1,4 +1,4 @@
-import * as Log from 'next/dist/build/output/log'
+import * as Log from '../../shared/log'
 import type { UpgradeReminder } from '../nudge'
 import type { UpgradeAction } from './prompt'
 import { getUpgradePreferences } from './preferences'

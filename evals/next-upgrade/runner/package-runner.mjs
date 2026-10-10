@@ -89,6 +89,34 @@ if (
   }
   process.exit(result.status ?? 1)
 }
+// Every standalone request executes this run's packed tool, including delegated exact versions.
+if (
+  invocation &&
+  [
+    '@next/upgrade',
+    '@next/upgrade@canary',
+    `@next/upgrade@${config.upgradeVersion}`,
+  ].includes(invocation.requestedPackage) &&
+  (!invocation.executable || invocation.executable === 'next-upgrade')
+) {
+  const result = spawnSync(
+    process.execPath,
+    [join(tools, 'entry.mjs'), ...invocation.args],
+    {
+      stdio: 'inherit',
+      env: {
+        ...process.env,
+        NEXT_UPGRADE_EVAL_PACKAGE_RUNNER: runner,
+        NEXT_UPGRADE_EVAL_REQUESTED_PACKAGE: invocation.requestedPackage,
+        NEXT_UPGRADE_EVAL_STANDALONE: '1',
+      },
+    }
+  )
+  if (result.error) {
+    throw result.error
+  }
+  process.exit(result.status ?? 1)
+}
 if (
   invocation &&
   ['next', 'next@canary', `next@${config.nextVersion}`].includes(

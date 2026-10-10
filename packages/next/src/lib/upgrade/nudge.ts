@@ -17,17 +17,13 @@ import {
   type NudgeKind,
   type UpgradeContext,
   type UpgradeReminder,
-} from 'next/dist/lib/upgrade/nudge/nudge'
+} from '@next/upgrade'
 import {
   getPendingFutureDefaults as getPending,
   type FutureDefaultsConfig,
-} from 'next/dist/lib/upgrade/shared/future-defaults'
+} from '@next/upgrade'
 
-export type {
-  NudgeKind,
-  UpgradeContext,
-  UpgradeReminder,
-} from 'next/dist/lib/upgrade/nudge/nudge'
+export type { NudgeKind, UpgradeContext, UpgradeReminder } from '@next/upgrade'
 
 // Keep Next's config, environment, and worker integrations at the call site.
 function getRequestedUpgrade() {

@@ -6,8 +6,7 @@ import { promisify } from 'util'
 import type { NudgeKind } from '../nudge'
 
 export async function getUpgradePreferences(directory: string) {
-  const Conf =
-    require('next/dist/compiled/conf') as typeof import('next/dist/compiled/conf')
+  const Conf = require('conf') as typeof import('conf')
   const project = await realpath(directory)
   let identity = project
   let projectName = basename(project)

@@ -10,13 +10,13 @@ import {
   stat,
   writeFile,
 } from 'fs/promises'
-import * as Log from 'next/dist/build/output/log'
-import cliSelect from 'next/dist/compiled/cli-select'
+import * as Log from '../shared/log'
+import cliSelectModule from 'cli-select'
 import { spawnNextUpgrade } from 'next/dist/cli/next-upgrade'
 import { findDir } from 'next/dist/lib/find-pages-dir'
 import { getProjectDir } from 'next/dist/lib/get-project-dir'
-import { getHarnessModels } from 'next/dist/lib/upgrade/cli/agent/model-discovery'
-import { handoffUpgrade } from 'next/dist/lib/upgrade/cli/agent/handoff'
+import { getHarnessModels } from './agent/model-discovery'
+import { handoffUpgrade } from './agent/handoff'
 import { prepareUpgrade } from 'next/dist/lib/upgrade/config'
 import loadConfig from 'next/dist/server/config'
 import { normalizeConfig } from 'next/dist/server/config-shared'
@@ -34,38 +34,37 @@ jest.mock('fs/promises', () => ({
   stat: jest.fn(),
   writeFile: jest.fn(),
 }))
-jest.mock('next/dist/build/spinner', () => ({
+jest.mock('./spinner', () => ({
   __esModule: true,
   default: jest.fn(),
 }))
-jest.mock('next/dist/build/output/log', () => ({
+jest.mock('../shared/log', () => ({
   bootstrap: jest.fn(),
   error: jest.fn(),
   info: jest.fn(),
   warn: jest.fn(),
 }))
-jest.mock('next/dist/compiled/cli-select', () => ({
+jest.mock('cli-select', () => ({
   __esModule: true,
   default: jest.fn(),
 }))
-jest.mock('next/dist/compiled/cross-spawn', () =>
-  Object.assign(jest.fn(), { sync: jest.fn() })
-)
+jest.mock('cross-spawn', () => Object.assign(jest.fn(), { sync: jest.fn() }))
 jest.mock('next/dist/lib/find-pages-dir', () => ({
   findDir: jest.fn(),
 }))
 jest.mock('next/dist/lib/get-project-dir', () => ({
   getProjectDir: jest.fn(),
 }))
-jest.mock('next/dist/lib/helpers/get-npx-command', () => ({
+jest.mock('./package-runner', () => ({
+  ...jest.requireActual('./package-runner'),
   getNpxCommand: () => 'npx',
 }))
-jest.mock('next/dist/lib/picocolors', () => ({
+jest.mock('picocolors', () => ({
   bold: (text: string) => text,
   cyan: (text: string) => text,
   dim: (text: string) => text,
 }))
-jest.mock('next/dist/lib/upgrade/cli/agent/model-discovery', () => ({
+jest.mock('./agent/model-discovery', () => ({
   getHarnessModels: jest.fn(),
 }))
 jest.mock('next/dist/lib/upgrade/config', () => ({
@@ -85,8 +84,10 @@ jest.mock('next/dist/telemetry/agent-name', () => ({
 jest.mock('next/dist/telemetry/storage', () => ({
   Telemetry: jest.fn(),
 }))
-const createSpinner = require('next/dist/build/spinner').default as jest.Mock
-const crossSpawn = require('next/dist/compiled/cross-spawn') as jest.Mock & {
+// These mocks provide partial menu results, independent of cli-select's callback overload.
+const cliSelect = jest.mocked(cliSelectModule) as jest.Mock
+const createSpinner = require('./spinner').default as jest.Mock
+const crossSpawn = require('cross-spawn') as jest.Mock & {
   sync: jest.Mock
 }
 const cliVersion: string = require('next/package.json').version
@@ -379,8 +380,7 @@ describe('agentic upgrade prompts', () => {
       expect(crossSpawn).toHaveBeenCalledWith(
         'npx',
         [
-          `next@${version}`,
-          'upgrade',
+          `@next/upgrade@${version}`,
           '/workspace/app',
           agent === true ? '--agent' : `--agent=${agent}`,
           '--verbose',
@@ -1429,8 +1429,8 @@ describe('agentic upgrade prompts', () => {
     const copiedSources = normalizedCopiedSources()
     expect(copiedSources).toEqual(
       expect.arrayContaining([
-        expect.stringContaining('/lib/upgrade/shared.md'),
-        expect.stringContaining('/lib/upgrade/different-major.md'),
+        expect.stringContaining('/dist/guides/shared.md'),
+        expect.stringContaining('/dist/guides/different-major.md'),
         expect.stringContaining('/codemods.md'),
         expect.stringContaining('/version-15.md'),
         expect.stringContaining('/version-16.md'),
@@ -1438,7 +1438,7 @@ describe('agentic upgrade prompts', () => {
     )
     expect(
       copiedSources.some((source) =>
-        source.includes('/lib/upgrade/future-defaults.md')
+        source.includes('/dist/guides/future-defaults.md')
       )
     ).toBe(false)
     expect(normalizedBootstrapCalls()).toMatchInlineSnapshot(`
@@ -1550,7 +1550,7 @@ describe('agentic upgrade prompts', () => {
     expect(writeFile).toHaveBeenCalledTimes(0)
     expect(
       normalizedCopiedSources().some((source) =>
-        source.includes('/lib/upgrade/future-defaults.md')
+        source.includes('/dist/guides/future-defaults.md')
       )
     ).toBe(false)
     expect(
@@ -1604,8 +1604,8 @@ describe('agentic upgrade prompts', () => {
     expect(readFile).toHaveBeenCalledTimes(0)
     expect(writeFile).toHaveBeenCalledTimes(0)
     expect(normalizedCopiedSources()).toEqual([
-      expect.stringContaining('/lib/upgrade/shared.md'),
-      expect.stringContaining('/lib/upgrade/same-major.md'),
+      expect.stringContaining('/dist/guides/shared.md'),
+      expect.stringContaining('/dist/guides/same-major.md'),
     ])
   })
 
@@ -1633,7 +1633,7 @@ describe('agentic upgrade prompts', () => {
     )
     expect(
       normalizedCopiedSources().some((source) =>
-        source.includes('/lib/upgrade/future-defaults.md')
+        source.includes('/dist/guides/future-defaults.md')
       )
     ).toBe(false)
   })
@@ -1662,7 +1662,7 @@ describe('agentic upgrade prompts', () => {
     expect(prompt).toContain('/upgrade/future-defaults.md')
     expect(normalizedCopiedSources()).toEqual(
       expect.arrayContaining([
-        expect.stringContaining('/lib/upgrade/future-defaults.md'),
+        expect.stringContaining('/dist/guides/future-defaults.md'),
       ])
     )
   })
@@ -1783,7 +1783,7 @@ describe('agentic upgrade prompts', () => {
     expect(normalizedFileWriteCalls()).toEqual(normalizedWriteFileCalls())
     expect(normalizedCopiedSources()).toEqual(
       expect.arrayContaining([
-        expect.stringContaining('/lib/upgrade/future-defaults.md'),
+        expect.stringContaining('/dist/guides/future-defaults.md'),
       ])
     )
 
@@ -1886,7 +1886,7 @@ describe('agentic upgrade prompts', () => {
     ).toEqual(
       expect.arrayContaining([
         [
-          expect.stringContaining('/lib/upgrade/future-defaults.md'),
+          expect.stringContaining('/dist/guides/future-defaults.md'),
           '/tmp/next-upgrade-test/upgrade/future-defaults.md',
         ],
       ])
@@ -1925,7 +1925,7 @@ describe('agentic upgrade prompts', () => {
 
 describe('upgrade model discovery protocol', () => {
   const discover: typeof getHarnessModels = jest.requireActual(
-    'next/dist/lib/upgrade/cli/agent/model-discovery'
+    './agent/model-discovery'
   ).getHarnessModels
 
   function probe(

@@ -9,12 +9,15 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 // Run the actual candidate. Preserve its raw output before a grader is present.
 const tools = dirname(fileURLToPath(import.meta.url))
 const args = process.argv.slice(2)
+const standalone = process.env.NEXT_UPGRADE_EVAL_STANDALONE === '1'
 const candidateCommand = ['upgrade', '--help', '-h', 'help'].includes(args[0])
-const executable = candidateCommand
-  ? join(tools, 'next/node_modules/next/dist/bin/next')
-  : createRequire(join(process.cwd(), 'package.json')).resolve(
-      'next/dist/bin/next'
-    )
+const executable = standalone
+  ? join(tools, 'next/node_modules/@next/upgrade/dist/bin/next-upgrade.js')
+  : candidateCommand
+    ? join(tools, 'next/node_modules/next/dist/bin/next')
+    : createRequire(join(process.cwd(), 'package.json')).resolve(
+        'next/dist/bin/next'
+      )
 const version = JSON.parse(
   readFileSync(join(dirname(executable), '../../package.json'), 'utf8')
 ).version
@@ -24,13 +27,16 @@ appendFileSync(
   JSON.stringify({
     id,
     args,
+    standalone,
     executable: realpathSync(executable),
     version,
     cwd: process.cwd(),
   }) + '\n'
 )
 const env = { ...process.env }
-if (args[0] === 'upgrade') {
+// The routing marker belongs to this invocation, not later app build/dev commands.
+delete env.NEXT_UPGRADE_EVAL_STANDALONE
+if (standalone || args[0] === 'upgrade') {
   env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION = version
 }
 const child = spawn(
