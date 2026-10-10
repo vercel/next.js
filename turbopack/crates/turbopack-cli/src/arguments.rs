@@ -138,6 +138,9 @@ pub struct DevArguments {
 #[clap(author, version, about, long_about = None)]
 pub struct BuildArguments {
     #[clap(flatten)]
+    pub go: GoBuildOptions,
+
+    #[clap(flatten)]
     pub common: CommonArguments,
 
     /// Don't generate sourcemaps.
@@ -187,5 +190,36 @@ impl FromStr for IssueSeverityCliOption {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         <IssueSeverityCliOption as clap::ValueEnum>::from_str(s, true).map_err(|s| anyhow!("{}", s))
+    }
+}
+
+/// Options for native Go file builds.
+#[derive(Debug, Args)]
+pub struct GoBuildOptions {
+    /// Go binary from an installation that stays immutable throughout this session.
+    #[clap(long, default_value = "go")]
+    pub go: PathBuf,
+    /// Output executable. Defaults to <dir>/dist/<first-input-name> (with .exe on Windows).
+    #[clap(long)]
+    pub output: Option<PathBuf>,
+    /// Override Go's build cache. Defaults to the installed toolchain's GOCACHE.
+    #[clap(long)]
+    pub go_cache: Option<PathBuf>,
+    #[clap(long, default_value = "")]
+    pub tags: String,
+    /// Keep one live task graph and rebuild after tracked filesystem changes.
+    #[clap(long)]
+    pub watch: bool,
+}
+
+impl Default for GoBuildOptions {
+    fn default() -> Self {
+        Self {
+            go: PathBuf::from("go"),
+            output: None,
+            go_cache: None,
+            tags: String::new(),
+            watch: false,
+        }
     }
 }

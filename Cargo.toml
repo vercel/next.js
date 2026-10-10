@@ -188,6 +188,7 @@ turbopack-bench = { path = "turbopack/crates/turbopack-bench" }
 turbopack-nodejs = { path = "turbopack/crates/turbopack-nodejs" }
 turbopack-cli-utils = { path = "turbopack/crates/turbopack-cli-utils" }
 turbopack-core = { path = "turbopack/crates/turbopack-core" }
+turbopack-go = { path = "turbopack/crates/turbopack-go" }
 turbopack-create-test-app = { path = "turbopack/crates/turbopack-create-test-app" }
 turbopack-css = { path = "turbopack/crates/turbopack-css" }
 turbopack-analyze = { path = "turbopack/crates/turbopack-analyze" }
@@ -285,6 +286,7 @@ image = { version = "0.25.8", default-features = false }
 indexmap = "2.14.0"
 indoc = "2.0.0"
 itertools = "0.10.5"
+libc = "0.2.186"
 lightningcss = { version = "1.0.0-alpha.72", features = [
   "serde",
   "visitor",
@@ -329,6 +331,7 @@ ringmap = "0.2.5"
 roaring = "0.11.4"
 rstest = "0.16.0"
 rustc-hash = "2.1.1"
+same-file = "1.0.6"
 scattered-collect = "0.10.0"
 semver = "1.0.16"
 serde = { version = "1.0.228", features = ["derive"] }

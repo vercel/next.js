@@ -366,6 +366,18 @@ async fn source(
 
 /// Start a devserver with the given args.
 pub async fn start_server(args: &DevArguments) -> Result<()> {
+    anyhow::ensure!(
+        !args
+            .common
+            .entries
+            .as_deref()
+            .unwrap_or_default()
+            .iter()
+            .any(|entry| std::path::Path::new(entry)
+                .extension()
+                .is_some_and(|ext| ext == "go")),
+        "Go inputs support build and build --watch; dev does not run native executables"
+    );
     let start = Instant::now();
 
     #[cfg(feature = "tokio_console")]

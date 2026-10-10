@@ -364,6 +364,12 @@ impl File {
         self
     }
 
+    /// Sets the permissions used when materializing this file.
+    pub fn with_permissions(mut self, permissions: Permissions) -> Self {
+        self.meta.permissions = permissions;
+        self
+    }
+
     /// Returns a Read/AsyncRead/Stream/Iterator to access the File's contents.
     pub fn read(&self) -> RopeReader<'_> {
         self.content.read()

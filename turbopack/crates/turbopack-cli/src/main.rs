@@ -60,11 +60,20 @@ fn main() {
     #[cfg(not(codspeed))]
     rt.disable_lifo_slot();
 
-    rt.build().unwrap().block_on(main_inner(args)).unwrap();
+    if let Err(error) = rt.build().unwrap().block_on(main_inner(args)) {
+        eprintln!("error: {error:#}");
+        std::process::exit(1);
+    }
 }
 
 async fn main_inner(args: Arguments) -> Result<()> {
-    let exit_handler = ExitHandler::listen();
+    let native = matches!(&args, Arguments::Build(args) if turbopack_cli::go::has_go_inputs(args)?);
+    let (exit_handler, receiver) = if native {
+        let (handler, receiver) = ExitHandler::new_receiver();
+        (handler, Some(receiver))
+    } else {
+        (ExitHandler::listen().clone(), None)
+    };
 
     let trace = std::env::var("TURBOPACK_TRACING").ok();
     if let Some(mut trace) = trace.filter(|v| !v.is_empty()) {
@@ -104,8 +113,12 @@ async fn main_inner(args: Arguments) -> Result<()> {
         subscriber.init();
     }
 
-    match args {
+    let result = match args {
         Arguments::Build(args) => turbopack_cli::build::build(&args).await,
         Arguments::Dev(args) => turbopack_cli::dev::start_server(&args).await,
+    };
+    if let Some(receiver) = receiver {
+        receiver.run_exit_handler().await;
     }
+    result
 }
