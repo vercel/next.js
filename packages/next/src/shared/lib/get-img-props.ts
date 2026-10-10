@@ -639,11 +639,12 @@ export function getImgProps(
       perfObserver = new PerformanceObserver((entryList) => {
         for (const entry of entryList.getEntries()) {
           // @ts-ignore - missing "LargestContentfulPaint" class with "element" prop
-          const imgSrc = entry?.element?.src || ''
+          const imgElement = entry?.element
+          const imgSrc = imgElement?.src || ''
           const lcpImage = allImgs.get(imgSrc)
           if (
             lcpImage &&
-            lcpImage.loading === 'lazy' &&
+            imgElement?.getAttribute('loading') === 'lazy' &&
             lcpImage.placeholder === 'empty' &&
             !lcpImage.src.startsWith('data:') &&
             !lcpImage.src.startsWith('blob:')
