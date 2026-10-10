@@ -69,7 +69,21 @@ impl EcmascriptNodeChunkContent {
             .supports_arrow_functions()
             .await?;
         let content = self.content.await?;
-        let chunk_items = content.chunk_item_code_module_ids_and_paths().await?;
+        let minify_type = *self.chunking_context.minify_type().await?;
+        // Either each factory is minified now, in parallel and cached per item, or the assembled
+        // chunk is minified in one pass below — never both.
+        let minify_before_chunking = *self.chunking_context.minify_before_chunking().await?
+            && matches!(minify_type, MinifyType::Minify { .. });
+        let chunk_items = content
+            .chunk_item_code_module_ids_and_paths(
+                if minify_before_chunking {
+                    minify_type
+                } else {
+                    MinifyType::NoMinify
+                },
+                source_maps,
+            )
+            .await?;
         let strict_factory_mode = strict_factory_mode(&chunk_items, supports_arrow_functions);
 
         let strict_chunk_wrapper =
@@ -91,7 +105,7 @@ impl EcmascriptNodeChunkContent {
 
         let mut code = code.build();
 
-        if let MinifyType::Minify { mangle } = *self.chunking_context.minify_type().await? {
+        if !minify_before_chunking && let MinifyType::Minify { mangle } = minify_type {
             code = minify(code, source_maps, mangle)?;
         }
 
