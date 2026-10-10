@@ -82,6 +82,18 @@ function buildResponse(proxyResponse: ProxyFetchResponse): Response {
   })
 }
 
+function passthroughFetch(
+  originalFetch: Fetch,
+  request: Request
+): Promise<Response> {
+  // Mark the request so the ClientRequest interception in `httpget.ts` sends it
+  // to the real server instead of intercepting it again. @mswjs/interceptors
+  // intercepts at the TCP level, so an unmarked passthrough would re-enter the
+  // interception listener from within itself, recursing indefinitely.
+  request.headers.set('next-test-internal', '1')
+  return originalFetch(request)
+}
+
 export async function handleFetch(
   originalFetch: Fetch,
   request: Request
@@ -89,7 +101,7 @@ export async function handleFetch(
   const testInfo = getTestReqInfo(request, reader)
   if (!testInfo) {
     // Passthrough non-test requests.
-    return originalFetch(request)
+    return passthroughFetch(originalFetch, request)
   }
 
   const { testData, proxyPort } = testInfo
@@ -98,6 +110,14 @@ export async function handleFetch(
   const resp = await originalFetch(`http://localhost:${proxyPort}`, {
     method: 'POST',
     body: JSON.stringify(proxyRequest),
+    // The header lets the ClientRequest interception in `httpget.ts` identify
+    // this request as part of the test proxy protocol. @mswjs/interceptors
+    // intercepts at the TCP level, so this request would otherwise be
+    // intercepted again when it's sent from within an interception listener,
+    // recursing indefinitely.
+    headers: {
+      'next-test-internal': '1',
+    },
     next: {
       // @ts-ignore
       internal: true,
@@ -111,7 +131,7 @@ export async function handleFetch(
   const { api } = proxyResponse
   switch (api) {
     case 'continue':
-      return originalFetch(request)
+      return passthroughFetch(originalFetch, request)
     case 'abort':
     case 'unhandled':
       throw new Error(

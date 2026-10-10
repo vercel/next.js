@@ -5,15 +5,11 @@ import { retry } from 'next-test-utils'
 ;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
   'app dir - service worker (multiple registrations error)',
   () => {
-    const { next, skipped, isNextDev } = nextTestSetup({
+    const { next, isNextDev } = nextTestSetup({
       files: __dirname,
       skipStart: true,
-      skipDeployment: true,
+      // This test asserts a build failure.
     })
-
-    if (skipped) {
-      return
-    }
 
     it('errors when different service worker files are registered', async () => {
       // In production `next.start()` runs the build, which fails. In dev the server

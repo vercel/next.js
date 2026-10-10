@@ -3,10 +3,10 @@ import { nextTestSetup } from 'e2e-utils'
 import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
 
-// The `global-runtime` fixture sets `experimental.cachedNavigations:
-// 'allow-runtime'`, which makes every route runtime-cache its navigations
-// regardless of whether a segment opted in via `prefetch = 'allow-runtime'`.
-describe('cached navigations - global allow-runtime', () => {
+// The `global-runtime` fixture sets `partialPrefetching: true`, which makes
+// every route runtime-cache its navigations regardless of whether a segment
+// opted in via a `prefetch` config.
+describe('cached navigations - global partial prefetching', () => {
   const { next, isNextDev } = nextTestSetup({
     files: path.join(__dirname, 'global-runtime'),
   })
@@ -27,9 +27,9 @@ describe('cached navigations - global allow-runtime', () => {
     const act = createRouterAct(page)
 
     // First navigation to /runtime-prefetchable — a route that reads request
-    // data (searchParams, cookies, headers) but does NOT export
-    // `prefetch = 'allow-runtime'`. The link uses prefetch={false}, so this is
-    // a plain navigation with no prefetch.
+    // data (searchParams, cookies, headers) but has no per-segment `prefetch`
+    // config. The link uses prefetch={false}, so this is a plain navigation
+    // with no prefetch.
     await act(
       async () => {
         await browser.elementByCss('a[href="/runtime-prefetchable"]').click()
@@ -62,9 +62,9 @@ describe('cached navigations - global allow-runtime', () => {
     // (searchParams, cookies, headers) was runtime-cached from the first
     // navigation's embedded runtime prefetch stream and shows instantly, even
     // with the dynamic request blocked. Without the global flag this route
-    // would only get static caching, since it never opts in via
-    // `prefetch = 'allow-runtime'`. Only the truly dynamic connection() content
-    // needs a server request.
+    // would only get static caching, since it never opts in via a per-segment
+    // `prefetch` config. Only the truly dynamic connection() content needs a
+    // server request.
     await act(async () => {
       await act(
         async () => {

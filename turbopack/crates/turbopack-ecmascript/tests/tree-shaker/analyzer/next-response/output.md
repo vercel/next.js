@@ -423,7 +423,7 @@ graph TD
     Export(
         "NextResponse",
     ): 0,
-    Exports: 1,
+    Exports: 7,
 }
 ```
 
@@ -569,6 +569,36 @@ export { };
 
 ```
 ## Part 1
+```js
+export { };
+
+```
+## Part 2
+```js
+export { };
+
+```
+## Part 3
+```js
+export { };
+
+```
+## Part 4
+```js
+export { };
+
+```
+## Part 5
+```js
+export { };
+
+```
+## Part 6
+```js
+export { };
+
+```
+## Part 7
 ```js
 export { NextResponse } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export NextResponse"
@@ -722,7 +752,7 @@ export { };
     Export(
         "NextResponse",
     ): 0,
-    Exports: 1,
+    Exports: 7,
 }
 ```
 
@@ -868,6 +898,36 @@ export { };
 
 ```
 ## Part 1
+```js
+export { };
+
+```
+## Part 2
+```js
+export { };
+
+```
+## Part 3
+```js
+export { };
+
+```
+## Part 4
+```js
+export { };
+
+```
+## Part 5
+```js
+export { };
+
+```
+## Part 6
+```js
+export { };
+
+```
+## Part 7
 ```js
 export { NextResponse } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export NextResponse"

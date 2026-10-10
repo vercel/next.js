@@ -4,6 +4,7 @@ description: Learn how to build public, "static" pages that share data across us
 nav_title: Public pages
 related:
   links:
+    - app/guides/keeping-pages-static
     - app/guides/incremental-static-regeneration-cache-components
 ---
 
@@ -249,10 +250,9 @@ If we refresh the page one last time, we can see most of the page loads instantl
 
 We've learned how to build mostly static pages that include pockets of dynamic content.
 
-We started with a static page, added async work, and resolved the blocking behavior by caching what could be prerendered, and streaming what couldn't.
+We started with a static page, added async work, and resolved the blocking behavior by caching what could be prerendered and streaming what could not. From here, you can:
 
-In future guides, we'll learn how to:
-
-- Revalidate prerendered pages or cached data.
-- Create variants of the same page with route params.
-- Create private pages with personalized user data.
+- [Keep selected route output static](/docs/app/guides/keeping-pages-static) as the application changes.
+- [Revalidate prerendered pages or cached data](/docs/app/guides/incremental-static-regeneration-cache-components).
+- [Create variants with route parameters](/docs/app/api-reference/functions/generate-static-params).
+- [Add authentication to a Cache Components application](/docs/app/guides/authentication-with-cache-components).

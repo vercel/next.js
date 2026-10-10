@@ -105,11 +105,7 @@ pub async fn emit_assets(
         let first = iter.next().unwrap();
         let ext: RcStr = path.extension().unwrap_or_default().into();
         let conflicts = iter
-            .map(async |next| {
-                assets_diff(*next, *first, ext.clone(), node_root.clone())
-                    .owned()
-                    .await
-            })
+            .map(|next| assets_diff(*next, *first, ext.clone(), node_root.clone()).owned())
             .try_flat_join()
             .await?;
         if let Some(detail) = conflicts.into_iter().next() {
@@ -285,22 +281,14 @@ async fn assets_diff(
                 ),
             }
         }
-        (
-            AssetContent::Redirect {
-                target: target1,
-                link_type: link_type1,
-            },
-            AssetContent::Redirect {
-                target: target2,
-                link_type: link_type2,
-            },
-        ) => {
-            if target1 == target2 && link_type1 == link_type2 {
+        (AssetContent::Redirect(content1), AssetContent::Redirect(content2)) => {
+            if content1.target == content2.target && content1.target_type == content2.target_type {
                 None
             } else {
                 Some(format!(
-                    "assets at the same path are both redirects but point to different targets: \
-                     {target1} vs {target2}"
+                    "assets at the same path are both redirects but disagree: {:?} ({:?}) vs {:?} \
+                     ({:?})",
+                    content1.target, content1.target_type, content2.target, content2.target_type,
                 ))
             }
         }

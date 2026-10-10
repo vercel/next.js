@@ -2,16 +2,17 @@ import { nextTestSetup, isNextDev } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import cheerio from 'cheerio'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('env-config', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     env: {
       PROCESS_ENV_KEY: 'processenvironment',
       ENV_FILE_PROCESS_ENV: 'env-cli',
     },
-    skipDeployment: true,
   })
-  if (skipped) return
 
   const getEnvFromHtml = async (path: string) => {
     const html = await next.render(path)
@@ -69,7 +70,7 @@ describe('env-config', () => {
 
   it('should provide global env to next.config.js', async () => {
     const res = await next.fetch('/hello', { redirect: 'manual' })
-    const { pathname } = new URL(res.headers.get('location')!)
+    const { pathname } = new URL(res.headers.get('location')!, res.url)
     expect(res.status).toBe(307)
     expect(pathname).toBe('/another')
   })

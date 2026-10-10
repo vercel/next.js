@@ -13,7 +13,7 @@ export const instant: {
 } = {
   unstable_samples: [{ params: { lang: 'en', slug: 'anything' } }],
 }
-export const prefetch = 'allow-runtime'
+export const prefetch = 'partial'
 
 export default function MixedParamsRuntimePage({
   params,

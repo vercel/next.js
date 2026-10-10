@@ -9,11 +9,7 @@ use bincode::{Decode, Encode};
 use patricia_tree::PatriciaMap;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{
-    NonLocalValue,
-    debug::ValueDebugFormat,
-    trace::{TraceRawVcs, TraceRawVcsContext},
-};
+use turbo_tasks::{NonLocalValue, debug::ValueDebugFormat};
 
 use crate::resolve::pattern::Pattern;
 
@@ -56,19 +52,6 @@ where
 }
 
 impl<T> Eq for AliasMap<T> where T: Eq {}
-
-impl<T> TraceRawVcs for AliasMap<T>
-where
-    T: TraceRawVcs,
-{
-    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
-        for (_, map) in self.map.iter() {
-            for value in map.values() {
-                value.trace_raw_vcs(trace_context);
-            }
-        }
-    }
-}
 
 unsafe impl<T: NonLocalValue> NonLocalValue for AliasMap<T> {}
 
@@ -643,7 +626,7 @@ impl AliasPattern {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, NonLocalValue)]
 pub enum AliasKey {
     Exact,
     Wildcard { suffix: RcStr },

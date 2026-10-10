@@ -8,6 +8,7 @@ import type { ParsedUrlQuery } from 'node:querystring'
 import type { UrlWithParsedQuery } from 'node:url'
 import type {
   PrerenderManifest,
+  PreviewPropsManifest,
   RequiredServerFilesManifest,
 } from '../../build'
 import type { DevRoutesManifest } from '../lib/router-utils/setup-dev-bundler'
@@ -21,6 +22,7 @@ import {
   NEXT_FONT_MANIFEST,
   PREFETCH_HINTS,
   PRERENDER_MANIFEST,
+  PREVIEW_PROPS_MANIFEST,
   REACT_LOADABLE_MANIFEST,
   ROUTES_MANIFEST,
   SERVER_FILES_MANIFEST,
@@ -37,7 +39,7 @@ import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-pref
 import { getServerUtils } from '../server-utils'
 import { detectDomainLocale } from '../../shared/lib/i18n/detect-domain-locale'
 import { getHostname } from '../../shared/lib/get-hostname'
-import { checkIsOnDemandRevalidate } from '../api-utils'
+import { checkIsOnDemandRevalidate, type __ApiPreviewProps } from '../api-utils'
 import type { PreviewData } from '../../types'
 import type { BuildManifest } from '../get-page-files'
 import type { ReactLoadableManifest } from '../load-components'
@@ -53,9 +55,17 @@ import { patchSetHeaderWithCookieSupport } from '../lib/patch-set-header'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
 import { isStaticMetadataRoute } from '../../lib/metadata/is-metadata-route'
 import { IncrementalCache } from '../lib/incremental-cache'
-import { initializeCacheHandlers, setCacheHandler } from '../use-cache/handlers'
+import {
+  initializeCacheHandlers,
+  registerCustomCacheHandlers,
+  setCacheHandler,
+} from '../use-cache/handlers'
 import { interopDefault } from '../app-render/interop-default'
 import { RouteKind } from '../route-kind'
+import {
+  getResponseCacheOwner,
+  type ResponseCacheOwner,
+} from '../lib/route-cache-key'
 import type { BaseNextRequest } from '../base-http'
 import type { I18NConfig, NextConfigRuntime } from '../config-shared'
 import ResponseCache, { type ResponseGenerator } from '../response-cache'
@@ -68,6 +78,8 @@ import {
 import { decodePathParams } from '../lib/router-utils/decode-path-params'
 import { removeTrailingSlash } from '../../shared/lib/router/utils/remove-trailing-slash'
 import { isInterceptionRouteRewrite } from '../../lib/is-interception-route-rewrite'
+import { getTracer } from '../lib/trace/tracer'
+import { RouteModuleSpan } from '../lib/trace/constants'
 
 /**
  * RouteModuleOptions is the options that are passed to the route module, other
@@ -123,6 +135,9 @@ export abstract class RouteModule<
    */
   public readonly definition: Readonly<D>
 
+  /** The canonical source identity shared by cache reads, writes, and metadata. */
+  public readonly cacheOwner: ResponseCacheOwner
+
   /**
    * The shared modules that are exposed and required for the route module.
    */
@@ -142,6 +157,7 @@ export abstract class RouteModule<
   }: RouteModuleOptions<D, U>) {
     this._userland = userland
     this.definition = definition
+    this.cacheOwner = getResponseCacheOwner(definition)
     this.isDev = !!process.env.__NEXT_DEV_SERVER
     this.distDir = distDir
     this.relativeProjectDir = relativeProjectDir
@@ -164,6 +180,18 @@ export abstract class RouteModule<
       ...(revalidate !== undefined ? { revalidate } : {}),
       ...(render404 !== undefined ? { render404 } : {}),
     }
+  }
+
+  public getAssetPrefixForRender(
+    routerServerContext: RouterServerContext[string] | undefined,
+    configuredAssetPrefix: string
+  ): string {
+    // A running NextServer owns overrides from app.setAssetPrefix().
+    if (routerServerContext && routerServerContext.getAssetPrefix) {
+      return routerServerContext.getAssetPrefix()
+    }
+    // Direct route invocations use the configured prefix.
+    return configuredAssetPrefix
   }
 
   public normalizeUrl(
@@ -220,6 +248,7 @@ export abstract class RouteModule<
     dynamicCssManifest: any
     prefetchHintsManifest: Record<string, any> | undefined
     interceptionRoutePatterns: RegExp[]
+    previewProps: __ApiPreviewProps
   } {
     let result
     if (process.env.NEXT_RUNTIME === 'edge') {
@@ -242,6 +271,7 @@ export abstract class RouteModule<
           version: 4,
           preview: getEdgePreviewProps(),
         } as const,
+        previewProps: getEdgePreviewProps(),
         routesManifest: {
           version: 4,
           caseSensitive: Boolean(process.env.__NEXT_CASE_SENSITIVE_ROUTES),
@@ -278,7 +308,7 @@ export abstract class RouteModule<
       if (!projectDir) {
         throw new Error('Invariant: projectDir is required for node runtime')
       }
-      const { loadManifestFromRelativePath } =
+      const { loadManifestFromRelativePath, evalManifestFromRelativePath } =
         require('../load-manifest.external') as typeof import('../load-manifest.external')
       const normalizedPagePath = normalizePagePath(srcPage)
 
@@ -291,6 +321,7 @@ export abstract class RouteModule<
       const [
         routesManifest,
         prerenderManifest,
+        previewProps,
         buildManifest,
         fallbackBuildManifest,
         reactLoadableManifest,
@@ -315,6 +346,12 @@ export abstract class RouteModule<
           manifest: PRERENDER_MANIFEST,
           shouldCache: !this.isDev,
         }),
+        loadManifestFromRelativePath<PreviewPropsManifest>({
+          projectDir,
+          distDir: this.distDir,
+          manifest: `server/${PREVIEW_PROPS_MANIFEST}`,
+          shouldCache: !this.isDev,
+        }),
         loadManifestFromRelativePath<BuildManifest>({
           projectDir,
           distDir: this.distDir,
@@ -322,14 +359,16 @@ export abstract class RouteModule<
           shouldCache: !this.isDev,
         }),
         srcPage === '/_error'
-          ? loadManifestFromRelativePath<BuildManifest>({
+          ? (loadManifestFromRelativePath<BuildManifest>({
               projectDir,
               distDir: this.distDir,
               manifest: `fallback-${BUILD_MANIFEST}`,
               shouldCache: !this.isDev,
               handleMissing: true,
-            })
-          : ({} as BuildManifest),
+              // TODO this cast is unsafe
+            }) ?? ({} as BuildManifest))
+          : // TODO this cast is unsafe
+            ({} as BuildManifest),
         loadManifestFromRelativePath<ReactLoadableManifest>({
           projectDir,
           distDir: this.distDir,
@@ -338,7 +377,7 @@ export abstract class RouteModule<
             : REACT_LOADABLE_MANIFEST,
           handleMissing: true,
           shouldCache: !this.isDev,
-        }),
+        }) ?? ({} satisfies ReactLoadableManifest),
         loadManifestFromRelativePath<NextFontManifest>({
           projectDir,
           distDir: this.distDir,
@@ -346,10 +385,9 @@ export abstract class RouteModule<
           shouldCache: !this.isDev,
         }),
         router === 'app' && !isStaticMetadataRoute(srcPage)
-          ? loadManifestFromRelativePath({
+          ? evalManifestFromRelativePath({
               distDir: this.distDir,
               projectDir,
-              useEval: true,
               handleMissing: true,
               manifest: `server/app${srcPage.replace(/%5F/g, '_') + '_' + CLIENT_REFERENCE_MANIFEST}.js`,
               shouldCache: !this.isDev,
@@ -413,6 +451,7 @@ export abstract class RouteModule<
         routesManifest,
         nextFontManifest,
         prerenderManifest,
+        previewProps,
         serverFilesManifest,
         reactLoadableManifest,
         clientReferenceManifest: (clientReferenceManifest as any)
@@ -438,41 +477,41 @@ export abstract class RouteModule<
       const { cacheMaxMemorySize, cacheHandlers } = nextConfig
       if (!cacheHandlers) return
 
-      // If we've already initialized the cache handlers interface, don't do it
-      // again.
-      if (!initializeCacheHandlers(cacheMaxMemorySize)) return
+      initializeCacheHandlers(cacheMaxMemorySize)
+      await registerCustomCacheHandlers(async () => {
+        for (const [kind, handler] of Object.entries(cacheHandlers)) {
+          if (!handler) continue
 
-      for (const [kind, handler] of Object.entries(cacheHandlers)) {
-        if (!handler) continue
+          const { formatDynamicImportPath } =
+            require('../../lib/format-dynamic-import-path') as typeof import('../../lib/format-dynamic-import-path')
 
-        const { formatDynamicImportPath } =
-          require('../../lib/format-dynamic-import-path') as typeof import('../../lib/format-dynamic-import-path')
+          const { join } = require('node:path') as typeof import('node:path')
+          const absoluteProjectDir = join(
+            /* turbopackIgnore: true */
+            process.cwd(),
+            getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
+          )
 
-        const { join } = require('node:path') as typeof import('node:path')
-        const absoluteProjectDir = join(
-          /* turbopackIgnore: true */
-          process.cwd(),
-          getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
-        )
-
-        setCacheHandler(
-          kind,
-          interopDefault(
-            await dynamicImportEsmDefault(
-              formatDynamicImportPath(
-                `${absoluteProjectDir}/${this.distDir}`,
-                handler
+          setCacheHandler(
+            kind,
+            interopDefault(
+              await dynamicImportEsmDefault(
+                formatDynamicImportPath(
+                  `${absoluteProjectDir}/${this.distDir}`,
+                  handler
+                )
               )
             )
           )
-        )
-      }
+        }
+      })
     }
   }
 
   public async getIncrementalCache(
     req: IncomingMessage | BaseNextRequest,
     nextConfig: NextConfigRuntime,
+    previewProps: DeepReadonly<__ApiPreviewProps>,
     prerenderManifest: DeepReadonly<PrerenderManifest>,
     isMinimalMode: boolean
   ): Promise<IncrementalCache> {
@@ -517,8 +556,10 @@ export abstract class RouteModule<
         fetchCacheKeyPrefix: nextConfig.experimental.fetchCacheKeyPrefix,
         maxMemoryCacheSize: nextConfig.cacheMaxMemorySize,
         flushToDisk: !isMinimalMode && nextConfig.experimental.isrFlushToDisk,
-        getPrerenderManifest: () => prerenderManifest,
+        previewProps,
+        prerenderManifest,
         CurCacheHandler: CacheHandler,
+        locales: nextConfig.i18n?.locales,
       })
 
       // we need to expose this on globalThis as the app-render
@@ -591,7 +632,22 @@ export abstract class RouteModule<
     return { nextConfig, deploymentId }
   }
 
-  public async prepare(
+  public prepare(
+    req: IncomingMessage | BaseNextRequest,
+    res: ServerResponse | null,
+    options: {
+      srcPage: string
+      multiZoneDraftMode?: boolean
+    }
+  ) {
+    return getTracer().trace(
+      RouteModuleSpan.prepare,
+      { spanName: 'prepare route module' },
+      () => this.prepareImpl(req, res, options)
+    )
+  }
+
+  private async prepareImpl(
     req: IncomingMessage | BaseNextRequest,
     res: ServerResponse | null,
     {
@@ -641,6 +697,7 @@ export abstract class RouteModule<
         nextConfig: NextConfigRuntime
         routerServerContext?: RouterServerContext[string]
         interceptionRoutePatterns?: any
+        previewProps: __ApiPreviewProps
       }
     | undefined
   > {
@@ -676,8 +733,12 @@ export abstract class RouteModule<
       // before the userland route handler runs.
       await ensureInstrumentationRegistered(absoluteProjectDir, this.distDir)
     }
-    const manifests = this.loadManifests(srcPage, absoluteProjectDir)
-    const { routesManifest, prerenderManifest, serverFilesManifest } = manifests
+    const manifests = getTracer().trace(
+      RouteModuleSpan.loadManifests,
+      { spanName: 'load route manifests' },
+      () => this.loadManifests(srcPage, absoluteProjectDir)
+    )
+    const { routesManifest, previewProps, serverFilesManifest } = manifests
 
     const { basePath, i18n, rewrites } = routesManifest
 
@@ -991,7 +1052,7 @@ export abstract class RouteModule<
     }
 
     const { isOnDemandRevalidate, revalidateOnlyGenerated } =
-      checkIsOnDemandRevalidate(req.headers, prerenderManifest.preview)
+      checkIsOnDemandRevalidate(req.headers, previewProps)
 
     let isDraftMode = false
     let previewData: PreviewData
@@ -1004,7 +1065,7 @@ export abstract class RouteModule<
       previewData = tryGetPreviewData(
         req,
         res,
-        prerenderManifest.preview,
+        previewProps,
         Boolean(multiZoneDraftMode)
       )
       isDraftMode = previewData !== false
@@ -1056,7 +1117,6 @@ export abstract class RouteModule<
     } catch (_) {}
 
     resolvedPathname = removeTrailingSlash(resolvedPathname)
-    addRequestMeta(req, 'resolvedPathname', resolvedPathname)
 
     let deploymentId
     if (nextConfig.experimental?.runtimeServerDeploymentId) {
@@ -1094,16 +1154,17 @@ export abstract class RouteModule<
         nextConfig satisfies DeepReadonly<NextConfigRuntime> as NextConfigRuntime,
       routerServerContext,
       deploymentId,
-      clientAssetToken: nextConfig.experimental.supportsImmutableAssets
-        ? ''
-        : deploymentId,
+      clientAssetToken: nextConfig.supportsImmutableAssets ? '' : deploymentId,
     }
   }
 
   public getResponseCache(req: IncomingMessage | BaseNextRequest) {
     if (!this.responseCache) {
       const minimalMode = getRequestMeta(req, 'minimalMode') ?? false
-      this.responseCache = new ResponseCache(minimalMode)
+      this.responseCache = new ResponseCache({
+        minimalMode,
+        route: this.cacheOwner,
+      })
     }
     return this.responseCache
   }
@@ -1114,6 +1175,7 @@ export abstract class RouteModule<
     cacheKey,
     routeKind,
     isFallback,
+    previewProps,
     prerenderManifest,
     isRoutePPREnabled,
     isOnDemandRevalidate,
@@ -1127,6 +1189,7 @@ export abstract class RouteModule<
     cacheKey: string | null
     routeKind: RouteKind
     isFallback?: boolean
+    previewProps: DeepReadonly<__ApiPreviewProps>
     prerenderManifest: DeepReadonly<PrerenderManifest>
     isRoutePPREnabled?: boolean
     isOnDemandRevalidate?: boolean
@@ -1136,34 +1199,27 @@ export abstract class RouteModule<
     isMinimalMode: boolean
   }) {
     const responseCache = this.getResponseCache(req)
-    // The prefetch-serves-fallback-shell behavior is gated behind the
-    // `appShells` experimental flag. When it's off, Next.js Segment Cache
-    // prefetches keep the previous (non-prefetch) response-cache behavior so
-    // existing suites that incidentally depend on it are unaffected.
-    const appShells = nextConfig.experimental.appShells === true
     const cacheEntry = await responseCache.get(cacheKey, responseGenerator, {
       routeKind,
       isFallback,
       isRoutePPREnabled,
       isOnDemandRevalidate,
-      appShells,
       // A Next.js Segment Cache prefetch uses the `Next-Router-Prefetch`
       // header (surfaced as the `isPrefetchRSCRequest` request meta), not the
       // standard browser `purpose: prefetch` header. Recognize both so the
       // response cache treats segment prefetches as prefetches — most
       // importantly, so a prefetch that misses serves a fallback shell rather
-      // than joining an in-flight background (concrete) revalidation. The
-      // Next.js-prefetch arm is gated on `appShells`; with the flag off, only
-      // the standard browser prefetch header is recognized (unchanged).
+      // than joining an in-flight background (concrete) revalidation.
       isPrefetch:
         req.headers.purpose === 'prefetch' ||
-        (appShells && getRequestMeta(req, 'isPrefetchRSCRequest') === true),
+        getRequestMeta(req, 'isPrefetchRSCRequest') === true,
       // Use x-invocation-id header to scope the in-memory cache to a single
       // revalidation request in minimal mode.
       invocationID: req.headers['x-invocation-id'] as string | undefined,
       incrementalCache: await this.getIncrementalCache(
         req,
         nextConfig,
+        previewProps,
         prerenderManifest,
         isMinimalMode
       ),

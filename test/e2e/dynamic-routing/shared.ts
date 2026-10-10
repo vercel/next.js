@@ -13,7 +13,7 @@ export function runTests(ctx: {
   isTurbopack: boolean
   middlewareEnabled: boolean
 }) {
-  const { next, isNextDev, isTurbopack, middlewareEnabled } = ctx
+  const { next, isNextDev, middlewareEnabled } = ctx
 
   if (isNextStart) {
     it('should have correct cache entries on prefetch', async () => {
@@ -1615,63 +1615,33 @@ export function runTests(ctx: {
         await next.readFile('.next/server/pages-manifest.json')
       )
 
-      if (isTurbopack) {
-        expect(manifest).toMatchInlineSnapshot(`
-         {
-           "/": "pages/index.html",
-           "/404": "pages/404.html",
-           "/[name]": "pages/[name].js",
-           "/[name]/[comment]": "pages/[name]/[comment].js",
-           "/[name]/[comment]/[...rest]": "pages/[name]/[comment]/[...rest].js",
-           "/[name]/comments": "pages/[name]/comments.js",
-           "/[name]/on-mount-redir": "pages/[name]/on-mount-redir.html",
-           "/_app": "pages/_app.js",
-           "/_document": "pages/_document.js",
-           "/_error": "pages/_error.js",
-           "/another": "pages/another.html",
-           "/b/[123]": "pages/b/[123].js",
-           "/blog/[name]/comment/[id]": "pages/blog/[name]/comment/[id].js",
-           "/c/[alongparamnameshouldbeallowedeventhoughweird]": "pages/c/[alongparamnameshouldbeallowedeventhoughweird].js",
-           "/catchall-dash/[...hello-world]": "pages/catchall-dash/[...hello-world].html",
-           "/d/[id]": "pages/d/[id].html",
-           "/dash/[hello-world]": "pages/dash/[hello-world].html",
-           "/index/[...slug]": "pages/index/[...slug].html",
-           "/on-mount/[post]": "pages/on-mount/[post].html",
-           "/p1/p2/all-ssg/[...rest]": "pages/p1/p2/all-ssg/[...rest].js",
-           "/p1/p2/all-ssr/[...rest]": "pages/p1/p2/all-ssr/[...rest].js",
-           "/p1/p2/nested-all-ssg/[...rest]": "pages/p1/p2/nested-all-ssg/[...rest].js",
-           "/p1/p2/predefined-ssg/[...rest]": "pages/p1/p2/predefined-ssg/[...rest].js",
-         }
-        `)
-      } else {
-        expect(manifest).toMatchInlineSnapshot(`
-         {
-           "/": "pages/index.html",
-           "/404": "pages/404.html",
-           "/[name]": "pages/[name].js",
-           "/[name]/[comment]": "pages/[name]/[comment].js",
-           "/[name]/[comment]/[...rest]": "pages/[name]/[comment]/[...rest].js",
-           "/[name]/comments": "pages/[name]/comments.js",
-           "/[name]/on-mount-redir": "pages/[name]/on-mount-redir.html",
-           "/_app": "pages/_app.js",
-           "/_document": "pages/_document.js",
-           "/_error": "pages/_error.js",
-           "/another": "pages/another.html",
-           "/b/[123]": "pages/b/[123].js",
-           "/blog/[name]/comment/[id]": "pages/blog/[name]/comment/[id].js",
-           "/c/[alongparamnameshouldbeallowedeventhoughweird]": "pages/c/[alongparamnameshouldbeallowedeventhoughweird].js",
-           "/catchall-dash/[...hello-world]": "pages/catchall-dash/[...hello-world].html",
-           "/d/[id]": "pages/d/[id].html",
-           "/dash/[hello-world]": "pages/dash/[hello-world].html",
-           "/index/[...slug]": "pages/index/[...slug].html",
-           "/on-mount/[post]": "pages/on-mount/[post].html",
-           "/p1/p2/all-ssg/[...rest]": "pages/p1/p2/all-ssg/[...rest].js",
-           "/p1/p2/all-ssr/[...rest]": "pages/p1/p2/all-ssr/[...rest].js",
-           "/p1/p2/nested-all-ssg/[...rest]": "pages/p1/p2/nested-all-ssg/[...rest].js",
-           "/p1/p2/predefined-ssg/[...rest]": "pages/p1/p2/predefined-ssg/[...rest].js",
-         }
-        `)
-      }
+      expect(manifest).toMatchInlineSnapshot(`
+       {
+         "/": "pages/index.html",
+         "/404": "pages/404.html",
+         "/[name]": "pages/[name].js",
+         "/[name]/[comment]": "pages/[name]/[comment].js",
+         "/[name]/[comment]/[...rest]": "pages/[name]/[comment]/[...rest].js",
+         "/[name]/comments": "pages/[name]/comments.js",
+         "/[name]/on-mount-redir": "pages/[name]/on-mount-redir.html",
+         "/_app": "pages/_app.js",
+         "/_document": "pages/_document.js",
+         "/_error": "pages/_error.js",
+         "/another": "pages/another.html",
+         "/b/[123]": "pages/b/[123].js",
+         "/blog/[name]/comment/[id]": "pages/blog/[name]/comment/[id].js",
+         "/c/[alongparamnameshouldbeallowedeventhoughweird]": "pages/c/[alongparamnameshouldbeallowedeventhoughweird].js",
+         "/catchall-dash/[...hello-world]": "pages/catchall-dash/[...hello-world].html",
+         "/d/[id]": "pages/d/[id].html",
+         "/dash/[hello-world]": "pages/dash/[hello-world].html",
+         "/index/[...slug]": "pages/index/[...slug].html",
+         "/on-mount/[post]": "pages/on-mount/[post].html",
+         "/p1/p2/all-ssg/[...rest]": "pages/p1/p2/all-ssg/[...rest].js",
+         "/p1/p2/all-ssr/[...rest]": "pages/p1/p2/all-ssr/[...rest].js",
+         "/p1/p2/nested-all-ssg/[...rest]": "pages/p1/p2/nested-all-ssg/[...rest].js",
+         "/p1/p2/predefined-ssg/[...rest]": "pages/p1/p2/predefined-ssg/[...rest].js",
+       }
+      `)
     })
   }
 }

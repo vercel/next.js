@@ -41,7 +41,8 @@ pub async fn embed_static_code(
 /// Returns an [ImportMap] containing:
 /// - The `@vercel/turbopack-ecmascript-runtime/*` wildcard alias pointing to the embedded runtime
 ///   filesystem.
-/// - All built-in `@turbopack/*` module aliases (e.g. `@turbopack/base64`).
+/// - All built-in `@turbopack/*` module aliases (e.g. `@turbopack/base64`,
+///   `@turbopack/module-cache`).
 ///
 /// This import map is injected automatically by
 /// [`ModuleAssetContext::resolve_options`] so that every Turbopack-processed
@@ -64,7 +65,14 @@ pub async fn turbopack_runtime_import_map() -> Result<Vc<ImportMap>> {
     // Exact alias: @turbopack/base64
     import_map.insert_exact_alias(
         rcstr!("@turbopack/base64"),
-        ImportMapping::PrimaryAlternative(rcstr!("./shared/base64.ts"), Some(embed_root))
+        ImportMapping::PrimaryAlternative(rcstr!("./shared/base64.ts"), Some(embed_root.clone()))
+            .resolved_cell(),
+    );
+
+    // Exact alias: @turbopack/module-cache
+    import_map.insert_exact_alias(
+        rcstr!("@turbopack/module-cache"),
+        ImportMapping::PrimaryAlternative(rcstr!("./shared/module-cache.ts"), Some(embed_root))
             .resolved_cell(),
     );
 

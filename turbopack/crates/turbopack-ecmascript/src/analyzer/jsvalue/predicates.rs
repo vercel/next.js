@@ -481,108 +481,172 @@ mod tests {
 
     use crate::analyzer::{Bump, ConstantValue, JsValue, ThreadLocal, graph::EvalContext};
 
-    // A leaked arena for building test `JsValue`s with a `'static` lifetime. Tests are
-    // short-lived processes, so the leak is inconsequential.
-    fn test_arena() -> &'static Bump {
-        Box::leak(Box::new(Bump::new()))
+    #[derive(Clone, Copy)]
+    enum TestAtom {
+        Num(f64),
+        Str(&'static str),
+        True,
+        False,
+        Null,
+        Undefined,
     }
 
-    // `construct_test_ternary(cons, alt)` builds a ternary with an unknown test condition.
-    fn construct_test_ternary(cons: JsValue<'static>, alt: JsValue<'static>) -> JsValue<'static> {
-        JsValue::tenary(
-            test_arena(),
-            JsValue::unknown_empty(false, rcstr!("test")),
-            cons,
-            alt,
-        )
+    impl TestAtom {
+        fn build<'a>(self, _arena: &'a Bump) -> JsValue<'a> {
+            match self {
+                TestAtom::Num(value) => JsValue::from(value),
+                TestAtom::Str(value) => JsValue::from(value),
+                TestAtom::True => ConstantValue::True.into(),
+                TestAtom::False => ConstantValue::False.into(),
+                TestAtom::Null => ConstantValue::Null.into(),
+                TestAtom::Undefined => ConstantValue::Undefined.into(),
+            }
+        }
     }
+
+    #[derive(Clone, Copy)]
+    enum TestValue {
+        Atom(TestAtom),
+        PromiseNull,
+        Ternary(TestAtom, TestAtom),
+    }
+
+    impl TestValue {
+        fn build(self, arena: &Bump) -> JsValue<'_> {
+            match self {
+                TestValue::Atom(value) => value.build(arena),
+                TestValue::PromiseNull => JsValue::promise(arena, ConstantValue::Null.into()),
+                TestValue::Ternary(consequent, alternate) => JsValue::tenary(
+                    arena,
+                    JsValue::unknown_empty(false, rcstr!("test")),
+                    consequent.build(arena),
+                    alternate.build(arena),
+                ),
+            }
+        }
+    }
+
+    use TestAtom::*;
+    use TestValue::*;
 
     #[rstest]
-    #[case(JsValue::from(1.0))]
-    #[case(JsValue::from("hi"))]
-    #[case(ConstantValue::True.into())]
-    #[case(JsValue::promise(test_arena(), ConstantValue::Null.into()))]
-    #[case(construct_test_ternary(JsValue::from(1.0), JsValue::from("hi")))]
-    fn is_truthy_positive(#[case] v: JsValue<'static>) {
-        assert_eq!(v.is_truthy(), Some(true), "expected '{v}' to be truthy");
-    }
-
-    #[rstest]
-    #[case(JsValue::from(0.0))]
-    #[case(JsValue::from(""))]
-    #[case(ConstantValue::False.into())]
-    #[case(ConstantValue::Null.into())]
-    #[case(ConstantValue::Undefined.into())]
-    #[case(construct_test_ternary(JsValue::from(0.0), JsValue::from("")))]
-    fn is_truthy_negative(#[case] v: JsValue<'static>) {
-        assert_eq!(v.is_truthy(), Some(false), "expected '{v}' to be falsy");
-    }
-
-    #[rstest]
-    #[case(ConstantValue::Null.into())]
-    #[case(ConstantValue::Undefined.into())]
-    #[case(construct_test_ternary(ConstantValue::Null.into(), ConstantValue::Undefined.into()))]
-    fn is_nullish_positive(#[case] v: JsValue<'static>) {
-        assert_eq!(v.is_nullish(), Some(true), "expected '{v}' to be nullish");
-    }
-
-    #[rstest]
-    #[case(JsValue::from(0.0))]
-    #[case(JsValue::from(""))]
-    #[case(JsValue::from("hi"))]
-    #[case(ConstantValue::True.into())]
-    #[case(JsValue::promise(test_arena(), ConstantValue::Null.into()))]
-    #[case(construct_test_ternary(JsValue::from(0.0), JsValue::from("hi")))]
-    fn is_nullish_negative(#[case] v: JsValue<'static>) {
+    #[case(Atom(Num(1.0)))]
+    #[case(Atom(Str("hi")))]
+    #[case(Atom(True))]
+    #[case(PromiseNull)]
+    #[case(Ternary(Num(1.0), Str("hi")))]
+    fn is_truthy_positive(#[case] value: TestValue) {
+        let arena = Bump::new();
+        let value = value.build(&arena);
         assert_eq!(
-            v.is_nullish(),
-            Some(false),
-            "expected '{v}' not to be nullish"
-        );
-    }
-
-    #[rstest]
-    #[case(JsValue::from("hi"))]
-    #[case(JsValue::from(""))]
-    #[case(construct_test_ternary(JsValue::from("a"), JsValue::from("b")))]
-    fn is_string_positive(#[case] v: JsValue<'static>) {
-        assert_eq!(v.is_string(), Some(true), "expected '{v}' to be a string");
-    }
-
-    #[rstest]
-    #[case(JsValue::from(1.0))]
-    #[case(ConstantValue::True.into())]
-    #[case(ConstantValue::Null.into())]
-    #[case(construct_test_ternary(JsValue::from(1.0), JsValue::from(2.0)))]
-    fn is_string_negative(#[case] v: JsValue<'static>) {
-        assert_eq!(
-            v.is_string(),
-            Some(false),
-            "expected '{v}' not to be a string"
-        );
-    }
-
-    #[rstest]
-    #[case(JsValue::from(""))]
-    #[case(construct_test_ternary(JsValue::from(""), JsValue::from("")))]
-    fn is_empty_string_positive(#[case] v: JsValue<'static>) {
-        assert_eq!(
-            v.is_empty_string(),
+            value.is_truthy(),
             Some(true),
-            "expected '{v}' to be an empty string"
+            "expected '{value}' to be truthy"
         );
     }
 
     #[rstest]
-    #[case(JsValue::from("hi"))]
-    #[case(JsValue::from(1.0))]
-    #[case(ConstantValue::True.into())]
-    #[case(construct_test_ternary(JsValue::from("a"), JsValue::from("b")))]
-    fn is_empty_string_negative(#[case] v: JsValue<'static>) {
+    #[case(Atom(Num(0.0)))]
+    #[case(Atom(Str("")))]
+    #[case(Atom(False))]
+    #[case(Atom(Null))]
+    #[case(Atom(Undefined))]
+    #[case(Ternary(Num(0.0), Str("")))]
+    fn is_truthy_negative(#[case] value: TestValue) {
+        let arena = Bump::new();
+        let value = value.build(&arena);
         assert_eq!(
-            v.is_empty_string(),
+            value.is_truthy(),
             Some(false),
-            "expected '{v}' not to be an empty string"
+            "expected '{value}' to be falsy"
+        );
+    }
+
+    #[rstest]
+    #[case(Atom(Null))]
+    #[case(Atom(Undefined))]
+    #[case(Ternary(Null, Undefined))]
+    fn is_nullish_positive(#[case] value: TestValue) {
+        let arena = Bump::new();
+        let value = value.build(&arena);
+        assert_eq!(
+            value.is_nullish(),
+            Some(true),
+            "expected '{value}' to be nullish"
+        );
+    }
+
+    #[rstest]
+    #[case(Atom(Num(0.0)))]
+    #[case(Atom(Str("")))]
+    #[case(Atom(Str("hi")))]
+    #[case(Atom(True))]
+    #[case(PromiseNull)]
+    #[case(Ternary(Num(0.0), Str("hi")))]
+    fn is_nullish_negative(#[case] value: TestValue) {
+        let arena = Bump::new();
+        let value = value.build(&arena);
+        assert_eq!(
+            value.is_nullish(),
+            Some(false),
+            "expected '{value}' not to be nullish"
+        );
+    }
+
+    #[rstest]
+    #[case(Atom(Str("hi")))]
+    #[case(Atom(Str("")))]
+    #[case(Ternary(Str("a"), Str("b")))]
+    fn is_string_positive(#[case] value: TestValue) {
+        let arena = Bump::new();
+        let value = value.build(&arena);
+        assert_eq!(
+            value.is_string(),
+            Some(true),
+            "expected '{value}' to be a string"
+        );
+    }
+
+    #[rstest]
+    #[case(Atom(Num(1.0)))]
+    #[case(Atom(True))]
+    #[case(Atom(Null))]
+    #[case(Ternary(Num(1.0), Num(2.0)))]
+    fn is_string_negative(#[case] value: TestValue) {
+        let arena = Bump::new();
+        let value = value.build(&arena);
+        assert_eq!(
+            value.is_string(),
+            Some(false),
+            "expected '{value}' not to be a string"
+        );
+    }
+
+    #[rstest]
+    #[case(Atom(Str("")))]
+    #[case(Ternary(Str(""), Str("")))]
+    fn is_empty_string_positive(#[case] value: TestValue) {
+        let arena = Bump::new();
+        let value = value.build(&arena);
+        assert_eq!(
+            value.is_empty_string(),
+            Some(true),
+            "expected '{value}' to be an empty string"
+        );
+    }
+
+    #[rstest]
+    #[case(Atom(Str("hi")))]
+    #[case(Atom(Num(1.0)))]
+    #[case(Atom(True))]
+    #[case(Ternary(Str("a"), Str("b")))]
+    fn is_empty_string_negative(#[case] value: TestValue) {
+        let arena = Bump::new();
+        let value = value.build(&arena);
+        assert_eq!(
+            value.is_empty_string(),
+            Some(false),
+            "expected '{value}' not to be an empty string"
         );
     }
 

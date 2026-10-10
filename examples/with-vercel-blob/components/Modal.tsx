@@ -36,6 +36,7 @@ export default function Modal({
     setCurIndex(newVal);
     router.push(
       {
+        pathname: "/",
         query: { photoId: newVal },
       },
       `/p/${newVal}`,

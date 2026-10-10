@@ -4,7 +4,6 @@ use turbopack_core::{
     compile_time_info::CompileTimeInfo, context::AssetContext, environment::Environment,
     ident::Layer,
 };
-use turbopack_ecmascript::TreeShakingMode;
 
 use crate::{
     ModuleAssetContext,
@@ -26,7 +25,8 @@ pub async fn get_runtime_asset_context(
             ..Default::default()
         },
         environment: Some(environment),
-        tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
+        follow_reexports: true,
+        module_fragments_enabled: false,
         ..Default::default()
     }
     .cell();

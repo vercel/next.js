@@ -1,0 +1,10 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "echo \"no build step configured\""
+  },
+  "devDependencies": {
+    "vitest": "^3.1.3"
+  }
+}

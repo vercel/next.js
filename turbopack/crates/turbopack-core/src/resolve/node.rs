@@ -1,6 +1,5 @@
 use turbo_rcstr::rcstr;
 use turbo_tasks::Vc;
-use turbo_tasks_fs::FileSystemPath;
 
 use super::options::{
     ConditionValue, ResolutionConditions, ResolveInPackage, ResolveIntoPackage, ResolveModules,
@@ -8,7 +7,7 @@ use super::options::{
 };
 
 #[turbo_tasks::function]
-pub fn node_cjs_resolve_options(root: FileSystemPath) -> Vc<ResolveOptions> {
+pub fn node_cjs_resolve_options() -> Vc<ResolveOptions> {
     let conditions: ResolutionConditions = [
         (rcstr!("node"), ConditionValue::Set),
         (rcstr!("require"), ConditionValue::Set),
@@ -17,7 +16,7 @@ pub fn node_cjs_resolve_options(root: FileSystemPath) -> Vc<ResolveOptions> {
     let extensions = vec![rcstr!(".js"), rcstr!(".json"), rcstr!(".node")];
     ResolveOptions {
         extensions,
-        modules: vec![ResolveModules::Nested(root, vec![rcstr!("node_modules")])],
+        modules: vec![ResolveModules::Nested(vec![rcstr!("node_modules")])],
         into_package: vec![
             ResolveIntoPackage::ExportsField {
                 conditions: conditions.clone(),
@@ -38,7 +37,7 @@ pub fn node_cjs_resolve_options(root: FileSystemPath) -> Vc<ResolveOptions> {
 }
 
 #[turbo_tasks::function]
-pub fn node_esm_resolve_options(root: FileSystemPath) -> Vc<ResolveOptions> {
+pub fn node_esm_resolve_options() -> Vc<ResolveOptions> {
     let conditions: ResolutionConditions = [
         (rcstr!("node"), ConditionValue::Set),
         (rcstr!("import"), ConditionValue::Set),
@@ -48,7 +47,7 @@ pub fn node_esm_resolve_options(root: FileSystemPath) -> Vc<ResolveOptions> {
     ResolveOptions {
         fully_specified: true,
         extensions,
-        modules: vec![ResolveModules::Nested(root, vec![rcstr!("node_modules")])],
+        modules: vec![ResolveModules::Nested(vec![rcstr!("node_modules")])],
         into_package: vec![
             ResolveIntoPackage::ExportsField {
                 conditions: conditions.clone(),
