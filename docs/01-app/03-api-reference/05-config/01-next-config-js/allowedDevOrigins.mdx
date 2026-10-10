@@ -31,7 +31,7 @@ Entries can also expand, through two wildcards: a `*` stands in for exactly one 
 
 Partial replacement is not supported. Write `*.local-origin.dev`, rather than `team-*.local-origin.dev`. Using `**` is only supported at the start of the pattern.
 
-The dev server already allows `localhost`, its subdomains, and the hostname it was started with. Any other hostname needs an entry, such as a tunnel used for remote development:
+The dev server already allows `localhost`, its subdomains, the loopback IPs `127.0.0.1` and `[::1]`, and the hostname it was started with. Any other hostname needs an entry, such as a tunnel used for remote development:
 
 ```js filename="next.config.js"
 module.exports = {
