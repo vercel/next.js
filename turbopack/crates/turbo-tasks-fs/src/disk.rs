@@ -489,6 +489,23 @@ impl DiskFileSystem {
         Ok(())
     }
 
+    /// Track a file consumed by an external reader (for example a compiler subprocess).
+    /// Unlike depending on `read()`, this invalidates the calling task for every file event,
+    /// including an edit that restores identical bytes. Call before accessing the OS path.
+    pub async fn track_file(&self, path: &FileSystemPath) -> Result<()> {
+        self.inner
+            .register_read_invalidator(&Arc::new(self.to_sys_path(path)))
+            .await
+    }
+
+    /// Track directory membership consumed by an external reader. Missing directories are
+    /// watched through their nearest existing parent, just like ordinary filesystem reads.
+    pub async fn track_directory(&self, path: &FileSystemPath) -> Result<()> {
+        self.inner
+            .register_dir_invalidator(&Arc::new(self.to_sys_path(path)))
+            .await
+    }
+
     pub fn invalidate(&self) {
         self.inner.invalidate();
     }
