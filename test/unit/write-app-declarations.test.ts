@@ -26,6 +26,8 @@ describe('find config', () => {
       eol +
       `import "./.next/types/root-params.d.ts";` +
       eol +
+      `import "./.next/types/link.d.ts";` +
+      eol +
       eol +
       '// NOTE: This file should not be edited' +
       eol +
@@ -58,6 +60,8 @@ describe('find config', () => {
       eol +
       `import "./.next/types/root-params.d.ts";` +
       eol +
+      `import "./.next/types/link.d.ts";` +
+      eol +
       eol +
       '// NOTE: This file should not be edited' +
       eol +
@@ -89,6 +93,8 @@ describe('find config', () => {
       `import "./.next/types/routes.d.ts";` +
       eol +
       `import "./.next/types/root-params.d.ts";` +
+      eol +
+      `import "./.next/types/link.d.ts";` +
       eol +
       eol +
       '// NOTE: This file should not be edited' +
