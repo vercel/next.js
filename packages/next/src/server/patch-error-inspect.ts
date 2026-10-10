@@ -164,6 +164,15 @@ function computeErrorName(error: Error): string {
   return error.name || 'Error'
 }
 
+// Records where the frames start in a stack produced by
+// `prepareUnsourcemappedStackTrace`, so they can be parsed without having to
+// guess where the message ends. Uses `Symbol.for` since this module is bundled
+// into several runtimes, and any copy may have formatted a given stack.
+const STACK_FRAMES_START = Symbol.for('next.dev.stackFramesStart')
+type ErrorWithStackFramesStart = Error & {
+  [STACK_FRAMES_START]?: { stack: string; framesStart: number }
+}
+
 function prepareUnsourcemappedStackTrace(
   error: Error,
   structuredStackTrace: any[]
@@ -171,8 +180,46 @@ function prepareUnsourcemappedStackTrace(
   const name = computeErrorName(error)
   const message = error.message || ''
   let stack = name + ': ' + message
+  const framesStart = stack.length
   for (let i = 0; i < structuredStackTrace.length; i++) {
     stack += '\n    at ' + structuredStackTrace[i].toString()
+  }
+  // Record where the real stack frames start
+  try {
+    // Non-enumerable so that it doesn't show up when inspecting the error.
+    Object.defineProperty(error, STACK_FRAMES_START, {
+      value: { stack, framesStart },
+      configurable: true,
+      writable: true,
+    })
+  } catch {
+    // The error may be frozen. We'll fall back to finding the frames by
+    // matching the message.
+  }
+  return stack
+}
+
+/**
+ * Returns the part of `error.stack` after the message, so the stack parser
+ * can't mistake message lines for frames (e.g. a line starting with a URL or
+ * with "webpack"/"turbopack").
+ */
+function getUnparsedStackFrames(error: Error, errorName: string): string {
+  let stack = String(error.stack)
+  const recorded = (error as ErrorWithStackFramesStart)[STACK_FRAMES_START]
+  // `error.stack` may have been replaced after we formatted it.
+  if (recorded !== undefined && recorded.stack === stack) {
+    return stack.slice(recorded.framesStart)
+  }
+  // Errors printing by `prepareUnsourcemappedStackTrace` are `Error: <message>` so attempt to strip that prefix
+  if (stack.startsWith(errorName)) {
+    stack = stack.slice(errorName.length)
+  }
+  if (stack.startsWith(': ')) {
+    stack = stack.slice(': '.length)
+  }
+  if (stack.startsWith(error.message)) {
+    stack = stack.slice(error.message.length)
   }
   return stack
 }
@@ -435,12 +482,12 @@ function parseAndSourceMap(
   inspectOptions: util.InspectOptions
 ): string {
   const showIgnoreListed = process.env.__NEXT_SHOW_IGNORE_LISTED === 'true'
-  // We overwrote Error.prepareStackTrace earlier so error.stack is not sourcemapped.
-  let unparsedStack = String(error.stack)
   // We could just read it from `error.stack`.
   // This works around cases where a 3rd party `Error.prepareStackTrace` implementation
   // doesn't implement the name computation correctly.
   const errorName = computeErrorName(error)
+  // We overwrote Error.prepareStackTrace earlier so error.stack is not sourcemapped.
+  let unparsedStack = getUnparsedStackFrames(error, errorName)
 
   let idx = unparsedStack.indexOf('react_stack_bottom_frame')
   if (idx !== -1) {
