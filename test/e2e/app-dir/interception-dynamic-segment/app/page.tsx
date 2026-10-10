@@ -1,8 +1,9 @@
-import { LinkAccordion } from './page.client'
+import { LinkAccordion, RetainedCounter } from './page.client'
 
 export default function Page() {
   return (
     <div id="children">
+      <RetainedCounter />
       <section>
         <h2>✅ Should Work WITHOUT default.tsx</h2>
 
@@ -35,6 +36,12 @@ export default function Page() {
           <p>
             Has @sidebar parallel route BUT page.tsx fills the children slot.
           </p>
+        </div>
+
+        <div>
+          <h3>Test Case 3b: New layout owner with an explicit default</h3>
+          <LinkAccordion href="/real-default" />
+          <p>The new @panel slot should render its explicit default.tsx.</p>
         </div>
       </section>
 

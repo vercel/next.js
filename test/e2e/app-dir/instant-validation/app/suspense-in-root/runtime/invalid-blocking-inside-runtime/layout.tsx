@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers'
 
 export const instant = { level: 'experimental-error' }
-export const prefetch = 'allow-runtime'
+export const prefetch = 'partial'
 
 export default async function RuntimeLayout({ children }) {
   await cookies()

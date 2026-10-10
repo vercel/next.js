@@ -18,7 +18,6 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     CollectiblesSource, NonLocalValue, OperationVc, RawVc, ReadRef, ResolvedVc, TryFlatJoinIterExt,
     TryJoinIterExt, Upcast, ValueDefault, ValueToString, ValueToStringRef, Vc, emit,
-    trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{
     FileContent, FileLine, FileLinesContent, FileSystem, FileSystemPath, glob::Glob,
@@ -240,7 +239,7 @@ where
 pub struct Issues(Vec<ResolvedVc<Box<dyn Issue>>>);
 
 /// A pattern that can match by exact string, glob, or regex.
-#[derive(Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub enum IgnoreIssuePattern {
     /// The value must exactly equal the pattern string.
     ExactString(RcStr),
@@ -263,7 +262,7 @@ impl IgnoreIssuePattern {
 
 /// A rule describing an issue to ignore. `path` is mandatory;
 /// `title` and `description` are optional additional filters.
-#[derive(Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub struct IgnoreIssue {
     /// File-path pattern (mandatory).
     pub path: IgnoreIssuePattern,
@@ -430,7 +429,7 @@ impl CapturedIssues {
 }
 
 #[turbo_tasks::task_input]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Encode, Decode)]
 pub struct IssueSource {
     source: ResolvedVc<Box<dyn Source>>,
     range: Option<SourceRange>,
@@ -438,7 +437,7 @@ pub struct IssueSource {
 
 /// The end position is the first character after the range
 #[turbo_tasks::task_input]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Encode, Decode)]
 enum SourceRange {
     LineColumn(SourcePos, SourcePos),
     ByteOffset(u32, u32),
@@ -451,6 +450,14 @@ impl IssueSource {
         IssueSource {
             source,
             range: None,
+        }
+    }
+
+    /// Drops the precise range while preserving the source file.
+    pub fn without_range(self) -> Self {
+        IssueSource {
+            range: None,
+            ..self
         }
     }
 
@@ -721,16 +728,7 @@ impl AdditionalIssueSources {
 
 // A structured reference to a file with module level details for displaying in an import trace
 #[derive(
-    Serialize,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Clone,
-    Debug,
-    TraceRawVcs,
-    NonLocalValue,
-    DeterministicHash,
+    Serialize, PartialEq, Eq, PartialOrd, Ord, Clone, Debug, NonLocalValue, DeterministicHash,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct PlainTraceItem {
@@ -768,7 +766,7 @@ pub type PlainTrace = Vec<PlainTraceItem>;
 async fn into_plain_trace(traces: Vec<Vec<ReadRef<AssetIdent>>>) -> Result<Vec<PlainTrace>> {
     let mut plain_traces = traces
         .into_iter()
-        .map(|trace| async move {
+        .map(async |trace| {
             let mut plain_trace = trace
                 .into_iter()
                 .filter(|asset| {

@@ -6,6 +6,7 @@ import { interopDefault } from '../../lib/interop-default'
 import { formatDynamicImportPath } from '../../lib/format-dynamic-import-path'
 import {
   initializeCacheHandlers,
+  registerCustomCacheHandlers,
   setCacheHandler,
 } from '../../server/use-cache/handlers'
 
@@ -38,38 +39,43 @@ export async function createIncrementalCache({
     )
   }
 
-  if (cacheHandlers && initializeCacheHandlers(cacheMaxMemorySize)) {
-    for (const [kind, handler] of Object.entries(cacheHandlers)) {
-      if (!handler) continue
+  if (cacheHandlers) {
+    initializeCacheHandlers(cacheMaxMemorySize)
+    await registerCustomCacheHandlers(async () => {
+      for (const [kind, handler] of Object.entries(cacheHandlers)) {
+        if (!handler) continue
 
-      setCacheHandler(
-        kind,
-        interopDefault(
-          await import(formatDynamicImportPath(dir, handler)).then(
-            (mod) => mod.default || mod
+        setCacheHandler(
+          kind,
+          interopDefault(
+            await import(formatDynamicImportPath(dir, handler)).then(
+              (mod) => mod.default || mod
+            )
           )
         )
-      )
-    }
+      }
+    })
   }
 
+  let previewProps = {
+    previewModeEncryptionKey: '',
+    previewModeId: '',
+    previewModeSigningKey: '',
+  }
   const incrementalCache = new IncrementalCache({
     dev: false,
     requestHeaders: requestHeaders || {},
     flushToDisk,
     maxMemoryCacheSize: cacheMaxMemorySize,
     fetchCacheKeyPrefix,
-    getPrerenderManifest: () => ({
+    previewProps,
+    prerenderManifest: {
       version: 4,
       routes: {},
       dynamicRoutes: {},
-      preview: {
-        previewModeEncryptionKey: '',
-        previewModeId: '',
-        previewModeSigningKey: '',
-      },
       notFoundRoutes: [],
-    }),
+      preview: previewProps,
+    },
     fs: nodeFs,
     serverDistDir: path.join(distDir, 'server'),
     CurCacheHandler: CacheHandler,

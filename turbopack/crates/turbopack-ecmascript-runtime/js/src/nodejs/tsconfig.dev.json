@@ -1,0 +1,15 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    // environment, we need WebWorker for WebAssembly types (not part of @types/node yet)
+    "lib": ["ESNext", "WebWorker"],
+    "types": ["node"]
+  },
+  "include": [
+    "hmr-types.d.ts",
+    "runtime/nodejs-globals.d.ts",
+    "runtime/runtime-base.ts",
+    "runtime/dev-base.ts",
+    "dev/*.ts"
+  ]
+}

@@ -28,12 +28,13 @@ import type {
   Endpoint,
   HmrChunkNames,
   Lockfile,
-  NodeJsHmrUpdate,
   PartialProjectOptions,
   Project,
   ProjectOptions,
   RawEntrypoints,
   Route,
+  ServerHmrUpdate,
+  ServerHmrVersion,
   TurboEngineOptions,
   TurbopackResult,
   TurbopackStackFrame,
@@ -42,11 +43,6 @@ import type {
   WrittenEndpoint,
 } from './types'
 import { runLoaderWorkerPool } from './loaderWorkerPool'
-
-export enum HmrTarget {
-  Client = 'client',
-  Server = 'server',
-}
 
 type RawBindings = typeof import('./generated-native')
 type RawWasmBindings = typeof import('./generated-wasm') & {
@@ -550,12 +546,13 @@ function bindingToApi(
         pages: {
           originalName: string
           htmlEndpoint: NapiEndpoint
-          rscEndpoint: NapiEndpoint
+          rscHmrEndpoint: NapiEndpoint
         }[]
       }
     | {
         type: 'app-route'
         originalName: string
+        hasActionManifest: boolean
         endpoint: NapiEndpoint
       }
     | {
@@ -656,27 +653,33 @@ function bindingToApi(
   async function rustifyProjectOptions(
     options: ProjectOptions
   ): Promise<NapiProjectOptions> {
+    const projectPath = path.join(options.rootPath, options.projectPath)
+    const additionalRoots = Object.entries(
+      options.nextConfig.experimental.turbopackAdditionalRoots ?? {}
+    ).map(([key, root]) => ({ key, ...root }))
     return {
       ...options,
+      additionalRoots,
       nextConfig: await serializeNextConfig(
         options.nextConfig,
-        path.join(options.rootPath, options.projectPath)
+        projectPath,
+        path.isAbsolute(options.distDir)
+          ? path.relative(projectPath, options.distDir)
+          : options.distDir
       ),
       env: rustifyEnv(options.env),
     }
   }
 
   async function rustifyPartialProjectOptions(
-    options: PartialProjectOptions
+    options: PartialProjectOptions,
+    projectPath: string
   ): Promise<NapiPartialProjectOptions> {
     return {
       ...options,
       nextConfig:
         options.nextConfig &&
-        (await serializeNextConfig(
-          options.nextConfig,
-          path.join(options.rootPath, options.projectPath)
-        )),
+        (await serializeNextConfig(options.nextConfig, projectPath)),
       env: options.env && rustifyEnv(options.env),
     }
   }
@@ -684,7 +687,10 @@ function bindingToApi(
   class ProjectImpl implements Project {
     private readonly _nativeProject: { __napiType: 'Project' }
 
-    constructor(nativeProject: { __napiType: 'Project' }) {
+    constructor(
+      nativeProject: { __napiType: 'Project' },
+      private readonly projectPath: string
+    ) {
       this._nativeProject = nativeProject
 
       if (typeof binding.registerWorkerScheduler === 'function') {
@@ -695,8 +701,12 @@ function bindingToApi(
     async update(options: PartialProjectOptions) {
       await binding.projectUpdate(
         this._nativeProject,
-        await rustifyPartialProjectOptions(options)
+        await rustifyPartialProjectOptions(options, this.projectPath)
       )
+    }
+
+    async activateLazyChunk(chunkPath: string): Promise<boolean> {
+      return binding.projectActivateLazyChunk(this._nativeProject, chunkPath)
     }
 
     async writeAnalyzeData(
@@ -722,14 +732,15 @@ function bindingToApi(
       const napiEndpoints = (await binding.projectWriteAllEntrypointsToDisk(
         this._nativeProject,
         appDirOnly
-      )) as TurbopackResult<Partial<NapiEntrypoints>>
+      )) as TurbopackResult<Partial<NapiEntrypoints> | null>
 
-      if ('routes' in napiEndpoints) {
+      if (napiEndpoints.value && 'routes' in napiEndpoints.value) {
         return napiEntrypointsToRawEntrypoints(
           napiEndpoints as TurbopackResult<NapiEntrypoints>
         )
       } else {
         return {
+          value: {},
           issues: napiEndpoints.issues,
         }
       }
@@ -742,19 +753,20 @@ function bindingToApi(
     }
 
     entrypointsSubscribe() {
-      const subscription = subscribe<TurbopackResult<NapiEntrypoints | {}>>(
-        false,
-        async (callback) =>
-          binding.projectEntrypointsSubscribe(this._nativeProject, callback)
+      const subscription = subscribe<
+        TurbopackResult<NapiEntrypoints | {} | null>
+      >(false, async (callback) =>
+        binding.projectEntrypointsSubscribe(this._nativeProject, callback)
       )
       return (async function* () {
         for await (const entrypoints of subscription) {
-          if ('routes' in (entrypoints as TurbopackResult<NapiEntrypoints>)) {
+          if (entrypoints.value && 'routes' in entrypoints.value) {
             yield napiEntrypointsToRawEntrypoints(
               entrypoints as TurbopackResult<NapiEntrypoints>
             )
           } else {
             yield {
+              value: {},
               issues: entrypoints.issues,
             } as TurbopackResult<{}>
           }
@@ -762,37 +774,33 @@ function bindingToApi(
       })()
     }
 
-    hmrEvents(
-      chunkName: string,
-      target: HmrTarget.Client
-    ): AsyncIterableIterator<TurbopackResult<Update>>
-    hmrEvents(
-      chunkName: string,
-      target: HmrTarget.Server
-    ): AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>>
-    hmrEvents(chunkName: string, target: HmrTarget.Client | HmrTarget.Server) {
+    async getServerHmrUpdate(
+      from: ServerHmrVersion | undefined,
+      entryPaths: string[]
+    ): Promise<TurbopackResult<ServerHmrUpdate>> {
+      // napi cannot express the field correlation.
+      return binding.projectGetServerHmrUpdate(
+        this._nativeProject,
+        from,
+        entryPaths
+      ) as Promise<TurbopackResult<ServerHmrUpdate>>
+    }
+
+    clientHmrEvents(
+      chunkName: string
+    ): AsyncIterableIterator<TurbopackResult<Update>> {
       return subscribe(true, async (callback) =>
-        binding.projectHmrEvents(
-          this._nativeProject,
-          chunkName,
-          target,
-          callback
-        )
+        binding.projectClientHmrEvents(this._nativeProject, chunkName, callback)
       )
     }
 
-    /**
-     * Subscribe to the list of output chunk paths that can receive HMR updates.
-     * Chunk paths are output file paths like "server/chunks/ssr/..._.js" for server
-     * or "_next/static/chunks/app/page.js" for client.
-     */
-    hmrChunkNamesSubscribe(target: HmrTarget) {
+    /** Subscribe to client output chunk paths that can receive HMR updates. */
+    clientHmrChunkNamesSubscribe() {
       return subscribe<TurbopackResult<HmrChunkNames>>(
         false,
         async (callback) =>
-          binding.projectHmrChunkNamesSubscribe(
+          binding.projectClientHmrChunkNamesSubscribe(
             this._nativeProject,
-            target,
             callback
           )
       )
@@ -822,7 +830,7 @@ function bindingToApi(
     }
 
     updateInfoSubscribe(aggregationMs: number) {
-      return subscribe<TurbopackResult<UpdateMessage>>(true, async (callback) =>
+      return subscribe<UpdateMessage>(true, async (callback) =>
         binding.projectUpdateInfoSubscribe(
           this._nativeProject,
           aggregationMs,
@@ -832,16 +840,13 @@ function bindingToApi(
     }
 
     compilationEventsSubscribe(eventTypes?: string[]) {
-      return subscribe<TurbopackResult<CompilationEvent>>(
-        true,
-        async (callback) => {
-          binding.projectCompilationEventsSubscribe(
-            this._nativeProject,
-            callback,
-            eventTypes
-          )
-        }
-      )
+      return subscribe<CompilationEvent>(true, async (callback) => {
+        binding.projectCompilationEventsSubscribe(
+          this._nativeProject,
+          callback,
+          eventTypes
+        )
+      })
     }
 
     invalidateFileSystemCache(): Promise<void> {
@@ -870,8 +875,10 @@ function bindingToApi(
       )) as TurbopackResult<WrittenEndpoint>
     }
 
-    async clientChanged(): Promise<AsyncIterableIterator<TurbopackResult>> {
-      const clientSubscription = subscribe<TurbopackResult>(
+    async clientChanged(): Promise<
+      AsyncIterableIterator<TurbopackResult<void>>
+    > {
+      const clientSubscription = subscribe<TurbopackResult<void>>(
         false,
         async (callback) =>
           binding.endpointClientChangedSubscribe(this._nativeEndpoint, callback)
@@ -882,8 +889,8 @@ function bindingToApi(
 
     async serverChanged(
       includeIssues: boolean
-    ): Promise<AsyncIterableIterator<TurbopackResult>> {
-      const serverSubscription = subscribe<TurbopackResult>(
+    ): Promise<AsyncIterableIterator<TurbopackResult<void>>> {
+      const serverSubscription = subscribe<TurbopackResult<void>>(
         false,
         async (callback) =>
           binding.endpointServerChangedSubscribe(
@@ -899,7 +906,8 @@ function bindingToApi(
 
   async function serializeNextConfig(
     nextConfig: NextConfigComplete,
-    projectPath: string
+    projectPath: string,
+    distDir?: string
   ): Promise<string> {
     // Avoid mutating the existing `nextConfig` object. NOTE: This is only a shallow clone.
     let nextConfigSerializable: Record<string, any> = { ...nextConfig }
@@ -929,7 +937,7 @@ function bindingToApi(
 
     // These are relative paths, but might be backslash-separated on Windows
     nextConfigSerializable.distDir = normalizePathOnWindows(
-      nextConfigSerializable.distDir
+      distDir ?? nextConfigSerializable.distDir
     )
     nextConfigSerializable.distDirRoot = normalizePathOnWindows(
       nextConfigSerializable.distDirRoot
@@ -986,7 +994,7 @@ function bindingToApi(
       const turbopack = { ...nextConfigSerializable.turbopack }
 
       if (turbopack.rules) {
-        turbopack.rules = serializeTurbopackRules(turbopack.rules)
+        turbopack.rules = serializeTurbopackRules(turbopack.rules, projectPath)
       }
 
       // Serialize ignoreIssue rules: convert RegExp to {source, flags}
@@ -1027,21 +1035,23 @@ function bindingToApi(
       nextConfigSerializable.turbopack = turbopack
     }
 
-    // Serialize `experimental.turbopackChunkingHeuristics` route patterns: convert each RegExp to
+    // Serialize `experimental.turbopackChunking` route patterns: convert each RegExp to
     // {source, flags} since RegExp objects are not JSON-serializable.
-    const chunkingHeuristics =
-      nextConfigSerializable.experimental?.turbopackChunkingHeuristics
-    if (chunkingHeuristics) {
+    const chunkingConfig =
+      nextConfigSerializable.experimental?.turbopackChunking
+    if (chunkingConfig) {
       const regexComponents = (regex: RegExp) => ({
         source: regex.source,
         flags: regex.flags,
       })
       nextConfigSerializable.experimental = {
         ...nextConfigSerializable.experimental,
-        turbopackChunkingHeuristics: {
-          ...chunkingHeuristics,
-          priorityRoutes:
-            chunkingHeuristics.priorityRoutes?.map(regexComponents),
+        turbopackChunking: {
+          ...chunkingConfig,
+          clusters: chunkingConfig.clusters?.map((cluster: RegExp[]) =>
+            cluster.map(regexComponents)
+          ),
+          priorityRoutes: chunkingConfig.priorityRoutes?.map(regexComponents),
         },
       }
     }
@@ -1124,7 +1134,8 @@ function bindingToApi(
 
   // Note: Returns an updated `turbopackRules` with serialized conditions. Does not mutate in-place.
   function serializeTurbopackRules(
-    turbopackRules: Record<string, TurbopackRuleConfigCollection>
+    turbopackRules: Record<string, TurbopackRuleConfigCollection>,
+    projectPath: string
   ): Record<string, any> {
     const serializedRules: Record<string, any> = {}
     for (const [glob, rule] of Object.entries(turbopackRules)) {
@@ -1136,8 +1147,7 @@ function bindingToApi(
           ) {
             return serializeConfigItem(item as TurbopackRuleConfigItem, glob)
           } else {
-            checkLoaderItem(item as TurbopackLoaderItem, glob)
-            return item
+            return serializeLoaderItem(item as TurbopackLoaderItem, glob)
           }
         })
       } else {
@@ -1153,8 +1163,9 @@ function bindingToApi(
     ): any {
       if (!rule) return rule
       if (rule.loaders) {
-        for (const item of rule.loaders) {
-          checkLoaderItem(item, glob)
+        rule = {
+          ...rule,
+          loaders: rule.loaders.map((item) => serializeLoaderItem(item, glob)),
         }
       }
       let serializedRule: any = rule
@@ -1167,19 +1178,36 @@ function bindingToApi(
       return serializedRule
     }
 
-    function checkLoaderItem(loaderItem: TurbopackLoaderItem, glob: string) {
-      if (
-        typeof loaderItem !== 'string' &&
-        !(require('util') as typeof import('util')).isDeepStrictEqual(
-          loaderItem,
-          JSON.parse(JSON.stringify(loaderItem))
-        )
-      ) {
-        throw new Error(
-          `loader ${loaderItem.loader} for match "${glob}" does not have serializable options. ` +
-            'Ensure that options passed are plain JavaScript objects and values.'
-        )
+    function serializeLoaderItem(
+      loaderItem: TurbopackLoaderItem,
+      glob: string
+    ): TurbopackLoaderItem {
+      if (typeof loaderItem === 'string') {
+        return serializeLoader(loaderItem)
+      } else {
+        if (
+          !(require('util') as typeof import('util')).isDeepStrictEqual(
+            loaderItem,
+            JSON.parse(JSON.stringify(loaderItem))
+          )
+        ) {
+          throw new Error(
+            `loader ${loaderItem.loader} for match "${glob}" does not have serializable options. ` +
+              'Ensure that options passed are plain JavaScript objects and values.'
+          )
+        }
+        return {
+          ...loaderItem,
+          loader: serializeLoader(loaderItem.loader),
+        }
       }
+    }
+
+    // Webpack loader specifiers can be absolute paths, we need it to be relative for turbopack.
+    function serializeLoader(loader: string) {
+      return path.isAbsolute(loader)
+        ? normalizePathOnWindows('./' + path.relative(projectPath, loader))
+        : loader
     }
   }
 
@@ -1187,7 +1215,7 @@ function bindingToApi(
     entrypoints: TurbopackResult<NapiEntrypoints>
   ): TurbopackResult<RawEntrypoints> {
     const routes = new Map()
-    for (const { pathname, ...nativeRoute } of entrypoints.routes) {
+    for (const { pathname, ...nativeRoute } of entrypoints.value.routes) {
       let route: Route
       const routeType = nativeRoute.type
       switch (routeType) {
@@ -1210,7 +1238,7 @@ function bindingToApi(
             pages: nativeRoute.pages.map((page) => ({
               originalName: page.originalName,
               htmlEndpoint: new EndpointImpl(page.htmlEndpoint),
-              rscEndpoint: new EndpointImpl(page.rscEndpoint),
+              rscHmrEndpoint: new EndpointImpl(page.rscHmrEndpoint),
             })),
           }
           break
@@ -1218,6 +1246,7 @@ function bindingToApi(
           route = {
             type: 'app-route',
             originalName: nativeRoute.originalName,
+            hasActionManifest: nativeRoute.hasActionManifest,
             endpoint: new EndpointImpl(nativeRoute.endpoint),
           }
           break
@@ -1240,8 +1269,8 @@ function bindingToApi(
       endpoint: new EndpointImpl(middleware.endpoint),
       isProxy: middleware.isProxy,
     })
-    const middleware = entrypoints.middleware
-      ? napiMiddlewareToMiddleware(entrypoints.middleware)
+    const middleware = entrypoints.value.middleware
+      ? napiMiddlewareToMiddleware(entrypoints.value.middleware)
       : undefined
     const napiInstrumentationToInstrumentation = (
       instrumentation: NapiInstrumentation
@@ -1249,19 +1278,23 @@ function bindingToApi(
       nodeJs: new EndpointImpl(instrumentation.nodeJs),
       edge: new EndpointImpl(instrumentation.edge),
     })
-    const instrumentation = entrypoints.instrumentation
-      ? napiInstrumentationToInstrumentation(entrypoints.instrumentation)
+    const instrumentation = entrypoints.value.instrumentation
+      ? napiInstrumentationToInstrumentation(entrypoints.value.instrumentation)
       : undefined
 
     return {
-      routes,
-      middleware,
-      instrumentation,
-      pagesDocumentEndpoint: new EndpointImpl(
-        entrypoints.pagesDocumentEndpoint
-      ),
-      pagesAppEndpoint: new EndpointImpl(entrypoints.pagesAppEndpoint),
-      pagesErrorEndpoint: new EndpointImpl(entrypoints.pagesErrorEndpoint),
+      value: {
+        routes,
+        middleware,
+        instrumentation,
+        pagesDocumentEndpoint: new EndpointImpl(
+          entrypoints.value.pagesDocumentEndpoint
+        ),
+        pagesAppEndpoint: new EndpointImpl(entrypoints.value.pagesAppEndpoint),
+        pagesErrorEndpoint: new EndpointImpl(
+          entrypoints.value.pagesErrorEndpoint
+        ),
+      },
       issues: entrypoints.issues,
     }
   }
@@ -1271,18 +1304,23 @@ function bindingToApi(
     turboEngineOptions,
     callbacks?: import('./types').TurbopackProjectCallbacks
   ) {
-    return new ProjectImpl(
-      await binding.projectNew(
-        await rustifyProjectOptions(options),
-        turboEngineOptions,
-        {
-          throwTurbopackInternalError: (
-            require('../../shared/lib/turbopack/internal-error') as typeof import('../../shared/lib/turbopack/internal-error')
-          ).throwTurbopackInternalError,
-          onBeforeDeferredEntries: callbacks?.onBeforeDeferredEntries,
-        }
-      )
+    const { value, issues } = await binding.projectNew(
+      await rustifyProjectOptions(options),
+      turboEngineOptions,
+      {
+        throwTurbopackInternalError: (
+          require('../../shared/lib/turbopack/internal-error') as typeof import('../../shared/lib/turbopack/internal-error')
+        ).throwTurbopackInternalError,
+        onBeforeDeferredEntries: callbacks?.onBeforeDeferredEntries,
+      }
     )
+    return {
+      value: new ProjectImpl(
+        value.project,
+        path.join(options.rootPath, options.projectPath)
+      ),
+      issues,
+    }
   }
 }
 
@@ -1406,12 +1444,15 @@ async function loadWasm(importPath = '') {
     getTargetTriple() {
       return undefined
     },
+    turbopackCacheVersion() {
+      return undefined
+    },
     turbo: {
       createProject(
         _options: ProjectOptions,
         _turboEngineOptions: TurboEngineOptions,
         _callbacks?: import('./types').TurbopackProjectCallbacks | undefined
-      ): Promise<Project> {
+      ): Promise<TurbopackResult<Project>> {
         throw new Error(
           `Turbopack is not supported on this platform (${PlatformName}/${ArchName}) because native bindings are not available. ` +
             `Only WebAssembly (WASM) bindings were loaded, and Turbopack requires native bindings. ` +
@@ -1665,6 +1706,7 @@ function loadNative(importPath?: string): Binding {
       },
 
       getTargetTriple: bindings.getTargetTriple,
+      turbopackCacheVersion: bindings.turbopackCacheVersion,
       initCustomTraceSubscriber: bindings.initCustomTraceSubscriber,
       teardownTraceSubscriber: bindings.teardownTraceSubscriber,
       turbo: {
@@ -1823,6 +1865,10 @@ export function getBinaryMetadata() {
   return {
     target: loadedBindings?.getTargetTriple?.(),
   }
+}
+
+export function getTurbopackCacheVersion(): string | undefined {
+  return loadedBindings?.turbopackCacheVersion?.(nextVersion)
 }
 
 /**

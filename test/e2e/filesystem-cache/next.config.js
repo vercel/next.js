@@ -10,7 +10,7 @@ const nextConfig = {
       './app/**/page.{jsx,tsx}': {
         loaders: ['./my-timestamp-loader.js'],
       },
-      './app/loader/page.tsx': {
+      './app/loader/**/page.tsx': {
         loaders: ['./my-loader.js'],
       },
       './pages/pages.tsx': {
@@ -21,7 +21,7 @@ const nextConfig = {
   experimental: {
     turbopackFileSystemCacheForBuild: enableCaching,
     turbopackFileSystemCacheForDev: enableCaching,
-    turbopackMemoryEviction: enableEviction ? false : 'off',
+    turbopackMemoryEviction: enableEviction ? 'full' : false,
   },
   env: {
     NEXT_PUBLIC_CONFIG_ENV: 'hello world',

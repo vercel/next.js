@@ -2,15 +2,10 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 describe('proxy-with-middleware', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     skipStart: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should error when both middleware and proxy files are detected', async () => {
     const message =
@@ -22,8 +17,9 @@ describe('proxy-with-middleware', () => {
         expect(next.cliOutput).toContain(message)
       })
     } else {
-      const { cliOutput } = await next.build()
+      await expect(next.start()).rejects.toThrow()
+      const cliOutput = next.cliOutput
       expect(cliOutput).toContain(message)
     }
-  })
+  }, 240_000)
 })

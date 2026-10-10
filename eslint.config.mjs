@@ -50,6 +50,8 @@ export default defineConfig([
         ...globals.commonjs,
         ...globals.node,
         ...globals.jest,
+        __turbopack_emit__: true,
+        __turbopack_collect__: true,
       },
       parser: babelParser,
       ecmaVersion: 2020,
@@ -408,6 +410,13 @@ export default defineConfig([
       // tsconfig, not repo code — EVAL.ts files may import modules that only
       // resolve inside the sandbox (e.g. @vercel/agent-eval/eval).
       'evals/evals/**/*',
+      'evals/next-upgrade/cases/**/*',
+      'evals/next-upgrade/results/**/*',
+      'evals/next-upgrade/shared/**/*',
+      'evals/next-upgrade/verifier/upgrade.ts',
+      'evals/next-upgrade/verifier/nudge.ts',
+      'evals/next-upgrade/verifier/judge/**/*',
+      'evals/next-upgrade/apps/member-dashboard/behavior.spec.ts',
       'examples/**/*',
       'test/**/*',
       '**/*.d.ts',

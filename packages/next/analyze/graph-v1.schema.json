@@ -1,0 +1,293 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:nextjs:analyze:analyzer-graph:v1",
+  "title": "Next.js analyzer graph v1 record",
+  "description": "The analyzer graph represents static dependency information from a Next.js application. The graph is produced as a set of newline-delimited JSON objects described in this schema.",
+  "oneOf": [
+    { "$ref": "#/$defs/meta" },
+    { "$ref": "#/$defs/module" },
+    { "$ref": "#/$defs/route" },
+    { "$ref": "#/$defs/output" },
+    { "$ref": "#/$defs/part" },
+    { "$ref": "#/$defs/group" }
+  ],
+  "$defs": {
+    "index": { "type": "integer", "minimum": 0 },
+    "size": {
+      "$ref": "#/$defs/index",
+      "description": "Attributed bytes, not measured transfer or predicted savings."
+    },
+    "identity": {
+      "type": "string",
+      "description": "Exact module ident; variants can share a source path."
+    },
+    "identities": { "type": "array", "items": { "$ref": "#/$defs/identity" } },
+    "meta": {
+      "type": "object",
+      "required": [
+        "type",
+        "schema_version",
+        "snapshot_name",
+        "module_index_hash",
+        "route_count",
+        "selected_routes"
+      ],
+      "properties": {
+        "type": { "const": "meta" },
+        "schema_version": {
+          "const": 1,
+          "description": "Version of each emitted record."
+        },
+        "snapshot_name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Generated or provided snapshot name. Reusing an explicit name replaces its earlier capture."
+        },
+        "module_index_hash": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Fingerprint of the ordered, snapshot-scoped modules.data indices; not proof of identical graphs or builds."
+        },
+        "route_count": {
+          "$ref": "#/$defs/index",
+          "description": "Total routes in this snapshot."
+        },
+        "selected_routes": {
+          "$ref": "#/$defs/index",
+          "description": "Number of routes selected by the optional route filter; the total number of routes if no filter is set."
+        }
+      },
+      "additionalProperties": true,
+      "description": "Snapshot metadata, expected first in a complete stream."
+    },
+    "module": {
+      "type": "object",
+      "required": ["type", "ident", "path", "dependencies"],
+      "properties": {
+        "type": { "const": "module" },
+        "ident": {
+          "$ref": "#/$defs/identity",
+          "description": "Identity for this module."
+        },
+        "path": {
+          "type": "string",
+          "description": "Source path; may match multiple modules. Use `ident` as a key for this module."
+        },
+        "dependencies": {
+          "type": "object",
+          "required": ["sync", "async", "traced"],
+          "properties": {
+            "sync": {
+              "$ref": "#/$defs/identities",
+              "description": "Synchronous imports from this module."
+            },
+            "async": {
+              "$ref": "#/$defs/identities",
+              "description": "Asynchronous imports from this module."
+            },
+            "traced": {
+              "$ref": "#/$defs/identities",
+              "description": "Non-bundled file-tracing dependencies, not browser imports."
+            }
+          },
+          "additionalProperties": true,
+          "description": "Modules this module depends on, along with the type of dependency. The import graph may contain cycles."
+        }
+      },
+      "additionalProperties": true,
+      "description": "Whole-app module graph, including when --route filters route-local records."
+    },
+    "clientReference": {
+      "type": "object",
+      "required": ["module_ident", "module_path", "reference_kind"],
+      "properties": {
+        "module_ident": {
+          "$ref": "#/$defs/identity",
+          "description": "Exact nested client module ident; join to the module graph's ident, not module_path."
+        },
+        "module_path": {
+          "type": "string",
+          "description": "Client reference path, not a unique module key."
+        },
+        "reference_kind": {
+          "enum": ["ecmascript", "css"],
+          "description": "Client reference category; not an endpoint root or observed request."
+        }
+      },
+      "additionalProperties": true
+    },
+    "entry": {
+      "type": "object",
+      "required": ["route_entry_id", "module_ident", "module_path", "role"],
+      "properties": {
+        "route_entry_id": {
+          "type": "string",
+          "description": "Snapshot-scoped endpoint root ID, distinguishing endpoint variants on one route."
+        },
+        "module_ident": {
+          "$ref": "#/$defs/identity",
+          "description": "Exact root module ident; variants can share a module_path."
+        },
+        "module_path": {
+          "type": "string",
+          "description": "Source path associated with this endpoint root; not a unique module identity."
+        },
+        "role": {
+          "enum": ["route", "shared"],
+          "description": "Endpoint build role, not a browser-load classification."
+        },
+        "entry_kind": {
+          "enum": ["server", "client_bootstrap"],
+          "description": "Server or client bootstrap when known; omitted for unknown roles."
+        },
+        "client_references": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/clientReference" },
+          "description": "Nested client references, not additional roots or proof of an initial request. Join by module_ident."
+        }
+      },
+      "additionalProperties": true
+    },
+    "route": {
+      "type": "object",
+      "required": ["type", "route", "entries", "coverage"],
+      "properties": {
+        "type": { "const": "route", "description": "Defines a route record." },
+        "route": {
+          "type": "string",
+          "description": "The unique normalized route key from routes.json."
+        },
+        "entries": {
+          "description": "Endpoint roots; shared Pages roots on an API artifact do not establish browser work for that API. Null means unavailable evidence.",
+          "oneOf": [
+            { "type": "null" },
+            { "type": "array", "items": { "$ref": "#/$defs/entry" } }
+          ]
+        },
+        "coverage": {
+          "type": "object",
+          "required": ["entries", "groups"],
+          "properties": {
+            "entries": {
+              "enum": ["exact", "unknown"],
+              "description": "The producer supplied typed endpoint roots for this route when exact. This is not a statement about browser requests or timing."
+            },
+            "groups": {
+              "enum": ["exact", "unknown"],
+              "description": "Whether typed build-time groups were supplied; even exact group metadata does not identify observed initial requests."
+            }
+          },
+          "additionalProperties": true,
+          "description": "Completeness of separate build-time route evidence; unknown is not empty."
+        }
+      },
+      "additionalProperties": true,
+      "description": "One route; route-local records join by this path."
+    },
+    "output": {
+      "type": "object",
+      "required": [
+        "type",
+        "route",
+        "filename",
+        "modules",
+        "async_loaders",
+        "coverage"
+      ],
+      "properties": {
+        "type": { "const": "output" },
+        "route": { "type": "string", "description": "Owning route path." },
+        "filename": {
+          "type": "string",
+          "description": "Snapshot-scoped emitted path, not stable across builds or proof of a browser request."
+        },
+        "modules": {
+          "$ref": "#/$defs/identities",
+          "description": "Sorted identities of the output chunk's real members, joined to this snapshot's module index. Async loader stubs and their targets are represented separately in async_loaders. Unsupported coverage may have partial membership."
+        },
+        "async_loaders": {
+          "$ref": "#/$defs/identities",
+          "description": "Sorted target module identities of typed async loader stubs contained in this chunk. Each target is recorded only after joining the snapshot module index through the loader's inner module."
+        },
+        "coverage": {
+          "description": "Membership evidence: exact enumerates and joins every real chunk member and async loader target; unsupported means the output type cannot enumerate its members; not_a_chunk identifies non-chunk outputs, including runtime, precompiled polyfill and separately compiled worker outputs by concrete type. Attribution part records remain available.",
+          "enum": ["exact", "unsupported", "not_a_chunk"]
+        }
+      },
+      "additionalProperties": true,
+      "description": "Emitted file. Verify [client-fs]/ client-output provenance before treating it as browser work. Membership and size attribution are separate."
+    },
+    "part": {
+      "type": "object",
+      "required": [
+        "type",
+        "route",
+        "filename",
+        "source_path",
+        "size",
+        "compressed_size"
+      ],
+      "properties": {
+        "type": { "const": "part" },
+        "route": { "type": "string", "description": "Owning route path." },
+        "filename": {
+          "type": "string",
+          "description": "Attributed output file."
+        },
+        "source_path": {
+          "type": "string",
+          "description": "Reconstructed source path, not a unique module ident."
+        },
+        "size": { "$ref": "#/$defs/size" },
+        "compressed_size": {
+          "$ref": "#/$defs/size",
+          "description": "Attributed compressed bytes, not observed network transfer."
+        }
+      },
+      "additionalProperties": true,
+      "description": "Source attribution within an emitted output."
+    },
+    "group": {
+      "type": "object",
+      "required": [
+        "type",
+        "route",
+        "id",
+        "kind",
+        "trigger_module_ident",
+        "trigger_join",
+        "outputs"
+      ],
+      "properties": {
+        "type": {
+          "const": "group",
+          "description": "Identifies a build-time output group for a route occurrence."
+        },
+        "route": { "type": "string", "description": "Owning route key." },
+        "id": {
+          "$ref": "#/$defs/index",
+          "description": "Identifier scoped to this route occurrence's group list."
+        },
+        "kind": {
+          "type": "string",
+          "description": "Build-time group kind: bootstrap denotes a direct client build group, not every cold-navigation request; render_dependent can be needed at first render or later; async and worker roles depend on when their trigger executes."
+        },
+        "trigger_module_ident": {
+          "type": ["string", "null"],
+          "description": "Exact trigger identity, or null when absent. For async groups, this is the joined dynamically imported target module's ident. Outputs in the same route whose async_loaders contain this trigger can load the group outputs. For worker groups, this is the joined registering module or its emitted synchronous ancestor. Outputs whose modules contain this trigger can load the worker group outputs. Other kinds retain their bootstrap or render-dependent trigger semantics."
+        },
+        "trigger_join": {
+          "enum": ["joined", "none"],
+          "description": "Whether the group has an indexed trigger or no trigger."
+        },
+        "outputs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Direct emitted output filenames in this build-time group, possibly overlapping other groups. Neither file list nor order proves a browser request sequence."
+        }
+      },
+      "additionalProperties": true,
+      "description": "Build-time output grouping for a route occurrence; a file can belong to several groups and layout groups may be cumulative. Not the exact contribution or request set of one client reference."
+    }
+  }
+}

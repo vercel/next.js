@@ -1,19 +1,16 @@
 /* eslint-env jest */
-import { isNextDev, nextTestSetup } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import * as Log from './utils/log'
 import { setTimeout } from 'timers/promises'
 
-// This test relies on next.build() so it can't work in dev mode.
-const _describe = isNextDev ? describe.skip : describe
-
-_describe('after() in static pages', () => {
-  const { next, skipped } = nextTestSetup({
+// This suite relies on next.build() and local CLI logs.
+// @force-gate !dev
+// @force-gate !deploy
+describe('after() in static pages', () => {
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true, // reading CLI logs to observe after
     skipStart: true,
   })
-
-  if (skipped) return
 
   let currentCliOutputIndex = 0
   beforeEach(() => {

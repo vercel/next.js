@@ -23,7 +23,7 @@ pub enum ModuleSideEffects {
     /// configuration.
     ///
     /// ```js
-    /// "use turbopack no side effects"
+    /// "use turbopack: no side effects"
     /// ```
     ///
     /// This module might not even be parsed (and thus chunked) if no other module depends on any of

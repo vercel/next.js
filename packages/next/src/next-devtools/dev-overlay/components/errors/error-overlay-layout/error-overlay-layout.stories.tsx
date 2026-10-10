@@ -21,7 +21,6 @@ export const Default: Story = {
     },
     errorType: 'Build Error',
     errorMessage: 'Failed to compile',
-    errorCode: 'E001',
     versionInfo: {
       installed: '15.0.0',
       staleness: 'fresh',
@@ -38,12 +37,5 @@ export const Turbopack: Story = {
   args: {
     ...Default.args,
     isTurbopack: true,
-  },
-}
-
-export const NoErrorCode: Story = {
-  args: {
-    ...Default.args,
-    errorCode: undefined,
   },
 }

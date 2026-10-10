@@ -79,7 +79,8 @@ export const flightRouterStateSchema: s.Describe<any> = s.tuple([
       ])
     )
   ),
-  s.optional(s.number()),
+  s.optional(s.nullable(s.number())),
+  s.optional(s.string()),
 ])
 
 export type ServerOnInstrumentationRequestError = (
@@ -128,7 +129,11 @@ export interface RenderOptsPartial {
   ) => void
   isBuildTimePrerendering?: boolean
   nextConfigOutput?: 'standalone' | 'export'
-  onInstrumentationRequestError?: ServerOnInstrumentationRequestError
+  onInstrumentationRequestError?: (
+    error: unknown,
+    errorContext: Parameters<InstrumentationOnRequestError>[2],
+    silenceLog: boolean
+  ) => void | Promise<void>
   isDraftMode?: boolean
   onUpdateCookies?: (cookies: string[]) => void
   loadConfig?: (
@@ -145,7 +150,6 @@ export interface RenderOptsPartial {
   logServerFunctions?: boolean
   params?: ParsedUrlQuery
   isPrefetch?: boolean
-  htmlLimitedBots: string | undefined
   experimental: {
     /**
      * When true, it indicates that the current page supports partial
@@ -164,19 +168,26 @@ export interface RenderOptsPartial {
     clientParamParsingOrigins: string[] | undefined
     dynamicOnHover: boolean
     optimisticRouting: boolean
+    parallelRouteMetadata: boolean
     inlineCss: boolean
     prefetchInlining: PrefetchInliningConfig
     authInterrupts: boolean
+    reactBrowserBailout: boolean
     serverComponentsHmrCancellation?: boolean
     useCacheTimeout: number
-    cachedNavigations: boolean | 'allow-runtime'
-    appShells: ExperimentalConfig['appShells']
+    durableUseCacheEntries: boolean
+    cachedNavigations: boolean
 
     /**
      * The maximum size (in bytes) of the postponed state body for PPR resume
      * requests. Used to calculate decompression limits (5x this value).
      */
     maxPostponedStateSizeBytes: number | undefined
+
+    /**
+     * Whether the Resume Data Cache should be persisted without compression.
+     */
+    disableResumeDataCacheCompression: boolean
 
     /**
      * Whether the Instant Navigation Testing API is exposed (dev mode or the
@@ -187,12 +198,6 @@ export interface RenderOptsPartial {
     exposeTestingApi: boolean
   }
   postponed?: string
-
-  /**
-   * Should wait for react stream allReady to resolve all suspense boundaries,
-   * in order to perform a full page render.
-   */
-  shouldWaitOnAllReady?: boolean
 
   /**
    * A prefilled resume data cache. This was either generated for this page
@@ -221,7 +226,8 @@ export interface RenderOptsPartial {
    */
   prefetchHints?: Record<string, PrefetchHints>
 
-  isStaticGeneration?: boolean
+  /** Parameters whose novel values are rejected by routing. */
+  notFoundParams?: readonly string[]
 
   /**
    * When true, the page is prerendered as a fallback shell, while allowing any

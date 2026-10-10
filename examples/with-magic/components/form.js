@@ -28,7 +28,6 @@ const Form = ({ errorMessage, onSubmit }) => (
       }
       .submit {
         display: flex;
-        justify-content: flex-end;
         align-items: center;
         justify-content: space-between;
       }

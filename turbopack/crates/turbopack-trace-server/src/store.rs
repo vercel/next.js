@@ -24,20 +24,21 @@ pub type SpanId = NonZeroUsize;
 /// at the cut-off depth (Flattening).
 const CUT_OFF_DEPTH: u32 = 80;
 
-/// A single memory usage sample: (timestamp, memory_bytes, memory_pressure).
-/// Sorted by timestamp. `memory_pressure` is an OS-reported pressure value in
-/// the range `0..=100`; `0` is used when the reporter platform did not expose
-/// a pressure signal.
-type MemorySample = (Timestamp, u64, u8);
+/// A single process sample: (timestamp, memory_bytes, memory_pressure,
+/// active_worker_threads). Sorted by timestamp. `memory_pressure` is an
+/// OS-reported value in `0..=100`; `0` is used if unavailable.
+type MemorySample = (Timestamp, u64, u8, u64);
 
 /// Maximum number of memory samples returned in a query result.
 const MAX_MEMORY_SAMPLES: usize = 200;
+/// Maximum number of equal-duration concurrency segments in a span query.
+const MAX_CONCURRENCY_SAMPLES: usize = 200;
 
 pub struct Store {
     pub(crate) spans: ChunkedVec<Span>,
     pub(crate) self_time_tree: Option<SelfTimeTree<SpanIndex>>,
     max_self_time_lookup_time: AtomicU64,
-    /// Global sorted list of memory samples (timestamp, memory_bytes).
+    /// Global sorted list of process memory and worker samples.
     memory_samples: Vec<MemorySample>,
 }
 
@@ -112,7 +113,11 @@ impl Store {
         outdated_spans: &mut FxHashSet<SpanIndex>,
     ) -> SpanIndex {
         let id = SpanIndex::new(self.spans.len()).unwrap();
-        let ignore_self_time = &name == "thread" || &name == "blocking";
+        let ignore_self_time = &name == "thread"
+            || &name == "blocking"
+            || args
+                .iter()
+                .any(|(key, value)| key.as_str() == "blocking" && value.as_str() == "true");
         self.spans.push(Span {
             parent,
             depth: 0,
@@ -215,12 +220,14 @@ impl Store {
         let event = SpanEvent::self_time(start, end);
         let span = &mut self.spans[span_index.get()];
         let time_data = &mut span.time_data;
+        // Waiting intervals still extend the elapsed range, but contribute no
+        // work and must not affect other intervals' concurrency correction.
+        outdated_spans.insert(span_index);
+        time_data.self_end = max(time_data.self_end, end);
         if time_data.ignore_self_time {
             return;
         }
-        outdated_spans.insert(span_index);
         time_data.self_time += end - start;
-        time_data.self_end = max(time_data.self_end, end);
         if let Some(event) = event {
             span.events.push(event);
             self.insert_self_time(start, end, span_index, outdated_spans);
@@ -234,6 +241,13 @@ impl Store {
         total_time: Timestamp,
         outdated_spans: &mut FxHashSet<SpanIndex>,
     ) {
+        if self.spans[span_index.get()].time_data.ignore_self_time {
+            let span = &mut self.spans[span_index.get()];
+            span.start = start_time;
+            span.time_data.self_end = start_time + total_time;
+            outdated_spans.insert(span_index);
+            return;
+        }
         let span = SpanRef {
             span: &self.spans[span_index.get()],
             store: self,
@@ -341,11 +355,18 @@ impl Store {
         span.self_deallocation_count += count;
     }
 
-    pub fn add_memory_sample(&mut self, ts: Timestamp, memory: u64, memory_pressure: u8) {
+    pub fn add_memory_sample(
+        &mut self,
+        ts: Timestamp,
+        memory: u64,
+        memory_pressure: u8,
+        active_worker_threads: u64,
+    ) {
         // Samples arrive nearly sorted (roughly chronological from the trace
         // writer), so an insertion-sort step is efficient: push to the end
         // then swap backward until the timestamp ordering is restored.
-        self.memory_samples.push((ts, memory, memory_pressure));
+        self.memory_samples
+            .push((ts, memory, memory_pressure, active_worker_threads));
         let mut i = self.memory_samples.len() - 1;
         while i > 0 && self.memory_samples[i - 1].0 > ts {
             self.memory_samples.swap(i, i - 1);
@@ -359,16 +380,16 @@ impl Store {
     pub fn memory_samples_for_range(&self, start: Timestamp, end: Timestamp) -> Vec<u64> {
         self.memory_samples_for_range_with_ts(start, end)
             .into_iter()
-            .map(|(_, mem, _)| mem)
+            .map(|(_, mem, _, _)| mem)
             .collect()
     }
 
     /// Like `memory_samples_for_range` but keeps the timestamps and the
-    /// memory-pressure byte. Timestamps are absolute store timestamps (same
-    /// reference frame as span start/end). When the raw slice exceeds
-    /// `MAX_MEMORY_SAMPLES`, each merged group is represented by the sample
-    /// whose memory value was the group's max (its timestamp and pressure
-    /// byte are kept alongside it).
+    /// memory-pressure byte and active worker count. Timestamps are absolute
+    /// store timestamps (same reference frame as span start/end). When the raw
+    /// slice exceeds `MAX_MEMORY_SAMPLES`, each merged group is represented by
+    /// the sample whose memory value was the group's max (its timestamp,
+    /// pressure, and worker count are kept alongside it).
     pub fn memory_samples_for_range_with_ts(
         &self,
         start: Timestamp,
@@ -389,7 +410,20 @@ impl Store {
         let n = count.div_ceil(MAX_MEMORY_SAMPLES);
         slice
             .chunks(n)
-            .map(|chunk| *chunk.iter().max_by_key(|(_, mem, _)| *mem).unwrap())
+            .map(|chunk| *chunk.iter().max_by_key(|(_, mem, _, _)| *mem).unwrap())
+            .collect()
+    }
+
+    /// Returns worker counts from the same max-memory samples selected by
+    /// [`Self::memory_samples_for_range`], in the same order.
+    pub fn active_worker_threads_samples_for_range(
+        &self,
+        start: Timestamp,
+        end: Timestamp,
+    ) -> Vec<u64> {
+        self.memory_samples_for_range_with_ts(start, end)
+            .into_iter()
+            .map(|(_, _, _, workers)| workers)
             .collect()
     }
 
@@ -406,23 +440,34 @@ impl Store {
         }
 
         if count <= MAX_MEMORY_SAMPLES {
-            return slice.iter().map(|(_, _, p)| *p).collect();
+            return slice.iter().map(|(_, _, p, _)| *p).collect();
         }
 
         let n = count.div_ceil(MAX_MEMORY_SAMPLES);
         slice
             .chunks(n)
-            .map(|chunk| chunk.iter().map(|(_, _, p)| *p).max().unwrap())
+            .map(|chunk| chunk.iter().map(|(_, _, p, _)| *p).max().unwrap())
             .collect()
+    }
+
+    /// Average global self-time concurrency across equal-duration segments
+    /// of `[start, end)`. When corrected-time indexing is disabled, there is
+    /// no tree to query and the series is omitted.
+    pub fn concurrency_samples_for_range(&self, start: Timestamp, end: Timestamp) -> Vec<f64> {
+        self.self_time_tree.as_ref().map_or_else(Vec::new, |tree| {
+            tree.lookup_range_concurrency_samples(start, end, MAX_CONCURRENCY_SAMPLES)
+        })
     }
 
     fn memory_samples_slice(&self, start: Timestamp, end: Timestamp) -> &[MemorySample] {
         // Binary search for the first sample >= start
         let lo = self
             .memory_samples
-            .partition_point(|(ts, _, _)| *ts < start);
+            .partition_point(|(ts, _, _, _)| *ts < start);
         // Binary search for the first sample > end
-        let hi = self.memory_samples.partition_point(|(ts, _, _)| *ts <= end);
+        let hi = self
+            .memory_samples
+            .partition_point(|(ts, _, _, _)| *ts <= end);
         &self.memory_samples[lo..hi]
     }
 
@@ -437,11 +482,10 @@ impl Store {
             span.time_data.total_time.take();
             span.time_data.corrected_self_time.take();
             span.time_data.corrected_total_time.take();
-            for event in span.events.iter_mut_unordered() {
-                if let SpanEvent::SelfTime(self_time) = event {
-                    self_time.corrected_self_time.take();
-                }
-            }
+            // Invalidates the cached corrected self time of all self-time events of this span
+            // in O(1). Iterating the events here made loading quadratic for spans with many
+            // events, as this runs for every batch read from the trace file.
+            span.time_data.self_time_events_generation += 1;
             span.totals.take();
             span.extra.take();
         }
@@ -496,5 +540,281 @@ impl Store {
                 is_graph,
             )
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::thread;
+
+    use super::*;
+    use crate::span_ref::SpanEventRef;
+
+    #[test]
+    fn blocking_total_time_preserves_ranges_and_counted_children() {
+        let mut store = Store::new();
+        let mut outdated = FxHashSet::default();
+        let parent = store.add_span(
+            None,
+            Timestamp::from_micros(5),
+            rcstr!("test"),
+            rcstr!("waiting"),
+            vec![(rcstr!("blocking"), rcstr!("true"))].into(),
+            &mut outdated,
+        );
+        let child = store.add_span(
+            Some(parent),
+            Timestamp::from_micros(10),
+            rcstr!("test"),
+            rcstr!("external work"),
+            SpanArgs::new(),
+            &mut outdated,
+        );
+        store.set_total_time(
+            child,
+            Timestamp::from_micros(10),
+            Timestamp::from_micros(10),
+            &mut outdated,
+        );
+        store.set_total_time(
+            parent,
+            Timestamp::from_micros(5),
+            Timestamp::from_micros(25),
+            &mut outdated,
+        );
+        store.invalidate_outdated_spans(&outdated);
+        let parent = store.root_spans().next().unwrap();
+        assert_eq!(parent.start(), Timestamp::from_micros(5));
+        assert_eq!(parent.end(), Timestamp::from_micros(30));
+        assert_eq!(parent.self_time(), Timestamp::ZERO);
+        assert_eq!(parent.total_time(), Timestamp::from_micros(10));
+        assert_eq!(parent.corrected_total_time(), Timestamp::from_micros(10));
+        assert_eq!(
+            store.concurrency_samples_for_range(
+                Timestamp::from_micros(5),
+                Timestamp::from_micros(10)
+            ),
+            vec![0.0; 200]
+        );
+    }
+
+    #[test]
+    fn concurrency_samples_are_empty_without_a_self_time_tree() {
+        let mut store = Store::new();
+        store.self_time_tree = None;
+        assert!(
+            store
+                .concurrency_samples_for_range(Timestamp::ZERO, Timestamp::from_value(100))
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn downsampling_keeps_worker_count_from_max_memory_sample() {
+        let mut store = Store::new();
+        for i in 0..=MAX_MEMORY_SAMPLES {
+            store.add_memory_sample(Timestamp::from_micros(i as u64), i as u64, 3, 1);
+        }
+        store.add_memory_sample(Timestamp::from_micros(201), 5000, 9, 4);
+        let samples = store.memory_samples_for_range_with_ts(
+            Timestamp::from_micros(0),
+            Timestamp::from_micros(201),
+        );
+        assert!(samples.len() <= MAX_MEMORY_SAMPLES);
+        assert!(samples.iter().any(|(_, mem, pressure, workers)| {
+            *mem == 5000 && *pressure == 9 && *workers == 4
+        }));
+
+        let start = Timestamp::from_micros(0);
+        let end = Timestamp::from_micros(201);
+        let memory = store.memory_samples_for_range(start, end);
+        let workers = store.active_worker_threads_samples_for_range(start, end);
+        assert_eq!(workers.len(), memory.len());
+        assert_eq!(
+            workers,
+            samples.iter().map(|sample| sample.3).collect::<Vec<_>>()
+        );
+        assert_eq!(
+            memory
+                .iter()
+                .position(|&value| value == 5000)
+                .map(|i| workers[i]),
+            Some(4)
+        );
+        assert!(
+            store
+                .active_worker_threads_samples_for_range(Timestamp::from_micros(202), end)
+                .is_empty()
+        );
+    }
+
+    fn ts(micros: u64) -> Timestamp {
+        Timestamp::from_micros(micros)
+    }
+
+    fn add_span(store: &mut Store, parent: Option<SpanIndex>, start: u64) -> SpanIndex {
+        store.add_span(
+            parent,
+            ts(start),
+            RcStr::default(),
+            RcStr::from("span"),
+            SpanArgs::new(),
+            &mut FxHashSet::default(),
+        )
+    }
+
+    /// Adds a self time and drops the resulting outdated spans, so tests control exactly
+    /// which spans get invalidated.
+    fn add_self_time_without_invalidation(
+        store: &mut Store,
+        span: SpanIndex,
+        start: u64,
+        end: u64,
+    ) {
+        store.add_self_time(span, ts(start), ts(end), &mut FxHashSet::default());
+    }
+
+    fn invalidate(store: &mut Store, spans: &[SpanIndex]) {
+        store.invalidate_outdated_spans(&spans.iter().copied().collect());
+    }
+
+    /// Corrected self times of the self-time events of `span`.
+    fn event_corrected_self_times(store: &Store, span: SpanIndex) -> Vec<Timestamp> {
+        corrected_self_times_of(SpanRef {
+            span: &store.spans[span.get()],
+            store,
+            index: span.get(),
+        })
+    }
+
+    fn corrected_self_times_of(span: SpanRef<'_>) -> Vec<Timestamp> {
+        span.events()
+            .filter_map(|event| match event {
+                SpanEventRef::SelfTime { self_time } => Some(self_time.corrected_self_time()),
+                SpanEventRef::Child { .. } => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn corrected_self_time_cached_until_invalidated() {
+        let mut store = Store::new();
+        let a = add_span(&mut store, None, 0);
+        add_self_time_without_invalidation(&mut store, a, 0, 10);
+        invalidate(&mut store, &[a]);
+        assert_eq!(event_corrected_self_times(&store, a), vec![ts(10)]);
+
+        // A concurrent self time halves the corrected self time of `a`...
+        let b = add_span(&mut store, None, 0);
+        add_self_time_without_invalidation(&mut store, b, 0, 10);
+        invalidate(&mut store, &[b]);
+        assert_eq!(event_corrected_self_times(&store, b), vec![ts(5)]);
+        // ...but `a` was not invalidated, so its cached value is still used.
+        assert_eq!(event_corrected_self_times(&store, a), vec![ts(10)]);
+
+        invalidate(&mut store, &[a]);
+        assert_eq!(event_corrected_self_times(&store, a), vec![ts(5)]);
+    }
+
+    #[test]
+    fn invalidation_propagates_to_ancestors() {
+        let mut store = Store::new();
+        let grandparent = add_span(&mut store, None, 0);
+        let parent = add_span(&mut store, Some(grandparent), 0);
+        let child = add_span(&mut store, Some(parent), 0);
+        add_self_time_without_invalidation(&mut store, grandparent, 0, 10);
+        add_self_time_without_invalidation(&mut store, parent, 10, 20);
+        add_self_time_without_invalidation(&mut store, child, 20, 30);
+        invalidate(&mut store, &[grandparent, parent, child]);
+        for span in [grandparent, parent, child] {
+            assert_eq!(event_corrected_self_times(&store, span), vec![ts(10)]);
+        }
+
+        // Concurrent self time in an unrelated span, overlapping all three self times.
+        let other = add_span(&mut store, None, 0);
+        add_self_time_without_invalidation(&mut store, other, 0, 30);
+        for span in [grandparent, parent, child] {
+            assert_eq!(event_corrected_self_times(&store, span), vec![ts(10)]);
+        }
+
+        // Invalidating only the child invalidates its ancestors too.
+        invalidate(&mut store, &[child]);
+        for span in [grandparent, parent, child] {
+            assert_eq!(event_corrected_self_times(&store, span), vec![ts(5)]);
+        }
+    }
+
+    #[test]
+    fn invalidation_always_includes_root() {
+        let mut store = Store::new();
+        // The public API never adds self time to the root span (its index is 0), but its
+        // self-time event caches must still be invalidated like any other span's.
+        store.spans[0]
+            .events
+            .push(SpanEvent::self_time(ts(0), ts(10)).unwrap());
+        let a = add_span(&mut store, None, 0);
+        add_self_time_without_invalidation(&mut store, a, 0, 10);
+        invalidate(&mut store, &[a]);
+        assert_eq!(corrected_self_times_of(store.root_span()), vec![ts(10)]);
+
+        // A second concurrent self time halves the corrected time of the root's event, which
+        // is only picked up once the root is invalidated.
+        let b = add_span(&mut store, None, 0);
+        add_self_time_without_invalidation(&mut store, b, 0, 10);
+        assert_eq!(corrected_self_times_of(store.root_span()), vec![ts(10)]);
+
+        // Invalidating any span invalidates the root.
+        let child = add_span(&mut store, Some(a), 20);
+        invalidate(&mut store, &[child]);
+        assert_eq!(corrected_self_times_of(store.root_span()), vec![ts(5)]);
+    }
+
+    /// Builds a store with many overlapping self times.
+    fn overlapping_store() -> (Store, Vec<SpanIndex>) {
+        let mut store = Store::new();
+        let mut spans = Vec::new();
+        let mut outdated = FxHashSet::default();
+        for i in 0..200u64 {
+            let parent = spans.get((i / 10) as usize).copied();
+            let span = add_span(&mut store, parent, i);
+            for j in 0..5 {
+                let start = (i * 7 + j * 13) % 500;
+                store.add_self_time(span, ts(start), ts(start + 20 + i % 30), &mut outdated);
+            }
+            spans.push(span);
+        }
+        store.invalidate_outdated_spans(&outdated);
+        (store, spans)
+    }
+
+    #[test]
+    fn concurrent_corrected_self_time_matches_serial() {
+        let (serial_store, spans) = overlapping_store();
+        let serial: Vec<_> = spans
+            .iter()
+            .map(|&span| event_corrected_self_times(&serial_store, span))
+            .collect();
+
+        let (store, spans) = overlapping_store();
+        thread::scope(|scope| {
+            let handles: Vec<_> = (0..8)
+                .map(|offset| {
+                    let store = &store;
+                    let spans = &spans;
+                    scope.spawn(move || {
+                        // Each thread visits the spans in a different order.
+                        let mut result = vec![Vec::new(); spans.len()];
+                        for i in 0..spans.len() {
+                            let i = (i + offset * 25) % spans.len();
+                            result[i] = event_corrected_self_times(store, spans[i]);
+                        }
+                        result
+                    })
+                })
+                .collect();
+            for handle in handles {
+                assert_eq!(handle.join().unwrap(), serial);
+            }
+        });
     }
 }

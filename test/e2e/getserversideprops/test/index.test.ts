@@ -7,6 +7,7 @@ import {
   check,
   retry,
   fetchViaHTTP,
+  expectDirectives,
   getBrowserBodyText,
   getRedboxHeader,
   normalizeRegEx,
@@ -317,7 +318,7 @@ const runTests = (
     const res = await fetchViaHTTP(next.url, '/not-found', { hiding: true })
 
     expect(res.status).toBe(404)
-    expect(await res.text()).toContain('This page could not be found')
+    expect(await res.text()).toContain('Custom 404 page')
   })
 
   it('should render 404 correctly when notFound is returned client-transition (non-dynamic)', async () => {
@@ -329,7 +330,7 @@ const runTests = (
 
     await browser.waitForElementByCss('h1')
     expect(await browser.elementByCss('html').text()).toContain(
-      'This page could not be found'
+      'Custom 404 page'
     )
     expect(await browser.eval('window.beforeNav')).toBe(1)
   })
@@ -346,7 +347,7 @@ const runTests = (
     })
 
     expect(res.status).toBe(404)
-    expect(await res.text()).toContain('This page could not be found')
+    expect(await res.text()).toContain('Custom 404 page')
   })
 
   it('should render 404 correctly when notFound is returned client-transition (dynamic)', async () => {
@@ -358,7 +359,7 @@ const runTests = (
 
     await browser.waitForElementByCss('h1')
     expect(await browser.elementByCss('html').text()).toContain(
-      'This page could not be found'
+      'Custom 404 page'
     )
     expect(await browser.eval('window.beforeNav')).toBe(1)
   })
@@ -382,7 +383,7 @@ const runTests = (
     } else {
       expect(res.status).toBe(500)
       expect(html).toContain('custom pages/500')
-      expect(html).not.toContain('This page could not be found')
+      expect(html).not.toContain('Custom 404 page')
     }
   })
 
@@ -821,28 +822,42 @@ const runTests = (
 
     it('should set default caching header', async () => {
       const resPage = await fetchViaHTTP(next.url, `/something`)
-      expect(resPage.headers.get('cache-control')).toBe(
-        'private, no-cache, no-store, max-age=0, must-revalidate'
-      )
+      expectDirectives(resPage.headers.get('cache-control'), [
+        'private',
+        'no-cache',
+        'no-store',
+        'max-age=0',
+        'must-revalidate',
+      ])
 
       const resData = await fetchViaHTTP(
         next.url,
         `/_next/data/${buildId}/something.json`
       )
-      expect(resData.headers.get('cache-control')).toBe(
-        'private, no-cache, no-store, max-age=0, must-revalidate'
-      )
+      expectDirectives(resData.headers.get('cache-control'), [
+        'private',
+        'no-cache',
+        'no-store',
+        'max-age=0',
+        'must-revalidate',
+      ])
     })
 
     it('should respect custom caching header', async () => {
       const resPage = await fetchViaHTTP(next.url, `/custom-cache`)
-      expect(resPage.headers.get('cache-control')).toBe('public, max-age=3600')
+      expectDirectives(resPage.headers.get('cache-control'), [
+        'public',
+        'max-age=3600',
+      ])
 
       const resData = await fetchViaHTTP(
         next.url,
         `/_next/data/${buildId}/custom-cache.json`
       )
-      expect(resData.headers.get('cache-control')).toBe('public, max-age=3600')
+      expectDirectives(resData.headers.get('cache-control'), [
+        'public',
+        'max-age=3600',
+      ])
     })
 
     it('should not show error for invalid JSON returned from getServerSideProps', async () => {

@@ -87,3 +87,19 @@ export default function createSpinner(
 
   return spinner
 }
+
+// Ends a step with its finished line, e.g. "✓ Collecting page data in 1s".
+// Without a terminal there is no spinner to turn into that line, so it is
+// skipped. It is still printed when the CLI holds this process's output for
+// the upgrade menu, since that output ends up on a terminal.
+export function finishSpinner(
+  spinner: ReturnType<typeof createSpinner>,
+  text: string
+) {
+  if (spinner) {
+    spinner.setText(text)
+    spinner.stopAndPersist()
+  } else if (process.env.NEXT_PRIVATE_PROMPT_OUTPUT === '1') {
+    Log.event(text)
+  }
+}

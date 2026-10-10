@@ -11,7 +11,7 @@ const { getNextjsVersion } = require('../../lib/agents-md')
  * TRUE E2E TESTS
  * These tests invoke the actual CLI entry point (runAgentsMd),
  * simulating what happens when a user runs:
- * npx @next/codemod agents-md --version 15.0.0 --output CLAUDE.md
+ * npx @next/codemod agents-md --version 15.0.0 --output AGENTS.md
  */
 describe('agents-md e2e (CLI invocation)', () => {
   let testProjectDir
@@ -45,7 +45,7 @@ describe('agents-md e2e (CLI invocation)', () => {
     }
   })
 
-  it('creates CLAUDE.md and .next-docs directory when run with --version and --output', async () => {
+  it('creates AGENTS.md and .next-docs directory when run with --version and --output', async () => {
     // Create a minimal package.json (not required, but realistic)
     const packageJson = {
       name: 'test-project',
@@ -67,7 +67,7 @@ describe('agents-md e2e (CLI invocation)', () => {
       // Run the actual CLI command
       await runAgentsMd({
         version: '15.0.0',
-        output: 'CLAUDE.md',
+        output: 'AGENTS.md',
       })
 
       // Verify .next-docs directory was created and populated
@@ -83,20 +83,20 @@ describe('agents-md e2e (CLI invocation)', () => {
       )
       expect(mdxFiles.length).toBeGreaterThan(0)
 
-      // Verify CLAUDE.md was created
-      const claudeMdPath = path.join(testProjectDir, 'CLAUDE.md')
-      expect(fs.existsSync(claudeMdPath)).toBe(true)
+      // Verify AGENTS.md was created
+      const agentsMdPath = path.join(testProjectDir, 'AGENTS.md')
+      expect(fs.existsSync(agentsMdPath)).toBe(true)
 
-      const claudeMdContent = fs.readFileSync(claudeMdPath, 'utf-8')
+      const agentsMdContent = fs.readFileSync(agentsMdPath, 'utf-8')
 
       // Verify content structure
-      expect(claudeMdContent).toContain('<!-- NEXT-AGENTS-MD-START -->')
-      expect(claudeMdContent).toContain('<!-- NEXT-AGENTS-MD-END -->')
-      expect(claudeMdContent).toContain('[Next.js Docs Index]')
-      expect(claudeMdContent).toContain('root: ./.next-docs')
+      expect(agentsMdContent).toContain('<!-- NEXT-AGENTS-MD-START -->')
+      expect(agentsMdContent).toContain('<!-- NEXT-AGENTS-MD-END -->')
+      expect(agentsMdContent).toContain('[Next.js Docs Index]')
+      expect(agentsMdContent).toContain('root: ./.next-docs')
 
       // Verify paths are normalized to forward slashes (cross-platform)
-      const lines = claudeMdContent.split('|')
+      const lines = agentsMdContent.split('|')
       const pathLines = lines.filter((line) => line.includes(':'))
       pathLines.forEach((line) => {
         // Should not contain Windows backslashes in the output
@@ -117,19 +117,19 @@ describe('agents-md e2e (CLI invocation)', () => {
       const output = consoleOutput.join('\n')
       expect(output).toContain('Downloading Next.js')
       expect(output).toContain('15.0.0')
-      expect(output).toContain('CLAUDE.md')
+      expect(output).toContain('AGENTS.md')
     } finally {
       // Restore original directory
       process.chdir(originalCwd)
     }
   })
 
-  it('updates existing CLAUDE.md without losing content', async () => {
+  it('updates existing AGENTS.md without losing content', async () => {
     const originalCwd = process.cwd()
     process.chdir(testProjectDir)
 
     try {
-      // Create existing CLAUDE.md with custom content
+      // Create existing AGENTS.md with custom content
       const existingContent = `# My Project
 
 This is my project documentation.
@@ -138,31 +138,28 @@ This is my project documentation.
 - Feature 1
 - Feature 2
 `
-      fs.writeFileSync(
-        path.join(testProjectDir, 'CLAUDE.md'),
-        existingContent
-      )
+      fs.writeFileSync(path.join(testProjectDir, 'AGENTS.md'), existingContent)
 
       // Run CLI
       await runAgentsMd({
         version: '15.0.0',
-        output: 'CLAUDE.md',
+        output: 'AGENTS.md',
       })
 
       // Verify file was updated, not replaced
-      const claudeMdContent = fs.readFileSync(
-        path.join(testProjectDir, 'CLAUDE.md'),
+      const agentsMdContent = fs.readFileSync(
+        path.join(testProjectDir, 'AGENTS.md'),
         'utf-8'
       )
 
       // Original content should still be there
-      expect(claudeMdContent).toContain('# My Project')
-      expect(claudeMdContent).toContain('This is my project documentation.')
-      expect(claudeMdContent).toContain('## Features')
+      expect(agentsMdContent).toContain('# My Project')
+      expect(agentsMdContent).toContain('This is my project documentation.')
+      expect(agentsMdContent).toContain('## Features')
 
       // New index should be injected
-      expect(claudeMdContent).toContain('<!-- NEXT-AGENTS-MD-START -->')
-      expect(claudeMdContent).toContain('[Next.js Docs Index]')
+      expect(agentsMdContent).toContain('<!-- NEXT-AGENTS-MD-START -->')
+      expect(agentsMdContent).toContain('[Next.js Docs Index]')
     } finally {
       process.chdir(originalCwd)
     }
@@ -179,9 +176,8 @@ This is my project documentation.
         output: 'AGENTS.md',
       })
 
-      // Verify AGENTS.md was created (not CLAUDE.md)
+      // Verify AGENTS.md was created
       expect(fs.existsSync(path.join(testProjectDir, 'AGENTS.md'))).toBe(true)
-      expect(fs.existsSync(path.join(testProjectDir, 'CLAUDE.md'))).toBe(false)
 
       const agentsMdContent = fs.readFileSync(
         path.join(testProjectDir, 'AGENTS.md'),
@@ -216,11 +212,11 @@ This is my project documentation.
       // Run from subdirectory - should create files in CWD (subdirectory)
       await runAgentsMd({
         version: '15.0.0',
-        output: 'CLAUDE.md',
+        output: 'AGENTS.md',
       })
 
       // Verify files created in subdirectory
-      expect(fs.existsSync(path.join(subDir, 'CLAUDE.md'))).toBe(true)
+      expect(fs.existsSync(path.join(subDir, 'AGENTS.md'))).toBe(true)
       expect(fs.existsSync(path.join(subDir, '.next-docs'))).toBe(true)
     } finally {
       process.chdir(originalCwd)
@@ -234,20 +230,20 @@ This is my project documentation.
     try {
       await runAgentsMd({
         version: '15.0.0',
-        output: 'CLAUDE.md',
+        output: 'AGENTS.md',
       })
 
-      const claudeMdContent = fs.readFileSync(
-        path.join(testProjectDir, 'CLAUDE.md'),
+      const agentsMdContent = fs.readFileSync(
+        path.join(testProjectDir, 'AGENTS.md'),
         'utf-8'
       )
 
       // Extract the index content between markers
       const startMarker = '<!-- NEXT-AGENTS-MD-START -->'
       const endMarker = '<!-- NEXT-AGENTS-MD-END -->'
-      const startIdx = claudeMdContent.indexOf(startMarker) + startMarker.length
-      const endIdx = claudeMdContent.indexOf(endMarker)
-      const indexContent = claudeMdContent.slice(startIdx, endIdx)
+      const startIdx = agentsMdContent.indexOf(startMarker) + startMarker.length
+      const endIdx = agentsMdContent.indexOf(endMarker)
+      const indexContent = agentsMdContent.slice(startIdx, endIdx)
 
       // Parse the index (format: "dir:{file1,file2}|dir2:{file3}")
       const sections = indexContent.split('|').filter((s) => s.includes(':'))
@@ -276,7 +272,7 @@ This is my project documentation.
       // Use a known stable version
       await runAgentsMd({
         version: '14.2.0',
-        output: 'CLAUDE.md',
+        output: 'AGENTS.md',
       })
 
       // Verify docs were downloaded
@@ -331,7 +327,7 @@ This is my project documentation.
       process.chdir(testProjectDir)
 
       try {
-        await runAgentsMd({ output: 'CLAUDE.md' })
+        await runAgentsMd({ output: 'AGENTS.md' })
 
         // No .next-docs copy and no .gitignore entry for it
         expect(fs.existsSync(path.join(testProjectDir, '.next-docs'))).toBe(
@@ -341,14 +337,14 @@ This is my project documentation.
           false
         )
 
-        const claudeMdContent = fs.readFileSync(
-          path.join(testProjectDir, 'CLAUDE.md'),
+        const agentsMdContent = fs.readFileSync(
+          path.join(testProjectDir, 'AGENTS.md'),
           'utf-8'
         )
-        expect(claudeMdContent).toContain(
+        expect(agentsMdContent).toContain(
           'root: ./node_modules/next/dist/docs'
         )
-        expect(claudeMdContent).toContain('01-installation.md')
+        expect(agentsMdContent).toContain('01-installation.md')
 
         const output = consoleOutput.join('\n')
         expect(output).toContain('bundled with Next.js')
@@ -390,17 +386,17 @@ This is my project documentation.
       process.chdir(testProjectDir)
 
       try {
-        await runAgentsMd({ version: '15.0.0', output: 'CLAUDE.md' })
+        await runAgentsMd({ version: '15.0.0', output: 'AGENTS.md' })
 
         expect(fs.existsSync(path.join(testProjectDir, '.next-docs'))).toBe(
           true
         )
 
-        const claudeMdContent = fs.readFileSync(
-          path.join(testProjectDir, 'CLAUDE.md'),
+        const agentsMdContent = fs.readFileSync(
+          path.join(testProjectDir, 'AGENTS.md'),
           'utf-8'
         )
-        expect(claudeMdContent).toContain('root: ./.next-docs')
+        expect(agentsMdContent).toContain('root: ./.next-docs')
 
         const output = consoleOutput.join('\n')
         expect(output).toContain('Downloading')

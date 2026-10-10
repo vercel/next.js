@@ -35,6 +35,7 @@ import {
 import { getCacheControlHeader } from '../../server/lib/cache-control'
 import { INFINITE_CACHE, NEXT_CACHE_TAGS_HEADER } from '../../lib/constants'
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external'
+import { isRouteCacheOwner } from '../../server/lib/route-cache-key'
 import {
   CachedRouteKind,
   type ResponseCacheEntry,
@@ -62,15 +63,13 @@ const routeModule = new AppRouteRouteModule({
   relativeProjectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
   resolvedPagePath: 'VAR_RESOLVED_PAGE_PATH',
   nextConfigOutput,
-  // Always use a lazy require factory so that:
+  // The lazy require factory ensures that:
   // - In dev: devRequestTimingInternalsEnd is set before userland executes,
   //   correctly attributing module load time to application-code rather than
   //   framework internals.
   // - In all modes: async modules (route files with top-level await) are
   //   handled correctly — require() returns a Promise for such modules, which
-  //   ensureUserland() awaits before the first request is handled. Eagerly
-  //   calling require() would pass that Promise directly to the constructor
-  //   and break _initFromUserland().
+  //   ensureUserland() awaits before the first request is handled.
   userland: () => require('VAR_USERLAND') as typeof import('VAR_USERLAND'),
   // In Turbopack dev mode, also provide a synchronous per-request getter so
   // server HMR updates are picked up without re-executing the entry chunk.
@@ -158,13 +157,23 @@ export async function handler(
     resolvedPathname,
     clientReferenceManifest,
     serverActionsManifest,
+    previewProps,
   } = prepareResult
 
   const normalizedSrcPage = normalizeAppPath(srcPage)
 
+  // Only this route's prerenders can establish ISR or admit generated params.
+  const isPrerendered =
+    Boolean(prerenderManifest.routes[resolvedPathname]) &&
+    (routeModule.isDev ||
+      isRouteCacheOwner(
+        resolvedPathname,
+        routeModule.cacheOwner,
+        prerenderManifest.routes[resolvedPathname]
+      ))
+
   let isIsr = Boolean(
-    prerenderManifest.dynamicRoutes[normalizedSrcPage] ||
-      prerenderManifest.routes[resolvedPathname]
+    prerenderManifest.dynamicRoutes[normalizedSrcPage] || isPrerendered
   )
 
   const render404 = async () => {
@@ -178,7 +187,6 @@ export async function handler(
   }
 
   if (isIsr && !isDraftMode) {
-    const isPrerendered = Boolean(prerenderManifest.routes[resolvedPathname])
     const prerenderInfo = prerenderManifest.dynamicRoutes[normalizedSrcPage]
 
     if (prerenderInfo) {
@@ -198,19 +206,6 @@ export async function handler(
     // ensure /index and / is normalized to one key
     cacheKey = cacheKey === '/index' ? '/' : cacheKey
   }
-
-  const supportsDynamicResponse: boolean =
-    // If we're in development, we always support dynamic HTML
-    routeModule.isDev === true ||
-    // If this is not SSG or does not have static paths, then it supports
-    // dynamic HTML.
-    !isIsr
-
-  // This is a revalidation request if the request is for a static
-  // page and it is not being resumed from a postponed render and
-  // it is not a dynamic RSC request then it is a revalidation
-  // request.
-  const isStaticGeneration = isIsr && !supportsDynamicResponse
 
   // Before rendering (which initializes component tree modules), we have to
   // set the reference manifests to our global store so Server Action's
@@ -236,6 +231,7 @@ export async function handler(
     (await routeModule.getIncrementalCache(
       req,
       nextConfig,
+      previewProps,
       prerenderManifest,
       isMinimalMode
     ))
@@ -245,16 +241,20 @@ export async function handler(
 
   const context: AppRouteRouteHandlerContext = {
     params,
-    previewProps: prerenderManifest.preview,
+    previewProps,
     renderOpts: {
       experimental: {
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
         useCacheTimeout: nextConfig.experimental.useCacheTimeout,
+        durableUseCacheEntries: Boolean(
+          nextConfig.experimental.durableUseCacheEntries
+        ),
       },
       cacheComponents: Boolean(nextConfig.cacheComponents),
       validationLevel: nextConfig.experimental.instantInsights.validationLevel,
-      supportsDynamicResponse,
+      isDraftMode,
       incrementalCache,
+      hmrRefreshHash: getRequestMeta(req, 'hmrRefreshHash'),
       cacheLifeProfiles: nextConfig.cacheLife,
       staticPageGenerationTimeout: nextConfig.staticPageGenerationTimeout,
       waitUntil: ctx.waitUntil,
@@ -262,19 +262,6 @@ export async function handler(
         res.on('close', cb)
       },
       onAfterTaskError: undefined,
-      onInstrumentationRequestError: (
-        error,
-        _request,
-        errorContext,
-        silenceLog
-      ) =>
-        routeModule.onRequestError(
-          req,
-          error,
-          errorContext,
-          silenceLog,
-          routerServerContext
-        ),
     },
     sharedContext: {
       buildId,
@@ -306,7 +293,10 @@ export async function handler(
         return null
       }
 
-      const response = await routeModule.handle(nextReq, context)
+      const response =
+        cacheKey === null
+          ? await routeModule.handle(nextReq, context)
+          : await routeModule.prerender(nextReq, context)
 
       ;(req as any).fetchMetrics = (context.renderOpts as any).fetchMetrics
       let pendingWaitUntil = context.renderOpts.pendingWaitUntil
@@ -389,7 +379,7 @@ export async function handler(
             routePath: srcPage,
             routeType: 'route',
             revalidateReason: getRevalidateReason({
-              isStaticGeneration,
+              isStaticGeneration: cacheKey !== null,
               isOnDemandRevalidate,
             }),
           },
@@ -412,6 +402,7 @@ export async function handler(
         cacheKey,
         routeKind: RouteKind.APP_ROUTE,
         isFallback: false,
+        previewProps,
         prerenderManifest,
         isRoutePPREnabled: false,
         isOnDemandRevalidate,
@@ -420,6 +411,10 @@ export async function handler(
         waitUntil: ctx.waitUntil,
         isMinimalMode,
       })
+
+      if (cacheEntry !== null && 'error' in cacheEntry) {
+        throw cacheEntry.error
+      }
 
       // we don't create a cacheEntry for ISR
       if (!isIsr) {
@@ -493,7 +488,7 @@ export async function handler(
             routePath: normalizedSrcPage,
             routeType: 'route',
             revalidateReason: getRevalidateReason({
-              isStaticGeneration,
+              isStaticGeneration: cacheKey !== null,
               isOnDemandRevalidate,
             }),
           },
@@ -507,12 +502,31 @@ export async function handler(
       // If this is during static generation, throw the error again.
       if (isIsr) throw err
 
-      // Otherwise, send a 500 response.
-      await sendResponse(
-        nodeNextReq,
-        nodeNextRes,
-        new Response(null, { status: 500 })
-      )
+      // Otherwise, send a 500 response unless the original response has
+      // already committed. In that case, preserve its status code for
+      // telemetry while still recording the failure and terminating a response
+      // that the failed pipeline left open.
+      if (res.headersSent) {
+        if (currentSpan) {
+          const error =
+            err instanceof Error ? err : new Error('Unknown app route error')
+          currentSpan.recordException(error)
+          currentSpan.setStatus({
+            code: SpanStatusCode.ERROR,
+            message: error.message,
+          })
+          currentSpan.setAttribute('error.type', error.name)
+        }
+        if (!res.writableEnded && !res.destroyed) {
+          res.end()
+        }
+      } else {
+        await sendResponse(
+          nodeNextReq,
+          nodeNextRes,
+          new Response(null, { status: 500 })
+        )
+      }
       return
     } finally {
       ;(() => {

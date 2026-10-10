@@ -30,7 +30,14 @@ export default function HashPage() {
         To non-existent
       </Link>
       <div>
-        <Link href="?with-query-param#hash-160" id="link-to-query-param">
+        <Link
+          href="?with-query-param#hash-160"
+          id="link-to-query-param"
+          // The test asserts that hash-only navigations never request this
+          // query's RSC payload; prefetching this link would race that
+          // assertion.
+          prefetch={false}
+        >
           To 160 (with query param)
         </Link>
       </div>

@@ -2,6 +2,8 @@ import { FileRef, nextTestSetup } from 'e2e-utils'
 import { waitFor } from 'next-test-utils'
 import path from 'path'
 
+// TODO(deploy-test-completion): Remove this suite from the deploy manifest.
+// It was excluded as a known deploy failure without a documented root cause.
 describe('next-image-forward-ref', () => {
   const appDir = path.join(__dirname, 'app')
 

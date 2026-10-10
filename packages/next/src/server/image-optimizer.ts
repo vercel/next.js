@@ -1,25 +1,24 @@
-import { createHash } from 'crypto'
 import { promises } from 'fs'
-import type { IncomingMessage, ServerResponse } from 'http'
+import type {
+  IncomingMessage,
+  RequestOptions as HttpRequestOptions,
+  ServerResponse,
+} from 'http'
+import { Agent as HttpAgent, request as httpRequest } from 'http'
+import { Agent as HttpsAgent, request as httpsRequest } from 'https'
 import { mediaType } from 'next/dist/compiled/@hapi/accept'
 import contentDisposition from 'next/dist/compiled/content-disposition'
-import imageSizeOf from 'next/dist/compiled/image-size'
-import { detector } from 'next/dist/compiled/image-detector/detector.js'
-import isAnimated from 'next/dist/compiled/is-animated'
 import { join } from 'path'
-
 import { getImageBlurSvg } from '../shared/lib/image-blur-svg'
 import type { ImageConfigComplete } from '../shared/lib/image-config'
 import { hasLocalMatch } from '../shared/lib/match-local-pattern'
 import { hasRemoteMatch } from '../shared/lib/match-remote-pattern'
 import type { NextConfigComplete, NextConfigRuntime } from './config-shared'
-import { createRequestResponseMocks } from './lib/mock-request'
+import { MockedRequest, MockedResponse } from './lib/mock-request'
 import type { NextUrlWithParsedQuery } from './request-meta'
 import {
   CachedRouteKind,
   IncrementalCacheKind,
-  type CachedImageValue,
-  type IncrementalCacheEntry,
   type IncrementalCacheValue,
   type IncrementalResponseCacheEntry,
 } from './response-cache'
@@ -27,39 +26,45 @@ import type { CacheHandler } from './lib/incremental-cache'
 import { sendEtagResponse } from './send-payload'
 import { getContentType, getExtension } from './serve-static'
 import * as Log from '../build/output/log'
-import isError from '../lib/is-error'
 import { isPrivateIp } from './is-private-ip'
 import { getOrInitDiskLRU } from './lib/disk-lru-cache.external'
 import { parseUrl, parseReqUrl } from '../lib/url'
 import type { CacheControl } from './lib/cache-control'
 import { InvariantError } from '../shared/lib/invariant-error'
 import { lookup } from 'dns/promises'
-import { isIP } from 'net'
-import { ALL } from 'dns'
+import { isIP, type LookupFunction } from 'net'
+import { ADDRCONFIG, type LookupAddress } from 'dns'
+import {
+  pipeline,
+  Transform,
+  type Readable,
+  type TransformCallback,
+} from 'stream'
+import {
+  constants as zlibConstants,
+  createBrotliDecompress,
+  createGunzip,
+  createInflate,
+  createInflateRaw,
+} from 'zlib'
+import {
+  imageOptimizerTransform,
+  type ImageUpstream,
+} from './image-optimizer/transform'
+import { extractEtag, getHash } from './image-optimizer/extract-etag'
+import { getPreviouslyCachedImageOrNull } from './image-optimizer/get-previously-cached-image-or-null'
+import { getImageSize } from './image-optimizer/get-image-size'
+import { ImageError } from './image-optimizer/image-error'
+
+// `next-server.ts` destructures `ImageError` from this module to check
+// `instanceof` on errors thrown by the transform.
+export { ImageError } from './image-optimizer/image-error'
 
 type XCacheHeader = 'MISS' | 'HIT' | 'STALE'
 
-const AVIF = 'image/avif'
-const WEBP = 'image/webp'
-const PNG = 'image/png'
-const JPEG = 'image/jpeg'
-const JXL = 'image/jxl'
-const JP2 = 'image/jp2'
-const HEIC = 'image/heic'
-const GIF = 'image/gif'
-const SVG = 'image/svg+xml'
-const ICO = 'image/x-icon'
-const ICNS = 'image/x-icns'
-const TIFF = 'image/tiff'
-const BMP = 'image/bmp'
-const PDF = 'application/pdf'
 const CACHE_VERSION = 4
-const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
-const BYPASS_TYPES = [SVG, ICO, ICNS, BMP, JXL, HEIC]
 const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
 const BLUR_QUALITY = 70 // should match `next-image-loader`
-
-let _sharp: typeof import('sharp')
 
 async function initCacheEntries(
   cacheDir: string
@@ -84,38 +89,6 @@ async function initCacheEntries(
   return entries.sort((a, b) => a.expireAt - b.expireAt)
 }
 
-export function getSharp(
-  concurrency: number | null | undefined,
-  operationCache: boolean | null | undefined
-) {
-  if (_sharp) {
-    return _sharp
-  }
-  try {
-    _sharp = require('sharp') as typeof import('sharp')
-    if (typeof operationCache === 'boolean') {
-      _sharp.cache(operationCache)
-    }
-    if (_sharp.concurrency() > 1) {
-      // Reducing concurrency should reduce the memory usage too.
-      // We more aggressively reduce in dev but also reduce in prod.
-      // https://sharp.pixelplumbing.com/api-utility#concurrency
-      const divisor = process.env.NODE_ENV === 'development' ? 4 : 2
-      _sharp.concurrency(
-        concurrency ?? Math.floor(Math.max(_sharp.concurrency() / divisor, 1))
-      )
-    }
-  } catch (e: unknown) {
-    if (isError(e) && e.code === 'MODULE_NOT_FOUND') {
-      throw new Error(
-        'Module `sharp` not found. Please run `npm install --cpu=wasm32 sharp` to install it.'
-      )
-    }
-    throw e
-  }
-  return _sharp
-}
-
 export interface ImageParamsResult {
   href: string
   isAbsolute: boolean
@@ -127,44 +100,9 @@ export interface ImageParamsResult {
   minimumCacheTTL: number
 }
 
-interface ImageUpstream {
-  buffer: Buffer
-  contentType: string | null | undefined
-  cacheControl: string | null | undefined
-  etag: string
-}
-
 function getSupportedMimeType(options: string[], accept = ''): string {
   const mimeType = mediaType(accept, options)
   return accept.includes(mimeType) ? mimeType : ''
-}
-
-export function getHash(items: (string | number | Buffer)[]) {
-  const hash = createHash('sha256')
-  for (let item of items) {
-    if (typeof item === 'number') hash.update(String(item))
-    else {
-      hash.update(item)
-    }
-  }
-  // See https://en.wikipedia.org/wiki/Base64#URL_applications
-  return hash.digest('base64url')
-}
-
-export function extractEtag(
-  etag: string | null | undefined,
-  imageBuffer: Buffer
-) {
-  if (etag) {
-    // upstream etag needs to be base64url encoded due to weak etag signature
-    // as we store this in the cache-entry file name.
-    return Buffer.from(etag).toString('base64url')
-  }
-  return getImageEtag(imageBuffer)
-}
-
-export function getImageEtag(image: Buffer) {
-  return getHash([image])
 }
 
 async function writeToCacheDir(
@@ -177,6 +115,12 @@ async function writeToCacheDir(
   etag: string,
   upstreamEtag: string
 ) {
+  if (buffer.byteLength === 0) {
+    throw new Error(
+      'Invariant: cannot write an empty buffer to the image cache'
+    )
+  }
+
   const dir = join(/* turbopackIgnore: true */ cacheDir, cacheKey)
   const filename = join(
     /* turbopackIgnore: true */
@@ -205,6 +149,9 @@ async function readFromCacheDir(cacheDir: string, cacheKey: string) {
   )
   const filePath = join(/* turbopackIgnore: true */ dir, file)
   const buffer = await promises.readFile(/* turbopackIgnore: true */ filePath)
+  if (buffer.byteLength === 0) {
+    throw new Error(`Invariant: image cache entry "${cacheKey}" is empty`)
+  }
   const expireAt = Number(expireAtSt)
   const maxAge = Number(maxAgeSt)
   return { maxAge, expireAt, etag, upstreamEtag, buffer, extension }
@@ -219,162 +166,6 @@ async function deleteFromCacheDir(cacheDir: string, cacheKey: string) {
     .catch((err) => {
       Log.error(`Failed to delete cache key ${cacheKey}`, err)
     })
-}
-
-/**
- * Inspects the first few bytes of a buffer to determine if
- * it matches the "magic number" of known file signatures.
- * https://en.wikipedia.org/wiki/List_of_file_signatures
- */
-export async function detectContentType(
-  buffer: Buffer,
-  skipMetadata: boolean | null | undefined,
-  concurrency?: number | null | undefined,
-  operationCache?: boolean | null | undefined
-): Promise<string | null> {
-  if (buffer.byteLength === 0) {
-    return null
-  }
-  if ([0xff, 0xd8, 0xff].every((b, i) => buffer[i] === b)) {
-    return JPEG
-  }
-  if (
-    [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a].every(
-      (b, i) => buffer[i] === b
-    )
-  ) {
-    return PNG
-  }
-  if ([0x47, 0x49, 0x46, 0x38].every((b, i) => buffer[i] === b)) {
-    return GIF
-  }
-  if (
-    [0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50].every(
-      (b, i) => !b || buffer[i] === b
-    )
-  ) {
-    return WEBP
-  }
-  if ([0x3c, 0x3f, 0x78, 0x6d, 0x6c].every((b, i) => buffer[i] === b)) {
-    return SVG
-  }
-  if ([0x3c, 0x73, 0x76, 0x67].every((b, i) => buffer[i] === b)) {
-    return SVG
-  }
-  if (
-    [0, 0, 0, 0, 0x66, 0x74, 0x79, 0x70, 0x61, 0x76, 0x69, 0x66].every(
-      (b, i) => !b || buffer[i] === b
-    )
-  ) {
-    return AVIF
-  }
-  if ([0x00, 0x00, 0x01, 0x00].every((b, i) => buffer[i] === b)) {
-    return ICO
-  }
-  if ([0x69, 0x63, 0x6e, 0x73].every((b, i) => buffer[i] === b)) {
-    return ICNS
-  }
-  if ([0x49, 0x49, 0x2a, 0x00].every((b, i) => buffer[i] === b)) {
-    return TIFF
-  }
-  if ([0x42, 0x4d].every((b, i) => buffer[i] === b)) {
-    return BMP
-  }
-  if ([0xff, 0x0a].every((b, i) => buffer[i] === b)) {
-    return JXL
-  }
-  if (
-    [
-      0x00, 0x00, 0x00, 0x0c, 0x4a, 0x58, 0x4c, 0x20, 0x0d, 0x0a, 0x87, 0x0a,
-    ].every((b, i) => buffer[i] === b)
-  ) {
-    return JXL
-  }
-  if (
-    [0, 0, 0, 0, 0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69, 0x63].every(
-      (b, i) => !b || buffer[i] === b
-    )
-  ) {
-    return HEIC
-  }
-  if ([0x25, 0x50, 0x44, 0x46, 0x2d].every((b, i) => buffer[i] === b)) {
-    return PDF
-  }
-  if (
-    [
-      0x00, 0x00, 0x00, 0x0c, 0x6a, 0x50, 0x20, 0x20, 0x0d, 0x0a, 0x87, 0x0a,
-    ].every((b, i) => buffer[i] === b)
-  ) {
-    return JP2
-  }
-
-  let format:
-    | import('sharp').Metadata['format']
-    | ReturnType<typeof detector>
-    | undefined
-  format = detector(buffer)
-
-  if (!format && !skipMetadata) {
-    const sharp = getSharp(concurrency, operationCache)
-    const meta = await sharp(buffer)
-      .metadata()
-      .catch((_) => null)
-    format = meta?.format
-  }
-
-  switch (format) {
-    case 'avif':
-      return AVIF
-    case 'webp':
-      return WEBP
-    case 'png':
-      return PNG
-    case 'jpeg':
-    case 'jpg':
-      return JPEG
-    case 'gif':
-      return GIF
-    case 'svg':
-      return SVG
-    case 'jxl':
-    case 'jxl-stream':
-      return JXL
-    case 'jp2':
-      return JP2
-    case 'tiff':
-    case 'tif':
-      return TIFF
-    case 'pdf':
-      return PDF
-    case 'bmp':
-      return BMP
-    case 'ico':
-      return ICO
-    case 'icns':
-      return ICNS
-    case 'dcraw':
-    case 'dz':
-    case 'exr':
-    case 'fits':
-    case 'heif':
-    case 'input':
-    case 'magick':
-    case 'openslide':
-    case 'ppm':
-    case 'rad':
-    case 'raw':
-    case 'v':
-    case 'cur':
-    case 'dds':
-    case 'j2c':
-    case 'ktx':
-    case 'pnm':
-    case 'psd':
-    case 'tga':
-    case undefined:
-    default:
-      return null
-  }
 }
 
 export class ImageOptimizerCache {
@@ -516,15 +307,13 @@ export class ImageOptimizerCache {
       }
     }
 
-    if (qualities) {
-      if (isDev) {
-        qualities.push(BLUR_QUALITY)
-      }
-
-      if (!qualities.includes(quality)) {
-        return {
-          errorMessage: `"q" parameter (quality) of ${q} is not allowed`,
-        }
+    if (
+      qualities &&
+      !qualities.includes(quality) &&
+      !(isDev && quality === BLUR_QUALITY)
+    ) {
+      return {
+        errorMessage: `"q" parameter (quality) of ${q} is not allowed`,
       }
     }
 
@@ -697,6 +486,7 @@ export class ImageOptimizerCache {
           revalidate: effectiveRevalidate,
         }
         await this.cacheHandler.set(cacheKey, valueWithRevalidate, {
+          kind: IncrementalCacheKind.IMAGE,
           cacheControl: {
             revalidate: effectiveRevalidate,
             expire: cacheControl?.expire,
@@ -742,131 +532,257 @@ export class ImageOptimizerCache {
     }
   }
 }
-export class ImageError extends Error {
-  statusCode: number
-
-  constructor(statusCode: number, message: string) {
-    super(message)
-
-    // ensure an error status is used > 400
-    if (statusCode >= 400) {
-      this.statusCode = statusCode
-    } else {
-      this.statusCode = 500
-    }
-  }
-}
-
-function parseCacheControl(
-  str: string | null | undefined
-): Map<string, string> {
-  const map = new Map<string, string>()
-  if (!str) {
-    return map
-  }
-  for (let directive of str.split(',')) {
-    let [key, value] = directive.trim().split('=', 2)
-    key = key.toLowerCase()
-    if (value) {
-      value = value.toLowerCase()
-    }
-    map.set(key, value)
-  }
-  return map
-}
-
-export function getMaxAge(str: string | null | undefined): number {
-  const map = parseCacheControl(str)
-  if (map) {
-    let age = map.get('s-maxage') || map.get('max-age') || ''
-    if (age.startsWith('"') && age.endsWith('"')) {
-      age = age.slice(1, -1)
-    }
-    const n = parseInt(age, 10)
-    if (!isNaN(n)) {
-      return n
-    }
-  }
-  return 0
-}
-export function getPreviouslyCachedImageOrNull(
-  upstreamImage: ImageUpstream,
-  previousCacheEntry: IncrementalCacheEntry | null | undefined
-): CachedImageValue | null {
-  if (
-    previousCacheEntry?.value?.kind === 'IMAGE' &&
-    // Images that are SVGs, animated or failed the optimization previously end up using upstreamEtag as their etag as well,
-    // in these cases we want to trigger a new "optimization" attempt.
-    previousCacheEntry.value.upstreamEtag !== previousCacheEntry.value.etag &&
-    // and the upstream etag is the same as the previous cache entry's
-    upstreamImage.etag === previousCacheEntry.value.upstreamEtag
-  ) {
-    return previousCacheEntry.value
-  }
-  return null
-}
-
-export async function optimizeImage({
-  buffer,
-  contentType,
-  quality,
-  width,
-  height,
-  concurrency,
-  operationCache,
-  limitInputPixels,
-  sequentialRead,
-  timeoutInSeconds,
-}: {
-  buffer: Buffer
-  contentType: string
-  quality: number
-  width: number
-  height?: number
-  concurrency?: number | null
-  operationCache?: boolean | null | undefined
-  limitInputPixels?: number
-  sequentialRead?: boolean | null
-  timeoutInSeconds?: number
-}): Promise<Buffer> {
-  const sharp = getSharp(concurrency, operationCache)
-  const transformer = sharp(buffer, {
-    limitInputPixels,
-    sequentialRead: sequentialRead ?? undefined,
-  })
-    .timeout({
-      seconds: timeoutInSeconds ?? 7,
-    })
-    .rotate()
-
-  if (height) {
-    transformer.resize(width, height)
-  } else {
-    transformer.resize(width, undefined, {
-      withoutEnlargement: true,
-    })
-  }
-
-  if (contentType === AVIF) {
-    transformer.avif({
-      quality: Math.max(quality - 20, 1),
-      effort: 3,
-    })
-  } else if (contentType === WEBP) {
-    transformer.webp({ quality })
-  } else if (contentType === PNG) {
-    transformer.png({ quality })
-  } else if (contentType === JPEG) {
-    transformer.jpeg({ quality, mozjpeg: true })
-  }
-
-  const optimizedBuffer = await transformer.toBuffer()
-
-  return optimizedBuffer
-}
-
 function isRedirect(statusCode: number) {
   return [301, 302, 303, 307, 308].includes(statusCode)
+}
+
+function upstreamTimedOut(href: string): ImageError {
+  Log.error('upstream image response timed out for', href)
+  return new ImageError(
+    504,
+    '"url" parameter is valid but upstream response timed out'
+  )
+}
+
+const agentOptions = {
+  keepAlive: true,
+  timeout: 7_000,
+}
+type ImageRequestOptions = HttpRequestOptions & { imageLookupKey?: string }
+type AgentGetName = (options?: HttpRequestOptions) => string
+
+const getHttpAgentName = (
+  HttpAgent.prototype as HttpAgent & { getName: AgentGetName }
+).getName
+const getHttpsAgentName = (
+  HttpsAgent.prototype as HttpsAgent & { getName: AgentGetName }
+).getName
+
+class ImageHttpAgent extends HttpAgent {
+  getName(options: ImageRequestOptions = {}): string {
+    return `${getHttpAgentName.call(this, options)}:${options.imageLookupKey ?? ''}`
+  }
+}
+
+class ImageHttpsAgent extends HttpsAgent {
+  getName(options: ImageRequestOptions = {}): string {
+    return `${getHttpsAgentName.call(this, options)}:${options.imageLookupKey ?? ''}`
+  }
+}
+
+let protectedHttpAgent: ImageHttpAgent | undefined
+let protectedHttpsAgent: ImageHttpsAgent | undefined
+let permissiveHttpAgent: ImageHttpAgent | undefined
+let permissiveHttpsAgent: ImageHttpsAgent | undefined
+
+function getImageAgent(
+  dangerouslyAllowLocalIP: boolean,
+  isHttps: boolean
+): ImageHttpAgent | ImageHttpsAgent {
+  if (isHttps) {
+    if (dangerouslyAllowLocalIP) {
+      return (permissiveHttpsAgent ??= new ImageHttpsAgent(agentOptions))
+    }
+    return (protectedHttpsAgent ??= new ImageHttpsAgent(agentOptions))
+  }
+  if (dangerouslyAllowLocalIP) {
+    return (permissiveHttpAgent ??= new ImageHttpAgent(agentOptions))
+  }
+  return (protectedHttpAgent ??= new ImageHttpAgent(agentOptions))
+}
+
+const BASE_REQ_HEADERS = {
+  accept: '*/*',
+  'accept-language': '*',
+  'sec-fetch-mode': 'cors',
+  'user-agent': 'node',
+}
+const HTTP_FETCH_HEADERS = {
+  ...BASE_REQ_HEADERS,
+  'accept-encoding': 'gzip, deflate',
+}
+const HTTPS_FETCH_HEADERS = {
+  ...BASE_REQ_HEADERS,
+  'accept-encoding': 'br, gzip, deflate',
+}
+
+/**
+ * Resolves `hostname` with the DNS options the socket itself would have used,
+ * so the addresses checked below are the exact set the connection can reach.
+ * Mirrors `lookupAndConnect()` in Node's `lib/net.js`.
+ */
+function lookupAsSocketWould(hostname: string): Promise<LookupAddress[]> {
+  return lookup(hostname, {
+    all: true,
+    // Node applies ADDRCONFIG whenever no address family is requested,
+    // on every platform except Windows.
+    hints: process.platform === 'win32' ? 0 : ADDRCONFIG,
+  })
+}
+
+/**
+ * Pins the connection to `addresses` instead of letting it resolve `hostname`
+ * a second time. Checking addresses up front only proves where the name
+ * pointed at that moment; the socket runs its own lookup, so a record that
+ * changes in between (DNS rebinding) would otherwise still reach a private IP.
+ *
+ * Every address in the list was checked, so all of them are handed back to
+ * keep Node's happy eyeballs failover between IPv6 and IPv4 intact.
+ */
+export function createPinnedLookup(
+  hostname: string,
+  addresses: LookupAddress[]
+): LookupFunction {
+  return (lookupHostname, options, callback) => {
+    if (lookupHostname !== hostname) {
+      callback(
+        new InvariantError(
+          `Image lookup hostname "${lookupHostname}" does not match request hostname "${hostname}"`
+        ),
+        []
+      )
+      return
+    }
+
+    const family = typeof options.family === 'number' ? options.family : 0
+    const matched = family
+      ? addresses.filter((address) => address.family === family)
+      : addresses
+
+    if (matched.length === 0) {
+      // Reporting this as an error rather than an empty list is not optional:
+      // Node destructures the first address, so the resulting TypeError is
+      // thrown inside the socket and escapes the request entirely.
+      const err: NodeJS.ErrnoException = new Error(
+        `No IPv${family} address available for ${hostname}`
+      )
+      err.code = 'ENODATA'
+      callback(err, [])
+      return
+    }
+
+    if (options.all) {
+      callback(null, matched)
+    } else {
+      callback(null, matched[0].address, matched[0].family)
+    }
+  }
+}
+
+function requestUpstreamImage(
+  url: URL,
+  pinnedLookup: LookupFunction | undefined,
+  imageLookupKey: string | undefined,
+  dangerouslyAllowLocalIP: boolean,
+  signal: AbortSignal
+): Promise<IncomingMessage> {
+  return new Promise((resolve, reject) => {
+    const isHttps = url.protocol === 'https:'
+    const request = isHttps ? httpsRequest : httpRequest
+    const options: ImageRequestOptions = {
+      agent: getImageAgent(dangerouslyAllowLocalIP, isHttps),
+      headers: isHttps ? HTTPS_FETCH_HEADERS : HTTP_FETCH_HEADERS,
+      imageLookupKey,
+      lookup: pinnedLookup,
+      signal,
+    }
+    const req = request(url, options, resolve)
+    req.on('error', reject)
+    req.end()
+  })
+}
+
+class DeflateDecoder extends Transform {
+  private decoder: Transform | undefined
+
+  constructor() {
+    super()
+    this.decoder = undefined
+  }
+
+  _transform(
+    chunk: Buffer,
+    encoding: BufferEncoding,
+    callback: TransformCallback
+  ) {
+    if (!this.decoder) {
+      if (chunk.length === 0) {
+        callback()
+        return
+      }
+      const options = {
+        flush: zlibConstants.Z_SYNC_FLUSH,
+        finishFlush: zlibConstants.Z_SYNC_FLUSH,
+      }
+      this.decoder =
+        (chunk[0] & 0x0f) === 0x08
+          ? createInflate(options)
+          : createInflateRaw(options)
+      this.decoder.on('data', (data: Buffer) => this.push(data))
+      this.decoder.on('end', () => this.push(null))
+      this.decoder.on('error', (err) => this.destroy(err))
+    }
+    this.decoder.write(chunk, encoding, callback)
+  }
+
+  _final(callback: TransformCallback) {
+    this.decoder?.end()
+    this.decoder = undefined
+    callback()
+  }
+}
+
+// Matches the chain limit of native fetch (undici), so an upstream cannot
+// force unbounded decoder allocations with the header alone.
+const MAX_CONTENT_ENCODINGS = 5
+
+function decodeResponseBody(res: IncomingMessage, href: string): Readable {
+  const contentEncoding = res.headers['content-encoding']
+  if (!contentEncoding) {
+    return res
+  }
+
+  const codings = contentEncoding.toLowerCase().split(',')
+  if (codings.length > MAX_CONTENT_ENCODINGS) {
+    Log.error(
+      'upstream image response had too many content encodings for',
+      href
+    )
+    throw new ImageError(
+      400,
+      '"url" parameter is valid but upstream response is invalid'
+    )
+  }
+  const decoders: Transform[] = []
+  for (let i = codings.length - 1; i >= 0; i--) {
+    switch (codings[i].trim()) {
+      case 'x-gzip':
+      case 'gzip':
+        decoders.push(
+          createGunzip({
+            flush: zlibConstants.Z_SYNC_FLUSH,
+            finishFlush: zlibConstants.Z_SYNC_FLUSH,
+          })
+        )
+        break
+      case 'deflate':
+        decoders.push(new DeflateDecoder())
+        break
+      case 'br':
+        decoders.push(
+          createBrotliDecompress({
+            flush: zlibConstants.BROTLI_OPERATION_FLUSH,
+            finishFlush: zlibConstants.BROTLI_OPERATION_FLUSH,
+          })
+        )
+        break
+      default:
+        return res
+    }
+  }
+
+  pipeline([res, ...decoders], () => {})
+  return decoders[decoders.length - 1]
 }
 
 export async function fetchExternalImage(
@@ -875,18 +791,31 @@ export async function fetchExternalImage(
   maximumResponseBody: number,
   count = 3
 ): Promise<ImageUpstream> {
+  const url = new URL(href)
+  // `URL.hostname` keeps the brackets around an IPv6 literal, the socket does not
+  const hostname = url.hostname.replace(/^\[|\]$/g, '')
+  let pinnedLookup: LookupFunction | undefined
+  let imageLookupKey: string | undefined
+
   if (!dangerouslyAllowLocalIP) {
-    const { hostname } = new URL(href)
-    let ips = [hostname]
-    if (!isIP(hostname)) {
-      const records = await lookup(hostname, {
-        family: 0,
-        all: true,
-        hints: ALL,
-      }).catch((_) => [{ address: hostname }])
-      ips = records.map((record) => record.address)
+    const literalFamily = isIP(hostname)
+    let addresses: LookupAddress[]
+
+    if (literalFamily > 0) {
+      // A literal address is connected to as-is, without any DNS resolution
+      addresses = [{ address: hostname, family: literalFamily }]
+    } else {
+      addresses = await lookupAsSocketWould(hostname)
+      pinnedLookup = createPinnedLookup(hostname, addresses)
     }
-    const privateIps = ips.filter((ip) => isPrivateIp(ip))
+    imageLookupKey = addresses
+      .map((address) => `${address.family}:${address.address}`)
+      .join(',')
+
+    const privateIps = addresses
+      .map((record) => record.address)
+      .filter((ip) => isPrivateIp(ip))
+
     if (privateIps.length > 0) {
       Log.error(
         'upstream image',
@@ -898,29 +827,44 @@ export async function fetchExternalImage(
       throw new ImageError(400, '"url" parameter is not allowed')
     }
   }
-  const res = await fetch(href, {
-    signal: AbortSignal.timeout(7_000),
-    redirect: 'manual',
-  }).catch((err) => err as Error)
 
-  if (res instanceof Error) {
-    const err = res as Error
-    if (err.name === 'TimeoutError') {
-      Log.error('upstream image response timed out for', href)
-      throw new ImageError(
-        504,
-        '"url" parameter is valid but upstream response timed out'
-      )
+  // The signal is owned here rather than by `requestUpstreamImage()` because it
+  // has to stay readable while the body streams. Node reports an abort during
+  // the body as a plain `ECONNRESET` on the response, so the signal is the only
+  // way to tell a timeout apart from the upstream resetting the connection.
+  const signal = AbortSignal.timeout(agentOptions.timeout)
+  let res: IncomingMessage
+  try {
+    res = await requestUpstreamImage(
+      url,
+      pinnedLookup,
+      imageLookupKey,
+      dangerouslyAllowLocalIP,
+      signal
+    )
+  } catch (err) {
+    if (signal.aborted) {
+      throw upstreamTimedOut(href)
     }
     throw err
   }
 
-  const locationHeader = res.headers.get('Location')
+  const statusCode = res.statusCode
+  if (statusCode === undefined) {
+    res.destroy()
+    throw new InvariantError('Expected statusCode on upstream image response')
+  }
+  const locationHeader = res.headers.location
   if (
-    isRedirect(res.status) &&
+    isRedirect(statusCode) &&
     locationHeader &&
     URL.canParse(locationHeader, href)
   ) {
+    // Discard the body rather than draining it. A redirect body is never used,
+    // and draining one would download unlimited bytes from the upstream because
+    // `maximumResponseBody` is only enforced on the final response.
+    res.destroy()
+
     if (count === 0) {
       Log.error('upstream image response had too many redirects', href)
       throw new ImageError(
@@ -937,18 +881,11 @@ export async function fetchExternalImage(
     )
   }
 
-  if (!res.ok) {
-    Log.error('upstream image response failed for', href, res.status)
+  if (statusCode < 200 || statusCode > 299) {
+    res.destroy()
+    Log.error('upstream image response failed for', href, statusCode)
     throw new ImageError(
-      res.status,
-      '"url" parameter is valid but upstream response is invalid'
-    )
-  }
-
-  if (!res.body) {
-    Log.error('upstream image response is empty for', href)
-    throw new ImageError(
-      400,
+      statusCode,
       '"url" parameter is valid but upstream response is invalid'
     )
   }
@@ -956,27 +893,45 @@ export async function fetchExternalImage(
   const chunks: Buffer[] = []
   let totalSize = 0
 
-  for await (const c of res.body) {
-    const chunk = Buffer.from(c)
-    totalSize += chunk.byteLength
-    if (totalSize > maximumResponseBody) {
-      Log.error(
-        'upstream image response exceeded maximum size for',
-        href,
-        totalSize
-      )
-      throw new ImageError(
-        413,
-        '"url" parameter is valid but upstream response is invalid'
-      )
+  try {
+    const body = decodeResponseBody(res, href)
+    // Throwing out of this loop destroys the response, so an oversized or
+    // timed out download stops instead of running to completion.
+    for await (const chunk of body as AsyncIterable<Buffer>) {
+      totalSize += chunk.byteLength
+      if (totalSize > maximumResponseBody) {
+        Log.error(
+          'upstream image response exceeded maximum size for',
+          href,
+          totalSize
+        )
+        throw new ImageError(
+          413,
+          '"url" parameter is valid but upstream response is invalid'
+        )
+      }
+      chunks.push(chunk)
     }
-    chunks.push(chunk)
+  } catch (err) {
+    res.destroy()
+    if (signal.aborted) {
+      throw upstreamTimedOut(href)
+    }
+    throw err
+  }
+
+  if (totalSize === 0) {
+    Log.error('upstream image response is empty for', href)
+    throw new ImageError(
+      400,
+      '"url" parameter is valid but upstream response is invalid'
+    )
   }
 
   const buffer = Buffer.concat(chunks)
-  const contentType = res.headers.get('Content-Type')
-  const cacheControl = res.headers.get('Cache-Control')
-  const etag = extractEtag(res.headers.get('ETag'), buffer)
+  const contentType = res.headers['content-type']
+  const cacheControl = res.headers['cache-control']
+  const etag = extractEtag(res.headers.etag, buffer)
   return { buffer, contentType, cacheControl, etag }
 }
 
@@ -995,18 +950,38 @@ export async function fetchInternalImage(
     // Coerce HEAD to GET to avoid issues with the image optimizer
     const method = !_req.method || _req.method === 'HEAD' ? 'GET' : _req.method
 
-    const mocked = createRequestResponseMocks({
-      url: href,
-      method,
-      socket: _req.socket,
-      maximumResponseBody,
-    })
+    // The mocked request keeps the requester's socket so that protocol and
+    // remote address detection keep working, but the mocked response must not
+    // reference it. `send` (used by `serveStatic`) watches `res.socket` through
+    // `on-finished` and treats the response as finished as soon as that socket
+    // stops being writable. When the requester disconnected mid-transfer this
+    // tore down the file stream without ever ending the mocked response, and
+    // since `ResponseCache` coalesces every request for the same cache key onto
+    // this single fetch, the key stayed pending for every later requester until
+    // the server restarted.
+    const mocked = {
+      req: new MockedRequest({
+        url: href,
+        method,
+        headers: {},
+        socket: _req.socket,
+      }),
+      res: new MockedResponse({ maximumResponseBody }),
+    }
 
     await handleRequest(mocked.req, mocked.res, parseReqUrl(href))
     await mocked.res.hasStreamed
 
-    if (!mocked.res.statusCode) {
-      Log.error('image response failed for', href, mocked.res.statusCode)
+    if (
+      !mocked.res.statusCode ||
+      mocked.res.statusCode < 200 ||
+      mocked.res.statusCode > 299
+    ) {
+      Log.error(
+        'internal image response failed for',
+        href,
+        mocked.res.statusCode
+      )
       throw new ImageError(
         mocked.res.statusCode,
         '"url" parameter is valid but internal response is invalid'
@@ -1053,6 +1028,22 @@ export async function fetchInternalImage(
   }
 }
 
+async function makeBlurPlaceholder(buffer: Buffer, contentType: string) {
+  // During `next dev`, we don't want to generate blur placeholders with webpack
+  // because it can delay starting the dev server. Instead, `next-image-loader.js`
+  // will inline a special url to lazily generate the blur placeholder at request time.
+  const meta = await getImageSize(buffer)
+  const blurOpts = {
+    blurWidth: meta.width,
+    blurHeight: meta.height,
+    blurDataURL: `data:${contentType};base64,${buffer.toString('base64')}`,
+  }
+  return {
+    buffer: Buffer.from(unescape(getImageBlurSvg(blurOpts))),
+    contentType: 'image/svg+xml',
+  }
+}
+
 export async function imageOptimizer(
   imageUpstream: ImageUpstream,
   paramsResult: Pick<
@@ -1066,8 +1057,8 @@ export async function imageOptimizer(
       | 'imgOptOperationCache'
       | 'imgOptMaxInputPixels'
       | 'imgOptSequentialRead'
-      | 'imgOptSkipMetadata'
       | 'imgOptTimeoutInSeconds'
+      | 'imgOptMozjpeg'
     >
     images: Pick<
       NextConfigComplete['images'],
@@ -1087,152 +1078,29 @@ export async function imageOptimizer(
   upstreamEtag: string
   error?: unknown
 }> {
-  const { href, quality, width, mimeType } = paramsResult
-  const { buffer: upstreamBuffer, etag: upstreamEtag } = imageUpstream
-  const maxAge = Math.max(
-    nextConfig.images.minimumCacheTTL,
-    getMaxAge(imageUpstream.cacheControl)
-  )
-
-  const upstreamType = await detectContentType(
-    upstreamBuffer,
-    nextConfig.experimental.imgOptSkipMetadata,
-    nextConfig.experimental.imgOptConcurrency,
-    nextConfig.experimental.imgOptOperationCache
-  )
-
-  if (
-    !upstreamType ||
-    !upstreamType.startsWith('image/') ||
-    upstreamType.includes(',')
-  ) {
-    if (!opts.silent) {
-      Log.error(
-        "The requested resource isn't a valid image for",
-        href,
-        'received',
-        upstreamType
-      )
-    }
-    throw new ImageError(400, "The requested resource isn't a valid image.")
-  }
-  if (
-    upstreamType.startsWith('image/svg') &&
-    !nextConfig.images.dangerouslyAllowSVG
-  ) {
-    if (!opts.silent) {
-      Log.error(
-        `The requested resource "${href}" has type "${upstreamType}" but dangerouslyAllowSVG is disabled. Consider adding the "unoptimized" property to the <Image>.`
-      )
-    }
-    throw new ImageError(
-      400,
-      '"url" parameter is valid but image type is not allowed'
-    )
-  }
-  if (ANIMATABLE_TYPES.includes(upstreamType) && isAnimated(upstreamBuffer)) {
-    if (!opts.silent) {
-      Log.warnOnce(
-        `The requested resource "${href}" is an animated image so it will not be optimized. Consider adding the "unoptimized" property to the <Image>.`
-      )
-    }
-    return {
-      buffer: upstreamBuffer,
-      contentType: upstreamType,
-      maxAge,
-      etag: upstreamEtag,
-      upstreamEtag,
-    }
-  }
-  if (BYPASS_TYPES.includes(upstreamType)) {
-    return {
-      buffer: upstreamBuffer,
-      contentType: upstreamType,
-      maxAge,
-      etag: upstreamEtag,
-      upstreamEtag,
-    }
-  }
-
-  let contentType: string
-
-  if (mimeType) {
-    contentType = mimeType
-  } else if (
-    getExtension(upstreamType) &&
-    upstreamType !== WEBP &&
-    upstreamType !== AVIF
-  ) {
-    contentType = upstreamType
-  } else {
-    contentType = JPEG
-  }
   const previouslyCachedImage = getPreviouslyCachedImageOrNull(
     imageUpstream,
     opts.previousCacheEntry
   )
-  if (previouslyCachedImage) {
-    return {
-      buffer: previouslyCachedImage.buffer,
-      contentType,
-      maxAge: opts?.previousCacheEntry?.cacheControl?.revalidate || maxAge,
-      etag: previouslyCachedImage.etag,
-      upstreamEtag: previouslyCachedImage.upstreamEtag,
-    }
-  }
 
-  try {
-    let optimizedBuffer = await optimizeImage({
-      buffer: upstreamBuffer,
-      contentType,
-      quality,
-      width,
-      concurrency: nextConfig.experimental.imgOptConcurrency,
-      operationCache: nextConfig.experimental.imgOptOperationCache,
-      limitInputPixels: nextConfig.experimental.imgOptMaxInputPixels,
-      sequentialRead: nextConfig.experimental.imgOptSequentialRead,
-      timeoutInSeconds: nextConfig.experimental.imgOptTimeoutInSeconds,
-    })
-    if (opts.isDev && width <= BLUR_IMG_SIZE && quality === BLUR_QUALITY) {
-      // During `next dev`, we don't want to generate blur placeholders with webpack
-      // because it can delay starting the dev server. Instead, `next-image-loader.js`
-      // will inline a special url to lazily generate the blur placeholder at request time.
-      const meta = await getImageSize(optimizedBuffer)
-      const blurOpts = {
-        blurWidth: meta.width,
-        blurHeight: meta.height,
-        blurDataURL: `data:${contentType};base64,${optimizedBuffer.toString(
-          'base64'
-        )}`,
-      }
-      optimizedBuffer = Buffer.from(unescape(getImageBlurSvg(blurOpts)))
-      contentType = 'image/svg+xml'
-    }
-    return {
-      buffer: optimizedBuffer,
-      contentType,
-      maxAge,
-      etag: getImageEtag(optimizedBuffer),
-      upstreamEtag,
-    }
-  } catch (error) {
-    if (upstreamType) {
-      // If we fail to optimize, fallback to the original image
-      return {
-        buffer: upstreamBuffer,
-        contentType: upstreamType,
-        maxAge: nextConfig.images.minimumCacheTTL,
-        etag: upstreamEtag,
-        upstreamEtag,
-        error,
-      }
-    } else {
-      throw new ImageError(
-        400,
-        'Unable to optimize image and unable to fallback to upstream image'
-      )
-    }
-  }
+  return imageOptimizerTransform(imageUpstream, paramsResult, nextConfig, {
+    previousOutput: previouslyCachedImage
+      ? {
+          buffer: previouslyCachedImage.buffer,
+          maxAge:
+            opts.previousCacheEntry?.cacheControl?.revalidate || undefined,
+          etag: previouslyCachedImage.etag,
+          upstreamEtag: previouslyCachedImage.upstreamEtag,
+        }
+      : undefined,
+    logger: opts.silent ? undefined : Log,
+    handleDevOutput:
+      opts.isDev &&
+      paramsResult.width <= BLUR_IMG_SIZE &&
+      paramsResult.quality === BLUR_QUALITY
+        ? makeBlurPlaceholder
+        : undefined,
+  })
 }
 
 function getFileNameWithExtension(
@@ -1324,12 +1192,4 @@ export function sendResponse(
       res.end(buffer)
     }
   }
-}
-
-export async function getImageSize(buffer: Buffer): Promise<{
-  width?: number
-  height?: number
-}> {
-  const { width, height } = imageSizeOf(buffer)
-  return { width, height }
 }

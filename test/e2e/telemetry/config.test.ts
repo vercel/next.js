@@ -11,12 +11,10 @@ import {
 } from 'next-test-utils'
 
 describe('config telemetry', () => {
-  const { next, isNextStart, isTurbopack, skipped } = nextTestSetup({
+  const { next, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-  if (skipped) return
 
   async function launchDevServer(
     port: number,

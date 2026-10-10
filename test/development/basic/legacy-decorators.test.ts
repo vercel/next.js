@@ -5,6 +5,9 @@ import { check } from 'next-test-utils'
 describe('Legacy decorators SWC option', () => {
   describe('with extended tsconfig', () => {
     const { next } = nextTestSetup({
+      nextConfig: {
+        experimental: { useTypeScriptCli: false },
+      },
       files: {
         'tsconfig.json': new FileRef(
           join(__dirname, 'legacy-decorators/tsconfig-extended.json')

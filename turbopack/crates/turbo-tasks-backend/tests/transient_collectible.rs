@@ -2,13 +2,13 @@
 #![feature(arbitrary_self_types_pointers)]
 
 use bincode::{Decode, Encode};
-use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput};
 use turbo_tasks_testing::{Registration, register, run_once_without_cache_check};
 
 static REGISTRATION: Registration = register!();
 
 const EXPECTED_MSG: &str =
-    "Collectible is transient, transient collectibles cannot be emitted from persistent tasks";
+    "Collectible is transient; transient collectibles cannot be emitted from persistent tasks";
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_transient_emit_from_persistent() {
@@ -30,7 +30,7 @@ fn emit_incorrect_task_input_operation(value: IncorrectTaskInput) {
 }
 
 /// Has an intentionally incorrect `TaskInput` implementation
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode, NonLocalValue)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Encode, Decode, NonLocalValue)]
 struct IncorrectTaskInput(ResolvedVc<U32Wrapper>);
 
 impl TaskInput for IncorrectTaskInput {

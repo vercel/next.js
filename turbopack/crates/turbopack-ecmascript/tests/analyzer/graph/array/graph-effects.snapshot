@@ -61,6 +61,7 @@
             ),
         ],
         span: 39..63,
+        in_truthiness_context: false,
     },
     Member {
         obj: FreeVar(
@@ -113,6 +114,7 @@
             ),
         ],
         span: 50..62,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "global",
@@ -211,6 +213,7 @@
             ),
         ],
         span: 100..116,
+        in_truthiness_context: false,
     },
     Member {
         obj: FreeVar(
@@ -263,6 +266,7 @@
             ),
         ],
         span: 103..115,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "global",
@@ -355,6 +359,7 @@
             ),
         ],
         span: 129..134,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -398,5 +403,6 @@
             ),
         ],
         span: 147..152,
+        in_truthiness_context: false,
     },
 ]
