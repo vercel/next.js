@@ -78,10 +78,7 @@ describe('layout-segment-chunk-sharing', () => {
   // bundler, not on the mode.
   ;(!isTurbopack ? describe.skip : describe)('chunk sharing', () => {
     it('emits the shared layout module into exactly one server chunk', async () => {
-      // `next dev` and `next build` write their output to different trees.
-      const serverDir = isNextDev
-        ? join(next.testDir, '.next', 'dev', 'server')
-        : join(next.testDir, '.next', 'server')
+      const serverDir = join(next.testDir, next.distDir, 'server')
 
       const entries = await readdir(serverDir, {
         recursive: true,

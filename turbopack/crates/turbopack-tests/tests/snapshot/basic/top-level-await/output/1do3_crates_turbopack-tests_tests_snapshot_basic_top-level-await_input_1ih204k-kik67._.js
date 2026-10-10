@@ -4,10 +4,8 @@
 
 __turbopack_context__.s([
     "AlternativeCreateUserAction",
-    0,
     ()=>AlternativeCreateUserAction,
     "CreateUserAction",
-    0,
     ()=>CreateUserAction
 ]);
 // import() doesn't care about whether a module is an async module or not

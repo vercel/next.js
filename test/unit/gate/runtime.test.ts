@@ -309,6 +309,55 @@ describe('@gate runtime', () => {
       }
     })
 
+    it('runs `vercel` only for a deploy declared as Vercel', async () => {
+      const original = process.env.NEXT_TEST_DEPLOY_TARGET_VERCEL
+      const vercelOnly = parseGate('vercel', true)
+      const notOtherHosts = parseGate('!deploy || vercel', true)
+
+      const results: [string, string, string][] = []
+      try {
+        for (const [mode, target] of [
+          ['deploy', '1'],
+          ['deploy', undefined],
+          ['deploy', '0'],
+          ['start', '1'],
+          ['start', undefined],
+        ] as const) {
+          if (target === undefined) {
+            delete process.env.NEXT_TEST_DEPLOY_TARGET_VERCEL
+          } else {
+            process.env.NEXT_TEST_DEPLOY_TARGET_VERCEL = target
+          }
+          setGateTestContext({
+            mode,
+            bundler: 'turbopack',
+            react18: false,
+            wasm: false,
+          })
+          results.push([
+            `${mode}, ${target ?? 'unset'}`,
+            (await __testing.decideGates([vercelOnly])).type,
+            (await __testing.decideGates([notOtherHosts])).type,
+          ])
+        }
+      } finally {
+        if (original === undefined) {
+          delete process.env.NEXT_TEST_DEPLOY_TARGET_VERCEL
+        } else {
+          process.env.NEXT_TEST_DEPLOY_TARGET_VERCEL = original
+        }
+      }
+
+      // [mode + NEXT_TEST_DEPLOY_TARGET_VERCEL, `@force-gate vercel`, `@force-gate !deploy || vercel`]
+      expect(results).toEqual([
+        ['deploy, 1', 'run', 'run'],
+        ['deploy, unset', 'force-pass', 'force-pass'],
+        ['deploy, 0', 'force-pass', 'force-pass'],
+        ['start, 1', 'force-pass', 'run'],
+        ['start, unset', 'force-pass', 'run'],
+      ])
+    })
+
     it('skips the test for real when the condition is false', () => {
       const body = () => {}
       const fakes = withFakeTestGlobals(() => {

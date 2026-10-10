@@ -38,14 +38,13 @@ See below tables for the currently enabled features.
 
 | arch\platform | Linux(gnu) | Linux(musl) | Darwin    | Windows   |
 | ------------- | ---------- | ----------- | --------- | --------- |
-| x64           | a,b,d,e,f  | a,b,d,e,f   | a,b,d,e,f | a,b,d,e,f |
-| aarch64       | a,d,e,f    | a,d,e,f     | a,b,d,e,f | a,b,c,e   |
+| x64           | a,b,d,f    | a,b,d,f     | a,b,d,f   | a,b,d,f   |
+| aarch64       | a,d,f      | a,d,f       | a,b,d,f   | a,b,c     |
 
 - a: `turbo_tasks_malloc`
 - b: `turbo_tasks_malloc_custom_allocator`
 - c: `native-tls` (via `turbo-tasks-fetch`)
 - d: `rustls-tls` (via `turbo-tasks-fetch`)
-- e: `image-extended` (webp)
 - f: `plugin`
 
 ### Package hierarchies

@@ -43,8 +43,6 @@ describe('file paths', () => {
     'app/layout.tsx',
     'app/default.tsx',
     'app/blog/page.ext.tsx',
-    // Compound extensions are accepted without consulting pageExtensions.
-    'app/page.test.tsx',
     '/project/src/app/blog/page.jsx',
     'C:\\project\\src\\app\\blog\\page.tsx',
   ])('transforms route segment %s', (path) => {
@@ -58,9 +56,17 @@ describe('file paths', () => {
     'app/components/homepage.tsx',
     'app/components/custom-default.tsx',
     'app/blog/route.ts',
+    'app/blog/page.test.tsx',
+    'app/blog/layout.test.tsx',
+    'app/blog/page.spec.tsx',
+    'app/blog/layout.spec.tsx',
+    'app/blog/page.story.tsx',
+    'app/blog/page.stories.tsx',
+    'app/blog/default.stories.tsx',
     'pages/page.tsx',
     'my-app/page.tsx',
     'C:\\project\\app\\_lib\\custom-layout.ts',
+    'C:\\project\\app\\blog\\page.test.tsx',
   ])('leaves non-segment file %s unchanged', (path) => {
     expect(transformer({ path, source }, {})).toBe(source)
   })
