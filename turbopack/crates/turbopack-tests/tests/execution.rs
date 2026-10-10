@@ -196,8 +196,8 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
     // https://nexte.st/docs/configuration/env-vars/#environment-variables-nextest-sets
     let _trace_writer_guard = if env::var_os("NEXTEST").is_some() {
         let trace_file = output_path.join("trace-turbopack");
-        let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
-        let (trace_writer, trace_writer_guard) = TraceWriter::new(trace_writer);
+        let (trace_writer, trace_writer_guard) =
+            TraceWriter::new(trace_file, Default::default()).unwrap();
         let subscriber = subscriber.with(RawTraceLayer::new(trace_writer));
 
         subscriber.init();
