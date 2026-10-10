@@ -1,9 +1,7 @@
-(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/0_9x_turbopack-tests_tests_snapshot_imports_optional-comments_input_1djzxjxdb-z64._.js",
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/optional-comments/input/existing.cjs [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/0_9x_turbopack-tests_tests_snapshot_imports_optional-comments_input_1djzxjxdb-z64._.js","[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/optional-comments/input/existing.cjs [test] (ecmascript)",((__turbopack_context__, module, exports) => {
 
 module.exports = 'existing module (cjs)';
-}),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/optional-comments/input/index.js [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
+}),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/optional-comments/input/index.js [test] (ecmascript)",((__turbopack_context__, module, exports) => {
 
 // turbopackOptional should suppress resolve errors silently
 Promise.resolve().then(()=>{
@@ -43,7 +41,6 @@ Promise.resolve().then(()=>{
 // Test with existing module - should work normally
 __turbopack_context__.A("[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/optional-comments/input/existing.mjs [test] (ecmascript, async loader)").then((m)=>console.log(m));
 __turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/optional-comments/input/existing.cjs [test] (ecmascript)");
-}),
-]);
+})]);
 
 //# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_imports_optional-comments_input_1djzxjxdb-z64._.js.map

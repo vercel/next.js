@@ -1,5 +1,4 @@
-(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1jsg_tests_snapshot_scope-hoisting_duplicate-imports_input_11zbkdcrp86kv._.js",
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/duplicate-imports/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/1jsg_tests_snapshot_scope-hoisting_duplicate-imports_input_11zbkdcrp86kv._.js","[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/duplicate-imports/input/index.js [test] (ecmascript)",((__turbopack_context__) => {
 "use strict";
 
 __turbopack_context__.s([], "[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/duplicate-imports/input/index.js [test] (ecmascript)");
@@ -23,11 +22,9 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
 ;
 console.log('c', __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$scope$2d$hoisting$2f$duplicate$2d$imports$2f$input$2f$shared$2e$js__$5b$test$5d$__$28$ecmascript$29$__2["default"]);
 ;
-}),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/duplicate-imports/input/shared.js [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
+}),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/duplicate-imports/input/shared.js [test] (ecmascript)",((__turbopack_context__, module, exports) => {
 
 module.exports = 'shared';
-}),
-]);
+})]);
 
 //# sourceMappingURL=1jsg_tests_snapshot_scope-hoisting_duplicate-imports_input_11zbkdcrp86kv._.js.map

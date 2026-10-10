@@ -1,5 +1,4 @@
-(()=>{"use strict";(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1jsg_tests_snapshot_comptime_cross-module-attribute_input_0scutbfo13k0p._.js",
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-attribute/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
+"use strict";(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/1jsg_tests_snapshot_comptime_cross-module-attribute_input_0scutbfo13k0p._.js","[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-attribute/input/index.js [test] (ecmascript)",((__turbopack_context__) => {
 "use strict";
 
 __turbopack_context__.s([]);
@@ -33,8 +32,7 @@ if (__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
     })();
 }
 console.log(__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$comptime$2f$cross$2d$module$2d$attribute$2f$input$2f$non$2d$constant$2e$js__$5b$test$5d$__$28$ecmascript$29$__["nonConstant"]);
-}),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-attribute/input/non-constant.js [test] (ecmascript)", ((__turbopack_context__) => {
+}),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-attribute/input/non-constant.js [test] (ecmascript)",((__turbopack_context__) => {
 "use strict";
 
 __turbopack_context__.s([
@@ -44,8 +42,7 @@ __turbopack_context__.s([
 const nonConstant = {
     v: 1234
 };
-}),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-attribute/input/other.js [test] (ecmascript)", ((__turbopack_context__) => {
+}),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-attribute/input/other.js [test] (ecmascript)",((__turbopack_context__) => {
 "use strict";
 
 __turbopack_context__.s([
@@ -56,7 +53,6 @@ __turbopack_context__.s([
 ]);
 const lower = 'lowercase';
 const UPPER = 'UPPER';
-}),
-]);})()
+})]);
 
 //# sourceMappingURL=1jsg_tests_snapshot_comptime_cross-module-attribute_input_0scutbfo13k0p._.js.map

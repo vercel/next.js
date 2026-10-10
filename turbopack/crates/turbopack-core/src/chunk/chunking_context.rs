@@ -458,9 +458,8 @@ pub trait ChunkingContext {
     /// per item spreads that work across the task pool and lets each item's minified output be
     /// cached, so an incremental build only re-minifies what changed.
     ///
-    /// The trade-off is slightly larger output: a factory cannot see the strict wrapper the chunk
-    /// will place it in, so it keeps its own `"use strict"` directive, and no optimisation that
-    /// requires seeing every factory at once is performed.
+    /// The trade-off is slightly larger output: no optimisation that requires seeing every factory
+    /// at once is performed, and each factory's mangled names are chosen independently.
     #[turbo_tasks::function]
     fn minify_before_chunking(self: Vc<Self>) -> Vc<bool> {
         Vc::cell(false)

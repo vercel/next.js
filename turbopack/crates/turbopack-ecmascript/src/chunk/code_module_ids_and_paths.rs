@@ -6,7 +6,7 @@ use turbo_tasks::{
     NonLocalValue, ReadRef, TryJoinIterExt, ValueToString, Vc, debug::ValueDebugFormat,
 };
 use turbopack_core::{
-    chunk::{ChunkItem, ChunkItemExt, MinifyType, ModuleId},
+    chunk::{ChunkItem, ChunkItemExt, MangleType, MinifyType, ModuleId},
     code_builder::Code,
 };
 
@@ -29,11 +29,19 @@ async fn code_module_id_and_path(
         .await?;
     let code = factory.code.to_code().await?;
     // `MinifyType::NoMinify` here means the chunk will be minified as a whole later (or not at
-    // all); only the per-item mode asks for the factory to be minified now.
+    // all); only the per-item mode asks for the factory to be minified now. A minified strict
+    // factory drops its own `"use strict"` directive: the chunk places every strict factory in a
+    // strict context instead (see `strict_factory_mode`).
     let code = match minify {
-        MinifyType::Minify { mangle } => {
-            ReadRef::new_owned(minify_chunk_item(&code, source_maps, mangle)?)
-        }
+        MinifyType::Minify { mangle } => ReadRef::new_owned(minify_chunk_item(
+            &code,
+            source_maps,
+            // `OptimalSize` orders mangled names by the character frequency of the code being
+            // minified. Per item, that order differs from factory to factory, which hurts gzip
+            // across the chunk. A fixed order keeps names consistent between factories.
+            mangle.map(|_| MangleType::Deterministic),
+            factory.strict,
+        )?),
         MinifyType::NoMinify => code,
     };
     Ok(CodeModuleIdAndPath {

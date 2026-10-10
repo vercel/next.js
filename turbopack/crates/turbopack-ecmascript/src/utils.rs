@@ -188,6 +188,26 @@ where
     }
 }
 
+/// Formats a property access on `object` in its shortest form: `object.name` when `name` is a
+/// plain (ASCII) identifier, `object["name"]` otherwise.
+pub struct PropertyAccessJs<'a>(pub &'a str, pub &'a str);
+
+impl std::fmt::Display for PropertyAccessJs<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let PropertyAccessJs(object, name) = *self;
+        let mut chars = name.chars();
+        let is_ident = chars
+            .next()
+            .is_some_and(|c| c.is_ascii_alphabetic() || c == '_' || c == '$')
+            && chars.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '$');
+        if is_ident {
+            write!(f, "{object}.{name}")
+        } else {
+            write!(f, "{object}[{}]", StringifyJs(name))
+        }
+    }
+}
+
 pub struct FormatIter<T: Iterator, F: Fn() -> T>(pub F);
 
 macro_rules! format_iter {

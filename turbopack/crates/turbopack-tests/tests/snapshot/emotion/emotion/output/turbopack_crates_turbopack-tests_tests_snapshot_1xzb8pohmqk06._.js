@@ -1,6 +1,4 @@
-(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/turbopack_crates_turbopack-tests_tests_snapshot_1xzb8pohmqk06._.js",
-(()=>{"use strict";return[
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/emotion/emotion/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/turbopack_crates_turbopack-tests_tests_snapshot_1xzb8pohmqk06._.js",(()=>{"use strict";return["[project]/turbopack/crates/turbopack-tests/tests/snapshot/emotion/emotion/input/index.js [test] (ecmascript)",((__turbopack_context__) => {
 "use strict";
 
 __turbopack_context__.s([]);
@@ -26,8 +24,7 @@ function ClassNameButton({ children }) {
     }, this);
 }
 console.log(StyledButton, ClassNameButton);
-}),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/node_modules/@emotion/react/index.js [test] (ecmascript)", ((__turbopack_context__) => {
+}),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/node_modules/@emotion/react/index.js [test] (ecmascript)",((__turbopack_context__) => {
 "use strict";
 
 __turbopack_context__.s([
@@ -37,8 +34,7 @@ __turbopack_context__.s([
 function jsx() {
     return 'purposefully empty stub for @emotion/react/index.js';
 }
-}),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/node_modules/@emotion/react/jsx-dev-runtime.js [test] (ecmascript)", ((__turbopack_context__) => {
+}),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/node_modules/@emotion/react/jsx-dev-runtime.js [test] (ecmascript)",((__turbopack_context__) => {
 "use strict";
 
 __turbopack_context__.s([
@@ -48,13 +44,10 @@ __turbopack_context__.s([
 function jsxDEV() {
     return 'purposefully empty stub for @emotion/react/jsx-dev-runtime.js';
 }
-}),
-]})(),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/node_modules/@emotion/styled/index.js [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
+})]})(),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/node_modules/@emotion/styled/index.js [test] (ecmascript)",((__turbopack_context__, module, exports) => {
 
 "purposefully empty stub";
 "@emtion/styled/index.js";
-}),
-]);
+})]);
 
 //# sourceMappingURL=turbopack_crates_turbopack-tests_tests_snapshot_1xzb8pohmqk06._.js.map
