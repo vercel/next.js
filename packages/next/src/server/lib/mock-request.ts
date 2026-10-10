@@ -471,6 +471,11 @@ interface RequestResponseMockerOptions {
   method?: string
   bodyReadable?: Stream.Readable
   resWriter?: (chunk: Uint8Array | Buffer | string) => boolean
+  /**
+   * The socket of the original client request, if available. It is attached to
+   * the mocked request only (the router reads `encrypted` and
+   * `remoteAddress` from it), never to the mocked response.
+   */
   socket?: Socket | null
   maximumResponseBody?: number
 }
@@ -492,6 +497,12 @@ export function createRequestResponseMocks({
       socket,
       readable: bodyReadable,
     }),
-    res: new MockedResponse({ socket, resWriter, maximumResponseBody }),
+    // The socket is only passed to the mocked request (e.g. so the router can
+    // read `encrypted` / `remoteAddress` from it). The mocked response is a
+    // buffer, not a wire, so it must not be tied to the client's socket:
+    // `on-finished` (used by `send`) treats a response with a non-writable
+    // socket as already finished, meaning a client that disconnects mid-request
+    // would cause the internal response to never complete.
+    res: new MockedResponse({ socket: null, resWriter, maximumResponseBody }),
   }
 }
