@@ -33,7 +33,7 @@ use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 use crate::{
     AssetsForSourceMapping,
     backend::{CreatePoolFuture, CreatePoolOptions, NodeBackend},
-    evaluate::{EvaluateOperation, EvaluatePool, Operation},
+    evaluate::{EvaluateOperation, EvaluatePool, NodeJsConnectError, Operation},
     format::FormattingMode,
     pool_stats::{AcquiredPermits, NodeJsPoolStats, PoolStatsSnapshot},
     source_map::apply_source_mapping,
@@ -84,6 +84,10 @@ impl PartialEq for NodeJsPoolProcess {
 }
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
+
+/// Exit code used by the child process when it cannot connect to the port we
+/// listen on (see `js/src/child_process/index.ts`).
+const CONNECT_FAILED_EXIT_CODE: i32 = 69;
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 struct OutputEntry {
@@ -311,7 +315,7 @@ impl NodeJsPoolProcess {
         shared_stderr: SharedOutputSet,
         debug: bool,
     ) -> Result<Self> {
-        let guard = duration_span!("Node.js process startup");
+        let guard = duration_span!("Node.js process startup", blocking = false);
         let listener = TcpListener::bind("127.0.0.1:0")
             .await
             .context("binding to a port")?;
@@ -380,6 +384,9 @@ impl NodeJsPoolProcess {
                 match status {
                     Ok(status) => {
                         let (stdout, stderr) = get_output(&mut child).await?;
+                        if status.code() == Some(CONNECT_FAILED_EXIT_CODE) {
+                            return Err(NodeJsConnectError { stderr }.into());
+                        }
                         bail!("node process exited before we could connect to it with {status}\nProcess output:\n{stdout}\nProcess error output:\n{stderr}");
                     }
                     Err(err) => {
@@ -437,7 +444,7 @@ impl NodeJsPoolProcess {
 
         drop(guard);
 
-        let guard = duration_span!("Node.js initialization");
+        let guard = duration_span!("Node.js initialization", blocking = false);
         let ready_signal = process.recv().await?;
 
         if !ready_signal.is_empty() {
@@ -739,7 +746,7 @@ impl EvaluateOperation for ChildProcessPool {
         // Acquire a running process (handles concurrency limits, boots up the process)
 
         let operation = {
-            let _guard = duration_span!("Node.js operation");
+            let _guard = duration_span!("Node.js operation", blocking = true);
             let (process, permits) = self.acquire_process().await?;
             ChildProcessOperation {
                 process: Some(process),

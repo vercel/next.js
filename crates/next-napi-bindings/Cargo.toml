@@ -8,12 +8,7 @@ publish = false
 crate-type = ["cdylib"]
 
 [features]
-image-webp = ["next-core/image-webp"]
 image-avif = ["next-core/image-avif"]
-# Enable all the available image codec support.
-# Currently this is identical to `image-webp`, as we are not able to build
-# other codecs easily yet.
-image-extended = ["image-webp"]
 
 # Enable dhat profiling allocator for heap profiling.
 __internal_dhat-heap = ["dhat"]
@@ -41,6 +36,7 @@ bincode = { workspace = true }
 console-subscriber = { workspace = true, optional = true }
 dhat = { workspace = true, optional = true }
 flate2 = { workspace = true }
+zstd = { workspace = true }
 futures-util = { workspace = true }
 owo-colors = { workspace = true }
 napi = { workspace = true }

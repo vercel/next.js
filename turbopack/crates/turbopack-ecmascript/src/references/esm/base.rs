@@ -73,7 +73,7 @@ pub enum ReferencedAsset {
     Unresolvable,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum ReferencedAssetIdent {
     /// The given export (or namespace) is a local binding in the current scope hoisting group.
     LocalBinding {
@@ -100,7 +100,7 @@ pub enum ReferencedAssetIdent {
 }
 
 /// The source to import when initializing a `ReferencedAssetIdent::Module` variable.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum ImportSource {
     /// Import an in-graph module.
     Module {

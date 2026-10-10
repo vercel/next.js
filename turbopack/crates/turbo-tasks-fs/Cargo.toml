@@ -57,7 +57,6 @@ turbo-tasks = { workspace = true }
 turbo-tasks-hash = { workspace = true }
 turbo-unix-path = { workspace = true }
 url = { workspace = true }
-urlencoding = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
 omnipath = "0.1.6"
