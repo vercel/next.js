@@ -18,6 +18,7 @@
     // Don't generate types for internal files.
     "./**/*.test.ts",
     "./**/*.test.tsx",
+    "../next-upgrade/src/**/*.test.ts",
     "./**/*.stories.tsx",
     "./**/storybook/**/*"
   ]

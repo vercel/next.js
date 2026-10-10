@@ -5,8 +5,8 @@ import semver from 'next/dist/compiled/semver'
 import {
   getLatestUpgradeVersion,
   getUpgradeAssessment,
-  prepareUpgrade,
-} from 'next/dist/lib/upgrade/prepare-upgrade'
+} from 'next/dist/lib/upgrade/shared/check-upgrade'
+import { prepareUpgrade } from 'next/dist/lib/upgrade/cli/agent/prepare'
 import loadConfig from 'next/dist/server/config'
 
 jest.mock('next/dist/server/config', () => ({
