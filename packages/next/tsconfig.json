@@ -12,8 +12,11 @@
     // Preserve relative imports across the source-only upgrade extraction.
     "rootDirs": ["./src", "../next-upgrade/src"],
     "paths": {
-      "next/dist/cli/next-upgrade": ["../next-upgrade/src/cli/next-upgrade.ts"],
-      "next/dist/lib/upgrade/*": ["../next-upgrade/src/lib/upgrade/*"],
+      "next/dist/lib/upgrade/nudge": ["./src/lib/upgrade/nudge.ts"],
+      "next/dist/lib/upgrade/prompt-output": [
+        "./src/lib/upgrade/prompt-output.ts"
+      ],
+      "next/dist/lib/upgrade/*": ["../next-upgrade/src/*"],
       "next/dist/*": ["./src/*"],
       // Required absolute paths.
       // We rewrite these here so that they aren't also input files which would fail tsc with
@@ -50,6 +53,8 @@
     "types/compiled.d.ts",
     "navigation-types/*.d.ts",
     "navigation-types/compat/*.d.ts",
-    "experimental/**/*.d.ts"
+    "experimental/**/*.d.ts",
+    // These relocated suites retain the root test tsconfig's settings.
+    "../next-upgrade/src/**/*.test.ts"
   ]
 }

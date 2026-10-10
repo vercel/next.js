@@ -14,14 +14,11 @@ import {
   getPkgManager,
   type PackageManager,
 } from 'next/dist/lib/helpers/get-pkg-manager'
-import { interopDefault } from 'next/dist/lib/interop-default'
 import { dim } from 'next/dist/lib/picocolors'
-import type { UpgradeDocument } from '../lib/upgrade/future-defaults'
-import { getInstalledNextVersion } from '../lib/upgrade/prepare-upgrade'
-import { runChildProcess } from '../lib/upgrade/run-child-process'
+import { getInstalledNextVersion } from '../next/project'
+import { runChildProcess } from './run-child-process'
 import { getAgentName } from 'next/dist/telemetry/agent-name'
 import {
-  eventAgentUpgradeAgentResult,
   eventAgentUpgradeCLIResult,
   eventAgentUpgradeRunStarted,
   type AgentUpgradeCLIResult,
@@ -29,9 +26,8 @@ import {
   type AgentUpgradePolicy,
 } from 'next/dist/telemetry/events/agent-upgrade'
 import { Telemetry } from 'next/dist/telemetry/storage'
-import loadConfig from 'next/dist/server/config'
-import { normalizeConfig } from 'next/dist/server/config-shared'
-import { PHASE_PRODUCTION_BUILD } from 'next/dist/shared/lib/constants'
+import { loadAgentUpgradeConfig } from '../next/config'
+import { prepareUpgradeDocument } from './agent/guides'
 
 type NextUpgradeOptions = {
   revision: string
@@ -39,115 +35,10 @@ type NextUpgradeOptions = {
   agent: boolean | string | undefined
 }
 
-const UUID_PATTERN =
+export const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 const CODEMOD_COMMAND_PLACEHOLDER = '<codemod-command>'
-const SKILLS_CLI_VERSION = '1.5.26'
-
-type PrepareUpgradeDocumentInput = {
-  directory: string
-  runDirectory: string
-  bundledDocs: string
-  nextVersion: string
-  document: UpgradeDocument
-}
-
-async function prepareUpgradeDocument(
-  input: PrepareUpgradeDocumentInput
-): Promise<string> {
-  if (input.document.startsWith('docs/')) {
-    const path = input.document.slice('docs/'.length)
-    const destination = join(input.runDirectory, input.document)
-    await mkdir(dirname(destination), { recursive: true })
-    await cp(join(input.bundledDocs, path), destination)
-    return destination
-  }
-
-  const match = /^skills\/(.+)\/SKILL\.md$/.exec(input.document)
-  if (!match) {
-    throw new Error(`Unsupported upgrade document ${input.document}.`)
-  }
-
-  return prepareUpgradeSkill(input, match[1])
-}
-
-async function prepareUpgradeSkill(
-  input: PrepareUpgradeDocumentInput,
-  skill: string
-): Promise<string> {
-  const spawnCommand =
-    require('next/dist/compiled/cross-spawn') as typeof import('next/dist/compiled/cross-spawn')
-  const [command, ...runnerArgs] = getNpxCommand(input.directory).split(' ')
-  const source =
-    `https://github.com/vercel/next.js/tree/v${input.nextVersion}/skills/` +
-    skill
-  const args = [...runnerArgs, `skills@${SKILLS_CLI_VERSION}`, 'use', source]
-  const skillDirectory = join(input.runDirectory, 'skills', skill)
-  const instructionsPath = join(skillDirectory, 'PROMPT.md')
-
-  await mkdir(skillDirectory, { recursive: true })
-
-  try {
-    const instructions = await new Promise<string>((resolve, reject) => {
-      const child = spawnCommand(command, args, {
-        cwd: input.directory,
-        env: {
-          ...process.env,
-          TEMP: skillDirectory,
-          TMP: skillDirectory,
-          TMPDIR: skillDirectory,
-        },
-        stdio: ['ignore', 'pipe', 'pipe'],
-      })
-      let stdout = ''
-      let stderr = ''
-
-      child.stdout?.setEncoding('utf8')
-      child.stderr?.setEncoding('utf8')
-
-      child.stdout?.on('data', (chunk: string) => {
-        stdout += chunk
-      })
-      child.stderr?.on('data', (chunk: string) => {
-        stderr += chunk
-      })
-      child.once('error', reject)
-      child.once('close', (code) => {
-        if (code !== 0) {
-          reject(
-            new Error(
-              `Could not prepare ${input.document}: ${stderr.trim() || `exit code ${code ?? 'unknown'}`}`
-            )
-          )
-          return
-        }
-
-        if (!stdout.trim()) {
-          reject(new Error(`${input.document} returned no instructions.`))
-          return
-        }
-
-        resolve(stdout)
-      })
-    })
-
-    await writeFile(instructionsPath, instructions)
-    return instructionsPath
-  } catch (error) {
-    await rm(skillDirectory, { recursive: true, force: true })
-    throw error
-  }
-}
-
-async function loadAgentUpgradeConfig(directory: string) {
-  // Read and normalize the app's config without validating legacy options
-  // against the current Next.js schema.
-  const rawConfig = await loadConfig(PHASE_PRODUCTION_BUILD, directory, {
-    rawConfig: true,
-  })
-  return normalizeConfig(PHASE_PRODUCTION_BUILD, interopDefault(rawConfig))
-}
 
 async function resolveCanaryVersion(): Promise<string> {
   try {
@@ -391,7 +282,7 @@ export async function spawnNextUpgrade(
 
       // Resolve the requested target before preparing an agent session.
       const { prepareUpgrade } =
-        require('../lib/upgrade/prepare-upgrade') as typeof import('../lib/upgrade/prepare-upgrade')
+        require('./agent/prepare') as typeof import('./agent/prepare')
       const assessmentSpinner = createSpinner('Preparing upgrade')
       const result = await prepareUpgrade(baseDir, upgradeType).finally(() =>
         assessmentSpinner?.stop()
@@ -433,8 +324,8 @@ export async function spawnNextUpgrade(
       // Use the invoking CLI's guides, even when the app runs an older Next.js.
       // Retain them outside the app so dependency changes cannot remove them.
       failureStage = 'guide'
-      const bundledDocs = join(__dirname, '../docs')
-      const bundledGuides = join(__dirname, '../lib/upgrade')
+      const bundledDocs = join(__dirname, '../../../docs')
+      const bundledGuides = join(__dirname, '..')
       const runDirectory = await mkdtemp(join(tmpdir(), 'next-upgrade-'))
       const guideName = crossesMajor
         ? 'different-major'
@@ -618,7 +509,7 @@ ${references}
 When this task ends, report its result once. After completing the requested upgrade and all applicable verification, run \`${reportCommand} success\`. If the attempted upgrade remains unsuccessful after repairs or verification fails, run \`${reportCommand} failure\`. If you stop for duplicate work, user cancellation, or an unavailable prerequisite, do not report success or failure. Explain the result to the user separately; never include project details or error text in the telemetry command.`
 
       const { handoffUpgrade } =
-        require('../lib/upgrade/harness') as typeof import('../lib/upgrade/harness')
+        require('./agent/handoff') as typeof import('./agent/handoff')
 
       // Delivery is observable here; completing the upgrade belongs to the agent.
       failureStage = 'handoff'
@@ -694,42 +585,4 @@ When this task ends, report its result once. After completing the requested upgr
   upgradeProcess.on('close', (code) => {
     process.exitCode = code ?? 0
   })
-}
-
-export async function reportAgentUpgradeAgentResult(
-  runId: string,
-  result: string
-) {
-  // Only accept the bounded result and run ID; project details never enter this event.
-  if (
-    !UUID_PATTERN.test(runId) ||
-    (result !== 'success' && result !== 'failure')
-  ) {
-    throw new Error(
-      'Expected an upgrade run UUID and a success or failure result.'
-    )
-  }
-
-  // Reuse normal telemetry consent and delivery without starting another upgrade.
-  const config = await loadAgentUpgradeConfig(process.cwd())
-  const telemetry = new Telemetry({
-    distDir: join(process.cwd(), config.distDir || '.next'),
-    skipNotify: true,
-  })
-
-  // Read the upgraded app instead of the pinned reporting CLI; missing dependencies still report a result.
-  let resultVersion: string | null = null
-  try {
-    resultVersion = await getInstalledNextVersion(process.cwd())
-  } catch (error) {
-    Log.warn(
-      'Could not determine the app version for upgrade telemetry:',
-      error instanceof Error ? error.message : error
-    )
-  }
-
-  await telemetry.record(
-    eventAgentUpgradeAgentResult({ runId, result, resultVersion })
-  )
-  await telemetry.flush()
 }

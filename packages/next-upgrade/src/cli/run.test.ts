@@ -12,12 +12,12 @@ import {
 } from 'fs/promises'
 import * as Log from 'next/dist/build/output/log'
 import cliSelect from 'next/dist/compiled/cli-select'
-import { spawnNextUpgrade } from 'next/dist/cli/next-upgrade'
+import { spawnNextUpgrade } from 'next/dist/lib/upgrade/cli/run'
 import { findDir } from 'next/dist/lib/find-pages-dir'
 import { getProjectDir } from 'next/dist/lib/get-project-dir'
-import { getHarnessModels } from 'next/dist/lib/upgrade/model-discovery'
-import { handoffUpgrade } from 'next/dist/lib/upgrade/harness'
-import { prepareUpgrade } from 'next/dist/lib/upgrade/prepare-upgrade'
+import { getHarnessModels } from 'next/dist/lib/upgrade/cli/agent/model-discovery'
+import { handoffUpgrade } from 'next/dist/lib/upgrade/cli/agent/handoff'
+import { prepareUpgrade } from 'next/dist/lib/upgrade/cli/agent/prepare'
 import loadConfig from 'next/dist/server/config'
 import { normalizeConfig } from 'next/dist/server/config-shared'
 import { PHASE_PRODUCTION_BUILD } from 'next/dist/shared/lib/constants'
@@ -65,10 +65,10 @@ jest.mock('next/dist/lib/picocolors', () => ({
   cyan: (text: string) => text,
   dim: (text: string) => text,
 }))
-jest.mock('next/dist/lib/upgrade/model-discovery', () => ({
+jest.mock('next/dist/lib/upgrade/cli/agent/model-discovery', () => ({
   getHarnessModels: jest.fn(),
 }))
-jest.mock('next/dist/lib/upgrade/prepare-upgrade', () => ({
+jest.mock('next/dist/lib/upgrade/cli/agent/prepare', () => ({
   prepareUpgrade: jest.fn(),
 }))
 jest.mock('next/dist/server/config', () => ({
@@ -1894,7 +1894,7 @@ describe('agentic upgrade prompts', () => {
 
 describe('upgrade model discovery protocol', () => {
   const discover: typeof getHarnessModels = jest.requireActual(
-    'next/dist/lib/upgrade/model-discovery'
+    'next/dist/lib/upgrade/cli/agent/model-discovery'
   ).getHarnessModels
 
   function probe(

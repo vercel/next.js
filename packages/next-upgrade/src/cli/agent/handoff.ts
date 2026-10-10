@@ -11,7 +11,7 @@ import { getAgentName } from 'next/dist/telemetry/agent-name'
 import type { AgentUpgradeHandoffMethod } from 'next/dist/telemetry/events/agent-upgrade'
 import { bold, cyan, dim } from 'next/dist/lib/picocolors'
 import { getHarnessModels, type UpgradeModel } from './model-discovery'
-import { runChildProcess } from './run-child-process'
+import { runChildProcess } from '../run-child-process'
 
 const CODEX_APPROVAL_ARGS = [
   '--sandbox',

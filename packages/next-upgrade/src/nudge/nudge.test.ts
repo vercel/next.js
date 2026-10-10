@@ -10,47 +10,47 @@ import {
   nudgeUpgrade,
   runUpgrade,
   shouldPromptForUpgrade,
-} from 'next/dist/lib/upgrade/nudge'
-import { promptUpgrade } from 'next/dist/lib/upgrade/prompt'
+} from 'next/dist/lib/upgrade/nudge/nudge'
+import { promptUpgrade } from 'next/dist/lib/upgrade/nudge/terminal/prompt'
 import Conf from 'next/dist/compiled/conf'
 import { getAgentName } from 'next/dist/telemetry/agent-name'
-import { getUpgradeAssessment } from 'next/dist/lib/upgrade/prepare-upgrade'
+import { getUpgradeAssessment } from 'next/dist/lib/upgrade/shared/check-upgrade'
 import { warn } from 'next/dist/build/output/log'
-import { spawnNextUpgrade } from 'next/dist/cli/next-upgrade'
+import { spawnNextUpgrade } from 'next/dist/lib/upgrade/cli/run'
 import { defaultConfig } from 'next/dist/server/config-shared'
 
-jest.mock('next/dist/cli/next-upgrade', () => ({
+jest.mock('next/dist/lib/upgrade/cli/run', () => ({
   spawnNextUpgrade: jest.fn(),
 }))
 jest.mock(
-  '../../packages/next-upgrade/src/cli/next-upgrade.js',
-  () => jest.requireMock('next/dist/cli/next-upgrade'),
+  '../cli/run.js',
+  () => jest.requireMock('next/dist/lib/upgrade/cli/run'),
   { virtual: true }
 )
 
 // Read source so version cases run before the package build inlines __NEXT_VERSION.
-jest.mock('next/dist/lib/upgrade/nudge', () =>
-  jest.requireActual('../../packages/next-upgrade/src/lib/upgrade/nudge')
+jest.mock('next/dist/lib/upgrade/nudge/nudge', () =>
+  jest.requireActual('./nudge')
 )
-jest.mock('../../packages/next/src/telemetry/agent-name', () =>
+jest.mock('../../../next/src/telemetry/agent-name', () =>
   jest.requireMock('next/dist/telemetry/agent-name')
 )
-jest.mock('../../packages/next-upgrade/src/lib/upgrade/prepare-upgrade', () =>
-  jest.requireMock('next/dist/lib/upgrade/prepare-upgrade')
+jest.mock('../shared/check-upgrade', () =>
+  jest.requireMock('next/dist/lib/upgrade/shared/check-upgrade')
 )
-jest.mock('../../packages/next/src/build/output/log', () =>
+jest.mock('../../../next/src/build/output/log', () =>
   jest.requireMock('next/dist/build/output/log')
 )
 
 jest.mock('next/dist/telemetry/agent-name', () => ({
   getAgentName: jest.fn(),
 }))
-jest.mock('next/dist/lib/upgrade/prepare-upgrade', () => ({
+jest.mock('next/dist/lib/upgrade/shared/check-upgrade', () => ({
   getPrereleaseChannel: jest.requireActual(
-    'next/dist/lib/upgrade/prepare-upgrade'
+    'next/dist/lib/upgrade/shared/check-upgrade'
   ).getPrereleaseChannel,
   getLatestUpgradeVersion: jest.requireActual(
-    'next/dist/lib/upgrade/prepare-upgrade'
+    'next/dist/lib/upgrade/shared/check-upgrade'
   ).getLatestUpgradeVersion,
   getUpgradeAssessment: jest.fn(),
 }))
@@ -59,10 +59,10 @@ jest.mock('next/dist/build/output/log', () => ({
 }))
 
 jest.mock('next/dist/server/ci-info', () => ({ isCI: false }))
-jest.mock('../../packages/next-upgrade/src/lib/upgrade/prompt', () =>
-  jest.requireMock('next/dist/lib/upgrade/prompt')
+jest.mock('./terminal/prompt', () =>
+  jest.requireMock('next/dist/lib/upgrade/nudge/terminal/prompt')
 )
-jest.mock('next/dist/lib/upgrade/prompt', () => ({
+jest.mock('next/dist/lib/upgrade/nudge/terminal/prompt', () => ({
   promptUpgrade: jest.fn(),
 }))
 let mockPreferencesDirectory: string
@@ -340,7 +340,7 @@ describe('security upgrade nudge', () => {
       jest.isolateModules(() => {
         restartedNudge = jest.requireActual<{
           nudgeUpgrade: typeof nudgeUpgrade
-        }>('../../packages/next-upgrade/src/lib/upgrade/nudge').nudgeUpgrade
+        }>('./nudge').nudgeUpgrade
         jest
           .mocked(
             jest.requireMock<typeof import('next/dist/telemetry/agent-name')>(
@@ -366,7 +366,7 @@ describe('security upgrade nudge', () => {
       jest.isolateModules(() => {
         newSessionNudge = jest.requireActual<{
           nudgeUpgrade: typeof nudgeUpgrade
-        }>('../../packages/next-upgrade/src/lib/upgrade/nudge').nudgeUpgrade
+        }>('./nudge').nudgeUpgrade
         jest
           .mocked(
             jest.requireMock<typeof import('next/dist/telemetry/agent-name')>(
@@ -424,9 +424,9 @@ describe('security upgrade nudge', () => {
 })
 describe('latest nudge release selection', () => {
   const { getLatestUpgradeVersion: readLatestUpgradeVersion } =
-    jest.requireActual<typeof import('next/dist/lib/upgrade/prepare-upgrade')>(
-      'next/dist/lib/upgrade/prepare-upgrade'
-    )
+    jest.requireActual<
+      typeof import('next/dist/lib/upgrade/shared/check-upgrade')
+    >('next/dist/lib/upgrade/shared/check-upgrade')
 
   afterEach(() => {
     jest.restoreAllMocks()

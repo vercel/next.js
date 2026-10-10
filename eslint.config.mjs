@@ -419,6 +419,7 @@ export default defineConfig([
       'evals/next-upgrade/apps/member-dashboard/behavior.spec.ts',
       'examples/**/*',
       'test/**/*',
+      'packages/next-upgrade/src/**/*.test.ts',
       '**/*.d.ts',
       'turbopack/**/*',
     ],
@@ -434,6 +435,7 @@ export default defineConfig([
   },
   {
     files: ['packages/**/*.ts', 'packages/**/*.tsx'],
+    ignores: ['packages/next-upgrade/src/**/*.test.ts'],
     plugins: {
       '@next/internal': nextEslintPluginInternal,
     },
@@ -494,6 +496,7 @@ export default defineConfig([
       'packages/next/taskfile*.js',
       'packages/next/next-devtools.webpack-config.js',
       'packages/next/next-runtime.webpack-config.js',
+      'packages/next-upgrade/src/**/*.test.ts',
     ],
     rules: {
       'no-shadow': [
@@ -513,6 +516,7 @@ export default defineConfig([
   },
   {
     files: ['packages/**/*.tsx', 'packages/**/*.ts'],
+    ignores: ['packages/next-upgrade/src/**/*.test.ts'],
 
     rules: {
       'no-shadow': 'off',

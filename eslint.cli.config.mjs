@@ -28,6 +28,7 @@ export default defineConfig([
       'evals/next-upgrade/apps/member-dashboard/behavior.spec.ts',
       'examples/**/*',
       'test/**/*',
+      'packages/next-upgrade/src/**/*.test.ts',
       '**/*.d.ts',
       'turbopack/**/*',
     ],
