@@ -2,15 +2,7 @@ import { writeSync } from 'node:fs'
 import { createConnection } from 'node:net'
 import { Writable } from 'node:stream'
 import { structuredError } from '../error'
-
-type State =
-  | {
-      type: 'waiting'
-    }
-  | {
-      type: 'packet'
-      length: number
-    }
+import { PacketReader } from './packet-reader'
 
 export type Ipc<TIncoming, TOutgoing> = {
   recv(): Promise<TIncoming>
@@ -65,53 +57,13 @@ function createIpc<TIncoming, TOutgoing>(
     },
   })
 
-  const packetQueue: Buffer[] = []
-  const recvPromiseResolveQueue: Array<(message: TIncoming) => void> = []
+  const reader = new PacketReader<TIncoming>()
 
-  function pushPacket(packet: Buffer) {
-    const recvPromiseResolve = recvPromiseResolveQueue.shift()
-    if (recvPromiseResolve != null) {
-      recvPromiseResolve(JSON.parse(packet.toString('utf8')) as TIncoming)
-    } else {
-      packetQueue.push(packet)
-    }
-  }
-
-  let state: State = { type: 'waiting' }
-  let buffer: Buffer = Buffer.alloc(0)
   socket.once('connect', () => {
     socket.off('error', onConnectError)
     socket.setNoDelay(true)
     socket.on('data', (chunk) => {
-      buffer = Buffer.concat([buffer, chunk])
-
-      loop: while (true) {
-        switch (state.type) {
-          case 'waiting': {
-            if (buffer.length >= 4) {
-              const length = buffer.readUInt32BE(0)
-              buffer = buffer.subarray(4)
-              state = { type: 'packet', length }
-            } else {
-              break loop
-            }
-            break
-          }
-          case 'packet': {
-            if (buffer.length >= state.length) {
-              const packet = buffer.subarray(0, state.length)
-              buffer = buffer.subarray(state.length)
-              state = { type: 'waiting' }
-              pushPacket(packet)
-            } else {
-              break loop
-            }
-            break
-          }
-          default:
-            invariant(state, (state) => `Unknown state type: ${state?.type}`)
-        }
-      }
+      reader.push(chunk)
     })
   })
   // When the socket is closed, this process is no longer needed.
@@ -148,19 +100,8 @@ function createIpc<TIncoming, TOutgoing>(
   }
 
   return {
-    async recv() {
-      const packet = packetQueue.shift()
-      if (packet != null) {
-        return JSON.parse(packet.toString('utf8')) as TIncoming
-      }
-
-      const result = await new Promise<TIncoming>((resolve) => {
-        recvPromiseResolveQueue.push((result) => {
-          resolve(result)
-        })
-      })
-
-      return result
+    recv() {
+      return reader.recv()
     },
 
     send(message: TOutgoing) {
@@ -234,10 +175,3 @@ improveConsole('timeEnd', 'stdout', true)
 improveConsole('timeLog', 'stdout', true)
 improveConsole('timeStamp', 'stdout', true)
 improveConsole('assert', 'stderr', true)
-
-/**
- * Utility function to ensure all variants of an enum are handled.
- */
-function invariant(never: never, computeMessage: (arg: any) => string): never {
-  throw new Error(`Invariant: ${computeMessage(never)}`)
-}
