@@ -356,8 +356,34 @@ pub async fn get_meta_data(
         return Ok(ImageMetaData::fallback_value(None).cell());
     };
 
+    let mime_type = if let Some(format) = format {
+        image_format_to_mime_type(format)?
+    } else {
+        None
+    };
+
     match image_buffer {
-        ImageBuffer::Raw(..) => Ok(ImageMetaData::fallback_value(None).cell()),
+        ImageBuffer::Raw(..) => {
+            // We can't decode this format, but can still read the dimensions from its headers.
+            // There's no way to compute a real blur placeholder without decoding.
+            let size = result_to_issue(
+                image,
+                imagesize::blob_size(&bytes)
+                    .map_err(anyhow::Error::from)
+                    .and_then(|size| Ok((u32::try_from(size.width)?, u32::try_from(size.height)?)))
+                    .context("unable to determine image dimensions"),
+            );
+            let Some((width, height)) = size else {
+                return Ok(ImageMetaData::fallback_value(mime_type).cell());
+            };
+            Ok(ImageMetaData {
+                width,
+                height,
+                mime_type,
+                blur_placeholder: Some(BlurPlaceholder::fallback()),
+            }
+            .cell())
+        }
         ImageBuffer::Decoded(image_data) => {
             let (width, height) = image_data.dimensions();
             let blur_placeholder = if let Some(blur_placeholder) = blur_placeholder {
@@ -385,11 +411,7 @@ pub async fn get_meta_data(
             Ok(ImageMetaData {
                 width,
                 height,
-                mime_type: if let Some(format) = format {
-                    image_format_to_mime_type(format)?
-                } else {
-                    None
-                },
+                mime_type,
                 blur_placeholder,
             }
             .cell())

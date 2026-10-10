@@ -128,11 +128,27 @@ describe('Static Image Component Tests', () => {
     expect(metaViewport.index).toBeLessThan(linkPreload.index)
   })
 
-  it('Should automatically provide an image height and width', async () => {
-    const img = $('#basic-non-static')
-    expect(img.attr('width')).toBe('400')
-    expect(img.attr('height')).toBe('300')
-  })
+  it.each([
+    ['basic-non-static', '400', '300'],
+    ['basic-static', '400', '300'],
+    ['blur-png', '400', '400'],
+    ['blur-jpg', '400', '400'],
+    ['blur-webp', '400', '400'],
+    ['blur-avif', '400', '400'],
+    ['blur-wide', '1200', '700'],
+    ['blur-tall', '160', '394'],
+    ['static-svg', '400', '400'],
+    ['static-gif', '400', '400'],
+    ['static-bmp', '400', '400'],
+    ['static-ico', '32', '32'],
+  ])(
+    'Should automatically provide an image height and width for #%s',
+    async (id, width, height) => {
+      const img = $(`#${id}`)
+      expect(img.attr('width')).toBe(width)
+      expect(img.attr('height')).toBe(height)
+    }
+  )
 
   it('should use width and height prop to override import', async () => {
     const img = $('#defined-width-and-height')
