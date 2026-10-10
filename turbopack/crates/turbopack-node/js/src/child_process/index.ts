@@ -1,15 +1,7 @@
 import { createConnection } from 'node:net'
 import { Writable } from 'node:stream'
 import { structuredError } from '../error'
-
-type State =
-  | {
-      type: 'waiting'
-    }
-  | {
-      type: 'packet'
-      length: number
-    }
+import { PacketReader } from './packet-reader'
 
 export type Ipc<TIncoming, TOutgoing> = {
   recv(): Promise<TIncoming>
@@ -45,95 +37,12 @@ function createIpc<TIncoming, TOutgoing>(
     },
   })
 
-  const packetQueue: Buffer[] = []
-  const recvPromiseResolveQueue: Array<(message: TIncoming) => void> = []
-
-  function pushPacket(packet: Buffer) {
-    const recvPromiseResolve = recvPromiseResolveQueue.shift()
-    if (recvPromiseResolve != null) {
-      recvPromiseResolve(JSON.parse(packet.toString('utf8')) as TIncoming)
-    } else {
-      packetQueue.push(packet)
-    }
-  }
-
-  let state: State = { type: 'waiting' }
-  // Received chunks that have not been consumed yet. We keep them as a list
-  // (instead of concatenating on every `data` event) so that assembling a
-  // packet that arrives in many chunks copies each byte only once.
-  const chunks: Buffer[] = []
-  let bufferedLength = 0
-
-  /**
-   * Removes the first `length` bytes from `chunks` and returns them.
-   * The caller must ensure that `bufferedLength >= length`.
-   */
-  function takeBytes(length: number): Buffer {
-    if (length === 0) {
-      return Buffer.alloc(0)
-    }
-    bufferedLength -= length
-    const first = chunks[0]
-    if (first.length >= length) {
-      // Fast path: the bytes are contained in the first chunk, no copy needed.
-      if (first.length === length) {
-        chunks.shift()
-      } else {
-        chunks[0] = first.subarray(length)
-      }
-      return first.subarray(0, length)
-    }
-    const result = Buffer.allocUnsafe(length)
-    let offset = 0
-    let consumed = 0
-    while (offset < length) {
-      const chunk = chunks[consumed]
-      const remaining = length - offset
-      if (chunk.length <= remaining) {
-        chunk.copy(result, offset)
-        offset += chunk.length
-        consumed++
-      } else {
-        chunk.copy(result, offset, 0, remaining)
-        chunks[consumed] = chunk.subarray(remaining)
-        offset += remaining
-      }
-    }
-    chunks.splice(0, consumed)
-    return result
-  }
+  const reader = new PacketReader<TIncoming>()
 
   socket.once('connect', () => {
     socket.setNoDelay(true)
     socket.on('data', (chunk) => {
-      chunks.push(chunk)
-      bufferedLength += chunk.length
-
-      loop: while (true) {
-        switch (state.type) {
-          case 'waiting': {
-            if (bufferedLength >= 4) {
-              const length = takeBytes(4).readUInt32BE(0)
-              state = { type: 'packet', length }
-            } else {
-              break loop
-            }
-            break
-          }
-          case 'packet': {
-            if (bufferedLength >= state.length) {
-              const packet = takeBytes(state.length)
-              state = { type: 'waiting' }
-              pushPacket(packet)
-            } else {
-              break loop
-            }
-            break
-          }
-          default:
-            invariant(state, (state) => `Unknown state type: ${state?.type}`)
-        }
-      }
+      reader.push(chunk)
     })
   })
   // When the socket is closed, this process is no longer needed.
@@ -170,19 +79,8 @@ function createIpc<TIncoming, TOutgoing>(
   }
 
   return {
-    async recv() {
-      const packet = packetQueue.shift()
-      if (packet != null) {
-        return JSON.parse(packet.toString('utf8')) as TIncoming
-      }
-
-      const result = await new Promise<TIncoming>((resolve) => {
-        recvPromiseResolveQueue.push((result) => {
-          resolve(result)
-        })
-      })
-
-      return result
+    recv() {
+      return reader.recv()
     },
 
     send(message: TOutgoing) {
@@ -256,10 +154,3 @@ improveConsole('timeEnd', 'stdout', true)
 improveConsole('timeLog', 'stdout', true)
 improveConsole('timeStamp', 'stdout', true)
 improveConsole('assert', 'stderr', true)
-
-/**
- * Utility function to ensure all variants of an enum are handled.
- */
-function invariant(never: never, computeMessage: (arg: any) => string): never {
-  throw new Error(`Invariant: ${computeMessage(never)}`)
-}
