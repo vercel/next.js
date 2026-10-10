@@ -17,7 +17,6 @@ import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import {
   BUILD_ID_FILE,
   BUILD_MANIFEST,
-  CLIENT_REFERENCE_MANIFEST,
   DYNAMIC_CSS_MANIFEST,
   NEXT_FONT_MANIFEST,
   PREFETCH_HINTS,
@@ -26,7 +25,6 @@ import {
   REACT_LOADABLE_MANIFEST,
   ROUTES_MANIFEST,
   SERVER_FILES_MANIFEST,
-  SERVER_REFERENCE_MANIFEST,
   SUBRESOURCE_INTEGRITY_MANIFEST,
 } from '../../shared/lib/constants'
 import { parseReqUrl } from '../../lib/url'
@@ -53,7 +51,6 @@ import {
 } from '../request-meta'
 import { patchSetHeaderWithCookieSupport } from '../lib/patch-set-header'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
-import { isStaticMetadataRoute } from '../../lib/metadata/is-metadata-route'
 import { IncrementalCache } from '../lib/incremental-cache'
 import {
   initializeCacheHandlers,
@@ -162,6 +159,11 @@ export abstract class RouteModule<
     this.distDir = distDir
     this.relativeProjectDir = relativeProjectDir
   }
+
+  /**
+   * Initialize the user's code
+   */
+  public async ensureUserland(): Promise<void> {}
 
   private getRouterServerContext(
     req: NextIncomingMessage
@@ -308,8 +310,10 @@ export abstract class RouteModule<
       if (!projectDir) {
         throw new Error('Invariant: projectDir is required for node runtime')
       }
-      const { loadManifestFromRelativePath, evalManifestFromRelativePath } =
+      const { loadManifestFromRelativePath } =
         require('../load-manifest.external') as typeof import('../load-manifest.external')
+      const { loadReferenceManifests } =
+        require('../load-reference-manifests') as typeof import('../load-reference-manifests')
       const normalizedPagePath = normalizePagePath(srcPage)
 
       const router =
@@ -326,8 +330,7 @@ export abstract class RouteModule<
         fallbackBuildManifest,
         reactLoadableManifest,
         nextFontManifest,
-        clientReferenceManifest,
-        serverActionsManifest,
+        referenceManifests,
         subresourceIntegrityManifest,
         serverFilesManifest,
         buildId,
@@ -384,24 +387,14 @@ export abstract class RouteModule<
           manifest: `server/${NEXT_FONT_MANIFEST}.json`,
           shouldCache: !this.isDev,
         }),
-        router === 'app' && !isStaticMetadataRoute(srcPage)
-          ? evalManifestFromRelativePath({
-              distDir: this.distDir,
-              projectDir,
-              handleMissing: true,
-              manifest: `server/app${srcPage.replace(/%5F/g, '_') + '_' + CLIENT_REFERENCE_MANIFEST}.js`,
-              shouldCache: !this.isDev,
-            })
-          : undefined,
         router === 'app'
-          ? loadManifestFromRelativePath<any>({
-              distDir: this.distDir,
+          ? loadReferenceManifests({
+              page: srcPage,
               projectDir,
-              manifest: `server/${SERVER_REFERENCE_MANIFEST}.json`,
-              handleMissing: true,
-              shouldCache: !this.isDev,
+              distDir: this.distDir,
+              isDev: this.isDev,
             })
-          : {},
+          : { clientReferenceManifest: undefined, serverActionsManifest: {} },
         loadManifestFromRelativePath<Record<string, string>>({
           projectDir,
           distDir: this.distDir,
@@ -454,9 +447,8 @@ export abstract class RouteModule<
         previewProps,
         serverFilesManifest,
         reactLoadableManifest,
-        clientReferenceManifest: (clientReferenceManifest as any)
-          ?.__RSC_MANIFEST?.[srcPage.replace(/%5F/g, '_')],
-        serverActionsManifest,
+        clientReferenceManifest: referenceManifests.clientReferenceManifest,
+        serverActionsManifest: referenceManifests.serverActionsManifest,
         subresourceIntegrityManifest,
         dynamicCssManifest,
         prefetchHintsManifest,

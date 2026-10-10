@@ -5,6 +5,7 @@ import type { RenderOpts } from '../../app-render/types'
 import { addRequestMeta, type NextParsedUrlQuery } from '../../request-meta'
 import type { LoaderTree } from '../../lib/app-dir-module'
 import type { PrerenderManifest } from '../../../build'
+import { setManifestsSingleton } from '../../app-render/manifests-singleton'
 
 import {
   prerenderToHTMLOrFlight,
@@ -105,6 +106,54 @@ export class AppPageRouteModule extends RouteModule<
   AppPageRouteDefinition,
   AppPageUserlandModule
 > {
+  /**
+   * Initialize reference manifests and evaluate loader-tree modules without
+   * rendering. As with App Routes, the caller must patch fetch first.
+   */
+  public async ensureUserland(): Promise<void> {
+    if (process.env.NEXT_RUNTIME === 'edge') {
+      // Edge entries receive reference manifests through the edge loader.
+    } else {
+      const { join } = require('node:path') as typeof import('node:path')
+      const { loadReferenceManifests } =
+        require('../../load-reference-manifests') as typeof import('../../load-reference-manifests')
+      const projectDir = join(
+        /* turbopackIgnore: true */ process.cwd(),
+        this.relativeProjectDir
+      )
+      const { clientReferenceManifest, serverActionsManifest } =
+        loadReferenceManifests({
+          page: this.definition.page,
+          projectDir,
+          distDir: this.distDir,
+          isDev: this.isDev,
+        })
+
+      // Module evaluation can create Server Action closures, so register the
+      // required references before calling any loader-tree factory.
+      if (clientReferenceManifest && serverActionsManifest) {
+        setManifestsSingleton({
+          page: this.definition.page,
+          clientReferenceManifest,
+          serverActionsManifest,
+        })
+      }
+
+      async function visit(tree: LoaderTree): Promise<void> {
+        const [, parallelRoutes, treeModules] = tree
+        const { metadata: _metadata, ...modules } = treeModules
+
+        for (const module of Object.values(modules)) {
+          if (module) await module[0]()
+        }
+        for (const child of Object.values(parallelRoutes)) {
+          await visit(child)
+        }
+      }
+      await visit(this.userland.loaderTree)
+    }
+  }
+
   private matchers = new WeakMap<
     DeepReadonly<PrerenderManifest>,
     PrerenderManifestMatcher

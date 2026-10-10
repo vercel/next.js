@@ -368,6 +368,7 @@ export default class NextNodeServer extends BaseServer<
         // otherwise if the fetch is patched by user code, we will be patching it
         // too late and there won't be any caching behaviors
         ComponentMod.patchFetch()
+        await ComponentMod.routeModule.ensureUserland()
       } catch (_err) {
         // Intentionally ignored because this is a preload step.
       }
