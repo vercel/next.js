@@ -1,9 +1,31 @@
-use std::io::Write;
+use std::{io::Write, ops::AddAssign};
 
 use anyhow::Result;
-use turbopack_core::code_builder::CodeBuilder;
+use turbopack_core::code_builder::{CodeBuilder, ComposedCodeBuilder};
 
 use crate::{chunk::CodeModuleIdAndPath, utils::StringifyJs};
+
+/// Where [`write_module_factories`] writes to.
+pub trait ModuleFactorySink: Write + AddAssign<&'static str> {
+    fn push_factory(&mut self, item: &CodeModuleIdAndPath);
+}
+
+impl ModuleFactorySink for CodeBuilder {
+    fn push_factory(&mut self, item: &CodeModuleIdAndPath) {
+        self.push_code(&item.code);
+    }
+}
+
+/// References each factory's cells, so that the chunk's persisted representation doesn't copy
+/// them.
+impl ModuleFactorySink for ComposedCodeBuilder {
+    fn push_factory(&mut self, item: &CodeModuleIdAndPath) {
+        match &item.cells {
+            Some(cells) => self.push_code_cells(cells, &item.code),
+            None => self.push_code(&item.code),
+        }
+    }
+}
 
 // The chunk scaffolding is written in minified form in every mode, so a chunk whose factories
 // are minified individually needs no further minification pass.
@@ -92,7 +114,7 @@ const fn mixed_prefix(supports_arrow_functions: bool) -> &'static str {
 ///
 /// The chunk items must be sorted with all strict items first.
 pub fn write_module_factories(
-    code: &mut CodeBuilder,
+    code: &mut impl ModuleFactorySink,
     chunk_items: &[CodeModuleIdAndPath],
     mode: StrictFactoryMode,
     supports_arrow_functions: bool,
@@ -115,7 +137,7 @@ pub fn write_module_factories(
             *code += ",";
         }
         write!(code, "{},", StringifyJs(&item.id))?;
-        code.push_code(&item.code);
+        code.push_factory(item);
     }
     if in_strict_group {
         *code += MIXED_SUFFIX;
@@ -161,6 +183,7 @@ mod tests {
         CodeModuleIdAndPath {
             id: ModuleId::Number(id),
             code: ReadRef::new_owned(code.build()),
+            cells: None,
             path: Default::default(),
             strict,
         }

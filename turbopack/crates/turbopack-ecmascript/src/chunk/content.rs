@@ -5,7 +5,7 @@ use either::Either;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::{
     chunk::{ChunkItem, ChunkItems, ChunkingContext, MangleType, MinifyType, batch_info},
-    code_builder::Code,
+    code_builder::{Code, ComposedCode, ComposedCodeParts},
 };
 
 use crate::{
@@ -57,12 +57,24 @@ impl ChunkMinification {
         }
     }
 
-    /// Applies the whole-chunk minification, if any, to the assembled chunk.
-    pub fn finish_chunk(self, code: Code, source_maps: bool) -> Result<Code> {
-        match self {
-            ChunkMinification::WholeChunk { mangle } => minify(code, source_maps, mangle),
-            ChunkMinification::None | ChunkMinification::PerItem { .. } => Ok(code),
-        }
+    /// Applies the whole-chunk minification, if any, to a chunk assembled with a
+    /// [`ComposedCodeBuilder`](turbopack_core::code_builder::ComposedCodeBuilder). The result
+    /// references the chunk items' cells, unless the chunk is minified as a whole (which
+    /// produces new, flat code).
+    pub fn finish_composed_chunk(
+        self,
+        code: Code,
+        parts: ComposedCodeParts,
+        source_maps: bool,
+    ) -> Result<ComposedCode> {
+        Ok(match self {
+            ChunkMinification::WholeChunk { mangle } => {
+                ComposedCode::new(minify(code, source_maps, mangle)?, None)
+            }
+            ChunkMinification::None | ChunkMinification::PerItem { .. } => {
+                ComposedCode::new(code, Some(parts))
+            }
+        })
     }
 
     /// Whether strict factories still carry their own `"use strict"` directive. Per-item
