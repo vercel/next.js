@@ -265,7 +265,8 @@ export async function createApp({
   }
 
   if (agentsMd) {
-    generateAgentFiles(root)
+    // Examples don't get `experimental.agentFeedback` written to their config.
+    generateAgentFiles(root, { agentFeedback: !example && agentFeedback })
   }
 
   if (disableGit) {

@@ -245,7 +245,7 @@ function createRuntimePrerenderSearchParams(
       ? createVaryingSearchParams(varyParamsAccumulator, underlyingSearchParams)
       : underlyingSearchParams
 
-  const searchParamsStage = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
+  const searchParamsStage = RENDER_STAGES_BY_DATA_KIND.runtimeUrlData
 
   const { stagedRendering } = workUnitStore
   if (!stagedRendering) {
@@ -596,7 +596,7 @@ function makeUntrackedSearchParamsWithDevWarningsImpl(
   const promise = makeDevtoolsIOAwarePromise(
     proxiedUnderlying,
     requestStore,
-    RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
+    RENDER_STAGES_BY_DATA_KIND.runtimeUrlData
   )
 
   promise.then(
@@ -604,7 +604,7 @@ function makeUntrackedSearchParamsWithDevWarningsImpl(
       promiseInitialized.current = true
     },
     // If we're in staged rendering, this promise will reject if the render
-    // is aborted before it can reach the runtime stage.
+    // is aborted before it can reach the PrefetchRuntime stage.
     // In that case, we have to prevent an unhandled rejection from the promise
     // created by this `.then()` call.
     // This does not affect the `promiseInitialized` logic above,

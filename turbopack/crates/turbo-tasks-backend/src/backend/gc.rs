@@ -31,11 +31,11 @@ use crate::{
     backend::{
         TurboTasksBackend,
         operation::{
-            AggregationUpdateJob, AggregationUpdateQueue, ExecuteContext, ExecuteContextImpl,
-            TaskGuard, capture_all_edges, cleanup_old_edges_deletions_only,
+            AggregationUpdateQueue, ExecuteContext, capture_all_edges,
+            cleanup_old_edges_deletions_only,
         },
         snapshot_coordinator::SnapshotPhase,
-        storage::{SpecificTaskDataCategory, TaskDataCategory},
+        storage::TaskDataCategory,
         storage_schema::TaskStorageAccessors,
     },
     backing_storage::SnapshotItem,
@@ -129,9 +129,6 @@ pub struct GcPassResult {
     deleted_roots: Vec<TaskId>,
     /// Aggregation rebalance requests that were deferred from the main GC loop.
     deferred_balance_edges: FxHashSet<(TaskId, TaskId)>,
-    /// Dependents of collected tasks whose forward edge was scrubbed, deferred from the main GC
-    /// loop. Dirtying propagates through the aggregation graph, so it must not race the cascade.
-    deferred_dirty_dependents: FxHashSet<TaskId>,
     /// The gc loop was interrupted by competing work.
     pub interrupted: bool,
 }
@@ -179,15 +176,6 @@ impl GcPassResult {
         }
         self.deferred_balance_edges
             .extend(other.deferred_balance_edges);
-        // merge into the larger set and keep that one
-        if other.deferred_dirty_dependents.len() > self.deferred_dirty_dependents.len() {
-            std::mem::swap(
-                &mut self.deferred_dirty_dependents,
-                &mut other.deferred_dirty_dependents,
-            );
-        }
-        self.deferred_dirty_dependents
-            .extend(other.deferred_dirty_dependents);
         self.interrupted |= other.interrupted;
         self
     }
@@ -262,7 +250,7 @@ impl TurboTasksBackend {
                     GcJob::Collect(task_id) => task_id,
                 };
                 let collector = |child_id| spawner.spawn(GcJob::Collect(child_id));
-                let mut ctx = ExecuteContextImpl::new_for_gc(self, turbo_tasks, phase, &collector);
+                let mut ctx = ExecuteContext::new_for_gc(self, turbo_tasks, phase, &collector);
                 // `All` restores Data so `capture_all_edges` below can read the
                 // Data-category dependency sets. The recheck itself only needs Meta.
                 let mut task = ctx.task(task_id, TaskDataCategory::All);
@@ -281,13 +269,6 @@ impl TurboTasksBackend {
                 // writes the tombstone.
                 drop(task.take_cell_data());
                 task.set_deleted(true);
-                if task.new_task() {
-                    task.discard_modifications_for_gc_new_task();
-                } else {
-                    // Persisted ensure it is marked modified so the next snapshot tombstones it.
-                    // It is almost certainly already marked modified, so this is mostly a no-op.
-                    let _ = task.track_modification(SpecificTaskDataCategory::Meta, "gc_deleted");
-                }
                 drop(task); // drop the lock so edge cleanup can run
                 stats.collected += 1;
                 stats.edges_deleted += old_edges.len();
@@ -301,9 +282,6 @@ impl TurboTasksBackend {
                 // we defer all rebalancing to the end
                 let deferred = cleanup_old_edges_deletions_only(task_id, old_edges, &mut ctx);
                 result.deferred_balance_edges.extend(deferred.balance_edges);
-                result
-                    .deferred_dirty_dependents
-                    .extend(deferred.dirty_dependents);
                 ControlFlow::Continue(())
             },
             |(stats, result), (other_stats, other_result)| {
@@ -321,24 +299,9 @@ impl TurboTasksBackend {
         let deferred = std::mem::take(&mut result.deferred_balance_edges);
         if !deferred.is_empty() {
             let noop_collector = |_task_id| {};
-            let mut ctx = ExecuteContextImpl::new_for_gc(self, turbo_tasks, phase, &noop_collector);
+            let mut ctx = ExecuteContext::new_for_gc(self, turbo_tasks, phase, &noop_collector);
             let mut queue = AggregationUpdateQueue::new();
             queue.extend_balance_edges(deferred, &mut ctx);
-            while !queue.process(&mut ctx) {}
-        }
-
-        // Dirty the dependents whose edges were scrubbed. After the rebalance above so the
-        // aggregation graph is settled, and before the root scan below because dirtying can change
-        // activeness and therefore rootness.
-        let dirty_dependents = std::mem::take(&mut result.deferred_dirty_dependents);
-        if !dirty_dependents.is_empty() {
-            let noop_collector = |_task_id| {};
-            let mut ctx = ExecuteContextImpl::new_for_gc(self, turbo_tasks, phase, &noop_collector);
-            let mut queue = AggregationUpdateQueue::new();
-            // A dependent collected by this same pass is skipped: the job is weak by construction.
-            queue.push(AggregationUpdateJob::InvalidateDueToDependencyTornDown {
-                task_ids: dirty_dependents.into_iter().collect(),
-            });
             while !queue.process(&mut ctx) {}
         }
 
