@@ -1,12 +1,10 @@
-import { resolve } from 'path'
 import * as Log from 'next/dist/build/output/log'
-import type { Telemetry } from 'next/dist/telemetry/storage'
-import {
-  eventAgentUpgradeNudgeShown,
-  type eventAgentUpgradePolicyDetected,
-} from 'next/dist/telemetry/events/agent-upgrade'
 import semver from 'next/dist/compiled/semver'
-import type { UpgradeReminder } from '../nudge'
+import type {
+  UpgradeReminder,
+  UpgradeNudgeTelemetry,
+  UpgradePolicyEvent,
+} from '../nudge'
 import { allowNudgeRetry, type NudgeOptions } from './retry-receipt'
 
 export async function nudgeUpgradeForAgent(
@@ -14,8 +12,9 @@ export async function nudgeUpgradeForAgent(
   reminder: UpgradeReminder,
   nudgeId: string,
   agentProduct: string,
-  telemetry: Telemetry | null,
-  policyEvent: ReturnType<typeof eventAgentUpgradePolicyDetected>
+  telemetry: UpgradeNudgeTelemetry | null,
+  policyEvent: UpgradePolicyEvent,
+  onRetryAllowed: (identity: string) => Promise<void>
 ): Promise<void> {
   let summary: string
   let recommendation: string
@@ -59,7 +58,8 @@ ${reference ? `Reference: ${reference}` : ''}`
     retryAllowed = await allowNudgeRetry(
       options,
       reminder.installedVersion,
-      reminder.kind
+      reminder.kind,
+      onRetryAllowed
     )
   } catch {
     Log.warn(
@@ -67,7 +67,7 @@ ${reference ? `Reference: ${reference}` : ''}`
     )
   }
   if (retryAllowed) {
-    telemetry?.record(policyEvent)
+    telemetry?.recordPolicyDetected(policyEvent)
     Log.warn(
       `${summary} This command is continuing after the upgrade reminder.${reference ? `\nReference: ${reference}` : ''}`
     )
@@ -76,24 +76,14 @@ ${reference ? `Reference: ${reference}` : ''}`
   // Queue the full nudge once, then send it outside the command that is about to stop.
   if (telemetry) {
     try {
-      if (telemetry.isEnabled || process.env.NEXT_TELEMETRY_DEBUG) {
-        telemetry.flushDetached({
-          mode: 'dev',
-          dir: options.directory,
-          distDir: resolve(options.directory, options.distDir),
-          events: [
-            policyEvent,
-            eventAgentUpgradeNudgeShown({
-              nudgeId,
-              recipient: 'agent',
-              agentProduct,
-              sourceCommand: options.command,
-              policy: reminder.policy,
-              nudgeKind: reminder.kind,
-            }),
-          ],
-        })
-      }
+      telemetry.flushNudge(options.directory, options.distDir, policyEvent, {
+        nudgeId,
+        recipient: 'agent',
+        agentProduct,
+        sourceCommand: options.command,
+        policy: reminder.policy,
+        nudgeKind: reminder.kind,
+      })
     } catch (error) {
       Log.warn(`Could not queue upgrade telemetry: ${String(error)}`)
     }

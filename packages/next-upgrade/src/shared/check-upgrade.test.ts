@@ -6,7 +6,7 @@ import {
   getLatestUpgradeVersion,
   getUpgradeAssessment,
 } from 'next/dist/lib/upgrade/shared/check-upgrade'
-import { prepareUpgrade } from 'next/dist/lib/upgrade/cli/agent/prepare'
+import { prepareUpgrade } from 'next/dist/lib/upgrade/config'
 import loadConfig from 'next/dist/server/config'
 
 jest.mock('next/dist/server/config', () => ({
