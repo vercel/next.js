@@ -154,6 +154,7 @@ export async function webpackBuildImpl(
     rewrites: NextBuildContext.rewrites!,
     noMangling: NextBuildContext.noMangling!,
     clientRouterFilters: NextBuildContext.clientRouterFilters!,
+    pagesRouterFilters: NextBuildContext.pagesRouterFilters,
     previewProps: NextBuildContext.previewProps!,
     allowedRevalidateHeaderKeys: NextBuildContext.allowedRevalidateHeaderKeys!,
     fetchCacheKeyPrefix: NextBuildContext.fetchCacheKeyPrefix!,

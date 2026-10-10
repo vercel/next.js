@@ -347,6 +347,7 @@ export default async function getBaseWebpackConfig(
     resolvedBaseUrl,
     supportedBrowsers,
     clientRouterFilters,
+    pagesRouterFilters,
     fetchCacheKeyPrefix,
     isCompileMode,
     previewProps,
@@ -373,6 +374,14 @@ export default async function getBaseWebpackConfig(
     resolvedBaseUrl: ResolvedBaseUrl
     supportedBrowsers: string[] | undefined
     clientRouterFilters?: {
+      staticFilter: ReturnType<
+        import('../shared/lib/bloom-filter').BloomFilter['export']
+      >
+      dynamicFilter: ReturnType<
+        import('../shared/lib/bloom-filter').BloomFilter['export']
+      >
+    }
+    pagesRouterFilters?: {
       staticFilter: ReturnType<
         import('../shared/lib/bloom-filter').BloomFilter['export']
       >
@@ -2062,6 +2071,7 @@ export default async function getBaseWebpackConfig(
           isNodeServer,
           middlewareMatchers,
           omitNonDeterministic: isCompileMode,
+          pagesRouterFilters,
           rewrites,
         })
       ),
