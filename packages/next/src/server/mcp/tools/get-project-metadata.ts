@@ -10,7 +10,7 @@ export function registerGetProjectMetadataTool(
     'get_project_metadata',
     {
       description:
-        'Returns the the metadata of this Next.js project, including project path, dev server URL, etc.',
+        'Returns the metadata of this Next.js project, including project path, dev server URL, etc.',
       inputSchema: {},
     },
     async (_request) => {
