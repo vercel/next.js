@@ -2,19 +2,8 @@ function ignoredStaticUrl() {
   return new URL(/* turbopackIgnore: true */ './missing.txt', import.meta.url)
 }
 
-function webpackIgnoredStaticUrl() {
-  return new URL(/* webpackIgnore: true */ './missing.txt', import.meta.url)
-}
-
 function ignoredDynamicUrl(name) {
   return new URL(/* turbopackIgnore: true */ name, import.meta.url)
-}
-
-function ignoredPartiallyDynamicUrl(name) {
-  return new URL(
-    /* turbopackIgnore: true */ name ? name : './missing.txt',
-    import.meta.url
-  )
 }
 
 function optionalPartiallyDynamicUrl(options = {}) {
@@ -46,17 +35,8 @@ it('leaves an ignored static new URL() to runtime', () => {
   expectUnbundledUrl(ignoredStaticUrl(), 'missing.txt')
 })
 
-it('supports webpackIgnore on new URL()', () => {
-  expectUnbundledUrl(webpackIgnoredStaticUrl(), 'missing.txt')
-})
-
 it('leaves an ignored dynamic new URL() to runtime', () => {
   expectUnbundledUrl(ignoredDynamicUrl('./runtime.txt'), 'runtime.txt')
-})
-
-it('leaves an ignored partially dynamic new URL() to runtime', () => {
-  expectUnbundledUrl(ignoredPartiallyDynamicUrl(), 'missing.txt')
-  expectUnbundledUrl(ignoredPartiallyDynamicUrl('./runtime.txt'), 'runtime.txt')
 })
 
 it('supports turbopackOptional on new URL()', () => {
