@@ -3714,12 +3714,20 @@ async function renderToStream(
         silenceLog
       )
     }
+    const onHTTPAccessFallback = (status: number) => {
+      metadata.statusCode = status
+      if (!res.sent) {
+        res.statusCode = status
+      }
+    }
+
     const serverComponentsErrorHandler = createReactServerErrorHandler(
       process.env.NODE_ENV === 'development',
       isBuildTimePrerendering,
       reactServerErrorsByDigest,
       onHTMLRenderRSCError,
-      renderSpan
+      renderSpan,
+      onHTTPAccessFallback
     )
 
     function onHTMLRenderSSRError(err: DigestedError) {
@@ -3741,7 +3749,8 @@ async function renderToStream(
       reactServerErrorsByDigest,
       allCapturedErrors,
       onHTMLRenderSSRError,
-      renderSpan
+      renderSpan,
+      onHTTPAccessFallback
     )
 
     let reactServerResult: null | ReactServerResult = null
@@ -9011,11 +9020,19 @@ async function prerenderToStream(
       )
     }
   }
+  const onHTTPAccessFallback = (status: number) => {
+    metadata.statusCode = status
+    if (!res.sent) {
+      res.statusCode = status
+    }
+  }
   const serverComponentsErrorHandler = createReactServerErrorHandler(
     process.env.NODE_ENV === 'development',
     isBuildTimePrerendering,
     reactServerErrorsByDigest,
-    onHTMLRenderRSCError
+    onHTMLRenderRSCError,
+    undefined,
+    onHTTPAccessFallback
   )
 
   function onHTMLRenderSSRError(err: DigestedError) {
@@ -9037,7 +9054,9 @@ async function prerenderToStream(
     ctx.renderOpts.experimental.reactBrowserBailout,
     reactServerErrorsByDigest,
     allCapturedErrors,
-    onHTMLRenderSSRError
+    onHTMLRenderSSRError,
+    undefined,
+    onHTTPAccessFallback
   )
 
   let reactServerPrerenderResult: null | ReactServerPrerenderResult = null
