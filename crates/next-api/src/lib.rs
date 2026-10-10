@@ -12,6 +12,7 @@ mod dynamic_imports;
 mod empty;
 pub mod entrypoints;
 mod font;
+mod global_virtual_store;
 mod instrumentation;
 mod loadable_manifest;
 mod middleware;
