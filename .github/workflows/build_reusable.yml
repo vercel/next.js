@@ -405,6 +405,31 @@ jobs:
         working-directory: turbopack/crates/turbopack-tracing/tests/node-file-trace
         run: pnpm install --recursive
 
+      # Tests running in /tmp use a separate store for hard links, so we need to copy the cache
+      # there for it to be useful to tests. If we switch to using pnpm's global virtual store, we
+      # shouldn't need this, as symlinks can cross mountpoints.
+      - name: Copy pnpm cache to tmpfs
+        id: copy-pnpm-cache
+        background: true
+        if: ${{ runner.os == 'Linux' && inputs.skipInstallBuild != 'yes' }}
+        env:
+          PNPM_STORE_PATH: ${{ steps.get-store-path.outputs.STORE_PATH }}
+        run: |
+          PROBE_SOURCE=$(mktemp "$PNPM_STORE_PATH/.hardlink-probe.XXXXXX")
+          PROBE_DIR=$(mktemp -d /tmp/pnpm-hardlink-probe.XXXXXX)
+          if ln "$PROBE_SOURCE" "$PROBE_DIR/link"; then
+            rm -f "$PROBE_SOURCE"
+            rm -rf "$PROBE_DIR"
+            echo "Hard links from the pnpm store to /tmp work; skipping the fixture store copy."
+            exit 0
+          fi
+          rm -f "$PROBE_SOURCE"
+          rm -rf "$PROBE_DIR"
+          FIXTURE_STORE_PATH="/tmp/.pnpm-store"
+          mkdir -p "$FIXTURE_STORE_PATH"
+          # -a preserves hardlinks, which may be important for the pnpm store
+          cp -a "$PNPM_STORE_PATH" "$FIXTURE_STORE_PATH/"
+
       - name: Install Playwright browsers
         background: true
         if: ${{ inputs.skipInstallBuild != 'yes' && inputs.needsPlaywright != 'no' }}
@@ -430,6 +455,9 @@ jobs:
             exit 1
           fi
           echo "Test timings loaded ($(wc -c < test-timings.json) bytes)"
+
+      - name: Wait for pnpm cache copy
+        wait: copy-pnpm-cache
 
       - name: Fetch test timings via turbo
         background: true
