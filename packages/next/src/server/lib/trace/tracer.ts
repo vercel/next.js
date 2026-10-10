@@ -95,6 +95,8 @@ type TracerSpanOptions = Omit<SpanOptions, 'attributes'> & {
 interface NextTracer {
   getContext(): ContextAPI
 
+  runWithDetachedContext<T>(fn: () => T): T
+
   /**
    * Instruments a function by automatically creating a span activated on its
    * scope.
@@ -284,10 +286,21 @@ class NextTracerImpl implements NextTracer {
    * edge middleware which runs in a detached sandbox.
    */
   public runWithDetachedContext<T>(fn: () => T): T {
-    if (!NEXT_OTEL_PERFORMANCE_PREFIX && !this.isOpenTelemetryEnabled()) {
-      return fn()
+    const runWithRootContext = () => {
+      if (
+        !NEXT_OTEL_PERFORMANCE_PREFIX &&
+        !this.isOpenTelemetryEnabled() &&
+        !trace.getSpanContext(context.active())
+      ) {
+        return fn()
+      }
+      return context.with(ROOT_CONTEXT, fn)
     }
-    return context.with(ROOT_CONTEXT, fn)
+
+    const localSpanRecorder = getLocalSpanRecorder()
+    return localSpanRecorder
+      ? localSpanRecorder.runWithoutLocalSpan(runWithRootContext)
+      : runWithRootContext()
   }
 
   public withPropagatedContext<T, C>(
