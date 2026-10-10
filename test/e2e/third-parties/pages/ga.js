@@ -8,12 +8,12 @@ const Page = () => {
 
   return (
     <div class="container">
-      <GoogleAnalytics gaId="GA-XYZ" />
+      <GoogleAnalytics gaId="GA-XYZ" data-ga-script="pages" />
       <h1>GA</h1>
       <button id="ga-send" onClick={onClick}>
         Click
       </button>
-      <GoogleAnalytics gaId="GA-XYZ" />
+      <GoogleAnalytics gaId="GA-XYZ" data-ga-script="pages" />
     </div>
   )
 }
