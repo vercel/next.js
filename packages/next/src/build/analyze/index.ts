@@ -234,8 +234,17 @@ async function collectRoutesForAnalyze(
       routesManifest.dynamicRoutes
         .map((r) => r.page)
         .concat(routesManifest.staticRoutes.map((r) => r.page))
+        .map(toAnalyzeRoute)
     )
   )
+}
+
+const METADATA_ID_SEGMENT = '/[__metadata_id__]'
+
+function toAnalyzeRoute(page: string): string {
+  if (!page.endsWith(METADATA_ID_SEGMENT)) return page
+  const route = page.slice(0, -METADATA_ID_SEGMENT.length)
+  return route.endsWith('/sitemap') ? `${route}.xml` : route
 }
 
 function startServer(dir: string, port: number): Promise<void> {
