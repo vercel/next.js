@@ -1,5 +1,6 @@
 import { isNextDeploy, isNextStart, nextTestSetup } from 'e2e-utils'
 import type { NextAdapter } from 'next'
+import { expectDirectives } from 'next-test-utils'
 
 describe('not-found-non-document-dynamic', () => {
   const { next } = nextTestSetup({
@@ -25,9 +26,13 @@ describe('not-found-non-document-dynamic', () => {
       expect(res.headers.get('content-type')).toContain('text/html')
     } else {
       expect(res.headers.get('content-type')).toContain('text/plain')
-      expect(res.headers.get('cache-control')).toBe(
-        'private, no-cache, no-store, max-age=0, must-revalidate'
-      )
+      expectDirectives(res.headers.get('cache-control'), [
+        'private',
+        'no-cache',
+        'no-store',
+        'max-age=0',
+        'must-revalidate',
+      ])
       expect(await res.text()).toBe('Not Found')
     }
     if (!isNextDeploy) {

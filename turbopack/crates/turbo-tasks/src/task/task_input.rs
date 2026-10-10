@@ -18,6 +18,7 @@ use bincode::{
     error::{DecodeError, EncodeError},
 };
 use either::Either;
+use smallvec::{Array, SmallVec};
 use turbo_frozenmap::{FrozenMap, FrozenSet};
 use turbo_rcstr::RcStr;
 use turbo_tasks_hash::HashAlgorithm;
@@ -188,6 +189,29 @@ where
 
     async fn resolve_input(&self) -> Result<Self> {
         let mut resolved = Vec::with_capacity(self.len());
+        for value in self {
+            resolved.push(value.resolve_input().await?);
+        }
+        Ok(resolved)
+    }
+}
+
+impl<A> TaskInput for SmallVec<A>
+where
+    A: Array + Send + Sync,
+    A::Item: TaskInput,
+    SmallVec<A>: Encode + Decode<()>,
+{
+    fn is_resolved(&self) -> bool {
+        self.iter().all(TaskInput::is_resolved)
+    }
+
+    fn is_transient(&self) -> bool {
+        self.iter().any(TaskInput::is_transient)
+    }
+
+    async fn resolve_input(&self) -> Result<Self> {
+        let mut resolved = SmallVec::with_capacity(self.len());
         for value in self {
             resolved.push(value.resolve_input().await?);
         }
@@ -581,6 +605,23 @@ mod tests {
         struct NoFields;
 
         assert_task_input(NoFields);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_small_vec() -> Result<()> {
+        let inline: SmallVec<[RcStr; 1]> = smallvec::smallvec![rcstr!("a")];
+        assert_task_input(inline.clone());
+        assert!(inline.is_resolved());
+        assert!(!inline.is_transient());
+        let resolved = inline.resolve_input().await?;
+        assert_eq!(resolved, inline);
+        assert!(!resolved.spilled());
+
+        let spilled: SmallVec<[u32; 1]> = smallvec::smallvec![1, 2, 3];
+        assert!(spilled.is_resolved());
+        assert!(!spilled.is_transient());
+        assert_eq!(spilled.resolve_input().await?, spilled);
         Ok(())
     }
 

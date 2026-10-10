@@ -25,9 +25,6 @@
   "include": [
     "run-tests.js",
     "evals/lib/**/*",
-    "evals/next-upgrade/experiments/**/*.ts",
-    "evals/next-upgrade/lib/**/*.ts",
-    "evals/next-upgrade/security/setup.ts",
     "test/**/*.test.ts",
     "test/**/*.test.tsx",
     "test/**/*.util.ts",
@@ -37,7 +34,9 @@
     "scripts/**/*.cjs",
     "scripts/**/*.mjs",
     "scripts/**/*.ts",
-    "turbo/**/*.ts"
+    "turbo/**/*.ts",
+    "evals/next-upgrade/runner/**/*.ts",
+    "evals/next-upgrade/verifier/verify.ts"
   ],
   "exclude": ["scripts/minimal-server.js"]
 }

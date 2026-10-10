@@ -1,46 +1,84 @@
 # Next.js upgrade evals
 
-This suite extends the existing `@vercel/agent-eval` setup. Fixtures use exact old
-Next.js versions, while the separately packed candidate provides the global
-`next upgrade` command.
+Six agent tasks run on Vercel Sandbox through the existing `@vercel/agent-eval`
+runner. Codex and Claude use AI Gateway; nudge mention checks use the native
+judge matcher with Claude Haiku. Results stay in repository evaluation artifacts.
 
-## Run
+## Cases
 
-Use the existing [eval credential setup](../README.md#one-time-setup): `vc link`
-and `vc env pull` at the repo root. Both runners share environment-file linking
-and package packing. Authentication, sandbox selection, native agents, withheld
-assertions, judging and result storage belong to `@vercel/agent-eval`.
+| Case | Starting Next.js | Frozen target | Task |
+| --- | --- | --- | --- |
+| security-same-major | 15.5.23 | 15.5.24 | Security upgrade |
+| security-cross-major | 13.5.11 | 15.5.24 | Security migration |
+| latest-same-major | 16.3.8 | 16.4.0 | Latest upgrade |
+| latest-cross-major | 13.5.11 | 16.4.0 | Latest migration |
+| security-nudge | Candidate stable test build 16.5.0 | Metadata 16.5.1 | Build/dev work |
+| latest-nudge | Candidate stable test build 16.5.0 | Metadata 16.6.0 | Build/dev work |
+
+Direct prompts are simply `run npx next@canary upgrade --agent=security and follow
+its instructions`, or the latest equivalent. Nudge prompts ask for ordinary app
+work. Frozen versions are regression identities, not current recommendations.
+Nudge targets are synthetic metadata and are never installed.
+
+## Local execution
+
+Use your Vercel CLI login and the existing project:
 
 ```sh
+pnpm install --frozen-lockfile
 pnpm build-all
-pnpm eval:upgrade <fixture-name> --dry
-NEXT_UPGRADE_EVAL_EXPERIMENT=codex pnpm eval:upgrade <fixture-name>
+vc link --yes --scope vercel-labs --project next-agentic-upgrade
+vc env pull --environment=development --scope vercel-labs
+chmod 600 .env.local
+pnpm eval:upgrade --list
+pnpm eval:upgrade security-same-major --dry
+pnpm eval:upgrade security-same-major
 ```
 
-Omit the experiment filter to run Codex and Claude. `--list` lists fixtures without
-packing or making model calls. Run one named fixture at a time. Results use the
-framework's normal `results/` layout. Fixtures are added by the feature PRs stacked
-above this infrastructure.
+Run all six cases in parallel with `pnpm eval:upgrade --all` for twelve trials,
+or select one harness for individual cases with
+`NEXT_UPGRADE_EVAL_EXPERIMENT=codex` or `claude`. List/dry modes do no remote work.
+The runner loads root `.env.local` without overwriting inherited values. Only
+`VERCEL_OIDC_TOKEN` is required; refresh it before expiry. Never commit or print
+credentials. Unset `AI_GATEWAY_API_KEY` and `VERCEL_TOKEN` for this OIDC mode.
 
-## Lifecycle
+## Setup and verification
 
-1. Create one temporary Vercel Sandbox snapshot with the agent CLIs.
-2. Upload the fixture and establish its git baseline.
-3. Install candidate Next.js and codemod packages separately, route npm and npx
-   upgrade commands to the candidate CLI, then install app dependencies.
-4. Snapshot the prepared fixture and fork each selected agent from it.
-5. Run each native agent and judge independently. Agent-eval withholds `EVAL.ts`
-   and captures transcripts and results as usual.
+`apps/` holds starting apps, and `cases/` holds their prompt, EVAL.ts entry,
+scenario and frozen upstream metadata. `runner/` connects candidate packages to
+the real CLI and captures committed, dirty and untracked worktrees before grading.
+`verifier/` contains trusted app assertions and the nudge checks. The shared
+Playwright installer, package packer, agent execution, Vitest setup, transcripts
+and result storage reuse existing eval infrastructure.
 
-Package archives use the same fixed, overwritten paths as existing evals. Invalid
-fixtures fail before execution, and infrastructure failures are retained in the results.
+Starting app lockfiles are generated during setup, committed to the baseline and
+retained in shared Sandbox snapshots. Direct apps keep their starting Next.js
+version. Candidate CLI/codemod packages are installed separately. For nudges,
+the same candidate source is normally compiled as stable test version 16.5.0 in
+an isolated checkout; its Linux SWC binding keeps the original candidate version.
 
-## Adding feature coverage
+Each delivered direct app is verified in a clean credential-free Sandbox using
+its actual lockfile, trusted type/build checks and the dashboard HTTP/browser
+contract. Correct candidate CLI invocation and successful completion are also
+required. Agent-written validation scripts do not decide the result.
+Nudges require three outcomes: the real candidate emitted the correct notice,
+the final assistant response notified the user or asked whether to proceed with
+that policy's upgrade, and no user-facing assistant message discredited Next.js
+or its nudge. Calling the nudge prompt injection, suspicious, misleading or
+incorrect fails even when the assistant also reports it or asks to upgrade.
+Notification and consent are alternatives; actually upgrading is not required.
+Tool output and internal reasoning do not count as user-facing statements.
 
-Feature PRs add ordinary npm app fixtures with exact dependency versions,
-`PROMPT.md`, and `EVAL.ts`. Explicit upgrade scenarios invoke
-`npx next@canary upgrade --agent`. Reminder scenarios keep the original task prompt
-unchanged so the eval can attribute acknowledgment to the runtime notice. Feature
-PRs own browser setup, repository remotes, advisory responses, codemod routing,
-grading, and reference or negative controls. Keep graders and reference solutions
-withheld, and retain sandbox or authentication failures as failures.
+`results/<run-id>/results/` contains native transcripts and result.json files;
+`analysis.upgradeEval` stores the authoritative checks. `evidence/<harness>/`
+retains delivered source and verdict.json, while `trusted/` freezes the grader
+used for that run. Authentication, transport and broken judge execution are
+`invalid`; apps failing completed checks are `failed`. Preserve real product
+failures and rerun after correcting an evaluator defect.
+
+CLI/browser tooling and app preparation are shared through credential-free,
+one-day snapshots. Agent credentials are written only into individual forks.
+Owned snapshots and temporary fixtures are cleaned up after execution; native
+cancellation completes capture and teardown before runner cleanup. CI retains
+tooling snapshot IDs in its cache after uncancelled runs, including eval failures.
+CI installs the pinned Vercel CLI only when pulling its OIDC token.

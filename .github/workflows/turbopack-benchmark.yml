@@ -18,6 +18,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
+  COREPACK_VERSION: 0.34.7
   CI: 1
   RUST_LOG: 'off'
   TURBO_TEAM: ${{ vars.TURBO_TEAM }}
@@ -57,7 +58,7 @@ jobs:
       - name: Install pnpm dependencies
         working-directory: turbopack/benchmark-apps
         run: |
-          npm i -g corepack@0.31
+          npm i -g "corepack@${COREPACK_VERSION}"
           corepack enable
           pnpm install --loglevel error
 
@@ -99,7 +100,7 @@ jobs:
       - name: Install pnpm dependencies
         working-directory: turbopack/benchmark-apps
         run: |
-          npm i -g corepack@0.31
+          npm i -g "corepack@${COREPACK_VERSION}"
           corepack enable
           pnpm install --loglevel error
 

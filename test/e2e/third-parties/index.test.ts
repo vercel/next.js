@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { waitFor } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 // TODO(deploy-test-completion): Remove this suite from the deploy manifest.
 // It was excluded as a known deploy failure without a documented root cause.
@@ -35,7 +35,11 @@ describe('@next/third-parties basic usage', () => {
     const browser = await next.browser('/gtm')
 
     await browser.waitForElementByCss('script#_next-gtm')
-    await waitFor(1000)
+    await retry(async () => {
+      expect(
+        await browser.eval('!!window.google_tag_manager?.["GTM-XYZ"]')
+      ).toBe(true)
+    })
 
     const gtmInlineScript = await browser.elementsByCss('#_next-gtm-init')
     expect(gtmInlineScript.length).toBe(1)
@@ -46,20 +50,32 @@ describe('@next/third-parties basic usage', () => {
 
     expect(gtmScript.length).toBe(1)
 
+    // Google's script adds its own events, so only check for ours.
     const dataLayer = await browser.eval('window.dataLayer')
-    expect(dataLayer.length).toBe(1)
+    expect(dataLayer).toContainEqual(
+      expect.objectContaining({
+        event: 'gtm.js',
+        'gtm.start': expect.any(Number),
+      })
+    )
 
     await browser.elementByCss('#gtm-send').click()
 
     const dataLayer2 = await browser.eval('window.dataLayer')
-    expect(dataLayer2.length).toBe(2)
+    expect(dataLayer2).toContainEqual(
+      expect.objectContaining({ event: 'buttonClicked', value: 'xyz' })
+    )
   })
 
   it('renders GA', async () => {
     const browser = await next.browser('/ga')
 
     await browser.waitForElementByCss('script#_next-ga')
-    await waitFor(1000)
+    await retry(async () => {
+      expect(
+        await browser.eval('!!window.google_tag_manager?.["GA-XYZ"]')
+      ).toBe(true)
+    })
 
     const gaInlineScript = await browser.elementsByCss('#_next-ga-init')
     expect(gaInlineScript.length).toBe(1)
@@ -69,12 +85,20 @@ describe('@next/third-parties basic usage', () => {
     )
 
     expect(gaScript.length).toBe(1)
+    // Google's script adds its own events, so only check for ours.
     const dataLayer = await browser.eval('window.dataLayer')
-    expect(dataLayer.length).toBe(4)
+    expect(dataLayer).toContainEqual(expect.objectContaining({ 0: 'js' }))
+    expect(dataLayer).toContainEqual(
+      expect.objectContaining({ 0: 'config', 1: 'GA-XYZ' })
+    )
 
     await browser.elementByCss('#ga-send').click()
 
     const dataLayer2 = await browser.eval('window.dataLayer')
-    expect(dataLayer2.length).toBe(5)
+    expect(dataLayer2).toContainEqual(
+      expect.objectContaining({
+        0: expect.objectContaining({ event: 'buttonClicked', value: 'xyz' }),
+      })
+    )
   })
 })
