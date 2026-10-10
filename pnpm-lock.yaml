@@ -1979,6 +1979,12 @@ importers:
         specifier: 0.13.1
         version: 0.13.1
 
+  packages/next-upgrade:
+    dependencies:
+      '@next/env':
+        specifier: workspace:*
+        version: link:../next-env
+
   packages/react-refresh-utils:
     devDependencies:
       react-refresh:

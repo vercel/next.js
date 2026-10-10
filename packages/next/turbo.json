@@ -4,7 +4,11 @@
   "tasks": {
     "build": {
       "dependsOn": ["@next/bundle-analyzer-ui#build", "^build"],
+      "inputs": ["$TURBO_DEFAULT$", "../next-upgrade/src/**"],
       "outputs": ["dist/**"]
+    },
+    "typescript": {
+      "inputs": ["$TURBO_DEFAULT$", "../next-upgrade/src/**"]
     }
   }
 }

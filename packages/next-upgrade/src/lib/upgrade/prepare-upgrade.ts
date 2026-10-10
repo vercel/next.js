@@ -3,8 +3,8 @@ import { createRequire } from 'module'
 import { join } from 'path'
 import { resetEnv } from '@next/env'
 import semver from 'next/dist/compiled/semver'
-import loadConfig from '../../server/config'
-import { PHASE_INFO } from '../../shared/lib/constants'
+import loadConfig from 'next/dist/server/config'
+import { PHASE_INFO } from 'next/dist/shared/lib/constants'
 import {
   getPendingFutureDefaults,
   type FutureDefaultEntry,

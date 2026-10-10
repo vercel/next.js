@@ -53,7 +53,7 @@ export async function copy_docs(task, opts) {
 
   // Keep upgrade workflow instructions outside the public docs bundle.
   await task
-    .source(join(__dirname, 'src/lib/upgrade/*.md'))
+    .source(join(__dirname, '../next-upgrade/src/lib/upgrade/*.md'))
     .target('dist/lib/upgrade')
 }
 
@@ -2491,21 +2491,30 @@ export async function bin(task, opts) {
 
 export async function cli(task, opts) {
   await task
-    .source('src/cli/**/*.+(js|ts|tsx)')
+    .source([
+      'src/cli/**/*.+(js|ts|tsx)',
+      '../next-upgrade/src/cli/**/*.+(js|ts|tsx)',
+    ])
     .swc('server', { dev: opts.dev })
     .target('dist/cli')
 }
 
 export async function lib(task, opts) {
   await task
-    .source('src/lib/**/!(*.test).+(js|ts|tsx|json|jsonc)')
+    .source([
+      'src/lib/**/!(*.test).+(js|ts|tsx|json|jsonc)',
+      '../next-upgrade/src/lib/**/!(*.test).+(js|ts|tsx|json|jsonc)',
+    ])
     .swc('server', { dev: opts.dev })
     .target('dist/lib')
 }
 
 export async function lib_esm(task, opts) {
   await task
-    .source('src/lib/**/!(*.test).+(js|ts|tsx|json|jsonc)')
+    .source([
+      'src/lib/**/!(*.test).+(js|ts|tsx|json|jsonc)',
+      '../next-upgrade/src/lib/**/!(*.test).+(js|ts|tsx|json|jsonc)',
+    ])
     .swc('server', { dev: opts.dev, esm: true })
     .target('dist/esm/lib')
 }
@@ -2769,8 +2778,15 @@ export async function generate_types(task, opts) {
   const typesPromise = execa(
     'pnpm',
     [
-      'run',
-      'types',
+      'exec',
+      'tsc',
+      '--project',
+      'tsconfig.build.json',
+      '--declaration',
+      '--emitDeclarationOnly',
+      '--stripInternal',
+      '--declarationDir',
+      'dist/types',
       ...(watchmode ? ['--watch', '--preserveWatchOutput'] : []),
     ],
     { stdio: 'inherit' }
@@ -2779,7 +2795,19 @@ export async function generate_types(task, opts) {
   // But taskr needs to know that it can start watching the files for the task it has to manually restart.
   if (!watchmode) {
     await typesPromise
+    await task.start('copy_types')
+    await task.clear('dist/types')
+  } else {
+    await task.watch('dist/types', 'copy_types', opts)
   }
+}
+
+export async function copy_types(task) {
+  // Merge declarations into the existing layout so source moves don't change
+  // the paths consumed by Next.js or its tests.
+  await task
+    .source(['dist/types/next/src/**/*', 'dist/types/next-upgrade/src/**/*'])
+    .target('dist')
 }
 
 export default async function (task) {
@@ -2818,6 +2846,12 @@ export default async function (task) {
   await task.watch('src/lib', 'lib', opts)
   await task.watch('src/lib', 'lib_esm', opts)
   await task.watch('src/cli', 'cli', opts)
+  await task.watch('../next-upgrade/src/cli', 'cli', opts)
+  await task.watch(
+    '../next-upgrade/src/lib',
+    ['lib', 'lib_esm', 'copy_docs'],
+    opts
+  )
   await task.watch('src/telemetry', 'telemetry', opts)
   await task.watch('src/trace', 'trace', opts)
   await task.watch(
