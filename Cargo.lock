@@ -9554,6 +9554,7 @@ dependencies = [
  "rustc-hash 2.1.1",
  "serde",
  "swc_core",
+ "tempfile",
  "tokio",
  "tracing",
  "tracing-subscriber",
@@ -9574,6 +9575,7 @@ dependencies = [
  "turbopack-ecmascript",
  "turbopack-ecmascript-runtime",
  "turbopack-env",
+ "turbopack-go",
  "turbopack-node",
  "turbopack-nodejs",
  "turbopack-resolve",
@@ -9845,6 +9847,28 @@ dependencies = [
  "turbo-tasks-fs",
  "turbopack-core",
  "turbopack-ecmascript",
+]
+
+[[package]]
+name = "turbopack-go"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bincode 2.0.1",
+ "libc",
+ "regex",
+ "same-file",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "tokio",
+ "tokio-util",
+ "turbo-rcstr",
+ "turbo-tasks",
+ "turbo-tasks-backend",
+ "turbo-tasks-fs",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]

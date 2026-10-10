@@ -524,6 +524,17 @@ async fn build_internal(
 }
 
 pub async fn build(args: &BuildArguments) -> Result<()> {
+    if crate::go::has_go_inputs(args)? {
+        return crate::go::build(args).await;
+    }
+    anyhow::ensure!(
+        !args.go.watch
+            && args.go.output.is_none()
+            && args.go.go_cache.is_none()
+            && args.go.tags.is_empty()
+            && args.go.go == std::path::Path::new("go"),
+        "native Go options require .go input files"
+    );
     let NormalizedDirs {
         project_dir,
         root_dir,

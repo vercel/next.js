@@ -8,4 +8,5 @@ pub mod build;
 pub(crate) mod contexts;
 pub mod dev;
 pub(crate) mod embed_js;
+pub mod go;
 pub(crate) mod util;
