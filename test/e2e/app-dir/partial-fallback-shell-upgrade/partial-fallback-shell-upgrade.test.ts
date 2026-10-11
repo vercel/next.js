@@ -222,11 +222,11 @@ describe('partial-fallback-shell-upgrade - partialPrefetching disabled', () => {
     files: path.join(__dirname, 'fixtures', 'partial-prefetching-disabled'),
   })
 
-  // `x-vercel-cache` is only emitted by Vercel. A custom deploy target
-  // (`NEXT_TEST_DEPLOY_SCRIPT_PATH`) runs the same assertions on the response
-  // content but has no such header to check.
+  // `x-vercel-cache` is only emitted by Vercel. Other deploy targets (a custom
+  // `NEXT_TEST_DEPLOY_SCRIPT_PATH`) run the content assertions without it. This
+  // is the same declaration the `vercel` gate condition reads.
   const isVercelDeploy =
-    isNextDeploy && !process.env.NEXT_TEST_DEPLOY_SCRIPT_PATH?.trim()
+    isNextDeploy && process.env.NEXT_TEST_DEPLOY_TARGET_VERCEL === '1'
 
   if (isNextDev) {
     it('skipped in dev', () => {})
