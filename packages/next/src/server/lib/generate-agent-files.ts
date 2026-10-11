@@ -56,7 +56,7 @@ During the current user request, retain anonymized facts as feedback candidates 
 - Missing, unclear, or conflicting documentation
 - Unexpected CLI, codemod, Skill, or upgrade behavior and non-obvious workarounds
 
-Continue the current user request without reporting immediately. Ignore routine debugging and unverified changes. Never retain code, logs, paths, URLs, secrets, personal information, or project-specific data.
+Continue the current user request without reporting immediately. Routine debugging and changes you have not verified do not qualify as feedback candidates; this limits only what you report, never what you verify. Never retain code, logs, paths, URLs, secrets, personal information, or project-specific data.
 
 Keep a qualifying candidate through the reporting pass even if you resolve or work around it. A successful fix changes the report outcome; it does not erase the friction that qualified it.
 
