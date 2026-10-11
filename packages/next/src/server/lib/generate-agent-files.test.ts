@@ -123,3 +123,30 @@ describe.each([
     expect(fs.readFileSync(path.join(dir, 'AGENTS.md'), 'utf-8')).toBe(content)
   })
 })
+
+describe('agent feedback block wording', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-files-'))
+  })
+
+  afterEach(() => {
+    fs.rmSync(dir, { recursive: true, force: true })
+  })
+
+  // The sentence below only means "these events do not qualify as feedback",
+  // but it is written as a bare instruction, so agents read it as permission
+  // to skip verifying their own changes. `next dev` rewrites the block, so a
+  // project cannot fix the wording locally. Documents current behavior; the
+  // fix should scope the sentence to feedback candidates and flip this
+  // assertion to `not.toContain`.
+  it('tells agents to ignore unverified changes without scoping that to feedback', () => {
+    expect(writeAgentFeedbackFiles(dir).agentsMd).toBe('created')
+    const content = fs.readFileSync(path.join(dir, 'AGENTS.md'), 'utf-8')
+
+    expect(content).toContain(
+      'Ignore routine debugging and unverified changes.'
+    )
+  })
+})
