@@ -1,0 +1,19 @@
+{
+  "compatibility": "vitest",
+  "projects": [
+    {
+      "name": "mounting",
+      "environment": "browser",
+      "mode": "development",
+      "include": ["mounting/mount-*.case.*"],
+      "browserFixtures": [
+        {
+          "id": "greeting",
+          "module": "mounting/fixture.tsx"
+        }
+      ],
+      "testTimeout": 60000,
+      "fileTimeout": 180000
+    }
+  ]
+}

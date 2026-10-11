@@ -1,0 +1,6 @@
+{
+  "projects": [
+    { "name": "node", "environment": "node", "include": ["specs/node.mjs"] },
+    { "name": "rsc", "environment": "rsc", "include": ["specs/rsc.mjs"] }
+  ]
+}

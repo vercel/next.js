@@ -1,0 +1,5 @@
+{
+  "name": "vitest",
+  "version": "0.0.0-test-sentinel",
+  "main": "index.js"
+}

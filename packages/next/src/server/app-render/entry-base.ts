@@ -63,6 +63,7 @@ export { RootLayoutBoundary } from '../../lib/framework/boundary-components'
 
 export { preloadStyle, preloadFont, preconnect } from './rsc/preloads'
 export { isEmptyHTMLPrelude } from './postponed-state'
+export { installGlobalModuleLoadingHandlers } from './install-module-loading'
 export { taintObjectReference } from './rsc/taint'
 export {
   collectSegmentData,

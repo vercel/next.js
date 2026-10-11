@@ -1,0 +1,11 @@
+{
+  "compatibility": "vitest",
+  "projects": [
+    {
+      "name": "production-rsc",
+      "environment": "rsc",
+      "mode": "production",
+      "include": ["cases/production-rsc.case.mjs"]
+    }
+  ]
+}

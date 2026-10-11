@@ -1,0 +1,1 @@
+exports.value = 42
