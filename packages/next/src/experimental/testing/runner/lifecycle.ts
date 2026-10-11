@@ -1,5 +1,8 @@
 import { createAsyncScope } from './async-context'
 import { createFixtureFile } from './fixtures'
+
+const frameworkSetTimeout = globalThis.setTimeout.bind(globalThis)
+const frameworkClearTimeout = globalThis.clearTimeout.bind(globalThis)
 import {
   selectedCases,
   type Cleanup,
@@ -104,7 +107,7 @@ async function bounded<T>(
     return await Promise.race([
       Promise.resolve().then(fn),
       new Promise<never>((_, reject) => {
-        timer = setTimeout(
+        timer = frameworkSetTimeout(
           () =>
             reject(
               new DeadlineError(`Next test timed out after ${timeout}ms.`)
@@ -114,7 +117,7 @@ async function bounded<T>(
       }),
     ])
   } finally {
-    clearTimeout(timer)
+    frameworkClearTimeout(timer)
   }
 }
 

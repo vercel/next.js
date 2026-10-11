@@ -98,6 +98,13 @@ application layouts. Page errors and hydration errors remain attempt failures,
 including errors observed after mount returns. Production component mounting,
 browser watch, and concurrent mounts within one attempt remain unsupported.
 
+Browser-driver snapshot updates are parent-authorized. Workers can stage external,
+inline, and raw bytes, but the orchestrator does not commit them until the worker,
+page/browser host, and application-server lease have all closed successfully.
+Cancellation, crashes, test/cleanup failures, or failed resource disposal discard
+the plan. Production browser drivers use the same ordering; production component
+mounting remains unsupported.
+
 The stage-three additions require actual compiler/server acceptance; source and
 protocol tests alone do not establish the public capability.
 

@@ -35,6 +35,9 @@ export const testCapabilities = {
     },
     expectUtilities: [
       'expect.extend',
+      'expect.soft',
+      'expect.poll',
+      'expect.addSnapshotSerializer',
       'expect.assertions',
       'expect.hasAssertions',
     ],
@@ -47,6 +50,8 @@ export const testCapabilities = {
       'toHaveBeenCalledTimes',
       'toHaveBeenCalledWith',
       'toMatchSnapshot',
+      'toMatchInlineSnapshot',
+      'toMatchFileSnapshot',
       'arrayContaining',
     ],
     matcherInventoryScope:
@@ -58,25 +63,30 @@ export const testCapabilities = {
       'vi.clearAllMocks',
       'vi.resetAllMocks',
       'vi.restoreAllMocks',
+      'vi.stubGlobal',
+      'vi.stubEnv',
+      'vi.useFakeTimers',
+      'vi.useRealTimers',
+      'vi.advanceTimersByTime',
+      'vi.runAllTimers',
     ],
     snapshots: {
       default: 'read-only',
       update:
-        'explicit one-shot or watch u command; staged child bytes and successful authoritative parent exit/cleanup commit',
+        'explicit one-shot or watch u command; coordinated external, inline, and raw bytes commit only after successful authoritative parent exit and cleanup',
+      profiles:
+        'route-less development and production Node/RSC/browser; browser commits after browser and application-server disposal',
+      inlineSourceRevision:
+        'the parent requires the exact source hash captured across compilation and rejects concurrent edits',
       unchecked: 'always preserve; no pruning',
       noFinalSnapshotAssertions: 'no write plan or normalization',
-      unsupported: ['browser updates', 'automatic watch updates'],
+      unsupported: ['automatic watch updates'],
     },
     unsupported: [
       'concurrent/sequential/parameterized/failing/repeated/shuffled test modifiers',
       'async describe',
       'aroundEach/aroundAll',
-      'expect.soft',
-      'expect.poll',
-      'custom snapshot serializers',
-      'inline/raw snapshots',
       'implicit new snapshot mode',
-      'fake timers',
       'assertType/expectTypeOf',
       'full Vitest task/result introspection',
       'fixture overrides/worker scope/alias-default-rest dependency destructuring',
@@ -87,6 +97,7 @@ export const testCapabilities = {
       'Final assertion/spy disposal errors fail attempts but do not re-enter failure listeners.',
       'Failure listener receives supported TestContext, not full Vitest task/result inspection.',
       'Static factory mocks require compiler transformation and are limited to development Node specs.',
+      'Attempt-owned fake timers never replace runner deadlines, polling schedules, or parent process/resource deadlines.',
     ],
     scope:
       'Conservative verified authoring subset of the pinned Vitest reference.',
@@ -139,7 +150,7 @@ export const testCapabilities = {
     snapshotUpdate: {
       supported: true,
       scope:
-        'Explicit one-shot or watch u command for Node/RSC after successful authoritative worker and generation exit and cleanup; unchecked snapshots are preserved.',
+        'Explicit one-shot for route-less development/production Node, RSC, and browser profiles, plus watch u for development Node/RSC. Browser writes wait for browser/server disposal; unchecked snapshots are preserved.',
     },
     production: {
       supported: true,
@@ -151,7 +162,6 @@ export const testCapabilities = {
         'prerender/PPR and Server Action transport for isolated RSC tests',
         'production component mounting',
         'production module mocks',
-        'production snapshot updates',
         'production coverage',
       ],
     },

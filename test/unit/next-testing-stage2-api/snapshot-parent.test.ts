@@ -1,6 +1,7 @@
 import { mkdtemp, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { createHash } from 'node:crypto'
 import { commitSnapshotUpdates } from 'next/dist/experimental/testing/assertions/snapshots'
 
 it('commits in a parent with an existing assertion host without loading another matcher registry', async () => {
@@ -14,6 +15,76 @@ it('commits in a parent with an existing assertion host without loading another 
       { path, content: 'updated', previousContent: 'original' },
     ])
     expect(await readFile(path, 'utf8')).toBe('updated')
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+})
+
+it('coordinates external, inline, and raw updates against their original bytes', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'next-snapshot-set-'))
+  const testPath = join(directory, 'parent.test.ts')
+  const externalPath = join(directory, '__snapshots__', 'parent.test.ts.snap')
+  const rawPath = join(directory, 'parent.txt')
+  const source = 'expect(value).toMatchInlineSnapshot()\n'
+  await mkdir(join(directory, '__snapshots__'))
+  await writeFile(testPath, source)
+  await writeFile(externalPath, 'external-original')
+  try {
+    await commitSnapshotUpdates(
+      testPath,
+      [
+        {
+          path: externalPath,
+          content: 'external-updated',
+          previousContent: 'external-original',
+        },
+        { path: testPath, content: 'inline-updated', previousContent: source },
+        { path: rawPath, content: 'raw-updated', previousContent: null },
+      ],
+      {
+        sourceHash: createHash('sha256').update(source).digest('hex'),
+      }
+    )
+    expect(await readFile(externalPath, 'utf8')).toBe('external-updated')
+    expect(await readFile(testPath, 'utf8')).toBe('inline-updated')
+    expect(await readFile(rawPath, 'utf8')).toBe('raw-updated')
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+})
+
+it('refuses a stale compiled source revision without partially writing the set', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'next-snapshot-stale-'))
+  const testPath = join(directory, 'parent.test.ts')
+  const externalPath = join(directory, '__snapshots__', 'parent.test.ts.snap')
+  await mkdir(join(directory, '__snapshots__'))
+  await writeFile(testPath, 'current source')
+  await writeFile(externalPath, 'external-original')
+  try {
+    await expect(
+      commitSnapshotUpdates(
+        testPath,
+        [
+          {
+            path: externalPath,
+            content: 'external-updated',
+            previousContent: 'external-original',
+          },
+          {
+            path: testPath,
+            content: 'inline-updated',
+            previousContent: 'current source',
+          },
+        ],
+        {
+          sourceHash: createHash('sha256')
+            .update('compiled source')
+            .digest('hex'),
+        }
+      )
+    ).rejects.toThrow('does not match the compiled test revision')
+    expect(await readFile(externalPath, 'utf8')).toBe('external-original')
+    expect(await readFile(testPath, 'utf8')).toBe('current source')
   } finally {
     await rm(directory, { recursive: true, force: true })
   }
@@ -189,6 +260,16 @@ describe('parent-authorized snapshot updates', () => {
   })
 
   it('commits normal one-shot updates without a deferred callback', async () => {
+    completeWorker()
+    expect(
+      await executeWithEnvironment(artifact, options, process.env)
+    ).toMatchObject({ status: 'passed' })
+    expect(await readFile(path, 'utf8')).toBe('updated')
+  })
+
+  it('commits production updates after the authoritative worker closes', async () => {
+    artifact.profile.mode = 'production'
+    options.entry.profile.mode = 'production'
     completeWorker()
     expect(
       await executeWithEnvironment(artifact, options, process.env)

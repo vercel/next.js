@@ -1997,6 +1997,16 @@ declare class SnapshotClient {
 	clear(): void;
 }
 
+/**
+* Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
+*
+* This source code is licensed under the MIT license found in the
+* LICENSE file in the root directory of this source tree.
+*/
+
+declare function addSerializer(plugin: Plugin): void;
+declare function getSerializers(): Plugins;
+
 declare class NodeSnapshotEnvironment implements SnapshotEnvironment {
 	private options;
 	constructor(options?: SnapshotEnvironmentOptions);
@@ -2010,5 +2020,5 @@ declare class NodeSnapshotEnvironment implements SnapshotEnvironment {
 	removeSnapshotFile(filepath: string): Promise<void>;
 }
 
-export { ASYMMETRIC_MATCHERS_OBJECT, Any, Anything, ArrayContaining, AsymmetricMatcher, ChaiStyleAssertions, GLOBAL_EXPECT, JEST_MATCHERS_OBJECT, JestAsymmetricMatchers, JestChaiExpect, JestExtend, MATCHERS_OBJECT, NodeSnapshotEnvironment, ObjectContaining, SchemaMatching, SnapshotClient, StringContaining, StringMatching, addCustomEqualityTesters, arrayBufferEquality, createAssertionMessage, customMatchers, equals, fnNameFor, generateToBeMessage, getCustomEqualityTesters, getObjectKeys, getObjectSubset, getState, hasAsymmetric, hasProperty, isA, isAsymmetric, isError, isImmutableUnorderedKeyed, isImmutableUnorderedSet, isStandardSchema, iterableEquality, pluralize, recordAsyncExpect, setState, sparseArrayEquality, index_d as spies, subsetEquality, typeEquality, wrapAssertion };
+export { ASYMMETRIC_MATCHERS_OBJECT, Any, Anything, ArrayContaining, AsymmetricMatcher, ChaiStyleAssertions, GLOBAL_EXPECT, JEST_MATCHERS_OBJECT, JestAsymmetricMatchers, JestChaiExpect, JestExtend, MATCHERS_OBJECT, NodeSnapshotEnvironment, ObjectContaining, SchemaMatching, SnapshotClient, StringContaining, StringMatching, addCustomEqualityTesters, addSerializer, arrayBufferEquality, createAssertionMessage, customMatchers, equals, fnNameFor, generateToBeMessage, getCustomEqualityTesters, getObjectKeys, getObjectSubset, getSerializers, getState, hasAsymmetric, hasProperty, isA, isAsymmetric, isError, isImmutableUnorderedKeyed, isImmutableUnorderedSet, isStandardSchema, iterableEquality, pluralize, recordAsyncExpect, setState, sparseArrayEquality, index_d as spies, subsetEquality, typeEquality, wrapAssertion };
 export type { Assertion, AsymmetricMatcherInterface, AsymmetricMatchersContaining, AsyncExpectationResult, ChaiMockAssertion, ChaiPlugin, DeeplyAllowMatchers, DiffOptions, ExpectStatic, ExpectationResult, JestAssertion, MatcherHintOptions, MatcherState, Matchers, MatchersObject, Mock, MockInstance, PromisifyAssertion, RawMatcherFn, SnapshotResult, SnapshotStateOptions, SyncExpectationResult, Tester, TesterContext };

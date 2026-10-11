@@ -13,6 +13,6 @@ it('runs the assertion conformance cases in a fresh realm', async () => {
   ]).catch((error) => {
     throw new Error([error.message, error.stdout, error.stderr].join('\n'))
   })
-  expect(stdout).toContain('# tests 26')
+  expect(stdout).toContain('# tests 31')
   expect(stdout).toContain('# fail 0')
 }, 30000)
