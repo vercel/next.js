@@ -369,7 +369,7 @@ describe('cached navigations', () => {
 
     await page.clock.fastForward(60_000)
 
-    // Second navigation — fallback params are deferred to the runtime stage,
+    // Second navigation — fallback params are deferred to the PrefetchRuntime stage,
     // so they should NOT be visible while the dynamic request is blocked
     await act(async () => {
       await act(

@@ -3,6 +3,7 @@
 import '../server/require-hook'
 
 import os from 'os'
+import path from 'path'
 import {
   Argument,
   Command,
@@ -28,7 +29,10 @@ import type { NextTelemetryOptions } from '../cli/next-telemetry.js'
 import type { NextStartOptions } from '../cli/next-start.js'
 import type { NextInfoOptions } from '../cli/next-info.js'
 import type { NextDevOptions } from '../cli/next-dev.js'
-import type { NextAnalyzeOptions } from '../cli/next-analyze.js'
+import type {
+  NextAnalyzeOptions,
+  NextAnalyzeExportOptions,
+} from '../cli/next-analyze.js'
 import type { NextBuildOptions } from '../cli/next-build.js'
 import type { NextTypegenOptions } from '../cli/next-typegen.js'
 import type { NextPostBuildOptions } from '../cli/next-post-build.js'
@@ -83,8 +87,12 @@ class NextRootCommand extends Command {
       const commandName = event.name()
       const defaultEnv = commandName === 'dev' ? 'development' : 'production'
       const standardEnv = ['production', 'development', 'test']
+      // `next build` reruns itself as a child to show the upgrade menu. The
+      // parent already warned, and it sets NODE_ENV for --debug-prerender.
+      const isUpgradeBuildChild =
+        process.env.NEXT_PRIVATE_UPGRADE_BUILD_CHILD === '1'
 
-      if (process.env.NODE_ENV) {
+      if (process.env.NODE_ENV && !isUpgradeBuildChild) {
         const isNotStandard = !standardEnv.includes(process.env.NODE_ENV)
         const shouldWarnCommands =
           process.env.NODE_ENV === 'development'
@@ -107,6 +115,7 @@ class NextRootCommand extends Command {
       }
 
       if (
+        !isUpgradeBuildChild &&
         process.platform === 'darwin' &&
         process.arch === 'x64' &&
         os.cpus().some((cpu) => cpu.model.includes('Apple'))
@@ -152,6 +161,13 @@ function parseValidInspectAddress(value: string): DebugAddress {
 
 const program = new NextRootCommand()
 
+// Commander needs positional options on both ancestors (program and analyze)
+// to keep identically named capture/export flags local after the subcommand.
+// Leave option parsing for the rest of the CLI unchanged.
+program.enablePositionalOptions(
+  process.argv[2] === 'analyze' || process.argv[2] === 'experimental-analyze'
+)
+
 program
   .name('next')
   .description(
@@ -192,7 +208,8 @@ program
   .option('--experimental-app-only', 'Builds only App Router routes.')
   .option('--turbo', 'Builds using Turbopack.')
   .option('--turbopack', 'Builds using Turbopack.')
-  .option('--webpack', 'Builds using webpack.')
+  .option('--webpack', 'Builds using the bundled webpack.')
+  .option('--custom-webpack', 'Builds using your project-installed webpack.')
   .addOption(
     new Option(
       '--experimental-build-mode [mode]',
@@ -237,6 +254,9 @@ program
     if (options.experimentalNextConfigStripTypes) {
       process.env.__NEXT_NODE_NATIVE_TS_LOADER_ENABLED = 'true'
     }
+    if (options.customWebpack || process.env.NEXT_PRIVATE_LOCAL_WEBPACK) {
+      process.env.NEXT_PRIVATE_LOCAL_WEBPACK = path.resolve(directory || '.')
+    }
     if (options.experimentalCpuProf) {
       process.env.NEXT_CPU_PROF = '1'
       process.env.__NEXT_PRIVATE_CPU_PROFILE = 'build-main'
@@ -263,9 +283,11 @@ program
   })
   .usage('[directory] [options]')
 
-program
+const analyzeCommand = program
   .command('analyze')
   .alias('experimental-analyze')
+  .enablePositionalOptions()
+  .version(program.version()!, '-v, --version', 'Outputs the Next.js version.')
   .description(
     'Analyze production bundle output with an interactive web ui. Does not produce an application build. Only compatible with Turbopack.'
   )
@@ -279,8 +301,8 @@ program
   .option('--profile', 'Enables production profiling for React.')
   .option('--experimental-app-only', 'Analyzes only App Router routes.')
   .option(
-    '--snapshot-name <name>',
-    'Name this snapshot in the metadata, overriding branch/sha in the comparison UI.'
+    '--snapshot <name>',
+    'Save a named snapshot, replacing an existing capture with that name.'
   )
   .option(
     '-o, --output',
@@ -297,8 +319,9 @@ program
       .env('PORT')
   )
   .action((directory: string, options: NextAnalyzeOptions) => {
-    return import('../cli/next-analyze.js')
-      .then((mod) => mod.nextAnalyze(options, directory))
+    const { nextAnalyze } =
+      require('../cli/next-analyze.js') as typeof import('../cli/next-analyze.js')
+    return nextAnalyze(options, directory)
       .then(() => {
         if (options.output) {
           // The Next.js process is held open by something on the event loop. Exit manually like the `build` command does.
@@ -306,6 +329,62 @@ program
           process.exit(0)
         }
       })
+      .catch((error) => {
+        console.error(error)
+        process.exit(1)
+      })
+  })
+
+analyzeCommand
+  .command('export')
+  .version(program.version()!, '-v, --version', 'Outputs the Next.js version.')
+  .description(
+    'Stream a saved analyzer graph as JSON Lines without building or serving.'
+  )
+  .argument(
+    '[directory]',
+    `The application directory containing the saved analysis. ${italic(
+      'If no directory is provided, the current directory will be used.'
+    )}`
+  )
+  .option(
+    '--snapshot <name>',
+    'Select a saved snapshot by name (defaults to latest).'
+  )
+  .option('--route <route>', 'Filter graph records to a route.')
+  .option(
+    '--dist-dir <directory>',
+    'Read from an explicitly chosen build directory (defaults to .next).'
+  )
+  .action(async (directory: string, options: NextAnalyzeExportOptions) => {
+    try {
+      // Reject explicit capture/server options before the subcommand, but
+      // ignore defaults and inherited PORT. Options after export are local.
+      const captureOptions = [
+        ['output', '--output'],
+        ['profile', '--profile'],
+        ['experimentalAppOnly', '--experimental-app-only'],
+        ['mangling', '--no-mangling'],
+        ['port', '--port'],
+        ['snapshot', '--snapshot'],
+      ]
+      const offending = captureOptions
+        .filter(([key]) => analyzeCommand.getOptionValueSource(key) === 'cli')
+        .map(([, flag]) => flag)
+      if (offending.length > 0) {
+        throw new Error(
+          `next analyze export cannot use capture/server options before export: ${offending.join(', ')}`
+        )
+      }
+      const { nextAnalyzeExport } =
+        require('../cli/next-analyze.js') as typeof import('../cli/next-analyze.js')
+      nextAnalyzeExport(options, directory)
+      // The synchronous exporter has completed every fd write, including slow pipes.
+      process.exit(0)
+    } catch (error) {
+      console.error(error)
+      process.exit(1)
+    }
   })
 
 program
@@ -327,7 +406,11 @@ program
   )
   .option('--turbo', 'Starts development mode using Turbopack.')
   .option('--turbopack', 'Starts development mode using Turbopack.')
-  .option('--webpack', 'Starts development mode using webpack.')
+  .option('--webpack', 'Starts development mode using the bundled webpack.')
+  .option(
+    '--custom-webpack',
+    'Starts development mode using your project-installed webpack.'
+  )
   .addOption(
     new Option(
       '-p, --port <port>',
@@ -391,6 +474,11 @@ program
     (directory: string, options: NextDevOptions, { _optionValueSources }) => {
       if (options.experimentalNextConfigStripTypes) {
         process.env.__NEXT_NODE_NATIVE_TS_LOADER_ENABLED = 'true'
+      }
+      if (options.customWebpack || process.env.NEXT_PRIVATE_LOCAL_WEBPACK) {
+        process.env.NEXT_PRIVATE_LOCAL_WEBPACK = path.resolve(
+          process.env.NEXT_PRIVATE_DEV_DIR || directory || '.'
+        )
       }
       if (options.experimentalCpuProf) {
         process.env.NEXT_CPU_PROF = '1'

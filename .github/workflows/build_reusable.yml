@@ -112,7 +112,7 @@ env:
   # only orchestrates cargo and names artifacts (types are committed), so
   # drifting from the workspace devDependency (3.7.2) is acceptable.
   NAPI_CLI_VERSION: 3.4.1
-  TURBO_VERSION: 2.9.4
+  TURBO_VERSION: 2.11.7
   TURBO_ARGS: '-v --env-mode loose --remote-cache-timeout 300 --log-order stream'
   NODE_LTS_VERSION: 20.9.0
   # run-tests.js reads `TEST_CONCURRENCY` if no explicit `--concurrency` or `-c`
@@ -266,12 +266,34 @@ jobs:
         env:
           NODE_VERSION: ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
 
+      # Windows runner images include global Yarn, whose executable conflicts
+      # with the Yarn shim installed by Corepack (npm fails with EEXIST).
+      - name: Uninstall preinstalled Yarn
+        if: ${{ runner.os == 'Windows' }}
+        run: npm uninstall -g yarn
+
+      # The Corepack bundled with older Node.js releases predates pnpm 11+
+      # support (requires 0.34.5+). Pin 0.34.7 because 0.35+ drops Node.js 20 support.
+      - name: Setup corepack
+        run: |
+          npm i -g corepack@0.34.7
+          # fnm's bundled Corepack can precede npm's global prefix on Windows.
+          # Use the installed CLI to replace the shims beside the active Node.js.
+          corepack_cli="$(npm root -g)/corepack/dist/corepack.js"
+          node "$corepack_cli" enable --install-directory "$(dirname "$(which node)")"
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            echo "$(npm prefix -g)" >> "$GITHUB_PATH"
+          fi
+
       # Debug used Node.js version in a separate step to ensure the Node.js
       # version is set for the entire job
       - name: Verify Node.js version
         run: |
           which node
           node --version
+          which corepack
+          corepack --version
+          which pnpm
           pnpm --version
 
       - run: corepack prepare --activate yarn@1.22.19 && npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}"
@@ -371,7 +393,7 @@ jobs:
         id: cache-pnpm-store
         with:
           path: ${{ steps.get-store-path.outputs.STORE_PATH }}
-          key: pnpm-store-root-v1-${{ hashFiles('pnpm-lock.yaml') }}
+          key: pnpm-store-root-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml') }}
           # Do not use restore-keys since it leads to indefinite growth of the cache.
 
       - run: pnpm install

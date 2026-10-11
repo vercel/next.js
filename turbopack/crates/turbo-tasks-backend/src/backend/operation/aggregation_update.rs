@@ -41,9 +41,8 @@ use crate::{
     backend::{
         TaskDataCategory,
         operation::{
-            ExecuteContext, TaskGuard,
-            connect_child::resurrect_deleted,
-            invalidate::{make_task_dirty_internal, try_make_task_dirty},
+            ExecuteContext, TaskGuard, connect_child::resurrect_deleted,
+            invalidate::make_task_dirty_internal,
         },
         storage_schema::TaskStorageAccessors,
     },
@@ -292,11 +291,6 @@ pub enum AggregationUpdateJob {
     AdjustTransientRefCount { task_ids: TaskIdVec, delta: i32 },
     /// Notifies an upper task about changed data from an inner task.
     AggregatedDataUpdate(Box<AggregatedDataUpdateJob>),
-    /// Mark these tasks dirty because they have a dependency on a task being deleted by GC.
-    ///
-    /// The id references are weak by construction: a dependent that was itself collected is
-    /// skipped.
-    InvalidateDueToDependencyTornDown { task_ids: TaskIdVec },
     /// Invalidates tasks that are dependent on a collectible type of `collectibles_task`.
     InvalidateDueToCollectiblesChange {
         task_ids: TaskIdVec,
@@ -1410,18 +1404,6 @@ impl AggregationUpdateQueue {
                         self.stats.aggregated_data_update += 1;
                     }
                     self.aggregated_data_update(upper_ids, ctx, update);
-                }
-                AggregationUpdateJob::InvalidateDueToDependencyTornDown { task_ids } => {
-                    for task_id in task_ids {
-                        // `try_*`: the dependent may itself have been collected in this cascade.
-                        try_make_task_dirty(
-                            task_id,
-                            #[cfg(feature = "task_dirty_cause")]
-                            TaskDirtyCause::DependencyTornDown,
-                            self,
-                            ctx,
-                        );
-                    }
                 }
                 AggregationUpdateJob::InvalidateDueToCollectiblesChange {
                     task_ids,

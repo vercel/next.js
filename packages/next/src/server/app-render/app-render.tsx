@@ -1103,6 +1103,7 @@ async function generateStagedDynamicFlightRenderResultNode(
 
       return dynamicStream
     },
+    // Fold `PrefetchStatic_prefetchApi` into `PrefetchStatic` - no discrimination needed here
     () => stageController.advanceStage(RenderStage.PrefetchStatic),
     () => stageController.advanceStage(RenderStage.NavigationStatic),
     () => stageController.advanceStage(RenderStage.Static),
@@ -1243,6 +1244,7 @@ async function stagedRenderWithoutCachesInDevNode(
         }
       )
     },
+    () => stageController.advanceStage(RenderStage.PrefetchStatic_prefetchApi),
     () => stageController.advanceStage(RenderStage.PrefetchStatic),
     () => stageController.advanceStage(RenderStage.NavigationStatic),
     () => stageController.advanceStage(RenderStage.Static),
@@ -1254,12 +1256,14 @@ function getEnvironmentNameForStageWithoutCaches(stage: RenderStage) {
   switch (stage) {
     case RenderStage.Before:
     case RenderStage.ShellStatic:
+    case RenderStage.PrefetchStatic_prefetchApi:
     case RenderStage.PrefetchStatic:
     case RenderStage.NavigationStatic:
     case RenderStage.Static:
       return 'Prerender'
     case RenderStage.ShellRuntime:
-    case RenderStage.Runtime:
+    case RenderStage.PrefetchRuntime_prefetchApi:
+    case RenderStage.PrefetchRuntime:
     case RenderStage.NavigationRuntime:
     case RenderStage.Dynamic:
     case RenderStage.Abandoned:
@@ -1798,7 +1802,7 @@ async function finalRuntimeServerPrerender(
   const stageController = new StagedRenderingController({
     abortSignal: finalServerController.signal,
     abandonController: null,
-    // In dynamic renders, we allow Sync IO in the Runtime stage
+    // In dynamic renders, we allow Sync IO in runtime stages
     // if partialPrefetching is not enabled. However, a runtime prerender
     // (or App Shell) is stricter and never allows sync IO in any stage
     // that we go through here (i.e. < Dynamic)
@@ -1879,6 +1883,17 @@ async function finalRuntimeServerPrerender(
   const onUnexpectedAbort = () => {
     resultIsPartial = true
 
+    const syncInterruptReason = serverDynamicTracking.syncDynamicErrorWithStack
+    if (syncInterruptReason) {
+      console.error(syncInterruptReason)
+    } else {
+      console.error(
+        new InvariantError(
+          'A runtime prerender was aborted synchronously, but Next.js could not determine the reason.'
+        )
+      )
+    }
+
     // FIXME(NAR-810): If we're already aborted due to Sync IO, there should be no need to
     // finish the accumulators. However, it seems like in `--debug-prerender`
     // the stream will stay open if we don't close the iterable here.
@@ -1918,6 +1933,7 @@ async function finalRuntimeServerPrerender(
     },
     () => {
       if (checkUnexpectedAbort()) return
+      // Fold `PrefetchStatic_prefetchApi` into `PrefetchStatic` - no discrimination needed here
       stageController.advanceStage(RenderStage.PrefetchStatic)
     },
     () => {
@@ -1932,13 +1948,15 @@ async function finalRuntimeServerPrerender(
       if (checkUnexpectedAbort()) return
       stageController.advanceStage(RenderStage.ShellRuntime)
     },
+
     () => {
       if (checkUnexpectedAbort()) return
 
       // We may not reach this stage depending on the mode.
-      if (finalStage < RenderStage.Runtime) return
+      if (finalStage < RenderStage.PrefetchRuntime) return
 
-      stageController.advanceStage(RenderStage.Runtime)
+      // Fold `PrefetchRuntime_prefetchApi` into `PrefetchRuntime` - no discrimination needed here
+      stageController.advanceStage(RenderStage.PrefetchRuntime)
     },
     () => {
       if (checkUnexpectedAbort()) return
@@ -1950,11 +1968,11 @@ async function finalRuntimeServerPrerender(
       mode.shellUsedSessionDataDeferred.resolve(didSessionDataUnblockNewContent)
 
       if ('shellByteLengthDeferred' in mode) {
-        // If advancing to the runtime stage didn't unblock new content,
+        // If advancing to the PrefetchRuntime stage didn't unblock new content,
         // then the result does not depend on link data and can be used as a shell (indicated via `null`).
         // Otherwise, send a byte length to indicate where the shell content ends.
         const didLinkDataUnblockNewContent =
-          stageByteLengths[RenderStage.Runtime] >
+          stageByteLengths[RenderStage.PrefetchRuntime] >
           stageByteLengths[RenderStage.ShellRuntime]
         mode.shellByteLengthDeferred.resolve(
           didLinkDataUnblockNewContent
@@ -2026,7 +2044,7 @@ function getFinalStageForRuntimePrerenderMode(
     case 'session-shell-only':
       return RenderStage.ShellRuntime
     case 'rewindable-session-shell':
-      return RenderStage.Runtime
+      return RenderStage.PrefetchRuntime
     case 'navigation':
       return RenderStage.NavigationRuntime
   }
@@ -4001,6 +4019,7 @@ async function renderToStream(
 
             return dynamicStream
           },
+          // Fold `PrefetchStatic_prefetchApi` into `PrefetchStatic` - no discrimination needed here
           () => stageController.advanceStage(RenderStage.PrefetchStatic),
           () => stageController.advanceStage(RenderStage.NavigationStatic),
           () => stageController.advanceStage(RenderStage.Static),
@@ -5237,7 +5256,7 @@ async function prepareValidationInputsInPartialPrefetching(
           // but `canRecoverStaticAndRuntimeShell === false` and we're doing a full rerender)
           instantInputs && !needsRuntimeAppShell
           ? instantInputs
-          : // Otherwise perform a partial rerender (only up to the Runtime stage,
+          : // Otherwise perform a partial rerender (only up to the PrefetchRuntime stage,
             // which we need for discriminated errors)
             LAZY_RUNTIME_PRERENDER_WITH_STATIC_SHELL
 
@@ -5474,12 +5493,14 @@ function getEnvironmentNameForStage(stage: RenderStage) {
   switch (stage) {
     case RenderStage.Before:
     case RenderStage.ShellStatic:
+    case RenderStage.PrefetchStatic_prefetchApi:
     case RenderStage.PrefetchStatic:
     case RenderStage.NavigationStatic:
     case RenderStage.Static:
       return 'Prerender'
     case RenderStage.ShellRuntime:
-    case RenderStage.Runtime:
+    case RenderStage.PrefetchRuntime_prefetchApi:
+    case RenderStage.PrefetchRuntime:
     case RenderStage.NavigationRuntime:
       return 'Prefetch'
     case RenderStage.Dynamic:
@@ -5514,7 +5535,7 @@ type StreamRevealStage =
   | RenderStage.ShellStatic
   | RenderStage.Static
   | RenderStage.ShellRuntime
-  | RenderStage.Runtime
+  | RenderStage.PrefetchRuntime
 
 function navigationHasRuntimeShell(navigationKind: DevNavigationKind): boolean {
   switch (navigationKind.type) {
@@ -5528,7 +5549,7 @@ function navigationHasRuntimeShell(navigationKind: DevNavigationKind): boolean {
           return false
         }
         case RenderStage.ShellRuntime:
-        case RenderStage.Runtime: {
+        case RenderStage.PrefetchRuntime: {
           return true
         }
       }
@@ -5745,6 +5766,7 @@ async function streamStagedRenderInDev({
     },
     () => checkReveal(RenderStage.ShellStatic),
 
+    () => checkCacheMissAndAdvance(RenderStage.PrefetchStatic_prefetchApi),
     () => checkCacheMissAndAdvance(RenderStage.PrefetchStatic),
     () => checkCacheMissAndAdvance(RenderStage.NavigationStatic),
     () => checkCacheMissAndAdvance(RenderStage.Static),
@@ -5753,8 +5775,9 @@ async function streamStagedRenderInDev({
     () => checkCacheMissAndAdvance(RenderStage.ShellRuntime),
     () => checkReveal(RenderStage.ShellRuntime),
 
-    () => checkCacheMissAndAdvance(RenderStage.Runtime),
-    () => checkReveal(RenderStage.Runtime),
+    () => checkCacheMissAndAdvance(RenderStage.PrefetchRuntime_prefetchApi),
+    () => checkCacheMissAndAdvance(RenderStage.PrefetchRuntime),
+    () => checkReveal(RenderStage.PrefetchRuntime),
 
     () => checkCacheMissAndAdvance(RenderStage.NavigationRuntime),
 
@@ -5906,11 +5929,13 @@ async function renderWithWarmCachesForValidationInDev(
         validationAbortSignal
       )
     },
+    () => stageController.advanceStage(RenderStage.PrefetchStatic_prefetchApi),
     () => stageController.advanceStage(RenderStage.PrefetchStatic),
     () => stageController.advanceStage(RenderStage.NavigationStatic),
     () => stageController.advanceStage(RenderStage.Static),
     () => stageController.advanceStage(RenderStage.ShellRuntime),
-    () => stageController.advanceStage(RenderStage.Runtime),
+    () => stageController.advanceStage(RenderStage.PrefetchRuntime_prefetchApi),
+    () => stageController.advanceStage(RenderStage.PrefetchRuntime),
     () => stageController.advanceStage(RenderStage.NavigationRuntime),
     () => stageController.advanceStage(RenderStage.Dynamic)
   )
@@ -5956,7 +5981,7 @@ async function prerenderWithWarmCachesForStaticValidationInDev(
   const { clientModules } = getClientReferenceManifest()
 
   // This render is for validation only, and won't be shown to the user,
-  // so we're only rendering until the runtime stage
+  // so we're only rendering until the PrefetchRuntime stage
   // (we need static chunks and runtime chunks for discriminated errors)
   const finalReactController = new AbortController()
   const finalDataController = new AbortController()
@@ -5967,7 +5992,7 @@ async function prerenderWithWarmCachesForStaticValidationInDev(
     abortSignal: finalDataController.signal,
     abandonController: null,
     syncIO: getSyncIOMode(prefetchMode),
-    finalStage: RenderStage.Runtime,
+    finalStage: RenderStage.PrefetchRuntime,
   })
 
   const requestStore = createRequestStore()
@@ -5985,7 +6010,7 @@ async function prerenderWithWarmCachesForStaticValidationInDev(
     requestStore.headers
   )
 
-  // We abort upon reaching the runtime stage or on Sync IO.
+  // We abort upon reaching the PrefetchRuntime stage or on Sync IO.
   // If sync IO occurs in a place where it's not allowed, then we have to fail validation,
   // and we can abort the render immediately, without waiting for anything else..
   requestStore.controller = finalReactController
@@ -6040,11 +6065,13 @@ async function prerenderWithWarmCachesForStaticValidationInDev(
         collectChunk
       )
     },
+    () => stageController.advanceStage(RenderStage.PrefetchStatic_prefetchApi),
     () => stageController.advanceStage(RenderStage.PrefetchStatic),
     () => stageController.advanceStage(RenderStage.NavigationStatic),
     () => stageController.advanceStage(RenderStage.Static),
     () => stageController.advanceStage(RenderStage.ShellRuntime),
-    () => stageController.advanceStage(RenderStage.Runtime),
+    () => stageController.advanceStage(RenderStage.PrefetchRuntime_prefetchApi),
+    () => stageController.advanceStage(RenderStage.PrefetchRuntime),
     // NOTE: We don't need `NavigationRuntime`, because we set `needsRuntimeShell: false`
     // so `navigation()` resolves in the static stages.
     () => {
@@ -6438,8 +6465,8 @@ function createAsyncApiPromises(
   // NOTE: Must be kept in sync with cookies.ts, headers.ts, params.ts, search-params.ts
   const cookiesStage = RENDER_STAGES_BY_DATA_KIND.sessionData
   const headersStage = RENDER_STAGES_BY_DATA_KIND.sessionData
-  const paramsStage = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
-  const searchParamsStage = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
+  const paramsStage = RENDER_STAGES_BY_DATA_KIND.runtimeUrlData
+  const searchParamsStage = RENDER_STAGES_BY_DATA_KIND.runtimeUrlData
 
   return {
     cookies: stagedRendering.delayUntilStage(cookiesStage, 'cookies', cookies),
@@ -6908,12 +6935,12 @@ async function runValidationInDev(
     // interrupt the prerender and can properly observe the entire content
     await warmupClientModulesForStagedValidation(
       // if we're going to be validating prefetches, we'll be rendering some segments in the dynamic stage.
-      // otherwise, for static shell validation, we only need to warm up to the runtime stage.
+      // otherwise, for static shell validation, we only need to warm up to the PrefetchRuntime stage.
       // we also need to use a different store type, because instant validation allows more APIs to resolve.
       needsInstantValidation ? 'validation-client' : 'prerender-client',
       needsInstantValidation
         ? accumulatedChunks[RenderStage.Dynamic]
-        : accumulatedChunks[RenderStage.Runtime],
+        : accumulatedChunks[RenderStage.PrefetchRuntime],
       accumulatedChunks[RenderStage.Dynamic],
       rootParams,
       fallbackRouteParams,
@@ -7068,7 +7095,7 @@ async function validateStaticShell(
   )
 
   const runtimeResult = await validateStaticShellAtStage(
-    RenderStage.Runtime,
+    RenderStage.PrefetchRuntime,
     accumulatedChunks,
     debugChunks,
     stageEndTimes,
@@ -7082,7 +7109,9 @@ async function validateStaticShell(
   )
 
   if (runtimeResult.length > 0) {
-    debug?.(`❌ Failed - ${runtimeResult.length} errors from runtime stage`)
+    debug?.(
+      `❌ Failed - ${runtimeResult.length} errors from PrefetchRuntime stage`
+    )
     // We have something to report from the runtime validation
     // We can skip the rest
     return runtimeResult
@@ -7295,7 +7324,7 @@ async function warmupClientModulesForStagedValidation(
 }
 
 async function validateStaticShellAtStage(
-  stage: RenderStage.Static | RenderStage.Runtime,
+  stage: RenderStage.Static | RenderStage.PrefetchRuntime,
   accumulatedChunks: AccumulatedStreamChunks,
   debugChunks: null | Array<Uint8Array>,
   stageEndTimes: StageEndTimes,
@@ -7518,8 +7547,8 @@ async function validateStaticShellAtStage(
 /**
  * Validates instant configs by iterating URL depths from deepest to
  * shallowest. At each depth, builds a combined payload where segments
- * above the boundary use Dynamic stage (already mounted) and segments
- * below use Static/Runtime stage (being prefetched). If the new subtree
+ * above the boundary use the Dynamic stage (already mounted) and segments
+ * below use the stage that corresponds to what was prefetched. If the new subtree
  * contains any `instant` configs, the payload is rendered to
  * detect dynamic holes without Suspense.
  */
@@ -7597,7 +7626,10 @@ async function validateInstantConfigs(
 
   const { implicitTags, nonce, workStore, isDebugChannelEnabled } = ctx
 
-  type RetryStage = RenderStage.Runtime | RenderStage.NavigationRuntime
+  type RetryStage =
+    | RenderStage.PrefetchRuntime_prefetchApi
+    | RenderStage.PrefetchRuntime
+    | RenderStage.NavigationRuntime
 
   type ValidationSequence = {
     stageOrder: [...PrefetchedSegmentStage[], RenderStage.Dynamic]
@@ -7631,29 +7663,33 @@ async function validateInstantConfigs(
     [ValidationPrefetchKind.StaticAppShell]: defineValidationSequence({
       stageOrder: [
         RenderStage.ShellStatic,
+        RenderStage.PrefetchStatic_prefetchApi,
         RenderStage.PrefetchStatic,
         RenderStage.NavigationStatic,
-        RenderStage.Runtime,
+        RenderStage.PrefetchRuntime,
         RenderStage.Dynamic,
       ],
       holeResolution: {
         [RenderStage.ShellStatic]: null, // initial stage
-        [RenderStage.PrefetchStatic]: DynamicHoleKind.Link, // TODO(ensure-static): distinguish static link data
+        [RenderStage.PrefetchStatic_prefetchApi]: DynamicHoleKind.Prefetch,
+        [RenderStage.PrefetchStatic]: DynamicHoleKind.Link,
         [RenderStage.NavigationStatic]: DynamicHoleKind.Navigation,
-        [RenderStage.Runtime]: DynamicHoleKind.Runtime, // TODO(ensure-static): distinguish session data
+        [RenderStage.PrefetchRuntime]: DynamicHoleKind.Runtime, // TODO(ensure-static): distinguish session data
         [RenderStage.Dynamic]: DynamicHoleKind.Dynamic,
       },
     }),
     [ValidationPrefetchKind.RuntimeAppShell]: defineValidationSequence({
       stageOrder: [
         RenderStage.ShellRuntime,
-        RenderStage.Runtime,
+        RenderStage.PrefetchRuntime_prefetchApi,
+        RenderStage.PrefetchRuntime,
         RenderStage.NavigationRuntime,
         RenderStage.Dynamic,
       ],
       holeResolution: {
         [RenderStage.ShellRuntime]: null, // initial stage
-        [RenderStage.Runtime]: DynamicHoleKind.Link,
+        [RenderStage.PrefetchRuntime_prefetchApi]: DynamicHoleKind.Prefetch,
+        [RenderStage.PrefetchRuntime]: DynamicHoleKind.Link,
         [RenderStage.NavigationRuntime]: DynamicHoleKind.Navigation,
         [RenderStage.Dynamic]: DynamicHoleKind.Dynamic,
       },
@@ -7661,12 +7697,12 @@ async function validateInstantConfigs(
     [ValidationPrefetchKind.LegacySpeculative]: defineValidationSequence({
       stageOrder: [
         RenderStage.Static,
-        RenderStage.Runtime,
+        RenderStage.PrefetchRuntime,
         RenderStage.Dynamic,
       ],
       holeResolution: {
         [RenderStage.Static]: null, // initial stage
-        [RenderStage.Runtime]: DynamicHoleKind.Runtime,
+        [RenderStage.PrefetchRuntime]: DynamicHoleKind.Runtime,
         [RenderStage.Dynamic]: DynamicHoleKind.Dynamic,
       },
     }),
@@ -8202,11 +8238,13 @@ async function renderWithRestartOnCacheMissInValidation(
       accumulatedChunksPromise.catch(() => {})
       return { accumulatedChunksPromise }
     },
+    () => advanceStageIfNoCacheMiss(RenderStage.PrefetchStatic_prefetchApi),
     () => advanceStageIfNoCacheMiss(RenderStage.PrefetchStatic),
     () => advanceStageIfNoCacheMiss(RenderStage.NavigationStatic),
     () => advanceStageIfNoCacheMiss(RenderStage.Static),
     () => advanceStageIfNoCacheMiss(RenderStage.ShellRuntime),
-    () => advanceStageIfNoCacheMiss(RenderStage.Runtime),
+    () => advanceStageIfNoCacheMiss(RenderStage.PrefetchRuntime_prefetchApi),
+    () => advanceStageIfNoCacheMiss(RenderStage.PrefetchRuntime),
     () => advanceStageIfNoCacheMiss(RenderStage.NavigationRuntime),
     () => advanceStageIfNoCacheMiss(RenderStage.Dynamic)
   )
@@ -8305,11 +8343,17 @@ async function renderWithRestartOnCacheMissInValidation(
         accumulatedChunksPromise,
       }
     },
+    () =>
+      finalStageController.advanceStage(RenderStage.PrefetchStatic_prefetchApi),
     () => finalStageController.advanceStage(RenderStage.PrefetchStatic),
     () => finalStageController.advanceStage(RenderStage.NavigationStatic),
     () => finalStageController.advanceStage(RenderStage.Static),
     () => finalStageController.advanceStage(RenderStage.ShellRuntime),
-    () => finalStageController.advanceStage(RenderStage.Runtime),
+    () =>
+      finalStageController.advanceStage(
+        RenderStage.PrefetchRuntime_prefetchApi
+      ),
+    () => finalStageController.advanceStage(RenderStage.PrefetchRuntime),
     () => finalStageController.advanceStage(RenderStage.NavigationRuntime),
     () => finalStageController.advanceStage(RenderStage.Dynamic)
   )
@@ -9691,6 +9735,7 @@ async function prerenderToStream(
         },
         () => {
           if (checkUnexpectedAbort()) return
+          // Fold `PrefetchStatic_prefetchApi` into `PrefetchStatic` - no discrimination needed here
           finalStageController.advanceStage(RenderStage.PrefetchStatic)
         },
         () => {

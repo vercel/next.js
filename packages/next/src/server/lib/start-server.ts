@@ -18,7 +18,11 @@ import os from 'os'
 import { exec } from 'child_process'
 import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
-import { getMemoryRestartStats, RESTART_EXIT_CODE } from './utils'
+import {
+  blockOnOutputWrites,
+  getMemoryRestartStats,
+  RESTART_EXIT_CODE,
+} from './utils'
 import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
 import {
@@ -628,6 +632,10 @@ export async function startServer(
 }
 
 if (process.env.NEXT_PRIVATE_WORKER && process.send) {
+  // Output is piped to the CLI to hold it while the upgrade menu is open.
+  if (process.env.NEXT_PRIVATE_PROMPT_OUTPUT === '1') {
+    blockOnOutputWrites()
+  }
   process.addListener('message', async (msg: any) => {
     if (
       msg &&

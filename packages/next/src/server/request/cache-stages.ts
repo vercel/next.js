@@ -46,11 +46,14 @@ export function prefetch(): Promise<void> {
     )
   }
 
+  const stageVariants = RENDER_STAGES_BY_DATA_KIND.staticUrlData.prefetchApi
   switch (workUnitStore.type) {
     case 'prerender': {
       // Content below `prefetch()` is excluded from the shell, but it's
       // deliberately included in the static output (and thus in static
       // prefetches), so we only delay it until the static prefetch stage.
+      // It resolves in `PrefetchStatic_prefetchApi`, one stage ahead of URL data,
+      // so validation can attribute a blocking hole to `prefetch()`.
       const { stagedRendering } = workUnitStore
       if (!stagedRendering) {
         // Prospective prerender
@@ -59,7 +62,7 @@ export function prefetch(): Promise<void> {
       } else {
         // Final prerender
         return stagedRendering.delayUntilStage(
-          RENDER_STAGES_BY_DATA_KIND.staticLinkData,
+          stageVariants.static,
           'prefetch',
           undefined
         )
@@ -67,12 +70,12 @@ export function prefetch(): Promise<void> {
     }
     case 'prerender-runtime': {
       // In a shell render, prefetch() doesn't resolve, because it doesn't reach
-      // `Runtime`. It'll resolve in a runtime prefetch, and in a runtime
+      // `PrefetchRuntime`. It'll resolve in a runtime prefetch, and in a runtime
       // prerender produced during a navigation.
       // Note that this does not mark the subtree as dynamic -- content guarded by
       // prefetch() is still considered cacheable.
       const { stagedRendering } = workUnitStore
-      const prefetchStage = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
+      const prefetchStage = stageVariants.runtime
       if (!stagedRendering) {
         // Prospective prerender
         // Make sure we don't unblock content that won't be reached in the final prerender.
@@ -99,9 +102,12 @@ export function prefetch(): Promise<void> {
       if (stagedRendering) {
         // We can either recover a static shell or a runtime shell, but not both.
         trackIncompatibleShellContent(workUnitStore, '`prefetch()`')
-        const stage = workUnitStore.needsRuntimeShell
-          ? RENDER_STAGES_BY_DATA_KIND.runtimeLinkData // Match the timing of 'prerender-runtime'.
-          : RENDER_STAGES_BY_DATA_KIND.staticLinkData // Match the timing of 'prerender'.
+        const stage =
+          stageVariants[
+            workUnitStore.needsRuntimeShell
+              ? 'runtime' // Match the timing of 'prerender-runtime'.
+              : 'static' // Match the timing of 'prerender'.
+          ]
 
         return stagedRendering.delayUntilStage(stage, 'prefetch', undefined)
       }

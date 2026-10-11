@@ -305,8 +305,8 @@ export function DiffTable<Row extends DiffRow>({
               <td
                 className={cn(
                   'whitespace-nowrap px-4 py-2 text-right font-mono',
-                  totalDelta > 0 && 'text-red-600 dark:text-red-400',
-                  totalDelta < 0 && 'text-green-600 dark:text-green-400'
+                  totalDelta > 0 && 'text-delta-increase',
+                  totalDelta < 0 && 'text-delta-decrease'
                 )}
               >
                 {formatDelta(totalDelta)}
@@ -601,8 +601,8 @@ function DiffPackageHeaderRow<Row extends DiffRow>({
         <td
           className={cn(
             'cursor-pointer whitespace-nowrap border-b border-border bg-muted/30 px-4 py-2 text-right font-mono text-xs transition-colors hover:bg-muted/50',
-            d > 0 && 'text-red-600 dark:text-red-400',
-            d < 0 && 'text-green-600 dark:text-green-400',
+            d > 0 && 'text-delta-increase',
+            d < 0 && 'text-delta-decrease',
             d === 0 && 'text-muted-foreground'
           )}
           onClick={onToggle}
@@ -628,17 +628,17 @@ function PackageCountBreakdown({
     {
       label: 'added',
       value: counts.added,
-      className: 'text-red-600 dark:text-red-400',
+      className: 'text-delta-increase',
     },
     {
       label: 'removed',
       value: counts.removed,
-      className: 'text-green-600 dark:text-green-400',
+      className: 'text-delta-decrease',
     },
     {
       label: 'changed',
       value: counts.changed,
-      className: 'text-amber-500',
+      className: 'text-muted-foreground',
     },
   ]
   const visible = entries.filter((e) => e.value > 0)
@@ -851,8 +851,8 @@ function DiffTableRow<Row extends DiffRow>({
           className={cn(
             'whitespace-nowrap px-4 py-2 text-right font-mono text-xs',
             cellClassName,
-            d > 0 && 'text-red-600 dark:text-red-400',
-            d < 0 && 'text-green-600 dark:text-green-400',
+            d > 0 && 'text-delta-increase',
+            d < 0 && 'text-delta-decrease',
             d === 0 && 'text-muted-foreground'
           )}
           onClick={onClick}
@@ -1021,7 +1021,7 @@ function StatusIcon({ status }: { status: DiffStatus }) {
   if (status === 'added') {
     return (
       <PlusCircle
-        className="h-3.5 w-3.5 shrink-0 text-red-600 dark:text-red-400"
+        className="h-3.5 w-3.5 shrink-0 text-delta-increase"
         aria-label="Added"
       />
     )
@@ -1029,15 +1029,15 @@ function StatusIcon({ status }: { status: DiffStatus }) {
   if (status === 'removed') {
     return (
       <MinusCircle
-        className="h-3.5 w-3.5 shrink-0 text-green-600 dark:text-green-400"
+        className="h-3.5 w-3.5 shrink-0 text-delta-decrease"
         aria-label="Removed"
       />
     )
   }
   if (status === 'changed') {
     return (
-      <ArrowUp
-        className="h-3.5 w-3.5 shrink-0 text-amber-500"
+      <ArrowUpDown
+        className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
         aria-label="Changed"
       />
     )

@@ -9,13 +9,14 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import {
+  encodeBuildSelection,
   formatRelativeTime,
   formatSnapshotLabel,
   type SnapshotMetadata,
 } from '@/lib/snapshot'
 import { cn } from '@/lib/utils'
 
-type BuildId = string | null
+type BuildName = string | null
 type PickerMode = 'single' | 'compare'
 
 interface BuildPickerProps {
@@ -24,11 +25,11 @@ interface BuildPickerProps {
   historyLoading: boolean
   historyError: boolean
   latestSnapshot: SnapshotMetadata
-  singleBuildId: string | null
-  fromId: string | null
-  toId: string | null
-  onSingleBuildChange: (id: BuildId) => void
-  onComparisonChange: (from: BuildId, to: BuildId) => void
+  singleBuildName: string | null
+  fromName: string | null | undefined
+  toName: string | null | undefined
+  onSingleBuildChange: (id: BuildName) => void
+  onComparisonChange: (from: BuildName, to: BuildName) => void
 }
 
 export function BuildPicker({
@@ -37,9 +38,9 @@ export function BuildPicker({
   historyLoading,
   historyError,
   latestSnapshot,
-  singleBuildId,
-  fromId,
-  toId,
+  singleBuildName,
+  fromName,
+  toName,
   onSingleBuildChange,
   onComparisonChange,
 }: BuildPickerProps) {
@@ -50,25 +51,25 @@ export function BuildPicker({
   const [search, setSearch] = useState('')
 
   const snapshots = historySnapshots.filter(
-    (snapshot) => snapshot.id !== latestSnapshot.id
+    (snapshot) => snapshot.name !== latestSnapshot.name
   )
-  const builds = [null, ...snapshots.map((snapshot) => snapshot.id)]
-  const selectedFrom: BuildId | undefined = compareMode
-    ? fromId === 'latest'
-      ? null
-      : (fromId ?? snapshots[0]?.id)
-    : (singleBuildId ?? snapshots[0]?.id)
-  const selectedTo: BuildId = compareMode ? toId : null
+  const builds = [null, ...snapshots.map((snapshot) => snapshot.name)]
+  const selectedFrom: BuildName | undefined = compareMode
+    ? fromName === undefined
+      ? snapshots[0]?.name
+      : fromName
+    : (singleBuildName ?? snapshots[0]?.name)
+  const selectedTo: BuildName | undefined = compareMode ? toName : null
 
-  function getLabel(id: BuildId | undefined) {
+  function getLabel(id: BuildName | undefined) {
     if (id === null) return 'Latest'
     if (id === undefined) return 'Select build'
-    const snapshot = snapshots.find((item) => item.id === id)
+    const snapshot = snapshots.find((item) => item.name === id)
     return snapshot ? formatSnapshotLabel(snapshot) : 'Unknown build'
   }
 
-  function selectComparison(side: 'from' | 'to', id: BuildId) {
-    if (selectedFrom === undefined) return
+  function selectComparison(side: 'from' | 'to', id: BuildName) {
+    if (selectedFrom === undefined || selectedTo === undefined) return
     if (side === 'from') {
       onComparisonChange(id, id === selectedTo ? selectedFrom : selectedTo)
     } else {
@@ -80,10 +81,9 @@ export function BuildPicker({
   const visibleBuilds = builds.filter((id) => {
     if (!query) return true
     if (id === null) return 'latest'.includes(query)
-    const snapshot = snapshots.find((item) => item.id === id)!
+    const snapshot = snapshots.find((item) => item.name === id)!
     return [
-      snapshot.id,
-      snapshot.snapshotName,
+      snapshot.name,
       snapshot.gitBranch,
       snapshot.gitShortSha,
       snapshot.gitMessage,
@@ -94,8 +94,8 @@ export function BuildPicker({
   })
 
   const triggerLabel = compareMode
-    ? `${getLabel(fromId === 'latest' ? null : (fromId ?? undefined))} → ${getLabel(toId)}`
-    : getLabel(singleBuildId)
+    ? `${getLabel(fromName)} → ${getLabel(toName)}`
+    : getLabel(singleBuildName)
 
   return (
     <Popover
@@ -167,12 +167,12 @@ export function BuildPicker({
               const snapshot =
                 id === null
                   ? latestSnapshot
-                  : snapshots.find((item) => item.id === id)!
+                  : snapshots.find((item) => item.name === id)!
               const label =
                 id === null ? 'Latest' : formatSnapshotLabel(snapshot)
               return (
                 <div
-                  key={id ?? 'latest'}
+                  key={encodeBuildSelection(id)}
                   className="flex min-h-14 items-center border-b last:border-b-0"
                 >
                   {mode === 'compare' ? (
@@ -181,14 +181,18 @@ export function BuildPicker({
                         side="from"
                         label={label}
                         selected={selectedFrom === id}
-                        disabled={selectedFrom === undefined}
+                        disabled={
+                          selectedFrom === undefined || selectedTo === undefined
+                        }
                         onClick={() => selectComparison('from', id)}
                       />
                       <SelectionCell
                         side="to"
                         label={label}
                         selected={selectedTo === id}
-                        disabled={selectedFrom === undefined}
+                        disabled={
+                          selectedFrom === undefined || selectedTo === undefined
+                        }
                         onClick={() => selectComparison('to', id)}
                       />
                       <div className="min-w-0 flex-1 py-2 pl-2 pr-2 text-left">
@@ -199,7 +203,7 @@ export function BuildPicker({
                     <button
                       type="button"
                       aria-label={`View ${label}`}
-                      aria-pressed={!compareMode && singleBuildId === id}
+                      aria-pressed={!compareMode && singleBuildName === id}
                       className="flex min-w-0 flex-1 items-center hover:bg-muted"
                       onClick={() => {
                         onSingleBuildChange(id)
@@ -207,7 +211,7 @@ export function BuildPicker({
                     >
                       <span className="flex w-11 shrink-0 justify-center">
                         <SelectionMark
-                          selected={!compareMode && singleBuildId === id}
+                          selected={!compareMode && singleBuildName === id}
                         />
                       </span>
                       <span className="min-w-0 flex-1 py-2 pl-2 pr-2 text-left">

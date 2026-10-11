@@ -26,7 +26,7 @@ During a [client-side navigation](/docs/app/glossary#client-side-navigation), a 
 
 The `params` and `searchParams` props are [URL data](/docs/app/glossary#url-data): they're specific to a single URL, so reading them outside a `<Suspense>` boundary ties the App Shell to one link. Next.js can no longer reuse it across links, and navigations to this route may not be instant.
 
-The check runs when you load the route and when you navigate to it. The App Shell itself is only used for client-side navigations: the initial load has its own validation against the route's [static shell](/docs/app/glossary#static-shell), where the same read surfaces as [runtime data during prerendering](/docs/messages/blocking-prerender-runtime). For URL data read through client hooks like [`useSearchParams`](/docs/app/api-reference/functions/use-search-params), see [URL data in a Client Component outside of Suspense](/docs/messages/blocking-prerender-client-hook).
+Next.js validates the route on both initial loads and client navigations, but this insight applies to the App Shell used for client-side navigation. On initial load, the same read surfaces as [runtime data during prerendering](/docs/messages/blocking-prerender-runtime) while Next.js validates the route's [static shell](/docs/app/glossary#static-shell). For URL data read through client hooks like [`useSearchParams`](/docs/app/api-reference/functions/use-search-params), see [URL data in a Client Component outside of Suspense](/docs/messages/blocking-prerender-client-hook).
 
 ## Ways to fix this
 
@@ -129,7 +129,7 @@ The shared parts of the route are prefetched, and the URL-dependent region strea
 
 ## Allow blocking route
 
-Choose this fix when the route genuinely can't provide a shared App Shell — it needs the URL data high in the tree to decide what to render — and you accept that navigations to it won't be instant. Setting [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` marks the segment as allowed to block: it renders per navigation instead of reusing a shared prefetch.
+Choose this fix when the route needs URL data high in the tree and cannot provide a shared App Shell. Navigations to the route will not be instant. Setting [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` allows the segment to block, so it renders per navigation instead of reusing a shared prefetch.
 
 ### Patterns
 

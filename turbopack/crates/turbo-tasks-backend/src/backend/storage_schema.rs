@@ -199,21 +199,25 @@ struct TaskStorageSchema {
     #[field(storage = "flag", category = "transient")]
     data_restoring: bool,
 
-    /// Whether meta was modified before snapshot mode was entered.
+    /// Whether meta has unpersisted modifications. Set by every persistable meta modification and
+    /// cleared when a snapshot captures the task.
     #[field(storage = "flag", category = "transient")]
     meta_modified: bool,
 
-    /// Whether data was modified before snapshot mode was entered.
+    /// Whether data has unpersisted modifications. Set by every persistable data modification and
+    /// cleared when a snapshot captures the task.
     #[field(storage = "flag", category = "transient")]
     data_modified: bool,
 
-    /// Whether meta was modified after snapshot mode was entered (snapshot taken).
+    /// Whether meta was captured by the in-progress snapshot and has not been persisted (encoded)
+    /// yet.
     #[field(storage = "flag", category = "transient")]
-    meta_modified_during_snapshot: bool,
+    meta_snapshot_pending: bool,
 
-    /// Whether data was modified after snapshot mode was entered (snapshot taken).
+    /// Whether data was captured by the in-progress snapshot and has not been persisted (encoded)
+    /// yet.
     #[field(storage = "flag", category = "transient")]
-    data_modified_during_snapshot: bool,
+    data_snapshot_pending: bool,
 
     /// Whether dependencies have been prefetched.
     #[field(storage = "flag", category = "transient")]
@@ -231,7 +235,8 @@ struct TaskStorageSchema {
     pub new_task: bool,
 
     /// GC soft-deletion marker. Set by the garbage collector when a task is marked for deletion.
-    #[field(storage = "flag", category = "transient")]
+    /// `meta` simply to ensure that setting/clearing it tracks a modification.
+    #[field(storage = "flag", category = "meta")]
     deleted: bool,
 
     // =========================================================================
@@ -434,9 +439,10 @@ impl TaskFlags {
         }
     }
 
-    /// Check if any snapshot flag is set
-    pub fn any_modified_during_snapshot(&self) -> bool {
-        self.meta_modified_during_snapshot() || self.data_modified_during_snapshot()
+    /// Check if the in-progress snapshot captured any category of this task that it has not
+    /// persisted yet.
+    pub fn any_snapshot_pending(&self) -> bool {
+        self.meta_snapshot_pending() || self.data_snapshot_pending()
     }
 
     /// Check if any modified flag is set
@@ -459,26 +465,6 @@ impl TaskFlags {
             SpecificTaskDataCategory::Data => self.set_data_modified(value),
         }
     }
-
-    /// Check if the specified category has a snapshot
-    pub fn is_modified_during_snapshot(&self, category: SpecificTaskDataCategory) -> bool {
-        match category {
-            SpecificTaskDataCategory::Meta => self.meta_modified_during_snapshot(),
-            SpecificTaskDataCategory::Data => self.data_modified_during_snapshot(),
-        }
-    }
-
-    /// Set the snapshot flag for the specified category
-    pub fn set_modified_during_snapshot(
-        &mut self,
-        category: SpecificTaskDataCategory,
-        value: bool,
-    ) {
-        match category {
-            SpecificTaskDataCategory::Meta => self.set_meta_modified_during_snapshot(value),
-            SpecificTaskDataCategory::Data => self.set_data_modified_during_snapshot(value),
-        }
-    }
 }
 
 // =============================================================================
@@ -492,6 +478,9 @@ pub enum UnevictableReason {
     InProgress,
     /// Modified flags are set, or data/meta has not been restored yet.
     Modified,
+    /// GC deleted the task but its tombstone has not been persisted yet, e.g. because the GC pass
+    /// was interrupted and abandoned its snapshot.
+    MarkedForDeletion,
     /// The task is transient
     Transient,
     // Keep `NothingToEvict` last: `COUNT` is derived from its discriminant.
@@ -504,6 +493,7 @@ impl UnevictableReason {
     pub const ALL: [UnevictableReason; Self::COUNT] = [
         UnevictableReason::InProgress,
         UnevictableReason::Modified,
+        UnevictableReason::MarkedForDeletion,
         UnevictableReason::Transient,
         UnevictableReason::NothingToEvict,
     ];
@@ -523,6 +513,7 @@ impl UnevictableReason {
         match self {
             UnevictableReason::InProgress => "skipped_in_progress",
             UnevictableReason::Modified => "skipped_modified",
+            UnevictableReason::MarkedForDeletion => "skipped_marked_for_deletion",
             UnevictableReason::Transient => "skipped_transient",
             UnevictableReason::NothingToEvict => "skipped_nothing_to_evict",
         }
@@ -604,15 +595,13 @@ impl TaskStorage {
         // === Data evictability (independent) ===
         // Data can be dropped if it's been restored from disk and hasn't been
         // modified.
-        let data_evictable = flags.data_restored()
-            && !flags.data_modified()
-            && !flags.data_modified_during_snapshot();
+        let data_evictable =
+            flags.data_restored() && !flags.data_modified() && !flags.data_snapshot_pending();
 
         // === Meta evictability (independent) ===
         // Same semantics as data: flag checks only.
-        let meta_evictable = flags.meta_restored()
-            && !flags.meta_modified()
-            && !flags.meta_modified_during_snapshot();
+        let meta_evictable =
+            flags.meta_restored() && !flags.meta_modified() && !flags.meta_snapshot_pending();
 
         // === Combined decision ===
         (
@@ -853,18 +842,6 @@ impl TaskStorage {
     pub fn gc_pin_for_construction(&mut self) {
         debug_assert_eq!(self.gc_transient_ref_count(), 0);
         self.set_transient_ref_count(1);
-    }
-
-    /// Adjust the transient in-session reference count and return the new value.
-    ///
-    /// Panics on underflow or overflow.
-    pub fn update_and_get_transient_ref_count(&mut self, delta: i32) -> u32 {
-        let current = self.gc_transient_ref_count();
-        let new_value = current
-            .checked_add_signed(delta)
-            .expect("transient_ref_count underflow");
-        self.set_transient_ref_count(new_value);
-        new_value
     }
 
     /// Whether a GC pass can collect this task: nothing references it, via parents, transient
@@ -1197,22 +1174,23 @@ mod tests {
         assert!(storage.flags.current_session_clean());
 
         // Test persisted_bits only includes non-transient flags
-        // optimization_pending=bit 0 (meta, persisted)
-        // invalidator=bit 1, immutable=bit 2 (data, persisted)
-        // current_session_clean=bit 3 (transient)
+        // optimization_pending=bit 0, deleted=bit 1 (meta, persisted)
+        // invalidator=bit 2, immutable=bit 3 (data, persisted)
+        // current_session_clean and the other transient flags come after
         let persisted = storage.flags.persisted_bits();
-        assert_eq!(persisted, 0b110); // invalidator + immutable
+        assert_eq!(persisted, 0b1100); // invalidator + immutable
 
         // Test TaskFlags constants
-        assert_eq!(TaskFlags::PERSISTED_MASK, 0b111); // 3 persisted flags
+        assert_eq!(TaskFlags::PERSISTED_MASK, 0b1111); // 4 persisted flags
 
         // Test set_persisted_bits preserves transient flags
         let mut storage2 = TaskStorage::new();
         storage2.flags.set_current_session_clean(true); // Set transient flag
-        storage2.flags.set_persisted_bits(0b100); // Set immutable only
+        storage2.flags.set_persisted_bits(0b1000); // Set immutable only
         assert!(storage2.flags.immutable());
         assert!(!storage2.flags.invalidator());
         assert!(!storage2.flags.optimization_pending());
+        assert!(!storage2.flags.deleted());
         assert!(storage2.flags.current_session_clean()); // Transient flag preserved
     }
 
@@ -1226,8 +1204,8 @@ mod tests {
         assert!(!storage.flags.data_restored());
         assert!(!storage.flags.meta_modified());
         assert!(!storage.flags.data_modified());
-        assert!(!storage.flags.meta_modified_during_snapshot());
-        assert!(!storage.flags.data_modified_during_snapshot());
+        assert!(!storage.flags.meta_snapshot_pending());
+        assert!(!storage.flags.data_snapshot_pending());
         assert!(!storage.flags.prefetched());
 
         // Test setting restored flags
@@ -1243,24 +1221,24 @@ mod tests {
         assert!(storage.flags.data_modified());
 
         // Test setting snapshot flags
-        storage.flags.set_meta_modified_during_snapshot(true);
-        storage.flags.set_data_modified_during_snapshot(true);
-        assert!(storage.flags.meta_modified_during_snapshot());
-        assert!(storage.flags.data_modified_during_snapshot());
+        storage.flags.set_meta_snapshot_pending(true);
+        storage.flags.set_data_snapshot_pending(true);
+        assert!(storage.flags.meta_snapshot_pending());
+        assert!(storage.flags.data_snapshot_pending());
 
         // Test prefetched flag
         storage.flags.set_prefetched(true);
         assert!(storage.flags.prefetched());
 
         // Verify these are all transient (not in persisted_bits)
-        // Only invalidator, immutable should be persisted
+        // Only optimization_pending, deleted, invalidator and immutable should be persisted
         let persisted = storage.flags.persisted_bits();
         assert_eq!(persisted, 0b00); // No persisted flags set
 
         // Set a persisted flag and verify internal state flags are still transient
         storage.flags.set_immutable(true);
         let persisted = storage.flags.persisted_bits();
-        assert_eq!(persisted, 0b100); // Only immutable (bit 2)
+        assert_eq!(persisted, 0b1000); // Only immutable (bit 3)
     }
 
     // Helper to create encoder

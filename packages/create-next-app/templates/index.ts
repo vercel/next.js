@@ -354,7 +354,7 @@ export const installTemplate = async ({
   if (eslint) {
     packageJson.devDependencies = {
       ...packageJson.devDependencies,
-      eslint: "^9",
+      eslint: "^10",
       "eslint-config-next": resolvePkgVersion("eslint-config-next"),
     };
   }
