@@ -17,6 +17,10 @@ packages/next/src/bundles/webpack/packages/*.runtime.js
 packages/next/src/bundles/webpack/packages/lazy-compilation-*.js
 packages/next/wasm/@next
 .github/actions/next-stats-action/.work
+# installs, generated images and results of `pnpm bench:image-optimizer-sharp`
+bench/image-optimizer-sharp/.installs
+bench/image-optimizer-sharp/.images
+bench/image-optimizer-sharp/artifacts
 
 crates/**/tests/**/output*
 crates/core/tests/loader/issue-32553/input.js

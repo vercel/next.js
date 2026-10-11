@@ -1,0 +1,6 @@
+# isolated `npm install` of each sharp variant
+.installs/
+# generated multi-megabyte source images
+.images/
+# results of each run
+artifacts/
