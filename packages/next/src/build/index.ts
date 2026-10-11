@@ -1344,9 +1344,6 @@ export default async function build(
       ]
       const hasRewrites = combinedRewrites.length > 0
       NextBuildContext.hasRewrites = hasRewrites
-      NextBuildContext.originalRewrites = config._originalRewrites
-      NextBuildContext.originalRedirects = config._originalRedirects
-
       const distDirCreated = await nextBuildSpan
         .traceChild('create-dist-dir')
         .traceAsyncFn(async () => {
@@ -1809,9 +1806,9 @@ export default async function build(
         | ReturnType<typeof createClientRouterFilter>
 
       if (config.experimental.clientRouterFilter) {
-        const nonInternalRedirects = (config._originalRedirects || []).filter(
-          (r: any) => !r.internal
-        )
+        const nonInternalRedirects = (
+          customRoutes.originalRedirects || []
+        ).filter((r) => !r.internal)
         clientRouterFilters = createClientRouterFilter(
           [...appPaths],
           config.experimental.clientRouterFilterRedirects

@@ -13,9 +13,6 @@ describe('nx-handling', () => {
         path.join(__dirname, 'apps/next-nx-test/next.config.js')
       ),
     },
-    env: {
-      ENABLE_EXPERIMENTAL_COREPACK: '1',
-    },
     buildCommand: 'pnpm run build',
     startCommand: isNextDev ? 'pnpm run dev' : 'pnpm run start',
     packageJson: {

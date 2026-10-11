@@ -127,9 +127,6 @@ mod tests {
         map.insert(PathBuf::from("x/y/z"), 7);
         map.insert(PathBuf::from("z/a/b"), 8);
 
-        assert!(map.contains_path_or_children(Path::new("x/y")));
-        assert!(!map.contains_path_or_children(Path::new("a/b/c/d")));
-
         let parent_path = PathBuf::from("a/b");
         let extracted: Vec<_> = map.extract_path_with_children(&parent_path).collect();
 

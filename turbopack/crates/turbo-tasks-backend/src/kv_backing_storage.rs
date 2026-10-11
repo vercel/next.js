@@ -460,7 +460,7 @@ impl TurboBackingStorage {
         self.inner.database.compact()
     }
 
-    pub(crate) fn shutdown(&self) -> Result<()> {
+    pub(crate) fn shutdown(&self) {
         self.inner.database.shutdown()
     }
 
@@ -588,7 +588,7 @@ mod tests {
             "Should return all 3 task IDs for the colliding hash"
         );
 
-        db.shutdown()?;
+        db.shutdown();
         Ok(())
     }
 
@@ -623,7 +623,7 @@ mod tests {
             unsafe { batch.flush(KeySpace::TaskCache) }?;
             batch.commit()?;
 
-            db.shutdown()?;
+            db.shutdown();
         }
 
         // Reopen and verify all entries are readable
@@ -643,7 +643,7 @@ mod tests {
                 }
             }
             assert_eq!(missing, 0, "Found {found}/{n} entries, missing {missing}");
-            db.shutdown()?;
+            db.shutdown();
         }
 
         Ok(())
@@ -726,7 +726,7 @@ mod tests {
             "save_snapshot should delete only the named id from the bucket"
         );
 
-        db.shutdown()?;
+        db.shutdown();
         Ok(())
     }
 }

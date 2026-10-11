@@ -333,9 +333,9 @@ mod non_recursive_helpers {
         root_path: &Path,
         mut on_restored: impl FnMut(Box<Path>),
     ) {
-        // The root directory is always implicitly watched during `DiskWatcher::start_watching`, we
-        // assume it is never deleted and never needs to be restored.
-        let is_watched = |watched: &BTreeSet<PathBuf>, dir_path: &Path| {
+        let needs_restore = |watched: &BTreeSet<PathBuf>, dir_path: &Path| {
+            // The root directory is always implicitly watched during `DiskWatcher::start_watching`,
+            // we assume it is never deleted and never needs to be restored.
             dir_path != root_path && watched.contains(dir_path)
         };
 
@@ -348,7 +348,7 @@ mod non_recursive_helpers {
             };
             if !dir_paths
                 .iter()
-                .any(|dir_path| is_watched(&watching_state.watched, dir_path))
+                .any(|dir_path| needs_restore(&watching_state.watched, dir_path))
             {
                 return;
             }
@@ -360,13 +360,12 @@ mod non_recursive_helpers {
             return;
         };
         for dir_path in dir_paths {
-            if !is_watched(&watching_state.watched, &dir_path) {
-                continue;
+            if needs_restore(&watching_state.watched, &dir_path) {
+                // TODO: Report diagnostics if this error happens. Report the path as restored even
+                // on errors, in case the watch was partially restored.
+                let _ = restore_watched_dir(watching_state, &dir_path, root_path);
+                on_restored(dir_path);
             }
-            // TODO: Report diagnostics if this error happens. Report the path as restored even on
-            // errors, in case the watch was partially restored.
-            let _ = restore_watched_dir(watching_state, &dir_path, root_path);
-            on_restored(dir_path);
         }
     }
 
@@ -702,7 +701,12 @@ impl DiskWatcher {
                     }
                     // Error raised by notify watcher itself
                     Ok(Err(notify::Error { kind, paths })) => {
-                        println!("watch error ({paths:?}): {kind:?} ");
+                        // A path removed while the watcher was scanning it is expected (e.g.
+                        // `PollWatcher` walking a tree that is being deleted), so don't report
+                        // it. The invalidation below still covers it.
+                        if !is_not_found_error(&kind) {
+                            eprintln!("watch error ({paths:?}): {kind:?} ");
+                        }
 
                         batch.add_error(paths, fs.root_path());
                         schedule.extend(config.batch_delay);
@@ -1194,6 +1198,12 @@ impl InvalidationReasonKind for InvalidateRescanKind {
                 .path
         )
     }
+}
+
+/// Whether a [`notify::Error`] was caused by a path that no longer exists, e.g. a directory
+/// removed between being listed and being read by [`PollWatcher`].
+fn is_not_found_error(kind: &notify::ErrorKind) -> bool {
+    matches!(kind, notify::ErrorKind::Io(err) if err.kind() == std::io::ErrorKind::NotFound)
 }
 
 #[cfg(test)]

@@ -1225,7 +1225,9 @@ impl<'a> TaskGuard<'a> {
     #[inline]
     pub fn assert_not_deleted(&self, operation: &str) {
         debug_assert!(
-            !self.deleted(),
+            // Small hack to work around check_access. Technically a 'deleted' flag is never
+            // persisted so it cannot be recovered either.
+            !self.task.flags.deleted(),
             "{operation} on GC-deleted task {} — a resurrection path was missed",
             self.id()
         );
@@ -1614,12 +1616,6 @@ impl<'a> TaskGuard<'a> {
             self.category
         );
         self.category = access;
-    }
-
-    /// Clears all modified/new flags for a GC-collected task that was **never persisted**
-    /// (`new_task`).
-    pub fn discard_modifications_for_gc_new_task(&mut self) {
-        self.task.discard_modifications_for_gc_new_task();
     }
 
     pub fn invalidate_serialization(&mut self) {
@@ -2367,6 +2363,7 @@ mod cell_data_tracking_tests {
     use crate::{
         backend::{
             TaskDataCategory,
+            snapshot_coordinator::SnapshotCoordinator,
             storage::{Storage, StorageOptions, encode_snapshot_item, encode_task_contents},
             storage_schema::TaskStorageAccessors,
         },
@@ -2553,12 +2550,17 @@ mod cell_data_tracking_tests {
             .unwrap()
         };
 
-        let (snapshot_guard, has_modifications) = storage.start_snapshot();
-        assert!(has_modifications);
-        let process = |_: TaskId, _: &TaskStorage, _: &mut TurboBincodeBuffer| -> SnapshotItem {
-            panic!("the pre-encoded snapshot item must be used")
-        };
-        let shards = storage.take_snapshot(snapshot_guard, &process, &|_| {}, false);
+        let snapshot_guard = storage.start_snapshot();
+        let process =
+            |_: TaskId,
+             _: &TaskStorage,
+             _: TaskDataCategory,
+             _: &mut TurboBincodeBuffer|
+             -> SnapshotItem { panic!("the pre-encoded snapshot item must be used") };
+        let coordinator = SnapshotCoordinator::new();
+        let phase = coordinator.try_begin_snapshot().unwrap();
+        let shards = storage.take_snapshot(&phase, snapshot_guard, &process, &|_| {}, false);
+        drop(phase);
 
         {
             let mut g = guard_for(&storage, task_id);
@@ -2595,9 +2597,8 @@ mod cell_data_tracking_tests {
     /// category that isn't part of the snapshot.
     ///
     /// Meta is modified before the snapshot, data is clean. During the snapshot, data is modified
-    /// first and then meta. If the data modification only inserted a `None` marker, the meta
-    /// modification would find a marker already present and not copy either, so the snapshot
-    /// would persist the already mutated meta.
+    /// first and then meta. The data modification must copy the captured meta, even though data
+    /// itself wasn't captured; otherwise the snapshot would persist the already mutated meta.
     #[tokio::test(flavor = "multi_thread")]
     async fn modify_other_category_first_during_snapshot_preserves_snapshot_meta() {
         let storage = Storage::new(StorageOptions::for_tests());
@@ -2618,13 +2619,18 @@ mod cell_data_tracking_tests {
             .unwrap()
         };
 
-        let (snapshot_guard, has_modifications) = storage.start_snapshot();
-        assert!(has_modifications);
+        let snapshot_guard = storage.start_snapshot();
         // Encodes the live state, like the backend does for tasks that weren't copied.
-        let process = |task_id: TaskId, task: &TaskStorage, buffer: &mut TurboBincodeBuffer| {
-            encode_snapshot_item(task_id, task, buffer).unwrap()
+        let process = |task_id: TaskId,
+                       task: &TaskStorage,
+                       category: TaskDataCategory,
+                       buffer: &mut TurboBincodeBuffer| {
+            encode_snapshot_item(task_id, task, category, buffer).unwrap()
         };
-        let shards = storage.take_snapshot(snapshot_guard, &process, &|_| {}, false);
+        let coordinator = SnapshotCoordinator::new();
+        let phase = coordinator.try_begin_snapshot().unwrap();
+        let shards = storage.take_snapshot(&phase, snapshot_guard, &process, &|_| {}, false);
+        drop(phase);
 
         {
             let mut g = guard_for(&storage, task_id);
@@ -2649,7 +2655,7 @@ mod cell_data_tracking_tests {
         let task = storage.access_mut(task_id);
         assert!(task.flags.meta_modified());
         assert!(task.flags.data_modified());
-        assert!(!task.flags.any_modified_during_snapshot());
+        assert!(!task.flags.any_snapshot_pending());
     }
 
     /// A pre-encoded (copy-on-write) item carries the cache size stats of the state it encoded,
@@ -2665,10 +2671,16 @@ mod cell_data_tracking_tests {
         }
 
         let (snapshot_guard, _) = storage.start_snapshot();
-        let process = |_: TaskId, _: &TaskStorage, _: &mut TurboBincodeBuffer| -> SnapshotItem {
-            panic!("the pre-encoded snapshot item must be used")
-        };
-        let shards = storage.take_snapshot(snapshot_guard, &process, &|_| {}, false);
+        let process =
+            |_: TaskId,
+             _: &TaskStorage,
+             _: TaskDataCategory,
+             _: &mut TurboBincodeBuffer|
+             -> SnapshotItem { panic!("the pre-encoded snapshot item must be used") };
+        let coordinator = SnapshotCoordinator::new();
+        let phase = coordinator.try_begin_snapshot().unwrap();
+        let shards = storage.take_snapshot(&phase, snapshot_guard, &process, &|_| {}, false);
+        drop(phase);
 
         // The tracked add copies the task (no children yet) before inserting the child.
         {
