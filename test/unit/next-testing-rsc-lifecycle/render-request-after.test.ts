@@ -24,7 +24,7 @@ function setup() {
         isHmrRefresh: false,
         serverComponentsHmrCache: undefined,
         hmrRefreshHash: undefined,
-        fallbackParams: null,
+        stagedFallbackParams: null,
       },
       {
         page: '/page',

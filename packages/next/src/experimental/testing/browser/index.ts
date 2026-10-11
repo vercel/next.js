@@ -10,7 +10,7 @@ export type BrowserTestAttempt = BrowserAttemptContext & {
   readonly fileId: string
   readonly testId: string
   readonly retry: number
-  readonly repeat: 0
+  readonly repeat: number
 }
 
 interface BrowserTestingBinding {

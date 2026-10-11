@@ -195,15 +195,16 @@ describe('Next-owned Vitest lifecycle', () => {
 
   it('rejects injected fixture tuples while preserving static array values', async () => {
     const c = createCollector('file')
-    const test = c.api.test.extend<{ value: unknown }>({
-      value: [
-        async ({}, provide: (value: unknown) => Promise<void>) => {
-          await provide(42)
-        },
-        { injected: true },
-      ] as any,
-    })
-    test('unsupported', ({ value }) => value)
+    expect(() =>
+      c.api.test.extend<{ value: unknown }>({
+        value: [
+          async ({}, provide: (value: unknown) => Promise<void>) => {
+            await provide(42)
+          },
+          { injected: true },
+        ] as any,
+      })
+    ).toThrow('fixture option "injected"')
     const arrayTest = c.api.test.extend<{ value: unknown[] }>({
       value: [42, { label: 'data' }],
     })
@@ -211,11 +212,7 @@ describe('Next-owned Vitest lifecycle', () => {
       expect(value).toEqual([42, { label: 'data' }])
     )
     const result = await run(c)
-    expect(result.cases[0].status).toBe('failed')
-    expect(String(result.cases[0].errors[0].error)).toContain(
-      'fixture option "injected"'
-    )
-    expect(result.cases[1].status).toBe('passed')
+    expect(result.cases[0].status).toBe('passed')
   })
 
   it('selects focus without reviving skipped ancestors and preserves stable declaration IDs', () => {
@@ -485,9 +482,9 @@ describe('Next-owned Vitest lifecycle', () => {
     expect(() => (c.api.test as any).concurrent).toThrow(
       'does not support test.concurrent'
     )
-    expect(() => c.api.test('bad', { repeats: 2 } as any, () => {})).toThrow(
-      'repeats'
-    )
+    expect(() =>
+      c.api.test('bad', { concurrent: true } as any, () => {})
+    ).toThrow('concurrent tests and suites')
     const test = c.api.test.extend<{ testValue: string; fileValue: string }>({
       testValue: 'value',
       fileValue: [
@@ -502,6 +499,156 @@ describe('Next-owned Vitest lifecycle', () => {
     expect(String(result.cases[0].errors[0].error)).toContain(
       'File fixture cannot depend on test fixture'
     )
+
+    const overrides = createCollector('overrides')
+    const scoped = overrides.api.test.extend<{ value: string }>({
+      value: ['file', { scope: 'file' }],
+    })
+    overrides.api.describe('nested', () => {
+      expect(() => scoped.override({ value: 'nested' })).toThrow(
+        'cannot be defined with a file scope inside the describe block'
+      )
+    })
+    expect(() =>
+      scoped.override({ value: ['changed', { scope: 'test' }] })
+    ).toThrow('already registered with a "file" scope')
+  })
+
+  it('collects parameterized tests and suites with stable names and values', async () => {
+    const c = createCollector('file')
+    const values: unknown[] = []
+    c.api.test.each([
+      [1, 2, 3],
+      [2, 4, 6],
+    ])('adds %i and %i as case %#', (left, right, sum) => {
+      values.push(left + right, sum)
+    })
+    c.api.test.for([{ label: 'answer', value: 42 }])(
+      '$label is $value',
+      (item, context) => {
+        values.push(item.value, context.name)
+      }
+    )
+    c.api.describe.each(['first', 'second'])('%s suite', (label) => {
+      c.api.test(
+        () => label,
+        () => values.push(label)
+      )
+    })
+    c.api.test('pending without callback')
+    const result = await run(c)
+    expect(result.cases.map(({ name, status }) => [name, status])).toEqual([
+      ['adds 1 and 2 as case 0', 'passed'],
+      ['adds 2 and 4 as case 1', 'passed'],
+      ['answer is 42', 'passed'],
+      ['first suite > <anonymous>', 'passed'],
+      ['second suite > <anonymous>', 'passed'],
+      ['pending without callback', 'skipped'],
+    ])
+    expect(values).toEqual([3, 3, 6, 6, 42, 'answer is 42', 'first', 'second'])
+  })
+
+  it('tracks repeat and retry identity and recreates test fixtures', async () => {
+    const c = createCollector('file')
+    const identities: string[] = []
+    const cleanups: number[] = []
+    let setup = 0
+    const test = c.api.test.extend<{ value: number }>({
+      value: async ({}, provide) => {
+        const value = ++setup
+        await provide(value)
+        cleanups.push(value)
+      },
+    })
+    test('repeat', { repeats: 1, retry: 1 }, ({ value }) => {
+      const attempt = value === 1 ? 0 : value === 2 ? 1 : 0
+      identities.push(`${value}:${attempt}`)
+      if (value === 1) throw new Error('retry first repeat')
+    })
+    const result = await run(c)
+    expect(
+      result.cases.map(({ attempt, status }) => [
+        attempt.repeat,
+        attempt.retry,
+        status,
+      ])
+    ).toEqual([
+      [0, 0, 'failed'],
+      [0, 1, 'passed'],
+      [1, 0, 'passed'],
+    ])
+    expect(identities).toEqual(['1:0', '2:1', '3:0'])
+    expect(cleanups).toEqual([1, 2, 3])
+  })
+
+  it('turns expected failures into passes after listeners and rejects unexpected passes', async () => {
+    const c = createCollector('file')
+    const log: string[] = []
+    c.api.test.fails('expected', ({ onTestFailed }) => {
+      onTestFailed(() => log.push('failed listener'))
+      throw new Error('expected failure')
+    })
+    c.api.test.fails('unexpected pass', () => {})
+    const result = await run(c)
+    expect(log).toEqual(['failed listener'])
+    expect(result.cases.map(({ status }) => status)).toEqual([
+      'passed',
+      'failed',
+    ])
+    expect(String(result.cases[1].errors[0].error)).toContain(
+      'Expect test to fail'
+    )
+  })
+
+  it('overrides fixtures with inherited scope and supports aliases and defaults', async () => {
+    const c = createCollector('file')
+    const log: string[] = []
+    const test = c.api.test.extend<{
+      value: string
+      derived: string
+    }>({
+      value: async ({}, provide) => {
+        log.push('base setup')
+        await provide('base')
+        log.push('base cleanup')
+      },
+      derived: async ({ value: renamed = 'default' }, provide) => {
+        await provide(`${renamed} derived`)
+      },
+    })
+    test('base', ({ derived }) => log.push(derived))
+    c.api.describe('override', () => {
+      test.override({
+        value: async ({ value }, provide) => {
+          log.push(`override from ${value}`)
+          await provide('override')
+          log.push('override cleanup')
+        },
+      })
+      test('child', ({ derived }) => {
+        log.push(derived)
+      })
+    })
+    test('base again', ({ derived }) => log.push(derived))
+    const result = await run(c)
+    expect(result.cases.map(({ status }) => status)).toEqual([
+      'passed',
+      'passed',
+      'passed',
+    ])
+    expect(log).toEqual([
+      'base setup',
+      'base derived',
+      'base cleanup',
+      'base setup',
+      'override from base',
+      'override derived',
+      'override cleanup',
+      'base cleanup',
+      'base setup',
+      'base derived',
+      'base cleanup',
+    ])
   })
 
   it('reports missing use and dependency cycles without hanging', async () => {

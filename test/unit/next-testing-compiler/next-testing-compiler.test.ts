@@ -78,6 +78,7 @@ describe('test compiler artifact publication', () => {
   beforeEach(async () => {
     process.env = { ...process.env, NODE_ENV: 'development' }
     dir = await mkdtemp(join(tmpdir(), 'next-test-publication-'))
+    await writeFile(join(dir, 'subject.test.ts'), '// compiler test fixture')
     outputText = 'first revision'
     failCompilation = false
     mockMetadata = undefined
@@ -135,13 +136,15 @@ describe('test compiler artifact publication', () => {
                   )
                 }
                 return {
-                  type: 'nodejs',
-                  entryPath,
-                  serverPaths: paths
-                    .filter((path) => !path.startsWith('static/'))
-                    .map((path) => ({ path, contentHash: 'native-hash' })),
-                  clientPaths:
-                    environment === 'rsc' ? ['static/client.js'] : [],
+                  value: {
+                    type: 'nodejs',
+                    entryPath,
+                    serverPaths: paths
+                      .filter((path) => !path.startsWith('static/'))
+                      .map((path) => ({ path, contentHash: 'native-hash' })),
+                    clientPaths:
+                      environment === 'rsc' ? ['static/client.js'] : [],
+                  },
                   issues: failCompilation
                     ? [
                         {

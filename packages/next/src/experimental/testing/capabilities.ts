@@ -17,8 +17,23 @@ export const testCapabilities = {
       snapshotPatch: 'patches/@vitest__snapshot@5.0.1.patch',
     },
     declarations: ['test', 'it', 'describe', 'suite'],
-    declarationModifiers: ['skip', 'only', 'todo', 'skipIf', 'runIf'],
-    testOptions: ['timeout', 'retry'],
+    declarationModifiers: ['skip', 'only', 'todo', 'fails', 'skipIf', 'runIf'],
+    parameterization: [
+      'test.each',
+      'test.for',
+      'describe.each',
+      'describe.for',
+    ],
+    testOptions: [
+      'timeout',
+      'retry',
+      'repeats',
+      'fails',
+      'skip',
+      'only',
+      'todo',
+      'concurrent: false',
+    ],
     hooks: [
       'beforeAll',
       'afterAll',
@@ -31,7 +46,9 @@ export const testCapabilities = {
       api: 'test.extend',
       scopes: ['test', 'file'],
       options: ['scope', 'auto'],
-      dependencies: 'plain object-destructured names only',
+      overrides: 'test.override object syntax, scoped to the declaring suite',
+      dependencies:
+        'object-destructured names, aliases, and defaults; no rest, nested, or computed properties',
     },
     expectUtilities: [
       'expect.extend',
@@ -83,13 +100,13 @@ export const testCapabilities = {
       unsupported: ['automatic watch updates'],
     },
     unsupported: [
-      'concurrent/sequential/parameterized/failing/repeated/shuffled test modifiers',
+      'concurrent execution and shuffled suites',
       'async describe',
       'aroundEach/aroundAll',
       'implicit new snapshot mode',
       'assertType/expectTypeOf',
       'full Vitest task/result introspection',
-      'fixture overrides/worker scope/alias-default-rest dependency destructuring',
+      'worker scope/rest-nested-computed dependency destructuring/builder fixture forms',
       'untransformed vi.mock/vi.importActual/vi.hoisted',
     ],
     differences: [

@@ -518,7 +518,7 @@ describe('Next test reporting', () => {
     expect(output()).not.toContain('attempt-0-0')
   })
 
-  it('keeps repeats independent and uses retry indices rather than arrival order', () => {
+  it('counts repeats once and uses retry indices rather than arrival order', () => {
     const { reporter, emit } = setup()
     emit({ type: 'case-end', ...result(1, 'passed') })
     emit({ type: 'case-end', ...result(0, 'failed') })
@@ -531,8 +531,14 @@ describe('Next test reporting', () => {
     })
     emit({ type: 'run-end', status: 'failed', durationMs: 9 })
     expect(reporter.getSummary().cases).toEqual({
-      passed: 1,
+      passed: 0,
       failed: 1,
+      skipped: 0,
+      cancelled: 0,
+    })
+    expect(reporter.getSummary().attempts).toEqual({
+      passed: 1,
+      failed: 2,
       skipped: 0,
       cancelled: 0,
     })

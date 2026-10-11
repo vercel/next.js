@@ -46,7 +46,7 @@ impl MockResolvePlugin {
             .context("Mock resolver requires at least one target")?
             .await?;
         let condition = AfterResolvePluginCondition::new_with_glob(
-            first.path.root().owned().await?,
+            Some(first.path.root().owned().await?),
             Glob::new(rcstr!("**"), GlobOptions::default()),
         )
         .to_resolved()

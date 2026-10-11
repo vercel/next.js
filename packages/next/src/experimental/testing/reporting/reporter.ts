@@ -165,6 +165,7 @@ export function createTestReporter(options: TestReporterOptions) {
   >()
   const files = new Map<string, FileResult>()
   const cases = new Map<string, CaseResult>()
+  const repeats = new Map<string, CaseResult>()
   const attempts = new Map<string, CaseResult>()
   const caseNames = new Map<string, string>()
   const activeAttempts = new Set<string>()
@@ -523,9 +524,24 @@ export function createTestReporter(options: TestReporterOptions) {
           event.caseId,
           event.attempt.repeat,
         ])
-        const previous = cases.get(keyForRepeat)
-        if (!previous || previous.attempt.retry < event.attempt.retry)
-          cases.set(keyForRepeat, event)
+        const previous = repeats.get(keyForRepeat)
+        if (!previous || previous.attempt.retry < event.attempt.retry) {
+          repeats.set(keyForRepeat, event)
+          const finalRepeats = [...repeats.values()].filter(
+            (result) =>
+              result.entryId === event.entryId && result.caseId === event.caseId
+          )
+          const failed = finalRepeats.find(
+            (result) => result.status === 'failed'
+          )
+          const cancelled = finalRepeats.find(
+            (result) => result.status === 'cancelled'
+          )
+          const latest = finalRepeats.reduce((selected, result) =>
+            result.attempt.repeat > selected.attempt.repeat ? result : selected
+          )
+          cases.set(caseKey(event), failed ?? cancelled ?? latest)
+        }
         break
       }
       case 'file-end':

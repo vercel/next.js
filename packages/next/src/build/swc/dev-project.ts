@@ -7,7 +7,7 @@ import { generateEncryptionKeyBase64 } from '../../server/app-render/encryption-
 import { getSupportedBrowsers } from '../get-supported-browsers'
 import { normalizePath } from '../../lib/normalize-path'
 import { seedTurbopackCacheIfNeeded } from '../../lib/turbopack-cache-seed'
-import { printNonFatalIssue } from './turbopack-utils'
+import { printNonFatalIssue } from '../../server/dev/turbopack-utils'
 import { isFileSystemCacheEnabledForDev } from '../../shared/lib/turbopack/utils'
 
 /** Shared by next dev and the explicit App RSC test compiler consumer. */
