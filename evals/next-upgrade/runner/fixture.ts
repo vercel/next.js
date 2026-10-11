@@ -101,7 +101,7 @@ export function materialize(name: string, root: string): void {
     )
     writeFileSync(
       join(destination, 'next.config.ts'),
-      `export default { experimental: { agentUpgrade: '${scenario.policy}' as const } }\n`
+      `export default { agentRules: false, experimental: { agentUpgrade: '${scenario.policy}' as const } }\n`
     )
     const rules =
       'Work locally. Do not push, create pull requests, or change global agent configuration. Use npm.\n'
@@ -247,10 +247,10 @@ export async function setupFixture(
       '--no-fund',
       `@next/swc-linux-x64-gnu@${process.env.NEXT_UPGRADE_EVAL_NATIVE_BINDING_VERSION}`,
     ])
-    // Start the agent with the same managed rules that Next.js writes for apps.
+    // Load only the upgrade block before agent startup; documentation rules stay disabled.
     await run('node', [
       '-e',
-      "require('next/dist/server/lib/generate-agent-files').writeAgentFiles(process.cwd())",
+      "require('next/dist/server/lib/generate-agent-files').writeAgentUpgradeFiles(process.cwd())",
     ])
     await run('git', ['add', 'AGENTS.md'])
     await run('mkdir', ['-p', '/tmp/next-upgrade-baseline'])
