@@ -97,13 +97,24 @@ export const styles = `
 
   @media (max-width: 767px) {
     [data-nextjs-error-overlay-nav] {
-      overflow-x: auto;
-      overflow-y: hidden;
-      scrollbar-width: none;
-      -ms-overflow-style: none;
+      flex-wrap: wrap;
+      justify-content: flex-start;
+      column-gap: 8px;
+      row-gap: 0;
+      box-sizing: border-box;
+      padding: 6px 12px 12px;
 
-      &::-webkit-scrollbar {
-        display: none;
+      .error-overlay-nav-item {
+        max-width: 100%;
+        padding: 0;
+
+        &[data-side='left'] {
+          flex-grow: 1;
+        }
+      }
+
+      .error-overlay-tab {
+        white-space: nowrap;
       }
     }
   }

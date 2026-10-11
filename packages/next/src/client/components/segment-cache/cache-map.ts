@@ -1,4 +1,4 @@
-import type { VaryPath } from './vary-path'
+import type { VaryPathNode } from './vary-path'
 import { lruPut, updateLruSize, deleteFromLru } from './lru'
 
 /**
@@ -160,7 +160,7 @@ export function createCacheMap<V extends MapValue>(): CacheMap<V> {
 
 function getOrInitialize<V extends MapValue>(
   cacheMap: CacheMap<V>,
-  keys: VaryPath,
+  keys: VaryPathNode,
   isRevalidation: boolean
 ): MapEntry<V> {
   // Go through each level of keys until we find the entry that matches, or
@@ -170,7 +170,7 @@ function getOrInitialize<V extends MapValue>(
   // Unlike getWithFallback, it will not access fallback entries unless it's
   // explicitly part of the keypath.
   let entry = cacheMap
-  let remainingKeys: VaryPath | null = keys
+  let remainingKeys: VaryPathNode | null = keys
   let key: unknown | null = null
   while (true) {
     const previousKey = key
@@ -230,7 +230,7 @@ export function getFromCacheMap<V extends MapValue>(
   now: number,
   currentCacheVersion: number,
   rootEntry: CacheMap<V>,
-  keys: VaryPath,
+  keys: VaryPathNode,
   isRevalidation: boolean,
   // When true, terminal entries whose status is not Fulfilled are skipped, so
   // the lookup falls through to a less-specific Fallback entry. Use this
@@ -301,7 +301,7 @@ function getEntryWithFallbackImpl<V extends MapValue>(
   now: number,
   currentCacheVersion: number,
   entry: MapEntry<V>,
-  keys: VaryPath | null,
+  keys: VaryPathNode | null,
   isRevalidation: boolean,
   previousKey: unknown | null,
   onlyMatchFulfilled: boolean
@@ -317,7 +317,7 @@ function getEntryWithFallbackImpl<V extends MapValue>(
   // are treated as non-matches, so the recursion will continue searching for
   // a Fallback match. See getFromCacheMap for the rationale.
   let key
-  let remainingKeys: VaryPath | null
+  let remainingKeys: VaryPathNode | null
   if (keys !== null) {
     key = keys.value
     remainingKeys = keys.parent
@@ -373,7 +373,7 @@ function getEntryWithFallbackImpl<V extends MapValue>(
 
 export function setInCacheMap<V extends MapValue>(
   cacheMap: CacheMap<V>,
-  keys: VaryPath,
+  keys: VaryPathNode,
   value: V,
   isRevalidation: boolean
 ): void {

@@ -15,8 +15,7 @@ pub use turbo_tasks_macros::OperationValue;
 
 use crate::{
     CollectiblesSource, RawVc, ReadVcFuture, ResolvedVc, TaskId, TaskInput, UpcastStrict, Vc,
-    VcValueTrait, VcValueTraitCast, VcValueType, marker_trait::impl_auto_marker_trait,
-    trace::TraceRawVcs, turbo_tasks,
+    VcValueTrait, VcValueTraitCast, VcValueType, marker_trait::impl_auto_marker_trait, turbo_tasks,
 };
 
 /// A future returned by [`OperationVc::resolve`] that connects an [`OperationVc<T>`] and resolves
@@ -265,15 +264,6 @@ where
             task,
             _t: PhantomData,
         })
-    }
-}
-
-impl<T> TraceRawVcs for OperationVc<T>
-where
-    T: ?Sized,
-{
-    fn trace_raw_vcs(&self, trace_context: &mut crate::trace::TraceRawVcsContext) {
-        Self::into_raw(*self).trace_raw_vcs(trace_context);
     }
 }
 

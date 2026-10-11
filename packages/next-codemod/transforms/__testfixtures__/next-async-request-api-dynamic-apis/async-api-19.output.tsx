@@ -8,6 +8,7 @@ export function myFun() {
 
 export function myFun2() {
   return function () {
-    void (headers() as unknown as UnsafeUnwrappedHeaders)
+    void (/* @next-codemod-error Await this API and update its callers; remove the temporary UnsafeUnwrappedHeaders cast after repairing the migration. */
+    headers() as unknown as UnsafeUnwrappedHeaders)
   };
 }

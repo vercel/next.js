@@ -4,9 +4,7 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use regex::Regex;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{
-    ReadRef, ResolvedVc, ValueToString, ValueToStringRef, Vc, trace::TraceRawVcs, turbofmt,
-};
+use turbo_tasks::{ReadRef, ResolvedVc, ValueToString, ValueToStringRef, Vc, turbofmt};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher, encode_base38, hash_xxh3_hash64};
 
@@ -14,7 +12,7 @@ use crate::resolve::ModulePart;
 
 /// A layer identifies a distinct part of the module graph.
 #[turbo_tasks::task_input]
-#[derive(Clone, Hash, Debug, DeterministicHash, Eq, PartialEq, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Hash, Debug, DeterministicHash, Eq, PartialEq, Encode, Decode)]
 pub struct Layer {
     name: RcStr,
     user_friendly_name: Option<RcStr>,
@@ -251,30 +249,40 @@ impl AssetIdent {
                     2_u8.deterministic_hash(&mut hasher);
                     export.deterministic_hash(&mut hasher);
                 }
+                ModulePart::PartialExport { export, member } => {
+                    3_u8.deterministic_hash(&mut hasher);
+                    export.deterministic_hash(&mut hasher);
+                    member.deterministic_hash(&mut hasher);
+                }
                 ModulePart::RenamedExport {
                     original_export,
                     export,
                 } => {
-                    3_u8.deterministic_hash(&mut hasher);
+                    4_u8.deterministic_hash(&mut hasher);
                     original_export.deterministic_hash(&mut hasher);
                     export.deterministic_hash(&mut hasher);
                 }
                 ModulePart::RenamedNamespace { export } => {
-                    4_u8.deterministic_hash(&mut hasher);
+                    5_u8.deterministic_hash(&mut hasher);
                     export.deterministic_hash(&mut hasher);
                 }
+                ModulePart::RenamedPartialNamespace { export, member } => {
+                    6_u8.deterministic_hash(&mut hasher);
+                    export.deterministic_hash(&mut hasher);
+                    member.deterministic_hash(&mut hasher);
+                }
                 ModulePart::Internal(id) => {
-                    5_u8.deterministic_hash(&mut hasher);
+                    7_u8.deterministic_hash(&mut hasher);
                     id.deterministic_hash(&mut hasher);
                 }
                 ModulePart::Locals => {
-                    6_u8.deterministic_hash(&mut hasher);
+                    8_u8.deterministic_hash(&mut hasher);
                 }
                 ModulePart::Exports => {
-                    7_u8.deterministic_hash(&mut hasher);
+                    9_u8.deterministic_hash(&mut hasher);
                 }
                 ModulePart::Facade => {
-                    8_u8.deterministic_hash(&mut hasher);
+                    10_u8.deterministic_hash(&mut hasher);
                 }
             }
 

@@ -1,0 +1,27 @@
+[package]
+name = "turbopack-trace-size"
+version = "0.1.0"
+description = "Inspect which events take up the space in a Turbopack trace file"
+license = "MIT"
+edition = "2024"
+autobenches = false
+
+[[bin]]
+name = "turbo-trace-size"
+path = "src/main.rs"
+bench = false
+
+[lib]
+bench = false
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true, features = ["derive"] }
+flate2 = { workspace = true }
+postcard = { workspace = true, features = ["alloc", "use-std"] }
+rustc-hash = { workspace = true }
+turbopack-trace-utils = { workspace = true }
+zstd = { workspace = true }
+
+[lints]
+workspace = true

@@ -13,17 +13,20 @@ Cache Components enables component and function-level caching using the [`use ca
 
 ## Usage
 
-To enable the `cacheComponents` flag, set it to `true` in your `next.config.ts` file:
+To enable the `cacheComponents` flag, set it to `true` in your `next.config.ts` file, together with [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching):
 
 ```ts filename="next.config.ts"
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
+  partialPrefetching: true,
 }
 
 export default nextConfig
 ```
+
+Set `partialPrefetching` explicitly. Leaving it unset logs a warning, because the first release of Cache Components did not include Partial Prefetching. Set it to `false` only while [migrating an app that adopted Cache Components before Partial Prefetching](/docs/app/guides/adopting-partial-prefetching). Both features will be enabled everywhere in the next major release, and the options will be removed.
 
 > **Good to know**: Cache Components requires the Node.js runtime. Migrate any routes that set the deprecated `runtime = 'edge'` export, and note that other server-side JavaScript runtimes are not guaranteed to work. See [Migrating to Cache Components](/docs/app/guides/migrating-to-cache-components#runtime--edge).
 
@@ -59,6 +62,6 @@ Some UI patterns behave differently when components stay mounted instead of unmo
 
 ## Version History
 
-| Version | Change                                                                                                                            |
-| ------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| 16.0.0  | `cacheComponents` introduced. This flag controls the `ppr`, `useCache`, and `dynamicIO` flags as a single, unified configuration. |
+| Version | Change                                                                                                                                                                                                                    |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 16.0.0  | `cacheComponents` stabilized and moved from `experimental.cacheComponents` to the top-level `cacheComponents` option. This flag controls the `ppr`, `useCache`, and `dynamicIO` flags as a single, unified configuration. |

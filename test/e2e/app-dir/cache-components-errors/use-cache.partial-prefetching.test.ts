@@ -7,7 +7,11 @@ process.env.__NEXT_PARTIAL_PREFETCHING = 'true'
 // Registers two section groups in one entry: use-cache-private is too small
 // to justify its own CI test file (per-file server boot and, in start mode,
 // build costs).
-runCacheComponentsErrorsTests((ctx) => {
-  registerUseCacheTests(ctx)
-  registerUseCachePrivateTests(ctx)
+// These tests run local builds to inspect prerender error diagnostics.
+// @force-gate !deploy
+describe('Cache Components Errors', () => {
+  runCacheComponentsErrorsTests((ctx) => {
+    registerUseCacheTests(ctx)
+    registerUseCachePrivateTests(ctx)
+  })
 })

@@ -93,6 +93,7 @@ export async function buildDevValidationSnapshot(
     renderOpts: {
       images: ctx.renderOpts.images,
       allowEmptyStaticShell: ctx.renderOpts.allowEmptyStaticShell,
+      partialPrefetching: ctx.renderOpts.partialPrefetching,
     },
     instantInputs: instantInputs
       ? await toSerializedInputs(instantInputs)

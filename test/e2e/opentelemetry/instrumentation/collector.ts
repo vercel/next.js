@@ -3,6 +3,7 @@ import { SavedSpan } from './constants'
 
 export interface Collector {
   getSpans: () => SavedSpan[]
+  reset: () => void
   shutdown: () => Promise<void>
 }
 
@@ -39,6 +40,9 @@ export async function connectCollector({
       return true
     })
     spans.push(...filteredSpans)
+    // Exporters can leave pooled sockets idle between tests. Close each
+    // response so a server keep-alive timeout cannot drop a later export.
+    res.setHeader('Connection', 'close')
     res.statusCode = 202
     res.end()
   })
@@ -56,6 +60,9 @@ export async function connectCollector({
   return {
     getSpans() {
       return spans
+    },
+    reset() {
+      spans.length = 0
     },
     shutdown() {
       return new Promise<void>((resolve, reject) =>

@@ -6,6 +6,19 @@ function countSubstring(str: string, substr: string): number {
   return str.split(substr).length - 1
 }
 
+function expectOptionalCatchallParams(html: string) {
+  expect(html).not.toContain('%%drp:')
+
+  const $ = cheerio.load(html)
+  expect($('#params').text()).toBe(
+    JSON.stringify({
+      locale: 'en',
+      filterSlugs: null,
+      mappedSlugs: [],
+    })
+  )
+}
+
 ;(isNextDev ? describe.skip : describe)(
   'metadata streaming with Cache Components and the default bot list',
   () => {
@@ -107,6 +120,55 @@ function countSubstring(str: string, substr: string): number {
       expect($('head title').length).toBe(0)
       expect($('body title').text()).toBe('dynamic title')
       expect($('#dynamic-content').text()).toBe('dynamic content')
+    })
+
+    it('should not expose fallback placeholders for an omitted optional catch-all during a bot bypass', async () => {
+      const response = await next.fetch('/en', {
+        headers: {
+          'user-agent': 'Twitterbot',
+        },
+      })
+
+      expect(response.status).toBe(200)
+      expectOptionalCatchallParams(await response.text())
+    })
+
+    it('should not expose fallback placeholders during a draft mode bypass', async () => {
+      const draftResponse = await next.fetch('/api/draft/enable')
+      const cookie = draftResponse.headers.get('set-cookie')?.split(';', 1)[0]
+      expect(cookie).toBeTruthy()
+
+      const response = await next.fetch('/en', {
+        headers: {
+          cookie: cookie!,
+        },
+      })
+
+      expect(response.status).toBe(200)
+      expectOptionalCatchallParams(await response.text())
+    })
+
+    it('should not expose fallback placeholders during a Next-Action request bypass', async () => {
+      const browser = await next.browser('/en', {
+        pushErrorAsConsoleLog: true,
+      })
+
+      await browser.elementById('submit-action').click()
+
+      await retry(async () => {
+        expect(await browser.elementById('action-result').text()).toBe(
+          'submitted'
+        )
+        expect(await browser.elementById('params').text()).toBe(
+          JSON.stringify({
+            locale: 'en',
+            filterSlugs: null,
+            mappedSlugs: [],
+          })
+        )
+      })
+
+      await assertNoConsoleErrors(browser)
     })
 
     describe('Cache Components metadata streaming', () => {

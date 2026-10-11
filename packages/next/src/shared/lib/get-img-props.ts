@@ -1,10 +1,9 @@
 import { getAssetToken, getDeploymentId } from './deployment-id'
 import { getImageBlurSvg } from './image-blur-svg'
-import { imageConfigDefault } from './image-config'
 import type {
-  ImageConfigComplete,
   ImageLoaderProps,
   ImageLoaderPropsWithConfig,
+  PreparedImageConfig,
 } from './image-config'
 
 import type { CSSProperties, JSX } from 'react'
@@ -95,10 +94,7 @@ const INVALID_BACKGROUND_SIZE_VALUES = [
   undefined,
 ]
 type LoadingValue = (typeof VALID_LOADING_VALUES)[number]
-type ImageConfig = ImageConfigComplete & {
-  allSizes: number[]
-  output?: 'standalone' | 'export'
-}
+type ImageConfig = PreparedImageConfig
 
 export type ImageLoader = (p: ImageLoaderProps) => string
 
@@ -313,7 +309,7 @@ export function getImgProps(
   }: ImageProps,
   _state: {
     defaultLoader: ImageLoaderWithConfig
-    imgConf: ImageConfigComplete
+    imgConf: ImageConfig
     showAltText?: boolean
     blurComplete?: boolean
   }
@@ -326,17 +322,7 @@ export function getImgProps(
     fill: boolean
   }
 } {
-  const { imgConf, showAltText, blurComplete, defaultLoader } = _state
-  let config: ImageConfig
-  let c = imgConf || imageConfigDefault
-  if ('allSizes' in c) {
-    config = c as ImageConfig
-  } else {
-    const allSizes = [...c.deviceSizes, ...c.imageSizes].sort((a, b) => a - b)
-    const deviceSizes = c.deviceSizes.sort((a, b) => a - b)
-    const qualities = c.qualities?.sort((a, b) => a - b)
-    config = { ...c, allSizes, deviceSizes, qualities }
-  }
+  const { imgConf: config, showAltText, blurComplete, defaultLoader } = _state
 
   if (typeof defaultLoader === 'undefined') {
     throw new Error(

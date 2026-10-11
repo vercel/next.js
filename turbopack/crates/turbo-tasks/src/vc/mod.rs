@@ -45,7 +45,6 @@ pub use crate::vc::{
 use crate::{
     keyed::{KeyedAccess, KeyedEq},
     registry,
-    trace::{TraceRawVcs, TraceRawVcsContext},
     vc::read::{ReadContainsKeyedVcFuture, ReadKeyedVcFuture},
 };
 
@@ -471,15 +470,6 @@ where
             node,
             _t: PhantomData,
         }
-    }
-}
-
-impl<T> TraceRawVcs for Vc<T>
-where
-    T: ?Sized,
-{
-    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
-        TraceRawVcs::trace_raw_vcs(&self.node, trace_context);
     }
 }
 

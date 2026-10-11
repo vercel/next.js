@@ -1,4 +1,5 @@
 use anyhow::{Context, Result, bail};
+use smallvec::{SmallVec, smallvec};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
@@ -9,10 +10,11 @@ use turbo_tasks_hash::HashAlgorithm;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule,
-        ChunkingConfig, ChunkingConfigs, ChunkingContext, ContentHashing, EntryChunkGroupResult,
-        EvaluatableAsset, MinifyType, SourceMapSourceType, SourceMapsType, UnusedReferences,
-        UrlBehavior, WorkerConfigurationOptions,
+        AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkItemOrBatchWithAsyncModuleInfo,
+        ChunkItemWithAsyncModuleInfo, ChunkType, ChunkableModule, ChunkingConfig, ChunkingConfigs,
+        ChunkingContext, ContentHashing, EntryChunkGroupResult, EvaluatableAsset, MinifyType,
+        SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
+        WorkerConfigurationOptions,
         availability_info::AvailabilityInfo,
         chunk_group::{MakeChunkGroupResult, make_chunk_group},
         chunk_id_strategy::ModuleIdStrategy,
@@ -564,7 +566,7 @@ impl ChunkingContext for NodeJsChunkingContext {
     async fn chunk_group(
         self: ResolvedVc<Self>,
         ident: Vc<AssetIdent>,
-        chunk_group: ChunkGroup,
+        chunk_groups: SmallVec<[ChunkGroup; 1]>,
         module_graph: ResolvedVc<ModuleGraph>,
         availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
@@ -575,7 +577,7 @@ impl ChunkingContext for NodeJsChunkingContext {
                 references,
                 availability_info,
             } = make_chunk_group(
-                chunk_group,
+                chunk_groups,
                 module_graph,
                 ResolvedVc::upcast(self),
                 availability_info,
@@ -624,7 +626,7 @@ impl ChunkingContext for NodeJsChunkingContext {
                 references,
                 availability_info,
             } = make_chunk_group(
-                chunk_group.clone(),
+                smallvec![chunk_group.clone()],
                 module_graph,
                 ResolvedVc::upcast(self),
                 availability_info,
@@ -717,7 +719,14 @@ impl ChunkingContext for NodeJsChunkingContext {
             Vc::upcast::<Box<dyn ChunkingContext>>(self)
                 .to_resolved()
                 .await?;
-        Ok(if self.await?.manifest_chunks {
+        let use_manifest = self.await?.manifest_chunks
+            // This guard is in place so that only javascript goes
+            // this path for lazy loading dynamic imports not things like css.
+            && ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(
+                module.to_resolved().await?,
+            )
+            .is_some();
+        Ok(if use_manifest {
             let manifest_asset = ManifestAsyncModule::new(
                 module,
                 module_graph,
@@ -735,11 +744,48 @@ impl ChunkingContext for NodeJsChunkingContext {
     }
 
     #[turbo_tasks::function]
+    async fn standalone_chunk(
+        self: Vc<Self>,
+        chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
+    ) -> Result<Vc<Box<dyn OutputAsset>>> {
+        let chunk_type = chunk_item
+            .into_trait_ref()
+            .await?
+            .ty()
+            .to_resolved()
+            .await?;
+        let chunk = chunk_type
+            .chunk(
+                Vc::upcast(self),
+                vec![ChunkItemOrBatchWithAsyncModuleInfo::ChunkItem(
+                    ChunkItemWithAsyncModuleInfo {
+                        chunk_item,
+                        chunk_type,
+                        module: None,
+                        async_info: None,
+                    },
+                )],
+                Vec::new(),
+                Vec::new(),
+            )
+            .to_resolved()
+            .await?;
+        Ok(*self.generate_chunk(chunk).await?)
+    }
+
+    #[turbo_tasks::function]
     async fn async_loader_chunk_item_ident(
         self: Vc<Self>,
         module: Vc<Box<dyn ChunkableModule>>,
     ) -> Result<Vc<AssetIdent>> {
-        Ok(if self.await?.manifest_chunks {
+        let use_manifest = self.await?.manifest_chunks
+            // This guard is in place so that only javascript goes
+            // this path for lazy loading dynamic imports not things like css.
+            && ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(
+                module.to_resolved().await?,
+            )
+            .is_some();
+        Ok(if use_manifest {
             ManifestLoaderModule::asset_ident_for(module)
         } else {
             AsyncLoaderModule::asset_ident_for(module)
@@ -754,7 +800,7 @@ impl ChunkingContext for NodeJsChunkingContext {
         if let Some(export_usage) = self.export_usage {
             Ok(export_usage.await?.used_exports(module).await?)
         } else {
-            Ok(ModuleExportUsage::all())
+            Ok(ModuleExportUsage::unknown())
         }
     }
 

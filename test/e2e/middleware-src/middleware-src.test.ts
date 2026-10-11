@@ -1,92 +1,50 @@
-import { nextTestSetup, isNextDev } from 'e2e-utils'
+import { FileRef, nextTestSetup, isNextDev } from 'e2e-utils'
+import { join } from 'path'
 import { retry } from 'next-test-utils'
 
 const srcHeader = 'X-From-Src-Middleware'
 const rootHeader = 'X-From-Root-Middleware'
 
 describe('middleware-src', () => {
-  const { next, isTurbopack, skipped } = nextTestSetup({
-    files: __dirname,
-    skipStart: true,
-    skipDeployment: true,
-  })
-  if (skipped) return
-
   if (isNextDev) {
-    beforeAll(async () => {
-      await next.start()
+    const { next, isTurbopack } = nextTestSetup({
+      files: __dirname,
     })
-  }
 
-  describe('Middleware in src/ folder', () => {
-    if (isNextDev) {
+    describe('Middleware in src/ folder', () => {
       it('loads and runs src middleware', async () => {
         const response = await next.fetch('/post-1')
         expect(response.headers.has(srcHeader)).toBe(false)
         expect(response.headers.has(`${srcHeader}-TS`)).toBe(true)
       })
-    }
+    })
 
-    if (!isNextDev) {
-      it('should warn about middleware on export', async () => {
+    describe('Middleware in src/ and / folders', () => {
+      beforeAll(async () => {
+        const pagesContent = await next.readFile('src/pages/index.js')
+        await next.patchFile('pages/index.js', pagesContent)
         await next.patchFile(
-          'next.config.js',
-          "module.exports = { output: 'export' }"
+          'middleware.js',
+          await next.readFile('root/middleware.js')
         )
-        await next.build()
-        expect(next.cliOutput).toContain(
-          'Statically exporting a Next.js application via `next export` disables API routes and middleware.'
+        await next.patchFile(
+          'middleware.ts',
+          await next.readFile('root/middleware.ts')
         )
+        // Webpack needs a restart to resolve newly added root middleware.
+        // Turbopack picks up the change while the dev server is running.
+        if (!isTurbopack) {
+          await next.stop()
+          await next.start()
+        }
       })
-    }
-  })
 
-  describe('Middleware in src/ and / folders', () => {
-    beforeAll(async () => {
-      const pagesContent = await next.readFile('src/pages/index.js')
-      await next.patchFile('pages/index.js', pagesContent)
-      await next.patchFile(
-        'middleware.js',
-        `
-import { NextResponse } from 'next/server'
+      afterAll(async () => {
+        await next.deleteFile('pages/index.js').catch(() => {})
+        await next.deleteFile('middleware.js').catch(() => {})
+        await next.deleteFile('middleware.ts').catch(() => {})
+      })
 
-export default function () {
-  const response = NextResponse.next()
-  response.headers.set('${rootHeader}', 'true')
-  return response
-}`
-      )
-      await next.patchFile(
-        'middleware.ts',
-        `
-import { NextResponse } from 'next/server'
-
-export default function () {
-  const response = NextResponse.next()
-  response.headers.set('${rootHeader}-TS', 'true')
-  return response
-}`
-      )
-      // Webpack dev does not reliably switch from the already-compiled
-      // src/middleware.* to the newly created root middleware.* files when
-      // they are added at runtime. Restarting the dev server forces a fresh
-      // middleware resolution. Turbopack picks up the new root middleware
-      // without a restart. In production mode the server is never started
-      // (skipStart: true + only `next.build()` is invoked), so the restart
-      // dance must be limited to dev mode.
-      if (isNextDev && !isTurbopack) {
-        await next.stop()
-        await next.start()
-      }
-    })
-
-    afterAll(async () => {
-      await next.deleteFile('pages/index.js').catch(() => {})
-      await next.deleteFile('middleware.js').catch(() => {})
-      await next.deleteFile('middleware.ts').catch(() => {})
-    })
-
-    if (isNextDev) {
       it('loads and runs only root middleware', async () => {
         await retry(async () => {
           const response = await next.fetch('/post-1')
@@ -96,19 +54,45 @@ export default function () {
           expect(response.headers.has(`${rootHeader}-TS`)).toBe(true)
         })
       })
-    }
+    })
+  } else {
+    describe.each([
+      ['src/ folder', false],
+      ['src/ and / folders', true],
+    ])('Middleware in %s', (_name, withRootMiddleware) => {
+      const { next, isNextDeploy } = nextTestSetup({
+        files: {
+          src: new FileRef(join(__dirname, 'src')),
+          ...(withRootMiddleware && {
+            'pages/index.js': new FileRef(
+              join(__dirname, 'src/pages/index.js')
+            ),
+            'middleware.js': new FileRef(join(__dirname, 'root/middleware.js')),
+            'middleware.ts': new FileRef(join(__dirname, 'root/middleware.ts')),
+          }),
+        },
+        nextConfig: {
+          output: 'export',
+          // Static export does not support Cache Components. Disable the
+          // dependent cached navigations flag too, since CI enables both.
+          cacheComponents: false,
+          experimental: { cachedNavigations: false },
+        },
+        skipStart: true,
+      })
 
-    if (!isNextDev) {
       it('should warn about middleware on export', async () => {
-        await next.patchFile(
-          'next.config.js',
-          "module.exports = { output: 'export' }"
-        )
-        await next.build()
+        if (isNextDeploy) {
+          await next.start()
+        } else {
+          // A static export builds successfully but cannot use `next start`.
+          const { exitCode } = await next.build()
+          expect(exitCode).toBe(0)
+        }
         expect(next.cliOutput).toContain(
           'Statically exporting a Next.js application via `next export` disables API routes and middleware.'
         )
-      })
-    }
-  })
+      }, 240_000)
+    })
+  }
 })

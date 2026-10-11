@@ -1,64 +1,27 @@
-import { nextTestSetup, isNextDev } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
+import { join } from 'path'
 
-describe('Nullish configs in next.config.js', () => {
-  const { next, skipped } = nextTestSetup({
-    files: __dirname,
-    skipStart: true,
-    skipDeployment: true,
-  })
-  if (skipped) return
+describe.each(['undefined', 'null'])(
+  'Nullish configs set to %s in next.config.js',
+  (value) => {
+    const { next, isNextDev } = nextTestSetup({
+      files: {
+        pages: new FileRef(join(__dirname, 'pages')),
+        'next.config.js': new FileRef(
+          join(__dirname, 'configs', `${value}.js`)
+        ),
+      },
+    })
 
-  afterEach(async () => {
-    await next.stop().catch(() => {})
-  })
+    it('should ignore nullish config values', async () => {
+      const html = await next.render('/')
+      expect(html).toContain('Hello World')
 
-  it('should ignore configs set to `undefined` in next.config.js', async () => {
-    await next.patchFile(
-      'next.config.js',
-      `
-      module.exports = {
-        target: undefined,
-        env: undefined,
-        webpack: undefined,
-        pageExtensions: undefined,
+      if (isNextDev) {
+        expect(next.cliOutput).toMatch(/ready/i)
+      } else {
+        expect(next.cliOutput).toMatch(/Compiled successfully/i)
       }
-    `
-    )
-
-    await next.start()
-
-    const html = await next.render('/')
-    expect(html).toContain('Hello World')
-
-    if (isNextDev) {
-      expect(next.cliOutput).toMatch(/ready/i)
-    } else {
-      expect(next.cliOutput).toMatch(/Compiled successfully/i)
-    }
-  })
-
-  it('should ignore configs set to `null` in next.config.js', async () => {
-    await next.patchFile(
-      'next.config.js',
-      `
-      module.exports = {
-        target: null,
-        env: null,
-        webpack: null,
-        pageExtensions: null,
-      }
-    `
-    )
-
-    await next.start()
-
-    const html = await next.render('/')
-    expect(html).toContain('Hello World')
-
-    if (isNextDev) {
-      expect(next.cliOutput).toMatch(/ready/i)
-    } else {
-      expect(next.cliOutput).toMatch(/Compiled successfully/i)
-    }
-  })
-})
+    })
+  }
+)

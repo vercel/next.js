@@ -72,7 +72,7 @@ function shouldProcessFetchConfigForWorkUnit(
       )
     case 'prerender-runtime':
     case 'validation-client':
-    case 'generate-static-params':
+    case 'build-time-generator':
       return false
     default:
       return workUnitStore satisfies never
@@ -473,7 +473,7 @@ export function createPatchedFetcher(
               break
             case 'request':
             case 'unstable-cache':
-            case 'generate-static-params':
+            case 'build-time-generator':
               break
             default:
               workUnitStore satisfies never
@@ -512,7 +512,7 @@ export function createPatchedFetcher(
             case 'request':
             case 'cache':
             case 'private-cache':
-            case 'generate-static-params':
+            case 'build-time-generator':
               break
             default:
               workUnitStore satisfies never
@@ -683,7 +683,7 @@ export function createPatchedFetcher(
             case 'cache':
             case 'private-cache':
             case 'unstable-cache':
-            case 'generate-static-params':
+            case 'build-time-generator':
               break
             default:
               workUnitStore satisfies never
@@ -815,7 +815,7 @@ export function createPatchedFetcher(
                 case 'cache':
                 case 'private-cache':
                 case 'unstable-cache':
-                case 'generate-static-params':
+                case 'build-time-generator':
                   break
                 default:
                   workUnitStore satisfies never
@@ -859,7 +859,7 @@ export function createPatchedFetcher(
             case 'prerender-runtime':
             case 'prerender-legacy':
             case 'unstable-cache':
-            case 'generate-static-params':
+            case 'build-time-generator':
               break
             default:
               workUnitStore satisfies never
@@ -1013,7 +1013,7 @@ export function createPatchedFetcher(
                   case 'cache':
                   case 'private-cache':
                   case 'unstable-cache':
-                  case 'generate-static-params':
+                  case 'build-time-generator':
                   case undefined:
                     return createCachedDynamicResponse(
                       workStore,
@@ -1096,7 +1096,7 @@ export function createPatchedFetcher(
                 case 'cache':
                 case 'private-cache':
                 case 'unstable-cache':
-                case 'generate-static-params':
+                case 'build-time-generator':
                   break
                 default:
                   workUnitStore satisfies never
@@ -1219,7 +1219,7 @@ export function createPatchedFetcher(
                 case 'cache':
                 case 'private-cache':
                 case 'unstable-cache':
-                case 'generate-static-params':
+                case 'build-time-generator':
                   break
                 default:
                   workUnitStore satisfies never
@@ -1266,7 +1266,7 @@ export function createPatchedFetcher(
                   case 'private-cache':
                   case 'unstable-cache':
                   case 'prerender-legacy':
-                  case 'generate-static-params':
+                  case 'build-time-generator':
                     break
                   default:
                     workUnitStore satisfies never

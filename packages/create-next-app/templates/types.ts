@@ -34,6 +34,7 @@ export interface InstallTemplateArgs {
   bundler: Bundler;
   reactCompiler: boolean;
   cacheComponents: boolean;
+  agentFeedback: boolean;
 }
 
 export enum Bundler {

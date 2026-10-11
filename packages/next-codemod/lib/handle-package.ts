@@ -1,7 +1,8 @@
 import findUp from 'find-up'
 import execa from 'execa'
 import { execSync } from 'node:child_process'
-import { basename } from 'node:path'
+import { existsSync, readFileSync } from 'node:fs'
+import { basename, join } from 'node:path'
 
 export type PackageManager = 'npm' | 'pnpm' | 'yarn' | 'bun'
 
@@ -54,6 +55,19 @@ export function getPnpmMajorVersion(): number | null {
 
 export function getPkgManager(baseDir: string): PackageManager {
   try {
+    // The app's declared manager takes precedence over the command launcher.
+    const manifestPath = join(baseDir, 'package.json')
+    if (existsSync(manifestPath)) {
+      const { packageManager } = JSON.parse(readFileSync(manifestPath, 'utf8'))
+      const match =
+        typeof packageManager === 'string'
+          ? packageManager.match(/^(npm|pnpm|yarn|bun)@/)
+          : null
+      if (match) {
+        return match[1] as PackageManager
+      }
+    }
+
     const userAgent = process.env.npm_config_user_agent
     if (userAgent) {
       if (userAgent.startsWith('yarn')) {

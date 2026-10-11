@@ -8,7 +8,6 @@ use turbo_tasks::{
     NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, Vc,
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
-    trace::TraceRawVcs,
 };
 use turbopack_core::{
     chunk::ChunkingType, module::Module, reference::primary_chunkable_referenced_modules,
@@ -25,17 +24,7 @@ use crate::{
 };
 
 #[derive(
-    Copy,
-    Clone,
-    Eq,
-    PartialEq,
-    Hash,
-    Debug,
-    ValueDebugFormat,
-    TraceRawVcs,
-    NonLocalValue,
-    Encode,
-    Decode,
+    Copy, Clone, Eq, PartialEq, Hash, Debug, ValueDebugFormat, NonLocalValue, Encode, Decode,
 )]
 pub struct ClientReference {
     pub server_component: Option<ResolvedVc<NextServerComponentModule>>,
@@ -43,17 +32,7 @@ pub struct ClientReference {
 }
 
 #[derive(
-    Copy,
-    Clone,
-    Eq,
-    PartialEq,
-    Hash,
-    Debug,
-    ValueDebugFormat,
-    TraceRawVcs,
-    NonLocalValue,
-    Encode,
-    Decode,
+    Copy, Clone, Eq, PartialEq, Hash, Debug, ValueDebugFormat, NonLocalValue, Encode, Decode,
 )]
 pub enum ClientReferenceType {
     EcmascriptClientReference(ResolvedVc<EcmascriptClientReferenceModule>),
@@ -137,7 +116,7 @@ struct FindServerEntries {
     include_binding_usage: bool,
 }
 
-#[derive(Clone, Eq, PartialEq, Hash, Debug, ValueDebugFormat, TraceRawVcs, NonLocalValue)]
+#[derive(Clone, Eq, PartialEq, Hash, Debug, ValueDebugFormat, NonLocalValue)]
 enum FindServerEntriesNode {
     ClientReference,
     ServerComponentEntry(

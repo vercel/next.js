@@ -35,6 +35,39 @@ describe('next-lint-to-eslint-cli', () => {
     }
   })
 
+  it.each([
+    ['missing scripts', undefined],
+    ['empty scripts', {}],
+    ['ESLint', { lint: 'eslint .' }],
+    ['Biome', { lint: 'biome check .' }],
+  ])('skips projects with %s', (_name, scripts) => {
+    const testDir = fs.mkdtempSync(path.join(isolatedDir, 'no-next-lint-'))
+    const packageJsonPath = path.join(testDir, 'package.json')
+    const packageJsonContent = JSON.stringify({
+      scripts,
+      devDependencies: { eslint: '^8.0.0', '@eslint/eslintrc': '^2.0.0' },
+    })
+    fs.writeFileSync(packageJsonPath, packageJsonContent)
+
+    transformer([testDir])
+
+    expect(fs.readdirSync(testDir)).toEqual(['package.json'])
+    expect(fs.readFileSync(packageJsonPath, 'utf8')).toBe(packageJsonContent)
+
+    const configPath = path.join(testDir, '.eslintrc.json')
+    const configContent = '{"extends":"next/core-web-vitals"}'
+    fs.writeFileSync(configPath, configContent)
+
+    transformer([testDir])
+
+    expect(fs.readdirSync(testDir).sort()).toEqual([
+      '.eslintrc.json',
+      'package.json',
+    ])
+    expect(fs.readFileSync(configPath, 'utf8')).toBe(configContent)
+    expect(fs.readFileSync(packageJsonPath, 'utf8')).toBe(packageJsonContent)
+  })
+
   describe('flat-config', () => {
     it('should keep config unchanged and transform package.json', () => {
       const testDir = path.join(fixturesDir, 'flat-config')

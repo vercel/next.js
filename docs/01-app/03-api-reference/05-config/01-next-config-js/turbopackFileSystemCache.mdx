@@ -2,6 +2,9 @@
 title: Turbopack FileSystem Caching
 nav_title: turbopackFileSystemCache
 description: Learn how to enable and configure FileSystem Caching for Turbopack builds
+related:
+  links:
+    - app/api-reference/config/next-config-js/turbopackGc
 ---
 
 ## Usage

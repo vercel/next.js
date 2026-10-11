@@ -18,11 +18,8 @@ const CASES = [
 
 describe('persistent-caching-migration', () => {
   for (const [option, error] of CASES) {
-    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-    // It likely expects a local build failure instead of a successful deployment.
-    // @force-gate !deploy
     describe(option, () => {
-      const { next, isTurbopack, isNextStart } = nextTestSetup({
+      const { next, isTurbopack, isNextDev } = nextTestSetup({
         files: {
           'next.config.js': `module.exports = {
   experimental: {
@@ -38,12 +35,11 @@ describe('persistent-caching-migration', () => {
         return
       }
 
-      if (isNextStart) {
+      if (!isNextDev) {
         it('error on old option on build', async () => {
-          let { exitCode, cliOutput } = await next.build()
-          expect(exitCode).toBe(1)
-          expect(cliOutput).toContain(error)
-        })
+          await expect(next.start()).rejects.toThrow()
+          expect(next.cliOutput).toContain(error)
+        }, 240_000)
       } else {
         it('error on old option in dev', async () => {
           await next.start()

@@ -46,7 +46,7 @@ export function navigateReducer(
     url,
     currentUrl,
     currentRenderedSearch,
-    state.cache,
+    state.root,
     state.tree,
     state.nextUrl,
     FreshnessPolicy.Default,

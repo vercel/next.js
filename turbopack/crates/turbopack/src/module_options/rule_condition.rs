@@ -8,7 +8,7 @@ use bincode::{Decode, Encode};
 use either::Either;
 use smallvec::SmallVec;
 use turbo_esregex::EsRegex;
-use turbo_tasks::{NonLocalValue, ReadRef, ResolvedVc, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, ReadRef, ResolvedVc};
 use turbo_tasks_fs::{FileContent, FileSystemPath, glob::Glob};
 use turbopack_core::{
     asset::Asset,
@@ -17,7 +17,7 @@ use turbopack_core::{
     virtual_source::VirtualSource,
 };
 
-#[derive(Debug, Clone, TraceRawVcs, PartialEq, Eq, NonLocalValue, Encode, Decode)]
+#[derive(Debug, Clone, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub enum RuleCondition {
     All(Vec<RuleCondition>),
     Any(Vec<RuleCondition>),
@@ -33,8 +33,8 @@ pub enum RuleCondition {
     ResourcePathInExactDirectory(FileSystemPath),
     ContentTypeStartsWith(String),
     ContentTypeEmpty,
-    ResourcePathEsRegex(#[turbo_tasks(trace_ignore)] ReadRef<EsRegex>),
-    ResourceContentEsRegex(#[turbo_tasks(trace_ignore)] ReadRef<EsRegex>),
+    ResourcePathEsRegex(ReadRef<EsRegex>),
+    ResourceContentEsRegex(ReadRef<EsRegex>),
     /// For paths that are within the same filesystem as the `base`, it need to
     /// match the relative path from base to resource. This includes `./` or
     /// `../` prefix. For paths in a different filesystem, it need to match
@@ -43,15 +43,14 @@ pub enum RuleCondition {
     /// project. Globs starting with `**` can match any path.
     ResourcePathGlob {
         base: FileSystemPath,
-        #[turbo_tasks(trace_ignore)]
         glob: ReadRef<Glob>,
     },
-    ResourceBasePathGlob(#[turbo_tasks(trace_ignore)] ReadRef<Glob>),
+    ResourceBasePathGlob(ReadRef<Glob>),
     ResourceQueryContains(String),
     ResourceQueryEquals(String),
-    ResourceQueryEsRegex(#[turbo_tasks(trace_ignore)] ReadRef<EsRegex>),
-    ContentTypeGlob(#[turbo_tasks(trace_ignore)] ReadRef<Glob>),
-    ContentTypeEsRegex(#[turbo_tasks(trace_ignore)] ReadRef<EsRegex>),
+    ResourceQueryEsRegex(ReadRef<EsRegex>),
+    ContentTypeGlob(ReadRef<Glob>),
+    ContentTypeEsRegex(ReadRef<EsRegex>),
 }
 
 impl RuleCondition {

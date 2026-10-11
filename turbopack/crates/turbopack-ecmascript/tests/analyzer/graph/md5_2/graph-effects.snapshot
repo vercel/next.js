@@ -241,6 +241,7 @@
             ),
         ],
         span: 59..82,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "require",
@@ -652,6 +653,7 @@
             ),
         ],
         span: 131..153,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "require",
@@ -924,6 +926,7 @@
             ),
         ],
         span: 252..271,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "String",
@@ -1159,6 +1162,7 @@
                             ),
                         ],
                         span: 306..322,
+                        in_truthiness_context: false,
                     },
                     Conditional {
                         condition: Logical(
@@ -1327,6 +1331,7 @@
                                             ),
                                         ],
                                         span: 357..374,
+                                        in_truthiness_context: false,
                                     },
                                     MemberCall {
                                         obj: Variable(
@@ -1458,91 +1463,9 @@
                                     },
                                 ],
                                 range: Exact(
-                                    [
-                                        Program(
-                                            Script,
-                                        ),
-                                        Script(
-                                            Body(
-                                                0,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            Expr,
-                                        ),
-                                        ExprStmt(
-                                            Expr,
-                                        ),
-                                        Expr(
-                                            Call,
-                                        ),
-                                        CallExpr(
-                                            Callee,
-                                        ),
-                                        Callee(
-                                            Expr,
-                                        ),
-                                        Expr(
-                                            Paren,
-                                        ),
-                                        ParenExpr(
-                                            Expr,
-                                        ),
-                                        Expr(
-                                            Fn,
-                                        ),
-                                        FnExpr(
-                                            Function,
-                                        ),
-                                        Function(
-                                            Body,
-                                        ),
-                                        FunctionBody(
-                                            Stmts(
-                                                0,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            Decl,
-                                        ),
-                                        Decl(
-                                            Var,
-                                        ),
-                                        VarDecl(
-                                            Decls(
-                                                4,
-                                            ),
-                                        ),
-                                        VarDeclarator(
-                                            Init,
-                                        ),
-                                        Expr(
-                                            Fn,
-                                        ),
-                                        FnExpr(
-                                            Function,
-                                        ),
-                                        Function(
-                                            Body,
-                                        ),
-                                        FunctionBody(
-                                            Stmts(
-                                                0,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            If,
-                                        ),
-                                        IfStmt(
-                                            Cons,
-                                        ),
-                                        Stmt(
-                                            If,
-                                        ),
-                                        IfStmt(
-                                            Cons,
-                                        ),
-                                    ],
+                                    AstPathId(
+                                        25,
+                                    ),
                                 ),
                             },
                             else: EffectsBlock {
@@ -1671,6 +1594,7 @@
                                             ),
                                         ],
                                         span: 408..426,
+                                        in_truthiness_context: false,
                                     },
                                     MemberCall {
                                         obj: Variable(
@@ -1802,91 +1726,9 @@
                                     },
                                 ],
                                 range: Exact(
-                                    [
-                                        Program(
-                                            Script,
-                                        ),
-                                        Script(
-                                            Body(
-                                                0,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            Expr,
-                                        ),
-                                        ExprStmt(
-                                            Expr,
-                                        ),
-                                        Expr(
-                                            Call,
-                                        ),
-                                        CallExpr(
-                                            Callee,
-                                        ),
-                                        Callee(
-                                            Expr,
-                                        ),
-                                        Expr(
-                                            Paren,
-                                        ),
-                                        ParenExpr(
-                                            Expr,
-                                        ),
-                                        Expr(
-                                            Fn,
-                                        ),
-                                        FnExpr(
-                                            Function,
-                                        ),
-                                        Function(
-                                            Body,
-                                        ),
-                                        FunctionBody(
-                                            Stmts(
-                                                0,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            Decl,
-                                        ),
-                                        Decl(
-                                            Var,
-                                        ),
-                                        VarDecl(
-                                            Decls(
-                                                4,
-                                            ),
-                                        ),
-                                        VarDeclarator(
-                                            Init,
-                                        ),
-                                        Expr(
-                                            Fn,
-                                        ),
-                                        FnExpr(
-                                            Function,
-                                        ),
-                                        Function(
-                                            Body,
-                                        ),
-                                        FunctionBody(
-                                            Stmts(
-                                                0,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            If,
-                                        ),
-                                        IfStmt(
-                                            Cons,
-                                        ),
-                                        Stmt(
-                                            If,
-                                        ),
-                                        IfStmt(
-                                            Alt,
-                                        ),
-                                    ],
+                                    AstPathId(
+                                        26,
+                                    ),
                                 ),
                             },
                         },
@@ -1979,85 +1821,9 @@
                     },
                 ],
                 range: Exact(
-                    [
-                        Program(
-                            Script,
-                        ),
-                        Script(
-                            Body(
-                                0,
-                            ),
-                        ),
-                        Stmt(
-                            Expr,
-                        ),
-                        ExprStmt(
-                            Expr,
-                        ),
-                        Expr(
-                            Call,
-                        ),
-                        CallExpr(
-                            Callee,
-                        ),
-                        Callee(
-                            Expr,
-                        ),
-                        Expr(
-                            Paren,
-                        ),
-                        ParenExpr(
-                            Expr,
-                        ),
-                        Expr(
-                            Fn,
-                        ),
-                        FnExpr(
-                            Function,
-                        ),
-                        Function(
-                            Body,
-                        ),
-                        FunctionBody(
-                            Stmts(
-                                0,
-                            ),
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Var,
-                        ),
-                        VarDecl(
-                            Decls(
-                                4,
-                            ),
-                        ),
-                        VarDeclarator(
-                            Init,
-                        ),
-                        Expr(
-                            Fn,
-                        ),
-                        FnExpr(
-                            Function,
-                        ),
-                        Function(
-                            Body,
-                        ),
-                        FunctionBody(
-                            Stmts(
-                                0,
-                            ),
-                        ),
-                        Stmt(
-                            If,
-                        ),
-                        IfStmt(
-                            Cons,
-                        ),
-                    ],
+                    AstPathId(
+                        23,
+                    ),
                 ),
             },
             else: EffectsBlock {
@@ -2333,6 +2099,7 @@
                                             ),
                                         ],
                                         span: 489..515,
+                                        in_truthiness_context: false,
                                     },
                                     Member {
                                         obj: Member(
@@ -2471,6 +2238,7 @@
                                             ),
                                         ],
                                         span: 489..510,
+                                        in_truthiness_context: false,
                                     },
                                     Member {
                                         obj: FreeVar(
@@ -2605,6 +2373,7 @@
                                             ),
                                         ],
                                         span: 489..504,
+                                        in_truthiness_context: false,
                                     },
                                     FreeVar {
                                         var: "Array",
@@ -2893,91 +2662,9 @@
                                     },
                                 ],
                                 range: Exact(
-                                    [
-                                        Program(
-                                            Script,
-                                        ),
-                                        Script(
-                                            Body(
-                                                0,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            Expr,
-                                        ),
-                                        ExprStmt(
-                                            Expr,
-                                        ),
-                                        Expr(
-                                            Call,
-                                        ),
-                                        CallExpr(
-                                            Callee,
-                                        ),
-                                        Callee(
-                                            Expr,
-                                        ),
-                                        Expr(
-                                            Paren,
-                                        ),
-                                        ParenExpr(
-                                            Expr,
-                                        ),
-                                        Expr(
-                                            Fn,
-                                        ),
-                                        FnExpr(
-                                            Function,
-                                        ),
-                                        Function(
-                                            Body,
-                                        ),
-                                        FunctionBody(
-                                            Stmts(
-                                                0,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            Decl,
-                                        ),
-                                        Decl(
-                                            Var,
-                                        ),
-                                        VarDecl(
-                                            Decls(
-                                                4,
-                                            ),
-                                        ),
-                                        VarDeclarator(
-                                            Init,
-                                        ),
-                                        Expr(
-                                            Fn,
-                                        ),
-                                        FnExpr(
-                                            Function,
-                                        ),
-                                        Function(
-                                            Body,
-                                        ),
-                                        FunctionBody(
-                                            Stmts(
-                                                0,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            If,
-                                        ),
-                                        IfStmt(
-                                            Alt,
-                                        ),
-                                        Stmt(
-                                            If,
-                                        ),
-                                        IfStmt(
-                                            Cons,
-                                        ),
-                                    ],
+                                    AstPathId(
+                                        29,
+                                    ),
                                 ),
                             },
                             else: EffectsBlock {
@@ -3103,6 +2790,7 @@
                                             ),
                                         ],
                                         span: 545..558,
+                                        in_truthiness_context: false,
                                     },
                                     FreeVar {
                                         var: "Array",
@@ -3506,6 +3194,7 @@
                                                             ),
                                                         ],
                                                         span: 579..595,
+                                                        in_truthiness_context: false,
                                                     },
                                                     MemberCall {
                                                         obj: Variable(
@@ -3634,97 +3323,9 @@
                                                     },
                                                 ],
                                                 range: Exact(
-                                                    [
-                                                        Program(
-                                                            Script,
-                                                        ),
-                                                        Script(
-                                                            Body(
-                                                                0,
-                                                            ),
-                                                        ),
-                                                        Stmt(
-                                                            Expr,
-                                                        ),
-                                                        ExprStmt(
-                                                            Expr,
-                                                        ),
-                                                        Expr(
-                                                            Call,
-                                                        ),
-                                                        CallExpr(
-                                                            Callee,
-                                                        ),
-                                                        Callee(
-                                                            Expr,
-                                                        ),
-                                                        Expr(
-                                                            Paren,
-                                                        ),
-                                                        ParenExpr(
-                                                            Expr,
-                                                        ),
-                                                        Expr(
-                                                            Fn,
-                                                        ),
-                                                        FnExpr(
-                                                            Function,
-                                                        ),
-                                                        Function(
-                                                            Body,
-                                                        ),
-                                                        FunctionBody(
-                                                            Stmts(
-                                                                0,
-                                                            ),
-                                                        ),
-                                                        Stmt(
-                                                            Decl,
-                                                        ),
-                                                        Decl(
-                                                            Var,
-                                                        ),
-                                                        VarDecl(
-                                                            Decls(
-                                                                4,
-                                                            ),
-                                                        ),
-                                                        VarDeclarator(
-                                                            Init,
-                                                        ),
-                                                        Expr(
-                                                            Fn,
-                                                        ),
-                                                        FnExpr(
-                                                            Function,
-                                                        ),
-                                                        Function(
-                                                            Body,
-                                                        ),
-                                                        FunctionBody(
-                                                            Stmts(
-                                                                0,
-                                                            ),
-                                                        ),
-                                                        Stmt(
-                                                            If,
-                                                        ),
-                                                        IfStmt(
-                                                            Alt,
-                                                        ),
-                                                        Stmt(
-                                                            If,
-                                                        ),
-                                                        IfStmt(
-                                                            Alt,
-                                                        ),
-                                                        Stmt(
-                                                            If,
-                                                        ),
-                                                        IfStmt(
-                                                            Cons,
-                                                        ),
-                                                    ],
+                                                    AstPathId(
+                                                        32,
+                                                    ),
                                                 ),
                                             },
                                         },
@@ -3823,91 +3424,9 @@
                                     },
                                 ],
                                 range: Exact(
-                                    [
-                                        Program(
-                                            Script,
-                                        ),
-                                        Script(
-                                            Body(
-                                                0,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            Expr,
-                                        ),
-                                        ExprStmt(
-                                            Expr,
-                                        ),
-                                        Expr(
-                                            Call,
-                                        ),
-                                        CallExpr(
-                                            Callee,
-                                        ),
-                                        Callee(
-                                            Expr,
-                                        ),
-                                        Expr(
-                                            Paren,
-                                        ),
-                                        ParenExpr(
-                                            Expr,
-                                        ),
-                                        Expr(
-                                            Fn,
-                                        ),
-                                        FnExpr(
-                                            Function,
-                                        ),
-                                        Function(
-                                            Body,
-                                        ),
-                                        FunctionBody(
-                                            Stmts(
-                                                0,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            Decl,
-                                        ),
-                                        Decl(
-                                            Var,
-                                        ),
-                                        VarDecl(
-                                            Decls(
-                                                4,
-                                            ),
-                                        ),
-                                        VarDeclarator(
-                                            Init,
-                                        ),
-                                        Expr(
-                                            Fn,
-                                        ),
-                                        FnExpr(
-                                            Function,
-                                        ),
-                                        Function(
-                                            Body,
-                                        ),
-                                        FunctionBody(
-                                            Stmts(
-                                                0,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            If,
-                                        ),
-                                        IfStmt(
-                                            Alt,
-                                        ),
-                                        Stmt(
-                                            If,
-                                        ),
-                                        IfStmt(
-                                            Alt,
-                                        ),
-                                    ],
+                                    AstPathId(
+                                        30,
+                                    ),
                                 ),
                             },
                         },
@@ -4000,85 +3519,9 @@
                     },
                 ],
                 range: Exact(
-                    [
-                        Program(
-                            Script,
-                        ),
-                        Script(
-                            Body(
-                                0,
-                            ),
-                        ),
-                        Stmt(
-                            Expr,
-                        ),
-                        ExprStmt(
-                            Expr,
-                        ),
-                        Expr(
-                            Call,
-                        ),
-                        CallExpr(
-                            Callee,
-                        ),
-                        Callee(
-                            Expr,
-                        ),
-                        Expr(
-                            Paren,
-                        ),
-                        ParenExpr(
-                            Expr,
-                        ),
-                        Expr(
-                            Fn,
-                        ),
-                        FnExpr(
-                            Function,
-                        ),
-                        Function(
-                            Body,
-                        ),
-                        FunctionBody(
-                            Stmts(
-                                0,
-                            ),
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Var,
-                        ),
-                        VarDecl(
-                            Decls(
-                                4,
-                            ),
-                        ),
-                        VarDeclarator(
-                            Init,
-                        ),
-                        Expr(
-                            Fn,
-                        ),
-                        FnExpr(
-                            Function,
-                        ),
-                        Function(
-                            Body,
-                        ),
-                        FunctionBody(
-                            Stmts(
-                                0,
-                            ),
-                        ),
-                        Stmt(
-                            If,
-                        ),
-                        IfStmt(
-                            Alt,
-                        ),
-                    ],
+                    AstPathId(
+                        27,
+                    ),
                 ),
             },
         },
@@ -4277,6 +3720,7 @@
             ),
         ],
         span: 655..673,
+        in_truthiness_context: false,
     },
     MemberCall {
         obj: Variable(
@@ -4507,6 +3951,7 @@
             ),
         ],
         span: 696..710,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -4611,6 +4056,7 @@
             ),
         ],
         span: 860..868,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -4731,6 +4177,7 @@
             ),
         ],
         span: 885..889,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -4890,6 +4337,7 @@
             ),
         ],
         span: 905..909,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -5049,6 +4497,7 @@
             ),
         ],
         span: 919..923,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -5208,6 +4657,7 @@
             ),
         ],
         span: 962..966,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -5367,6 +4817,7 @@
             ),
         ],
         span: 977..981,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -5472,6 +4923,7 @@
             ),
         ],
         span: 1037..1047,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -5589,6 +5041,7 @@
             ),
         ],
         span: 1073..1104,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -5695,6 +5148,7 @@
             ),
         ],
         span: 1152..1159,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -5801,6 +5255,7 @@
             ),
         ],
         span: 1174..1181,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -5907,6 +5362,7 @@
             ),
         ],
         span: 1196..1203,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -6013,6 +5469,7 @@
             ),
         ],
         span: 1218..1225,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -6117,6 +5574,7 @@
             ),
         ],
         span: 1254..1262,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -6257,6 +5715,7 @@
             ),
         ],
         span: 1377..1385,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -6591,6 +6050,7 @@
             ),
         ],
         span: 1430..1438,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -6925,6 +6385,7 @@
             ),
         ],
         span: 1484..1492,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -7259,6 +6720,7 @@
             ),
         ],
         span: 1537..1545,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -7593,6 +7055,7 @@
             ),
         ],
         span: 1592..1600,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -7927,6 +7390,7 @@
             ),
         ],
         span: 1645..1653,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -8261,6 +7725,7 @@
             ),
         ],
         span: 1699..1707,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -8595,6 +8060,7 @@
             ),
         ],
         span: 1754..1762,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -8929,6 +8395,7 @@
             ),
         ],
         span: 1807..1815,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -9263,6 +8730,7 @@
             ),
         ],
         span: 1860..1868,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -9597,6 +9065,7 @@
             ),
         ],
         span: 1915..1924,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -9931,6 +9400,7 @@
             ),
         ],
         span: 1966..1975,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -10265,6 +9735,7 @@
             ),
         ],
         span: 2022..2031,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -10599,6 +10070,7 @@
             ),
         ],
         span: 2076..2085,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -10933,6 +10405,7 @@
             ),
         ],
         span: 2130..2139,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -11267,6 +10740,7 @@
             ),
         ],
         span: 2186..2195,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -11601,6 +11075,7 @@
             ),
         ],
         span: 2242..2250,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -11935,6 +11410,7 @@
             ),
         ],
         span: 2295..2303,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -12269,6 +11745,7 @@
             ),
         ],
         span: 2349..2358,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -12603,6 +12080,7 @@
             ),
         ],
         span: 2403..2411,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -12937,6 +12415,7 @@
             ),
         ],
         span: 2457..2465,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -13271,6 +12750,7 @@
             ),
         ],
         span: 2510..2519,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -13605,6 +13085,7 @@
             ),
         ],
         span: 2562..2571,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -13939,6 +13420,7 @@
             ),
         ],
         span: 2617..2625,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -14273,6 +13755,7 @@
             ),
         ],
         span: 2671..2679,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -14607,6 +14090,7 @@
             ),
         ],
         span: 2723..2732,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -14941,6 +14425,7 @@
             ),
         ],
         span: 2778..2786,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -15275,6 +14760,7 @@
             ),
         ],
         span: 2832..2840,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -15609,6 +15095,7 @@
             ),
         ],
         span: 2886..2895,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -15943,6 +15430,7 @@
             ),
         ],
         span: 2941..2949,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -16277,6 +15765,7 @@
             ),
         ],
         span: 2993..3001,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -16611,6 +16100,7 @@
             ),
         ],
         span: 3047..3056,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -16945,6 +16435,7 @@
             ),
         ],
         span: 3104..3112,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -17279,6 +16770,7 @@
             ),
         ],
         span: 3154..3162,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -17613,6 +17105,7 @@
             ),
         ],
         span: 3209..3218,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -17947,6 +17440,7 @@
             ),
         ],
         span: 3264..3273,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -18281,6 +17775,7 @@
             ),
         ],
         span: 3318..3326,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -18615,6 +18110,7 @@
             ),
         ],
         span: 3372..3380,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -18949,6 +18445,7 @@
             ),
         ],
         span: 3426..3434,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -19283,6 +18780,7 @@
             ),
         ],
         span: 3480..3489,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -19617,6 +19115,7 @@
             ),
         ],
         span: 3536..3545,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -19951,6 +19450,7 @@
             ),
         ],
         span: 3589..3597,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -20285,6 +19785,7 @@
             ),
         ],
         span: 3643..3651,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -20619,6 +20120,7 @@
             ),
         ],
         span: 3697..3705,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -20953,6 +20455,7 @@
             ),
         ],
         span: 3749..3757,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -21287,6 +20790,7 @@
             ),
         ],
         span: 3802..3811,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -21621,6 +21125,7 @@
             ),
         ],
         span: 3857..3866,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -21955,6 +21460,7 @@
             ),
         ],
         span: 3911..3919,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -22289,6 +21795,7 @@
             ),
         ],
         span: 3966..3974,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -22623,6 +22130,7 @@
             ),
         ],
         span: 4019..4027,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -22957,6 +22465,7 @@
             ),
         ],
         span: 4073..4082,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -23291,6 +22800,7 @@
             ),
         ],
         span: 4129..4137,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -23625,6 +23135,7 @@
             ),
         ],
         span: 4182..4191,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -23959,6 +23470,7 @@
             ),
         ],
         span: 4236..4244,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -24293,6 +23805,7 @@
             ),
         ],
         span: 4291..4300,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -24627,6 +24140,7 @@
             ),
         ],
         span: 4344..4352,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -24961,6 +24475,7 @@
             ),
         ],
         span: 4399..4407,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -25295,6 +24810,7 @@
             ),
         ],
         span: 4452..4461,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -25629,6 +25145,7 @@
             ),
         ],
         span: 4506..4514,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -25963,6 +25480,7 @@
             ),
         ],
         span: 4561..4570,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -26297,6 +25815,7 @@
             ),
         ],
         span: 4616..4624,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -26631,6 +26150,7 @@
             ),
         ],
         span: 4669..4678,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -26965,6 +26485,7 @@
             ),
         ],
         span: 4725..4733,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -27299,6 +26820,7 @@
             ),
         ],
         span: 4778..4786,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -27600,6 +27122,7 @@
             ),
         ],
         span: 4940..4952,
+        in_truthiness_context: false,
     },
     MemberCall {
         obj: Variable(
@@ -27891,6 +27414,7 @@
             ),
         ],
         span: 5003..5010,
+        in_truthiness_context: false,
     },
     Unreachable {
         start_ast_path: [
@@ -28046,6 +27570,7 @@
             ),
         ],
         span: 5153..5160,
+        in_truthiness_context: false,
     },
     Unreachable {
         start_ast_path: [
@@ -28201,6 +27726,7 @@
             ),
         ],
         span: 5303..5310,
+        in_truthiness_context: false,
     },
     Unreachable {
         start_ast_path: [
@@ -28356,6 +27882,7 @@
             ),
         ],
         span: 5444..5451,
+        in_truthiness_context: false,
     },
     Unreachable {
         start_ast_path: [
@@ -28511,6 +28038,7 @@
             ),
         ],
         span: 5620..5634,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -28590,6 +28118,7 @@
             ),
         ],
         span: 5643..5658,
+        in_truthiness_context: false,
     },
     Member {
         obj: FreeVar(
@@ -28666,6 +28195,7 @@
             ),
         ],
         span: 5668..5682,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "module",
@@ -28990,83 +28520,9 @@
                     },
                 ],
                 range: Exact(
-                    [
-                        Program(
-                            Script,
-                        ),
-                        Script(
-                            Body(
-                                0,
-                            ),
-                        ),
-                        Stmt(
-                            Expr,
-                        ),
-                        ExprStmt(
-                            Expr,
-                        ),
-                        Expr(
-                            Call,
-                        ),
-                        CallExpr(
-                            Callee,
-                        ),
-                        Callee(
-                            Expr,
-                        ),
-                        Expr(
-                            Paren,
-                        ),
-                        ParenExpr(
-                            Expr,
-                        ),
-                        Expr(
-                            Fn,
-                        ),
-                        FnExpr(
-                            Function,
-                        ),
-                        Function(
-                            Body,
-                        ),
-                        FunctionBody(
-                            Stmts(
-                                7,
-                            ),
-                        ),
-                        Stmt(
-                            Expr,
-                        ),
-                        ExprStmt(
-                            Expr,
-                        ),
-                        Expr(
-                            Assign,
-                        ),
-                        AssignExpr(
-                            Right,
-                        ),
-                        Expr(
-                            Fn,
-                        ),
-                        FnExpr(
-                            Function,
-                        ),
-                        Function(
-                            Body,
-                        ),
-                        FunctionBody(
-                            Stmts(
-                                0,
-                            ),
-                        ),
-                        Stmt(
-                            If,
-                        ),
-                        IfStmt(
-                            Cons,
-                        ),
-                    ],
+                    AstPathId(
+                        43,
+                    ),
                 ),
             },
         },
@@ -29261,6 +28717,7 @@
             ),
         ],
         span: 5843..5861,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -29630,6 +29087,7 @@
             ),
         ],
         span: 5908..5923,
+        in_truthiness_context: true,
     },
     Conditional {
         condition: Logical(
@@ -29664,89 +29122,9 @@
             then: EffectsBlock {
                 effects: [],
                 range: Exact(
-                    [
-                        Program(
-                            Script,
-                        ),
-                        Script(
-                            Body(
-                                0,
-                            ),
-                        ),
-                        Stmt(
-                            Expr,
-                        ),
-                        ExprStmt(
-                            Expr,
-                        ),
-                        Expr(
-                            Call,
-                        ),
-                        CallExpr(
-                            Callee,
-                        ),
-                        Callee(
-                            Expr,
-                        ),
-                        Expr(
-                            Paren,
-                        ),
-                        ParenExpr(
-                            Expr,
-                        ),
-                        Expr(
-                            Fn,
-                        ),
-                        FnExpr(
-                            Function,
-                        ),
-                        Function(
-                            Body,
-                        ),
-                        FunctionBody(
-                            Stmts(
-                                7,
-                            ),
-                        ),
-                        Stmt(
-                            Expr,
-                        ),
-                        ExprStmt(
-                            Expr,
-                        ),
-                        Expr(
-                            Assign,
-                        ),
-                        AssignExpr(
-                            Right,
-                        ),
-                        Expr(
-                            Fn,
-                        ),
-                        FnExpr(
-                            Function,
-                        ),
-                        Function(
-                            Body,
-                        ),
-                        FunctionBody(
-                            Stmts(
-                                2,
-                            ),
-                        ),
-                        Stmt(
-                            Return,
-                        ),
-                        ReturnStmt(
-                            Arg,
-                        ),
-                        Expr(
-                            Cond,
-                        ),
-                        CondExpr(
-                            Cons,
-                        ),
-                    ],
+                    AstPathId(
+                        48,
+                    ),
                 ),
             },
             else: EffectsBlock {
@@ -29864,6 +29242,7 @@
                             ),
                         ],
                         span: 5963..5979,
+                        in_truthiness_context: true,
                     },
                     Conditional {
                         condition: Logical(
@@ -30013,6 +29392,7 @@
                                             ),
                                         ],
                                         span: 5988..6005,
+                                        in_truthiness_context: false,
                                     },
                                     MemberCall {
                                         obj: Variable(
@@ -30136,95 +29516,9 @@
                                     },
                                 ],
                                 range: Exact(
-                                    [
-                                        Program(
-                                            Script,
-                                        ),
-                                        Script(
-                                            Body(
-                                                0,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            Expr,
-                                        ),
-                                        ExprStmt(
-                                            Expr,
-                                        ),
-                                        Expr(
-                                            Call,
-                                        ),
-                                        CallExpr(
-                                            Callee,
-                                        ),
-                                        Callee(
-                                            Expr,
-                                        ),
-                                        Expr(
-                                            Paren,
-                                        ),
-                                        ParenExpr(
-                                            Expr,
-                                        ),
-                                        Expr(
-                                            Fn,
-                                        ),
-                                        FnExpr(
-                                            Function,
-                                        ),
-                                        Function(
-                                            Body,
-                                        ),
-                                        FunctionBody(
-                                            Stmts(
-                                                7,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            Expr,
-                                        ),
-                                        ExprStmt(
-                                            Expr,
-                                        ),
-                                        Expr(
-                                            Assign,
-                                        ),
-                                        AssignExpr(
-                                            Right,
-                                        ),
-                                        Expr(
-                                            Fn,
-                                        ),
-                                        FnExpr(
-                                            Function,
-                                        ),
-                                        Function(
-                                            Body,
-                                        ),
-                                        FunctionBody(
-                                            Stmts(
-                                                2,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            Return,
-                                        ),
-                                        ReturnStmt(
-                                            Arg,
-                                        ),
-                                        Expr(
-                                            Cond,
-                                        ),
-                                        CondExpr(
-                                            Alt,
-                                        ),
-                                        Expr(
-                                            Cond,
-                                        ),
-                                        CondExpr(
-                                            Cons,
-                                        ),
-                                    ],
+                                    AstPathId(
+                                        51,
+                                    ),
                                 ),
                             },
                             else: EffectsBlock {
@@ -30345,6 +29639,7 @@
                                             ),
                                         ],
                                         span: 6027..6043,
+                                        in_truthiness_context: false,
                                     },
                                     MemberCall {
                                         obj: Variable(
@@ -30468,95 +29763,9 @@
                                     },
                                 ],
                                 range: Exact(
-                                    [
-                                        Program(
-                                            Script,
-                                        ),
-                                        Script(
-                                            Body(
-                                                0,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            Expr,
-                                        ),
-                                        ExprStmt(
-                                            Expr,
-                                        ),
-                                        Expr(
-                                            Call,
-                                        ),
-                                        CallExpr(
-                                            Callee,
-                                        ),
-                                        Callee(
-                                            Expr,
-                                        ),
-                                        Expr(
-                                            Paren,
-                                        ),
-                                        ParenExpr(
-                                            Expr,
-                                        ),
-                                        Expr(
-                                            Fn,
-                                        ),
-                                        FnExpr(
-                                            Function,
-                                        ),
-                                        Function(
-                                            Body,
-                                        ),
-                                        FunctionBody(
-                                            Stmts(
-                                                7,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            Expr,
-                                        ),
-                                        ExprStmt(
-                                            Expr,
-                                        ),
-                                        Expr(
-                                            Assign,
-                                        ),
-                                        AssignExpr(
-                                            Right,
-                                        ),
-                                        Expr(
-                                            Fn,
-                                        ),
-                                        FnExpr(
-                                            Function,
-                                        ),
-                                        Function(
-                                            Body,
-                                        ),
-                                        FunctionBody(
-                                            Stmts(
-                                                2,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            Return,
-                                        ),
-                                        ReturnStmt(
-                                            Arg,
-                                        ),
-                                        Expr(
-                                            Cond,
-                                        ),
-                                        CondExpr(
-                                            Alt,
-                                        ),
-                                        Expr(
-                                            Cond,
-                                        ),
-                                        CondExpr(
-                                            Alt,
-                                        ),
-                                    ],
+                                    AstPathId(
+                                        52,
+                                    ),
                                 ),
                             },
                         },
@@ -30653,89 +29862,9 @@
                     },
                 ],
                 range: Exact(
-                    [
-                        Program(
-                            Script,
-                        ),
-                        Script(
-                            Body(
-                                0,
-                            ),
-                        ),
-                        Stmt(
-                            Expr,
-                        ),
-                        ExprStmt(
-                            Expr,
-                        ),
-                        Expr(
-                            Call,
-                        ),
-                        CallExpr(
-                            Callee,
-                        ),
-                        Callee(
-                            Expr,
-                        ),
-                        Expr(
-                            Paren,
-                        ),
-                        ParenExpr(
-                            Expr,
-                        ),
-                        Expr(
-                            Fn,
-                        ),
-                        FnExpr(
-                            Function,
-                        ),
-                        Function(
-                            Body,
-                        ),
-                        FunctionBody(
-                            Stmts(
-                                7,
-                            ),
-                        ),
-                        Stmt(
-                            Expr,
-                        ),
-                        ExprStmt(
-                            Expr,
-                        ),
-                        Expr(
-                            Assign,
-                        ),
-                        AssignExpr(
-                            Right,
-                        ),
-                        Expr(
-                            Fn,
-                        ),
-                        FnExpr(
-                            Function,
-                        ),
-                        Function(
-                            Body,
-                        ),
-                        FunctionBody(
-                            Stmts(
-                                2,
-                            ),
-                        ),
-                        Stmt(
-                            Return,
-                        ),
-                        ReturnStmt(
-                            Arg,
-                        ),
-                        Expr(
-                            Cond,
-                        ),
-                        CondExpr(
-                            Alt,
-                        ),
-                    ],
+                    AstPathId(
+                        49,
+                    ),
                 ),
             },
         },

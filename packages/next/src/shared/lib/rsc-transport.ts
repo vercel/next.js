@@ -1,3 +1,4 @@
+import { PAGE_SEGMENT_KEY } from './segment'
 /**
  * The transport format for RSC responses.
  *
@@ -26,11 +27,8 @@ import type { VaryParamsIterable } from './segment-cache/vary-params-decoding'
  * Segment identity on the wire. A string for static segments; an object for
  * dynamic (parameterized) segments.
  *
- * TODO: Page segments currently smuggle search params inside the string
- * (`__PAGE__?{...}`, see addSearchParamsIfPageSegment). This convention is
- * carried over as-is for now. Consider giving search params a dedicated
- * field (or removing them from the response entirely, since the client
- * already knows the rendered search from the response-level `q`).
+ * Page segments are always `__PAGE__`. The search params are sent separately,
+ * in the response's `q` field.
  */
 export type TransportSegment = string | TransportDynamicSegment
 
@@ -300,18 +298,20 @@ export function transportSegmentToSegment(
 /**
  * Derives a FlightRouterState from a transport tree. Used where the client
  * needs a router-state representation of a full response (e.g. the initial
- * hydration payload). Render output (`d`) is not carried over; page segments
- * keep their search params, which travel inside the segment string.
+ * hydration payload). Render output (`d`) is not carried over.
  */
 export function transportNodeToFlightRouterState(
-  node: TransportNode
+  node: TransportNode,
+  renderedSearch: string
 ): FlightRouterState {
   const parallelRoutes: Record<string, FlightRouterState> = {}
   const children = node.c
   if (children !== undefined) {
     for (const [parallelRouteKey, childNode] of children) {
-      parallelRoutes[parallelRouteKey] =
-        transportNodeToFlightRouterState(childNode)
+      parallelRoutes[parallelRouteKey] = transportNodeToFlightRouterState(
+        childNode,
+        renderedSearch
+      )
     }
   }
   const flightRouterState: FlightRouterState = [
@@ -320,6 +320,9 @@ export function transportNodeToFlightRouterState(
   ]
   if (node.h !== undefined) {
     flightRouterState[4] = node.h
+  }
+  if (flightRouterState[0] === PAGE_SEGMENT_KEY) {
+    flightRouterState[5] = renderedSearch
   }
   return flightRouterState
 }

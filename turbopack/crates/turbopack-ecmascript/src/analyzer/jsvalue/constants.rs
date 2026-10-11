@@ -20,7 +20,7 @@ use swc_core::{
     ecma::{ast::Lit, atoms::Atom},
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{NonLocalValue, trace::TraceRawVcs};
+use turbo_tasks::NonLocalValue;
 
 use crate::{
     analyzer::{Bump, JsValue, imports::ImportAnnotations},
@@ -51,7 +51,7 @@ impl<'a> ObjectPart<'a> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Encode, Decode, TraceRawVcs)]
+#[derive(Debug, Clone, PartialEq, Encode, Decode)]
 pub struct ConstantNumber(pub f64);
 
 impl ConstantNumber {
@@ -73,9 +73,9 @@ impl From<f64> for ConstantNumber {
     }
 }
 
-#[derive(Debug, Clone, TraceRawVcs)]
+#[derive(Debug, Clone)]
 pub enum ConstantString {
-    Atom(#[turbo_tasks(trace_ignore)] Atom),
+    Atom(Atom),
     RcStr(RcStr),
 }
 // SAFETY: ConstantString doesn't contain any Vcs
@@ -166,7 +166,7 @@ impl From<RcStr> for ConstantString {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Hash, TraceRawVcs, Encode, Decode)]
+#[derive(Debug, Clone, PartialEq, Default, Hash, Encode, Decode)]
 pub enum ConstantValue {
     #[default]
     Undefined,
@@ -175,16 +175,8 @@ pub enum ConstantValue {
     True,
     False,
     Null,
-    BigInt(
-        #[turbo_tasks(trace_ignore)]
-        #[bincode(with_serde)]
-        Box<BigInt>,
-    ),
-    Regex(
-        #[turbo_tasks(trace_ignore)]
-        #[bincode(with_serde)]
-        Box<(Atom, Atom)>,
-    ),
+    BigInt(#[bincode(with_serde)] Box<BigInt>),
+    Regex(#[bincode(with_serde)] Box<(Atom, Atom)>),
 }
 unsafe impl NonLocalValue for ConstantValue {}
 

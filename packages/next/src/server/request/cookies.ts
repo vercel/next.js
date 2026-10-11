@@ -21,7 +21,7 @@ import {
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import {
   makeDevtoolsIOAwarePromise,
-  makeRuntimeHangingPromise,
+  makeSessionDataHangingPromise,
   RENDER_STAGES_BY_DATA_KIND,
 } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
@@ -68,9 +68,9 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
           throw error
         case 'unstable-cache':
           throw createCookiesInUnstableCacheError(workStore.route)
-        case 'generate-static-params':
+        case 'build-time-generator':
           throw new Error(
-            `Route ${workStore.route} used \`cookies()\` inside \`generateStaticParams\`. This is not supported because \`generateStaticParams\` runs at build time without an HTTP request. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
+            `Route ${workStore.route} used \`cookies()\` inside \`${workUnitStore.functionName}\`. This is not supported because \`${workUnitStore.functionName}\` runs at build time without an HTTP request. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
           )
         case 'prerender':
           return makeHangingCookies(workStore, workUnitStore)
@@ -165,7 +165,7 @@ function makeHangingCookies(
     return cachedPromise
   }
 
-  const promise = makeRuntimeHangingPromise<ReadonlyRequestCookies>(
+  const promise = makeSessionDataHangingPromise<ReadonlyRequestCookies>(
     prerenderStore.renderSignal,
     workStore.route,
     '`cookies()`',

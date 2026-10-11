@@ -1,9 +1,9 @@
 import { Suspense } from 'react'
 import { cachedDelay, DebugRenderKind, uncachedIO } from '../../../shared'
 import { connection } from 'next/server'
+import { PrefetchContent } from '../../../../components/prefetch-content'
 
 export const instant = true
-export const prefetch = 'partial'
 
 export default async function Page() {
   return (
@@ -25,6 +25,7 @@ async function RuntimePrefetchable() {
   return (
     <div style={{ border: '1px solid blue', padding: '1em' }}>
       <div id="timestamp">{`Timestamp: ${now}`}</div>
+      <PrefetchContent text={`Timestamp (in prefetch): ${now}`} />
       <Suspense fallback={<div style={{ color: 'grey' }}>Loading 2...</div>}>
         <Dynamic />
       </Suspense>

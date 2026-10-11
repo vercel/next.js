@@ -29,12 +29,12 @@ describe('adapter dynamic routes (shell prefixes, one combination)', () => {
      "2 entries
 
      /acme.one-two,three/en/posts/[id]
-       ^[/]?/acme\\.one\\-two,three/en/posts/(?<nxtPid>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
-       -> /acme.one-two,three/en/posts/[id]$rscSuffix?nxtPid=$nxtPid
+       ^[/]?/acme\\.one\\-two,three/en/posts/(?<nxtPid>[^/]+?)(\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
+       -> /acme.one-two,three/en/posts/[id]$2?nxtPid=$nxtPid
 
      /[team]/[locale]/posts/[id]
-       ^[/]?/(?<nxtPteam>[^/]+?)/(?<nxtPlocale>[^/]+?)/posts/(?<nxtPid>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
-       -> /[team]/[locale]/posts/[id]$rscSuffix?nxtPteam=$nxtPteam&nxtPlocale=$nxtPlocale&nxtPid=$nxtPid"
+       ^[/]?/(?<nxtPteam>[^/]+?)/(?<nxtPlocale>[^/]+?)/posts/(?<nxtPid>[^/]+?)(\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
+       -> /[team]/[locale]/posts/[id]$4?nxtPteam=$nxtPteam&nxtPlocale=$nxtPlocale&nxtPid=$nxtPid"
     `)
   })
 })

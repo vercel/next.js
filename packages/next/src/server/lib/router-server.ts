@@ -68,6 +68,7 @@ import {
   isChromeDevtoolsWorkspaceUrl,
 } from './chrome-devtools-workspace'
 import { getNextConfigRuntime, type NextConfigComplete } from '../config-shared'
+import { isCI } from '../ci-info'
 import {
   getRequestInsightsSnapshot,
   isRequestInsightsEnabled,
@@ -191,6 +192,7 @@ export async function initialize(opts: {
     | undefined = undefined
 
   let originalFetch = globalThis.fetch
+  let hasVulnerabilityInsight: Promise<boolean> = Promise.resolve(false)
 
   if (opts.dev) {
     const { Telemetry } =
@@ -217,6 +219,79 @@ export async function initialize(opts: {
 
     // In development, it's always the complete config.
     let developmentConfig = config as NextConfigComplete
+
+    // Check only development; production startup does not query advisories.
+    if (
+      developmentConfig.experimental.agentUpgrade === 'security' ||
+      developmentConfig.experimental.agentUpgrade === 'latest' ||
+      developmentConfig.experimental.agentUpgrade === 'experimental-future' ||
+      process.env.__NEXT_AGENT_UPGRADE ||
+      process.env.__NEXT_AGENT_UPGRADE_FORCE_DEVTOOLS_FOR_TESTING === '1'
+    ) {
+      const { nudgeUpgrade, getUpgradeContext, assessUpgrade } =
+        require('../../lib/upgrade/nudge') as typeof import('../../lib/upgrade/nudge')
+      const upgradeContext = getUpgradeContext(developmentConfig)
+      const installedVersion = process.env.__NEXT_VERSION || 'unknown'
+      const policy = upgradeContext.experimental.agentUpgrade
+      const forced = process.env.__NEXT_AGENT_UPGRADE === policy
+      const forceDevToolsForTesting =
+        process.env.__NEXT_AGENT_UPGRADE_FORCE_DEVTOOLS_FOR_TESTING === '1'
+      const assessment: ReturnType<typeof assessUpgrade> =
+        isCI || forceDevToolsForTesting
+          ? Promise.resolve(null)
+          : assessUpgrade(
+              opts.dir,
+              upgradeContext,
+              installedVersion,
+              null,
+              forced
+            )
+      hasVulnerabilityInsight = assessment.then(
+        (result) => result?.kind === 'security' || forceDevToolsForTesting,
+        (error) => {
+          Log.warn(`Could not check the DevTools security insight: ${error}`)
+          return false
+        }
+      )
+      if (process.env.NEXT_PRIVATE_UPGRADE_PROMPT === '1' && process.send) {
+        // The CLI shows the menu; keep serving instead of waiting for it.
+        void Promise.allSettled([assessment]).then(([promptAssessment]) => {
+          if (process.connected) {
+            process.send!({
+              nextUpgradeContext: upgradeContext,
+              telemetryDisabled: process.env.NEXT_TELEMETRY_DISABLED,
+              ...(promptAssessment.status === 'fulfilled'
+                ? { nextUpgradeAssessment: promptAssessment.value }
+                : {}),
+            })
+          }
+        })
+      } else {
+        // CI skips the DevTools assessment, but agents still need the nudge.
+        void nudgeUpgrade(
+          opts.dir,
+          upgradeContext,
+          'dev',
+          null,
+          isCI || forceDevToolsForTesting ? null : assessment,
+          {
+            telemetry,
+            onNudgeId: null,
+          }
+        ).catch((error) => {
+          const { printAndExit } =
+            require('./utils') as typeof import('./utils')
+          const exitCode =
+            error && typeof error === 'object'
+              ? Reflect.get(error, 'exitCode')
+              : undefined
+          printAndExit(
+            error instanceof Error ? error.message : String(error),
+            typeof exitCode === 'number' ? exitCode : 1
+          )
+        })
+      }
+    }
 
     // Resolve the effective serverFastRefresh value.
     // Both default to enabled (true). CLI takes precedence over config.
@@ -255,6 +330,7 @@ export async function initialize(opts: {
         onDevServerCleanup: opts.onDevServerCleanup,
         resetFetch,
         serverFastRefresh: effectiveServerFastRefresh,
+        hasVulnerabilityInsight,
       })
     )
 
@@ -282,6 +358,7 @@ export async function initialize(opts: {
 
   const requestHandlerImpl: WorkerRequestHandler = async (req, res) => {
     addRequestMeta(req, 'relativeProjectDir', relativeProjectDir)
+    const assetPrefix = getAssetPrefix()
 
     // internal headers should not be honored by the request handler
     if (!process.env.NEXT_PRIVATE_TEST_HEADERS) {
@@ -499,11 +576,8 @@ export async function initialize(opts: {
         // so that the development bundler can find the correct file
         if (config.basePath && pathHasPrefix(origUrl, config.basePath)) {
           req.url = removePathPrefix(origUrl, config.basePath)
-        } else if (
-          config.assetPrefix &&
-          pathHasPrefix(origUrl, config.assetPrefix)
-        ) {
-          req.url = removePathPrefix(origUrl, config.assetPrefix)
+        } else if (assetPrefix && pathHasPrefix(origUrl, assetPrefix)) {
+          req.url = removePathPrefix(origUrl, assetPrefix)
         }
 
         const parsedUrl = parseUrlUtil(req.url || '/')
@@ -545,11 +619,8 @@ export async function initialize(opts: {
 
         if (config.basePath && pathHasPrefix(origUrl, config.basePath)) {
           req.url = removePathPrefix(origUrl, config.basePath)
-        } else if (
-          config.assetPrefix &&
-          pathHasPrefix(origUrl, config.assetPrefix)
-        ) {
-          req.url = removePathPrefix(origUrl, config.assetPrefix)
+        } else if (assetPrefix && pathHasPrefix(origUrl, assetPrefix)) {
+          req.url = removePathPrefix(origUrl, assetPrefix)
         }
 
         if (resHeaders !== null) {
@@ -785,10 +856,10 @@ export async function initialize(opts: {
             config.basePath
           )
         }
-        if (config.assetPrefix) {
+        if (assetPrefix) {
           realRequestPathname = removePathPrefix(
             realRequestPathname,
-            config.assetPrefix
+            assetPrefix
           )
         }
         if (config.i18n) {
@@ -919,6 +990,7 @@ export async function initialize(opts: {
 
   // pre-initialize workers
   const handlers = await renderServer.instance.initialize(renderServerOpts)
+  const getAssetPrefix = () => handlers.server.getAssetPrefix()
 
   // this must come after initialize of render server since it's
   // using initialized methods
@@ -929,6 +1001,7 @@ export async function initialize(opts: {
 
   routerServerGlobal[RouterServerContextSymbol][relativeProjectDir] = {
     nextConfig: getNextConfigRuntime(config),
+    getAssetPrefix,
     hostname: handlers.server.hostname,
     revalidate: handlers.server.revalidate.bind(handlers.server),
     render404: handlers.server.render404.bind(handlers.server),
@@ -964,6 +1037,7 @@ export async function initialize(opts: {
   const resolveRoutes = getResolveRoutes(
     fsChecker,
     config,
+    getAssetPrefix,
     opts,
     renderServer.instance,
     renderServerOpts,
@@ -992,7 +1066,8 @@ export async function initialize(opts: {
         ) {
           return
         }
-        const { basePath, assetPrefix } = config
+        const { basePath } = config
+        const assetPrefix = getAssetPrefix()
 
         let hmrPrefix = basePath
 
@@ -1089,6 +1164,7 @@ export async function initialize(opts: {
     cacheComponents: config.cacheComponents,
     partialPrefetching: config.partialPrefetching,
     agentRules: config.agentRules,
+    agentFeedback: config.experimental.agentFeedback,
     devMemoryThresholdRestart,
   }
 }

@@ -39,7 +39,7 @@ pub struct EcmascriptModuleRenameModule {
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     /// The part of the module that this facade represents.
     /// ModulePart::Facade | ModulePart::RenamedExport |
-    /// ModulePart::RenamedNamespace
+    /// ModulePart::RenamedNamespace | ModulePart::RenamedPartialNamespace
     part: ModulePart,
 }
 
@@ -53,7 +53,9 @@ impl EcmascriptModuleRenameModule {
         assert!(
             matches!(
                 part,
-                ModulePart::RenamedExport { .. } | ModulePart::RenamedNamespace { .. }
+                ModulePart::RenamedExport { .. }
+                    | ModulePart::RenamedNamespace { .. }
+                    | ModulePart::RenamedPartialNamespace { .. }
             ),
             "{part:?} is unexpected for EcmascriptModuleRenameModule"
         );
@@ -87,6 +89,15 @@ impl EcmascriptModuleRenameModule {
                     *self.module,
                     self.part.clone(),
                     ExportUsage::all(),
+                )
+                .to_resolved()
+                .await
+            }
+            ModulePart::RenamedPartialNamespace { member, .. } => {
+                EcmascriptModulePartReference::new_normal(
+                    *self.module,
+                    self.part.clone(),
+                    ExportUsage::partial_namespace_object(vec![member.clone()]),
                 )
                 .to_resolved()
                 .await
@@ -207,6 +218,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleRenameModule {
             generate_source_map: false,
             original_source_map: None,
             exports: self.get_exports().to_resolved().await?,
+            export_registration_mode: None,
             async_module_info,
         }
         .cell())
@@ -231,7 +243,8 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleRenameModule {
                     false,
                 ),
             ),
-            ModulePart::RenamedNamespace { export } => (
+            ModulePart::RenamedNamespace { export }
+            | ModulePart::RenamedPartialNamespace { export, .. } => (
                 export.clone(),
                 EsmExport::ImportedNamespace(ResolvedVc::upcast(reference)),
             ),

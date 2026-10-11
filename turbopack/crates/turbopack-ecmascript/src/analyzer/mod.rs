@@ -364,7 +364,7 @@ mod tests {
                 arena.get_or_default(),
                 &m,
                 &eval_context,
-                AnalyzeMode::CodeGenerationAndTracing,
+                AnalyzeMode::code_generation_and_tracing(),
                 true,
                 SpecifiedModuleType::EcmaScript,
                 true,

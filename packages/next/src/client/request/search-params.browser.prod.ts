@@ -12,6 +12,10 @@ function makeUntrackedSearchParams(
   }
 
   const promise = Promise.resolve(underlyingSearchParams)
+  // Mark it as fulfilled the way React does once it has tracked it, so `use()`
+  // can unwrap it without suspending.
+  ;(promise as any).status = 'fulfilled'
+  ;(promise as any).value = underlyingSearchParams
   CachedSearchParams.set(underlyingSearchParams, promise)
 
   return promise

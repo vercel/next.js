@@ -2,6 +2,7 @@
 #![feature(arbitrary_self_types_pointers)]
 #![feature(impl_trait_in_assoc_type)]
 
+mod additional_roots;
 pub mod aggregate_hmr;
 pub mod analyze;
 mod app;
@@ -18,8 +19,10 @@ mod module_graph;
 pub mod next_server_nft;
 mod nft;
 mod nft_json;
+mod nft_json_builder;
 pub mod operation;
 mod pages;
+mod path_utils;
 pub mod paths;
 pub mod project;
 pub mod project_asset_hashes_manifest;

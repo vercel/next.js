@@ -148,6 +148,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleLocalsModule {
             generate_source_map,
             original_source_map: analyze_result.source_map,
             exports,
+            export_registration_mode: None,
             async_module_info,
         }
         .cell())

@@ -184,7 +184,7 @@ module.exports = {
 }
 ```
 
-> **Good to know:** When [`deploymentId`](/docs/app/api-reference/config/next-config-js/deploymentId) is set, Next.js uses a constant build ID and `generateBuildId` has no effect. [Version skew](#version-skew) is detected from the deployment ID instead.
+> **Good to know:** When [`deploymentId`](/docs/app/api-reference/config/next-config-js/deploymentId) is set, Next.js uses a constant build ID unless you explicitly configure `generateBuildId`. [Version skew](#version-skew) is detected from the deployment ID instead.
 
 ## Multi-Server Deployments
 
@@ -235,6 +235,12 @@ module.exports = {
 ```
 
 > **Good to know:** When the application is reloaded, there may be a loss of application state if it's not designed to persist between page navigations. URL state or local storage would persist, but component state like `useState` would be lost.
+
+### Immutable Assets
+
+When using [immutable static assets](/docs/app/api-reference/config/next-config-js/supportsImmutableAssets), preventing version skew becomes much easier:
+
+Assets can be shared across deployments, so if you just keep adding them to your existing static file folder (or CDN bucket), there will be no version skew (without having to track deployment ids in the reverse proxy/do green-blue deployments).
 
 <AppOnly>
 

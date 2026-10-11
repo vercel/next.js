@@ -23,7 +23,7 @@ export function handleISRError({ error }: { error: any }) {
     case 'cache':
     case 'private-cache':
     case 'unstable-cache':
-    case 'generate-static-params':
+    case 'build-time-generator':
     case undefined:
       return
     default:

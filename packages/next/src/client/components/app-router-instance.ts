@@ -89,7 +89,7 @@ function runRemainingActions(
   }
 }
 
-async function runAction({
+function runAction({
   actionQueue,
   action,
   setState,
@@ -103,7 +103,11 @@ async function runAction({
   actionQueue.pending = action
 
   const payload = action.payload
-  const actionResult = actionQueue.action(prevState, payload)
+
+  function handleError(err: Error) {
+    runRemainingActions(actionQueue, action, setState)
+    action.reject(err)
+  }
 
   function handleResult(nextState: AppRouterState) {
     // if we discarded this action, the state should also be discarded
@@ -129,12 +133,17 @@ async function runAction({
     action.resolve(nextState)
   }
 
+  let actionResult: ReducerState
+  try {
+    actionResult = actionQueue.action(prevState, payload)
+  } catch (err) {
+    handleError(err as Error)
+    return
+  }
+
   // if the action is a promise, set up a callback to resolve it
   if (isThenable(actionResult)) {
-    actionResult.then(handleResult, (err) => {
-      runRemainingActions(actionQueue, action, setState)
-      action.reject(err)
-    })
+    actionResult.then(handleResult, handleError)
   } else {
     handleResult(actionResult)
   }
@@ -226,10 +235,7 @@ export function createMutableActionQueue(
     state: initialState,
     dispatch: (payload: ReducerActions, setState: DispatchStatePromise) =>
       dispatchAction(actionQueue, payload, setState),
-    action: async (state: AppRouterState, action: ReducerActions) => {
-      const result = reducer(state, action)
-      return result
-    },
+    action: reducer,
     pending: null,
     last: null,
   }
@@ -299,7 +305,7 @@ function gesturePush(href: string, options?: NavigateOptions): void {
       url,
       currentUrl,
       state.renderedSearch,
-      state.cache,
+      state.root,
       state.tree,
       state.nextUrl,
       freshnessPolicy,

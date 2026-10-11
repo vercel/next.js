@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use serde::Deserialize;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{OperationValue, ResolvedVc, Vc, trace::TraceRawVcs};
+use turbo_tasks::{OperationValue, ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{
     WebpackLoaderBuiltinConditionSet, WebpackLoaderBuiltinConditionSetMatch, WebpackLoadersOptions,
@@ -44,7 +44,6 @@ pub(crate) mod sass;
     Ord,
     Hash,
     Deserialize,
-    TraceRawVcs,
     OperationValue,
     Encode,
     Decode,
@@ -157,6 +156,11 @@ pub async fn webpack_loader_options(
             rcstr!("web")
         },
     );
+    let mode = if builtin_conditions.contains(&WebpackLoaderBuiltinCondition::Development) {
+        rcstr!("development")
+    } else {
+        rcstr!("production")
+    };
 
     Ok(Vc::cell(Some(
         WebpackLoadersOptions {
@@ -166,6 +170,7 @@ pub async fn webpack_loader_options(
                 .to_resolved()
                 .await?,
             target,
+            mode,
         }
         .resolved_cell(),
     )))

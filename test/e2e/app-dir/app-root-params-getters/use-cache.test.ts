@@ -380,14 +380,24 @@ describe('app-root-param-getters - cache - at build', () => {
   }
 })
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// In deploy mode, concurrent requests could hit different lambdas.
-// @force-gate !deploy
 describe('app-root-param-getters - cache dedup with root params', () => {
   const { next, isNextDev } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'use-cache-dedup'),
   })
 
+  it('should key a joining outer cache by the root params read by its inner cache', async () => {
+    const english = await next.render$('/ca/en/nested?prime=1')
+    expect(english('#first').text()).toBe('en')
+    expect(english('#second').text()).toBe('en')
+
+    const french = await next.render$('/ca/fr/nested')
+    expect(french('#first')).toHaveLength(0)
+    expect(french('#second').text()).toBe('fr')
+  })
+
+  // Cross-request deduplication requires a shared server process. Deployed
+  // requests can reach different function instances.
+  // @force-gate !deploy
   it('should dedupe same root params and isolate different root params', async () => {
     // Three concurrent requests: ca/en, ca/fr, ca/fr.
     const [$en, $fr1, $fr2] = await Promise.all([
@@ -410,6 +420,9 @@ describe('app-root-param-getters - cache dedup with root params', () => {
     expect(randomFr1).toBe(randomFr2)
   })
 
+  // These cross-request cache checks require a shared server process. Deployed
+  // requests can reach different function instances.
+  // @force-gate !deploy
   it('should dedupe same root params and isolate different root params for private caches', async () => {
     // Three concurrent requests: ca/en, ca/fr, ca/fr.
     const [$en, $fr1, $fr2] = await Promise.all([

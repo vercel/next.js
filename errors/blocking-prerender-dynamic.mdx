@@ -1,6 +1,6 @@
 ---
 title: Next.js encountered uncached data during prerendering or a navigation
-kind: insight
+kind: error
 ---
 
 <div
@@ -14,7 +14,7 @@ kind: insight
     lineHeight: '1.6',
   }}
 >
-  This Insight is part of the [Instant
+  This error is part of the [Instant
   Navigations](https://nextjs.org/blog/next-16-3-instant-navigations) feature
   introduced in Next.js 16.3. If you're new to it, start with the [Ensuring
   instant navigations](/docs/app/guides/instant-navigation) guide for an
@@ -24,9 +24,11 @@ kind: insight
 
 During [prerendering](/docs/app/glossary#prerendering), a [`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Window/fetch) request, database call, [`await connection()`](/docs/app/api-reference/functions/connection), or other asynchronous IO ran outside of [`<Suspense>`](https://react.dev/reference/react/Suspense). With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, Next.js can't prerender the part of the tree that depends on this data, so navigations to this route block instead of being [instant](/docs/app/guides/instant-navigation).
 
+During `next build`, Next.js may link to this page when it cannot distinguish uncached data from runtime data. For a short cache, [extend the cache lifetime](/docs/messages/blocking-prerender-runtime#extend-the-cache-lifetime) or move the cached work inside `<Suspense>`.
+
 Request-bound reads ([`cookies()`](/docs/app/api-reference/functions/cookies), [`headers()`](/docs/app/api-reference/functions/headers), [`params`](/docs/app/api-reference/file-conventions/page#params-optional), [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional)) have different fixes. See [Next.js encountered runtime data during prerendering](/docs/messages/blocking-prerender-runtime).
 
-This error can also appear during a client-side navigation when the data access sits inside a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary from a parent layout but that boundary is too high. It wraps the entire segment instead of only the dynamic part, so the navigation still blocks. Push the boundary closer to the data access so the rest of the segment stays in the [static shell](/docs/app/glossary#static-shell). See [Choosing where to place the boundary](#choosing-where-to-place-the-boundary).
+An ancestor [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary can allow the initial route to prerender. During a later client navigation, however, uncached data without a closer boundary in the destination route delays the route update. Add a boundary near the data access so the navigation can show a fallback while the uncached content renders. See [Choosing where to place the boundary](#choosing-where-to-place-the-boundary).
 
 ## Ways to fix this
 
@@ -263,14 +265,7 @@ Freshness becomes a property of the cache configuration, not the data source. Th
 
 - Variables captured from the surrounding scope are automatically bound as part of the cache key. That keeps cached entries per-value, but it also means a wide closure can balloon the key surface. Prefer passing the dependencies you care about as function arguments so the contract is explicit.
 - The `"use cache"` directive runs on the server. It can't wrap a function that uses runtime APIs such as [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers). Read those outside the cached scope and pass the values as arguments, or use [`"use cache: private"`](/docs/app/api-reference/directives/use-cache-private).
-- If you cache a function and still see this error, the `cacheLife` may be too short to prerender. See [Short-lived caches](#short-lived-caches).
 - The default in-memory cache is per-server-instance. If the upstream call is expensive and you want a shared cache across instances, use [`"use cache: remote"`](/docs/app/api-reference/directives/use-cache-remote) instead. It trades a network roundtrip for a single cache shared by all servers.
-
-### Short-lived caches
-
-[`"use cache"`](/docs/app/api-reference/directives/use-cache) accepts a [`cacheLife`](/docs/app/api-reference/functions/cacheLife) profile. A short profile (such as `"seconds"` or `"minutes"`) whose `revalidate` is shorter than the prerender's effective lifetime prevents the value from being included in the prerender. The segment becomes a dynamic hole instead. The cache entry still helps the [Client Cache](/docs/app/glossary#client-cache) and protects upstream APIs, but the page falls back to streaming.
-
-To keep the page prerendered, use a profile with a longer revalidate window such as `"default"` (15 minutes), `"hours"`, or `"days"`. If a short profile is intentional, treat the value as dynamic and use [Wrap in or move into Suspense](#wrap-in-or-move-into-suspense) instead.
 
 ## Allow blocking route
 
@@ -338,20 +333,6 @@ Instant-navigation validation runs by default in [Cache Components](/docs/app/ap
 
 See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the full model.
 
-## Related Insights
+## Related validation errors
 
-- [Runtime data during prerendering](/docs/messages/blocking-prerender-runtime)
-- [URL data in a Client Component outside of Suspense](/docs/messages/blocking-prerender-client-hook)
-- [Runtime data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-runtime)
-- [Uncached data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-dynamic)
-- [Runtime data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-runtime)
-- [Uncached data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-dynamic)
-- [`Math.random()` while prerendering](/docs/messages/blocking-prerender-random)
-- [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client)
-- [`Date.now()` while prerendering](/docs/messages/blocking-prerender-current-time)
-- [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client)
-- [Crypto APIs while prerendering](/docs/messages/blocking-prerender-crypto)
-- [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client)
-- [Dynamic data during prefetching](/docs/messages/instant-link-prefetch-partial)
-- [URL data outside of Suspense](/docs/messages/instant-shell-url-data)
-- [Unrendered segment](/docs/messages/instant-unrendered-segment)
+See [Instant Navigation validation errors](/docs/messages/instant-navigation-validation) for the complete reference.

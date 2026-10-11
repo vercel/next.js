@@ -35,3 +35,12 @@ bun add next@next-14 react@18 react-dom@18 && bun add eslint-config-next@next-14
 - The `next/server` import for `ImageResponse` was renamed to `next/og`. A [codemod is available](/docs/app/guides/upgrading/codemods#next-og-import) to safely and automatically rename your imports.
 - The `@next/font` package has been fully removed in favor of the built-in `next/font`. A [codemod is available](/docs/app/guides/upgrading/codemods#built-in-next-font) to safely and automatically rename your imports.
 - The WASM target for `next-swc` has been removed.
+
+## Review migration checklist
+
+- [ ] The app uses Node.js 18.17 or later and compatible React 18 dependencies and types.
+- [ ] Static exports use `output: 'export'` and `next build` instead of `next export`.
+- [ ] `ImageResponse` imports use `next/og` instead of `next/server`.
+- [ ] Font imports use `next/font` instead of `@next/font`.
+- [ ] The app does not rely on the removed `next-swc` WASM target.
+- [ ] The app's supported checks and affected runtime behavior pass.

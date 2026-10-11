@@ -151,12 +151,14 @@
             ),
         ],
         span: 99..122,
+        in_truthiness_context: false,
     },
     ImportedBinding {
         esm_reference_index: 1,
         export: Some(
             "createRequire",
         ),
+        member: None,
         ast_path: [
             Program(
                 Module,
@@ -254,6 +256,7 @@
             ),
         ],
         span: 123..138,
+        in_truthiness_context: false,
     },
     ImportMeta {
         ast_path: [
@@ -474,6 +477,7 @@
             ),
         ],
         span: 176..203,
+        in_truthiness_context: false,
     },
     Member {
         obj: WellKnownObject(
@@ -528,6 +532,7 @@
             ),
         ],
         span: 204..219,
+        in_truthiness_context: false,
     },
     ImportMeta {
         ast_path: [
@@ -742,6 +747,7 @@
             ),
         ],
         span: 257..284,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "__filename",
@@ -941,6 +947,7 @@
             ),
         ],
         span: 335..362,
+        in_truthiness_context: false,
     },
     Member {
         obj: FreeVar(
@@ -995,6 +1002,7 @@
             ),
         ],
         span: 363..377,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "globalThis",

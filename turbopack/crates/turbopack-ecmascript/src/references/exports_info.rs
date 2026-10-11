@@ -6,14 +6,15 @@ use swc_core::{
     quote,
 };
 use turbo_rcstr::rcstr;
-use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, debug::ValueDebugFormat};
 use turbopack_core::chunk::ChunkingContext;
 
 use crate::{
+    ast_path_trie::{AstPathId, AstPathTrie},
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGen, CodeGeneration},
     create_visitor, magic_identifier,
-    references::{AstPath, esm::mangle::mangled_export_names},
+    references::esm::mangle::mangled_export_names,
 };
 
 /// Responsible for initializing the `ExportsInfoBinding` object binding, so that it may be
@@ -23,9 +24,7 @@ use crate::{
 /// initialize the binding a single time.
 ///
 /// This singleton behavior must be enforced by the caller!
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode)]
 pub struct ExportsInfoBinding {}
 
 impl ExportsInfoBinding {
@@ -36,6 +35,7 @@ impl ExportsInfoBinding {
 
     pub async fn code_generation(
         &self,
+        _trie: &AstPathTrie,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
         exports: ResolvedVc<EcmascriptExports>,
@@ -121,23 +121,22 @@ impl From<ExportsInfoBinding> for CodeGen {
 ///
 /// There can be many references, and they appear at any nesting in the file. But all references
 /// refer to the same mutable object.
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode)]
 pub struct ExportsInfoRef {
-    ast_path: AstPath,
+    ast_path: AstPathId,
 }
 
 impl ExportsInfoRef {
-    pub fn new(ast_path: AstPath) -> Self {
+    pub fn new(ast_path: AstPathId) -> Self {
         ExportsInfoRef { ast_path }
     }
 
     pub async fn code_generation(
         &self,
+        trie: &AstPathTrie,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
-        let visitor = create_visitor!(self.ast_path, visit_mut_expr, |expr: &mut Expr| {
+        let visitor = create_visitor!(trie, self.ast_path, visit_mut_expr, |expr: &mut Expr| {
             *expr = Expr::Ident(exports_ident());
         });
 

@@ -70,9 +70,13 @@ export function DevOverlay() {
                   <RenderErrorContext
                     value={{
                       runtimeErrors,
-                      totalErrorCount,
+                      totalErrorCount:
+                        totalErrorCount +
+                        (state.hasVulnerabilityInsight ? 1 : 0),
                       normalErrorCount,
-                      instantErrorCount,
+                      instantErrorCount:
+                        instantErrorCount +
+                        (state.hasVulnerabilityInsight ? 1 : 0),
                     }}
                   >
                     <PanelRouterContext

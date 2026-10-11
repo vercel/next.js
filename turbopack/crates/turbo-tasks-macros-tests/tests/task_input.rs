@@ -5,13 +5,13 @@
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
-use turbo_tasks::{Completion, ReadRef, Vc, trace::TraceRawVcs};
+use turbo_tasks::{Completion, ReadRef, Vc};
 use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
 #[turbo_tasks::task_input]
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Encode, Decode, TraceRawVcs)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Encode, Decode)]
 struct OneUnnamedField(u32);
 
 #[turbo_tasks::function]

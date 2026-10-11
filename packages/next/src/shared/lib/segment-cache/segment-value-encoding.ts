@@ -1,4 +1,3 @@
-import { PAGE_SEGMENT_KEY } from '../segment'
 import type { Segment as FlightRouterStateSegment } from '../app-router-types'
 
 // TypeScript trick to simulate opaque types, like in Flow.
@@ -15,18 +14,6 @@ export function createSegmentRequestKeyPart(
   segment: FlightRouterStateSegment
 ): SegmentRequestKeyPart {
   if (typeof segment === 'string') {
-    if (segment.startsWith(PAGE_SEGMENT_KEY)) {
-      // The Flight Router State type sometimes includes the search params in
-      // the page segment. However, the Segment Cache tracks this as a separate
-      // key. So, we strip the search params here, and then add them back when
-      // the cache entry is turned back into a FlightRouterState. This is an
-      // unfortunate consequence of the FlightRouteState being used both as a
-      // transport type and as a cache key; we'll address this once more of the
-      // Segment Cache implementation has settled.
-      // TODO: We should hoist the search params out of the FlightRouterState
-      // type entirely, This is our plan for dynamic route params, too.
-      return PAGE_SEGMENT_KEY as SegmentRequestKeyPart
-    }
     const safeName =
       // TODO: FlightRouterState encodes Not Found routes as "/_not-found".
       // But params typically don't include the leading slash. We should use

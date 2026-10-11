@@ -17,7 +17,7 @@ use bincode::{
 #[derive(Debug, Clone)]
 #[turbo_tasks::value(eq = "manual", shared, serialization = "custom")]
 pub struct EsRegex {
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(unsafe_ignore)]
     delegate: EsRegexImpl,
     // Store the original arguments used to construct
     // this regex to support equality and serialization.
@@ -173,7 +173,7 @@ pub struct EsRegexSet {
     /// serialization, since [`regex::RegexSet`] supports neither.
     regexes: Vec<EsRegex>,
     /// The combined members, or `None` if the combined program couldn't be built.
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(unsafe_ignore)]
     set: Option<regex::RegexSet>,
     /// Indices into `regexes` of the members `set` doesn't cover. Usually empty.
     individual: Vec<u32>,

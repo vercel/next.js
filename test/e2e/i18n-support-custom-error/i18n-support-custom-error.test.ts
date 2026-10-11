@@ -1,13 +1,13 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// Assertions don't apply to deploy mode (output differs vs. local Next.js server).
+// @force-gate !deploy
 describe('Custom routes i18n custom error', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    // Assertions don't apply to deploy mode (output differs vs. local Next.js server).
-    skipDeployment: true,
   })
-  if (skipped) return
 
   const locales = ['en', 'fr', 'de', 'it']
 
