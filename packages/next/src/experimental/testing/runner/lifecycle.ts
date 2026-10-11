@@ -83,6 +83,7 @@ export interface RunnerOptions {
   signal: AbortSignal
   testTimeout?: number
   hookTimeout?: number
+  testNamePattern?: string
   beginAttempt?(
     context: AttemptContext
   ): AttemptIntegration | Promise<AttemptIntegration>
@@ -124,6 +125,17 @@ export async function runCollected(
   suiteHooks?: SuiteHookLifecycle
 ): Promise<RunnerResult> {
   const selected = selectedCases(root)
+  if (options.testNamePattern !== undefined) {
+    const pattern = new RegExp(options.testNamePattern)
+    for (const [test, mode] of selected) {
+      if (mode !== 'run') continue
+      const names = [test.name]
+      for (let suite = test.suite; suite !== root; suite = suite.suite!) {
+        names.unshift(suite.name)
+      }
+      if (!pattern.test(names.join(' > '))) selected.set(test, 'skip')
+    }
+  }
   const result: RunnerResult = { cases: [], errors: [], interrupted: false }
   const onLateFailure =
     options.onLateFailure ??

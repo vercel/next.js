@@ -17,10 +17,23 @@ terminal failures. Source excerpts come only from the retained compiled
 revision's source maps, never from reading a potentially edited source file.
 The separately bundled diff formatter does not initialize matcher globals.
 
-Live terminal progress redraw, automatic agent-specific reporter selection, and
-Vitest keyboard commands are not implemented. Timings describe the actual Next
-run; no Vite phase measurements are invented. Coverage and artifact descriptions
-remain specific to the supported Next testing capabilities.
+Interactive terminals redraw active files, cases, totals, and elapsed time while
+preserving permanent output. A shared display handles stdout, stderr, resizing,
+and prompts, and restores the cursor when the run completes or is interrupted.
+Piped output, CI, and dumb terminals keep append-only reporting.
+
+Watch mode accepts Vitest-style commands: `h` for help, `a` or Enter for all tests,
+`r` for the current pattern, `f` for failed files, `p` for a filename filter,
+`t` for a test-name regular expression, `w` for project selection, and `u` for
+one explicit snapshot update. Snapshot writes wait for successful generation
+exit and cleanup. Ordinary command keys during a run cancel that run; idle `q`
+exits with its last completed result, and Ctrl+C cancels and exits. Input raw mode
+and listeners are restored on exit. Filter prompts accept text, backspace,
+Enter, and cancellation.
+
+Automatic agent-specific reporter selection is not implemented. Timings describe
+the actual Next run; no Vite phase measurements are invented. Coverage and artifact
+descriptions remain specific to the supported Next testing capabilities.
 
 The existing reporting unit suite checks exact text, colors, stream routing,
 retry evidence, and source attribution. The public CLI integration suites cover

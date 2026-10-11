@@ -29,6 +29,7 @@ export interface RunTestsOptions {
   reporter?: Omit<TestReporterOptions, 'write' | 'projectDir' | 'fileCount'>
   coverage?: boolean
   updateSnapshots?: boolean
+  testNamePattern?: string
   /** Watch uses a parent-owned execution broker; compilation stays in this process. */
   execute?: ExecuteTest
   allocateArtifact?: TestCompilerSessionOptions['allocateArtifact']
@@ -98,6 +99,13 @@ export async function runTests(
   const cancel = () => controller.abort(options.signal.reason)
   if (options.signal.aborted) cancel()
   else options.signal.addEventListener('abort', cancel, { once: true })
+  let reporterFailure: unknown
+  let reporterFailed = false
+  function failReporter(error: unknown) {
+    reporterFailed = true
+    reporterFailure ??= error
+    controller.abort(error)
+  }
   const reporter = createTestReporter({
     ...options.reporter,
     projectDir,
@@ -106,9 +114,11 @@ export async function runTests(
       0
     ),
     write: options.write,
+    onError(error) {
+      failReporter(error)
+      options.reporter?.onError?.(error)
+    },
   })
-  let reporterFailure: unknown
-  let reporterFailed = false
   let failed = false
   let unsafeCleanup = false
   const startedFiles = new Set<string>()
@@ -125,9 +135,12 @@ export async function runTests(
       reporter.onEvent(event)
     } catch (error) {
       // Stop producers but let their finally blocks close workers and leases.
-      reporterFailed = true
-      reporterFailure = error
-      controller.abort(error)
+      failReporter(error)
+      try {
+        reporter.dispose()
+      } catch {
+        // Keep the original failure if cursor restoration also fails.
+      }
     }
   }
 
@@ -341,6 +354,7 @@ export async function runTests(
           : {}),
         testTimeout: project.testTimeout,
         hookTimeout: project.hookTimeout,
+        testNamePattern: options.testNamePattern,
         fileTimeout: project.fileTimeout,
         signal: controller.signal,
         onEvent: executionEvent,
@@ -588,6 +602,11 @@ export async function runTests(
           : 'passed',
       durationMs: performance.now() - started,
     })
+    try {
+      reporter.dispose()
+    } catch (error) {
+      failReporter(error)
+    }
   }
   if (reporterFailed) throw reporterFailure
   return { ...reporter.getSummary(), unsafeCleanup }

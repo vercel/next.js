@@ -16,6 +16,83 @@ const run = (collector: ReturnType<typeof createCollector>) =>
   runCollected(collector.close(), options(), () => {})
 
 describe('Next-owned Vitest lifecycle', () => {
+  it('filters ancestor-qualified names before hooks without overriding focus or skip', async () => {
+    const c = createCollector('file')
+    const log: string[] = []
+    c.api.describe('selected', () => {
+      c.api.beforeAll(() => {
+        log.push('before')
+      })
+      c.api.afterAll(() => {
+        log.push('after')
+      })
+      c.api.test.only('match', () => {
+        log.push('body')
+      })
+      c.api.test.only('other', () => {
+        throw new Error('filtered')
+      })
+      c.api.test.skip('match', () => {
+        throw new Error('skipped')
+      })
+      c.api.test('match', () => {
+        throw new Error('unfocused')
+      })
+      c.api.test.todo('todo')
+    })
+    c.api.describe('unselected', () => {
+      c.api.beforeAll(() => {
+        throw new Error('filtered suite hook')
+      })
+      c.api.afterAll(() => {
+        throw new Error('filtered suite teardown')
+      })
+      c.api.test.only('match', () => {
+        throw new Error('filtered suite')
+      })
+    })
+    const result = await runCollected(
+      c.close(),
+      {
+        ...options(),
+        testNamePattern: '^selected > match$',
+      },
+      () => {}
+    )
+    expect(log).toEqual(['before', 'body', 'after'])
+    expect(result.errors).toEqual([])
+    expect(result.cases.map(({ status, mode }) => [status, mode])).toEqual([
+      ['passed', 'run'],
+      ['skipped', 'skip'],
+      ['skipped', 'skip'],
+      ['skipped', 'skip'],
+      ['skipped', 'todo'],
+      ['skipped', 'skip'],
+    ])
+  })
+
+  it('rejects invalid name patterns before any hooks or bodies execute', async () => {
+    const c = createCollector('file')
+    const calls: string[] = []
+    c.api.beforeAll(() => {
+      calls.push('hook')
+    })
+    c.api.test('case', () => {
+      calls.push('body')
+    })
+    await expect(
+      runCollected(
+        c.close(),
+        {
+          ...options(),
+          testNamePattern: '[',
+        },
+        () => {}
+      )
+    ).rejects.toThrow(SyntaxError)
+    expect(calls).toEqual([])
+  })
+
   it('finalizes and disposes suite hook scopes without emitting synthetic case events', async () => {
     const c = createCollector('file')
     const log: string[] = []

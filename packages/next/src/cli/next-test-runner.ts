@@ -2,6 +2,7 @@ import { realpath } from 'fs/promises'
 import path from 'path'
 import { loadTestConfig } from '../experimental/testing/config'
 import { discoverTests } from '../experimental/testing/discovery'
+import { createTestTerminal } from '../experimental/testing/reporting/terminal'
 import {
   requireTestCapability,
   testCapabilities,
@@ -96,12 +97,29 @@ export async function nextTestRunner(
     }
   }
   const controller = new AbortController()
+  const isTTY =
+    process.stdout.isTTY === true &&
+    !process.env.CI &&
+    process.env.TERM !== 'dumb'
+  const terminal = createTestTerminal({
+    write: (text) => process.stdout.write(text),
+    writeError: (text) => process.stderr.write(text),
+    isTTY,
+    columns: () => process.stdout.columns,
+    rows: () => process.stdout.rows,
+  })
+  let reporterFailure: unknown
   const forceColor = process.env.FORCE_COLOR
   const reporter = {
     version: process.env.__NEXT_VERSION ?? 'unknown',
-    writeError: (text: string) => process.stderr.write(text),
-    isTTY: process.stdout.isTTY === true,
+    writeError: (text: string) => terminal.write(text, 'stderr'),
+    terminal,
+    isTTY,
     columns: process.stdout.columns,
+    onError(error: unknown) {
+      reporterFailure = error
+      controller.abort(error)
+    },
     color:
       forceColor !== undefined
         ? forceColor !== '0'
@@ -120,28 +138,34 @@ export async function nextTestRunner(
         '../experimental/testing/watch-orchestrator.js'
       )
       const result = await watchTests(projectDir, {
+        input: isTTY ? process.stdin : undefined,
+        output: process.stdout,
         project: options.project,
         files: options.filter,
         signal: controller.signal,
-        write: (text) => process.stdout.write(text),
+        write: (text) => terminal.write(text),
         reporter,
       })
-      process.exitCode = result.status === 'cancelled' ? 130 : 1
+      if (reporterFailure) throw reporterFailure
+      process.exitCode =
+        result.status === 'cancelled' ? 130 : result.status === 'failed' ? 1 : 0
       return
     }
     const { runTests } = await import('../experimental/testing/orchestrator.js')
     const summary = await runTests(projectDir, projects, {
       signal: controller.signal,
-      write: (text) => process.stdout.write(text),
+      write: (text) => terminal.write(text),
       reporter,
       updateSnapshots: options.update ?? false,
       coverage: options.coverage ?? false,
     })
+    if (reporterFailure) throw reporterFailure
     if (summary.status !== 'passed') {
       process.exitCode = summary.status === 'cancelled' ? 130 : 1
     }
   } finally {
     process.removeListener('SIGINT', cancel)
     process.removeListener('SIGTERM', cancel)
+    terminal.dispose()
   }
 }

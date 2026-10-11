@@ -38,6 +38,8 @@ async function run(request: WatchProcessRequest): Promise<WatchProcessResult> {
     const { runTests } = await import('./orchestrator.js')
     const result = await runTests(request.projectDir, request.projects, {
       signal: controller.signal,
+      testNamePattern: request.testNamePattern,
+      updateSnapshots: request.updateSnapshots,
       execute: broker.execute,
       allocateArtifact: (parentDir) =>
         new Promise((resolve, reject) => {
