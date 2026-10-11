@@ -224,90 +224,111 @@ function isBuiltin(appPath: string): boolean {
 }
 
 /**
- * Removes catch-all-derived routes that can never render because another slot
+ * Removes catch-all app paths that can never render because another slot
  * at the same level has neither a matching page nor an explicit default.
  *
  * The built-in default for such a slot always calls `notFound()`. Keeping the
- * route in the matcher set would therefore retain a matcher that can never
- * construct a complete loader tree.
+ * catch-all in the matcher set would therefore retain a matcher that can never
+ * construct a complete loader tree. Pages matched by the same route stay in
+ * place, since they may belong to a different route group that renders on its
+ * own; the next pass decides whether they are complete.
+ *
+ * Removing a catch-all can leave another catch-all in the same route without
+ * a sibling it relied on, so pruning repeats until nothing else is removed.
  */
 function pruneUnrenderableCatchAllRoutes(
   appPaths: Record<string, string[]>,
-  { allAppPaths, levelsByParent }: ParallelRouteTopology
+  topology: ParallelRouteTopology
 ) {
   for (const [route, matchedAppPaths] of Object.entries(appPaths)) {
-    const catchAllAppPaths = matchedAppPaths.filter(
-      (appPath) => isUserAppPageRoute(appPath) && isCatchAll(appPath)
+    const remainingAppPaths = withoutUnrenderableCatchAlls(
+      matchedAppPaths,
+      topology
     )
+    if (remainingAppPaths === matchedAppPaths) continue
 
-    if (
-      catchAllAppPaths.some((catchAllAppPath) => {
-        const catchAllSegments = splitAppPath(catchAllAppPath).slice(0, -1)
-        const interceptionMarkerIndex = catchAllSegments.findIndex((segment) =>
-          INTERCEPTION_ROUTE_MARKERS.some((marker) =>
-            segment.startsWith(marker)
-          )
-        )
-
-        for (const {
-          parentSegments,
-          namedSlots,
-          hasChildrenSlot,
-        } of levelsByParent.values()) {
-          if (!hasPathPrefix(catchAllSegments, parentSegments)) continue
-
-          const catchAllSlot = getSlotAtParent(catchAllSegments, parentSegments)
-          const siblingSlots = [
-            ...(hasChildrenSlot ? ['children'] : []),
-            ...namedSlots,
-          ]
-          // An interception response replaces one slot while retaining every
-          // sibling owned by layouts up to the interception marker. Those
-          // siblings use the null retain marker rather than a page or default.
-          // Slots inside the newly selected subtree still match normally.
-          const retainsInterceptionSiblings =
-            interceptionMarkerIndex !== -1 &&
-            parentSegments.length <= interceptionMarkerIndex
-
-          for (const siblingSlot of siblingSlots) {
-            if (siblingSlot === catchAllSlot) continue
-
-            const hasMatchedPage = matchedAppPaths.some((appPath) =>
-              isPathInSlot(appPath, parentSegments, siblingSlot)
-            )
-            const hasDefault = allAppPaths.has(
-              getDefaultAppPath(parentSegments, siblingSlot)
-            )
-
-            if (
-              !hasMatchedPage &&
-              !hasDefault &&
-              !retainsInterceptionSiblings
-            ) {
-              return true
-            }
-          }
-        }
-
-        return false
-      })
-    ) {
-      const nonPageAppPaths = matchedAppPaths.filter(
-        (appPath) => !isUserAppPageRoute(appPath)
-      )
-      if (nonPageAppPaths.length === 0) {
-        delete appPaths[route]
-      } else {
-        appPaths[route] = nonPageAppPaths
-      }
+    if (remainingAppPaths.length === 0) {
+      delete appPaths[route]
+    } else {
+      appPaths[route] = remainingAppPaths
     }
   }
 }
 
+function withoutUnrenderableCatchAlls(
+  matchedAppPaths: string[],
+  topology: ParallelRouteTopology
+): string[] {
+  const unrenderableCatchAllAppPaths = matchedAppPaths.filter(
+    (appPath) =>
+      isUserAppPageRoute(appPath) &&
+      isCatchAll(appPath) &&
+      isUnrenderableCatchAll(appPath, matchedAppPaths, topology)
+  )
+  if (unrenderableCatchAllAppPaths.length === 0) return matchedAppPaths
+
+  return withoutUnrenderableCatchAlls(
+    matchedAppPaths.filter(
+      (appPath) => !unrenderableCatchAllAppPaths.includes(appPath)
+    ),
+    topology
+  )
+}
+
+function isUnrenderableCatchAll(
+  catchAllAppPath: string,
+  matchedAppPaths: string[],
+  { allAppPaths, levelsByParent }: ParallelRouteTopology
+): boolean {
+  const catchAllSegments = splitAppPath(catchAllAppPath).slice(0, -1)
+  const interceptionMarkerIndex = catchAllSegments.findIndex((segment) =>
+    INTERCEPTION_ROUTE_MARKERS.some((marker) => segment.startsWith(marker))
+  )
+
+  for (const {
+    parentSegments,
+    namedSlots,
+    hasChildrenSlot,
+  } of levelsByParent.values()) {
+    if (!hasPathPrefix(catchAllSegments, parentSegments)) continue
+
+    const catchAllSlot = getSlotAtParent(catchAllSegments, parentSegments)
+    const siblingSlots = [
+      ...(hasChildrenSlot ? ['children'] : []),
+      ...namedSlots,
+    ]
+    // An interception response replaces one slot while retaining every
+    // sibling owned by layouts up to the interception marker. Those
+    // siblings use the null retain marker rather than a page or default.
+    // Slots inside the newly selected subtree still match normally.
+    const retainsInterceptionSiblings =
+      interceptionMarkerIndex !== -1 &&
+      parentSegments.length <= interceptionMarkerIndex
+
+    for (const siblingSlot of siblingSlots) {
+      if (siblingSlot === catchAllSlot) continue
+
+      const hasMatchedPage = matchedAppPaths.some((appPath) =>
+        isPathInSlot(appPath, parentSegments, siblingSlot)
+      )
+      const hasDefault = allAppPaths.has(
+        getDefaultAppPath(parentSegments, siblingSlot)
+      )
+
+      if (!hasMatchedPage && !hasDefault && !retainsInterceptionSiblings) {
+        return true
+      }
+    }
+  }
+
+  return false
+}
+
 /**
  * Removes every route that cannot construct all slots at a matching layout
- * level. Catch-all-derived routes are removed by the earlier pass so the
- * caller can report only incompatible static matchers between the two passes.
+ * level. Unrenderable catch-all app paths are removed by the earlier pass so
+ * the caller can report only incompatible static matchers between the two
+ * passes.
  */
 function pruneUnrenderableRoutes(
   appPaths: Record<string, string[]>,
