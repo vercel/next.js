@@ -7,7 +7,7 @@ describe('Cache Components - redirect() in a page', () => {
     env: { NEXT_TEST_LOG_VALIDATION: '1' },
   })
 
-  it('responds with a redirect and logs an instant validation error for it', async () => {
+  it('responds with a redirect without logging an instant validation error', async () => {
     const cliOutputIndex = next.cliOutput.length
 
     const res = await next.fetch('/go', { redirect: 'manual' })
@@ -18,12 +18,8 @@ describe('Cache Components - redirect() in a page', () => {
       next.cliOutput.slice(cliOutputIndex)
     )
 
-    // TODO(cache-components): `redirect()` is the intended result of the
-    // render, not a failure, so instant validation should not report it. The
-    // assertion below captures the current (incorrect) behavior; once fixed,
-    // this should assert that no validation error is logged.
-    expect(validationOutput).toContain(
-      'Could not validate `instant` because an error prevented the target segment from rendering.'
-    )
+    // `redirect()` is the intended result of the render, not a failure, so
+    // instant validation must not report it.
+    expect(validationOutput).toBe('')
   })
 })
