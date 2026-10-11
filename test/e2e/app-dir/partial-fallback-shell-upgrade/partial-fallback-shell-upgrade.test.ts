@@ -222,6 +222,12 @@ describe('partial-fallback-shell-upgrade - partialPrefetching disabled', () => {
     files: path.join(__dirname, 'fixtures', 'partial-prefetching-disabled'),
   })
 
+  // `x-vercel-cache` is only emitted by Vercel. A custom deploy target
+  // (`NEXT_TEST_DEPLOY_SCRIPT_PATH`) runs the same assertions on the response
+  // content but has no such header to check.
+  const isVercelDeploy =
+    isNextDeploy && !process.env.NEXT_TEST_DEPLOY_SCRIPT_PATH?.trim()
+
   if (isNextDev) {
     it('skipped in dev', () => {})
     return
@@ -294,7 +300,7 @@ describe('partial-fallback-shell-upgrade - partialPrefetching disabled', () => {
     expect(firstResult.static$('#two-fallback').text()).toBe('loading two...')
     expect(firstResult.dynamicPart).toContain('<div id="two">foo</div>')
 
-    if (isNextDeploy) {
+    if (isVercelDeploy) {
       await retry(async () => {
         const cachedResult = await fetchSplitHTML('/blocking/c/foo')
         expect(cachedResult.response.headers.get('x-vercel-cache')).toBe('HIT')
@@ -312,7 +318,7 @@ describe('partial-fallback-shell-upgrade - partialPrefetching disabled', () => {
     expect(secondResult.dynamicPart).toContain('<div id="two">bar</div>')
     expect(secondResult.dynamicPart).not.toContain('<div id="two">foo</div>')
 
-    if (isNextDeploy) {
+    if (isVercelDeploy) {
       expect(secondResult.response.headers.get('x-vercel-cache')).toBe('HIT')
     }
   })
@@ -323,7 +329,7 @@ describe('partial-fallback-shell-upgrade - partialPrefetching disabled', () => {
     const firstRenderedAt = firstResult.static$('#one').attr('data-rendered-at')
     expect(firstRenderedAt).toMatch(/^\d+(?:\.\d+)?$/)
 
-    if (isNextDeploy) {
+    if (isVercelDeploy) {
       await retry(async () => {
         const cachedResult = await fetchSplitHTML(pathname)
         expect(cachedResult.response.headers.get('x-vercel-cache')).toBe('HIT')
@@ -367,7 +373,7 @@ describe('partial-fallback-shell-upgrade - partialPrefetching disabled', () => {
       expect(secondResult.dynamicPart).toContain('<div id="two">bar</div>')
       expect(secondResult.dynamicPart).not.toContain('<div id="two">foo</div>')
 
-      if (isNextDeploy) {
+      if (isVercelDeploy) {
         expect(secondResult.response.headers.get('x-vercel-cache')).toBe('HIT')
       }
     })
@@ -420,7 +426,7 @@ describe('partial-fallback-shell-upgrade - partialPrefetching disabled', () => {
         renderedAt: repeated$('#optional').attr('data-rendered-at'),
       }).toEqual({ pathname, renderedAt: firstRenderedAt })
 
-      if (isNextDeploy) {
+      if (isVercelDeploy) {
         await retry(async () => {
           const cachedResponse = await next.fetch(pathname)
           expect(cachedResponse.status).toBe(200)
