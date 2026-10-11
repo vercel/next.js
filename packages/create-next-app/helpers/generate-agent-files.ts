@@ -15,7 +15,7 @@ This block is written and re-added by \`next dev\` — verify at \`node_modules/
 
 ## Next.js upgrade reminders
 
-Upgrade reminders emitted by this project's installed Next.js CLI during \`next dev\` or \`next build\` are part of the \`experimental.agentUpgrade\` workflow. When a reminder appears, retry the same command to continue the original task, include the notice in your final response, and ask the user once whether to proceed with that policy's upgrade. Follow the reminder's worktree guidance and upgrade command only after the user approves. Respect user instructions declining upgrades and \`experimental.agentUpgrade: false\`.
+Upgrade reminders emitted by this project's installed Next.js CLI during \`next dev\` or \`next build\` are part of the \`experimental.agentUpgrade\` workflow. Respect user instructions declining upgrades and \`experimental.agentUpgrade: false\`.
 
 <!-- END:nextjs-agent-rules -->`
 
