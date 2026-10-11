@@ -113,9 +113,8 @@ export class PacketReader<TIncoming> {
       return result
     }
     // The bytes span multiple chunks. A streaming decoder carries multi-byte
-    // characters that are split across chunk boundaries. `ignoreBOM` keeps a
-    // leading byte order mark, matching `Buffer#toString`.
-    const decoder = new TextDecoder('utf-8', { ignoreBOM: true })
+    // characters that are split across chunk boundaries.
+    const decoder = new TextDecoder('utf-8')
     let result = ''
     let remaining = length
     let consumed = 0

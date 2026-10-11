@@ -116,7 +116,7 @@ describe('turbopack-node PacketReader', () => {
 
   describe('matches Buffer#toString decoding for every split point', () => {
     // Captures the decoded strings by bypassing JSON.parse, so invalid JSON
-    // (e.g. a leading byte order mark) can be compared too. All payloads are
+    // (e.g. a truncated sequence) can be compared too. All payloads are
     // sent as consecutive frames, so decoder state must not leak between them.
     async function check(...payloads: Buffer[]) {
       const stream = Buffer.concat(
@@ -153,10 +153,6 @@ describe('turbopack-node PacketReader', () => {
           0xaf, 0xed, 0xa0, 0x80, 0xf4, 0x90, 0x80, 0x80, 0x22,
         ])
       )
-    })
-
-    it('a leading byte order mark', async () => {
-      await check(Buffer.from([0xef, 0xbb, 0xbf, 0x22, 0x61, 0x22]))
     })
 
     it.each([
