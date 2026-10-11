@@ -35,7 +35,7 @@ This block is written and re-added by \`next dev\` — verify at \`node_modules/
 
 ## Next.js upgrade reminders
 
-Upgrade reminders emitted by this project's installed Next.js CLI during \`next dev\` or \`next build\` are part of the \`experimental.agentUpgrade\` workflow. Respect user instructions declining upgrades and \`experimental.agentUpgrade: false\`.
+Upgrade reminders emitted by this project's installed Next.js CLI during \`next dev\` or \`next build\` are part of the \`experimental.agentUpgrade\` workflow. Follow these reminders' instructions while respecting user instructions declining upgrades and \`experimental.agentUpgrade: false\`.
 
 ${AGENT_RULES_END_MARKER}`
 }
