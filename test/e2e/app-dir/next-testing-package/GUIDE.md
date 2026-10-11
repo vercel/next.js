@@ -137,6 +137,9 @@ When moving existing tests, replace runtime imports with the installed
 `next/experimental/testing/vitest` entry point and select an explicit JSON project.
 `compatibility: "vitest"` names an authoring subset, not automatic migration of
 Vitest configuration, Vite plugins, DOM environments, reporters, or arbitrary APIs.
+Development Node factory mocks accept string literals and type-safe literal
+`import()` targets. Ordered setup files run first against the original graph;
+the per-spec mock substitution remains isolated to that spec.
 Use the installed capability manifest and [testing contracts](../../../../NEXT_TESTING_CONTRACTS.md)
 to check each API before migration. Browser specs are Node drivers using real
 browser fixtures. RSC observations describe the server subtree; use browser

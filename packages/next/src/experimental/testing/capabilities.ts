@@ -86,7 +86,7 @@ export const testCapabilities = {
       'Next checks assertion counts after teardown/finished listeners; pinned Vitest checks counts before afterEach.',
       'Final assertion/spy disposal errors fail attempts but do not re-enter failure listeners.',
       'Failure listener receives supported TestContext, not full Vitest task/result inspection.',
-      'Static factory mocks require compiler transformation and are limited to development Node specs without setup files.',
+      'Static factory mocks require compiler transformation and are limited to development Node specs.',
     ],
     scope:
       'Conservative verified authoring subset of the pinned Vitest reference.',
@@ -111,14 +111,15 @@ export const testCapabilities = {
       supported: true,
       api: 'vi.mock',
       scope:
-        'Development Node specs without setup files; compiler-transformed top-level calls only.',
+        'Development Node specs, including ordered compiled setup files; compiler-transformed top-level calls only.',
       targets:
-        'Literal project-local ESM targets with static exports, resolved through the actual Next compiler context.',
+        'String-literal and type-safe literal import() project-local ESM targets with static exports, resolved through the actual Next compiler context.',
       factories:
         'Inline synchronous or asynchronous factories with statically known object export keys; partial spreads only from compiler-verified awaited importOriginal namespaces.',
+      bindings:
+        'Explicit factory exports are fixed values; non-overridden exports inherited from importOriginal remain live ESM bindings. Static and dynamic consumers share one mocked namespace.',
       unsupported: [
         'RSC/browser/production mocks',
-        'setup files combined with module mocks',
         'dynamic targets, queries, fragments, or import attributes',
         'CommonJS targets or cycles involving mocked originals',
         'framework/native/external/node_modules/spec-self targets',

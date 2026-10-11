@@ -167,8 +167,21 @@ fn extract(source: &str, filename: &str) -> Result<StaticMockPlan> {
                  options are unsupported ({filename})."
             );
         }
-        let Expr::Lit(Lit::Str(request)) = &*call.args[0].expr else {
-            bail!("vi.mock target must be a string literal ({filename}).");
+        let request = match &*call.args[0].expr {
+            Expr::Lit(Lit::Str(request)) => request,
+            Expr::Call(import)
+                if matches!(import.callee, Callee::Import(_))
+                    && import.args.len() == 1
+                    && import.args[0].spread.is_none() =>
+            {
+                let Expr::Lit(Lit::Str(request)) = &*import.args[0].expr else {
+                    bail!("vi.mock import() target must contain a string literal ({filename}).");
+                };
+                request
+            }
+            _ => {
+                bail!("vi.mock target must be a string literal or literal import() ({filename}).");
+            }
         };
         let Some(request) = request.value.as_str() else {
             bail!("Invalid mock target string ({filename}).")
@@ -793,9 +806,23 @@ mod tests {
     }
 
     #[test]
+    fn accepts_type_safe_literal_import_targets() {
+        let source = "import {vi} from 'vitest';vi.mock(import('./dep'), async (original) => ({ \
+                      ...(await original()), value: 'mock' }));";
+        let plan = extract_static_mocks(source, "spec.ts").unwrap();
+        assert_eq!(plan.declarations.len(), 1);
+        assert_eq!(plan.declarations[0].request, "./dep");
+        assert_eq!(plan.declarations[0].export_names, ["value"]);
+        assert!(plan.declarations[0].has_spread);
+        assert!(!plan.source.contains("vi.mock"));
+    }
+
+    #[test]
     fn rejects_unsupported_forms_and_outer_captures() {
         for body in [
             "vi.mock(name, () => ({ value: 1 }));",
+            "vi.mock(import(name), () => ({ value: 1 }));",
+            "vi.mock(import('./dep', { with: { type: 'json' } }), () => ({ value: 1 }));",
             "vi.mock('./dep?raw', () => ({ value: 1 }));",
             "vi.mock('./é#fragment', () => ({ value: 1 }));",
             "vi.mock('./dep');",

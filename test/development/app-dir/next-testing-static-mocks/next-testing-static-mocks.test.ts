@@ -39,6 +39,29 @@ describe('next-testing-static-mocks', () => {
     return records
   }
 
+  it('runs setup-compatible type-safe mocks through the public CLI', async () => {
+    const { stdout, stderr } = await exec(
+      process.execPath,
+      [
+        require.resolve('next/dist/bin/next'),
+        'test',
+        '.',
+        '--run',
+        '--project',
+        'module-mocks',
+      ],
+      {
+        cwd: next.testDir,
+        env: { ...process.env, NODE_ENV: 'development' },
+        maxBuffer: 10 * 1024 * 1024,
+        timeout: 90000,
+      }
+    )
+    expect(stderr).not.toMatch(/TurbopackInternalError|unexpected Turbopack/i)
+    expect(stdout).toContain('specs/setup-mock.js')
+    expect(stdout).toMatch(/Tests\s+1 passed(?:\s|$)/)
+  })
+
   it('hoists async partial factories into the actual graph and isolates the following file', async () => {
     const files = [
       'mocked.js',
@@ -48,6 +71,8 @@ describe('next-testing-static-mocks', () => {
       'jsx.jsx',
       'loader-factory.js',
       'empty.js',
+      'setup-mock.js',
+      'live-bindings.js',
     ]
     const records = await run(...files)
     expect(
@@ -148,12 +173,20 @@ describe('next-testing-static-mocks', () => {
     ])
       expect(record.artifact).toBeUndefined()
   })
-  it('reports nonliteral targets and setup combinations as input errors', async () => {
-    const [nonliteral, setup] = await run('nonliteral.js', 'setup-mock.js')
+  it('keeps setup, repeated files, and a following original file isolated', async () => {
+    const records = await run('setup-mock.js', 'setup-mock.js', 'original.js')
+    expect(records.map((record) => record.result?.status)).toEqual([
+      'passed',
+      'passed',
+      'passed',
+    ])
+    expect(records[0].artifact.moduleMocking).toEqual({ version: 1 })
+    expect(records[1].artifact.moduleMocking).toEqual({ version: 1 })
+    expect(records[2].artifact.moduleMocking).toBeUndefined()
+  })
+  it('reports nonliteral targets as input errors', async () => {
+    const [nonliteral] = await run('nonliteral.js')
     expect(nonliteral.compilationError).toMatch(/string literal/i)
-    expect(setup.compilationError).toMatch(/mocks with setup files/i)
-    for (const record of [nonliteral, setup]) {
-      expect(record.artifact).toBeUndefined()
-    }
+    expect(nonliteral.artifact).toBeUndefined()
   })
 })
