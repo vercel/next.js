@@ -129,8 +129,9 @@ resolved environment must stay unchanged during a build or watch session.
 Watch mode rebuilds after changes to sources, imported packages, module metadata
 and embedded assets. It publishes a complete executable atomically and retains
 the last successful output when a build fails. Later edits can repair the build.
-Deleted outputs are recreated. `--watch` compiles the executable; start and restart
-your application separately.
+Deleted outputs are recreated. On Windows, watch mode retries publication while
+a running application or open file handle locks the output. `--watch` compiles the
+executable; start and restart your application separately.
 
 Go commands have a 180-second deadline. Compilation timeouts print diagnostics and
 keep watching for repairs. A failed single build exits with code 1 and preserves

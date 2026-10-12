@@ -623,6 +623,45 @@ fn watch_rebuilds_recovers_and_recreates_output() {
     );
     let target = executable(project);
     wait(|| run(&target).as_deref() == Some("first"));
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+
+        // Allow reading/executing the existing output, but deny delete sharing so
+        // publication deterministically hits the same lock as a running Windows binary.
+        let held_output = std::fs::OpenOptions::new()
+            .read(true)
+            .share_mode(0x1 | 0x2) // FILE_SHARE_READ | FILE_SHARE_WRITE
+            .open(&target)
+            .unwrap();
+        let previous = std::fs::read(&target).unwrap();
+        source(
+            project,
+            "package main\nimport \"fmt\"\nfunc main() { fmt.Println(\"after-lock\") }\n",
+        );
+        wait_for("publication blocked by an open Windows output", || {
+            let log = std::fs::read_to_string(project.join("watch.log")).unwrap();
+            log.contains("output is in use") && log.contains("retrying publication")
+        });
+        assert!(process.0.try_wait().unwrap().is_none());
+        assert_eq!(std::fs::read(&target).unwrap(), previous);
+        assert_eq!(run(&target).as_deref(), Some("first"));
+        // Changes made while publication is blocked must supersede the pending output.
+        source(
+            project,
+            "package main\nimport \"fmt\"\nfunc main() { fmt.Println(\"edited-while-locked\") }\n",
+        );
+        drop(held_output);
+        wait(|| {
+            assert!(process.0.try_wait().unwrap().is_none());
+            run(&target).as_deref() == Some("edited-while-locked")
+        });
+        source(
+            project,
+            "package main\nimport \"fmt\"\nfunc main() { fmt.Println(\"first\") }\n",
+        );
+        wait(|| run(&target).as_deref() == Some("first"));
+    }
     std::fs::remove_file(&target).unwrap();
     wait(|| run(&target).as_deref() == Some("first"));
     source(project, "package main\nfunc main() { invalid Go }\n");

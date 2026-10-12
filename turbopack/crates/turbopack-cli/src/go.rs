@@ -30,7 +30,7 @@ fn absolute(path: &Path) -> Result<PathBuf> {
 }
 
 /// Rename a complete graph-owned executable into place. Failed builds retain the last output.
-fn publish(path: &Path, bytes: &[u8]) -> Result<()> {
+fn publish(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
     let mut temp = tempfile::NamedTempFile::new_in(path.parent().unwrap())?;
     temp.write_all(bytes)?;
     #[cfg(unix)]
@@ -272,7 +272,32 @@ pub async fn build(build: &BuildArguments) -> Result<()> {
                             "output must be outside tracked Go inputs and embed patterns; choose \
                              another --output path"
                         );
-                        publish(&target, &bytes)?;
+                        if let Err(error) = publish(&target, &bytes) {
+                            // Windows cannot replace an executable while it is running or an
+                            // open handle denies delete sharing. Keep the previous output and
+                            // recheck graph freshness before retrying publication.
+                            if args.watch
+                                && cfg!(windows)
+                                && matches!(error.raw_os_error(), Some(5 | 32 | 33))
+                            {
+                                let message = format!(
+                                    "native output is in use; retrying publication of {}: {error}",
+                                    target.display()
+                                );
+                                if message != previous_error {
+                                    eprintln!("{message}");
+                                    previous_error = message;
+                                }
+                                tokio::select! {
+                                    _ = go_context.cancelled() => break,
+                                    _ = tokio::time::sleep(Duration::from_millis(100)) => {}
+                                }
+                                continue;
+                            }
+                            return Err(error).with_context(|| {
+                                format!("publishing native executable: {}", target.display())
+                            });
+                        }
                         println!("native executable: {}", target.display());
                         previous = Some(file);
                     }

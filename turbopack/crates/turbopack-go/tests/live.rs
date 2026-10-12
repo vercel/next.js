@@ -142,8 +142,25 @@ impl Session {
             temp.as_file()
                 .set_permissions(std::fs::Permissions::from_mode(0o755))?;
         }
-        temp.persist(&path).map_err(|error| error.error)?;
-        let output = tokio::process::Command::new(path).output().await?;
+        // Close the writable handle before publishing the executable.
+        temp.into_temp_path()
+            .persist(&path)
+            .map_err(|error| error.error)?;
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        let output = loop {
+            match tokio::process::Command::new(&path).output().await {
+                Ok(output) => break output,
+                // A concurrently forked compiler can briefly inherit a writable handle
+                // until exec closes it, even after this process has closed its own handle.
+                Err(error)
+                    if error.kind() == std::io::ErrorKind::ExecutableFileBusy
+                        && std::time::Instant::now() < deadline =>
+                {
+                    tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+                }
+                Err(error) => return Err(error.into()),
+            }
+        };
         ensure!(
             output.status.success(),
             "{}",
