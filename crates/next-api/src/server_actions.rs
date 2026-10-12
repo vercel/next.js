@@ -696,7 +696,7 @@ async fn module_hash(
 ) -> Result<Vc<ModuleInformation>> {
     let ident = m.ident();
     let ident_value = ident.await?;
-    let ident_str = &ident_value.path.to_string_ref().await?;
+    let ident_str = ident.to_string_without_layer().await?;
 
     if cfg!(debug_assertions)
         && (ident_str
