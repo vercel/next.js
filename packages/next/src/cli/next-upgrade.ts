@@ -3,7 +3,7 @@ import { randomUUID } from 'crypto'
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
 import { dirname, join, resolve as resolvePath } from 'path'
-import { major, prerelease, valid } from 'next/dist/compiled/semver'
+import { major, prerelease, valid, lt } from 'next/dist/compiled/semver'
 import * as Log from '../build/output/log'
 import createSpinner from '../build/spinner'
 import { findDir } from '../lib/find-pages-dir'
@@ -19,6 +19,13 @@ import { dim } from '../lib/picocolors'
 import type { UpgradeDocument } from '../lib/upgrade/future-defaults'
 import { getInstalledNextVersion } from '../lib/upgrade/prepare-upgrade'
 import { runChildProcess } from '../lib/upgrade/run-child-process'
+import {
+  getRunnerReleaseAge,
+  getReleaseMetadata,
+  isReleaseAllowed,
+  assertToolReleaseAllowed,
+  type ReleaseMetadata,
+} from '../lib/upgrade/release-age'
 import { getAgentName } from '../telemetry/agent-name'
 import {
   eventAgentUpgradeAgentResult,
@@ -306,6 +313,22 @@ export async function spawnNextUpgrade(
         throw configError
       }
 
+      failureStage = 'metadata'
+      const runnerPolicy = getRunnerReleaseAge(baseDir, 'next')
+      let runnerMetadata: ReleaseMetadata | null = null
+      const runnerAllowsNext = async (version: string) => {
+        if (isReleaseAllowed('next', version, undefined, runnerPolicy)) {
+          return true
+        }
+        runnerMetadata ??= await getReleaseMetadata('next')
+        return isReleaseAllowed(
+          'next',
+          version,
+          runnerMetadata.time?.[version],
+          runnerPolicy
+        )
+      }
+
       const expectedVersion = process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
       delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
       delete process.env.__NEXT_UPGRADE_USE_CURRENT_CLI
@@ -322,7 +345,11 @@ export async function spawnNextUpgrade(
         failureStage = 'metadata'
         const canaryVersion = await resolveCanaryVersion()
         failureStage = 'cli'
-        if (process.env.__NEXT_VERSION !== canaryVersion) {
+        // Keep this resolver in the current process when npm would reject a newer CLI.
+        if (
+          process.env.__NEXT_VERSION !== canaryVersion &&
+          (await runnerAllowsNext(canaryVersion))
+        ) {
           const [command, ...runnerArgs] = getNpxCommand(baseDir).split(' ')
           const agentArgument =
             typeof options.agent === 'string'
@@ -434,6 +461,14 @@ export async function spawnNextUpgrade(
       // Retain them outside the app so dependency changes cannot remove them.
       failureStage = 'guide'
       const bundledDocs = join(__dirname, '../docs')
+      // The report runs after dependencies change, so it must be reinstallable too.
+      const cliVersion = process.env.__NEXT_VERSION
+      if (!cliVersion || !(await runnerAllowsNext(cliVersion))) {
+        throw new Error(
+          `The reporting CLI next@${cliVersion} does not satisfy the package manager release-age policy.`
+        )
+      }
+
       const bundledGuides = join(__dirname, '../lib/upgrade')
       const runDirectory = await mkdtemp(join(tmpdir(), 'next-upgrade-'))
       const guideName = crossesMajor
@@ -511,6 +546,32 @@ export async function spawnNextUpgrade(
           const codemodVersion = process.env.__NEXT_VERSION
           if (!codemodVersion) {
             throw new Error('Could not determine the @next/codemod version.')
+          }
+          const codemodPolicy = getRunnerReleaseAge(baseDir, '@next/codemod')
+          if (
+            !valid(codemodVersion) ||
+            (codemodPolicy.before !== null &&
+              lt(codemodVersion, result.targetVersion))
+          ) {
+            throw new Error(
+              'The current @next/codemod version cannot cover the requested upgrade target.'
+            )
+          }
+          if (
+            !isReleaseAllowed(
+              '@next/codemod',
+              codemodVersion,
+              undefined,
+              codemodPolicy
+            )
+          ) {
+            const metadata = await getReleaseMetadata('@next/codemod')
+            assertToolReleaseAllowed(
+              '@next/codemod',
+              codemodVersion,
+              metadata,
+              codemodPolicy
+            )
           }
           const codemodCommand = `${getNpxCommand(baseDir)} @next/codemod@${codemodVersion} upgrade ${result.targetVersion} --yes --skip-adoption${options.verbose ? ' --verbose' : ''}`
           const guide = await readFile(guidePath, 'utf8')

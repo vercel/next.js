@@ -1,0 +1,7 @@
+; "default" config from default values
+; before = null ; overridden by project
+; min-release-age = null ; overridden by project
+; "project" config from /app/.npmrc
+before = "2026-10-10T12:00:00.000Z"
+min-release-age = 2
+min-release-age-exclude = ["*"]

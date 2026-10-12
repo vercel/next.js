@@ -8,6 +8,12 @@ import {
   prepareUpgrade,
 } from 'next/dist/lib/upgrade/prepare-upgrade'
 import loadConfig from 'next/dist/server/config'
+import { getInstallerReleaseAge } from 'next/dist/lib/upgrade/release-age'
+
+jest.mock('next/dist/lib/upgrade/release-age', () => ({
+  ...jest.requireActual('next/dist/lib/upgrade/release-age'),
+  getInstallerReleaseAge: jest.fn(),
+}))
 
 jest.mock('next/dist/server/config', () => ({
   __esModule: true,
@@ -78,6 +84,10 @@ describe('prepare latest upgrade', () => {
   }
 
   beforeEach(() => {
+    const policy = { manager: 'npm' as const, before: null, exclude: [] }
+    jest
+      .mocked(getInstallerReleaseAge)
+      .mockResolvedValue({ installer: policy, codemodInstaller: policy })
     jest.mocked(loadConfig).mockResolvedValue({
       cacheComponents: false,
     } as never)
@@ -966,6 +976,116 @@ describe('prepare latest upgrade', () => {
       status: 'ready',
       targetVersion: '16.4.0',
       futureDefaults: [],
+    })
+  })
+  describe('release-age target selection', () => {
+    const cutoff = Date.parse('2026-10-10T12:00:00Z')
+
+    function constrainedMetadata(
+      installerExclude: string[],
+      timestamps: Record<string, string> | undefined = undefined
+    ) {
+      const policy = {
+        manager: 'pnpm' as const,
+        before: cutoff,
+        exclude: installerExclude,
+      }
+      jest
+        .mocked(getInstallerReleaseAge)
+        .mockResolvedValue({ installer: policy, codemodInstaller: policy })
+      global.fetch = jest.fn(async (input, init) => {
+        const url = String(input)
+        if (url.includes('security/advisories')) {
+          const versions = JSON.parse(String(init?.body)).next
+          return Response.json(
+            versions.includes('15.0.0')
+              ? { next: [{ vulnerable_versions: '<16.0.0' }] }
+              : {}
+          )
+        }
+        if (url.endsWith('/canary')) {
+          return Response.json({ version: '16.5.0-canary.8' })
+        }
+        if (url.endsWith('/latest')) {
+          return Response.json({ version: '16.5.0' })
+        }
+        return Response.json({
+          'dist-tags': { canary: '16.5.0-canary.8', latest: '16.5.0' },
+          versions: Object.fromEntries(
+            [
+              '16.4.0',
+              '16.5.0',
+              '16.5.0-canary.6',
+              '16.5.0-canary.8',
+              '16.6.0-canary.1',
+            ].map((version) => [version, { version }])
+          ),
+          time: timestamps ?? {
+            '16.4.0': '2026-10-09T12:00:00Z',
+            '16.5.0': '2026-10-12T12:00:00Z',
+            '16.5.0-canary.6': '2026-10-09T12:00:00Z',
+            '16.5.0-canary.8': '2026-10-12T12:00:00Z',
+            '16.6.0-canary.1': '2026-10-09T12:00:00Z',
+          },
+        })
+      })
+    }
+
+    it('selects an aged canary without changing channel or exceeding the tag', async () => {
+      const directory = await createApp('16.5.0-canary.1')
+      constrainedMetadata([])
+      await expect(prepareUpgrade(directory, 'latest')).resolves.toMatchObject({
+        status: 'ready',
+        targetVersion: '16.5.0-canary.6',
+      })
+    })
+
+    it('keeps an aged stable target separate from canary candidates', async () => {
+      const directory = await createApp('16.2.0')
+      constrainedMetadata([])
+      await expect(prepareUpgrade(directory, 'latest')).resolves.toMatchObject({
+        status: 'ready',
+        targetVersion: '16.4.0',
+      })
+    })
+
+    it('does not downgrade a newer installed canary', async () => {
+      const directory = await createApp('16.5.0-canary.7')
+      constrainedMetadata([])
+      await expect(prepareUpgrade(directory, 'latest')).resolves.toMatchObject({
+        status: 'unaffected',
+      })
+    })
+
+    it('explains when release dates do not establish any eligible target', async () => {
+      const directory = await createApp('16.2.0')
+      constrainedMetadata([], {})
+      await expect(prepareUpgrade(directory, 'latest')).resolves.toMatchObject({
+        status: 'unknown',
+        reason: expect.stringContaining('No latest Next.js version satisfies'),
+      })
+    })
+
+    it('checks advisories against the newest age-eligible security candidate', async () => {
+      const directory = await createApp('15.0.0')
+      constrainedMetadata([])
+      await expect(
+        prepareUpgrade(directory, 'security')
+      ).resolves.toMatchObject({ status: 'ready', targetVersion: '16.4.0' })
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://registry.npmjs.org/-/npm/v1/security/advisories/bulk',
+        expect.objectContaining({ body: JSON.stringify({ next: ['16.4.0'] }) })
+      )
+    })
+
+    it('keeps the tag fast path for an exempt Next.js package', async () => {
+      const directory = await createApp('16.2.0')
+      constrainedMetadata(['next'])
+      await expect(prepareUpgrade(directory, 'latest')).resolves.toMatchObject({
+        status: 'ready',
+        targetVersion: '16.5.0',
+      })
+      expect(global.fetch).toHaveBeenCalledTimes(3)
     })
   })
 })

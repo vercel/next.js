@@ -1,0 +1,13 @@
+; "default" config from default values
+before = null
+; min-release-age = null ; overridden by project
+; min-release-age-exclude = [] ; overridden by project
+; "user" config from /user/.npmrc
+before = "2026-10-01T00:00:00.000Z"
+; "project" config from /app/.npmrc
+min-release-age = 2
+min-release-age-exclude = ["next", "@next/*"]
+; "publishConfig" from /app/package.json
+before = null
+min-release-age = 0
+min-release-age-exclude = ["*"]

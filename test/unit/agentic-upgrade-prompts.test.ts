@@ -23,6 +23,12 @@ import { normalizeConfig } from 'next/dist/server/config-shared'
 import { PHASE_PRODUCTION_BUILD } from 'next/dist/shared/lib/constants'
 import { getAgentName } from 'next/dist/telemetry/agent-name'
 import { Telemetry } from 'next/dist/telemetry/storage'
+import { getRunnerReleaseAge } from 'next/dist/lib/upgrade/release-age'
+
+jest.mock('next/dist/lib/upgrade/release-age', () => ({
+  ...jest.requireActual('next/dist/lib/upgrade/release-age'),
+  getRunnerReleaseAge: jest.fn(),
+}))
 
 jest.mock('fs/promises', () => ({
   access: jest.fn(),
@@ -166,6 +172,9 @@ describe('agentic upgrade prompts', () => {
 
   beforeEach(() => {
     jest.resetAllMocks()
+    jest
+      .mocked(getRunnerReleaseAge)
+      .mockReturnValue({ manager: 'npm', before: null, exclude: [] })
     jest.mocked(Telemetry).mockImplementation(
       () =>
         ({
@@ -397,6 +406,118 @@ describe('agentic upgrade prompts', () => {
       expect(prepareUpgrade).toHaveBeenCalledTimes(0)
     }
   )
+
+  it('reuses the current CLI when a newer bootstrap is age-blocked', async () => {
+    delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
+    jest.mocked(getRunnerReleaseAge).mockReturnValue({
+      manager: 'npm',
+      before: Date.parse('2026-10-10T12:00:00Z'),
+      exclude: [],
+    })
+    global.fetch = jest.fn(async (input) =>
+      String(input).endsWith('/canary')
+        ? Response.json({ version: '99.0.0-canary.35' })
+        : Response.json({
+            'dist-tags': { canary: '99.0.0-canary.35' },
+            versions: {
+              [cliVersion]: { version: cliVersion },
+              '99.0.0-canary.35': { version: '99.0.0-canary.35' },
+            },
+            time: {
+              [cliVersion]: '2026-10-09T12:00:00Z',
+              '99.0.0-canary.35': '2026-10-12T12:00:00Z',
+            },
+          })
+    )
+    jest
+      .mocked(prepareUpgrade)
+      .mockResolvedValue({ status: 'unaffected', reason: 'Already current.' })
+    await spawnNextUpgrade(
+      '/workspace/app',
+      { revision: 'latest', verbose: false, agent: 'latest' },
+      null
+    )
+    expect(crossSpawn).toHaveBeenCalledTimes(0)
+    expect(prepareUpgrade).toHaveBeenCalledTimes(1)
+  })
+
+  it('blocks handoff when the exact reporting CLI cannot be reinstalled', async () => {
+    jest.mocked(getRunnerReleaseAge).mockReturnValue({
+      manager: 'npm',
+      before: Date.parse('2026-10-10T12:00:00Z'),
+      exclude: [],
+    })
+    global.fetch = jest.fn(async () =>
+      Response.json({
+        'dist-tags': {},
+        versions: { [cliVersion]: { version: cliVersion } },
+        time: { [cliVersion]: '2026-10-12T12:00:00Z' },
+      })
+    )
+    await spawnNextUpgrade(
+      '/workspace/app',
+      { revision: 'latest', verbose: false, agent: 'latest' },
+      null
+    )
+    expect(process.exitCode).toBe(1)
+    expect(Log.error).toHaveBeenCalledWith(
+      'Could not prepare the upgrade:',
+      expect.stringContaining('reporting CLI')
+    )
+    expect(crossSpawn).toHaveBeenCalledTimes(0)
+  })
+
+  it('checks the codemod pin against its own release-age exceptions', async () => {
+    jest.mocked(getRunnerReleaseAge).mockImplementation((_directory, name) => ({
+      manager: 'yarn',
+      before: Date.parse('2026-10-10T12:00:00Z'),
+      exclude: name === 'next' ? ['next'] : [],
+    }))
+    global.fetch = jest.fn(async () =>
+      Response.json({
+        'dist-tags': {},
+        versions: { [cliVersion]: { version: cliVersion } },
+        time: { [cliVersion]: '2026-10-12T12:00:00Z' },
+      })
+    )
+    await spawnNextUpgrade(
+      '/workspace/app',
+      { revision: 'latest', verbose: false, agent: 'latest' },
+      null
+    )
+    expect(process.exitCode).toBe(1)
+    expect(Log.error).toHaveBeenCalledWith(
+      'Could not prepare the upgrade:',
+      expect.stringContaining(`@next/codemod@${cliVersion} does not satisfy`)
+    )
+    expect(crossSpawn).toHaveBeenCalledTimes(0)
+  })
+
+  it('blocks a release-age constrained codemod that predates the target', async () => {
+    jest.mocked(getRunnerReleaseAge).mockImplementation((_directory, name) => ({
+      manager: 'yarn',
+      before: Date.parse('2026-10-10T12:00:00Z'),
+      exclude: [name],
+    }))
+    jest.mocked(prepareUpgrade).mockResolvedValue({
+      status: 'ready',
+      installedVersion: '14.1.1',
+      targetVersion: '99.0.0',
+      references: [],
+      futureDefaults: [],
+    })
+    await spawnNextUpgrade(
+      '/workspace/app',
+      { revision: 'latest', verbose: false, agent: 'latest' },
+      null
+    )
+    expect(process.exitCode).toBe(1)
+    expect(Log.error).toHaveBeenCalledWith(
+      'Could not prepare the upgrade:',
+      expect.stringContaining('cannot cover the requested upgrade target')
+    )
+    expect(crossSpawn).toHaveBeenCalledTimes(0)
+  })
 
   it.each([
     ['HTTP error', () => Promise.resolve(new Response('', { status: 503 }))],

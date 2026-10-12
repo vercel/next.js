@@ -6,9 +6,10 @@ as instructed so the original task can continue with a warning. Tell the user
 about the finding and ask whether they want to run the upgrade. Continue
 independent work while waiting. If approved, complete the upgrade.
 
-For `latest`, the CLI pins npm's `canary` dist-tag for canary installations.
-Stable, RC, beta, and numbered preview installations use the stable `latest`
-dist-tag when it is newer than the installed version.
+For `latest`, the CLI selects a version at or below npm's `canary` dist-tag for
+canary installations. Stable, RC, beta, and numbered preview installations use
+the stable `latest` dist-tag as the upper bound. The selected version must satisfy
+the package manager's release-age policy and be newer than the installed version.
 
 Security upgrades and advisory checks are supported only for stable installations.
 Canary installations support `latest` and `experimental-future` without advisory assessment.

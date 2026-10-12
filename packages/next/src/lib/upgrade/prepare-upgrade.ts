@@ -4,6 +4,11 @@ import { join } from 'path'
 import { resetEnv } from '@next/env'
 import semver from 'next/dist/compiled/semver'
 import loadConfig from '../../server/config'
+import {
+  getInstallerReleaseAge,
+  isUpgradeReleaseAllowed,
+  type UpgradeReleaseAge,
+} from './release-age'
 import { PHASE_INFO } from '../../shared/lib/constants'
 import {
   getPendingFutureDefaults,
@@ -36,9 +41,12 @@ export async function prepareUpgrade(
 
   const installedVersion = await getInstalledNextVersion(directory)
 
-  const { upgrade } = await getUpgradeAssessment(
+  const releaseAge = await getInstallerReleaseAge(directory)
+  const { upgrade } = await assessUpgrade(
     installedVersion,
-    targetRequest
+    targetRequest,
+    false,
+    releaseAge
   )
   if (upgrade.status !== 'ready' || targetRequest !== 'experimental-future') {
     return upgrade
@@ -99,6 +107,16 @@ export async function getUpgradeAssessment(
   installedVersion: string,
   policy: 'security' | 'latest' | 'experimental-future',
   onlyIfAffected: boolean = false
+): Promise<UpgradeAssessment> {
+  return assessUpgrade(installedVersion, policy, onlyIfAffected, null)
+}
+
+// Only explicit upgrades query manager policy; dev/build reminders keep their fast path.
+async function assessUpgrade(
+  installedVersion: string,
+  policy: 'security' | 'latest' | 'experimental-future',
+  onlyIfAffected: boolean,
+  releaseAge: UpgradeReleaseAge | null
 ): Promise<UpgradeAssessment> {
   if (!semver.valid(installedVersion)) {
     throw new Error('The running Next.js version is not valid semver.')
@@ -176,7 +194,18 @@ export async function getUpgradeAssessment(
     if (policy === 'security' && snapshot) {
       const registryURL = `${NPM_REGISTRY}next`
       const registry = (await fetchJSON(registryURL)).value
-      const releases = parseReleases(registry)
+      const releases = parseReleases(registry).filter(
+        ({ version }) =>
+          !releaseAge ||
+          isUpgradeReleaseAllowed(
+            version,
+            (registry as { time: Record<string, string> | undefined }).time?.[
+              version
+            ],
+            installedVersion,
+            releaseAge
+          )
+      )
       references = [snapshot.reference, registryURL]
       const candidates = securityCandidates(installedVersion, releases)
       const ranges = [
@@ -198,7 +227,7 @@ export async function getUpgradeAssessment(
         }
       }
     } else {
-      const release = await fetchLatestRelease(installedVersion)
+      const release = await fetchLatestRelease(installedVersion, releaseAge)
       if (!release) {
         throw new Error(
           channel === 'canary'
@@ -370,7 +399,10 @@ export function getLatestUpgradeVersion(
   return targetVersion
 }
 
-async function fetchLatestRelease(installedVersion: string): Promise<{
+async function fetchLatestRelease(
+  installedVersion: string,
+  releaseAge: UpgradeReleaseAge | null
+): Promise<{
   version: string
   reference: string
 } | null> {
@@ -378,7 +410,57 @@ async function fetchLatestRelease(installedVersion: string): Promise<{
   const releaseChannel = channel === 'canary' ? 'canary' : 'latest'
   const reference = `${NPM_REGISTRY}next/${releaseChannel}`
   const { value } = await fetchJSON(reference)
-  const release = value as { version: string } | null
+  let release = value as { version: string } | null
+  const restricted =
+    releaseAge &&
+    release &&
+    semver.valid(release.version) &&
+    !isUpgradeReleaseAllowed(
+      release.version,
+      undefined,
+      installedVersion,
+      releaseAge
+    )
+  if (restricted) {
+    const metadata = (await fetchJSON(`${NPM_REGISTRY}next`)).value as {
+      'dist-tags': Record<string, string>
+      versions: Record<string, { version: string }>
+      time: Record<string, string> | undefined
+    }
+    const tag = metadata?.['dist-tags']?.[releaseChannel]
+    if (
+      !semver.valid(tag) ||
+      !metadata.versions ||
+      getPrereleaseChannel(tag) !== (channel === 'canary' ? 'canary' : null)
+    ) {
+      throw new Error(
+        'Could not determine the release-age constrained Next.js version.'
+      )
+    }
+    const versions = Object.keys(metadata.versions)
+      .filter(
+        (version) =>
+          semver.valid(version) &&
+          metadata.versions[version].version === version &&
+          getPrereleaseChannel(version) ===
+            (channel === 'canary' ? 'canary' : null) &&
+          (channel === 'canary' || !semver.prerelease(version)) &&
+          semver.lte(version, tag) &&
+          isUpgradeReleaseAllowed(
+            version,
+            metadata.time?.[version],
+            installedVersion,
+            releaseAge
+          )
+      )
+      .sort(semver.rcompare)
+    if (versions.length === 0) {
+      throw new Error(
+        `No ${releaseChannel} Next.js version satisfies the package manager release-age policy.`
+      )
+    }
+    release = { version: versions[0] }
+  }
 
   if (
     !release ||
@@ -390,7 +472,10 @@ async function fetchLatestRelease(installedVersion: string): Promise<{
     return null
   }
 
-  return { version: release.version, reference }
+  return {
+    version: release.version,
+    reference: restricted ? `${NPM_REGISTRY}next` : reference,
+  }
 }
 
 // TODO: Record whether each advisory lookup succeeded or failed in upgrade telemetry.
