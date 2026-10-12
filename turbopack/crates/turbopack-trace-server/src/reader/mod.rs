@@ -442,11 +442,13 @@ mod tests {
                 ts: id,
                 id,
                 thread_id: 1,
+                allocations: None,
             });
             push(TraceRow::Exit {
                 ts: id + 1,
                 id,
                 thread_id: 1,
+                allocations: None,
             });
             if id != 1 {
                 push(TraceRow::End { ts: id + 1, id });

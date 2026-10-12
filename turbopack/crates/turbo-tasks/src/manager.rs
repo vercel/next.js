@@ -486,6 +486,9 @@ enum ScheduledTask {
     LocalTask {
         ty: LocalTaskSpec,
         persistence: TaskPersistence,
+        /// The non-local task whose execution created this local task (`None` for a top-level
+        /// execution), see [`ScheduleKey::LocalTask`].
+        parent_task: Option<TaskId>,
         execution_id: ExecutionId,
         local_task_id: LocalTaskId,
         global_task_state: CurrentTaskStateHandle,
@@ -500,22 +503,41 @@ enum ScheduledTask {
 pub enum ScheduleKey {
     /// A cached (non-local) task.
     Task(TaskId),
-    /// A local task, which is only known within the execution that created it.
-    LocalTask(ExecutionId, LocalTaskId),
+    /// A local task, which is only known within the execution that created it: the non-local task
+    /// of that execution (`None` for a top-level execution, e.g. [`TurboTasks::run`]), the
+    /// execution and the local task id within it.
+    ///
+    /// `ExecutionId` alone isn't unique across concurrent executions (it wraps), but a non-local
+    /// task only has one execution at a time, and that execution waits for its local tasks. So the
+    /// key is unique, except for two concurrent top-level executions that share a wrapped
+    /// `ExecutionId`.
+    LocalTask(Option<TaskId>, ExecutionId, LocalTaskId),
+}
+
+impl ScheduleKey {
+    /// The key of a local task created by the current execution.
+    pub(crate) fn current_local_task(
+        execution_id: ExecutionId,
+        local_task_id: LocalTaskId,
+    ) -> Self {
+        let parent_task = CURRENT_TASK_STATE.with(|ts| ts.current_task_id());
+        Self::LocalTask(parent_task, execution_id, local_task_id)
+    }
 }
 
 impl Claimable for ScheduledTask {
     type Key = ScheduleKey;
 
-    fn claim_key(&self) -> Option<ScheduleKey> {
-        Some(match self {
+    fn claim_key(&self) -> ScheduleKey {
+        match self {
             ScheduledTask::Task { task_id, .. } => ScheduleKey::Task(*task_id),
             ScheduledTask::LocalTask {
+                parent_task,
                 execution_id,
                 local_task_id,
                 ..
-            } => ScheduleKey::LocalTask(*execution_id, *local_task_id),
-        })
+            } => ScheduleKey::LocalTask(*parent_task, *execution_id, *local_task_id),
+        }
     }
 }
 
@@ -1165,12 +1187,13 @@ impl<B: Backend + 'static> TurboTasks<B> {
         persistence: TaskPersistence,
     ) -> RawVc {
         let task_type = ty.task_type;
-        let (global_task_state, execution_id, priority, local_task_id) =
+        let (global_task_state, parent_task, execution_id, priority, local_task_id) =
             CURRENT_TASK_STATE.with(|gts| {
                 let mut gts_write = gts.write().unwrap();
                 let local_task_id = gts_write.local_tasks.create(task_type);
                 (
                     gts.clone(),
+                    gts_write.task_id,
                     gts_write.execution_id,
                     gts_write.priority,
                     local_task_id,
@@ -1180,6 +1203,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
         let task = ScheduledTask::LocalTask {
             ty,
             persistence,
+            parent_task,
             execution_id,
             local_task_id,
             global_task_state,
@@ -1531,6 +1555,8 @@ async fn abort_on_panic<F: Future>(f: F) -> F::Output {
 }
 
 impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboTasksExecutor {
+    const LOWEST_PRIORITY: TaskPriority = TaskPriority::Initial;
+
     type Future = impl Future<Output = ()> + Send + 'static;
 
     fn execute(
@@ -1621,6 +1647,7 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
             ScheduledTask::LocalTask {
                 ty,
                 persistence,
+                parent_task: _,
                 execution_id: _,
                 local_task_id,
                 global_task_state,
@@ -1689,6 +1716,22 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
 
                 Either::Right(TURBO_TASKS.scope(this2, future).instrument(span))
             }
+        }
+    }
+
+    fn discard(
+        &self,
+        this: &Arc<TurboTasks<B>>,
+        scheduled_task: ScheduledTask,
+        _priority: TaskPriority,
+    ) {
+        match scheduled_task {
+            // A newer schedule of the same task replaced this one in the queue, so only that one
+            // executes. Balance the foreground job `TurboTasks::schedule` began for this one.
+            ScheduledTask::Task { .. } => this.finish_foreground_job(),
+            // Local tasks have unique keys and are never replaced, and they don't begin a
+            // foreground job either.
+            ScheduledTask::LocalTask { .. } => {}
         }
     }
 }
@@ -2762,7 +2805,7 @@ pub(crate) async fn read_local_output(
                 // instead of waiting for a worker to pick it up.
                 if execute_read_target_inline(
                     this,
-                    ScheduleKey::LocalTask(execution_id, local_task_id),
+                    ScheduleKey::current_local_task(execution_id, local_task_id),
                 ) {
                     continue;
                 }
