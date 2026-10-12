@@ -65,10 +65,9 @@ pub use alias_map::{
     AliasKey, AliasMap, AliasMapIntoIter, AliasMapLookupIterator, AliasMatch, AliasPattern,
     AliasTemplate,
 };
-use remap::TerminalState;
 pub use remap::{
     ReplacedSubpathValue, ReplacedSubpathValueResult, ReplacedSubpathValueResultType,
-    ResolveAliasMap, SubpathValue,
+    ResolveAliasMap, SubpathValue, TerminalState,
 };
 
 /// Controls how resolve errors are handled.

@@ -70,7 +70,7 @@ impl FetchClientConfig {
     /// The reqwest client fails to construct if the TLS backend cannot be initialized, or the
     /// resolver cannot load the system configuration. These failures should be treated as
     /// cached for some amount of time, but ultimately transient (e.g. using
-    /// [`turbo_tasks::function(session_dependent)`]).
+    /// `#[turbo_tasks::function(session_dependent)]`).
     pub fn try_get_cached_reqwest_client(
         self: ReadRef<FetchClientConfig>,
     ) -> reqwest::Result<reqwest::Client> {
