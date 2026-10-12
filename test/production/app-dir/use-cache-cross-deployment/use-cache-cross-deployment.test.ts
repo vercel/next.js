@@ -1,6 +1,12 @@
 import { type NextInstance, nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 
-async function execute(next: NextInstance, envKey: string, id: string) {
+async function execute(
+  next: NextInstance,
+  envKey: string,
+  id: string,
+  includeRuntimeEntrypoints = false
+) {
   await next.stop()
   if (envKey !== 'default') {
     next.env[envKey] = id
@@ -31,7 +37,7 @@ async function execute(next: NextInstance, envKey: string, id: string) {
       imageSrc: string
     {
       const match = next.cliOutput.match(
-        /^CustomCacheHandler::get .* \[\["_N_T_\/layout","_N_T_\/prerender\/layout","_N_T_\/prerender\/page","_N_T_\/prerender"\]\]$/m
+        /^CustomCacheHandler::get .* \[\["_N_T_\/layout","_N_T_\/\(site\)\/layout","_N_T_\/\(site\)\/prerender\/layout","_N_T_\/\(site\)\/prerender\/page","_N_T_\/prerender"\]\]$/m
       )
       expect(match).toBeArray()
       keyPrerender = match[0]
@@ -89,7 +95,7 @@ async function execute(next: NextInstance, envKey: string, id: string) {
       const response = await next.fetch(`/route`)
       dataRoute = await response.text()
       const match = logs().match(
-        /^CustomCacheHandler::get .* \[\["_N_T_\/layout","_N_T_\/route","_N_T_\/route\/route"\]\]$/m
+        /^CustomCacheHandler::get .* \[\["_N_T_\/layout","_N_T_\/\(site\)\/layout","_N_T_\/\(site\)\/route","_N_T_\/\(site\)\/route\/route","_N_T_\/route"\]\]$/m
       )
       expect(match).toBeArray()
       keyRoute = match[0]
@@ -149,12 +155,49 @@ async function execute(next: NextInstance, envKey: string, id: string) {
       dataRoot = await browser.elementById('data').text()
       expect(dataRoot).not.toBeEmpty()
       const match = logs().match(
-        /^CustomCacheHandler::get .* \[\["_N_T_\/layout","_N_T_\/page","_N_T_\/","_N_T_\/index"\]\]$/m
+        /^CustomCacheHandler::get .* \[\["_N_T_\/layout","_N_T_\/\(site\)\/layout","_N_T_\/\(site\)\/page","_N_T_\/","_N_T_\/index"\]\]$/m
       )
       expect(match).toBeArray()
       keyRoot = match[0]
     }
+    const runtimeValues: Record<string, string> = {}
+    if (includeRuntimeEntrypoints) {
+      const metadata = await next.render$('/metadata')
+      runtimeValues.metadata = metadata('title').text()
+      runtimeValues.viewport =
+        metadata('meta[name="theme-color"]').attr('content') ?? ''
+      runtimeValues.route = dataRoute
+
+      const parallel = await next.render$('/parallel')
+      runtimeValues.parallel = parallel('#parallel-data').text()
+
+      // Interception requires a client-side navigation, not a document fetch.
+      const interceptBrowser = await next.browser('/intercept')
+      try {
+        await interceptBrowser.elementById('open-modal').click()
+        runtimeValues.intercept = await interceptBrowser
+          .elementById('intercept-data')
+          .text()
+      } finally {
+        await interceptBrowser.close()
+      }
+
+      const actionBrowser = await next.browser('/cached-action')
+      try {
+        await actionBrowser.elementById('run-action').click()
+        await retry(async () => {
+          runtimeValues.action = await actionBrowser
+            .elementById('action-data')
+            .text()
+          expect(runtimeValues.action).not.toBeEmpty()
+        })
+      } finally {
+        await actionBrowser.close()
+      }
+    }
+
     return {
+      runtimeValues,
       keyRoot,
       keyNested,
       keyArgumentUseCache,
@@ -243,6 +286,161 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
       await next.deleteFile('handler-remote-data.json')
     })
 
+    describe('durable cache reuse across deployments', () => {
+      let key1: Awaited<ReturnType<typeof execute>>
+      let key2: Awaited<ReturnType<typeof execute>>
+      beforeAll(async () => {
+        await next.stop()
+        await next.deleteFile('handler-remote-data.json')
+        key1 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-1', true)
+        key2 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-2', true)
+      })
+
+      afterAll(async () => {
+        await next.stop()
+        delete next.env.NEXT_DEPLOYMENT_ID
+        await next.deleteFile('handler-remote-data.json')
+      })
+
+      it('should not recompute when nothing changes', () => {
+        // The root page renders at request time and lives in a route group.
+        expect(key1.keyRoot).toBe(key2.keyRoot)
+        expect(key1.dataRoot).toBe(key2.dataRoot)
+
+        // The prerender page also lives in a route group.
+        expect(key1.keyPrerender).toBe(key2.keyPrerender)
+        expect(key1.dataPrerender).toBe(key2.dataPrerender)
+
+        expect(key1.keyRoute).toBe(key2.keyRoute)
+        expect(key1.dataRoute).toBe(key2.dataRoute)
+
+        expect(key1.keyImportUseClient).toBe(key2.keyImportUseClient)
+        expect(key1.dataImportUseClient).toBe(key2.dataImportUseClient)
+
+        expect(key1.keyImportUseClientImage).toBe(key2.keyImportUseClientImage)
+        expect(key1.dataImportUseClientImage).toBe(
+          key2.dataImportUseClientImage
+        )
+        expect(key1.imageSrc).toContain('dpl=dpl-id-1')
+        expect(key2.imageSrc).toContain('dpl=dpl-id-2')
+
+        expect(key1.keyImportUseClientNested).toBe(
+          key2.keyImportUseClientNested
+        )
+        expect(key1.dataImportUseClientNested).toBe(
+          key2.dataImportUseClientNested
+        )
+      })
+
+      it.each([
+        ['generateMetadata', 'metadata'],
+        ['generateViewport', 'viewport'],
+        ['a grouped route handler', 'route'],
+        ['a parallel route', 'parallel'],
+        ['an intercepted route', 'intercept'],
+      ])('should reuse durable entries in %s', (_name, kind) => {
+        expect(key1.runtimeValues[kind]).not.toBeEmpty()
+        expect(key2.runtimeValues[kind]).toBe(key1.runtimeValues[kind])
+      })
+
+      // TODO This is the usual case of RSC -> client component -> server action
+      // @force-gate TODO
+      it('should reuse durable entries in a Server Action', () => {
+        expect(key1.runtimeValues.action).not.toBeEmpty()
+        expect(key2.runtimeValues.action).toBe(key1.runtimeValues.action)
+      })
+    })
+
+    // Different chunk-assigned import IDs currently produce different code
+    // hashes for the same cached implementation in App Pages and API routes.
+    // @force-gate FIXME
+    it('should share a durable cache entry between an App Page and an API route', async () => {
+      await next.stop()
+      await next.start()
+
+      try {
+        const page = await next.render$('/page-api')
+        const pageValue = page('#page-api-data').text()
+        expect(pageValue).not.toBeEmpty()
+
+        const response = await next.fetch('/page-api/api')
+        expect(response.status).toBe(200)
+        expect(await response.text()).toBe(pageValue)
+
+        const secondPage = await next.render$('/page-api')
+        expect(secondPage('#page-api-data').text()).toBe(pageValue)
+      } finally {
+        await next.stop()
+      }
+    })
+
+    describe('durable build-time generators', () => {
+      let first: Record<string, { pathname: string; value: string }>
+      let second: Record<string, { pathname: string; value: string }>
+
+      async function buildAndRead(deploymentId: string) {
+        await next.start({ env: { NEXT_DEPLOYMENT_ID: deploymentId } })
+        try {
+          const values: Record<string, { pathname: string; value: string }> = {}
+          // Use the manifest only to discover concrete prerendered URLs; check
+          // cache reuse through their observable HTTP responses below.
+          const manifest = await next.readJSON('.next/prerender-manifest.json')
+          for (const route of [
+            'generator-layout',
+            'generator-route',
+            'generator-sitemap',
+            'generator-image',
+            'static-params',
+          ]) {
+            const routes = Object.keys(manifest.routes).filter(
+              (pathname) =>
+                pathname.startsWith(`/${route}/`) && !pathname.includes('[')
+            )
+            expect(routes).toHaveLength(1)
+            const pathname = routes[0]
+            const response = await next.fetch(pathname)
+            expect({ pathname, status: response.status }).toEqual({
+              pathname,
+              status: 200,
+            })
+            const value =
+              pathname.includes('generator-layout') ||
+              pathname.includes('static-params')
+                ? (await next.render$(pathname))('p').text()
+                : await response.text()
+            values[route] = { pathname, value }
+          }
+
+          return values
+        } finally {
+          await next.stop()
+        }
+      }
+
+      beforeAll(async () => {
+        await next.stop()
+        await next.deleteFile('handler-remote-data.json')
+        first = await buildAndRead('generators-first')
+        second = await buildAndRead('generators-second')
+      })
+
+      afterAll(async () => {
+        await next.deleteFile('handler-remote-data.json')
+      })
+
+      it.each([
+        ['layout generateStaticParams', 'generator-layout'],
+        ['child generateStaticParams', 'generator-layout'],
+        ['route-handler generateStaticParams', 'generator-route'],
+        ['generateSitemaps', 'generator-sitemap'],
+        ['generateImageMetadata', 'generator-image'],
+        ['page generateStaticParams', 'static-params'],
+      ])('should reuse durable entries in %s', (_name, route) => {
+        expect(first[route].value).not.toBeEmpty()
+        expect(second[route]).toEqual(first[route])
+      })
+    })
+
     it('should not miss when an env var changes during cache generation', async () => {
       // Regression test for mutating env vars which changes the cache key mid-rendering and breaks
       // the multi-phase rendering process (be it within the next build prerendering, or in the
@@ -273,33 +471,6 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
         await next.stop()
         delete next.env.MUTATED_DURING_CACHE_GENERATION
       }
-    })
-
-    it('should not recompute when nothing changes', async () => {
-      const key1 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-1')
-      const key2 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-2')
-      // Should be the same key (because the implementation didn't change)
-      expect(key1.keyRoot).toBe(key2.keyRoot)
-      expect(key1.dataRoot).toBe(key2.dataRoot)
-
-      expect(key1.keyPrerender).toBe(key2.keyPrerender)
-      expect(key1.dataPrerender).toBe(key2.dataPrerender)
-
-      expect(key1.keyRoute).toBe(key2.keyRoute)
-      expect(key1.dataRoute).toBe(key2.dataRoute)
-
-      expect(key1.keyImportUseClient).toBe(key2.keyImportUseClient)
-      expect(key1.dataImportUseClient).toBe(key2.dataImportUseClient)
-
-      expect(key1.keyImportUseClientImage).toBe(key2.keyImportUseClientImage)
-      expect(key1.dataImportUseClientImage).toBe(key2.dataImportUseClientImage)
-      expect(key1.imageSrc).toContain('dpl=dpl-id-1')
-      expect(key2.imageSrc).toContain('dpl=dpl-id-2')
-
-      expect(key1.keyImportUseClientNested).toBe(key2.keyImportUseClientNested)
-      expect(key1.dataImportUseClientNested).toBe(
-        key2.dataImportUseClientNested
-      )
     })
 
     it('should recompute when transitive implementation changes', async () => {
