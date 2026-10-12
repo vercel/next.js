@@ -1225,7 +1225,9 @@ impl<'a> TaskGuard<'a> {
     #[inline]
     pub fn assert_not_deleted(&self, operation: &str) {
         debug_assert!(
-            !self.deleted(),
+            // Small hack to work around check_access. Technically a 'deleted' flag is never
+            // persisted so it cannot be recovered either.
+            !self.task.flags.deleted(),
             "{operation} on GC-deleted task {} — a resurrection path was missed",
             self.id()
         );
@@ -1614,12 +1616,6 @@ impl<'a> TaskGuard<'a> {
             self.category
         );
         self.category = access;
-    }
-
-    /// Clears all modified/new flags for a GC-collected task that was **never persisted**
-    /// (`new_task`).
-    pub fn discard_modifications_for_gc_new_task(&mut self) {
-        self.task.discard_modifications_for_gc_new_task();
     }
 
     pub fn invalidate_serialization(&mut self) {
@@ -2554,8 +2550,7 @@ mod cell_data_tracking_tests {
             .unwrap()
         };
 
-        let (snapshot_guard, has_modifications) = storage.start_snapshot();
-        assert!(has_modifications);
+        let snapshot_guard = storage.start_snapshot();
         let process =
             |_: TaskId,
              _: &TaskStorage,
@@ -2624,8 +2619,7 @@ mod cell_data_tracking_tests {
             .unwrap()
         };
 
-        let (snapshot_guard, has_modifications) = storage.start_snapshot();
-        assert!(has_modifications);
+        let snapshot_guard = storage.start_snapshot();
         // Encodes the live state, like the backend does for tasks that weren't copied.
         let process = |task_id: TaskId,
                        task: &TaskStorage,

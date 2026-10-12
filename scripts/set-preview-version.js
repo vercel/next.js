@@ -34,13 +34,7 @@ async function main() {
 
   await execa(
     'node',
-    [
-      'scripts/version-bump.js',
-      version,
-      '--no-git-tag-version',
-      '--allow-branch',
-      '**',
-    ],
+    ['scripts/version-bump.js', version, '--no-git-tag-version'],
     { cwd: repoRoot, stdio: 'inherit' }
   )
 

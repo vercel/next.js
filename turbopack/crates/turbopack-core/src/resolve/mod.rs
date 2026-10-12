@@ -20,7 +20,7 @@ use turbo_tasks::{
     FxIndexMap, JoinIterExt, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt,
     TryJoinIterExt, ValueToString, ValueToStringRef, Vc,
 };
-use turbo_tasks_fs::{FileSystemEntryType, FileSystemPath, RealPathErrorType};
+use turbo_tasks_fs::{FileSystemEntryType, FileSystemPath};
 use turbo_unix_path::normalize_request;
 
 use crate::{
@@ -1218,8 +1218,9 @@ async fn realpath_if_exists(
     }
     match &result.path_result {
         Ok(path) => Ok(Some(path.clone())),
-        Err(error) if matches!(error.kind(), RealPathErrorType::NotFound) => Ok(None),
-        Err(error) => bail!(error.clone()),
+        // Treat paths whose symlinks cannot be resolved as missing candidates, matching Node.js
+        // module resolution so lookup can continue in ancestor directories.
+        Err(_) => Ok(None),
     }
 }
 
@@ -3629,19 +3630,21 @@ mod tests {
 
     #[cfg(unix)]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn test_missing_paths_through_symlinks_do_not_error() {
+    async fn test_symlink_resolution_failures_are_missing_candidates() {
         use std::os::unix::fs::symlink;
 
         #[turbo_tasks::value]
         struct MissingPathsResult {
             missing_file: bool,
-            dangling_package: bool,
+            dangling: bool,
+            self_cycle: bool,
         }
 
         let scratch = tempfile::tempdir().unwrap();
         create_dir_all(scratch.path().join("package")).unwrap();
         symlink("package", scratch.path().join("linked-package")).unwrap();
-        symlink("missing-package", scratch.path().join("dangling-package")).unwrap();
+        symlink("missing", scratch.path().join("dangling")).unwrap();
+        symlink("self-cycle", scratch.path().join("self-cycle")).unwrap();
 
         let path = RcStr::from(scratch.path().to_str().unwrap());
         let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
@@ -3655,12 +3658,16 @@ mod tests {
         ) -> Result<Vc<MissingPathsResult>> {
             let fs = DiskFileSystem::new(rcstr!("temp"), Vc::cell(path));
             let root = fs.root().owned().await?;
-            let missing_file = root.join("linked-package/package.json")?;
-            let dangling_package = root.join("dangling-package")?;
-
             Ok(MissingPathsResult {
-                missing_file: realpath_if_exists(&missing_file, None).await?.is_none(),
-                dangling_package: realpath_if_exists(&dangling_package, None).await?.is_none(),
+                missing_file: realpath_if_exists(&root.join("linked-package/package.json")?, None)
+                    .await?
+                    .is_none(),
+                dangling: realpath_if_exists(&root.join("dangling")?, None)
+                    .await?
+                    .is_none(),
+                self_cycle: realpath_if_exists(&root.join("self-cycle")?, None)
+                    .await?
+                    .is_none(),
             }
             .cell())
         }
@@ -3670,7 +3677,8 @@ mod tests {
                 .read_strongly_consistent()
                 .await?;
             assert!(missing.missing_file);
-            assert!(missing.dangling_package);
+            assert!(missing.dangling);
+            assert!(missing.self_cycle);
 
             anyhow::Ok(())
         })

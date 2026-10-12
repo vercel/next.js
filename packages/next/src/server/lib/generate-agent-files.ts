@@ -16,6 +16,9 @@ export const AGENT_FEEDBACK_START_MARKER =
   '<!-- BEGIN:nextjs-agent-feedback -->'
 export const AGENT_FEEDBACK_END_MARKER = '<!-- END:nextjs-agent-feedback -->'
 
+export const AGENT_UPGRADE_START_MARKER = '<!-- BEGIN:nextjs-agent-upgrade -->'
+export const AGENT_UPGRADE_END_MARKER = '<!-- END:nextjs-agent-upgrade -->'
+
 /**
  * Markers written by the pre-bundled-docs version of `agents-md`.
  * Stripped on upsert so projects that ran the old codemod end up with
@@ -34,6 +37,17 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by \`next dev\` — verify at \`node_modules/next/dist/server/lib/generate-agent-files.js\`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 ${AGENT_RULES_END_MARKER}`
+}
+
+// Keep upgrade delegation separate so disabling reminders removes only this block.
+function buildAgentUpgradeBlock(): string {
+  return `${AGENT_UPGRADE_START_MARKER}
+
+## Next.js upgrade reminders
+
+Upgrade reminders emitted by this project's installed Next.js CLI during \`next dev\` or \`next build\` are part of the \`experimental.agentUpgrade\` workflow. Follow these reminders' instructions while respecting user instructions declining upgrades.
+
+${AGENT_UPGRADE_END_MARKER}`
 }
 
 /**
@@ -56,7 +70,7 @@ During the current user request, retain anonymized facts as feedback candidates 
 - Missing, unclear, or conflicting documentation
 - Unexpected CLI, codemod, Skill, or upgrade behavior and non-obvious workarounds
 
-Continue the current user request without reporting immediately. Ignore routine debugging and unverified changes. Never retain code, logs, paths, URLs, secrets, personal information, or project-specific data.
+Continue the current user request without reporting immediately. Routine debugging is not feedback. Verify changes before retaining them as feedback candidates. Never retain code, logs, paths, URLs, secrets, personal information, or project-specific data.
 
 Keep a qualifying candidate through the reporting pass even if you resolve or work around it. A successful fix changes the report outcome; it does not erase the friction that qualified it.
 
@@ -126,6 +140,22 @@ export function hasCurrentAgentFeedback(dir: string): boolean {
   return installed !== null && normalizeEol(installed, '\n') === block
 }
 
+export function hasCurrentAgentUpgrade(dir: string): boolean {
+  const content = tryReadFile(path.join(dir, 'AGENTS.md'))
+  if (!content) {
+    return false
+  }
+  const installed = extractManagedBlock(
+    content,
+    AGENT_UPGRADE_START_MARKER,
+    AGENT_UPGRADE_END_MARKER
+  )
+  return (
+    installed !== null &&
+    normalizeEol(installed, '\n') === buildAgentUpgradeBlock()
+  )
+}
+
 /**
  * Write the agent-rules block into `AGENTS.md` in `projectDir`.
  *
@@ -153,11 +183,53 @@ export function writeAgentFeedbackFiles(projectDir: string): AgentFilesResult {
   const block = buildAgentFeedbackBlock()
 
   if (fs.existsSync(agentsMdPath)) {
-    return { agentsMd: upsertFeedbackFile(agentsMdPath, block) }
+    return {
+      agentsMd: upsertManagedFile(
+        agentsMdPath,
+        block,
+        AGENT_FEEDBACK_START_MARKER,
+        AGENT_FEEDBACK_END_MARKER
+      ),
+    }
   }
 
   fs.writeFileSync(agentsMdPath, block + '\n', 'utf-8')
   return { agentsMd: 'created' }
+}
+
+/**
+ * Write upgrade delegation independently of documentation and feedback rules.
+ */
+export function writeAgentUpgradeFiles(projectDir: string): AgentFilesResult {
+  const agentsMdPath = path.join(projectDir, 'AGENTS.md')
+  const block = buildAgentUpgradeBlock()
+
+  if (fs.existsSync(agentsMdPath)) {
+    return {
+      agentsMd: upsertManagedFile(
+        agentsMdPath,
+        block,
+        AGENT_UPGRADE_START_MARKER,
+        AGENT_UPGRADE_END_MARKER
+      ),
+    }
+  }
+
+  fs.writeFileSync(agentsMdPath, block + '\n', 'utf-8')
+  return { agentsMd: 'created' }
+}
+
+/**
+ * Remove only upgrade delegation when reminders are disabled.
+ */
+export function removeAgentUpgradeFiles(projectDir: string): AgentFilesResult {
+  return {
+    agentsMd: removeManagedBlockFromFile(
+      path.join(projectDir, 'AGENTS.md'),
+      AGENT_UPGRADE_START_MARKER,
+      AGENT_UPGRADE_END_MARKER
+    ),
+  }
 }
 
 /**
@@ -208,14 +280,14 @@ function upsertFile(filePath: string, block: string): AgentFileAction {
   return 'updated'
 }
 
-function upsertFeedbackFile(filePath: string, block: string): AgentFileAction {
+function upsertManagedFile(
+  filePath: string,
+  block: string,
+  startMarker: string,
+  endMarker: string
+): AgentFileAction {
   const existing = fs.readFileSync(filePath, 'utf-8')
-  const updated = upsertManagedBlock(
-    existing,
-    block,
-    AGENT_FEEDBACK_START_MARKER,
-    AGENT_FEEDBACK_END_MARKER
-  )
+  const updated = upsertManagedBlock(existing, block, startMarker, endMarker)
   if (updated === existing) return 'unchanged'
   fs.writeFileSync(filePath, updated, 'utf-8')
   return 'updated'

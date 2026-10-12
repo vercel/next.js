@@ -96,7 +96,6 @@ default = ["process_pool"]
 process_pool = ["turbopack-node/process_pool"]
 worker_pool = ["turbopack-node/worker_pool"]
 next-font-local = []
-image-webp = ["turbopack-image/webp"]
 image-avif = ["turbopack-image/avif"]
 
 # enable "HMR" for embedded assets
