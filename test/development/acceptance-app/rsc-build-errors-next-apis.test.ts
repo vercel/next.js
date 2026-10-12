@@ -1,4 +1,5 @@
 import { createSandbox } from 'development-sandbox'
+import { outdent } from 'outdent'
 import { runRscBuildErrorsTests } from './rsc-build-errors.util'
 
 runRscBuildErrorsTests(({ next, isTurbopack, isRspack }) => {
@@ -80,6 +81,55 @@ runRscBuildErrorsTests(({ next, isTurbopack, isRspack }) => {
       await session.waitForRedbox()
       expect(await session.getRedboxSource()).toInclude(
         `'next/root-params' cannot be imported from a Client Component module. It should only be used from a Server Component.`
+      )
+    })
+  })
+
+  describe("importing 'next/headers' in a client component", () => {
+    it('errors when the module is outside the app directory', async () => {
+      await using sandbox = await createSandbox(
+        next,
+        new Map([
+          [
+            'lib/server-only.js',
+            outdent`
+              import { cookies } from 'next/headers'
+
+              export function getTheme() {
+                return cookies().get('theme')
+              }
+            `,
+          ],
+          [
+            'lib/shared.js',
+            outdent`
+              import './server-only'
+
+              export const greeting = 'hello'
+            `,
+          ],
+          [
+            'app/next-headers-in-client/page.js',
+            outdent`
+              'use client'
+
+              import { greeting } from '../../lib/shared'
+
+              export default function Page() {
+                return <p>{greeting}</p>
+              }
+            `,
+          ],
+        ]),
+        '/next-headers-in-client'
+      )
+      const { session } = sandbox
+      await session.waitForRedbox()
+      // This app has no `pages` directory, so the Pages Router is not
+      // involved. The message should instead point at the client component
+      // boundary that pulled `next/headers` into the client graph.
+      expect(await session.getRedboxSource()).toInclude(
+        `You're importing a module that depends on "next/headers". This API is only available in Server Components in the App Router, but you are using it in the Pages Router.`
       )
     })
   })
