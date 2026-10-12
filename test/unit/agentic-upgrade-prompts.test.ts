@@ -441,31 +441,42 @@ describe('agentic upgrade prompts', () => {
     expect(prepareUpgrade).toHaveBeenCalledTimes(1)
   })
 
-  it('blocks handoff when the exact reporting CLI cannot be reinstalled', async () => {
-    jest.mocked(getRunnerReleaseAge).mockReturnValue({
-      manager: 'npm',
-      before: Date.parse('2026-10-10T12:00:00Z'),
-      exclude: [],
-    })
-    global.fetch = jest.fn(async () =>
-      Response.json({
-        'dist-tags': {},
-        versions: { [cliVersion]: { version: cliVersion } },
-        time: { [cliVersion]: '2026-10-12T12:00:00Z' },
+  it.each(['too young', 'unpublished'])(
+    'blocks handoff when the reporting CLI is %s',
+    async (reason) => {
+      jest.mocked(getRunnerReleaseAge).mockReturnValue({
+        manager: 'npm',
+        before: Date.parse('2026-10-10T12:00:00Z'),
+        exclude: [],
       })
-    )
-    await spawnNextUpgrade(
-      '/workspace/app',
-      { revision: 'latest', verbose: false, agent: 'latest' },
-      null
-    )
-    expect(process.exitCode).toBe(1)
-    expect(Log.error).toHaveBeenCalledWith(
-      'Could not prepare the upgrade:',
-      expect.stringContaining('reporting CLI')
-    )
-    expect(crossSpawn).toHaveBeenCalledTimes(0)
-  })
+      global.fetch = jest.fn(async () =>
+        Response.json({
+          'dist-tags': {},
+          versions:
+            reason === 'unpublished'
+              ? {}
+              : { [cliVersion]: { version: cliVersion } },
+          time: {
+            [cliVersion]:
+              reason === 'unpublished'
+                ? '2026-10-09T12:00:00Z'
+                : '2026-10-12T12:00:00Z',
+          },
+        })
+      )
+      await spawnNextUpgrade(
+        '/workspace/app',
+        { revision: 'latest', verbose: false, agent: 'latest' },
+        null
+      )
+      expect(process.exitCode).toBe(1)
+      expect(Log.error).toHaveBeenCalledWith(
+        'Could not prepare the upgrade:',
+        expect.stringContaining('reporting CLI')
+      )
+      expect(crossSpawn).toHaveBeenCalledTimes(0)
+    }
+  )
 
   it('checks the codemod pin against its own release-age exceptions', async () => {
     jest.mocked(getRunnerReleaseAge).mockImplementation((_directory, name) => ({

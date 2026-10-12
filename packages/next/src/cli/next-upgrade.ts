@@ -321,11 +321,14 @@ export async function spawnNextUpgrade(
           return true
         }
         runnerMetadata ??= await getReleaseMetadata('next')
-        return isReleaseAllowed(
-          'next',
-          version,
-          runnerMetadata.time?.[version],
-          runnerPolicy
+        return (
+          runnerMetadata.versions[version]?.version === version &&
+          isReleaseAllowed(
+            'next',
+            version,
+            runnerMetadata.time?.[version],
+            runnerPolicy
+          )
         )
       }
 
