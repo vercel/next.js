@@ -28,6 +28,7 @@
     "evals/lib/**/*",
     "test/**/*.test.ts",
     "test/**/*.test.tsx",
+    "packages/next-upgrade/src/**/*.test.ts",
     "test/**/*.util.ts",
     "test/e2e/app-dir/use-cache-custom-handler/*.js",
     "test/lib/**/*.ts",

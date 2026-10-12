@@ -114,7 +114,7 @@ module.exports = function (task) {
       const filePath = path.join(file.dir, file.base)
       const sourcePath = filePath.replace(
         /^\.\.[/\\]next-upgrade[/\\]src[/\\]/,
-        'src/'
+        'src/lib/upgrade/'
       )
       const fullFilePath = path.join(__dirname, filePath)
       const distFilePath = path.dirname(
@@ -137,9 +137,13 @@ module.exports = function (task) {
       }
 
       let source = file.data.toString('utf-8')
-      if (sourcePath !== filePath) {
-        // Keep the original CJS and ESM module graphs when merging upgrade
-        // source into Next.js' existing dist layout.
+      if (
+        sourcePath !== filePath ||
+        filePath === path.join('src', 'cli', 'next-upgrade.ts') ||
+        filePath.startsWith(path.join('src', 'lib', 'upgrade') + path.sep)
+      ) {
+        // Resolve upgrade implementations and Next's entry points within the
+        // same CJS or ESM module graph.
         source = source.replace(
           /(['"])next\/dist\/(?!compiled\/)([^'"]+)\1/g,
           (_match, quote, importedPath) => {
@@ -164,6 +168,16 @@ module.exports = function (task) {
         file.base = file.base.replace(
           extRegex,
           stripExtension ? '' : `.${ext === '.mts' ? 'm' : ''}js`
+        )
+      }
+
+      // Keep feature folders inside the namespace excluded from server traces.
+      if (sourcePath !== filePath) {
+        const upgradeSource = path.join('..', 'next-upgrade', 'src')
+        file.dir = path.join(
+          upgradeSource,
+          'upgrade',
+          path.relative(upgradeSource, file.dir)
         )
       }
 

@@ -7,7 +7,7 @@ import { setTimeout as sleep } from 'timers/promises'
 import { isColorSupported } from 'next/dist/lib/picocolors'
 
 import type { ChildProcess } from 'child_process'
-import type { NudgeKind, UpgradeContext, UpgradeReminder } from './nudge'
+import type { NudgeKind, UpgradeContext, UpgradeReminder } from '../nudge/nudge'
 
 type PromptOutput = ReturnType<typeof createPromptOutput>
 
@@ -135,7 +135,8 @@ export async function showUpgradeMenu(
   }
 ): Promise<UpgradeMenuResult> {
   const { dir, context, command, signal, initialAssessment } = options
-  const { nudgeUpgrade } = require('./nudge') as typeof import('./nudge')
+  const { nudgeUpgrade } =
+    require('../nudge/nudge') as typeof import('../nudge/nudge')
 
   if (options.telemetryDisabled) {
     process.env.NEXT_TELEMETRY_DISABLED = options.telemetryDisabled
