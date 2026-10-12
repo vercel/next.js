@@ -5,6 +5,11 @@ import * as React from 'react'
 import { cloneResponse } from './clone-response'
 import { InvariantError } from '../../shared/lib/invariant-error'
 
+// Keep this lookup dynamic. Rspack validates namespace-member exports before
+// tree shaking, so a React 18 Pages Router edge bundle that only re-exports
+// another `next/cache` API would otherwise fail on this unused React 19 API.
+const ReactCache = Reflect.get(React, 'cache') as typeof React.cache
+
 const simpleCacheKey = '["GET",[],null,"follow",null,null,null,null]' // generateCacheKey(new Request('https://blank'));
 
 // Headers that should not affect deduplication
@@ -42,7 +47,7 @@ type CacheEntry = [
 ]
 
 export function createDedupeFetch(originalFetch: typeof fetch) {
-  const getCacheEntries = React.cache(
+  const getCacheEntries = ReactCache(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars -- url is the cache key
     (url: string): CacheEntry[] => []
   )
