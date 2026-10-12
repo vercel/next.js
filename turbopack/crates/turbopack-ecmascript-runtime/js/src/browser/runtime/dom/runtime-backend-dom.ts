@@ -171,6 +171,41 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
   }
 
   /**
+   * Returns all elements with the given tag name whose `attr` attribute is
+   * either exactly one of the given URLs, or one of the URLs followed by a
+   * query string.
+   *
+   * This intentionally iterates `getElementsByTagName` instead of using a
+   * `querySelectorAll` attribute selector: attribute selectors (especially
+   * prefix matches) have no fast path and walk the entire document for every
+   * call, which makes loading N chunks cost O(DOM size * N).
+   */
+  function findElementsByUrl<T extends HTMLScriptElement | HTMLLinkElement>(
+    tagName: 'script' | 'link',
+    attr: 'src' | 'href',
+    urls: string[],
+    filter?: (element: T) => boolean
+  ): T[] {
+    const matches: T[] = []
+    const elements = document.getElementsByTagName(tagName)
+    for (let i = 0; i < elements.length; i++) {
+      const element = elements[i] as T
+      const value = element.getAttribute(attr)
+      if (value == null) continue
+      for (const url of urls) {
+        if (
+          (value === url || value.startsWith(url + '?')) &&
+          (filter == null || filter(element))
+        ) {
+          matches.push(element)
+          break
+        }
+      }
+    }
+    return matches
+  }
+
+  /**
    * Loads the given chunk, and returns a promise that resolves once the chunk
    * has been loaded.
    */
@@ -219,8 +254,11 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
       const decodedChunkUrl = decodeURI(chunkUrl)
 
       if (isCss(chunkUrl)) {
-        const previousLinks = document.querySelectorAll(
-          `link[rel=stylesheet][href="${chunkUrl}"],link[rel=stylesheet][href^="${chunkUrl}?"],link[rel=stylesheet][href="${decodedChunkUrl}"],link[rel=stylesheet][href^="${decodedChunkUrl}?"]`
+        const previousLinks = findElementsByUrl<HTMLLinkElement>(
+          'link',
+          'href',
+          [chunkUrl, decodedChunkUrl],
+          (link) => link.getAttribute('rel')?.toLowerCase() === 'stylesheet'
         )
         if (previousLinks.length > 0) {
           // CSS chunks do not register themselves, and as such must be marked as
@@ -252,11 +290,13 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
           document.head.appendChild(createLink())
         }
       } else if (isJs(chunkUrl)) {
-        const previousScripts = document.querySelectorAll(
-          `script[src="${chunkUrl}"],script[src^="${chunkUrl}?"],script[src="${decodedChunkUrl}"],script[src^="${decodedChunkUrl}?"]`
+        const previousScripts = findElementsByUrl<HTMLScriptElement>(
+          'script',
+          'src',
+          [chunkUrl, decodedChunkUrl]
         )
         if (previousScripts.length > 0) {
-          for (const script of Array.from(previousScripts)) {
+          for (const script of previousScripts) {
             script.addEventListener(
               'error',
               () => {
