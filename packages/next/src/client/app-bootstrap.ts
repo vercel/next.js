@@ -56,7 +56,13 @@ function loadScriptsInSequence(
 }
 
 export function appBootstrap(hydrate: (assetPrefix: string) => void) {
-  const assetPrefix = getAssetPrefix()
+  // The asset prefix is only used by the dev server's WebSocket, so only read
+  // it there. It's read from `document.currentScript`, which is only reliable
+  // when this module runs as part of loading a script from `/_next/`. In
+  // production, the Turbopack shared runtime can instead run it from the
+  // inline chunk-group bootstrap script, e.g. when a resumed response emits
+  // that bootstrap after the runtime has loaded.
+  const assetPrefix = process.env.__NEXT_DEV_SERVER ? getAssetPrefix() : ''
 
   loadScriptsInSequence((self as any).__next_s, () => {
     // If the static shell is being debugged, skip hydration if the
