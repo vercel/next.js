@@ -2313,9 +2313,12 @@ export default async function getBaseWebpackConfig(
   webpack5Config.module!.parser = {
     javascript: {
       url: 'relative',
-      // Rspack defaults missing imported exports to errors, unlike webpack.
-      // Preserve compatibility for imports removed by tree shaking.
-      ...(isRspack ? { importExportsPresence: 'warn' } : undefined),
+      // Rspack 2 defaults `exportsPresence` to 'error', while webpack only
+      // warns about missing exports in non-strict ESM. Next.js feature-detects
+      // React 19-only APIs (e.g. `use`, `cache`, `captureOwnerStack`) that are
+      // absent from React 18 or from React's production builds, so restore
+      // webpack's behavior for both imports and re-exports.
+      ...(isRspack ? { exportsPresence: 'warn' } : undefined),
     },
   }
   webpack5Config.module!.generator = {
