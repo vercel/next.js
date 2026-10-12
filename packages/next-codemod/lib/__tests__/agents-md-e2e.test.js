@@ -682,6 +682,140 @@ This is my project documentation.
         './..docs'
       )
     })
+
+    // In a pnpm monorepo `next` is usually not resolvable from the repo root,
+    // so the bundled docs have to be found through the workspace packages.
+    describe('bundled docs from workspace packages', () => {
+      function setupWorkspace(patterns, packages) {
+        fs.writeFileSync(
+          path.join(testProjectDir, 'package.json'),
+          JSON.stringify({ name: 'root', private: true })
+        )
+        fs.writeFileSync(
+          path.join(testProjectDir, 'pnpm-workspace.yaml'),
+          `packages:\n${patterns.map((p) => `  - '${p}'`).join('\n')}\n`
+        )
+        for (const [pkg, version] of Object.entries(packages)) {
+          const pkgDir = path.join(testProjectDir, pkg)
+          fs.mkdirSync(pkgDir, { recursive: true })
+          fs.writeFileSync(
+            path.join(pkgDir, 'package.json'),
+            JSON.stringify({ name: path.basename(pkg) })
+          )
+          if (version) installNextIsolated(testProjectDir, pkgDir, version)
+        }
+      }
+
+      function output() {
+        // Package names are colored; strip ANSI so FORCE_COLOR doesn't matter.
+        return require('strip-ansi')(consoleOutput.join('\n'))
+      }
+
+      it('uses the bundled docs of a workspace package when run from the root', async () => {
+        setupWorkspace(['apps/*'], { 'apps/web': '16.4.0' })
+        process.chdir(testProjectDir)
+
+        await runAgentsMd({ output: 'AGENTS.md' })
+
+        const agentsMdPath = path.join(testProjectDir, 'AGENTS.md')
+        expect(readIndex(agentsMdPath).root).toBe(
+          './apps/web/node_modules/next/dist/docs'
+        )
+        expect(
+          fs.existsSync(path.join(resolveRoot(agentsMdPath), '01-app'))
+        ).toBe(true)
+        expect(pullDocsSpy).not.toHaveBeenCalled()
+        expect(fs.existsSync(path.join(testProjectDir, '.next-docs'))).toBe(
+          false
+        )
+        expect(fs.existsSync(path.join(testProjectDir, '.gitignore'))).toBe(
+          false
+        )
+        expect(output()).toContain('workspace package apps/web')
+      })
+
+      it('indexes the package with the highest Next.js version', async () => {
+        setupWorkspace(['apps/a', 'apps/b'], {
+          'apps/a': '16.3.0',
+          'apps/b': '16.4.0',
+        })
+        process.chdir(testProjectDir)
+
+        await runAgentsMd({ output: 'AGENTS.md' })
+
+        const { root, content } = readIndex(
+          path.join(testProjectDir, 'AGENTS.md')
+        )
+        expect(root).toBe('./apps/b/node_modules/next/dist/docs')
+        expect(content).toContain('docs-16.4.0.md')
+        expect(pullDocsSpy).not.toHaveBeenCalled()
+      })
+
+      it('picks the first matching package in workspace order and logs it', async () => {
+        // Listed b before a, so the choice follows the workspace patterns
+        // rather than alphabetical order.
+        setupWorkspace(['apps/b', 'apps/a'], {
+          'apps/a': '16.4.0',
+          'apps/b': '16.4.0',
+        })
+        process.chdir(testProjectDir)
+
+        await runAgentsMd({ output: 'AGENTS.md' })
+
+        expect(readIndex(path.join(testProjectDir, 'AGENTS.md')).root).toBe(
+          './apps/b/node_modules/next/dist/docs'
+        )
+        expect(output()).toContain('workspace package apps/b')
+        expect(output()).not.toContain('workspace package apps/a')
+      })
+
+      it('prefers a matching install resolved from the cwd', async () => {
+        setupWorkspace(['apps/*'], { 'apps/web': '16.4.0' })
+        writeBundledNextPackage(
+          path.join(testProjectDir, 'node_modules', 'next'),
+          '16.4.0'
+        )
+        process.chdir(testProjectDir)
+
+        await runAgentsMd({ output: 'AGENTS.md' })
+
+        expect(readIndex(path.join(testProjectDir, 'AGENTS.md')).root).toBe(
+          './node_modules/next/dist/docs'
+        )
+        expect(output()).not.toContain('workspace package')
+      })
+
+      it('uses a workspace package matching --version when the cwd resolves another version', async () => {
+        setupWorkspace(['apps/*'], { 'apps/web': '16.4.0' })
+        writeBundledNextPackage(
+          path.join(testProjectDir, 'node_modules', 'next'),
+          '16.3.0'
+        )
+        process.chdir(testProjectDir)
+
+        await runAgentsMd({ version: '16.4.0', output: 'AGENTS.md' })
+
+        const { root, content } = readIndex(
+          path.join(testProjectDir, 'AGENTS.md')
+        )
+        expect(root).toBe('./apps/web/node_modules/next/dist/docs')
+        expect(content).toContain('docs-16.4.0.md')
+        expect(pullDocsSpy).not.toHaveBeenCalled()
+      })
+
+      it('still downloads when no workspace package has matching bundled docs', async () => {
+        setupWorkspace(['apps/*'], { 'apps/web': '16.4.0' })
+        process.chdir(testProjectDir)
+
+        await runAgentsMd({ version: '15.0.0', output: 'AGENTS.md' })
+
+        expect(pullDocsSpy).toHaveBeenCalled()
+        expect(readIndex(path.join(testProjectDir, 'AGENTS.md')).root).toBe(
+          './.next-docs'
+        )
+        expect(output()).not.toContain('workspace package')
+      })
+    })
   })
 
   describe('getNextjsVersion', () => {
