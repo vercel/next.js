@@ -88,6 +88,8 @@ export function getNextjsVersion(cwd: string): NextjsVersionResult {
 interface BundledDocsInfo {
   docsPath: string
   version: string
+  /** Directory `next` was resolved from. */
+  resolvedFrom: string
 }
 
 /**
@@ -104,21 +106,53 @@ export function getBundledDocsInfo(cwd: string): BundledDocsInfo | null {
     if (!pkg.version || collectDocFiles(docsPath).length === 0) {
       return null
     }
-    return { docsPath, version: pkg.version }
+    return { docsPath, version: pkg.version, resolvedFrom: cwd }
   } catch {
     return null
   }
 }
 
-export function getBundledDocsLinkPath(cwd: string, docsPath: string): string {
-  // Prefer the conventional path when it resolves from the project
-  // (covers hoisted installs; pnpm exposes next via a node_modules symlink).
-  const conventional = path.join(cwd, 'node_modules', 'next', 'dist', 'docs')
-  if (fs.existsSync(conventional)) {
-    return './node_modules/next/dist/docs'
+/**
+ * Returns `target` as a `./`- or `../`-prefixed, forward-slash path relative
+ * to `fromDir`. Agents resolve paths in the index from the directory of the
+ * output file, so `fromDir` must be that directory, not the cwd.
+ */
+export function getRelativeLinkPath(fromDir: string, target: string): string {
+  const relative = path.relative(fromDir, target).replace(/\\/g, '/')
+  if (relative === '') return './'
+  if (relative === '..') return '../'
+  // A dot-directory such as `.next-docs` still needs the `./` prefix.
+  return relative.startsWith('../') ? relative : `./${relative}`
+}
+
+/**
+ * Link to the bundled docs of the install resolved from `resolvedFrom`,
+ * relative to `fromDir` (the directory of the output file).
+ */
+export function getBundledDocsLinkPath(
+  fromDir: string,
+  docsPath: string,
+  resolvedFrom: string
+): string {
+  // Prefer the conventional path of the resolved install over its realpath:
+  // pnpm's `.pnpm/next@x.y.z/...` realpath changes on every upgrade, while
+  // the `node_modules/next` symlink stays stable. Check it under the
+  // directory `next` was resolved from, not under `fromDir`, which may see a
+  // different `next` install.
+  const conventional = path.join(
+    resolvedFrom,
+    'node_modules',
+    'next',
+    'dist',
+    'docs'
+  )
+  if (
+    fs.existsSync(conventional) &&
+    fs.realpathSync(conventional) === fs.realpathSync(docsPath)
+  ) {
+    return getRelativeLinkPath(fromDir, conventional)
   }
-  const relative = path.relative(cwd, docsPath).replace(/\\/g, '/')
-  return relative.startsWith('.') ? relative : `./${relative}`
+  return getRelativeLinkPath(fromDir, docsPath)
 }
 
 function versionToGitHubTag(version: string): string {
@@ -337,7 +371,7 @@ export function generateAgentsMdIndex(data: AgentsMdIndexData): string {
   )
   const targetFile = outputFile || 'AGENTS.md'
   parts.push(
-    `If docs missing, run this command first: npx @next/codemod agents-md --output ${targetFile}`
+    `If docs missing, run this command from this file's directory: npx @next/codemod agents-md --output ${targetFile}`
   )
 
   const allFiles = collectAllFilesFromSections(sections)

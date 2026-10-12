@@ -12,6 +12,7 @@ import {
   getNextjsVersion,
   getBundledDocsInfo,
   getBundledDocsLinkPath,
+  getRelativeLinkPath,
   pullDocs,
   collectDocFiles,
   buildDocTree,
@@ -75,7 +76,10 @@ export async function runAgentsMd(options: AgentsMdOptions): Promise<void> {
     targetFile = promptedOptions.targetFile
   }
 
-  const agentsMdPath = path.join(cwd, targetFile)
+  const agentsMdPath = path.resolve(cwd, targetFile)
+  // Agents resolve paths in the index from the directory of the output file,
+  // so every link written into it is relative to that directory, not the cwd.
+  const outputDir = path.dirname(agentsMdPath)
 
   // Next.js >= 16.2.0 ships its docs inside the published package. When the
   // installed version matches the requested one, index the bundled docs
@@ -88,8 +92,12 @@ export async function runAgentsMd(options: AgentsMdOptions): Promise<void> {
     ? bundledDocs.docsPath
     : path.join(cwd, DOCS_DIR_NAME)
   const docsLinkPath = useBundledDocs
-    ? getBundledDocsLinkPath(cwd, bundledDocs.docsPath)
-    : `./${DOCS_DIR_NAME}`
+    ? getBundledDocsLinkPath(
+        outputDir,
+        bundledDocs.docsPath,
+        bundledDocs.resolvedFrom
+      )
+    : getRelativeLinkPath(outputDir, docsPath)
 
   let sizeBefore = 0
   let isNewFile = true
@@ -127,7 +135,8 @@ export async function runAgentsMd(options: AgentsMdOptions): Promise<void> {
   const indexContent = generateAgentsMdIndex({
     docsPath: docsLinkPath,
     sections,
-    outputFile: targetFile,
+    // The regeneration hint is run from the output file's directory.
+    outputFile: path.relative(outputDir, agentsMdPath).replace(/\\/g, '/'),
   })
 
   const newContent = injectIntoAgentsMd(existingContent, indexContent)

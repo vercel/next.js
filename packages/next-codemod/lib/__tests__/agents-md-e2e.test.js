@@ -406,6 +406,190 @@ This is my project documentation.
     }, 30000) // Increase timeout for git clone
   })
 
+  // The index `root` is resolved by agents from the directory of the output
+  // file, so it must be relative to that directory, not to the cwd.
+  describe('paths relative to the output file', () => {
+    const agentsMdLib = require('../../lib/agents-md')
+    let originalCwd
+    let pullDocsSpy
+
+    // Install `next` the way pnpm's isolated linker does: the real package
+    // lives in the root `node_modules/.pnpm` store and is only symlinked into
+    // the package that depends on it.
+    function installNextIsolated(projectDir, pkgDir, version) {
+      const storeDir = path.join(
+        projectDir,
+        'node_modules',
+        '.pnpm',
+        `next@${version}`,
+        'node_modules',
+        'next'
+      )
+      writeBundledNextPackage(storeDir, version)
+      const linkDir = path.join(pkgDir, 'node_modules')
+      fs.mkdirSync(linkDir, { recursive: true })
+      fs.symlinkSync(storeDir, path.join(linkDir, 'next'), 'junction')
+    }
+
+    function writeBundledNextPackage(nextDir, version) {
+      const docsDir = path.join(nextDir, 'dist', 'docs', '01-app')
+      fs.mkdirSync(docsDir, { recursive: true })
+      fs.writeFileSync(
+        path.join(nextDir, 'package.json'),
+        JSON.stringify({ name: 'next', version })
+      )
+      fs.writeFileSync(path.join(docsDir, `docs-${version}.md`), '# Docs')
+    }
+
+    function readIndex(agentsMdPath) {
+      const content = fs.readFileSync(agentsMdPath, 'utf-8')
+      return {
+        content,
+        root: content.match(/\|root: ([^|]+)\|/)[1],
+      }
+    }
+
+    // Returns the absolute path `root` points at, resolved the way an agent
+    // reading the output file would resolve it.
+    function resolveRoot(agentsMdPath) {
+      return path.resolve(path.dirname(agentsMdPath), readIndex(agentsMdPath).root)
+    }
+
+    beforeEach(() => {
+      originalCwd = process.cwd()
+      // Stub the download so the `.next-docs` branch is testable offline.
+      pullDocsSpy = jest
+        .spyOn(agentsMdLib, 'pullDocs')
+        .mockImplementation(async ({ docsDir }) => {
+          const sectionDir = path.join(docsDir, '01-app')
+          fs.mkdirSync(sectionDir, { recursive: true })
+          fs.writeFileSync(path.join(sectionDir, 'downloaded.md'), '# Docs')
+          return { success: true, docsPath: docsDir }
+        })
+    })
+
+    afterEach(() => {
+      process.chdir(originalCwd)
+      pullDocsSpy.mockRestore()
+    })
+
+    it('links bundled docs relative to an output file outside the cwd', async () => {
+      const appDir = path.join(testProjectDir, 'apps', 'web')
+      installNextIsolated(testProjectDir, appDir, '16.4.0')
+      process.chdir(appDir)
+
+      await runAgentsMd({ output: '../../AGENTS.md' })
+
+      const agentsMdPath = path.join(testProjectDir, 'AGENTS.md')
+      expect(readIndex(agentsMdPath).root).toBe(
+        './apps/web/node_modules/next/dist/docs'
+      )
+      expect(
+        fs.existsSync(path.join(resolveRoot(agentsMdPath), '01-app'))
+      ).toBe(true)
+      expect(pullDocsSpy).not.toHaveBeenCalled()
+    })
+
+    it('links downloaded docs relative to an output file outside the cwd', async () => {
+      const appDir = path.join(testProjectDir, 'apps', 'web')
+      fs.mkdirSync(appDir, { recursive: true })
+      process.chdir(appDir)
+
+      await runAgentsMd({ version: '15.0.0', output: '../../AGENTS.md' })
+
+      const agentsMdPath = path.join(testProjectDir, 'AGENTS.md')
+      expect(readIndex(agentsMdPath).root).toBe('./apps/web/.next-docs')
+      expect(fs.realpathSync(resolveRoot(agentsMdPath))).toBe(
+        fs.realpathSync(path.join(appDir, '.next-docs'))
+      )
+    })
+
+    it('keeps the ./ prefix for the .next-docs dot-directory', async () => {
+      process.chdir(testProjectDir)
+
+      await runAgentsMd({ version: '15.0.0', output: 'AGENTS.md' })
+
+      expect(readIndex(path.join(testProjectDir, 'AGENTS.md')).root).toBe(
+        './.next-docs'
+      )
+    })
+
+    it('links the indexed install when the output dir resolves a different next', async () => {
+      // Root has a hoisted next@16.3.0; the app has its own next@16.4.0.
+      writeBundledNextPackage(
+        path.join(testProjectDir, 'node_modules', 'next'),
+        '16.3.0'
+      )
+      const appDir = path.join(testProjectDir, 'apps', 'web')
+      installNextIsolated(testProjectDir, appDir, '16.4.0')
+      process.chdir(appDir)
+
+      await runAgentsMd({ output: '../../AGENTS.md' })
+
+      const agentsMdPath = path.join(testProjectDir, 'AGENTS.md')
+      const linkedPkg = JSON.parse(
+        fs.readFileSync(
+          path.join(resolveRoot(agentsMdPath), '..', '..', 'package.json'),
+          'utf-8'
+        )
+      )
+      expect(linkedPkg.version).toBe('16.4.0')
+      expect(readIndex(agentsMdPath).content).toContain('docs-16.4.0.md')
+    })
+
+    it('writes a regeneration hint that is relative to the output file', async () => {
+      const appDir = path.join(testProjectDir, 'apps', 'web')
+      installNextIsolated(testProjectDir, appDir, '16.4.0')
+      process.chdir(appDir)
+
+      await runAgentsMd({ output: '../../AGENTS.md' })
+
+      const { content } = readIndex(path.join(testProjectDir, 'AGENTS.md'))
+      expect(content).toContain(
+        "If docs missing, run this command from this file's directory: npx @next/codemod agents-md --output AGENTS.md|"
+      )
+      expect(content).not.toContain('--output ../../AGENTS.md')
+    })
+
+    it('supports an absolute --output path', async () => {
+      const appDir = path.join(testProjectDir, 'apps', 'web')
+      installNextIsolated(testProjectDir, appDir, '16.4.0')
+      const outputDir = path.join(testProjectDir, 'docs-out')
+      fs.mkdirSync(outputDir)
+      const agentsMdPath = path.join(outputDir, 'CLAUDE.md')
+      process.chdir(appDir)
+
+      await runAgentsMd({ output: agentsMdPath })
+
+      expect(fs.existsSync(agentsMdPath)).toBe(true)
+      const { root, content } = readIndex(agentsMdPath)
+      expect(root).toBe('../apps/web/node_modules/next/dist/docs')
+      expect(
+        fs.existsSync(path.join(resolveRoot(agentsMdPath), '01-app'))
+      ).toBe(true)
+      expect(content).toContain('--output CLAUDE.md|')
+    })
+
+    it('always prefixes relative links with ./ or ../', () => {
+      const { getRelativeLinkPath } = agentsMdLib
+      const base = path.join(testProjectDir, 'a', 'b')
+
+      expect(getRelativeLinkPath(base, base)).toBe('./')
+      expect(getRelativeLinkPath(base, path.join(testProjectDir, 'a'))).toBe(
+        '../'
+      )
+      expect(getRelativeLinkPath(base, path.join(base, '.next-docs'))).toBe(
+        './.next-docs'
+      )
+      expect(
+        getRelativeLinkPath(base, path.join(testProjectDir, 'a', 'docs'))
+      ).toBe('../docs')
+      expect(getRelativeLinkPath(base, path.join(base, '..docs'))).toBe(
+        './..docs'
+      )
+    })
+  })
+
   describe('getNextjsVersion', () => {
     const fixturesDir = path.join(__dirname, 'fixtures/agents-md')
 
