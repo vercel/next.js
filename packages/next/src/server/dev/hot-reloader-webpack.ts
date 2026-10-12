@@ -762,8 +762,6 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
         config: this.config,
         pagesDir: this.pagesDir,
         rewrites: this.rewrites,
-        originalRewrites: this.config._originalRewrites,
-        originalRedirects: this.config._originalRedirects,
         runWebpackSpan: this.hotReloaderSpan,
         appDir: this.appDir,
         previewProps: this.previewProps,
@@ -825,12 +823,6 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
         afterFiles: [],
         fallback: [],
       },
-      originalRewrites: {
-        beforeFiles: [],
-        afterFiles: [],
-        fallback: [],
-      },
-      originalRedirects: [],
       isDevFallback: true,
       entrypoints: (
         await createEntrypoints({

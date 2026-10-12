@@ -496,6 +496,7 @@ export interface CustomRoutes {
     beforeFiles: Rewrite[]
   }
   redirects: Redirect[]
+  originalRedirects?: Redirect[]
 }
 
 function processRoutes<T>(
@@ -582,9 +583,12 @@ function processRoutes<T>(
   return newRoutes as any as T
 }
 
-async function loadRedirects(config: NextConfig) {
+async function loadRedirects(config: NextConfig): Promise<{
+  redirects: Redirect[]
+  originalRedirects: Redirect[] | undefined
+}> {
   if (typeof config.redirects !== 'function') {
-    return []
+    return { redirects: [], originalRedirects: undefined }
   }
   let redirects = await config.redirects()
   // check before we process the routes and after to ensure
@@ -592,12 +596,10 @@ async function loadRedirects(config: NextConfig) {
   checkCustomRoutes(redirects, 'redirect')
 
   // save original redirects before transforms
-  if (Array.isArray(redirects)) {
-    config._originalRedirects = redirects.map((r) => ({ ...r }))
-  }
+  const originalRedirects = redirects.map((r) => ({ ...r }))
   redirects = processRoutes(redirects, config, 'redirect')
   checkCustomRoutes(redirects, 'redirect')
-  return redirects
+  return { redirects, originalRedirects }
 }
 
 async function loadRewrites(config: NextConfig) {
@@ -661,13 +663,6 @@ async function loadRewrites(config: NextConfig) {
   checkCustomRoutes(afterFiles, 'rewrite')
   checkCustomRoutes(fallback, 'rewrite')
 
-  // save original rewrites before transforms
-  config._originalRewrites = {
-    beforeFiles: beforeFiles.map((r) => ({ ...r })),
-    afterFiles: afterFiles.map((r) => ({ ...r })),
-    fallback: fallback.map((r) => ({ ...r })),
-  }
-
   beforeFiles = [
     ...maybeAssetPrefixRewrite,
     ...processRoutes(beforeFiles, config, 'rewrite'),
@@ -703,11 +698,12 @@ async function loadHeaders(config: NextConfig) {
 export default async function loadCustomRoutes(
   config: NextConfig
 ): Promise<CustomRoutes> {
-  const [headers, rewrites, redirects] = await Promise.all([
+  const [headers, rewrites, loadedRedirects] = await Promise.all([
     loadHeaders(config),
     loadRewrites(config),
     loadRedirects(config),
   ])
+  const { redirects, originalRedirects } = loadedRedirects
 
   const onMatchHeaders: Header[] = []
 
@@ -858,5 +854,6 @@ export default async function loadCustomRoutes(
     onMatchHeaders,
     rewrites,
     redirects,
+    originalRedirects,
   }
 }

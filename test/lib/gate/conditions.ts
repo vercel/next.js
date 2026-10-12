@@ -95,6 +95,19 @@ export const conditions: Record<string, Condition> = {
     'running against a real deployment',
     () => getGateTestContext().mode === 'deploy'
   ),
+  // Other hosts run the deploy suites through custom scripts to validate their
+  // adapters, so gate on `vercel` rather than `deploy` when the reason is
+  // specific to Vercel: `@force-gate vercel` for a Vercel-only suite,
+  // `@force-gate !deploy || vercel` to skip only other hosts, `!vercel` to
+  // skip only Vercel. The host is declared, not inferred: our CI sets
+  // `NEXT_TEST_DEPLOY_TARGET_VERCEL=1` on every job that deploys to Vercel.
+  vercel: staticCondition(
+    'running against a Vercel deployment (`NEXT_TEST_DEPLOY_TARGET_VERCEL=1`); ' +
+      'false outside deploy mode',
+    () =>
+      getGateTestContext().mode === 'deploy' &&
+      process.env.NEXT_TEST_DEPLOY_TARGET_VERCEL === '1'
+  ),
 
   // Semantic aliases for `!dev`. A gate is a claim about *why* a suite cannot
   // run, so prefer the name that states the reason over the bare mode check.

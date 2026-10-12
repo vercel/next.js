@@ -1139,7 +1139,7 @@ impl EcmascriptModuleContentOptions {
                             export_registration_mode
                                 .unwrap_or_else(|| eval_context.imports.export_registration_mode()),
                             export_registration_mode
-                                .map(|_| (&part_references[..], &esm_references_ref[..])),
+                                .map(|_| (part_references.as_ref(), esm_references_ref.as_ref())),
                             async_module_info.is_some(),
                         )
                         .await?;

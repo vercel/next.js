@@ -152,8 +152,6 @@ export async function webpackBuildImpl(
     appDir: NextBuildContext.appDir!,
     pagesDir: NextBuildContext.pagesDir!,
     rewrites: NextBuildContext.rewrites!,
-    originalRewrites: NextBuildContext.originalRewrites,
-    originalRedirects: NextBuildContext.originalRedirects,
     noMangling: NextBuildContext.noMangling!,
     clientRouterFilters: NextBuildContext.clientRouterFilters!,
     previewProps: NextBuildContext.previewProps!,
