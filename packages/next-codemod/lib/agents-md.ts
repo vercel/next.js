@@ -126,6 +126,21 @@ export function getRelativeLinkPath(fromDir: string, target: string): string {
 }
 
 /**
+ * Canonical spelling of `p`: symlinks resolved and, on Windows, 8.3 short
+ * names (e.g. `C:\Users\RUNNER~1`) expanded. `process.cwd()` can keep a
+ * non-canonical spelling while module resolution returns the canonical one,
+ * so compare and relate paths only in this form. Falls back to the resolved
+ * path when `p` cannot be canonicalized (e.g. it does not exist).
+ */
+function canonicalPath(p: string): string {
+  try {
+    return fs.realpathSync.native(p)
+  } catch {
+    return path.resolve(p)
+  }
+}
+
+/**
  * Link to the bundled docs of the install resolved from `resolvedFrom`,
  * relative to `fromDir` (the directory of the output file).
  */
@@ -139,8 +154,14 @@ export function getBundledDocsLinkPath(
   // the `node_modules/next` symlink stays stable. Check it under the
   // directory `next` was resolved from, not under `fromDir`, which may see a
   // different `next` install.
+  //
+  // Paths are related in canonical form (see canonicalPath) so a cwd or
+  // --output spelled differently than the resolved install still produces a
+  // clean link. Only the parent of the `node_modules/next` symlink is
+  // canonicalized, never the symlink itself, so the stable path is kept.
+  const outputDir = canonicalPath(fromDir)
   const conventional = path.join(
-    resolvedFrom,
+    canonicalPath(resolvedFrom),
     'node_modules',
     'next',
     'dist',
@@ -148,11 +169,11 @@ export function getBundledDocsLinkPath(
   )
   if (
     fs.existsSync(conventional) &&
-    fs.realpathSync(conventional) === fs.realpathSync(docsPath)
+    canonicalPath(conventional) === canonicalPath(docsPath)
   ) {
-    return getRelativeLinkPath(fromDir, conventional)
+    return getRelativeLinkPath(outputDir, conventional)
   }
-  return getRelativeLinkPath(fromDir, docsPath)
+  return getRelativeLinkPath(outputDir, canonicalPath(docsPath))
 }
 
 function versionToGitHubTag(version: string): string {

@@ -570,6 +570,100 @@ This is my project documentation.
       expect(content).toContain('--output CLAUDE.md|')
     })
 
+    // The cwd/output path and the path `next` resolves to can be spelled
+    // differently for the same directory: a symlinked alias, or an 8.3 short
+    // name like `C:\Users\RUNNER~1\...` on Windows, where `process.cwd()`
+    // keeps the short name while module resolution returns the long one.
+    // Links must still be computed between consistent spellings.
+    describe('when the cwd is spelled differently than the realpath', () => {
+      let aliasBase
+      let aliasDir
+      let cwdSpy
+
+      // Run from `dir` (inside the real project) while `process.cwd()`
+      // reports it through the alias, like a non-canonical cwd on Windows.
+      function chdirViaAlias(dir) {
+        process.chdir(dir)
+        const aliased = path.join(
+          aliasDir,
+          path.relative(fs.realpathSync(testProjectDir), fs.realpathSync(dir))
+        )
+        cwdSpy = jest.spyOn(process, 'cwd').mockReturnValue(aliased)
+      }
+
+      beforeEach(() => {
+        aliasBase = fs.mkdtempSync(path.join(os.tmpdir(), 'agents-md-alias-'))
+        aliasDir = path.join(aliasBase, 'project')
+        fs.symlinkSync(testProjectDir, aliasDir, 'junction')
+      })
+
+      afterEach(() => {
+        cwdSpy?.mockRestore()
+        cwdSpy = undefined
+        fs.rmSync(aliasBase, { recursive: true, force: true })
+      })
+
+      it('links the conventional path through a symlinked cwd', async () => {
+        writeBundledNextPackage(
+          path.join(testProjectDir, 'node_modules', 'next'),
+          '16.4.0'
+        )
+        chdirViaAlias(testProjectDir)
+
+        await runAgentsMd({ output: 'AGENTS.md' })
+
+        const agentsMdPath = path.join(testProjectDir, 'AGENTS.md')
+        expect(readIndex(agentsMdPath).root).toBe(
+          './node_modules/next/dist/docs'
+        )
+      })
+
+      it('links a hoisted install canonically through a symlinked cwd', async () => {
+        writeBundledNextPackage(
+          path.join(testProjectDir, 'node_modules', 'next'),
+          '16.4.0'
+        )
+        const appDir = path.join(testProjectDir, 'apps', 'web')
+        fs.mkdirSync(appDir, { recursive: true })
+        chdirViaAlias(appDir)
+
+        await runAgentsMd({ output: 'AGENTS.md' })
+
+        const agentsMdPath = path.join(testProjectDir, 'apps', 'web', 'AGENTS.md')
+        expect(readIndex(agentsMdPath).root).toBe(
+          '../../node_modules/next/dist/docs'
+        )
+        expect(
+          fs.existsSync(path.join(resolveRoot(agentsMdPath), '01-app'))
+        ).toBe(true)
+      })
+
+      it('detects the same install when only the native realpath canonicalizes', async () => {
+        // Simulate Windows 8.3 short names: the JS `fs.realpathSync` leaves
+        // the alias spelling as-is, while `fs.realpathSync.native` expands it.
+        writeBundledNextPackage(
+          path.join(testProjectDir, 'node_modules', 'next'),
+          '16.4.0'
+        )
+        chdirViaAlias(testProjectDir)
+        const nativeRealpath = fs.realpathSync.native
+        const realpathSpy = jest
+          .spyOn(fs, 'realpathSync')
+          .mockImplementation((p) => path.resolve(String(p)))
+        fs.realpathSync.native = nativeRealpath
+
+        try {
+          await runAgentsMd({ output: 'AGENTS.md' })
+        } finally {
+          realpathSpy.mockRestore()
+        }
+
+        expect(readIndex(path.join(testProjectDir, 'AGENTS.md')).root).toBe(
+          './node_modules/next/dist/docs'
+        )
+      })
+    })
+
     it('always prefixes relative links with ./ or ../', () => {
       const { getRelativeLinkPath } = agentsMdLib
       const base = path.join(testProjectDir, 'a', 'b')
