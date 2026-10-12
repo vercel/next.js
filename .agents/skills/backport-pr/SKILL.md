@@ -94,10 +94,18 @@ branch.
 
 ## PR Shape
 
+The PR title should indicate the target branch and the original PR title.
+
 Use a title like:
 
 ```text
-[backport] <original PR title>
+[lts-active] <original PR title>
+```
+
+or
+
+```text
+[lts-maintenance] <original PR title>
 ```
 
 Use a concise PR body:
