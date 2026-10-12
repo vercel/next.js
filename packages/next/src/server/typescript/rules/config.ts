@@ -173,14 +173,14 @@ const API_DOCS: Record<
   },
   ensureStatic: {
     description: `Controls which rendering phases require static output for this segment. This option is experimental and may change.`,
-    link: '(docs coming soon)',
+    link: 'https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic',
     type: `"auto" | "shell" | "prefetch" | "navigation" | false`,
     options: {
       '"auto"':
         'Default. The shell, prefetch, or entire page will automatically be prerendered statically if possible.',
       '"shell"': 'Force the shell for the route to be prerendered statically.',
       '"prefetch"':
-        'Force both the shell and the prefetch (`<Link prefetch={true}>`) for the route to be prerendered statically.',
+        'Force both the shell and the prefetch (`<Link prefetch={true}>`) for the route to be prerendered statically, so no runtime prefetch request is made. Request-specific content behind `<Suspense>` still renders during navigation.',
       '"navigation"': 'Require the route to be fully static.',
       false:
         'Indicate that this segment must use the default behavior and should not have `ensureStatic = "shell" | "prefetch" | "navigation"` applied to it by another segment. Errors if another segment on the route uses `ensureStatic` with those values.',
