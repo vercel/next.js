@@ -143,6 +143,7 @@ pub async fn compute_ecmascript_module_exports(
                     import_externals,
                     module_fragments_enabled: options.module_fragments_enabled,
                     export_usage_passthrough: namespace_reexports.contains(&i).then_some(false),
+                    namespace_reexport_exports: eval_context.imports.namespace_reexport_exports(i),
                     resolve_override,
                 },
             )

@@ -98,7 +98,8 @@ impl EcmascriptModuleFacadeModule {
         ];
         // Then one reference per export that comes from the locals module, so the module graph
         // carries *which* names this facade needs from it. Without these the evaluation reference
-        // would be the only facade -> locals edge, and it would have to claim `all()`.
+        // would be the only facade -> locals edge, and it would have to claim `all()`. Each one
+        // forwards the facade's usage of that name, including static member usage of its value.
         if let EcmascriptExports::EsmExports(esm_exports) = &*self.module.get_exports().await? {
             for (name, export) in &esm_exports.await?.exports {
                 if matches!(export, EsmExport::LocalBinding(..)) {
@@ -106,7 +107,7 @@ impl EcmascriptModuleFacadeModule {
                         EcmascriptModulePartReference::new_part(
                             *self.module,
                             ModulePart::locals(),
-                            ExportUsage::named(name.clone()),
+                            ExportUsage::forward_export(name.clone(), name.clone()),
                         )
                         .to_resolved()
                         .await?,

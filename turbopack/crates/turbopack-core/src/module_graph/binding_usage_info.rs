@@ -1,7 +1,6 @@
-use std::collections::hash_map::Entry;
+use std::collections::{BTreeMap, hash_map::Entry};
 
 use anyhow::{Context, Result, bail};
-use auto_hash_map::AutoSet;
 use rustc_hash::{FxHashMap, FxHashSet};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
@@ -14,7 +13,7 @@ use crate::{
         GraphEdgeIndex, GraphTraversalAction, ModuleGraph,
         side_effect_module_info::compute_side_effect_free_module_info,
     },
-    resolve::{ExportUsage, ImportUsage},
+    resolve::{ExportUsage, ImportUsage, MemberUsage, merge_member_maps},
 };
 
 #[turbo_tasks::value(transparent, cell = "keyed")]
@@ -283,8 +282,41 @@ pub async fn compute_binding_usage_info(
                             .add_usage_info(&passthrough_usage);
                         namespace_changed || usage_changed
                     }
+                    ExportUsage::NamespaceReexport { exports } => {
+                        // `parent` exposes `target`'s namespace object as `exports`, so reads of
+                        // their members are reads of `target`'s exports by name, through a
+                        // namespace object.
+                        let parent_usage = used_exports
+                            .get(&parent)
+                            .context("parent module must have usage info")?;
+                        let mut forwarded = ModuleExportUsageInfo::Evaluation;
+                        for export in exports {
+                            forwarded
+                                .add_usage_info(&parent_usage.namespace_usage_of_export(export));
+                        }
+                        let namespace_changed = partial_namespace_modules.insert(target);
+                        let usage_changed = used_exports
+                            .entry(target)
+                            .or_default()
+                            .add_usage_info(&forwarded);
+                        namespace_changed || usage_changed
+                    }
+                    ExportUsage::ForwardExport { export, original } => {
+                        let forwarded = used_exports
+                            .get(&parent)
+                            .context("parent module must have usage info")?
+                            .forwarded_export_usage(export, original);
+                        used_exports
+                            .entry(target)
+                            .or_default()
+                            .add_usage_info(&forwarded)
+                    }
                     export_usage => {
-                        if matches!(export_usage, ExportUsage::PartialNamespaceObject(_)) {
+                        if matches!(
+                            export_usage,
+                            ExportUsage::PartialNamespaceObject(_)
+                                | ExportUsage::NamespaceMembers(_)
+                        ) {
                             // `target` is read through a namespace value. We know which names are
                             // used, but not that every read was lowered to a direct named access.
                             partial_namespace_modules.insert(target);
@@ -396,7 +428,10 @@ pub enum ModuleExportUsageInfo {
     /// Only the side effects are needed, no exports is used.
     #[default]
     Evaluation,
-    Exports(AutoSet<RcStr>),
+    /// These exports are used. Each export is either used as a whole, or only through static
+    /// members of its value (which narrows a namespace reexport, see
+    /// [`ExportUsage::NamespaceReexport`]).
+    Exports(BTreeMap<RcStr, MemberUsage>),
     All,
 }
 
@@ -411,38 +446,53 @@ impl ModuleExportUsageInfo {
 impl ModuleExportUsageInfo {
     /// Merge the given usage into self. Returns true if Self changed.
     pub fn add(&mut self, usage: &ExportUsage) -> bool {
-        match (&mut *self, usage) {
-            (Self::All, _) => false,
-            (_, ExportUsage::All) => {
-                *self = Self::All;
-                true
+        match usage {
+            ExportUsage::All => self.add_usage_info(&Self::All),
+            ExportUsage::Evaluation => false,
+            ExportUsage::Named(name) => self.add_export(name, &MemberUsage::All),
+            ExportUsage::NamedMembers { export, members } => {
+                self.add_export(export, &MemberUsage::Members(members.clone()))
             }
-            (Self::Evaluation, ExportUsage::Named(name)) => {
-                // Promote evaluation to something more specific
-                *self = Self::Exports(AutoSet::from_iter([name.clone()]));
-                true
-            }
-            (Self::Evaluation, ExportUsage::PartialNamespaceObject(names)) => {
-                *self = Self::Exports(AutoSet::from_iter(names.iter().cloned()));
-                true
-            }
-            (Self::Exports(l), ExportUsage::Named(r)) => {
-                // Merge exports
-                l.insert(r.clone())
-            }
-            (Self::Exports(l), ExportUsage::PartialNamespaceObject(names)) => {
-                let mut changed = false;
+            ExportUsage::PartialNamespaceObject(names) => {
+                let mut changed = self.promote_evaluation();
                 for name in names {
-                    changed |= l.insert(name.clone());
+                    changed |= self.add_export(name, &MemberUsage::All);
                 }
                 changed
             }
-            (_, ExportUsage::Evaluation) => false,
-            (_, ExportUsage::Passthrough { .. }) => {
-                // Passthrough is normally resolved before `add`. If it reaches this fallback,
-                // preserve correctness by widening rather than panicking during graph analysis.
-                *self = Self::All;
-                true
+            ExportUsage::NamespaceMembers(members) => {
+                self.add_usage_info(&Self::Exports(members.clone()))
+            }
+            ExportUsage::Passthrough { .. }
+            | ExportUsage::ForwardExport { .. }
+            | ExportUsage::NamespaceReexport { .. } => {
+                // These depend on the referencing module's usage and are normally resolved before
+                // `add`. If one reaches this fallback, preserve correctness by widening rather
+                // than panicking during graph analysis.
+                self.add_usage_info(&Self::All)
+            }
+        }
+    }
+
+    /// `Evaluation` -> empty `Exports`. Returns true if self changed.
+    fn promote_evaluation(&mut self) -> bool {
+        if matches!(self, Self::Evaluation) {
+            *self = Self::Exports(BTreeMap::new());
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Marks `export` as used with the given member usage. Returns true if self changed.
+    fn add_export(&mut self, export: &RcStr, usage: &MemberUsage) -> bool {
+        let promoted = self.promote_evaluation();
+        match self {
+            Self::All => false,
+            Self::Evaluation => unreachable!(),
+            Self::Exports(exports) => {
+                promoted
+                    | merge_member_maps(exports, &BTreeMap::from([(export.clone(), usage.clone())]))
             }
         }
     }
@@ -459,37 +509,69 @@ impl ModuleExportUsageInfo {
                 *self = Self::Exports(exports.clone());
                 true
             }
-            (Self::Exports(left), Self::Exports(right)) => {
-                let mut changed = false;
-                for export in right {
-                    changed |= left.insert(export.clone());
-                }
-                changed
-            }
+            (Self::Exports(left), Self::Exports(right)) => merge_member_maps(left, right),
         }
+    }
+
+    /// The usage of a module whose namespace object is this module's `export`, e.g. the target of
+    /// `export * as export from './target'`.
+    fn namespace_usage_of_export(&self, export: &RcStr) -> Self {
+        match self {
+            Self::All => Self::All,
+            Self::Evaluation => Self::Evaluation,
+            Self::Exports(exports) => match exports.get(export) {
+                None => Self::Evaluation,
+                Some(MemberUsage::All) => Self::All,
+                Some(MemberUsage::Members(members)) => Self::Exports(members.clone()),
+            },
+        }
+    }
+
+    /// The usage of the target's `original` export, when it is exposed as this module's `export`.
+    fn forwarded_export_usage(&self, export: &RcStr, original: &RcStr) -> Self {
+        let usage = match self {
+            Self::All => MemberUsage::All,
+            Self::Evaluation => return Self::Evaluation,
+            Self::Exports(exports) => match exports.get(export) {
+                None => return Self::Evaluation,
+                Some(usage) => usage.clone(),
+            },
+        };
+        Self::Exports(BTreeMap::from([(original.clone(), usage)]))
     }
 
     pub fn is_export_used(&self, export: &RcStr) -> bool {
         match self {
             Self::All => true,
             Self::Evaluation => false,
-            Self::Exports(exports) => exports.contains(export),
+            Self::Exports(exports) => exports.contains_key(export),
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use turbo_rcstr::rcstr;
 
     use super::ModuleExportUsageInfo;
-    use crate::resolve::ExportUsage;
+    use crate::resolve::{ExportUsage, MemberUsage};
+
+    fn exports(names: &[&'static str]) -> ModuleExportUsageInfo {
+        ModuleExportUsageInfo::Exports(
+            names
+                .iter()
+                .map(|name| ((*name).into(), MemberUsage::All))
+                .collect(),
+        )
+    }
 
     #[test]
     fn resolved_usage_join_is_monotonic() {
         let mut usage = ModuleExportUsageInfo::Evaluation;
-        let first = ModuleExportUsageInfo::Exports([rcstr!("first")].into_iter().collect());
-        let second = ModuleExportUsageInfo::Exports([rcstr!("second")].into_iter().collect());
+        let first = exports(&["first"]);
+        let second = exports(&["second"]);
 
         assert!(!usage.add_usage_info(&ModuleExportUsageInfo::Evaluation));
         assert!(usage.add_usage_info(&first));
@@ -511,5 +593,65 @@ mod tests {
             namespace_object_may_escape: false,
         }));
         assert!(matches!(usage, ModuleExportUsageInfo::All));
+    }
+
+    #[test]
+    fn nested_member_usage_merges_and_widens() {
+        let path = |p: &[&'static str]| {
+            MemberUsage::from_path(&p.iter().map(|s| (*s).into()).collect::<Vec<_>>())
+        };
+        let mut usage = ModuleExportUsageInfo::Evaluation;
+        let MemberUsage::Members(core_en) = path(&["core", "locales", "en"]) else {
+            unreachable!()
+        };
+        assert!(usage.add(&ExportUsage::NamespaceMembers(core_en)));
+        let MemberUsage::Members(core_de) = path(&["core", "locales", "de"]) else {
+            unreachable!()
+        };
+        assert!(usage.add(&ExportUsage::NamespaceMembers(core_de.clone())));
+        assert!(!usage.add(&ExportUsage::NamespaceMembers(core_de)));
+
+        // `core.locales` is read through `en` and `de` only.
+        let core = usage.namespace_usage_of_export(&rcstr!("core"));
+        let locales = core.namespace_usage_of_export(&rcstr!("locales"));
+        assert!(locales.is_export_used(&rcstr!("en")));
+        assert!(locales.is_export_used(&rcstr!("de")));
+        assert!(!locales.is_export_used(&rcstr!("fr")));
+        assert!(matches!(
+            usage.namespace_usage_of_export(&rcstr!("unused")),
+            ModuleExportUsageInfo::Evaluation
+        ));
+
+        // An opaque read of `core` widens it as a whole.
+        assert!(usage.add(&ExportUsage::Named(rcstr!("core"))));
+        assert!(matches!(
+            usage.namespace_usage_of_export(&rcstr!("core")),
+            ModuleExportUsageInfo::All
+        ));
+    }
+
+    #[test]
+    fn forwarded_export_keeps_member_usage() {
+        let mut usage = ModuleExportUsageInfo::Evaluation;
+        assert!(usage.add(&ExportUsage::NamedMembers {
+            export: rcstr!("renamed"),
+            members: BTreeMap::from([(rcstr!("leaf"), MemberUsage::All)]),
+        }));
+        let forwarded = usage.forwarded_export_usage(&rcstr!("renamed"), &rcstr!("original"));
+        let ModuleExportUsageInfo::Exports(exports) = &forwarded else {
+            panic!("expected exports, got {forwarded:?}");
+        };
+        assert!(matches!(
+            exports.get(&rcstr!("original")),
+            Some(MemberUsage::Members(members)) if members.contains_key(&rcstr!("leaf"))
+        ));
+        assert!(matches!(
+            usage.forwarded_export_usage(&rcstr!("other"), &rcstr!("original")),
+            ModuleExportUsageInfo::Evaluation
+        ));
+        assert!(matches!(
+            ModuleExportUsageInfo::All.forwarded_export_usage(&rcstr!("a"), &rcstr!("b")),
+            ModuleExportUsageInfo::Exports(exports) if matches!(exports.get(&rcstr!("b")), Some(MemberUsage::All))
+        ));
     }
 }

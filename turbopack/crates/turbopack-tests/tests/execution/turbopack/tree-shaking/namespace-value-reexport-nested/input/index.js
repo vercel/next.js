@@ -1,5 +1,4 @@
-// Runtime behavior is covered by the enabled `namespace-value-reexport` fixtures. This remains
-// skipped only because member narrowing currently stops at the first namespace level.
+// Member narrowing follows the whole static member chain, through every namespace level.
 import { nestedNamespace } from './lib'
 
 it('should narrow through a nested namespace-valued export', () => {

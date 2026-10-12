@@ -694,7 +694,7 @@
                         export: Some(
                             "x",
                         ),
-                        member: None,
+                        members: {},
                         ast_path: [
                             Program(
                                 Module,
@@ -747,7 +747,7 @@
                         export: Some(
                             "y",
                         ),
-                        member: None,
+                        members: {},
                         ast_path: [
                             Program(
                                 Module,
@@ -985,7 +985,7 @@
         export: Some(
             "z",
         ),
-        member: None,
+        members: {},
         ast_path: [
             Program(
                 Module,
