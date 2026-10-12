@@ -4,6 +4,6 @@ const MyApp: AppType<{ foo: string }> = ({ Component, pageProps }) => {
   return <Component {...pageProps} />
 }
 
-MyApp.getInitialProps = () => ({ foo: 'bar' })
+MyApp.getInitialProps = () => ({ pageProps: { foo: 'bar' } })
 
 export default MyApp
