@@ -21,7 +21,7 @@ export async function prepareUpgrade(
   targetRequest: string = 'security'
 ) {
   const { prepareUpgrade: prepare } =
-    require('next/dist/lib/upgrade/cli/agent/prepare') as typeof import('next/dist/lib/upgrade/cli/agent/prepare')
+    require('@next/upgrade') as typeof import('@next/upgrade')
   return prepare(
     directory,
     targetRequest,

@@ -316,6 +316,13 @@ export const installTemplate = async ({
     devDependencies: {},
   };
 
+  // Candidate Next depends on the upgrade tarball before that version is published.
+  const upgradeTarball = testPkgPaths?.get("@next/upgrade");
+  if (upgradeTarball) {
+    packageJson.overrides = { "@next/upgrade": upgradeTarball };
+    packageJson.resolutions = { "@next/upgrade": upgradeTarball };
+  }
+
   if (bundler === Bundler.Rspack) {
     packageJson.dependencies["next-rspack"] = resolvePkgVersion("next-rspack");
   }
@@ -437,6 +444,22 @@ export const installTemplate = async ({
         path.join(root, "pnpm-workspace.yaml"),
         pnpmWorkspaceYaml,
       );
+    }
+
+    // pnpm v10+ reads overrides from the workspace file; older versions use package.json.
+    if (upgradeTarball) {
+      if (pnpmMajorVersion === null || pnpmMajorVersion >= 10) {
+        await fs.appendFile(
+          path.join(root, "pnpm-workspace.yaml"),
+          [
+            "overrides:",
+            `  '@next/upgrade': ${JSON.stringify(upgradeTarball)}`,
+            "",
+          ].join(os.EOL),
+        );
+      } else {
+        packageJson.pnpm = { overrides: { "@next/upgrade": upgradeTarball } };
+      }
     }
   }
 

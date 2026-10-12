@@ -315,7 +315,11 @@ export async function verifyRun(
   const requested = invocations.filter((invocation) => {
     const args: string[] = invocation.args
     let selected: string | null = null
-    for (let index = 1; index < args.length; index++) {
+    for (
+      let index = invocation.standalone ? 0 : 1;
+      index < args.length;
+      index++
+    ) {
       if (args[index] === '--') {
         break
       }
@@ -327,10 +331,12 @@ export async function verifyRun(
       }
     }
     return (
-      args[0] === 'upgrade' &&
+      (args[0] === 'upgrade' || invocation.standalone === true) &&
       invocation.executable.startsWith('/tmp/next-upgrade-eval/next/') &&
       selected === scenario.policy &&
-      !args.some((arg) => ['--help', '-h', '--version', '-v'].includes(arg))
+      !args.some((arg) =>
+        ['--help', '-h', '--version', '-v', '-V'].includes(arg)
+      )
     )
   })
   const candidateInvoked =

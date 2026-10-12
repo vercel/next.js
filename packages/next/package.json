@@ -103,6 +103,7 @@
     ]
   },
   "dependencies": {
+    "@next/upgrade": "workspace:*",
     "@next/env": "workspace:*",
     "@swc/helpers": "0.5.23",
     "baseline-browser-mapping": "^2.9.19",

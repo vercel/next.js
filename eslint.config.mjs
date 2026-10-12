@@ -509,7 +509,11 @@ export default defineConfig([
       'import/no-extraneous-dependencies': [
         'error',
         {
-          devDependencies: false,
+          // Upgrade ships its dependencies inside the CLI bundle.
+          devDependencies: [
+            'packages/next-upgrade/src/**',
+            'packages/next-upgrade/scripts/**',
+          ],
         },
       ],
     },

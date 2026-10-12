@@ -1,5 +1,5 @@
 import { join } from 'path'
-import * as Log from 'next/dist/build/output/log'
+import * as Log from '../shared/log'
 import { getInstalledNextVersion } from '../next/project'
 import { UUID_PATTERN } from './run'
 

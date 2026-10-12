@@ -9,15 +9,12 @@
     "target": "ES2018",
     "moduleResolution": "bundler",
     "types": ["trusted-types", "jest", "node"],
-    // Preserve relative imports across the source-only upgrade extraction.
-    "rootDirs": ["./src", "../next-upgrade/src"],
     "paths": {
       "next/dist/lib/upgrade/config": ["./src/lib/upgrade/config.ts"],
       "next/dist/lib/upgrade/nudge": ["./src/lib/upgrade/nudge.ts"],
       "next/dist/lib/upgrade/prompt-output": [
         "./src/lib/upgrade/prompt-output.ts"
       ],
-      "next/dist/lib/upgrade/*": ["../next-upgrade/src/*"],
       "next/dist/*": ["./src/*"],
       // Required absolute paths.
       // We rewrite these here so that they aren't also input files which would fail tsc with
@@ -41,7 +38,7 @@
       "next/dist/shared/lib/image-loader": ["./src/shared/lib/image-loader.ts"]
     }
   },
-  "include": ["**/*", "../next-upgrade/src/**/*"],
+  "include": ["**/*"],
   // When changing `exclude`, also update
   // `tsconfig.build.json`.
   "exclude": [
@@ -54,8 +51,6 @@
     "types/compiled.d.ts",
     "navigation-types/*.d.ts",
     "navigation-types/compat/*.d.ts",
-    "experimental/**/*.d.ts",
-    // These relocated suites retain the root test tsconfig's settings.
-    "../next-upgrade/src/**/*.test.ts"
+    "experimental/**/*.d.ts"
   ]
 }

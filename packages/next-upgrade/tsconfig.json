@@ -1,3 +1,15 @@
 {
-  "extends": "../next/tsconfig.json"
+  "compilerOptions": {
+    "strict": true,
+    "esModuleInterop": true,
+    "module": "ESNext",
+    "target": "ES2022",
+    "moduleResolution": "bundler",
+    "types": ["node"],
+    "declaration": true,
+    "rootDir": "src",
+    "outDir": ".build/types"
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.test.ts"]
 }

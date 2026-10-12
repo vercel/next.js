@@ -9,7 +9,6 @@
     "module": "ESNext",
     "target": "ESNext",
     "moduleResolution": "bundler",
-    "rootDirs": ["./packages/next/src", "./packages/next-upgrade/src"],
     "types": ["react", "jest", "node", "trusted-types", "jest-extended"],
     "paths": {
       "development-sandbox": ["./test/lib/development-sandbox"],

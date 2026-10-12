@@ -53,6 +53,7 @@ const customJestConfig = {
   modulePaths: ['<rootDir>/lib'],
   transformIgnorePatterns: ['/next[/\\\\]dist/', '/\\.next/'],
   moduleNameMapper: {
+    '^@next/upgrade$': '<rootDir>/../packages/next-upgrade/src/index.ts',
     '@next/font/(.*)': '@next/font/$1',
   },
 }

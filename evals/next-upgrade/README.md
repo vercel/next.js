@@ -53,7 +53,7 @@ and result storage reuse existing eval infrastructure.
 
 Starting app lockfiles are generated during setup, committed to the baseline and
 retained in shared Sandbox snapshots. Direct apps keep their starting Next.js
-version. Candidate CLI/codemod packages are installed separately. For nudges,
+version. Candidate Next and upgrade CLI tarballs are installed together; codemods are installed separately. Standalone canary and exact-version requests execute the candidate upgrade tarball with the same frozen metadata preload. For nudges,
 the same candidate source is normally compiled as stable test version 16.5.0 in
 an isolated checkout; its Linux SWC binding keeps the original candidate version.
 

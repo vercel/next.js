@@ -10,6 +10,7 @@ export interface DependencyPaths {
   nextEnvTarball: string
   nextBundleAnalyzerTarball: string
   nextSwcTarball: string
+  nextUpgradeTarball: string
 }
 
 interface NextPeerDeps {
@@ -113,6 +114,7 @@ async function patchWorkspacePackageJsonMap(
     ['@next/env', `file:${paths.nextEnvTarball}`],
     ['@next/bundle-analyzer', `file:${paths.nextBundleAnalyzerTarball}`],
     ['@next/swc', `file:${paths.nextSwcTarball}`],
+    ['@next/upgrade', `file:${paths.nextUpgradeTarball}`],
     ['react', nextPeerDeps.react],
     ['react-dom', nextPeerDeps.reactDom],
   ]

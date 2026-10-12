@@ -1121,6 +1121,9 @@ importers:
       '@next/env':
         specifier: workspace:*
         version: link:../next-env
+      '@next/upgrade':
+        specifier: workspace:*
+        version: link:../next-upgrade
       '@swc/helpers':
         specifier: 0.5.23
         version: 0.5.23
@@ -1980,10 +1983,55 @@ importers:
         version: 0.13.1
 
   packages/next-upgrade:
-    dependencies:
+    devDependencies:
       '@next/env':
         specifier: workspace:*
         version: link:../next-env
+      '@types/cross-spawn':
+        specifier: 6.0.0
+        version: 6.0.0
+      '@types/debug':
+        specifier: 4.1.5
+        version: 4.1.5
+      '@types/node':
+        specifier: 20.17.7
+        version: 20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab)
+      '@types/semver':
+        specifier: 7.3.1
+        version: 7.3.1
+      '@vercel/detect-agent':
+        specifier: 1.2.3
+        version: 1.2.3
+      '@vercel/ncc':
+        specifier: 0.38.4
+        version: 0.38.4
+      cli-select:
+        specifier: 1.1.2
+        version: 1.1.2
+      commander:
+        specifier: 12.1.0
+        version: 12.1.0
+      conf:
+        specifier: 5.0.0
+        version: 5.0.0
+      cross-spawn:
+        specifier: 7.0.3
+        version: 7.0.3
+      debug:
+        specifier: 4.1.1
+        version: 4.1.1
+      ora:
+        specifier: 4.0.4
+        version: 4.0.4
+      picocolors:
+        specifier: 1.1.1
+        version: 1.1.1
+      semver:
+        specifier: 7.3.2
+        version: 7.3.2
+      typescript:
+        specifier: 6.0.2
+        version: 6.0.2
 
   packages/react-refresh-utils:
     devDependencies:
