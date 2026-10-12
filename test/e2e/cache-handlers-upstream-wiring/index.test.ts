@@ -127,8 +127,6 @@ describe('cache-handlers-upstream-wiring', () => {
     })
   })
 
-  // Cache Components is not supported in the edge runtime.
-  // @force-gate !cacheComponents
   describe('cacheHandlers configured, edge app route', () => {
     const { next } = nextTestSetup({
       files: join(__dirname, 'fixtures/edge-with-cache-handlers'),
