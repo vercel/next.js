@@ -23,23 +23,21 @@ use tokio::{process::Command, sync::Semaphore};
 use tokio_util::sync::CancellationToken;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Invalidator, NonLocalValue, ResolvedVc, TransientInstance, Vc, get_invalidator,
-    trace::TraceRawVcs, turbo_tasks,
+    Invalidator, NonLocalValue, ResolvedVc, TransientInstance, Vc, get_invalidator, turbo_tasks,
 };
 use turbo_tasks_fs::{DiskFileSystem, File, FileContent, FileSystemPath, Permissions, to_sys_path};
 
 use crate::inputs::{FileInput, Inputs, Tracker, directory};
 pub use crate::paths::{paths_refer_to_same_file, validate_source_path};
 
-#[derive(Debug, TraceRawVcs)]
+#[derive(Debug)]
 pub struct Cancellation {
-    #[turbo_tasks(trace_ignore)]
     token: CancellationToken,
-    #[turbo_tasks(trace_ignore)]
+
     lists: AtomicUsize,
-    #[turbo_tasks(trace_ignore)]
+
     builds: AtomicUsize,
-    #[turbo_tasks(trace_ignore)]
+
     module_configs: AtomicUsize,
 }
 // Session cancellation and counters contain no task values or references.
@@ -49,7 +47,7 @@ unsafe impl NonLocalValue for Cancellation {}
 /// session. Versioned modules use the normal Go module cache, with downloads disabled during
 /// builds.
 #[turbo_tasks::task_input]
-#[derive(Clone, Debug, Hash, PartialEq, Eq, TraceRawVcs, Encode)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, Encode)]
 pub struct GoBuildContext {
     pub go: RcStr,
     pub goroot: RcStr,
@@ -325,7 +323,7 @@ fn module_escape(value: &str) -> String {
 }
 
 #[turbo_tasks::task_input]
-#[derive(Clone, Debug, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, Encode, Decode)]
 struct BuildPlan {
     files: Vec<RcStr>,
     inputs: Inputs,

@@ -5,7 +5,7 @@ use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
 use sha2::{Digest, Sha256};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, trace::TraceRawVcs};
+use turbo_tasks::ResolvedVc;
 use turbo_tasks_fs::{
     DiskFileSystem, FileContent, FileSystemPath, RawDirectoryContent, RawDirectoryEntry,
 };
@@ -16,7 +16,7 @@ use crate::{
 };
 
 #[turbo_tasks::task_input]
-#[derive(Clone, Debug, Default, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Debug, Default, Hash, PartialEq, Eq, Encode, Decode)]
 pub(crate) struct Stamp {
     modified: Option<(u64, u32)>,
     len: u64,
@@ -52,7 +52,7 @@ fn stamp(path: &Path) -> Result<Option<Stamp>> {
 }
 
 #[turbo_tasks::task_input]
-#[derive(Clone, Debug, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, Encode, Decode)]
 pub(crate) struct FileInput {
     stamp: Option<Stamp>,
     digest: Option<Vec<u8>>,
@@ -65,7 +65,7 @@ impl FileInput {
 }
 
 #[turbo_tasks::task_input]
-#[derive(Clone, Debug, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, Encode, Decode)]
 pub(crate) struct DirectoryInput {
     pub names: Option<BTreeMap<String, u8>>,
     stamp: Option<Stamp>,
@@ -112,7 +112,7 @@ pub(crate) fn directory(path: &Path) -> Result<DirectoryInput> {
 }
 
 #[turbo_tasks::task_input]
-#[derive(Clone, Debug, Default, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Debug, Default, Hash, PartialEq, Eq, Encode, Decode)]
 pub(crate) struct Inputs {
     pub files: BTreeMap<RcStr, FileInput>,
     pub directories: BTreeMap<RcStr, DirectoryInput>,
