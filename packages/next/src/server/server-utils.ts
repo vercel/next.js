@@ -318,7 +318,12 @@ export function getServerUtils({
         if (!fsPathname) return false
 
         if (basePath) {
-          fsPathname = fsPathname.replace(new RegExp(`^${basePath}`), '') || '/'
+          if (fsPathname.startsWith(basePath)) {
+            fsPathname = fsPathname.slice(basePath.length)
+          }
+          if (fsPathname === '') {
+            fsPathname = '/'
+          }
         }
 
         if (i18n) {
