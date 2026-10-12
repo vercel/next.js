@@ -1,8 +1,8 @@
 import { cookies } from 'next/headers'
 import { Suspense } from 'react'
 
-export const unstable_instant = true
-export const unstable_prefetch = 'force-runtime'
+export const instant = true
+export const prefetch = 'partial'
 
 export default function Page() {
   return (

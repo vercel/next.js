@@ -1,0 +1,41 @@
+---
+title: Cannot revalidate during render, inside a cached function, or in `generateStaticParams`
+---
+
+## Why This Error Occurred
+
+The `revalidateTag()` and `revalidatePath()` functions invalidate cached data. To keep cache state consistent, call them from a Server Action or Route Handler. Next.js throws this error when you call either function during rendering, from a cached function, or from `generateStaticParams`.
+
+```jsx filename="app/products/page.js" highlight={5}
+import { revalidateTag } from 'next/cache'
+
+export default async function Page() {
+  const products = await db.products.findMany()
+  revalidateTag('products', 'max') // Cannot revalidate during render
+
+  return <p>{products.length} products</p>
+}
+```
+
+## Possible Ways to Fix It
+
+Call `revalidateTag()` or `revalidatePath()` from the Server Action or Route Handler itself. Do not call either function during rendering or from a function that uses the `use cache` directive or `unstable_cache()`.
+
+```jsx filename="app/actions.js" highlight={6}
+'use server'
+import { revalidateTag } from 'next/cache'
+
+export async function saveProduct(data) {
+  await db.products.create(data)
+  revalidateTag('products', 'max') // Runs outside any cached function
+}
+```
+
+To tag the cache entry that this revalidates, call [`cacheTag()`](/docs/app/api-reference/functions/cacheTag) inside the function that uses the `use cache` directive to read the data.
+
+## Useful Links
+
+- [`revalidateTag()` function](/docs/app/api-reference/functions/revalidateTag)
+- [`revalidatePath()` function](/docs/app/api-reference/functions/revalidatePath)
+- [Revalidating data](/docs/app/getting-started/revalidating)
+- [`use cache` directive](/docs/app/api-reference/directives/use-cache)

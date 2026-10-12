@@ -7,6 +7,7 @@ import {
   check,
   retry,
   fetchViaHTTP,
+  expectDirectives,
   getBrowserBodyText,
   getRedboxHeader,
   normalizeRegEx,
@@ -15,7 +16,6 @@ import {
   waitForRedbox,
 } from 'next-test-utils'
 import { join } from 'path'
-import webdriver from 'next-webdriver'
 
 const appDir = join(__dirname, '../app')
 
@@ -214,7 +214,7 @@ const navigateTest = (next: ReturnType<typeof nextTestSetup>['next']) => {
 
     await Promise.all(toBuild.map((pg) => renderViaHTTP(next.url, pg)))
 
-    const browser = await webdriver(next.url, '/')
+    const browser = await next.browser('/')
     let text = await browser.elementByCss('p').text()
     expect(text).toMatch(/hello.*?world/)
 
@@ -318,11 +318,11 @@ const runTests = (
     const res = await fetchViaHTTP(next.url, '/not-found', { hiding: true })
 
     expect(res.status).toBe(404)
-    expect(await res.text()).toContain('This page could not be found')
+    expect(await res.text()).toContain('Custom 404 page')
   })
 
   it('should render 404 correctly when notFound is returned client-transition (non-dynamic)', async () => {
-    const browser = await webdriver(next.url, '/')
+    const browser = await next.browser('/')
     await browser.eval(`(function() {
       window.beforeNav = 1
       window.next.router.push('/not-found?hiding=true')
@@ -330,7 +330,7 @@ const runTests = (
 
     await browser.waitForElementByCss('h1')
     expect(await browser.elementByCss('html').text()).toContain(
-      'This page could not be found'
+      'Custom 404 page'
     )
     expect(await browser.eval('window.beforeNav')).toBe(1)
   })
@@ -347,11 +347,11 @@ const runTests = (
     })
 
     expect(res.status).toBe(404)
-    expect(await res.text()).toContain('This page could not be found')
+    expect(await res.text()).toContain('Custom 404 page')
   })
 
   it('should render 404 correctly when notFound is returned client-transition (dynamic)', async () => {
-    const browser = await webdriver(next.url, '/')
+    const browser = await next.browser('/')
     await browser.eval(`(function() {
       window.beforeNav = 1
       window.next.router.push('/not-found/first?hiding=true')
@@ -359,7 +359,7 @@ const runTests = (
 
     await browser.waitForElementByCss('h1')
     expect(await browser.elementByCss('html').text()).toContain(
-      'This page could not be found'
+      'Custom 404 page'
     )
     expect(await browser.eval('window.beforeNav')).toBe(1)
   })
@@ -383,7 +383,7 @@ const runTests = (
     } else {
       expect(res.status).toBe(500)
       expect(html).toContain('custom pages/500')
-      expect(html).not.toContain('This page could not be found')
+      expect(html).not.toContain('Custom 404 page')
     }
   })
 
@@ -588,7 +588,7 @@ const runTests = (
   })
 
   it('should navigate to a normal page and back', async () => {
-    const browser = await webdriver(next.url, '/')
+    const browser = await next.browser('/')
     let text = await browser.elementByCss('p').text()
     expect(text).toMatch(/hello.*?world/)
 
@@ -599,7 +599,7 @@ const runTests = (
   })
 
   it('should load a fast refresh page', async () => {
-    const browser = await webdriver(next.url, '/refresh')
+    const browser = await next.browser('/refresh')
     await retry(async () => {
       expect(await browser.elementByCss('p').text()).toMatch(/client loaded/)
     })
@@ -616,7 +616,7 @@ const runTests = (
   })
 
   it('should parse query values on mount correctly', async () => {
-    const browser = await webdriver(next.url, '/blog/post-1?another=value')
+    const browser = await next.browser('/blog/post-1?another=value')
     await waitFor(2000)
     const text = await browser.elementByCss('#query').text()
     expect(text).toMatch(/another.*?value/)
@@ -624,7 +624,7 @@ const runTests = (
   })
 
   it('should pass query for data request on navigation', async () => {
-    const browser = await webdriver(next.url, '/')
+    const browser = await next.browser('/')
     await browser.eval('window.beforeNav = true')
     await browser.elementByCss('#something-query').click()
     await browser.waitForElementByCss('#initial-query')
@@ -636,7 +636,7 @@ const runTests = (
   })
 
   it('should reload page on failed data request', async () => {
-    const browser = await webdriver(next.url, '/')
+    const browser = await next.browser('/')
     await waitFor(500)
     await browser.eval('window.beforeClick = "abc"')
     await browser.elementByCss('#broken-post').click()
@@ -662,7 +662,7 @@ const runTests = (
   })
 
   it('should not re-call getServerSideProps when updating query', async () => {
-    const browser = await webdriver(next.url, '/something?hello=world')
+    const browser = await next.browser('/something?hello=world')
     await waitFor(2000)
 
     const query = await browser.elementByCss('#query').text()
@@ -679,7 +679,7 @@ const runTests = (
   })
 
   it('should not trigger an error when a data request is cancelled due to another navigation', async () => {
-    const browser = await webdriver(next.url, ' /')
+    const browser = await next.browser(' /')
 
     await browser.elementByCss("[href='/redirect-page']").click()
 
@@ -694,7 +694,7 @@ const runTests = (
   })
 
   it('should dedupe server data requests', async () => {
-    const browser = await webdriver(next.url, '/')
+    const browser = await next.browser('/')
     await waitFor(2000)
 
     // Keep clicking on the link
@@ -763,7 +763,7 @@ const runTests = (
     })
 
     it('should show error for invalid JSON returned from getStaticProps on CST', async () => {
-      const browser = await webdriver(next.url, '/')
+      const browser = await next.browser('/')
       await browser.elementByCss('#non-json').click()
 
       await waitForRedbox(browser)
@@ -800,7 +800,7 @@ const runTests = (
     })
   } else {
     it('should not fetch data on mount', async () => {
-      const browser = await webdriver(next.url, '/blog/post-100')
+      const browser = await next.browser('/blog/post-100')
       await browser.eval('window.thisShouldStay = true')
       await waitFor(2 * 1000)
       const val = await browser.eval('window.thisShouldStay')
@@ -822,28 +822,42 @@ const runTests = (
 
     it('should set default caching header', async () => {
       const resPage = await fetchViaHTTP(next.url, `/something`)
-      expect(resPage.headers.get('cache-control')).toBe(
-        'private, no-cache, no-store, max-age=0, must-revalidate'
-      )
+      expectDirectives(resPage.headers.get('cache-control'), [
+        'private',
+        'no-cache',
+        'no-store',
+        'max-age=0',
+        'must-revalidate',
+      ])
 
       const resData = await fetchViaHTTP(
         next.url,
         `/_next/data/${buildId}/something.json`
       )
-      expect(resData.headers.get('cache-control')).toBe(
-        'private, no-cache, no-store, max-age=0, must-revalidate'
-      )
+      expectDirectives(resData.headers.get('cache-control'), [
+        'private',
+        'no-cache',
+        'no-store',
+        'max-age=0',
+        'must-revalidate',
+      ])
     })
 
     it('should respect custom caching header', async () => {
       const resPage = await fetchViaHTTP(next.url, `/custom-cache`)
-      expect(resPage.headers.get('cache-control')).toBe('public, max-age=3600')
+      expectDirectives(resPage.headers.get('cache-control'), [
+        'public',
+        'max-age=3600',
+      ])
 
       const resData = await fetchViaHTTP(
         next.url,
         `/_next/data/${buildId}/custom-cache.json`
       )
-      expect(resData.headers.get('cache-control')).toBe('public, max-age=3600')
+      expectDirectives(resData.headers.get('cache-control'), [
+        'public',
+        'max-age=3600',
+      ])
     })
 
     it('should not show error for invalid JSON returned from getServerSideProps', async () => {
@@ -853,7 +867,7 @@ const runTests = (
     })
 
     it('should not show error for invalid JSON returned from getStaticProps on CST', async () => {
-      const browser = await webdriver(next.url, '/')
+      const browser = await next.browser('/')
       await browser.elementByCss('#non-json').click()
       await check(() => getBrowserBodyText(browser), /hello /)
     })

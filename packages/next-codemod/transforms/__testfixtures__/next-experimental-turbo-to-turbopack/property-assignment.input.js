@@ -14,6 +14,7 @@ const config = {
 config.experimental.turbo.resolveAlias.foo = 'bar';
 config.experimental.turbo.minify = true;
 config.experimental.turbo.memoryLimit = 4096;
+config.experimental.turbopackMemoryLimit = 4096;
 
 // Add regular property
 config.images = {

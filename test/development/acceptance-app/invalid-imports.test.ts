@@ -67,7 +67,7 @@ describe('Error Overlay invalid imports', () => {
     if (process.env.IS_TURBOPACK_TEST) {
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
        "./app/comp2.js
-       'styled-jsx' cannot be imported from a Server Component module
+       Error: 'styled-jsx' cannot be imported from a Server Component module
        It only works in a Client Component but none of its parents are marked with 'use client', so they're Server Components by default.
 
        Import trace:
@@ -136,7 +136,7 @@ describe('Error Overlay invalid imports', () => {
     if (process.env.IS_TURBOPACK_TEST) {
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
        "./app/foo.js (1:1)
-       'client-only' cannot be imported from a Server Component module
+       Error: 'client-only' cannot be imported from a Server Component module
        > 1 | require("client-only")
            | ^^^^^^^^^^^^^^^^^^^^^^
 
@@ -235,7 +235,7 @@ describe('Error Overlay invalid imports', () => {
     if (process.env.IS_TURBOPACK_TEST) {
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
        "./node_modules/client-only-package/index.js (1:1)
-       'client-only' cannot be imported from a Server Component module
+       Error: 'client-only' cannot be imported from a Server Component module
        > 1 | require("client-only")
            | ^^^^^^^^^^^^^^^^^^^^^^
 
@@ -336,7 +336,7 @@ describe('Error Overlay invalid imports', () => {
     if (process.env.IS_TURBOPACK_TEST) {
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
        "./node_modules/server-only-package/index.js (1:1)
-       'server-only' cannot be imported from a Client Component module
+       Error: 'server-only' cannot be imported from a Client Component module
        > 1 | require("server-only")
            | ^^^^^^^^^^^^^^^^^^^^^^
 

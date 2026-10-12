@@ -1,6 +1,6 @@
 # swc-ast-explorer
 
-A small binary to print out SWC Abtract Syntax Trees.
+A small binary to print out SWC Abstract Syntax Trees.
 
 ```shell
 echo "console.log('hello')" | cargo run -p swc-ast-explorer

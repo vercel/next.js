@@ -2,18 +2,13 @@ import { nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
 describe('app dir - emotion-js', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     dependencies: {
       '@emotion/react': 'latest',
       '@emotion/cache': 'latest',
     },
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should render emotion-js css with compiler.emotion option correctly', async () => {
     const browser = await next.browser('/')

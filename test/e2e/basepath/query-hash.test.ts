@@ -1,4 +1,3 @@
-import webdriver from 'next-webdriver'
 import { check } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
@@ -29,8 +28,7 @@ describe('basePath query/hash handling', () => {
   ])(
     'is correct during query updating $hash $search',
     async ({ hash, search, query }) => {
-      const browser = await webdriver(
-        next.url,
+      const browser = await next.browser(
         `${basePath}${search || ''}${hash || ''}`
       )
 
@@ -50,7 +48,7 @@ describe('basePath query/hash handling', () => {
   )
 
   it('should work with hash links', async () => {
-    const browser = await webdriver(next.url, `${basePath}/hello`)
+    const browser = await next.browser(`${basePath}/hello`)
     await browser.elementByCss('#hashlink').click()
     const url = new URL(await browser.eval(() => window.location.href))
     expect(url.pathname).toBe(`${basePath}/hello`)

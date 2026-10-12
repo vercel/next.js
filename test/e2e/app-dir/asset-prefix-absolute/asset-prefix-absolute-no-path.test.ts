@@ -14,10 +14,7 @@ describe('app-dir absolute assetPrefix', () => {
     let bundles = []
     for (const script of $('script').toArray()) {
       const { src } = script.attribs
-      if (
-        src?.includes('https://example.vercel.sh/_next/static') ||
-        src?.includes('https://example.vercel.sh/_next/static/immutable')
-      ) {
+      if (src?.includes('https://example.vercel.sh/_next/static')) {
         bundles.push(src)
       }
     }

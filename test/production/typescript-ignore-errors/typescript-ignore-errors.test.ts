@@ -1,13 +1,13 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('TypeScript with error handling options', () => {
+  // This suite controls the local build lifecycle directly, which deployment tests cannot reproduce.
+  // @force-gate !deploy
   describe('production mode', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
       skipStart: true,
-      skipDeployment: true,
     })
-    if (skipped) return
 
     for (const incremental of [false, true]) {
       for (const ignoreBuildErrors of [false, true]) {
@@ -21,6 +21,7 @@ describe('TypeScript with error handling options', () => {
               .catch(() => '')
             originalTsConfig = await next.readFile('tsconfig.json')
             const nextConfig = {
+              experimental: { useTypeScriptCli: false },
               typescript: { ignoreBuildErrors },
             }
             await next.patchFile(

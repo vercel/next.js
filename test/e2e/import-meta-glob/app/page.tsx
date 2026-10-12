@@ -1,22 +1,30 @@
+interface Mod {
+  name: string
+  default: () => string
+}
+
 // Lazy glob
-const lazyModules = import.meta.glob('./modules/*.ts')
+const lazyModules = import.meta.glob<Mod>('./modules/*.ts')
 
 // Eager glob
-const eagerModules = import.meta.glob('./modules/*.ts', { eager: true })
+const eagerModules = import.meta.glob<Mod>('./modules/*.ts', { eager: true })
 
 // Named import (eager)
-const defaultExports = import.meta.glob('./modules/*.ts', {
+const defaultExports = import.meta.glob<Mod['default']>('./modules/*.ts', {
   import: 'default',
   eager: true,
 })
 
 // Negative pattern
-const filteredModules = import.meta.glob(['./modules/*.ts', '!**/skip.ts'], {
-  eager: true,
-})
+const filteredModules = import.meta.glob<Mod>(
+  ['./modules/*.ts', '!**/skip.ts'],
+  {
+    eager: true,
+  }
+)
 
 // Multiple patterns (modules + other)
-const multiModules = import.meta.glob(['./modules/*.ts', './other/*.ts'], {
+const multiModules = import.meta.glob<Mod>(['./modules/*.ts', './other/*.ts'], {
   eager: true,
 })
 
@@ -26,35 +34,35 @@ export default async function Page() {
   const lazyResults: Record<string, string> = {}
   for (const key of lazyKeys) {
     const mod = await lazyModules[key]()
-    lazyResults[key] = (mod as any).name
+    lazyResults[key] = mod.name
   }
 
   // Get eager module names
   const eagerKeys = Object.keys(eagerModules).sort()
   const eagerResults: Record<string, string> = {}
   for (const key of eagerKeys) {
-    eagerResults[key] = (eagerModules[key] as any).name
+    eagerResults[key] = eagerModules[key].name
   }
 
   // Get default exports
   const defaultKeys = Object.keys(defaultExports).sort()
   const defaultResults: Record<string, string> = {}
   for (const key of defaultKeys) {
-    defaultResults[key] = (defaultExports[key] as any)()
+    defaultResults[key] = defaultExports[key]()
   }
 
   // Get filtered module names (skip.ts should be excluded)
   const filteredKeys = Object.keys(filteredModules).sort()
   const filteredResults: Record<string, string> = {}
   for (const key of filteredKeys) {
-    filteredResults[key] = (filteredModules[key] as any).name
+    filteredResults[key] = filteredModules[key].name
   }
 
   // Get multi-pattern results (modules + other)
   const multiKeys = Object.keys(multiModules).sort()
   const multiResults: Record<string, string> = {}
   for (const key of multiKeys) {
-    multiResults[key] = (multiModules[key] as any).name
+    multiResults[key] = multiModules[key].name
   }
 
   return (

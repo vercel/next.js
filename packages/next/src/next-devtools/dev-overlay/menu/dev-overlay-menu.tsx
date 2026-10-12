@@ -315,11 +315,18 @@ function getClickableItemsCount(
   return items.filter((item) => item.onClick).length
 }
 
-export function IssueCount({ children }: { children: number }) {
+export function IssueCount({
+  children,
+  variant = 'issue',
+}: {
+  children: number
+  variant?: 'issue' | 'insight'
+}) {
   return (
     <span
       className="dev-tools-indicator-issue-count"
       data-has-issues={children > 0}
+      data-variant={variant}
     >
       <span className="dev-tools-indicator-issue-count-indicator" />
       {children}

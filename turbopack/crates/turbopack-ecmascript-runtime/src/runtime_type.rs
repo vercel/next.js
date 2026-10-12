@@ -1,8 +1,7 @@
 use serde::Deserialize;
-use turbo_tasks::TaskInput;
 
-#[turbo_tasks::value(shared)]
-#[derive(Debug, Clone, Copy, Hash, TaskInput, Deserialize)]
+#[turbo_tasks::value(shared, task_input)]
+#[derive(Debug, Clone, Copy, Hash, Deserialize)]
 pub enum RuntimeType {
     Development,
     Production,

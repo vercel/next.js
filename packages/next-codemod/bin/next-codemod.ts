@@ -65,6 +65,26 @@ program
   )
   .usage('[revision] [options]')
   .option('--verbose', 'Verbose output', false)
+  .option(
+    '-y, --yes',
+    'Skip every interactive prompt and accept its default. Also auto-enabled when stdin is not a TTY (e.g. running under an agent or in CI).',
+    false
+  )
+  .option(
+    '--skip-adoption',
+    'Skip optional feature-adoption codemods while applying version migrations.',
+    false
+  )
+  .option(
+    '--skip-react-upgrade',
+    'Keep React dependencies, types, and overrides unchanged and skip React codemods.',
+    false
+  )
+  .option(
+    '--skip-eslint-upgrade',
+    'Keep ESLint dependencies unchanged and skip the next-lint-to-eslint-cli codemod.',
+    false
+  )
   .action(async (revision, options) => {
     try {
       await runUpgrade(revision, options)
@@ -87,7 +107,7 @@ program
     '--version <version>',
     'Next.js version (auto-detected if not provided)'
   )
-  .option('--output <file>', 'Target file path (e.g., CLAUDE.md, AGENTS.md)')
+  .option('--output <file>', 'Target file path (e.g., AGENTS.md)')
   .action(async (options) => {
     try {
       await runAgentsMd(options)

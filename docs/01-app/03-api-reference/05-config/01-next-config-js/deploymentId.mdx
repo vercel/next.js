@@ -29,6 +29,7 @@ When a `deploymentId` is configured, Next.js:
 2. Adds an `x-deployment-id` header to client-side navigation requests
 3. Adds an `x-nextjs-deployment-id` header to navigation responses
 4. Injects a `data-dpl-id` attribute on the `<html>` element
+5. Includes the `deploymentId` in the [`'use cache'` cache key](/docs/app/api-reference/directives/use-cache#cache-keys), invalidating cache entries when the deployment ID changes
 
 When the client detects a mismatch between its deployment ID and the server's (via the response header), it triggers a hard navigation (full page reload) instead of a client-side navigation. This ensures users always receive assets <AppOnly>and Server Functions</AppOnly> from a consistent deployment version.
 
@@ -67,12 +68,15 @@ module.exports = {
 }
 ```
 
+A per-deployment value only avoids skew if requests are also routed by deployment. Next.js does not route on `?dpl=`, so that routing comes from your host or CDN. Without it, clients that reach an instance from another deployment during a rollout will reload rather than navigate.
+
 ## Version History
 
-| Version    | Changes                                               |
-| ---------- | ----------------------------------------------------- |
-| `v14.1.4`  | `deploymentId` stabilized as top-level config option. |
-| `v13.4.10` | `experimental.deploymentId` introduced.               |
+| Version    | Changes                                                                                                                                       |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `v16.2.0`  | Pages Router detects version skew from the response header rather than the build ID, and the build ID is constant when `deploymentId` is set. |
+| `v14.1.4`  | `deploymentId` stabilized as top-level config option.                                                                                         |
+| `v13.4.10` | `experimental.deploymentId` introduced.                                                                                                       |
 
 ## Related
 

@@ -6,12 +6,12 @@ export default function RuntimePrefetchMetadataIndexPage() {
       <h1>Runtime Prefetch - Metadata Param Access</h1>
       <ul>
         <li>
-          <LinkAccordion href="/runtime-prefetch-metadata/aaa">
+          <LinkAccordion href="/runtime-prefetch-metadata/aaa" prefetch>
             Slug: aaa
           </LinkAccordion>
         </li>
         <li>
-          <LinkAccordion href="/runtime-prefetch-metadata/bbb">
+          <LinkAccordion href="/runtime-prefetch-metadata/bbb" prefetch>
             Slug: bbb
           </LinkAccordion>
         </li>

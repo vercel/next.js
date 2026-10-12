@@ -154,6 +154,7 @@ describe('create-next-app --no-app (Pages Router)', () => {
         cwd,
         projectName,
         isApp: false,
+        tailwind: true,
       })
     })
   })

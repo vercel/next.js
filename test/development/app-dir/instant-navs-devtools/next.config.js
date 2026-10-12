@@ -3,9 +3,7 @@
  */
 const nextConfig = {
   cacheComponents: true,
-  experimental: {
-    instantNavigationDevToolsToggle: true,
-  },
+  partialPrefetching: true,
 }
 
 module.exports = nextConfig

@@ -20,19 +20,29 @@ import { nextTestSetup } from 'e2e-utils'
         'fixtures/@intercept/(.)intercept/page.js'
       )
 
-      // Write the fixture files to the associated output location
+      // Read the original code of the root layout page
+      const rootLayoutContent = await next.readFile('app/layout.js')
+      const fixtureLayoutContent = await next.readFile('fixtures/layout.js')
+
+      // Render the `intercept` parallel-route slot from the root layout first.
+      // No `@intercept` directory exists yet, so the slot prop is undefined and
+      // nothing renders for it. This is a plain Fast Refresh that does not
+      // force a page reload.
+      await next.patchFile('app/layout.js', fixtureLayoutContent)
+
+      // Now create the slot. Adding a new parallel-route slot is a structural
+      // change that forces a full page reload, and because the layout already
+      // renders the slot, that reload serves the complete updated route tree.
+      //
+      // Writing the slot files before the layout edit (the reverse order) is
+      // flaky: the structural reload races with the layout's Fast Refresh, and
+      // under load the client's `reloading` guard can drop the in-flight
+      // refresh, leaving the new slot absent until the next change.
       await next.patchFile('app/@intercept/default.js', parallelDefaultContent)
       await next.patchFile(
         'app/@intercept/(.)intercept/page.js',
         parallelInterceptContent
       )
-
-      // Read the original code of the root layout page
-      const rootLayoutContent = await next.readFile('app/layout.js')
-      const fixtureLayoutContent = await next.readFile('fixtures/layout.js')
-
-      // Update the root layout file with the fixture layout which includes the new parallel routes
-      await next.patchFile('app/layout.js', fixtureLayoutContent)
 
       // Check to make sure that the main page now has the correct layout changes
       await browser.waitForElementByCss('#default-intercept')

@@ -1,8 +1,7 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use turbo_tasks::{
-    FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString, Vc,
-    trace::TraceRawVcs, turbofmt,
+    FxIndexSet, JoinIterExt, OperationVc, ReadRef, ResolvedVc, ValueToString, Vc, turbofmt,
 };
 use turbo_tasks_hash::Xxh3Hash64Hasher;
 
@@ -12,9 +11,8 @@ use crate::{
     module_graph::module_batch::{ChunkableModuleOrBatch, IdentStrings, ModuleBatch},
 };
 
-#[derive(
-    Debug, Copy, Clone, Hash, PartialEq, Eq, TraceRawVcs, NonLocalValue, TaskInput, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Encode, Decode)]
 pub enum AvailableModuleItem {
     Module(ResolvedVc<Box<dyn ChunkableModule>>),
     Batch(ResolvedVc<ModuleBatch>),
@@ -61,13 +59,13 @@ pub struct AvailableModulesSet(
 #[turbo_tasks::value]
 pub struct AvailableModules {
     parent: Option<ResolvedVc<AvailableModules>>,
-    modules: ResolvedVc<AvailableModulesSet>,
+    modules: OperationVc<AvailableModulesSet>,
 }
 
 #[turbo_tasks::value_impl]
 impl AvailableModules {
     #[turbo_tasks::function]
-    pub fn new(modules: ResolvedVc<AvailableModulesSet>) -> Vc<Self> {
+    pub fn new(modules: OperationVc<AvailableModulesSet>) -> Vc<Self> {
         AvailableModules {
             parent: None,
             modules,
@@ -78,7 +76,7 @@ impl AvailableModules {
     #[turbo_tasks::function]
     pub fn with_modules(
         self: ResolvedVc<Self>,
-        modules: ResolvedVc<AvailableModulesSet>,
+        modules: OperationVc<AvailableModulesSet>,
     ) -> Result<Vc<Self>> {
         Ok(AvailableModules {
             parent: Some(self),
@@ -97,16 +95,18 @@ impl AvailableModules {
         }
         let item_idents = self
             .modules
+            .connect()
             .await?
             .iter()
             .map(async |&module| module.ident_strings().await)
-            .try_join()
-            .await?;
+            .join()
+            .await;
         for idents in item_idents {
+            let idents = idents?;
             match idents {
                 IdentStrings::Single(ident) => hasher.write_value(ident),
                 IdentStrings::Multiple(idents) => {
-                    for ident in idents {
+                    for ident in &idents {
                         hasher.write_value(ident);
                     }
                 }
@@ -118,7 +118,7 @@ impl AvailableModules {
 
     #[turbo_tasks::function]
     pub async fn get(&self, item: AvailableModuleItem) -> Result<Vc<bool>> {
-        if self.modules.await?.contains(&item) {
+        if self.modules.connect().await?.contains(&item) {
             return Ok(Vc::cell(true));
         };
         if let Some(parent) = self.parent {
@@ -129,7 +129,7 @@ impl AvailableModules {
 
     #[turbo_tasks::function]
     pub async fn snapshot(&self) -> Result<Vc<AvailableModulesSnapshot>> {
-        let modules = self.modules.await?;
+        let modules = self.modules.connect().await?;
         let parent = if let Some(parent) = self.parent {
             Some(parent.snapshot().await?)
         } else {

@@ -18,7 +18,6 @@ import { useIntersection } from './use-intersection'
 import { getDomainLocale } from './get-domain-locale'
 import { addBasePath } from './add-base-path'
 import { useMergedRef } from './use-merged-ref'
-import { errorOnce } from '../shared/lib/utils/error-once'
 
 type Url = string | UrlObject
 type RequiredKeys<T> = {
@@ -707,6 +706,8 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
 
     if (legacyBehavior) {
       if (process.env.NODE_ENV === 'development') {
+        const { errorOnce } =
+          require('../shared/lib/utils/error-once') as typeof import('../shared/lib/utils/error-once')
         errorOnce(
           '`legacyBehavior` is deprecated and will be removed in a future ' +
             'release. A codemod is available to upgrade your components:\n\n' +

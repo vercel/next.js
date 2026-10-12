@@ -4,7 +4,7 @@ import { retry } from 'next-test-utils'
 const cacheComponentsEnabled = process.env.__NEXT_CACHE_COMPONENTS === 'true'
 
 describe('dev-output', () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const { next, isTurbopack, isRspack } = nextTestSetup({
     files: __dirname,
   })
 
@@ -18,6 +18,10 @@ describe('dev-output', () => {
           expect(output).toContain('Next.js')
           expect(output).toContain('Turbopack')
           expect(output).toContain('Cache Components')
+        } else if (isRspack) {
+          expect(output).toContain('Next.js')
+          expect(output).toContain('Rspack')
+          expect(output).toContain('Cache Components')
         } else {
           expect(output).toContain('Next.js')
           expect(output).toContain('webpack')
@@ -28,6 +32,8 @@ describe('dev-output', () => {
         expect(output).toContain('Next.js')
         if (isTurbopack) {
           expect(output).toContain('Turbopack')
+        } else if (isRspack) {
+          expect(output).toContain('Rspack')
         } else {
           expect(output).toContain('webpack')
         }

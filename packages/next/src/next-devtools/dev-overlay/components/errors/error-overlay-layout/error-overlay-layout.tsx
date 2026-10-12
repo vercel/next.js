@@ -4,8 +4,10 @@ import type { ErrorMessageType } from '../error-message/error-message'
 import type { ErrorType } from '../error-type-label/error-type-label'
 
 import { DialogContent } from '../../dialog'
-import { styles as toolbarStyles } from '../error-overlay-toolbar/error-overlay-toolbar'
-import { ErrorOverlayFooter } from '../error-overlay-footer/error-overlay-footer'
+import {
+  ErrorOverlayToolbar,
+  styles as toolbarStyles,
+} from '../error-overlay-toolbar/error-overlay-toolbar'
 import {
   ErrorMessage,
   styles as errorMessageStyles,
@@ -18,6 +20,7 @@ import {
   ErrorOverlayNav,
   styles as floatingHeaderStyles,
 } from '../error-overlay-nav/error-overlay-nav'
+import type { ErrorOverlayTabBarRenderer } from '../error-overlay-pagination/error-overlay-pagination'
 
 import { ErrorOverlayDialog, DIALOG_STYLES } from '../dialog/dialog'
 import {
@@ -38,7 +41,11 @@ export interface ErrorOverlayLayoutProps extends ErrorBaseProps {
   errorType: ErrorType
   children?: React.ReactNode
   headerChildren?: React.ReactNode
-  errorCode?: string
+  renderTabBar?: ErrorOverlayTabBarRenderer
+  canGoPrevious?: boolean
+  canGoNext?: boolean
+  onPrevious?: () => void
+  onNext?: () => void
   error: ReadyRuntimeError['error']
   debugInfo?: DebugInfo
   isBuildError?: boolean
@@ -56,7 +63,11 @@ export function ErrorOverlayLayout({
   errorType,
   children,
   headerChildren,
-  errorCode,
+  renderTabBar,
+  canGoPrevious,
+  canGoNext,
+  onPrevious,
+  onNext,
   errorCount: _errorCount,
   error,
   debugInfo,
@@ -85,7 +96,6 @@ export function ErrorOverlayLayout({
     Boolean(transitionDurationMs)
   )
 
-  const hasFooter = Boolean(errorCode)
   const dialogRef = React.useRef<HTMLDivElement | null>(null)
   useFocusTrap(dialogRef, null, rendered)
 
@@ -111,12 +121,14 @@ export function ErrorOverlayLayout({
           runtimeErrors={runtimeErrors}
           activeIdx={activeIdx}
           setActiveIndex={setActiveIndex}
+          canGoPrevious={canGoPrevious}
+          canGoNext={canGoNext}
+          onPrevious={onPrevious}
+          onNext={onNext}
           versionInfo={versionInfo}
-          error={error}
-          debugInfo={debugInfo}
-          generateErrorInfo={generateErrorInfo}
+          renderTabBar={renderTabBar}
         />
-        <ErrorOverlayDialog onClose={onClose} data-has-footer={hasFooter}>
+        <ErrorOverlayDialog onClose={onClose}>
           <Resizer
             ref={dialogResizerRef}
             measure={!animating}
@@ -124,23 +136,26 @@ export function ErrorOverlayLayout({
           >
             <DialogContent>
               <ErrorOverlayDialogHeader>
-                <div
-                  className="nextjs__container_errors__error_title"
-                  // allow assertion in tests before error rating is implemented
-                  data-nextjs-error-code={errorCode}
-                >
+                <div className="nextjs__container_errors__error_title">
+                  <div className="nextjs__container_errors__error_title__row">
+                    <span data-nextjs-error-label-group>
+                      <ErrorTypeLabel errorType={errorType} />
+                      {error.environmentName && (
+                        <EnvironmentNameLabel
+                          environmentName={error.environmentName}
+                        />
+                      )}
+                    </span>
+                    <ErrorOverlayToolbar
+                      error={error}
+                      debugInfo={debugInfo}
+                      generateErrorInfo={generateErrorInfo}
+                    />
+                  </div>
                   <ErrorMessage
                     errorMessage={errorMessage}
                     errorType={errorType}
                   />
-                  <span data-nextjs-error-label-group>
-                    <ErrorTypeLabel errorType={errorType} />
-                    {error.environmentName && (
-                      <EnvironmentNameLabel
-                        environmentName={error.environmentName}
-                      />
-                    )}
-                  </span>
                 </div>
                 {headerChildren}
               </ErrorOverlayDialogHeader>
@@ -148,7 +163,6 @@ export function ErrorOverlayLayout({
             </DialogContent>
           </Resizer>
         </ErrorOverlayDialog>
-        {hasFooter && <ErrorOverlayFooter errorCode={errorCode} />}
       </div>
     </ErrorOverlayOverlay>
   )

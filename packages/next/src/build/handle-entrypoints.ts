@@ -118,6 +118,9 @@ export async function handleRouteType({
       const key = getEntryKey('app', 'server', page)
 
       manifestLoader.loadAppPathsManifest(page)
+      if (route.hasActionManifest) {
+        manifestLoader.loadActionManifest(page)
+      }
 
       const middlewareManifestWritten = manifestLoader.loadMiddlewareManifest(
         page,

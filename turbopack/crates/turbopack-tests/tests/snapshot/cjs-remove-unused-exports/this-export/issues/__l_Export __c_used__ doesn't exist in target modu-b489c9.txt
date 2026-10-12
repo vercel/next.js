@@ -1,0 +1,18 @@
+error - [bindings] /turbopack/crates/turbopack-tests/tests/snapshot/cjs-remove-unused-exports/this-export/input/index.js:1:0  Export used doesn't exist in target module
+  
+         + v-----------------------------v
+       1 + import { used } from './lib.js'
+         + ^-----------------------------^
+       2 | 
+       3 | console.log(used)
+       4 | 
+  
+  The export used was not found in module [project]/turbopack/crates/turbopack-tests/tests/snapshot/cjs-remove-unused-exports/this-export/input/lib.js [test] (ecmascript).
+  
+  The module has no exports at all.
+  All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+  
+  
+  | These are the exports of the module:
+  | 
+  |

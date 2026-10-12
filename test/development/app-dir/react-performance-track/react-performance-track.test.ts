@@ -60,7 +60,7 @@ describe('react-performance-track', () => {
     expect(track).toEqual(
       expect.arrayContaining([
         {
-          name: '\u200bparams [Prefetchable]',
+          name: '\u200bparams [Prefetch]',
           properties: [],
         },
       ])
@@ -79,7 +79,7 @@ describe('react-performance-track', () => {
     expect(track).toEqual(
       expect.arrayContaining([
         {
-          name: '\u200bsearchParams [Prefetchable]',
+          name: '\u200bsearchParams [Prefetch]',
           properties: [],
         },
       ])
@@ -96,7 +96,7 @@ describe('react-performance-track', () => {
     expect(track).toEqual(
       expect.arrayContaining([
         {
-          name: '\u200bcookies [Prefetchable]',
+          name: '\u200bcookies [Prefetch]',
           properties: [],
         },
       ])
@@ -110,26 +110,7 @@ describe('react-performance-track', () => {
     })
 
     const track = await browser.eval('window.reactServerRequests.getSnapshot()')
-    // TODO the addition of a promise to delay some Segments from rendering until the later Static
-    // stage has caused the draftMode snapshot to include an empty-named entry. This is probably
-    // a bug in React and should be fixed there but
-    // expect(track).toEqual([])
-    expect(track).toEqual(
-      expect.arrayContaining([
-        {
-          name: '\u200b [Prerender]',
-          properties: [],
-        },
-      ])
-    )
-    let didThrow = false
-    try {
-      // including this anti-assertion here so we can restore the test when the bug in React is fixed
-      expect(track).toEqual([])
-    } catch (e) {
-      didThrow = true
-    }
-    expect(didThrow).toBe(true)
+    expect(track).toEqual([])
   })
 
   it('should show headers', async () => {
@@ -142,7 +123,7 @@ describe('react-performance-track', () => {
     expect(track).toEqual(
       expect.arrayContaining([
         {
-          name: '\u200bheaders [Prefetchable]',
+          name: '\u200bheaders [Prefetch]',
           properties: [],
         },
       ])

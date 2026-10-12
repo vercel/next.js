@@ -12,9 +12,6 @@ export class TurbopackInternalError extends Error {
   name = 'TurbopackInternalError'
   location: string | undefined
 
-  // Manually set this as this isn't statically determinable
-  __NEXT_ERROR_CODE = 'TurbopackInternalError'
-
   constructor({ message, anonymizedLocation }: TurbopackInternalErrorOpts) {
     super(message)
     this.location = anonymizedLocation

@@ -5,10 +5,10 @@ use xxhash_rust::xxh3::Xxh3Default;
 use crate::{DeterministicHash, DeterministicHasher};
 
 /// Hash some content with the Xxh3Hash128 non-cryptographic hash function.
-pub fn hash_xxh3_hash128<T: DeterministicHash>(input: T) -> [u8; 16] {
+pub fn hash_xxh3_hash128<T: DeterministicHash>(input: T) -> u128 {
     let mut hasher = Xxh3Hash128Hasher::new();
     input.deterministic_hash(&mut hasher);
-    hasher.finish_bytes()
+    hasher.finish()
 }
 
 /// Xxh3Hash128 hasher.

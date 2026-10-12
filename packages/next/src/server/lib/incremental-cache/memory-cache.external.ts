@@ -24,30 +24,37 @@ function getSegmentDataSize(segmentData: Map<string, Buffer> | undefined) {
 
 export function getMemoryCache(maxMemoryCacheSize: number) {
   if (!memoryCache) {
-    memoryCache = new LRUCache(maxMemoryCacheSize, function length({ value }) {
+    memoryCache = new LRUCache(maxMemoryCacheSize, function length(
+      { value },
+      cacheKey
+    ) {
+      let valueSize: number
+
       if (!value) {
-        return 25
+        valueSize = 25
       } else if (value.kind === CachedRouteKind.REDIRECT) {
-        return JSON.stringify(value.props).length
+        valueSize = JSON.stringify(value.props).length
       } else if (value.kind === CachedRouteKind.IMAGE) {
         throw new Error('invariant image should not be incremental-cache')
       } else if (value.kind === CachedRouteKind.FETCH) {
-        return JSON.stringify(value.data || '').length
+        valueSize = JSON.stringify(value.data || '').length
       } else if (value.kind === CachedRouteKind.APP_ROUTE) {
-        return value.body.length
-      }
-      // rough estimate of size of cache value
-      if (value.kind === CachedRouteKind.APP_PAGE) {
-        return Math.max(
+        valueSize = value.body.length
+      } else if (value.kind === CachedRouteKind.APP_PAGE) {
+        // rough estimate of size of cache value
+        valueSize = Math.max(
           1,
           value.html.length +
             getBufferSize(value.rscData) +
             (value.postponed?.length || 0) +
             getSegmentDataSize(value.segmentData)
         )
+      } else {
+        valueSize =
+          value.html.length + (JSON.stringify(value.pageData)?.length || 0)
       }
 
-      return value.html.length + (JSON.stringify(value.pageData)?.length || 0)
+      return cacheKey.length + valueSize
     })
   }
 

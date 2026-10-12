@@ -3,9 +3,8 @@ import type { NextConfig } from 'next';
 const config = {
   experimental: {
     typedRoutes: true,
-    turbopackMemoryLimit: 4096,
     turbopackMinify: true,
-    turbopackTreeShaking: false,
+    turbopackModuleFragments: false,
     turbopackSourceMaps: true
   },
 

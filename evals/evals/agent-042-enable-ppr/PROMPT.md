@@ -1,1 +1,1 @@
-Enable partial pre-rendering for this app.
+Move this publishing app to Cache Components in one branch. Keep the newsroom feed on its hourly refresh policy and keep editor preview request-specific. Finish with a production build without leaving routes opted out.

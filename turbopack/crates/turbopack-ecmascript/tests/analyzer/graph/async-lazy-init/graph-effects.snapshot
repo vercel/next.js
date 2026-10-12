@@ -24,7 +24,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -82,7 +82,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     0,
                                 ),
@@ -123,45 +123,9 @@
                     },
                 ],
                 range: Exact(
-                    [
-                        Program(
-                            Module,
-                        ),
-                        Module(
-                            Body(
-                                2,
-                            ),
-                        ),
-                        ModuleItem(
-                            ModuleDecl,
-                        ),
-                        ModuleDecl(
-                            ExportDecl,
-                        ),
-                        ExportDecl(
-                            Decl,
-                        ),
-                        Decl(
-                            Fn,
-                        ),
-                        FnDecl(
-                            Function,
-                        ),
-                        Function(
-                            Body,
-                        ),
-                        BlockStmt(
-                            Stmts(
-                                0,
-                            ),
-                        ),
-                        Stmt(
-                            If,
-                        ),
-                        IfStmt(
-                            Cons,
-                        ),
-                    ],
+                    AstPathId(
+                        11,
+                    ),
                 ),
             },
         },
@@ -192,7 +156,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -234,7 +198,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -279,7 +243,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -304,6 +268,7 @@
             ),
         ],
         span: 555..566,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "console",
@@ -331,7 +296,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -409,7 +374,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -476,7 +441,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     0,
                                 ),
@@ -517,45 +482,9 @@
                     },
                 ],
                 range: Exact(
-                    [
-                        Program(
-                            Module,
-                        ),
-                        Module(
-                            Body(
-                                5,
-                            ),
-                        ),
-                        ModuleItem(
-                            ModuleDecl,
-                        ),
-                        ModuleDecl(
-                            ExportDecl,
-                        ),
-                        ExportDecl(
-                            Decl,
-                        ),
-                        Decl(
-                            Fn,
-                        ),
-                        FnDecl(
-                            Function,
-                        ),
-                        Function(
-                            Body,
-                        ),
-                        BlockStmt(
-                            Stmts(
-                                0,
-                            ),
-                        ),
-                        Stmt(
-                            If,
-                        ),
-                        IfStmt(
-                            Cons,
-                        ),
-                    ],
+                    AstPathId(
+                        21,
+                    ),
                 ),
             },
         },
@@ -586,7 +515,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -628,7 +557,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),

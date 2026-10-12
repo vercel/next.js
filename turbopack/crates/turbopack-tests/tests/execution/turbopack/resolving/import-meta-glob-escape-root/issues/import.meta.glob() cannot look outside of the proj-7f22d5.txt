@@ -1,0 +1,17 @@
+error - [code gen] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-escape-root/input/index.js:24:27  import.meta.glob() cannot look outside of the project root
+      20 | 
+      21 | // A positive pattern that escapes is reported and then skipped, so the patterns
+      22 | // around it still resolve: fewer matches is easier to work with while editing
+      23 | // than nothing at all.
+         |                            v----------------
+      24 + const escapingAmongValid = import.meta.glob(
+      25 +   ['./dir/*.js', '../../../../../../../../../../../../*.js'],
+      26 +   { eager: true }
+      27 + )
+         +-^
+      28 | 
+      29 | it('should still match the other patterns when one of them escapes', () => {
+      30 |   expect(Object.keys(escapingAmongValid)).toEqual(['./dir/one.js'])
+      31 |   expect(escapingAmongValid['./dir/one.js'].default).toBe('one')
+  
+  the pattern "../../../../../../../../../../../../*.js" of import.meta.glob("./dir/*.js", "../../../../../../../../../../../../*.js") resolves to a directory above the project root, relative to turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-escape-root/input. Patterns are relative to the importing file, or absolute from the project root when they start with `/`.

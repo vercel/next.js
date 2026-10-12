@@ -7,6 +7,7 @@ use turbopack_core::{
     },
     ident::AssetIdent,
     module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
+    output::OutputAssets,
 };
 
 #[turbo_tasks::function]
@@ -21,7 +22,7 @@ pub async fn get_app_client_shared_chunk_group(
     }
 
     let span = tracing::trace_span!("app client shared");
-    let app_client_shared_chunk_grou = async {
+    let app_client_shared_chunk_group = async {
         client_chunking_context
             .evaluated_chunk_group(
                 ident,
@@ -33,6 +34,10 @@ pub async fn get_app_client_shared_chunk_group(
                         .collect(),
                 ),
                 module_graph,
+                // The shared chunk group must stay shared across pages; page-specific HMR
+                // chunks (e.g. client references) are routed through a separate page-specific
+                // evaluated chunk group instead.
+                OutputAssets::empty(),
                 AvailabilityInfo::root(),
             )
             .to_resolved()
@@ -42,5 +47,5 @@ pub async fn get_app_client_shared_chunk_group(
     .instrument(span)
     .await?;
 
-    Ok(app_client_shared_chunk_grou)
+    Ok(app_client_shared_chunk_group)
 }

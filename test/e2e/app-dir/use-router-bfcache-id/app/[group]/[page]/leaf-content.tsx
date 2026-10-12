@@ -31,6 +31,7 @@ export function LeafContent() {
       <span data-testid="search" data-value={search}>
         {search}
       </span>
+      <span data-testid="bfcache-id">{bfcacheId}</span>
       <form key={bfcacheId}>
         <input data-testid="leaf-input" defaultValue="" />
       </form>
@@ -38,6 +39,12 @@ export function LeafContent() {
       <LinkAccordion href={`${pathname}#section`}>
         same page (#section)
       </LinkAccordion>
+      <button
+        data-testid="query-only-replace"
+        onClick={() => router.replace(`?q=${Date.now()}`, { scroll: false })}
+      >
+        query-only replace
+      </button>
       <button data-testid="refresh" onClick={() => router.refresh()}>
         refresh
       </button>

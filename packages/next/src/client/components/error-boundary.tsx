@@ -17,7 +17,7 @@ const isBotUserAgent =
 export type ErrorInfo = {
   error: unknown
   reset: () => void
-  unstable_retry: () => void
+  retry: () => void
 }
 
 export type ErrorComponent = React.ComponentType<ErrorInfo>
@@ -108,7 +108,7 @@ export class ErrorBoundaryHandler extends React.Component<
     this.setState({ error: null })
   }
 
-  unstable_retry = () => {
+  retry = () => {
     startTransition(() => {
       this.context?.refresh()
       this.reset()
@@ -131,7 +131,7 @@ export class ErrorBoundaryHandler extends React.Component<
             // TODO(NAR-804): Docs say this is an Error object, but we don't guarantee that
             error={thrownValue}
             reset={this.reset}
-            unstable_retry={this.unstable_retry}
+            retry={this.retry}
           />
         </>
       )

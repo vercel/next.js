@@ -2,28 +2,20 @@ use anyhow::Result;
 use async_trait::async_trait;
 use next_custom_transforms::transforms::middleware_dynamic::next_middleware_dynamic;
 use swc_core::ecma::{ast::*, visit::VisitMutWith};
-use turbo_tasks::{ResolvedVc, Vc};
-use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
-use turbopack_ecmascript::{
-    CustomTransformer, EcmascriptInputTransform, TransformContext, TransformPlugin,
-};
+use turbo_tasks::Vc;
+use turbopack::module_options::ModuleRule;
+use turbopack_ecmascript::{CustomTransformer, TransformContext, TransformPlugin};
 
-use super::module_rule_match_js_no_url;
+use super::{EcmascriptTransformStage, get_ecma_transform_rule};
 
 pub async fn get_middleware_dynamic_assert_rule(enable_mdx_rs: bool) -> Result<ModuleRule> {
-    let transformer = EcmascriptInputTransform::Plugin(
-        next_middleware_dynamic_assert_transform_plugin()
-            .to_resolved()
-            .await?,
-    );
-    // TODO: use get_ecma_transform_rule instead
-    Ok(ModuleRule::new(
-        module_rule_match_js_no_url(enable_mdx_rs),
-        vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
-            preprocess: ResolvedVc::cell(vec![]),
-            main: ResolvedVc::cell(vec![]),
-            postprocess: ResolvedVc::cell(vec![transformer]),
-        }],
+    let transformer = next_middleware_dynamic_assert_transform_plugin()
+        .to_resolved()
+        .await?;
+    Ok(get_ecma_transform_rule(
+        transformer,
+        enable_mdx_rs,
+        EcmascriptTransformStage::Postprocess,
     ))
 }
 

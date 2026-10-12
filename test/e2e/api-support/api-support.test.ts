@@ -1,4 +1,3 @@
-import AbortController from 'abort-controller'
 import {
   getPageFileFromBuildManifest,
   getPageFileFromPagesManifest,
@@ -7,18 +6,18 @@ import {
 import { nextTestSetup, isNextDev } from 'e2e-utils'
 import json from './big.json'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely expects a local build failure instead of a successful deployment.
+// @force-gate !deploy
 describe('API routes', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     dependencies: {
       'http-proxy': 'latest',
       cors: 'latest',
-      'node-fetch': '2.6.7',
     },
-    skipDeployment: true,
     disableAutoSkewProtection: true,
   })
-  if (skipped) return
 
   it('should not strip .json from API route', async () => {
     const res = await next.fetch('/api/hello.json')
@@ -249,8 +248,11 @@ describe('API routes', () => {
     const response = await next.fetch('/api/blog')
     const etag = response.headers.get('etag')
 
+    // undici injects Cache-Control: no-cache into requests with
+    // conditional headers, which would defeat the etag freshness check.
     const unmodifiedResponse = await next.fetch('/api/blog', {
       headers: { 'If-None-Match': etag },
+      cache: 'force-cache',
     })
 
     expect(unmodifiedResponse.status).toBe(304)
@@ -594,19 +596,19 @@ describe('API routes', () => {
   }
 })
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely expects a local build failure instead of a successful deployment.
+// @force-gate !deploy
 describe('API routes output export error', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     dependencies: {
       'http-proxy': 'latest',
       cors: 'latest',
-      'node-fetch': '2.6.7',
     },
     skipStart: true,
-    skipDeployment: true,
     disableAutoSkewProtection: true,
   })
-  if (skipped) return
 
   it('should show error with output export', async () => {
     if (isNextDev) return

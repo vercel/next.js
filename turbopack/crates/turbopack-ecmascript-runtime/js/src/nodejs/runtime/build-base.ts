@@ -27,7 +27,6 @@ nodeContextPrototype.M = moduleFactories
 // Cast moduleCache to ModuleWithDirection for production mode
 nodeContextPrototype.c = moduleCache as ModuleCache<ModuleWithDirection>
 nodeContextPrototype.R = resolvePathFromModule
-nodeContextPrototype.b = createWorker
 nodeContextPrototype.C = clearChunkCache
 
 function instantiateModule(
@@ -45,7 +44,7 @@ function instantiateModule(
 
   const module: ModuleWithDirection = createModuleWithDirection(id)
   const exports = module.exports
-  moduleCache[id] = module
+  moduleCache.set(id, module)
 
   const context =
     new (Context as any as ContextConstructor<ModuleWithDirection>)(
@@ -77,7 +76,7 @@ function getOrInstantiateModuleFromParent(
   id: ModuleId,
   sourceModule: ModuleWithDirection
 ): ModuleWithDirection {
-  const module = moduleCache[id]
+  const module = moduleCache.get(id) as ModuleWithDirection | undefined
 
   if (module) {
     if (module.error) {
@@ -108,7 +107,7 @@ function getOrInstantiateRuntimeModule(
   chunkPath: ChunkPath,
   moduleId: ModuleId
 ): ModuleWithDirection {
-  const module = moduleCache[moduleId]
+  const module = moduleCache.get(moduleId) as ModuleWithDirection | undefined
 
   if (module) {
     if (module.error) {

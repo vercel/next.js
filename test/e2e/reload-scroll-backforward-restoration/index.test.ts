@@ -1,7 +1,6 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 import { join } from 'path'
-import webdriver from 'next-webdriver'
 import assert from 'assert'
 
 describe('reload-scroll-back-restoration', () => {
@@ -14,7 +13,7 @@ describe('reload-scroll-back-restoration', () => {
   })
 
   it('should restore the scroll position on navigating back', async () => {
-    const browser = await webdriver(next.url, '/0')
+    const browser = await next.browser('/0')
     await browser.eval(() => document.querySelector('#link').scrollIntoView())
 
     // check browser restoration setting
@@ -88,7 +87,7 @@ describe('reload-scroll-back-restoration', () => {
   })
 
   it('should restore the scroll position on navigating forward', async () => {
-    const browser = await webdriver(next.url, '/0')
+    const browser = await next.browser('/0')
     await browser.eval(() => document.querySelector('#link').scrollIntoView())
 
     // check browser restoration setting

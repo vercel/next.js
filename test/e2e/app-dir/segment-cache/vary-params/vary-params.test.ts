@@ -751,14 +751,20 @@ describe('segment cache - vary params', () => {
       { includes: 'Page category:' }
     )
 
-    // Second prefetch: same category, different itemId.
-    // The page segment is a cache hit since it only varies on category.
-    await act(async () => {
-      const toggle = await browser.elementByCss(
-        'input[data-link-accordion="/runtime-prefetch-layout-split/electronics/tablet"]'
-      )
-      await toggle.click()
-    }, 'no-requests')
+    // Second prefetch: same category, different itemId. The page segment is a
+    // cache hit (it only varies on category), but the layout varies on itemId
+    // too, so it's a genuine miss and a runtime request is required for it.
+    // The page segment is not itself part of that batch — it rides along
+    // because rendering a segment on the server also renders its children.
+    await act(
+      async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/runtime-prefetch-layout-split/electronics/tablet"]'
+        )
+        await toggle.click()
+      },
+      { includes: 'Layout: electronics/tablet' }
+    )
 
     // Different category triggers a new page segment fetch
     await act(
@@ -814,6 +820,107 @@ describe('segment cache - vary params', () => {
         await toggle.click()
       },
       { includes: 'Root param page content - param: bbb' }
+    )
+  })
+
+  it('does not reuse a "use cache" segment across root param values', async () => {
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/cached-root-params/en', {
+      beforePageLoad(p: Playwright.Page) {
+        act = createRouterAct(p)
+      },
+    })
+
+    expect(await browser.elementById('cached-root-param').text()).toBe(
+      'Locale: en'
+    )
+
+    // Not prefetched, so the navigation fetches /de and must not reuse the
+    // page segment cached for /en.
+    await act(async () => {
+      const link = await browser.elementByCss(
+        'a[href="/cached-root-params/de"]'
+      )
+      await link.click()
+    })
+
+    expect(await browser.elementById('cached-root-param').text()).toBe(
+      'Locale: de'
+    )
+  })
+
+  it.each(['direct', 'public-child', 'private-child'])(
+    'tracks root params in private caches (%s)',
+    async (route) => {
+      let act: ReturnType<typeof createRouterAct>
+      const browser = await next.browser('/private-cached-root-params/en', {
+        beforePageLoad(page: Playwright.Page) {
+          act = createRouterAct(page)
+        },
+      })
+      const englishPath = `/private-cached-root-params/en/${route}`
+      const germanPath = `/private-cached-root-params/de/${route}`
+
+      await act(
+        async () => {
+          await browser
+            .elementByCss(`input[data-link-accordion="${englishPath}"]`)
+            .click()
+        },
+        { includes: 'Locale: en' }
+      )
+
+      await act(
+        async () => {
+          await browser
+            .elementByCss(`input[data-link-accordion="${germanPath}"]`)
+            .click()
+        },
+        { includes: 'Locale: de' }
+      )
+
+      await act(async () => {
+        await browser.elementByCss(`a[href="${germanPath}"]`).click()
+      }, 'no-requests')
+
+      expect(await browser.elementById('private-root-param').text()).toBe(
+        'Locale: de'
+      )
+    }
+  )
+
+  it('still fetches the head on a query-only navigation when the metadata read searchParams', async () => {
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/navigation-reuse/metadata-query?x=1', {
+      beforePageLoad(page: Playwright.Page) {
+        act = createRouterAct(page)
+      },
+    })
+    expect(await browser.eval('document.title')).toBe('Query title: 1')
+    const initialToken = await browser.elementById('server-token').text()
+
+    await act(async () => {
+      await browser
+        .elementByCss(
+          'input[data-link-accordion="/navigation-reuse/metadata-query?x=2"]'
+        )
+        .click()
+    }, 'no-requests')
+
+    // The head read the query, so it's fetched again.
+    await act(
+      async () => {
+        await browser
+          .elementByCss('a[href="/navigation-reuse/metadata-query?x=2"]')
+          .click()
+      },
+      { includes: 'Query title: 2' }
+    )
+    expect(await browser.eval('document.title')).toBe('Query title: 2')
+    // A dynamic render reports no dependency information, so the page is
+    // re-rendered along with the head.
+    expect(await browser.elementById('server-token').text()).not.toBe(
+      initialToken
     )
   })
 })

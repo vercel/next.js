@@ -185,6 +185,8 @@ Examples:
 
 A boolean value that specifies whether the font should be [preloaded](/docs/app/api-reference/components/font#preloading) or not. The default is `true`.
 
+Every font file a call loads shares this setting, because they become a single group of `@font-face` rules with one `font-family`.
+
 Used in `next/font/google` and `next/font/local`
 
 - Optional
@@ -234,6 +236,17 @@ Examples:
 ### `declarations`
 
 An array of font face [descriptor](https://developer.mozilla.org/docs/Web/CSS/@font-face#descriptors) key-value pairs that define the generated `@font-face` further.
+
+Setting `font-family` replaces the name Next.js generates. Keep the value the same as the exported constant, so `className` and the CSS variable reference the same family.
+
+```ts filename="app/fonts.ts"
+import localFont from 'next/font/local'
+
+export const myFont = localFont({
+  src: './my-font.woff2',
+  declarations: [{ prop: 'font-family', value: 'myFont' }],
+})
+```
 
 Used in `next/font/local`
 

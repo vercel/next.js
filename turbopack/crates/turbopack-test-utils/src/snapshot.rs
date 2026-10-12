@@ -5,7 +5,7 @@ use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use similar::TextDiff;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ReadRef, TryJoinIterExt, Vc};
+use turbo_tasks::{ReadRef, Vc};
 use turbo_tasks_fs::{
     DirectoryContent, DirectoryEntry, File, FileContent, FileSystemEntryType, FileSystemPath,
 };
@@ -169,9 +169,7 @@ async fn get_contents(file: Vc<AssetContent>) -> Result<Option<String>> {
                 }
             }
         },
-        AssetContent::Redirect { target, link_type } => Some(format!(
-            "Redirect {{ target: {target}, link_type: {link_type:?} }}"
-        )),
+        AssetContent::Redirect(content) => Some(format!("Redirect {content:?}")),
     })
 }
 
@@ -189,11 +187,7 @@ async fn diff_paths(
 ) -> Result<FxHashSet<FileSystemPath>> {
     let mut map = left
         .iter()
-        .map(|p| async move { Ok((p.path.clone(), p.clone())) })
-        .try_join()
-        .await?
-        .iter()
-        .cloned()
+        .map(|p| (p.path.clone(), p.clone()))
         .collect::<FxHashMap<_, _>>();
     for p in right {
         map.remove(&p.path);

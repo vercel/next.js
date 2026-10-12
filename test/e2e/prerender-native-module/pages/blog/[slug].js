@@ -1,22 +1,28 @@
 import path from 'path'
-import { open } from 'sqlite'
-import sqlite3 from 'sqlite3'
+import { open } from 'native-addon-wrapper'
+import nativeAddon from 'native-addon'
 import { useRouter } from 'next/router'
 
 export const getStaticProps = async ({ params }) => {
-  const dbPath = path.join(process.cwd(), 'data.sqlite')
-  console.log('using db', dbPath)
+  // The `process.cwd()` join stays in the page on purpose. Output file tracing
+  // only follows it into the trace from the app's own code, so moving it into
+  // `native-addon-wrapper` would stop `users.json` being traced.
+  const dataPath = path.join(process.cwd(), 'users.json')
+  console.log('using data', dataPath)
 
   const db = await open({
-    filename: dbPath,
-    driver: sqlite3.Database,
+    filename: dataPath,
+    driver: nativeAddon,
   })
 
-  const users = await db.all(`SELECT * FROM users`)
+  const users = await db.all()
 
   return {
     props: {
       users,
+      // Read off the compiled binary, so a native module that failed to load
+      // shows up here rather than passing quietly.
+      contextAware: db.contextAware,
       blog: true,
       params: params || null,
     },

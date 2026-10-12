@@ -94,11 +94,14 @@ export function extractPathnameRouteParamSegmentsFromLoaderTree(
   }>
   params: Params
 } {
-  const pathnameRouteParamSegments: Array<{
-    readonly name: string
-    readonly paramName: string
-    readonly paramType: DynamicParamTypes
-  }> = []
+  const segmentsByDepth = new Map<
+    number,
+    {
+      readonly name: string
+      readonly paramName: string
+      readonly paramType: DynamicParamTypes
+    }
+  >()
   const params: Params = {}
 
   // BFS traversal with depth and path tracking
@@ -153,7 +156,7 @@ export function extractPathnameRouteParamSegmentsFromLoaderTree(
           // the target pathname. This prevents false matches like extracting
           // [slug] from "/news/[slug]" when the tree has "/blog/[slug]"
           if (validatePrefixMatch(currentPath, route)) {
-            pathnameRouteParamSegments.push({
+            segmentsByDepth.set(depth, {
               name: segment,
               paramName,
               paramType,
@@ -187,6 +190,13 @@ export function extractPathnameRouteParamSegmentsFromLoaderTree(
       })
     }
   }
+
+  // Parallel slots can repeat a parameter, and route groups can make loader
+  // tree traversal encounter deeper URL parameters before shallower ones.
+  // Consumers need each parameter once, in URL order, not tree traversal order.
+  const pathnameRouteParamSegments = [...segmentsByDepth]
+    .sort(([a], [b]) => a - b)
+    .map(([, segment]) => segment)
 
   return { pathnameRouteParamSegments, params }
 }

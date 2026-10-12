@@ -1,15 +1,15 @@
 import type { Options as SWCOptions } from '@swc/core'
-import type { CompilerOptions } from 'typescript'
 
 import path from 'node:path'
 import { readFileSync, existsSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
-import * as CommentJson from 'next/dist/compiled/comment-json'
 import { deregisterHook, registerHook, requireFromString } from './require-hook'
 import { warn, warnOnce } from '../output/log'
 import { getNodeOptionsArgs } from '../../server/lib/utils'
-
-type RelevantCompilerOptions = Pick<CompilerOptions, 'paths' | 'baseUrl'>
+import {
+  loadTsConfigOptions,
+  type RelevantCompilerOptions,
+} from '../../lib/typescript/loadTsConfig'
 
 function resolveSWCOptions(
   cwd: string,
@@ -26,7 +26,7 @@ function resolveSWCOptions(
           { baseUrl: path.resolve(cwd, compilerOptions.baseUrl) }
         : compilerOptions.paths
           ? // If paths is given, baseUrl is required.
-            { baseUrl: cwd }
+            { baseUrl: compilerOptions.pathsBasePath ?? cwd }
           : {}),
     },
     module: {
@@ -42,85 +42,6 @@ function resolveSWCOptions(
   } satisfies SWCOptions
 }
 
-function resolveExtends(extendsPath: string, currentConfigDir: string): string {
-  // Relative paths are resolved relative to the current config's directory
-  if (
-    extendsPath.startsWith('./') ||
-    extendsPath.startsWith('../') ||
-    path.isAbsolute(extendsPath)
-  ) {
-    const resolved = path.resolve(currentConfigDir, extendsPath)
-    // TypeScript allows omitting .json extension
-    if (existsSync(resolved)) {
-      return resolved
-    }
-    if (!resolved.endsWith('.json') && existsSync(resolved + '.json')) {
-      return resolved + '.json'
-    }
-    return resolved
-  }
-
-  // Package paths - use require.resolve to find the package
-  try {
-    // Try resolving as a direct path within the package
-    return require.resolve(extendsPath, { paths: [currentConfigDir] })
-  } catch {
-    // If that fails, try appending tsconfig.json for package names like "@tsconfig/node18"
-    try {
-      return require.resolve(extendsPath + '/tsconfig.json', {
-        paths: [currentConfigDir],
-      })
-    } catch {
-      // Return the original path and let it fail later with a clear error
-      return path.resolve(currentConfigDir, extendsPath)
-    }
-  }
-}
-
-function loadTsConfigFile(
-  configPath: string,
-  visited: Set<string>
-): RelevantCompilerOptions {
-  const resolvedPath = path.resolve(configPath)
-
-  if (visited.has(resolvedPath)) {
-    return {}
-  }
-  visited.add(resolvedPath)
-
-  if (!existsSync(resolvedPath)) {
-    return {}
-  }
-
-  const configContent = readFileSync(resolvedPath, 'utf8')
-  const config = CommentJson.parse(configContent)
-  const configDir = path.dirname(resolvedPath)
-
-  let mergedOptions: RelevantCompilerOptions = {}
-
-  // Note that config options from `extends` should get overwritten, not merged
-  if (config.extends) {
-    const extendsList = Array.isArray(config.extends)
-      ? config.extends
-      : [config.extends]
-
-    for (const extendsPath of extendsList) {
-      const parentConfigPath = resolveExtends(extendsPath, configDir)
-      const parentOptions = loadTsConfigFile(parentConfigPath, visited)
-      mergedOptions = { ...mergedOptions, ...parentOptions }
-    }
-  }
-
-  const currentOptions = config.compilerOptions ?? {}
-  mergedOptions = {
-    ...mergedOptions,
-    paths: currentOptions.paths ?? mergedOptions.paths,
-    baseUrl: currentOptions.baseUrl ?? mergedOptions.baseUrl,
-  }
-
-  return mergedOptions
-}
-
 async function loadTsConfig(dir: string): Promise<RelevantCompilerOptions> {
   // NOTE: This doesn't fully cover the edge case for setting
   // "typescript.tsconfigPath" in next config which is currently
@@ -133,7 +54,7 @@ async function loadTsConfig(dir: string): Promise<RelevantCompilerOptions> {
     return {}
   }
 
-  return loadTsConfigFile(resolvedTsConfigPath, new Set())
+  return loadTsConfigOptions(resolvedTsConfigPath)
 }
 
 export async function transpileConfig({

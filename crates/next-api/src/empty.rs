@@ -1,4 +1,5 @@
 use anyhow::{Result, bail};
+use next_core::app_structure::FileSystemPathVec;
 use turbo_tasks::{Completion, ResolvedVc, Vc};
 use turbopack_core::module_graph::GraphEntries;
 
@@ -50,5 +51,10 @@ impl Endpoint for EmptyEndpoint {
     #[turbo_tasks::function]
     fn project(&self) -> Vc<Project> {
         *self.project
+    }
+
+    #[turbo_tasks::function]
+    fn traced_files(self: Vc<Self>) -> Vc<FileSystemPathVec> {
+        Vc::cell(vec![])
     }
 }

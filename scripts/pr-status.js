@@ -6,6 +6,7 @@ const OUTPUT_ROOT = path.join(__dirname, 'pr-status')
 const RESULTS_DIR = path.join(OUTPUT_ROOT, 'results')
 const INTERMEDIATE_DIR = path.join(OUTPUT_ROOT, 'intermediate')
 const ANSI_RE = new RegExp(String.raw`\u001B\[[0-9;]*[A-Za-z]`, 'g')
+const JOBS_PAGE_SIZE = 30
 
 // ============================================================================
 // Helper Functions
@@ -288,7 +289,7 @@ function getAllJobs(runId) {
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
         output = exec(
-          `gh api "repos/vercel/next.js/actions/runs/${runId}/jobs?per_page=100&page=${page}" --jq '${jqQuery}'`
+          `gh api "repos/vercel/next.js/actions/runs/${runId}/jobs?per_page=${JOBS_PAGE_SIZE}&page=${page}" --jq '${jqQuery}'`
         )
         lastError = null
         break
@@ -327,7 +328,7 @@ function getAllJobs(runId) {
 
     allJobs.push(...jobs)
 
-    if (jobs.length < 100) break
+    if (jobs.length < JOBS_PAGE_SIZE) break
     page++
   }
 
@@ -894,103 +895,160 @@ function generateIndexMd(
     lines.push('')
   }
 
-  // Add PR reviews section if we have review data
-  if (reviewData) {
-    const { reviews, reviewThreads, prComments } = reviewData
+  appendReviewData(lines, reviewData)
 
-    // Filter reviews to only include meaningful ones
-    const meaningfulReviews = reviews.filter(
-      (r) =>
-        r.state === 'APPROVED' ||
-        r.state === 'CHANGES_REQUESTED' ||
-        r.body?.trim()
-    )
+  return lines.join('\n')
+}
 
-    if (meaningfulReviews.length > 0 || prComments.length > 0) {
-      lines.push('', `## PR Reviews (${meaningfulReviews.length})`, '')
+function appendReviewData(lines, reviewData) {
+  if (!reviewData) return
 
-      if (meaningfulReviews.length > 0) {
-        lines.push(
-          '| Reviewer | State | Date/Time | Comment |',
-          '|----------|-------|-----------|---------|'
-        )
+  const { reviews, reviewThreads, prComments } = reviewData
 
-        // Sort reviews by date, oldest first
-        const sortedReviews = [...meaningfulReviews].sort(
-          (a, b) => new Date(a.submitted_at) - new Date(b.submitted_at)
-        )
+  // Filter reviews to only include meaningful ones
+  const meaningfulReviews = reviews.filter(
+    (r) =>
+      r.state === 'APPROVED' ||
+      r.state === 'CHANGES_REQUESTED' ||
+      r.body?.trim()
+  )
 
-        for (const review of sortedReviews) {
-          const time = review.submitted_at
-            ? new Date(review.submitted_at)
-                .toISOString()
-                .replace('T', ' ')
-                .substring(0, 19)
-            : 'N/A'
-          const hasComment = review.body?.trim()
-          const commentLink = hasComment ? `[View](review-${review.id}.md)` : ''
-          lines.push(
-            `| ${escapeMarkdownTableCell(review.user)} | ${review.state} | ${time} | ${commentLink} |`
-          )
-        }
-      }
-    }
+  if (meaningfulReviews.length > 0 || prComments.length > 0) {
+    lines.push('', `## PR Reviews (${meaningfulReviews.length})`, '')
 
-    if (reviewThreads.length > 0) {
+    if (meaningfulReviews.length > 0) {
       lines.push(
-        '',
-        `## Inline Review Comments (${reviewThreads.length} threads)`,
-        '',
-        '| File | Line | Participants | Replies | Status | Details |',
-        '|------|------|--------------|---------|--------|---------|'
+        '| Reviewer | State | Date/Time | Comment |',
+        '|----------|-------|-----------|---------|'
       )
 
-      for (let i = 0; i < reviewThreads.length; i++) {
-        const thread = reviewThreads[i]
-        const line = thread.line || thread.startLine || 'N/A'
-        const participants = new Set()
-        for (const comment of thread.comments.nodes) {
-          if (comment.author?.login) participants.add(comment.author.login)
-        }
-        const participantsStr =
-          participants.size > 0 ? [...participants].join(', ') : 'Unknown'
-        const replyCount = Math.max(0, thread.comments.nodes.length - 1)
-        const status = thread.isResolved ? 'Resolved' : 'Open'
-        lines.push(
-          `| ${escapeMarkdownTableCell(thread.path)} | ${line} | ${participantsStr} | ${replyCount} | ${status} | [View](thread-${i + 1}.md) |`
-        )
-      }
-    }
-
-    // General comments section
-    if (prComments.length > 0) {
-      lines.push(
-        '',
-        `## General Comments (${prComments.length})`,
-        '',
-        '| Author | Date/Time | Details |',
-        '|--------|-----------|---------|'
+      // Sort reviews by date, oldest first
+      const sortedReviews = [...meaningfulReviews].sort(
+        (a, b) => new Date(a.submitted_at) - new Date(b.submitted_at)
       )
 
-      const sortedComments = [...prComments].sort(
-        (a, b) => new Date(a.created_at) - new Date(b.created_at)
-      )
-
-      for (const comment of sortedComments) {
-        const time = comment.created_at
-          ? new Date(comment.created_at)
+      for (const review of sortedReviews) {
+        const time = review.submitted_at
+          ? new Date(review.submitted_at)
               .toISOString()
               .replace('T', ' ')
               .substring(0, 19)
           : 'N/A'
+        const hasComment = review.body?.trim()
+        const commentLink = hasComment ? `[View](review-${review.id}.md)` : ''
         lines.push(
-          `| ${escapeMarkdownTableCell(comment.user)} | ${time} | [View](comment-${comment.id}.md) |`
+          `| ${escapeMarkdownTableCell(review.user)} | ${review.state} | ${time} | ${commentLink} |`
         )
       }
     }
   }
 
+  if (reviewThreads.length > 0) {
+    lines.push(
+      '',
+      `## Inline Review Comments (${reviewThreads.length} threads)`,
+      '',
+      '| File | Line | Participants | Replies | Status | Details |',
+      '|------|------|--------------|---------|--------|---------|'
+    )
+
+    for (let i = 0; i < reviewThreads.length; i++) {
+      const thread = reviewThreads[i]
+      const line = thread.line || thread.startLine || 'N/A'
+      const participants = new Set()
+      for (const comment of thread.comments.nodes) {
+        if (comment.author?.login) participants.add(comment.author.login)
+      }
+      const participantsStr =
+        participants.size > 0 ? [...participants].join(', ') : 'Unknown'
+      const replyCount = Math.max(0, thread.comments.nodes.length - 1)
+      const status = thread.isResolved ? 'Resolved' : 'Open'
+      lines.push(
+        `| ${escapeMarkdownTableCell(thread.path)} | ${line} | ${participantsStr} | ${replyCount} | ${status} | [View](thread-${i + 1}.md) |`
+      )
+    }
+  }
+
+  // General comments section
+  if (prComments.length > 0) {
+    lines.push(
+      '',
+      `## General Comments (${prComments.length})`,
+      '',
+      '| Author | Date/Time | Details |',
+      '|--------|-----------|---------|'
+    )
+
+    const sortedComments = [...prComments].sort(
+      (a, b) => new Date(a.created_at) - new Date(b.created_at)
+    )
+
+    for (const comment of sortedComments) {
+      const time = comment.created_at
+        ? new Date(comment.created_at)
+            .toISOString()
+            .replace('T', ' ')
+            .substring(0, 19)
+        : 'N/A'
+      lines.push(
+        `| ${escapeMarkdownTableCell(comment.user)} | ${time} | [View](comment-${comment.id}.md) |`
+      )
+    }
+  }
+}
+
+function generateCommentsIndexMd(branchInfo, reviewData) {
+  const lines = ['# PR Review Comments Report', '']
+
+  if (branchInfo.branchName) {
+    lines.push(`Branch: ${branchInfo.branchName}`)
+  }
+  lines.push(`PR: #${branchInfo.prNumber}`, '')
+
+  appendReviewData(lines, reviewData)
   return lines.join('\n')
+}
+
+async function prepareOutputDirectory() {
+  console.log('Cleaning output directory...')
+  await fs.rm(OUTPUT_ROOT, { recursive: true, force: true })
+  await fs.mkdir(RESULTS_DIR, { recursive: true })
+  await fs.mkdir(INTERMEDIATE_DIR, { recursive: true })
+}
+
+function fetchReviewData(prNumber) {
+  console.log('Fetching PR reviews and comments...')
+  const reviews = getPRReviews(prNumber)
+  const reviewThreads = getPRReviewThreads(prNumber)
+  const prComments = getPRComments(prNumber)
+  console.log(
+    `Found ${reviews.length} reviews, ${reviewThreads.length} review threads, ${prComments.length} general comments`
+  )
+  return { reviews, reviewThreads, prComments }
+}
+
+async function writeReviewFiles(reviewData) {
+  for (let i = 0; i < reviewData.reviewThreads.length; i++) {
+    const thread = reviewData.reviewThreads[i]
+    await fs.writeFile(
+      resultPath(`thread-${i + 1}.md`),
+      generateThreadMd(thread, i)
+    )
+  }
+  for (const review of reviewData.reviews) {
+    if (review.body?.trim()) {
+      await fs.writeFile(
+        resultPath(`review-${review.id}.md`),
+        generateReviewMd(review)
+      )
+    }
+  }
+  for (const comment of reviewData.prComments) {
+    await fs.writeFile(
+      resultPath(`comment-${comment.id}.md`),
+      generateCommentMd(comment)
+    )
+  }
 }
 
 function generateJobMd(jobMetadata, testResults, testFiles, sections) {
@@ -1310,16 +1368,7 @@ async function getFlakyTests(currentBranch, runsToCheck = 5) {
   const runJobResults = await Promise.all(
     allRuns.map(async (run) => {
       try {
-        const jobsJq =
-          '.jobs[] | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "startup_failure") | {id, name}'
-        const jobsOutput = exec(
-          `gh api "repos/vercel/next.js/actions/runs/${run.id}/jobs?per_page=100" --jq '${jobsJq}'`
-        )
-        if (!jobsOutput.trim()) return { run, jobs: [] }
-        const jobs = jobsOutput
-          .split('\n')
-          .filter((line) => line.trim())
-          .map((line) => JSON.parse(line))
+        const jobs = getFailedJobs(run.id)
         // Skip runs with 20+ failed jobs (likely systemic, not flaky)
         if (jobs.length > 20) return { run, jobs: [] }
         return { run, jobs }
@@ -1408,10 +1457,7 @@ async function getFlakyTests(currentBranch, runsToCheck = 5) {
  */
 async function runAnalysis(prNumberArg, skipFlakyCheck) {
   // Step 1: Delete and recreate output directory
-  console.log('Cleaning output directory...')
-  await fs.rm(OUTPUT_ROOT, { recursive: true, force: true })
-  await fs.mkdir(RESULTS_DIR, { recursive: true })
-  await fs.mkdir(INTERMEDIATE_DIR, { recursive: true })
+  await prepareOutputDirectory()
 
   // Step 2: Get branch info
   console.log('Getting branch info...')
@@ -1472,14 +1518,7 @@ async function runAnalysis(prNumberArg, skipFlakyCheck) {
   // Fetch PR reviews if we have a PR number
   let reviewData = null
   if (branchInfo.prNumber) {
-    console.log('Fetching PR reviews and comments...')
-    const reviews = getPRReviews(branchInfo.prNumber)
-    const reviewThreads = getPRReviewThreads(branchInfo.prNumber)
-    const prComments = getPRComments(branchInfo.prNumber)
-    reviewData = { reviews, reviewThreads, prComments }
-    console.log(
-      `Found ${reviews.length} reviews, ${reviewThreads.length} review threads, ${prComments.length} general comments`
-    )
+    reviewData = fetchReviewData(branchInfo.prNumber)
   }
 
   // Check if we should write an early report (no failed jobs yet)
@@ -1493,30 +1532,7 @@ async function runAnalysis(prNumberArg, skipFlakyCheck) {
 
     // Write review files if we have PR data
     if (reviewData) {
-      // Write individual thread files
-      for (let i = 0; i < reviewData.reviewThreads.length; i++) {
-        const thread = reviewData.reviewThreads[i]
-        await fs.writeFile(
-          resultPath(`thread-${i + 1}.md`),
-          generateThreadMd(thread, i)
-        )
-      }
-      // Write individual review files for reviews with comments
-      for (const review of reviewData.reviews) {
-        if (review.body && review.body.trim()) {
-          await fs.writeFile(
-            resultPath(`review-${review.id}.md`),
-            generateReviewMd(review)
-          )
-        }
-      }
-      // Write individual comment files
-      for (const comment of reviewData.prComments) {
-        await fs.writeFile(
-          resultPath(`comment-${comment.id}.md`),
-          generateCommentMd(comment)
-        )
-      }
+      await writeReviewFiles(reviewData)
     }
 
     const emptyCategorizedJobs = {
@@ -1613,30 +1629,7 @@ async function runAnalysis(prNumberArg, skipFlakyCheck) {
   // Step 7: Write PR review files if we have PR data
   if (reviewData) {
     console.log('Generating review files...')
-    // Write individual thread files
-    for (let i = 0; i < reviewData.reviewThreads.length; i++) {
-      const thread = reviewData.reviewThreads[i]
-      await fs.writeFile(
-        resultPath(`thread-${i + 1}.md`),
-        generateThreadMd(thread, i)
-      )
-    }
-    // Write individual review files for reviews with comments
-    for (const review of reviewData.reviews) {
-      if (review.body?.trim()) {
-        await fs.writeFile(
-          resultPath(`review-${review.id}.md`),
-          generateReviewMd(review)
-        )
-      }
-    }
-    // Write individual comment files
-    for (const comment of reviewData.prComments) {
-      await fs.writeFile(
-        resultPath(`comment-${comment.id}.md`),
-        generateCommentMd(comment)
-      )
-    }
+    await writeReviewFiles(reviewData)
   }
 
   // Step 8: Check for known flaky tests across branches (skip with --skip-flaky-check)
@@ -1672,6 +1665,28 @@ async function runAnalysis(prNumberArg, skipFlakyCheck) {
 
   console.log(`\nDone! Output written to ${RESULTS_DIR}/index.md`)
   return { runId: latestRun.id, isRunInProgress }
+}
+
+async function runCommentsAnalysis(prNumberArg) {
+  await prepareOutputDirectory()
+
+  console.log('Getting pull request info...')
+  const branchInfo = getBranchInfo(prNumberArg)
+  if (!branchInfo.prNumber) {
+    throw new Error(
+      'No pull request found. Pass a PR number or run this command from a PR branch.'
+    )
+  }
+  console.log(`Branch: ${branchInfo.branchName}, PR: ${branchInfo.prNumber}`)
+
+  const reviewData = fetchReviewData(branchInfo.prNumber)
+  await writeReviewFiles(reviewData)
+  await fs.writeFile(
+    resultPath('index.md'),
+    generateCommentsIndexMd(branchInfo, reviewData)
+  )
+
+  console.log(`\nDone! Output written to ${RESULTS_DIR}/index.md`)
 }
 
 async function main() {
@@ -1721,7 +1736,13 @@ async function main() {
   const args = process.argv.slice(2)
   const waitFlag = args.includes('--wait')
   const skipFlakyCheck = args.includes('--skip-flaky-check')
+  const commentsOnly = args.includes('--comments-only')
   const prNumberArg = args.find((a) => !a.startsWith('--'))
+
+  if (commentsOnly) {
+    await runCommentsAnalysis(prNumberArg)
+    return
+  }
 
   // Run the initial analysis
   const { runId, isRunInProgress } = await runAnalysis(

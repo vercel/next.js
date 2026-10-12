@@ -1,7 +1,7 @@
 ---
 title: Proxy
 nav_title: Proxy
-description: Learn how to use Proxy
+description: Use Next.js Proxy to rewrite, redirect, modify headers, or respond directly before a request completes.
 related:
   title: API Reference
   description: Learn more about Proxy

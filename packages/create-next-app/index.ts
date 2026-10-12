@@ -51,6 +51,7 @@ const program = new Command(packageJson.name)
   .option('--js, --javascript', 'Initialize as a JavaScript project.')
   .option('--tailwind', 'Initialize with Tailwind CSS config. (default)')
   .option('--react-compiler', 'Initialize with React Compiler enabled.')
+  .option('--cache-components', 'Initialize with Cache Components enabled.')
   .option('--eslint', 'Initialize with ESLint config.')
   .option('--biome', 'Initialize with Biome config.')
   .option('--app', 'Initialize as an App Router project.')
@@ -109,6 +110,14 @@ const program = new Command(packageJson.name)
   .option(
     '--agents-md',
     'Include AGENTS.md to guide coding agents to write up-to-date Next.js code. (default)'
+  )
+  .option(
+    '--agent-feedback',
+    'Prepare anonymized Next.js feedback for your review.'
+  )
+  .option(
+    '--no-agent-feedback',
+    'Do not prepare anonymized Next.js feedback for your review.'
   )
   .option('--disable-git', `Skip initializing a git repository.`)
   .action((name) => {
@@ -231,6 +240,7 @@ async function run(): Promise<void> {
    */
   let skipPrompt = ciInfo.isCI || opts.yes
   let useRecommendedDefaults = false
+  let enableAgentFeedbackByDefault = false
 
   if (!example) {
     const defaults: typeof preferences = {
@@ -245,11 +255,17 @@ async function run(): Promise<void> {
       empty: false,
       disableGit: false,
       reactCompiler: false,
+      cacheComponents: true,
       agentsMd: true,
     }
 
+    const recommendedDefaults = {
+      ...defaults,
+      agentFeedback: true,
+    }
+
     type DisplayConfigItem = {
-      key: keyof typeof defaults
+      key: keyof typeof defaults | 'agentFeedback'
       values?: Record<string, string>
       flags?: Record<string, string>
     }
@@ -286,9 +302,18 @@ async function run(): Promise<void> {
         flags: { true: '--app', false: '--no-app' },
       },
       {
+        key: 'cacheComponents',
+        values: { true: 'Cache Components', false: 'No Cache Components' },
+        flags: { true: '--cache-components', false: '--no-cache-components' },
+      },
+      {
         key: 'agentsMd',
         values: { true: 'AGENTS.md', false: 'No AGENTS.md' },
         flags: { true: '--agents-md', false: '--no-agents-md' },
+      },
+      {
+        key: 'agentFeedback',
+        values: { true: 'Agent feedback', false: 'No agent feedback' },
       },
     ]
 
@@ -322,6 +347,8 @@ async function run(): Promise<void> {
     // --typescript --tailwind --app and expect the rest to use sensible defaults
     // without entering interactive mode.
     const hasProvidedOptions = process.argv.some((arg) => arg.startsWith('--'))
+    const shouldPromptForAgentFeedback =
+      !ciInfo.isCI && !opts.yes && !hasProvidedOptions
 
     if (!skipPrompt && hasProvidedOptions) {
       skipPrompt = true
@@ -340,7 +367,7 @@ async function run(): Promise<void> {
         {
           title: 'Yes, use recommended defaults',
           value: 'recommended',
-          description: formatSettingsDescription(defaults),
+          description: formatSettingsDescription(recommendedDefaults),
         },
         {
           title: 'No, customize settings',
@@ -377,6 +404,7 @@ async function run(): Promise<void> {
 
       if (setupChoice === 'recommended') {
         useRecommendedDefaults = true
+        enableAgentFeedbackByDefault = recommendedDefaults.agentFeedback
         skipPrompt = true
       } else if (setupChoice === 'reuse') {
         skipPrompt = true
@@ -582,6 +610,31 @@ async function run(): Promise<void> {
       }
     }
 
+    // Cache Components is an App Router feature, so only offer it when the App
+    // Router is in use, including API-only projects.
+    if (
+      (opts.app || opts.api) &&
+      !opts.cacheComponents &&
+      !args.includes('--no-cache-components')
+    ) {
+      if (skipPrompt) {
+        opts.cacheComponents = getPrefOrDefault('cacheComponents')
+      } else {
+        const styledCacheComponents = blue('Cache Components')
+        const { cacheComponents } = await prompts({
+          onState: onPromptState,
+          type: 'toggle',
+          name: 'cacheComponents',
+          message: `Would you like to use ${styledCacheComponents}?`,
+          initial: getPrefOrDefault('cacheComponents'),
+          active: 'Yes',
+          inactive: 'No',
+        })
+        opts.cacheComponents = Boolean(cacheComponents)
+        preferences.cacheComponents = Boolean(cacheComponents)
+      }
+    }
+
     const importAliasPattern = /^[^*"]+\/\*\s*$/
     if (
       typeof opts.importAlias !== 'string' ||
@@ -636,8 +689,7 @@ async function run(): Promise<void> {
           {
             type: 'toggle',
             name: 'agentsMd',
-            message:
-              'Would you like to include AGENTS.md to guide coding agents to write up-to-date Next.js code?',
+            message: `Would you like to include ${blue('AGENTS.md')} to guide coding agents to write up-to-date Next.js code?`,
             initial: getPrefOrDefault('agentsMd'),
             active: 'Yes',
             inactive: 'No',
@@ -651,6 +703,34 @@ async function run(): Promise<void> {
         )
         opts.agentsMd = Boolean(agentsMd)
         preferences.agentsMd = Boolean(agentsMd)
+      }
+    }
+
+    if (opts.agentFeedback === false) {
+      opts.agentFeedback = false
+    } else if (!opts.agentFeedback) {
+      if (enableAgentFeedbackByDefault) {
+        opts.agentFeedback = true
+      } else if (shouldPromptForAgentFeedback) {
+        const { agentFeedback } = await prompts(
+          {
+            type: 'toggle',
+            name: 'agentFeedback',
+            message: `Would you like to help improve Next.js by letting agents prepare ${blue('anonymized feedback')} for your review as you code? (Disable anytime with \`experimental.agentFeedback: false\`.)`,
+            initial: true,
+            active: 'Yes',
+            inactive: 'No',
+          },
+          {
+            onCancel: () => {
+              console.error('Exiting.')
+              process.exit(1)
+            },
+          }
+        )
+        opts.agentFeedback = Boolean(agentFeedback)
+      } else {
+        opts.agentFeedback = false
       }
     }
 
@@ -683,6 +763,15 @@ async function run(): Promise<void> {
 
         const altText = alts.length > 0 ? ` (use ${alts.join(', ')})` : ''
         lines.push(`  ${flag.padEnd(24)}${label}${altText}`)
+      }
+
+      const hasAgentFeedback = process.argv.some(
+        (arg) => arg === '--agent-feedback' || arg === '--no-agent-feedback'
+      )
+      if (!hasAgentFeedback) {
+        lines.push(
+          `  ${'--no-agent-feedback'.padEnd(24)}No agent feedback (use --agent-feedback for Agent feedback)`
+        )
       }
 
       // Import alias is not a boolean toggle, handle separately
@@ -726,7 +815,9 @@ async function run(): Promise<void> {
       bundler,
       disableGit: opts.disableGit,
       reactCompiler: opts.reactCompiler,
+      cacheComponents: opts.cacheComponents,
       agentsMd: opts.agentsMd,
+      agentFeedback: opts.agentFeedback,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
@@ -761,7 +852,9 @@ async function run(): Promise<void> {
       bundler,
       disableGit: opts.disableGit,
       reactCompiler: opts.reactCompiler,
+      cacheComponents: opts.cacheComponents,
       agentsMd: opts.agentsMd,
+      agentFeedback: opts.agentFeedback,
     })
   }
   conf.set('preferences', preferences)

@@ -17,7 +17,7 @@ use bytes::Bytes as CBytes;
 /// conversion to/from, bincode support, and Vc containers.
 #[derive(Clone, Debug, Default)]
 #[turbo_tasks::value(transparent, serialization = "custom")]
-pub struct Bytes(#[turbo_tasks(trace_ignore)] CBytes);
+pub struct Bytes(#[turbo_tasks(unsafe_ignore)] CBytes);
 
 impl Bytes {
     pub fn to_str(&self) -> Result<&'_ str, Utf8Error> {

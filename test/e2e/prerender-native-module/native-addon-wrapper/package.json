@@ -1,0 +1,6 @@
+{
+  "name": "native-addon-wrapper",
+  "version": "1.0.0",
+  "description": "Dependency-free JS wrapper over native-addon, for tests",
+  "main": "index.js"
+}

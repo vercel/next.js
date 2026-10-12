@@ -5,9 +5,16 @@ type Fetch = typeof fetch
 
 export function interceptHttpGet(originalFetch: Fetch): () => void {
   const clientRequestInterceptor = new ClientRequestInterceptor()
-  clientRequestInterceptor.on('request', async ({ request }) => {
+  clientRequestInterceptor.on('request', async ({ request, controller }) => {
+    if (request.headers.get('next-test-internal') === '1') {
+      // A request that's part of the test proxy protocol itself, sent by
+      // `handleFetch` from within this listener. Not responding lets the
+      // interceptor perform it against the real server. Handling it here
+      // instead would recurse indefinitely.
+      return
+    }
     const response = await handleFetch(originalFetch, request)
-    request.respondWith(response)
+    controller.respondWith(response)
   })
   clientRequestInterceptor.apply()
 

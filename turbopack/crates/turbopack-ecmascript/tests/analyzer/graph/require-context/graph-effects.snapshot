@@ -47,6 +47,7 @@
             ),
         ],
         span: 70..85,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "require",
@@ -261,6 +262,7 @@
             ),
         ],
         span: 164..179,
+        in_truthiness_context: false,
     },
     MemberCall {
         obj: Variable(
@@ -364,7 +366,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -389,6 +391,7 @@
             ),
         ],
         span: 34..46,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -425,7 +428,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -465,6 +468,7 @@
             ),
         ],
         span: 34..40,
+        in_truthiness_context: false,
     },
     MemberCall {
         obj: Variable(
@@ -502,7 +506,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -592,7 +596,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -633,7 +637,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),

@@ -67,3 +67,15 @@ console.log(WARNED_VALUE)
 if (WARNED_VALUE === 'replacement') {
   console.log('warning replacement works')
 }
+
+if (!('NODE_ENV' in process.env)) {
+  console.log('existing')
+}
+console.log('NODE_ENV' in process.env)
+
+const { NODE_ENV: foo } = p.env
+if (foo === 'production') {
+  console.log('existing')
+}
+// TODO ideally this would also be inlined
+console.log(foo)

@@ -1,7 +1,6 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, type Playwright } from 'e2e-utils'
 import { createRouterAct } from 'router-act'
 import path from 'path'
-import { Playwright } from 'next-webdriver'
 import type { Page as PlaywrightPage } from 'playwright'
 
 // TODO: This suite is flaky in production and deploy modes, skip until stabilized.

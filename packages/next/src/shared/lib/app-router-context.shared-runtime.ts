@@ -1,7 +1,9 @@
 'use client'
 
+import type { RouteTree } from '../../client/components/segment-cache/cache'
+
 import type {
-  FocusAndScrollRef,
+  ScrollHandlerRef,
   PrefetchKind,
 } from '../../client/components/router-reducer/router-reducer-types'
 import type { Params } from '../../server/request/params'
@@ -94,7 +96,7 @@ export const AppRouterContext = React.createContext<AppRouterInstance | null>(
 )
 export const LayoutRouterContext = React.createContext<{
   parentTree: FlightRouterState
-  parentCacheNode: CacheNode
+  parentRenderTree: RouteTree<CacheNode>
   parentSegmentPath: FlightSegmentPath | null
   parentParams: Params
   parentLoadingData: LoadingModuleData | null
@@ -105,7 +107,7 @@ export const LayoutRouterContext = React.createContext<{
 
 export const GlobalLayoutRouterContext = React.createContext<{
   tree: FlightRouterState
-  focusAndScrollRef: FocusAndScrollRef
+  scrollRef: ScrollHandlerRef
   nextUrl: string | null
   previousNextUrl: string | null
 }>(null as any)

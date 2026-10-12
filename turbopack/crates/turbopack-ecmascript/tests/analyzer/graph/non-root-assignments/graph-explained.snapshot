@@ -36,6 +36,4 @@ named_let_export_not_const_after_eval_2 = (1 | 3)
 
 setter_not_const_after_eval = (1 | 2)
 
-v = ???*0*
-- *0* v
-  ⚠️  pattern without value
+v = arguments[0]

@@ -7,7 +7,6 @@ import {
   waitFor,
 } from 'next-test-utils'
 import { join } from 'path'
-import webdriver from 'next-webdriver'
 import assert from 'assert'
 
 describe('Prerender prefetch', () => {
@@ -59,7 +58,7 @@ describe('Prerender prefetch', () => {
         )
       const initialDataRes = await getData()
       const initialData = await initialDataRes.json()
-      const browser = await webdriver(next.url, '/')
+      const browser = await next.browser('/')
 
       await browser.elementByCss('#to-blog-first').click()
 
@@ -71,7 +70,7 @@ describe('Prerender prefetch', () => {
     })
 
     it('should update cache using prefetch with unstable_skipClientCache', async () => {
-      const browser = await webdriver(next.url, '/')
+      const browser = await next.browser('/')
       const timeRes = await fetchViaHTTP(
         next.url,
         `/_next/data/${next.buildId}/blog/first.json`,
@@ -134,7 +133,7 @@ describe('Prerender prefetch', () => {
     })
 
     it('should update cache using router.push with unstable_skipClientCache', async () => {
-      const browser = await webdriver(next.url, '/')
+      const browser = await next.browser('/')
       const timeRes = await fetchViaHTTP(
         next.url,
         `/_next/data/${next.buildId}/blog/first.json`,
@@ -197,7 +196,7 @@ describe('Prerender prefetch', () => {
 
     if (optimisticClientCache) {
       it('should attempt cache update on link hover/touch start', async () => {
-        const browser = await webdriver(next.url, '/')
+        const browser = await next.browser('/')
         const timeRes = await fetchViaHTTP(
           next.url,
           `/_next/data/${next.buildId}/blog/first.json`,
@@ -240,7 +239,7 @@ describe('Prerender prefetch', () => {
       })
     } else {
       it('should not attempt client cache update on link hover/touch start', async () => {
-        const browser = await webdriver(next.url, '/')
+        const browser = await next.browser('/')
         let requests = []
 
         browser.on('request', (req) => {
@@ -272,7 +271,7 @@ describe('Prerender prefetch', () => {
     }
 
     it('should handle failed data fetch and empty cache correctly', async () => {
-      const browser = await webdriver(next.url, '/')
+      const browser = await next.browser('/')
       await browser.elementByCss('#to-blog-first').click()
 
       // ensure we use the same port when restarting

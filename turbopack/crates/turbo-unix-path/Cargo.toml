@@ -12,6 +12,7 @@ bench = false
 workspace = true
 
 [dependencies]
+smallvec = { workspace = true }
 
 [dev-dependencies]
 rstest = { workspace = true }

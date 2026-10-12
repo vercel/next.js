@@ -11,7 +11,6 @@ describe('server-navigation-error', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E394",
          "description": "Next.js navigation API is not allowed to be used in Pages Router.",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -30,7 +29,6 @@ describe('server-navigation-error', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E1041",
          "description": "Next.js navigation API is not allowed to be used in Pages Router.",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -53,7 +51,6 @@ describe('server-navigation-error', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E394",
          "description": "Next.js navigation API is not allowed to be used in Middleware.",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -72,7 +69,6 @@ describe('server-navigation-error', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E1041",
          "description": "Next.js navigation API is not allowed to be used in Middleware.",
          "environmentLabel": null,
          "label": "Runtime Error",

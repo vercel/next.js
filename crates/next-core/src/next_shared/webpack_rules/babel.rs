@@ -15,12 +15,11 @@ use turbopack_core::{
     resolve::{node::node_cjs_resolve_options, parse::Request, pattern::Pattern, resolve},
     source::Source,
 };
+use turbopack_ecmascript::transform::{ReactCompilerCompilationMode, ReactCompilerTarget};
 use turbopack_node::transforms::webpack::WebpackLoaderItem;
 
 use crate::{
-    next_config::{
-        NextConfig, ReactCompilerCompilationMode, ReactCompilerOptions, ReactCompilerTarget,
-    },
+    next_config::{NextConfig, ReactCompilerOptions, ReactCompilerPanicThreshold},
     next_import_map::try_get_next_package,
     next_shared::webpack_rules::{
         ManuallyConfiguredBuiltinLoaderIssue, WebpackLoaderBuiltinCondition,
@@ -119,10 +118,13 @@ pub async fn get_babel_loader_rules(
     }
 
     let react_compiler_options = next_config.react_compiler_options().await?;
+    let use_rust_react_compiler = next_config.rust_react_compiler().await?.is_some();
 
-    // if there's no babel config and react-compiler shouldn't be enabled, bail out early
+    // bail early: no babel config, no react-compiler, or Rust React Compiler is active (babel has
+    // nothing to do).
     if babel_config_path.is_none()
         && (react_compiler_options.is_none()
+            || use_rust_react_compiler
             || !builtin_conditions.contains(&WebpackLoaderBuiltinCondition::Browser))
     {
         return Ok(Vec::new());
@@ -151,6 +153,7 @@ pub async fn get_babel_loader_rules(
 
     let mut loader_conditions = Vec::new();
     if let Some(react_compiler_options) = react_compiler_options.as_ref()
+        && !use_rust_react_compiler
         && let Some(babel_plugin_path) =
             resolve_babel_plugin_react_compiler(next_config, project_path).await?
     {
@@ -168,20 +171,47 @@ pub async fn get_babel_loader_rules(
         #[serde(rename_all = "camelCase")]
         struct EnvironmentOptions {
             enable_name_anonymous_functions: bool,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            enable_preserve_existing_memoization_guarantees: Option<bool>,
         }
 
         #[derive(Serialize)]
         struct ResolvedOptions<'a> {
             #[serde(flatten)]
-            base: &'a ReactCompilerOptions,
+            base: ReactCompilerOptionsWithoutEnvironment<'a>,
             environment: EnvironmentOptions,
         }
 
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct ReactCompilerOptionsWithoutEnvironment<'a> {
+            compilation_mode: ReactCompilerCompilationMode,
+            panic_threshold: &'a ReactCompilerPanicThreshold,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            target: Option<ReactCompilerTarget>,
+        }
+
+        impl<'a> From<&'a ReactCompilerOptions> for ReactCompilerOptionsWithoutEnvironment<'a> {
+            fn from(options: &'a ReactCompilerOptions) -> Self {
+                Self {
+                    compilation_mode: options.compilation_mode,
+                    panic_threshold: &options.panic_threshold,
+                    target: options.target,
+                }
+            }
+        }
+
         let resolved_options = ResolvedOptions {
-            base: &react_compiler_options_with_target,
+            base: (&react_compiler_options_with_target).into(),
             environment: EnvironmentOptions {
                 enable_name_anonymous_functions: builtin_conditions
                     .contains(&WebpackLoaderBuiltinCondition::Development),
+                enable_preserve_existing_memoization_guarantees: react_compiler_options_with_target
+                    .environment
+                    .as_ref()
+                    .and_then(|environment| {
+                        environment.enable_preserve_existing_memoization_guarantees
+                    }),
             },
         };
         let react_compiler_plugins =
@@ -245,7 +275,7 @@ pub async fn get_babel_loader_rules(
     )])
 }
 
-async fn detect_react_compiler_target(
+pub async fn detect_react_compiler_target(
     project_path: &FileSystemPath,
 ) -> Result<Option<ReactCompilerTarget>> {
     #[derive(Deserialize)]
@@ -257,7 +287,7 @@ async fn detect_react_compiler_target(
         project_path.clone(),
         ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
         Request::parse(Pattern::Constant(rcstr!("react/package.json"))),
-        node_cjs_resolve_options(project_path.root().owned().await?),
+        node_cjs_resolve_options(),
     );
 
     let Some(source) = react_pkg_result.await?.first_source() else {
@@ -333,7 +363,7 @@ pub async fn resolve_babel_plugin_react_compiler(
         next_package.clone(),
         ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
         Request::parse(Pattern::Constant(BABEL_PLUGIN_REACT_COMPILER_PACKAGE_JSON)),
-        node_cjs_resolve_options(project_path.root().owned().await?),
+        node_cjs_resolve_options(),
     );
     let Some(source) = babel_plugin_result.await?.first_source() else {
         BabelPluginReactCompilerResolutionIssue {
@@ -348,11 +378,11 @@ pub async fn resolve_babel_plugin_react_compiler(
         return Ok(None);
     };
 
+    // The relative path should only ever fail to resolve when the `fs` is different, which should
+    // only happen due to eventual consistency.
     Ok(Some(
-        // the relative path should only ever fail to resolve when the `fs` is different, which
-        // should only happen due to eventual consistency.
         project_path
-            .get_relative_path_to(&source.ident().await?.path.parent())
+            .get_relative_request_to(&source.ident().await?.path.parent())
             .context("failed to resolve relative path for react compiler plugin")?,
     ))
 }

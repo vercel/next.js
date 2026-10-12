@@ -1,14 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('on-request-error - skip-next-internal-error', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   async function assertNoNextjsInternalErrors() {
     const output = next.cliOutput

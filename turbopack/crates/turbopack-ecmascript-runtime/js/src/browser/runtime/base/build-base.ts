@@ -1,7 +1,7 @@
 /// <reference path="./runtime-base.ts" />
 /// <reference path="./dummy.ts" />
 
-const moduleCache: ModuleCache<Module> = {}
+const moduleCache: ModuleCache<Module> = new Map()
 contextPrototype.c = moduleCache
 
 /**
@@ -10,10 +10,10 @@ contextPrototype.c = moduleCache
 // @ts-ignore
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function getOrInstantiateRuntimeModule(
-  chunkPath: ChunkPath,
+  chunkPath: ChunkPath | undefined,
   moduleId: ModuleId
 ): Module {
-  const module = moduleCache[moduleId]
+  const module = moduleCache.get(moduleId)
   if (module) {
     if (module.error) {
       throw module.error
@@ -33,7 +33,7 @@ function getOrInstantiateRuntimeModule(
 const getOrInstantiateModuleFromParent: GetOrInstantiateModuleFromParent<
   Module
 > = (id, sourceModule) => {
-  const module = moduleCache[id]
+  const module = moduleCache.get(id)
 
   if (module) {
     if (module.error) {
@@ -61,7 +61,7 @@ function instantiateModule(
   const module: Module = createModuleObject(id)
   const exports = module.exports
 
-  moduleCache[id] = module
+  moduleCache.set(id, module)
 
   // NOTE(alexkirsz) This can fail when the module encounters a runtime error.
   const context = new (Context as any as ContextConstructor<Module>)(
@@ -84,10 +84,17 @@ function instantiateModule(
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-function registerChunk(registration: ChunkRegistration) {
+function registerChunk(registration: ChunkRegistration | RuntimeParams) {
+  // An inlined entry-only registration is a bare params object (no source chunk).
+  if (!Array.isArray(registration)) {
+    return BACKEND.registerChunk(undefined, registration)
+  }
   const chunk = getChunkFromRegistration(registration[0]) as
     | ChunkScript
     | ChunkPath
+  if (SUPPORT_COMPONENT_CHUNKS) {
+    markChunkComponentsAvailable(chunk)
+  }
   let runtimeParams: RuntimeParams | undefined
   // When bootstrapping we are passed a single runtimeParams object so we can distinguish purely based on length
   if (registration.length === 2) {

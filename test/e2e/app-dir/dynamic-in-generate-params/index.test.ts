@@ -1,5 +1,4 @@
 import { type NextInstance, nextTestSetup } from 'e2e-utils'
-import type { Response } from 'node-fetch'
 
 async function getLastModifiedTime(next: NextInstance, pathname: string) {
   const content = await (await next.fetch(pathname)).text()
@@ -14,7 +13,6 @@ function assertSitemapResponse(res: Response) {
 describe('app-dir - dynamic in generate params', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   it('should render sitemap with generateSitemaps in force-dynamic config dynamically', async () => {

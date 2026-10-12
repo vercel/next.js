@@ -1,9 +1,10 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
-import webdriver from 'next-webdriver'
 import path from 'path'
 
 const appDir = path.join(__dirname, 'stitches')
 
+// TODO(deploy-test-completion): Remove this suite from the deploy manifest.
+// It was excluded as a known deploy failure without a documented root cause.
 describe('New Link Behavior with stitches', () => {
   const { next } = nextTestSetup({
     files: {
@@ -21,7 +22,7 @@ describe('New Link Behavior with stitches', () => {
   })
 
   it('should render <a>', async () => {
-    const browser = await webdriver(next.url, `/`)
+    const browser = await next.browser(`/`)
     const element = await browser.elementByCss('a[href="/about"]')
 
     const color = await element.getComputedCss('color')

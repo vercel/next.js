@@ -1,6 +1,9 @@
 import { promisify } from 'node:util'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import { bindSnapshot } from '../app-render/async-local-storage'
+import {
+  bindSnapshot,
+  getOrCreateGlobalAsyncLocalStorage,
+} from '../app-render/async-local-storage'
 
 type Execution = {
   state: ExecutionState
@@ -188,6 +191,120 @@ export function expectNoPendingImmediates() {
 }
 
 export { originalSetImmediate as unpatchedSetImmediate }
+
+const immediateAsyncStorage =
+  getOrCreateGlobalAsyncLocalStorage<ImmediateTracker>(
+    'immediate-async-storage'
+  )
+
+/**
+ * Run a callback and its async work with this native-immediate tracker.
+ */
+export function runWithNativeImmediateTracking<TArgs extends any[], TResult>(
+  tracker: ImmediateTracker,
+  callback: (...args: TArgs) => TResult,
+  ...args: TArgs
+): TResult {
+  return immediateAsyncStorage.run(tracker, callback, ...args)
+}
+
+/**
+ * Tracks native immediates for one render's async scope without changing their
+ * scheduling.
+ *
+ * A sentinel notifies idle subscribers after the last tracked immediate and its
+ * microtasks and nextTicks finish. New native immediates postpone notification.
+ *
+ * Subscribers can cancel their wait without stopping tracking. Tracking
+ * continues between subscriptions, including when asynchronous cache reads
+ * resume the render.
+ */
+export class ImmediateTracker {
+  private sentinel: NodeJS.Immediate | null = null
+  private needsAnotherCheck = false
+  private listeners = new Set<() => void>()
+
+  hasPendingImmediates(): boolean {
+    return this.sentinel !== null
+  }
+
+  /**
+   * Calls `callback` asynchronously in a native immediate, even when no
+   * immediates are pending. The callback runs in the subscriber's async
+   * context. The returned function cancels the subscription without stopping
+   * tracking.
+   */
+  onIdle(callback: () => void): () => void {
+    const listeners = this.listeners
+    const listener = bindSnapshot(callback)
+    listeners.add(listener)
+    if (this.sentinel === null) {
+      this.scheduleIdleCheck()
+    } else {
+      this.sentinel.ref()
+    }
+    return () => {
+      listeners.delete(listener)
+      if (this.listeners.size === 0) {
+        this.sentinel?.unref()
+      }
+    }
+  }
+
+  scheduleIdleCheck(): void {
+    if (this.sentinel !== null) {
+      // New immediates are queued after the pending sentinel. Record that
+      // `checkForIdle` must check again before notifying subscribers. Further
+      // scheduling calls reuse this flag and the pending sentinel.
+      //
+      // Node's uncaught-exception recovery can also reach this branch:
+      //
+      // 1. We queue immediate `A`, then sentinel `S`: `[A, S]`.
+      // 2. `A` throws and interrupts Node's immediate-processing loop,
+      //    leaving `S` first in Node's outstanding queue.
+      // 3. An uncaughtException handler handles the error, so Node continues.
+      // 4. Node calls `timers.setImmediate(noop)` for another immediate cycle.
+      // 5. Our patch runs before async-context cleanup and sees `A`'s tracker.
+      // 6. The tracker finds `S` still pending.
+      //
+      // Node schedules this no-op after any handled uncaught exception so
+      // pending ticks get another chance to run. After exception handling
+      // returns, Node's C++ dispatcher retries the outstanding queue in the
+      // same check phase, before the no-op runs.
+      //
+      // On Node 20, clearing `S` here leaves the outstanding queue's head
+      // pointing to a destroyed immediate. When Node retries the queue, it
+      // tries to skip the cleared entry through its predecessor. The first
+      // entry has no predecessor, so recovery throws another exception. Keep
+      // `S` queued and record that another check is needed instead.
+      this.needsAnotherCheck = true
+      return
+    }
+
+    this.sentinel = originalSetImmediate(this.checkForIdle)
+    if (this.listeners.size === 0) {
+      this.sentinel.unref()
+    }
+  }
+
+  private checkForIdle = () => {
+    this.sentinel = null
+    if (this.needsAnotherCheck) {
+      // Schedule the next check after the immediates queued since this
+      // sentinel. Their callbacks and microtasks/nextTicks can then run before
+      // we notify idle subscribers. A synchronous burst shares this next check.
+      this.needsAnotherCheck = false
+      this.scheduleIdleCheck()
+      return
+    }
+    const listeners = this.listeners
+    this.listeners = new Set()
+    for (const callback of listeners) {
+      listeners.delete(callback)
+      callback()
+    }
+  }
+}
 
 /**
  * Wait until all nextTicks and microtasks spawned from the current task are done,
@@ -595,11 +712,13 @@ function patchedSetImmediate<TArgs extends any[]>(
 function patchedSetImmediate(callback: (args: void) => void): NodeJS.Immediate
 function patchedSetImmediate(): NodeJS.Immediate {
   if (currentExecution === null) {
-    return originalSetImmediate.apply(
+    const immediate = originalSetImmediate.apply(
       null,
       // @ts-expect-error: this is valid, but typescript doesn't get it
       arguments
     )
+    immediateAsyncStorage.getStore()?.scheduleIdleCheck()
+    return immediate
   }
 
   if (arguments.length === 0 || typeof arguments[0] !== 'function') {
@@ -646,7 +765,9 @@ function patchedSetImmediatePromise<T = void>(
   options?: import('node:timers').TimerOptions
 ): Promise<T> {
   if (currentExecution === null) {
-    return originalSetImmediatePromisify(value, options)
+    const promise = originalSetImmediatePromisify(value, options)
+    immediateAsyncStorage.getStore()?.scheduleIdleCheck()
+    return promise
   }
 
   return new Promise<T>((resolve, reject) => {

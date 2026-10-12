@@ -1,48 +1,16 @@
 import { resolveRouteParamsFromTree } from '../../build/static-paths/utils'
 import type { FallbackRouteParam } from '../../build/static-paths/types'
-import type { DynamicParamTypesShort } from '../../shared/lib/app-router-types'
-import { dynamicParamTypes } from '../app-render/get-short-dynamic-param-type'
 import type AppPageRouteModule from '../route-modules/app-page/module'
 import { parseNormalizedAppRoute } from '../../shared/lib/router/routes/app'
 import { extractPathnameRouteParamSegmentsFromLoaderTree } from '../../build/static-paths/app/extract-pathname-route-param-segments-from-loader-tree'
 import { getParamProperties } from '../../shared/lib/router/utils/get-segment-param'
-
-export type OpaqueFallbackRouteParamValue = [
-  /**
-   * The search value of the fallback route param. This is the opaque key
-   * that will be used to replace the dynamic param in the postponed state.
-   */
-  searchValue: string,
-
-  /**
-   * The dynamic param type of the fallback route param. This is the type of
-   * the dynamic param that will be used to replace the dynamic param in the
-   * postponed state.
-   */
-  dynamicParamType: DynamicParamTypesShort,
-]
+import { InvariantError } from '../../shared/lib/invariant-error'
 
 /**
- * An opaque fallback route params object. This is used to store the fallback
- * route params in a way that is not easily accessible to the client.
+ * Maps unknown param names to internal placeholders. The parameter wrappers
+ * control when reads suspend; these placeholders must not become rendered UI.
  */
-export type OpaqueFallbackRouteParams = ReadonlyMap<
-  string,
-  OpaqueFallbackRouteParamValue
->
-
-/**
- * The entries of the opaque fallback route params object.
- *
- * @param key the key of the fallback route param
- * @param value the value of the fallback route param
- */
-export type OpaqueFallbackRouteParamEntries =
-  ReturnType<OpaqueFallbackRouteParams['entries']> extends MapIterator<
-    [infer K, infer V]
-  >
-    ? ReadonlyArray<[K, V]>
-    : never
+export type OpaqueFallbackRouteParams = ReadonlyMap<string, string>
 
 /**
  * Creates an opaque fallback route params object from the fallback route params.
@@ -61,18 +29,60 @@ export function createOpaqueFallbackRouteParams(
   // be also be unique.
   const uniqueID = Math.random().toString(16).slice(2)
 
-  const keys = new Map<string, OpaqueFallbackRouteParamValue>()
+  const keys = new Map<string, string>()
 
   // Generate a unique key for the fallback route param, if this key is found
   // in the static output, it represents a bug in cache components.
-  for (const { paramName, paramType } of fallbackRouteParams) {
-    keys.set(paramName, [
-      `%%drp:${paramName}:${uniqueID}%%`,
-      dynamicParamTypes[paramType],
-    ])
+  for (const { paramName } of fallbackRouteParams) {
+    keys.set(paramName, `%%drp:${paramName}:${uniqueID}%%`)
   }
 
   return keys
+}
+
+/**
+ * Selects the params that a staged render defers for the shell target that a
+ * request selects. Dev static-shell validation stages the same set, so it
+ * checks the shell that the build validates.
+ *
+ * The set derives from the build's shell metadata, not from the serving mode. A
+ * required shell (`throwOnEmptyStaticShell`) is the most specific shell the
+ * build generated for its params, and the build fails when its prelude is
+ * empty. Staging defers all of its fallback params, because the build validated
+ * exactly that shape. Any other shell may be empty, and a request completes it
+ * with the params that `generateStaticParams` can still supply. Only the params
+ * that completion never resolves stay deferred.
+ */
+export function getStagedFallbackParams(route: {
+  fallbackRouteParams: readonly FallbackRouteParam[] | undefined
+  remainingPrerenderableParams?: readonly FallbackRouteParam[]
+  throwOnEmptyStaticShell?: boolean
+}): OpaqueFallbackRouteParams | null {
+  const { fallbackRouteParams, remainingPrerenderableParams } = route
+  if (!fallbackRouteParams?.length) {
+    return null
+  }
+
+  if (route.throwOnEmptyStaticShell === undefined) {
+    throw new InvariantError(
+      'Expected throwOnEmptyStaticShell for a route with fallback params'
+    )
+  }
+
+  // A required shell keeps all of its fallback params deferred.
+  if (route.throwOnEmptyStaticShell || !remainingPrerenderableParams?.length) {
+    return createOpaqueFallbackRouteParams(fallbackRouteParams)
+  }
+
+  return createOpaqueFallbackRouteParams(
+    fallbackRouteParams.filter(
+      (param) =>
+        !remainingPrerenderableParams.some(
+          (prerenderableParam) =>
+            prerenderableParam.paramName === param.paramName
+        )
+    )
+  )
 }
 
 export function buildDynamicSegmentPlaceholder(
@@ -150,7 +160,6 @@ export function getFallbackRouteParams(
     fallbackRouteParams // Will be mutated to add route params
   )
 
-  // Convert the fallback route params to an opaque format that can be safely
-  // used in the postponed state without exposing implementation details.
+  // Track the unknown params using the same opaque placeholders as prerenders.
   return createOpaqueFallbackRouteParams(fallbackRouteParams)
 }

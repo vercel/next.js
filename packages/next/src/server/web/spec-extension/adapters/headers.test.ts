@@ -318,5 +318,135 @@ describe('HeadersAdapter', () => {
       expect(headers.get('x-custom-header')).toBe('custom3')
       expect(sealed.get('x-custom-header')).toBe('custom3')
     })
+
+    it('should return the same method instance on repeated access', () => {
+      const headers = new Headers({ 'content-type': 'application/json' })
+
+      for (const sealed of [
+        HeadersAdapter.seal(headers),
+        HeadersAdapter.seal(headers, new Set(['rsc'])),
+      ]) {
+        expect(sealed.get).toBe(sealed.get)
+        expect(sealed.has).toBe(sealed.has)
+        expect(sealed.getSetCookie).toBe(sealed.getSetCookie)
+        expect(sealed.keys).toBe(sealed.keys)
+        expect(sealed.values).toBe(sealed.values)
+        expect(sealed.entries).toBe(sealed.entries)
+        expect(sealed.forEach).toBe(sealed.forEach)
+        expect(sealed[Symbol.iterator]).toBe(sealed[Symbol.iterator])
+      }
+    })
+
+    it('should pass the sealed instance to forEach callbacks', () => {
+      const headers = new Headers({ 'content-type': 'application/json' })
+      const sealed = HeadersAdapter.seal(headers)
+
+      const parents: Headers[] = []
+      sealed.forEach((_value, _name, parent) => {
+        parents.push(parent)
+      })
+
+      expect(parents).toHaveLength(1)
+      expect(parents[0]).toBe(sealed)
+      expect(() => parents[0].set('x-escaped', 'yes')).toThrow(
+        ReadonlyHeadersError
+      )
+      expect(headers.get('x-escaped')).toBeNull()
+    })
+
+    describe('with hidden headers', () => {
+      const hidden = new Set(['rsc', 'x-nextjs-request-id'])
+
+      function createSealed() {
+        const headers = new Headers({
+          'content-type': 'application/json',
+          rsc: '1',
+          'x-nextjs-request-id': 'req-1',
+          'x-custom-header': 'custom',
+        })
+
+        return { headers, sealed: HeadersAdapter.seal(headers, hidden) }
+      }
+
+      it('should omit hidden headers from every read operation', () => {
+        const { sealed } = createSealed()
+
+        expect(sealed.get('rsc')).toBeNull()
+        expect(sealed.get('RSC')).toBeNull()
+        expect(sealed.get('x-nextjs-request-id')).toBeNull()
+        expect(sealed.has('rsc')).toBe(false)
+        expect(sealed.has('x-nextjs-request-id')).toBe(false)
+
+        expect([...sealed.keys()]).toEqual(['content-type', 'x-custom-header'])
+        expect([...sealed.values()]).toEqual(['application/json', 'custom'])
+        expect([...sealed.entries()]).toEqual([
+          ['content-type', 'application/json'],
+          ['x-custom-header', 'custom'],
+        ])
+        expect([...sealed]).toEqual([
+          ['content-type', 'application/json'],
+          ['x-custom-header', 'custom'],
+        ])
+
+        const seen: string[] = []
+        sealed.forEach((value, name, parent) => {
+          seen.push(`${name}=${value}`)
+          expect(parent).toBe(sealed)
+        })
+        expect(seen).toEqual([
+          'content-type=application/json',
+          'x-custom-header=custom',
+        ])
+
+        expect(Object.fromEntries(sealed)).toEqual({
+          'content-type': 'application/json',
+          'x-custom-header': 'custom',
+        })
+        expect([...new Headers(sealed).keys()]).toEqual([
+          'content-type',
+          'x-custom-header',
+        ])
+      })
+
+      it('should omit hidden set-cookie headers from getSetCookie', () => {
+        const headers = new Headers()
+        headers.append('set-cookie', 'a=1')
+
+        expect(HeadersAdapter.seal(headers, hidden).getSetCookie()).toEqual([
+          'a=1',
+        ])
+        expect(
+          HeadersAdapter.seal(headers, new Set(['set-cookie'])).getSetCookie()
+        ).toEqual([])
+      })
+
+      it('should not copy or mutate the underlying headers', () => {
+        const { headers, sealed } = createSealed()
+
+        expect(sealed.get('content-type')).toBe('application/json')
+        expect(headers.get('rsc')).toBe('1')
+        expect(headers.get('x-nextjs-request-id')).toBe('req-1')
+
+        expect(() => (sealed as any).delete('rsc')).toThrow(
+          ReadonlyHeadersError
+        )
+        expect(headers.get('rsc')).toBe('1')
+      })
+
+      it('should stay a live view of the underlying headers', () => {
+        const { headers, sealed } = createSealed()
+
+        headers.set('x-added-after-seal', 'live')
+        expect(sealed.get('x-added-after-seal')).toBe('live')
+
+        headers.delete('x-custom-header')
+        expect(sealed.get('x-custom-header')).toBeNull()
+
+        // Hidden headers stay hidden, no matter when they are written.
+        headers.set('rsc', '2')
+        expect(sealed.get('rsc')).toBeNull()
+        expect(headers.get('rsc')).toBe('2')
+      })
+    })
   })
 })

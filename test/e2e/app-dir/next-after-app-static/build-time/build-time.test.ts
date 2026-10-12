@@ -1,19 +1,16 @@
 /* eslint-env jest */
-import { isNextDev, nextTestSetup } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import * as Log from './utils/log'
 import { setTimeout } from 'timers/promises'
 
-// This test relies on next.build() so it can't work in dev mode.
-const _describe = isNextDev ? describe.skip : describe
-
-_describe('after() in static pages', () => {
-  const { next, skipped } = nextTestSetup({
+// This suite relies on next.build() and local CLI logs.
+// @force-gate !dev
+// @force-gate !deploy
+describe('after() in static pages', () => {
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true, // reading CLI logs to observe after
     skipStart: true,
   })
-
-  if (skipped) return
 
   let currentCliOutputIndex = 0
   beforeEach(() => {
@@ -51,7 +48,7 @@ _describe('after() in static pages', () => {
     }
 
     resetLogs()
-    await next.start()
+    await next.start({ skipBuild: true })
 
     {
       const res = await next.fetch('/static/dynamic-error')
@@ -71,17 +68,10 @@ _describe('after() in static pages', () => {
     await setTimeout(1000) // no other good way to make sure any possible afters ran
 
     {
-      // after should not run at runtime
+      // all the pages/routes have been statically prerendered, so
+      // we should not observe any after()s at runtime
       const logsFromAfter = Log.readCliLogs(getLogs())
-      expect(logsFromAfter).not.toContainEqual({
-        source: '[page] /static/dynamic-error',
-      })
-      expect(logsFromAfter).not.toContainEqual({
-        source: '[page] /static/dynamic-force-static',
-      })
-      expect(logsFromAfter).not.toContainEqual({
-        source: '[page] /static/route',
-      })
+      expect(logsFromAfter).toHaveLength(0)
     }
   })
 })

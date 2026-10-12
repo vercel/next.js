@@ -2,10 +2,9 @@ import { Suspense } from 'react'
 import { cachedDelay, DebugRenderKind, uncachedIO } from '../../../../shared'
 import { connection } from 'next/server'
 
-export const unstable_instant = {
+export const instant = {
   unstable_samples: [{ params: { id: 'test' } }],
 }
-export const unstable_prefetch = 'force-runtime'
 
 type Params = { id: string }
 

@@ -1,25 +1,21 @@
 import { nextTestSetup } from 'e2e-utils'
-import webdriver from 'next-webdriver'
 import { check } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
+// Deploy mode exclusion: This suite asserts local CLI or runtime logs that deployments do not expose.
+// don't have access to runtime logs on deploy
+// @force-gate !deploy
 describe('fetch failures have good stack traces in edge runtime', () => {
-  const { next, isNextStart, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextStart, isNextDev } = nextTestSetup({
     files: __dirname,
-    // don't have access to runtime logs on deploy
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   // TODO: Failure is not specific to Turbopack, edge runtime errors don't have source maps applied.
   ;(process.env.IS_TURBOPACK_TEST && isNextStart ? it.skip : it)(
     'when awaiting `fetch` using an unknown domain, stack traces are preserved',
     async () => {
       const outputIndex = next.cliOutput.length
-      const browser = await webdriver(next.url, '/api/unknown-domain')
+      const browser = await next.browser('/api/unknown-domain')
 
       if (isNextStart) {
         // eslint-disable-next-line jest/no-standalone-expect
@@ -47,7 +43,6 @@ describe('fetch failures have good stack traces in edge runtime', () => {
         // eslint-disable-next-line jest/no-standalone-expect
         await expect(browser).toDisplayRedbox(`
          {
-           "code": "E394",
            "description": "fetch failed",
            "environmentLabel": null,
            "label": "Runtime TypeError",
@@ -67,7 +62,7 @@ describe('fetch failures have good stack traces in edge runtime', () => {
 
   // TODO: It need to have source maps picked up by node.js
   it.skip('when returning `fetch` using an unknown domain, stack traces are preserved', async () => {
-    await webdriver(next.url, '/api/unknown-domain-no-await')
+    await next.browser('/api/unknown-domain-no-await')
 
     await check(
       () => stripAnsi(next.cliOutput),

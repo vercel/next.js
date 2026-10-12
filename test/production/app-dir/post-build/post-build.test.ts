@@ -8,15 +8,13 @@ describe('post-build', () => {
     return
   }
 
-  const { next, isTurbopack, skipped } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     env: {
       NEXT_USE_POST_BUILD: '1',
     },
   })
-
-  if (skipped) return
 
   it('should run post-build compaction on the turbopack cache', async () => {
     if (!isTurbopack) {

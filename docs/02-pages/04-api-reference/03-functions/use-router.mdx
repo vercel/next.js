@@ -196,6 +196,15 @@ export default function ReadMore({ post }) {
 }
 ```
 
+If you omit `pathname`, the query is applied to the URL shown in the browser ([`asPath`](#router-object)) rather than to the current page's route (`pathname`). This keeps [rewrites](/docs/pages/api-reference/config/next-config-js/rewrites) intact: on a page served by a rewrite, a query-only navigation preserves the URL the visitor requested instead of revealing the rewrite destination.
+
+The two values also differ when you mask the URL yourself with the `as` parameter. Pass `pathname` explicitly in that case, otherwise the query is applied to the masked URL and can resolve to a different page:
+
+```jsx
+// On the `/` page, with the URL masked as `/p/1`
+router.push({ pathname: '/', query: { photoId: 2 } }, '/p/2', { shallow: true })
+```
+
 ### router.replace
 
 Similar to the `replace` prop in [`next/link`](/docs/pages/api-reference/components/link), `router.replace` will prevent adding a new URL entry into the `history` stack.

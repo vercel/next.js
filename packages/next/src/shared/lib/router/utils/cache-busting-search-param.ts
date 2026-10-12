@@ -22,7 +22,7 @@ function normalizeCacheBustingInput(
 }
 
 function createCacheBustingSearchParamInput(
-  prefetchHeader: '1' | '2' | '0' | undefined,
+  prefetchHeader: '1' | '2' | '3' | '0' | undefined,
   segmentPrefetchHeader: string | string[] | undefined,
   stateTreeHeader: string | string[] | undefined,
   nextUrlHeader: string | string[] | undefined
@@ -58,7 +58,7 @@ async function computeCacheBustingSearchParamFromInput(
 }
 
 export async function computeCacheBustingSearchParam(
-  prefetchHeader: '1' | '2' | '0' | undefined,
+  prefetchHeader: '1' | '2' | '3' | '0' | undefined,
   segmentPrefetchHeader: string | string[] | undefined,
   stateTreeHeader: string | string[] | undefined,
   nextUrlHeader: string | string[] | undefined
@@ -77,7 +77,7 @@ export async function computeCacheBustingSearchParam(
 }
 
 export function computeLegacyCacheBustingSearchParam(
-  prefetchHeader: '1' | '2' | '0' | undefined,
+  prefetchHeader: '1' | '2' | '3' | '0' | undefined,
   segmentPrefetchHeader: string | string[] | undefined,
   stateTreeHeader: string | string[] | undefined,
   nextUrlHeader: string | string[] | undefined

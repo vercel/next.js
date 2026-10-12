@@ -1,20 +1,19 @@
-import { nextTestSetup, isNextDev } from 'e2e-utils'
+import { nextTestSetup, isNextDev, type Playwright } from 'e2e-utils'
 import {
   getRedboxHeader,
   waitForNoRedbox,
   waitForRedbox,
 } from 'next-test-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely inspects local build artifacts that deploy tests do not expose.
+// @force-gate !deploy
 describe('Image localPatterns config', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
-  async function getSrc(
-    browser: Awaited<ReturnType<typeof next.browser>>,
-    id: string
-  ) {
+  async function getSrc(browser: Playwright, id: string) {
     const src = await browser.elementById(id).getAttribute('src')
     if (src) {
       const url = new URL(src, next.url)

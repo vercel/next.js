@@ -3,7 +3,7 @@ import * as cheerio from 'cheerio'
 import { getCacheHeader, retry } from 'next-test-utils'
 import { computeCacheBustingSearchParam } from 'next/dist/shared/lib/router/utils/cache-busting-search-param'
 
-const isAdapterTest = Boolean(process.env.NEXT_ENABLE_ADAPTER)
+const isAdapterTest = process.env.NEXT_ENABLE_ADAPTER === '1'
 
 describe('middleware-static-rewrite', () => {
   const { next, isNextDeploy, isNextDev } = nextTestSetup({

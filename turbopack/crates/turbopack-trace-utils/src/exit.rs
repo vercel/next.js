@@ -19,8 +19,12 @@ impl<T> Drop for ExitGuard<T> {
 
 impl<T: Send + 'static> ExitGuard<T> {
     /// Drop a guard when Ctrl-C is pressed or the [ExitGuard] is dropped.
+    ///
+    /// On wasm targets there is no Ctrl-C to listen for (`tokio::signal` does not exist on wasi),
+    /// so the guard is only dropped when the [ExitGuard] itself is dropped.
     pub fn new(guard: T) -> Result<Self> {
         let guard = Arc::new(Mutex::new(Some(guard)));
+        #[cfg(not(target_family = "wasm"))]
         {
             let guard = guard.clone();
             tokio::spawn(async move {
@@ -58,11 +62,16 @@ impl ExitHandler {
     /// [`ExitHandler::new_receiver`] instead.
     ///
     /// This may listen for other signals, like `SIGTERM` or `SIGPIPE` in the future.
+    ///
+    /// On wasm targets there are no process signals, so nothing is ever run: the returned handler
+    /// only fires through [`ExitReceiver::run_exit_handler`], which this function has no way to
+    /// reach. wasm callers should use [`ExitHandler::new_receiver`].
     pub fn listen() -> &'static Arc<ExitHandler> {
         let (handler, receiver) = Self::new_receiver();
         if GLOBAL_EXIT_HANDLER.set(handler).is_err() {
             panic!("ExitHandler::listen must only be called once");
         }
+        #[cfg(not(target_family = "wasm"))]
         tokio::spawn(async move {
             tokio::signal::ctrl_c()
                 .await
@@ -70,6 +79,8 @@ impl ExitHandler {
             receiver.run_exit_handler().await;
             std::process::exit(0);
         });
+        #[cfg(target_family = "wasm")]
+        drop(receiver);
         GLOBAL_EXIT_HANDLER.get().expect("value is set")
     }
 

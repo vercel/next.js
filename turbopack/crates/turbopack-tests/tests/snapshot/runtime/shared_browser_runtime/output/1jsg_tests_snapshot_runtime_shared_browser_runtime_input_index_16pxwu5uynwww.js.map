@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/runtime/shared_browser_runtime/input/index.js"],"sourcesContent":["console.log('Hello, shared runtime!')\n"],"names":["console","log"],"mappings":"AAAAA,QAAQC,GAAG,CAAC"}}]
+}

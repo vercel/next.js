@@ -26,11 +26,18 @@ import type ws from 'next/dist/compiled/ws'
 import type { DevToolsConfig } from '../../next-devtools/dev-overlay/shared'
 import { isMiddlewareFilename } from '../../build/utils'
 import type { VersionInfo } from './parse-version-info'
-import type { HmrMessageSentToBrowser } from './hot-reloader-types'
+import type {
+  HmrMessageSentToBrowser,
+  RuntimeErrorStateMessage,
+} from './hot-reloader-types'
 import { HMR_MESSAGE_SENT_TO_BROWSER } from './hot-reloader-types'
 import { devIndicatorServerState } from './dev-indicator-server-state'
 import { createBinaryHmrMessageData } from './messages'
 import type { NextConfigComplete } from '../config-shared'
+import {
+  getRequestInsightsSnapshot,
+  isRequestInsightsEnabled,
+} from '../lib/trace/request-insights'
 
 function isMiddlewareStats(stats: webpack.Stats) {
   for (const key of stats.compilation.entrypoints.keys()) {
@@ -73,19 +80,35 @@ function getStatsForSyncEvent(
 export class WebpackHotMiddleware {
   private clientsWithoutHtmlRequestId = new Set<ws>()
   private clientsByHtmlRequestId: Map<string, ws> = new Map()
+  private runtimeErrorStates =
+    this.config.experimental.exposeRuntimeErrorsToHMR ||
+    Boolean(process.env.__NEXT_EXPOSE_RUNTIME_ERRORS_TO_HMR)
+      ? new Map<string, RuntimeErrorStateMessage>()
+      : null
   private closed = false
   private clientLatestStats: { ts: number; stats: webpack.Stats } | null = null
   private middlewareLatestStats: { ts: number; stats: webpack.Stats } | null =
     null
   private serverLatestStats: { ts: number; stats: webpack.Stats } | null = null
+  private hasVulnerabilityInsight = false
 
   constructor(
     compilers: webpack.Compiler[],
     private versionInfo: VersionInfo,
     private devtoolsFrontendUrl: string | undefined,
     private config: NextConfigComplete,
-    private devToolsConfig: DevToolsConfig
+    private devToolsConfig: DevToolsConfig,
+    hasVulnerabilityInsight: Promise<boolean>
   ) {
+    hasVulnerabilityInsight.then((enabled) => {
+      if (enabled) {
+        this.hasVulnerabilityInsight = true
+        this.publish({
+          type: HMR_MESSAGE_SENT_TO_BROWSER.VULNERABILITY_INSIGHT,
+          hasVulnerabilityInsight: true,
+        })
+      }
+    })
     compilers[0].hooks.invalid.tap(
       'webpack-hot-middleware',
       this.onClientInvalid
@@ -180,6 +203,12 @@ export class WebpackHotMiddleware {
       }
     })
 
+    if (this.runtimeErrorStates) {
+      for (const message of this.runtimeErrorStates.values()) {
+        this.publishToClient(client, message)
+      }
+    }
+
     const syncStats = getStatsForSyncEvent(
       this.clientLatestStats,
       this.serverLatestStats
@@ -202,11 +231,16 @@ export class WebpackHotMiddleware {
           ...(middlewareStats.warnings || []),
         ],
         versionInfo: this.versionInfo,
+        hasVulnerabilityInsight: this.hasVulnerabilityInsight,
         debug: {
           devtoolsFrontendUrl: this.devtoolsFrontendUrl,
         },
         devIndicator: devIndicatorServerState,
         devToolsConfig: this.devToolsConfig,
+        requestInsights:
+          this.config.experimental.requestInsights || isRequestInsightsEnabled()
+            ? getRequestInsightsSnapshot()
+            : undefined,
       })
     }
   }
@@ -248,6 +282,17 @@ export class WebpackHotMiddleware {
   publish = (message: HmrMessageSentToBrowser) => {
     if (this.closed) {
       return
+    }
+
+    if (
+      this.runtimeErrorStates &&
+      message.type === HMR_MESSAGE_SENT_TO_BROWSER.RUNTIME_ERRORS
+    ) {
+      if (message.errors.length === 0) {
+        this.runtimeErrorStates.delete(message.clientId)
+      } else {
+        this.runtimeErrorStates.set(message.clientId, message)
+      }
     }
 
     for (const wsClient of [
@@ -299,6 +344,7 @@ export class WebpackHotMiddleware {
 
     this.clientsWithoutHtmlRequestId.clear()
     this.clientsByHtmlRequestId.clear()
+    this.runtimeErrorStates?.clear()
   }
 
   deleteClient = (client: ws, htmlRequestId: string | null) => {

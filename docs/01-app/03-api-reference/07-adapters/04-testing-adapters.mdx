@@ -174,14 +174,13 @@ pnpm build
 # Write any metadata needed later to files in the working directory.
 BUILD_ID="$(cat .next/BUILD_ID)"
 DEPLOYMENT_ID="my-adapter-local"
-# If your adapter generates an immutable asset token, set it here.
-# Otherwise use "undefined" to indicate there is none.
-IMMUTABLE_ASSET_TOKEN="undefined"
+# If your adapter enables immutable static assets, set this to "1".
+NEXT_SUPPORTS_IMMUTABLE_ASSETS="0"
 
 {
   echo "BUILD_ID: $BUILD_ID"
   echo "DEPLOYMENT_ID: $DEPLOYMENT_ID"
-  echo "IMMUTABLE_ASSET_TOKEN: $IMMUTABLE_ASSET_TOKEN"
+  echo "NEXT_SUPPORTS_IMMUTABLE_ASSETS: $NEXT_SUPPORTS_IMMUTABLE_ASSETS"
 } >> .adapter-build.log
 
 # Start or deploy the app. Capture the URL at this point or make the script output the URL to stdout.
@@ -201,7 +200,7 @@ Its output must include lines starting with:
 
 - `BUILD_ID:`
 - `DEPLOYMENT_ID:`
-- `IMMUTABLE_ASSET_TOKEN:` (use the value `undefined` if your adapter does not produce one)
+- `NEXT_SUPPORTS_IMMUTABLE_ASSETS:`
 
 After those markers, the logs script can print any additional build or server logs that would help debug failures.
 

@@ -27,7 +27,7 @@ fn use_operations() -> Vc<i32> {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_use_operations() -> Result<()> {
-    run(&REGISTRATION, || async {
+    run(&REGISTRATION, async || {
         assert_eq!(*use_operations().read_strongly_consistent().await?, 42);
         Ok(())
     })

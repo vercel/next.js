@@ -1,15 +1,12 @@
 import { join } from 'path'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
-import webdriver from 'next-webdriver'
 
+// TODO: investigate tests failures on deploy
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// The source only records that these assertions fail after deployment; the root cause is unknown.
+// @force-gate !deploy
 describe('i18n-data-fetching-redirect', () => {
-  // TODO: investigate tests failures on deploy
-  if ((global as any).isNextDeploy) {
-    it('should skip temporarily', () => {})
-    return
-  }
-
   const { next } = nextTestSetup({
     files: {
       pages: new FileRef(join(__dirname, 'app/pages')),
@@ -30,10 +27,7 @@ describe('i18n-data-fetching-redirect', () => {
     `(
       '$path $fromLocale -> $toLocale',
       async ({ path, fromLocale, toLocale }) => {
-        const browser = await webdriver(
-          next.url,
-          `/${fromLocale}/${path}/${toLocale}`
-        )
+        const browser = await next.browser(`/${fromLocale}/${path}/${toLocale}`)
 
         await check(
           () => browser.eval('window.location.pathname'),
@@ -62,7 +56,7 @@ describe('i18n-data-fetching-redirect', () => {
     `(
       'next/link $path $fromLocale -> $toLocale',
       async ({ path, fromLocale, toLocale }) => {
-        const browser = await webdriver(next.url, `/${fromLocale}`)
+        const browser = await next.browser(`/${fromLocale}`)
         await browser.eval('window.beforeNav = 1')
 
         await browser.elementByCss(`#to-${path}-${toLocale}`).click()

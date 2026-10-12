@@ -1,5 +1,5 @@
 import type { ActionAsyncStorage } from './action-async-storage.external'
-import { createAsyncLocalStorage } from './async-local-storage'
+import { getOrCreateGlobalAsyncLocalStorage } from './async-local-storage'
 
 export const actionAsyncStorageInstance: ActionAsyncStorage =
-  createAsyncLocalStorage()
+  getOrCreateGlobalAsyncLocalStorage('action-async-storage')

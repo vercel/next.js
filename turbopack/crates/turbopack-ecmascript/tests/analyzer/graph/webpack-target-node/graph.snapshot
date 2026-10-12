@@ -75,9 +75,7 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            TotalOrderF64(
-                                5166.0,
-                            ),
+                            5166.0,
                         ),
                     ),
                 ),
@@ -128,7 +126,7 @@
         Object {
             total_nodes: 1,
             parts: [],
-            mutable: true,
+            mutability: Mutable,
         },
     ),
     (
@@ -233,15 +231,13 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        TotalOrderF64(
-                                            1.0,
-                                        ),
+                                        1.0,
                                     ),
                                 ),
                             ),
                         ),
                     ],
-                    mutable: true,
+                    mutability: Mutable,
                 },
                 Object {
                     total_nodes: 3,
@@ -257,15 +253,13 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        TotalOrderF64(
-                                            2.0,
-                                        ),
+                                        2.0,
                                     ),
                                 ),
                             ),
                         ),
                     ],
-                    mutable: true,
+                    mutability: Mutable,
                 },
                 Object {
                     total_nodes: 3,
@@ -281,15 +275,13 @@
                             Constant(
                                 Num(
                                     ConstantNumber(
-                                        TotalOrderF64(
-                                            3.0,
-                                        ),
+                                        3.0,
                                     ),
                                 ),
                             ),
                         ),
                     ],
-                    mutable: true,
+                    mutability: Mutable,
                 },
             ],
             mutable: true,

@@ -21,7 +21,7 @@ type HotModuleFactoryFunction = ModuleFactoryFunction<
  * Browser runtime declares this directly.
  * Node.js runtime assigns globalThis.__turbopack_module_cache__ to this.
  */
-let devModuleCache: Record<ModuleId, any>
+let devModuleCache: ModuleCache<any>
 
 /**
  * Module IDs that are instantiated as part of the runtime of a chunk.
@@ -74,7 +74,7 @@ type ModuleEffect =
     }
   | {
       type: 'accepted'
-      moduleId: ModuleId
+      moduleId: ModuleId | undefined
       outdatedModules: Set<ModuleId>
       outdatedDependencies: Map<ModuleId, Set<ModuleId>>
     }
@@ -122,16 +122,18 @@ function getAffectedModuleEffects(
 
   type QueueItem = { moduleId?: ModuleId; dependencyChain: ModuleId[] }
 
-  const queue: QueueItem[] = [
+  const queue: Array<QueueItem | undefined> = [
     {
       moduleId,
       dependencyChain: [],
     },
   ]
 
-  let nextItem
-  while ((nextItem = queue.shift())) {
-    const { moduleId, dependencyChain } = nextItem
+  let queueIndex = 0
+  while (queueIndex < queue.length) {
+    const { moduleId, dependencyChain } = queue[queueIndex]!
+    // Release copied dependency chains as soon as their queue item is consumed.
+    queue[queueIndex++] = undefined
 
     if (moduleId != null) {
       if (outdatedModules.has(moduleId)) {
@@ -159,7 +161,7 @@ function getAffectedModuleEffects(
       }
     }
 
-    const module = devModuleCache[moduleId]
+    const module = devModuleCache.get(moduleId)
     const hotState = moduleHotState.get(module)!
 
     if (
@@ -192,7 +194,7 @@ function getAffectedModuleEffects(
     }
 
     for (const parentId of module.parents) {
-      const parent = devModuleCache[parentId]
+      const parent = devModuleCache.get(parentId)
 
       if (!parent) {
         continue
@@ -459,7 +461,7 @@ function computeOutdatedSelfAcceptedModules(
     errorHandler: true | Function
   }[] = []
   for (const moduleId of outdatedModules) {
-    const module = devModuleCache[moduleId]
+    const module = devModuleCache.get(moduleId)
     const hotState = moduleHotState.get(module)
     if (module && hotState?.selfAccepted && !hotState.selfInvalidated) {
       outdatedSelfAcceptedModules.push({
@@ -479,7 +481,7 @@ function computeOutdatedSelfAcceptedModules(
  * This must be done in a separate step afterwards.
  */
 function disposeModule(moduleId: ModuleId, mode: 'clear' | 'replace') {
-  const module = devModuleCache[moduleId]
+  const module = devModuleCache.get(moduleId)
   if (!module) {
     return
   }
@@ -509,7 +511,7 @@ function disposeModule(moduleId: ModuleId, mode: 'clear' | 'replace') {
   // It will be added back once the module re-instantiates and imports its
   // children again.
   for (const childId of module.children) {
-    const child = devModuleCache[childId]
+    const child = devModuleCache.get(childId)
     if (!child) {
       continue
     }
@@ -522,7 +524,7 @@ function disposeModule(moduleId: ModuleId, mode: 'clear' | 'replace') {
 
   switch (mode) {
     case 'clear':
-      delete devModuleCache[module.id]
+      devModuleCache.delete(module.id)
       moduleHotData.delete(module.id)
       break
     case 'replace':
@@ -555,9 +557,9 @@ function disposePhase(
   // We also want to keep track of previous parents of the outdated modules.
   const outdatedModuleParents = new Map<ModuleId, Array<ModuleId>>()
   for (const moduleId of outdatedModules) {
-    const oldModule = devModuleCache[moduleId]
+    const oldModule = devModuleCache.get(moduleId)
     outdatedModuleParents.set(moduleId, oldModule?.parents)
-    delete devModuleCache[moduleId]
+    devModuleCache.delete(moduleId)
   }
 
   // Remove outdated dependencies from parent module's children list.
@@ -565,7 +567,7 @@ function disposePhase(
   // but the parent stays alive. We remove the old child reference so it
   // gets re-added when the child re-imports.
   for (const [parentId, deps] of outdatedDependencies) {
-    const module = devModuleCache[parentId]
+    const module = devModuleCache.get(parentId)
     if (module) {
       for (const dep of deps) {
         const idx = module.children.indexOf(dep)
@@ -640,7 +642,7 @@ function instantiateModuleShared(
   module.children = []
   module.hot = hot
 
-  devModuleCache[id] = module
+  devModuleCache.set(id, module)
   moduleHotState.set(module, hotState)
 
   // 5. Module execution (React Refresh hooks are platform-specific)
@@ -823,7 +825,7 @@ function applyPhase(
   // This runs BEFORE re-instantiating self-accepted modules, matching
   // webpack's behavior.
   for (const [parentId, deps] of outdatedDependencies) {
-    const module = devModuleCache[parentId]
+    const module = devModuleCache.get(parentId)
     if (!module) continue
 
     const hotState = moduleHotState.get(module)
@@ -886,7 +888,7 @@ function applyPhase(
     } catch (err) {
       if (typeof errorHandler === 'function') {
         try {
-          errorHandler(err, { moduleId, module: devModuleCache[moduleId] })
+          errorHandler(err, { moduleId, module: devModuleCache.get(moduleId) })
         } catch (err2) {
           reportError(err2)
           reportError(err)

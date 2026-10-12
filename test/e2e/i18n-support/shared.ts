@@ -4,11 +4,11 @@ import glob from 'glob'
 import fs from 'fs-extra'
 import cheerio from 'cheerio'
 import { join } from 'path'
-import webdriver from 'next-webdriver'
 import escapeRegex from 'escape-string-regexp'
 import assert from 'assert'
 import {
   fetchViaHTTP,
+  fetchViaRawHttp,
   renderViaHTTP,
   waitFor,
   normalizeRegEx,
@@ -174,7 +174,7 @@ export function runTests(ctx) {
   })
 
   it('should have domainLocales available on useRouter', async () => {
-    const browser = await webdriver(ctx.appPort, `${ctx.basePath || '/'}`)
+    const browser = await ctx.browser(`${ctx.basePath || '/'}`)
     expect(
       JSON.parse(await browser.elementByCss('#router-domain-locales').text())
     ).toEqual([
@@ -208,8 +208,7 @@ export function runTests(ctx) {
     const basePath = ctx.basePath || ''
     const queryKey = 'query'
     const queryValue = '1'
-    const browser = await webdriver(
-      ctx.appPort,
+    const browser = await ctx.browser(
       `${basePath}/fr?${queryKey}=${queryValue}`
     )
 
@@ -250,7 +249,7 @@ export function runTests(ctx) {
   it('should not add duplicate locale key when navigating back to root path with hash', async () => {
     const basePath = ctx.basePath || ''
     const hashValue = '#anchor-1'
-    const browser = await webdriver(ctx.appPort, `${basePath}/fr${hashValue}`)
+    const browser = await ctx.browser(`${basePath}/fr${hashValue}`)
 
     expect(await browser.eval(() => document.location.pathname)).toBe(
       `${basePath}/fr`
@@ -283,10 +282,7 @@ export function runTests(ctx) {
   })
 
   it('should handle navigating back to different casing of locale', async () => {
-    const browser = await webdriver(
-      ctx.appPort,
-      `${ctx.basePath || ''}/FR/links`
-    )
+    const browser = await ctx.browser(`${ctx.basePath || ''}/FR/links`)
 
     expect(await browser.eval(() => document.location.pathname)).toBe(
       `${ctx.basePath || ''}/FR/links`
@@ -329,7 +325,7 @@ export function runTests(ctx) {
   })
 
   it('should navigate to page with same name as development buildId', async () => {
-    const browser = await webdriver(ctx.appPort, `${ctx.basePath || '/'}`)
+    const browser = await ctx.browser(`${ctx.basePath || '/'}`)
 
     await browser.eval(`(function() {
       window.beforeNav = 1
@@ -361,7 +357,7 @@ export function runTests(ctx) {
   // this test can not currently be tested in browser without modifying the
   // host resolution since it needs a domain to test locale domains behavior
   it.skip('should redirect to locale domain correctly client-side', async () => {
-    const browser = await webdriver(ctx.appPort, `${ctx.basePath || '/'}`)
+    const browser = await ctx.browser(`${ctx.basePath || '/'}`)
 
     await browser.eval(`(function() {
       window.next.router.push(
@@ -382,10 +378,7 @@ export function runTests(ctx) {
       ctx.basePath || '/'
     )
 
-    await browser.get(
-      // @ts-expect-error found when converting to TypeScript
-      browser.initUrl
-    )
+    await browser.get(browser.initUrl)
     await browser.waitForElementByCss('#index')
 
     await browser.eval(`(function() {
@@ -411,10 +404,7 @@ export function runTests(ctx) {
   // this test can not currently be tested in browser without modifying the
   // host resolution since it needs a domain to test locale domains behavior
   it.skip('should render the correct href for locale domain', async () => {
-    let browser = await webdriver(
-      ctx.appPort,
-      `${ctx.basePath || ''}/links?nextLocale=go`
-    )
+    let browser = await ctx.browser(`${ctx.basePath || ''}/links?nextLocale=go`)
 
     for (const [element, pathname] of [
       ['#to-another', '/another'],
@@ -431,10 +421,7 @@ export function runTests(ctx) {
       await browser.elementByCss('#to-external').getAttribute('href')
     ).toBe('https://nextjs.org/')
 
-    browser = await webdriver(
-      ctx.appPort,
-      `${ctx.basePath || ''}/links?nextLocale=go-BE`
-    )
+    browser = await ctx.browser(`${ctx.basePath || ''}/links?nextLocale=go-BE`)
 
     for (const [element, pathname] of [
       ['#to-another', '/another'],
@@ -457,7 +444,7 @@ export function runTests(ctx) {
   // The page is accessible on subpath as well as on the domain url without subpath.
   // Once this is not the case the test will need to be changed to access it via domain.
   it('should prerender with the correct href for locale domain', async () => {
-    let browser = await webdriver(ctx.appPort, `${ctx.basePath || ''}/go`)
+    let browser = await ctx.browser(`${ctx.basePath || ''}/go`)
 
     for (const [element, pathname] of [
       ['#to-another', '/another'],
@@ -474,7 +461,7 @@ export function runTests(ctx) {
       await browser.elementByCss('#to-external').getAttribute('href')
     ).toBe('https://nextjs.org/')
 
-    browser = await webdriver(ctx.appPort, `${ctx.basePath || ''}/go-BE`)
+    browser = await ctx.browser(`${ctx.basePath || ''}/go-BE`)
 
     for (const [element, pathname] of [
       ['#to-another', '/another'],
@@ -495,10 +482,7 @@ export function runTests(ctx) {
   })
 
   it('should render the correct href with locale domains but not on a locale domain', async () => {
-    let browser = await webdriver(
-      ctx.appPort,
-      `${ctx.basePath || ''}/links?nextLocale=go`
-    )
+    let browser = await ctx.browser(`${ctx.basePath || ''}/links?nextLocale=go`)
 
     let baseURL = await browser.url()
     for (const [element, pathname] of [
@@ -515,10 +499,7 @@ export function runTests(ctx) {
       expect(hrefPathname).toBe(`${ctx.basePath || ''}/go${pathname}`)
     }
 
-    browser = await webdriver(
-      ctx.appPort,
-      `${ctx.basePath || ''}/links?nextLocale=go-BE`
-    )
+    browser = await ctx.browser(`${ctx.basePath || ''}/links?nextLocale=go-BE`)
 
     baseURL = await browser.url()
     for (const [element, pathname] of [
@@ -537,7 +518,7 @@ export function runTests(ctx) {
   })
 
   it('should navigate through history with query correctly', async () => {
-    const browser = await webdriver(ctx.appPort, `${ctx.basePath || '/'}`)
+    const browser = await ctx.browser(`${ctx.basePath || '/'}`)
 
     await browser.eval(`(function() {
       window.beforeNav = 1
@@ -599,7 +580,7 @@ export function runTests(ctx) {
   }
 
   it('should resolve href correctly when dynamic route matches locale prefixed', async () => {
-    const browser = await webdriver(ctx.appPort, `${ctx.basePath}/nl`)
+    const browser = await ctx.browser(`${ctx.basePath}/nl`)
     await browser.eval('window.beforeNav = 1')
 
     await browser.eval(`(function() {
@@ -622,8 +603,7 @@ export function runTests(ctx) {
   })
 
   it('should use default locale when no locale is in href with locale false', async () => {
-    const browser = await webdriver(
-      ctx.appPort,
+    const browser = await ctx.browser(
       `${ctx.basePath}/nl/locale-false?nextLocale=fr`
     )
 
@@ -671,7 +651,7 @@ export function runTests(ctx) {
     })
   } else {
     it('should preload all locales data correctly', async () => {
-      const browser = await webdriver(ctx.appPort, `${ctx.basePath}/mixed`)
+      const browser = await ctx.browser(`${ctx.basePath}/mixed`)
 
       await browser.eval(`(function() {
         document.querySelector('#to-gsp-en-us').scrollIntoView()
@@ -728,7 +708,7 @@ export function runTests(ctx) {
   })
 
   it('should not have hydration mis-match from hash', async () => {
-    const browser = await webdriver(ctx.appPort, `${ctx.basePath}/en#`)
+    const browser = await ctx.browser(`${ctx.basePath}/en#`)
 
     expect(await browser.elementByCss('html').getAttribute('lang')).toBe('en')
     expect(await browser.elementByCss('#router-locale').text()).toBe('en')
@@ -794,6 +774,9 @@ export function runTests(ctx) {
       ).toMatchInlineSnapshot(`
        "{
          "/do": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/do.json",
@@ -807,6 +790,9 @@ export function runTests(ctx) {
            ]
          },
          "/do-BE": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/do-BE.json",
@@ -820,6 +806,9 @@ export function runTests(ctx) {
            ]
          },
          "/do-BE/404": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/do-BE/404.json",
@@ -833,6 +822,9 @@ export function runTests(ctx) {
            ]
          },
          "/do-BE/frank": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/do-BE/frank.json",
@@ -846,6 +838,9 @@ export function runTests(ctx) {
            ]
          },
          "/do-BE/gsp": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/do-BE/gsp.json",
@@ -859,6 +854,9 @@ export function runTests(ctx) {
            ]
          },
          "/do-BE/gsp/fallback/always": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": "/gsp/fallback/[slug]",
            "dataRoute": "/_next/data/BUILD_ID/do-BE/gsp/fallback/always.json",
@@ -872,6 +870,9 @@ export function runTests(ctx) {
            ]
          },
          "/do-BE/not-found": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/do-BE/not-found.json",
@@ -885,6 +886,9 @@ export function runTests(ctx) {
            ]
          },
          "/do/404": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/do/404.json",
@@ -898,6 +902,9 @@ export function runTests(ctx) {
            ]
          },
          "/do/frank": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/do/frank.json",
@@ -911,6 +918,9 @@ export function runTests(ctx) {
            ]
          },
          "/do/gsp": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/do/gsp.json",
@@ -924,6 +934,9 @@ export function runTests(ctx) {
            ]
          },
          "/do/gsp/fallback/always": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": "/gsp/fallback/[slug]",
            "dataRoute": "/_next/data/BUILD_ID/do/gsp/fallback/always.json",
@@ -937,6 +950,9 @@ export function runTests(ctx) {
            ]
          },
          "/do/not-found": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/do/not-found.json",
@@ -950,6 +966,9 @@ export function runTests(ctx) {
            ]
          },
          "/en": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/en.json",
@@ -963,6 +982,9 @@ export function runTests(ctx) {
            ]
          },
          "/en-US": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/en-US.json",
@@ -976,6 +998,9 @@ export function runTests(ctx) {
            ]
          },
          "/en-US/404": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/en-US/404.json",
@@ -989,6 +1014,9 @@ export function runTests(ctx) {
            ]
          },
          "/en-US/frank": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/en-US/frank.json",
@@ -1002,6 +1030,9 @@ export function runTests(ctx) {
            ]
          },
          "/en-US/gsp": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/en-US/gsp.json",
@@ -1015,6 +1046,9 @@ export function runTests(ctx) {
            ]
          },
          "/en-US/gsp/fallback/always": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": "/gsp/fallback/[slug]",
            "dataRoute": "/_next/data/BUILD_ID/en-US/gsp/fallback/always.json",
@@ -1028,6 +1062,9 @@ export function runTests(ctx) {
            ]
          },
          "/en-US/gsp/fallback/first": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": "/gsp/fallback/[slug]",
            "dataRoute": "/_next/data/BUILD_ID/en-US/gsp/fallback/first.json",
@@ -1041,6 +1078,9 @@ export function runTests(ctx) {
            ]
          },
          "/en-US/gsp/fallback/second": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": "/gsp/fallback/[slug]",
            "dataRoute": "/_next/data/BUILD_ID/en-US/gsp/fallback/second.json",
@@ -1054,6 +1094,9 @@ export function runTests(ctx) {
            ]
          },
          "/en-US/gsp/no-fallback/first": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": "/gsp/no-fallback/[slug]",
            "dataRoute": "/_next/data/BUILD_ID/en-US/gsp/no-fallback/first.json",
@@ -1067,6 +1110,9 @@ export function runTests(ctx) {
            ]
          },
          "/en-US/gsp/no-fallback/second": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": "/gsp/no-fallback/[slug]",
            "dataRoute": "/_next/data/BUILD_ID/en-US/gsp/no-fallback/second.json",
@@ -1080,6 +1126,9 @@ export function runTests(ctx) {
            ]
          },
          "/en-US/not-found": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/en-US/not-found.json",
@@ -1093,6 +1142,9 @@ export function runTests(ctx) {
            ]
          },
          "/en-US/not-found/blocking-fallback/first": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": "/not-found/blocking-fallback/[slug]",
            "dataRoute": "/_next/data/BUILD_ID/en-US/not-found/blocking-fallback/first.json",
@@ -1106,6 +1158,9 @@ export function runTests(ctx) {
            ]
          },
          "/en-US/not-found/blocking-fallback/second": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": "/not-found/blocking-fallback/[slug]",
            "dataRoute": "/_next/data/BUILD_ID/en-US/not-found/blocking-fallback/second.json",
@@ -1119,6 +1174,9 @@ export function runTests(ctx) {
            ]
          },
          "/en-US/not-found/fallback/first": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": "/not-found/fallback/[slug]",
            "dataRoute": "/_next/data/BUILD_ID/en-US/not-found/fallback/first.json",
@@ -1132,6 +1190,9 @@ export function runTests(ctx) {
            ]
          },
          "/en-US/not-found/fallback/second": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": "/not-found/fallback/[slug]",
            "dataRoute": "/_next/data/BUILD_ID/en-US/not-found/fallback/second.json",
@@ -1145,6 +1206,9 @@ export function runTests(ctx) {
            ]
          },
          "/en/404": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/en/404.json",
@@ -1158,6 +1222,9 @@ export function runTests(ctx) {
            ]
          },
          "/en/frank": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/en/frank.json",
@@ -1171,6 +1238,9 @@ export function runTests(ctx) {
            ]
          },
          "/en/gsp": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/en/gsp.json",
@@ -1184,6 +1254,9 @@ export function runTests(ctx) {
            ]
          },
          "/en/gsp/fallback/always": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": "/gsp/fallback/[slug]",
            "dataRoute": "/_next/data/BUILD_ID/en/gsp/fallback/always.json",
@@ -1210,6 +1283,9 @@ export function runTests(ctx) {
            ]
          },
          "/fr": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/fr.json",
@@ -1223,6 +1299,9 @@ export function runTests(ctx) {
            ]
          },
          "/fr-BE": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/fr-BE.json",
@@ -1236,6 +1315,9 @@ export function runTests(ctx) {
            ]
          },
          "/fr-BE/404": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/fr-BE/404.json",
@@ -1249,6 +1331,9 @@ export function runTests(ctx) {
            ]
          },
          "/fr-BE/frank": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/fr-BE/frank.json",
@@ -1262,6 +1347,9 @@ export function runTests(ctx) {
            ]
          },
          "/fr-BE/gsp": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/fr-BE/gsp.json",
@@ -1275,6 +1363,9 @@ export function runTests(ctx) {
            ]
          },
          "/fr-BE/gsp/fallback/always": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": "/gsp/fallback/[slug]",
            "dataRoute": "/_next/data/BUILD_ID/fr-BE/gsp/fallback/always.json",
@@ -1288,6 +1379,9 @@ export function runTests(ctx) {
            ]
          },
          "/fr-BE/not-found": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/fr-BE/not-found.json",
@@ -1301,6 +1395,9 @@ export function runTests(ctx) {
            ]
          },
          "/fr/404": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/fr/404.json",
@@ -1314,6 +1411,9 @@ export function runTests(ctx) {
            ]
          },
          "/fr/frank": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/fr/frank.json",
@@ -1327,6 +1427,9 @@ export function runTests(ctx) {
            ]
          },
          "/fr/gsp": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/fr/gsp.json",
@@ -1340,6 +1443,9 @@ export function runTests(ctx) {
            ]
          },
          "/fr/gsp/fallback/always": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": "/gsp/fallback/[slug]",
            "dataRoute": "/_next/data/BUILD_ID/fr/gsp/fallback/always.json",
@@ -1353,6 +1459,9 @@ export function runTests(ctx) {
            ]
          },
          "/fr/not-found": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/fr/not-found.json",
@@ -1366,6 +1475,9 @@ export function runTests(ctx) {
            ]
          },
          "/go": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/go.json",
@@ -1379,6 +1491,9 @@ export function runTests(ctx) {
            ]
          },
          "/go-BE": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/go-BE.json",
@@ -1392,6 +1507,9 @@ export function runTests(ctx) {
            ]
          },
          "/go-BE/404": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/go-BE/404.json",
@@ -1405,6 +1523,9 @@ export function runTests(ctx) {
            ]
          },
          "/go-BE/frank": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/go-BE/frank.json",
@@ -1418,6 +1539,9 @@ export function runTests(ctx) {
            ]
          },
          "/go-BE/gsp": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/go-BE/gsp.json",
@@ -1431,6 +1555,9 @@ export function runTests(ctx) {
            ]
          },
          "/go-BE/gsp/fallback/always": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": "/gsp/fallback/[slug]",
            "dataRoute": "/_next/data/BUILD_ID/go-BE/gsp/fallback/always.json",
@@ -1444,6 +1571,9 @@ export function runTests(ctx) {
            ]
          },
          "/go-BE/not-found": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/go-BE/not-found.json",
@@ -1457,6 +1587,9 @@ export function runTests(ctx) {
            ]
          },
          "/go/404": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/go/404.json",
@@ -1470,6 +1603,9 @@ export function runTests(ctx) {
            ]
          },
          "/go/frank": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/go/frank.json",
@@ -1483,6 +1619,9 @@ export function runTests(ctx) {
            ]
          },
          "/go/gsp": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/go/gsp.json",
@@ -1496,6 +1635,9 @@ export function runTests(ctx) {
            ]
          },
          "/go/gsp/fallback/always": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": "/gsp/fallback/[slug]",
            "dataRoute": "/_next/data/BUILD_ID/go/gsp/fallback/always.json",
@@ -1509,6 +1651,9 @@ export function runTests(ctx) {
            ]
          },
          "/go/not-found": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/go/not-found.json",
@@ -1522,6 +1667,9 @@ export function runTests(ctx) {
            ]
          },
          "/nl": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/nl.json",
@@ -1535,6 +1683,9 @@ export function runTests(ctx) {
            ]
          },
          "/nl-BE": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/nl-BE.json",
@@ -1548,6 +1699,9 @@ export function runTests(ctx) {
            ]
          },
          "/nl-BE/404": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/nl-BE/404.json",
@@ -1561,6 +1715,9 @@ export function runTests(ctx) {
            ]
          },
          "/nl-BE/frank": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/nl-BE/frank.json",
@@ -1574,6 +1731,9 @@ export function runTests(ctx) {
            ]
          },
          "/nl-BE/gsp": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/nl-BE/gsp.json",
@@ -1587,6 +1747,9 @@ export function runTests(ctx) {
            ]
          },
          "/nl-BE/gsp/fallback/always": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": "/gsp/fallback/[slug]",
            "dataRoute": "/_next/data/BUILD_ID/nl-BE/gsp/fallback/always.json",
@@ -1600,6 +1763,9 @@ export function runTests(ctx) {
            ]
          },
          "/nl-BE/not-found": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/nl-BE/not-found.json",
@@ -1613,6 +1779,9 @@ export function runTests(ctx) {
            ]
          },
          "/nl-NL": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/nl-NL.json",
@@ -1626,6 +1795,9 @@ export function runTests(ctx) {
            ]
          },
          "/nl-NL/404": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/nl-NL/404.json",
@@ -1639,6 +1811,9 @@ export function runTests(ctx) {
            ]
          },
          "/nl-NL/frank": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/nl-NL/frank.json",
@@ -1652,6 +1827,9 @@ export function runTests(ctx) {
            ]
          },
          "/nl-NL/gsp": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/nl-NL/gsp.json",
@@ -1665,6 +1843,9 @@ export function runTests(ctx) {
            ]
          },
          "/nl-NL/gsp/fallback/always": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": "/gsp/fallback/[slug]",
            "dataRoute": "/_next/data/BUILD_ID/nl-NL/gsp/fallback/always.json",
@@ -1678,6 +1859,9 @@ export function runTests(ctx) {
            ]
          },
          "/nl-NL/gsp/no-fallback/second": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": "/gsp/no-fallback/[slug]",
            "dataRoute": "/_next/data/BUILD_ID/nl-NL/gsp/no-fallback/second.json",
@@ -1691,6 +1875,9 @@ export function runTests(ctx) {
            ]
          },
          "/nl-NL/not-found": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/nl-NL/not-found.json",
@@ -1704,6 +1891,9 @@ export function runTests(ctx) {
            ]
          },
          "/nl/404": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/nl/404.json",
@@ -1717,6 +1907,9 @@ export function runTests(ctx) {
            ]
          },
          "/nl/frank": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/nl/frank.json",
@@ -1730,6 +1923,9 @@ export function runTests(ctx) {
            ]
          },
          "/nl/gsp": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": null,
            "dataRoute": "/_next/data/BUILD_ID/nl/gsp.json",
@@ -1743,6 +1939,9 @@ export function runTests(ctx) {
            ]
          },
          "/nl/gsp/fallback/always": {
+           "routeType": "page",
+           "response": "complete",
+           "compute": "static",
            "initialRevalidateSeconds": false,
            "srcRoute": "/gsp/fallback/[slug]",
            "dataRoute": "/_next/data/BUILD_ID/nl/gsp/fallback/always.json",
@@ -1780,64 +1979,73 @@ export function runTests(ctx) {
             'BUILD_ID'
           )
       ).toMatchInlineSnapshot(`
-        "{
-          "/gsp/fallback/[slug]": {
-            "routeRegex": "^\\/gsp\\/fallback\\/([^\\/]+?)(?:\\/)?$",
-            "dataRoute": "/_next/data/BUILD_ID/gsp/fallback/[slug].json",
-            "fallback": "/gsp/fallback/[slug].html",
-            "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/gsp\\/fallback\\/([^\\/]+?)\\.json$",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/gsp/no-fallback/[slug]": {
-            "routeRegex": "^\\/gsp\\/no\\-fallback\\/([^\\/]+?)(?:\\/)?$",
-            "dataRoute": "/_next/data/BUILD_ID/gsp/no-fallback/[slug].json",
-            "fallback": false,
-            "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/gsp\\/no\\-fallback\\/([^\\/]+?)\\.json$",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/not-found/blocking-fallback/[slug]": {
-            "routeRegex": "^\\/not\\-found\\/blocking\\-fallback\\/([^\\/]+?)(?:\\/)?$",
-            "dataRoute": "/_next/data/BUILD_ID/not-found/blocking-fallback/[slug].json",
-            "fallback": null,
-            "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/not\\-found\\/blocking\\-fallback\\/([^\\/]+?)\\.json$",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          },
-          "/not-found/fallback/[slug]": {
-            "routeRegex": "^\\/not\\-found\\/fallback\\/([^\\/]+?)(?:\\/)?$",
-            "dataRoute": "/_next/data/BUILD_ID/not-found/fallback/[slug].json",
-            "fallback": "/not-found/fallback/[slug].html",
-            "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/not\\-found\\/fallback\\/([^\\/]+?)\\.json$",
-            "allowHeader": [
-              "host",
-              "x-matched-path",
-              "x-prerender-revalidate",
-              "x-prerender-revalidate-if-generated",
-              "x-next-revalidated-tags",
-              "x-next-revalidate-tag-token"
-            ]
-          }
-        }"
+       "{
+         "/gsp/fallback/[slug]": {
+           "routeRegex": "^\\/gsp\\/fallback\\/([^\\/]+?)(?:\\/)?$",
+           "dataRoute": "/_next/data/BUILD_ID/gsp/fallback/[slug].json",
+           "fallback": "/gsp/fallback/[slug].html",
+           "routeType": "fallback",
+           "response": "initial",
+           "compute": "static",
+           "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/gsp\\/fallback\\/([^\\/]+?)\\.json$",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/gsp/no-fallback/[slug]": {
+           "routeRegex": "^\\/gsp\\/no\\-fallback\\/([^\\/]+?)(?:\\/)?$",
+           "dataRoute": "/_next/data/BUILD_ID/gsp/no-fallback/[slug].json",
+           "fallback": false,
+           "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/gsp\\/no\\-fallback\\/([^\\/]+?)\\.json$",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/not-found/blocking-fallback/[slug]": {
+           "routeRegex": "^\\/not\\-found\\/blocking\\-fallback\\/([^\\/]+?)(?:\\/)?$",
+           "dataRoute": "/_next/data/BUILD_ID/not-found/blocking-fallback/[slug].json",
+           "fallback": null,
+           "routeType": "page",
+           "response": "empty",
+           "compute": "blocking",
+           "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/not\\-found\\/blocking\\-fallback\\/([^\\/]+?)\\.json$",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         },
+         "/not-found/fallback/[slug]": {
+           "routeRegex": "^\\/not\\-found\\/fallback\\/([^\\/]+?)(?:\\/)?$",
+           "dataRoute": "/_next/data/BUILD_ID/not-found/fallback/[slug].json",
+           "fallback": "/not-found/fallback/[slug].html",
+           "routeType": "fallback",
+           "response": "initial",
+           "compute": "static",
+           "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/not\\-found\\/fallback\\/([^\\/]+?)\\.json$",
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token"
+           ]
+         }
+       }"
       `)
     })
   }
@@ -1859,7 +2067,7 @@ export function runTests(ctx) {
 
   it('should navigate to auto-export dynamic page', async () => {
     for (const locale of nonDomainLocales) {
-      const browser = await webdriver(ctx.appPort, `${ctx.basePath}/${locale}`)
+      const browser = await ctx.browser(`${ctx.basePath}/${locale}`)
       await browser.eval('window.beforeNav = 1')
 
       await browser
@@ -1915,7 +2123,7 @@ export function runTests(ctx) {
       })
       expect(res.status).toBe(308)
 
-      const parsed = new URL(res.headers.get('location'))
+      const parsed = new URL(res.headers.get('location'), res.url)
       expect(parsed.pathname).toBe(path)
 
       if (hostname === 'localhost') {
@@ -1951,7 +2159,7 @@ export function runTests(ctx) {
       expect(res.status).toBe(shouldRedirect ? 307 : 200)
 
       if (shouldRedirect) {
-        const parsed = new URL(res.headers.get('location'))
+        const parsed = new URL(res.headers.get('location'), res.url)
         expect(parsed.pathname).toBe(
           `${ctx.basePath}${locale || ''}${pathname || '/somewhere-else'}`
         )
@@ -2152,10 +2360,7 @@ export function runTests(ctx) {
   })
 
   it('should navigate with locale prop correctly', async () => {
-    const browser = await webdriver(
-      ctx.appPort,
-      `${ctx.basePath}/links?nextLocale=fr`
-    )
+    const browser = await ctx.browser(`${ctx.basePath}/links?nextLocale=fr`)
     await addDefaultLocaleCookie(browser)
     await browser.eval('window.beforeNav = 1')
 
@@ -2272,10 +2477,7 @@ export function runTests(ctx) {
   })
 
   it('should navigate with locale prop correctly GSP', async () => {
-    const browser = await webdriver(
-      ctx.appPort,
-      `${ctx.basePath}/links?nextLocale=nl`
-    )
+    const browser = await ctx.browser(`${ctx.basePath}/links?nextLocale=nl`)
     await addDefaultLocaleCookie(browser)
     await browser.eval('window.beforeNav = 1')
 
@@ -2366,8 +2568,7 @@ export function runTests(ctx) {
   })
 
   it('should navigate with locale false correctly', async () => {
-    const browser = await webdriver(
-      ctx.appPort,
+    const browser = await ctx.browser(
       `${ctx.basePath}/locale-false?nextLocale=fr`
     )
     await addDefaultLocaleCookie(browser)
@@ -2491,8 +2692,7 @@ export function runTests(ctx) {
   })
 
   it('should navigate with locale false correctly GSP', async () => {
-    const browser = await webdriver(
-      ctx.appPort,
+    const browser = await ctx.browser(
       `${ctx.basePath}/locale-false?nextLocale=nl`
     )
     await addDefaultLocaleCookie(browser)
@@ -2590,7 +2790,7 @@ export function runTests(ctx) {
 
   it('should update asPath on the client correctly', async () => {
     for (const check of ['en', 'En']) {
-      const browser = await webdriver(ctx.appPort, `${ctx.basePath}/${check}`)
+      const browser = await ctx.browser(`${ctx.basePath}/${check}`)
 
       expect(await browser.elementByCss('html').getAttribute('lang')).toBe('en')
       expect(await browser.elementByCss('#router-locale').text()).toBe('en')
@@ -2604,8 +2804,7 @@ export function runTests(ctx) {
 
   if (!ctx.isDev) {
     it('should handle fallback correctly after generating', async () => {
-      const browser = await webdriver(
-        ctx.appPort,
+      const browser = await ctx.browser(
         `${ctx.basePath}/en/gsp/fallback/hello-fallback`
       )
 
@@ -2628,16 +2827,13 @@ export function runTests(ctx) {
   }
 
   it('should use correct default locale for locale domains', async () => {
-    const res = await fetchViaHTTP(
-      ctx.appPort,
-      `${ctx.basePath || '/'}`,
-      undefined,
-      {
-        headers: {
-          host: 'example.do',
-        },
-      }
-    )
+    // Global fetch derives the Host header from the URL authority and cannot
+    // override it, so locale-domain tests use a raw HTTP request.
+    const res = await fetchViaRawHttp(ctx.appPort, `${ctx.basePath || '/'}`, {
+      headers: {
+        host: 'example.do',
+      },
+    })
 
     expect(res.status).toBe(200)
 
@@ -2651,16 +2847,11 @@ export function runTests(ctx) {
     // expect(JSON.parse($('#router-locales').text())).toEqual(['fr','fr-BE'])
     expect(JSON.parse($('#router-locales').text())).toEqual(locales)
 
-    const res2 = await fetchViaHTTP(
-      ctx.appPort,
-      `${ctx.basePath || '/'}`,
-      undefined,
-      {
-        headers: {
-          host: 'example.com',
-        },
-      }
-    )
+    const res2 = await fetchViaRawHttp(ctx.appPort, `${ctx.basePath || '/'}`, {
+      headers: {
+        host: 'example.com',
+      },
+    })
 
     expect(res2.status).toBe(200)
 
@@ -2676,17 +2867,12 @@ export function runTests(ctx) {
   })
 
   it('should not strip locale prefix for default locale with locale domains', async () => {
-    const res = await fetchViaHTTP(
-      ctx.appPort,
-      `${ctx.basePath}/do`,
-      undefined,
-      {
-        headers: {
-          host: 'example.do',
-        },
-        redirect: 'manual',
-      }
-    )
+    const res = await fetchViaRawHttp(ctx.appPort, `${ctx.basePath}/do`, {
+      headers: {
+        host: 'example.do',
+      },
+      redirect: 'manual',
+    })
 
     expect(res.status).toBe(200)
 
@@ -2694,17 +2880,12 @@ export function runTests(ctx) {
     // expect(result.pathname).toBe('/')
     // expect(result.query).toEqual({})
 
-    const res2 = await fetchViaHTTP(
-      ctx.appPort,
-      `${ctx.basePath}/go`,
-      undefined,
-      {
-        headers: {
-          host: 'example.com',
-        },
-        redirect: 'manual',
-      }
-    )
+    const res2 = await fetchViaRawHttp(ctx.appPort, `${ctx.basePath}/go`, {
+      headers: {
+        host: 'example.com',
+      },
+      redirect: 'manual',
+    })
 
     expect(res2.status).toBe(200)
 
@@ -2767,18 +2948,13 @@ export function runTests(ctx) {
     for (const check of checks) {
       const [domain, locale, location] = check
 
-      const res = await fetchViaHTTP(
-        ctx.appPort,
-        `${ctx.basePath || '/'}`,
-        undefined,
-        {
-          headers: {
-            host: domain,
-            'accept-language': locale,
-          },
-          redirect: 'manual',
-        }
-      )
+      const res = await fetchViaRawHttp(ctx.appPort, `${ctx.basePath || '/'}`, {
+        headers: {
+          host: domain,
+          'accept-language': locale,
+        },
+        redirect: 'manual',
+      })
 
       expect(res.status).toBe(307)
       expect(res.headers.get('location')).toBe(location)
@@ -2809,10 +2985,9 @@ export function runTests(ctx) {
       it.each(domainItems.reduce((prev, cur) => [...prev, ...cur.locales], []))(
         'should handle locale %s',
         async (locale) => {
-          const res = await fetchViaHTTP(
+          const res = await fetchViaRawHttp(
             ctx.appPort,
             `${ctx.basePath || '/'}`,
-            undefined,
             {
               headers: {
                 host: domain,
@@ -2869,17 +3044,12 @@ export function runTests(ctx) {
       { host: 'example.do', locale: 'do' },
       { host: 'example.com', locale: 'go' },
     ]) {
-      const res = await fetchViaHTTP(
-        ctx.appPort,
-        `${ctx.basePath}/gssp`,
-        undefined,
-        {
-          redirect: 'manual',
-          headers: {
-            host,
-          },
-        }
-      )
+      const res = await fetchViaRawHttp(ctx.appPort, `${ctx.basePath}/gssp`, {
+        redirect: 'manual',
+        headers: {
+          host,
+        },
+      })
 
       expect(res.status).toBe(200)
       const html = await res.text()
@@ -2982,10 +3152,7 @@ export function runTests(ctx) {
       expect(res.status).toBe(skippedLocales.includes(locale) ? 404 : 200)
 
       if (skippedLocales.includes(locale)) {
-        const browser = await webdriver(
-          ctx.appPort,
-          `${ctx.basePath}/${locale}/not-found`
-        )
+        const browser = await ctx.browser(`${ctx.basePath}/${locale}/not-found`)
         expect(await browser.elementByCss('html').getAttribute('lang')).toBe(
           locale
         )
@@ -3006,7 +3173,7 @@ export function runTests(ctx) {
   })
 
   it('should transition on client properly for page that starts with locale', async () => {
-    const browser = await webdriver(ctx.appPort, `${ctx.basePath}/fr`)
+    const browser = await ctx.browser(`${ctx.basePath}/fr`)
     await browser.eval(`(function() {
       window.beforeNav = 1
       window.next.router.push('/frank')
@@ -3033,7 +3200,7 @@ export function runTests(ctx) {
   })
 
   it('should 404 for GSP that returned notFound on client-transition', async () => {
-    const browser = await webdriver(ctx.appPort, `${ctx.basePath}/en`)
+    const browser = await ctx.browser(`${ctx.basePath}/en`)
     await browser.eval(`(function() {
       window.beforeNav = 1
       window.next.router.push('/not-found')
@@ -3053,7 +3220,7 @@ export function runTests(ctx) {
   })
 
   it('should render 404 for fallback page that returned 404 on client transition', async () => {
-    const browser = await webdriver(ctx.appPort, `${ctx.basePath}/en`, {
+    const browser = await ctx.browser(`${ctx.basePath}/en`, {
       retryWaitHydration: true,
     })
     await browser.eval(`(function() {
@@ -3084,8 +3251,7 @@ export function runTests(ctx) {
   })
 
   it('should render 404 for fallback page that returned 404', async () => {
-    const browser = await webdriver(
-      ctx.appPort,
+    const browser = await ctx.browser(
       `${ctx.basePath}/en/not-found/fallback/first`,
       {
         retryWaitHydration: true,
@@ -3116,7 +3282,7 @@ export function runTests(ctx) {
   })
 
   it('should render 404 for blocking fallback page that returned 404 on client transition', async () => {
-    const browser = await webdriver(ctx.appPort, `${ctx.basePath}/en`, {
+    const browser = await ctx.browser(`${ctx.basePath}/en`, {
       retryWaitHydration: true,
     })
     await browser.eval(`(function() {
@@ -3147,8 +3313,7 @@ export function runTests(ctx) {
   })
 
   it('should render 404 for blocking fallback page that returned 404', async () => {
-    const browser = await webdriver(
-      ctx.appPort,
+    const browser = await ctx.browser(
       `${ctx.basePath}/en/not-found/blocking-fallback/first`,
       {
         retryWaitHydration: true,
@@ -3257,10 +3422,7 @@ export function runTests(ctx) {
   })
 
   it('should load getStaticProps fallback non-prerender page correctly (default locale no prefix', async () => {
-    const browser = await webdriver(
-      ctx.appPort,
-      `${ctx.basePath}/gsp/fallback/another`
-    )
+    const browser = await ctx.browser(`${ctx.basePath}/gsp/fallback/another`)
 
     await browser.waitForElementByCss('#props')
 
@@ -3297,7 +3459,7 @@ export function runTests(ctx) {
     )
     expect(res.status).toBe(307)
 
-    const parsedUrl = new URL(res.headers.get('location'))
+    const parsedUrl = new URL(res.headers.get('location'), res.url)
     expect(parsedUrl.pathname).toBe(`${ctx.basePath}/nl-NL`)
     expect(Object.fromEntries(parsedUrl.searchParams.entries())).toEqual({})
 
@@ -3314,7 +3476,7 @@ export function runTests(ctx) {
     )
     expect(res2.status).toBe(307)
 
-    const parsedUrl2 = new URL(res2.headers.get('location'))
+    const parsedUrl2 = new URL(res2.headers.get('location'), res2.url)
     expect(parsedUrl2.pathname).toBe(`${ctx.basePath}/en`)
     expect(Object.fromEntries(parsedUrl2.searchParams.entries())).toEqual({
       hello: 'world',
@@ -3400,10 +3562,7 @@ export function runTests(ctx) {
   })
 
   it('should load getStaticProps fallback non-prerender page correctly', async () => {
-    const browser = await webdriver(
-      ctx.appPort,
-      `${ctx.basePath}/en/gsp/fallback/another`
-    )
+    const browser = await ctx.browser(`${ctx.basePath}/en/gsp/fallback/another`)
 
     await browser.waitForElementByCss('#props')
 
@@ -3445,7 +3604,7 @@ export function runTests(ctx) {
   })
 
   it('should navigate client side for default locale with no prefix', async () => {
-    const browser = await webdriver(ctx.appPort, `${ctx.basePath || '/'}`)
+    const browser = await ctx.browser(`${ctx.basePath || '/'}`)
     await addDefaultLocaleCookie(browser)
 
     const checkIndexValues = async () => {
@@ -3525,8 +3684,7 @@ export function runTests(ctx) {
   })
 
   it('should load getStaticProps fallback non-prerender page another locale correctly', async () => {
-    const browser = await webdriver(
-      ctx.appPort,
+    const browser = await ctx.browser(
       `${ctx.basePath}/nl-NL/gsp/fallback/another`
     )
 
@@ -3552,8 +3710,7 @@ export function runTests(ctx) {
   })
 
   it('should load getStaticProps non-fallback correctly', async () => {
-    const browser = await webdriver(
-      ctx.appPort,
+    const browser = await ctx.browser(
       `${ctx.basePath}/en-US/gsp/no-fallback/first`
     )
 
@@ -3582,8 +3739,7 @@ export function runTests(ctx) {
   })
 
   it('should load getStaticProps non-fallback correctly another locale', async () => {
-    const browser = await webdriver(
-      ctx.appPort,
+    const browser = await ctx.browser(
       `${ctx.basePath}/nl-NL/gsp/no-fallback/second`
     )
 
@@ -3711,7 +3867,7 @@ export function runTests(ctx) {
   })
 
   it('should navigate to another page and back correctly with locale', async () => {
-    const browser = await webdriver(ctx.appPort, `${ctx.basePath}/en`)
+    const browser = await ctx.browser(`${ctx.basePath}/en`)
 
     await browser.eval('window.beforeNav = "hi"')
 
@@ -3747,7 +3903,7 @@ export function runTests(ctx) {
   })
 
   it('should navigate to getStaticProps page and back correctly with locale', async () => {
-    const browser = await webdriver(ctx.appPort, `${ctx.basePath}/en`)
+    const browser = await ctx.browser(`${ctx.basePath}/en`)
 
     await browser.eval('window.beforeNav = "hi"')
 

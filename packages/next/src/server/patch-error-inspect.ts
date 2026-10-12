@@ -1,4 +1,3 @@
-import { findSourceMap as nativeFindSourceMap } from 'module'
 import * as path from 'path'
 import * as url from 'url'
 import type * as util from 'util'
@@ -7,13 +6,14 @@ import {
   type ModernSourceMapPayload,
   devirtualizeReactServerURL,
   findApplicableSourceMapPayload,
+  findSourceMapPayload,
   ignoreListAnonymousStackFramesIfSandwiched as ignoreListAnonymousStackFramesIfSandwichedGeneric,
   sourceMapIgnoreListsEverything,
 } from './lib/source-maps'
 import { parseStack, type StackFrame } from './lib/parse-stack'
 import type { IgnorableStackFrame } from '../next-devtools/server/shared'
 import { workUnitAsyncStorage } from './app-render/work-unit-async-storage.external'
-import { dim, italic } from '../lib/picocolors'
+import { dim, italic, stdoutIsTerminal } from '../lib/picocolors'
 
 type FindSourceMapPayload = (
   sourceURL: string
@@ -22,12 +22,31 @@ type FindSourceMapPayload = (
 // This is only a fallback for when Node.js fails to due to bugs e.g. https://github.com/nodejs/node/issues/52102
 // TODO: Remove once all supported Node.js versions are fixed.
 // TODO(veil): Set from Webpack as well
-let bundlerFindSourceMapPayload: FindSourceMapPayload = () => undefined
+//
+// Stored on `globalThis` for the same reason as the code frame renderer below:
+// this module is bundled into several runtimes that each get their own copy,
+// and the copy that installs the implementation is not necessarily the one that
+// symbolicates a frame. The dev validation worker depends on that, because it
+// installs its implementation from the worker bundle while the frames are
+// symbolicated by the app-page bundle's copy.
+const BUNDLER_FIND_SOURCE_MAP = Symbol.for('next.dev.bundlerFindSourceMap')
+type GlobalWithBundlerFindSourceMap = typeof globalThis & {
+  [BUNDLER_FIND_SOURCE_MAP]?: FindSourceMapPayload
+}
 
 export function setBundlerFindSourceMapImplementation(
   findSourceMapImplementation: FindSourceMapPayload
 ): void {
-  bundlerFindSourceMapPayload = findSourceMapImplementation
+  ;(globalThis as GlobalWithBundlerFindSourceMap)[BUNDLER_FIND_SOURCE_MAP] =
+    findSourceMapImplementation
+}
+
+function bundlerFindSourceMapPayload(
+  sourceURL: string
+): ModernSourceMapPayload | undefined {
+  return (globalThis as GlobalWithBundlerFindSourceMap)[
+    BUNDLER_FIND_SOURCE_MAP
+  ]?.(sourceURL)
 }
 
 // Code frame renderer - injected by dev/build to avoid hard dependency on native bindings
@@ -37,17 +56,30 @@ type CodeFrameRenderer = (
   colors: boolean
 ) => string | null
 
-let codeFrameRenderer: CodeFrameRenderer | undefined
+// The code-frame renderer is stored on `globalThis` rather than in a module
+// variable because this module is bundled into several runtimes (the dev
+// server, the app-page runtime bundle, and the dev worker bundles) that each
+// get their own copy. `Error.prepareStackTrace` is a single process-global, so
+// whichever copy patched it last is the one that renders errors, which may not
+// be the copy `setCodeFrameRenderer` was called on. Sharing the renderer
+// through a `globalThis` symbol lets any copy install it and any copy read it.
+const CODE_FRAME_RENDERER = Symbol.for('next.dev.codeFrameRenderer')
+type GlobalWithCodeFrameRenderer = typeof globalThis & {
+  [CODE_FRAME_RENDERER]?: CodeFrameRenderer
+}
 
 export function setCodeFrameRenderer(renderer: CodeFrameRenderer): void {
-  codeFrameRenderer = renderer
+  ;(globalThis as GlobalWithCodeFrameRenderer)[CODE_FRAME_RENDERER] = renderer
 }
 
 function getOriginalCodeFrame(
   frame: IgnorableStackFrame,
   source: string | null,
-  colors: boolean = process.stdout.isTTY
+  colors: boolean = stdoutIsTerminal
 ): string | null {
+  const codeFrameRenderer = (globalThis as GlobalWithCodeFrameRenderer)[
+    CODE_FRAME_RENDERER
+  ]
   if (!codeFrameRenderer) {
     // No renderer available - gracefully degrade
     return null
@@ -59,6 +91,38 @@ type SourceMapCache = Map<
   string,
   null | { map: SyncSourceMapConsumer; payload: ModernSourceMapPayload }
 >
+
+// Constructing a consumer indexes the whole payload — expensive for large
+// chunk maps and previously paid per frame — so consumers are shared across
+// all frames and errors whose lookups returned the same payload. The inner
+// key is the URL the consumer resolves relative `sources` against.
+const sourceMapConsumers = new WeakMap<
+  ModernSourceMapPayload,
+  Map<string, SyncSourceMapConsumer>
+>()
+
+function getOrCreateSourceMapConsumer(
+  payload: ModernSourceMapPayload,
+  sourceMapURL: string
+): SyncSourceMapConsumer {
+  let consumersByURL = sourceMapConsumers.get(payload)
+  let consumer = consumersByURL?.get(sourceMapURL)
+  if (consumer === undefined) {
+    consumer = new SyncSourceMapConsumer(
+      payload,
+      // @ts-expect-error: our typings don't include this parameter but it is here.
+      sourceMapURL
+    )
+    if (consumersByURL === undefined) {
+      consumersByURL = new Map()
+      // Throws for payloads that aren't objects; those are invalid source
+      // maps anyway, and the caller reports them.
+      sourceMapConsumers.set(payload, consumersByURL)
+    }
+    consumersByURL.set(sourceMapURL, consumer)
+  }
+  return consumer
+}
 
 function frameToString(
   methodName: string | null,
@@ -100,6 +164,15 @@ function computeErrorName(error: Error): string {
   return error.name || 'Error'
 }
 
+// Records where the frames start in a stack produced by
+// `prepareUnsourcemappedStackTrace`, so they can be parsed without having to
+// guess where the message ends. Uses `Symbol.for` since this module is bundled
+// into several runtimes, and any copy may have formatted a given stack.
+const STACK_FRAMES_START = Symbol.for('next.dev.stackFramesStart')
+type ErrorWithStackFramesStart = Error & {
+  [STACK_FRAMES_START]?: { stack: string; framesStart: number }
+}
+
 function prepareUnsourcemappedStackTrace(
   error: Error,
   structuredStackTrace: any[]
@@ -107,8 +180,46 @@ function prepareUnsourcemappedStackTrace(
   const name = computeErrorName(error)
   const message = error.message || ''
   let stack = name + ': ' + message
+  const framesStart = stack.length
   for (let i = 0; i < structuredStackTrace.length; i++) {
     stack += '\n    at ' + structuredStackTrace[i].toString()
+  }
+  // Record where the real stack frames start
+  try {
+    // Non-enumerable so that it doesn't show up when inspecting the error.
+    Object.defineProperty(error, STACK_FRAMES_START, {
+      value: { stack, framesStart },
+      configurable: true,
+      writable: true,
+    })
+  } catch {
+    // The error may be frozen. We'll fall back to finding the frames by
+    // matching the message.
+  }
+  return stack
+}
+
+/**
+ * Returns the part of `error.stack` after the message, so the stack parser
+ * can't mistake message lines for frames (e.g. a line starting with a URL or
+ * with "webpack"/"turbopack").
+ */
+function getUnparsedStackFrames(error: Error, errorName: string): string {
+  let stack = String(error.stack)
+  const recorded = (error as ErrorWithStackFramesStart)[STACK_FRAMES_START]
+  // `error.stack` may have been replaced after we formatted it.
+  if (recorded !== undefined && recorded.stack === stack) {
+    return stack.slice(recorded.framesStart)
+  }
+  // Errors printing by `prepareUnsourcemappedStackTrace` are `Error: <message>` so attempt to strip that prefix
+  if (stack.startsWith(errorName)) {
+    stack = stack.slice(errorName.length)
+  }
+  if (stack.startsWith(': ')) {
+    stack = stack.slice(': '.length)
+  }
+  if (stack.startsWith(error.message)) {
+    stack = stack.slice(error.message.length)
   }
   return stack
 }
@@ -181,7 +292,10 @@ function getSourcemappedFrameIfPossible(
   let sourceMapConsumer: SyncSourceMapConsumer
   let sourceMapPayload: ModernSourceMapPayload
   if (sourceMapCacheEntry === undefined) {
-    let sourceURL = frame.file
+    // Fake frame scripts (`about://React/Server/file:///path/to/chunk.js?42`)
+    // have their positions padded to match the underlying chunk, so they
+    // resolve via the chunk's source map.
+    let sourceURL = devirtualizeReactServerURL(frame.file)
     // e.g. "/Users/foo/APP/.next/server/chunks/ssr/[root-of-the-server]__2934a0._.js"
     // or "C:\Users\foo\APP\.next\server\chunks\ssr\[root-of-the-server]__2934a0._.js"
     // will be keyed by Node.js as "file:///APP/.next/server/chunks/ssr/[root-of-the-server]__2934a0._.js".
@@ -189,13 +303,31 @@ function getSourcemappedFrameIfPossible(
     //
     // But frame.file might also be "webpack-internal:///(rsc)/./app/bad-sourcemap/page.js" or
     // "<anonymous>" or "node:internal/process/task_queues" here
-    if (path.isAbsolute(frame.file)) {
-      sourceURL = url.pathToFileURL(frame.file).toString()
+    if (path.isAbsolute(sourceURL)) {
+      sourceURL = url.pathToFileURL(sourceURL).toString()
     }
     let maybeSourceMapPayload: ModernSourceMapPayload | undefined
     try {
-      const sourceMap = nativeFindSourceMap(sourceURL)
-      maybeSourceMapPayload = sourceMap?.payload
+      maybeSourceMapPayload = findSourceMapPayload(sourceURL)
+
+      if (
+        maybeSourceMapPayload === undefined &&
+        sourceURL.startsWith('file://')
+      ) {
+        // Devirtualizing React's fake frame URL decodes the path, while Node.js
+        // keys its source map cache by the `pathToFileURL` encoding of the same
+        // path, so a path containing characters that encoding escapes (such as
+        // the brackets in Turbopack's `[root-of-the-server]` chunks) misses
+        // above. Node.js also accepts the plain path, which is unambiguous for
+        // both interpretations, so retry with that before giving up.
+        //
+        // TODO(veil): Making React's fake frame URLs reversible, as proposed in
+        // https://github.com/react/react/pull/37105, would let the first lookup
+        // succeed on its own and retire this retry.
+        maybeSourceMapPayload = findSourceMapPayload(
+          url.fileURLToPath(sourceURL)
+        )
+      }
     } catch (cause) {
       // We should not log an actual error instance here because that will re-enter
       // this codepath during error inspection and could lead to infinite recursion.
@@ -228,13 +360,11 @@ function getSourcemappedFrameIfPossible(
       // is sufficient to compute relative paths but is actually wrong (the
       // chunk and sourcemap have different content hashes). We are using the
       // node API to read the sourcemap and it doesn't give us access to the
-      // URI. Devirtualize `about://React/Server/file:///path/to/chunk.js?4` to
-      // `file:///path/to/chunk.js` so that relative `sources` in the source map
-      // resolve against the real chunk URL, not the virtual one.
-      const sourceMapURL = devirtualizeReactServerURL(sourceURL) + '.map'
-      sourceMapConsumer = new SyncSourceMapConsumer(
+      // URI. `sourceURL` is already devirtualized so that relative `sources`
+      // resolve against the real chunk URL, not React's virtual one.
+      const sourceMapURL = sourceURL + '.map'
+      sourceMapConsumer = getOrCreateSourceMapConsumer(
         sourceMapPayload,
-        // @ts-expect-error: our typings don't include this parameter but it is here.
         sourceMapURL
       )
     } catch (cause) {
@@ -352,12 +482,12 @@ function parseAndSourceMap(
   inspectOptions: util.InspectOptions
 ): string {
   const showIgnoreListed = process.env.__NEXT_SHOW_IGNORE_LISTED === 'true'
-  // We overwrote Error.prepareStackTrace earlier so error.stack is not sourcemapped.
-  let unparsedStack = String(error.stack)
   // We could just read it from `error.stack`.
   // This works around cases where a 3rd party `Error.prepareStackTrace` implementation
   // doesn't implement the name computation correctly.
   const errorName = computeErrorName(error)
+  // We overwrote Error.prepareStackTrace earlier so error.stack is not sourcemapped.
+  let unparsedStack = getUnparsedStackFrames(error, errorName)
 
   let idx = unparsedStack.indexOf('react_stack_bottom_frame')
   if (idx !== -1) {
@@ -496,6 +626,25 @@ function sourceMapError(
   return newError
 }
 
+/**
+ * Node.js passes the remaining depth in `depth`. An `AggregateError` keeps its
+ * errors in an array. Node.js spends one level of the depth on that array, and
+ * one more level on each error in the array. A `cause` costs one level only.
+ * This function adds the missing level back, so an `AggregateError` prints its
+ * errors at the same nesting as a `cause`. Without it, a `fetch` failure logs
+ * `[errors]: [ [Error], [Error] ]` and hides the address and the port of every
+ * refused connection.
+ *
+ * A `depth` of `null` means unlimited, so this function returns it unchanged.
+ */
+function getInspectDepth(error: Error, depth: number | null): number | null {
+  if (depth === null || !(error instanceof AggregateError)) {
+    return depth
+  }
+
+  return depth + 1
+}
+
 export function patchErrorInspectNodeJS(
   errorConstructor: ErrorConstructor
 ): void {
@@ -505,7 +654,7 @@ export function patchErrorInspectNodeJS(
 
   // @ts-expect-error -- TODO upstream types
   errorConstructor.prototype[inspectSymbol] = function (
-    depth: number,
+    depth: number | null,
     inspectOptions: util.InspectOptions,
     inspect: typeof util.inspect
   ): string {
@@ -524,7 +673,7 @@ export function patchErrorInspectNodeJS(
       try {
         return inspect(newError, {
           ...inspectOptions,
-          depth,
+          depth: getInspectDepth(newError, depth),
         })
       } finally {
         ;(newError as any)[inspectSymbol] = originalCustomInspect

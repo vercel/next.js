@@ -9,7 +9,7 @@
   "dependencies": {
     "@headlessui/react": "^1.7.4",
     "@heroicons/react": "^2.0.13",
-    "@vercel/blob": "^1.0.0",
+    "@vercel/blob": "^2.8.0",
     "eslint-config-next": "^13.0.1",
     "framer-motion": "^7.6.4",
     "next": "latest",

@@ -1,0 +1,8 @@
+{
+  "name": "typescript",
+  "version": "7.0.0-test",
+  "type": "module",
+  "bin": {
+    "tsc": "./bin/tsc"
+  }
+}

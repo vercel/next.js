@@ -7,10 +7,7 @@
     "importHelpers": false,
     "noEmitHelpers": false,
     "skipLibCheck": true,
-    "outDir": "./dist",
-    "paths": {
-      "@vercel/webpack-nft": ["./packages/webpack-nmt/src/index.ts"]
-    }
+    "outDir": "./dist"
   },
   "exclude": ["node_modules", "target"]
 }

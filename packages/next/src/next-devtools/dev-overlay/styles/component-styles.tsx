@@ -3,7 +3,6 @@ import { styles as dialog } from '../components/dialog'
 import { styles as errorLayout } from '../components/errors/error-overlay-layout/error-overlay-layout'
 import { styles as pagination } from '../components/errors/error-overlay-pagination/error-overlay-pagination'
 import { styles as overlay } from '../components/overlay/styles'
-import { styles as footer } from '../components/errors/error-overlay-footer/error-overlay-footer'
 import { TERMINAL_STYLES } from '../components/terminal/terminal'
 import { styles as versionStaleness } from '../components/version-staleness-info/version-staleness-info'
 import { styles as buildErrorStyles } from '../container/build-error'
@@ -18,6 +17,7 @@ import { DEV_TOOLS_INFO_USER_PREFERENCES_STYLES } from '../components/errors/dev
 import { CALL_STACK_STYLES } from '../components/call-stack/call-stack'
 import { SHORTCUT_RECORDER_STYLES } from '../components/errors/dev-tools-indicator/dev-tools-info/shortcut-recorder'
 import { INSTANT_GUIDANCE_STYLES } from '../components/instant/instant-guidance'
+import { UNRENDERED_SEGMENT_INFO_STYLES } from '../components/instant/unrendered-segment-info'
 
 export function ComponentStyles() {
   return (
@@ -30,7 +30,6 @@ export function ComponentStyles() {
         ${overlay}
         ${dialog}
         ${errorLayout}
-        ${footer}
         ${pagination}
         ${CODE_FRAME_STYLES}
         ${TERMINAL_STYLES}
@@ -42,6 +41,7 @@ export function ComponentStyles() {
         ${DEV_TOOLS_INFO_USER_PREFERENCES_STYLES}
         ${SHORTCUT_RECORDER_STYLES}
         ${INSTANT_GUIDANCE_STYLES}
+        ${UNRENDERED_SEGMENT_INFO_STYLES}
       `}
     </style>
   )

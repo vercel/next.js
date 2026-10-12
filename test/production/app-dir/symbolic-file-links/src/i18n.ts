@@ -1,1 +1,0 @@
-../somewhere-else/src/i18n.ts

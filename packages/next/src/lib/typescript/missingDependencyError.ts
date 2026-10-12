@@ -9,7 +9,7 @@ export function missingDepsError(
   missingPackages: MissingDependency[]
 ): never {
   const packagesHuman = getOxfordCommaList(missingPackages.map((p) => p.pkg))
-  const packagesCli = missingPackages.map((p) => p.pkg).join(' ')
+  const packagesCli = missingPackages.map((p) => p.install ?? p.pkg).join(' ')
   const packageManager = getPkgManager(dir)
 
   const removalMsg =

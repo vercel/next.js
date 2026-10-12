@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('clientTraceMetadata', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next, isNextDev, isNextStart } = nextTestSetup({
     files: __dirname,
     dependencies: require('./package.json').dependencies,
     // This test sometimes takes longer than the default timeout, extending it bit longer
@@ -104,7 +104,10 @@ describe('clientTraceMetadata', () => {
           expect(initialSpanIdTagContent).toBe(updatedSpanIdTagContent)
         })
       })
-    } else {
+    } else if (isNextStart) {
+      // Deploy platforms may regenerate App Router prerenders inside a request
+      // span. These assertions specifically cover the build output served by
+      // next start, where no per-request propagation data should be present.
       describe('next start only', () => {
         it('should not inject propagation data for a statically server-side-rendered page', async () => {
           const $ = await next.render$('/app-router/static-page')

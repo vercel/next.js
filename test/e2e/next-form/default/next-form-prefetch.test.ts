@@ -5,7 +5,6 @@ import {
   RSC_HEADER,
 } from 'next/src/client/components/app-router-headers'
 import type { Page, Request as PlaywrightRequest } from 'playwright'
-import { WebdriverOptions } from 'next-webdriver'
 import { retry } from 'next-test-utils'
 
 const _describe =
@@ -131,7 +130,7 @@ _describe('app dir - form prefetching', () => {
 
 type PlaywrightRoutePattern = Parameters<Page['route']>[0]
 type PlaywrightRouteOptions = Parameters<Page['route']>[2]
-type BeforePageLoadFn = NonNullable<WebdriverOptions['beforePageLoad']>
+type BeforePageLoadFn = (page: Page) => void | Promise<void>
 
 type RequestInterceptorOptions = {
   pattern: PlaywrightRoutePattern

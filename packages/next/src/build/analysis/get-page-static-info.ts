@@ -48,7 +48,7 @@ import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-pat
 import { isProxyFile } from '../utils'
 
 const PARSE_PATTERN =
-  /(?<!(_jsx|jsx-))runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|export const|generateImageMetadata|generateSitemaps|middleware|proxy/
+  /(?<!(_jsx|jsx-))runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|unstable_paramMatching|unstable_generateParamMatching|export const|generateImageMetadata|generateSitemaps|middleware|proxy/
 
 export type ProxyMatcher = {
   regexp: string
@@ -77,31 +77,26 @@ export type ProxyConfig = {
   unstable_allowDynamic?: string[]
 }
 
-export interface AppPageStaticInfo {
-  type: PAGE_TYPES.APP
-  ssg?: boolean
-  ssr?: boolean
+export interface SharedPageStaticInfo {
   rsc?: RSCModuleType
-  generateStaticParams?: boolean
   generateSitemaps?: boolean
   generateImageMetadata?: boolean
   middleware?: ProxyConfig
-  config: Omit<AppSegmentConfig, 'runtime' | 'maxDuration'> | undefined
-  runtime: AppSegmentConfig['runtime'] | undefined
-  preferredRegion: AppSegmentConfig['preferredRegion'] | undefined
   maxDuration: number | undefined
   hadUnsupportedValue: boolean
 }
 
-export interface PagesPageStaticInfo {
+export interface AppPageStaticInfo extends SharedPageStaticInfo {
+  type: PAGE_TYPES.APP
+  ssg?: boolean
+  ssr?: boolean
+  config: Omit<AppSegmentConfig, 'runtime' | 'maxDuration'> | undefined
+  runtime: AppSegmentConfig['runtime'] | undefined
+  preferredRegion: AppSegmentConfig['preferredRegion'] | undefined
+}
+
+export interface PagesPageStaticInfo extends SharedPageStaticInfo {
   type: PAGE_TYPES.PAGES
-  getStaticProps?: boolean
-  getServerSideProps?: boolean
-  rsc?: RSCModuleType
-  generateStaticParams?: boolean
-  generateSitemaps?: boolean
-  generateImageMetadata?: boolean
-  middleware?: ProxyConfig
   config:
     | (Omit<PagesSegmentConfig, 'runtime' | 'config' | 'maxDuration'> & {
         config?: Omit<PagesSegmentConfigConfig, 'runtime' | 'maxDuration'>
@@ -109,8 +104,6 @@ export interface PagesPageStaticInfo {
     | undefined
   runtime: PagesSegmentConfig['runtime'] | undefined
   preferredRegion: PagesSegmentConfigConfig['regions'] | undefined
-  maxDuration: number | undefined
-  hadUnsupportedValue: boolean
 }
 
 export type PageStaticInfo = AppPageStaticInfo | PagesPageStaticInfo
@@ -187,6 +180,8 @@ function checkExports(
   getServerSideProps?: boolean
   generateImageMetadata?: boolean
   generateSitemaps?: boolean
+  paramMatching?: boolean
+  generateParamMatching?: boolean
   generateStaticParams?: boolean
   directives?: Set<string>
   exports?: Set<string>
@@ -196,6 +191,8 @@ function checkExports(
     'getServerSideProps',
     'generateImageMetadata',
     'generateSitemaps',
+    'unstable_paramMatching',
+    'unstable_generateParamMatching',
     'generateStaticParams',
   ])
   if (!Array.isArray(ast?.body)) {
@@ -207,6 +204,8 @@ function checkExports(
     let getServerSideProps: boolean = false
     let generateImageMetadata: boolean = false
     let generateSitemaps: boolean = false
+    let paramMatching = false
+    let generateParamMatching = false
     let generateStaticParams = false
     let exports = new Set<string>()
     let directives = new Set<string>()
@@ -251,6 +250,10 @@ function checkExports(
         getStaticProps = id === 'getStaticProps'
         generateImageMetadata = id === 'generateImageMetadata'
         generateSitemaps = id === 'generateSitemaps'
+        if (id === 'unstable_paramMatching') paramMatching = true
+        if (id === 'unstable_generateParamMatching') {
+          generateParamMatching = true
+        }
         generateStaticParams = id === 'generateStaticParams'
       }
 
@@ -264,6 +267,10 @@ function checkExports(
           getStaticProps = id === 'getStaticProps'
           generateImageMetadata = id === 'generateImageMetadata'
           generateSitemaps = id === 'generateSitemaps'
+          if (id === 'unstable_paramMatching') paramMatching = true
+          if (id === 'unstable_generateParamMatching') {
+            generateParamMatching = true
+          }
           generateStaticParams = id === 'generateStaticParams'
         }
       }
@@ -288,6 +295,15 @@ function checkExports(
             if (!generateSitemaps && value === 'generateSitemaps') {
               generateSitemaps = true
             }
+            if (!paramMatching && value === 'unstable_paramMatching') {
+              paramMatching = true
+            }
+            if (
+              !generateParamMatching &&
+              value === 'unstable_generateParamMatching'
+            ) {
+              generateParamMatching = true
+            }
             if (!generateStaticParams && value === 'generateStaticParams') {
               generateStaticParams = true
             }
@@ -308,6 +324,8 @@ function checkExports(
       getServerSideProps,
       generateImageMetadata,
       generateSitemaps,
+      paramMatching,
+      generateParamMatching,
       generateStaticParams,
       directives,
       exports,
@@ -654,6 +672,8 @@ export async function getAppPageStaticInfo({
   })
 
   const {
+    paramMatching,
+    generateParamMatching,
     generateStaticParams,
     generateImageMetadata,
     generateSitemaps,
@@ -685,6 +705,32 @@ export async function getAppPageStaticInfo({
   const route = normalizeAppPath(page)
   const config = parseAppSegmentConfig(exportedConfig, route)
 
+  const hasParamMatching = paramMatching || generateParamMatching
+
+  if (paramMatching && generateParamMatching) {
+    throw new Error(
+      `Page "${page}" cannot export both \`unstable_paramMatching\` and \`unstable_generateParamMatching\`.`
+    )
+  }
+
+  if (hasParamMatching && /\/route\.[^/]+$/.test(pageFilePath)) {
+    throw new Error(
+      `Route "${page}" cannot export parameter matching. It is only supported in layouts and pages.`
+    )
+  }
+
+  if (isEdgeRuntime(config.runtime) && hasParamMatching) {
+    throw new Error(
+      `Page "${page}" cannot use both \`export const runtime = 'edge'\` and parameter matching.`
+    )
+  }
+
+  if (directives?.has('client') && hasParamMatching) {
+    throw new Error(
+      `Page "${page}" cannot use both "use client" and a parameter matching export.`
+    )
+  }
+
   // Prevent edge runtime and generateStaticParams in the same file.
   if (isEdgeRuntime(config.runtime) && generateStaticParams) {
     throw new Error(
@@ -699,30 +745,20 @@ export async function getAppPageStaticInfo({
     )
   }
 
-  // Prevent use client and unstable_instant in the same file.
-  if (directives?.has('client') && 'unstable_instant' in config) {
-    throw new Error(
-      `"unstable_instant" is a route segment config and can only be used when the segment is a Server Component module. Remove the "use client" directive from "${pageFilePath}" to use this API.`
-    )
-  }
+  for (const exportName of ['instant', 'prefetch', 'ensureStatic'] as const) {
+    if (exportName in config) {
+      if (directives?.has('client')) {
+        throw new Error(
+          `"${exportName}" is a route segment config and can only be used when the segment is a Server Component module. Remove the "use client" directive from "${pageFilePath}" to use this API.`
+        )
+      }
 
-  if ('unstable_instant' in config && !nextConfig.cacheComponents) {
-    throw new Error(
-      `Route "${page}" cannot use \`export const unstable_instant = ...\` without enabling \`cacheComponents\`.`
-    )
-  }
-
-  // Prevent use client and unstable_prefetch in the same file.
-  if (directives?.has('client') && 'unstable_prefetch' in config) {
-    throw new Error(
-      `"unstable_prefetch" is a route segment config and can only be used when the segment is a Server Component module. Remove the "use client" directive from "${pageFilePath}" to use this API.`
-    )
-  }
-
-  if ('unstable_prefetch' in config && !nextConfig.cacheComponents) {
-    throw new Error(
-      `Route "${page}" cannot use \`export const unstable_prefetch = ...\` without enabling \`cacheComponents\`.`
-    )
+      if (!nextConfig.cacheComponents) {
+        throw new Error(
+          `Route "${page}" cannot use \`export const ${exportName} = ...\` without enabling \`cacheComponents\`.`
+        )
+      }
+    }
   }
 
   // Prevent unstable_dynamicStaleTime in layouts.
@@ -735,10 +771,10 @@ export async function getAppPageStaticInfo({
     }
   }
 
-  // Prevent combining unstable_dynamicStaleTime and unstable_instant.
-  if ('unstable_dynamicStaleTime' in config && 'unstable_instant' in config) {
+  // Prevent combining unstable_dynamicStaleTime and instant.
+  if ('unstable_dynamicStaleTime' in config && 'instant' in config) {
     throw new Error(
-      `Page "${page}" cannot use both \`export const unstable_dynamicStaleTime\` and \`export const unstable_instant\`.`
+      `Page "${page}" cannot use both \`export const unstable_dynamicStaleTime\` and \`export const instant\`.`
     )
   }
 
@@ -755,7 +791,6 @@ export async function getAppPageStaticInfo({
     rsc,
     generateImageMetadata,
     generateSitemaps,
-    generateStaticParams,
     config,
     middleware: parseMiddlewareConfig(page, exportedConfig.config, nextConfig),
     runtime: config.runtime,
@@ -791,11 +826,7 @@ export async function getPagesPageStaticInfo({
     isDev,
   })
 
-  const { getServerSideProps, getStaticProps, exports } = checkExports(
-    ast,
-    PagesSegmentConfigSchemaKeys,
-    page
-  )
+  const { exports } = checkExports(ast, PagesSegmentConfigSchemaKeys, page)
 
   const { type: rsc } = getRSCModuleInformation(content, true)
 
@@ -870,8 +901,6 @@ export async function getPagesPageStaticInfo({
 
   return {
     type: PAGE_TYPES.PAGES,
-    getStaticProps,
-    getServerSideProps,
     rsc,
     config,
     middleware: parseMiddlewareConfig(page, exportedConfig.config, nextConfig),

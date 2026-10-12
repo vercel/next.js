@@ -1,11 +1,9 @@
-import { warnOnce } from './utils/warn-once'
 import { getAssetToken, getDeploymentId } from './deployment-id'
 import { getImageBlurSvg } from './image-blur-svg'
-import { imageConfigDefault } from './image-config'
 import type {
-  ImageConfigComplete,
   ImageLoaderProps,
   ImageLoaderPropsWithConfig,
+  PreparedImageConfig,
 } from './image-config'
 
 import type { CSSProperties, JSX } from 'react'
@@ -25,10 +23,11 @@ export interface StaticRequire {
 
 export type StaticImport = StaticRequire | StaticImageData
 
-export type ImageProps = Omit<
-  JSX.IntrinsicElements['img'],
-  'src' | 'srcSet' | 'ref' | 'alt' | 'width' | 'height' | 'loading'
-> & {
+export interface ImageProps
+  extends Omit<
+    JSX.IntrinsicElements['img'],
+    'src' | 'srcSet' | 'ref' | 'alt' | 'width' | 'height' | 'loading'
+  > {
   src: string | StaticImport
   alt: string
   width?: number | `${number}`
@@ -96,10 +95,7 @@ const INVALID_BACKGROUND_SIZE_VALUES = [
   undefined,
 ]
 type LoadingValue = (typeof VALID_LOADING_VALUES)[number]
-type ImageConfig = ImageConfigComplete & {
-  allSizes: number[]
-  output?: 'standalone' | 'export'
-}
+type ImageConfig = PreparedImageConfig
 
 export type ImageLoader = (p: ImageLoaderProps) => string
 
@@ -314,7 +310,7 @@ export function getImgProps(
   }: ImageProps,
   _state: {
     defaultLoader: ImageLoaderWithConfig
-    imgConf: ImageConfigComplete
+    imgConf: ImageConfig
     showAltText?: boolean
     blurComplete?: boolean
   }
@@ -327,17 +323,7 @@ export function getImgProps(
     fill: boolean
   }
 } {
-  const { imgConf, showAltText, blurComplete, defaultLoader } = _state
-  let config: ImageConfig
-  let c = imgConf || imageConfigDefault
-  if ('allSizes' in c) {
-    config = c as ImageConfig
-  } else {
-    const allSizes = [...c.deviceSizes, ...c.imageSizes].sort((a, b) => a - b)
-    const deviceSizes = c.deviceSizes.sort((a, b) => a - b)
-    const qualities = c.qualities?.sort((a, b) => a - b)
-    config = { ...c, allSizes, deviceSizes, qualities }
-  }
+  const { imgConf: config, showAltText, blurComplete, defaultLoader } = _state
 
   if (typeof defaultLoader === 'undefined') {
     throw new Error(
@@ -462,6 +448,8 @@ export function getImgProps(
   const qualityInt = getInt(quality)
 
   if (process.env.NODE_ENV !== 'production') {
+    const { warnOnce } =
+      require('./utils/warn-once') as typeof import('./utils/warn-once')
     if (config.output === 'export' && isDefaultLoader && !unoptimized) {
       throw new Error(
         `Image Optimization using the default loader is not compatible with \`{ output: 'export' }\`.

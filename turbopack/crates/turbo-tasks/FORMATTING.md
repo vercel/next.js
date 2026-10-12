@@ -8,7 +8,7 @@ read. These macros handle that automatically.
 
 Returns `Result<RcStr>` after resolving all arguments asynchronously.
 
-```rust
+```ignore
 // Positional arguments
 let msg = turbofmt!("asset {} in path {}", asset.ident(), base_path).await?;
 
@@ -28,7 +28,7 @@ formatting directly and are **not** resolved asynchronously.
 Same as `turbofmt!`, but calls `anyhow::bail!()` with the formatted message.
 Has implicit `.await` and return flow.
 
-```rust
+```ignore
 turbobail!("asset {} is not in path {}", asset.ident(), base_path);
 ```
 
@@ -40,14 +40,14 @@ and `ResolvedVc<T>` fields work directly in format strings.
 
 **No attribute** — delegates to `Display::to_string()`:
 
-```rust
+```ignore
 #[derive(ValueToString)]
 struct Foo { ... } // requires Display impl
 ```
 
 **Format string with field references** — fields are resolved async:
 
-```rust
+```ignore
 #[derive(ValueToString)]
 #[value_to_string("[{fs}]/{path}")]
 struct FileSystemPath { fs: ResolvedVc<...>, path: RcStr }
@@ -55,7 +55,7 @@ struct FileSystemPath { fs: ResolvedVc<...>, path: RcStr }
 
 **Format string with explicit expressions:**
 
-```rust
+```ignore
 #[derive(ValueToString)]
 #[value_to_string("{}", self.name())]
 struct Bar { ... }
@@ -63,7 +63,7 @@ struct Bar { ... }
 
 **Direct expression:**
 
-```rust
+```ignore
 #[derive(ValueToString)]
 #[value_to_string(self.inner)]
 struct Wrapper { inner: RcStr }
@@ -71,7 +71,7 @@ struct Wrapper { inner: RcStr }
 
 **Enums** — variants without an attribute default to their name:
 
-```rust
+```ignore
 #[derive(ValueToString)]
 enum Kind {
     Foo,                                    // → "Foo"
@@ -87,7 +87,7 @@ enum Kind {
 The underlying async trait. You rarely need to implement this manually —
 prefer `#[derive(ValueToString)]` instead.
 
-```rust
+```ignore
 #[turbo_tasks::value_trait]
 pub trait ValueToString {
     fn to_string(self: Vc<Self>) -> Vc<RcStr>;

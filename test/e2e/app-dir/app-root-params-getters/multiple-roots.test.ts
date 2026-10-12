@@ -82,7 +82,7 @@ describe('app-root-param-getters - multiple roots', () => {
       // This should make the bundler re-generate 'next/root-params' again, with `things` instead of `stuff`.
       if (isTurbopack) {
         // FIXME(turbopack): Something in our routing logic doesn't handle renaming a route param in turbopack mode.
-        // I haven't found the cause for this, but `DefaultRouteMatcherManager.reload` calls
+        // I haven't found the cause for this, but dev route sorting calls
         // `getSortedRoutes(['/dashboard/[id]', '/new-root/[stuff]', '/new-root/[things]'])`
         // which makes it error because it looks like we have two overlapping routes.
         // I'm not sure why the previous route doesn't get removed and couldn't find a workaround,

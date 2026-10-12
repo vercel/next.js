@@ -19,6 +19,12 @@ export type ProjectSpecification = {
   }
 }
 
+const tailwindFiles = process.env.NEXT_RSPACK ? ['postcss.config.mjs'] : []
+const tailwindDevDeps = [
+  process.env.NEXT_RSPACK ? '@tailwindcss/postcss' : '@tailwindcss/turbopack',
+  'tailwindcss',
+]
+
 /**
  * Required files for a given project template and mode.
  */
@@ -95,10 +101,10 @@ export const projectSpecification: ProjectSpecification = {
         'pages/_app.js',
         'pages/api/hello.js',
         'pages/index.js',
-        'postcss.config.mjs',
+        ...tailwindFiles,
       ],
       deps: [],
-      devDeps: ['@tailwindcss/postcss', 'tailwindcss'],
+      devDeps: tailwindDevDeps,
     },
     ts: {
       files: [
@@ -106,7 +112,7 @@ export const projectSpecification: ProjectSpecification = {
         'pages/_app.tsx',
         'pages/api/hello.ts',
         'pages/index.tsx',
-        'postcss.config.mjs',
+        ...tailwindFiles,
         'tsconfig.json',
       ],
       deps: [],
@@ -114,8 +120,7 @@ export const projectSpecification: ProjectSpecification = {
         '@types/node',
         '@types/react-dom',
         '@types/react',
-        '@tailwindcss/postcss',
-        'tailwindcss',
+        ...tailwindDevDeps,
         'typescript',
       ],
     },
@@ -126,17 +131,17 @@ export const projectSpecification: ProjectSpecification = {
         'jsconfig.json',
         'pages/_app.js',
         'pages/index.js',
-        'postcss.config.mjs',
+        ...tailwindFiles,
       ],
       deps: [],
-      devDeps: ['@tailwindcss/postcss', 'tailwindcss'],
+      devDeps: tailwindDevDeps,
     },
     ts: {
       files: [
         'next-env.d.ts',
         'pages/_app.tsx',
         'pages/index.tsx',
-        'postcss.config.mjs',
+        ...tailwindFiles,
         'tsconfig.json',
       ],
       deps: [],
@@ -144,8 +149,7 @@ export const projectSpecification: ProjectSpecification = {
         '@types/node',
         '@types/react-dom',
         '@types/react',
-        '@tailwindcss/postcss',
-        'tailwindcss',
+        ...tailwindDevDeps,
         'typescript',
       ],
     },
@@ -214,12 +218,12 @@ export const projectSpecification: ProjectSpecification = {
   'app-tw': {
     js: {
       deps: [],
-      devDeps: ['@tailwindcss/postcss', 'tailwindcss'],
+      devDeps: tailwindDevDeps,
       files: [
         'app/layout.js',
         'app/page.js',
         'jsconfig.json',
-        'postcss.config.mjs',
+        ...tailwindFiles,
       ],
     },
     ts: {
@@ -228,15 +232,14 @@ export const projectSpecification: ProjectSpecification = {
         '@types/node',
         '@types/react-dom',
         '@types/react',
-        '@tailwindcss/postcss',
-        'tailwindcss',
+        ...tailwindDevDeps,
         'typescript',
       ],
       files: [
         'app/layout.tsx',
         'app/page.tsx',
         'next-env.d.ts',
-        'postcss.config.mjs',
+        ...tailwindFiles,
         'tsconfig.json',
       ],
     },
@@ -244,12 +247,12 @@ export const projectSpecification: ProjectSpecification = {
   'app-tw-empty': {
     js: {
       deps: [],
-      devDeps: ['@tailwindcss/postcss', 'tailwindcss'],
+      devDeps: tailwindDevDeps,
       files: [
         'app/layout.js',
         'app/page.js',
         'jsconfig.json',
-        'postcss.config.mjs',
+        ...tailwindFiles,
       ],
     },
     ts: {
@@ -258,15 +261,14 @@ export const projectSpecification: ProjectSpecification = {
         '@types/node',
         '@types/react-dom',
         '@types/react',
-        '@tailwindcss/postcss',
-        'tailwindcss',
+        ...tailwindDevDeps,
         'typescript',
       ],
       files: [
         'app/layout.tsx',
         'app/page.tsx',
         'next-env.d.ts',
-        'postcss.config.mjs',
+        ...tailwindFiles,
         'tsconfig.json',
       ],
     },
