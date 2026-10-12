@@ -587,7 +587,11 @@ describe('agentic upgrade prompts', () => {
         [
           ...flags,
           ...(agent === 'codex'
-            ? ['--approve-for-me']
+            ? [
+                '-c',
+                'sandbox_workspace_write.network_access=true',
+                '--approve-for-me',
+              ]
             : ['--permission-mode', 'auto']),
           'In-place prompt',
         ],
@@ -672,7 +676,14 @@ describe('agentic upgrade prompts', () => {
     expect(Log.bootstrap).toHaveBeenCalledWith('  ❯ Model default')
     expect(crossSpawn).toHaveBeenCalledWith(
       expectedHarnessPath('codex'),
-      ['--model', 'gpt-5.6-terra', '--approve-for-me', 'Upgrade prompt'],
+      [
+        '--model',
+        'gpt-5.6-terra',
+        '-c',
+        'sandbox_workspace_write.network_access=true',
+        '--approve-for-me',
+        'Upgrade prompt',
+      ],
       { cwd: '/workspace/app', stdio: 'inherit' }
     )
   })
@@ -764,7 +775,11 @@ describe('agentic upgrade prompts', () => {
         expectedHarnessPath(agent),
         [
           ...(agent === 'codex'
-            ? ['--approve-for-me']
+            ? [
+                '-c',
+                'sandbox_workspace_write.network_access=true',
+                '--approve-for-me',
+              ]
             : ['--permission-mode', 'auto']),
           'Upgrade prompt',
         ],
@@ -937,11 +952,22 @@ describe('agentic upgrade prompts', () => {
   })
 
   it.each([
-    ['codex', 'yes', ['--approve-for-me']],
+    [
+      'codex',
+      'yes',
+      ['-c', 'sandbox_workspace_write.network_access=true', '--approve-for-me'],
+    ],
     [
       'codex',
       'no',
-      ['--sandbox', 'workspace-write', '--ask-for-approval', 'on-request'],
+      [
+        '-c',
+        'sandbox_workspace_write.network_access=true',
+        '--sandbox',
+        'workspace-write',
+        '--ask-for-approval',
+        'on-request',
+      ],
     ],
     ['claude', 'yes', ['--permission-mode', 'auto']],
     ['claude', 'no', ['--permission-mode', 'manual']],
@@ -1024,6 +1050,8 @@ describe('agentic upgrade prompts', () => {
         'gpt-5.6-terra',
         '-c',
         'model_reasoning_effort=high',
+        '-c',
+        'sandbox_workspace_write.network_access=true',
         '--sandbox',
         'workspace-write',
         '--ask-for-approval',
@@ -1166,6 +1194,8 @@ describe('agentic upgrade prompts', () => {
         'gpt-6-astra',
         '-c',
         'model_reasoning_effort=ultra',
+        '-c',
+        'sandbox_workspace_write.network_access=true',
         '--approve-for-me',
         'Upgrade prompt',
       ],
@@ -1296,6 +1326,8 @@ describe('agentic upgrade prompts', () => {
         'gpt-5.6-terra',
         '-c',
         'model_reasoning_effort=max',
+        '-c',
+        'sandbox_workspace_write.network_access=true',
         '--sandbox',
         'workspace-write',
         '--ask-for-approval',
@@ -1351,6 +1383,8 @@ describe('agentic upgrade prompts', () => {
         'gpt-5.6-terra',
         '-c',
         'model_reasoning_effort=high',
+        '-c',
+        'sandbox_workspace_write.network_access=true',
         '--approve-for-me',
         'Worktree prompt',
       ],

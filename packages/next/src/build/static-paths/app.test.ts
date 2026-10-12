@@ -1003,6 +1003,7 @@ const createEmptyParamsError = () =>
 const createMockWorkStore = (fetchCache?: WorkStore['fetchCache']) => ({
   fetchCache,
   page: '/test-page',
+  route: '/test-page',
 })
 
 // Helper to create mock segments

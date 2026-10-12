@@ -1165,6 +1165,9 @@ export async function initialize(opts: {
     partialPrefetching: config.partialPrefetching,
     agentRules: config.agentRules,
     agentFeedback: config.experimental.agentFeedback,
+    agentUpgrade: development
+      ? development.config.experimental.agentUpgrade !== false
+      : undefined,
     devMemoryThresholdRestart,
   }
 }

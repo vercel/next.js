@@ -1,0 +1,147 @@
+:root {
+  --bg: #0a0a0a;
+  --fg: #ededed;
+  --accent: #0070f3;
+  --stale: #f97316;
+  --fresh: #22c55e;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+  background: var(--bg);
+  color: var(--fg);
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+}
+
+main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4rem 1rem;
+  min-height: 100vh;
+  gap: 2rem;
+}
+
+.header {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  justify-content: center;
+}
+
+.link {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.widget {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 2rem;
+  border: 1px solid #333;
+  border-radius: 0.5rem;
+  min-width: 320px;
+}
+
+.pre-rendered-at {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.cache-state {
+  font-size: 0.85rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+}
+
+.cache-state.fresh {
+  background: rgba(34, 197, 94, 0.15);
+  color: var(--fresh);
+}
+
+.cache-state.stale {
+  background: rgba(249, 115, 22, 0.15);
+  color: var(--stale);
+}
+
+.stale-after {
+  font-size: 0.8rem;
+  color: #888;
+}
+
+.revalidate-from {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.revalidate-from-button {
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.revalidate-from-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.footer {
+  padding: 1rem;
+  text-align: center;
+}
+
+.card {
+  border: 1px solid #333;
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+  min-width: 320px;
+}
+
+.card h2 {
+  font-size: 1rem;
+  margin-bottom: 0.75rem;
+  color: #aaa;
+  font-weight: 500;
+}
+
+.card .value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  word-break: break-all;
+}
+
+.badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(0, 112, 243, 0.15);
+  color: var(--accent);
+  margin-top: 0.5rem;
+}

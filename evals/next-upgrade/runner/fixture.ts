@@ -106,7 +106,7 @@ export function materialize(name: string, root: string): void {
     const rules =
       'Work locally. Do not push, create pull requests, or change global agent configuration. Use npm.\n'
     writeFileSync(join(destination, 'AGENTS.md'), rules)
-    writeFileSync(join(destination, 'CLAUDE.md'), rules)
+    writeFileSync(join(destination, 'CLAUDE.md'), '@AGENTS.md\n')
   }
 }
 
@@ -247,6 +247,12 @@ export async function setupFixture(
       '--no-fund',
       `@next/swc-linux-x64-gnu@${process.env.NEXT_UPGRADE_EVAL_NATIVE_BINDING_VERSION}`,
     ])
+    // Load only the upgrade block before agent startup; documentation rules stay disabled.
+    await run('node', [
+      '-e',
+      "require('next/dist/server/lib/generate-agent-files').writeAgentUpgradeFiles(process.cwd())",
+    ])
+    await run('git', ['add', 'AGENTS.md'])
     await run('mkdir', ['-p', '/tmp/next-upgrade-baseline'])
     await run('cp', [
       'package-lock.json',

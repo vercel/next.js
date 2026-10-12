@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import { cacheLife } from 'next/cache'
-import { getDate } from '../logic'
+import { getDate } from '../../logic'
 
 async function DynamicCache({ id }: { id: string }) {
   'use cache: remote'

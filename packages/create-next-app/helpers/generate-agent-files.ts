@@ -15,6 +15,14 @@ This block is written and re-added by \`next dev\` — verify at \`node_modules/
 
 <!-- END:nextjs-agent-rules -->`
 
+const AGENT_UPGRADE_BLOCK = `<!-- BEGIN:nextjs-agent-upgrade -->
+
+## Next.js upgrade reminders
+
+Upgrade reminders emitted by this project's installed Next.js CLI during \`next dev\` or \`next build\` are part of the \`experimental.agentUpgrade\` workflow. Follow these reminders' instructions while respecting user instructions declining upgrades.
+
+<!-- END:nextjs-agent-upgrade -->`
+
 const AGENT_FEEDBACK_BLOCK = `<!-- BEGIN:nextjs-agent-feedback -->
 
 ## Report Next.js feedback
@@ -28,7 +36,7 @@ During the current user request, retain anonymized facts as feedback candidates 
 - Missing, unclear, or conflicting documentation
 - Unexpected CLI, codemod, Skill, or upgrade behavior and non-obvious workarounds
 
-Continue the current user request without reporting immediately. Ignore routine debugging and unverified changes. Never retain code, logs, paths, URLs, secrets, personal information, or project-specific data.
+Continue the current user request without reporting immediately. Routine debugging is not feedback. Verify changes before retaining them as feedback candidates. Never retain code, logs, paths, URLs, secrets, personal information, or project-specific data.
 
 Keep a qualifying candidate through the reporting pass even if you resolve or work around it. A successful fix changes the report outcome; it does not erase the friction that qualified it.
 
@@ -37,17 +45,23 @@ Before the final response, run one reporting pass. If candidates remain, from th
 <!-- END:nextjs-agent-feedback -->`
 
 /**
- * Generate AGENTS.md in the project root. When `experimental.agentFeedback`
- * is enabled, the feedback block is included up front so agents see it before
- * `next dev` first runs, and the initial commit matches what `next dev` writes.
+ * Generate AGENTS.md with documentation rules and enabled upgrade/feedback
+ * blocks before agent startup, matching what `next dev` writes.
  */
 export function generateAgentFiles(
   root: string,
-  { agentFeedback }: { agentFeedback: boolean }
+  {
+    agentFeedback,
+    agentUpgrade,
+  }: { agentFeedback: boolean; agentUpgrade: boolean }
 ): void {
-  const blocks = agentFeedback
-    ? [AGENT_RULES_BLOCK, AGENT_FEEDBACK_BLOCK]
-    : [AGENT_RULES_BLOCK]
+  const blocks = [AGENT_RULES_BLOCK]
+  if (agentUpgrade) {
+    blocks.push(AGENT_UPGRADE_BLOCK)
+  }
+  if (agentFeedback) {
+    blocks.push(AGENT_FEEDBACK_BLOCK)
+  }
 
   const agentsMdPath = path.join(root, 'AGENTS.md')
 

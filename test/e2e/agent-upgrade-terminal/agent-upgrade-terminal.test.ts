@@ -13,6 +13,7 @@ type IPty = {
   onData(listener: (data: string) => void): void
   onExit(listener: (event: { exitCode: number; signal?: number }) => void): void
   write(data: string): void
+  resize(columns: number, rows: number): void
   kill(signal?: string): void
 }
 
@@ -318,6 +319,39 @@ describe('agent upgrade terminal', () => {
           }
         )
         expect(exited).toBe(false)
+      })
+    )
+
+    it(
+      'sizes code frames to the terminal after it is resized',
+      inTerminal(async () => {
+        terminal.write(SKIP)
+        await retry(() => {
+          expect(output).toContain(MENU_CLOSED)
+        }, 15_000)
+
+        // Logs an error and returns the width of its widest code frame line.
+        async function codeFrameWidth() {
+          const start = output.length
+          const response = await fetch(`http://127.0.0.1:${port}/width`)
+          expect(response.status).toBe(200)
+          let frameLines: string[] = []
+          await retry(() => {
+            frameLines = stripAnsi(output.slice(start))
+              .split(/\r?\n/)
+              .filter((line) => /^\s*>?\s*\d+ \|/.test(line))
+            expect(frameLines.length).toBeGreaterThan(0)
+          }, 15_000)
+          return Math.max(...frameLines.map((line) => line.length))
+        }
+
+        // The terminal starts at 80 columns, wider than it will be resized to.
+        expect(await codeFrameWidth()).toBeGreaterThan(50)
+
+        terminal.resize(50, 24)
+        await retry(async () => {
+          expect(await codeFrameWidth()).toBeLessThanOrEqual(50)
+        }, 15_000)
       })
     )
   })

@@ -25,6 +25,8 @@ import { RenderStage } from '../app-render/staged-rendering'
  *
  * Unlike `connection()`, it does not mark the subtree as request-dependent —
  * content below `await prefetch()` remains fully cacheable.
+ *
+ * Read more: [Next.js Docs: `prefetch`](https://nextjs.org/docs/app/api-reference/functions/prefetch)
  */
 export function prefetch(): Promise<void> {
   const workStore = workAsyncStorage.getStore()
@@ -177,6 +179,8 @@ export function prefetch(): Promise<void> {
  *
  * Unlike `connection()`, it does not mark the subtree as request-dependent —
  * content below `await navigation()` remains fully cacheable.
+ *
+ * Read more: [Next.js Docs: `navigation`](https://nextjs.org/docs/app/api-reference/functions/navigation)
  */
 export function navigation(): Promise<void> {
   const workStore = workAsyncStorage.getStore()
