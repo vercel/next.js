@@ -354,18 +354,18 @@ static GO_ACTIONS: LazyLock<Semaphore> = LazyLock::new(|| Semaphore::new(2));
 async fn module_configuration(
     project: RcStr,
     input: FileInput,
-    context: GoBuildContext,
+    go_context: GoBuildContext,
 ) -> Result<Vc<RcStr>> {
     if !input.exists() {
         return Ok(Vc::cell(rcstr!("{}")));
     }
-    let mut command = context.command(Path::new(project.as_str()));
-    context
+    let mut command = go_context.command(Path::new(project.as_str()));
+    go_context
         .cancellation
         .module_configs
         .fetch_add(1, Ordering::Relaxed);
     command.args(["mod", "edit", "-json"]);
-    let report = process::output(command, &context.cancellation.token).await?;
+    let report = process::output(command, &go_context.cancellation.token).await?;
     ensure!(
         report.status.success(),
         "{}",
@@ -412,9 +412,16 @@ fn entry_directory(project: &Path, files: &[RcStr]) -> Result<PathBuf> {
     Ok(project.join(directory).components().collect())
 }
 
-async fn list(directory: &Path, files: &[RcStr], context: &GoBuildContext) -> Result<Vec<Package>> {
-    context.cancellation.lists.fetch_add(1, Ordering::Relaxed);
-    let mut command = context.command(directory);
+async fn list(
+    directory: &Path,
+    files: &[RcStr],
+    go_context: &GoBuildContext,
+) -> Result<Vec<Package>> {
+    go_context
+        .cancellation
+        .lists
+        .fetch_add(1, Ordering::Relaxed);
+    let mut command = go_context.command(directory);
     command
         .args([
             "list",
@@ -427,9 +434,9 @@ async fn list(directory: &Path, files: &[RcStr], context: &GoBuildContext) -> Re
             "-buildvcs=false",
             "-trimpath",
         ])
-        .arg(format!("-tags={}", context.tags))
+        .arg(format!("-tags={}", go_context.tags))
         .args(arguments(files));
-    let report = process::output(command, &context.cancellation.token).await?;
+    let report = process::output(command, &go_context.cancellation.token).await?;
     ensure!(
         report.status.success(),
         "{}",
@@ -540,23 +547,23 @@ async fn observe_packages(
 async fn discover(
     root: FileSystemPath,
     files: Vec<RcStr>,
-    context: GoBuildContext,
+    go_context: GoBuildContext,
 ) -> Result<Vc<Discovery>> {
     let _permit = tokio::select! {
         permit = GO_ACTIONS.acquire() => permit?,
-        _ = context.cancellation.token.cancelled() => return Ok(Discovery { outcome: DiscoveryOutcome::Cancelled, inputs: Inputs::default() }.cell()),
+        _ = go_context.cancellation.token.cancelled() => return Ok(Discovery { outcome: DiscoveryOutcome::Cancelled, inputs: Inputs::default() }.cell()),
     };
     let project = to_sys_path(root.clone())
         .await?
         .context("Go inputs require a disk filesystem")?;
-    let mut tracker = Tracker::new(&root, &project, &context);
+    let mut tracker = Tracker::new(&root, &project, &go_context);
     let run = async {
-        let build_cache = Path::new(context.cache.as_str());
+        let build_cache = Path::new(go_context.cache.as_str());
         ensure!(
             !paths::directories_overlap(build_cache, &project)?
                 && !paths::directories_overlap(
                     build_cache,
-                    Path::new(context.module_cache.as_str())
+                    Path::new(go_context.module_cache.as_str())
                 )?,
             "Go build cache must be outside the source project and module cache; choose another \
              --go-cache path"
@@ -580,7 +587,7 @@ async fn discover(
         let config = module_configuration(
             project.to_str().context("non-UTF8 Go project")?.into(),
             tracker.inputs.files[project.join("go.mod").to_str().unwrap()].clone(),
-            context.clone(),
+            go_context.clone(),
         )
         .await?;
         let config: ModuleConfig = serde_json::from_str(&config)?;
@@ -590,7 +597,7 @@ async fn discover(
         );
         // Even an unresolved dependency needs cache dependencies. Downloading a module can
         // repair it without changing go.mod/go.sum, so retain reads for its future cache entries.
-        let cache = Path::new(context.module_cache.as_str());
+        let cache = Path::new(go_context.module_cache.as_str());
         for requirement in &config.require {
             ensure!(
                 Path::new(&requirement.path)
@@ -614,7 +621,7 @@ async fn discover(
         }
         let module = config.module.as_ref().map_or("", |m| m.path.as_str());
         let registered = (tracker.inputs.files.len(), tracker.inputs.directories.len());
-        let packages = list(&directory, &files, &context).await?;
+        let packages = list(&directory, &files, &go_context).await?;
         observe_packages(&mut tracker, &packages, &project, module).await?;
         // Newly discovered files/directories were not guarded during the first command.
         // Only that registration window needs a second Go scan. For named files importing
@@ -623,7 +630,7 @@ async fn discover(
             registered != (tracker.inputs.files.len(), tracker.inputs.directories.len());
         let structure_changed = !tracker.dirty
             && added_inputs
-            && packages != list(&directory, &files, &context).await?;
+            && packages != list(&directory, &files, &go_context).await?;
         if tracker.dirty || structure_changed || !tracker.inputs.is_current()? {
             return Ok(None);
         }
@@ -677,7 +684,7 @@ async fn discover(
             DiscoveryOutcome::Retry
         }
         Ok(Some(plan)) => DiscoveryOutcome::Ready(plan),
-        Err(_) if context.is_cancelled() => DiscoveryOutcome::Cancelled,
+        Err(_) if go_context.is_cancelled() => DiscoveryOutcome::Cancelled,
         Err(error) => DiscoveryOutcome::Failed(format!("{error:#}").into()),
     };
     Ok(Discovery {
@@ -699,11 +706,11 @@ enum Compilation {
 async fn compile(
     project: RcStr,
     plan: BuildPlan,
-    context: GoBuildContext,
+    go_context: GoBuildContext,
 ) -> Result<Vc<Compilation>> {
     let _permit = tokio::select! {
         permit = GO_ACTIONS.acquire() => permit?,
-        _ = context.cancellation.token.cancelled() => return Ok(Compilation::Cancelled.cell()),
+        _ = go_context.cancellation.token.cancelled() => return Ok(Compilation::Cancelled.cell()),
     };
     let directory = entry_directory(Path::new(project.as_str()), &plan.files)?;
     if !plan.inputs.is_current()? {
@@ -718,17 +725,22 @@ async fn compile(
     let temp = tempfile::Builder::new()
         .prefix("turbopack-go-output-")
         .tempdir()?;
-    let executable = temp.path().join(format!("program{}", context.exe_suffix));
-    context.cancellation.builds.fetch_add(1, Ordering::Relaxed);
-    let mut command = context.command(&directory);
+    let executable = temp
+        .path()
+        .join(format!("program{}", go_context.exe_suffix));
+    go_context
+        .cancellation
+        .builds
+        .fetch_add(1, Ordering::Relaxed);
+    let mut command = go_context.command(&directory);
     command
         .args(["build", "-mod=readonly", "-buildvcs=false", "-trimpath"])
-        .arg(format!("-tags={}", context.tags))
+        .arg(format!("-tags={}", go_context.tags))
         .arg("-o")
         .arg(&executable)
         .args(arguments(&plan.files));
-    let report = match process::output(command, &context.cancellation.token).await {
-        Err(_) if context.is_cancelled() => return Ok(Compilation::Cancelled.cell()),
+    let report = match process::output(command, &go_context.cancellation.token).await {
+        Err(_) if go_context.is_cancelled() => return Ok(Compilation::Cancelled.cell()),
         Err(error) => return Ok(Compilation::Failed(format!("{error:#}").into()).cell()),
         Ok(report) => report,
     };
@@ -790,11 +802,11 @@ impl GoBundleResult {
 async fn bundle(
     root: FileSystemPath,
     mut files: Vec<RcStr>,
-    context: GoBuildContext,
+    go_context: GoBuildContext,
 ) -> Result<Vc<GoBundleResult>> {
     files.sort();
     files.dedup();
-    let discovery = discover(root.clone(), files, context.clone()).await?;
+    let discovery = discover(root.clone(), files, go_context.clone()).await?;
     let outcome = match &discovery.outcome {
         DiscoveryOutcome::Ready(plan) => {
             let project = to_sys_path(root.clone())
@@ -803,7 +815,7 @@ async fn bundle(
             let compiled = compile(
                 project.to_str().context("non-UTF8 project")?.into(),
                 plan.clone(),
-                context.clone(),
+                go_context.clone(),
             )
             .await?;
             match &*compiled {
@@ -814,7 +826,9 @@ async fn bundle(
                     if let Some(retry) = retry {
                         retry.invalidate(&*turbo_tasks());
                     }
-                    Tracker::new(&root, &project, &context).invalidate().await?;
+                    Tracker::new(&root, &project, &go_context)
+                        .invalidate()
+                        .await?;
                     if let Some(invalidator) = get_invalidator() {
                         invalidator.invalidate(&*turbo_tasks());
                     }
@@ -838,7 +852,7 @@ async fn bundle(
 pub fn go_bundle(
     root: FileSystemPath,
     files: Vec<RcStr>,
-    context: GoBuildContext,
+    go_context: GoBuildContext,
 ) -> Vc<GoBundleResult> {
-    bundle(root, files, context)
+    bundle(root, files, go_context)
 }

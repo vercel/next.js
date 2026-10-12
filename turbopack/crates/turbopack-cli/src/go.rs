@@ -158,8 +158,8 @@ pub async fn build(build: &BuildArguments) -> Result<()> {
     );
     let (project, files) = input_files(build)?;
     let args = &build.go;
-    let context = tokio::select! {
-        context = GoBuildContext::host(&args.go, args.go_cache.as_deref(), &args.tags) => context?,
+    let go_context = tokio::select! {
+        go_context = GoBuildContext::host(&args.go, args.go_cache.as_deref(), &args.tags) => go_context?,
         signal = interrupted() => { signal?; return Ok(()); }
     };
     let name = Path::new(&build.common.entries.as_ref().unwrap()[0])
@@ -173,7 +173,7 @@ pub async fn build(build: &BuildArguments) -> Result<()> {
             .as_deref()
             .unwrap_or(Path::new("."))
             .join("dist")
-            .join(format!("{name}{}", context.exe_suffix))
+            .join(format!("{name}{}", go_context.exe_suffix))
     }))?;
     for input in files
         .iter()
@@ -199,7 +199,7 @@ pub async fn build(build: &BuildArguments) -> Result<()> {
         noop_backing_storage(),
     ));
     let path: RcStr = project.to_str().context("non-UTF8 Go project")?.into();
-    let module_cache = context.module_cache.clone();
+    let module_cache = go_context.module_cache.clone();
     let (fs, cache_fs) = tt
         .run_once(async move {
             let fs = filesystem(path).resolve().strongly_consistent().await?;
@@ -213,7 +213,7 @@ pub async fn build(build: &BuildArguments) -> Result<()> {
             Ok((fs, cache_fs))
         })
         .await?;
-    let cancel = context.clone();
+    let cancel = go_context.clone();
     let signals = tokio::spawn(async move {
         let result = interrupted().await;
         cancel.cancel();
@@ -223,7 +223,7 @@ pub async fn build(build: &BuildArguments) -> Result<()> {
     let mut previous_error = String::new();
     let result = async {
         loop {
-            let build_context = context.clone();
+            let build_context = go_context.clone();
             let inputs = files.clone();
             // Cancel the graph read inside its once task. Dropping only run_once's receiver
             // leaves that task waiting for graph consistency and can block stop_and_wait.
@@ -295,14 +295,14 @@ pub async fn build(build: &BuildArguments) -> Result<()> {
                 break;
             }
             tokio::select! {
-                _ = context.cancelled() => break,
+                _ = go_context.cancelled() => break,
                 _ = tokio::time::sleep(Duration::from_millis(100)) => {}
             }
         }
         Ok(())
     }
     .await;
-    context.cancel();
+    go_context.cancel();
     signals.abort();
     tt.run_once(async move {
         fs.await?.stop_watching().await;

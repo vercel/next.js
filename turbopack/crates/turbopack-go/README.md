@@ -45,7 +45,7 @@ execution.
 
 ## How it works
 
-Source files remain in the original project. Turbopack records a flat input set;
+Source files stay in the original project. Turbopack records a flat input set;
 it does not parse Go imports or implement a Go package graph.
 
 - **Discovery:** `go list -deps` reports package sources and embedded assets. Module

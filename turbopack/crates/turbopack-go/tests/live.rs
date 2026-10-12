@@ -32,7 +32,7 @@ struct Session {
     project: PathBuf,
     tt: Arc<TurboTasks<TurboTasksBackend>>,
     fs: ResolvedVc<DiskFileSystem>,
-    context: GoBuildContext,
+    go_context: GoBuildContext,
 }
 impl Session {
     async fn new() -> Result<Self> {
@@ -47,7 +47,7 @@ impl Session {
         // deterministic initial asset without modifying that working example.
         std::fs::write(project.join("cmd/files/assets/message.txt"), "embedded-v1")?;
         let tool = std::env::var("TURBOPACK_GO").unwrap_or_else(|_| "go".into());
-        let context = GoBuildContext::host(Path::new(&tool), None, "").await?;
+        let go_context = GoBuildContext::host(Path::new(&tool), None, "").await?;
         let tt = TurboTasks::new(TurboTasksBackend::new(
             BackendOptions {
                 storage_mode: None,
@@ -65,13 +65,13 @@ impl Session {
             project,
             tt,
             fs,
-            context,
+            go_context,
         })
     }
     async fn fetch(&self, files: &[&str]) -> Result<Vec<u8>> {
         let files = files.iter().map(|file| RcStr::from(*file)).collect();
         let fs = self.fs;
-        let context = self.context.clone();
+        let go_context = self.go_context.clone();
         self.tt
             .run_once(async move {
                 let result = go_bundle(
@@ -80,7 +80,7 @@ impl Session {
                         path: rcstr!(""),
                     },
                     files,
-                    context,
+                    go_context,
                 )
                 .read_strongly_consistent()
                 .await?;
@@ -124,7 +124,7 @@ impl Session {
         self.write(path, &text.replace(before, after)).await
     }
     fn counts(&self) -> (usize, usize) {
-        self.context.invocation_counts()
+        self.go_context.invocation_counts()
     }
     async fn run(&self, files: &[&str]) -> Result<String> {
         self.run_bytes(self.fetch(files).await?).await
@@ -170,7 +170,7 @@ async fn explicit_files_memoization_dependencies_and_recovery() -> Result<()> {
     assert_eq!(a?, b?);
     session.body("explicit-v1:helper-v1:embedded-v1").await?;
     assert_eq!(session.counts(), (2, 1));
-    assert_eq!(session.context.module_configuration_invocations(), 1);
+    assert_eq!(session.go_context.module_configuration_invocations(), 1);
     session
         .replace(
             "cmd/files/unused.go",
@@ -210,7 +210,7 @@ async fn explicit_files_memoization_dependencies_and_recovery() -> Result<()> {
     assert!(session.counts().0 >= before.0 + 2);
     assert_eq!(session.counts().1, before.1 + 1);
     assert_eq!(
-        session.context.module_configuration_invocations(),
+        session.go_context.module_configuration_invocations(),
         1,
         "source and asset edits must reuse Go's module configuration"
     );
@@ -334,11 +334,11 @@ async fn missing_inputs_imports_and_embed_matches() -> Result<()> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn standalone_and_unsupported_configuration() -> Result<()> {
     let mut session = Session::new().await?;
-    let original_cache = session.context.cache.clone();
-    let original_module_cache = session.context.module_cache.clone();
+    let original_cache = session.go_context.cache.clone();
+    let original_module_cache = session.go_context.module_cache.clone();
     let modules = session.temp.path().join("modules");
     std::fs::create_dir(&modules)?;
-    session.context.module_cache = std::fs::canonicalize(modules)?
+    session.go_context.module_cache = std::fs::canonicalize(modules)?
         .to_string_lossy()
         .into_owned()
         .into();
@@ -346,10 +346,10 @@ async fn standalone_and_unsupported_configuration() -> Result<()> {
         session.project.join("cmd/files/assets/cache"),
         session.project.clone(),
         session.temp.path().to_owned(),
-        Path::new(session.context.module_cache.as_str()).join("build-cache"),
+        Path::new(session.go_context.module_cache.as_str()).join("build-cache"),
     ] {
         std::fs::create_dir_all(&cache)?;
-        session.context.cache = std::fs::canonicalize(&cache)?
+        session.go_context.cache = std::fs::canonicalize(&cache)?
             .to_string_lossy()
             .into_owned()
             .into();
@@ -365,8 +365,8 @@ async fn standalone_and_unsupported_configuration() -> Result<()> {
             "reject before invoking discovery or compilation"
         );
     }
-    session.context.cache = original_cache;
-    session.context.module_cache = original_module_cache;
+    session.go_context.cache = original_cache;
+    session.go_context.module_cache = original_module_cache;
     std::fs::remove_file(session.project.join("go.mod"))?;
     session
         .write(
@@ -376,7 +376,7 @@ async fn standalone_and_unsupported_configuration() -> Result<()> {
         .await?;
     assert_eq!(session.run(&["main.go"]).await?.trim(), "standalone");
     assert_eq!(session.counts(), (1, 1));
-    assert_eq!(session.context.module_configuration_invocations(), 0);
+    assert_eq!(session.go_context.module_configuration_invocations(), 0);
     assert_eq!(session.run(&["main.go"]).await?.trim(), "standalone");
     assert_eq!(session.counts(), (1, 1), "unchanged inputs must do no work");
     let before = session.counts();
@@ -395,7 +395,7 @@ async fn standalone_and_unsupported_configuration() -> Result<()> {
     assert_eq!(session.run(&["main.go"]).await?.trim(), "edited");
     assert_eq!(session.counts().1, before.1 + 1);
     assert!(session.counts().0 > before.0);
-    assert_eq!(session.context.module_configuration_invocations(), 1);
+    assert_eq!(session.go_context.module_configuration_invocations(), 1);
     let before = session.counts();
     session.replace("main.go", "edited", "module-edit").await?;
     assert_eq!(session.run(&["main.go"]).await?.trim(), "module-edit");
@@ -404,12 +404,12 @@ async fn standalone_and_unsupported_configuration() -> Result<()> {
     let unchanged = session.counts();
     assert_eq!(session.run(&["main.go"]).await?.trim(), "module-edit");
     assert_eq!(session.counts(), unchanged);
-    assert_eq!(session.context.module_configuration_invocations(), 1);
+    assert_eq!(session.go_context.module_configuration_invocations(), 1);
     session
         .write("go.mod", "module example.com/renamed\ngo 1.24\n")
         .await?;
     assert_eq!(session.run(&["main.go"]).await?.trim(), "module-edit");
-    assert_eq!(session.context.module_configuration_invocations(), 2);
+    assert_eq!(session.go_context.module_configuration_invocations(), 2);
     session
         .write(
             "go.mod",
@@ -450,7 +450,7 @@ async fn standalone_and_unsupported_configuration() -> Result<()> {
     session
         .write("cancelled.go", "package main\nfunc main() {}\n")
         .await?;
-    session.context.cancel();
+    session.go_context.cancel();
     assert_eq!(
         session
             .fetch(&["cancelled.go"])
@@ -488,7 +488,7 @@ async fn imported_build_tags_are_applied_consistently() -> Result<()> {
         )
         .await?;
     session.body("explicit-v1:default:embedded-v1").await?;
-    session.context.tags = rcstr!("special");
+    session.go_context.tags = rcstr!("special");
     session.body("explicit-v1:special:embedded-v1").await?;
     session.stop().await;
     Ok(())
@@ -512,7 +512,7 @@ async fn versioned_dependencies_use_the_module_cache_without_downloads() -> Resu
         .await?;
     let cache = session.temp.path().join("modules");
     std::fs::create_dir_all(&cache)?;
-    session.context.module_cache = std::fs::canonicalize(&cache)?
+    session.go_context.module_cache = std::fs::canonicalize(&cache)?
         .to_string_lossy()
         .into_owned()
         .into();
@@ -522,7 +522,7 @@ async fn versioned_dependencies_use_the_module_cache_without_downloads() -> Resu
     let original_mod = std::fs::read(session.project.join("go.mod"))?;
     let original_sum = std::fs::read(session.project.join("go.sum"))?;
     let sum = std::fs::metadata(session.project.join("go.sum"))?.modified()?;
-    let cache_path = session.context.module_cache.clone();
+    let cache_path = session.go_context.module_cache.clone();
     let cache_fs = session
         .tt
         .run_once(async move {
@@ -547,7 +547,7 @@ async fn versioned_dependencies_use_the_module_cache_without_downloads() -> Resu
     } else {
         format!("file://{proxy}")
     };
-    let output = tokio::process::Command::new(session.context.go.as_str())
+    let output = tokio::process::Command::new(session.go_context.go.as_str())
         .current_dir(&session.project)
         .env("GOENV", "off")
         .env("GOTOOLCHAIN", "local")
@@ -738,8 +738,8 @@ async fn edits_during_discovery_and_compilation_retry_before_publication() -> Re
                 )),
                 root.to_str().unwrap(),
             )?;
-            session.context.go = wrapper.to_string_lossy().into_owned().into();
-            let _cancel_on_drop = CancelOnDrop(session.context.clone());
+            session.go_context.go = wrapper.to_string_lossy().into_owned().into();
+            let _cancel_on_drop = CancelOnDrop(session.go_context.clone());
             let session = Arc::new(session);
             let consumer = session.clone();
             let work = tokio::spawn(async move { consumer.fetch(FILES).await });
@@ -880,7 +880,7 @@ async fn edits_during_discovery_and_compilation_retry_before_publication() -> Re
             #[cfg(unix)]
             if matches!(change, RaceChange::ModuleRestore) {
                 assert!(
-                    session.context.module_configuration_invocations() >= 2,
+                    session.go_context.module_configuration_invocations() >= 2,
                     "restored module metadata must refresh Go's configuration query: {action}"
                 );
             }

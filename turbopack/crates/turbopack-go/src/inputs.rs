@@ -176,7 +176,7 @@ impl Inputs {
 pub(crate) struct Tracker<'a> {
     root: &'a FileSystemPath,
     project: &'a Path,
-    context: &'a GoBuildContext,
+    go_context: &'a GoBuildContext,
     pub inputs: Inputs,
     pub dirty: bool,
 }
@@ -185,12 +185,12 @@ impl<'a> Tracker<'a> {
     pub(crate) fn new(
         root: &'a FileSystemPath,
         project: &'a Path,
-        context: &'a GoBuildContext,
+        go_context: &'a GoBuildContext,
     ) -> Self {
         Self {
             root,
             project,
-            context,
+            go_context,
             inputs: Inputs::default(),
             dirty: false,
         }
@@ -202,12 +202,12 @@ impl<'a> Tracker<'a> {
             (self.root.clone(), relative)
         } else {
             let relative = path
-                .strip_prefix(self.context.module_cache.as_str())
+                .strip_prefix(self.go_context.module_cache.as_str())
                 .with_context(|| {
                     format!("Go source outside project/module cache: {}", path.display())
                 })?;
-            validate_source_path(Path::new(self.context.module_cache.as_str()), path)?;
-            let fs = filesystem(self.context.module_cache.clone())
+            validate_source_path(Path::new(self.go_context.module_cache.as_str()), path)?;
+            let fs = filesystem(self.go_context.module_cache.clone())
                 .resolve()
                 .await?;
             (
@@ -334,7 +334,7 @@ impl<'a> Tracker<'a> {
         if let Some(fs) = ResolvedVc::try_downcast_type::<DiskFileSystem>(self.root.fs) {
             fs.await?.invalidate();
         }
-        filesystem(self.context.module_cache.clone())
+        filesystem(self.go_context.module_cache.clone())
             .connect()
             .await?
             .invalidate();
