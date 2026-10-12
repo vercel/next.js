@@ -807,39 +807,54 @@ fn watch_observes_imported_packages_and_embedded_assets() {
             .unwrap(),
     );
     let target = executable(project);
-    wait(|| run(&target).as_deref() == Some("dependency-v1:asset-v1:"));
+    let wait_for_output = |expected: &str| {
+        let deadline = Instant::now() + Duration::from_secs(60);
+        wait_for(expected, || {
+            let actual = run(&target);
+            if actual.as_deref() == Some(expected) {
+                return true;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "expected {expected:?}, observed {actual:?}; watch log:\n{}",
+                std::fs::read_to_string(project.join("watch.log")).unwrap()
+            );
+            false
+        });
+    };
+    wait_for_output("dependency-v1:asset-v1:");
     std::fs::write(
         &helper,
         "package helper\nvar value = \"dependency-v2\"\nfunc Text() string { return value }\n",
     )
     .unwrap();
-    wait(|| run(&target).as_deref() == Some("dependency-v2:asset-v1:"));
+    wait_for_output("dependency-v2:asset-v1:");
     std::fs::write(&asset, "asset-v2").unwrap();
-    wait(|| run(&target).as_deref() == Some("dependency-v2:asset-v2:"));
+    wait_for_output("dependency-v2:asset-v2:");
     let sibling = project.join("internal/helper/added.go");
     std::fs::write(
         &sibling,
         "package helper\nfunc init() { value = \"sibling\" }\n",
     )
     .unwrap();
-    wait(|| run(&target).as_deref() == Some("sibling:asset-v2:"));
+    wait_for_output("sibling:asset-v2:");
     std::fs::remove_file(sibling).unwrap();
-    wait(|| run(&target).as_deref() == Some("dependency-v2:asset-v2:"));
+    wait_for_output("dependency-v2:asset-v2:");
     std::fs::write(
         &ignored,
         "//go:build !coverage_disabled\n\npackage helper\nfunc init() { value = \"tagged\" }\n",
     )
     .unwrap();
-    wait(|| run(&target).as_deref() == Some("tagged:asset-v2:"));
+    wait_for_output("tagged:asset-v2:");
     std::fs::write(
         &ignored,
         "//go:build coverage_disabled\n\npackage helper\nfunc init() { value = \"tagged\" }\n",
     )
     .unwrap();
-    wait(|| run(&target).as_deref() == Some("dependency-v2:asset-v2:"));
+    wait_for_output("dependency-v2:asset-v2:");
     std::fs::create_dir_all(project.join("assets/new/deep")).unwrap();
     std::fs::write(project.join("assets/new/deep/message.txt"), "nested").unwrap();
-    wait(|| run(&target).as_deref() == Some("dependency-v2:asset-v2:nested"));
+    wait_for_output("dependency-v2:asset-v2:nested");
 
     let previous = std::fs::read(&target).unwrap();
     std::fs::write(
@@ -862,7 +877,7 @@ fn watch_observes_imported_packages_and_embedded_assets() {
         "package missing\nfunc Text() string { return \"created\" }\n",
     )
     .unwrap();
-    wait(|| run(&target).as_deref() == Some("created:asset-v2:nested"));
+    wait_for_output("created:asset-v2:nested");
 
     let previous = std::fs::read(&target).unwrap();
     std::fs::write(
@@ -886,5 +901,5 @@ fn watch_observes_imported_packages_and_embedded_assets() {
         "module example.com/watch\ngo 1.24\n",
     )
     .unwrap();
-    wait(|| run(&target).as_deref() == Some("metadata-repaired:asset-v2:nested"));
+    wait_for_output("metadata-repaired:asset-v2:nested");
 }
