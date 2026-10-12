@@ -23,7 +23,6 @@ dashmap = { workspace = true }
 either = { workspace = true }
 fs-err = { workspace = true }
 jiff = { version = "0.2.10", features = ["serde"] }
-lz4_flex = { workspace = true }
 memmap2 = { version = "0.9.5", optional = true }
 nohash-hasher = { workspace = true }
 parking_lot = { workspace = true }
@@ -39,6 +38,10 @@ smallvec = { workspace = true }
 thread_local = { workspace = true }
 tracing = { workspace = true }
 xxhash-rust = { workspace = true }
+
+# Compression is skipped under Miri.
+[target.'cfg(not(miri))'.dependencies]
+lz4_flex = { workspace = true }
 zstd = { workspace = true }
 
 [dev-dependencies]
