@@ -232,6 +232,33 @@ async function CachedForm({ action }: { action: () => Promise<void> }) {
 }
 ```
 
+### Thrown errors
+
+Errors thrown inside a cached function cross the same serialization boundary as the return value. The caller catches a new `Error` instance revived from the stream, not the object that was thrown, so `error instanceof CustomError` is `false` and the error's own properties, such as a `code` or `status` field you set, are not available.
+
+What the revived error keeps depends on the environment:
+
+| Environment     | Revived error                                                                                                                    |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| **Development** | The original `name`, `message`, and stack, plus `environmentName: 'Cache'`.                                                      |
+| **Production**  | A generic message that omits the original one, plus a `digest`. The original error is logged on the server with the same digest. |
+
+To let the caller branch on a specific failure, return a serializable value from the cached function instead of throwing:
+
+```tsx filename="app/lib/get-user.ts"
+async function getUser(id: string) {
+  'use cache'
+
+  const user = await db.users.find(id)
+
+  if (!user) {
+    return { ok: false, reason: 'not-found' } as const
+  }
+
+  return { ok: true, user } as const
+}
+```
+
 ## Constraints
 
 Cached functions execute in an isolated environment. The following constraints ensure cache behavior remains predictable and secure.
