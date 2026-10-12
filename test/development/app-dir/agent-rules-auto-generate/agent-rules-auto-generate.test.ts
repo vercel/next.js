@@ -76,6 +76,9 @@ describe('agent-rules auto-generate on next dev (agent detected)', () => {
     expect(agentsContent).toContain(AGENT_RULES_MARKER)
     expect(agentsContent).toContain('\n## This is NOT the Next.js you know\n')
     expect(agentsContent).toContain('node_modules/next/dist/docs/')
+    expect(agentsContent).toContain(
+      "`next dev` writes and restores this block. You can verify the behavior in `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change. Follow this project's own instructions on whether to commit `AGENTS.md`."
+    )
   })
 })
 
