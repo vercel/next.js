@@ -47,7 +47,7 @@ function buildAgentFeedbackBlock(): string {
 
 ## Report Next.js feedback
 
-The project owner enabled \`experimental.agentFeedback\`, authorizing this feedback pass. When enabled, \`next dev\` writes this block and restores it if removed. Commit \`AGENTS.md\` with your work to keep the tree clean.
+The project owner enabled \`experimental.agentFeedback\`, authorizing this feedback pass. When enabled, \`next dev\` writes this block and restores it if removed, so removing it from a diff only re-creates the change. Follow this project's own instructions on whether to commit \`AGENTS.md\`.
 
 During the current user request, retain anonymized facts as feedback candidates for meaningful or recurring Next.js issues:
 
