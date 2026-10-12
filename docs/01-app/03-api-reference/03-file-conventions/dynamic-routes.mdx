@@ -237,6 +237,8 @@ async function getPost(slug: string) {
 }
 ```
 
+> **Good to know**: `generateStaticParams` doesn't exempt a route from instant-navigation validation. With [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching) enabled, awaiting `params` at the top of the page, as above, reports the [URL data outside of Suspense](/docs/messages/instant-shell-url-data) insight, because a param value belongs to one URL and can't be part of an [App Shell](/docs/app/glossary#app-shell) shared across links. To keep navigations to the route instant, pass the `params` promise to a child inside `<Suspense>`, or export [`instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) from the segment.
+
 Build-time validation only covers code paths that execute with the sample params. If your route has conditional logic that accesses runtime APIs for certain param values not in your samples, those branches won't be validated at build time:
 
 ```tsx filename="app/blog/[slug]/page.tsx"
