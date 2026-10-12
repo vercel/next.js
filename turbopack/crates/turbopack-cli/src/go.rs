@@ -6,6 +6,7 @@ use std::{
 };
 
 use anyhow::{Context, Result, ensure};
+use tokio_util::sync::CancellationToken;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TurboTasks};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
@@ -14,8 +15,33 @@ use turbopack_go::{
     GoBuildContext, GoBuildOutcome, filesystem, go_bundle, paths_refer_to_same_file,
     validate_source_path,
 };
+use turbopack_go_toolchain::{PrepareOptions, PreparedToolchain, ToolchainSource, prepare};
 
-use crate::arguments::BuildArguments;
+use crate::arguments::{BuildArguments, ToolchainArguments, ToolchainCommand};
+
+async fn selected_toolchain(
+    go: Option<&Path>,
+    cache_directory: Option<PathBuf>,
+) -> Result<PreparedToolchain> {
+    let source = match go {
+        Some(go) => ToolchainSource::Executable(go.to_owned()),
+        None => ToolchainSource::Embedded,
+    };
+    tokio::select! {
+        toolchain = prepare(source, PrepareOptions { cache_directory }, CancellationToken::new()) => toolchain,
+        signal = interrupted() => { signal?; anyhow::bail!("Go toolchain preparation cancelled") }
+    }
+}
+
+pub async fn toolchain(args: ToolchainArguments) -> Result<()> {
+    match args.command {
+        ToolchainCommand::Path { go } => {
+            let toolchain = selected_toolchain(go.as_deref(), None).await?;
+            println!("{}", toolchain.executable.display());
+        }
+    }
+    Ok(())
+}
 
 fn absolute(path: &Path) -> Result<PathBuf> {
     let path = std::path::absolute(path)?;
@@ -195,10 +221,25 @@ pub async fn build(build: &BuildArguments) -> Result<()> {
     );
     let (project, files) = input_files(build)?;
     let args = &build.go;
-    let go_context = tokio::select! {
-        go_context = GoBuildContext::host(&args.go, args.go_cache.as_deref(), &args.tags) => go_context?,
-        signal = interrupted() => { signal?; return Ok(()); }
+    let cache_directory = if args.go.is_none() {
+        let directory = turbopack_go_toolchain::default_cache_directory()?;
+        let build_cache = args
+            .go_cache
+            .clone()
+            .or_else(|| std::env::var_os("GOCACHE").map(PathBuf::from));
+        let module_cache = std::env::var_os("GOMODCACHE").map(PathBuf::from);
+        let mut protected = vec![project.as_path()];
+        protected.extend(args.output.as_deref());
+        protected.extend(build_cache.as_deref());
+        protected.extend(module_cache.as_deref());
+        turbopack_go::validate_toolchain_cache(&directory, &protected)?;
+        Some(directory)
+    } else {
+        None
     };
+    let toolchain = selected_toolchain(args.go.as_deref(), cache_directory).await?;
+    let go_context =
+        GoBuildContext::from_toolchain(toolchain, args.go_cache.as_deref(), &args.tags)?;
     let name = Path::new(&build.common.entries.as_ref().unwrap()[0])
         .file_stem()
         .context("input has no filename")?
@@ -215,6 +256,7 @@ pub async fn build(build: &BuildArguments) -> Result<()> {
             &format!("{name}{}", go_context.exe_suffix),
         )?,
     };
+    go_context.validate_output(&target)?;
     for input in files
         .iter()
         .map(|file| project.join(file.as_str()))

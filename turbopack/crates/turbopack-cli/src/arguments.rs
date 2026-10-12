@@ -14,6 +14,8 @@ use turbopack_core::issue::IssueSeverity;
 pub enum Arguments {
     Build(BuildArguments),
     Dev(DevArguments),
+    /// Locate the selected official Go toolchain.
+    Toolchain(ToolchainArguments),
 }
 
 impl Arguments {
@@ -22,6 +24,7 @@ impl Arguments {
         match self {
             Arguments::Build(args) => args.common.dir.as_deref(),
             Arguments::Dev(args) => args.common.dir.as_deref(),
+            Arguments::Toolchain(_) => None,
         }
     }
 
@@ -30,6 +33,7 @@ impl Arguments {
         match self {
             Arguments::Build(args) => args.common.worker_threads,
             Arguments::Dev(args) => args.common.worker_threads,
+            Arguments::Toolchain(_) => None,
         }
     }
 }
@@ -193,15 +197,15 @@ impl FromStr for IssueSeverityCliOption {
 }
 
 /// Options for native Go file builds.
-#[derive(Debug, Args)]
+#[derive(Debug, Args, Default)]
 pub struct GoBuildOptions {
-    /// Go binary from an installation that stays immutable throughout this session.
-    #[clap(long, default_value = "go")]
-    pub go: PathBuf,
+    /// Override the embedded Go toolchain with an immutable external installation.
+    #[clap(long)]
+    pub go: Option<PathBuf>,
     /// Output executable. Defaults to <dir>/dist/<first-input-name> (with .exe on Windows).
     #[clap(long)]
     pub output: Option<PathBuf>,
-    /// Override Go's build cache. Defaults to the installed toolchain's GOCACHE.
+    /// Override Go's build cache. Defaults to the selected toolchain's GOCACHE.
     #[clap(long)]
     pub go_cache: Option<PathBuf>,
     #[clap(long, default_value = "")]
@@ -211,14 +215,18 @@ pub struct GoBuildOptions {
     pub watch: bool,
 }
 
-impl Default for GoBuildOptions {
-    fn default() -> Self {
-        Self {
-            go: PathBuf::from("go"),
-            output: None,
-            go_cache: None,
-            tags: String::new(),
-            watch: false,
-        }
-    }
+#[derive(Debug, Args)]
+pub struct ToolchainArguments {
+    #[clap(subcommand)]
+    pub command: ToolchainCommand,
+}
+
+#[derive(Debug, clap::Subcommand)]
+pub enum ToolchainCommand {
+    /// Extract/verify the toolchain and print its absolute Go executable path.
+    Path {
+        /// Select an external installation instead of the embedded toolchain.
+        #[clap(long)]
+        go: Option<PathBuf>,
+    },
 }

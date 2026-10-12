@@ -1,0 +1,45 @@
+[package]
+name = "turbopack-go-toolchain"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[lints]
+workspace = true
+
+[features]
+default = []
+embedded = []
+
+[dependencies]
+anyhow = { workspace = true }
+flate2 = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+tar = { workspace = true }
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["process", "sync", "time", "rt", "macros"] }
+tokio-util = { workspace = true }
+zip = { workspace = true }
+
+[build-dependencies]
+anyhow = { workspace = true }
+flate2 = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+tar = { workspace = true }
+zip = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { workspace = true, features = ["Win32_Foundation", "Win32_Security", "Win32_Security_Authorization"] }
+
+[target.'cfg(windows)'.dev-dependencies]
+windows-sys = { workspace = true, features = ["Win32_Foundation", "Win32_System_Threading"] }

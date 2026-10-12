@@ -42,6 +42,8 @@ jobs:
       - name: Setup Rust toolchain
         uses: ./.github/actions/setup-rust
 
+      - uses: ./.github/actions/setup-go-toolchain
+
       - name: Install cargo-codspeed
         run: cargo binstall --locked --no-confirm cargo-codspeed@3.0.5
 

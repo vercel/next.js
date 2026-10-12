@@ -14,6 +14,24 @@ use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storag
 use turbo_tasks_fs::{DiskFileSystem, FileContent, FileSystemPath};
 use turbopack_go::{GoBuildContext, GoBuildOutcome, filesystem, go_bundle};
 
+async fn host_context() -> Result<GoBuildContext> {
+    if let Ok(tool) = std::env::var("TURBOPACK_GO") {
+        return GoBuildContext::host(Path::new(&tool), None, "").await;
+    }
+    use turbopack_go_toolchain::{PrepareOptions, PreparedToolchain, ToolchainSource, prepare};
+    static TOOLCHAIN: tokio::sync::OnceCell<PreparedToolchain> = tokio::sync::OnceCell::const_new();
+    let toolchain = TOOLCHAIN
+        .get_or_try_init(|| {
+            prepare(
+                ToolchainSource::Embedded,
+                PrepareOptions::default(),
+                tokio_util::sync::CancellationToken::new(),
+            )
+        })
+        .await?;
+    GoBuildContext::from_toolchain(toolchain.clone(), None, "")
+}
+
 fn copy_tree(source: &Path, target: &Path) -> Result<()> {
     std::fs::create_dir_all(target)?;
     for entry in std::fs::read_dir(source)? {
@@ -46,8 +64,7 @@ impl Session {
         // The documented fixture is also used for manual edits. Give each test its own
         // deterministic initial asset without modifying that working example.
         std::fs::write(project.join("cmd/files/assets/message.txt"), "embedded-v1")?;
-        let tool = std::env::var("TURBOPACK_GO").unwrap_or_else(|_| "go".into());
-        let go_context = GoBuildContext::host(Path::new(&tool), None, "").await?;
+        let go_context = host_context().await?;
         let tt = TurboTasks::new(TurboTasksBackend::new(
             BackendOptions {
                 storage_mode: None,
@@ -694,8 +711,7 @@ impl Drop for CancelOnDrop {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn edits_during_discovery_and_compilation_retry_before_publication() -> Result<()> {
     use std::time::{Duration, Instant};
-    let tool = std::env::var("TURBOPACK_GO").unwrap_or_else(|_| "go".into());
-    let host = GoBuildContext::host(Path::new(&tool), None, "").await?;
+    let host = host_context().await?;
     let tools = tempfile::tempdir()?;
     let wrapper = tools
         .path()

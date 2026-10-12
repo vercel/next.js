@@ -1,0 +1,167 @@
+name: Embedded Go toolchain qualification
+on:
+  pull_request:
+    paths:
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'rust-toolchain.toml'
+      - '.cargo/**'
+      - 'turbopack/crates/turbopack-go-toolchain/**'
+      - 'turbopack/crates/turbopack-go/**'
+      - 'turbopack/crates/turbopack-cli/**'
+      - 'turbopack/xtask/**'
+      - '.github/actions/setup-go-toolchain/**'
+      - '.github/workflows/turbopack_go_toolchain.yml'
+  workflow_dispatch:
+permissions: {}
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  native:
+    permissions:
+      contents: read
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+          - os: macos-15
+            target: aarch64-apple-darwin
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - os: windows-11-arm
+            target: aarch64-pc-windows-msvc
+          - os: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-rust
+      - uses: ./.github/actions/setup-go-toolchain
+        with:
+          target: ${{ matrix.target }}
+      - name: Verify embedded default without Go on PATH
+        shell: bash
+        env:
+          RUST_TARGET: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+          cargo test --locked -p turbopack-cli --target "$RUST_TARGET" embedded_toolchain_works_without_go_on_path_and_repairs_cache
+      - name: Build distributable CLI and notices
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        env:
+          RUST_TARGET: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+          cargo build --locked --release -p turbopack-cli --target "$RUST_TARGET"
+          mkdir -p artifact
+          suffix=""
+          if [[ "$RUST_TARGET" == *windows* ]]; then suffix=".exe"; fi
+          cp "target/$RUST_TARGET/release/turbopack-cli$suffix" artifact/
+          "artifact/turbopack-cli$suffix" build main.go --dir turbopack/crates/turbopack-cli/tests/embedded --output "artifact/example$suffix"
+          "artifact/example$suffix"
+          rm "artifact/example$suffix"
+          cargo xtask prepare-go-toolchain --target "$RUST_TARGET" --offline --notices artifact/THIRD_PARTY_NOTICES
+          cp turbopack/crates/turbopack-go-toolchain/archives.json artifact/go-toolchain-archives.json
+          cp license.md artifact/LICENSE-TURBOPACK
+          python3 -c 'import hashlib,pathlib; p=pathlib.Path("artifact"); (p/"SHA256SUMS").write_text("".join(f"{hashlib.sha256(f.read_bytes()).hexdigest()}  {f.name}\n" for f in sorted(p.glob("turbopack-cli*")) if f.is_file()))'
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: github.event_name == 'workflow_dispatch'
+        with:
+          name: turbopack-cli-${{ matrix.target }}
+          path: artifact/
+          if-no-files-found: error
+  clean-linux:
+    permissions:
+      contents: read
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            image: rust:1.90-bookworm
+            runtime: debian:bookworm-slim
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            image: rust:1.90-bookworm
+            runtime: debian:bookworm-slim
+          - os: ubuntu-24.04
+            target: x86_64-unknown-linux-musl
+            image: rust:1.90-alpine3.22
+            runtime: alpine:3.22
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-musl
+            image: rust:1.90-alpine3.22
+            runtime: alpine:3.22
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Build native CLI inside matching GNU or musl container
+        env:
+          BUILDER_IMAGE: ${{ matrix.image }}
+          RUST_TARGET: ${{ matrix.target }}
+          BUILD_RELEASE: ${{ github.event_name == 'workflow_dispatch' && contains(matrix.target, 'musl') && 'yes' || 'no' }}
+        run: |
+          set -euo pipefail
+          mkdir -p docker-builder
+          printf 'FROM %s\n' "$BUILDER_IMAGE" > docker-builder/Dockerfile
+          if [[ "$RUST_TARGET" == *musl ]]; then
+            echo 'RUN apk add --no-cache build-base' >> docker-builder/Dockerfile
+          fi
+          channel="$(sed -n 's/^channel = "\(.*\)"/\1/p' rust-toolchain.toml)"
+          printf 'RUN rustup toolchain install %s --profile minimal --target %s\n' "$channel" "$RUST_TARGET" >> docker-builder/Dockerfile
+          docker build -t go-cli-builder docker-builder
+          docker run --rm -v "$PWD:/work" -w /work -e RUST_TARGET -e BUILD_RELEASE -e RUSTUP_TOOLCHAIN="$channel" go-cli-builder sh -ec '
+            cargo xtask prepare-go-toolchain --target "$RUST_TARGET"
+            if [ "$BUILD_RELEASE" = yes ]; then
+              cargo build --locked --release -p turbopack-cli --target "$RUST_TARGET"
+              mkdir -p artifact
+              cp "target/$RUST_TARGET/release/turbopack-cli" artifact/
+              cargo xtask prepare-go-toolchain --target "$RUST_TARGET" --offline --notices artifact/THIRD_PARTY_NOTICES
+              cp turbopack/crates/turbopack-go-toolchain/archives.json artifact/go-toolchain-archives.json
+              cp license.md artifact/LICENSE-TURBOPACK
+              (cd artifact && sha256sum turbopack-cli > SHA256SUMS)
+            else
+              cargo build --locked -p turbopack-cli --target "$RUST_TARGET"
+            fi
+          '
+      - name: Verify without installed Go, a C compiler, or network access
+        env:
+          RUNTIME_IMAGE: ${{ matrix.runtime }}
+          RUST_TARGET: ${{ matrix.target }}
+          BUILD_RELEASE: ${{ github.event_name == 'workflow_dispatch' && contains(matrix.target, 'musl') && 'yes' || 'no' }}
+        run: |
+          set -euo pipefail
+          mkdir -p docker-runtime
+          printf 'FROM %s\n' "$RUNTIME_IMAGE" > docker-runtime/Dockerfile
+          if [[ "$RUST_TARGET" == *musl ]]; then
+            echo 'RUN apk add --no-cache libstdc++' >> docker-runtime/Dockerfile
+          else
+            echo 'RUN apt-get update && apt-get install -y --no-install-recommends libstdc++6 && rm -rf /var/lib/apt/lists/*' >> docker-runtime/Dockerfile
+          fi
+          docker build -t go-cli-runtime docker-runtime
+          profile=debug
+          if [ "$BUILD_RELEASE" = yes ]; then profile=release; fi
+          docker run --rm --network=none \
+            -v "$PWD/target/$RUST_TARGET/$profile/turbopack-cli:/turbopack-cli:ro" \
+            -v "$PWD/turbopack/crates/turbopack-cli/tests/embedded:/fixture:ro" \
+            go-cli-runtime sh /fixture/container.sh
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: github.event_name == 'workflow_dispatch' && contains(matrix.target, 'musl')
+        with:
+          name: turbopack-cli-${{ matrix.target }}
+          path: artifact/
+          if-no-files-found: error
