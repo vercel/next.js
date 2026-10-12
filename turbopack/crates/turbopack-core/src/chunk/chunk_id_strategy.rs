@@ -15,6 +15,7 @@ pub struct ModuleIds(FxHashMap<ResolvedVc<AssetIdent>, ModuleId>);
 #[derive(Default, Clone, PartialEq, Eq, ValueDebugFormat, NonLocalValue, Encode, Decode)]
 pub enum ModuleIdFallback {
     Error,
+    IdentWithoutLayer,
     #[default]
     Ident,
 }
@@ -24,6 +25,18 @@ pub enum ModuleIdFallback {
 pub struct ModuleIdStrategy {
     pub module_id_map: Option<ResolvedVc<ModuleIds>>,
     pub fallback: ModuleIdFallback,
+}
+
+#[turbo_tasks::value_impl]
+impl ModuleIdStrategy {
+    #[turbo_tasks::function]
+    pub fn new_ident_without_layer() -> Vc<Self> {
+        Self {
+            module_id_map: None,
+            fallback: ModuleIdFallback::IdentWithoutLayer,
+        }
+        .cell()
+    }
 }
 
 impl ModuleIdStrategy {
@@ -61,6 +74,9 @@ impl ModuleIdStrategy {
 
                 turbobail!("ModuleId not found for ident: {}", ident);
             }
+            ModuleIdFallback::IdentWithoutLayer => Ok(ModuleId::String(
+                ident.to_string_without_layer().owned().await?,
+            )),
             ModuleIdFallback::Ident => Ok(ModuleId::String(ident.to_string().owned().await?)),
         }
     }
