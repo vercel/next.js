@@ -298,7 +298,8 @@ struct ModuleConfig {
     module: Option<Module>,
     replace: Option<Vec<serde_json::Value>>,
     #[serde(default)]
-    require: Vec<Requirement>,
+    // Go 1.24 emits null for an empty requirement slice.
+    require: Option<Vec<Requirement>>,
 }
 
 #[derive(Deserialize)]
@@ -306,6 +307,24 @@ struct ModuleConfig {
 struct Requirement {
     path: String,
     version: String,
+}
+
+#[cfg(test)]
+#[test]
+fn module_configuration_accepts_absent_null_and_empty_requirements() {
+    for json in [r#"{}"#, r#"{"Require":null}"#, r#"{"Require":[]}"#] {
+        let config: ModuleConfig = serde_json::from_str(json).unwrap();
+        assert!(config.require.unwrap_or_default().is_empty());
+    }
+    let config: ModuleConfig = serde_json::from_str(
+        r#"{"Require":[{"Path":"example.com/dependency","Version":"v1.2.3"}]}"#,
+    )
+    .unwrap();
+    let requirements = config.require.unwrap();
+    assert_eq!(requirements.len(), 1);
+    assert_eq!(requirements[0].path, "example.com/dependency");
+    assert_eq!(requirements[0].version, "v1.2.3");
+    assert!(serde_json::from_str::<ModuleConfig>(r#"{"Require":{}}"#).is_err());
 }
 
 // Go's module cache escapes uppercase ASCII as ! followed by its lowercase form.
@@ -596,7 +615,7 @@ async fn discover(
         // Even an unresolved dependency needs cache dependencies. Downloading a module can
         // repair it without changing go.mod/go.sum, so retain reads for its future cache entries.
         let cache = Path::new(go_context.module_cache.as_str());
-        for requirement in &config.require {
+        for requirement in config.require.iter().flatten() {
             ensure!(
                 Path::new(&requirement.path)
                     .components()
