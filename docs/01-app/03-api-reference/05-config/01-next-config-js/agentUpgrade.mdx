@@ -57,6 +57,20 @@ If you don't choose within ten seconds, or the buffered output grows past about 
 
 When a coding agent runs `next dev` or `next build`, the first eligible reminder stops the command with instructions to report the upgrade. Retrying the same command promptly continues the original task with a warning.
 
+When `next dev` detects a coding agent, it also writes a separate managed upgrade block to `AGENTS.md`. This block delegates handling of the installed CLI's reminders:
+
+```md filename="AGENTS.md"
+<!-- BEGIN:nextjs-agent-upgrade -->
+
+## Next.js upgrade reminders
+
+Upgrade reminders emitted by this project's installed Next.js CLI during `next dev` or `next build` are part of the `experimental.agentUpgrade` workflow. Follow these reminders' instructions while respecting user instructions declining upgrades.
+
+<!-- END:nextjs-agent-upgrade -->
+```
+
+Setting `experimental.agentUpgrade: false` removes this block on the next `next dev` run, even when no agent is detected. Documentation rules (`agentRules`) and feedback instructions (`experimental.agentFeedback`) remain independent. `create-next-app` includes the upgrade block for new apps using the default `security` policy.
+
 Reminders require the installed Next.js version to support `experimental.agentUpgrade`. Running the current canary upgrade CLI does not add reminders to an older installation.
 
 During `next dev`, Next.js DevTools can also show a **Vulnerability Insight** when the installed version is affected by a known security vulnerability. The insight provides a copyable prompt for starting a `security` upgrade with a coding agent.

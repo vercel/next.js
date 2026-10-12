@@ -33,6 +33,7 @@ import {
   getEnvInfo,
   logExperimentalInfo,
   logStartInfo,
+  syncAgentUpgradeForDev,
   syncAgentFeedbackForDev,
   syncAgentRulesForDev,
 } from './app-info-log'
@@ -526,6 +527,17 @@ export async function startServer(
               `Generated ${files} for AI agents. Set \`agentRules: false\` in next.config to disable.`,
             (files) =>
               `Removed agent rules from ${files} because \`agentRules\` is disabled.`
+          )
+
+          logAgentFileSync(
+            await syncAgentUpgradeForDev(
+              dir,
+              initResult.agentUpgrade !== false
+            ),
+            (files) =>
+              `Generated upgrade instructions in ${files}. Set \`experimental.agentUpgrade: false\` in next.config to disable.`,
+            (files) =>
+              `Removed upgrade instructions from ${files} because \`experimental.agentUpgrade\` is disabled.`
           )
 
           if (!isCI) {
