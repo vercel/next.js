@@ -4,6 +4,7 @@ import {
   waitForNoErrorToast,
   retry,
   waitFor,
+  gate,
 } from 'next-test-utils'
 import type { Playwright } from 'e2e-utils'
 import stripAnsi from 'strip-ansi'
@@ -565,8 +566,8 @@ describe('use-cache', () => {
           '/cache-fetch-no-store',
           '/cache-life',
           // Without cache components this page is fully static. With cache
-          // components its short-stale cache becomes a dynamic hole.
-          !withCacheComponents && '/cache-life-short-stale',
+          // components its non-prefetchable cache becomes a dynamic hole.
+          !withCacheComponents && '/cache-life-non-prefetchable',
           '/cache-tag',
           '/directive-in-node-modules/with-handler',
           '/directive-in-node-modules/without-handler',
@@ -609,11 +610,11 @@ describe('use-cache', () => {
 
       if (withCacheComponents) {
         expect(
-          routes['/cache-life-with-dynamic'].initialRevalidateSeconds
+          routes['/cache-life-non-prerenderable'].initialRevalidateSeconds
         ).toBe(100)
-        expect(routes['/cache-life-with-dynamic'].initialExpireSeconds).toBe(
-          300
-        )
+        expect(
+          routes['/cache-life-non-prerenderable'].initialExpireSeconds
+        ).toBe(300)
       }
 
       // default expireTime
@@ -632,7 +633,9 @@ describe('use-cache', () => {
 
       if (withCacheComponents) {
         const cacheLifeWithDynamicMeta = JSON.parse(
-          await next.readFile('.next/server/app/cache-life-with-dynamic.meta')
+          await next.readFile(
+            '.next/server/app/cache-life-non-prerenderable.meta'
+          )
         )
         expect(cacheLifeWithDynamicMeta.headers['x-nextjs-stale-time']).toBe(
           '30'
@@ -658,44 +661,112 @@ describe('use-cache', () => {
     })
 
     if (withCacheComponents) {
-      it('should omit dynamic caches from prerendered shells', async () => {
-        const browser = await next.browser('/cache-life-with-dynamic', {
+      it('should omit non-prerenderable caches from prerendered shells', async () => {
+        const cacheValues = {
+          prerenderable: /(?<!non-)prerenderable: \d+/,
+          'non-prerenderable': /non-prerenderable: \d+/,
+        }
+
+        const browser = await next.browser('/cache-life-non-prerenderable', {
           disableJavaScript: true,
         })
 
-        expect(await browser.elementById('y').text()).toBe('Loading...')
+        const html = await browser.eval(
+          () => document.documentElement.outerHTML
+        )
+
+        // Both caches should have a consistent value across the HTML document
+        // (note: this includes the HTML shell, streamed resume HTML, and the RSC payload)
+        expect(
+          getUniqueRegexMatches(html, cacheValues.prerenderable)
+        ).toHaveLength(1)
+        expect(
+          getUniqueRegexMatches(html, cacheValues['non-prerenderable'])
+        ).toHaveLength(1)
+
+        expect(await browser.elementById('prerenderable').text()).toMatch(
+          cacheValues.prerenderable
+        )
+        // The un-hydrated HTML should be showing a fallback for the non-prerenderable cache.
+        expect(await browser.elementById('non-prerenderable').text()).toBe(
+          'Loading...'
+        )
       })
 
-      it('should omit caches with a short stale time from prerendered shells', async () => {
-        // Disable JS as a hack to see what's included in the static shell
-        let browser = await next.browser('/cache-life-short-stale', {
-          disableJavaScript: true,
-        })
+      it('should omit non-prefetchable caches from prerendered shells', async () => {
+        const cacheValues = {
+          prerenderable: /prerenderable: \d+/,
+          'non-prefetchable': /non-prefetchable: \d+/,
+        }
 
-        expect(await browser.elementById('x').text()).toBeTruthy()
-        // We expect the cache to be excluded, so it's showing a suspense fallback
-        expect(await browser.elementById('y').text()).toBe('Loading...')
+        // Disable JS as a hack to see what's included in the static shell
+        {
+          const browser = await next.browser('/cache-life-non-prefetchable', {
+            disableJavaScript: true,
+          })
+
+          const html = await browser.eval(
+            () => document.documentElement.outerHTML
+          )
+
+          // Both caches should have a consistent value across the HTML document
+          // (note: this includes the HTML shell, streamed resume HTML, and the RSC payload)
+          expect(
+            getUniqueRegexMatches(html, cacheValues.prerenderable)
+          ).toHaveLength(1)
+          expect(
+            getUniqueRegexMatches(html, cacheValues['non-prefetchable'])
+          ).toHaveLength(1)
+
+          expect(await browser.elementById('prerenderable').text()).toMatch(
+            cacheValues.prerenderable
+          )
+          // We expect the non-prefetchable cache to be excluded from the HTML shell,
+          // so should showing a suspense fallback
+          expect(await browser.elementById('non-prefetchable').text()).toBe(
+            'Loading...'
+          )
+
+          await browser.close()
+        }
 
         // If we let JS run, we should see the cache's actual value
-        browser = await next.browser('/cache-life-short-stale', {
-          pushErrorAsConsoleLog: true,
-        })
+        // (NOTE: can't enable JS without recreating `browser()`)
+        {
+          const browser = await next.browser('/cache-life-non-prefetchable', {
+            pushErrorAsConsoleLog: true,
+          })
+          expect(await browser.elementById('prerenderable').text()).toMatch(
+            cacheValues.prerenderable
+          )
+          await retry(async () => {
+            expect(
+              await browser.elementById('non-prefetchable').text()
+            ).toMatch(cacheValues['non-prefetchable'])
+          })
 
-        await retry(async () => {
-          expect(await browser.elementById('y').text()).toBeDateString()
-        })
-
-        await assertNoConsoleErrors(browser)
+          await assertNoConsoleErrors(browser)
+        }
       })
     }
 
-    it('should not have hydration errors when resuming a partial shell with dynamic caches', async () => {
-      const browser = await next.browser('/cache-life-with-dynamic', {
+    it('should not have hydration errors when resuming a partial shell with non-prerenderable caches', async () => {
+      const cacheValues = {
+        prerenderable: /(?<!non-)prerenderable: \d+/,
+        'non-prerenderable': /non-prerenderable: \d+/,
+      }
+
+      const browser = await next.browser('/cache-life-non-prerenderable', {
         pushErrorAsConsoleLog: true,
       })
 
+      expect(await browser.elementById('prerenderable').text()).toMatch(
+        cacheValues.prerenderable
+      )
       await retry(async () => {
-        expect(await browser.elementById('y').text()).not.toBe('Loading...')
+        expect(await browser.elementById('non-prerenderable').text()).toMatch(
+          cacheValues['non-prerenderable']
+        )
       })
 
       // There should be no hydration errors due to a buildtime date being
@@ -1269,7 +1340,7 @@ describe('use-cache', () => {
   if (withCacheComponents) {
     it('can resume a cached generateMetadata function', async () => {
       // In dev the initial request fills the caches while streaming the
-      // response. The second request will have filled caches and server a
+      // response. The second request will have filled caches and serves a
       // prod-like shell.
       if (isNextDev) {
         await next.fetch('/generate-metadata-resume/nested')
@@ -1580,46 +1651,99 @@ describe('use-cache', () => {
   }
 
   it('should allow nested short-lived caches after connection()', async () => {
+    const cacheValues = {
+      'revalidate-zero': /bare-revalidate-zero: \d+/,
+      'low-expire': /bare-low-expire: \d+/,
+
+      'explicit-revalidate-zero': /explicit-revalidate-zero: \d+/,
+      'explicit-low-expire': /explicit-low-expire: \d+/,
+
+      'explicit-long-revalidate-zero': /explicit-long-revalidate-zero: \d+/,
+      'explicit-long-low-expire': /explicit-long-low-expire: \d+/,
+    }
+
+    // In dev the initial request fills the caches while streaming the
+    // response. The second request will have filled caches and serves a
+    // prod-like shell.
+    if (isNextDev) {
+      await next.fetch('/short-lived-caches')
+    }
+
     // Check the prerendered shell (no JS).
-    let browser = await next.browser('/short-lived-caches', {
-      disableJavaScript: true,
-    })
+    {
+      const browser = await next.browser('/short-lived-caches', {
+        disableJavaScript: true,
+      })
 
-    // Static content should be in the shell.
-    expect(await browser.elementById('static').text()).toBe('Static content')
+      const html = await browser.eval(() => document.documentElement.outerHTML)
 
-    // Explicit long cacheLife should be in the shell despite short-lived inner
-    // caches.
-    expect(
-      await browser.elementById('explicit-long-revalidate-zero').text()
-    ).toBeDateString()
-    expect(
-      await browser.elementById('explicit-long-low-expire').text()
-    ).toBeDateString()
+      // Static content should be in the shell.
+      expect(await browser.elementById('static').text()).toBe('Static content')
+
+      // Explicit long cacheLife should be in the shell despite short-lived inner
+      // caches.
+      const expectIncluded = async (id: keyof typeof cacheValues) => {
+        // Look for elements within <main> to exlude streaming fizz chunks.
+        // NOTE: content being present in the shell is only reliable in cacheComponents
+        if (await gate('cacheComponents')) {
+          expect(await browser.elementByCss(`main #${id}`).text()).toMatch(
+            cacheValues[id]
+          )
+        }
+        // The cache will be present in HTML shell, streaming HTML, and the RSC payload.
+        // It should have consistent values across all of those.
+        expect(getUniqueRegexMatches(html, cacheValues[id])).toHaveLength(1)
+      }
+      await expectIncluded('explicit-long-revalidate-zero')
+      await expectIncluded('explicit-long-low-expire')
+
+      // For the other caches, the outer cache was omitted from the prerender, so they
+      // should not be visible in the HTML shell.
+      const expectExcluded = async (id: keyof typeof cacheValues) => {
+        // Look for elements within <main> to exlude streaming fizz chunks.
+        // NOTE: content being present in the shell is only reliable in cacheComponents
+        if (await gate('cacheComponents')) {
+          expect(await browser.locator(`main #${id}`).count()).toBe(0)
+        }
+        // The cache will be present in streaming HTML and the RSC payload.
+        // It should have consistent values across both of those.
+        expect(getUniqueRegexMatches(html, cacheValues[id])).toHaveLength(1)
+      }
+      await expectExcluded('revalidate-zero')
+      await expectExcluded('low-expire')
+      await expectExcluded('explicit-revalidate-zero')
+      await expectExcluded('explicit-low-expire')
+
+      await browser.close()
+    }
 
     // Now check with JS enabled to verify dynamic content loads.
-    browser = await next.browser('/short-lived-caches', {
-      pushErrorAsConsoleLog: true,
-    })
+    {
+      const browser = await next.browser('/short-lived-caches', {
+        pushErrorAsConsoleLog: true,
+      })
 
-    // Dynamic content should eventually render.
-    await retry(async () => {
-      // No explicit outer cacheLife (after connection()).
-      expect(
-        await browser.elementById('revalidate-zero').text()
-      ).toBeDateString()
-      expect(await browser.elementById('low-expire').text()).toBeDateString()
+      // Dynamic content should eventually render.
+      await retry(async () => {
+        // No explicit outer cacheLife (after connection()).
+        expect(await browser.elementById('revalidate-zero').text()).toMatch(
+          cacheValues['revalidate-zero']
+        )
+        expect(await browser.elementById('low-expire').text()).toMatch(
+          cacheValues['low-expire']
+        )
 
-      // Explicit short cacheLife - excluded from prerender.
-      expect(
-        await browser.elementById('explicit-revalidate-zero').text()
-      ).toBeDateString()
-      expect(
-        await browser.elementById('explicit-low-expire').text()
-      ).toBeDateString()
-    })
+        // Explicit short cacheLife - excluded from prerender.
+        expect(
+          await browser.elementById('explicit-revalidate-zero').text()
+        ).toMatch(cacheValues['explicit-revalidate-zero'])
+        expect(await browser.elementById('explicit-low-expire').text()).toMatch(
+          cacheValues['explicit-low-expire']
+        )
+      })
 
-    await assertNoConsoleErrors(browser)
+      await assertNoConsoleErrors(browser)
+    }
   })
 
   it('should dedupe shared inner caches across different outer caches', async () => {
@@ -1827,4 +1951,16 @@ function extractResumeDataCacheFromPostponedState(
     state.slice(postponedStringLengthMatch.length + postponedStringLength + 1),
     undefined
   )
+}
+
+function getUniqueRegexMatches(text: string, pattern: RegExp) {
+  const uniqueMatches = new Set<string>()
+  for (const match of text.matchAll(
+    new RegExp(pattern.source, pattern.flags + 'g')
+  )) {
+    // `matchAll` returns a match array for each occurence.
+    // We don't care about groups, so just take the whole match.
+    uniqueMatches.add(match[0])
+  }
+  return [...uniqueMatches]
 }

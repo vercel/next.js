@@ -4,14 +4,13 @@ const validPage = `export default function Page() {
   return <p>hello</p>
 }`
 
+// This suite controls the local build lifecycle directly, which deployment tests cannot reproduce.
+// @force-gate !deploy
 describe('use-cache-invalid-cache-life', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-
-  if (skipped) return
 
   it('fails the build for a config profile with a non-finite value other than Infinity', async () => {
     await next.patchFile(

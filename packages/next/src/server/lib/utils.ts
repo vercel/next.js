@@ -391,3 +391,12 @@ export function getMaxOldSpaceSize() {
 
   return parseInt(size, 10)
 }
+
+// For a child whose output is piped to its parent. Without this,
+// process.exit() can drop the last lines written to the pipe. Node already
+// does this for terminals.
+export function blockOnOutputWrites() {
+  for (const stream of [process.stdout, process.stderr]) {
+    ;(stream as any)._handle?.setBlocking?.(true)
+  }
+}

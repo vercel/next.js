@@ -429,6 +429,33 @@ declare module 'next/form' {
 `
 }
 
+// Object literals and unannotated generator returns widen their mode values to
+// string. Runtime validation checks those values; generated types still enforce
+// the parameter scope and mutually exclusive export forms. Users can opt into
+// contextual mode checking with `satisfies ParamMatching` from 'next'.
+const PRERENDER_MATCHER_TYPE_DEFINITIONS = `type ParamMatchFragment<Route extends keyof ParamMap> = Partial<Record<keyof ParamMap[Route], string>>
+type ParamMatchingExports<Route extends keyof ParamMap> =
+  | { unstable_paramMatching?: ParamMatchFragment<Route>; unstable_generateParamMatching?: never }
+  | { unstable_paramMatching?: never; unstable_generateParamMatching?: () => Promise<ParamMatchFragment<Route>> | ParamMatchFragment<Route> }
+
+`
+
+function getPrerenderMatcherKeyValidation(
+  route: string | undefined,
+  type: string
+): string {
+  return route && (type === 'AppPageConfig' || type === 'LayoutConfig')
+    ? `
+  type __ParamMatchingValue =
+    typeof handler extends { unstable_paramMatching: infer Matcher } ? Matcher :
+    typeof handler extends { unstable_generateParamMatching: (...args: any[]) => infer Matcher } ? Awaited<Matcher> : {}
+  type __InvalidParamMatchingKeys = Exclude<keyof __ParamMatchingValue, keyof ParamMap[${JSON.stringify(route)}]>
+  type __AssertNoInvalidParamMatchingKeys<Invalid extends never> = Invalid
+  const __paramMatchingKeyCheck: __AssertNoInvalidParamMatchingKeys<__InvalidParamMatchingKeys> | undefined = undefined
+  void __paramMatchingKeyCheck`
+    : ''
+}
+
 export function generateValidatorFile(
   routesManifest: RouteTypesManifest
 ): string {
@@ -448,14 +475,17 @@ export function generateValidatorFile(
       .filter(
         (filePath) => filePath.endsWith('.ts') || filePath.endsWith('.tsx')
       )
-      .filter(
-        // Don't include metadata routes or pages
-        // (e.g. /manifest.webmanifest)
-        (filePath) =>
-          type !== 'AppPageConfig' ||
-          filePath.endsWith('page.ts') ||
-          filePath.endsWith('page.tsx')
-      )
+      .filter((filePath) => {
+        // Metadata files have different exports from pages and route handlers.
+        if (type === 'AppPageConfig') {
+          return filePath.endsWith('page.ts') || filePath.endsWith('page.tsx')
+        }
+        if (type === 'RouteHandlerConfig') {
+          // Match custom page extensions too, such as route.api.ts.
+          return /(?:^|\/)route\.[^/]+$/.test(filePath)
+        }
+        return true
+      })
       .map((filePath) => {
         // Keep the file extension for TypeScript imports to support node16 module resolution
         const importPath = filePath
@@ -467,6 +497,10 @@ export function generateValidatorFile(
             type === 'RouteHandlerConfig')
             ? `${type}<${JSON.stringify(route)}>`
             : type
+        const matcherKeyValidation = getPrerenderMatcherKeyValidation(
+          route,
+          type
+        )
 
         // NOTE: we previously used `satisfies` here, but it's not supported by TypeScript 4.8 and below.
         // If we ever raise the TS minimum version, we can switch back.
@@ -478,6 +512,7 @@ export function generateValidatorFile(
     importPath.replace(/\.tsx?$/, '.js')
   )})
   type __Check = __IsExpected<typeof handler>
+  ${matcherKeyValidation}
   // @ts-ignore
   type __Unused = __Check
 }`
@@ -517,6 +552,10 @@ export function generateValidatorFile(
   // Build type definitions based on what's actually used
   let typeDefinitions = ''
 
+  if (appPageValidations || layoutValidations) {
+    typeDefinitions += PRERENDER_MATCHER_TYPE_DEFINITIONS
+  }
+
   if (appPageValidations) {
     typeDefinitions += `type AppPageConfig<Route extends AppRoutes = AppRoutes> = {
   default: React.ComponentType<{ params: Promise<ParamMap[Route]> } & any> | ((props: { params: Promise<ParamMap[Route]> } & any) => React.ReactNode | Promise<React.ReactNode> | never | void | Promise<void>)
@@ -531,7 +570,7 @@ export function generateValidatorFile(
   ) => Promise<any> | any
   metadata?: any
   viewport?: any
-}
+} & ParamMatchingExports<Route>
 
 `
   }
@@ -571,7 +610,7 @@ export function generateValidatorFile(
   ) => Promise<any> | any
   metadata?: any
   viewport?: any
-}
+} & ParamMatchingExports<Route>
 
 `
   }
@@ -689,14 +728,17 @@ export function generateValidatorFileStrict(
       .filter(
         (filePath) => filePath.endsWith('.ts') || filePath.endsWith('.tsx')
       )
-      .filter(
-        // Don't include metadata routes or pages
-        // (e.g. /manifest.webmanifest)
-        (filePath) =>
-          type !== 'AppPageConfig' ||
-          filePath.endsWith('page.ts') ||
-          filePath.endsWith('page.tsx')
-      )
+      .filter((filePath) => {
+        // Metadata files have different exports from pages and route handlers.
+        if (type === 'AppPageConfig') {
+          return filePath.endsWith('page.ts') || filePath.endsWith('page.tsx')
+        }
+        if (type === 'RouteHandlerConfig') {
+          // Match custom page extensions too, such as route.api.ts.
+          return /(?:^|\/)route\.[^/]+$/.test(filePath)
+        }
+        return true
+      })
       .map((filePath) => {
         // Keep the file extension for TypeScript imports to support node16 module resolution
         const importPath = filePath
@@ -708,6 +750,10 @@ export function generateValidatorFileStrict(
             type === 'RouteHandlerConfig')
             ? `${type}<${JSON.stringify(route)}>`
             : type
+        const matcherKeyValidation = getPrerenderMatcherKeyValidation(
+          route,
+          type
+        )
 
         return `// Validate ${filePath}
 {
@@ -715,6 +761,7 @@ export function generateValidatorFileStrict(
     importPath.replace(/\.tsx?$/, '.js')
   )})
   handler satisfies ${typeWithRoute}
+  ${matcherKeyValidation}
 }`
       })
       .join('\n\n')
@@ -752,6 +799,10 @@ export function generateValidatorFileStrict(
   // Build type definitions based on what's actually used
   let typeDefinitions = ''
 
+  if (appPageValidations || layoutValidations) {
+    typeDefinitions += PRERENDER_MATCHER_TYPE_DEFINITIONS
+  }
+
   if (appPageValidations) {
     typeDefinitions += `type AppPageConfig<Route extends AppRoutes = AppRoutes> = {
   default: React.JSXElementConstructor<PageProps<Route>>
@@ -766,7 +817,7 @@ export function generateValidatorFileStrict(
   ) => Promise<any> | any
   metadata?: any
   viewport?: any
-}
+} & ParamMatchingExports<Route>
 
 `
   }
@@ -806,7 +857,7 @@ export function generateValidatorFileStrict(
   ) => Promise<any> | any
   metadata?: any
   viewport?: any
-}
+} & ParamMatchingExports<Route>
 
 `
   }

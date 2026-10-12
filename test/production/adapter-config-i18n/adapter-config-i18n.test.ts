@@ -1,5 +1,7 @@
+import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 import type { NextAdapter } from 'next'
+import { RouteKind } from 'next/dist/server/route-kind'
 
 describe('adapter config with i18n routes', () => {
   const { next } = nextTestSetup({
@@ -36,6 +38,47 @@ describe('adapter config with i18n routes', () => {
     expect(pageRoute?.destination).toBe(
       '/$nextLocale/blog/[slug]?nxtPslug=$nxtPslug'
     )
+  })
+
+  it('resolves localized prerenders and fallback shells to scoped files', async () => {
+    const { outputs }: Parameters<NextAdapter['onBuildComplete']>[0] =
+      await next.readJSON('build-complete.json')
+    for (const locale of ['en', 'fr']) {
+      for (const slug of ['first', '[slug]']) {
+        const pathname = `/${locale}/fallback/${slug}`
+        const output = outputs.prerenders.find(
+          (item) => item.pathname === pathname
+        )
+        const artifact = next.getPrerenderFilePath(pathname, '.html', {
+          router: 'pages',
+          route: {
+            kind: RouteKind.PAGES,
+            sourceRoute: '/fallback/[slug]',
+          },
+        })
+        expect(output?.fallback?.filePath).toBe(
+          path.join(next.testDir, artifact)
+        )
+        expect(await next.hasFile(artifact)).toBe(true)
+        expect(await next.hasFile(`.next/server/pages${pathname}.html`)).toBe(
+          false
+        )
+        expect(await next.hasFile(`.next/server/pages${pathname}.json`)).toBe(
+          false
+        )
+        expect(await next.hasFile(`.next/server/pages${pathname}.meta`)).toBe(
+          false
+        )
+        expect(await next.hasFile(artifact.replace(/\.html$/, '.meta'))).toBe(
+          true
+        )
+        if (slug === 'first') {
+          expect(await next.hasFile(artifact.replace(/\.html$/, '.json'))).toBe(
+            true
+          )
+        }
+      }
+    }
   })
 
   it('does not emit outputs multiple times for a given pathname', async () => {

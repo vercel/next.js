@@ -778,7 +778,7 @@ export async function handleAction({
 
         return {
           type: 'done',
-          result: await generateFlight(req, ctx, requestStore, {
+          result: await generateFlight(ctx, requestStore, {
             actionResult: promise,
             // We didn't execute an action, so no revalidations could have
             // occurred. We can skip rendering the page.
@@ -1321,7 +1321,7 @@ export async function handleAction({
           return {
             type: 'done',
             result: await actionAsyncStorage.exit(() =>
-              generateFlight(req, ctx, requestStore, {
+              generateFlight(ctx, requestStore, {
                 actionResult: Promise.resolve(actionResult),
                 skipPageRendering,
                 temporaryReferences,
@@ -1391,7 +1391,7 @@ export async function handleAction({
         }
         return {
           type: 'done',
-          result: await generateFlight(req, ctx, requestStore, {
+          result: await generateFlight(ctx, requestStore, {
             skipPageRendering: shouldSkipPageRendering,
             actionResult: promise,
             temporaryReferences,
@@ -1436,7 +1436,7 @@ export async function handleAction({
 
       return {
         type: 'done',
-        result: await generateFlight(req, ctx, requestStore, {
+        result: await generateFlight(ctx, requestStore, {
           actionResult: promise,
           // If the page was not revalidated, or if this is an action-only
           // request, we can skip rendering the page.

@@ -398,7 +398,7 @@ Use skills for conditional, deep workflows. Keep baseline iteration/build/test p
 - `$pr-status-triage` - CI failure and PR review triage with `scripts/pr-status.js`
 - `$create-pr` - branch, commit, push, and draft PR creation workflow
 - `$deploy-release-test` - validate a commit preview package and trigger the full `test_e2e_deploy_release.yml` suite
-- `$backport-pr` - cherry-pick merged PRs from `canary` to release branches
+- `$backport-pr` - cherry-pick merged PRs from `canary` to `releases/lts/active` or `releases/lts/maintenance`
 - `$flags` - feature-flag wiring across config/schema/define-env/runtime env
 - `$dce-edge` - DCE-safe `require()` patterns and edge/runtime constraints
 - `$react-vendoring` - `entry-base.ts` boundaries and vendored React type/runtime rules
@@ -437,13 +437,6 @@ Use skills for conditional, deep workflows. Keep baseline iteration/build/test p
 - Keep commit messages concise and descriptive
 - PR descriptions should focus on what changed and why
 - Do NOT mark PRs as "ready for review" (`gh pr ready`) - leave PRs in draft mode and let the user decide when to mark them ready
-
-## Task Decomposition and Verification
-
-- **Split work into smaller, individually verifiable tasks.** Before starting, break the overall goal into incremental steps where each step produces a result that can be checked independently.
-- **Verify each task before moving on to the next.** After completing a step, confirm it works correctly (e.g., run relevant tests, check types, build, or manually inspect output). Do not proceed to the next task until the current one is verified.
-- **Choose the right verification method for each change.** This may include running unit tests, integration tests, type checking, linting, building the project, or inspecting runtime behavior depending on what was changed.
-- **When unclear how to verify a change, ask the user.** If there is no obvious test or verification method for a particular change, ask the user how they would like it verified before moving on.
 
 **Pre-validate before committing** to avoid slow lint-staged failures (~2 min each):
 

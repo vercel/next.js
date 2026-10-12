@@ -33,7 +33,7 @@ name: Trigger Release
 
 env:
   NAPI_CLI_VERSION: 3.7.2
-  TURBO_VERSION: 2.9.4
+  TURBO_VERSION: 2.11.7
   NODE_LTS_VERSION: 20
 
 permissions: {}
@@ -116,7 +116,7 @@ jobs:
       - name: Setup corepack
         if: steps.new-commits.outputs.has_new_commits == 'true'
         run: |
-          npm i -g corepack@0.31
+          npm i -g corepack@0.34.7
           corepack enable
           pnpm --version
 
@@ -130,7 +130,7 @@ jobs:
         id: cache-pnpm-store
         with:
           path: ${{ steps.get-store-path.outputs.STORE_PATH }}
-          key: pnpm-store-root-v1-${{ hashFiles('pnpm-lock.yaml') }}
+          key: pnpm-store-root-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml') }}
           # Do not use restore-keys since it leads to indefinite growth of the cache.
 
       - if: steps.new-commits.outputs.has_new_commits == 'true'

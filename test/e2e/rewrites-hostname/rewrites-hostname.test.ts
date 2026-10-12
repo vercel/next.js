@@ -2,16 +2,14 @@ import { nextTestSetup } from 'e2e-utils'
 import { findPort } from 'next-test-utils'
 import createTargetServer from './target-server'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely depends on a local server, proxy, process, or dynamically allocated port.
+// @force-gate !deploy
 describe('rewrites hostname', () => {
-  const { skipped, next } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     skipStart: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   let targetPort: number | null = null
   let closeTargetServer: (() => Promise<void>) | null = null

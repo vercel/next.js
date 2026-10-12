@@ -1,5 +1,6 @@
 use anyhow::{Context, Result, bail};
 use async_trait::async_trait;
+use smallvec::{SmallVec, smallvec};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
@@ -877,7 +878,7 @@ impl ChunkingContext for BrowserChunkingContext {
     async fn chunk_group(
         self: ResolvedVc<Self>,
         ident: Vc<AssetIdent>,
-        chunk_group: ChunkGroup,
+        chunk_groups: SmallVec<[ChunkGroup; 1]>,
         module_graph: ResolvedVc<ModuleGraph>,
         availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
@@ -889,7 +890,7 @@ impl ChunkingContext for BrowserChunkingContext {
                 references,
                 availability_info,
             } = make_chunk_group(
-                chunk_group,
+                chunk_groups,
                 module_graph,
                 ResolvedVc::upcast(self),
                 input_availability_info,
@@ -940,7 +941,7 @@ impl ChunkingContext for BrowserChunkingContext {
                 references,
                 availability_info,
             } = make_chunk_group(
-                chunk_group.clone(),
+                smallvec![chunk_group.clone()],
                 module_graph,
                 ResolvedVc::upcast(self),
                 input_availability_info,
@@ -1130,7 +1131,7 @@ impl ChunkingContext for BrowserChunkingContext {
                 references,
                 availability_info,
             } = make_chunk_group(
-                chunk_group.clone(),
+                smallvec![chunk_group.clone()],
                 module_graph,
                 ResolvedVc::upcast(self),
                 availability_info,

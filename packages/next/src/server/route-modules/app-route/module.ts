@@ -68,7 +68,6 @@ import {
   getFirstDynamicReason,
 } from '../../app-render/dynamic-rendering'
 import { ReflectAdapter } from '../../web/spec-extension/adapters/reflect'
-import type { RenderOptsPartial } from '../../app-render/types'
 import { CacheSignal } from '../../app-render/cache-signal'
 import { scheduleImmediate } from '../../../lib/scheduler'
 import { createServerParamsForRoute } from '../../request/params'
@@ -120,9 +119,7 @@ export type AppRouteSharedContext = {
  * handler for app routes.
  */
 export interface AppRouteRouteHandlerContext extends RouteModuleHandleContext {
-  renderOpts: WorkStoreContext['renderOpts'] &
-    Pick<RenderOptsPartial, 'onInstrumentationRequestError'> &
-    CollectedCacheInfo
+  renderOpts: WorkStoreContext['renderOpts'] & CollectedCacheInfo
   previewProps: DeepReadonly<__ApiPreviewProps>
   sharedContext: AppRouteSharedContext
 }
@@ -1502,11 +1499,6 @@ function trackDynamic(
 
         throw err
       case 'request':
-        if (process.env.NODE_ENV !== 'production') {
-          // TODO: This is currently not really needed for route handlers, as it
-          // only controls the ISR status that's shown for pages.
-          workUnitStore.usedDynamic = true
-        }
         break
       case 'build-time-generator':
         break

@@ -136,7 +136,7 @@ function applyEcmascriptMergedUpdate(
   // were moved to a renamed chunk. Treat them as modified so the dependency
   // walk runs and they get re-instantiated with the new factory.
   for (const [moduleId, entry] of added) {
-    if (entry != null && devModuleCache[moduleId] != null) {
+    if (entry != null && devModuleCache.has(moduleId)) {
       added.delete(moduleId)
       modified.set(moduleId, entry)
     }

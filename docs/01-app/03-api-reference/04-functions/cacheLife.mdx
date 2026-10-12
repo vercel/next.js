@@ -596,3 +596,11 @@ async function getPostContent(slug: string) {
   return post.data
 }
 ```
+
+## Version History
+
+| Version   | Changes                                                  |
+| --------- | -------------------------------------------------------- |
+| `v16.0.0` | `cacheLife` stabilized. `unstable_cacheLife` deprecated. |
+
+See the [Next.js 16 upgrade guide](/docs/app/guides/upgrading/version-16#cachelife-and-cachetag) to update imports from `unstable_cacheLife` to `cacheLife`.

@@ -4,16 +4,12 @@ import { join } from 'path'
 import { nextTestSetup, FileRef } from 'e2e-utils'
 
 describe('Custom TypeScript Config', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: new FileRef(join(__dirname, '..')),
     dependencies: {
       typescript: '5.4.4',
     },
   })
-
-  if (skipped) {
-    return
-  }
 
   it('app router: allows a user-specific tsconfig via the next config', async () => {
     const html = await next.render('/')

@@ -22,8 +22,10 @@ it('should handle `default` when destructuring a namespace', () => {
 })
 
 it('should preserve original names when a namespace binding escapes', () => {
-  // Without a facade split, the module keeps its public keys because callers can read the
-  // namespace object by its original export names.
-  expect(mod.exportsInfo.aVeryLongExportName.canMangle).toBe(false)
-  expect(mod.exportsInfo.aVeryLongExportName.mangledName).toBeNull()
+  // The public facade exposes original names while the backing module mangles its keys.
+  expect(mod.aVeryLongExportName).toBe('a-value')
+  expect(mod.exportsInfo.aVeryLongExportName.canMangle).toBe(true)
+  expect(mod.exportsInfo.aVeryLongExportName.mangledName).not.toBe(
+    'aVeryLongExportName'
+  )
 })

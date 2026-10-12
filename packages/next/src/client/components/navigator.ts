@@ -27,7 +27,6 @@ export {
   replace,
   traverse,
   restore,
-  legacyUrgentBFCacheRestore,
   refresh,
   hmrRefresh,
 } from './sequential-router-queue'

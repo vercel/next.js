@@ -13,6 +13,7 @@ use image::{
         ico::IcoEncoder,
         jpeg::JpegEncoder,
         png::{CompressionType, PngEncoder},
+        webp::WebPEncoder,
     },
     imageops::FilterType,
 };
@@ -176,23 +177,6 @@ fn load_image_internal(
         return Ok((ImageBuffer::Raw(bytes.to_vec()), format));
     }
 
-    #[cfg(not(feature = "webp"))]
-    if matches!(format, Some(ImageFormat::WebP)) {
-        ImageProcessingIssue {
-            source: IssueSource::from_source_only(image),
-            message: StyledString::Text(rcstr!(
-                "This version of Turbopack does not support WEBP images, will emit without \
-                 optimization or encoding"
-            ))
-            .resolved_cell(),
-            title: Some(StyledString::Text(rcstr!("WEBP image not supported")).resolved_cell()),
-            issue_severity: Some(IssueSeverity::Warning),
-        }
-        .resolved_cell()
-        .emit();
-        return Ok((ImageBuffer::Raw(bytes.to_vec()), format));
-    }
-
     let image = reader.decode().context("unable to decode image data")?;
     Ok((ImageBuffer::Decoded(image), format))
 }
@@ -264,9 +248,7 @@ fn encode_image(image: DynamicImage, format: ImageFormat, quality: u8) -> Result
             )?;
             (buf, mime::IMAGE_BMP)
         }
-        #[cfg(feature = "webp")]
         ImageFormat::WebP => {
-            use image::codecs::webp::WebPEncoder;
             let encoder = WebPEncoder::new_lossless(&mut buf);
             encoder.encode(image.as_bytes(), width, height, image.color().into())?;
 
@@ -439,14 +421,6 @@ pub async fn optimize(
             if matches!(format, Some(ImageFormat::Avif)) {
                 return Ok(FileContent::Content(
                     File::from(buffer).with_content_type(Mime::from_str("image/avif")?),
-                )
-                .cell());
-            }
-
-            #[cfg(not(feature = "webp"))]
-            if matches!(format, Some(ImageFormat::WebP)) {
-                return Ok(FileContent::Content(
-                    File::from(buffer).with_content_type(Mime::from_str("image/webp")?),
                 )
                 .cell());
             }

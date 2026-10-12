@@ -6,13 +6,13 @@ import type { NextAdapter } from 'next'
 
 type BuildComplete = Parameters<NextAdapter['onBuildComplete']>[0]
 
+// This asserts on the output an adapter is handed locally (`build-complete.json`) and runs the
+// app with only the files from that output, so it has to build and serve locally.
+// @force-gate !deploy
 describe('adapter output - styled-jsx', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: path.join(__dirname, 'fixture'),
     skipStart: true,
-    // This asserts on the output an adapter is handed locally (`build-complete.json`) and runs the
-    // app with only the files from that output, so it has to build and serve locally.
-    skipDeployment: true,
     dependencies: {
       // A version that does not dedupe with the one Next.js depends on, so the app gets its own
       // copy of styled-jsx next to Next.js' copy. That is the case where the require hook in
@@ -22,8 +22,6 @@ describe('adapter output - styled-jsx', () => {
       'styled-jsx': '5.1.7',
     },
   })
-
-  if (skipped) return
 
   let buildComplete: BuildComplete
   /** Absolute paths of the files the adapter declares for the `/index` pages function. */

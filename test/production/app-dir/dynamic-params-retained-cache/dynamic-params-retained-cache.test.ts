@@ -3,16 +3,22 @@ import { nextTestSetup } from 'e2e-utils'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { deserialize } from 'node:v8'
+import { getRouteCacheKey } from 'next/dist/server/lib/route-cache-key'
+import { RouteKind } from 'next/dist/server/route-kind'
 
 describe('dynamicParams: false with a cache retained across builds', () => {
   const { next } = nextTestSetup({ files: __dirname, skipStart: true })
 
   it('rejects a removed build path even when its old cache entry still exists', async () => {
     const original = await next.readFile('slugs.json')
+    const cacheKey = getRouteCacheKey('/products/removed', {
+      kind: RouteKind.APP_PAGE,
+      sourceRoute: '/products/[slug]/page',
+    })
     const cacheFile = join(
       next.testDir,
       'external-cache',
-      encodeURIComponent('/products/removed')
+      encodeURIComponent(cacheKey)
     )
 
     try {
@@ -42,7 +48,7 @@ describe('dynamicParams: false with a cache retained across builds', () => {
         await response.text()
       }
       const output = next.cliOutput.slice(outputStart)
-      expect(output).not.toContain('cache lookup /products/removed')
+      expect(output).not.toContain(`cache lookup ${cacheKey}`)
       expect(output).not.toContain('product render removed')
       expect(await readFile(cacheFile)).toEqual(previousEntry)
       expect((await next.fetch('/products/known')).status).toBe(200)

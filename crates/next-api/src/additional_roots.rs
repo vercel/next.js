@@ -13,8 +13,7 @@ use turbo_tasks::{
     FxIndexMap, NonLocalValue, OperationValue, OperationVc, ReadRef, ResolvedVc, Vc,
 };
 use turbo_tasks_fs::{
-    DiskFileSystem, DiskFileSystemMap, DiskWatcherConfig, DiskWatcherRecursiveMode, FileSystemPath,
-    canonicalize_to_rcstr,
+    DiskFileSystem, DiskFileSystemMap, DiskWatcherConfig, FileSystemPath, canonicalize_to_rcstr,
 };
 use turbopack_core::issue::{Issue, IssueSeverity, IssueStage, PlainIssue, StyledString};
 
@@ -194,12 +193,7 @@ pub(crate) async fn create_additional_root_file_systems(
             RcStr::from(format!("@{}", additional_root.key)),
             canonical_root,
             Vec::new(),
-            DiskWatcherConfig {
-                // we assume that most files in an additional root won't be read, so a recursive
-                // watcher may be more expensive than we'd like, always use a non-recursive watcher.
-                recursive_mode: Some(DiskWatcherRecursiveMode::NonRecursive),
-                ..watcher_config
-            },
+            watcher_config,
             map,
         );
         roots_by_name.insert(

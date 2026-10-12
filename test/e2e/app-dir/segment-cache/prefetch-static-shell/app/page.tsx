@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { LinkAccordion } from '../components/link-accordion'
+import { DynamicLinkAccordion } from '../components/dynamic-accordion'
 
 export default function Page() {
   return (
@@ -288,6 +289,35 @@ export default function Page() {
           </LinkAccordion>
         </li>
       </ul>
+
+      <h2>ensureStatic = "navigation"</h2>
+      <li>
+        <LinkAccordion href="/ensure-static/navigation/prerendered-1">
+          prerendered param 1
+        </LinkAccordion>
+      </li>
+      <li>
+        <LinkAccordion
+          href="/ensure-static/navigation/prerendered-1"
+          prefetch={true}
+        >
+          prerendered param 1 (prefetch=true)
+        </LinkAccordion>
+      </li>
+      <li>
+        <LinkAccordion
+          href="/ensure-static/navigation/not-prerendered-1"
+          prefetch={true}
+        >
+          not-prerendered param 1 (prefetch=true)
+        </LinkAccordion>
+      </li>
+      {/* Used for manual testing of on-demand prerenders */}
+      <DynamicLinkAccordion
+        hrefPattern="/ensure-static/navigation/not-prerendered-{counter}"
+        placeholder="{counter}"
+        initialCount={2}
+      />
     </main>
   )
 }

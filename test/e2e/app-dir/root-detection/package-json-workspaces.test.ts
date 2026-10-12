@@ -15,8 +15,12 @@ import {
 // ├── package-lock.json
 // ├── shared/utils.ts        imported by the app
 // └── test/                  the Next.js app, with a lockfile of its own
+// This test checks workspace-root inference from package.json workspaces.
+// Vercel's builder sets NEXT_PRIVATE_OUTPUT_TRACE_ROOT, bypassing that inference.
+// Successful imports and absent warnings would not verify workspace detection.
+// @force-gate !deploy
 describe('root-detection - package.json workspaces', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: {
       app: new FileRef(join(__dirname, 'workspace-app')),
       '../package.json': packageJson('workspace-root', {
@@ -28,15 +32,10 @@ describe('root-detection - package.json workspaces', () => {
     },
     // So that the files written above don't leave the isolated testDir
     subDir: 'test',
-    skipDeployment: true,
     // The workspace file would make the app directory a workspace root of its
     // own, so the test wouldn't be exercising the `workspaces` field.
     deleteWorkspaceFile: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should select the workspace root as the root', async () => {
     // the app imports a file from the workspace root, which is only reachable

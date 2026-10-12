@@ -19,7 +19,7 @@ auto-hash-map = { workspace = true }
 bitfield = { workspace = true }
 byteorder = { workspace = true }
 crc32fast = { workspace = true }
-dashmap = { workspace = true}
+dashmap = { workspace = true }
 either = { workspace = true }
 fs-err = { workspace = true }
 jiff = { version = "0.2.10", features = ["serde"] }

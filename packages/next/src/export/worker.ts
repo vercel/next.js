@@ -1,3 +1,5 @@
+import { getRouteCacheKey } from '../server/lib/route-cache-key'
+import type { RouteCacheMetadata } from './routes/types'
 import type {
   ExportPagesInput,
   ExportPageInput,
@@ -92,6 +94,7 @@ async function exportPageImpl(
     deploymentId,
     clientAssetToken,
     renderResumeDataCache,
+    useScopedBuildArtifacts,
   } = input
 
   if (enableExperimentalReact) {
@@ -234,11 +237,6 @@ async function exportPageImpl(
     htmlFilename = 'index.html'
   }
 
-  const baseDir = join(outDir, dirname(htmlFilename))
-  let htmlFilepath = join(outDir, htmlFilename)
-
-  await fs.mkdir(baseDir, { recursive: true })
-
   const components = await loadComponents({
     distDir,
     page,
@@ -247,6 +245,31 @@ async function exportPageImpl(
     sriEnabled,
     needsManifestsForLegacyReasons: true,
   })
+
+  const routeCache: RouteCacheMetadata | undefined =
+    buildExport &&
+    commonRenderOpts.nextConfigOutput !== 'export' &&
+    (isAppDir || components.getStaticProps)
+      ? {
+          key: getRouteCacheKey(path, components.routeModule.cacheOwner),
+          owner: components.routeModule.cacheOwner,
+          isFallback: isAppDir
+            ? fallbackRouteParams != null && fallbackRouteParams.size > 0
+            : (exportPath._pagesFallback ?? false),
+        }
+      : undefined
+  const htmlFilepath =
+    useScopedBuildArtifacts && routeCache
+      ? join(distDir, 'server', `${routeCache.key}.html`)
+      : join(outDir, htmlFilename)
+  const routePagesDataDir =
+    useScopedBuildArtifacts && routeCache
+      ? join(distDir, 'server')
+      : pagesDataDir
+  if (useScopedBuildArtifacts && routeCache) {
+    htmlFilename = `${routeCache.key}.html`
+  }
+  await fs.mkdir(dirname(htmlFilepath), { recursive: true })
 
   // Handle App Routes.
   if (isAppDir && isAppRouteRoute(page)) {
@@ -264,7 +287,8 @@ async function exportPageImpl(
       commonRenderOpts.staticPageGenerationTimeout,
       commonRenderOpts.experimental,
       buildId,
-      deploymentId
+      deploymentId,
+      routeCache
     )
   }
 
@@ -315,7 +339,8 @@ async function exportPageImpl(
       isDynamicError,
       fileWriter,
       sharedContext,
-      routeMatch
+      routeMatch,
+      routeCache
     )
   } else {
     const sharedContext: PagesSharedContext = {
@@ -340,7 +365,7 @@ async function exportPageImpl(
       params,
       htmlFilepath,
       htmlFilename,
-      pagesDataDir,
+      routePagesDataDir,
       buildExport,
       isDynamic,
       sharedContext,
@@ -348,7 +373,8 @@ async function exportPageImpl(
       hasOrigQueryValues,
       renderOpts as WorkerRenderOpts<PagesModule>,
       components,
-      fileWriter
+      fileWriter,
+      routeCache
     )
   }
 }
@@ -452,6 +478,10 @@ export async function exportPages(
             deploymentId: input.deploymentId,
             clientAssetToken: input.clientAssetToken,
             renderResumeDataCache,
+            useScopedBuildArtifacts:
+              Boolean(nextConfig.adapterPath) &&
+              nextConfig.output !== 'export' &&
+              options.buildExport,
           }),
           hasDebuggerAttached
             ? // With a debugger attached, exporting can take infinitely if we paused script execution.

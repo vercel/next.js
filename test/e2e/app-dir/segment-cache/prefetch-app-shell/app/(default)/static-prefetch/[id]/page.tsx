@@ -1,5 +1,5 @@
 import { Suspense } from 'react'
-import { unstable_prefetch } from 'next/cache'
+import { prefetch as prefetchStage } from 'next/cache'
 import { connection } from 'next/server'
 
 export async function generateStaticParams() {
@@ -24,7 +24,7 @@ export default async function Page({ params }: { params: Promise<Params> }) {
 }
 
 async function PrefetchData() {
-  await unstable_prefetch() // Exclude the contents below from the shell
+  await prefetchStage() // Exclude the contents below from the shell
   return <div id="prefetch-content">Prefetch content</div>
 }
 

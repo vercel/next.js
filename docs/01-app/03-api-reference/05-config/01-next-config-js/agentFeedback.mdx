@@ -10,7 +10,7 @@ related:
 
 The `experimental.agentFeedback` option controls whether `next dev` creates and updates instructions that let detected AI coding agents prepare Next.js issue reports for your review. It is disabled by default and requires [Next.js Telemetry](/telemetry) to be enabled. Agent feedback does not run in CI.
 
-Set `experimental.agentFeedback` to `true` to enable this behavior:
+New apps created with the recommended `create-next-app` settings enable agent feedback in the generated Next.js config. For other apps, set the option manually:
 
 ```ts filename="next.config.ts" switcher highlight={5}
 import type { NextConfig } from 'next'

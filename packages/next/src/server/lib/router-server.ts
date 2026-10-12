@@ -222,18 +222,18 @@ export async function initialize(opts: {
 
     // Check only development; production startup does not query advisories.
     if (
-      developmentConfig.experimental.agenticAutoUpgrade === 'security' ||
-      developmentConfig.experimental.agenticAutoUpgrade === 'latest' ||
-      developmentConfig.experimental.agenticAutoUpgrade === 'future' ||
-      process.env.__NEXT_AGENTIC_AUTO_UPGRADE ||
+      developmentConfig.experimental.agentUpgrade === 'security' ||
+      developmentConfig.experimental.agentUpgrade === 'latest' ||
+      developmentConfig.experimental.agentUpgrade === 'experimental-future' ||
+      process.env.__NEXT_AGENT_UPGRADE ||
       process.env.__NEXT_AGENT_UPGRADE_FORCE_DEVTOOLS_FOR_TESTING === '1'
     ) {
       const { nudgeUpgrade, getUpgradeContext, assessUpgrade } =
         require('../../lib/upgrade/nudge') as typeof import('../../lib/upgrade/nudge')
       const upgradeContext = getUpgradeContext(developmentConfig)
       const installedVersion = process.env.__NEXT_VERSION || 'unknown'
-      const policy = upgradeContext.experimental.agenticAutoUpgrade
-      const forced = process.env.__NEXT_AGENTIC_AUTO_UPGRADE === policy
+      const policy = upgradeContext.experimental.agentUpgrade
+      const forced = process.env.__NEXT_AGENT_UPGRADE === policy
       const forceDevToolsForTesting =
         process.env.__NEXT_AGENT_UPGRADE_FORCE_DEVTOOLS_FOR_TESTING === '1'
       const assessment: ReturnType<typeof assessUpgrade> =
@@ -254,25 +254,31 @@ export async function initialize(opts: {
         }
       )
       if (process.env.NEXT_PRIVATE_UPGRADE_PROMPT === '1' && process.send) {
-        // TODO: Do not block dev startup while prompting for an upgrade.
-        // Preserve all logs for display after the prompt and stop dev before Update.
-        // The existing dev worker pauses here while its parent owns the menu.
-        await new Promise<void>((resolve) => {
-          const resume = (message: {
-            nextUpgradeContinue: boolean | undefined
-          }) => {
-            if (message.nextUpgradeContinue) {
-              process.off('message', resume)
-              resolve()
-            }
+        // The CLI shows the menu; keep serving instead of waiting for it.
+        void Promise.allSettled([assessment]).then(([promptAssessment]) => {
+          if (process.connected) {
+            process.send!({
+              nextUpgradeContext: upgradeContext,
+              telemetryDisabled: process.env.NEXT_TELEMETRY_DISABLED,
+              ...(promptAssessment.status === 'fulfilled'
+                ? { nextUpgradeAssessment: promptAssessment.value }
+                : {}),
+            })
           }
-          process.on('message', resume)
-          process.send!({
-            nextUpgradeContext: upgradeContext,
-          })
         })
       } else {
-        void nudgeUpgrade(opts.dir, developmentConfig, 'dev').catch((error) => {
+        // CI skips the DevTools assessment, but agents still need the nudge.
+        void nudgeUpgrade(
+          opts.dir,
+          upgradeContext,
+          'dev',
+          null,
+          isCI || forceDevToolsForTesting ? null : assessment,
+          {
+            telemetry,
+            onNudgeId: null,
+          }
+        ).catch((error) => {
           const { printAndExit } =
             require('./utils') as typeof import('./utils')
           const exitCode =
@@ -352,6 +358,7 @@ export async function initialize(opts: {
 
   const requestHandlerImpl: WorkerRequestHandler = async (req, res) => {
     addRequestMeta(req, 'relativeProjectDir', relativeProjectDir)
+    const assetPrefix = getAssetPrefix()
 
     // internal headers should not be honored by the request handler
     if (!process.env.NEXT_PRIVATE_TEST_HEADERS) {
@@ -569,11 +576,8 @@ export async function initialize(opts: {
         // so that the development bundler can find the correct file
         if (config.basePath && pathHasPrefix(origUrl, config.basePath)) {
           req.url = removePathPrefix(origUrl, config.basePath)
-        } else if (
-          config.assetPrefix &&
-          pathHasPrefix(origUrl, config.assetPrefix)
-        ) {
-          req.url = removePathPrefix(origUrl, config.assetPrefix)
+        } else if (assetPrefix && pathHasPrefix(origUrl, assetPrefix)) {
+          req.url = removePathPrefix(origUrl, assetPrefix)
         }
 
         const parsedUrl = parseUrlUtil(req.url || '/')
@@ -615,11 +619,8 @@ export async function initialize(opts: {
 
         if (config.basePath && pathHasPrefix(origUrl, config.basePath)) {
           req.url = removePathPrefix(origUrl, config.basePath)
-        } else if (
-          config.assetPrefix &&
-          pathHasPrefix(origUrl, config.assetPrefix)
-        ) {
-          req.url = removePathPrefix(origUrl, config.assetPrefix)
+        } else if (assetPrefix && pathHasPrefix(origUrl, assetPrefix)) {
+          req.url = removePathPrefix(origUrl, assetPrefix)
         }
 
         if (resHeaders !== null) {
@@ -855,10 +856,10 @@ export async function initialize(opts: {
             config.basePath
           )
         }
-        if (config.assetPrefix) {
+        if (assetPrefix) {
           realRequestPathname = removePathPrefix(
             realRequestPathname,
-            config.assetPrefix
+            assetPrefix
           )
         }
         if (config.i18n) {
@@ -989,6 +990,7 @@ export async function initialize(opts: {
 
   // pre-initialize workers
   const handlers = await renderServer.instance.initialize(renderServerOpts)
+  const getAssetPrefix = () => handlers.server.getAssetPrefix()
 
   // this must come after initialize of render server since it's
   // using initialized methods
@@ -999,6 +1001,7 @@ export async function initialize(opts: {
 
   routerServerGlobal[RouterServerContextSymbol][relativeProjectDir] = {
     nextConfig: getNextConfigRuntime(config),
+    getAssetPrefix,
     hostname: handlers.server.hostname,
     revalidate: handlers.server.revalidate.bind(handlers.server),
     render404: handlers.server.render404.bind(handlers.server),
@@ -1034,6 +1037,7 @@ export async function initialize(opts: {
   const resolveRoutes = getResolveRoutes(
     fsChecker,
     config,
+    getAssetPrefix,
     opts,
     renderServer.instance,
     renderServerOpts,
@@ -1062,7 +1066,8 @@ export async function initialize(opts: {
         ) {
           return
         }
-        const { basePath, assetPrefix } = config
+        const { basePath } = config
+        const assetPrefix = getAssetPrefix()
 
         let hmrPrefix = basePath
 

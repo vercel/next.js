@@ -11,6 +11,8 @@ import {
 import { join } from 'path'
 import cheerio from 'cheerio'
 
+// TODO(deploy-test-completion): Remove this suite from the deploy manifest.
+// It was excluded as a known deploy failure without a documented root cause.
 describe('skip-trailing-slash-redirect', () => {
   const { next } = nextTestSetup({
     files: new FileRef(join(__dirname, 'app')),

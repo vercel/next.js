@@ -1,3 +1,4 @@
+import { getDeploymentTestEnvAssignments } from './deployment-test-env'
 import path from 'path'
 import assert from 'assert'
 import { flushAllTraces, setGlobal, trace } from 'next/dist/trace'
@@ -138,10 +139,6 @@ if (!e2eGlobal.__NEXT_E2E_TEST_CONFIG_PATCHED__) {
     if (typeof global.test === 'function') {
       global.test = wrapJestTestFn(global.test) as jest.It
     }
-
-    if (process.env.NEXT_TEST_CI && !process.env.NEXT_FLAKE_DETECTION) {
-      jest.retryTimes(1)
-    }
   }
 
   e2eGlobal.__NEXT_E2E_TEST_CONFIG_PATCHED__ = true
@@ -235,6 +232,24 @@ export class PatchedFileRef {
     this.fsPath = path
     this.cb = cb
   }
+}
+
+/**
+ * Return a PatchedFileRef that appends captured test env assignments when the
+ * harness copies the file in deploy mode. Other modes copy the content unchanged.
+ * Nested app configs need this because the deploy harness only patches the
+ * fixture-root config.
+ *
+ * TODO: Patch nested configs automatically in the deploy harness so fixtures no
+ * longer need these explicit overrides.
+ * https://github.com/vercel/next.js/blob/3854a98484ec2ce5bafcb074ef0fbad5290dede2/test/lib/next-modes/base.ts#L520-L554
+ */
+export function patchFileWithDeployEnvAssignments(
+  path: string
+): PatchedFileRef {
+  return new PatchedFileRef(path, (content) =>
+    isNextDeploy ? `${content}\n` + getDeploymentTestEnvAssignments() : content
+  )
 }
 
 let nextInstance: NextInstance | undefined = undefined

@@ -24,6 +24,7 @@ import type { ServerComponentsHmrCache } from '../../response-cache'
 import type { OpaqueFallbackRouteParams } from '../../request/fallback-params'
 import { PrerenderManifestMatcher } from './helpers/prerender-manifest-matcher'
 import type { DeepReadonly } from '../../../shared/lib/deep-readonly'
+import type { ParsedRequestHeaders } from './parse-request-headers'
 import {
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
@@ -78,13 +79,20 @@ export type RouteMatch = {
   readonly resolvedPathname: string
 }
 
+/** Live dev-server state captured for a render; absent in production and build prerenders. */
+export type DevRenderContext = {
+  readonly serverComponentsHmrCache: ServerComponentsHmrCache | undefined
+  readonly hmrRefreshHash: string | undefined
+}
+
 export interface AppPageRouteHandlerContext extends RouteModuleHandleContext {
   page: string
   routeMatch: RouteMatch
   query: NextParsedUrlQuery
   fallbackRouteParams: OpaqueFallbackRouteParams | null
   renderOpts: RenderOpts
-  serverComponentsHmrCache?: ServerComponentsHmrCache
+  dev: DevRenderContext | undefined
+  parsedRequestHeaders: ParsedRequestHeaders
   sharedContext: AppSharedContext
 }
 
@@ -174,10 +182,15 @@ export class AppPageRouteModule extends RouteModule<
       context.page,
       context.query,
       context.fallbackRouteParams,
-      context.renderOpts,
-      context.serverComponentsHmrCache,
+      // HEAD responses do not consume the render stream, so they cannot
+      // establish a new status for the dev indicator.
+      process.env.__NEXT_DEV_SERVER && req.method === 'HEAD'
+        ? { ...context.renderOpts, setIsrStatus: undefined }
+        : context.renderOpts,
+      context.dev,
       context.sharedContext,
-      context.routeMatch
+      context.routeMatch,
+      context.parsedRequestHeaders
     )
   }
 
@@ -193,9 +206,10 @@ export class AppPageRouteModule extends RouteModule<
       context.query,
       context.fallbackRouteParams,
       context.renderOpts,
-      context.serverComponentsHmrCache,
+      undefined,
       context.sharedContext,
-      context.routeMatch
+      context.routeMatch,
+      context.parsedRequestHeaders
     )
   }
 

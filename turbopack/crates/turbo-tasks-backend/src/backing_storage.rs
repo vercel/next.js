@@ -21,6 +21,9 @@ pub enum SnapshotItem {
         data: Option<TurboBincodeBuffer>,
         /// Task type for new tasks that need to be added to the task cache
         task_type_hash: Option<TaskTypeHash>,
+        /// Cache size statistics captured when the item was encoded.
+        #[cfg(feature = "print_cache_item_size")]
+        stats: Box<SnapshotItemStats>,
     },
     Delete {
         task_id: TaskId,
@@ -28,6 +31,18 @@ pub enum SnapshotItem {
         /// collected, and those always have a task type.
         task_type_hash: TaskTypeHash,
     },
+}
+
+/// Per-task cache size statistics, captured by `encode_snapshot_item` from the same task state
+/// that was encoded, so pre-encoded (copy-on-write) items report what was actually persisted.
+#[cfg(feature = "print_cache_item_size")]
+#[derive(Default)]
+pub struct SnapshotItemStats {
+    /// The task name, used as the stats grouping key.
+    pub task_name: String,
+    pub counts: crate::backend::storage_schema::MetaCounts,
+    /// Size of the encoded task output, if any.
+    pub output_size: usize,
 }
 
 impl SnapshotItem {

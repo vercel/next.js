@@ -27,7 +27,7 @@ use crate::{
 #[turbo_tasks::value(shared)]
 #[derive(ValueToString)]
 #[value_to_string("Ecmascript Browser Single Entry Chunk")]
-pub(crate) struct EcmascriptBrowserSingleEntryChunk {
+pub struct EcmascriptBrowserSingleEntryChunk {
     chunking_context: ResolvedVc<BrowserChunkingContext>,
     path: FileSystemPath,
     chunk: ResolvedVc<EcmascriptChunk>,

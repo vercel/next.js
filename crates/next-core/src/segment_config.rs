@@ -102,7 +102,7 @@ pub struct NextSegmentConfig {
     pub prefetch: Option<Span>,
     #[turbo_tasks(unsafe_ignore)]
     #[bincode(with_serde)]
-    pub unstable_ensure_static: Option<Span>,
+    pub ensure_static: Option<Span>,
 }
 
 #[turbo_tasks::value_impl]
@@ -530,7 +530,7 @@ pub async fn parse_segment_config_from_source(
         let server_only_route_configs = [
             ("instant", config.instant),
             ("prefetch", config.prefetch),
-            ("unstable_ensureStatic", config.unstable_ensure_static),
+            ("ensureStatic", config.ensure_static),
         ];
         for (config_name, usage) in server_only_route_configs {
             if let Some(span) = usage {
@@ -978,8 +978,8 @@ async fn parse_config_value(
         "prefetch" => {
             config.prefetch = Some(span);
         }
-        "unstable_ensureStatic" => {
-            config.unstable_ensure_static = Some(span);
+        "ensureStatic" => {
+            config.ensure_static = Some(span);
         }
         _ => {}
     }

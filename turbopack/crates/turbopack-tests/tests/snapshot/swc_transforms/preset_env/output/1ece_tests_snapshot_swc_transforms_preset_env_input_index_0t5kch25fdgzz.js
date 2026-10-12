@@ -202,15 +202,15 @@ function defineProp(obj, name, options) {
     if (!hasOwnProperty.call(obj, name)) Object.defineProperty(obj, name, options);
 }
 function getOverwrittenModule(moduleCache, id) {
-    var module = moduleCache[id];
-    if (!module) {
+    var module = moduleCache.get(id);
+    if (module === undefined) {
         if (createModuleWithDirectionFlag) {
             // set in development modes for hmr support
             module = createModuleWithDirection(id);
         } else {
             module = createModuleObject(id);
         }
-        moduleCache[id] = module;
+        moduleCache.set(id, module);
     }
     return module;
 }
@@ -878,6 +878,14 @@ contextPrototype.U = relativeURL;
     return `Module ${moduleId} was instantiated ${instantiationReason}, but the module factory is not available.`;
 }
 /**
+ * Returns a `file://` URL under a synthetic directory named after `root`
+ * (`ROOT` for the project root), for when the real filesystem path is unknown.
+ * The root name and path segments are percent-encoded so the result is always
+ * a valid file URI.
+ */ function placeholderFileUrl(modulePath, root) {
+    return `file:///${encodeURIComponent(root !== null && root !== void 0 ? root : 'ROOT')}/${modulePath.split('/').map(encodeURIComponent).join('/')}`;
+}
+/**
  * A stub function to make `require` available but non-functional in ESM.
  */ function requireStub(_moduleId) {
     throw new Error('dynamic usage of require is not supported');
@@ -1439,14 +1447,10 @@ browserContextPrototype.R = resolvePathFromModule;
 }
 browserContextPrototype.P = resolveAbsolutePath;
 /**
- * Returns a placeholder `file://` URL for the given module path. The browser
- * runtime intentionally does not expose the real filesystem path. Path
- * segments are percent-encoded so the result is always a valid file URI.
- */ function resolveFileUrl(modulePath) {
-    if (!modulePath) return 'file:///ROOT/';
-    return `file:///ROOT/${modulePath.split('/').map(encodeURIComponent).join('/')}`;
-}
-browserContextPrototype.F = resolveFileUrl;
+ * Returns a placeholder `file://` URL for the given module path, which is
+ * relative to the project root or the named `root`. The browser runtime
+ * intentionally does not expose the real filesystem path.
+ */ browserContextPrototype.F = placeholderFileUrl;
 /**
  * Exports a URL with the static suffix appended.
  */ function exportUrl(url, id) {
@@ -1539,14 +1543,14 @@ function isCss(chunkUrl) {
 }
 /// <reference path="./runtime-base.ts" />
 /// <reference path="./dummy.ts" />
-var moduleCache = {};
+var moduleCache = new Map();
 contextPrototype.c = moduleCache;
 /**
  * Gets or instantiates a runtime module.
  */ // @ts-ignore
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function getOrInstantiateRuntimeModule(chunkPath, moduleId) {
-    var module = moduleCache[moduleId];
+    var module = moduleCache.get(moduleId);
     if (module) {
         if (module.error) {
             throw module.error;
@@ -1561,7 +1565,7 @@ function getOrInstantiateRuntimeModule(chunkPath, moduleId) {
 // @ts-ignore
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 var getOrInstantiateModuleFromParent = function getOrInstantiateModuleFromParent(id, sourceModule) {
-    var module = moduleCache[id];
+    var module = moduleCache.get(id);
     if (module) {
         if (module.error) {
             throw module.error;
@@ -1580,7 +1584,7 @@ function instantiateModule(id, sourceType, sourceData) {
     }
     var module = createModuleObject(id);
     var exports = module.exports;
-    moduleCache[id] = module;
+    moduleCache.set(id, module);
     // NOTE(alexkirsz) This can fail when the module encounters a runtime error.
     var context = new Context(module, exports);
     try {

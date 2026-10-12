@@ -1,11 +1,12 @@
 ---
 title: instant
-description: API reference for the instant route segment config.
+description: Configure instant navigation validation for a route segment.
 related:
   title: Next Steps
   description: Learn how to use instant navigations in practice.
   links:
     - app/guides/instant-navigation
+    - app/api-reference/file-conventions/route-segment-config/ensureStatic
     - app/getting-started/caching
     - app/getting-started/revalidating
     - app/api-reference/directives/use-cache
@@ -93,6 +94,10 @@ Setting `false` on the root layout disables static shell validation for the enti
 
 Each error identifies the component that would block navigation. The fix is usually to cache the data with `use cache` or wrap it in a `<Suspense>` boundary.
 
+## How `instant` differs from `ensureStatic`
+
+`instant` validates whether a navigation shows UI immediately. [`ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic) requires selected server-rendered output to be static instead of rendered for each request. A route can be fully static and still block a navigation, for example when a Client Component loads data in the browser.
+
 ## Configuring validation defaults
 
 By default (`validationLevel: 'warning'`), Cache Components apps validate every Page and Default segment in development. The `experimental.instantInsights.validationLevel` config tunes this behavior — for example, to limit validation to segments that opt in explicitly via `instant`.
@@ -138,7 +143,7 @@ When the UI is frozen, click **Resume** to let the current navigation finish. Th
 
 ## Testing instant navigation
 
-The `@next/playwright` package exports an `instant()` helper that holds back dynamic content while the callback runs against the instant UI. See the [guide](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) for a full example.
+The `@next/playwright` package exports an `instant()` helper that holds back dynamic content while the callback runs against the instant UI. The testing API is available automatically in development. For a production build, enable [`experimental.exposeTestingApiInProductionBuild`](/docs/app/api-reference/config/next-config-js/exposeTestingApiInProductionBuild) in the test build. See the [guide](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) for a full example.
 
 ```typescript
 import { instant } from '@next/playwright'
@@ -167,6 +172,6 @@ export const instant: InstantConfig = true
 
 ## Version History
 
-| Version   | Changes                                             |
-| --------- | --------------------------------------------------- |
-| `v16.x.x` | `instant` export introduced (Cache Components only) |
+| Version   | Changes                                                                            |
+| --------- | ---------------------------------------------------------------------------------- |
+| `v16.3.0` | `instant` export stabilized, replacing `unstable_instant` (Cache Components only). |

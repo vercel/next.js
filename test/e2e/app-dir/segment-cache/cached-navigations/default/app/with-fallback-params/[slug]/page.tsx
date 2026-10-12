@@ -36,7 +36,7 @@ async function ParamsContent({
   params: Promise<{ slug: string }>
 }) {
   // When the param is a fallback param (not in generateStaticParams), the
-  // await is deferred to the runtime stage, so this content won't appear
+  // await is deferred to the PrefetchRuntime stage, so this content won't appear
   // in the static stage.
   const { slug } = await params
   return <p>Param: {slug}</p>

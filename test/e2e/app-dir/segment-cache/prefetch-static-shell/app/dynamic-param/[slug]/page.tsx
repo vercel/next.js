@@ -1,8 +1,5 @@
 import { Suspense } from 'react'
-import {
-  unstable_navigation as navigation,
-  unstable_prefetch,
-} from 'next/cache'
+import { navigation, prefetch } from 'next/cache'
 
 type Params = { slug: string }
 
@@ -53,6 +50,6 @@ async function NavigationContent() {
 }
 
 async function PrefetchContent() {
-  await unstable_prefetch()
+  await prefetch()
   return <p id="prefetch-content">Prefetch content</p>
 }
