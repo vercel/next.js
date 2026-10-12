@@ -296,6 +296,7 @@ import { isReactLargeShellError } from './react-large-shell-error'
 import type { GlobalErrorComponent } from '../../client/components/builtin/global-error'
 import { normalizeConventionFilePath } from './segment-explorer-path'
 import { getRequestMeta } from '../request-meta'
+import { htmlEscapeJsonString } from '../../shared/lib/htmlescape'
 import {
   getDynamicParam,
   interpolateParallelRouteParams,
@@ -424,6 +425,7 @@ export type AppRenderContext = {
   assetPrefix: string
   isNotFoundPath: boolean
   nonce: string | undefined
+  initialHmrVersion?: string
   res: BaseNextResponse
   /**
    * For now, the implicit tags are common for the whole route. If we ever start
@@ -2744,6 +2746,7 @@ async function prepareAppPageRender(
   )
 
   const ctx: AppRenderContext = {
+    initialHmrVersion: getRequestMeta(req, 'initialHmrVersion'),
     componentMod: ComponentMod,
     url,
     renderOpts,
@@ -3643,6 +3646,13 @@ async function renderToStream(
     bootstrapScriptContent = `self.__next_r=${JSON.stringify(
       requestId ?? crypto.randomUUID()
     )}`
+    const initialHmrVersion = ctx.initialHmrVersion
+    if (initialHmrVersion !== undefined) {
+      // Only the dev server with Turbopack HMR supplies this captured baseline.
+      bootstrapScriptContent += `;var __nextHmrInitialVersion=${htmlEscapeJsonString(
+        JSON.stringify(initialHmrVersion)
+      )};`
+    }
   } else if (
     buildManifest.pagesChunkGroupBootstrapParams &&
     buildManifest.chunkLoadingGlobal

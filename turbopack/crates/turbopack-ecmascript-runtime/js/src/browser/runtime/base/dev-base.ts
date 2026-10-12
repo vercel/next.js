@@ -50,7 +50,6 @@ type ModuleFactory = (
 ) => unknown
 
 interface DevRuntimeBackend {
-  reconcileChunk?: (chunkUrl: ChunkUrl) => Promise<void>
   reloadChunk?: (chunkUrl: ChunkUrl) => Promise<void>
   unloadChunk?: (chunkUrl: ChunkUrl) => void
   restart: () => void
@@ -78,8 +77,6 @@ const runtimeChunkLists: Set<ChunkListPath> = new Set()
  * Map from a chunk list to the chunk paths it contains.
  */
 const chunkListChunksMap: Map<ChunkListPath, Set<ChunkPath>> = new Map()
-// Readiness is a one-off, even if the transport repeats a subscribe message.
-const subscribedChunkLists: Set<ChunkListPath> = new Set()
 /**
  * Map from a chunk path to the chunk lists it belongs to.
  */
@@ -350,9 +347,7 @@ function applyChunkListUpdate(update: ChunkListUpdate) {
           BACKEND.loadChunkCached(SourceType.Update, chunkUrl)
           break
         case 'total':
-          DEV_BACKEND.reloadChunk?.(chunkUrl).catch((error) => {
-            console.error(`Failed to reload CSS chunk ${chunkUrl}`, error)
-          })
+          DEV_BACKEND.reloadChunk?.(chunkUrl)
           break
         case 'deleted':
           DEV_BACKEND.unloadChunk?.(chunkUrl)
@@ -400,22 +395,6 @@ function applyEcmascriptMergedUpdate(update: EcmascriptMergedUpdate) {
 
 function handleApply(chunkListPath: ChunkListPath, update: ServerMessage) {
   switch (update.type) {
-    case 'subscribed': {
-      const chunks = chunkListChunksMap.get(chunkListPath)
-      if (!chunks || subscribedChunkLists.has(chunkListPath)) {
-        break
-      }
-      subscribedChunkLists.add(chunkListPath)
-      for (const chunkPath of chunks) {
-        const chunkUrl = getChunkRelativeUrl(chunkPath)
-        if (isCss(chunkUrl)) {
-          DEV_BACKEND.reconcileChunk?.(chunkUrl).catch((error) => {
-            console.error(`Failed to reconcile CSS chunk ${chunkUrl}`, error)
-          })
-        }
-      }
-      break
-    }
     case 'partial': {
       // This indicates that the update is can be applied to the current state of the application.
       applyUpdate(update.instruction)
@@ -601,6 +580,11 @@ function registerChunkList(chunkList: ChunkList) {
   const chunkListPath = getPathFromScript(chunkListScript)
   // The "chunk" is also registered to finish the loading in the backend
   BACKEND.registerChunk(chunkListPath as string as ChunkPath)
+  CHUNK_UPDATE_LISTENERS.push([
+    chunkListPath,
+    handleApply.bind(null, chunkListPath),
+  ])
+
   // Adding chunks to chunk lists and vice versa.
   const chunkPaths = new Set(chunkList.chunks.map(getChunkPath))
   chunkListChunksMap.set(chunkListPath, chunkPaths)
@@ -617,9 +601,4 @@ function registerChunkList(chunkList: ChunkList) {
   if (chunkList.source === 'entry') {
     markChunkListAsRuntime(chunkListPath)
   }
-  // Membership must be available when the subscription becomes ready.
-  CHUNK_UPDATE_LISTENERS.push([
-    chunkListPath,
-    handleApply.bind(null, chunkListPath),
-  ])
 }

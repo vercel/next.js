@@ -65,15 +65,9 @@ export interface ServerErrorMessage {
   errorJSON: string
 }
 
-// Integration-only readiness, not a native update. Keep the browser protocol in
-// turbopack-ecmascript-runtime/js/src/shared/runtime/dev-protocol.d.ts in sync.
-export type TurbopackClientUpdate =
-  | TurbopackUpdate
-  | { type: 'subscribed'; resource: { path: string }; issues: [] }
-
 export interface TurbopackMessage {
   type: HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_MESSAGE
-  data: TurbopackClientUpdate | TurbopackClientUpdate[]
+  data: TurbopackUpdate | TurbopackUpdate[]
   hmrVersion: string
 }
 
@@ -354,6 +348,8 @@ export interface NextJsHotReloaderInterface {
    * them for code that changed while the server was down.
    */
   getServerComponentsHmrRefreshHash(): string
+  /** The client HMR baseline, available only with Turbopack HMR. */
+  getClientHmrVersion?(): string
   setCacheStatus(status: ServerCacheStatus, htmlRequestId: string): void
   setReactDebugChannel(
     debugChannel: ReactDebugChannelForBrowser,

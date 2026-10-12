@@ -70,6 +70,10 @@ export class DevBundlerService {
     )
   }
 
+  public getClientHmrVersion(): string | undefined {
+    return this.bundler.hotReloader.getClientHmrVersion?.()
+  }
+
   public getServerComponentsHmrRefreshHash(): string | undefined {
     return this.bundler.hotReloader.getServerComponentsHmrRefreshHash()
   }

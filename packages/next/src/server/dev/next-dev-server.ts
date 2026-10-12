@@ -258,6 +258,10 @@ export default class DevServer extends Server {
     return this.serverComponentsHmrCache
   }
 
+  protected override getClientHmrVersion(): string | undefined {
+    return this.bundlerService.getClientHmrVersion()
+  }
+
   protected override getServerComponentsHmrRefreshHash(): string | undefined {
     return this.bundlerService.getServerComponentsHmrRefreshHash()
   }

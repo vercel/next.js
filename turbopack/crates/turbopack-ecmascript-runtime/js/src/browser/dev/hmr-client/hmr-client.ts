@@ -24,6 +24,7 @@ export type ClientOptions = {
   sendMessage: SendMessage
   onUpdateError: (err: unknown) => void
   chunkUpdateListenersGlobal: string
+  initialHmrVersion?: string
 }
 
 export const TURBOPACK_CHUNK_UPDATE_LISTENERS_GLOBAL =
@@ -36,7 +37,12 @@ export function connect({
   sendMessage,
   onUpdateError = console.error,
   chunkUpdateListenersGlobal,
+  initialHmrVersion,
 }: ClientOptions) {
+  // Initialize before replaying socket messages or draining queued listeners.
+  // A previously observed socket version takes priority on reconnection.
+  lastSeenHmrVersion ??= initialHmrVersion
+
   addMessageListener((msg) => {
     switch (msg.type) {
       case 'turbopack-connected':
@@ -533,11 +539,6 @@ export function setHooks(newHooks: typeof hooks) {
 }
 
 function handleSocketMessage(msg: ServerMessage) {
-  if (msg.type === 'subscribed') {
-    // Readiness must not clear real issues or manufacture a Fast Refresh cycle.
-    triggerUpdate(msg)
-    return
-  }
   sortIssues(msg.issues)
 
   handleIssues(msg)

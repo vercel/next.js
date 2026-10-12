@@ -201,6 +201,7 @@ export function createProcessTurbopackMessage(
     '@vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client.ts'
   ).then(({ connect }) => {
     connect({
+      initialHmrVersion: self.__nextHmrInitialVersion,
       addMessageListener(cb: (msg: TurbopackMessageSentToBrowser) => void) {
         callback = cb
 

@@ -1,4 +1,5 @@
 import type { TurbopackMessage } from '../../../server/dev/hot-reloader-types'
+import type { Update as TurbopackUpdate } from '../../../build/swc/types'
 import { DeferredEmit } from '../../../shared/lib/turbopack/deferred-emit'
 
 declare global {
@@ -66,11 +67,6 @@ export class TurbopackHmr {
   }
 
   onTurbopackMessage(msg: TurbopackMessage) {
-    const updates = Array.isArray(msg.data) ? msg.data : [msg.data]
-    if (updates.every((update) => update.type === 'subscribed')) {
-      // Subscription readiness isn't an edit or a Fast Refresh cycle.
-      return
-    }
     this.#onUpdate()
     const updatedModules = extractModulesFromTurbopackMessage(msg.data)
     for (const module of updatedModules) {
@@ -123,7 +119,7 @@ export class TurbopackHmr {
 }
 
 function extractModulesFromTurbopackMessage(
-  data: TurbopackMessage['data']
+  data: TurbopackUpdate | TurbopackUpdate[]
 ): Set<string> {
   const updatedModules: Set<string> = new Set()
 

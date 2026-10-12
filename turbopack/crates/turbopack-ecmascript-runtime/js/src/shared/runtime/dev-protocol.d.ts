@@ -24,11 +24,6 @@ type ServerMessage = {
     }
   | PartialServerMessage
   | {
-      // Sent by the server integration after native subscription baseline setup.
-      // This is readiness, not an edit or an issue/build-success notification.
-      type: 'subscribed'
-    }
-  | {
       type: 'issues'
     }
   | UnknownType

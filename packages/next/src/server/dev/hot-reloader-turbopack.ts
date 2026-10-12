@@ -6,7 +6,6 @@ import { join, extname, relative, isAbsolute, sep } from 'path'
 import { fileURLToPath, pathToFileURL } from 'url'
 
 import ws from 'next/dist/compiled/ws'
-import { handleTurbopackHmrSubscription } from './turbopack-hmr-subscription'
 
 import type { OutputState } from '../../build/output/store'
 import type { ActionManifest } from '../../build/webpack/plugins/flight-client-entry-plugin'
@@ -1000,14 +999,22 @@ export async function createHotReloaderTurbopack(
   }
   const sendEnqueuedMessagesDebounce = debounce(sendEnqueuedMessages, 2)
 
+  function markClientHmrChange() {
+    if (!clientHmrEventHappened) {
+      clientHmrVersion++
+      clientHmrEventHappened = true
+    }
+  }
+
   const sendHmr: SendHmr = (id: string, message: HmrMessageSentToBrowser) => {
     pendingBuilding.flush()
 
+    if (message.type === HMR_MESSAGE_SENT_TO_BROWSER.CLIENT_CHANGES) {
+      // Pages already observes client output before a browser subscribes.
+      markClientHmrChange()
+    }
     if (message.type === HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES) {
-      if (!clientHmrEventHappened) {
-        clientHmrVersion++
-        clientHmrEventHappened = true
-      }
+      markClientHmrChange()
       message.hmrVersion = String(clientHmrVersion)
     }
 
@@ -1037,12 +1044,56 @@ export async function createHotReloaderTurbopack(
       clientStates.get(client)?.turbopackUpdates.push(payload)
     }
 
-    if (!clientHmrEventHappened) {
-      clientHmrVersion++
-      clientHmrEventHappened = true
-    }
+    markClientHmrChange()
     hmrEventHappened = true
     sendEnqueuedMessagesDebounce()
+  }
+
+  async function subscribeToClientHmrChanges(
+    key: EntryKey,
+    endpoint: Endpoint
+  ) {
+    const existing = changeSubscriptions.get(key)
+    if (existing) {
+      // Its owner handles setup failures using the existing HMR error path.
+      await existing.catch(() => {})
+      return
+    }
+
+    const changedPromise = endpoint.clientChanged()
+    changeSubscriptions.set(key, changedPromise)
+    let changed: Awaited<typeof changedPromise>
+    try {
+      // Resolves after the native baseline is established, not when consumption
+      // ends. HTML must not be served while listening is still being set up.
+      changed = await changedPromise
+    } catch (error) {
+      changeSubscriptions.delete(key)
+      sendHmr(key, {
+        type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE,
+        data: `error in ${key} client subscription: ${error}`,
+      })
+      return
+    }
+
+    void (async () => {
+      try {
+        for await (const _change of changed) {
+          // No browser message or server cache invalidation: connected clients
+          // still receive ordinary CSS/JS HMR through their chunk subscriptions.
+          markClientHmrChange()
+        }
+      } catch (error) {
+        sendHmr(key, {
+          type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE,
+          data: `error in ${key} client subscription: ${error}`,
+        })
+      } finally {
+        if (changeSubscriptions.get(key) === changedPromise) {
+          changeSubscriptions.delete(key)
+        }
+      }
+    })()
   }
 
   async function subscribeToClientChanges(
@@ -1114,29 +1165,21 @@ export async function createHotReloaderTurbopack(
     const subscription = project!.clientHmrEvents(id)
     state.subscriptions.set(id, subscription)
 
+    // Baseline capture and subscription setup are not atomic, so the first
+    // emission can be a real update. Ignore only the usual issues-only result.
     try {
-      await handleTurbopackHmrSubscription(
-        subscription,
-        () =>
-          clientStates.get(client) === state &&
-          state.subscriptions.get(id) === subscription,
-        (data) => {
-          processIssues(state.clientIssues, key, data, false, true)
-          if (data.value.type !== 'issues') {
-            sendTurbopackMessage(data.value)
-          }
-        },
-        () => {
-          // Queue behind any real first update, for this client only. Readiness
-          // is not an edit: don't increment the HMR version or flush building.
-          state.turbopackUpdates.push({
-            type: 'subscribed',
-            resource: { path: id },
-            issues: [],
-          })
-          sendEnqueuedMessagesDebounce()
+      const initial = await subscription.next()
+      if (!initial.done && initial.value.value.type !== 'issues') {
+        processIssues(state.clientIssues, key, initial.value, false, true)
+        sendTurbopackMessage(initial.value.value)
+      }
+
+      for await (const data of subscription) {
+        processIssues(state.clientIssues, key, data, false, true)
+        if (data.value.type !== 'issues') {
+          sendTurbopackMessage(data.value)
         }
-      )
+      }
     } catch (e) {
       // The client might be using an HMR session from a previous server, tell them
       // to fully reload the page to resolve the issue. We can't use
@@ -1835,6 +1878,10 @@ export async function createHotReloaderTurbopack(
       }
     },
 
+    getClientHmrVersion() {
+      return String(clientHmrVersion)
+    },
+
     getServerComponentsHmrRefreshHash() {
       // Only a change subscription advances the refresh version, so reloads
       // and config invalidations leave cache keys stable until a real edit.
@@ -2167,6 +2214,9 @@ export async function createHotReloaderTurbopack(
                 subscribeToChanges: subscribeToChanges
                   ? subscribeToClientChanges
                   : ((async () => {}) as StartChangeSubscription),
+                subscribeToClientHmrChanges: subscribeToChanges
+                  ? subscribeToClientHmrChanges
+                  : undefined,
                 handleServerComponentChanges,
                 handleWrittenEndpoint: (id, result, forceDeleteCache) => {
                   currentWrittenEntrypoints.set(id, result.value)
