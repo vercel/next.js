@@ -1541,16 +1541,18 @@ function assignDefaultsAndValidate(
     }
   }
 
-  if (result.cacheHandlers) {
+  for (const option of ['cacheHandlers', 'buildCacheHandlers'] as const) {
+    const handlers = result[option] as NextConfig['cacheHandlers']
+    if (!handlers) continue
     const allowedHandlerNameRegex = /^[a-z-]+$/
 
-    if (typeof result.cacheHandlers !== 'object') {
+    if (typeof handlers !== 'object') {
       throw new Error(
-        `Invalid "cacheHandlers" provided, expected an object e.g. { default: '/my-handler.js' }, received ${JSON.stringify(result.cacheHandlers)}`
+        `Invalid "${option}" provided, expected an object e.g. { default: '/my-handler.js' }, received ${JSON.stringify(handlers)}`
       )
     }
 
-    const handlerKeys = Object.keys(result.cacheHandlers)
+    const handlerKeys = Object.keys(handlers)
     const invalidHandlerItems: Array<{ key: string; reason: string }> = []
 
     for (const key of handlerKeys) {
@@ -1566,14 +1568,12 @@ function assignDefaultsAndValidate(
           reason: 'key must only use characters a-z and -',
         })
       } else {
-        const handlerPath = (
-          result.cacheHandlers as {
-            [handlerName: string]: string | undefined
-          }
-        )[key]
+        const handlerPath = handlers[key]
 
         const resolvedHandlerPath =
-          handlerPath && resolveCacheHandlerPathToFilesystem(handlerPath)
+          (option === 'cacheHandlers' || phase === PHASE_PRODUCTION_BUILD) &&
+          handlerPath &&
+          resolveCacheHandlerPathToFilesystem(handlerPath)
 
         if (resolvedHandlerPath && !existsSync(resolvedHandlerPath)) {
           invalidHandlerItems.push({
@@ -1584,7 +1584,7 @@ function assignDefaultsAndValidate(
       }
       if (invalidHandlerItems.length) {
         throw new Error(
-          `Invalid handler fields configured for "cacheHandlers":\n${invalidHandlerItems.map((item) => `${key}: ${item.reason}`).join('\n')}`
+          `Invalid handler fields configured for "${option}":\n${invalidHandlerItems.map((item) => `${key}: ${item.reason}`).join('\n')}`
         )
       }
     }

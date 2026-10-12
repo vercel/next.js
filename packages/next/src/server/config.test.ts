@@ -1,4 +1,9 @@
-import { PHASE_INFO, PHASE_PRODUCTION_BUILD } from '../api/constants'
+import {
+  PHASE_DEVELOPMENT_SERVER,
+  PHASE_INFO,
+  PHASE_PRODUCTION_BUILD,
+  PHASE_PRODUCTION_SERVER,
+} from '../api/constants'
 import {
   getStrictRouteMatchingDefaultWarning,
   STRICT_ROUTE_MATCHING_DEFAULT_WARNING,
@@ -251,46 +256,145 @@ describe('loadConfig', () => {
     })
   })
 
-  describe('cacheHandlers validation', () => {
-    it('should reject invalid keys', async () => {
-      const invalidKeys = [
-        'abc123',
-        'abc_123',
-        'abc.def',
-        'handler!',
-        '123handler',
-        'handler123',
-      ]
+  describe.each(['cacheHandlers', 'buildCacheHandlers'] as const)(
+    '%s validation',
+    (option) => {
+      it('should reject invalid keys', async () => {
+        const invalidKeys = [
+          'abc123',
+          'abc_123',
+          'abc.def',
+          'handler!',
+          '123handler',
+          'handler123',
+        ]
 
-      for (const key of invalidKeys) {
+        for (const key of invalidKeys) {
+          await expect(
+            loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+              customConfig: {
+                [option]: {
+                  [key]: __filename,
+                },
+              },
+            })
+          ).rejects.toThrow(/key must only use characters a-z and -/)
+        }
+      })
+
+      it('should accept valid keys', async () => {
+        const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+          customConfig: {
+            [option]: {
+              abc: __filename,
+              'valid-handler': __filename,
+              'abc-def': __filename,
+            },
+          },
+        })
+        expect(result[option]).toBeDefined()
+        expect(result[option]?.['abc']).toBeDefined()
+        expect(result[option]?.['valid-handler']).toBeDefined()
+        expect(result[option]?.['abc-def']).toBeDefined()
+      })
+
+      it('should reject private handlers', async () => {
+        await expect(
+          loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+            customConfig: { [option]: { private: __filename } },
+          })
+        ).rejects.toThrow('cannot be customized')
+      })
+
+      it('should reject missing handler files during build', async () => {
         await expect(
           loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
             customConfig: {
-              cacheHandlers: {
-                [key]: __filename,
-              },
+              [option]: { default: './missing-cache-handler.js' },
             },
           })
-        ).rejects.toThrow(/key must only use characters a-z and -/)
-      }
+        ).rejects.toThrow('cache handler path provided does not exist')
+      })
+    }
+  )
+
+  it.each([
+    ['default', 'NEXT_DEFAULT_BUILD_CACHE_HANDLER_PATH'],
+    ['remote', 'NEXT_REMOTE_BUILD_CACHE_HANDLER_PATH'],
+    ['static', 'NEXT_STATIC_BUILD_CACHE_HANDLER_PATH'],
+  ] as const)('uses %s build handler from %s', async (kind, envName) => {
+    const env = jest.replaceProperty(process, 'env', {
+      ...process.env,
+      [envName]: __filename,
     })
 
-    it('should accept valid keys', async () => {
-      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
-        customConfig: {
-          cacheHandlers: {
-            abc: __filename,
-            'valid-handler': __filename,
-            'abc-def': __filename,
-          },
-        },
-      })
-      expect(result.cacheHandlers).toBeDefined()
-      expect(result.cacheHandlers?.['abc']).toBeDefined()
-      expect(result.cacheHandlers?.['valid-handler']).toBeDefined()
-      expect(result.cacheHandlers?.['abc-def']).toBeDefined()
-    })
+    try {
+      // Defaults read the environment when config-shared is first imported.
+      jest.resetModules()
+      const { default: loadConfigWithEnv } = await import('./config')
+      const result = await loadConfigWithEnv(
+        PHASE_PRODUCTION_BUILD,
+        __dirname,
+        {
+          customConfig: {},
+        }
+      )
+      expect(result.buildCacheHandlers?.[kind]).toBe(__filename)
+
+      jest.resetModules()
+      const { default: loadConfigWithOverride } = await import('./config')
+      const override = require.resolve('./config-shared')
+      const overriddenResult = await loadConfigWithOverride(
+        PHASE_PRODUCTION_BUILD,
+        __dirname,
+        {
+          customConfig: { buildCacheHandlers: { [kind]: override } },
+        }
+      )
+      expect(overriddenResult.buildCacheHandlers?.[kind]).toBe(override)
+    } finally {
+      env.restore()
+      jest.resetModules()
+    }
   })
+
+  it('omits unset build handler environment defaults', async () => {
+    const env = jest.replaceProperty(process, 'env', {
+      ...process.env,
+      NEXT_DEFAULT_BUILD_CACHE_HANDLER_PATH: undefined,
+      NEXT_REMOTE_BUILD_CACHE_HANDLER_PATH: undefined,
+      NEXT_STATIC_BUILD_CACHE_HANDLER_PATH: undefined,
+    })
+
+    try {
+      jest.resetModules()
+      const { default: loadConfigWithEnv } = await import('./config')
+      const result = await loadConfigWithEnv(
+        PHASE_PRODUCTION_BUILD,
+        __dirname,
+        {
+          customConfig: {},
+        }
+      )
+      expect(result.buildCacheHandlers).toEqual({})
+    } finally {
+      env.restore()
+      jest.resetModules()
+    }
+  })
+
+  it.each([PHASE_DEVELOPMENT_SERVER, PHASE_PRODUCTION_SERVER] as const)(
+    'should not require build handler files in phase %s',
+    async (phase) => {
+      await expect(
+        loadConfig(phase, __dirname, {
+          customConfig: {
+            buildCacheHandlers: { default: './missing-build-handler.js' },
+          },
+        })
+      ).resolves.toBeDefined()
+    }
+  )
 
   describe('partialPrefetching validation', () => {
     const warning = [
