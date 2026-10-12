@@ -39,7 +39,7 @@ import { toNodeOutgoingHttpHeaders } from '../../server/web/utils'
 import type { RequestMeta } from '../../server/request-meta'
 import { createDevRenderContext } from '../../server/route-modules/app-page/dev-render-context'
 import {
-  hasInvalidFlightRouterStateHeader,
+  isInvalidFlightRouterStateError,
   parseRequestHeaders,
   type ParsedRequestHeaders,
 } from '../../server/route-modules/app-page/parse-request-headers'
@@ -399,6 +399,22 @@ async function requestHandler(
 
       return renderResultToResponse(result)
     } catch (err) {
+      // The router state header is parsed before the render starts. A header
+      // that can't be accepted is invalid client input (e.g. a tab still
+      // running a previous build after a deployment), not a server error, so
+      // answer with a 400 instead of reporting it. The client router falls back
+      // to a document navigation for non-OK responses.
+      if (isInvalidFlightRouterStateError(err)) {
+        return new Response('Bad Request', {
+          status: 400,
+          headers: {
+            'Cache-Control':
+              'private, no-cache, no-store, max-age=0, must-revalidate',
+            'Content-Type': 'text/plain; charset=utf-8',
+          },
+        })
+      }
+
       const silenceLog = false
       await pageRouteModule.onRequestError(
         baseReq,
@@ -414,26 +430,6 @@ async function requestHandler(
       // rethrow so that we can handle serving error page
       throw err
     }
-  }
-
-  // A router state header that can't be accepted is invalid client input
-  // (e.g. a tab still running a previous build after a deployment). Reject it
-  // before rendering instead of failing the render with a 500. The client
-  // router falls back to a document navigation for non-OK responses.
-  if (
-    hasInvalidFlightRouterStateHeader(baseReq.headers, {
-      isRoutePPREnabled:
-        renderContextBase.renderOpts.experimental.isRoutePPREnabled === true,
-    })
-  ) {
-    return new Response('Bad Request', {
-      status: 400,
-      headers: {
-        'Cache-Control':
-          'private, no-cache, no-store, max-age=0, must-revalidate',
-        'Content-Type': 'text/plain; charset=utf-8',
-      },
-    })
   }
 
   const tracer = getTracer()
