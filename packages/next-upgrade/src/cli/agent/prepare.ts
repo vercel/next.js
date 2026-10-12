@@ -1,7 +1,8 @@
-import { resetEnv } from '@next/env'
-import loadConfig from 'next/dist/server/config'
-import { PHASE_INFO } from 'next/dist/shared/lib/constants'
-import { getPendingFutureDefaults } from '../../shared/future-defaults'
+import {
+  getPendingFutureDefaults,
+  type FutureDefaultsConfig,
+  type FindAppDirectory,
+} from '../../shared/future-defaults'
 import {
   getUpgradeAssessment,
   type UpgradePreparation,
@@ -10,7 +11,9 @@ import { getInstalledNextVersion } from '../../next/project'
 
 export async function prepareUpgrade(
   directory: string,
-  targetRequest: string = 'security'
+  targetRequest: string,
+  loadConfig: (directory: string) => Promise<FutureDefaultsConfig>,
+  findDir: FindAppDirectory
 ): Promise<UpgradePreparation> {
   if (
     targetRequest !== 'security' &&
@@ -32,13 +35,12 @@ export async function prepareUpgrade(
     return upgrade
   }
 
-  const config = await loadConfig(PHASE_INFO, directory, {
-    silent: true,
-  }).finally(resetEnv)
+  const config = await loadConfig(directory)
   const pendingFutureDefaults = getPendingFutureDefaults(
     directory,
     config,
-    upgrade.targetVersion
+    upgrade.targetVersion,
+    findDir
   )
 
   if (

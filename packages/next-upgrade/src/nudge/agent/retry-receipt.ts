@@ -41,7 +41,8 @@ async function writeRetry(path: string, issuedAt: number): Promise<void> {
 export async function allowNudgeRetry(
   { directory, distDir, command }: NudgeOptions,
   version: string,
-  kind: NudgeKind
+  kind: NudgeKind,
+  onRetryAllowed: (identity: string) => Promise<void>
 ): Promise<boolean> {
   const project = await realpath(directory)
   const identity = createHash('sha256')
@@ -92,16 +93,7 @@ export async function allowNudgeRetry(
     now - issuedAt < RETRY_TTL
   ) {
     if (command === 'dev' && process.env.NEXT_PRIVATE_WORKER === '1') {
-      await new Promise<void>((complete, reject) => {
-        const message = { nextUpgradeRetryAllowed: identity }
-        process.send!(message, (error: Error | null) => {
-          if (error) {
-            reject(error)
-          } else {
-            complete()
-          }
-        })
-      })
+      await onRetryAllowed(identity)
     }
     allowedRetries.add(identity)
     return true

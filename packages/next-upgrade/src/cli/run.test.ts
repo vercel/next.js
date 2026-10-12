@@ -12,12 +12,12 @@ import {
 } from 'fs/promises'
 import * as Log from 'next/dist/build/output/log'
 import cliSelect from 'next/dist/compiled/cli-select'
-import { spawnNextUpgrade } from 'next/dist/lib/upgrade/cli/run'
+import { spawnNextUpgrade } from 'next/dist/cli/next-upgrade'
 import { findDir } from 'next/dist/lib/find-pages-dir'
 import { getProjectDir } from 'next/dist/lib/get-project-dir'
 import { getHarnessModels } from 'next/dist/lib/upgrade/cli/agent/model-discovery'
 import { handoffUpgrade } from 'next/dist/lib/upgrade/cli/agent/handoff'
-import { prepareUpgrade } from 'next/dist/lib/upgrade/cli/agent/prepare'
+import { prepareUpgrade } from 'next/dist/lib/upgrade/config'
 import loadConfig from 'next/dist/server/config'
 import { normalizeConfig } from 'next/dist/server/config-shared'
 import { PHASE_PRODUCTION_BUILD } from 'next/dist/shared/lib/constants'
@@ -68,7 +68,8 @@ jest.mock('next/dist/lib/picocolors', () => ({
 jest.mock('next/dist/lib/upgrade/cli/agent/model-discovery', () => ({
   getHarnessModels: jest.fn(),
 }))
-jest.mock('next/dist/lib/upgrade/cli/agent/prepare', () => ({
+jest.mock('next/dist/lib/upgrade/config', () => ({
+  ...jest.requireActual('next/dist/lib/upgrade/config'),
   prepareUpgrade: jest.fn(),
 }))
 jest.mock('next/dist/server/config', () => ({
@@ -444,7 +445,12 @@ describe('agentic upgrade prompts', () => {
     jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
     jest.mocked(cliSelect).mockRejectedValue(undefined)
 
-    await handoffUpgrade('Prepared upgrade prompt.', '/workspace/app', null)
+    await handoffUpgrade(
+      'Prepared upgrade prompt.',
+      '/workspace/app',
+      null,
+      getAgentName
+    )
 
     const selectOptions = jest.mocked(cliSelect).mock.calls[0][0]
     expect({
@@ -517,7 +523,12 @@ describe('agentic upgrade prompts', () => {
     jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
     jest.mocked(cliSelect).mockRejectedValue(undefined)
 
-    await handoffUpgrade('Prepared upgrade prompt.', '/workspace/app', null)
+    await handoffUpgrade(
+      'Prepared upgrade prompt.',
+      '/workspace/app',
+      null,
+      getAgentName
+    )
 
     expect(Log.bootstrap).toHaveBeenCalledWith(
       '  Codex detected. Would you like to proceed?'
@@ -579,7 +590,7 @@ describe('agentic upgrade prompts', () => {
       const prompt = jest.fn((useWorktree: boolean | null) =>
         useWorktree ? 'Worktree prompt' : 'In-place prompt'
       )
-      await handoffUpgrade(prompt, '/workspace/app', null)
+      await handoffUpgrade(prompt, '/workspace/app', null, getAgentName)
 
       expect(prompt).toHaveBeenCalledWith(false)
       expect(crossSpawn).toHaveBeenCalledWith(
@@ -667,7 +678,7 @@ describe('agentic upgrade prompts', () => {
       return child
     })
 
-    await handoffUpgrade('Upgrade prompt', '/workspace/app', null)
+    await handoffUpgrade('Upgrade prompt', '/workspace/app', null, getAgentName)
 
     expect(Log.bootstrap).toHaveBeenCalledWith('  ❯ Model default')
     expect(crossSpawn).toHaveBeenCalledWith(
@@ -712,7 +723,7 @@ describe('agentic upgrade prompts', () => {
       process.nextTick(() => child.emit('close', 0, null))
       return child
     })
-    await handoffUpgrade('Upgrade prompt', '/workspace/app', null)
+    await handoffUpgrade('Upgrade prompt', '/workspace/app', null, getAgentName)
     expect(jest.mocked(cliSelect).mock.calls[1][0]).toMatchObject({
       values: {
         'future-model': 'Future — For upgrades',
@@ -756,7 +767,12 @@ describe('agentic upgrade prompts', () => {
         process.nextTick(() => child.emit('close', 0, null))
         return child
       })
-      await handoffUpgrade('Upgrade prompt', '/workspace/app', null)
+      await handoffUpgrade(
+        'Upgrade prompt',
+        '/workspace/app',
+        null,
+        getAgentName
+      )
       expect(getHarnessModels).toHaveBeenCalledTimes(2)
       expect(Log.warn).not.toHaveBeenCalled()
       expect(Log.error).not.toHaveBeenCalled()
@@ -802,7 +818,7 @@ describe('agentic upgrade prompts', () => {
       process.nextTick(() => child.emit('close', 0, null))
       return child
     })
-    await handoffUpgrade('Upgrade prompt', '/workspace/app', null)
+    await handoffUpgrade('Upgrade prompt', '/workspace/app', null, getAgentName)
     expect(jest.mocked(cliSelect).mock.calls[3][0].values).toEqual({
       default: 'Default',
     })
@@ -868,9 +884,14 @@ describe('agentic upgrade prompts', () => {
       process.nextTick(() => child.emit('close', 0, null))
       return child
     })
-    expect(await handoffUpgrade('Upgrade prompt', '/workspace/app', null)).toBe(
-      'handed_off'
-    )
+    expect(
+      await handoffUpgrade(
+        'Upgrade prompt',
+        '/workspace/app',
+        null,
+        getAgentName
+      )
+    ).toBe('handed_off')
   })
 
   it.each(['cancel', 'copy'])(
@@ -899,7 +920,12 @@ describe('agentic upgrade prompts', () => {
       if (choice === 'copy')
         jest.mocked(cliSelect).mockResolvedValueOnce({ id: 'copy' })
       else jest.mocked(cliSelect).mockRejectedValueOnce(undefined)
-      await handoffUpgrade('Upgrade prompt', '/workspace/app', null)
+      await handoffUpgrade(
+        'Upgrade prompt',
+        '/workspace/app',
+        null,
+        getAgentName
+      )
       expect(cancelled).toEqual(['codex', 'claude'])
       expect(crossSpawn).not.toHaveBeenCalled()
     }
@@ -914,9 +940,14 @@ describe('agentic upgrade prompts', () => {
     jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
     jest.mocked(getHarnessModels).mockResolvedValue(null)
     jest.mocked(cliSelect).mockResolvedValueOnce({ id: 'codex' })
-    expect(await handoffUpgrade('Upgrade prompt', '/workspace/app', null)).toBe(
-      'cancelled'
-    )
+    expect(
+      await handoffUpgrade(
+        'Upgrade prompt',
+        '/workspace/app',
+        null,
+        getAgentName
+      )
+    ).toBe('cancelled')
     expect(cliSelect).toHaveBeenCalledTimes(1)
     expect(crossSpawn).not.toHaveBeenCalled()
   })
@@ -932,7 +963,7 @@ describe('agentic upgrade prompts', () => {
     jest.mocked(access).mockRejectedValue(cause)
 
     await expect(
-      handoffUpgrade('Upgrade prompt', '/workspace/app', null)
+      handoffUpgrade('Upgrade prompt', '/workspace/app', null, getAgentName)
     ).rejects.toMatchObject({ cause })
   })
 
@@ -967,7 +998,7 @@ describe('agentic upgrade prompts', () => {
       return child
     })
 
-    await handoffUpgrade('Upgrade prompt', '/workspace/app', null)
+    await handoffUpgrade('Upgrade prompt', '/workspace/app', null, getAgentName)
 
     expect(crossSpawn).toHaveBeenCalledWith(
       expectedHarnessPath(agent),
@@ -1006,7 +1037,7 @@ describe('agentic upgrade prompts', () => {
       return child
     })
 
-    await handoffUpgrade('Upgrade prompt', '/workspace/app', null)
+    await handoffUpgrade('Upgrade prompt', '/workspace/app', null, getAgentName)
 
     expect(crossSpawn.sync).toHaveBeenCalledWith(
       expectedHarnessPath('codex'),
@@ -1058,7 +1089,7 @@ describe('agentic upgrade prompts', () => {
       return child
     })
 
-    await handoffUpgrade('Upgrade prompt', '/workspace/app', null)
+    await handoffUpgrade('Upgrade prompt', '/workspace/app', null, getAgentName)
 
     expect(crossSpawn.sync).toHaveBeenCalledWith(
       expectedHarnessPath('claude'),
@@ -1101,7 +1132,7 @@ describe('agentic upgrade prompts', () => {
         return Promise.reject(undefined)
       })
 
-    await handoffUpgrade('Upgrade prompt', '/workspace/app', null)
+    await handoffUpgrade('Upgrade prompt', '/workspace/app', null, getAgentName)
 
     expect(process.exitCode).toBe(1)
     expect(crossSpawn).not.toHaveBeenCalled()
@@ -1135,7 +1166,7 @@ describe('agentic upgrade prompts', () => {
       return child
     })
 
-    await handoffUpgrade('Upgrade prompt', '/workspace/app', null)
+    await handoffUpgrade('Upgrade prompt', '/workspace/app', null, getAgentName)
 
     expect(jest.mocked(getHarnessModels).mock.calls).toHaveLength(2)
     expect(
@@ -1199,7 +1230,7 @@ describe('agentic upgrade prompts', () => {
       return child
     })
 
-    await handoffUpgrade('Upgrade prompt', '/workspace/app', null)
+    await handoffUpgrade('Upgrade prompt', '/workspace/app', null, getAgentName)
 
     expect(jest.mocked(cliSelect).mock.calls[8][0].defaultValue).toBe(0)
     expect(crossSpawn).toHaveBeenCalledWith(
@@ -1231,7 +1262,7 @@ describe('agentic upgrade prompts', () => {
       return child
     })
 
-    await handoffUpgrade('Upgrade prompt', '/workspace/app', null)
+    await handoffUpgrade('Upgrade prompt', '/workspace/app', null, getAgentName)
 
     expect(
       crossSpawn.sync.mock.calls.filter(([, args]) => args[0] === '--help')
@@ -1275,7 +1306,7 @@ describe('agentic upgrade prompts', () => {
       return child
     })
 
-    await handoffUpgrade('Upgrade prompt', '/workspace/app', null)
+    await handoffUpgrade('Upgrade prompt', '/workspace/app', null, getAgentName)
 
     expect(
       crossSpawn.sync.mock.calls.filter(([, args]) => args[0] === '--help')
@@ -1309,7 +1340,7 @@ describe('agentic upgrade prompts', () => {
   it('uses the existing agent settings without prompting interactively', async () => {
     const prompt = jest.fn(() => 'Prepared upgrade prompt.')
 
-    await handoffUpgrade(prompt, '/workspace/app', null)
+    await handoffUpgrade(prompt, '/workspace/app', null, getAgentName)
 
     expect(prompt).toHaveBeenCalledWith(null)
     expect(Log.bootstrap).toHaveBeenCalledWith('Prepared upgrade prompt.')
@@ -1341,7 +1372,7 @@ describe('agentic upgrade prompts', () => {
     })
     const prompt = jest.fn(() => 'Worktree prompt')
 
-    await handoffUpgrade(prompt, '/workspace/app', null)
+    await handoffUpgrade(prompt, '/workspace/app', null, getAgentName)
 
     expect(prompt).toHaveBeenCalledWith(true)
     expect(crossSpawn).toHaveBeenCalledWith(
@@ -1366,7 +1397,7 @@ describe('agentic upgrade prompts', () => {
       useWorktree === null ? 'Choice pending prompt' : 'Selected prompt'
     )
 
-    await handoffUpgrade(prompt, '/workspace/app', null)
+    await handoffUpgrade(prompt, '/workspace/app', null, getAgentName)
 
     expect(prompt).toHaveBeenCalledWith(null)
     expect(Log.bootstrap).toHaveBeenCalledWith(

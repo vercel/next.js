@@ -1,29 +1,19 @@
 import type { PackageManager } from '../../lib/helpers/get-pkg-manager'
 
-// Shared values keep event payloads consistent across the CLI, nudges, and handoffs.
-export type AgentUpgradePolicy = 'security' | 'latest' | 'experimental-future'
+// The upgrade workflow owns outcomes shared with telemetry payloads.
+import type {
+  AgentUpgradePolicy,
+  AgentUpgradeOrigin,
+  AgentUpgradeCLIResult,
+} from 'next/dist/lib/upgrade/cli/run'
+import type { AgentUpgradeHandoffMethod } from 'next/dist/lib/upgrade/cli/agent/handoff'
 
-export type AgentUpgradeOrigin =
-  | 'human_manual'
-  | 'human_nudge'
-  | 'agent_manual'
-  | 'agent_nudge'
-
-export type AgentUpgradeHandoffMethod =
-  | 'existing_agent'
-  | 'launched_agent'
-  | 'copied_prompt'
-  | 'printed_prompt'
-
-export type AgentUpgradeCLIResult =
-  | 'no_update_needed'
-  | 'no_safe_target'
-  | 'metadata_failure'
-  | 'guide_failure'
-  | 'cancelled'
-  | 'handoff_issued'
-  | 'handoff_failed'
-  | 'cli_failure'
+export type {
+  AgentUpgradePolicy,
+  AgentUpgradeOrigin,
+  AgentUpgradeCLIResult,
+} from 'next/dist/lib/upgrade/cli/run'
+export type { AgentUpgradeHandoffMethod } from 'next/dist/lib/upgrade/cli/agent/handoff'
 
 // Version every event so consumers can distinguish future schema changes.
 function event<T extends object>(eventName: string, fields: T) {

@@ -1,37 +1,19 @@
 import { randomUUID } from 'crypto'
-import { updateInitialEnv } from '@next/env'
 import * as Log from 'next/dist/build/output/log'
-import type { NextConfigComplete } from 'next/dist/server/config-shared'
-import type { Telemetry } from 'next/dist/telemetry/storage'
-import {
-  eventAgentUpgradeNudgeDecision,
-  eventAgentUpgradeNudgeShown,
-  eventAgentUpgradePolicyDetected,
-} from 'next/dist/telemetry/events/agent-upgrade'
 import semver from 'next/dist/compiled/semver'
 import type { UpgradeAction } from './terminal/prompt'
-import { getAgentName } from 'next/dist/telemetry/agent-name'
-import { getPendingFutureDefaults } from '../shared/future-defaults'
-import { isCI } from 'next/dist/server/ci-info'
+import type {
+  FutureDefaultsConfig,
+  FutureDefaultEntry,
+} from '../shared/future-defaults'
 import { nudgeUpgradeForAgent } from './agent/notify'
 import { nudgeUpgradeForHuman } from './terminal/notify'
 import { getUpgradeDismissal } from './terminal/preferences'
 
 export type NudgeKind = 'security' | 'latest' | 'experimental-future'
 
-function getRequestedUpgrade() {
-  const policy = process.env.__NEXT_AGENT_UPGRADE
-  return policy === 'security' ||
-    policy === 'latest' ||
-    policy === 'experimental-future'
-    ? policy
-    : null
-}
-
-export type UpgradeContext = Pick<
-  NextConfigComplete,
-  'distDir' | 'cacheComponents'
-> & {
+export type UpgradeContext = FutureDefaultsConfig & {
+  distDir: string
   configuredPolicy: NudgeKind | false | null
   experimental: { agentUpgrade: NudgeKind | false }
 }
@@ -49,24 +31,44 @@ export type UpgradeReminder = {
   | { kind: 'experimental-future'; targetVersion: string; names: string[] }
 )
 
-export function getUpgradeContext(config: NextConfigComplete): UpgradeContext {
-  return {
-    distDir: config.distDir,
-    cacheComponents: config.cacheComponents,
-    configuredPolicy: config.experimental.agentUpgrade ?? null,
-    experimental: {
-      agentUpgrade:
-        getRequestedUpgrade() ?? config.experimental.agentUpgrade ?? false,
-    },
-  }
+// Keep delivery and event encoding in Next while nudges decide when to emit them.
+export type UpgradePolicyEvent = {
+  configuredPolicy: NudgeKind | false | null
+  effectivePolicy: NudgeKind
+  policySource: 'config' | 'environment'
+  sourceCommand: 'dev' | 'build'
+}
+
+export type UpgradeNudgeTelemetry = {
+  recordPolicyDetected(fields: UpgradePolicyEvent): void
+  recordNudgeShown(fields: {
+    nudgeId: string
+    recipient: 'human' | 'agent'
+    agentProduct: string | null
+    sourceCommand: 'dev' | 'build'
+    policy: NudgeKind
+    nudgeKind: NudgeKind
+  }): void
+  recordNudgeDecision(fields: { nudgeId: string; action: UpgradeAction }): void
+  flushNudge(
+    directory: string,
+    distDir: string,
+    policy: UpgradePolicyEvent,
+    shown: Parameters<UpgradeNudgeTelemetry['recordNudgeShown']>[0]
+  ): void
 }
 
 export async function assessUpgrade(
   directory: string,
   config: UpgradeContext,
-  installedVersion: string = process.env.__NEXT_VERSION || 'unknown',
-  stopBefore: NudgeKind | null = null,
-  forceVersionReminder: boolean = false
+  installedVersion: string,
+  stopBefore: NudgeKind | null,
+  forceVersionReminder: boolean,
+  getPendingFutureDefaults: (
+    directory: string,
+    config: FutureDefaultsConfig,
+    version: string
+  ) => FutureDefaultEntry[]
 ): Promise<UpgradeReminder | null> {
   const policy = config.experimental.agentUpgrade
   if (
@@ -184,7 +186,7 @@ function isTerminalForcedForTesting(): boolean {
   return process.env.__NEXT_AGENT_UPGRADE_FORCE_TERMINAL_FOR_TESTING === '1'
 }
 
-function canPromptForUpgrade(): boolean {
+function canPromptForUpgrade(isCI: boolean): boolean {
   return (
     (!isCI || isTerminalForcedForTesting()) &&
     Boolean(process.stdin.isTTY && process.stdout.isTTY) &&
@@ -192,28 +194,12 @@ function canPromptForUpgrade(): boolean {
   )
 }
 
-export async function runUpgrade(
-  directory: string,
-  policy: NudgeKind,
-  nudgeId: string | null
-) {
-  // The agent's dev/build commands must not trigger this explicit request again.
-  delete process.env.__NEXT_AGENT_UPGRADE
-  updateInitialEnv({ __NEXT_AGENT_UPGRADE: undefined })
-  const { spawnNextUpgrade } = await import('../cli/run.js')
-
-  // Human Update actions invoke the CLI directly, so their ID does not need an env var.
-  await spawnNextUpgrade(
-    directory,
-    { revision: 'latest', verbose: false, agent: policy },
-    nudgeId ? { id: nudgeId, recipient: 'human' } : null
-  )
-  return process.exitCode ?? 0
-}
-
-export async function shouldPromptForUpgrade(): Promise<boolean> {
+export async function shouldPromptForUpgrade(
+  isCI: boolean,
+  getAgentName: () => Promise<string | null>
+): Promise<boolean> {
   return (
-    canPromptForUpgrade() &&
+    canPromptForUpgrade(isCI) &&
     (isTerminalForcedForTesting() || !(await getAgentName()))
   )
 }
@@ -225,11 +211,25 @@ export async function nudgeUpgrade(
   signal: AbortSignal | null,
   initialAssessment: Promise<UpgradeReminder | null> | null,
   telemetryOptions: {
-    telemetry: Telemetry
+    telemetry: UpgradeNudgeTelemetry
     onNudgeId: ((nudgeId: string) => void) | null
-  } | null
+  } | null,
+  dependencies: {
+    isCI: boolean
+    requestedPolicy: NudgeKind | null
+    getAgentName(): Promise<string | null>
+    getInstalledVersion(): string
+    assessUpgrade(
+      directory: string,
+      config: UpgradeContext,
+      installedVersion: string,
+      stopBefore: NudgeKind | null,
+      forceVersionReminder: boolean
+    ): Promise<UpgradeReminder | null>
+    onRetryAllowed(identity: string): Promise<void>
+  }
 ): Promise<UpgradeAction | void> {
-  const requested = getRequestedUpgrade()
+  const requested = dependencies.requestedPolicy
   const policy = requested ?? config.experimental.agentUpgrade
   if (
     policy !== 'security' &&
@@ -240,29 +240,31 @@ export async function nudgeUpgrade(
   }
   // Observe the effective policy even when assessment finds no upgrade to offer.
   const telemetry = telemetryOptions?.telemetry ?? null
-  const policyEvent = eventAgentUpgradePolicyDetected({
+  const policyEvent: UpgradePolicyEvent = {
     configuredPolicy: config.configuredPolicy ?? null,
     effectivePolicy: policy,
     policySource: requested ? 'environment' : 'config',
     sourceCommand: command,
-  })
-  if (requested && isCI) {
-    telemetry?.record(policyEvent)
+  }
+  if (requested && dependencies.isCI) {
+    telemetry?.recordPolicyDetected(policyEvent)
     return
   }
 
   // An agent's stopped command sends policy and nudge together before synchronous exit.
-  const agent = isTerminalForcedForTesting() ? null : await getAgentName()
+  const agent = isTerminalForcedForTesting()
+    ? null
+    : await dependencies.getAgentName()
   if (!agent) {
-    telemetry?.record(policyEvent)
+    telemetry?.recordPolicyDetected(policyEvent)
   }
-  const installedVersion = process.env.__NEXT_VERSION || 'unknown'
+  const installedVersion = dependencies.getInstalledVersion()
   let stopBefore: NudgeKind | null = null
   if (!agent) {
     if (!signal || signal.aborted) {
       return
     }
-    if (!canPromptForUpgrade()) {
+    if (!canPromptForUpgrade(dependencies.isCI)) {
       return
     }
     if (!requested) {
@@ -279,7 +281,7 @@ export async function nudgeUpgrade(
   const reminder = await (
     stopBefore === null && initialAssessment && !isTerminalForcedForTesting()
       ? initialAssessment
-      : assessUpgrade(
+      : dependencies.assessUpgrade(
           directory,
           { ...config, experimental: { agentUpgrade: policy } },
           installedVersion,
@@ -288,13 +290,13 @@ export async function nudgeUpgrade(
         )
   ).catch((error) => {
     if (agent) {
-      telemetry?.record(policyEvent)
+      telemetry?.recordPolicyDetected(policyEvent)
     }
     throw error
   })
   if (!reminder || signal?.aborted) {
     if (agent) {
-      telemetry?.record(policyEvent)
+      telemetry?.recordPolicyDetected(policyEvent)
     }
     return
   }
@@ -308,7 +310,8 @@ export async function nudgeUpgrade(
       nudgeId,
       agent,
       telemetry,
-      policyEvent
+      policyEvent,
+      dependencies.onRetryAllowed
     )
   } else if (signal) {
     // Count a human nudge only after the menu renders, including its selected action.
@@ -317,16 +320,14 @@ export async function nudgeUpgrade(
       ? () => {
           shown = true
           telemetryOptions.onNudgeId?.(nudgeId)
-          telemetryOptions.telemetry.record(
-            eventAgentUpgradeNudgeShown({
-              nudgeId,
-              recipient: 'human',
-              agentProduct: null,
-              sourceCommand: command,
-              policy: reminder.policy,
-              nudgeKind: reminder.kind,
-            })
-          )
+          telemetryOptions.telemetry.recordNudgeShown({
+            nudgeId,
+            recipient: 'human',
+            agentProduct: null,
+            sourceCommand: command,
+            policy: reminder.policy,
+            nudgeKind: reminder.kind,
+          })
         }
       : null
 
@@ -339,7 +340,7 @@ export async function nudgeUpgrade(
 
     // The caller flushes after it gives the terminal back.
     if (shown && telemetry && !signal.aborted) {
-      telemetry.record(eventAgentUpgradeNudgeDecision({ nudgeId, action }))
+      telemetry.recordNudgeDecision({ nudgeId, action })
     }
     return action
   }

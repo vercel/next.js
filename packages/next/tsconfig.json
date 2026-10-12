@@ -12,6 +12,7 @@
     // Preserve relative imports across the source-only upgrade extraction.
     "rootDirs": ["./src", "../next-upgrade/src"],
     "paths": {
+      "next/dist/lib/upgrade/config": ["./src/lib/upgrade/config.ts"],
       "next/dist/lib/upgrade/nudge": ["./src/lib/upgrade/nudge.ts"],
       "next/dist/lib/upgrade/prompt-output": [
         "./src/lib/upgrade/prompt-output.ts"

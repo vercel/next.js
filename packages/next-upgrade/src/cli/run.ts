@@ -17,17 +17,53 @@ import {
 import { dim } from 'next/dist/lib/picocolors'
 import { getInstalledNextVersion } from '../next/project'
 import { runChildProcess } from './run-child-process'
-import { getAgentName } from 'next/dist/telemetry/agent-name'
-import {
-  eventAgentUpgradeCLIResult,
-  eventAgentUpgradeRunStarted,
-  type AgentUpgradeCLIResult,
-  type AgentUpgradeHandoffMethod,
-  type AgentUpgradePolicy,
-} from 'next/dist/telemetry/events/agent-upgrade'
-import { Telemetry } from 'next/dist/telemetry/storage'
-import { loadAgentUpgradeConfig } from '../next/config'
+import type { AgentUpgradeHandoffMethod } from './agent/handoff'
+import type { UpgradePreparation } from '../shared/check-upgrade'
+import type { NudgeKind } from '../nudge/nudge'
 import { prepareUpgradeDocument } from './agent/guides'
+
+// The workflow owns outcomes; Next supplies their telemetry delivery.
+export type AgentUpgradePolicy = NudgeKind
+
+export type AgentUpgradeOrigin =
+  | 'human_manual'
+  | 'human_nudge'
+  | 'agent_manual'
+  | 'agent_nudge'
+
+export type AgentUpgradeCLIResult =
+  | 'no_update_needed'
+  | 'no_safe_target'
+  | 'metadata_failure'
+  | 'guide_failure'
+  | 'cancelled'
+  | 'handoff_issued'
+  | 'handoff_failed'
+  | 'cli_failure'
+
+export type UpgradeRunTelemetry = {
+  recordRunStarted(fields: {
+    runId: string
+    nudgeId: string | null
+    origin: AgentUpgradeOrigin
+    agentProduct: string | null
+    requestedPolicy: AgentUpgradePolicy | null
+    fromVersion: string | null
+    nodeVersion: string
+    packageManager: PackageManager | null
+    packageManagerVersion: string | null
+  }): void
+  recordCLIResult(fields: {
+    runId: string
+    result: AgentUpgradeCLIResult
+    resolvedPolicy: AgentUpgradePolicy | null
+    handoffMethod: AgentUpgradeHandoffMethod | null
+    selectedAgentProduct: string | null
+    fromVersion: string | null
+    targetVersion: string | null
+  }): void
+  flush(): Promise<unknown>
+}
 
 type NextUpgradeOptions = {
   revision: string
@@ -68,7 +104,19 @@ async function resolveCanaryVersion(): Promise<string> {
 export async function spawnNextUpgrade(
   directory: string | undefined,
   options: NextUpgradeOptions,
-  nudgeSource: { id: string; recipient: 'human' | 'agent' } | null
+  nudgeSource: { id: string; recipient: 'human' | 'agent' } | null,
+  dependencies: {
+    loadConfig(directory: string): Promise<{
+      distDir: string | undefined
+      configuredPolicy: unknown
+    }>
+    prepareUpgrade(
+      directory: string,
+      targetRequest: string
+    ): Promise<UpgradePreparation>
+    createTelemetry(distDir: string): UpgradeRunTelemetry
+    getAgentName(): Promise<string | null>
+  }
 ) {
   let baseDir = resolvePath(directory || '.')
 
@@ -85,9 +133,9 @@ export async function spawnNextUpgrade(
       baseDir = getProjectDir(directory, false)
       warnMissingReactDependencies(baseDir)
 
-      const config = await loadAgentUpgradeConfig(baseDir)
+      const config = await dependencies.loadConfig(baseDir)
       distDir = config.distDir || '.next'
-      configuredPolicy = config.experimental?.agentUpgrade
+      configuredPolicy = config.configuredPolicy
 
       // Capture the app and runtime before delegation or an agent changes dependencies.
       packageManager = getPkgManager(baseDir)
@@ -109,10 +157,7 @@ export async function spawnNextUpgrade(
     }
 
     // Count agent invocations even when resolving the directory or config fails.
-    const telemetry = new Telemetry({
-      distDir: join(baseDir, distDir),
-      skipNotify: true,
-    })
+    const telemetry = dependencies.createTelemetry(join(baseDir, distDir))
 
     // The parent records attribution; canary only needs its run ID to report results.
     // Remove it before launching an agent so later upgrades start their own runs.
@@ -141,24 +186,22 @@ export async function spawnNextUpgrade(
         return
       }
       cliResultRecorded = true
-      telemetry.record(
-        eventAgentUpgradeCLIResult({
-          runId,
-          result,
-          resolvedPolicy,
-          handoffMethod,
-          selectedAgentProduct,
-          fromVersion,
-          targetVersion,
-        })
-      )
+      telemetry.recordCLIResult({
+        runId,
+        result,
+        resolvedPolicy,
+        handoffMethod,
+        selectedAgentProduct,
+        fromVersion,
+        targetVersion,
+      })
     }
 
     try {
       // Only the original invocation records a start, including invalid-input failures.
       // Origin and nudge attribution stay on that event; results join through runId.
       if (!inheritedRunId || invalidRunId) {
-        const agentProduct = await getAgentName()
+        const agentProduct = await dependencies.getAgentName()
         const nudge = invalidRunId || invalidNudgeId ? null : nudgeSource
         const origin = nudge
           ? nudge.recipient === 'agent'
@@ -167,24 +210,22 @@ export async function spawnNextUpgrade(
           : agentProduct
             ? 'agent_manual'
             : 'human_manual'
-        telemetry.record(
-          eventAgentUpgradeRunStarted({
-            runId,
-            nudgeId: nudge?.id ?? null,
-            origin,
-            agentProduct,
-            requestedPolicy:
-              options.agent === 'security' ||
-              options.agent === 'latest' ||
-              options.agent === 'experimental-future'
-                ? options.agent
-                : null,
-            fromVersion,
-            nodeVersion: process.version,
-            packageManager,
-            packageManagerVersion,
-          })
-        )
+        telemetry.recordRunStarted({
+          runId,
+          nudgeId: nudge?.id ?? null,
+          origin,
+          agentProduct,
+          requestedPolicy:
+            options.agent === 'security' ||
+            options.agent === 'latest' ||
+            options.agent === 'experimental-future'
+              ? options.agent
+              : null,
+          fromVersion,
+          nodeVersion: process.version,
+          packageManager,
+          packageManagerVersion,
+        })
       }
 
       if (invalidRunId) {
@@ -281,12 +322,10 @@ export async function spawnNextUpgrade(
       resolvedPolicy = upgradeType
 
       // Resolve the requested target before preparing an agent session.
-      const { prepareUpgrade } =
-        require('./agent/prepare') as typeof import('./agent/prepare')
       const assessmentSpinner = createSpinner('Preparing upgrade')
-      const result = await prepareUpgrade(baseDir, upgradeType).finally(() =>
-        assessmentSpinner?.stop()
-      )
+      const result = await dependencies
+        .prepareUpgrade(baseDir, upgradeType)
+        .finally(() => assessmentSpinner?.stop())
 
       // Expected assessment failures retain their status and stop before handoff.
       if (result.status === 'blocked' || result.status === 'unknown') {
@@ -518,7 +557,8 @@ When this task ends, report its result once. After completing the requested upgr
         baseDir,
         (method, selectedAgentProduct) => {
           recordCLIResult('handoff_issued', method, selectedAgentProduct)
-        }
+        },
+        dependencies.getAgentName
       )
       if (handoffResult === 'cancelled') {
         recordCLIResult('cancelled', null, null)

@@ -7,11 +7,15 @@ import cliSelect from 'next/dist/compiled/cli-select'
 import spawn from 'next/dist/compiled/cross-spawn'
 
 import * as Log from 'next/dist/build/output/log'
-import { getAgentName } from 'next/dist/telemetry/agent-name'
-import type { AgentUpgradeHandoffMethod } from 'next/dist/telemetry/events/agent-upgrade'
 import { bold, cyan, dim } from 'next/dist/lib/picocolors'
 import { getHarnessModels, type UpgradeModel } from './model-discovery'
 import { runChildProcess } from '../run-child-process'
+
+export type AgentUpgradeHandoffMethod =
+  | 'existing_agent'
+  | 'launched_agent'
+  | 'copied_prompt'
+  | 'printed_prompt'
 
 const CODEX_APPROVAL_ARGS = [
   '--sandbox',
@@ -299,7 +303,8 @@ export async function handoffUpgrade(
         method: AgentUpgradeHandoffMethod,
         selectedAgentProduct: string | null
       ) => void)
-    | null
+    | null,
+  getAgentName: () => Promise<string | null>
 ): Promise<'handed_off' | 'cancelled' | 'failed'> {
   // Existing agents keep their session and permissions.
   const existingAgent = await getAgentName()
