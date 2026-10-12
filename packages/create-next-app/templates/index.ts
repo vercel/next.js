@@ -280,7 +280,8 @@ export const installTemplate = async ({
   // paths over `version` so siblings like `next-rspack` and
   // `eslint-config-next` install from their own tarball — not from the
   // `next` tarball, which would cause npm to extract `next`'s contents
-  // into the sibling's `node_modules/` entry.
+  // into the sibling's `node_modules/` entry. Packed packages that are only
+  // transitive dependencies are added as overrides below.
   const testPkgPaths: Map<string, string> | null = (() => {
     const env = process.env.NEXT_TEST_PKG_PATHS;
     if (!env) return null;
@@ -395,6 +396,40 @@ export const installTemplate = async ({
     packageJson.devDependencies = sorted(packageJson.devDependencies);
   }
 
+  // Packed workspace packages are only direct dependencies when listed above.
+  // Others, such as `@next/env` from `next` or `@next/eslint-plugin-next` from
+  // `eslint-config-next`, are transitive and would otherwise resolve from the
+  // registry, where a freshly bumped release version may not be published yet.
+  // Point them at their local tarballs for every package manager.
+  const testPkgOverrides: Record<string, string> = {};
+  if (testPkgPaths) {
+    for (const [name, tarballPath] of testPkgPaths) {
+      if (
+        !packageJson.dependencies[name] &&
+        !packageJson.devDependencies?.[name]
+      ) {
+        testPkgOverrides[name] = tarballPath;
+      }
+    }
+  }
+  const hasTestPkgOverrides = Object.keys(testPkgOverrides).length > 0;
+  if (hasTestPkgOverrides) {
+    // npm and bun read `overrides`; yarn and bun read `resolutions`.
+    packageJson.overrides = sorted(testPkgOverrides);
+    packageJson.resolutions = sorted(testPkgOverrides);
+  }
+  // pnpm v10+ reads overrides from the `pnpm-workspace.yaml` written below.
+  // JSON strings are valid YAML double-quoted scalars, including Windows paths.
+  const pnpmWorkspaceOverrides = hasTestPkgOverrides
+    ? [
+        "overrides:",
+        ...Object.entries(sorted(testPkgOverrides)).map(
+          ([name, tarballPath]) =>
+            `  ${JSON.stringify(name)}: ${JSON.stringify(tarballPath)}`,
+        ),
+      ]
+    : [];
+
   if (packageManager === "pnpm") {
     // Only create pnpm-workspace.yaml for pnpm v10+.
     // In v9, having a pnpm-workspace.yaml (even with packages: []) causes
@@ -416,6 +451,7 @@ export const installTemplate = async ({
         "  sharp: false",
         // Not needed for pnpm: https://github.com/unrs/unrs-resolver/issues/193#issuecomment-3295510146
         "  unrs-resolver: false",
+        ...pnpmWorkspaceOverrides,
         "",
       ].join(os.EOL);
       await fs.writeFile(
@@ -431,12 +467,16 @@ export const installTemplate = async ({
         "  - sharp",
         // Not needed for pnpm: https://github.com/unrs/unrs-resolver/issues/193#issuecomment-3295510146
         "  - unrs-resolver",
+        ...pnpmWorkspaceOverrides,
         "",
       ].join(os.EOL);
       await fs.writeFile(
         path.join(root, "pnpm-workspace.yaml"),
         pnpmWorkspaceYaml,
       );
+    } else if (hasTestPkgOverrides) {
+      // pnpm v9 gets no `pnpm-workspace.yaml`, so use package.json instead.
+      packageJson.pnpm = { overrides: sorted(testPkgOverrides) };
     }
   }
 
