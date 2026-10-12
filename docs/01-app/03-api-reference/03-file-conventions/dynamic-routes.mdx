@@ -238,66 +238,9 @@ async function getPost(slug: string) {
 }
 ```
 
-> **Good to know**: This example uses `<Suspense>` so [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching) can keep URL-specific `params` out of the shared shell.
+> **Good to know**: This example uses `<Suspense>` so [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching) can keep URL-specific `params` out of the shared App Shell.
 
-Build-time validation only covers code paths that execute with the sample params. If your route has conditional logic that accesses runtime APIs for certain param values not in your samples, those branches won't be validated at build time:
-
-```tsx filename="app/blog/[slug]/page.tsx"
-import { cookies } from 'next/headers'
-
-export async function generateStaticParams() {
-  return [{ slug: 'public-post' }, { slug: 'hello-world' }]
-}
-
-export default async function Page({ params }: PageProps<'/blog/[slug]'>) {
-  const { slug } = await params
-
-  if (slug.startsWith('private-')) {
-    // This branch is never executed at build time
-    // Runtime requests for 'private-*' slugs will error
-    return <PrivatePost slug={slug} />
-  }
-
-  return <PublicPost slug={slug} />
-}
-
-async function PrivatePost({ slug }: { slug: string }) {
-  const token = (await cookies()).get('token')
-  // ... fetch and render private post using token for auth
-}
-```
-
-For runtime params not returned by `generateStaticParams`, validation occurs during the first request. In the example above, requests for slugs starting with `private-` will fail because `PrivatePost` accesses `cookies()` without a Suspense boundary. Other runtime params that don't hit the conditional branch will render successfully and be saved to disk for subsequent requests.
-
-To fix this, wrap `PrivatePost` with Suspense:
-
-```tsx filename="app/blog/[slug]/page.tsx" highlight={13-15}
-import { Suspense } from 'react'
-import { cookies } from 'next/headers'
-
-export async function generateStaticParams() {
-  return [{ slug: 'public-post' }, { slug: 'hello-world' }]
-}
-
-export default async function Page({ params }: PageProps<'/blog/[slug]'>) {
-  const { slug } = await params
-
-  if (slug.startsWith('private-')) {
-    return (
-      <Suspense fallback={<div>Loading...</div>}>
-        <PrivatePost slug={slug} />
-      </Suspense>
-    )
-  }
-
-  return <PublicPost slug={slug} />
-}
-
-async function PrivatePost({ slug }: { slug: string }) {
-  const token = (await cookies()).get('token')
-  // ... fetch and render private post using token for auth
-}
-```
+For params not returned by `generateStaticParams`, Partial Prefetching serves the Suspense fallback while Next.js renders the URL-specific page. Next.js saves the completed page so later visits can receive it without the fallback. See [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components) for details.
 
 ## Examples
 
