@@ -242,6 +242,48 @@ async function getPost(slug: string) {
 
 Build-time validation only covers code paths that execute for values returned by `generateStaticParams`. Code paths reached only by other param values are validated on the first request.
 
+For example, suppose `generateStaticParams` only returns slugs that do not start with `localized-`. The build does not execute the conditional branch below. The first request for a `localized-*` slug fails because `cookies()` cannot be read inside a [`'use cache'`](/docs/app/api-reference/directives/use-cache#request-time-apis) scope:
+
+```tsx filename="app/blog/[slug]/page.tsx"
+import { cookies } from 'next/headers'
+
+async function getPost(slug: string) {
+  'use cache'
+
+  let locale = 'en'
+  if (slug.startsWith('localized-')) {
+    locale = (await cookies()).get('locale')?.value ?? 'en'
+  }
+
+  const res = await fetch(
+    `https://api.vercel.app/blog/${slug}?locale=${locale}`
+  )
+  return res.json()
+}
+```
+
+Read the cookie outside the cached function and pass its value as an argument. In the full example above, `Content` is already inside `<Suspense>`:
+
+```tsx filename="app/blog/[slug]/page.tsx"
+async function Content({ params }: Pick<PageProps<'/blog/[slug]'>, 'params'>) {
+  const { slug } = await params
+  const locale = slug.startsWith('localized-')
+    ? ((await cookies()).get('locale')?.value ?? 'en')
+    : 'en'
+  const post = await getPost(slug, locale)
+
+  return <article>{post.title}</article>
+}
+
+async function getPost(slug: string, locale: string) {
+  'use cache'
+  const res = await fetch(
+    `https://api.vercel.app/blog/${slug}?locale=${locale}`
+  )
+  return res.json()
+}
+```
+
 For params not returned by `generateStaticParams`, Partial Prefetching serves the Suspense fallback while Next.js renders the URL-specific page. Next.js saves the completed page so later visits can receive it without the fallback. See [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components) for details.
 
 ## Examples
