@@ -63,6 +63,23 @@ export default function icon() {
     (
       <img
         alt="avatar"
+        src="https://example.com/image.png"
+      />
+    )
+  );
+}
+`,
+      filename: `src\\app\\icon.js`,
+    },
+    {
+      code: `\
+import { ImageResponse } from "next/og";
+
+export default function icon() {
+  return new ImageResponse(
+    (
+      <img
+        alt="avatar"
         style={{ borderRadius: "100%" }}
         width="100%"
         height="100%"
