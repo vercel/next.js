@@ -9664,7 +9664,6 @@ dependencies = [
  "anyhow",
  "async-trait",
  "bincode",
- "cssparser",
  "indoc",
  "lightningcss",
  "parcel_selectors",

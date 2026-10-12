@@ -1,6 +1,5 @@
 use std::{
     borrow::Cow,
-    convert::Infallible,
     sync::{Arc, RwLock},
 };
 
@@ -8,21 +7,16 @@ use anyhow::{Result, bail};
 use async_trait::async_trait;
 use lightningcss::{
     css_modules::{CssModuleExport, Pattern, Segment},
-    error::ParserError,
-    rules::{
-        CssRule,
-        container::{ContainerCondition, ContainerName},
-    },
     stylesheet::{
         MinifyOptions, ParserFlags, ParserOptions, PrinterOptions, StyleSheet, ToCssResult,
     },
     targets::{BrowserslistConfig, Features, Targets},
-    traits::{Parse, ToCss},
+    traits::ToCss,
     values::url::Url,
     visit_types,
-    visitor::{Visit, VisitTypes, Visitor},
+    visitor::Visit,
 };
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 use smallvec::smallvec;
 use swc_core::base::sourcemap::SourceMapBuilder;
 use tracing::Instrument;
@@ -432,108 +426,6 @@ fn source_pos_for_loc(loc: &lightningcss::error::ErrorLocation, code_had_bom: bo
     }
 }
 
-/// Workaround for a lightningcss bug with name-only container queries such as
-/// `@container sidebar { ... }` (<https://github.com/vercel/next.js/issues/98261>).
-///
-/// With `error_recovery` enabled, lightningcss (as of 1.0.0-alpha.72) tries to
-/// parse the empty condition after the container name, records an
-/// `EndOfInput` warning at the rule's `{`, and keeps an empty
-/// `ContainerCondition::Unknown` instead of `None`. The CSS is valid, so the
-/// warning is a false positive.
-///
-/// This returns the location of the `{` of every name-only `@container` rule in
-/// `code`, in lightningcss's coordinates (0-based line, 1-based UTF-16 column),
-/// so those warnings can be dropped. `code` must be the exact (BOM-stripped)
-/// string handed to lightningcss. Remove once lightningcss is fixed.
-///
-/// The scan is token-based, so it may also report such a sequence that isn't an
-/// at-rule (e.g. inside a custom property value). That's harmless: only an
-/// `EndOfInput` warning at exactly that `{` is dropped, and lightningcss doesn't
-/// emit one there.
-fn name_only_container_brace_locations(code: &str) -> FxHashSet<(u32, u32)> {
-    let mut input = cssparser::ParserInput::new(code);
-    let mut parser = cssparser::Parser::new(&mut input);
-    let mut locations = FxHashSet::default();
-    collect_name_only_container_braces(&mut parser, &mut locations);
-    locations
-}
-
-fn collect_name_only_container_braces<'i>(
-    input: &mut cssparser::Parser<'i, '_>,
-    locations: &mut FxHashSet<(u32, u32)>,
-) {
-    loop {
-        let token = match input.next_including_whitespace_and_comments() {
-            Ok(token) => token.clone(),
-            Err(_) => return,
-        };
-        let enters_block = match token {
-            cssparser::Token::AtKeyword(ref name) if name.eq_ignore_ascii_case("container") => {
-                // Use lightningcss's own name parser so that exactly the names it
-                // accepts (no CSS-wide keywords, `none`, `and`, `not`, `or`) qualify.
-                let brace = input.try_parse(
-                    |input| -> Result<_, cssparser::ParseError<'i, ParserError<'i>>> {
-                        ContainerName::parse(input)?;
-                        input.skip_whitespace();
-                        let location = input.current_source_location();
-                        match input.next()? {
-                            cssparser::Token::CurlyBracketBlock => Ok(location),
-                            token => {
-                                let token = token.clone();
-                                Err(location.new_unexpected_token_error(token))
-                            }
-                        }
-                    },
-                );
-                match brace {
-                    Ok(location) => {
-                        locations.insert((location.line, location.column));
-                        true
-                    }
-                    Err(_) => false,
-                }
-            }
-            cssparser::Token::CurlyBracketBlock
-            | cssparser::Token::SquareBracketBlock
-            | cssparser::Token::ParenthesisBlock
-            | cssparser::Token::Function(_) => true,
-            _ => false,
-        };
-        if enters_block {
-            let _ = input.parse_nested_block(|input| {
-                collect_name_only_container_braces(input, locations);
-                Ok::<_, cssparser::ParseError<'i, ()>>(())
-            });
-        }
-    }
-}
-
-/// Rewrites the empty `ContainerCondition::Unknown` that lightningcss produces
-/// for a name-only `@container` rule in error-recovery mode to `None`, which is
-/// what it produces without error recovery. Otherwise the rule is printed with
-/// stray whitespace (`@container sidebar   {`). See
-/// [`name_only_container_brace_locations`].
-struct NameOnlyContainerNormalizer;
-
-impl<'i> Visitor<'i> for NameOnlyContainerNormalizer {
-    type Error = Infallible;
-
-    fn visit_types(&self) -> VisitTypes {
-        visit_types!(RULES)
-    }
-
-    fn visit_rule(&mut self, rule: &mut CssRule<'i>) -> Result<(), Self::Error> {
-        if let CssRule::Container(container) = rule
-            && container.name.is_some()
-            && let Some(ContainerCondition::Unknown(tokens)) = &container.condition
-            && tokens.0.iter().all(|token| token.is_whitespace())
-        {
-            container.condition = None;
-        }
-        rule.visit_children(self)
-    }
-}
-
 /// Parse a CSS stylesheet and run CSS module validation.
 ///
 /// Does not handle parser warnings — the caller is responsible for configuring
@@ -548,9 +440,6 @@ fn parse_css_stylesheet<'a>(
     // skipping it, which misaligns the parser and rejects the first token.
     let code = strip_bom(code);
     let mut ss = StyleSheet::parse(code, config)?;
-
-    ss.visit(&mut NameOnlyContainerNormalizer)
-        .unwrap_or_else(|never| match never {});
 
     if matches!(ty, CssModuleType::Module) {
         let mut validator = CssValidator { errors: Vec::new() };
@@ -648,62 +537,41 @@ async fn process_content(
             source,
         ) {
             Ok(mut ss) => {
-                // Scoped so that the lock guard is not held across the `await` below.
-                {
-                    let collected_warnings = warnings.read().unwrap();
-                    // See `name_only_container_brace_locations`: only computed when
-                    // there's a candidate warning, which is rare.
-                    let false_positive_locations = if collected_warnings
-                        .iter()
-                        .any(|err| matches!(err.kind, lightningcss::error::ParserError::EndOfInput))
-                    {
-                        name_only_container_brace_locations(strip_bom(&code))
-                    } else {
-                        FxHashSet::default()
+                for err in warnings.read().unwrap().iter() {
+                    // Unsupported pseudo-classes/elements are common in real-world CSS
+                    // (vendor prefixes, custom frameworks) and do not prevent the
+                    // stylesheet from being used — treat them as recoverable warnings.
+                    // All other previously-ignored parser warnings are also surfaced.
+                    let severity = match err.kind {
+                        lightningcss::error::ParserError::SelectorError(
+                            lightningcss::error::SelectorError::UnsupportedPseudoClass(_)
+                            | lightningcss::error::SelectorError::UnsupportedPseudoElement(_),
+                        ) => IssueSeverity::Warning,
+
+                        lightningcss::error::ParserError::UnexpectedToken(_)
+                        | lightningcss::error::ParserError::UnexpectedImportRule
+                        | lightningcss::error::ParserError::SelectorError(..)
+                        | lightningcss::error::ParserError::EndOfInput => IssueSeverity::Error,
+
+                        _ => IssueSeverity::Warning,
                     };
-                    for err in collected_warnings.iter() {
-                        if matches!(err.kind, lightningcss::error::ParserError::EndOfInput)
-                            && let Some(loc) = &err.loc
-                            && false_positive_locations.contains(&(loc.line, loc.column))
-                        {
-                            continue;
-                        }
 
-                        // Unsupported pseudo-classes/elements are common in real-world CSS
-                        // (vendor prefixes, custom frameworks) and do not prevent the
-                        // stylesheet from being used — treat them as recoverable warnings.
-                        // All other previously-ignored parser warnings are also surfaced.
-                        let severity = match err.kind {
-                            lightningcss::error::ParserError::SelectorError(
-                                lightningcss::error::SelectorError::UnsupportedPseudoClass(_)
-                                | lightningcss::error::SelectorError::UnsupportedPseudoElement(_),
-                            ) => IssueSeverity::Warning,
+                    let issue_source = match &err.loc {
+                        Some(loc) => IssueSource::from_single_line_col(
+                            source,
+                            source_pos_for_loc(loc, code_had_bom),
+                        ),
+                        None => IssueSource::from_source_only(source),
+                    };
 
-                            lightningcss::error::ParserError::UnexpectedToken(_)
-                            | lightningcss::error::ParserError::UnexpectedImportRule
-                            | lightningcss::error::ParserError::SelectorError(..)
-                            | lightningcss::error::ParserError::EndOfInput => IssueSeverity::Error,
-
-                            _ => IssueSeverity::Warning,
-                        };
-
-                        let issue_source = match &err.loc {
-                            Some(loc) => IssueSource::from_single_line_col(
-                                source,
-                                source_pos_for_loc(loc, code_had_bom),
-                            ),
-                            None => IssueSource::from_source_only(source),
-                        };
-
-                        ParsingIssue {
-                            severity,
-                            msg: err.kind.to_string().into(),
-                            stage: IssueStage::Parse,
-                            source: issue_source,
-                        }
-                        .resolved_cell()
-                        .emit();
+                    ParsingIssue {
+                        severity,
+                        msg: err.kind.to_string().into(),
+                        stage: IssueStage::Parse,
+                        source: issue_source,
                     }
+                    .resolved_cell()
+                    .emit();
                 }
 
                 let targets = *get_lightningcss_browser_targets(
@@ -973,10 +841,7 @@ mod tests {
         visitor::Visit,
     };
 
-    use super::{
-        CssError, CssValidator, NameOnlyContainerNormalizer, name_only_container_brace_locations,
-        source_pos_for_loc, strip_bom,
-    };
+    use super::{CssError, CssValidator, source_pos_for_loc, strip_bom};
 
     fn lint_lightningcss(code: &str) -> Vec<CssError> {
         let mut ss = StyleSheet::parse(
@@ -1178,128 +1043,6 @@ mod tests {
         assert_eq!(
             source_pos_for_loc(&later_line, true).column,
             source_pos_for_loc(&later_line, false).column,
-        );
-    }
-
-    /// Locations of the `EndOfInput` warnings lightningcss emits for `code` when
-    /// parsing with error recovery, as Turbopack does.
-    fn end_of_input_warning_locations(code: &str) -> Vec<(u32, u32)> {
-        let warnings: std::sync::Arc<std::sync::RwLock<Vec<_>>> = Default::default();
-        StyleSheet::parse(
-            code,
-            ParserOptions {
-                error_recovery: true,
-                warnings: Some(warnings.clone()),
-                ..Default::default()
-            },
-        )
-        .unwrap();
-        let warnings = warnings.read().unwrap();
-        warnings
-            .iter()
-            .filter(|w| matches!(w.kind, lightningcss::error::ParserError::EndOfInput))
-            .map(|w| {
-                let loc = w.loc.as_ref().unwrap();
-                (loc.line, loc.column)
-            })
-            .collect()
-    }
-
-    /// Asserts that every false-positive `EndOfInput` warning lightningcss emits
-    /// for `code` is detected (and nothing else), and that there is at least one.
-    #[track_caller]
-    fn assert_name_only_false_positives(code: &str, expected: &[(u32, u32)]) {
-        let mut warned = end_of_input_warning_locations(code);
-        warned.sort();
-        let mut detected: Vec<_> = name_only_container_brace_locations(code)
-            .into_iter()
-            .collect();
-        detected.sort();
-        assert_eq!(warned, expected, "lightningcss warnings for: {code}");
-        assert_eq!(detected, expected, "detected braces for: {code}");
-    }
-
-    // Lightning CSS currently triggers a Miri Stacked Borrows violation in its string parser.
-    #[cfg(not(miri))]
-    #[test]
-    fn name_only_container_false_positive_is_detected() {
-        assert_name_only_false_positives("@container sidebar {}", &[(0, 20)]);
-        assert_name_only_false_positives("@CONTAINER Sidebar{.a{color:red}}", &[(0, 19)]);
-        assert_name_only_false_positives(
-            "@supports (container-type: scroll-state) {\n  @container scroll-content {\n    .a { \
-             max-width: 100cqw; }\n  }\n}",
-            &[(1, 29)],
-        );
-        assert_name_only_false_positives(
-            "@container /* a */ sidebar /* b */\n\n  { .a { color: red } }",
-            &[(2, 3)],
-        );
-        assert_name_only_false_positives("@container sid\\65 bar {}", &[(0, 23)]);
-        // Columns are counted in UTF-16 code units: 😀 is two of them.
-        assert_name_only_false_positives(
-            ".a::before { content: '😀' }\n@container 😀 {}",
-            &[(1, 15)],
-        );
-        assert_name_only_false_positives(
-            "@media screen { @layer x { .a { @container s {} } } }\n@container t {}",
-            &[(0, 46), (1, 14)],
-        );
-        // BOM-stripped input, as handed to lightningcss.
-        assert_name_only_false_positives(strip_bom("\u{feff}@container s {}"), &[(0, 14)]);
-    }
-
-    // Lightning CSS currently triggers a Miri Stacked Borrows violation in its string parser.
-    #[cfg(not(miri))]
-    #[test]
-    fn other_container_preludes_are_not_detected() {
-        for code in [
-            "@container sidebar (min-width: 400px) {}",
-            "@container sidebar scroll-state(scrollable: top) {}",
-            "@container (min-width: 400px) {}",
-            "@container {}",
-            "@container sidebar other {}",
-            "@container none {}",
-            "@container AND {}",
-            "@container not {}",
-            "@container or {}",
-            "@container inherit {}",
-            "@container initial {}",
-            "@container unset {}",
-            "@container default {}",
-            "@container revert {}",
-            "@container revert-layer {}",
-            "@media sidebar {}",
-        ] {
-            assert!(
-                name_only_container_brace_locations(code).is_empty(),
-                "unexpectedly detected: {code}"
-            );
-        }
-    }
-
-    // Lightning CSS currently triggers a Miri Stacked Borrows violation in its string parser.
-    #[cfg(not(miri))]
-    #[test]
-    fn name_only_container_condition_is_normalized() {
-        let code = "@container scroll-content { .a { color: red } }\n@container s (width > 1px) { \
-                    .b { color: red } }";
-        let mut ss = StyleSheet::parse(
-            code,
-            ParserOptions {
-                error_recovery: true,
-                ..Default::default()
-            },
-        )
-        .unwrap();
-        ss.visit(&mut NameOnlyContainerNormalizer).unwrap();
-        let css = ss
-            .to_css(lightningcss::stylesheet::PrinterOptions::default())
-            .unwrap()
-            .code;
-        assert_eq!(
-            css,
-            "@container scroll-content {\n  .a {\n    color: red;\n  }\n}\n\n@container s (width \
-             > 1px) {\n  .b {\n    color: red;\n  }\n}\n"
         );
     }
 }

@@ -16,8 +16,6 @@ workspace = true
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 bincode = { workspace = true }
-# Must match the version used by `lightningcss`, so its parsers accept our `cssparser::Parser`.
-cssparser = "0.37.0"
 indoc = { workspace = true }
 lightningcss = { workspace = true }
 parcel_selectors = { workspace = true }
