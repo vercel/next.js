@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { nextTestSetup } from 'e2e-utils'
-import { gate, retry } from 'next-test-utils'
+import { expectDirectives, gate, retry } from 'next-test-utils'
 import type { Page } from 'playwright'
 import { createRouterAct } from 'router-act'
 
@@ -47,10 +47,17 @@ describe('on-demand-prerender-error-boundary', () => {
         })
         try {
           expect(response.status()).toBe(500)
-          expect(response.headers()['cache-control']).toBe(
+          expectDirectives(
+            response.headers()['cache-control'],
             usesGenericErrorPage
-              ? 'public, max-age=0, must-revalidate'
-              : 'private, no-cache, no-store, max-age=0, must-revalidate'
+              ? ['public', 'max-age=0', 'must-revalidate']
+              : [
+                  'private',
+                  'no-cache',
+                  'no-store',
+                  'max-age=0',
+                  'must-revalidate',
+                ]
           )
 
           if (!usesGenericErrorPage) {
@@ -120,9 +127,13 @@ describe('on-demand-prerender-error-boundary', () => {
           try {
             expect(response.status()).toBe(status)
             if (status === 500 && !usesGenericErrorPage) {
-              expect(response.headers()['cache-control']).toBe(
-                'private, no-cache, no-store, max-age=0, must-revalidate'
-              )
+              expectDirectives(response.headers()['cache-control'], [
+                'private',
+                'no-cache',
+                'no-store',
+                'max-age=0',
+                'must-revalidate',
+              ])
             }
             await retry(async () => {
               if (status === 500) {
@@ -265,9 +276,13 @@ describe('on-demand-prerender-error-boundary', () => {
           try {
             expect(response.status()).toBe(status)
             if (status === 500 && !usesGenericErrorPage) {
-              expect(response.headers()['cache-control']).toBe(
-                'private, no-cache, no-store, max-age=0, must-revalidate'
-              )
+              expectDirectives(response.headers()['cache-control'], [
+                'private',
+                'no-cache',
+                'no-store',
+                'max-age=0',
+                'must-revalidate',
+              ])
             }
 
             await retry(async () => {
@@ -565,10 +580,11 @@ describe('on-demand-prerender-error-boundary', () => {
         (conditions) => conditions.deploy && !conditions.adapter
       )
       expect(response.status()).toBe(500)
-      expect(response.headers()['cache-control']).toBe(
+      expectDirectives(
+        response.headers()['cache-control'],
         usesGenericErrorPage
-          ? 'public, max-age=0, must-revalidate'
-          : 'private, no-cache, no-store, max-age=0, must-revalidate'
+          ? ['public', 'max-age=0', 'must-revalidate']
+          : ['private', 'no-cache', 'no-store', 'max-age=0', 'must-revalidate']
       )
 
       const expectedText = usesGenericErrorPage
@@ -602,10 +618,17 @@ describe('on-demand-prerender-error-boundary', () => {
           const { browser, response } = await next.browserWithResponse(pathname)
           try {
             expect(response.status()).toBe(500)
-            expect(response.headers()['cache-control']).toBe(
+            expectDirectives(
+              response.headers()['cache-control'],
               usesGenericErrorPage
-                ? 'public, max-age=0, must-revalidate'
-                : 'private, no-cache, no-store, max-age=0, must-revalidate'
+                ? ['public', 'max-age=0', 'must-revalidate']
+                : [
+                    'private',
+                    'no-cache',
+                    'no-store',
+                    'max-age=0',
+                    'must-revalidate',
+                  ]
             )
             await retry(async () => {
               expect(await browser.elementByCss('body').text()).toContain(

@@ -234,7 +234,7 @@ The route now has a segment-wide fallback from `loading.js`. To prerender pages 
 export async function generateStaticParams() {
   const res = await fetch('https://api.example.com/products')
   const products = await res.json()
-  return products.map((product) => ({ id: product.id }))
+  return products.slice(0, 12).map((product) => ({ id: product.id }))
 }
 
 export default async function Page(props: PageProps<'/products/[id]'>) {
@@ -249,7 +249,7 @@ export default async function Page(props: PageProps<'/products/[id]'>) {
 export async function generateStaticParams() {
   const res = await fetch('https://api.example.com/products')
   const products = await res.json()
-  return products.map((product) => ({ id: product.id }))
+  return products.slice(0, 12).map((product) => ({ id: product.id }))
 }
 
 export default async function Page({ params }) {
@@ -276,13 +276,13 @@ Route (app)
   ├ ◐ /products/[id]    # Fallback row
   ├ ◐ /products/1       # Product content streams into the static shell
   ├ ◐ /products/2
-  └ ◐ /products/3
+  └ ◐ [+10 more paths]
 
 ○  (Static)             prerendered as static content
 ◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
 ```
 
-The unmarked `/products/[id]` row groups the route outputs beneath it. Each indented row stays `◐`. The `loading.js` fallback is prerendered, then the product loads at request time and streams into that shell.
+The unmarked `/products/[id]` row groups the route outputs beneath it. When there are more prerendered paths than fit in the table, Next.js prints a short list ending with `[+N more paths]`. Each indented row stays `◐`. The `loading.js` fallback is prerendered, then the product loads at request time and streams into that shell.
 
 > **Good to know**: `generateStaticParams` is optional. Use it when a set of pathnames is known at build time and worth prerendering. With Cache Components, it must return at least one param. An empty array causes a [build error](/docs/messages/empty-generate-static-params).
 
@@ -294,7 +294,7 @@ Choose the error's `[cache]` option when the product lookup can be reused across
 export async function generateStaticParams() {
   const res = await fetch('https://api.example.com/products')
   const products = await res.json()
-  return products.map((product) => ({ id: product.id }))
+  return products.slice(0, 12).map((product) => ({ id: product.id }))
 }
 
 async function getProduct(id: string) {
@@ -314,7 +314,7 @@ export default async function Page(props: PageProps<'/products/[id]'>) {
 export async function generateStaticParams() {
   const res = await fetch('https://api.example.com/products')
   const products = await res.json()
-  return products.map((product) => ({ id: product.id }))
+  return products.slice(0, 12).map((product) => ({ id: product.id }))
 }
 
 async function getProduct(id) {
@@ -340,15 +340,13 @@ Route (app)
   ├ ◐ /products/[id]    # Fallback row
   ├ ○ /products/1       # Full HTML prerender
   ├ ○ /products/2
-  └ ○ /products/3
+  └ ○ [+10 more paths]
 
 ○  (Static)             prerendered as static content
 ◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
 ```
 
 The `/products/[id]` fallback represents product IDs not returned by `generateStaticParams`. It stays `◐` because the build does not know every product ID. On the first visit to an unlisted product, [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching) serves the `loading.js` fallback immediately while Next.js renders the page for that ID and stores it in the [ISR cache](/docs/app/glossary#incremental-static-regeneration-isr). Later visits receive the completed page instead of the fallback. See [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components) for the complete upgrade flow.
-
-When there are more prerendered paths than fit in the table, Next.js prints a short list ending with `[+N more paths]`.
 
 Routes that contain cached functions or components can also show `Revalidate` and `Expire` columns. A route reports the shortest `revalidate` and `expire` across all the caches it contains. Caches use the [`default` profile](/docs/app/api-reference/functions/cacheLife#preset-cache-profiles) when there is no explicit [`cacheLife`](/docs/app/api-reference/functions/cacheLife) call. A `/products` listing page that renders the same cached data produces this output:
 
@@ -361,7 +359,7 @@ Route (app)           Revalidate  Expire
   ├ ◐ /products/[id]
   ├ ○ /products/1            15m      1y
   ├ ○ /products/2            15m      1y
-  └ ○ /products/3            15m      1y
+  └ ○ [+10 more paths]
 ```
 
 The default [`use cache` profile](/docs/app/api-reference/functions/cacheLife#preset-cache-profiles) revalidates after 15 minutes. The route's default [`expireTime`](/docs/app/api-reference/config/next-config-js/expireTime) is one year, so the table shows `15m` and `1y`. You can configure both values in `next.config.ts`.
@@ -380,7 +378,7 @@ export const instant = false
 export async function generateStaticParams() {
   const res = await fetch('https://api.example.com/products')
   const products = await res.json()
-  return products.map((product) => ({ id: product.id }))
+  return products.slice(0, 12).map((product) => ({ id: product.id }))
 }
 
 export default async function Page(props: PageProps<'/products/[id]'>) {
@@ -402,7 +400,7 @@ export const instant = false
 export async function generateStaticParams() {
   const res = await fetch('https://api.example.com/products')
   const products = await res.json()
-  return products.map((product) => ({ id: product.id }))
+  return products.slice(0, 12).map((product) => ({ id: product.id }))
 }
 
 export default async function Page({ params }) {
@@ -430,7 +428,7 @@ Route (app)
   ├ ƒ /products/[id]    # Empty fallback for unlisted IDs
   ├ ƒ /products/1       # Rendered on request with no HTML prerender
   ├ ƒ /products/2
-  └ ƒ /products/3
+  └ ƒ [+10 more paths]
 
 ○  (Static)   prerendered as static content
 ƒ  (Dynamic)  server-rendered on demand

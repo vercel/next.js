@@ -139,20 +139,24 @@ impl TurboKeyValueDatabase {
         self.db.has_unrecoverable_write_error()
     }
 
-    pub fn shutdown(&self) -> Result<()> {
+    pub fn shutdown(&self) {
         // Compact the database on shutdown
         // (Avoid compacting a fresh database since we don't have any usage info yet)
         if !self.is_fresh && !self.options.skip_compaction {
-            if self.options.is_ci {
+            let result = if self.options.is_ci {
                 // Fully compact in CI to reduce cache size
-                do_compact(&self.db, COMPACTION_MESSAGE, usize::MAX)?;
+                do_compact(&self.db, COMPACTION_MESSAGE, usize::MAX)
             } else {
                 // Compact with a reasonable limit in non-CI environments
                 do_compact(
                     &self.db,
                     COMPACTION_MESSAGE,
                     available_parallelism().map_or(4, |c| max(4, c.get())),
-                )?;
+                )
+            };
+            if let Err(err) = result {
+                // Compacting failures are generally not fatal, so just log them
+                eprintln!("WARNING: Compacting the database failed {err}");
             }
         }
         // Shutdown the database

@@ -1379,6 +1379,10 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     /// Returns `Some(stats)` describing the bytes written/deleted if a compaction commit happened,
     /// or `None` if there was nothing to compact.
     pub fn compact(&self, compact_config: &CompactConfig) -> Result<Option<CommitStats>> {
+        if self.has_unrecoverable_write_error() {
+            // If a previous write failed just skip compaction.
+            return Ok(None);
+        }
         let mut guard = self.acquire_write_operation("compaction")?;
 
         // Free block caches and SST mmaps before compaction. The block caches
@@ -2548,11 +2552,10 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 
     /// Shuts down the database. This will print statistics if the `print_stats` feature is enabled.
     /// Retries deletion of all previously-deferred files and clears successfully deleted batches.
-    pub fn shutdown(&self) -> Result<()> {
+    pub fn shutdown(&self) {
         #[cfg(feature = "print_stats")]
         println!("{:#?}", self.statistics());
         self.retry_deferred_deletions();
-        Ok(())
     }
 
     /// Attempts to delete files with the given extension, returning an iterator of sequence

@@ -1,3 +1,4 @@
+import { writeSync } from 'node:fs'
 import { createConnection } from 'node:net'
 import { Writable } from 'node:stream'
 import { structuredError } from '../error'
@@ -18,6 +19,15 @@ export type Ipc<TIncoming, TOutgoing> = {
   sendReady(): Promise<void>
 }
 
+/**
+ * Exit code used when we cannot connect to the parent process, so that it can
+ * report an actionable error. Node.js reserves most small exit codes, so this
+ * uses `EX_UNAVAILABLE` from sysexits.h.
+ *
+ * Keep in sync with `CONNECT_FAILED_EXIT_CODE` in `process_pool/mod.rs`.
+ */
+const CONNECT_FAILED_EXIT_CODE = 69
+
 function createIpc<TIncoming, TOutgoing>(
   port: number
 ): Ipc<TIncoming, TOutgoing> {
@@ -25,6 +35,16 @@ function createIpc<TIncoming, TOutgoing>(
     port,
     host: '127.0.0.1',
   })
+
+  // If we never connect there is nobody to report errors to, so exit right
+  // away with a dedicated exit code. This must be synchronous: other handlers
+  // (the 'close' handler below, or `sendError` after failed writes) would
+  // otherwise race us and exit with a different code.
+  const onConnectError = (err: Error) => {
+    writeSync(process.stderr.fd, `${err.message}\n`)
+    process.exit(CONNECT_FAILED_EXIT_CODE)
+  }
+  socket.once('error', onConnectError)
 
   /**
    * A writable stream that writes to the socket.
@@ -60,6 +80,7 @@ function createIpc<TIncoming, TOutgoing>(
   let state: State = { type: 'waiting' }
   let buffer: Buffer = Buffer.alloc(0)
   socket.once('connect', () => {
+    socket.off('error', onConnectError)
     socket.setNoDelay(true)
     socket.on('data', (chunk) => {
       buffer = Buffer.concat([buffer, chunk])

@@ -1,6 +1,6 @@
 ---
 title: prefetch
-nav_title: prefetch()
+nav_title: prefetch
 description: Defer runtime work until a per-link prefetch or navigation with the prefetch function.
 related:
   links:

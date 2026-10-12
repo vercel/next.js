@@ -1,6 +1,5 @@
 use std::{
     borrow::Cow,
-    collections::hash_map::Entry,
     mem::transmute,
     ops::{Deref, DerefMut},
     sync::Arc,
@@ -9,7 +8,7 @@ use std::{
 use anyhow::Result;
 use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_rcstr::{RcStr, RcStrInterning, rcstr};
-use turbopack_trace_utils::tracing::{TraceRow, TraceValue};
+use turbopack_trace_utils::tracing::{Allocations, TraceRow, TraceValue};
 
 use super::TraceFormat;
 use crate::{
@@ -17,14 +16,6 @@ use crate::{
     store_container::{StoreContainer, StoreWriteGuard},
     timestamp::Timestamp,
 };
-
-#[derive(Default)]
-struct AllocationInfo {
-    allocations: u64,
-    deallocations: u64,
-    allocation_count: u64,
-    deallocation_count: u64,
-}
 
 struct InternalRow {
     id: Option<u64>,
@@ -75,7 +66,6 @@ pub struct TurbopackFormat {
     queued_rows: FxHashMap<u64, Vec<InternalRow>>,
     outdated_spans: FxHashSet<SpanIndex>,
     thread_stacks: FxHashMap<u64, Vec<u64>>,
-    thread_allocation_counters: FxHashMap<u64, AllocationInfo>,
     self_time_started: FxHashMap<(u64, u64), Timestamp>,
     interner: RcStrInterning,
 }
@@ -94,7 +84,6 @@ impl TurbopackFormat {
             queued_rows: FxHashMap::with_capacity_and_hasher(1_024, Default::default()),
             outdated_spans: FxHashSet::with_capacity_and_hasher(8_192, Default::default()),
             thread_stacks: FxHashMap::with_capacity_and_hasher(64, Default::default()),
-            thread_allocation_counters: FxHashMap::with_capacity_and_hasher(64, Default::default()),
             self_time_started: FxHashMap::with_capacity_and_hasher(256, Default::default()),
             interner: RcStrInterning::new(),
         }
@@ -161,7 +150,16 @@ impl TurbopackFormat {
                     },
                 );
             }
-            TraceRow::Enter { ts, id, thread_id } => {
+            TraceRow::Enter {
+                ts,
+                id,
+                thread_id,
+                allocations,
+            } => {
+                // Allocations up to this point belong to the span that was running before.
+                if let Some(allocations) = allocations {
+                    self.add_allocations(store, thread_id, allocations);
+                }
                 let ts = Timestamp::from_micros(ts);
                 let stack = self.thread_stacks.entry(thread_id).or_default();
                 if let Some(&parent) = stack.last() {
@@ -186,7 +184,16 @@ impl TurbopackFormat {
                 }
                 self.self_time_started.insert((id, thread_id), ts);
             }
-            TraceRow::Exit { ts, id, thread_id } => {
+            TraceRow::Exit {
+                ts,
+                id,
+                thread_id,
+                allocations,
+            } => {
+                // Allocations up to this point belong to the span that is exited.
+                if let Some(allocations) = allocations {
+                    self.add_allocations(store, thread_id, allocations);
+                }
                 let ts = Timestamp::from_micros(ts);
                 let stack = self.thread_stacks.entry(thread_id).or_default();
                 if let Some(pos) = stack.iter().rev().position(|&x| x == id) {
@@ -247,42 +254,6 @@ impl TurbopackFormat {
                     },
                 );
             }
-            TraceRow::Allocation {
-                ts: _,
-                thread_id,
-                allocations,
-                allocation_count,
-                deallocations,
-                deallocation_count,
-            } => {
-                let stack = self.thread_stacks.entry(thread_id).or_default();
-                if let Some(&id) = stack.last() {
-                    if allocations > 0 {
-                        self.process_internal_row(
-                            store,
-                            InternalRow {
-                                id: Some(id),
-                                ty: InternalRowType::Allocation {
-                                    allocations,
-                                    allocation_count,
-                                },
-                            },
-                        );
-                    }
-                    if deallocations > 0 {
-                        self.process_internal_row(
-                            store,
-                            InternalRow {
-                                id: Some(id),
-                                ty: InternalRowType::Deallocation {
-                                    deallocations,
-                                    deallocation_count,
-                                },
-                            },
-                        );
-                    }
-                }
-            }
             TraceRow::MemorySample {
                 ts,
                 memory,
@@ -292,65 +263,41 @@ impl TurbopackFormat {
                 let ts = Timestamp::from_micros(ts);
                 store.add_memory_sample(ts, memory, memory_pressure, active_worker_threads);
             }
-            TraceRow::AllocationCounters {
-                ts: _,
-                thread_id,
-                allocations,
-                allocation_count,
-                deallocations,
-                deallocation_count,
-            } => {
-                let info = AllocationInfo {
-                    allocations,
-                    deallocations,
-                    allocation_count,
-                    deallocation_count,
-                };
-                let mut diff = AllocationInfo::default();
-                match self.thread_allocation_counters.entry(thread_id) {
-                    Entry::Occupied(mut entry) => {
-                        let counter = entry.get_mut();
-                        diff.allocations = info.allocations - counter.allocations;
-                        diff.deallocations = info.deallocations - counter.deallocations;
-                        diff.allocation_count = info.allocation_count - counter.allocation_count;
-                        diff.deallocation_count =
-                            info.deallocation_count - counter.deallocation_count;
-                        counter.allocations = info.allocations;
-                        counter.deallocations = info.deallocations;
-                        counter.allocation_count = info.allocation_count;
-                        counter.deallocation_count = info.deallocation_count;
-                    }
-                    Entry::Vacant(entry) => {
-                        entry.insert(info);
-                    }
-                }
-                let stack = self.thread_stacks.entry(thread_id).or_default();
-                if let Some(&id) = stack.last() {
-                    if diff.allocations > 0 {
-                        self.process_internal_row(
-                            store,
-                            InternalRow {
-                                id: Some(id),
-                                ty: InternalRowType::Allocation {
-                                    allocations: diff.allocations,
-                                    allocation_count: diff.allocation_count,
-                                },
-                            },
-                        );
-                    }
-                    if diff.deallocations > 0 {
-                        self.process_internal_row(
-                            store,
-                            InternalRow {
-                                id: Some(id),
-                                ty: InternalRowType::Deallocation {
-                                    deallocations: diff.deallocations,
-                                    deallocation_count: diff.deallocation_count,
-                                },
-                            },
-                        );
-                    }
-                }
+        }
+    }
+
+    /// Attributes (de)allocations of a thread to the span on top of the thread's stack.
+    fn add_allocations(
+        &mut self,
+        store: &mut StoreWriteGuard,
+        thread_id: u64,
+        allocations: Allocations,
+    ) {
+        let stack = self.thread_stacks.entry(thread_id).or_default();
+        if let Some(&id) = stack.last() {
+            if allocations.allocations > 0 {
+                self.process_internal_row(
+                    store,
+                    InternalRow {
+                        id: Some(id),
+                        ty: InternalRowType::Allocation {
+                            allocations: allocations.allocations,
+                            allocation_count: allocations.allocation_count,
+                        },
+                    },
+                );
+            }
+            if allocations.deallocations > 0 {
+                self.process_internal_row(
+                    store,
+                    InternalRow {
+                        id: Some(id),
+                        ty: InternalRowType::Deallocation {
+                            deallocations: allocations.deallocations,
+                            deallocation_count: allocations.deallocation_count,
+                        },
+                    },
+                );
             }
         }
     }
@@ -549,5 +496,100 @@ impl<T> Deref for ClearOnDrop<'_, T> {
 impl<T> DerefMut for ClearOnDrop<'_, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{borrow::Cow, sync::Arc};
+
+    use turbopack_trace_utils::tracing::{Allocations, TraceRow};
+
+    use crate::{
+        reader::{TraceFormat, turbopack::TurbopackFormat},
+        store_container::StoreContainer,
+    };
+
+    fn start(id: u64, parent: Option<u64>, name: &'static str) -> TraceRow<'static> {
+        TraceRow::Start {
+            ts: 0,
+            id,
+            parent,
+            name: Cow::Borrowed(name),
+            target: Cow::Borrowed(""),
+            values: Vec::new(),
+        }
+    }
+
+    fn allocations(allocations: u64, deallocations: u64) -> Option<Allocations> {
+        Some(Allocations {
+            allocations,
+            allocation_count: allocations / 10,
+            deallocations,
+            deallocation_count: deallocations / 10,
+        })
+    }
+
+    /// Reads the rows (without header) and returns the self allocations, allocation counts and
+    /// deallocations of the spans with the given names.
+    fn read(rows: &[TraceRow<'_>], names: &[&str]) -> Vec<(u64, u64, u64)> {
+        let mut data = Vec::new();
+        for row in rows {
+            data.extend(postcard::to_stdvec(row).unwrap());
+        }
+        let store = Arc::new(StoreContainer::new());
+        let mut format = TurbopackFormat::new(store.clone());
+        let mut reuse = TurbopackFormat::create_reused();
+        let read = TraceFormat::read(&mut format, &data, &mut reuse).unwrap();
+        assert_eq!(read, data.len());
+        let store = store.read();
+        names
+            .iter()
+            .map(|name| {
+                let span = (0..store.spans.len())
+                    .filter_map(|i| store.spans.get(i))
+                    .find(|span| &*span.name == *name)
+                    .unwrap();
+                (
+                    span.self_allocations,
+                    span.self_allocation_count,
+                    span.self_deallocations,
+                )
+            })
+            .collect()
+    }
+
+    #[test]
+    fn attributes_allocations_of_enter_and_exit_rows() {
+        let enter = |ts, id, allocations| TraceRow::Enter {
+            ts,
+            id,
+            thread_id: 1,
+            allocations,
+        };
+        let exit = |ts, id, allocations| TraceRow::Exit {
+            ts,
+            id,
+            thread_id: 1,
+            allocations,
+        };
+        let rows = [
+            start(1, None, "outer"),
+            // Nothing allocated before
+            enter(1, 1, None),
+            start(2, Some(1), "inner"),
+            // 100 bytes allocated in "outer" before "inner" is entered
+            enter(2, 2, allocations(100, 0)),
+            // 50 bytes allocated and 20 bytes deallocated in "inner"
+            exit(3, 2, allocations(50, 20)),
+            // 7 bytes allocated in "outer" after "inner" is exited
+            exit(4, 1, allocations(7, 0)),
+            TraceRow::End { ts: 5, id: 2 },
+            TraceRow::End { ts: 5, id: 1 },
+        ];
+        assert_eq!(
+            read(&rows, &["outer", "inner"]),
+            vec![(107, 10, 0), (50, 5, 20)]
+        );
     }
 }

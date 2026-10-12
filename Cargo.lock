@@ -4155,6 +4155,7 @@ dependencies = [
  "rustc-hash 2.1.1",
  "serde",
  "serde_json",
+ "smallvec",
  "swc_core",
  "tempfile",
  "tokio",
@@ -4272,7 +4273,6 @@ dependencies = [
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-backend",
- "turbo-tasks-bytes",
  "turbo-tasks-env",
  "turbo-tasks-fetch",
  "turbo-tasks-fs",
@@ -4385,6 +4385,7 @@ dependencies = [
  "urlencoding",
  "vergen-gitcl",
  "windows-sys 0.60.2",
+ "zstd",
 ]
 
 [[package]]
@@ -9165,15 +9166,12 @@ dependencies = [
  "concurrent-queue",
  "dashmap 7.0.0-rc2",
  "either",
- "erased-serde",
  "event-listener",
  "fixedbitset",
  "futures",
  "indexmap 2.14.0",
  "parking_lot",
  "pin-project-lite",
- "rayon",
- "regex",
  "rustc-hash 2.1.1",
  "scattered-collect",
  "serde",
@@ -9182,7 +9180,6 @@ dependencies = [
  "smallvec",
  "thiserror 1.0.69",
  "tokio",
- "tokio-util",
  "tracing",
  "triomphe 0.1.12",
  "turbo-bincode",
@@ -9222,7 +9219,6 @@ dependencies = [
  "rustc-hash 2.1.1",
  "serde",
  "serde_json",
- "serde_path_to_error",
  "smallvec",
  "tempfile",
  "thiserror 1.0.69",
@@ -9347,7 +9343,6 @@ dependencies = [
  "turbo-tasks-testing",
  "turbo-unix-path",
  "url",
- "urlencoding",
  "windows-sys 0.60.2",
 ]
 
@@ -9466,7 +9461,6 @@ dependencies = [
  "turbopack-css",
  "turbopack-ecmascript",
  "turbopack-ecmascript-runtime",
- "turbopack-env",
  "turbopack-mdx",
  "turbopack-node",
  "turbopack-resolve",
@@ -9530,6 +9524,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_qs",
+ "smallvec",
  "tracing",
  "turbo-bincode",
  "turbo-rcstr",
@@ -9577,7 +9572,6 @@ dependencies = [
  "turbopack-css",
  "turbopack-dev-server",
  "turbopack-ecmascript",
- "turbopack-ecmascript-plugins",
  "turbopack-ecmascript-runtime",
  "turbopack-env",
  "turbopack-node",
@@ -9749,7 +9743,6 @@ dependencies = [
  "indexmap 2.14.0",
  "indoc",
  "itertools 0.10.5",
- "next-custom-transforms",
  "num-bigint",
  "num-traits",
  "parking_lot",
@@ -9902,7 +9895,6 @@ dependencies = [
  "turbo-tasks",
  "turbo-tasks-fs",
  "turbopack-core",
- "turbopack-ecmascript",
 ]
 
 [[package]]
@@ -9937,7 +9929,6 @@ name = "turbopack-node"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "async-stream",
  "async-trait",
  "base64 0.22.1",
  "bincode",
@@ -9963,7 +9954,6 @@ dependencies = [
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-backend",
- "turbo-tasks-bytes",
  "turbo-tasks-env",
  "turbo-tasks-fs",
  "turbo-tasks-hash",
@@ -9985,6 +9975,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_qs",
+ "smallvec",
  "tracing",
  "turbo-bincode",
  "turbo-rcstr",

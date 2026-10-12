@@ -37,5 +37,15 @@ which builds the packages and publishes them to npm under the dist-tag matching
 the channel.
 
 Version bumps are restricted to the release branches listed in
-`scripts/release-branches.json`. `scripts/create-release-branch.js` adds a new
-release branch to that list when one is created.
+`scripts/release-branches.json`: `canary` and the two long-lived LTS branches
+`releases/lts/active` (the current major's release line) and
+`releases/lts/maintenance` (the previous major's). The LTS branches are created
+manually, once, and from then on a stable release moves the refs automatically:
+
+- `patch`: no ref moves — the release commit already advances the branch it was
+  cut on.
+- `minor`: the new tag is routed by its major against the latest published
+  major (the npm `latest` dist-tag) — equal moves `releases/lts/active` to the
+  tag; latest − 1 moves `releases/lts/maintenance` to the tag.
+- `major`: `releases/lts/maintenance` is moved to where `releases/lts/active`
+  pointed, and `releases/lts/active` is moved to the new tag.

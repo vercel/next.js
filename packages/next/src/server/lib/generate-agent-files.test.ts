@@ -123,3 +123,27 @@ describe.each([
     expect(fs.readFileSync(path.join(dir, 'AGENTS.md'), 'utf-8')).toBe(content)
   })
 })
+
+describe('agent feedback block wording', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-files-'))
+  })
+
+  afterEach(() => {
+    fs.rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('does not tell agents to ignore unverified changes', () => {
+    expect(writeAgentFeedbackFiles(dir).agentsMd).toBe('created')
+    const content = fs.readFileSync(path.join(dir, 'AGENTS.md'), 'utf-8')
+
+    expect(content).toContain(
+      'Verify changes before retaining them as feedback candidates.'
+    )
+    expect(content).not.toContain(
+      'Ignore routine debugging and unverified changes.'
+    )
+  })
+})

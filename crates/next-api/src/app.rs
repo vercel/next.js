@@ -36,6 +36,7 @@ use next_core::{
     segment_config::{NextSegmentConfig, ParseSegmentMode},
     util::{NextRuntime, app_function_name, module_styles_rule_condition, styles_rule_condition},
 };
+use smallvec::smallvec;
 use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
@@ -1932,7 +1933,9 @@ impl AppEndpoint {
             NextRuntime::Edge => {
                 let chunk_group1 = chunking_context.chunk_group(
                     server_action_manifest_loader.ident(),
-                    ChunkGroup::Shared(ResolvedVc::upcast(server_action_manifest_loader)),
+                    smallvec![ChunkGroup::Shared(ResolvedVc::upcast(
+                        server_action_manifest_loader,
+                    ))],
                     module_graph,
                     AvailabilityInfo::root(),
                 );
@@ -1976,7 +1979,7 @@ impl AppEndpoint {
                         let span = tracing::trace_span!("server utils");
                         async {
                             let parent_chunk_group = *chunk_group_info
-                                .get_index_of(entry_chunk_group.clone())
+                                .get_index_of(entry_chunk_group.key())
                                 .await?;
 
                             let server_utils = client_references
@@ -1992,11 +1995,11 @@ impl AppEndpoint {
                                     )
                                     .with_modifier(rcstr!("server-utils"))
                                     .into_vc(),
-                                    ChunkGroup::SharedMerged {
+                                    smallvec![ChunkGroup::SharedMerged {
                                         merge_tag: NEXT_SERVER_UTILITY_MERGE_TAG.clone(),
                                         entries: server_utils,
                                         parent: parent_chunk_group,
-                                    },
+                                    }],
                                     module_graph,
                                     AvailabilityInfo::root(),
                                 )
@@ -2028,7 +2031,7 @@ impl AppEndpoint {
                         async {
                             let chunk_group = chunking_context.chunk_group(
                                 server_component.ident(),
-                                ChunkGroup::Shared(ResolvedVc::upcast(server_component)),
+                                smallvec![ChunkGroup::Shared(ResolvedVc::upcast(server_component))],
                                 module_graph,
                                 current_chunk_group.await?.availability_info,
                             );
@@ -2047,7 +2050,9 @@ impl AppEndpoint {
                     {
                         let chunk_group = chunking_context.chunk_group(
                             server_action_manifest_loader.ident(),
-                            ChunkGroup::Shared(ResolvedVc::upcast(server_action_manifest_loader)),
+                            smallvec![ChunkGroup::Shared(ResolvedVc::upcast(
+                                server_action_manifest_loader,
+                            ))],
                             module_graph,
                             current_chunk_group.await?.availability_info,
                         );

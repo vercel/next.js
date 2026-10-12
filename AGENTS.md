@@ -398,7 +398,7 @@ Use skills for conditional, deep workflows. Keep baseline iteration/build/test p
 - `$pr-status-triage` - CI failure and PR review triage with `scripts/pr-status.js`
 - `$create-pr` - branch, commit, push, and draft PR creation workflow
 - `$deploy-release-test` - validate a commit preview package and trigger the full `test_e2e_deploy_release.yml` suite
-- `$backport-pr` - cherry-pick merged PRs from `canary` to release branches
+- `$backport-pr` - cherry-pick merged PRs from `canary` to `releases/lts/active` or `releases/lts/maintenance`
 - `$flags` - feature-flag wiring across config/schema/define-env/runtime env
 - `$dce-edge` - DCE-safe `require()` patterns and edge/runtime constraints
 - `$react-vendoring` - `entry-base.ts` boundaries and vendored React type/runtime rules

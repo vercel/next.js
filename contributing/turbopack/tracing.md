@@ -15,11 +15,16 @@ It supports [the following special preset values][presets]:
 
 Alternatively, any directives syntax supported by [`tracing_subscriber::filter::EnvFilter`][directives] can be used.
 
-Additionally, these flags can be added to the comma-separated list (e.g. `NEXT_TURBOPACK_TRACING=1,no-memory,gz`):
+Additionally, these flags can be added to the comma-separated list (e.g. `NEXT_TURBOPACK_TRACING=1,no-memory,zstd`):
 
+- **`zstd`:** Compress the trace file with zstd (level 3). Recommended: it needs about the same CPU time as `gz`, but produces files about 25% smaller.
+- **`zstd-fast`:** Compress the trace file with zstd (level 1). Needs the least CPU time of all compression options, and the files are still smaller than with `gz`.
+- **`zstd-best`:** Compress the trace file with zstd (level 19).
 - **`gz`:** Compress the trace file with gzip (fast compression level).
 - **`gz-best`:** Compress the trace file with gzip (best compression level).
 - **`no-memory`:** Don't track memory. Skips the per-thread allocation counters and the process memory samples, which make up a large part of the trace file size. Allocation and memory value modes in the viewer will be empty.
+
+When multiple compression flags are given, the last one is used. Compression runs on the background thread that writes the trace file. `zstd-best` and `gz-best` compress much slower than the other options and can fall behind on large traces (e.g. the `turbo-tasks` preset). The trace data waiting to be compressed is kept in memory, and the process waits for the remaining data to be written before it exits.
 
 > [!WARNING]
 > A normal Next.js canary/stable release only includes the info level tracing. This is the tracing level intended for user-facing tracing.
@@ -70,7 +75,7 @@ And there are different value modes:
 
 ## Trace file size
 
-To see what takes up the space in a trace file, use `turbo-trace-size`. It breaks the file down by row type (`Start`, `Enter`, `Exit`, `AllocationCounters`, ...), by span name, by attribute key and shows how many bytes are spent on repeated strings. Raw, gzip and zstd compressed files are supported. All sizes refer to the decompressed trace stream.
+To see what takes up the space in a trace file, use `turbo-trace-size`. It breaks the file down by row type (`Start`, `Enter`, `Exit`, `Record`, ...), by span name, by attribute key and shows how many bytes are spent on repeated strings. Raw, gzip and zstd compressed files are supported. All sizes refer to the decompressed trace stream.
 
 ```sh
 cargo run --bin turbo-trace-size --release -- /path/to/your/trace-turbopack.bin
@@ -78,6 +83,10 @@ cargo run --bin turbo-trace-size --release -- /path/to/your/trace-turbopack.bin
 # show more entries in the per span name and per attribute key tables
 cargo run --bin turbo-trace-size --release -- /path/to/your/trace-turbopack.bin --top 100
 ```
+
+### Omitted Exit and Enter rows
+
+To keep trace files small, an `Exit` of a span that is followed by an `Enter` of the same span on the same thread shortly after is omitted together with that `Enter`. That's common for async spans, which are exited and entered again on every poll. This only happens when nothing was (de)allocated in between and the gap is at most 1µs or 0.1% of the time since the last `Enter` row written on that thread (omitted `Enter` rows don't count; for nested spans, it can be later than the span's own `Enter`, which only makes the allowed gap smaller). The viewer shows the span as entered during these gaps, so its self time can be slightly too large.
 
 [turbo-trace-viewer]: https://turbo-trace-viewer.vercel.app/
 [youtube-tutorial]: https://www.youtube.com/watch?v=PGO2szAye7A

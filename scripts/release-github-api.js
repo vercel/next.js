@@ -12,6 +12,9 @@ const { readReleaseVersion } = require('./release-version')
 
 const REPO_API_PATH = '/repos/vercel/next.js'
 
+const LTS_ACTIVE_BRANCH = 'releases/lts/active'
+const LTS_MAINTENANCE_BRANCH = 'releases/lts/maintenance'
+
 async function git(args, options = {}) {
   const { captureOutput = false, ...execaOptions } = options
   const { stdout } = await execa('git', args, {
@@ -189,6 +192,128 @@ async function createGitHubReleaseCommit(token, options = {}) {
 }
 
 /**
+ * Current commit SHA of a branch ref. Fails loudly (the API error propagates)
+ * when the branch does not exist — the LTS branches are bootstrapped manually,
+ * so a missing ref is an operator error, not something to paper over.
+ */
+async function getBranchSha(request, token, branch) {
+  const ref = await request(
+    token,
+    'GET',
+    `${REPO_API_PATH}/git/ref/heads/${branch}`
+  )
+  return ref.object.sha
+}
+
+/**
+ * The latest published stable major, read from npm (equivalent to
+ * `npm view next version`; the same dist-tags endpoint computePreviewVersion
+ * in start-release.js uses). Older majors publish under the `backport`
+ * dist-tag, so `latest` always tracks the newest release line.
+ */
+async function getLatestPublishedMajor() {
+  const res = await fetch('https://registry.npmjs.org/-/package/next/dist-tags')
+  const tags = await res.json()
+
+  if (!tags.latest) {
+    throw new Error('Failed to read the latest dist-tag of next from npm')
+  }
+
+  return semver.major(tags.latest)
+}
+
+/**
+ * Move the long-lived LTS branch refs after a stable release:
+ * - patch: nothing (the release commit already advanced the branch it was cut
+ *   on)
+ * - minor: routed by the released version's major against the latest
+ *   published major (npm `latest`): equal moves `releases/lts/active` to the
+ *   new tag, latest - 1 moves `releases/lts/maintenance` to the new tag,
+ *   anything else moves nothing
+ * - major: `releases/lts/maintenance` is moved to active's previous position,
+ *   then `releases/lts/active` is moved to the new tag
+ *
+ * All PATCHes use `force: true` because the histories diverge (e.g. the tag
+ * commit for a major cut on canary is not a descendant of active's tip). When
+ * the release was cut on the LTS branch itself, `createGitHubReleaseCommit`
+ * already moved that branch to the same commit, so the move is a no-op.
+ *
+ * On partial failure (maintenance moved, active move failed) no rollback is
+ * attempted: every target commit already exists on the remote, nothing
+ * dangles, and the thrown error states the intended end state for manual
+ * repair.
+ *
+ * @param {string} token GitHub API token with repo access
+ * @param {object} options
+ * @param {'patch' | 'minor' | 'major'} options.semverType
+ * @param {string} options.tagName The just-created release tag (e.g. v16.3.0)
+ * @param {string} options.tagSha The signed commit the tag points at
+ * @param {import('./github-utils/signed-commit').githubRequest} [options.githubRequest]
+ *   A custom GitHub client e.g. for using a logging mock when doing a dry run.
+ */
+async function updateLtsBranchRefs(
+  token,
+  { semverType, tagName, tagSha, githubRequest: request = githubRequest }
+) {
+  if (semverType === 'patch') {
+    console.log('Stable patch release: LTS branch refs unchanged')
+    return
+  }
+
+  if (semverType === 'major') {
+    const activeSha = await getBranchSha(request, token, LTS_ACTIVE_BRANCH)
+
+    await request(
+      token,
+      'PATCH',
+      `${REPO_API_PATH}/git/refs/heads/${LTS_MAINTENANCE_BRANCH}`,
+      { sha: activeSha, force: true }
+    )
+    console.log(
+      `Moved ${LTS_MAINTENANCE_BRANCH} to ${activeSha} (previous ${LTS_ACTIVE_BRANCH} tip)`
+    )
+
+    await request(
+      token,
+      'PATCH',
+      `${REPO_API_PATH}/git/refs/heads/${LTS_ACTIVE_BRANCH}`,
+      { sha: tagSha, force: true }
+    )
+    console.log(`Moved ${LTS_ACTIVE_BRANCH} to ${tagName} (${tagSha})`)
+    return
+  }
+
+  // The local HEAD is the just-created release commit, so the version source
+  // of truth carries the released version (same assumption
+  // `getLocalReleaseTagName` makes).
+  const newMajor = semver.major(readReleaseVersion())
+  const latestMajor = await getLatestPublishedMajor()
+
+  if (newMajor === latestMajor) {
+    await request(
+      token,
+      'PATCH',
+      `${REPO_API_PATH}/git/refs/heads/${LTS_ACTIVE_BRANCH}`,
+      { sha: tagSha, force: true }
+    )
+    console.log(`Moved ${LTS_ACTIVE_BRANCH} to ${tagName} (${tagSha})`)
+  } else if (newMajor === latestMajor - 1) {
+    await request(
+      token,
+      'PATCH',
+      `${REPO_API_PATH}/git/refs/heads/${LTS_MAINTENANCE_BRANCH}`,
+      { sha: tagSha, force: true }
+    )
+    console.log(`Moved ${LTS_MAINTENANCE_BRANCH} to ${tagName} (${tagSha})`)
+  } else {
+    console.log(
+      `${tagName} (major ${newMajor}) is on neither the active (major ${latestMajor}) ` +
+        `nor the maintenance (major ${latestMajor - 1}) line: LTS branch refs unchanged`
+    )
+  }
+}
+
+/**
  * Find the previous release tag for a changelog range: the highest-semver tag
  * reachable from `tagCommitSha` whose version is below `newVersion`. Returns
  * `null` when there is no earlier tag (e.g. the very first release).
@@ -286,4 +411,5 @@ async function createGitHubRelease(
 module.exports = {
   createGitHubReleaseCommit,
   createGitHubRelease,
+  updateLtsBranchRefs,
 }

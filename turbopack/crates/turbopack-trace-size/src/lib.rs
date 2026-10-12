@@ -20,7 +20,7 @@ use std::{
 use anyhow::{Context, Result, bail};
 use flate2::bufread::MultiGzDecoder;
 use rustc_hash::{FxHashMap, FxHashSet};
-use turbopack_trace_utils::tracing::{TraceRow, TraceValue};
+use turbopack_trace_utils::tracing::{Allocations, TraceRow, TraceValue};
 
 /// The magic bytes at the start of every (uncompressed) trace file.
 pub const TRACE_HEADER: &[u8] = b"TRACEv0";
@@ -36,21 +36,17 @@ pub enum RowKind {
     Exit,
     Event,
     Record,
-    Allocation,
-    AllocationCounters,
     MemorySample,
 }
 
 impl RowKind {
-    pub const ALL: [RowKind; 9] = [
+    pub const ALL: [RowKind; 7] = [
         RowKind::Start,
         RowKind::End,
         RowKind::Enter,
         RowKind::Exit,
         RowKind::Event,
         RowKind::Record,
-        RowKind::Allocation,
-        RowKind::AllocationCounters,
         RowKind::MemorySample,
     ];
 
@@ -62,8 +58,6 @@ impl RowKind {
             TraceRow::Exit { .. } => RowKind::Exit,
             TraceRow::Event { .. } => RowKind::Event,
             TraceRow::Record { .. } => RowKind::Record,
-            TraceRow::Allocation { .. } => RowKind::Allocation,
-            TraceRow::AllocationCounters { .. } => RowKind::AllocationCounters,
             TraceRow::MemorySample { .. } => RowKind::MemorySample,
         }
     }
@@ -76,8 +70,6 @@ impl RowKind {
             RowKind::Exit => "Exit",
             RowKind::Event => "Event",
             RowKind::Record => "Record",
-            RowKind::Allocation => "Allocation",
-            RowKind::AllocationCounters => "AllocationCounters",
             RowKind::MemorySample => "MemorySample",
         }
     }
@@ -202,6 +194,10 @@ pub struct Components {
     pub start_values: u64,
     pub event_values: u64,
     pub record_values: u64,
+    /// The `allocations` field of `Enter` rows (including the `None` tag).
+    pub enter_allocations: u64,
+    /// The `allocations` field of `Exit` rows (including the `None` tag).
+    pub exit_allocations: u64,
 }
 
 /// Collects size statistics of a trace file.
@@ -344,8 +340,20 @@ impl TraceSizeAnalyzer {
                 self.strings[StringKind::SpanName as usize].add(name);
                 self.strings[StringKind::SpanTarget as usize].add(target);
             }
-            TraceRow::End { id, .. } | TraceRow::Enter { id, .. } | TraceRow::Exit { id, .. } => {
+            TraceRow::End { id, .. } => {
                 self.add_span_row(*id, bytes);
+            }
+            TraceRow::Enter {
+                id, allocations, ..
+            } => {
+                self.add_span_row(*id, bytes);
+                self.components.enter_allocations += allocations_size(allocations);
+            }
+            TraceRow::Exit {
+                id, allocations, ..
+            } => {
+                self.add_span_row(*id, bytes);
+                self.components.exit_allocations += allocations_size(allocations);
             }
             TraceRow::Record { id, values } => {
                 self.add_span_row(*id, bytes);
@@ -361,9 +369,7 @@ impl TraceSizeAnalyzer {
                 }
                 self.components.event_values += self.add_values(values);
             }
-            TraceRow::Allocation { .. }
-            | TraceRow::AllocationCounters { .. }
-            | TraceRow::MemorySample { .. } => {}
+            TraceRow::MemorySample { .. } => {}
         }
     }
 
@@ -547,6 +553,8 @@ impl TraceSizeAnalyzer {
         let start = self.row_kind(RowKind::Start).bytes;
         let event = self.row_kind(RowKind::Event).bytes;
         let record = self.row_kind(RowKind::Record).bytes;
+        let enter = self.row_kind(RowKind::Enter).bytes;
+        let exit = self.row_kind(RowKind::Exit).bytes;
         let rows = [
             ("Start", "name", c.start_name),
             ("Start", "target", c.start_target),
@@ -555,6 +563,18 @@ impl TraceSizeAnalyzer {
                 "Start",
                 "fixed (tag, ts, id, parent)",
                 start - c.start_name - c.start_target - c.start_values,
+            ),
+            ("Enter", "allocations", c.enter_allocations),
+            (
+                "Enter",
+                "fixed (tag, ts, id, thread)",
+                enter - c.enter_allocations,
+            ),
+            ("Exit", "allocations", c.exit_allocations),
+            (
+                "Exit",
+                "fixed (tag, ts, id, thread)",
+                exit - c.exit_allocations,
             ),
             ("Event", "values", c.event_values),
             ("Event", "fixed (tag, ts, parent)", event - c.event_values),
@@ -754,6 +774,19 @@ fn str_size(s: &str) -> u64 {
     varint_size(s.len() as u64) + s.len() as u64
 }
 
+/// Size of the postcard encoded `allocations` field of `Enter`/`Exit` rows.
+fn allocations_size(allocations: &Option<Allocations>) -> u64 {
+    1 + match allocations {
+        Some(a) => {
+            varint_size(a.allocations)
+                + varint_size(a.allocation_count)
+                + varint_size(a.deallocations)
+                + varint_size(a.deallocation_count)
+        }
+        None => 0,
+    }
+}
+
 /// Size of a postcard encoded [`TraceValue`] including its variant tag.
 fn value_size(value: &TraceValue<'_>) -> u64 {
     1 + match value {
@@ -854,11 +887,11 @@ mod tests {
     use std::borrow::Cow;
 
     use flate2::{Compression as GzLevel, write::GzEncoder};
-    use turbopack_trace_utils::tracing::{TraceRow, TraceValue};
+    use turbopack_trace_utils::tracing::{Allocations, TraceRow, TraceValue};
 
     use crate::{
         Compression, NO_SPAN, RowKind, StringKind, TRACE_HEADER, TraceSizeAnalyzer, UNKNOWN_SPAN,
-        value_size,
+        allocations_size, value_size,
     };
 
     fn sample_rows() -> Vec<TraceRow<'static>> {
@@ -878,6 +911,12 @@ mod tests {
                 ts: 2,
                 id: 1,
                 thread_id: 1,
+                allocations: Some(Allocations {
+                    allocations: 1 << 40,
+                    allocation_count: 3,
+                    deallocations: 0,
+                    deallocation_count: 0,
+                }),
             },
             TraceRow::Start {
                 ts: 300,
@@ -913,36 +952,35 @@ mod tests {
                 ts: 600,
                 id: 1,
                 thread_id: 1,
+                allocations: None,
             },
             TraceRow::End { ts: 700, id: 1 },
             // This span is never started
             TraceRow::End { ts: 800, id: 99 },
-            TraceRow::Allocation {
+            TraceRow::MemorySample {
                 ts: 900,
-                thread_id: 1,
-                allocations: 1 << 40,
-                allocation_count: 3,
-                deallocations: 0,
-                deallocation_count: 0,
+                memory: 1,
+                memory_pressure: 0,
+                active_worker_threads: 1,
             },
-            TraceRow::AllocationCounters {
-                ts: 900,
-                thread_id: 1,
-                allocations: 1,
-                allocation_count: 1,
-                deallocations: 1,
-                deallocation_count: 1,
+            TraceRow::MemorySample {
+                ts: 950,
+                memory: 1 << 20,
+                memory_pressure: 100,
+                active_worker_threads: 2,
             },
             TraceRow::MemorySample {
                 ts: 1000,
                 memory: 1 << 30,
                 memory_pressure: 200,
+                active_worker_threads: 3,
             },
             // Rows of other threads can be written before the `Start` of their span
             TraceRow::Exit {
                 ts: 1200,
                 id: 3,
                 thread_id: 2,
+                allocations: Some(Allocations::default()),
             },
             TraceRow::Start {
                 ts: 1100,
@@ -1010,6 +1048,22 @@ mod tests {
                 "{value:?}"
             );
         }
+        for allocations in [
+            None,
+            Some(Allocations::default()),
+            Some(Allocations {
+                allocations: u64::MAX,
+                allocation_count: 1 << 20,
+                deallocations: 127,
+                deallocation_count: 128,
+            }),
+        ] {
+            assert_eq!(
+                allocations_size(&allocations),
+                postcard::to_stdvec(&allocations).unwrap().len() as u64,
+                "{allocations:?}"
+            );
+        }
 
         let rows = sample_rows();
         let mut analyzer = TraceSizeAnalyzer::new();
@@ -1028,6 +1082,19 @@ mod tests {
         // with a 1 byte length prefix
         assert_eq!(analyzer.components.start_name, 12 + 5);
         assert_eq!(analyzer.components.start_target, 10 + 5);
+        let (enter, exit) = rows.iter().fold((0, 0), |(enter, exit), row| match row {
+            TraceRow::Enter { allocations, .. } => (
+                enter + postcard::to_stdvec(allocations).unwrap().len() as u64,
+                exit,
+            ),
+            TraceRow::Exit { allocations, .. } => (
+                enter,
+                exit + postcard::to_stdvec(allocations).unwrap().len() as u64,
+            ),
+            _ => (enter, exit),
+        });
+        assert_eq!(analyzer.components.enter_allocations, enter);
+        assert_eq!(analyzer.components.exit_allocations, exit);
     }
 
     #[test]
@@ -1172,6 +1239,7 @@ mod tests {
                 ts: 4,
                 id: 5,
                 thread_id: 1,
+                allocations: None,
             },
             TraceRow::Event {
                 ts: 5,

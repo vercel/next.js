@@ -163,7 +163,7 @@ export default function NewItemPage() {
   const [name, setName] = useState('')
   const router = useRouter()
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault()
     const item = await createItem({ name })
     setName('')
@@ -197,7 +197,7 @@ function ContactForm() {
   const [status, setStatus] = useState<'idle' | 'success'>('idle')
   const shouldReset = useRef(false)
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault()
     await sendMessage({ name })
     setStatus('success')

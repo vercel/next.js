@@ -1,6 +1,6 @@
 {
   "name": "@next/swc",
-  "version": "16.5.0-canary.2",
+  "version": "16.5.0-canary.8",
   "private": true,
   "files": [
     "native/"
@@ -8,9 +8,9 @@
   "scripts": {
     "build-native-auto": "node maybe-build-native.mjs",
     "clean": "node ../../scripts/rm.mjs native",
-    "build-native": "napi build --platform -p next-napi-bindings --manifest-path ../../Cargo.toml --features image-extended --no-js -o native",
-    "build-native-release": "napi build --platform -p next-napi-bindings --manifest-path ../../Cargo.toml --release --features image-extended,tracing/release_max_level_trace --no-js -o native",
-    "build-native-release-with-assertions": "napi build --platform -p next-napi-bindings --manifest-path ../../Cargo.toml --profile release-with-assertions --features image-extended,tracing/release_max_level_trace --no-js -o native",
+    "build-native": "napi build --platform -p next-napi-bindings --manifest-path ../../Cargo.toml --no-js -o native",
+    "build-native-release": "napi build --platform -p next-napi-bindings --manifest-path ../../Cargo.toml --release --features tracing/release_max_level_trace --no-js -o native",
+    "build-native-release-with-assertions": "napi build --platform -p next-napi-bindings --manifest-path ../../Cargo.toml --profile release-with-assertions --features tracing/release_max_level_trace --no-js -o native",
     "build-native-wasi": "napi build --platform --target wasm32-wasip1-threads -p next-napi-bindings --manifest-path ../../Cargo.toml --no-default-features -o native",
     "build-wasm": "wasm-pack build ../../crates/wasm --scope=next",
     "cache-build-native": "[ -d native ] && echo $(ls native)",

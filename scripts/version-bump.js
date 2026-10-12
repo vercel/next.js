@@ -90,8 +90,9 @@ function parseArgs(argv) {
 }
 
 /**
- * Releases are restricted to `canary` and the release branches.
- * `scripts/create-release-branch.js` adds new release branches to the list.
+ * Releases are restricted to `canary` and the long-lived LTS release branches
+ * (`releases/lts/active`, `releases/lts/maintenance`) listed in
+ * `scripts/release-branches.json`.
  *
  * @param {string[]} allowBranchOverride
  */
