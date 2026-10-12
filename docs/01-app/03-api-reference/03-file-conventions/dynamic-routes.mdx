@@ -240,6 +240,8 @@ async function getPost(slug: string) {
 
 > **Good to know**: This example uses `<Suspense>` so [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching) can keep URL-specific `params` out of the shared App Shell.
 
+Build-time validation only covers code paths that execute for values returned by `generateStaticParams`. Code paths reached only by other param values are validated on the first request.
+
 For params not returned by `generateStaticParams`, Partial Prefetching serves the Suspense fallback while Next.js renders the URL-specific page. Next.js saves the completed page so later visits can receive it without the fallback. See [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components) for details.
 
 ## Examples
