@@ -75,6 +75,32 @@ function readRows(binary: Buffer, reference: EdgesReference): number[][] {
   })
 }
 
+// Routes the analyzer writes data for. Metadata routes that use
+// `generateImageMetadata` / `generateSitemaps` are listed under the key their
+// data is stored at, not as `.../[__metadata_id__]` routes-manifest pages.
+const EXPECTED_ROUTES = [
+  '/',
+  '/_not-found',
+  '/api/ping',
+  '/legacy',
+  '/meta/icon',
+  '/sitemap.xml',
+].sort()
+
+function readRoutes(directory: string): string[] {
+  return JSON.parse(readFileSync(path.join(directory, 'routes.json'), 'utf8'))
+}
+
+function routeDataFile(directory: string, route: string): string {
+  return path.join(directory, route.slice(1), 'analyze.data')
+}
+
+function exportedRoutes(records: Array<{ type: string; route?: string }>) {
+  return records
+    .filter((record) => record.type === 'route')
+    .map((record) => record.route)
+}
+
 // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
 // It likely inspects local build artifacts that deploy tests do not expose.
 // @force-gate !deploy
@@ -236,6 +262,9 @@ describe('next analyze', () => {
     }
     for (const record of records)
       expect(record).not.toHaveProperty('route_index')
+    // Every listed route, including metadata routes, is exported.
+    expect(exportedRoutes(records)).toEqual(readRoutes(snapshotDir))
+    expect([...readRoutes(snapshotDir)].sort()).toEqual(EXPECTED_ROUTES)
     const latest = await next.runCommand(['analyze', 'export'])
     expect(latest.exitCode).toBe(0)
     expect(latest.stdout).toBe(named.stdout)
@@ -541,6 +570,24 @@ describe('next analyze', () => {
     ])
     expect(replay).toMatchObject({ exitCode: 0 })
     validateGraphDump(replay.stdout)
+    const snapshotDir = path.join(
+      analyzeDir,
+      'history',
+      `snapshot-${encodeURIComponent(name)}`
+    )
+    const routes = readRoutes(snapshotDir)
+    expect([...routes].sort()).toEqual(EXPECTED_ROUTES)
+    for (const route of routes) {
+      expect(existsSync(routeDataFile(snapshotDir, route))).toBe(true)
+    }
+    expect(
+      exportedRoutes(
+        replay.stdout
+          .trim()
+          .split('\n')
+          .map((line) => JSON.parse(line))
+      )
+    ).toEqual(routes)
     expect(JSON.parse(replay.stdout.split('\n')[0])).toMatchObject({
       type: 'meta',
       snapshot_name: name,
@@ -571,12 +618,29 @@ describe('next analyze', () => {
         ]) {
           expect(existsSync(path.join(defaultOutputPath, file))).toBe(true)
         }
-        const routes = JSON.parse(
-          readFileSync(path.join(defaultOutputPath, 'data/routes.json'), 'utf8')
+        const routes = readRoutes(path.join(defaultOutputPath, 'data'))
+        expect([...routes].sort()).toEqual(EXPECTED_ROUTES)
+        const latestSnapshotDir = path.join(
+          defaultOutputPath,
+          'history',
+          `snapshot-${encodeURIComponent(
+            JSON.parse(
+              readFileSync(
+                path.join(defaultOutputPath, 'history/history.json'),
+                'utf8'
+              )
+            ).snapshots[0].name
+          )}`
         )
-        expect([...routes].sort()).toEqual(
-          ['/', '/_not-found', '/api/ping', '/legacy'].sort()
-        )
+        expect(readRoutes(latestSnapshotDir)).toEqual(routes)
+        for (const route of routes) {
+          expect(
+            existsSync(
+              routeDataFile(path.join(defaultOutputPath, 'data'), route)
+            )
+          ).toBe(true)
+          expect(existsSync(routeDataFile(latestSnapshotDir, route))).toBe(true)
+        }
         const routeSummaries = JSON.parse(
           readFileSync(
             path.join(defaultOutputPath, 'data/route-summaries.json'),
