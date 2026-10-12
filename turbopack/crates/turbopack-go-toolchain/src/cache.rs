@@ -222,18 +222,19 @@ pub(crate) fn prepare(
         .read(true)
         .write(true)
         .open(lock_path)?;
-    wait_lock(&file, true, cancel)?;
-    if verify(&root, &key, entries, cancel).is_ok() {
-        return Ok((root.join("go"), Arc::new(Lease { _file: file })));
-    }
-    check(cancel)?;
-    file.unlock()?;
-    // If an invalid installation is leased, fail rather than replacing it underneath
-    // a live watch session. Cold-cache races wait and recheck after the winning extractor.
-    if root.exists() {
+    loop {
+        wait_lock(&file, true, cancel)?;
+        if verify(&root, &key, entries, cancel).is_ok() {
+            return Ok((root.join("go"), Arc::new(Lease { _file: file })));
+        }
+        check(cancel)?;
+        let existing = root.exists();
+        file.unlock()?;
+        // Never wait exclusively: the winning extractor keeps a shared session lease.
+        // Recheck under a shared lock so cold-cache contenders can reuse its result.
         match file.try_lock() {
-            Ok(()) => {}
-            Err(TryLockError::WouldBlock) => {
+            Ok(()) => break,
+            Err(TryLockError::WouldBlock) if existing => {
                 wait_lock(&file, true, cancel)?;
                 if verify(&root, &key, entries, cancel).is_ok() {
                     return Ok((root.join("go"), Arc::new(Lease { _file: file })));
@@ -242,10 +243,11 @@ pub(crate) fn prepare(
                     "damaged Go toolchain cache is in use; stop other Go sessions and retry"
                 );
             }
+            Err(TryLockError::WouldBlock) => {
+                std::thread::sleep(Duration::from_millis(20));
+            }
             Err(TryLockError::Error(error)) => return Err(error.into()),
         }
-    } else {
-        wait_lock(&file, false, cancel)?;
     }
     if verify(&root, &key, entries, cancel).is_err() {
         check(cancel)?;
@@ -327,9 +329,11 @@ pub(crate) fn prepare(
         let mut marker = File::create(temp.path().join("complete"))?;
         marker.write_all(key.as_bytes())?;
         marker.sync_all()?;
+        // Windows cannot rename a directory while its completion marker is open.
+        drop(marker);
         verify(temp.path(), &key, entries, cancel)?;
         check(cancel)?;
-        std::fs::rename(temp.path(), &root)?;
+        std::fs::rename(temp.path(), &root).context("publishing extracted Go toolchain")?;
         #[cfg(unix)]
         File::open(&base)?.sync_all()?;
     }

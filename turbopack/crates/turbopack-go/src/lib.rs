@@ -604,8 +604,8 @@ async fn discover(
             "Go build cache must be outside the source project and module cache; choose another \
              --go-cache path"
         );
-        if context.cancellation.toolchain.is_managed() {
-            let goroot = Path::new(context.goroot.as_str())
+        if go_context.cancellation.toolchain.is_managed() {
+            let goroot = Path::new(go_context.goroot.as_str())
                 .parent()
                 .context("GOROOT has no installation parent")?;
             ensure!(
@@ -613,7 +613,7 @@ async fn discover(
                     && !paths::directories_overlap(goroot, build_cache)?
                     && !paths::directories_overlap(
                         goroot,
-                        Path::new(context.module_cache.as_str())
+                        Path::new(go_context.module_cache.as_str())
                     )?,
                 "managed Go toolchain must be outside the source project, build cache and module \
                  cache"

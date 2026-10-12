@@ -11,7 +11,7 @@ absolute executable/GOROOT paths, reported host/version metadata, an identity,
 and an installation lease. Keep it alive for the entire build/watch session.
 `apply` controls GOROOT, GOENV, GOTOOLCHAIN and telemetry; consumers choose build
 flags, module/cache policy, watching and output publication. External installations
-must remain immutable during the session.
+must stay immutable during the session.
 
 ## Build inputs
 
@@ -51,7 +51,7 @@ returns an error; stop those sessions and retry. Missing/corrupt installations
 are rebuilt from embedded bytes, without downloads. Cancellation interrupts lock
 waits and extraction; abandoned temporary directories are removed on the next
 exclusive preparation. Older completed versions are retained and may be removed
-when no sessions use them. Same-user changes during a session remain outside the
+when no sessions use them. Same-user changes during a session are outside the
 immutability contract; the cache is not a sandbox against its owner.
 
 ## Platforms and size

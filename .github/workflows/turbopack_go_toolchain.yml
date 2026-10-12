@@ -118,12 +118,13 @@ jobs:
           mkdir -p docker-builder
           printf 'FROM %s\n' "$BUILDER_IMAGE" > docker-builder/Dockerfile
           if [[ "$RUST_TARGET" == *musl ]]; then
-            echo 'RUN apk add --no-cache build-base' >> docker-builder/Dockerfile
+            echo 'RUN apk add --no-cache build-base curl ca-certificates git' >> docker-builder/Dockerfile
           fi
           channel="$(sed -n 's/^channel = "\(.*\)"/\1/p' rust-toolchain.toml)"
           printf 'RUN rustup toolchain install %s --profile minimal --target %s\n' "$channel" "$RUST_TARGET" >> docker-builder/Dockerfile
           docker build -t go-cli-builder docker-builder
           docker run --rm -v "$PWD:/work" -w /work -e RUST_TARGET -e BUILD_RELEASE -e RUSTUP_TOOLCHAIN="$channel" go-cli-builder sh -ec '
+            git config --global --add safe.directory /work
             cargo xtask prepare-go-toolchain --target "$RUST_TARGET"
             if [ "$BUILD_RELEASE" = yes ]; then
               cargo build --locked --release -p turbopack-cli --target "$RUST_TARGET"

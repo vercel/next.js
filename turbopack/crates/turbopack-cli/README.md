@@ -132,7 +132,7 @@ resolved environment must stay unchanged during a build or watch session.
 
 The embedded toolchain supports macOS 13+ on amd64/arm64, Windows on amd64/arm64,
 and GNU/musl Linux on amd64/arm64. Cross-built CLI binaries embed their Rust
-TARGET's Go distribution. Application builds remain host-only with CGO disabled.
+TARGET's Go distribution. Application builds support only the host platform with CGO disabled.
 
 `--go /path/to/go` selects an immutable external installation (Go 1.24+). Explicit
 `--go go` searches PATH. The default does not search PATH or fall back to another
@@ -150,7 +150,7 @@ required for the extracted tools.
 
 Each Go session verifies cached file contents and holds an installation lease.
 Corrupt/missing caches are rebuilt from the binary. If a damaged installation is
-still leased, stop other Go sessions and retry. Older versions remain cached;
+still leased, stop other Go sessions and retry. Older versions stay cached;
 remove unused installations when no sessions use them. Complete archives add
 approximately 64–76 MiB to the CLI and require hundreds of MB of cache storage,
 plus Go's separate build cache. JavaScript builds do not prepare the toolchain.
