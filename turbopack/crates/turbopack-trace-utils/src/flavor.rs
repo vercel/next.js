@@ -2,11 +2,11 @@ use postcard::ser_flavors::Flavor;
 
 use crate::trace_writer::WriteGuard;
 
-pub struct WriteGuardFlavor<'l> {
-    pub guard: WriteGuard<'l>,
+pub struct WriteGuardFlavor<'a, 'l> {
+    pub guard: &'a mut WriteGuard<'l>,
 }
 
-impl Flavor for WriteGuardFlavor<'_> {
+impl Flavor for WriteGuardFlavor<'_, '_> {
     type Output = ();
 
     fn try_push(&mut self, data: u8) -> postcard::Result<()> {

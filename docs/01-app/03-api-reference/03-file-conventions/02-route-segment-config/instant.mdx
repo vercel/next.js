@@ -1,11 +1,12 @@
 ---
 title: instant
-description: API reference for the instant route segment config.
+description: Configure instant navigation validation for a route segment.
 related:
   title: Next Steps
   description: Learn how to use instant navigations in practice.
   links:
     - app/guides/instant-navigation
+    - app/api-reference/file-conventions/route-segment-config/ensureStatic
     - app/getting-started/caching
     - app/getting-started/revalidating
     - app/api-reference/directives/use-cache
@@ -92,6 +93,10 @@ Setting `false` on the root layout disables static shell validation for the enti
 `instant` triggers validation at every shared layout boundary in the route. Validation runs during development (on page loads and HMR updates) and surfaces errors in the dev error overlay.
 
 Each error identifies the component that would block navigation. The fix is usually to cache the data with `use cache` or wrap it in a `<Suspense>` boundary.
+
+## How `instant` differs from `ensureStatic`
+
+`instant` validates whether a navigation shows UI immediately. [`ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic) requires selected server-rendered output to be static instead of rendered for each request. A route can be fully static and still block a navigation, for example when a Client Component loads data in the browser.
 
 ## Configuring validation defaults
 

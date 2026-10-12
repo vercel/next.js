@@ -194,6 +194,7 @@ async function requestHandler(
         ),
         inlineCss: Boolean(nextConfig.experimental.inlineCss),
         prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
+        authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
         reactBrowserBailout: Boolean(
           nextConfig.experimental.reactBrowserBailout
         ),
@@ -462,6 +463,9 @@ export async function handler(
         trailingSlash: Boolean(process.env.__NEXT_TRAILING_SLASH),
         experimental: {
           cacheLife: process.env.__NEXT_CACHE_LIFE as any,
+          authInterrupts: Boolean(
+            process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS
+          ),
           clientParamParsingOrigins: process.env
             .__NEXT_CLIENT_PARAM_PARSING_ORIGINS as any,
         },

@@ -76,6 +76,7 @@ import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import type { Params } from '../server/request/params'
 import { Bundler } from '../lib/bundler'
+import { getBuildDistDir } from './utils'
 
 export class ExportError extends Error {
   code = 'NEXT_EXPORT_ERROR'
@@ -212,7 +213,7 @@ async function exportAppImpl(
       })
     ))
 
-  const distDir = join(dir, nextConfig.distDir)
+  const distDir = join(dir, getBuildDistDir(nextConfig))
   const telemetry = options.buildExport ? null : new Telemetry({ distDir })
 
   if (telemetry) {
@@ -517,6 +518,7 @@ async function exportAppImpl(
         nextConfig.experimental.parallelRouteMetadata ?? false,
       inlineCss: nextConfig.experimental.inlineCss ?? false,
       prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
+      authInterrupts: !!nextConfig.experimental.authInterrupts,
       reactBrowserBailout: nextConfig.experimental.reactBrowserBailout ?? false,
       useCacheTimeout: nextConfig.experimental.useCacheTimeout,
       durableUseCacheEntries: Boolean(

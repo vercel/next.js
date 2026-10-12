@@ -334,6 +334,8 @@ export async function adapter(
                 validationLevel: 'warning',
                 experimental: {
                   isRoutePPREnabled: false,
+                  authInterrupts:
+                    !!params.request.nextConfig?.experimental?.authInterrupts,
                   // Proxy doesn't fill Cache Components entries, so this value
                   // is never read. 0 is a sentinel: if something ever reads it,
                   // the cache fill will time out immediately and surface the

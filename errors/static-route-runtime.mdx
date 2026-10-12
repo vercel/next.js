@@ -22,7 +22,7 @@ kind: error
 
 A page or layout on this route exports [`ensureStatic`](/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic) with the `'navigation'` value, requiring all server-rendered work for the route to complete during prerendering.
 
-During [prerendering](/docs/app/glossary#prerendering), the page or layout read request-specific data from [`cookies()`](/docs/app/api-reference/functions/cookies), [`headers()`](/docs/app/api-reference/functions/headers), [`params`](/docs/app/api-reference/file-conventions/page#params-optional), or [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional). Because these values are only available for a request, the route cannot be fully prerendered.
+During [prerendering](/docs/app/glossary#prerendering), the page or layout read request-specific data from [`cookies()`](/docs/app/api-reference/functions/cookies), [`headers()`](/docs/app/api-reference/functions/headers), [`params`](/docs/app/api-reference/file-conventions/page#params-optional), or [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional). Reading these values requires rendering at request time, which conflicts with the route's static requirement.
 
 A [`use cache`](/docs/app/api-reference/directives/use-cache) scope also triggers this error when its [`expire`](/docs/app/api-reference/functions/cacheLife#expire) is under five minutes, [`stale`](/docs/app/api-reference/functions/cacheLife#stale) is under 30 seconds, or [`revalidate`](/docs/app/api-reference/functions/cacheLife#revalidate) is `0`.
 
@@ -47,8 +47,8 @@ Uncached [`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Window/fet
     href="#read-the-data-on-the-client"
     snippets={[
       { text: "'use client'" },
-      { text: "use(browser('Read cookie'))", highlight: true },
-      { text: 'const cart = document.cookie.match(/cart=(\\d+)/)' },
+      { text: 'use(browser())', highlight: true },
+      { text: 'const value = readBrowserData()' },
     ]}
   />
 </FixCardGrid>
@@ -141,7 +141,7 @@ Learn more: [`cacheLife`](/docs/app/api-reference/functions/cacheLife).
 
 ## Verifying the fix
 
-After applying a fix, rerun [`next build`](/docs/app/api-reference/cli/next#next-build-options) and confirm that the route completes prerendering. If the error also appeared in [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), reload the route and confirm that the overlay clears. Wrapping the access in Suspense or setting `instant = false` does not relax the fully static requirement.
+After applying a fix, rerun [`next build`](/docs/app/api-reference/cli/next#next-build-options) and confirm that the route completes prerendering. If the error also appeared in [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), reload the route and confirm that the overlay clears. Wrapping the access in Suspense or setting `instant = false` does not relax this static requirement.
 
 In `next dev`, the error overlay points at the failing component with file paths and line numbers. Run [`next build --debug-prerender`](/docs/app/guides/building#debug-prerender-errors) for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
 

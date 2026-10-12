@@ -711,8 +711,8 @@ const staticRouteRuntimeCards: FixCard[] = [
     group: 'client',
     snippets: [
       { text: "'use client'" },
-      { text: "use(browser('Read cookie'))", highlight: true },
-      { text: 'document.cookie.match(/cart=/)' },
+      { text: 'use(browser())', highlight: true },
+      { text: 'const value = readBrowserData()' },
     ],
     copyable: true,
     link: 'https://nextjs.org/docs/messages/static-route-runtime#read-the-data-on-the-client',
@@ -992,11 +992,11 @@ export const SYNC_IO_CLIENT_DOCS: Record<string, string> = {
 
 export const EXPLANATIONS: Record<GuidanceKind, string> = {
   'static-viewport':
-    'This route is configured to be fully static, but data prevents its viewport from being fully prerendered.',
+    'This route is configured to be fully static, but some data requires rendering at request time.',
   'static-metadata':
-    'This route is configured to be fully static, but data prevents its metadata from being fully prerendered.',
+    'This route is configured to be fully static, but some data requires rendering at request time.',
   'static-route':
-    'This route is configured to be fully static, but data prevents it from being fully prerendered.',
+    'This route is configured to be fully static, but some data requires rendering at request time.',
   'blocking-route':
     'This prevents the route from being prerendered, blocking navigation and leading to a slower user experience.',
   'client-hook':

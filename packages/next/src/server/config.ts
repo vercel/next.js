@@ -63,6 +63,7 @@ import { hrtimeBigIntDurationToString } from '../build/duration-to-string'
 
 export { normalizeConfig } from './config-shared'
 import { verifyDistDir } from '../lib/dist-dir'
+import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
 export type { DomainLocale, NextConfig } from './config-shared'
 
 const REACT_18_DEPRECATION_WARNING =
@@ -242,13 +243,6 @@ function checkDeprecations(
     userConfig,
     'experimental.rootParams',
     `\`experimental.rootParams\` is no longer needed, because \`next/root-params\` is available by default. You can remove it from ${configFileName}.`,
-    silent
-  )
-
-  warnOptionHasBeenDeprecated(
-    userConfig,
-    'experimental.authInterrupts',
-    `\`experimental.authInterrupts\` is no longer needed, because \`forbidden\` and \`unauthorized\` are available by default. You can remove it from ${configFileName}.`,
     silent
   )
 
@@ -530,7 +524,8 @@ function assignDefaultsAndValidate(
       rootTtlMs: turbopackGc.rootTtlMs,
     }
   } else {
-    turbopackGcOptions = undefined
+    // Enable by default on canary releases.
+    turbopackGcOptions = isStableBuild() ? undefined : {}
   }
   ;(result as NextConfigComplete).experimental.turbopackGcOptions =
     turbopackGcOptions
@@ -2032,7 +2027,7 @@ async function loadConfigImpl(
   // Original implementation continues below...
   if (!process.env.__NEXT_PRIVATE_RENDER_WORKER) {
     try {
-      loadWebpackHook()
+      loadWebpackHook(dir)
     } catch (err) {
       // this can fail in standalone mode as the files
       // aren't traced/included

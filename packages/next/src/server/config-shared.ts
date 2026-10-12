@@ -1462,9 +1462,9 @@ export interface ExperimentalConfig {
    */
   inlineCss?: boolean
 
+  // TODO: Remove this config when the API is stable.
   /**
-   * @deprecated `forbidden()` and `unauthorized()` are available by default.
-   * This option has no effect and can be removed.
+   * This config allows you to enable the experimental navigation API `forbidden` and `unauthorized`.
    */
   authInterrupts?: boolean
 
@@ -2276,16 +2276,6 @@ export interface NextConfig {
    * @internal
    */
   configOrigin?: string | undefined
-
-  /**
-   * @internal
-   */
-  _originalRedirects?: any
-
-  /**
-   * @internal
-   */
-  _originalRewrites?: any
 }
 
 export const defaultConfig = Object.freeze({
@@ -2456,6 +2446,7 @@ export const defaultConfig = Object.freeze({
     parallelServerCompiles: false,
     parallelServerBuildTraces: false,
     ppr: false,
+    authInterrupts: false,
     webpackBuildWorker: undefined,
     webpackMemoryOptimizations: false,
     optimizeServerReact: true,
@@ -2575,6 +2566,7 @@ export interface NextConfigRuntime {
     | 'parallelRouteMetadata'
     | 'inlineCss'
     | 'prefetchInlining'
+    | 'authInterrupts'
     | 'reactBrowserBailout'
     | 'useCacheTimeout'
     | 'durableUseCacheEntries'
@@ -2646,6 +2638,7 @@ export function getNextConfigRuntime(
     parallelRouteMetadata: ex.parallelRouteMetadata,
     inlineCss: ex.inlineCss,
     prefetchInlining: ex.prefetchInlining,
+    authInterrupts: ex.authInterrupts,
     reactBrowserBailout: ex.reactBrowserBailout,
     useCacheTimeout: ex.useCacheTimeout,
     durableUseCacheEntries: ex.durableUseCacheEntries,

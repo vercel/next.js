@@ -10,10 +10,6 @@ related:
     - app/api-reference/functions/catchError
     - app/api-reference/functions/not-found
     - app/api-reference/file-conventions/not-found
-    - app/api-reference/functions/unauthorized
-    - app/api-reference/file-conventions/unauthorized
-    - app/api-reference/functions/forbidden
-    - app/api-reference/file-conventions/forbidden
 ---
 
 Errors can be divided into two categories: [expected errors](#handling-expected-errors) and [uncaught exceptions](#handling-uncaught-exceptions). This page will walk you through how you can handle these errors in your Next.js application.
@@ -155,23 +151,14 @@ export default async function Page() {
 You can call the [`notFound`](/docs/app/api-reference/functions/not-found) function within a route segment and use the [`not-found.js`](/docs/app/api-reference/file-conventions/not-found) file to show a 404 UI.
 
 ```tsx filename="app/blog/[slug]/page.tsx" switcher
-import { Suspense } from 'react'
 import { notFound } from 'next/navigation'
 import { getPostBySlug } from '@/lib/posts'
 
-type Props = {
+export default async function Page({
+  params,
+}: {
   params: Promise<{ slug: string }>
-}
-
-export default function Page({ params }: Props) {
-  return (
-    <Suspense fallback={<p>Loading...</p>}>
-      <Post params={params} />
-    </Suspense>
-  )
-}
-
-async function Post({ params }: Props) {
+}) {
   const { slug } = await params
   const post = getPostBySlug(slug)
 
@@ -184,19 +171,10 @@ async function Post({ params }: Props) {
 ```
 
 ```jsx filename="app/blog/[slug]/page.js" switcher
-import { Suspense } from 'react'
 import { notFound } from 'next/navigation'
 import { getPostBySlug } from '@/lib/posts'
 
-export default function Page({ params }) {
-  return (
-    <Suspense fallback={<p>Loading...</p>}>
-      <Post params={params} />
-    </Suspense>
-  )
-}
-
-async function Post({ params }) {
+export default async function Page({ params }) {
   const { slug } = await params
   const post = getPostBySlug(slug)
 
@@ -207,8 +185,6 @@ async function Post({ params }) {
   return <div>{post.title}</div>
 }
 ```
-
-The `<Suspense>` boundary lets Next.js prerender the route shell while it waits for request-time route parameters.
 
 ```tsx filename="app/blog/[slug]/not-found.tsx" switcher
 export default function NotFound() {
@@ -221,116 +197,6 @@ export default function NotFound() {
   return <div>404 - Page Not Found</div>
 }
 ```
-
-### Unauthorized and forbidden
-
-Use [`unauthorized()`](/docs/app/api-reference/functions/unauthorized) when a request is not authenticated and [`forbidden()`](/docs/app/api-reference/functions/forbidden) when an authenticated user does not have access to a resource. Next.js stops rendering the route segment and shows the closest [`unauthorized.js`](/docs/app/api-reference/file-conventions/unauthorized) or [`forbidden.js`](/docs/app/api-reference/file-conventions/forbidden) file.
-
-```tsx filename="app/admin/page.tsx" switcher
-import { Suspense } from 'react'
-import { forbidden, unauthorized } from 'next/navigation'
-import { getSession } from '@/app/lib/session'
-
-export default function AdminPage() {
-  return (
-    <Suspense fallback={<p>Loading...</p>}>
-      <AdminContent />
-    </Suspense>
-  )
-}
-
-async function AdminContent() {
-  const session = await getSession()
-
-  if (!session?.user) {
-    unauthorized()
-  }
-
-  if (session.user.role !== 'admin') {
-    forbidden()
-  }
-
-  return <h1>Admin dashboard</h1>
-}
-```
-
-```jsx filename="app/admin/page.js" switcher
-import { Suspense } from 'react'
-import { forbidden, unauthorized } from 'next/navigation'
-import { getSession } from '@/app/lib/session'
-
-export default function AdminPage() {
-  return (
-    <Suspense fallback={<p>Loading...</p>}>
-      <AdminContent />
-    </Suspense>
-  )
-}
-
-async function AdminContent() {
-  const session = await getSession()
-
-  if (!session?.user) {
-    unauthorized()
-  }
-
-  if (session.user.role !== 'admin') {
-    forbidden()
-  }
-
-  return <h1>Admin dashboard</h1>
-}
-```
-
-The `<Suspense>` boundary lets Next.js prerender the route shell while it waits for request-time session data.
-
-Add `unauthorized.tsx` and `forbidden.tsx` to the route segment to customize each fallback:
-
-```tsx filename="app/admin/unauthorized.tsx" switcher
-export default function Unauthorized() {
-  return (
-    <main>
-      <h1>Unauthorized</h1>
-      <p>You must sign in to access this page.</p>
-    </main>
-  )
-}
-```
-
-```jsx filename="app/admin/unauthorized.js" switcher
-export default function Unauthorized() {
-  return (
-    <main>
-      <h1>Unauthorized</h1>
-      <p>You must sign in to access this page.</p>
-    </main>
-  )
-}
-```
-
-```tsx filename="app/admin/forbidden.tsx" switcher
-export default function Forbidden() {
-  return (
-    <main>
-      <h1>Forbidden</h1>
-      <p>You do not have permission to access this page.</p>
-    </main>
-  )
-}
-```
-
-```jsx filename="app/admin/forbidden.js" switcher
-export default function Forbidden() {
-  return (
-    <main>
-      <h1>Forbidden</h1>
-      <p>You do not have permission to access this page.</p>
-    </main>
-  )
-}
-```
-
-Use [`redirect()`](/docs/app/api-reference/functions/redirect) instead when you want to send an unauthenticated user to a sign-in flow.
 
 ## Handling uncaught exceptions
 

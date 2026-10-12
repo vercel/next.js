@@ -2,7 +2,7 @@ name: build-and-test
 
 on:
   push:
-    branches: ['canary']
+    branches: ['canary', 'releases/lts/active', 'releases/lts/maintenance']
   pull_request:
     types: [opened, synchronize]
 
@@ -17,6 +17,7 @@ concurrency:
 # of that workflow. Environment variables are not automatically passed to
 # reusable workflows.
 env:
+  COREPACK_VERSION: 0.34.7
   NODE_MAINTENANCE_VERSION: 20
   NODE_LTS_VERSION: 22
 
@@ -187,7 +188,7 @@ jobs:
 
       - name: Setup pnpm
         run: |
-          npm i -g corepack@0.31
+          npm i -g "corepack@${COREPACK_VERSION}"
           corepack enable
 
       - name: Checkout
@@ -208,7 +209,7 @@ jobs:
         id: cache-pnpm-store
         with:
           path: ${{ steps.get-store-path.outputs.STORE_PATH }}
-          key: pnpm-store-v2-${{ hashFiles('pnpm-lock.yaml') }}
+          key: pnpm-store-root-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml') }}
           # Do not use restore-keys since it leads to indefinite growth of the cache.
 
       - name: Install dependencies
@@ -277,7 +278,7 @@ jobs:
           package-manager-cache: false
       - name: Setup corepack
         run: |
-          npm i -g corepack@0.31
+          npm i -g "corepack@${COREPACK_VERSION}"
           corepack enable
       - name: 'Run link checker'
         run: node ./.github/actions/validate-docs-links/dist/index.js
@@ -908,6 +909,7 @@ jobs:
       # Keep Next.js related env variables in sync with additionalEnv in next-deploy.ts
       afterBuild: |
         export NEXT_ENABLE_ADAPTER=1
+        export NEXT_TEST_DEPLOY_TARGET_VERCEL=1
         export NEXT_E2E_TEST_TIMEOUT=240000
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
         export IS_TURBOPACK_TEST=1
@@ -939,6 +941,7 @@ jobs:
         export __NEXT_CACHE_COMPONENTS=true
         export __NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS=true
         export NEXT_ENABLE_ADAPTER=1
+        export NEXT_TEST_DEPLOY_TARGET_VERCEL=1
         export NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json,test/cache-components-tests-manifest.json"
         export NEXT_E2E_TEST_TIMEOUT=240000
         export IS_TURBOPACK_TEST=1

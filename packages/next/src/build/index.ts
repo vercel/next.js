@@ -210,7 +210,7 @@ import {
   type ConfiguredExperimentalFeature,
 } from '../server/lib/app-info-log'
 import type { NextEnabledDirectories } from '../server/base-server'
-import { hasCustomExportOutput } from '../export/utils'
+import { getBuildDistDir, hasCustomExportOutput } from '../export/utils'
 import { traceMemoryUsage } from '../lib/memory/trace'
 import { generateEncryptionKeyBase64 } from '../server/app-render/encryption-utils-server'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
@@ -1236,12 +1236,11 @@ export default async function build(
       bundler = finalizeBundlerFromConfig(bundler)
       nextBuildSpan.setAttribute('bundler', getBundlerForTelemetry(bundler))
 
-      let configOutDir = 'out'
-      if (hasCustomExportOutput(config)) {
-        configOutDir = config.distDir
-        config.distDir = '.next'
-      }
-      const distDir = path.join(dir, config.distDir)
+      const configOutDir = hasCustomExportOutput(config)
+        ? config.distDir
+        : 'out'
+      const buildDistDir = getBuildDistDir(config)
+      const distDir = path.join(dir, buildDistDir)
       NextBuildContext.distDir = distDir
       setGlobal('phase', PHASE_PRODUCTION_BUILD)
       setGlobal('distDir', distDir)
@@ -1345,9 +1344,6 @@ export default async function build(
       ]
       const hasRewrites = combinedRewrites.length > 0
       NextBuildContext.hasRewrites = hasRewrites
-      NextBuildContext.originalRewrites = config._originalRewrites
-      NextBuildContext.originalRedirects = config._originalRedirects
-
       const distDirCreated = await nextBuildSpan
         .traceChild('create-dist-dir')
         .traceAsyncFn(async () => {
@@ -1775,6 +1771,9 @@ export default async function build(
       )
 
       const isAppCacheComponentsEnabled = Boolean(config.cacheComponents)
+      const isAuthInterruptsEnabled = Boolean(
+        config.experimental.authInterrupts
+      )
       const isAppPPREnabled = isAppCacheComponentsEnabled
 
       const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
@@ -1807,9 +1806,9 @@ export default async function build(
         | ReturnType<typeof createClientRouterFilter>
 
       if (config.experimental.clientRouterFilter) {
-        const nonInternalRedirects = (config._originalRedirects || []).filter(
-          (r: any) => !r.internal
-        )
+        const nonInternalRedirects = (
+          customRoutes.originalRedirects || []
+        ).filter((r) => !r.internal)
         clientRouterFilters = createClientRouterFilter(
           [...appPaths],
           config.experimental.clientRouterFilterRedirects
@@ -2080,6 +2079,7 @@ export default async function build(
             version: 1,
             config: {
               ...runtimeConfigWithoutFilePath,
+              distDir: buildDistDir,
               ...(ciEnvironment.hasNextSupport
                 ? {
                     compress: false,
@@ -2162,14 +2162,14 @@ export default async function build(
               SERVER_FILES_MANIFEST + '.json',
             ]
               .filter(nonNullable)
-              .map((file) => path.join(config.distDir, file)),
+              .map((file) => path.join(buildDistDir, file)),
             ignore: [] as string[],
           }
 
           if (hasInstrumentationHook) {
             serverFilesManifest.files.push(
               path.join(
-                config.distDir,
+                buildDistDir,
                 SERVER_DIRECTORY,
                 `${INSTRUMENTATION_HOOK_FILENAME}.js`
               )
@@ -2177,7 +2177,7 @@ export default async function build(
             // If there are edge routes, append the edge instrumentation hook
             // Turbopack generates this chunk with a hashed name and references it in middleware-manifest.
             let edgeInstrumentationHook = path.join(
-              config.distDir,
+              buildDistDir,
               SERVER_DIRECTORY,
               `edge-${INSTRUMENTATION_HOOK_FILENAME}.js`
             )
@@ -2210,7 +2210,7 @@ export default async function build(
 
             serverFilesManifest.files.push(
               ...cssFilePaths.map((filePath) =>
-                path.join(config.distDir, 'static', filePath)
+                path.join(buildDistDir, 'static', filePath)
               )
             )
           }
@@ -2393,6 +2393,7 @@ export default async function build(
               configFileName,
               cacheComponents: isAppCacheComponentsEnabled,
               partialPrefetching: config.partialPrefetching,
+              authInterrupts: isAuthInterruptsEnabled,
               useCacheTimeout: config.experimental.useCacheTimeout,
               durableUseCacheEntries: Boolean(
                 config.experimental.durableUseCacheEntries
@@ -2628,6 +2629,7 @@ export default async function build(
                             pageType,
                             cacheComponents: isAppCacheComponentsEnabled,
                             partialPrefetching: config.partialPrefetching,
+                            authInterrupts: isAuthInterruptsEnabled,
                             useCacheTimeout:
                               config.experimental.useCacheTimeout,
                             durableUseCacheEntries: Boolean(
@@ -3470,7 +3472,7 @@ export default async function build(
           }
 
           writeTurborepoAccessTraceResult({
-            distDir: config.distDir,
+            distDir: buildDistDir,
             traces: [
               turborepoAccessTraceResult,
               ...exportResult.turborepoAccessTraceResults.values(),
@@ -4934,7 +4936,7 @@ export default async function build(
         traceUploadUrl,
         mode: 'build',
         projectDir: dir,
-        distDir: loadedConfig.distDir,
+        distDir: getBuildDistDir(loadedConfig),
         isTurboSession: bundler === Bundler.Turbopack,
         sync: true,
       })
