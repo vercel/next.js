@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, readFile, rm, writeFile } from 'fs/promises'
+import { mkdtemp, mkdir, rm, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import spawn from 'next/dist/compiled/cross-spawn'
@@ -10,7 +10,7 @@ import {
   isUpgradeReleaseAllowed,
   assertToolReleaseAllowed,
   type ReleaseAgePolicy,
-} from 'next/dist/lib/upgrade/release-age'
+} from './release-age'
 
 jest.mock('next/dist/compiled/cross-spawn', () => ({
   __esModule: true,
@@ -44,11 +44,21 @@ describe('upgrade release age', () => {
     )
   })
 
-  it('preserves npm source precedence and ignores publishConfig', async () => {
-    const output = await readFile(
-      join(__dirname, 'fixtures/npm-12.txt'),
-      'utf8'
-    )
+  it('preserves npm source precedence and ignores publishConfig', () => {
+    const output = `; "default" config from default values
+before = null
+; min-release-age = null ; overridden by project
+; min-release-age-exclude = [] ; overridden by project
+; "user" config from /user/.npmrc
+before = "2026-10-01T00:00:00.000Z"
+; "project" config from /app/.npmrc
+min-release-age = 2
+min-release-age-exclude = ["next", "@next/*"]
+; "publishConfig" from /app/package.json
+before = null
+min-release-age = 0
+min-release-age-exclude = ["*"]
+`
     expect(parseNpmReleaseAge(output, false)).toEqual({
       manager: 'npm',
       before,
@@ -61,11 +71,15 @@ describe('upgrade release age', () => {
     })
   })
 
-  it('uses npm 11 synthesized before without honoring unknown exemptions', async () => {
-    const output = await readFile(
-      join(__dirname, 'fixtures/npm-11.txt'),
-      'utf8'
-    )
+  it('uses npm 11 synthesized before without honoring unknown exemptions', () => {
+    const output = `; "default" config from default values
+; before = null ; overridden by project
+; min-release-age = null ; overridden by project
+; "project" config from /app/.npmrc
+before = "2026-10-10T12:00:00.000Z"
+min-release-age = 2
+min-release-age-exclude = ["*"]
+`
     expect(parseNpmReleaseAge(output, false)).toEqual({
       manager: 'npm',
       before,
