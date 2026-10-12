@@ -1,0 +1,9 @@
+@import 'tailwindcss';
+
+:root {
+  --repro-marker: 'INITIAL_MARKER';
+}
+
+#target::after {
+  content: var(--repro-marker);
+}
