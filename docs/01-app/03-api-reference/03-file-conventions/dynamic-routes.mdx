@@ -200,27 +200,30 @@ async function Content({ slug }: { slug: string }) {
 
 Provide params ahead of time to prerender pages at build time. You can prerender all routes or a subset depending on your needs.
 
+Param values remain URL-specific, so access `params` inside `<Suspense>` to preserve instant navigation with [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching).
+
 During the build process, the route is executed with each sample param to collect the HTML result. If dynamic content or runtime data are accessed incorrectly, the build will fail.
 
-```tsx filename="app/blog/[slug]/page.tsx" highlight={3-5,8,19}
+```tsx filename="app/blog/[slug]/page.tsx" highlight={3-5,11-12,18-19,30}
 import { Suspense } from 'react'
 
 export async function generateStaticParams() {
   return [{ slug: '1' }, { slug: '2' }, { slug: '3' }]
 }
 
-export default async function Page({ params }: PageProps<'/blog/[slug]'>) {
-  const { slug } = await params
-
+export default function Page({ params }: PageProps<'/blog/[slug]'>) {
   return (
     <div>
       <h1>Blog Post</h1>
-      <Content slug={slug} />
+      <Suspense fallback={<div>Loading...</div>}>
+        <Content params={params} />
+      </Suspense>
     </div>
   )
 }
 
-async function Content({ slug }: { slug: string }) {
+async function Content({ params }: Pick<PageProps<'/blog/[slug]'>, 'params'>) {
+  const { slug } = await params
   const post = await getPost(slug)
   return (
     <article>
@@ -236,8 +239,6 @@ async function getPost(slug: string) {
   return res.json()
 }
 ```
-
-> **Good to know**: `generateStaticParams` doesn't exempt a route from instant-navigation validation. With [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching) enabled, awaiting `params` at the top of the page, as above, reports the [URL data outside of Suspense](/docs/messages/instant-shell-url-data) insight, because a param value belongs to one URL and can't be part of an [App Shell](/docs/app/glossary#app-shell) shared across links. To keep navigations to the route instant, pass the `params` promise to a child inside `<Suspense>`, or export [`instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) from the segment.
 
 Build-time validation only covers code paths that execute with the sample params. If your route has conditional logic that accesses runtime APIs for certain param values not in your samples, those branches won't be validated at build time:
 
