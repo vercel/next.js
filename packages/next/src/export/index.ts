@@ -3,6 +3,7 @@ import type {
   ExportAppOptions,
   WorkerRenderOptsPartial,
   ExportPagesResult,
+  ExportPagesInput,
   ExportPathEntry,
 } from './types'
 import {
@@ -81,6 +82,7 @@ import {
   getExportPathPageKey,
   getRenderResumeDataCachesForBatch,
 } from './render-resume-data-cache-batches'
+import { assertExportPagesInputFitsInIpcMessage } from './ipc-message-size'
 
 export class ExportError extends Error {
   code = 'NEXT_EXPORT_ERROR'
@@ -727,8 +729,8 @@ async function exportAppImpl(
 
     return (
       await Promise.all(
-        batches.map(async (batch) =>
-          worker.exportPages({
+        batches.map(async (batch) => {
+          const input: ExportPagesInput = {
             buildId,
             deploymentId: nextConfig.deploymentId,
             clientAssetToken: nextConfig.supportsImmutableAssets
@@ -755,8 +757,22 @@ async function exportAppImpl(
               renderResumeDataCachesByPage,
               batch
             ),
-          })
-        )
+          }
+
+          // The seeds can be large, so make sure the call can still be sent
+          // to the worker, and fail with an actionable error if it can't.
+          if (input.renderResumeDataCachesByPage) {
+            assertExportPagesInputFitsInIpcMessage(
+              input,
+              batch.length,
+              nextConfig.experimental.workerThreads
+                ? 'worker-thread'
+                : 'child-process'
+            )
+          }
+
+          return worker.exportPages(input)
+        })
       )
     ).flat()
   }
