@@ -94,19 +94,48 @@ interface BundledDocsInfo {
 
 /**
  * Next.js ships its documentation inside the published package (at
- * `dist/docs`) since 16.2.0. When the install resolved from `cwd` has
- * bundled docs, the index can point at them directly instead of
- * downloading a copy into `.next-docs`.
+ * `dist/docs`) since 16.2.0. When an installed `next` of the requested
+ * `version` has bundled docs, the index can point at them directly instead
+ * of downloading a copy into `.next-docs`.
+ *
+ * The install resolved from `cwd` wins; otherwise the workspace packages are
+ * searched.
  */
-export function getBundledDocsInfo(cwd: string): BundledDocsInfo | null {
+export function getBundledDocsInfo(
+  cwd: string,
+  version: string
+): BundledDocsInfo | null {
+  const fromCwd = getBundledDocsInfoFrom(cwd)
+  if (fromCwd?.version === version) {
+    return fromCwd
+  }
+
+  // Mirror getNextjsVersion: with isolated installs (pnpm), `next` is often
+  // only resolvable from the workspace package that depends on it, not from
+  // the repo root. Use the first package, in workspace order, that ships
+  // bundled docs for the requested version.
+  const workspace = detectWorkspace(cwd)
+  if (workspace.isMonorepo) {
+    for (const pkgPath of expandWorkspacePatterns(cwd, workspace.packages)) {
+      const info = getBundledDocsInfoFrom(pkgPath)
+      if (info?.version === version) {
+        return info
+      }
+    }
+  }
+
+  return null
+}
+
+function getBundledDocsInfoFrom(dir: string): BundledDocsInfo | null {
   try {
-    const nextPkgPath = require.resolve('next/package.json', { paths: [cwd] })
+    const nextPkgPath = require.resolve('next/package.json', { paths: [dir] })
     const pkg = JSON.parse(fs.readFileSync(nextPkgPath, 'utf-8'))
     const docsPath = path.join(path.dirname(nextPkgPath), 'dist', 'docs')
     if (!pkg.version || collectDocFiles(docsPath).length === 0) {
       return null
     }
-    return { docsPath, version: pkg.version, resolvedFrom: cwd }
+    return { docsPath, version: pkg.version, resolvedFrom: dir }
   } catch {
     return null
   }
