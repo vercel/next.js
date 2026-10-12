@@ -23,19 +23,19 @@ jest.mock('next/dist/cli/next-upgrade', () => ({
   spawnNextUpgrade: jest.fn(),
 }))
 jest.mock(
-  '../../packages/next/src/cli/next-upgrade.js',
+  '../../packages/next-upgrade/src/cli/next-upgrade.js',
   () => jest.requireMock('next/dist/cli/next-upgrade'),
   { virtual: true }
 )
 
 // Read source so version cases run before the package build inlines __NEXT_VERSION.
 jest.mock('next/dist/lib/upgrade/nudge', () =>
-  jest.requireActual('../../packages/next/src/lib/upgrade/nudge')
+  jest.requireActual('../../packages/next-upgrade/src/lib/upgrade/nudge')
 )
 jest.mock('../../packages/next/src/telemetry/agent-name', () =>
   jest.requireMock('next/dist/telemetry/agent-name')
 )
-jest.mock('../../packages/next/src/lib/upgrade/prepare-upgrade', () =>
+jest.mock('../../packages/next-upgrade/src/lib/upgrade/prepare-upgrade', () =>
   jest.requireMock('next/dist/lib/upgrade/prepare-upgrade')
 )
 jest.mock('../../packages/next/src/build/output/log', () =>
@@ -58,8 +58,8 @@ jest.mock('next/dist/build/output/log', () => ({
   warn: jest.fn(),
 }))
 
-jest.mock('../../packages/next/src/server/ci-info', () => ({ isCI: false }))
-jest.mock('../../packages/next/src/lib/upgrade/prompt', () =>
+jest.mock('next/dist/server/ci-info', () => ({ isCI: false }))
+jest.mock('../../packages/next-upgrade/src/lib/upgrade/prompt', () =>
   jest.requireMock('next/dist/lib/upgrade/prompt')
 )
 jest.mock('next/dist/lib/upgrade/prompt', () => ({
@@ -340,7 +340,7 @@ describe('security upgrade nudge', () => {
       jest.isolateModules(() => {
         restartedNudge = jest.requireActual<{
           nudgeUpgrade: typeof nudgeUpgrade
-        }>('../../packages/next/src/lib/upgrade/nudge').nudgeUpgrade
+        }>('../../packages/next-upgrade/src/lib/upgrade/nudge').nudgeUpgrade
         jest
           .mocked(
             jest.requireMock<typeof import('next/dist/telemetry/agent-name')>(
@@ -366,7 +366,7 @@ describe('security upgrade nudge', () => {
       jest.isolateModules(() => {
         newSessionNudge = jest.requireActual<{
           nudgeUpgrade: typeof nudgeUpgrade
-        }>('../../packages/next/src/lib/upgrade/nudge').nudgeUpgrade
+        }>('../../packages/next-upgrade/src/lib/upgrade/nudge').nudgeUpgrade
         jest
           .mocked(
             jest.requireMock<typeof import('next/dist/telemetry/agent-name')>(
@@ -800,7 +800,7 @@ describe('human upgrade nudge', () => {
   beforeEach(() => {
     jest.resetAllMocks()
     mockPreferencesDirectory = join(directory, 'preferences')
-    jest.requireMock('../../packages/next/src/server/ci-info').isCI = false
+    jest.requireMock('next/dist/server/ci-info').isCI = false
     for (const stream of [process.stdin, process.stdout]) {
       Object.defineProperty(stream, 'isTTY', {
         configurable: true,
@@ -1250,7 +1250,7 @@ describe('human upgrade nudge', () => {
     'does not request metadata or prompt with ineligible %s',
     async (reason) => {
       if (reason === 'CI') {
-        jest.requireMock('../../packages/next/src/server/ci-info').isCI = true
+        jest.requireMock('next/dist/server/ci-info').isCI = true
       } else if (reason === 'TERM') {
         process.env.TERM = 'dumb'
       } else {

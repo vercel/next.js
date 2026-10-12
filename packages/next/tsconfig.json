@@ -9,7 +9,12 @@
     "target": "ES2018",
     "moduleResolution": "bundler",
     "types": ["trusted-types", "jest", "node"],
+    // Preserve relative imports across the source-only upgrade extraction.
+    "rootDirs": ["./src", "../next-upgrade/src"],
     "paths": {
+      "next/dist/cli/next-upgrade": ["../next-upgrade/src/cli/next-upgrade.ts"],
+      "next/dist/lib/upgrade/*": ["../next-upgrade/src/lib/upgrade/*"],
+      "next/dist/*": ["./src/*"],
       // Required absolute paths.
       // We rewrite these here so that they aren't also input files which would fail tsc with
       // "Cannot write file ... because it would overwrite input file."
@@ -32,6 +37,7 @@
       "next/dist/shared/lib/image-loader": ["./src/shared/lib/image-loader.ts"]
     }
   },
+  "include": ["**/*", "../next-upgrade/src/**/*"],
   // When changing `exclude`, also update
   // `tsconfig.build.json`.
   "exclude": [

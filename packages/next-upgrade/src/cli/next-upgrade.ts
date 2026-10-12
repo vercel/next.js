@@ -4,22 +4,22 @@ import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
 import { dirname, join, resolve as resolvePath } from 'path'
 import { major, prerelease, valid } from 'next/dist/compiled/semver'
-import * as Log from '../build/output/log'
-import createSpinner from '../build/spinner'
-import { findDir } from '../lib/find-pages-dir'
-import { getProjectDir } from '../lib/get-project-dir'
-import { warnMissingReactDependencies } from '../lib/warn-missing-react-dependencies'
-import { getNpxCommand } from '../lib/helpers/get-npx-command'
+import * as Log from 'next/dist/build/output/log'
+import createSpinner from 'next/dist/build/spinner'
+import { findDir } from 'next/dist/lib/find-pages-dir'
+import { getProjectDir } from 'next/dist/lib/get-project-dir'
+import { warnMissingReactDependencies } from 'next/dist/lib/warn-missing-react-dependencies'
+import { getNpxCommand } from 'next/dist/lib/helpers/get-npx-command'
 import {
   getPkgManager,
   type PackageManager,
-} from '../lib/helpers/get-pkg-manager'
-import { interopDefault } from '../lib/interop-default'
-import { dim } from '../lib/picocolors'
+} from 'next/dist/lib/helpers/get-pkg-manager'
+import { interopDefault } from 'next/dist/lib/interop-default'
+import { dim } from 'next/dist/lib/picocolors'
 import type { UpgradeDocument } from '../lib/upgrade/future-defaults'
 import { getInstalledNextVersion } from '../lib/upgrade/prepare-upgrade'
 import { runChildProcess } from '../lib/upgrade/run-child-process'
-import { getAgentName } from '../telemetry/agent-name'
+import { getAgentName } from 'next/dist/telemetry/agent-name'
 import {
   eventAgentUpgradeAgentResult,
   eventAgentUpgradeCLIResult,
@@ -27,11 +27,11 @@ import {
   type AgentUpgradeCLIResult,
   type AgentUpgradeHandoffMethod,
   type AgentUpgradePolicy,
-} from '../telemetry/events/agent-upgrade'
-import { Telemetry } from '../telemetry/storage'
-import loadConfig from '../server/config'
-import { normalizeConfig } from '../server/config-shared'
-import { PHASE_PRODUCTION_BUILD } from '../shared/lib/constants'
+} from 'next/dist/telemetry/events/agent-upgrade'
+import { Telemetry } from 'next/dist/telemetry/storage'
+import loadConfig from 'next/dist/server/config'
+import { normalizeConfig } from 'next/dist/server/config-shared'
+import { PHASE_PRODUCTION_BUILD } from 'next/dist/shared/lib/constants'
 
 type NextUpgradeOptions = {
   revision: string

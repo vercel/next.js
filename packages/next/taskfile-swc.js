@@ -112,6 +112,10 @@ module.exports = function (task) {
       const swcOptions = isClient ? swcClientOptions : swcServerOptions
 
       const filePath = path.join(file.dir, file.base)
+      const sourcePath = filePath.replace(
+        /^\.\.[/\\]next-upgrade[/\\]src[/\\]/,
+        'src/'
+      )
       const fullFilePath = path.join(__dirname, filePath)
       const distFilePath = path.dirname(
         // we must strip src from filePath as it isn't carried into
@@ -119,7 +123,7 @@ module.exports = function (task) {
         path.join(
           __dirname,
           esm ? 'dist/esm' : 'dist',
-          filePath.replace(/^src[/\\]/, '')
+          sourcePath.replace(/^src[/\\]/, '')
         )
       )
 
@@ -132,7 +136,24 @@ module.exports = function (task) {
         ...swcOptions,
       }
 
-      const source = file.data.toString('utf-8')
+      let source = file.data.toString('utf-8')
+      if (sourcePath !== filePath) {
+        // Keep the original CJS and ESM module graphs when merging upgrade
+        // source into Next.js' existing dist layout.
+        source = source.replace(
+          /(['"])next\/dist\/(?!compiled\/)([^'"]+)\1/g,
+          (_match, quote, importedPath) => {
+            const relativeImport = path
+              .relative(
+                path.dirname(sourcePath),
+                path.join('src', importedPath)
+              )
+              .split(path.sep)
+              .join('/')
+            return `${quote}${relativeImport.startsWith('.') ? relativeImport : `./${relativeImport}`}${quote}`
+          }
+        )
+      }
       const output = yield transform(source, options)
       const ext = path.extname(file.base)
 

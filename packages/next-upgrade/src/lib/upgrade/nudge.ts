@@ -5,19 +5,19 @@ import { basename, dirname, join, relative, resolve } from 'path'
 import { promisify } from 'util'
 import { updateInitialEnv } from '@next/env'
 
-import * as Log from '../../build/output/log'
-import type { NextConfigComplete } from '../../server/config-shared'
-import type { Telemetry } from '../../telemetry/storage'
+import * as Log from 'next/dist/build/output/log'
+import type { NextConfigComplete } from 'next/dist/server/config-shared'
+import type { Telemetry } from 'next/dist/telemetry/storage'
 import {
   eventAgentUpgradeNudgeDecision,
   eventAgentUpgradeNudgeShown,
   eventAgentUpgradePolicyDetected,
-} from '../../telemetry/events/agent-upgrade'
+} from 'next/dist/telemetry/events/agent-upgrade'
 import semver from 'next/dist/compiled/semver'
 import type { UpgradeAction } from './prompt'
-import { getAgentName } from '../../telemetry/agent-name'
+import { getAgentName } from 'next/dist/telemetry/agent-name'
 import { getPendingFutureDefaults } from './future-defaults'
-import { isCI } from '../../server/ci-info'
+import { isCI } from 'next/dist/server/ci-info'
 
 type NudgeOptions = {
   directory: string

@@ -1,10 +1,10 @@
 import path from 'path'
-import * as Log from '../../build/output/log'
-import { Telemetry } from '../../telemetry/storage'
+import * as Log from 'next/dist/build/output/log'
+import { Telemetry } from 'next/dist/telemetry/storage'
 
 import { once } from 'events'
 import { setTimeout as sleep } from 'timers/promises'
-import { isColorSupported } from '../picocolors'
+import { isColorSupported } from 'next/dist/lib/picocolors'
 
 import type { ChildProcess } from 'child_process'
 import type { NudgeKind, UpgradeContext, UpgradeReminder } from './nudge'

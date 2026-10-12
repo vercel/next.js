@@ -86,7 +86,7 @@
   "scripts": {
     "dev": "cross-env NEXT_SERVER_NO_MANGLE=1 taskr",
     "build": "taskr release",
-    "types": "tsc --project tsconfig.build.json --declaration --emitDeclarationOnly --stripInternal --declarationDir dist",
+    "types": "taskr generate_types",
     "typescript": "tsc --noEmit",
     "ncc-compiled": "taskr ncc",
     "storybook": "BROWSER=none storybook dev -p 6006",
