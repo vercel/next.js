@@ -116,7 +116,7 @@ min-release-age-exclude = ["*"]
     jest.mocked(spawn.sync).mockImplementation((_command, args) => {
       return {
         status: 0,
-        stdout: args.includes('--version') ? '10.33.0' : '',
+        stdout: args?.includes('--version') ? '10.33.0' : '',
       } as never
     })
     expect(readReleaseAgePolicy('/app', 'pnpm', false, 'next')).toEqual({
@@ -130,7 +130,7 @@ min-release-age-exclude = ["*"]
     jest.mocked(spawn.sync).mockImplementation((_command, args) => {
       return {
         status: 0,
-        stdout: args.includes('--version') ? '10.15.0' : '"2880"',
+        stdout: args?.includes('--version') ? '10.15.0' : '"2880"',
       } as never
     })
     expect(readReleaseAgePolicy('/app', 'pnpm', true, 'next')).toEqual({
