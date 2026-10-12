@@ -1,0 +1,19 @@
+error - [parse] /turbopack/crates/turbopack-tests/tests/snapshot/css/named-container-query/input/style.css:31:10  Parsing CSS source code failed
+      27 |   }
+      28 | }
+      29 | 
+      30 | /* Invalid container names must still be reported. */
+         +           v
+      31 + @container none {
+         +           ^
+      32 |   .reserved-name {
+      33 |     color: green;
+      34 |   }
+      35 | }
+  
+  Unexpected token Ident("none")
+  
+  Import trace:
+    test:
+      ./turbopack/crates/turbopack-tests/tests/snapshot/css/named-container-query/input/style.css
+      ./turbopack/crates/turbopack-tests/tests/snapshot/css/named-container-query/input/index.js

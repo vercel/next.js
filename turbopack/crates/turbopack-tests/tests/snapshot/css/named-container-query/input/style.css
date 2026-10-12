@@ -1,11 +1,11 @@
 /*
  * https://github.com/vercel/next.js/issues/98261
  *
- * A name-only `@container <name>` rule is valid CSS, but with `error_recovery`
- * enabled lightningcss (1.0.0-alpha.72) still warns `EndOfInput` for the empty
- * container condition, which is reported as a parse error issue. The rule itself
- * is kept in the output. Once lightningcss is fixed, the issue snapshot should
- * disappear.
+ * A name-only `@container <name>` rule is valid CSS. With `error_recovery`
+ * enabled, lightningcss (1.0.0-alpha.72) reports a false-positive
+ * `EndOfInput` warning for it and keeps an empty condition. turbopack-css
+ * drops that warning and normalizes the condition, so this file must produce
+ * no issue for it and print it as `@container scroll-content {`.
  */
 @supports (container-type: inline-size scroll-state) {
   @container scroll-content {
@@ -24,5 +24,18 @@
 @container scroll-state(scrollable: top) {
   .scroll-state {
     color: blue;
+  }
+}
+
+/* Invalid container names must still be reported. */
+@container none {
+  .reserved-name {
+    color: green;
+  }
+}
+
+@container inherit {
+  .css-wide-keyword {
+    color: green;
   }
 }

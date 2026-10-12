@@ -1,0 +1,19 @@
+error - [parse] /turbopack/crates/turbopack-tests/tests/snapshot/css/named-container-query/input/style.css:37:10  Parsing CSS source code failed
+      33 |     color: green;
+      34 |   }
+      35 | }
+      36 | 
+         +           v
+      37 + @container inherit {
+         +           ^
+      38 |   .css-wide-keyword {
+      39 |     color: green;
+      40 |   }
+      41 | }
+  
+  Unexpected token Ident("inherit")
+  
+  Import trace:
+    test:
+      ./turbopack/crates/turbopack-tests/tests/snapshot/css/named-container-query/input/style.css
+      ./turbopack/crates/turbopack-tests/tests/snapshot/css/named-container-query/input/index.js
