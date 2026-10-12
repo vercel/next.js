@@ -41,7 +41,6 @@ pub struct Cancellation {
     builds: AtomicUsize,
 
     module_configs: AtomicUsize,
-    #[turbo_tasks(trace_ignore)]
     toolchain: PreparedToolchain,
 }
 // Session cancellation and counters contain no task values or references.

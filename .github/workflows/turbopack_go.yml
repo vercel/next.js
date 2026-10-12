@@ -44,4 +44,6 @@ jobs:
           go-version: ${{ matrix.go }}
           cache: false
       - name: Test native Go bundles and CLI
+        env:
+          TURBOPACK_GO: go
         run: cargo test -p turbopack-go-toolchain -p turbopack-go -p turbopack-cli
