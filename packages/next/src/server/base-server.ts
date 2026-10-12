@@ -2819,6 +2819,7 @@ export default abstract class Server<
           }
 
           if (matchedRoute) {
+            addRequestMeta(req, 'devPrerenderedRouteMatch', matchedRoute)
             // Shell requests keep the matched route's fallback params unknown.
             // Ordinary requests use stagedFallbackParams below to determine
             // which params resolve in the static phase.

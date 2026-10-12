@@ -45,6 +45,7 @@ import {
   buildDynamicSegmentPlaceholder,
   createOpaqueFallbackRouteParams,
   type OpaqueFallbackRouteParams,
+  excludePrerenderableParams,
 } from '../../server/request/fallback-params' with { 'turbopack-transition': 'next-server-utility' }
 import { setManifestsSingleton } from '../../server/app-render/manifests-singleton' with { 'turbopack-transition': 'next-server-utility' }
 import { shouldServeStreamingMetadata } from '../../server/lib/streaming-metadata' with { 'turbopack-transition': 'next-server-utility' }
@@ -290,6 +291,9 @@ export function createAppPageEntrypoint({
       prerenderManifest
     )
     const prerenderInfo = prerenderMatch?.route ?? null
+    const devPrerenderedRouteMatch = routeModule.isDev
+      ? getRequestMeta(req, 'devPrerenderedRouteMatch')
+      : undefined
 
     // A sibling's prerender must not change this route's rendering mode or
     // supply prefetch metadata for its response.
@@ -442,6 +446,7 @@ export function createAppPageEntrypoint({
 
     // When enabled, this will allow the use of the `?__nextppronly` query to
     // enable debugging of the static shell.
+    // TODO: make this disjoint from `fallback`, not a subset
     const hasDebugStaticShellQuery =
       process.env.__NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING === '1' &&
       typeof query.__nextppronly !== 'undefined' &&
@@ -606,14 +611,16 @@ export function createAppPageEntrypoint({
           isDynamicRSCRequest)
 
     const remainingPrerenderableParams =
-      prerenderInfo?.remainingPrerenderableParams ?? []
+      (devPrerenderedRouteMatch
+        ? devPrerenderedRouteMatch.remainingPrerenderableParams
+        : prerenderInfo?.remainingPrerenderableParams) ?? []
+
     const remainingFallbackRouteParams = nextConfig.cacheComponents
-      ? (prerenderInfo?.fallbackRouteParams?.filter(
-          (param) =>
-            !remainingPrerenderableParams.some(
-              (prerenderableParam) =>
-                prerenderableParam.paramName === param.paramName
-            )
+      ? (excludePrerenderableParams(
+          devPrerenderedRouteMatch
+            ? devPrerenderedRouteMatch.fallbackRouteParams
+            : prerenderInfo?.fallbackRouteParams,
+          remainingPrerenderableParams
         ) ?? [])
       : []
     // Concrete optional routes like `/optional-catchall` can still match their
@@ -641,11 +648,13 @@ export function createAppPageEntrypoint({
     // - Root params and other prerenderable params use concrete values.
     // - Never-prerenderable params remain placeholders.
     // The values of those placeholder params must not partition the cache.
-    const fallbackPathname = prerenderMatch
-      ? typeof prerenderInfo?.fallback === 'string'
-        ? prerenderInfo.fallback
-        : prerenderMatch.source
-      : null
+    const fallbackPathname =
+      devPrerenderedRouteMatch?.pathname ??
+      (prerenderMatch
+        ? typeof prerenderInfo?.fallback === 'string'
+          ? prerenderInfo.fallback
+          : prerenderMatch.source
+        : null)
     let shellCacheKey: string | null = null
     if (
       nextConfig.cacheComponents &&
@@ -1246,23 +1255,19 @@ export function createAppPageEntrypoint({
             // below. Only production, forced background work, and explicit
             // shell debugging may enter fallback prerender handling.
             (isProduction || forceStaticRender || isDebugPrerender) &&
+            // Exception: When debugging a static shell (but not a fallback shell),
+            // we want to fill in all prerenderable params. If no fallback params
+            // remain after excluding the prerenderable ones, we do a concrete prerender instead.
+            (!isDebugFallbackShell && isDebugStaticShell
+              ? remainingFallbackRouteParams.length > 0
+              : true) &&
             !isMinimalMode &&
             fallbackMode !== FallbackMode.BLOCKING_STATIC_RENDER &&
             staticPathKey &&
             !didRespond &&
             !isDraftMode &&
             pageIsDynamic &&
-            (isProduction || !isPrerendered) &&
-            // Exception: When debugging a static shell, we want to fill in all
-            // prerenderable params.
-            // - In production, we only serve a fallback result if the page has
-            //   non-prerenderable params, and otherwise do a concrete prerender instead.
-            // - In dev, we use this codepath to generate all debug prerenders of pages
-            //   with params.
-            // TODO: the flow/structure here is very convoluted
-            (isDebugStaticShell && isProduction
-              ? remainingFallbackRouteParams.length > 0
-              : true)
+            (isProduction || !isPrerendered)
           ) {
             // When cacheComponents is enabled, we can use the fallback
             // response if the request is not a dynamic RSC request because the
@@ -1281,35 +1286,37 @@ export function createAppPageEntrypoint({
                   : normalizedSrcPage
 
               let fallbackRouteParams: OpaqueFallbackRouteParams | null
+              // TODO: dedupe this with the dev branch maybe
               if (isProduction) {
                 // In production, rely on the prerender manifest's fallback
                 // entry — the authoritative set computed at build time by
                 // `buildAppStaticPaths`.
                 if (prerenderInfo?.fallbackRouteParams) {
-                  // If we're debugging a static shell and some of the fallback params are prerenderable,
-                  // make them concrete to simulate a scenario where they've already been prerendered.
-                  // Only non-prerenderable params stay as fallbacks.
-                  if (isDebugStaticShell && fallbackPathname !== null) {
+                  if (isDebugFallbackShell) {
+                    fallbackRouteParams = createOpaqueFallbackRouteParams(
+                      prerenderInfo.fallbackRouteParams
+                    )
+                  } else if (isDebugStaticShell) {
+                    // If we're debugging a static shell and some of the fallback params are prerenderable,
+                    // make them concrete to simulate a scenario where they've already been prerendered.
+                    // Only non-prerenderable params stay as fallbacks.
                     fallbackRouteParams = createOpaqueFallbackRouteParams(
                       remainingFallbackRouteParams
                     )
-                    const keyWithAllPrerenderableParams =
-                      buildCompletedShellCacheKey(
-                        fallbackPathname,
-                        remainingFallbackRouteParams,
-                        params
-                      )
-                    fallbackCacheKey = keyWithAllPrerenderableParams
+                    if (fallbackPathname !== null) {
+                      const keyWithAllPrerenderableParams =
+                        buildCompletedShellCacheKey(
+                          fallbackPathname,
+                          remainingPrerenderableParams,
+                          params
+                        )
+                      fallbackCacheKey = keyWithAllPrerenderableParams
+                    }
                   } else {
                     fallbackRouteParams = createOpaqueFallbackRouteParams(
                       prerenderInfo.fallbackRouteParams
                     )
                   }
-                } else if (isDebugFallbackShell) {
-                  fallbackRouteParams = getFallbackRouteParams(
-                    normalizedSrcPage,
-                    routeModule
-                  )
                 } else {
                   fallbackRouteParams = null
                 }
@@ -1320,36 +1327,35 @@ export function createAppPageEntrypoint({
                 // passes the source's fallback params in request metadata.
                 // These renders need the source set, not the completed target's
                 // potentially smaller `stagedFallbackParams`.
+                // TODO: update comment above?
                 if (isDebugFallbackShell) {
+                  // TODO: use the dev prerender match instead?
+                  // does this even include root params? are we testing that at all?
                   fallbackRouteParams = getFallbackRouteParams(
                     normalizedSrcPage,
                     routeModule
                   )
                 } else if (isDebugStaticShell) {
-                  // If base-server determined that we should use a smaller set of
-                  // fallback params because some of them are prerenderable, then
-                  // we should use that instead of the full set.
-                  // This can happen:
-                  // - on a route like "/[static]" for a parameter that is not in gSP
-                  // - on a route like "/[static]/[dynamic]/", where
-                  //  the first param is prerenderable but the second isn't
-                  // In both cases the `[static]` param should not be a fallback in the
-                  // debug static shell.
-                  const stagedFallbackParams = getRequestMeta(
-                    req,
-                    'stagedFallbackParams'
+                  fallbackRouteParams = createOpaqueFallbackRouteParams(
+                    remainingFallbackRouteParams
                   )
-                  fallbackRouteParams =
-                    // NOTE: `null` signals that none of the params should be fallback.
-                    stagedFallbackParams !== undefined
-                      ? stagedFallbackParams
-                      : (getRequestMeta(req, 'fallbackRouteParams') ?? null)
+
+                  if (fallbackPathname !== null) {
+                    const keyWithAllPrerenderableParams =
+                      buildCompletedShellCacheKey(
+                        fallbackPathname,
+                        remainingPrerenderableParams,
+                        params
+                      )
+                    fallbackCacheKey = keyWithAllPrerenderableParams
+                  }
                 } else {
                   fallbackRouteParams = null
                 }
               }
 
               // Debug rendering stages the params of the selected source shell.
+              // TODO: does it though? this is a prerender, params are either included or not?
               if (isDebugStaticShell) {
                 addRequestMeta(req, 'stagedFallbackParams', fallbackRouteParams)
               }
@@ -1643,12 +1649,16 @@ export function createAppPageEntrypoint({
               hasPlaceholderFallbackRouteParams ||
               (isDebugStaticShell && !isPrerendered)) &&
             fallbackRouteParamsForRender
-              ? isDebugStaticShell &&
-                prerenderInfo &&
-                prerenderInfo.fallbackRouteParams
-                ? // For static shell debugging, we fill in all in prerenderable params
-                  createOpaqueFallbackRouteParams(remainingFallbackRouteParams)
-                : createOpaqueFallbackRouteParams(fallbackRouteParamsForRender)
+              ? isDebugFallbackShell
+                ? createOpaqueFallbackRouteParams(fallbackRouteParamsForRender)
+                : isDebugStaticShell
+                  ? // For static shell debugging, we fill in all in prerenderable params
+                    createOpaqueFallbackRouteParams(
+                      remainingFallbackRouteParams
+                    )
+                  : createOpaqueFallbackRouteParams(
+                      fallbackRouteParamsForRender
+                    )
               : // For intermediate shells where some params are resolved and
                 // others still have placeholders, use the filtered subset so the
                 // prerender suspends only for the unresolved params.
